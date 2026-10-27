@@ -81,7 +81,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
     insights.push({ title: `${fmtInr(exposure)} of stock expires within 60 days`, body: `${ex60.length} batch${ex60.length > 1 ? "es" : ""} at risk. At current sell rates, about ${fmtInr(loss)} (cost) would go unsold.`, basis: "Batch expiry dates, 28-day average sales", href: "/app/expiry", cta: "Review batches" });
   }
   const runout = meds.map((m) => ({ m, s: sellable.get(m.id) ?? 0, v: vel.get(m.id) ?? 0 })).filter((x) => x.v >= 0.5 && x.s / x.v < 14).sort((a, b) => a.s / a.v - b.s / b.v)[0];
-  if (runout) insights.push({ title: `${runout.m.name} runs out in ~${Math.floor(runout.s / runout.v)} days`, body: `${runout.s} left, selling ${runout.v.toFixed(1)} a day.`, basis: "28-day sales velocity", href: "/app/purchases", cta: "Plan a purchase" });
+  if (runout) insights.push({ title: `${runout.m.name} runs out in ~${Math.floor(runout.s / runout.v)} days`, body: `${runout.s} left, selling ${runout.v.toFixed(1)} a day.`, basis: "28-day sales velocity", href: "#ai:Prepare a purchase order for review", cta: "Draft a PO with AI" });
 
   // Branch performance (period)
   const brs = await db.branch.findMany({ where: { tenantId, active: true, id: { in: branchIds } }, orderBy: { createdAt: "asc" } });

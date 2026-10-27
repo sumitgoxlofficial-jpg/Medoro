@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { askAi } from "@/components/shell/ai-drawer";
 import { useRouter } from "next/navigation";
 import {
   IndianRupee, Percent, Truck, Receipt, Users, CalendarClock, TrendingUp, TrendingDown, Sparkles, CloudCheck, CloudOff, Download, PackagePlus, CheckCircle2, Circle,
@@ -17,6 +18,7 @@ const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,2
 const rangeLabel = { today: "today", "7d": "last 7 days", "30d": "last 30 days" };
 
 function Go({ screen, href, children, className }: { screen: ScreenId; href: string; children: React.ReactNode; className?: string }) {
+  if (href.startsWith("#ai:")) return <button onClick={() => askAi(href.slice(4))} className={(className ?? "text-teal text-[13px] font-semibold") + " cursor-pointer"}>{children}</button>;
   return READY.has(screen) ? <Link href={href} className={className ?? "text-teal text-[13px] font-semibold hover:text-teal-hover"}>{children}</Link> : null;
 }
 

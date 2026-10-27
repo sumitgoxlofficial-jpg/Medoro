@@ -3,6 +3,7 @@ import { requireCtx } from "@/server/context";
 import { db } from "@/server/db";
 import { Shell } from "@/components/shell/shell";
 import { badgesAndAlerts } from "@/domain/reports/alerts";
+import { aiMode } from "@/domain/ai/service";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       tenantName={ctx.tenantName} branchCount={ctx.branches.length} userName={ctx.userName} userEmail={ctx.userEmail}
       role={ctx.role} realRole={ctx.realRole} canViewAs={user.role.permissions.includes("users")} perms={ctx.perms}
       branchId={ctx.branchId} branchName={ctx.branchName} branches={ctx.branches} lang={ctx.lang} mfa={user.mfaEnabled}
-      deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts}
+      deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts} aiMode={aiMode()}
     >
       {children}
     </Shell>
