@@ -11,7 +11,7 @@ import { cartTotals, inr, inr0, toPaise } from "@/lib/money";
 import { daysTo, monthYear, hhmm } from "@/lib/dates";
 import { isSellable, nextFefo } from "@/domain/inventory/fefo";
 import type { Invoice, SaleMedicine } from "@/domain/sales/service";
-import { addCustomerAction, commitSaleAction, holdAction, invoiceAction, recallAction, searchAction } from "./actions";
+import { addCustomerAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
 
 type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number };
 type Line = { key: string; medicineId: string; batchId: string; qty: number };
@@ -349,15 +349,35 @@ function RxTag({ s }: { s: string }) {
   return <span className="text-[11px] font-semibold text-bad border border-[#F0B8B2] rounded px-1">Rx {s}</span>;
 }
 
+const WA_STEPS = ["queued", "sent", "delivered", "read"] as const;
+
 function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConnected: boolean; onNew: () => void }) {
   const toast = useToast();
   const [phone, setPhone] = useState(""), [verified, setVerified] = useState(false);
-  useEffect(() => { setPhone(sale?.customer?.phone ?? ""); setVerified(false); }, [sale]);
+  const [msg, setMsg] = useState<{ status: string; attempts: number; error: string | null } | null>(null);
+  const [sending, setSending] = useState(false);
+  useEffect(() => { setPhone(sale?.customer?.phone ?? ""); setVerified(false); setMsg(null); }, [sale]);
+  // Delivery updates arrive through Meta's webhook; poll the stored status while the receipt is open.
+  useEffect(() => {
+    if (!sale || !msg || msg.status === "read" || msg.status === "failed") return;
+    const t = setInterval(() => messageStatusAction(sale.id).then((m) => m && setMsg(m)), 3000);
+    return () => clearInterval(t);
+  }, [sale, msg]);
   if (!sale) return null;
   const s = sale;
   const payLabel = s.payments.length > 1 ? s.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amount)}`).join(" + ") : s.payMode.toUpperCase();
   const print = (format: "thermal" | "a4") => { const w = window.open(`/print/invoice/${s.id}?format=${format}`, "_blank", "noopener"); if (!w) toast("Allow pop-ups to print invoices.", "amber"); };
   const when = new Date(s.at);
+  const failed = msg?.status === "failed";
+  const idx = msg ? WA_STEPS.indexOf(msg.status as (typeof WA_STEPS)[number]) : -1;
+  const canSend = verified && !sending && (!msg || (failed && msg.attempts < 3));
+  const send = async () => {
+    setSending(true);
+    const r = await sendInvoiceAction(s.id, phone, verified);
+    setSending(false);
+    if (!r.ok) { toast(r.error, "red"); setMsg(await messageStatusAction(s.id)); return; }
+    setMsg(await messageStatusAction(s.id));
+  };
   return (
     <Modal open onClose={onNew} width={900} className="overflow-hidden">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] -mx-6 -mb-5">
@@ -381,14 +401,25 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
             <div className="flex items-center gap-2 font-semibold text-[14px]"><MessageCircle size={18} className="text-ok" />Send invoice on WhatsApp</div>
             {waConnected ? (
               <>
-                <input value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d ]/g, "")); setVerified(false); }} placeholder="Customer mobile (10 digits)" className={inp + " text-[15px] tnum"} />
-                <Checkbox checked={verified} onChange={(e) => setVerified(e.target.checked)} label="I read the number back to the customer and they consent" />
-                <Button variant="primary" disabled={!verified} className="bg-ok border-ok" onClick={() => toast("WhatsApp sending is set up in the WhatsApp screen (coming next).", "amber")}>Send invoice PDF</Button>
+                <input value={phone} disabled={!!msg && !failed} onChange={(e) => { setPhone(e.target.value.replace(/[^\d ]/g, "")); setVerified(false); }} placeholder="Customer mobile (10 digits)" aria-label="WhatsApp number" className={inp + " text-[15px] tnum"} />
+                <Checkbox checked={verified} disabled={!!msg && !failed} onChange={(e) => setVerified(e.target.checked)} label="I read the number back to the customer and they consent" />
+                <button disabled={!canSend} onClick={send} className="text-white rounded-lg py-2.5 text-[14px] font-semibold cursor-pointer disabled:cursor-not-allowed" style={{ background: canSend ? "#1E7F4F" : "#A9CDB9" }}>
+                  {sending ? "Sending…" : !msg ? "Send invoice PDF" : failed ? (msg.attempts >= 3 ? "Retry limit reached" : "Retry send") : `Sent · ${msg.status}`}
+                </button>
+                <div className="flex gap-1 items-center">
+                  {WA_STEPS.map((k, i) => (
+                    <div key={k} className="flex-1 flex flex-col gap-1 items-center">
+                      <div className="w-full h-1 rounded-sm" style={{ background: failed ? (i === 0 ? "#B3261E" : "#CDD2D7") : i <= idx ? "#1E7F4F" : "#CDD2D7" }} />
+                      <span className="text-[11.5px]" style={{ color: i <= idx && !failed ? "#1F2328" : "#8A929A" }}>{k[0].toUpperCase() + k.slice(1)}</span>
+                    </div>
+                  ))}
+                </div>
+                {failed ? <div className="text-[12.5px] text-bad flex gap-1.5 items-center"><CircleAlert size={14} />Failed: {msg.error ?? "unknown"}. Fix the number and retry (max 3).</div> : null}
               </>
             ) : (
               <div className="text-[12.5px] text-muted flex gap-1.5"><CircleAlert size={14} className="mt-0.5 flex-none" />WhatsApp Business isn’t connected yet. An owner can connect it under WhatsApp.</div>
             )}
-            <div className="text-[11.5px] text-faint">PDF generated from the committed invoice on your server. Not stored by Medoro.</div>
+            <div className="text-[11.5px] text-faint">PDF generated from the committed invoice on your server. Prescriber details are left out. Not stored by Medoro.</div>
           </div>
           <Button variant="primary" size="lg" onClick={onNew} autoFocus>New sale</Button>
         </div>
