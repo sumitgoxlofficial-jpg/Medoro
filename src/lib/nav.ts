@@ -28,7 +28,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "pos", "inv"]);
+export const READY = new Set<ScreenId>(["dash", "pos", "inv", "parties"]);
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
 

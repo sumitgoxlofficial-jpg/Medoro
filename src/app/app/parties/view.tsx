@@ -1,0 +1,195 @@
+"use client";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Pencil, Truck, Users } from "lucide-react";
+import { Segmented } from "@/components/ui/segmented";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Empty } from "@/components/ui/card";
+import { Checkbox, Field, Input, Select } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
+import { inr, inr0 } from "@/lib/money";
+import { dayMonth } from "@/lib/dates";
+import { PAY_METHODS } from "@/domain/parties/contracts";
+import type { listCustomers, listSuppliers } from "@/domain/parties/service";
+import { paySupplierAction, receiveAction, saveCustomerAction, saveSupplierAction } from "./actions";
+
+type Sup = Awaited<ReturnType<typeof listSuppliers>>[number];
+type Cus = Awaited<ReturnType<typeof listCustomers>>[number];
+const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
+const td = "px-3.5 py-2.5 border-b border-row";
+const tableWrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto";
+
+export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canEditSup }: { tab: "sup" | "cus"; suppliers: Sup[]; customers: Cus[]; canPay: boolean; canCredit: boolean; canEditSup: boolean }) {
+  const router = useRouter();
+  const [supEdit, setSupEdit] = useState<Sup | null | "new">(null);
+  const [cusEdit, setCusEdit] = useState<Cus | null | "new">(null);
+  const [pay, setPay] = useState<{ kind: "sup" | "cus"; id: string; name: string; bal: number } | null>(null);
+  const [q, setQ] = useState("");
+  const match = (s: string | null) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
+
+  return (
+    <div className="flex flex-col gap-3.5 max-w-[1400px]">
+      <div className="flex gap-2.5 items-center flex-wrap">
+        <Segmented value={tab} onChange={(v) => router.replace(v === "cus" ? "/app/parties?tab=cus" : "/app/parties")} className="bg-[#EEF0F2]"
+          options={[{ value: "sup", label: `Suppliers (${suppliers.length})` }, { value: "cus", label: `Customers (${customers.length})` }]} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or phone" aria-label="Search parties" className="border border-input rounded-lg px-3 py-[7px] text-[13.5px] bg-white outline-none focus:border-teal w-[240px]" />
+        <div className="ml-auto">
+          {tab === "sup" ? (canEditSup ? <Button variant="primary" onClick={() => setSupEdit("new")}><Plus size={16} />Add supplier</Button> : null)
+            : <Button variant="primary" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>}
+        </div>
+      </div>
+
+      {tab === "sup" ? (
+        <div className={tableWrap}>
+          {suppliers.length ? (
+            <table className="w-full border-collapse min-w-[900px] text-[14px]">
+              <thead><tr className="bg-subtle"><th className={th}>Supplier</th><th className={th}>Credit terms</th><th className={th}>Lead time</th><th className={th}>Delivery accuracy</th><th className={th + " text-right"}>Payable</th><th className={th}>Next due</th><th className={th} /></tr></thead>
+              <tbody>
+                {suppliers.filter((s) => match(s.name) || match(s.phone)).map((s) => {
+                  const d = s.nextDue?.days;
+                  return (
+                    <tr key={s.id}>
+                      <td className={td}><div className="font-semibold">{s.name}</div><div className="text-[12px] text-muted font-mono">{s.gstin ?? "No GSTIN"}{s.phone ? ` · ${s.phone}` : ""}</div></td>
+                      <td className={td}>{s.creditDays} days</td>
+                      <td className={td}>{s.leadDays} d</td>
+                      <td className={td + " font-semibold"} style={{ color: s.accuracy >= 95 ? "#1E7F4F" : s.accuracy >= 90 ? "#94570A" : "#B3261E" }}>{s.accuracy}%</td>
+                      <td className={td + " text-right font-semibold tnum"}>{inr0(s.balance)}</td>
+                      <td className={td}>{s.nextDue ? <Badge tone={d! <= 3 ? "red" : d! <= 7 ? "amber" : "gray"}>{dayMonth(new Date(s.nextDue.date + "T00:00:00Z"))} ({d! < 0 ? `${-d!} d overdue` : `${d} d`})</Badge> : <span className="text-fainter">—</span>}</td>
+                      <td className={td + " text-right whitespace-nowrap"}>
+                        <div className="flex gap-1.5 justify-end">
+                          {canPay && s.balance > 0 ? <Button size="sm" onClick={() => setPay({ kind: "sup", id: s.id, name: s.name, bal: s.balance })}>Record payment</Button> : null}
+                          {canEditSup ? <Button size="sm" variant="ghost" aria-label={`Edit ${s.name}`} onClick={() => setSupEdit(s)}><Pencil size={13} /></Button> : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : <Empty icon={Truck} title="No suppliers yet" body="Add the distributors you buy from with their credit terms and lead time. They’re used for GRNs, payables and reorder planning." action={canEditSup ? <Button variant="primary" onClick={() => setSupEdit("new")}><Plus size={16} />Add supplier</Button> : null} />}
+        </div>
+      ) : (
+        <>
+          <div className={tableWrap}>
+            {customers.length ? (
+              <table className="w-full border-collapse min-w-[820px] text-[14px]">
+                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>WhatsApp consent</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
+                <tbody>
+                  {customers.filter((c) => match(c.name) || match(c.phone)).map((c) => (
+                    <tr key={c.id}>
+                      <td className={td}><div className="font-semibold">{c.name}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}</div></td>
+                      <td className={td}><Badge tone={c.optIn ? "green" : "gray"}>{c.optIn ? "Opted in" : "Not opted in"}</Badge></td>
+                      <td className={td + " text-right tnum"}>{c.limit ? inr0(c.limit) : "No credit"}</td>
+                      <td className={td + " text-right font-semibold tnum"} style={{ color: c.due > 0 ? "#B3261E" : "#5B636B" }}>{inr0(c.due)}</td>
+                      <td className={td + " text-muted"}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
+                      <td className={td + " text-right whitespace-nowrap"}>
+                        <div className="flex gap-1.5 justify-end">
+                          {canPay && c.due > 0 ? <Button size="sm" onClick={() => setPay({ kind: "cus", id: c.id, name: c.name, bal: c.due })}>Receive payment</Button> : null}
+                          <Button size="sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setCusEdit(c)}><Pencil size={13} /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <Empty icon={Users} title="No customers yet" body="Customers are optional. Add regulars who buy on credit or want invoices on WhatsApp." action={<Button variant="primary" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>} />}
+          </div>
+          <div className="text-[12.5px] text-muted">Profiles are optional. Only name and phone are stored. No diagnosis or prescription details are kept on the customer record.</div>
+        </>
+      )}
+
+      <SupplierModal edit={supEdit} canPay={canPay} onClose={() => setSupEdit(null)} />
+      <CustomerModal edit={cusEdit} canCredit={canCredit} canPay={canPay} onClose={() => setCusEdit(null)} />
+      <PayModal pay={pay} onClose={() => setPay(null)} />
+    </div>
+  );
+}
+
+function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; canPay: boolean; onClose: () => void }) {
+  const toast = useToast();
+  const isNew = edit === "new";
+  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, opening: "" });
+  const [err, setErr] = useState(""), [pending, start] = useTransition();
+  useEffect(() => {
+    setErr("");
+    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, opening: "" });
+    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, opening: "" });
+  }, [edit]);
+  const save = () => start(async () => {
+    const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f);
+    if (!r.ok) return setErr(r.error);
+    toast(r.message!, "green"); onClose();
+  });
+  return (
+    <Modal open={!!edit} onClose={onClose} title={isNew ? "Add supplier" : "Edit supplier"} width={520}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save supplier</Button></>}>
+      <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
+        <Field label="Name *" className="col-span-full"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
+        <Field label="GSTIN"><Input value={f.gstin} onChange={(e) => setF({ ...f, gstin: e.target.value.toUpperCase() })} className="font-mono" maxLength={15} /></Field>
+        <Field label="Phone"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
+        <Field label="Credit terms (days)"><Input value={f.creditDays} onChange={(e) => setF({ ...f, creditDays: e.target.value.replace(/\D/g, "") })} inputMode="numeric" /></Field>
+        <Field label="Lead time (days)" hint="Order to delivery. Used for reorder points."><Input value={f.leadDays} onChange={(e) => setF({ ...f, leadDays: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" /></Field>
+        {isNew && canPay ? <Field label="Opening balance you owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
+      </div>
+      <Checkbox checked={f.acceptsReturns} onChange={(e) => setF({ ...f, acceptsReturns: e.target.checked })} label="Accepts returns of near-expiry stock" />
+      {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+    </Modal>
+  );
+}
+
+function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null | "new"; canCredit: boolean; canPay: boolean; onClose: () => void }) {
+  const toast = useToast();
+  const isNew = edit === "new";
+  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
+  const [err, setErr] = useState(""), [pending, start] = useTransition();
+  useEffect(() => {
+    setErr("");
+    if (edit && edit !== "new") setF({ name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", opening: "" });
+    else setF({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
+  }, [edit]);
+  const save = () => start(async () => {
+    const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f);
+    if (!r.ok) return setErr(r.error);
+    toast(r.message!, "green"); onClose();
+  });
+  return (
+    <Modal open={!!edit} onClose={onClose} title={isNew ? "Add customer" : "Edit customer"} width={480}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save customer</Button></>}>
+      <Field label="Name *"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
+      <Field label="Mobile"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
+      <Field label="Credit limit ₹" hint={canCredit ? "0 means cash only." : "Only managers can change credit limits."}><Input value={f.creditLimit} disabled={!canCredit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field>
+      {isNew && canPay ? <Field label="Opening balance they owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
+      <Checkbox checked={f.waOptIn} onChange={(e) => setF({ ...f, waOptIn: e.target.checked })} label="Customer agrees to receive invoices and reminders on WhatsApp (recorded with your name and time)" />
+      {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+    </Modal>
+  );
+}
+
+function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; name: string; bal: number } | null; onClose: () => void }) {
+  const toast = useToast();
+  const [amount, setAmount] = useState(""), [method, setMethod] = useState<(typeof PAY_METHODS)[number]>("Cash"), [ref, setRef] = useState("");
+  const [err, setErr] = useState(""), [pending, start] = useTransition();
+  useEffect(() => { setAmount(""); setRef(""); setErr(""); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); }, [pay]);
+  if (!pay) return null;
+  const submit = () => start(async () => {
+    const input = { partyId: pay.id, amount, method, ref };
+    const r = pay.kind === "sup" ? await paySupplierAction(input) : await receiveAction(input);
+    if (!r.ok) return setErr(r.error);
+    toast(`${r.data} posted for ${inr(Math.round(parseFloat(amount) * 100))}.`, "green"); onClose();
+  });
+  return (
+    <Modal open onClose={onClose} title={pay.kind === "sup" ? "Record supplier payment" : "Receive customer payment"} sub={<>{pay.name} · outstanding <strong>{inr(pay.bal)}</strong></>} width={440}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit} disabled={pending}>Post voucher</Button></>}>
+      <div className="flex gap-2">
+        <Input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder="Amount ₹" aria-label="Amount" inputMode="decimal" className="text-[15px]" autoFocus />
+        <Button onClick={() => setAmount((pay.bal / 100).toFixed(2))} className="h-[38px]">Full</Button>
+      </div>
+      <Select value={method} onChange={(e) => setMethod(e.target.value as typeof method)} aria-label="Method">{PAY_METHODS.map((m) => <option key={m}>{m}</option>)}</Select>
+      {method !== "Cash" ? <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="UTR / cheque no. (optional)" /> : null}
+      <div className="text-[12px] text-faint">Posts a {pay.kind === "sup" ? "payment voucher (PV)" : "receipt voucher (RV)"}. Posted vouchers can only be reversed, not edited.</div>
+      {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+    </Modal>
+  );
+}
