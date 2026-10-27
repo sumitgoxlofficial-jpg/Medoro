@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css" rel="stylesheet">
+<style>html,body{margin:0;padding:0;background:#F5F6F7}*{box-sizing:border-box}a{color:#0B5E5B;text-decoration:none}a:hover{color:#094A48}</style>
+</helmet>
+<div data-screen-label="Medoro employee login" style="min-height:100vh;min-height:100dvh;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#1F2328;background:#F5F6F7;display:flex;flex-direction:column;line-height:1.45">
+  <header style="height:68px;display:flex;align-items:center;gap:16px;padding:0 clamp(16px,3vw,32px);border-bottom:1px solid #E6E8EB;background:#fff">
+    <a href="Medoro Website.dc.html" style="display:flex;align-items:center;gap:10px"><img src="assets/medoro-mark.png" alt="" style="width:32px"><span style="font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.02em;text-transform:uppercase"><span style="color:#0B3A78">Med</span><span style="color:#0A9A80">oro</span></span></a>
+    <span style="height:24px;padding:0 10px;border-radius:999px;background:#0E1A1F;color:#fff;font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center">Staff</span>
+    <a href="Medoro Website.dc.html" style="margin-left:auto;font-size:14px;font-weight:600;color:#3D454D;display:flex;gap:6px;align-items:center;white-space:nowrap" style-hover="color:#101418"><i class="icon-arrow-left" style="font-size:15px"></i>medoro.in</a>
+  </header>
+
+  <main style="flex:1;display:flex;align-items:center;justify-content:center;padding:clamp(24px,5vh,56px) 16px">
+    <div style="width:min(440px,100%);display:flex;flex-direction:column;gap:16px">
+      <div style="background:#fff;border:1px solid #E3E6E9;border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)">
+        <div style="display:flex;gap:12px;align-items:center"><span style="width:40px;height:40px;border-radius:10px;background:#0E1A1F;color:#5FD3BC;display:flex;align-items:center;justify-content:center;flex:none"><i class="icon-badge-check" style="font-size:20px"></i></span><div style="display:flex;flex-direction:column;line-height:1.3"><span style="font-size:20px;font-weight:600">Medoro employee login</span><span style="font-size:13px;color:#5B636B">For the Medoro team: support, billing, engineering</span></div></div>
+
+        <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ onSso }}" style="display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #CDD2D7;background:#fff;border-radius:10px;padding:12px;font-size:14.5px;font-weight:600;color:#1F2328;cursor:pointer" style-hover="border-color:#0B5E5B"><span style="width:20px;height:20px;border-radius:4px;background:#F2F4F5;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#2459C9">G</span>Continue with Google Workspace</button>
+          <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8A929A"><span style="flex:1;height:1px;background:#E6E8EB"></span>or<span style="flex:1;height:1px;background:#E6E8EB"></span></div>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Work email<input value="{{ email }}" onChange="{{ onEmail }}" placeholder="name@medoro.in" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none"></label>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Password<input type="password" value="{{ pwd }}" onChange="{{ onPwd }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none"></label>
+          <button onClick="{{ goSignup }}" style="display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed #9FCFC9;background:#F7FBFA;border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:#0B5E5B;cursor:pointer"><i class="icon-user-plus" style="font-size:16px"></i>New to the Medoro team? Create your profile</button>
+          <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;flex-wrap:wrap"><span style="color:#5B636B">Demo: anyone@medoro.in · password medoro-demo</span><a href="#" onClick="{{ onForgot }}" style="white-space:nowrap">Forgot password?</a></div>
+        </sc-if>
+
+        <sc-if value="{{ isSignup }}">
+          <span style="font-size:14px;font-weight:600">Create your employee profile</span>
+          <span style="font-size:13px;color:#5B636B">A super admin reviews every new profile. Sales profiles get a referral code and earn commission on each product sold.</span>
+          <sc-for list="{{ suFields }}" as="f"><label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">{{ f.label }}<input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.ph }}" type="{{ f.type }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:15px;color:#1F2328;outline:none"></label></sc-for>
+          <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:#5B636B">I am joining as</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><sc-for list="{{ suRoles }}" as="r"><button onClick="{{ r.onClick }}" style="border:{{ r.bd }};background:{{ r.bg }};color:{{ r.fg }};border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center;justify-content:center"><i class="{{ r.icon }}" style="font-size:15px"></i>{{ r.label }}</button></sc-for></div></div>
+        </sc-if>
+        <sc-if value="{{ isSignupDone }}">
+          <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:6px 0"><span style="width:48px;height:48px;border-radius:50%;background:#E7F6EE;color:#18794E;display:flex;align-items:center;justify-content:center"><i class="icon-check" style="font-size:24px"></i></span><strong style="font-size:17px">Profile submitted</strong><span style="font-size:14px;color:#5B636B">{{ suDoneText }}</span></div>
+        </sc-if>
+        <sc-if value="{{ isStep2 }}">
+          <div style="background:#F7F8F9;border:1px solid #EEF0F2;border-radius:8px;padding:10px 12px;font-size:13px;color:#3D454D;display:flex;gap:8px;align-items:center"><i class="icon-user" style="font-size:15px;color:#5B636B"></i><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ who }}</span><a href="#" onClick="{{ onBack }}" style="font-size:12.5px;white-space:nowrap">Change</a></div>
+          <span style="font-size:14px;font-weight:600">Confirm it’s you</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            <sc-for list="{{ factors }}" as="f"><button onClick="{{ f.onClick }}" style="border:{{ f.bd }};background:{{ f.bg }};color:{{ f.fg }};border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center;justify-content:center"><i class="{{ f.icon }}" style="font-size:15px"></i>{{ f.label }}</button></sc-for>
+          </div>
+          <sc-if value="{{ isKey }}"><div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px;border:1px dashed #CDD2D7;border-radius:10px;text-align:center"><i class="icon-usb" style="font-size:26px;color:#0B5E5B"></i><span style="font-size:13.5px;color:#3D454D">{{ keyText }}</span></div></sc-if>
+          <sc-if value="{{ isTotp }}"><label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">6-digit code from your authenticator (demo: 135790)<input value="{{ totp }}" onChange="{{ onTotp }}" inputmode="numeric" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:18px;letter-spacing:.3em;color:#1F2328;outline:none;font-family:'IBM Plex Mono',monospace"></label></sc-if>
+          <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Sign in as<select value="{{ dest }}" onChange="{{ onDest }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;color:#1F2328;background:#fff"><option value="admin">Super admin · employees, commission, customers</option><option value="sales">Sales · my sales and commission</option><option value="care">Customer care · tickets and customers</option></select></label>
+        </sc-if>
+
+        <sc-if value="{{ hasErr }}"><div style="font-size:13px;color:#B3261E">{{ err }}</div></sc-if>
+        <button onClick="{{ onPrimary }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;display:flex;gap:8px;align-items:center;justify-content:center">{{ primaryLabel }}</button>
+        <div style="font-size:11.5px;color:#8A929A;text-align:center">Rate-limited · a security key or authenticator is required · every sign-in is audited</div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid #E6E8EB;border-radius:12px;padding:14px 16px;font-size:13px;color:#3D454D">
+        <i class="icon-lock" style="font-size:16px;color:#0B5E5B;margin-top:2px"></i>
+        <span>Staff accounts see accounts, plans, licences and support tickets only. <strong style="font-weight:600">They cannot open any pharmacy’s database, invoices or backups.</strong> Access to a customer environment needs that pharmacy owner’s time-limited approval.</span>
+      </div>
+      <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;font-size:13px">
+        <a href="Medoro Onboarding.dc.html" style="white-space:nowrap">Pharmacy owner sign-in</a>
+        <a href="Medoro Onboarding.dc.html?view=employee" style="white-space:nowrap">Pharmacy staff login</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {su:{name:'',email:'',phone:'',team:'',upi:'',pwd:'',role:'Sales'},step:1,email:'',pwd:'',factor:'key',keyState:'idle',totp:'',dest:'admin',err:'',sso:false};
+  e(m){ this.setState({err:m}); }
+  go(){ window.location.href='Medoro Staff Console.dc.html?as='+this.state.dest; }
+  renderVals(){
+    const s=this.state;
+    const fac=(id,label,icon)=>{const a=s.factor===id;return {label,icon,bd:a?'1.5px solid #0B5E5B':'1px solid #CDD2D7',bg:a?'#E1F1EF':'#fff',fg:a?'#0B5E5B':'#1F2328',onClick:()=>this.setState({factor:id,err:'',keyState:'idle'})};};
+    return {
+      isStep1:s.step===1, isStep2:s.step===2, isSignup:s.step==='signup', isSignupDone:s.step==='signupDone',
+      goSignup:()=>this.setState({step:'signup',err:''}),
+      suFields:[['name','Full name','Karan Shah','text'],['email','Work email','name@medoro.in','email'],['phone','Mobile','98220 41736','tel'],['team','Team / city','Pune West','text'],['upi','UPI ID for commission payouts','name@okhdfcbank','text'],['pwd','Create a password (12+ characters)','','password']].filter(f=>f[0]!=='upi'||s.su.role==='Sales').map(f=>({label:f[1],ph:f[2],type:f[3],value:s.su[f[0]],onChange:e=>{const v=e.target.value;this.setState(x=>({su:{...x.su,[f[0]]:v},err:''}));}})),
+      suRoles:[['Sales','icon-badge-indian-rupee'],['Customer care','icon-headset']].map(r=>{const a=s.su.role===r[0];return {label:r[0],icon:r[1],bd:a?'1.5px solid #0B5E5B':'1px solid #CDD2D7',bg:a?'#E1F1EF':'#fff',fg:a?'#0B5E5B':'#1F2328',onClick:()=>this.setState(x=>({su:{...x.su,role:r[0]}}))};}),
+      suDoneText:s.su.role==='Sales'?'Your sales profile is waiting for super admin approval. You will get your referral code by email once approved.':'Your customer care profile is waiting for super admin approval. You will get an email once approved.',
+      email:s.email, pwd:s.pwd, onEmail:e=>this.setState({email:e.target.value.trim(),err:''}), onPwd:e=>this.setState({pwd:e.target.value,err:''}),
+      onForgot:e=>{e.preventDefault(); this.e('Password resets go through IT. Message #it-help or ask your team lead.');},
+      onSso:()=>this.setState({step:2,sso:true,email:'priya.s@medoro.in',err:''}),
+      who:(s.sso?'Google Workspace · ':'')+s.email, onBack:e=>{e.preventDefault();this.setState({step:1,err:'',sso:false});},
+      factors:[fac('key','Security key','icon-key-round'),fac('totp','Authenticator','icon-smartphone')],
+      isKey:s.factor==='key', isTotp:s.factor==='totp',
+      keyText:s.keyState==='wait'?'Touch your security key now…':s.keyState==='ok'?'Key verified':'Insert your security key, then press Verify.',
+      totp:s.totp, onTotp:e=>this.setState({totp:e.target.value.replace(/\D/g,'').slice(0,6),err:''}),
+      dest:s.dest, onDest:e=>this.setState({dest:e.target.value}),
+      hasErr:!!s.err, err:s.err,
+      primaryLabel:s.step==='signup'?'Submit for approval':s.step==='signupDone'?'Back to sign in':s.step===1?'Continue':s.factor==='key'?(s.keyState==='wait'?'Waiting for key…':'Verify'):'Verify',
+      onPrimary:()=>{
+        if(s.step==='signupDone') return this.setState({step:1,err:'',email:s.su.email});
+        if(s.step==='signup'){ const u=s.su; if(u.name.trim().length<2) return this.e('Enter your full name.'); if(!/^[^@\s]+@medoro\.in$/i.test(u.email)) return this.e('Use the @medoro.in email from your offer letter.'); if(!/^[6-9]\d{9}$/.test(u.phone.replace(/\D/g,''))) return this.e('Enter a valid 10-digit mobile.'); if(u.role==='Sales'&&!/^[\w.-]+@[a-z]+$/i.test(u.upi.trim())) return this.e('Enter a valid UPI ID for payouts.'); if(u.pwd.length<12) return this.e('Password must be at least 12 characters.'); return this.setState({step:'signupDone',err:''}); }
+        if(s.step===1){ if(!/^[^@\s]+@medoro\.in$/i.test(s.email)) return this.e('Use your @medoro.in work email.'); if(s.pwd!=='medoro-demo') return this.e('Email or password is incorrect. 4 attempts left.'); return this.setState({step:2,err:''}); }
+        if(s.factor==='key'){ if(s.keyState==='wait') return; this.setState({keyState:'wait',err:''}); clearTimeout(this.t); this.t=setTimeout(()=>{this.setState({keyState:'ok'}); setTimeout(()=>this.go(),500);},1200); return; }
+        if(s.totp!=='135790') return this.e('Code did not match. Codes refresh every 30 seconds.');
+        this.go();
+      }
+    };
+  }
+  componentWillUnmount(){ clearTimeout(this.t); }
+}
+</script>
+</body>
+</html>

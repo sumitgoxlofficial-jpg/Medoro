@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans+Devanagari:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css" rel="stylesheet">
+<style>html,body{margin:0;padding:0;background:#fff}*{box-sizing:border-box}a{color:#0B5E5B;text-decoration:none}a:hover{color:#094A48}html{scroll-behavior:smooth}body{overflow-x:hidden}section{scroll-margin-top:84px}img{max-width:100%}</style>
+</helmet>
+<div ref="{{ rootRef }}" data-screen-label="Marketing site" style="font-family:'IBM Plex Sans','IBM Plex Sans Devanagari',system-ui,sans-serif;color:#101418;background:#fff;line-height:1.5;-webkit-font-smoothing:antialiased">
+
+  <div data-progress="1" style="position:fixed;left:0;top:0;right:0;height:3px;background:linear-gradient(90deg,#0B3A78,#0A9A80);transform-origin:0 50%;transform:scaleX(0);z-index:60;pointer-events:none"></div>
+  <header data-header="1" style="position:sticky;top:0;z-index:20;transition:box-shadow .25s ease;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid #EEF0F2">
+    <div style="max-width:1320px;margin:0 auto;height:76px;padding:0 24px;display:flex;align-items:center;gap:32px">
+      <a href="#top" style="display:flex;align-items:center;gap:10px;text-decoration:none;flex:none"><img src="assets/medoro-mark.png" alt="" style="width:34px;height:auto;display:block"><span style="font-family:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;font-weight:700;font-size:24px;letter-spacing:.02em;text-transform:uppercase"><span style="color:#0B3A78">Med</span><span style="color:#0A9A80">oro</span></span></a>
+      <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
+        <nav style="display:flex;gap:4px;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase">
+          <sc-for list="{{ navLinks }}" as="l" hint-placeholder-count="6"><a href="{{ l.href }}" style="color:#4B535B;padding:8px 10px;border-radius:6px;white-space:nowrap" style-hover="color:#0B5E5B">{{ l.label }}</a></sc-for>
+        </nav>
+      </sc-if>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <sc-if value="{{ wide }}" hint-placeholder-val="{{ true }}">
+          <a href="Medoro Onboarding.dc.html" style="color:#101418;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;white-space:nowrap" style-hover="color:#0B5E5B">Sign in</a>
+          <a href="Medoro Staff Login.dc.html" style="color:#101418;font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:8px 12px;white-space:nowrap" style-hover="color:#0B5E5B">Employee login</a>
+        </sc-if>
+        <a href="Medoro Onboarding.dc.html" style="display:flex;align-items:center;gap:6px;background:#0B5E5B;color:#fff;height:44px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:600;white-space:nowrap;box-shadow:0 8px 20px -8px rgba(11,94,91,.55)" style-hover="background:#094A48;color:#fff">Get started</a>
+        <sc-if value="{{ narrow }}">
+          <button onClick="{{ toggleMenu }}" aria-label="Menu" style="width:42px;height:42px;border:1px solid #E6E8EB;background:#fff;border-radius:999px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#101418"><i class="{{ menuIcon }}" style="font-size:18px"></i></button>
+        </sc-if>
+      </div>
+    </div>
+    <sc-if value="{{ menuOpen }}">
+      <div style="border-top:1px solid #EEF0F2;background:#fff;padding:8px 16px 16px;display:flex;flex-direction:column">
+        <sc-for list="{{ navLinks }}" as="l"><a href="{{ l.href }}" onClick="{{ closeMenu }}" style="color:#101418;font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:14px 8px;border-bottom:1px solid #F2F4F5">{{ l.label }}</a></sc-for>
+        <a href="Medoro Onboarding.dc.html" style="color:#0B5E5B;font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:14px 8px;border-bottom:1px solid #F2F4F5">Sign in</a>
+        <a href="Medoro Staff Login.dc.html" style="color:#0B5E5B;font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:14px 8px">Employee login</a>
+      </div>
+    </sc-if>
+  </header>
+
+  <section id="top" style="position:relative;overflow:hidden;background:linear-gradient(180deg,#F3F9F8 0%,#fff 70%)">
+    <div style="position:absolute;right:-180px;top:-120px;width:760px;height:620px;background:radial-gradient(ellipse at center,rgba(10,154,128,.12),transparent 65%);pointer-events:none"></div>
+    <div style="position:relative;max-width:1320px;margin:0 auto;padding:clamp(24px,5vh,56px) clamp(16px,3vw,40px) clamp(24px,4vh,40px);min-height:{{ heroMinH }};display:grid;grid-template-columns:{{ heroGrid }};gap:clamp(28px,4vw,56px);align-items:center">
+      <div style="display:flex;flex-direction:column;gap:clamp(16px,3vh,26px);align-items:flex-start;min-width:0">
+        <span data-h="1" style="display:inline-flex;align-items:center;gap:10px;min-height:40px;padding:8px 18px;border:1px solid #CFE6E3;background:#fff;border-radius:20px;font-size:clamp(13px,1.4vw,15px);line-height:1.35;color:#0B5E5B;font-weight:500"><span style="width:8px;height:8px;border-radius:50%;background:#0A9A80;flex:none"></span>Live now in India · For medical stores and pharmacy chains</span>
+        <h1 data-h="1" style="margin:0;font-family:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;font-size:clamp(40px,min(5.4vw,9vh),84px);line-height:.95;letter-spacing:-.01em;font-weight:700;text-transform:uppercase"><span style="display:block;color:#101418">Your pharmacy’s billing.</span><span style="display:block;color:#0B5E5B">Your stock &amp; accounts.</span></h1>
+        <div data-h="1" style="display:flex;flex-direction:column;gap:6px;font-size:clamp(16px,min(1.7vw,2.8vh),23px);line-height:1.4;color:#3D454D">
+          <span>Pharmacy billing &amp; stock from <strong style="color:#101418;font-weight:700">₹999 a month</strong>.</span>
+          <span>AI Pharmacy Manager from <strong style="color:#101418;font-weight:700">₹499 a month</strong>.</span>
+          <span style="color:#0B5E5B;font-weight:600;margin-top:6px">One Medoro for your whole store. 14-day free trial.</span>
+        </div>
+        <div data-h="1" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+          <a data-mag="1" href="Medoro Onboarding.dc.html" style="display:flex;align-items:center;gap:10px;background:#0B5E5B;color:#fff;height:clamp(48px,6vh,58px);padding:0 clamp(18px,2.2vw,30px);border-radius:999px;font-size:clamp(15px,1.4vw,17px);font-weight:600;white-space:nowrap;box-shadow:0 12px 28px -10px rgba(11,94,91,.6)" style-hover="background:#094A48;color:#fff">Start free trial<i class="icon-arrow-right" style="font-size:18px"></i></a>
+          <a href="Medoro App.dc.html" style="display:flex;align-items:center;gap:8px;background:#fff;color:#101418;height:clamp(48px,6vh,58px);padding:0 clamp(18px,2.2vw,30px);border-radius:999px;font-size:clamp(15px,1.4vw,17px);font-weight:600;white-space:nowrap;border:1px solid #CDD2D7" style-hover="border-color:#0B5E5B;color:#0B5E5B">Try the live demo</a>
+        </div>
+        <a data-h="1" href="https://wa.me/912067900000" style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600;color:#0B5E5B;padding-left:6px" style-hover="color:#094A48">Talk to us on WhatsApp<i class="icon-arrow-right" style="font-size:17px"></i></a>
+      </div>
+
+      <a data-laptop="1" href="Medoro App.dc.html" style="display:flex;flex-direction:column;align-items:center;gap:22px;color:#101418;min-width:0;perspective:1400px" style-hover="color:#101418">
+        <div style="width:100%;max-width:700px;display:flex;flex-direction:column;align-items:center">
+          <div data-screen="1" style="width:88%;background:#1F2328;border-radius:16px 16px 0 0;transform-origin:50% 100%;padding:10px 10px 0;box-shadow:0 40px 80px -30px rgba(11,58,120,.35)">
+            <div style="background:#fff;border-radius:6px 6px 0 0;overflow:hidden;line-height:0"><img src="assets/laptop-dashboard.png" alt="Medoro dashboard: sales, margin, purchases, receivables, payables and AI insights" style="width:100%;height:auto;display:block"></div>
+          </div>
+          <div style="width:100%;height:14px;background:linear-gradient(180deg,#D5D9DD,#B7BCC2);border-radius:0 0 14px 14px;position:relative;box-shadow:0 18px 30px -14px rgba(16,24,40,.35)"><span style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:16%;height:6px;background:#A3AAB1;border-radius:0 0 6px 6px"></span></div>
+        </div>
+        <span style="display:flex;align-items:center;gap:8px;font-size:17px"><strong style="font-weight:700">Medoro Pharmacy</strong><span style="color:#6B737B">billing, stock &amp; accounts</span><i class="icon-arrow-right" style="font-size:17px;color:#0B5E5B"></i></span>
+      </a>
+    </div>
+    <div style="max-width:1320px;margin:0 auto;padding:0 24px 56px">
+      <div data-h="1" style="border-top:1px solid #E6E8EB;padding-top:28px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <sc-for list="{{ trust }}" as="t" hint-placeholder-count="6"><span style="display:flex;gap:8px;align-items:center;min-height:40px;padding:6px 16px;border:1px solid #E6E8EB;background:#fff;border-radius:999px;font-size:14px;font-weight:500;color:#1F2328;white-space:nowrap"><i class="icon-check" style="color:#0B5E5B;font-size:16px"></i>{{ t }}</span></sc-for>
+      </div>
+    </div>
+    <div style="border-top:1px solid #EEF0F2;border-bottom:1px solid #EEF0F2;background:#fff;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)">
+      <div data-marquee="1" style="display:flex;width:max-content;gap:0">
+        <sc-for list="{{ marquee }}" as="m" hint-placeholder-count="20"><span style="display:flex;align-items:center;gap:10px;padding:18px 28px;font-size:15px;font-weight:600;color:#3D454D;white-space:nowrap"><i class="{{ m.icon }}" style="font-size:17px;color:#0B5E5B"></i>{{ m.t }}<span style="width:5px;height:5px;border-radius:50%;background:#CDD2D7;margin-left:28px"></span></span></sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1200px;margin:0 auto;padding:56px 24px 0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));border:1px solid #E6E8EB;border-radius:16px;overflow:hidden;gap:1px;background:#E6E8EB">
+      <sc-for list="{{ facts }}" as="f" hint-placeholder-count="4">
+        <div style="background:#fff;padding:24px;display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:30px;font-weight:700;letter-spacing:-.03em;color:#0B5E5B;line-height:1.1">{{ f.v }}</span>
+          <span style="font-size:14px;color:#4B535B;text-wrap:pretty">{{ f.d }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="product" style="max-width:1200px;margin:0 auto;padding:104px 24px 40px;display:flex;flex-direction:column;gap:44px">
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:700px">
+      <span style="font-size:13px;font-weight:600;color:#0B5E5B;letter-spacing:.06em">PRODUCT</span>
+      <h2 style="margin:0;font-size:clamp(30px,4vw,44px);line-height:1.1;letter-spacing:-.03em;font-weight:700;text-wrap:balance">Every counter, every batch, every rupee.</h2>
+      <p style="margin:0;font-size:17px;color:#4B535B;text-wrap:pretty">Built around how Indian pharmacies work: MRP-inclusive GST, Schedule H and H1 registers, FEFO batches and supplier credit.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px">
+      <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));background:#fff;border:1px solid #E6E8EB;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04)">
+        <div style="padding:32px 32px;display:flex;flex-direction:column;gap:12px">
+          <span style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;color:#0B5E5B"><i class="icon-scan-barcode" style="font-size:16px"></i>Billing counter</span>
+          <h3 style="margin:0;font-size:26px;letter-spacing:-.02em;line-height:1.2">Bill in seconds, straight from the keyboard</h3>
+          <p style="margin:0;font-size:15px;color:#4B535B">Scan or type a name, brand or salt. The earliest-expiring batch is picked, and expired or quarantined stock is blocked before it reaches the bill.</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 16px;margin-top:6px">
+            <sc-for list="{{ posList }}" as="p" hint-placeholder-count="6"><span style="display:flex;gap:8px;align-items:flex-start;font-size:14px;color:#1F2328"><i class="icon-check" style="font-size:15px;color:#18794E;margin-top:3px"></i>{{ p }}</span></sc-for>
+          </div>
+          <a href="Medoro App.dc.html" style="align-self:flex-start;margin-top:8px;font-size:14.5px;font-weight:600;display:flex;gap:6px;align-items:center">Open the billing demo<i class="icon-arrow-right" style="font-size:15px"></i></a>
+        </div>
+        <div style="background:#F7F8F9;border-left:1px solid #EEF0F2;padding:28px;display:flex;flex-direction:column;gap:8px;justify-content:center">
+          <div style="display:flex;gap:8px;align-items:center;background:#fff;border:1.5px solid #0B5E5B;border-radius:8px;padding:9px 11px;font-size:13px;color:#6B737B"><i class="icon-search" style="font-size:14px"></i>augmentin<span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;border:1px solid #E6E8EB;border-radius:4px;padding:0 4px">F2</span></div>
+          <sc-for list="{{ cartDemo }}" as="c" hint-placeholder-count="2"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;background:#fff;border:1px solid #EEF0F2;border-radius:8px;padding:10px 12px;font-size:12.5px"><div style="display:flex;flex-direction:column;min-width:0"><span style="display:flex;gap:6px;align-items:center"><strong style="font-weight:600">{{ c.n }}</strong><span style="font-size:10px;font-weight:600;color:{{ c.tagFg }};border:1px solid {{ c.tagBd }};border-radius:3px;padding:0 3px">{{ c.tag }}</span></span><span style="font-size:11px;color:{{ c.subFg }}">{{ c.sub }}</span></div><span style="color:#6B737B">× {{ c.q }}</span><strong style="font-variant-numeric:tabular-nums">{{ c.a }}</strong></div></sc-for>
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid #EEF0F2;border-radius:8px;padding:10px 12px;font-size:12.5px"><span style="color:#6B737B">CGST ₹13.86 · SGST ₹13.86 · UPI</span><strong style="font-size:15px">₹291.00</strong></div>
+          <div style="display:flex;justify-content:center;align-items:center;gap:6px;background:#0B5E5B;color:#fff;border-radius:8px;height:38px;font-size:13px;font-weight:600">Complete sale<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;border:1px solid rgba(255,255,255,.4);border-radius:4px;padding:0 4px">F9</span></div>
+        </div>
+      </div>
+      <sc-for list="{{ tiles }}" as="f" hint-placeholder-count="6">
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:16px;padding:26px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(16,24,40,.04)" style-hover="border-color:#CDD2D7">
+          <span style="width:38px;height:38px;border-radius:9px;background:{{ f.bg }};color:{{ f.fg }};display:flex;align-items:center;justify-content:center;margin-bottom:6px"><i class="{{ f.icon }}" style="font-size:18px"></i></span>
+          <h3 style="margin:0;font-size:18px;letter-spacing:-.01em">{{ f.t }}</h3>
+          <p style="margin:0;font-size:14.5px;color:#4B535B;text-wrap:pretty">{{ f.d }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1200px;margin:0 auto;padding:64px 24px 40px;display:flex;flex-direction:column;gap:36px">
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:700px">
+      <span style="font-size:13px;font-weight:600;color:#0B5E5B;letter-spacing:.06em">HOW A BILL WORKS</span>
+      <h2 style="margin:0;font-size:clamp(28px,3.6vw,40px);line-height:1.12;letter-spacing:-.03em;font-weight:700;text-wrap:balance">From scan to WhatsApp in four steps.</h2>
+    </div>
+    <ol style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px">
+      <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+        <li style="border-top:2px solid #0B5E5B;padding-top:18px;display:flex;flex-direction:column;gap:8px">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B5E5B;font-weight:500">{{ s.n }}</span>
+          <h3 style="margin:0;font-size:18px;letter-spacing:-.01em">{{ s.t }}</h3>
+          <p style="margin:0;font-size:14.5px;color:#4B535B;text-wrap:pretty">{{ s.d }}</p>
+        </li>
+      </sc-for>
+    </ol>
+  </section>
+
+  <section id="ai" style="max-width:1200px;margin:0 auto;padding:72px 24px">
+    <div style="background:#0E1A1F;border-radius:24px;padding:clamp(28px,5vw,56px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:48px;align-items:center;color:#fff;position:relative;overflow:hidden">
+      <div style="position:absolute;right:-120px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(10,154,128,.35),transparent 70%)"></div>
+      <div style="position:relative;display:flex;flex-direction:column;gap:16px">
+        <span style="font-size:13px;font-weight:600;color:#5FD3BC;letter-spacing:.06em">AI PHARMACY MANAGER · ADD-ON</span>
+        <h2 style="margin:0;font-size:clamp(28px,3.6vw,40px);line-height:1.12;letter-spacing:-.03em;font-weight:700;text-wrap:balance">Ask in Hinglish. Get answers from your own data.</h2>
+        <p style="margin:0;font-size:16px;color:#B8C7CC;text-wrap:pretty">It reads sales, stock, expiry and supplier balances within your permissions, and tells you which items sell more in which month so you can stock up early. It can draft a purchase order. Nothing is ordered, paid or changed until you confirm.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+          <sc-for list="{{ aiPoints }}" as="p" hint-placeholder-count="4"><div style="display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:#DCE6E9"><i class="icon-check" style="font-size:16px;color:#5FD3BC;margin-top:2px"></i>{{ p }}</div></sc-for>
+        </div>
+        <a href="Medoro App.dc.html" style="align-self:flex-start;margin-top:8px;display:flex;align-items:center;gap:8px;background:#fff;color:#0E1A1F;height:44px;padding:0 18px;border-radius:9px;font-size:14.5px;font-weight:600" style-hover="background:#E1F1EF;color:#0E1A1F"><i class="icon-sparkles" style="font-size:15px"></i>Ask the demo AI</a>
+      </div>
+      <div style="position:relative;background:#162429;border:1px solid #24363C;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 30px 60px -20px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid #24363C"><span style="width:26px;height:26px;border-radius:7px;background:#0B5E5B;display:flex;align-items:center;justify-content:center"><i class="icon-sparkles" style="font-size:14px"></i></span><strong style="font-size:14px">Medoro AI</strong><span style="margin-left:auto;font-size:11.5px;color:#7F9399;display:flex;gap:5px;align-items:center"><span style="width:6px;height:6px;border-radius:50%;background:#22A06B"></span>Local model</span></div>
+        <div style="align-self:flex-end;background:#0B5E5B;padding:9px 13px;border-radius:12px 12px 3px 12px;font-size:14px">Agle mahine kya zyada bikega?</div>
+        <div style="align-self:flex-start;background:#1D2E34;border:1px solid #24363C;padding:12px 14px;border-radius:12px 12px 12px 3px;font-size:13.5px;display:flex;flex-direction:column;gap:9px;max-width:94%">
+          <span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8FB3FF;background:rgba(36,89,201,.18);padding:2px 7px;border-radius:4px">get_seasonal_forecast</span>
+          <span style="color:#DCE6E9">November mein ye items zyada bikte hain. 4 items ka stock pehle se mangwa lein.</span>
+          <div style="display:flex;flex-direction:column;border:1px solid #24363C;border-radius:8px;overflow:hidden">
+            <sc-for list="{{ aiRows }}" as="r" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;padding:7px 10px;border-bottom:1px solid #24363C;font-size:12.5px"><span>{{ r.a }}</span><span style="color:#5FD3BC;font-weight:600">{{ r.b }}</span><span style="color:#B8C7CC;font-variant-numeric:tabular-nums">{{ r.c }}</span></div></sc-for>
+          </div>
+          <span style="align-self:flex-start;border:1px solid #2F5F59;color:#5FD3BC;border-radius:7px;padding:5px 10px;font-size:12.5px;font-weight:600">Create draft PO</span>
+        </div>
+        <span style="font-size:11.5px;color:#7F9399">Sample conversation. AI answers are business guidance, not clinical advice, and can be wrong.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="data" style="background:#F7F8F9;border-top:1px solid #EEF0F2;border-bottom:1px solid #EEF0F2">
+    <div style="max-width:1200px;margin:0 auto;padding:96px 24px;display:flex;flex-direction:column;gap:56px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:56px;align-items:center">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <span style="font-size:13px;font-weight:600;color:#0B5E5B;letter-spacing:.06em">DATA OWNERSHIP</span>
+          <h2 style="margin:0;font-size:clamp(28px,3.6vw,40px);line-height:1.12;letter-spacing:-.03em;font-weight:700;text-wrap:balance">Your pharmacy’s records stay on your server.</h2>
+          <p style="margin:0;font-size:16px;color:#4B535B;text-wrap:pretty">Medoro runs on a database you control: a PC in your shop, your own server or your own cloud account. We see only your account and licence. Export everything, any time.</p>
+          <a href="#faq" style="align-self:flex-start;font-size:14.5px;font-weight:600;display:flex;gap:6px;align-items:center">What exactly leaves my server?<i class="icon-arrow-right" style="font-size:15px"></i></a>
+        </div>
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="border:1.5px dashed #9FCFC9;border-radius:14px;padding:16px;background:#F7FBFA;display:flex;flex-direction:column;gap:12px">
+            <span style="font-size:12px;font-weight:600;color:#0B5E5B;display:flex;gap:6px;align-items:center"><i class="icon-lock" style="font-size:13px"></i>YOUR ENVIRONMENT</span>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+              <sc-for list="{{ envBoxes }}" as="b" hint-placeholder-count="3"><div style="border:1px solid #E6E8EB;background:#fff;border-radius:10px;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:12.5px;font-weight:500"><i class="{{ b.icon }}" style="font-size:20px;color:#0B5E5B"></i>{{ b.l }}</div></sc-for>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">
+            <sc-for list="{{ extBoxes }}" as="b" hint-placeholder-count="3"><div style="border:1px solid #E6E8EB;border-radius:10px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:4px"><span style="font-size:12.5px;font-weight:600;display:flex;gap:6px;align-items:center"><i class="{{ b.icon }}" style="font-size:14px;color:#6B737B"></i>{{ b.l }}</span><span style="font-size:11.5px;color:#6B737B">{{ b.d }}</span></div></sc-for>
+          </div>
+        </div>
+      </div>
+      <div id="security" style="display:flex;flex-direction:column;gap:24px">
+        <h3 style="margin:0;font-size:22px;letter-spacing:-.02em">Security, built in on every plan</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1px;background:#E6E8EB;border:1px solid #E6E8EB;border-radius:16px;overflow:hidden">
+          <sc-for list="{{ sec }}" as="x" hint-placeholder-count="6"><div style="background:#fff;padding:22px;display:flex;flex-direction:column;gap:6px"><span style="display:flex;gap:8px;align-items:center;font-size:15px;font-weight:600"><i class="{{ x.icon }}" style="font-size:17px;color:#0B5E5B"></i>{{ x.t }}</span><span style="font-size:14px;color:#4B535B;text-wrap:pretty">{{ x.d }}</span></div></sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" style="max-width:1200px;margin:0 auto;padding:104px 24px 40px;display:flex;flex-direction:column;gap:36px">
+    <div style="display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center">
+      <span style="font-size:13px;font-weight:600;color:#0B5E5B;letter-spacing:.06em">PRICING</span>
+      <h2 style="margin:0;font-size:clamp(30px,4vw,44px);line-height:1.1;letter-spacing:-.03em;font-weight:700;text-wrap:balance">Simple plans. Start free for 14 days.</h2>
+      <p style="margin:0;font-size:16px;color:#4B535B;max-width:620px;text-wrap:pretty">Prices in rupees, including GST. Pay by UPI or card. Cancel any time and your data stays on your server.</p>
+      <div style="display:inline-flex;align-items:center;gap:2px;background:#F2F4F5;padding:3px;border-radius:9px;margin-top:6px">
+        <button onClick="{{ setMonthly }}" style="border:0;background:{{ moBg }};box-shadow:{{ moSh }};color:#101418;height:34px;padding:0 16px;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit">Monthly</button>
+        <button onClick="{{ setYearly }}" style="border:0;background:{{ yrBg }};box-shadow:{{ yrSh }};color:#101418;height:34px;padding:0 14px;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center;font-family:inherit">Yearly<span style="font-size:11.5px;color:#18794E;background:#E7F6EE;padding:1px 6px;border-radius:999px">2 months free</span></button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;align-items:stretch">
+      <sc-for list="{{ plans }}" as="p" hint-placeholder-count="3">
+        <div style="position:relative;background:#fff;border:{{ p.bd }};border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:16px;box-shadow:{{ p.sh }}">
+          <sc-if value="{{ p.rec }}"><span style="position:absolute;top:-12px;left:28px;background:#0B5E5B;color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px">Recommended</span></sc-if>
+          <div style="display:flex;flex-direction:column;gap:4px"><h3 style="margin:0;font-size:20px;letter-spacing:-.01em">{{ p.name }}</h3><span style="font-size:14px;color:#4B535B">{{ p.for }}</span></div>
+          <div style="display:flex;flex-direction:column;gap:2px"><div style="display:flex;align-items:baseline;gap:4px"><span style="font-size:40px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums">{{ p.price }}</span><span style="font-size:14px;color:#6B737B">{{ p.per }}</span></div><span style="font-size:13px;color:#6B737B">{{ p.note }}</span></div>
+          <a href="Medoro Onboarding.dc.html" style="display:flex;align-items:center;justify-content:center;height:44px;border-radius:9px;font-size:14.5px;font-weight:600;background:{{ p.ctaBg }};color:{{ p.ctaFg }};border:{{ p.ctaBd }}" style-hover="opacity:.9;color:{{ p.ctaFg }}">Start free trial</a>
+          <span style="font-size:13px;font-weight:600;color:#0B5E5B">{{ p.cap }}</span>
+          <div style="display:flex;flex-direction:column;gap:9px;border-top:1px solid #EEF0F2;padding-top:16px">
+            <sc-for list="{{ p.feats }}" as="f"><span style="display:flex;gap:9px;align-items:flex-start;font-size:14px;color:#1F2328"><i class="icon-check" style="font-size:15px;color:#18794E;margin-top:3px"></i>{{ f }}</span></sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px">
+      <div style="background:#0E1A1F;color:#fff;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px">
+        <span style="display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;color:#5FD3BC"><i class="icon-sparkles" style="font-size:15px"></i>ADD-ON</span>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap"><h3 style="margin:0;font-size:19px">AI Pharmacy Manager</h3><span style="font-size:15px;font-weight:600">{{ aiPrice }}</span></div>
+        <span style="font-size:14px;color:#B8C7CC">Hinglish assistant, seasonal demand planner, invoice scanner and reorder suggestions. Add to any plan.</span>
+      </div>
+      <div style="background:#fff;border:1px solid #E6E8EB;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px">
+        <h3 style="margin:0;font-size:17px">One-time and extras</h3>
+        <sc-for list="{{ addons }}" as="a" hint-placeholder-count="4"><div style="display:flex;justify-content:space-between;gap:12px;font-size:14px;border-bottom:1px solid #F2F4F5;padding-bottom:8px"><span style="color:#3D454D">{{ a.l }}</span><strong style="font-weight:600;white-space:nowrap">{{ a.v }}</strong></div></sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <button onClick="{{ toggleCompare }}" style="align-self:center;border:1px solid #E6E8EB;background:#fff;height:40px;padding:0 16px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center;color:#101418;font-family:inherit" style-hover="border-color:#CDD2D7">{{ compareLabel }}<i class="{{ compareIcon }}" style="font-size:15px"></i></button>
+      <sc-if value="{{ compareOpen }}">
+        <div style="overflow-x:auto;border:1px solid #E6E8EB;border-radius:14px">
+          <table style="width:100%;min-width:640px;border-collapse:collapse;font-size:14px">
+            <thead><tr style="background:#F7F8F9"><th style="text-align:left;padding:12px 16px;font-weight:600;border-bottom:1px solid #E6E8EB">Feature</th><th style="text-align:left;padding:12px 16px;font-weight:600;border-bottom:1px solid #E6E8EB">Starter</th><th style="text-align:left;padding:12px 16px;font-weight:600;border-bottom:1px solid #E6E8EB;color:#0B5E5B">Professional</th><th style="text-align:left;padding:12px 16px;font-weight:600;border-bottom:1px solid #E6E8EB">Multi-branch</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ cmp }}" as="r" hint-placeholder-count="10"><tr><td style="padding:11px 16px;border-bottom:1px solid #F2F4F5;color:#3D454D">{{ r.f }}</td><td style="padding:11px 16px;border-bottom:1px solid #F2F4F5;color:{{ r.c1 }}">{{ r.a }}</td><td style="padding:11px 16px;border-bottom:1px solid #F2F4F5;color:{{ r.c2 }}">{{ r.b }}</td><td style="padding:11px 16px;border-bottom:1px solid #F2F4F5;color:{{ r.c3 }}">{{ r.c }}</td></tr></sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+    </div>
+    <p style="margin:0;font-size:12.5px;color:#8A929A;text-align:center;max-width:820px;align-self:center;text-wrap:pretty">Proposed launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messaging is subject to Meta’s conversation charges. Hosting costs for your own server or cloud are separate.</p>
+  </section>
+
+  <section id="faq" style="max-width:1200px;margin:0 auto;padding:80px 24px 96px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:48px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:#0B5E5B;letter-spacing:.06em">FAQ</span>
+      <h2 style="margin:0;font-size:clamp(30px,4vw,44px);line-height:1.1;letter-spacing:-.03em;font-weight:700">Questions, answered.</h2>
+      <p style="margin:0;font-size:15.5px;color:#4B535B">Still unsure? Message us on WhatsApp and a pharmacy specialist will reply.</p>
+      <a href="https://wa.me/912067900000" style="align-self:flex-start;display:flex;align-items:center;gap:8px;border:1px solid #E6E8EB;height:42px;padding:0 16px;border-radius:9px;font-size:14.5px;font-weight:600;color:#101418" style-hover="border-color:#CDD2D7;color:#101418"><i class="icon-message-circle" style="font-size:16px;color:#18794E"></i>WhatsApp us</a>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:28px">
+      <sc-for list="{{ faqGroups }}" as="g" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column">
+          <span style="font-size:12.5px;font-weight:600;color:#6B737B;letter-spacing:.06em;text-transform:uppercase;padding-bottom:8px">{{ g.title }}</span>
+          <sc-for list="{{ g.items }}" as="q">
+            <div style="border-top:1px solid #EEF0F2">
+              <button onClick="{{ q.onToggle }}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:16px;border:0;background:transparent;padding:16px 0;font-size:16px;font-weight:600;color:#101418;cursor:pointer;text-align:left;font-family:inherit">{{ q.q }}<i class="{{ q.icon }}" style="font-size:18px;color:#6B737B;flex:none"></i></button>
+              <sc-if value="{{ q.open }}"><p style="margin:0 0 16px;font-size:15px;color:#4B535B;text-wrap:pretty;max-width:640px">{{ q.a }}</p></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="max-width:1200px;margin:0 auto;padding:0 24px 96px">
+    <div style="background:linear-gradient(135deg,#0B3A78,#0B5E5B);border-radius:24px;padding:clamp(32px,6vw,64px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;color:#fff">
+      <h2 style="margin:0;font-size:clamp(28px,4vw,44px);line-height:1.1;letter-spacing:-.03em;font-weight:700;text-wrap:balance;max-width:720px">Run a calmer pharmacy, starting today.</h2>
+      <p style="margin:0;font-size:16.5px;color:#CFE0F5;max-width:560px">Set up your counter in an afternoon. Import your stock from Excel and we’ll help you on WhatsApp.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px">
+        <a href="Medoro Onboarding.dc.html" style="display:flex;align-items:center;gap:8px;background:#fff;color:#0B3A78;height:48px;padding:0 22px;border-radius:10px;font-size:15.5px;font-weight:600" style-hover="background:#E1F1EF;color:#0B3A78">Start 14-day free trial</a>
+        <a href="Medoro App.dc.html" style="display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.35);color:#fff;height:48px;padding:0 20px;border-radius:10px;font-size:15.5px;font-weight:500" style-hover="background:rgba(255,255,255,.08);color:#fff">Try the live demo</a>
+      </div>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid #EEF0F2;background:#FBFBFC">
+    <div style="max-width:1200px;margin:0 auto;padding:56px 24px 28px;display:flex;flex-direction:column;gap:40px">
+      <div style="display:grid;grid-template-columns:{{ footGrid }};gap:40px 32px">
+        <div style="display:flex;flex-direction:column;gap:12px;grid-column:{{ footBrandSpan }};min-width:0">
+          <a href="#top" style="display:flex;align-items:center;gap:9px"><img src="assets/medoro-mark.png" alt="" style="width:28px"><span style="font-weight:700;font-size:18px;letter-spacing:-.02em"><span style="color:#0B3A78">Med</span><span style="color:#0A9A80">oro</span></span></a>
+          <span style="font-size:14px;color:#4B535B;max-width:300px">Smarter Pharmacy. Simpler Business. Pharmacy software built in Pune for India.</span>
+          <div style="display:flex;flex-direction:column;gap:4px;font-size:14px">
+            <a href="https://wa.me/912067900000" style="color:#101418;display:flex;gap:6px;align-items:center"><i class="icon-message-circle" style="font-size:14px;color:#18794E"></i>WhatsApp +91 20 6790 0000</a>
+            <a href="mailto:hello@medoro.in" style="color:#101418;display:flex;gap:6px;align-items:center"><i class="icon-mail" style="font-size:14px;color:#6B737B"></i>hello@medoro.in</a>
+            <span style="color:#6B737B;font-size:13px">Mon–Sat, 9 am to 9 pm IST</span>
+          </div>
+        </div>
+        <sc-for list="{{ footCols }}" as="c" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:13px;font-weight:600;color:#101418">{{ c.t }}</span>
+            <sc-for list="{{ c.links }}" as="l"><a href="{{ l.href }}" style="font-size:14px;color:#4B535B" style-hover="color:#101418">{{ l.label }}</a></sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border-top:1px solid #EEF0F2;padding-top:20px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px;color:#6B737B">
+        <span style="display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center"><span>© 2026 Medoro. All rights reserved.</span><a href="Medoro Legal.dc.html#privacy" style="color:#4B535B" style-hover="color:#101418">Privacy</a><a href="Medoro Legal.dc.html#terms" style="color:#4B535B" style-hover="color:#101418">Terms</a><a href="Medoro Legal.dc.html#grievance" style="color:#4B535B" style-hover="color:#101418">Grievance officer</a></span>
+        <span>Medoro is business software and does not give clinical advice. Compliance responsibilities stay with the licensed pharmacist.</span>
+      </div>
+    </div>
+  </footer>
+
+  <a href="https://wa.me/912067900000" aria-label="WhatsApp us" style="position:fixed;right:20px;bottom:20px;z-index:30;display:flex;align-items:center;gap:8px;height:48px;min-width:48px;justify-content:center;padding:{{ waPad }};border-radius:999px;background:#18794E;color:#fff;font-size:14.5px;font-weight:600;white-space:nowrap;box-shadow:0 10px 30px -8px rgba(16,24,40,.35)" style-hover="background:#13633F;color:#fff"><i class="icon-message-circle" style="font-size:19px"></i><sc-if value="{{ waLabel }}" hint-placeholder-val="{{ true }}"><span>WhatsApp us</span></sc-if></a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {yearly:false, faq:'0-0', w:1280, menuOpen:false, compare:false};
+  rootRef = React.createRef();
+  componentDidMount(){
+    const el=this.rootRef.current; if(!el) return;
+    const upd=()=>{const w=el.clientWidth; if(Math.abs(w-this.state.w)>4) this.setState({w});};
+    upd(); this.ro=new ResizeObserver(upd); this.ro.observe(el);
+    this.initMotion();
+  }
+  componentWillUnmount(){ this.ro&&this.ro.disconnect(); (this.cleanups||[]).forEach(f=>{try{f&&f()}catch(e){}}); }
+  async initMotion(){
+    const root=this.rootRef.current; if(!root) return;
+    const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let M; try{ M=await import('https://cdn.jsdelivr.net/npm/motion@12/+esm'); }catch(e){ return; }
+    const {animate,inView,scroll,stagger}=M; const C=this.cleanups=[];
+    const ease=[0.22,1,0.36,1];
+    const hero=[...root.querySelectorAll('[data-h]')];
+    const screen=root.querySelector('[data-screen]'), laptop=root.querySelector('[data-laptop]');
+    if(!reduce){
+      hero.forEach(el=>{el.style.opacity='0';el.style.transform='translateY(28px)';});
+      animate(hero,{opacity:[0,1],y:[28,0]},{delay:stagger(0.09,{startDelay:0.05}),duration:0.8,ease});
+      if(laptop){ laptop.style.opacity='0'; animate(laptop,{opacity:[0,1],y:[60,0],scale:[0.96,1]},{duration:1.1,delay:0.25,ease}); }
+      if(screen){ animate(screen,{rotateX:[18,0]},{duration:1.3,delay:0.3,ease}); }
+      if(laptop) C.push(scroll(animate(laptop,{y:[0,-60]},{ease:'linear'}),{target:root.querySelector('#top'),offset:['start start','end start']}));
+      const blocks=[...root.querySelectorAll('section:not(#top) h2, section:not(#top) ol > li, section:not(#top) [data-reveal], #product > div:last-child > div, #pricing > div:nth-of-type(2) > div, #security > div > div, #faq > div, footer > div > div:first-child > div')];
+      const seen=new Set(); blocks.forEach(el=>{ if(seen.has(el)) return; seen.add(el); el.style.opacity='0'; el.style.transform='translateY(32px)'; });
+      C.push(inView([...seen],(el)=>{ const sib=el.parentElement?[...el.parentElement.children].indexOf(el):0; animate(el,{opacity:1,y:0},{duration:0.7,delay:Math.min(sib,6)*0.07,ease}); },{margin:'0px 0px -12% 0px'}));
+      const mq=root.querySelector('[data-marquee]'); if(mq){ const a=animate(mq,{x:['0%','-50%']},{duration:38,ease:'linear',repeat:Infinity}); C.push(()=>a.stop()); mq.addEventListener('mouseenter',()=>a.speed=0.25); mq.addEventListener('mouseleave',()=>a.speed=1); }
+      root.querySelectorAll('[data-mag]').forEach(b=>{ const mv=e=>{const r=b.getBoundingClientRect();animate(b,{x:(e.clientX-r.left-r.width/2)*0.18,y:(e.clientY-r.top-r.height/2)*0.25},{type:'spring',stiffness:300,damping:20});}; const lv=()=>animate(b,{x:0,y:0},{type:'spring',stiffness:300,damping:18}); b.addEventListener('mousemove',mv); b.addEventListener('mouseleave',lv); });
+    }
+    const pg=root.querySelector('[data-progress]'); if(pg) C.push(scroll(animate(pg,{scaleX:[0,1]},{ease:'linear'})));
+    const hd=root.querySelector('[data-header]'); if(hd){ const f=()=>{hd.style.boxShadow=window.scrollY>8?'0 8px 24px -12px rgba(16,24,40,.18)':'none';}; window.addEventListener('scroll',f,{passive:true}); f(); C.push(()=>window.removeEventListener('scroll',f)); }
+  }
+  renderVals(){
+    const s=this.state, wide=s.w>=1280, y=s.yearly;
+    const inr=n=>'₹'+n.toLocaleString('en-IN');
+    const nav=[['Dashboard','icon-layout-dashboard',1],['Billing','icon-scan-barcode'],['Inventory','icon-package'],['Expiry','icon-hourglass'],['Purchases','icon-truck'],['Accounts','icon-landmark'],['WhatsApp','icon-message-circle']];
+    const bars=[38,41,36,45,51,48,32,40,42,39,47,53,49,41];
+    const planDefs=[
+      {name:'Starter',for:'For a single medical store.',m:999,cap:'1 branch · 2 counters · 3 users',feats:['GST billing with FEFO batches','Medicine catalogue and barcode scan','Expiry and low-stock alerts','Purchases, suppliers and dues','WhatsApp PDF invoices','Daily encrypted Google Drive backup']},
+      {name:'Professional',for:'For busy pharmacies with staff.',m:2499,rec:true,cap:'1 branch · 5 counters · 10 users',feats:['Everything in Starter, plus','Accounts: day book, P&L, GST summary','Customer credit and statements','Supplier invoice scanner (review first)','Roles, permissions and audit trail','Keeps billing on your shop network if the internet drops']},
+      {name:'Multi-branch',for:'For pharmacy chains.',m:4499,cap:'Up to 5 branches · 15 counters · 25 users',feats:['Everything in Professional, plus','Branch stock and approved transfers','Central purchasing','Consolidated and branch reports','Anomaly review for owners','Priority support, 9 am to 9 pm']}
+    ];
+    const groups=[
+      {title:'Product',items:[
+        ['Does Medoro handle GST billing?','Yes. Prices are MRP-inclusive and Medoro works out the taxable value with the CGST and SGST split for every line. Invoices are numbered per branch and financial year, and a GST summary exports to Excel for your CA. Have your CA confirm the setup for your business.'],
+        ['Can it stop expired medicines from being sold?','Yes. Billing picks the earliest-expiring sellable batch automatically. Expired, quarantined and recalled batches are blocked on the server, even if someone tries to add them by hand.'],
+        ['Do I need to install anything?','No. Medoro runs in Chrome or any modern browser on PCs, tablets and phones. If the database is on a PC in your shop, counters on the shop network keep billing even when the internet is down.']]},
+      {title:'Data and privacy',items:[
+        ['Where is my data stored?','On a database you control: a PC in your shop, your own server or your own cloud account. Medoro’s servers hold only your account, plan and licence. You can export everything, any time.'],
+        ['What leaves my server?','Only what you turn on. WhatsApp gets the customer number and the invoice PDF. Google Drive gets encrypted backup files it cannot read. Outside AI is off unless you switch it on, and the settings show exactly what would be sent.'],
+        ['Is the AI giving medical advice?','No. The AI answers business questions about sales, stock, expiry and dues. It refuses dosage or treatment questions and refers them to the pharmacist.']]},
+      {title:'Pricing and trial',items:[
+        ['How long is the free trial?','14 days, no card needed. Your data stays where it is when the trial ends. Pay by UPI or card to continue.'],
+        ['Can I move my data from my current software?','Yes. Import medicines, batches, suppliers and customers from Excel or CSV. Assisted migration is a one-time service, listed under add-ons.'],
+        ['How do I cancel?','From Settings, under Subscription, any time. The plan stays active until the end of the paid period, then the software goes read-only. Your data stays on your server and can always be exported.']]}
+    ];
+    const cmpRows=[['Branches','1','1','Up to 5'],['Counters / devices','2','5','15'],['Users','3','10','25'],['GST billing, FEFO, expiry alerts','✓','✓','✓'],['WhatsApp PDF invoices','✓','✓','✓'],['Encrypted Drive backups','✓','✓','✓'],['Accounts, P&L, GST summary','—','✓','✓'],['Customer credit','—','✓','✓'],['Invoice scanner','—','✓','✓'],['Shop-network billing without internet','—','✓','✓'],['Branch transfers, consolidated reports','—','—','✓'],['Priority support','—','—','✓']];
+    const col=v=>v==='—'?'#A3AAB1':v==='✓'?'#18794E':'#1F2328';
+    return {
+      rootRef:this.rootRef, wide, narrow:!wide,
+      waLabel:s.w>=640, waPad:s.w>=640?'0 18px 0 14px':'0', heroMinH:s.w>=1000?'calc(100vh - 160px)':'0', heroGrid:s.w>=1000?'minmax(0,1fr) minmax(0,1.05fr)':'minmax(0,1fr)', kpiCols:s.w>=640?'repeat(4,minmax(0,1fr))':'repeat(2,minmax(0,1fr))',
+      menuOpen:!wide&&s.menuOpen, menuIcon:s.menuOpen?'icon-x':'icon-menu',
+      toggleMenu:()=>this.setState(x=>({menuOpen:!x.menuOpen})), closeMenu:()=>this.setState({menuOpen:false}),
+      navLinks:[['Product','#product'],['AI','#ai'],['Data & security','#data'],['Pricing','#pricing'],['FAQ','#faq']].map(l=>({label:l[0],href:l[1]})),
+      marquee:[...Array(2)].flatMap(()=>[['icon-scan-barcode','Barcode billing'],['icon-layers','FEFO batch picking'],['icon-badge-indian-rupee','MRP-inclusive GST'],['icon-message-circle','WhatsApp PDF invoices'],['icon-hourglass','Expiry loss prevention'],['icon-file-scan','Supplier bill scanner'],['icon-landmark','Day book & P&L'],['icon-sparkles','Hinglish AI manager'],['icon-git-branch','Multi-branch transfers'],['icon-cloud-upload','Encrypted Drive backups']].map(x=>({icon:x[0],t:x[1]}))),
+      trust:['14-day free trial','No card needed','Pay by UPI or card','GST-ready','Excel export','DPDP-ready consent'],
+      heroNav:nav.map(n=>({label:n[0],icon:n[1],bg:n[2]?'#fff':'transparent',fg:n[2]?'#101418':'#4B535B',fw:n[2]?'600':'400',sh:n[2]?'0 1px 2px rgba(16,24,40,.08),0 0 0 1px #E6E8EB':'none'})),
+      heroKpis:[{l:'Sales today',v:'₹41,280',d:'+4.2%',bg:'#E7F6EE',fg:'#18794E'},{l:'Gross margin',v:'27.4%',d:'−0.5 pts',bg:'#FDECEC',fg:'#C0362C'},{l:'Expiring 30 d',v:'₹2,104',d:'2 batches',bg:'#FDF2E1',fg:'#94570A'},{l:'Payables',v:'₹92,480',d:'₹31k this week',bg:'#F2F4F5',fg:'#4B535B'}],
+      heroBars:bars.map((v,i)=>({h:Math.round(v/53*100)+'%',bg:i===13?'#0B5E5B':'#C7E2DE'})),
+      facts:[{v:'FEFO',d:'Earliest-expiring batch picked on every bill'},{v:'GST',d:'MRP-inclusive, CGST and SGST split, Excel for your CA'},{v:'हिंदी',d:'Ask the AI in English, Hindi or Hinglish'},{v:'0',d:'Pharmacy records kept on Medoro’s servers'}],
+      posList:['Brand, salt or barcode search','Cash, UPI, card and split','Held carts and credit sales','A4 and thermal receipts','Returns and credit notes','Shift cash reconciliation'],
+      cartDemo:[{n:'Augmentin 625 Duo',tag:'Rx H1',tagFg:'#C0362C',tagBd:'#F0B8B2',sub:'AG1176 expired, skipped · using AG1290',subFg:'#94570A',q:1,a:'₹223.80'},{n:'Dolo 650',tag:'OTC',tagFg:'#6B737B',tagBd:'#E6E8EB',sub:'FEFO DL24091 · exp Nov 2026',subFg:'#6B737B',q:2,a:'₹67.20'}],
+      tiles:[
+        {icon:'icon-hourglass',t:'Expiry loss prevention',d:'See which batches won’t sell in time. Return them to the supplier or move them to another branch before they expire.',bg:'#FDF2E1',fg:'#94570A'},
+        {icon:'icon-message-circle',t:'WhatsApp invoices',d:'The PDF bill reaches the customer’s phone through the official WhatsApp Business API, with delivery status shown.',bg:'#E7F6EE',fg:'#18794E'},
+        {icon:'icon-file-scan',t:'Scan supplier bills',d:'Photograph a supplier invoice. Lines are matched and totals checked, and nothing reaches stock until you approve it.',bg:'#EAF0FC',fg:'#2459C9'},
+        {icon:'icon-landmark',t:'Accounts your CA will like',d:'Day book, receivables, payables, P&L and a GST summary. Corrections post as reversals, never as edits.',bg:'#E1F1EF',fg:'#0B5E5B'},
+        {icon:'icon-calendar-range',t:'Seasonal stock planner',d:'Shows which medicines sell more in which month, so you can order before the rush.',bg:'#F1EEFB',fg:'#5B45B0'},
+        {icon:'icon-git-branch',t:'Multi-branch control',d:'Branch stock, approved transfers, central buying and consolidated reports.',bg:'#F2F4F5',fg:'#3D454D'}
+      ],
+      steps:[{n:'01',t:'Scan or search',d:'Find the medicine by brand, salt or barcode. Rx items ask for the prescriber’s details.'},{n:'02',t:'Right batch, automatically',d:'FEFO picks the batch that expires first. Expired and quarantined stock is blocked.'},{n:'03',t:'Take payment',d:'Cash, UPI, card or split. Stock, accounts and the invoice number update in one step.'},{n:'04',t:'Send on WhatsApp',d:'Confirm the number and the PDF invoice is on its way, with delivery status.'}],
+      aiPoints:['Runs on a local model by default. Nothing goes to outside AI unless you turn it on','Every answer shows which data it used','Refuses clinical questions and refers them to the pharmacist','Switch it off any time without affecting billing'],
+      aiRows:[{a:'Montair LC',b:'+45%',c:'+18'},{a:'Okacet',b:'+38%',c:'+42'},{a:'Ascoril LS Syrup',b:'+32%',c:'+9'},{a:'Volini Gel',b:'+21%',c:'+6'}],
+      envBoxes:[{icon:'icon-monitor',l:'Counters & tablets'},{icon:'icon-server',l:'Medoro app'},{icon:'icon-database',l:'Your database'}],
+      extBoxes:[{icon:'icon-hard-drive-upload',l:'Google Drive',d:'Encrypted backups only'},{icon:'icon-message-circle',l:'WhatsApp API',d:'Invoice PDF and number'},{icon:'icon-key-round',l:'Medoro',d:'Account and licence only'}],
+      sec:[{icon:'icon-users',t:'Roles and permissions',d:'Cashiers bill. Managers approve discounts and refunds. Owners see everything.'},{icon:'icon-shield-check',t:'Two-step sign-in',d:'MFA is required for owners and managers, and lost devices can be signed out remotely.'},{icon:'icon-scroll-text',t:'Tamper-evident audit trail',d:'Every void, discount, refund and stock adjustment is logged with who and when.'},{icon:'icon-lock',t:'Encrypted backups',d:'Backups are encrypted before they leave your PC. Only your recovery key opens them.'},{icon:'icon-file-check',t:'Consent records',d:'WhatsApp opt-in and opt-out are recorded per customer, with the date and method.'},{icon:'icon-download',t:'Export and leave any time',d:'Your full data as CSV, plus a database dump. No lock-in.'}],
+      moBg:y?'transparent':'#fff', moSh:y?'none':'0 1px 2px rgba(16,24,40,.1)', yrBg:y?'#fff':'transparent', yrSh:y?'0 1px 2px rgba(16,24,40,.1)':'none',
+      setMonthly:()=>this.setState({yearly:false}), setYearly:()=>this.setState({yearly:true}),
+      plans:planDefs.map(p=>({...p,rec:!!p.rec,price:inr(y?Math.round(p.m*10/12):p.m),per:'/ month',note:y?'Billed '+inr(p.m*10)+' yearly · 2 months free':'Billed monthly after the 14-day trial',bd:p.rec?'1.5px solid #0B5E5B':'1px solid #E6E8EB',sh:p.rec?'0 20px 40px -20px rgba(11,94,91,.35)':'0 1px 2px rgba(16,24,40,.04)',ctaBg:p.rec?'#0B5E5B':'#fff',ctaFg:p.rec?'#fff':'#101418',ctaBd:p.rec?'0':'1px solid #E6E8EB'})),
+      aiPrice:y?inr(Math.round(499*10/12))+' / month, billed yearly':'₹499 / month',
+      addons:[{l:'Assisted setup and training',v:'₹1,999 once'},{l:'Stock and data migration',v:'from ₹2,999'},{l:'Extra branch (Multi-branch)',v:'₹799 / month'},{l:'Thermal printer and scanner setup',v:'Included'}],
+      compareOpen:s.compare, compareLabel:s.compare?'Hide plan comparison':'Compare all features', compareIcon:s.compare?'icon-chevron-up':'icon-chevron-down',
+      toggleCompare:()=>this.setState(x=>({compare:!x.compare})),
+      cmp:cmpRows.map(r=>({f:r[0],a:r[1],b:r[2],c:r[3],c1:col(r[1]),c2:col(r[2]),c3:col(r[3])})),
+      faqGroups:groups.map((g,gi)=>({title:g.title,items:g.items.map((q,qi)=>{const k=gi+'-'+qi,open=s.faq===k;return {q:q[0],a:q[1],open,icon:open?'icon-minus':'icon-plus',onToggle:()=>this.setState({faq:open?'':k})};})})),
+      footGrid:s.w>=1000?'minmax(0,1.5fr) repeat(4,minmax(0,1fr))':s.w>=640?'repeat(3,minmax(0,1fr))':'repeat(2,minmax(0,1fr))', footBrandSpan:s.w>=1000?'auto':'1 / -1',
+      footCols:[
+        {t:'Product',links:[['Billing & POS','#product'],['Expiry prevention','#product'],['Invoice scanner','#product'],['Accounts & GST','#product'],['WhatsApp invoices','#product'],['AI Manager','#ai'],['Pricing','#pricing'],['Live demo','Medoro App.dc.html']]},
+        {t:'Company',links:[['About Medoro','Medoro Legal.dc.html#about'],['Data ownership','#data'],['Security','#security'],['FAQ','#faq'],['Contact','Medoro Legal.dc.html#contact']]},
+        {t:'Resources',links:[['Help & setup','Medoro Legal.dc.html#help'],['Backup & recovery','Medoro Legal.dc.html#backup'],['Sign in','Medoro Onboarding.dc.html'],['Pharmacy staff login','Medoro Onboarding.dc.html?view=employee'],['Medoro employee login','Medoro Staff Login.dc.html'],['Start free trial','Medoro Onboarding.dc.html'],['WhatsApp support','https://wa.me/912067900000']]},
+        {t:'Legal',links:[['Privacy policy','Medoro Legal.dc.html#privacy'],['Terms of service','Medoro Legal.dc.html#terms'],['Refund policy','Medoro Legal.dc.html#refund'],['Cookie policy','Medoro Legal.dc.html#cookies'],['DPDP rights','Medoro Legal.dc.html#dpdp'],['Grievance officer','Medoro Legal.dc.html#grievance']]}
+      ].map(c=>({t:c.t,links:c.links.map(l=>({label:l[0],href:l[1]}))}))
+    };
+  }
+}
+</script>
+</body>
+</html>

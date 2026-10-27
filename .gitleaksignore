@@ -1,0 +1,2 @@
+# Fake app secret used by the WhatsApp webhook test (since replaced by a runtime value).
+a40217a22d9fc35514f197667c70b21de6ebeb3d:tests/integration/whatsapp.test.ts:generic-api-key:10
