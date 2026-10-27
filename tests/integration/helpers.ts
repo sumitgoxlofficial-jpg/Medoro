@@ -20,3 +20,19 @@ export async function makePharmacy(over: Partial<Parameters<typeof createPharmac
     ...over,
   });
 }
+
+import type { Ctx } from "@/server/context";
+import { DEFAULT_GRANTS, type RoleName } from "@/domain/identity/permissions";
+
+/** A request context for the owner (or another role's permissions) of the test pharmacy. */
+export async function ctxFor(role: RoleName = "Owner", branchName = "Main"): Promise<Ctx> {
+  const t = await db.tenant.findFirstOrThrow();
+  const u = await db.user.findFirstOrThrow({ where: { tenantId: t.id } });
+  const branches = await db.branch.findMany({ where: { tenantId: t.id }, orderBy: { createdAt: "asc" } });
+  const br = branches.find((b) => b.name === branchName)!;
+  return {
+    tenantId: t.id, tenantName: t.name, userId: u.id, userName: u.name, userEmail: u.email ?? "", realRole: "Owner", role,
+    perms: [...DEFAULT_GRANTS[role]], branchId: br.id, branchName: br.name, branchCode: br.code,
+    branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })), lang: "en", sessionId: "test",
+  };
+}

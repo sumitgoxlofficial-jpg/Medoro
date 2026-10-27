@@ -67,3 +67,7 @@ export const can = (ctx: Ctx, p: Perm) => ctx.perms.includes(p);
 export function authorize(ctx: Ctx, p: Perm) {
   if (!can(ctx, p)) throw new ForbiddenError(p);
 }
+
+export function authorizeAny(ctx: Ctx, ...ps: Perm[]) {
+  if (!ps.some((p) => can(ctx, p))) throw new ForbiddenError(ps[0]);
+}

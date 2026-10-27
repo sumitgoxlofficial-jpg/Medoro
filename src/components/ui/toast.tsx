@@ -31,7 +31,7 @@ export const useToast = () => useContext(Ctx);
 /** Show the result of a server action as a toast. Returns true on success. */
 export function useActionToast() {
   const toast = useToast();
-  return useCallback(<T,>(r: { ok: true; data: T; message?: string } | { ok: false; error: string }, okTone: ToastTone = "green") => {
+  return useCallback((r: { ok: true; data?: unknown; message?: string } | { ok: false; error: string }, okTone: ToastTone = "green") => {
     if (r.ok) { if (r.message) toast(r.message, okTone); return true; }
     toast(r.error, "red");
     return false;
