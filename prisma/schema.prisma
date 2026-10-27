@@ -70,9 +70,9 @@ model Tenant {
 }
 
 model Branch {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   tenantId    String
-  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
   name        String
   code        String // short code used in invoice numbers, e.g. KOT
   address     String?
@@ -153,10 +153,10 @@ model Counter {
 
 // Sign-in throttling per account+IP key.
 model LoginAttempt {
-  key         String   @id
-  failures    Int      @default(0)
+  key         String    @id
+  failures    Int       @default(0)
   lockedUntil DateTime?
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
 }
 
 model Session {
@@ -293,18 +293,18 @@ model Transfer {
 
 // Goods returned to a supplier (debit note) or written off.
 model StockOut {
-  id          String   @id @default(uuid())
-  tenantId    String
-  branchId    String
-  no          String
-  kind        String // supplier_return, write_off
-  supplierId  String?
-  batchId     String
-  qty         Int
-  valuePaise  BigInt
-  reason      String
-  userId      String
-  at          DateTime @default(now())
+  id         String   @id @default(uuid())
+  tenantId   String
+  branchId   String
+  no         String
+  kind       String // supplier_return, write_off
+  supplierId String?
+  batchId    String
+  qty        Int
+  valuePaise BigInt
+  reason     String
+  userId     String
+  at         DateTime @default(now())
 
   @@unique([tenantId, no])
 }
@@ -361,15 +361,15 @@ model Customer {
 
 // Balances are derived from vouchers; this table holds supplier bills for due-date tracking.
 model SupplierBill {
-  id         String   @id @default(uuid())
-  tenantId   String
-  supplierId String
-  ref        String
-  date       DateTime @db.Date
-  dueDate    DateTime @db.Date
+  id          String   @id @default(uuid())
+  tenantId    String
+  supplierId  String
+  ref         String
+  date        DateTime @db.Date
+  dueDate     DateTime @db.Date
   amountPaise BigInt
-  paidPaise  BigInt   @default(0)
-  grnId      String?
+  paidPaise   BigInt   @default(0)
+  grnId       String?
 }
 
 // ───────────── Purchasing ─────────────
@@ -400,13 +400,13 @@ model PurchaseOrderItem {
 }
 
 model Grn {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   tenantId          String
   branchId          String
   no                String
   supplierId        String
   supplierInvoiceNo String
-  invoiceDate       DateTime @db.Date
+  invoiceDate       DateTime  @db.Date
   totalPaise        BigInt
   poId              String?
   scanDocId         String?
@@ -650,14 +650,14 @@ model BackupManifest {
 }
 
 model Device {
-  id        String   @id @default(uuid())
-  tenantId  String
-  branchId  String
-  name      String
-  kind      String // counter, tablet, host
-  offline   Boolean  @default(false)
-  quota     Json     @default("{}")
-  lastSeen  DateTime @default(now())
+  id       String   @id @default(uuid())
+  tenantId String
+  branchId String
+  name     String
+  kind     String // counter, tablet, host
+  offline  Boolean  @default(false)
+  quota    Json     @default("{}")
+  lastSeen DateTime @default(now())
 }
 
 model OfflineOp {
@@ -713,4 +713,221 @@ model OtpCode {
   purpose   String // signin, invite
   attempts  Int      @default(0)
   expiresAt DateTime
+}
+
+// ───────────────────────── Medoro control plane (staff console) ─────────────────────────
+// Medoro's own records: staff, sales pipeline, commission, customer accounts and support.
+// Nothing here links to pharmacy tables; staff code never reads them.
+
+enum StaffRole {
+  super_admin
+  sales
+  care
+}
+
+enum StaffStatus {
+  invited
+  pending
+  active
+  deactivated
+}
+
+model StaffUser {
+  id              String         @id @default(uuid())
+  empNo           String         @unique
+  name            String
+  email           String         @unique
+  phone           String
+  role            StaffRole
+  team            String         @default("")
+  status          StaffStatus
+  passwordHash    String?
+  totpSecret      String? // sealed
+  totpEnabled     Boolean        @default(false)
+  referralCode    String?        @unique
+  bonusPct        Decimal        @default(0) @db.Decimal(5, 2)
+  inviteTokenHash String?        @unique
+  inviteExpiresAt DateTime?
+  tokenVersion    Int            @default(0)
+  approvedBy      String?
+  createdAt       DateTime       @default(now())
+  sessions        StaffSession[]
+  bank            StaffBank?
+}
+
+model StaffSession {
+  id           String    @id // sha256 of the cookie token
+  staffId      String
+  staff        StaffUser @relation(fields: [staffId], references: [id])
+  tokenVersion Int
+  mfaPassed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  ip           String?
+  userAgent    String?
+}
+
+model StaffBank {
+  staffId       String    @id
+  staff         StaffUser @relation(fields: [staffId], references: [id])
+  holder        String
+  accountSealed String
+  last4         String
+  ifsc          String
+  bank          String
+  type          String
+  panSealed     String
+  panMasked     String
+  status        String // pending, verified
+  addedAt       DateTime  @default(now())
+  verifiedAt    DateTime?
+  verifiedBy    String?
+}
+
+model StaffAudit {
+  id        String   @id @default(uuid())
+  at        DateTime @default(now())
+  staffId   String?
+  staffName String
+  action    String
+  detail    String?
+  ip        String?
+}
+
+model CpSetting {
+  key   String @id
+  value Json
+}
+
+model CpCustomer {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  name         String
+  owner        String
+  phone        String    @unique // 10 digits
+  email        String    @default("")
+  city         String    @default("")
+  address      String    @default("")
+  gstin        String    @default("")
+  drugLicence  String    @default("")
+  product      String // starter, pro, multi
+  addons       String[]
+  cycle        String // m, y
+  status       String // trial, active, grace, cancelled
+  since        DateTime  @db.Date
+  renewsOn     DateTime? @db.Date
+  branches     Int       @default(1)
+  devices      Int       @default(1)
+  deployment   String    @default("")
+  lastCheckIn  DateTime?
+  appVersion   String?
+  salesStaffId String?
+  createdAt    DateTime  @default(now())
+  notes        CpNote[]
+  tickets      Ticket[]
+}
+
+model CpNote {
+  id         String     @id @default(uuid())
+  customerId String
+  customer   CpCustomer @relation(fields: [customerId], references: [id])
+  text       String
+  byName     String
+  staffId    String
+  at         DateTime   @default(now())
+}
+
+model Lead {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  name           String
+  owner          String
+  phone          String    @unique // 10 digits
+  city           String
+  source         String
+  product        String
+  stage          String // new, contacted, demo, trial, won, lost
+  nextOn         DateTime? @db.Date
+  staffId        String
+  lostReason     String?
+  discountPct    Int?
+  discountStatus String? // pending, approved, rejected
+  createdAt      DateTime  @default(now())
+  logs           LeadLog[]
+}
+
+model LeadLog {
+  id      String   @id @default(uuid())
+  leadId  String
+  lead    Lead     @relation(fields: [leadId], references: [id])
+  text    String
+  staffId String
+  at      DateTime @default(now())
+}
+
+model CpSale {
+  id              String    @id @default(uuid())
+  date            DateTime  @db.Date
+  pharmacy        String
+  phone           String
+  city            String    @default("")
+  customerId      String?
+  product         String
+  cycle           String // m, y
+  type            String // new, renewal
+  staffId         String
+  status          String // pending, verified, paid, rejected
+  amountPaise     Int // before GST
+  ratePct         Decimal   @db.Decimal(5, 2)
+  commissionPaise Int
+  leadId          String?
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  paidAt          DateTime?
+  payoutRef       String?
+  createdAt       DateTime  @default(now())
+}
+
+model Ticket {
+  id               String          @id @default(uuid())
+  code             String          @unique
+  customerId       String
+  customer         CpCustomer      @relation(fields: [customerId], references: [id])
+  subject          String
+  category         String          @default("General")
+  channel          String          @default("Phone")
+  priority         String // high, medium, low
+  status           String // open, waiting, resolved
+  assigneeId       String?
+  escalatedTo      String?
+  createdAt        DateTime        @default(now())
+  firstResponseDue DateTime
+  firstResponseAt  DateTime?
+  resolvedAt       DateTime?
+  messages         TicketMessage[]
+}
+
+model TicketMessage {
+  id           String   @id @default(uuid())
+  ticketId     String
+  ticket       Ticket   @relation(fields: [ticketId], references: [id])
+  text         String
+  byName       String
+  staffId      String?
+  internal     Boolean  @default(false)
+  fromCustomer Boolean  @default(false)
+  at           DateTime @default(now())
+}
+
+model RemoteAccessRequest {
+  id          String    @id @default(uuid())
+  customerId  String
+  staffId     String
+  ticketId    String?
+  status      String // requested, approved, denied, expired
+  requestedAt DateTime  @default(now())
+  decidedAt   DateTime?
+  expiresAt   DateTime?
 }
