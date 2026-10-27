@@ -487,6 +487,7 @@ model SalesReturn {
   refundMode   String
   amountPaise  BigInt
   userId       String
+  shiftId      String?
   at           DateTime @default(now())
   lines        Json
 

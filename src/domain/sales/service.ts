@@ -92,7 +92,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput): Promise<CommitResul
   const n = await nextSeq(tx, ctx.tenantId, `INV:${ctx.branchId}:${fy}`);
   const prefix = (tenant.settings as { invoicePrefix?: string }).invoicePrefix ?? "INV";
   const invoiceNo = `${prefix}/${branch.code}/${fy}/${String(n).padStart(6, "0")}`;
-  const shift = await tx.shift.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, closedAt: null, ...(ctx.counterId ? { counter: ctx.counterId } : { openedBy: ctx.userId }) } });
+  const shift = await tx.shift.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, closedAt: null, counter: ctx.counterId ?? "user:" + ctx.userId } });
 
   const sale = await tx.sale.create({
     data: {

@@ -25,3 +25,13 @@ export const customerSchema = z.object({
   creditLimit: z.union([z.string(), z.number()]).transform((v) => Math.round((parseFloat(String(v || 0)) || 0) * 100)).refine((p) => p >= 0, "Credit limit can’t be negative.").default(0),
 });
 export type CustomerInput = z.input<typeof customerSchema>;
+
+export const REFUND_MODES = ["Cash", "UPI refund", "Adjust customer credit"] as const;
+export const returnSchema = z.object({
+  saleId: z.string().uuid(),
+  lines: z.array(z.object({ itemId: z.string().uuid(), qty: z.number().int().min(0) })),
+  condition: z.enum(["sealed", "damaged"]),
+  refundMode: z.enum(REFUND_MODES),
+  reason: z.string().trim().min(3, "Enter the reason for the return.").max(200),
+});
+export type ReturnInput = z.infer<typeof returnSchema>;

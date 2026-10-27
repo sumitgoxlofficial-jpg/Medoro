@@ -1,0 +1,123 @@
+"use client";
+import { useEffect, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { inr } from "@/lib/money";
+import { dayMonth, hhmm } from "@/lib/dates";
+import { REFUND_MODES } from "@/domain/sales/contracts";
+import type { currentShift, recentInvoices, returnableLines, todaysCreditNotes } from "@/domain/sales/returns";
+import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction } from "./actions";
+
+type Inv = Awaited<ReturnType<typeof recentInvoices>>[number];
+type Lines = NonNullable<Awaited<ReturnType<typeof returnableLines>>>;
+const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col gap-3";
+const inp = "border border-input rounded-lg px-[11px] py-[9px] text-[14px] outline-none bg-white focus:border-teal w-full";
+
+export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, counter }: {
+  invoices: Inv[]; creditNotes: Awaited<ReturnType<typeof todaysCreditNotes>>; shift: Awaited<ReturnType<typeof currentShift>>; canRefund: boolean; counter: string;
+}) {
+  const toast = useToast();
+  const [q, setQ] = useState(""), [invoices, setInvoices] = useState(initial);
+  const [sel, setSel] = useState(""), [lines, setLines] = useState<Lines | null>(null);
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [cond, setCond] = useState<"sealed" | "damaged">("sealed"), [mode, setMode] = useState<(typeof REFUND_MODES)[number]>("Cash"), [reason, setReason] = useState("");
+  const [pending, start] = useTransition();
+  const [opening, setOpening] = useState(""), [counted, setCounted] = useState("");
+
+  useEffect(() => { setInvoices(initial); }, [initial]);
+  useEffect(() => { if (!q.trim()) { setInvoices(initial); return; } const h = setTimeout(() => findInvoicesAction(q).then(setInvoices), 250); return () => clearTimeout(h); }, [q, initial]);
+  useEffect(() => { setQty({}); setLines(null); if (sel) linesAction(sel).then((l) => { setLines(l); if (l?.payMode === "credit") setMode("Adjust customer credit"); }); }, [sel]);
+
+  const refund = lines ? lines.lines.reduce((a, l) => a + Math.round(l.unitNet * Math.min(Number(qty[l.itemId] || 0), l.sold - l.returned)), 0) : 0;
+  const submit = () => start(async () => {
+    const r = await returnAction({ saleId: sel, lines: lines!.lines.map((l) => ({ itemId: l.itemId, qty: Number(qty[l.itemId] || 0) })), condition: cond, refundMode: mode, reason });
+    if (!r.ok) return toast(r.error, "red");
+    toast(`${r.data.creditNote} issued for ${inr(r.data.amount)}.`, "green");
+    setReason(""); setQty({}); setLines(await linesAction(sel));
+  });
+
+  const o = shift.open;
+  const cnt = Math.round((parseFloat(counted) || 0) * 100);
+  return (
+    <div className="grid gap-4 max-w-[1400px] items-start grid-cols-[minmax(0,1.4fr)_minmax(300px,1fr)] max-[980px]:grid-cols-1">
+      <div className={card}>
+        <div className="font-semibold text-[15px]">Sales return & refund</div>
+        <div className="flex gap-2 flex-wrap">
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Invoice no. or customer" aria-label="Find invoice" className={inp + " max-w-[220px]"} />
+          <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Invoice" className={inp + " flex-1 min-w-[240px]"}>
+            <option value="">{invoices.length ? "Select a committed invoice…" : "No invoices found"}</option>
+            {invoices.map((i) => <option key={i.id} value={i.id}>{i.no} · {i.customer} · {inr(i.total)} · {dayMonth(new Date(i.at))} {hhmm(new Date(i.at))}</option>)}
+          </select>
+        </div>
+        {lines ? (
+          <>
+            <div className="border border-[#E3E6E9] rounded-lg overflow-hidden">
+              {lines.lines.map((l) => {
+                const max = l.sold - l.returned;
+                return (
+                  <div key={l.itemId} className="grid grid-cols-[minmax(0,1fr)_auto_80px] gap-3 items-center px-3 py-2.5 border-b border-row last:border-0 text-[13.5px]">
+                    <div className="flex flex-col min-w-0"><strong className="font-semibold">{l.name}</strong><span className="text-[12px] text-muted">{l.batchNo} · sold {l.sold} · returned {l.returned} · {inr(Math.round(l.unitNet))} each{l.expired ? " · batch expired" : ""}</span></div>
+                    <span className="text-[12px] text-faint whitespace-nowrap">{max ? `max ${max}` : "fully returned"}</span>
+                    <input value={qty[l.itemId] ?? ""} onChange={(e) => setQty({ ...qty, [l.itemId]: String(Math.min(Number(e.target.value.replace(/\D/g, "") || 0), max) || "") })} disabled={!max} placeholder="0" aria-label={`Return qty ${l.name}`} inputMode="numeric"
+                      className="border border-input rounded-md px-2 py-1.5 text-right text-[14px] disabled:bg-chip" />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+              <select value={cond} onChange={(e) => setCond(e.target.value as typeof cond)} aria-label="Condition" className={inp}><option value="sealed">Sealed, resaleable</option><option value="damaged">Opened or damaged</option></select>
+              <select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} aria-label="Refund mode" className={inp} disabled={lines.payMode === "credit"}>
+                {REFUND_MODES.filter((m) => m !== "Adjust customer credit" || lines.hasCustomer).map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (required, kept in audit trail)" aria-label="Reason" className={inp} />
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-[14px]">Refund <strong className="text-[18px] tnum">{inr(refund)}</strong></span>
+              <Button variant="primary" disabled={!canRefund || !refund || pending} onClick={submit}>Issue credit note</Button>
+            </div>
+            {!canRefund ? <div className="text-[12.5px] text-bad">Your role cannot approve refunds. A manager must process this.</div> : null}
+            <div className="text-[12px] text-faint">Refunds are the amount actually paid (after discount), with GST reversed. Sealed returns go back to the same batch. Opened or damaged items are not restocked. Expired stock is never resold.</div>
+          </>
+        ) : null}
+        {creditNotes.length ? (
+          <div className="flex flex-col gap-1 border-t border-line-soft pt-3">
+            <div className="text-[12.5px] text-muted font-medium">Credit notes today</div>
+            {creditNotes.map((c) => (
+              <div key={c.no} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 py-1.5 border-b border-row text-[13px] items-baseline">
+                <span className="font-mono text-[12px]">{c.no}</span><span className="truncate">{c.customer} <span className="text-muted">· {c.invoice} · {c.reason} · {c.mode}</span></span><strong className="tnum">{inr(c.amount)}</strong>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div className={card}>
+        <div className="font-semibold text-[15px]">Shift · {counter}</div>
+        {o ? (
+          <>
+            <div className="text-[12.5px] text-muted">Opened {dayMonth(new Date(o.openedAt))} {hhmm(new Date(o.openedAt))}</div>
+            {[["Opening float", o.open], ["Cash sales", o.cash], ["Cash refunds", -o.refunds], ["Cash expenses", -o.expenses]].map(([k, v]) => (
+              <div key={k as string} className="flex justify-between text-[13.5px]"><span className="text-muted">{k}</span><span className="tnum">{inr(v as number)}</span></div>
+            ))}
+            <div className="flex justify-between text-[14px] font-semibold border-t border-[#E3E6E9] pt-2"><span>Expected in drawer</span><span className="tnum">{inr(o.expected)}</span></div>
+            <label className="flex flex-col gap-1 text-[12.5px] text-muted font-medium">Counted cash (₹)<input value={counted} onChange={(e) => setCounted(e.target.value.replace(/[^\d.]/g, ""))} placeholder="0.00" inputMode="decimal" className={inp + " text-[15px]"} /></label>
+            {counted ? <div className="text-[13px] font-medium" style={{ color: cnt === o.expected ? "#1E7F4F" : "#B3261E" }}>{cnt === o.expected ? "Drawer matches." : `Difference ${inr(cnt - o.expected)} (${cnt < o.expected ? "short" : "excess"})`}</div> : null}
+            <Button variant="primary" disabled={pending} onClick={() => start(async () => {
+              const r = await closeShiftAction(counted);
+              if (!r.ok) return toast(r.error, "red");
+              toast(r.data.diff ? `Shift closed. Difference ${inr(r.data.diff)} posted to Cash short/excess.` : "Shift closed. Drawer matches.", r.data.diff ? "amber" : "green"); setCounted("");
+            })}>Close shift & post</Button>
+          </>
+        ) : (
+          <>
+            <div className="text-[13px] text-muted">No shift open on this counter. Cash sales are tracked against a shift so the drawer can be reconciled.</div>
+            <label className="flex flex-col gap-1 text-[12.5px] text-muted font-medium">Opening float (₹)<input value={opening} onChange={(e) => setOpening(e.target.value.replace(/[^\d.]/g, ""))} placeholder="0.00" inputMode="decimal" className={inp} /></label>
+            <Button variant="primary" disabled={pending} onClick={() => start(async () => { const r = await openShiftAction(opening || "0"); if (!r.ok) return toast(r.error, "red"); toast("Shift opened.", "green"); setOpening(""); })}>Open shift</Button>
+            {shift.last ? <div className="text-[12.5px] text-muted">Last shift closed {dayMonth(new Date(shift.last.closedAt))} {hhmm(new Date(shift.last.closedAt))} · expected {inr(shift.last.expected)} · counted {inr(shift.last.counted)}</div> : null}
+          </>
+        )}
+        <div className="text-[12px] text-faint">Any difference is posted to Cash short/excess and shows in the audit trail.</div>
+      </div>
+    </div>
+  );
+}
