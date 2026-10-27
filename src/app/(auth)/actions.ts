@@ -213,6 +213,14 @@ export async function completeInvite(input: { code: string; inviteCode: string; 
     }
     const secretHash = await hashPassword(manager ? input.password! : input.pin!);
     const out = await db.$transaction(async (tx) => {
+      if (inv.userId) {
+        // A reset: set a new PIN/password on the existing account.
+        const u = await tx.user.update({ where: { id: inv.userId }, data: { ...(manager ? { passwordHash: secretHash } : { pinHash: secretHash }), tokenVersion: { increment: 1 }, failedLogins: 0 } });
+        const used = await tx.invite.updateMany({ where: { id: inv.id, usedAt: null }, data: { usedAt: new Date() } });
+        if (!used.count) throw new UserError("This code was just used.");
+        await writeAudit(tx, { tenantId: t.id, userId: u.id, userName: u.name, action: manager ? "Password reset completed" : "PIN reset completed", entity: "user", entityId: u.id });
+        return { employeeNo: u.employeeNo ?? "", tenantCode: t.code, manager };
+      }
       const role = await tx.role.findFirstOrThrow({ where: { tenantId: t.id, name: inv.roleName } });
       const employeeNo = await nextEmployeeNo(tx, t.id);
       const taken = await tx.user.findFirst({ where: { tenantId: t.id, OR: [c.phone ? { phone: c.phone } : { email: c.email }] } });
