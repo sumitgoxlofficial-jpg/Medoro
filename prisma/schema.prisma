@@ -390,16 +390,33 @@ model Grn {
   poId              String?
   scanDocId         String?
   approvedBy        String
-  approvedAt        DateTime @default(now())
+  approvedAt        DateTime  @default(now())
+  items             GrnItem[]
 
   @@unique([tenantId, supplierId, supplierInvoiceNo])
   @@unique([tenantId, no])
+}
+
+model GrnItem {
+  id         String  @id @default(uuid())
+  grnId      String
+  grn        Grn     @relation(fields: [grnId], references: [id])
+  poItemId   String?
+  medicineId String
+  batchId    String
+  qty        Int
+  freeQty    Int     @default(0)
+  ratePaise  BigInt // per pack, excluding GST
+  gstRate    Int
 }
 
 model ScanDocument {
   id          String   @id @default(uuid())
   tenantId    String
   fileName    String
+  storagePath String?
+  mime        String?
+  sizeBytes   Int?
   sha256      String
   status      String // processing, review, approved, rejected
   extracted   Json

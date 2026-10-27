@@ -42,10 +42,11 @@ describe("inventory", () => {
     expect(r.grnNo).toMatch(/^GRN-\d{4}-0001$/);
     const v = await db.voucher.findFirstOrThrow({ where: { refId: (await db.grn.findFirstOrThrow()).id }, include: { lines: true } });
     const dr = v.lines.reduce((a, l) => a + Number(l.debitPaise), 0), cr = v.lines.reduce((a, l) => a + Number(l.creditPaise), 0);
-    expect(dr).toBe(22400); expect(cr).toBe(22400);
-    expect(v.lines.find((l) => l.account === "Purchases")!.debitPaise).toBe(20000n);
+    // 10 × ₹22.40 + 12% GST = ₹250.88, rounded to ₹251
+    expect(dr).toBe(25100); expect(cr).toBe(25100);
+    expect(v.lines.find((l) => l.account === "Purchases")!.debitPaise).toBe(22400n);
     const bill = await db.supplierBill.findFirstOrThrow({ where: { supplierId: s.id } });
-    expect(bill.amountPaise).toBe(22400n);
+    expect(bill.amountPaise).toBe(25100n);
     await expect(receiveBatch(ctx, { medicineId: medId, batchNo: "DL10", expiry: future, qty: 1, cost: "1", mrp: "33.60", supplierId: s.id, invoiceNo: "MMA/1" })).rejects.toThrow(/already posted/);
   });
 

@@ -171,7 +171,7 @@ function Drawer({ d, onClose, onEdit, canEdit, canAdjust, canPurchase }: { d: De
                 <input className={ri + " font-mono uppercase"} value={rcv.batchNo} onChange={(e) => setRcv({ ...rcv, batchNo: e.target.value.toUpperCase() })} placeholder="Batch no." aria-label="Batch number" />
                 <input className={ri} type="month" min={minMonth} value={rcv.expiry} onChange={(e) => setRcv({ ...rcv, expiry: e.target.value })} aria-label="Expiry month" title="Expiry (month/year on the pack)" />
                 <input className={ri} value={rcv.qty} onChange={(e) => setRcv({ ...rcv, qty: e.target.value.replace(/\D/g, "") })} placeholder="Qty (packs)" inputMode="numeric" aria-label="Quantity" />
-                <input className={ri} value={rcv.cost} onChange={(e) => setRcv({ ...rcv, cost: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cost / pack ₹" inputMode="decimal" aria-label="Cost per pack" />
+                <input className={ri} value={rcv.cost} onChange={(e) => setRcv({ ...rcv, cost: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cost / pack ₹ ex-GST" inputMode="decimal" aria-label="Cost per pack" title="Purchase rate per pack, excluding GST" />
                 <input className={ri} value={rcv.mrp} onChange={(e) => setRcv({ ...rcv, mrp: e.target.value.replace(/[^\d.]/g, "") })} placeholder="MRP / pack ₹" inputMode="decimal" aria-label="MRP per pack" title="MRP printed on this batch" />
               </div>
               <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2">

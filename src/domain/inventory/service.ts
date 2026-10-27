@@ -3,11 +3,9 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
-import { nextSeq, pad } from "@/server/sequence";
-import { addDays, dateOnly, daysTo, fiscalYear, hhmm, dayMonth, todayISO } from "@/lib/dates";
-import { big, inr, taxableFromInclusive } from "@/lib/money";
-import { postVoucher } from "@/domain/accounting/post";
-import { ACC } from "@/domain/accounting/accounts";
+import { dateOnly, daysTo, hhmm, dayMonth, todayISO } from "@/lib/dates";
+import { postGrn } from "@/domain/purchasing/service";
+import { big, inr } from "@/lib/money";
 import { isSellable } from "./fefo";
 import { sellableByMedicine, velocity } from "./queries";
 import { medicineSchema, receiveSchema, type MedicineInput, type ReceiveInput } from "./contracts";
@@ -113,7 +111,7 @@ export async function updateMedicine(ctx: Ctx, id: string, version: number, raw:
   });
 }
 
-/** Receives a batch. With a supplier it posts a GRN, the supplier payable and the purchase voucher. */
+/** Receives a batch. With a supplier it posts a one-line GRN (payable, input GST, supplier bill). Cost is per pack excluding GST. */
 export async function receiveBatch(ctx: Ctx, raw: ReceiveInput) {
   authorizeAny(ctx, "adjust", "purchase");
   const i = receiveSchema.parse(raw);
@@ -125,37 +123,18 @@ export async function receiveBatch(ctx: Ctx, raw: ReceiveInput) {
     if (!m) throw new UserError("Medicine not found.");
     const exists = await tx.batch.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
     if (exists) throw new UserError(`Batch ${i.batchNo} already exists for ${m.name}. Use a stock adjustment to correct its quantity.`);
-    let supplier = null, grnId: string | null = null, grnNo: string | null = null;
     if (i.supplierId) {
-      supplier = await tx.supplier.findFirst({ where: { id: i.supplierId, tenantId: ctx.tenantId } });
-      if (!supplier) throw new UserError("Supplier not found.");
-      authorize(ctx, "purchase");
-      const dupInv = await tx.grn.findFirst({ where: { tenantId: ctx.tenantId, supplierId: supplier.id, supplierInvoiceNo: i.invoiceNo } });
-      if (dupInv) throw new UserError(`Invoice ${i.invoiceNo} from ${supplier.name} was already posted as ${dupInv.no}.`);
-      const fy = fiscalYear();
-      grnNo = `GRN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "GRN:" + fy))}`;
-      const total = i.cost * i.qty;
-      const g = await tx.grn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no: grnNo, supplierId: supplier.id, supplierInvoiceNo: i.invoiceNo, invoiceDate: dateOnly(todayISO()), totalPaise: BigInt(total), approvedBy: ctx.userId } });
-      grnId = g.id;
-      const taxable = taxableFromInclusive(total, m.gstRate), tax = total - taxable, half = Math.floor(tax / 2);
-      await postVoucher(tx, {
-        tenantId: ctx.tenantId, branchId: ctx.branchId, type: "purchase", userId: ctx.userId, refType: "grn", refId: g.id,
-        narration: `${supplier.name} · Inv ${i.invoiceNo} · ${grnNo}`,
-        lines: [{ account: ACC.purchases, dr: taxable }, { account: ACC.inCgst, dr: half }, { account: ACC.inSgst, dr: tax - half }, { account: ACC.creditors, cr: total, partyType: "supplier", partyId: supplier.id }],
-      });
-      await tx.supplierBill.create({ data: { tenantId: ctx.tenantId, supplierId: supplier.id, ref: i.invoiceNo, date: dateOnly(todayISO()), dueDate: dateOnly(addDays(todayISO(), supplier.creditDays)), amountPaise: BigInt(total), grnId: g.id } });
+      const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
+        lines: [{ medicineId: m.id, batchNo: i.batchNo, expiry: i.expiry, qty: i.qty, freeQty: 0, rate: i.cost / 100, mrp: i.mrp / 100, poItemId: null }] });
+      const b = await tx.batch.findFirstOrThrow({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
+      return { batchId: b.id, grnNo: r.grnNo };
     }
     const b = await tx.batch.create({
-      data: {
-        tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo, expiryDate: dateOnly(i.expiry), qtyAvailable: i.qty,
-        costPaise: BigInt(i.cost), mrpPaise: BigInt(i.mrp), supplierId: supplier?.id ?? null, grnId,
-      },
+      data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo, expiryDate: dateOnly(i.expiry), qtyAvailable: i.qty, costPaise: BigInt(i.cost), mrpPaise: BigInt(i.mrp) },
     });
-    await tx.stockMovement.create({
-      data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: i.qty, type: supplier ? "grn" : "opening", refType: supplier ? "grn" : "opening", refId: grnId ?? b.id, userId: ctx.userId, note: grnNo ?? "Opening stock" },
-    });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: supplier ? "Batch received (GRN)" : "Opening stock entered", entity: "batch", entityId: b.id, detail: `${m.name} · ${i.batchNo} × ${i.qty}${grnNo ? " · " + grnNo : ""}` });
-    return { batchId: b.id, grnNo };
+    await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: i.qty, type: "opening", refType: "opening", refId: b.id, userId: ctx.userId, note: "Opening stock" } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Opening stock entered", entity: "batch", entityId: b.id, detail: `${m.name} · ${i.batchNo} × ${i.qty}` });
+    return { batchId: b.id, grnNo: null as string | null };
   });
 }
 
