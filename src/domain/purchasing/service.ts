@@ -4,7 +4,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
-import { addDays, dateOnly, daysTo, fiscalYear, isoOf } from "@/lib/dates";
+import { addDays, dateOnly, daysTo, fiscalYear, isoOf, istMidnight, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
@@ -63,7 +63,7 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   }
   const half = Math.floor(t.gst / 2);
   await postVoucher(tx, {
-    tenantId: ctx.tenantId, branchId: ctx.branchId, type: "purchase", userId: ctx.userId, refType: "grn", refId: grn.id, date: dateOnly(i.invoiceDate),
+    tenantId: ctx.tenantId, branchId: ctx.branchId, type: "purchase", userId: ctx.userId, refType: "grn", refId: grn.id, date: i.invoiceDate === todayISO() ? new Date() : istMidnight(i.invoiceDate),
     narration: `${supplier.name} · Inv ${i.invoiceNo} · ${grnNo}`,
     lines: [
       { account: ACC.purchases, dr: t.taxable }, { account: ACC.inCgst, dr: half }, { account: ACC.inSgst, dr: t.gst - half },

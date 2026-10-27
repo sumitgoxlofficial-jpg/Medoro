@@ -58,3 +58,9 @@ export function weekdayLong(iso = todayISO()): string {
   const d = dateOnly(iso);
   return d.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
+
+/** Midnight IST at the start of an ISO date, as an instant (for timestamp columns). */
+export const istMidnight = (iso: string) => new Date(dateOnly(iso).getTime() - IST_OFFSET);
+
+/** IST calendar date of an instant. */
+export const istDate = (d: Date) => new Date(d.getTime() + IST_OFFSET).toISOString().slice(0, 10);
