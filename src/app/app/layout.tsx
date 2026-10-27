@@ -15,13 +15,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   if (!user || !tenant) redirect("/signin");
   const { badges, alerts } = await badgesAndAlerts(ctx.tenantId, ctx.branchId);
+  const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;
   const deployment = { cloud: "Your cloud", onprem: "On-premises", lan: "Shop LAN", single: "Single device" }[((tenant.settings as { deployment?: string }).deployment ?? "lan") as "lan"] ?? "Self-hosted";
   return (
     <Shell
       tenantName={ctx.tenantName} branchCount={ctx.branches.length} userName={ctx.userName} userEmail={ctx.userEmail}
       role={ctx.role} realRole={ctx.realRole} canViewAs={user.role.permissions.includes("users")} perms={ctx.perms}
       branchId={ctx.branchId} branchName={ctx.branchName} branches={ctx.branches} lang={ctx.lang} mfa={user.mfaEnabled}
-      deployment={deployment} liveDevices={live} badges={badges} alerts={alerts}
+      deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts}
     >
       {children}
     </Shell>

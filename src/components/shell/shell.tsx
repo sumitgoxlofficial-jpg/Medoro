@@ -19,7 +19,7 @@ import { signOut } from "@/app/(auth)/actions";
 export type ShellProps = {
   tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
-  mfa: boolean; deployment: string; liveDevices: number;
+  mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
   badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[];
   children: React.ReactNode;
 };
@@ -109,9 +109,9 @@ function ShellInner(p: ShellProps) {
           })}
         </nav>
         {!narrow ? (
-          <div title="Your live database runs on infrastructure you control. Medoro only holds licence data." className="mx-2 my-1.5 flex items-center gap-2 h-8 px-2.5 border border-line bg-white rounded-[7px] text-[12px] text-ink-2">
-            <ShieldCheck size={14} className="text-[#18794E]" /><span className="truncate">Strict mode · data on your server</span>
-          </div>
+          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title="Your live database runs on infrastructure you control. Medoro only holds licence data." className="mx-2 my-1.5 flex items-center gap-2 h-8 px-2.5 border border-line bg-white rounded-[7px] text-[12px] text-ink-2 no-underline hover:border-input hover:text-ink-2">
+            <ShieldCheck size={14} style={{ color: p.strict ? "#18794E" : "#94570A" }} /><span className="truncate">{p.strict ? "Strict mode · data on your server" : "Strict mode off · see Privacy"}</span>
+          </Link>
         ) : null}
         <div className="relative border-t border-line-soft px-2 py-1.5">
           {menu ? (
