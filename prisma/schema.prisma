@@ -642,6 +642,7 @@ model BackupManifest {
   sizeBytes     BigInt?
   sha256        String?
   schemaVersion String
+  localPath     String?
   driveFileId   String?
   status        String // running, verified, failed
   error         String?
