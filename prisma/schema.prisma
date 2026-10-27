@@ -284,6 +284,27 @@ model Transfer {
   createdAt  DateTime  @default(now())
   approvedBy String?
   approvedAt DateTime?
+  receivedBy String?
+  receivedAt DateTime?
+  note       String?
+
+  @@unique([tenantId, no])
+}
+
+// Goods returned to a supplier (debit note) or written off.
+model StockOut {
+  id          String   @id @default(uuid())
+  tenantId    String
+  branchId    String
+  no          String
+  kind        String // supplier_return, write_off
+  supplierId  String?
+  batchId     String
+  qty         Int
+  valuePaise  BigInt
+  reason      String
+  userId      String
+  at          DateTime @default(now())
 
   @@unique([tenantId, no])
 }
