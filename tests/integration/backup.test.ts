@@ -18,7 +18,7 @@ describe("encrypted backups", () => {
     const r = await runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
     const m = await db.backupManifest.findUniqueOrThrow({ where: { id: r.id } });
     expect(m.status).toBe("verified");
-    expect((m.rowCounts as Record<string, number>).branches).toBe(2);
+    expect((m.rowCounts as Record<string, number>).Branch).toBe(2);
     expect((await testRestore(ctx, r.id)).sales).toBe(0);
     const file = await readFile((await backupFilePath(ctx, r.id))!);
     expect(file.includes(Buffer.from("Test Medical Store"))).toBe(false); // encrypted at rest

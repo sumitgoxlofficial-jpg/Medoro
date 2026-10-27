@@ -65,7 +65,7 @@ export const addTrialCustomer = async (input: Parameters<typeof support.addTrial
 export const setCustomerStatus = async (id: string, status: string) => done(await staffRun((s) => support.setCustomerStatus(s, id, status), "Status updated."));
 export const addNote = async (customerId: string, text: string, call = false) => done(await staffRun((s) => support.addNote(s, customerId, text, call), call ? "Call logged." : "Note added."));
 export const requestRemote = async (customerId: string, ticketId?: string) =>
-  done(await staffRun((s) => support.requestRemote(s, customerId, ticketId), "Request recorded. The owner has to approve it in their Medoro app before any session opens."));
+  done(await staffRun((s) => support.requestRemote(s, customerId, ticketId), "Request recorded. Ask the owner to open Privacy & data → Medoro support access in their app and send you the link. It is read-only and time-limited."));
 export const createTicket = async (input: Parameters<typeof support.createTicket>[1]) => done(await staffRun((s) => support.createTicket(s, input)));
 export const replyTicket = async (id: string, text: string, internal: boolean, resolve: boolean) =>
   done(await staffRun((s) => support.replyTicket(s, id, text, internal, resolve), resolve ? "Ticket resolved." : internal ? "Internal note saved. The customer can’t see it." : "Reply saved on the ticket."));

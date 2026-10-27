@@ -8,6 +8,7 @@ import { toCsv } from "@/lib/csv-format";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getCtx();
   if (!ctx) return new Response("Sign in first", { status: 401 });
+  if (ctx.readOnly) return new Response("Medoro support access is read-only and can’t download data.", { status: 403 });
   if (!ctx.perms.includes("reports")) return new Response("Your role cannot export reports.", { status: 403 });
   const { id } = await params;
   const def = REPORTS.find((r) => r[0] === id);

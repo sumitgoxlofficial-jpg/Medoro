@@ -118,6 +118,7 @@ model User {
   lastLoginAt  DateTime?
   failedLogins Int       @default(0)
   lockedUntil  DateTime?
+  isSupport    Boolean   @default(false) // the read-only "Medoro support" login an owner can grant
   sessions     Session[]
   createdAt    DateTime  @default(now())
 
@@ -930,4 +931,37 @@ model RemoteAccessRequest {
   requestedAt DateTime  @default(now())
   decidedAt   DateTime?
   expiresAt   DateTime?
+}
+
+// A restore from backup: loaded into a test copy (a separate schema) first, applied to live only after the owner confirms.
+model RestoreRun {
+  id             String    @id @default(uuid())
+  tenantId       String
+  manifestId     String
+  schemaName     String // e.g. restore_ab12cd34; dropped after apply or discard
+  status         String // prepared, applied, discarded, failed
+  summary        Json // per-table counts, backup vs live, and key figures
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  appliedAt      DateTime?
+  appliedBy      String?
+  safetyBackupId String?
+  error          String?
+}
+
+// Time-limited, read-only access the owner grants to Medoro support. The link works once.
+model SupportGrant {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tokenHash   String    @unique
+  reason      String
+  minutes     Int
+  createdById String
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedIp      String?
+  revokedAt   DateTime?
+  revokedBy   String?
 }

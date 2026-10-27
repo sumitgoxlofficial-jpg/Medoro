@@ -6,6 +6,7 @@ import { backupFilePath } from "@/domain/system/backup";
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await getCtx();
+  if (ctx?.readOnly) return new Response("Medoro support access is read-only.", { status: 403 });
   if (!ctx || !ctx.perms.includes("integrations")) return new Response("Forbidden", { status: 403 });
   const { id } = await params;
   const p = await backupFilePath(ctx, id).catch(() => null);

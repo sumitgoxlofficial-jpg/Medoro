@@ -15,7 +15,7 @@ export default async function Page() {
     db.subscriptionMeta.findUnique({ where: { tenantId: ctx.tenantId } }),
     db.branch.count({ where: { tenantId: ctx.tenantId, active: true } }),
     db.counter.count({ where: { tenantId: ctx.tenantId, active: true } }),
-    db.user.count({ where: { tenantId: ctx.tenantId, active: true } }),
+    db.user.count({ where: { tenantId: ctx.tenantId, active: true, isSupport: false } }),
   ]);
   const left = sub?.renewsAt ? daysTo(sub.renewsAt) : null;
   const status = sub?.status === "trial" ? `Trial · ${Math.max(0, left ?? 0)} day${left === 1 ? "" : "s"} left` : sub?.status === "active" ? "Active" : sub?.status ?? "Not set";

@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Truck, Users } from "lucide-react";
+import { Plus, Pencil, Truck, Users, Upload } from "lucide-react";
+import { ImportDialog } from "@/components/import-dialog";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
   const [cusEdit, setCusEdit] = useState<Cus | null | "new">(null);
   const [pay, setPay] = useState<{ kind: "sup" | "cus"; id: string; name: string; bal: number } | null>(null);
   const [q, setQ] = useState("");
+  const [importing, setImporting] = useState(false);
   const match = (s: string | null) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
 
   return (
@@ -35,7 +37,8 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
         <Segmented value={tab} onChange={(v) => router.replace(v === "cus" ? "/app/parties?tab=cus" : "/app/parties")} className="bg-[#EEF0F2]"
           options={[{ value: "sup", label: `Suppliers (${suppliers.length})` }, { value: "cus", label: `Customers (${customers.length})` }]} />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or phone" aria-label="Search parties" className="border border-input rounded-lg px-3 py-[7px] text-[13.5px] bg-white outline-none focus:border-teal w-[240px]" />
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-2">
+          {tab === "cus" || canEditSup ? <Button onClick={() => setImporting(true)}><Upload size={15} />Import</Button> : null}
           {tab === "sup" ? (canEditSup ? <Button variant="primary" onClick={() => setSupEdit("new")}><Plus size={16} />Add supplier</Button> : null)
             : <Button variant="primary" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>}
         </div>
@@ -103,6 +106,7 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
       <SupplierModal edit={supEdit} canPay={canPay} onClose={() => setSupEdit(null)} />
       <CustomerModal edit={cusEdit} canCredit={canCredit} canPay={canPay} onClose={() => setCusEdit(null)} />
       <PayModal pay={pay} onClose={() => setPay(null)} />
+      <ImportDialog key={tab} kind={tab === "sup" ? "suppliers" : "customers"} open={importing} onClose={() => setImporting(false)} />
     </div>
   );
 }

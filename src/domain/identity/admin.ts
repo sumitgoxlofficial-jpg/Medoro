@@ -12,7 +12,7 @@ import { branchCodes, newInviteCode } from "./service";
 export async function listTeam(ctx: Ctx) {
   authorize(ctx, "users");
   const [users, invites, branches, seen] = await Promise.all([
-    db.user.findMany({ where: { tenantId: ctx.tenantId }, include: { role: true }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
+    db.user.findMany({ where: { tenantId: ctx.tenantId, isSupport: false }, include: { role: true }, orderBy: [{ active: "desc" }, { name: "asc" }] }),
     db.invite.findMany({ where: { tenantId: ctx.tenantId, usedAt: null, expiresAt: { gt: new Date() } }, orderBy: { createdAt: "desc" } }),
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "asc" } }),
     db.session.groupBy({ by: ["userId"], where: { user: { tenantId: ctx.tenantId } }, _max: { lastSeenAt: true } }),
@@ -107,7 +107,7 @@ export async function revokeInvite(ctx: Ctx, id: string) {
 // ───────────── Roles ─────────────
 
 export async function roleMatrix(ctx: Ctx) {
-  const roles = await db.role.findMany({ where: { tenantId: ctx.tenantId } });
+  const roles = await db.role.findMany({ where: { tenantId: ctx.tenantId, NOT: { name: "Medoro support (read-only)" } } });
   const order = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant"];
   return roles.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)).map((r) => ({ id: r.id, name: r.name, locked: r.locked, perms: r.permissions }));
 }
@@ -133,7 +133,7 @@ export async function listBranches(ctx: Ctx) {
   const [branches, counters, users, stock] = await Promise.all([
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "asc" } }),
     db.counter.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
-    db.user.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { branchIds: true } }),
+    db.user.findMany({ where: { tenantId: ctx.tenantId, active: true, isSupport: false }, select: { branchIds: true } }),
     db.$queryRaw<{ branchId: string; v: bigint }[]>`SELECT "branchId", SUM("qtyAvailable" * "costPaise") v FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} GROUP BY 1`,
   ]);
   return branches.map((b, i) => ({

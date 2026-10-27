@@ -15,10 +15,18 @@
 Daily at the configured time plus manual runs. Retention of 7/30/90/365 days removes old files from Drive. Failures alert the owner (in-app, plus email or WhatsApp if configured) and retry 3 times.
 
 ## Restore
-1. Pick a backup → download → verify manifest and chunk hashes.
-2. Decrypt with the master key, from the keystore or a recovery-kit scan.
-3. Restore into a **staging** database → compare row counts with the manifest → run integrity checks (ledger balances, stock = Σ movements).
-4. The owner confirms **promote to live**: billing pauses on all devices, the database is swapped, devices reconnect.
+Backup & restore → **Restore…** on a backup row (owner or anyone with *Manage users & roles*):
+
+1. **Prepare.** The file's SHA-256 is checked against the manifest, it is decrypted with the backup key, and every table is loaded into a separate **test copy** (a `restore_…` schema in the same database). Every foreign key inside the copy is checked. Live data is not touched.
+2. **Review.** The screen shows the backup next to live data: invoices and totals, last invoice, medicines, stock units, customers, suppliers, vouchers, and row counts per table. It warns that everything recorded after the backup will be removed.
+3. **Confirm.** The owner types the pharmacy code. A **safety backup** of current data is taken first; if it fails, nothing changes. Then, in one transaction, the pharmacy's rows are replaced with the test copy and a "Backup restored" event is added to the audit chain. If anything fails the transaction rolls back and live data is unchanged.
+4. Everyone is signed out and signs in again. To undo, restore the safety backup the same way.
+
+What a restore keeps as it is on this server: WhatsApp and Google Drive connections, the backup key, backup history, and licence data. Test copies nobody applies are deleted after 24 hours.
+
+Backups made before full restores were supported (format `medoro-export-v1`) can still be test-restored and downloaded, but not restored; take a new backup.
+
+The append-only triggers allow deletes only inside the restore transaction, which sets `medoro.restore = 'on'` with `SET LOCAL`. Nothing else in the app sets it.
 
 ## Drills
 Run a test restore to staging monthly. The release checklist requires one passing drill per release candidate.

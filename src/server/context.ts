@@ -27,7 +27,14 @@ export type Ctx = {
   sessionId: string;
   counterId: string | null;
   counterName: string | null;
+  /** Medoro support, signed in with a link the owner granted: can look, can't change or download anything. */
+  readOnly?: boolean;
 };
+
+export class ReadOnlyError extends Error {
+  status = 403;
+  constructor() { super("Medoro support access is read-only. Ask the pharmacy owner to make this change."); }
+}
 
 /** Loads the signed-in user's context for this request, or null. */
 export const getCtx = cache(async (): Promise<Ctx | null> => {
@@ -56,6 +63,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })),
     lang: c.get(LANG_COOKIE)?.value === "hi" ? "hi" : "en", sessionId: s.id,
     counterId: s.counterId, counterName: s.counterId ? (await db.counter.findUnique({ where: { id: s.counterId } }))?.name ?? null : null,
+    readOnly: u.isSupport,
   };
 });
 
@@ -67,10 +75,18 @@ export async function requireCtx(): Promise<Ctx> {
 
 export const can = (ctx: Ctx, p: Perm) => ctx.perms.includes(p);
 
+/** Permission check for changes (and downloads). Read-only support sessions never pass. */
 export function authorize(ctx: Ctx, p: Perm) {
+  if (ctx.readOnly) throw new ReadOnlyError();
   if (!can(ctx, p)) throw new ForbiddenError(p);
 }
 
 export function authorizeAny(ctx: Ctx, ...ps: Perm[]) {
+  if (ctx.readOnly) throw new ReadOnlyError();
   if (!ps.some((p) => can(ctx, p))) throw new ForbiddenError(ps[0]);
+}
+
+/** Permission check for screens that only show data; read-only support sessions may look. */
+export function authorizeView(ctx: Ctx, p: Perm) {
+  if (!can(ctx, p)) throw new ForbiddenError(p);
 }

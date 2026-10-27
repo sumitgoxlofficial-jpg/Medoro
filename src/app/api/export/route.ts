@@ -3,6 +3,7 @@ import { fullExport } from "@/domain/system/privacy";
 
 export async function GET() {
   const ctx = await getCtx();
+  if (ctx?.readOnly) return new Response("Medoro support access is read-only.", { status: 403 });
   if (!ctx) return new Response("Sign in first", { status: 401 });
   if (!ctx.perms.includes("users")) return new Response("Only the owner can export all data.", { status: 403 });
   const data = await fullExport(ctx);

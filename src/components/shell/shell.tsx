@@ -21,7 +21,7 @@ export type ShellProps = {
   tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
-  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; aiMode: "llm" | "rules";
+  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; aiMode: "llm" | "rules"; supportUntil: string | null;
   children: React.ReactNode;
 };
 
@@ -163,6 +163,12 @@ function ShellInner(p: ShellProps) {
       </aside>
 
       <div className="flex flex-col min-w-0 min-h-0">
+        {p.supportUntil ? (
+          <div role="status" className="flex-none bg-[#0E1A1F] text-white text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap">
+            <ShieldCheck size={15} className="text-[#5FD3BC]" /><strong>Medoro support · read-only</strong>
+            <span className="text-[#B8C7CC]">Access granted by the pharmacy until {p.supportUntil}. Changes and downloads are blocked; everything you open is audited.</span>
+          </div>
+        ) : null}
         <header className="flex items-center gap-2.5 h-14 px-5 bg-white border-b border-line flex-none">
           <div className="flex items-center gap-1.5 text-[13.5px] min-w-0 flex-none">
             {!narrow ? <><span className="text-faint whitespace-nowrap max-w-[160px] truncate">{p.tenantName.split(" ")[0]}</span><ChevronRight size={14} className="text-[#A3AAB1]" /></> : null}
