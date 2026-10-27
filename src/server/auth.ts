@@ -23,10 +23,10 @@ export async function clientInfo() {
   return { ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? null, userAgent: h.get("user-agent") };
 }
 
-export async function createSession(userId: string, tokenVersion: number, opts: { device?: string; counterId?: string; mfaPassed: boolean }) {
+export async function createSession(userId: string, tokenVersion: number, opts: { device?: string; counterId?: string; mfaPassed: boolean; expiresAt?: Date }) {
   const token = randomBytes(32).toString("base64url");
   const { ip, userAgent } = await clientInfo();
-  const expiresAt = new Date(Date.now() + COUNTER_HOURS * 3600_000);
+  const expiresAt = opts.expiresAt ?? new Date(Date.now() + COUNTER_HOURS * 3600_000);
   await db.session.create({
     data: { id: sha(token), userId, tokenVersion, device: opts.device ?? null, counterId: opts.counterId ?? null, mfaPassed: opts.mfaPassed, expiresAt, ip, userAgent },
   });

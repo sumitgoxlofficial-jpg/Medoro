@@ -6,6 +6,7 @@ import { exchangeCode } from "@/domain/system/gdrive";
 
 export async function GET(req: Request) {
   const ctx = await getCtx();
+  if (ctx?.readOnly) return new Response("Medoro support access is read-only.", { status: 403 });
   const url = new URL(req.url);
   const back = (q: string) => Response.redirect(new URL(`/app/backup?${q}`, url.origin), 302);
   if (!ctx || !ctx.perms.includes("integrations")) return back("drive=forbidden");

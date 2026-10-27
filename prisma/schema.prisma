@@ -118,6 +118,7 @@ model User {
   lastLoginAt  DateTime?
   failedLogins Int       @default(0)
   lockedUntil  DateTime?
+  isSupport    Boolean   @default(false) // the read-only "Medoro support" login an owner can grant
   sessions     Session[]
   createdAt    DateTime  @default(now())
 
@@ -946,4 +947,21 @@ model RestoreRun {
   appliedBy      String?
   safetyBackupId String?
   error          String?
+}
+
+// Time-limited, read-only access the owner grants to Medoro support. The link works once.
+model SupportGrant {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tokenHash   String    @unique
+  reason      String
+  minutes     Int
+  createdById String
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedIp      String?
+  revokedAt   DateTime?
+  revokedBy   String?
 }

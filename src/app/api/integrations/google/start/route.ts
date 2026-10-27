@@ -5,6 +5,7 @@ import { consentUrl, driveAppConfigured } from "@/domain/system/gdrive";
 
 export async function GET() {
   const ctx = await getCtx();
+  if (ctx?.readOnly) return new Response("Medoro support access is read-only.", { status: 403 });
   if (!ctx || !ctx.perms.includes("integrations")) return new Response("Forbidden", { status: 403 });
   if (!driveAppConfigured()) return new Response("Google OAuth isn't configured on this server.", { status: 400 });
   const state = randomBytes(16).toString("base64url");

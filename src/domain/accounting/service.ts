@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeView, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, istDate, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
@@ -35,7 +35,7 @@ async function accountTotals(tenantId: string, from: Date | null, to: Date) {
 }
 
 export async function accountsOverview(ctx: Ctx, p: Period) {
-  authorize(ctx, "reports");
+  authorizeView(ctx, "reports");
   const [tot, all, cogsRows, gstOut, gstIn] = await Promise.all([
     accountTotals(ctx.tenantId, p.from, p.to),
     accountTotals(ctx.tenantId, null, new Date()),
@@ -70,7 +70,7 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
 }
 
 export async function dayBook(ctx: Ctx, p: Period, take = 100) {
-  authorizeAny(ctx, "reports", "payments");
+  if (!can(ctx, "reports") && !can(ctx, "payments")) authorizeView(ctx, "reports");
   const vs = await db.voucher.findMany({ where: { tenantId: ctx.tenantId, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "desc" }, { no: "desc" }], take });
   const reversed = new Set((await db.voucher.findMany({ where: { tenantId: ctx.tenantId, reversesId: { in: vs.map((v) => v.id) } }, select: { reversesId: true } })).map((r) => r.reversesId));
   return vs.map((v) => ({
