@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css" rel="stylesheet">
+<style>html,body{margin:0;padding:0;background:#F5F6F7}*{box-sizing:border-box}a{color:#0B5E5B;text-decoration:none}a:hover{color:#094A48}input,select,textarea,button{font-family:inherit}</style>
+</helmet>
+<div ref="{{ rootRef }}" data-screen-label="Medoro staff console" style="font-family:'IBM Plex Sans',system-ui,sans-serif;color:#1F2328;background:#F5F6F7;height:100vh;height:100dvh;display:grid;grid-template-columns:{{ gridCols }};line-height:1.45;overflow:hidden">
+
+  <aside style="background:#0E1A1F;color:#DCE6E9;display:{{ asideDisplay }};flex-direction:column;min-height:0">
+    <div style="height:64px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.08)"><img src="assets/medoro-mark.png" alt="" style="width:28px"><div style="display:flex;flex-direction:column;line-height:1.2"><span style="font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.02em;text-transform:uppercase;color:#fff">Medoro</span><span style="font-size:11px;color:#7F9399;letter-spacing:.06em;text-transform:uppercase">Staff console</span></div></div>
+    <nav style="display:flex;flex-direction:column;gap:2px;padding:10px 8px;flex:1;overflow:auto">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6"><button onClick="{{ n.onClick }}" style="display:flex;align-items:center;gap:10px;border:0;background:{{ n.bg }};color:{{ n.fg }};font-size:13.5px;font-weight:{{ n.fw }};padding:9px 10px;border-radius:7px;cursor:pointer;text-align:left" style-hover="background:rgba(255,255,255,.06);color:#fff"><i class="{{ n.icon }}" style="font-size:16px;width:18px"></i><span style="flex:1">{{ n.label }}</span><sc-if value="{{ n.hasBadge }}"><span style="min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#5FD3BC;color:#0E1A1F;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ n.badge }}</span></sc-if></button></sc-for>
+    </nav>
+    <div style="margin:8px;padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:8px;font-size:11.5px;color:#9DB0B5;display:flex;gap:8px"><i class="icon-lock" style="font-size:13px;color:#5FD3BC;margin-top:2px"></i><span>Account data only. No access to any pharmacy’s database, invoices or backups.</span></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08)"><span style="width:30px;height:30px;border-radius:50%;background:#0B5E5B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none">{{ meInit }}</span><div style="display:flex;flex-direction:column;min-width:0;line-height:1.25;flex:1"><span style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ meName }}</span><span style="font-size:11.5px;color:#7F9399">{{ meRole }}</span></div><a href="Medoro Staff Login.dc.html" title="Sign out" style="color:#9DB0B5;display:flex"><i class="icon-log-out" style="font-size:16px"></i></a></div>
+  </aside>
+
+  <div style="display:flex;flex-direction:column;min-width:0;min-height:0">
+    <header style="height:64px;flex:none;background:#fff;border-bottom:1px solid #E6E8EB;display:flex;align-items:center;gap:12px;padding:0 20px">
+      <strong style="font-size:17px;white-space:nowrap">{{ title }}</strong>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#5B636B"><span style="white-space:nowrap">Viewing as</span>
+        <div style="display:inline-flex;gap:2px;background:#F2F4F5;padding:3px;border-radius:8px;flex-wrap:wrap">
+          <sc-for list="{{ roleTabs }}" as="r"><button onClick="{{ r.onClick }}" style="border:0;background:{{ r.bg }};box-shadow:{{ r.sh }};color:#1F2328;height:28px;padding:0 10px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ r.label }}</button></sc-for>
+        </div>
+      </div>
+    </header>
+
+    <main style="flex:1;overflow:auto;padding:20px;display:grid;grid-auto-rows:max-content;align-content:start;gap:16px;min-height:0">
+      <sc-if value="{{ hasToast }}"><div style="background:#0E1A1F;color:#fff;border-radius:8px;padding:10px 14px;font-size:13.5px;display:flex;gap:8px;align-items:center"><i class="icon-circle-check" style="color:#5FD3BC"></i>{{ toast }}</div></sc-if>
+
+      <sc-if value="{{ vOverview }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+        <div style="display:grid;grid-template-columns:{{ kpiCols }};gap:12px">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4"><div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12.5px;color:#5B636B">{{ k.l }}</span><span style="font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{ k.v }}</span><span style="font-size:12px;color:#5B636B">{{ k.d }}</span></div></sc-for>
+        </div>
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid #EEF0F2;font-weight:600;font-size:14.5px">Sales team this month</div>
+          <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:640px;font-size:13.5px"><thead><tr style="background:#FAFBFB;color:#5B636B;font-size:12px"><th style="text-align:left;padding:9px 16px;font-weight:500">Salesperson</th><th style="text-align:left;padding:9px 16px;font-weight:500">Sales</th><th style="text-align:right;padding:9px 16px;font-weight:500">Revenue (ex-GST)</th><th style="text-align:right;padding:9px 16px;font-weight:500">Commission</th><th style="text-align:right;padding:9px 16px;font-weight:500">Pending payout</th></tr></thead>
+            <tbody><sc-for list="{{ leader }}" as="r" hint-placeholder-count="3"><tr><td style="padding:10px 16px;border-top:1px solid #F1F3F4"><strong style="font-weight:600">{{ r.name }}</strong> <span style="color:#5B636B">· {{ r.team }}</span></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ r.n }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ r.rev }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:#0B5E5B">{{ r.com }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ r.pend }}</td></tr></sc-for></tbody></table></div>
+        </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vEmployees }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span style="font-size:13.5px;color:#5B636B">{{ empCount }}</span><button onClick="{{ openEmpForm }}" style="margin-left:auto;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-user-plus"></i>Create employee profile</button></div>
+        <sc-if value="{{ empFormOpen }}">
+          <div style="background:#fff;border:1px solid #CFE6E3;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px">
+            <strong style="font-size:15px">New employee profile</strong>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Full name<input value="{{ ef_name }}" onChange="{{ onEf_name }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Work email<input value="{{ ef_email }}" onChange="{{ onEf_email }}" placeholder="name@medoro.in" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Mobile<input value="{{ ef_phone }}" onChange="{{ onEf_phone }}" placeholder="98220 41736" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Role<select value="{{ ef_role }}" onChange="{{ onEf_role }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option>Sales</option><option>Customer care</option><option>Super admin</option></select></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Team / region<input value="{{ ef_team }}" onChange="{{ onEf_team }}" placeholder="Pune West" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Bank / UPI for payouts<input value="{{ ef_upi }}" onChange="{{ onEf_upi }}" placeholder="name@okhdfcbank" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+            </div>
+            <sc-if value="{{ efHasErr }}"><span style="font-size:13px;color:#B3261E">{{ efErr }}</span></sc-if>
+            <div style="display:flex;gap:8px;justify-content:flex-end"><button onClick="{{ closeEmpForm }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button><button onClick="{{ createEmp }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Create profile &amp; send invite</button></div>
+          </div>
+        </sc-if>
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:820px;font-size:13.5px"><thead><tr style="background:#FAFBFB;color:#5B636B;font-size:12px"><th style="text-align:left;padding:10px 16px;font-weight:500">Employee</th><th style="text-align:left;padding:10px 16px;font-weight:500">Role</th><th style="text-align:left;padding:10px 16px;font-weight:500">Team</th><th style="text-align:left;padding:10px 16px;font-weight:500">Referral code</th><th style="text-align:left;padding:10px 16px;font-weight:500">Status</th><th style="text-align:right;padding:10px 16px;font-weight:500">Action</th></tr></thead>
+            <tbody><sc-for list="{{ empRows }}" as="e" hint-placeholder-count="6"><tr><td style="padding:10px 16px;border-top:1px solid #F1F3F4"><div style="font-weight:600">{{ e.name }}</div><div style="font-size:12px;color:#5B636B">{{ e.id }} · {{ e.email }} · {{ e.phone }}</div></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4"><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:{{ e.rbg }};color:{{ e.rfg }}">{{ e.role }}</span></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ e.team }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;font-family:'IBM Plex Mono',monospace;font-size:12.5px">{{ e.code }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;font-weight:600;color:{{ e.sfg }}">{{ e.status }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right"><button onClick="{{ e.onAct }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:{{ e.actFg }}">{{ e.act }}</button></td></tr></sc-for></tbody></table>
+        </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vCommission }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid #EEF0F2;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="display:flex;flex-direction:column"><strong style="font-size:14.5px">Commission rates by product</strong><span style="font-size:12.5px;color:#5B636B">Percent of the price before GST. New rates apply to sales logged from today.</span></div><button onClick="{{ saveRates }}" style="margin-left:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Save rates</button></div>
+          <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:640px;font-size:13.5px"><thead><tr style="background:#FAFBFB;color:#5B636B;font-size:12px"><th style="text-align:left;padding:10px 16px;font-weight:500">Product</th><th style="text-align:right;padding:10px 16px;font-weight:500">List price (incl. GST)</th><th style="text-align:right;padding:10px 16px;font-weight:500">New sale %</th><th style="text-align:right;padding:10px 16px;font-weight:500">Renewal %</th><th style="text-align:right;padding:10px 16px;font-weight:500">Earns per new monthly sale</th></tr></thead>
+            <tbody><sc-for list="{{ rateRows }}" as="r" hint-placeholder-count="5"><tr><td style="padding:10px 16px;border-top:1px solid #F1F3F4;font-weight:600">{{ r.name }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right">{{ r.price }}</td><td style="padding:8px 16px;border-top:1px solid #F1F3F4;text-align:right"><input value="{{ r.first }}" onChange="{{ r.onFirst }}" inputmode="decimal" style="width:70px;text-align:right;border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px"> %</td><td style="padding:8px 16px;border-top:1px solid #F1F3F4;text-align:right"><input value="{{ r.renew }}" onChange="{{ r.onRenew }}" inputmode="decimal" style="width:70px;text-align:right;border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px"> %</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-weight:600;color:#0B5E5B">{{ r.eg }}</td></tr></sc-for></tbody></table></div>
+        </div>
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid #EEF0F2;display:flex;flex-direction:column"><strong style="font-size:14.5px">Per-person bonus</strong><span style="font-size:12.5px;color:#5B636B">Extra percentage points on top of the product rate, for example for senior salespeople.</span></div>
+          <sc-for list="{{ bonusRows }}" as="b" hint-placeholder-count="3"><div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid #F1F3F4;font-size:13.5px;flex-wrap:wrap"><strong style="font-weight:600;min-width:160px">{{ b.name }}</strong><span style="color:#5B636B;flex:1">{{ b.team }}</span><span style="display:flex;align-items:center;gap:6px">+<input value="{{ b.bonus }}" onChange="{{ b.onBonus }}" inputmode="decimal" style="width:64px;text-align:right;border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px">%</span></div></sc-for>
+        </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vSales }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+        <sc-if value="{{ isSalesRole }}">
+          <div style="display:grid;grid-template-columns:{{ kpiCols }};gap:12px">
+            <sc-for list="{{ myKpis }}" as="k" hint-placeholder-count="4"><div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12.5px;color:#5B636B">{{ k.l }}</span><span style="font-size:24px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:{{ k.c }}">{{ k.v }}</span><span style="font-size:12px;color:#5B636B">{{ k.d }}</span></div></sc-for>
+          </div>
+          <div style="background:#fff;border:1px solid #CFE6E3;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px">
+            <strong style="font-size:15px">Log a sale</strong>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Pharmacy name<input value="{{ sf_pharmacy }}" onChange="{{ onSf_pharmacy }}" placeholder="Om Sai Medical" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Owner mobile<input value="{{ sf_phone }}" onChange="{{ onSf_phone }}" placeholder="98220 41736" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">City<input value="{{ sf_city }}" onChange="{{ onSf_city }}" placeholder="Pune" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Product<select value="{{ sf_product }}" onChange="{{ onSf_product }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><sc-for list="{{ productOpts }}" as="p"><option value="{{ p.id }}">{{ p.name }}</option></sc-for></select></label>
+              <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Billing<select value="{{ sf_cycle }}" onChange="{{ onSf_cycle }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option value="m">Monthly</option><option value="y">Yearly</option></select></label>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#F2F9F8;border-radius:8px;padding:10px 12px;font-size:13.5px"><i class="icon-calculator" style="color:#0B5E5B"></i><span>{{ sfPreview }}</span><button onClick="{{ logSale }}" style="margin-left:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Submit for verification</button></div>
+            <sc-if value="{{ sfHasErr }}"><span style="font-size:13px;color:#B3261E">{{ sfErr }}</span></sc-if>
+          </div>
+        </sc-if>
+        <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid #EEF0F2;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong style="font-size:14.5px">{{ salesTitle }}</strong><span style="font-size:12.5px;color:#5B636B">Commission is confirmed once the customer’s payment is verified.</span></div>
+          <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;min-width:860px;font-size:13.5px"><thead><tr style="background:#FAFBFB;color:#5B636B;font-size:12px"><th style="text-align:left;padding:10px 16px;font-weight:500">Date</th><th style="text-align:left;padding:10px 16px;font-weight:500">Pharmacy</th><th style="text-align:left;padding:10px 16px;font-weight:500">Product</th><th style="text-align:left;padding:10px 16px;font-weight:500">Salesperson</th><th style="text-align:right;padding:10px 16px;font-weight:500">Amount ex-GST</th><th style="text-align:right;padding:10px 16px;font-weight:500">Commission</th><th style="text-align:left;padding:10px 16px;font-weight:500">Status</th><th style="text-align:right;padding:10px 16px;font-weight:500"></th></tr></thead>
+            <tbody><sc-for list="{{ saleRows }}" as="r" hint-placeholder-count="6"><tr><td style="padding:10px 16px;border-top:1px solid #F1F3F4;white-space:nowrap">{{ r.date }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;font-weight:600">{{ r.cust }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ r.product }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ r.emp }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ r.amt }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:#0B5E5B">{{ r.com }}<div style="font-size:11px;color:#5B636B;font-weight:400">{{ r.rate }}</div></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4"><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:{{ r.sbg }};color:{{ r.sfg }};white-space:nowrap">{{ r.status }}</span></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right"><sc-if value="{{ r.canAct }}"><button onClick="{{ r.onAct }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ r.act }}</button></sc-if></td></tr></sc-for></tbody></table></div>
+        </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vLeads }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+          <div style="display:grid;grid-template-columns:{{ leadTopCols }};gap:16px">
+            <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;gap:4px 12px;align-items:flex-start;flex-wrap:wrap"><strong style="font-size:14.5px;white-space:nowrap;flex:none">{{ tgtTitle }}</strong><span style="font-size:13px;color:#5B636B;flex:1 1 200px;text-align:right">{{ tgtSub }}</span></div>
+              <div style="height:10px;border-radius:5px;background:#EEF0F2;overflow:hidden"><div style="height:100%;width:{{ tgtPct }};background:linear-gradient(90deg,#0B5E5B,#0A9A80);border-radius:5px"></div></div>
+              <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:#3D454D"><sc-for list="{{ funnel }}" as="f"><span style="white-space:nowrap"><strong style="font-weight:700;color:#1F2328">{{ f.n }}</strong> {{ f.l }}</span></sc-for></div>
+            </div>
+            <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+              <strong style="font-size:14.5px;display:flex;gap:6px;align-items:center"><i class="icon-bell-ring" style="color:#94570A"></i>Follow-ups due</strong>
+              <sc-for list="{{ dueList }}" as="d"><div style="display:flex;gap:8px;align-items:center;font-size:13px"><span style="font-weight:600;color:{{ d.fg }};min-width:74px">{{ d.when }}</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.name }} · {{ d.next }}</span><a href="{{ d.tel }}" style="display:flex;color:#0B5E5B"><i class="icon-phone" style="font-size:15px"></i></a></div></sc-for>
+              <sc-if value="{{ noDue }}"><span style="font-size:13px;color:#5B636B">No follow-ups due. Nice work.</span></sc-if>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #CDD2D7;border-radius:8px;padding:0 10px;height:38px;flex:1;min-width:200px;max-width:360px"><i class="icon-search" style="color:#8A929A"></i><input value="{{ lq }}" onChange="{{ onLq }}" placeholder="Search leads" style="border:0;outline:none;font-size:14px;flex:1;min-width:0"></div>
+            <button onClick="{{ shareRef }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:9px 12px"><i class="icon-share-2"></i>Share referral link</button>
+            <button onClick="{{ openLead }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center;margin-left:auto"><i class="icon-plus"></i>New lead</button>
+          </div>
+          <sc-if value="{{ leadFormOpen }}">
+            <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;border-color:#CFE6E3;padding:18px;display:flex;flex-direction:column;gap:12px">
+              <strong style="font-size:15px">New lead</strong>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+                <sc-for list="{{ lfFields }}" as="f"><label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">{{ f.label }}<input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.ph }}" type="{{ f.type }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none;background:#fff"></label></sc-for>
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Source<select value="{{ lf_source }}" onChange="{{ onLf_source }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none;background:#fff"><option>Field visit</option><option>Referral</option><option>Website trial</option><option>Distributor</option><option>Pharmacy association</option><option>Inbound call</option></select></label>
+                <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Interested in<select value="{{ lf_product }}" onChange="{{ onLf_product }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none;background:#fff"><sc-for list="{{ productOpts }}" as="p"><option value="{{ p.id }}">{{ p.name }}</option></sc-for></select></label>
+              </div>
+              <sc-if value="{{ lfHasErr }}"><span style="font-size:13px;color:#B3261E">{{ lfErr }}</span></sc-if>
+              <div style="display:flex;gap:8px;justify-content:flex-end"><button onClick="{{ closeLead }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:9px 14px;font-size:14px">Cancel</button><button onClick="{{ saveLead }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap">Save lead</button></div>
+            </div>
+          </sc-if>
+          <div style="overflow-x:auto;padding-bottom:4px"><div style="display:grid;grid-template-columns:repeat(6,minmax(230px,1fr));gap:12px;min-width:1400px">
+            <sc-for list="{{ stages }}" as="st" hint-placeholder-count="6">
+              <div style="background:#EEF0F2;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:160px">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px"><span style="font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:{{ st.fg }}">{{ st.name }}</span><span style="font-size:12px;color:#5B636B">{{ st.count }} · {{ st.value }}</span></div>
+                <sc-for list="{{ st.cards }}" as="c">
+                  <div style="background:#fff;border:1px solid #E6E8EB;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;gap:6px;align-items:flex-start"><strong style="font-size:13.5px;flex:1">{{ c.name }}</strong><span style="font-size:11.5px;font-weight:600;color:#0B5E5B;white-space:nowrap">{{ c.value }}</span></div>
+                    <span style="font-size:12px;color:#5B636B">{{ c.owner }} · {{ c.city }} · {{ c.source }}</span>
+                    <span style="font-size:12px;color:#3D454D">{{ c.product }}</span>
+                    <span style="font-size:12px;color:{{ c.dueFg }};display:flex;gap:4px;align-items:center"><i class="icon-calendar" style="font-size:12px"></i>{{ c.next }}</span>
+                    <sc-if value="{{ c.hasDisc }}"><span style="font-size:11.5px;font-weight:600;color:{{ c.discFg }}">{{ c.disc }}</span></sc-if>
+                    <sc-if value="{{ c.isLost }}"><span style="font-size:11.5px;color:#C0362C">Lost: {{ c.lostReason }}</span></sc-if>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
+                      <sc-if value="{{ c.canBack }}"><button onClick="{{ c.onBack }}" title="Previous stage" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 7px"><i class="icon-chevron-left"></i></button></sc-if>
+                      <sc-if value="{{ c.canFwd }}"><button onClick="{{ c.onFwd }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 8px;color:#0B5E5B;border-color:#9FCFC9">{{ c.fwdLabel }}<i class="icon-chevron-right"></i></button></sc-if>
+                      <a href="{{ c.wa }}" title="WhatsApp" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 7px"><i class="icon-message-circle" style="color:#18794E"></i></a>
+                      <button onClick="{{ c.onLog }}" title="Log call / visit" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 7px"><i class="icon-phone-call"></i></button>
+                      <sc-if value="{{ c.canDisc }}"><button onClick="{{ c.onDisc }}" title="Request discount" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 7px"><i class="icon-percent"></i></button></sc-if>
+                      <sc-if value="{{ c.canApprove }}"><button onClick="{{ c.onApprove }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 8px;color:#18794E">Approve</button><button onClick="{{ c.onReject }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 8px;color:#C0362C">Reject</button></sc-if>
+                      <sc-if value="{{ c.canLose }}"><button onClick="{{ c.onLose }}" title="Mark lost" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:5px 7px;color:#C0362C"><i class="icon-x"></i></button></sc-if>
+                    </div>
+                    <sc-if value="{{ c.hasLast }}"><span style="font-size:11.5px;color:#5B636B;border-top:1px solid #F1F3F4;padding-top:5px">{{ c.last }}</span></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vPayouts }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+          <sc-if value="{{ isSalesRole }}">
+            <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;display:flex;flex-direction:column">
+              <div style="padding:14px 18px;border-bottom:1px solid #EEF0F2;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><i class="icon-landmark" style="font-size:18px;color:#0B5E5B"></i><div style="display:flex;flex-direction:column;flex:1;min-width:200px"><strong style="font-size:14.5px">Payout bank account</strong><span style="font-size:12.5px;color:#5B636B">Your commission is paid here on the 5th of every month.</span></div><span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:{{ bkBg }};color:{{ bkFg }}">{{ bkStatus }}</span></div>
+              <sc-if value="{{ bkShowSaved }}">
+                <div style="padding:16px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+                  <div style="width:44px;height:44px;border-radius:10px;background:#E1F1EF;color:#0B5E5B;display:flex;align-items:center;justify-content:center;flex:none"><i class="icon-building-2" style="font-size:20px"></i></div>
+                  <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:200px"><strong style="font-size:15px">{{ bkBank }} · {{ bkMasked }}</strong><span style="font-size:13px;color:#5B636B">{{ bkHolder }} · {{ bkType }} · IFSC {{ bkIfsc }}</span><span style="font-size:12.5px;color:#5B636B">PAN {{ bkPan }} · {{ bkNote }}</span></div>
+                  <button onClick="{{ bkEdit }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap">Change account</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ bkShowForm }}">
+                <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+                    <sc-for list="{{ bkFields }}" as="f"><label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">{{ f.label }}<input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.ph }}" type="{{ f.type }}" inputmode="{{ f.mode }}" autocomplete="off" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none;background:#fff;text-transform:{{ f.tt }};font-family:{{ f.ff }}"><sc-if value="{{ f.hasHint }}"><span style="font-size:12px;color:{{ f.hintFg }}">{{ f.hint }}</span></sc-if></label></sc-for>
+                    <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Account type<select value="{{ bk_type }}" onChange="{{ onBk_type }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none;background:#fff"><option>Savings</option><option>Current</option></select></label>
+                  </div>
+                  <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#3D454D"><input type="checkbox" checked="{{ bkConsent }}" onChange="{{ onBkConsent }}" style="margin-top:3px">I confirm this account is in my name. Medoro will send ₹1 to verify it, and deducts TDS on commission as per law.</label>
+                  <sc-if value="{{ bkHasErr }}"><span style="font-size:13px;color:#B3261E">{{ bkErr }}</span></sc-if>
+                  <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><sc-if value="{{ bkCanCancel }}"><button onClick="{{ bkCancel }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button></sc-if><button onClick="{{ bkSave }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap">{{ bkSaveLabel }}</button></div>
+                  <span style="font-size:12px;color:#8A929A;display:flex;gap:6px;align-items:center"><i class="icon-lock" style="font-size:13px"></i>Bank details are encrypted and visible only to finance. Changes are re-verified and you get an email alert.</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{ isAdmin }}"><div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;padding:16px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="display:flex;flex-direction:column"><strong style="font-size:14.5px">October payout run</strong><span style="font-size:13px;color:#5B636B">{{ runSub }}</span></div><button onClick="{{ runPayout }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;margin-left:auto">Run payout on 5 Nov</button></div></sc-if>
+          <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:760px;font-size:13.5px"><thead><tr style="background:#FAFBFB;color:#5B636B;font-size:12px"><th style="text-align:left;padding:10px 16px;font-weight:500">Month</th><th style="text-align:left;padding:10px 16px;font-weight:500">Salesperson</th><th style="text-align:right;padding:10px 16px;font-weight:500">Sales</th><th style="text-align:right;padding:10px 16px;font-weight:500">Gross commission</th><th style="text-align:right;padding:10px 16px;font-weight:500">TDS 2% (194H)</th><th style="text-align:right;padding:10px 16px;font-weight:500">Net payout</th><th style="text-align:left;padding:10px 16px;font-weight:500">Paid to</th><th style="text-align:left;padding:10px 16px;font-weight:500">Status</th><th></th></tr></thead>
+              <tbody><sc-for list="{{ payRows }}" as="p" hint-placeholder-count="4"><tr><td style="padding:10px 16px;border-top:1px solid #F1F3F4;font-weight:600">{{ p.month }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ p.emp }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right">{{ p.n }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ p.gross }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums;color:#5B636B">{{ p.tds }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#0B5E5B">{{ p.net }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;white-space:nowrap;color:{{ p.accFg }}">{{ p.acc }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;font-weight:600;color:{{ p.sfg }};white-space:nowrap">{{ p.status }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right"><button onClick="{{ p.onStmt }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center"><i class="icon-file-down"></i>Statement</button></td></tr></sc-for></tbody></table>
+          </div>
+          <span style="font-size:12px;color:#8A929A">TDS rate shown for illustration. Confirm the applicable rate and contractor vs. employee treatment with your CA.</span>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vCustomers }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #CDD2D7;border-radius:8px;padding:0 10px;height:38px;flex:1;min-width:220px;max-width:420px"><i class="icon-search" style="color:#8A929A"></i><input value="{{ cq }}" onChange="{{ onCq }}" placeholder="Search pharmacy, owner, phone, GSTIN, city" style="border:0;outline:none;font-size:14px;flex:1;min-width:0"></div>
+          <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:8px;flex-wrap:wrap"><sc-for list="{{ cFilters }}" as="f"><button onClick="{{ f.onClick }}" style="border:0;background:{{ f.bg }};box-shadow:{{ f.sh }};color:#1F2328;height:30px;padding:0 10px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ f.label }}</button></sc-for></div>
+        </div>
+        <div style="display:grid;grid-template-columns:{{ custCols }};gap:16px;align-items:start">
+          <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;overflow:auto">
+            <table style="width:100%;border-collapse:collapse;min-width:620px;font-size:13.5px"><thead><tr style="background:#FAFBFB;color:#5B636B;font-size:12px"><th style="text-align:left;padding:10px 16px;font-weight:500">Pharmacy</th><th style="text-align:left;padding:10px 16px;font-weight:500">Owner</th><th style="text-align:left;padding:10px 16px;font-weight:500">Plan</th><th style="text-align:left;padding:10px 16px;font-weight:500">Status</th><th style="text-align:right;padding:10px 16px;font-weight:500">Open tickets</th></tr></thead>
+              <tbody><sc-for list="{{ custRows }}" as="c" hint-placeholder-count="6"><tr onClick="{{ c.onClick }}" style="cursor:pointer;background:{{ c.bg }}" style-hover="background:#F7FAFA"><td style="padding:10px 16px;border-top:1px solid #F1F3F4"><div style="font-weight:600">{{ c.name }}</div><div style="font-size:12px;color:#5B636B">{{ c.id }} · {{ c.city }}</div></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ c.owner }}<div style="font-size:12px;color:#5B636B">{{ c.phone }}</div></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4">{{ c.plan }}</td><td style="padding:10px 16px;border-top:1px solid #F1F3F4"><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:{{ c.sbg }};color:{{ c.sfg }}">{{ c.status }}</span></td><td style="padding:10px 16px;border-top:1px solid #F1F3F4;text-align:right">{{ c.open }}</td></tr></sc-for></tbody></table>
+            <sc-if value="{{ custEmpty }}"><div style="padding:24px;text-align:center;color:#5B636B;font-size:14px">No pharmacies match that search.</div></sc-if>
+          </div>
+          <sc-if value="{{ hasCust }}">
+            <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;display:flex;flex-direction:column">
+              <div style="padding:16px;border-bottom:1px solid #EEF0F2;display:flex;flex-direction:column;gap:4px"><div style="display:flex;gap:8px;align-items:center"><strong style="font-size:16px">{{ cd.name }}</strong><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:{{ cd.sbg }};color:{{ cd.sfg }}">{{ cd.status }}</span><button onClick="{{ closeCust }}" aria-label="Close" style="margin-left:auto;border:0;background:transparent;cursor:pointer;color:#5B636B;display:flex"><i class="icon-x" style="font-size:18px"></i></button></div><span style="font-size:12.5px;color:#5B636B">{{ cd.id }} · customer since {{ cd.since }}</span></div>
+              <div style="padding:12px 16px 4px;display:flex;gap:10px;align-items:center"><span style="width:44px;height:44px;border-radius:50%;border:4px solid {{ cd.healthC }};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none">{{ cd.health }}</span><div style="display:flex;flex-direction:column;line-height:1.3"><strong style="font-size:13.5px;color:{{ cd.healthC }}">{{ cd.healthL }}</strong><span style="font-size:12px;color:#5B636B">{{ cd.healthWhy }}</span></div></div>
+              <div style="padding:6px 16px">
+                <sc-for list="{{ cdFields }}" as="f"><div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #F5F6F7;font-size:13.5px"><span style="color:#5B636B">{{ f.l }}</span><span style="text-align:right;font-weight:500">{{ f.v }}</span></div></sc-for>
+              </div>
+              <div style="padding:12px 16px;border-top:1px solid #EEF0F2;display:flex;flex-direction:column;gap:8px"><strong style="font-size:13.5px">Tickets</strong><sc-for list="{{ cdTickets }}" as="t"><button onClick="{{ t.onClick }}" style="display:flex;justify-content:space-between;gap:10px;border:1px solid #EEF0F2;background:#fff;border-radius:8px;padding:8px 10px;font-size:13px;cursor:pointer;text-align:left"><span>{{ t.id }} · {{ t.subject }}</span><span style="color:{{ t.fg }};font-weight:600;white-space:nowrap">{{ t.status }}</span></button></sc-for><sc-if value="{{ cdNoTickets }}"><span style="font-size:13px;color:#5B636B">No tickets yet.</span></sc-if></div>
+              <div style="padding:12px 16px;border-top:1px solid #EEF0F2;display:flex;flex-direction:column;gap:8px"><strong style="font-size:13.5px">Notes</strong><sc-for list="{{ cdNotes }}" as="n"><div style="font-size:13px;background:#F7F8F9;border-radius:8px;padding:8px 10px"><div>{{ n.t }}</div><div style="font-size:11.5px;color:#5B636B">{{ n.by }} · {{ n.at }}</div></div></sc-for>
+                <div style="display:flex;gap:6px"><input value="{{ noteDraft }}" onChange="{{ onNote }}" placeholder="Add a note for the team" style="flex:1;min-width:0;border:1px solid #CDD2D7;border-radius:8px;padding:8px 10px;font-size:13.5px;outline:none"><button onClick="{{ addNote }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer">Add</button></div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap"><a href="{{ cd.wa }}" style="display:flex;gap:6px;align-items:center;border:1px solid #CDD2D7;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;color:#1F2328"><i class="icon-message-circle" style="color:#18794E"></i>WhatsApp</a><a href="{{ cd.tel }}" style="display:flex;gap:6px;align-items:center;border:1px solid #CDD2D7;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;color:#1F2328"><i class="icon-phone"></i>Call</a><button onClick="{{ logCall }}" style="display:flex;gap:6px;align-items:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;cursor:pointer"><i class="icon-phone-call"></i>Log call</button><button onClick="{{ remoteReq }}" style="display:flex;gap:6px;align-items:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;cursor:pointer"><i class="icon-monitor-up"></i>{{ remoteBtn }}</button><button onClick="{{ newTicketFor }}" style="display:flex;gap:6px;align-items:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;cursor:pointer"><i class="icon-plus"></i>New ticket</button></div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ vTickets }}">
+        <div style="display:grid;grid-auto-rows:max-content;gap:16px;min-width:0">
+        <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:8px;align-self:flex-start;flex-wrap:wrap"><sc-for list="{{ tFilters }}" as="f"><button onClick="{{ f.onClick }}" style="border:0;background:{{ f.bg }};box-shadow:{{ f.sh }};color:#1F2328;height:30px;padding:0 10px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ f.label }}</button></sc-for></div>
+        <div style="display:grid;grid-template-columns:{{ custCols }};gap:16px;align-items:start">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ ticketRows }}" as="t" hint-placeholder-count="5"><button onClick="{{ t.onClick }}" style="display:flex;flex-direction:column;gap:4px;border:{{ t.bd }};background:#fff;border-radius:10px;padding:12px 14px;cursor:pointer;text-align:left"><div style="display:flex;gap:8px;align-items:center;width:100%"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5B636B">{{ t.id }}</span><span style="padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ t.pbg }};color:{{ t.pfg }}">{{ t.priority }}</span><span style="margin-left:auto;font-size:12px;font-weight:600;color:{{ t.sfg }}">{{ t.status }}</span></div><strong style="font-size:14px;font-weight:600">{{ t.subject }}</strong><span style="font-size:12.5px;color:#5B636B">{{ t.cust }} · {{ t.assigned }} · {{ t.created }}</span></button></sc-for>
+          </div>
+          <sc-if value="{{ hasTicket }}">
+            <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #EEF0F2;display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:8px;align-items:center"><strong style="font-size:15px">{{ td.subject }}</strong><button onClick="{{ closeTicket }}" aria-label="Close" style="margin-left:auto;border:0;background:transparent;cursor:pointer;color:#5B636B;display:flex"><i class="icon-x" style="font-size:18px"></i></button></div><button onClick="{{ td.openCust }}" style="align-self:flex-start;border:0;background:transparent;padding:0;color:#0B5E5B;font-size:13px;font-weight:600;cursor:pointer">{{ td.cust }} · view customer →</button>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px"><span style="padding:3px 9px;border-radius:999px;font-weight:600;background:{{ td.slaBg }};color:{{ td.slaFg }};display:flex;gap:5px;align-items:center;white-space:nowrap"><i class="icon-timer" style="font-size:13px"></i>{{ td.sla }}</span><span style="color:#5B636B;white-space:nowrap">{{ td.cat }} · {{ td.channel }}</span><sc-if value="{{ td.hasCsat }}"><span style="font-weight:600;color:#18794E">CSAT {{ td.csat }}</span></sc-if></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap"><select value="{{ td.priority }}" onChange="{{ td.onPriority }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13px;background:#fff"><option>High</option><option>Medium</option><option>Low</option></select><button onClick="{{ td.onEscalate }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center"><i class="icon-arrow-up-circle"></i>{{ td.escLabel }}</button><button onClick="{{ td.onRemote }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center"><i class="icon-monitor-up"></i>{{ td.remoteLabel }}</button></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap"><select value="{{ td.status }}" onChange="{{ td.onStatus }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13px;background:#fff"><option>Open</option><option>Waiting on customer</option><option>Resolved</option></select><select value="{{ td.assigned }}" onChange="{{ td.onAssign }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13px;background:#fff"><sc-for list="{{ careOpts }}" as="o"><option>{{ o }}</option></sc-for></select></div></div>
+              <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;max-height:360px;overflow:auto"><sc-for list="{{ td.msgs }}" as="m"><div style="align-self:{{ m.align }};max-width:88%;background:{{ m.bg }};border:{{ m.bd }};border-radius:10px;padding:8px 11px;font-size:13.5px"><sc-if value="{{ m.internal }}"><div style="font-size:11px;font-weight:700;color:#94570A;letter-spacing:.04em;text-transform:uppercase">Internal note · not sent</div></sc-if><div>{{ m.t }}</div><div style="font-size:11px;color:#5B636B;margin-top:2px">{{ m.by }} · {{ m.at }}</div></div></sc-for></div>
+              <div style="padding:12px 16px;border-top:1px solid #EEF0F2;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:8px"><sc-for list="{{ modeTabs }}" as="m"><button onClick="{{ m.onClick }}" style="border:0;background:{{ m.bg }};box-shadow:{{ m.sh }};color:#1F2328;height:28px;padding:0 10px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ m.label }}</button></sc-for></div>
+                  <select value="" onChange="{{ onMacro }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13px;background:#fff;margin-left:auto"><option value="">Insert saved reply…</option><sc-for list="{{ macros }}" as="mc"><option value="{{ mc.id }}">{{ mc.label }}</option></sc-for></select></div>
+                <textarea value="{{ replyDraft }}" onChange="{{ onReply }}" placeholder="{{ replyPh }}" rows="3" style="border:1px solid {{ replyBd }};background:{{ replyBg }};border-radius:8px;padding:9px 11px;font-size:13.5px;outline:none;resize:vertical"></textarea>
+                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button onClick="{{ sendResolve }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;color:#1F2328;display:flex;gap:5px;align-items:center;padding:9px 12px">Send &amp; resolve</button><button onClick="{{ sendReply }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ sendLabel }}</button></div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        </div>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  rootRef = React.createRef();
+  PRODUCTS = [{id:'starter',name:'Starter',m:999},{id:'pro',name:'Professional',m:2499},{id:'multi',name:'Multi-branch',m:4499},{id:'ai',name:'AI Pharmacy Manager add-on',m:499},{id:'setup',name:'Assisted setup (one-time)',m:1999,once:true}];
+  STAGES=['New','Contacted','Demo booked','Trial','Won','Lost'];
+  TX={'TK-1182':{cat:'Hardware · printer',channel:'WhatsApp',due:-12},'TK-1179':{cat:'WhatsApp setup',channel:'Email',due:185},'TK-1171':{cat:'Plan change',channel:'Phone',due:910},'TK-1160':{cat:'Reports',channel:'Chat',due:0,csat:'5/5'}};
+  MACROS=[{id:'printer',label:'Printer cuts receipt',t:'Please open Settings → Printers, set paper width to 80 mm and print a test page. If it still cuts early, send us a photo of the receipt.'},{id:'wa',label:'WhatsApp template rejected',t:'Meta rejects templates when the display name differs from your GST name. Update it in Meta Business Manager, then press Resubmit in Settings → WhatsApp.'},{id:'pin',label:'Staff PIN reset',t:'The owner or a manager can reset a staff PIN from Users → select the person → Reset PIN. The new PIN works immediately.'},{id:'pay',label:'Payment link',t:'Here is a secure link to renew your plan by UPI or card: pay.medoro.in/renew. Your data stays safe and unchanged.'},{id:'export',label:'How to export data',t:'Go to Privacy & data → Export. You will get a full CSV/JSON export of your pharmacy’s data on your own computer.'}];
+  state = {
+    w:1280, bkEditing:false, bkForm:{type:'Savings'}, banks:{'MS-019':{holder:'Neha Rao',acc:'50100234914321',ifsc:'HDFC0001123',bank:'HDFC Bank',type:'Savings',pan:'BQRPR4471K',status:'Verified',on:'12 Jun 2026'},'MS-031':{holder:'Rohit Jain',acc:'3421009981',ifsc:'SBIN0004417',bank:'State Bank of India',type:'Savings',pan:'AJKPJ9012D',status:'Verifying',on:'26 Oct 2026'}}, leadForm:null, lq:'', mode:'public', remote:{}, ticketExtra:{},
+    leads:[
+      {id:'L-201',name:'Shivam Medicals',owner:'Pravin Jadhav',phone:'98230 55120',city:'Pune',source:'Field visit',product:'pro',stage:'New',next:'2026-10-27',emp:'MS-014',log:[]},
+      {id:'L-198',name:'Gurukrupa Chemists',owner:'Nitin Pawar',phone:'97660 21459',city:'Pune',source:'Referral',product:'starter',stage:'Contacted',next:'2026-10-26',emp:'MS-014',log:['Called 24 Oct · wants a demo after Diwali']},
+      {id:'L-195',name:'Medplus Wellness',owner:'Ayesha Khan',phone:'99301 77620',city:'Mumbai',source:'Website trial',product:'multi',stage:'Demo booked',next:'2026-10-29',emp:'MS-019',log:['Demo booked for 29 Oct, 4 pm, 3 branches']},
+      {id:'L-190',name:'Jeevan Jyot Medical',owner:'Harpreet Singh',phone:'98140 33188',city:'Pune',source:'Pharmacy association',product:'pro',stage:'Trial',next:'2026-10-28',emp:'MS-014',log:['Trial started 20 Oct · 2 counters live'],disc:{pct:15,status:'Pending'}},
+      {id:'L-187',name:'Sai Siddhi Pharmacy',owner:'Ganesh Shinde',phone:'96570 44012',city:'Nashik',source:'Distributor',product:'starter',stage:'Trial',next:'2026-11-02',emp:'MS-031',log:[]},
+      {id:'L-180',name:'Om Sai Medical & General',owner:'Rakesh More',phone:'97654 33210',city:'Pune',source:'Field visit',product:'starter',stage:'Won',next:'—',emp:'MS-014',log:['Won 8 Aug · yearly']},
+      {id:'L-176',name:'Krishna Medico',owner:'Sameer Joshi',phone:'98222 90011',city:'Pune',source:'Inbound call',product:'pro',stage:'Lost',next:'—',emp:'MS-014',log:[],lostReason:'Price'}
+    ], as:'admin', view:'overview', toast:'', empForm:null, sf:{pharmacy:'',phone:'',city:'',product:'pro',cycle:'m',err:''}, cq:'', cf:'All', cust:null, tf:'Open', ticket:null, note:'', reply:'',
+    rates:{starter:{first:15,renew:5},pro:{first:20,renew:7},multi:{first:20,renew:8},ai:{first:25,renew:10},setup:{first:10,renew:0}},
+    emps:[
+      {id:'MS-001',name:'Aarti Menon',email:'aarti@medoro.in',phone:'98220 10001',role:'Super admin',team:'Leadership',status:'Active',bonus:0},
+      {id:'MS-014',name:'Karan Shah',email:'karan.s@medoro.in',phone:'98220 10014',role:'Sales',team:'Pune West',status:'Active',code:'KARAN14',bonus:3},
+      {id:'MS-019',name:'Neha Rao',email:'neha.r@medoro.in',phone:'98220 10019',role:'Sales',team:'Mumbai',status:'Active',code:'NEHA19',bonus:0},
+      {id:'MS-022',name:'Imran Qureshi',email:'imran.q@medoro.in',phone:'98220 10022',role:'Customer care',team:'Support L1',status:'Active'},
+      {id:'MS-025',name:'Divya Iyer',email:'divya.i@medoro.in',phone:'98220 10025',role:'Customer care',team:'Support L2',status:'Active'},
+      {id:'MS-031',name:'Rohit Jain',email:'rohit.j@medoro.in',phone:'98220 10031',role:'Sales',team:'Nashik',status:'Pending approval',code:'ROHIT31',bonus:0}
+    ],
+    custs:[
+      {id:'T-1001',name:'Sanjeevani Medicals',owner:'Vikram Deshmukh',phone:'98220 41736',email:'vikram@sanjeevanimedicals.in',city:'Pune',addr:'Karve Road, Kothrud, Pune 411038',gstin:'27AAKFS4419M1Z2',dl:'MH-PZ1-204118',plan:'Multi-branch + AI',cycle:'Yearly',status:'Active',since:'14 Mar 2025',renews:'14 Mar 2027',branches:3,devices:5,dep:'On-premises LAN',lic:'Checked in 2 h ago',app:'2.14.0',sales:'MS-014',notes:[{t:'Wants a Baner counter added in November.',by:'Karan Shah',at:'21 Oct'}]},
+      {id:'T-1007',name:'Shree Balaji Pharmacy',owner:'Sunita Patil',phone:'98903 22018',email:'sunita@balajipharma.in',city:'Nashik',addr:'College Road, Nashik 422005',gstin:'27ABCPP5521Q1Z9',dl:'MH-NS2-118204',plan:'Professional',cycle:'Monthly',status:'Trial',since:'26 Oct 2026',renews:'Trial ends 9 Nov',branches:1,devices:2,dep:'Customer cloud',lic:'Checked in 20 min ago',app:'2.14.0',sales:'MS-031',notes:[]},
+      {id:'T-1012',name:'Care Plus Chemists',owner:'Farhan Shaikh',phone:'99200 77341',email:'farhan@careplus.in',city:'Mumbai',addr:'LBS Marg, Ghatkopar W, Mumbai 400086',gstin:'27AAHFC9902L1Z4',dl:'MH-MZ5-551902',plan:'Professional',cycle:'Monthly',status:'Grace period',since:'2 Jan 2026',renews:'Payment failed 27 Oct',branches:1,devices:3,dep:'Shop LAN',lic:'Checked in 1 h ago',app:'2.13.2',sales:'MS-019',notes:[{t:'UPI autopay declined. Owner says he will pay by card on Monday.',by:'Imran Qureshi',at:'27 Oct'}]},
+      {id:'T-1015',name:'Om Sai Medical & General',owner:'Rakesh More',phone:'97654 33210',email:'omsai.medical@gmail.com',city:'Pune',addr:'Hadapsar, Pune 411028',gstin:'27AWLPM1183K1Z7',dl:'MH-PZ3-330911',plan:'Starter',cycle:'Yearly',status:'Active',since:'8 Aug 2026',renews:'8 Aug 2027',branches:1,devices:2,dep:'Single device',lic:'Checked in 5 h ago',app:'2.14.0',sales:'MS-014',notes:[]},
+      {id:'T-1019',name:'Aarogya Pharmacy',owner:'Meera Kulkarni',phone:'98500 61144',email:'meera@aarogyapharmacy.in',city:'Mumbai',addr:'Thane West 400601',gstin:'27AAJFA7731P1Z1',dl:'MH-TH1-772013',plan:'Multi-branch',cycle:'Monthly',status:'Active',since:'19 May 2026',renews:'19 Nov 2026',branches:2,devices:6,dep:'Customer cloud',lic:'Checked in 12 min ago',app:'2.14.0',sales:'MS-019',notes:[]},
+      {id:'T-1022',name:'Lifeline Medicos',owner:'Anil Gaikwad',phone:'94220 81907',email:'lifeline.medicos@gmail.com',city:'Satara',addr:'Powai Naka, Satara 415001',gstin:'27AEXPG2290R1Z3',dl:'MH-ST1-099172',plan:'Starter',cycle:'Monthly',status:'Cancelled',since:'3 Feb 2026',renews:'Read-only since 3 Sep',branches:1,devices:1,dep:'Single device',lic:'Last seen 2 Oct',app:'2.12.0',sales:'MS-014',notes:[{t:'Closed the shop. Exported data on 1 Sep.',by:'Divya Iyer',at:'3 Sep'}]}
+    ],
+    sales:[
+      {id:1,date:'2026-10-26',cust:'Shree Balaji Pharmacy',product:'pro',cycle:'m',type:'New',emp:'MS-031',status:'Pending'},
+      {id:2,date:'2026-10-21',cust:'Sanjeevani Medicals',product:'ai',cycle:'y',type:'New',emp:'MS-014',status:'Verified'},
+      {id:3,date:'2026-10-14',cust:'Aarogya Pharmacy',product:'multi',cycle:'m',type:'Renewal',emp:'MS-019',status:'Verified'},
+      {id:4,date:'2026-10-08',cust:'Om Sai Medical & General',product:'setup',cycle:'m',type:'New',emp:'MS-014',status:'Paid out'},
+      {id:5,date:'2026-10-02',cust:'Care Plus Chemists',product:'pro',cycle:'m',type:'Renewal',emp:'MS-019',status:'Paid out'},
+      {id:6,date:'2026-08-08',cust:'Om Sai Medical & General',product:'starter',cycle:'y',type:'New',emp:'MS-014',status:'Paid out'}
+    ],
+    tickets:[
+      {id:'TK-1182',cust:'T-1012',subject:'Thermal printer cuts receipt early',priority:'High',status:'Open',assigned:'Imran Qureshi',created:'27 Oct, 10:12',msgs:[{t:'Receipts stop halfway on our TVS RP3160. Started after yesterday’s update.',by:'Farhan Shaikh',at:'10:12',me:false},{t:'Thanks Farhan. Can you share the printer model and the paper width set in Settings → Printers?',by:'Imran Qureshi',at:'10:20',me:true}]},
+      {id:'TK-1179',cust:'T-1007',subject:'WhatsApp template rejected by Meta',priority:'Medium',status:'Waiting on customer',assigned:'Divya Iyer',created:'26 Oct, 16:40',msgs:[{t:'Our invoice template was rejected. What should we change?',by:'Sunita Patil',at:'16:40',me:false},{t:'Meta needs the business display name to match your GST name. Please update it in Meta Business Manager and resubmit.',by:'Divya Iyer',at:'17:05',me:true}]},
+      {id:'TK-1171',cust:'T-1001',subject:'Add a new counter at Baner',priority:'Low',status:'Open',assigned:'Imran Qureshi',created:'25 Oct, 12:02',msgs:[{t:'We want one more billing counter at Baner. Do we need to upgrade?',by:'Vikram Deshmukh',at:'12:02',me:false}]},
+      {id:'TK-1160',cust:'T-1019',subject:'GST summary export for September',priority:'Low',status:'Resolved',assigned:'Divya Iyer',created:'3 Oct, 11:15',msgs:[{t:'How do I export the GST summary for my CA?',by:'Meera Kulkarni',at:'11:15',me:false},{t:'Reports → Tax summary → choose September → Export Excel. Done!',by:'Divya Iyer',at:'11:22',me:true}]}
+    ]
+  };
+  componentDidMount(){
+    const el=this.rootRef.current; if(el){ const upd=()=>{const w=el.clientWidth; if(Math.abs(w-this.state.w)>4) this.setState({w});}; upd(); this.ro=new ResizeObserver(upd); this.ro.observe(el); }
+    try{ const q=new URLSearchParams(location.search), a=q.get('as'); if(['admin','sales','care'].includes(a)) this.setState({as:a,view:a==='sales'?'leads':a==='care'?'tickets':'overview'}); }catch(e){}
+  }
+  componentWillUnmount(){ this.ro&&this.ro.disconnect(); clearTimeout(this.tt); clearTimeout(this.bt); }
+  reqRemote(cid){ const c=this.state.custs.find(x=>x.id===cid); if(!c) return; if(this.state.remote[cid]) return this.toast('Already requested. Waiting for '+c.owner+' to approve in their app.');
+    this.setState(x=>({remote:{...x.remote,[cid]:'waiting for owner'}})); this.toast('Access request sent to '+c.owner+'. It opens a read-only, 2-hour session only after they approve.');
+    setTimeout(()=>this.setState(x=>({remote:{...x.remote,[cid]:'approved · ends in 2 h'}})),4000); }
+  send(td,me,resolve){ const s=this.state; if(!td) return; const txt=s.reply.trim(); if(!txt&&!resolve) return; const internal=s.mode==='internal';
+    this.setState(x=>({reply:'',tickets:x.tickets.map(t=>t.id===td.id?{...t,status:resolve?'Resolved':(t.status==='Resolved'?'Open':t.status),msgs:[...t.msgs,...(txt?[{t:txt,by:me.name,at:'now',me:true,internal}]:[])]}:t),ticketExtra:resolve?{...x.ticketExtra,[td.id]:{...(x.ticketExtra[td.id]||{}),due:0}}:x.ticketExtra}));
+    this.toast(resolve?'Ticket resolved. A 1-tap satisfaction survey went to the customer on WhatsApp.':internal?'Internal note saved. The customer cannot see it.':'Reply sent to the customer by email and WhatsApp.'); }
+  bankVals(me){
+    const s=this.state, b=s.banks[me.id], f=s.bkForm||{}, BANKS={HDFC:'HDFC Bank',ICIC:'ICICI Bank',SBIN:'State Bank of India',UTIB:'Axis Bank',KKBK:'Kotak Mahindra Bank',PUNB:'Punjab National Bank',BARB:'Bank of Baroda',CNRB:'Canara Bank',IDIB:'Indian Bank',YESB:'Yes Bank',IDFB:'IDFC FIRST Bank',MAHB:'Bank of Maharashtra'};
+    const up=o=>this.setState(x=>({bkForm:{...x.bkForm,...o,err:''}}));
+    const ifsc=(f.ifsc||'').toUpperCase(), ifscOk=/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc), bankName=ifscOk?(BANKS[ifsc.slice(0,4)]||'Bank found'):'';
+    const showForm=!b||s.bkEditing, st=b?b.status:'Not added';
+    const mask=a=>'•••• '+a.slice(-4);
+    return {
+      bkStatus:st==='Verified'?'Verified':st==='Verifying'?'Verifying ₹1 deposit':'Not added', bkBg:st==='Verified'?'#E7F6EE':st==='Verifying'?'#EAF0FC':'#FDF2E1', bkFg:st==='Verified'?'#18794E':st==='Verifying'?'#2459C9':'#94570A',
+      bkShowSaved:!!b&&!s.bkEditing, bkShowForm:showForm, bkCanCancel:!!b,
+      bkBank:b?b.bank:'', bkMasked:b?mask(b.acc):'', bkHolder:b?b.holder:'', bkType:b?b.type:'', bkIfsc:b?b.ifsc:'', bkPan:b?b.pan.slice(0,2)+'•••••'+b.pan.slice(-3):'',
+      bkNote:b?(b.status==='Verified'?'verified on '+b.on:'₹1 test deposit sent '+b.on+', usually confirms in a few minutes'):'',
+      bkEdit:()=>this.setState({bkEditing:true,bkForm:{type:b?b.type:'Savings',holder:b?b.holder:me.name}}), bkCancel:()=>this.setState({bkEditing:false,bkForm:{type:'Savings'}}),
+      bkFields:[['holder','Account holder name (as per bank)','Karan Shah','text','text','none'],['acc','Account number','','password','numeric','none'],['acc2','Re-enter account number','','text','numeric','none'],['ifsc','IFSC code','HDFC0001123','text','text','uppercase'],['pan','PAN (for TDS)','ABCDE1234F','text','text','uppercase']].map(x=>{const v=f[x[0]]||'';let hint='',hfg='#5B636B';
+        if(x[0]==='ifsc'&&v){hint=ifscOk?bankName+' · branch code '+ifsc.slice(5):'IFSC is 11 characters, like HDFC0001123';hfg=ifscOk?'#18794E':'#B3261E';}
+        if(x[0]==='acc2'&&v){const ok=v===(f.acc||'');hint=ok?'Account numbers match':'Account numbers do not match';hfg=ok?'#18794E':'#B3261E';}
+        return {label:x[1],ph:x[2],type:x[3],mode:x[4],tt:x[5],ff:x[0]==='acc'||x[0]==='acc2'||x[0]==='ifsc'||x[0]==='pan'?"'IBM Plex Mono',monospace":'inherit',value:v,hasHint:!!hint,hint,hintFg:hfg,
+          onChange:e=>{let val=e.target.value; if(x[0]==='acc'||x[0]==='acc2') val=val.replace(/\D/g,'').slice(0,18); if(x[0]==='ifsc'||x[0]==='pan') val=val.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,x[0]==='ifsc'?11:10); up({[x[0]]:val});}};}),
+      bk_type:f.type||'Savings', onBk_type:e=>up({type:e.target.value}), bkConsent:!!f.consent, onBkConsent:e=>up({consent:e.target.checked}),
+      bkHasErr:!!f.err, bkErr:f.err||'', bkSaveLabel:b?'Save & re-verify':'Add & verify account',
+      bkSave:()=>{ const err=m=>this.setState(x=>({bkForm:{...x.bkForm,err:m}}));
+        if((f.holder||'').trim().length<3) return err('Enter the name exactly as it appears in your bank.');
+        if(!/^\d{9,18}$/.test(f.acc||'')) return err('Account number should be 9 to 18 digits.');
+        if(f.acc!==f.acc2) return err('Account numbers do not match.');
+        if(!ifscOk) return err('Enter a valid 11-character IFSC code.');
+        if(!/^[A-Z]{5}\d{4}[A-Z]$/.test(f.pan||'')) return err('Enter a valid PAN, like ABCDE1234F. It is needed for TDS.');
+        if(!f.consent) return err('Please confirm the account is in your name.');
+        this.setState(x=>({bkEditing:false,bkForm:{type:'Savings'},banks:{...x.banks,[me.id]:{holder:f.holder.trim(),acc:f.acc,ifsc,bank:bankName,type:f.type||'Savings',pan:f.pan,status:'Verifying',on:'27 Oct 2026'}}}));
+        this.toast('₹1 sent to your account for verification. Payouts go here once it confirms.');
+        clearTimeout(this.bt); this.bt=setTimeout(()=>{ this.setState(x=>x.banks[me.id]?{banks:{...x.banks,[me.id]:{...x.banks[me.id],status:'Verified'}}}:null); this.toast('Bank account verified. Name matched with the bank.'); },3500); }
+    };
+  }
+  extraVals(view,me,inr,cd,td){
+    const s=this.state, T='2026-10-27', mine=l=>s.as==='admin'||l.emp===me.id;
+    const upL=(id,o)=>this.setState(x=>({leads:x.leads.map(l=>l.id===id?{...l,...(typeof o==='function'?o(l):o)}:l)}));
+    const addDays=(d)=>{const t=new Date('2026-10-27');t.setDate(t.getDate()+d);return t.toISOString().slice(0,10);};
+    const fmt=d=>d==='—'?'—':new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+    const leads=s.leads.filter(l=>mine(l)&&(!s.lq||[l.name,l.owner,l.city,l.phone].join(' ').toLowerCase().includes(s.lq.toLowerCase())));
+    const price=l=>{const p=this.prod(l.product);return p.m*(l.disc&&l.disc.status==='Approved'?(100-l.disc.pct)/100:1);};
+    const SC=['#3D454D','#2459C9','#5B45B0','#94570A','#18794E','#C0362C'];
+    const monthRev=s.sales.filter(x=>x.date>='2026-10-01'&&(s.as==='admin'||x.emp===me.id)&&x.status!=='Rejected').reduce((a,x)=>a+this.amount(x),0);
+    const target=s.as==='admin'?180000:60000;
+    const lf=s.leadForm||{}; const upF=o=>this.setState(x=>({leadForm:{...x.leadForm,...o,err:''}}));
+    const byMonth={}; s.sales.filter(x=>s.as!=='sales'||x.emp===me.id).forEach(x=>{const k=x.date.slice(0,7)+'|'+x.emp;(byMonth[k]=byMonth[k]||[]).push(x);});
+    const care=s.as!=='sales';
+    return {
+      ...this.bankVals(me),
+      vLeads:view==='leads', vPayouts:view==='payouts', isAdmin:s.as==='admin',
+      leadTopCols:s.w>=1100?'minmax(0,1.3fr) minmax(0,1fr)':'minmax(0,1fr)',
+      tgtTitle:(s.as==='admin'?'Team':'My')+' October target', tgtSub:inr(monthRev)+' of '+inr(target)+' (ex-GST) · 4 days left',
+      tgtPct:Math.min(100,Math.round(monthRev/target*100))+'%',
+      funnel:this.STAGES.map(st=>({l:st.toLowerCase(),n:String(s.leads.filter(l=>mine(l)&&l.stage===st).length)})),
+      dueList:s.leads.filter(l=>mine(l)&&l.next!=='—'&&l.next<=addDays(2)&&l.stage!=='Won'&&l.stage!=='Lost').sort((a,b)=>a.next<b.next?-1:1).map(l=>({name:l.name,next:l.stage,when:l.next<T?'Overdue':l.next===T?'Today':fmt(l.next),fg:l.next<T?'#C0362C':l.next===T?'#94570A':'#3D454D',tel:'tel:+91'+l.phone.replace(/\D/g,'')})),
+      noDue:!s.leads.some(l=>mine(l)&&l.next!=='—'&&l.next<=addDays(2)&&l.stage!=='Won'&&l.stage!=='Lost'),
+      lq:s.lq, onLq:e=>this.setState({lq:e.target.value}),
+      shareRef:()=>this.toast('Referral link copied: medoro.in/r/'+(me.code||'MEDORO')+'. Pharmacies who sign up with it are credited to you.'),
+      leadFormOpen:!!s.leadForm, openLead:()=>this.setState({leadForm:{source:'Field visit',product:'pro'}}), closeLead:()=>this.setState({leadForm:null}),
+      lfFields:[['name','Pharmacy name','Shivam Medicals','text'],['owner','Owner name','Pravin Jadhav','text'],['phone','Mobile','98230 55120','tel'],['city','City','Pune','text']].map(f=>({label:f[1],ph:f[2],type:f[3],value:lf[f[0]]||'',onChange:e=>upF({[f[0]]:e.target.value})})),
+      lf_source:lf.source||'Field visit', onLf_source:e=>upF({source:e.target.value}), lf_product:lf.product||'pro', onLf_product:e=>upF({product:e.target.value}),
+      lfHasErr:!!lf.err, lfErr:lf.err||'',
+      saveLead:()=>{ if((lf.name||'').trim().length<3) return upF({err:'Enter the pharmacy name.'}); const ph=(lf.phone||'').replace(/\D/g,''); if(!/^[6-9]\d{9}$/.test(ph)) return upF({err:'Enter a valid 10-digit mobile.'});
+        const dup=s.leads.find(l=>l.phone.replace(/\D/g,'')===ph); if(dup) return upF({err:'This number is already a lead ('+dup.name+', owned by '+(s.emps.find(e=>e.id===dup.emp)||{}).name+').'});
+        this.setState(x=>({leadForm:null,leads:[{id:'L-'+(202+x.leads.length),name:lf.name.trim(),owner:(lf.owner||'').trim()||'—',phone:lf.phone.trim(),city:(lf.city||'').trim()||'—',source:lf.source||'Field visit',product:lf.product||'pro',stage:'New',next:addDays(1),emp:s.as==='sales'?me.id:'MS-014',log:[]},...x.leads]})); this.toast('Lead saved. Follow-up set for tomorrow.'); },
+      stages:this.STAGES.map((st,si)=>{const cs=leads.filter(l=>l.stage===st);return {name:st,fg:SC[si],count:String(cs.length),value:inr(cs.reduce((a,l)=>a+price(l),0))+'/mo',
+        cards:cs.map(l=>{const i=this.STAGES.indexOf(l.stage), d=l.disc;
+          return {name:l.name,owner:l.owner,city:l.city,source:l.source,product:this.prod(l.product).name,value:inr(price(l))+'/mo',
+            next:l.next==='—'?(l.stage==='Won'?'Customer':'Closed'):'Follow up '+(l.next<T?'overdue · ':'')+fmt(l.next),dueFg:l.next!=='—'&&l.next<=T?'#C0362C':'#5B636B',
+            hasDisc:!!d,disc:d?d.pct+'% discount '+d.status.toLowerCase():'',discFg:d&&d.status==='Approved'?'#18794E':d&&d.status==='Rejected'?'#C0362C':'#94570A',
+            isLost:l.stage==='Lost',lostReason:l.lostReason||'',hasLast:!!l.log.length,last:l.log[0]||'',
+            canBack:i>0&&i<4,canFwd:i<4,fwdLabel:i===3?'Mark won':this.STAGES[i+1],canLose:i<4,
+            canDisc:s.as==='sales'&&i>=2&&i<4&&!d,canApprove:s.as==='admin'&&d&&d.status==='Pending',
+            wa:'https://wa.me/91'+l.phone.replace(/\D/g,''),
+            onBack:()=>upL(l.id,{stage:this.STAGES[i-1]}),
+            onFwd:()=>{ if(i===3&&d&&d.status==='Pending') return this.toast('Waiting for the super admin to approve the discount.');
+              if(i===3){ upL(l.id,{stage:'Won',next:'—',log:['Won '+fmt(T),...l.log]}); this.setState(x=>({sales:[{id:Date.now(),date:T,cust:l.name,product:l.product,cycle:'m',type:'New',emp:l.emp,status:'Pending'},...x.sales]})); return this.toast(l.name+' won. A sale was logged for payment verification.'); }
+              upL(l.id,{stage:this.STAGES[i+1],next:addDays(i+1===2?2:3)}); },
+            onLose:()=>{ upL(l.id,{stage:'Lost',next:'—',lostReason:l.product==='multi'?'Not ready for multi-branch':'Price'}); this.toast('Marked lost. The reason is saved for the monthly win/loss report.'); },
+            onLog:()=>{ upL(l.id,x=>({log:['Call logged '+fmt(T)+' by '+me.name.split(' ')[0]+' · next follow-up '+fmt(addDays(2)),...x.log],next:addDays(2)})); this.toast('Call logged. Next follow-up in 2 days.'); },
+            onDisc:()=>{ upL(l.id,{disc:{pct:10,status:'Pending'}}); this.toast('10% discount request sent to the super admin.'); },
+            onApprove:()=>{ upL(l.id,x=>({disc:{...x.disc,status:'Approved'}})); this.toast('Discount approved for '+l.name+'.'); },
+            onReject:()=>{ upL(l.id,x=>({disc:{...x.disc,status:'Rejected'}})); this.toast('Discount rejected. The salesperson is notified.'); }};})};}),
+      runSub:inr(s.sales.filter(x=>x.status==='Verified').reduce((a,x)=>a+this.comm(x),0))+' verified commission across '+new Set(s.sales.filter(x=>x.status==='Verified').map(x=>x.emp)).size+' people · paid by UPI after 2% TDS',
+      runPayout:()=>{ const ok=x=>s.banks[x.emp]&&s.banks[x.emp].status==='Verified'; const ver=s.sales.filter(x=>x.status==='Verified'); if(!ver.length) return this.toast('Nothing verified to pay out yet.'); const pay=ver.filter(ok), held=[...new Set(ver.filter(x=>!ok(x)).map(x=>(s.emps.find(e=>e.id===x.emp)||{}).name))]; this.setState(x=>({sales:x.sales.map(y=>y.status==='Verified'&&ok(y)?{...y,status:'Paid out'}:y)})); this.toast((pay.length?pay.length+' sale(s) paid to verified bank accounts. ':'')+(held.length?'Held for '+held.join(', ')+': no verified bank account yet.':'Statements emailed.')); },
+      payRows:Object.entries(byMonth).sort((a,b)=>a[0]<b[0]?1:-1).map(([k,xs])=>{const [m,emp]=k.split('|');const g=xs.filter(x=>x.status!=='Rejected').reduce((a,x)=>a+this.comm(x),0);const all=xs.every(x=>x.status==='Paid out'),ver=xs.some(x=>x.status==='Verified');
+        const bk=s.banks[emp]; return {acc:bk?bk.bank.split(' ')[0]+' •••• '+bk.acc.slice(-4)+(bk.status==='Verified'?'':' (verifying)'):'No bank account',accFg:bk&&bk.status==='Verified'?'#3D454D':'#C0362C',month:new Date(m+'-01').toLocaleDateString('en-IN',{month:'long',year:'numeric'}),emp:(s.emps.find(e=>e.id===emp)||{}).name||emp,n:String(xs.length),gross:inr(g),tds:'−'+inr(g*0.02),net:inr(g*0.98),status:all?'Paid':ver?'Scheduled · 5 Nov':'Awaiting verification',sfg:all?'#18794E':ver?'#2459C9':'#94570A',onStmt:()=>this.toast('Commission statement for '+m+' downloaded (PDF, demo).')};}),
+      modeTabs:[['public','Reply to customer'],['internal','Internal note']].map(m=>({label:m[1],bg:s.mode===m[0]?'#fff':'transparent',sh:s.mode===m[0]?'0 1px 2px rgba(0,0,0,.1)':'none',onClick:()=>this.setState({mode:m[0]})})),
+      macros:this.MACROS.map(m=>({id:m.id,label:m.label})), onMacro:e=>{const m=this.MACROS.find(x=>x.id===e.target.value); if(m) this.setState(x=>({reply:(x.reply?x.reply+' ':'')+m.t}));},
+      replyPh:s.mode==='internal'?'Note for the team. The customer will not see this.':'Reply to the customer (sent by email and WhatsApp)',
+      replyBg:s.mode==='internal'?'#FFFBEF':'#fff', replyBd:s.mode==='internal'?'#E8C77A':'#CDD2D7', sendLabel:s.mode==='internal'?'Save note':'Send reply',
+      ...(cd?(()=>{const hi=s.tickets.filter(t=>t.cust===cd.id&&t.status!=='Resolved'&&t.priority==='High').length;const base={Active:88,Trial:62,'Grace period':38,Cancelled:8}[cd.status];const sc=Math.max(0,base-hi*12);
+        const why={Active:'Paying, licence checking in, '+cd.devices+' devices active',Trial:cd.renews+' · nudge to convert',"Grace period":'Payment failed · send the payment link',Cancelled:'Read-only · win-back candidate'}[cd.status]+(hi?' · '+hi+' high-priority ticket open':'');
+        return {cd:{...this._cdBase(cd),health:String(sc),healthC:sc>=70?'#18794E':sc>=45?'#94570A':'#C0362C',healthL:(sc>=70?'Healthy':sc>=45?'Needs attention':'At risk')+' · health '+sc+'/100',healthWhy:why},
+          logCall:()=>{ this.setState(x=>({custs:x.custs.map(c=>c.id===cd.id?{...c,notes:[{t:'Call logged · '+(x.note.trim()||'spoke with owner, no issues'),by:me.name,at:'27 Oct'},...c.notes]}:c),note:''})); this.toast('Call logged on '+cd.name+'.'); },
+          remoteReq:()=>this.reqRemote(cd.id), remoteBtn:s.remote[cd.id]?'Remote: '+s.remote[cd.id]:'Request remote access'};})():{logCall:()=>{},remoteReq:()=>{},remoteBtn:''})
+    };
+  }
+  _cdBase(cd){ const stC={Active:['#E7F6EE','#18794E'],Trial:['#EAF0FC','#2459C9'],'Grace period':['#FDF2E1','#94570A'],Cancelled:['#F2F4F5','#5B636B']}; return {...cd,sbg:stC[cd.status][0],sfg:stC[cd.status][1],wa:'https://wa.me/91'+cd.phone.replace(/\D/g,''),tel:'tel:+91'+cd.phone.replace(/\D/g,'')}; }
+  toast(m){ this.setState({toast:m}); clearTimeout(this.tt); this.tt=setTimeout(()=>this.setState({toast:''}),3200); }
+  inr(n){ return '₹'+Math.round(n).toLocaleString('en-IN'); }
+  prod(id){ return this.PRODUCTS.find(p=>p.id===id); }
+  amount(s){ const p=this.prod(s.product); const gross=p.once?p.m:(s.cycle==='y'?p.m*10:p.m); return gross/1.18; }
+  rateFor(s){ const r=this.state.rates[s.product]; const e=this.state.emps.find(x=>x.id===s.emp)||{}; return (s.type==='New'?r.first:r.renew)+(Number(e.bonus)||0); }
+  comm(s){ return this.amount(s)*this.rateFor(s)/100; }
+  me(){ const s=this.state; return s.as==='sales'?s.emps.find(e=>e.id==='MS-014'):s.as==='care'?s.emps.find(e=>e.id==='MS-022'):s.emps[0]; }
+  renderVals(){
+    const s=this.state, wide=s.w>=900, me=this.me(), inr=v=>this.inr(v);
+    const NAV={admin:[['overview','Overview','icon-layout-dashboard'],['employees','Employees','icon-users'],['commission','Commission','icon-percent'],['leads','Sales pipeline','icon-kanban'],['sales','All sales','icon-badge-indian-rupee'],['payouts','Payouts','icon-wallet'],['customers','Customers','icon-building-2'],['tickets','Support tickets','icon-life-buoy']],
+      sales:[['leads','Pipeline','icon-kanban'],['sales','My sales & commission','icon-badge-indian-rupee'],['payouts','Payouts','icon-wallet'],['customers','My customers','icon-building-2']],
+      care:[['tickets','Support tickets','icon-life-buoy'],['customers','Customers','icon-building-2']]}[s.as];
+    const view=NAV.find(n=>n[0]===s.view)?s.view:NAV[0][0];
+    const openT=s.tickets.filter(t=>t.status!=='Resolved').length, pendE=s.emps.filter(e=>e.status==='Pending approval').length, pendS=s.sales.filter(x=>x.status==='Pending').length;
+    const badge={leads:s.as==='admin'?s.leads.filter(l=>l.disc&&l.disc.status==='Pending').length:s.leads.filter(l=>l.emp===me.id&&l.next!=='—'&&l.next<='2026-10-27').length,tickets:openT,employees:pendE,sales:s.as==='admin'?pendS:0};
+    const empName=id=>(s.emps.find(e=>e.id===id)||{}).name||id;
+    const stC={Active:['#E7F6EE','#18794E'],Trial:['#EAF0FC','#2459C9'],'Grace period':['#FDF2E1','#94570A'],Cancelled:['#F2F4F5','#5B636B']};
+    const saleSt={Pending:['#FDF2E1','#94570A'],Verified:['#EAF0FC','#2459C9'],'Paid out':['#E7F6EE','#18794E'],Rejected:['#FDECEC','#C0362C']};
+    const upSf=o=>this.setState(x=>({sf:{...x.sf,...o,err:''}}));
+    const upEf=o=>this.setState(x=>({empForm:{...x.empForm,...o,err:''}}));
+    const ef=s.empForm||{};
+    const efFields=['name','email','phone','role','team','upi'];
+    const efVals={}; efFields.forEach(k=>{efVals['ef_'+k]=ef[k]||(k==='role'?'Sales':''); efVals['onEf_'+k]=e=>upEf({[k]:e.target.value});});
+    const sfVals={}; ['pharmacy','phone','city','product','cycle'].forEach(k=>{sfVals['sf_'+k]=s.sf[k]; sfVals['onSf_'+k]=e=>upSf({[k]:e.target.value});});
+    const mySales=s.sales.filter(x=>s.as!=='sales'||x.emp===me.id);
+    const sumC=(arr,st)=>arr.filter(x=>!st||st.includes(x.status)).reduce((a,x)=>a+this.comm(x),0);
+    const sfDraft={product:s.sf.product,cycle:s.sf.cycle,type:'New',emp:me.id};
+    const custList=s.custs.filter(c=>(s.as!=='sales'||c.sales===me.id)&&(s.cf==='All'||c.status===s.cf)&&(!s.cq||[c.name,c.owner,c.phone,c.gstin,c.city,c.id,c.email].join(' ').toLowerCase().includes(s.cq.toLowerCase())));
+    const cd=s.custs.find(c=>c.id===s.cust);
+    const td=s.tickets.find(t=>t.id===s.ticket);
+    const tList=s.tickets.filter(t=>s.tf==='All'||(s.tf==='Open'?t.status!=='Resolved':t.status===s.tf));
+    const pc={High:['#FDECEC','#C0362C'],Medium:['#FDF2E1','#94570A'],Low:['#F2F4F5','#5B636B']};
+    const tsf={Open:'#C0362C','Waiting on customer':'#94570A',Resolved:'#18794E'};
+    const salesEmps=s.emps.filter(e=>e.role==='Sales'&&e.status==='Active');
+    return {
+      rootRef:this.rootRef, kpiCols:s.w>=1100?'repeat(4,minmax(0,1fr))':'repeat(2,minmax(0,1fr))', gridCols:wide?'240px minmax(0,1fr)':'minmax(0,1fr)', asideDisplay:wide?'flex':'none',
+      custCols:(cd&&view==='customers')||(td&&view==='tickets')?(s.w>=1200?'minmax(0,1.4fr) minmax(340px,1fr)':'minmax(0,1fr)'):'minmax(0,1fr)',
+      nav:NAV.map(n=>{const a=view===n[0];return {label:n[1],icon:n[2],bg:a?'rgba(95,211,188,.14)':'transparent',fg:a?'#fff':'#B8C7CC',fw:a?'600':'500',hasBadge:!!badge[n[0]],badge:String(badge[n[0]]||''),onClick:()=>this.setState({view:n[0]})};}),
+      title:(NAV.find(n=>n[0]===view)||NAV[0])[1],
+      roleTabs:[['admin','Super admin'],['sales','Sales'],['care','Customer care']].map(r=>({label:r[1],bg:s.as===r[0]?'#fff':'transparent',sh:s.as===r[0]?'0 1px 2px rgba(0,0,0,.1)':'none',onClick:()=>this.setState({as:r[0],view:r[0]==='sales'?'leads':r[0]==='care'?'tickets':'overview',cust:null,ticket:null})})),
+      meName:me.name, meRole:me.role+' · '+me.id, meInit:me.name.split(' ').map(x=>x[0]).join('').slice(0,2),
+      hasToast:!!s.toast, toast:s.toast,
+      vOverview:view==='overview', vEmployees:view==='employees', vCommission:view==='commission', vSales:view==='sales', vCustomers:view==='customers', vTickets:view==='tickets',
+      kpis:[{l:'Active pharmacies',v:String(s.custs.filter(c=>c.status==='Active').length),d:s.custs.filter(c=>c.status==='Trial').length+' on trial · '+s.custs.filter(c=>c.status==='Grace period').length+' in grace'},{l:'Sales this month (ex-GST)',v:inr(s.sales.filter(x=>x.date>='2026-10-01').reduce((a,x)=>a+this.amount(x),0)),d:s.sales.filter(x=>x.date>='2026-10-01').length+' sales logged'},{l:'Commission owed',v:inr(sumC(s.sales,['Verified'])),d:inr(sumC(s.sales,['Pending']))+' awaiting verification'},{l:'Open tickets',v:String(openT),d:s.tickets.filter(t=>t.priority==='High'&&t.status!=='Resolved').length+' high priority'}],
+      leader:s.emps.filter(e=>e.role==='Sales').map(e=>{const xs=s.sales.filter(x=>x.emp===e.id&&x.date>='2026-10-01');return {name:e.name,team:e.team,n:String(xs.length),rev:inr(xs.reduce((a,x)=>a+this.amount(x),0)),com:inr(xs.reduce((a,x)=>a+this.comm(x),0)),pend:inr(xs.filter(x=>x.status!=='Paid out').reduce((a,x)=>a+this.comm(x),0))};}),
+      empCount:s.emps.length+' employees · '+pendE+' waiting for approval',
+      empFormOpen:!!s.empForm, openEmpForm:()=>this.setState({empForm:{role:'Sales'}}), closeEmpForm:()=>this.setState({empForm:null}),
+      ...efVals, efHasErr:!!ef.err, efErr:ef.err||'',
+      createEmp:()=>{ const f=s.empForm||{}; if(!(f.name||'').trim()) return upEf({err:'Enter the full name.'}); if(!/^[^@\s]+@medoro\.in$/i.test(f.email||'')) setTimeout(()=>upEf({err:'Use a @medoro.in work email.'}),0); if(!/^[^@\s]+@medoro\.in$/i.test(f.email||'')) return;
+        if(!/^[6-9]\d{9}$/.test((f.phone||'').replace(/\D/g,''))) return upEf({err:'Enter a valid 10-digit mobile.'});
+        const n=s.emps.length+32, id='MS-0'+n, role=f.role||'Sales', first=f.name.trim().split(' ')[0].toUpperCase();
+        this.setState(x=>({empForm:null,emps:[...x.emps,{id,name:f.name.trim(),email:f.email.trim(),phone:f.phone.trim(),role,team:(f.team||'—').trim()||'—',status:'Invited',code:role==='Sales'?first+n:undefined,bonus:0}]}));
+        this.toast(id+' created. Invite sent to '+f.email.trim()+'. They set a password and security key on first sign-in.'); },
+      empRows:s.emps.map(e=>{const rc={'Super admin':['#0E1A1F','#fff'],Sales:['#E1F1EF','#0B5E5B'],'Customer care':['#EAF0FC','#2459C9']}[e.role];const sc={Active:'#18794E',Invited:'#2459C9','Pending approval':'#94570A',Deactivated:'#8A929A'}[e.status];
+        const act=e.status==='Pending approval'?'Approve':e.status==='Deactivated'?'Reactivate':e.id===me.id?'You':'Deactivate';
+        return {...e,code:e.code||'—',rbg:rc[0],rfg:rc[1],sfg:sc,act,actFg:act==='Deactivate'?'#C0362C':'#1F2328',onAct:()=>{ if(act==='You') return; const ns=act==='Deactivate'?'Deactivated':'Active'; this.setState(x=>({emps:x.emps.map(y=>y.id===e.id?{...y,status:ns}:y)})); this.toast(e.name+(ns==='Active'?' is now active.':' was deactivated. Their sessions are signed out.')); }};}),
+      rateRows:this.PRODUCTS.map(p=>{const r=s.rates[p.id];const setR=k=>e=>{const v=e.target.value.replace(/[^\d.]/g,'');this.setState(x=>({rates:{...x.rates,[p.id]:{...x.rates[p.id],[k]:v}}}));};
+        return {name:p.name,price:inr(p.m)+(p.once?' once':' / mo'),first:String(r.first),renew:String(r.renew),onFirst:setR('first'),onRenew:setR('renew'),eg:inr(p.m/1.18*(Number(r.first)||0)/100)};}),
+      saveRates:()=>{ const bad=Object.values(s.rates).some(r=>Number(r.first)>50||Number(r.renew)>50); if(bad) return this.toast('Rates above 50% need finance approval. Please lower them.'); this.toast('Commission rates saved. They apply to sales logged from today.'); },
+      bonusRows:s.emps.filter(e=>e.role==='Sales').map(e=>({name:e.name,team:e.team+' · '+e.status,bonus:String(e.bonus||0),onBonus:ev=>{const v=ev.target.value.replace(/[^\d.]/g,'');this.setState(x=>({emps:x.emps.map(y=>y.id===e.id?{...y,bonus:v}:y)}));}})),
+      isSalesRole:s.as==='sales',
+      myKpis:[{l:'Earned this month',v:inr(mySales.filter(x=>x.date>='2026-10-01'&&x.status!=='Rejected').reduce((a,x)=>a+this.comm(x),0)),d:'Including pending',c:'#0B5E5B'},{l:'Awaiting verification',v:inr(sumC(mySales,['Pending'])),d:'Confirmed when payment clears',c:'#94570A'},{l:'Ready for payout',v:inr(sumC(mySales,['Verified'])),d:s.banks[me.id]?'Paid on the 5th to '+s.banks[me.id].bank.split(' ')[0]+' •••• '+s.banks[me.id].acc.slice(-4):'Add a bank account in Payouts',c:'#1F2328'},{l:'Referral code',v:me.code||'—',d:'Pharmacies enter it at sign-up',c:'#1F2328'}],
+      ...sfVals, productOpts:this.PRODUCTS.map(p=>({id:p.id,name:p.name})),
+      sfPreview:'Amount before GST '+inr(this.amount(sfDraft))+' · your rate '+this.rateFor(sfDraft)+'% · commission '+inr(this.comm(sfDraft)),
+      sfHasErr:!!s.sf.err, sfErr:s.sf.err,
+      logSale:()=>{ const f=s.sf; if(f.pharmacy.trim().length<3) return this.setState(x=>({sf:{...x.sf,err:'Enter the pharmacy name.'}})); if(!/^[6-9]\d{9}$/.test(f.phone.replace(/\D/g,''))) return this.setState(x=>({sf:{...x.sf,err:'Enter the owner’s 10-digit mobile.'}}));
+        const dup=s.sales.find(x=>x.cust.toLowerCase()===f.pharmacy.trim().toLowerCase()&&x.product===f.product&&x.status==='Pending'); if(dup) return this.setState(x=>({sf:{...x.sf,err:'This sale is already waiting for verification.'}}));
+        this.setState(x=>({sales:[{id:Date.now(),date:'2026-10-27',cust:f.pharmacy.trim(),product:f.product,cycle:f.cycle,type:'New',emp:me.id,status:'Pending'},...x.sales],sf:{pharmacy:'',phone:'',city:'',product:'pro',cycle:'m',err:''}}));
+        this.toast('Sale submitted. Commission confirms when the payment is verified.'); },
+      salesTitle:s.as==='sales'?'My sales':'All sales',
+      saleRows:mySales.map(x=>{const st=saleSt[x.status]; const canAct=s.as==='admin'&&(x.status==='Pending'||x.status==='Verified');
+        return {date:new Date(x.date).toLocaleDateString('en-IN',{day:'numeric',month:'short'}),cust:x.cust,product:this.prod(x.product).name+(this.prod(x.product).once?'':(x.cycle==='y'?' · yearly':' · monthly'))+' · '+x.type,emp:empName(x.emp),amt:inr(this.amount(x)),com:inr(this.comm(x)),rate:this.rateFor(x)+'%',status:x.status,sbg:st[0],sfg:st[1],canAct,act:x.status==='Pending'?'Verify payment':'Mark paid out',
+          onAct:()=>{const ns=x.status==='Pending'?'Verified':'Paid out'; this.setState(y=>({sales:y.sales.map(z=>z.id===x.id?{...z,status:ns}:z)})); this.toast(ns==='Verified'?'Payment verified. '+inr(this.comm(x))+' commission added to '+empName(x.emp)+'’s payout.':'Payout of '+inr(this.comm(x))+' recorded for '+empName(x.emp)+'.');}};}),
+      cq:s.cq, onCq:e=>this.setState({cq:e.target.value}),
+      cFilters:['All','Active','Trial','Grace period','Cancelled'].map(f=>({label:f,bg:s.cf===f?'#fff':'transparent',sh:s.cf===f?'0 1px 2px rgba(0,0,0,.1)':'none',onClick:()=>this.setState({cf:f})})),
+      custRows:custList.map(c=>({...c,sbg:stC[c.status][0],sfg:stC[c.status][1],open:String(s.tickets.filter(t=>t.cust===c.id&&t.status!=='Resolved').length),bg:s.cust===c.id?'#F2F9F8':'#fff',onClick:()=>this.setState({cust:c.id})})),
+      custEmpty:!custList.length, hasCust:!!cd&&view==='customers', closeCust:()=>this.setState({cust:null}),
+      cd:cd?{...cd,sbg:stC[cd.status][0],sfg:stC[cd.status][1],wa:'https://wa.me/91'+cd.phone.replace(/\D/g,''),tel:'tel:+91'+cd.phone.replace(/\D/g,'')}:{},
+      cdFields:cd?[['Owner',cd.owner],['Mobile','+91 '+cd.phone],['Email',cd.email],['Address',cd.addr],['GSTIN',cd.gstin],['Drug licence',cd.dl],['Plan',cd.plan+' · '+cd.cycle],['Renewal',cd.renews],['Branches / devices',cd.branches+' / '+cd.devices],['Deployment',cd.dep],['Licence',cd.lic],['App version',cd.app],['Salesperson',empName(cd.sales)]].map(f=>({l:f[0],v:f[1]})):[],
+      cdTickets:cd?s.tickets.filter(t=>t.cust===cd.id).map(t=>({id:t.id,subject:t.subject,status:t.status,fg:tsf[t.status],onClick:()=>this.setState({view:'tickets',ticket:t.id,tf:'All'})})):[],
+      cdNoTickets:!!cd&&!s.tickets.some(t=>t.cust===cd.id),
+      cdNotes:cd?cd.notes:[], noteDraft:s.note, onNote:e=>this.setState({note:e.target.value}),
+      addNote:()=>{ if(!s.note.trim()||!cd) return; this.setState(x=>({note:'',custs:x.custs.map(c=>c.id===cd.id?{...c,notes:[{t:x.note.trim(),by:me.name,at:'27 Oct'},...c.notes]}:c)})); },
+      newTicketFor:()=>{ if(!cd) return; const id='TK-'+(1183+s.tickets.length); this.setState(x=>({tickets:[{id,cust:cd.id,subject:'New request from '+cd.owner,priority:'Medium',status:'Open',assigned:me.role==='Customer care'?me.name:'Imran Qureshi',created:'27 Oct, now',msgs:[]},...x.tickets],view:'tickets',ticket:id,tf:'All'})); },
+      tFilters:['Open','Waiting on customer','Resolved','All'].map(f=>({label:f,bg:s.tf===f?'#fff':'transparent',sh:s.tf===f?'0 1px 2px rgba(0,0,0,.1)':'none',onClick:()=>this.setState({tf:f})})),
+      ticketRows:tList.map(t=>({...t,cust:(s.custs.find(c=>c.id===t.cust)||{}).name,pbg:pc[t.priority][0],pfg:pc[t.priority][1],sfg:tsf[t.status],bd:s.ticket===t.id?'1.5px solid #0B5E5B':'1px solid #E6E8EB',onClick:()=>this.setState({ticket:t.id})})),
+      hasTicket:!!td&&view==='tickets', closeTicket:()=>this.setState({ticket:null}),
+      careOpts:s.emps.filter(e=>e.role==='Customer care').map(e=>e.name),
+      td:td?{subject:td.id+' · '+td.subject,cust:(s.custs.find(c=>c.id===td.cust)||{}).name,status:td.status,assigned:td.assigned,
+        openCust:()=>this.setState({view:'customers',cust:td.cust,cf:'All',cq:''}),
+        onStatus:e=>{const v=e.target.value;this.setState(x=>({tickets:x.tickets.map(t=>t.id===td.id?{...t,status:v}:t)}));},
+        onAssign:e=>{const v=e.target.value;this.setState(x=>({tickets:x.tickets.map(t=>t.id===td.id?{...t,assigned:v}:t)}));},
+        msgs:td.msgs.map(m=>({...m,internal:!!m.internal,align:m.me?'flex-end':'flex-start',bg:m.internal?'#FFF7E0':m.me?'#E1F1EF':'#F2F4F5',bd:m.internal?'1px dashed #E8C77A':'0'})),
+        ...(()=>{const x={...(this.TX[td.id]||{cat:'General',channel:'Console',due:240}),...(s.ticketExtra[td.id]||{})}; const res=td.status==='Resolved', br=!res&&x.due<0;
+          return {cat:x.cat,channel:x.channel,priority:td.priority,hasCsat:!!x.csat,csat:x.csat||'',
+            sla:res?'Resolved within SLA':br?'First-response SLA breached '+Math.abs(x.due)+' min ago':'First response due in '+(x.due>=60?Math.floor(x.due/60)+' h '+(x.due%60)+' min':x.due+' min'),
+            slaBg:res?'#E7F6EE':br?'#FDECEC':x.due<60?'#FDF2E1':'#F2F4F5', slaFg:res?'#18794E':br?'#C0362C':x.due<60?'#94570A':'#3D454D',
+            escLabel:x.esc?'Escalated to '+x.esc:'Escalate', remoteLabel:s.remote[td.cust]?'Remote access: '+s.remote[td.cust]:'Request remote access',
+            onPriority:e=>{const v=e.target.value;this.setState(y=>({tickets:y.tickets.map(t=>t.id===td.id?{...t,priority:v}:t)}));},
+            onEscalate:()=>{const nx=!x.esc?'L2 support':x.esc==='L2 support'?'Engineering':'Engineering'; this.setState(y=>({ticketExtra:{...y.ticketExtra,[td.id]:{...(y.ticketExtra[td.id]||{}),esc:nx}},tickets:y.tickets.map(t=>t.id===td.id?{...t,assigned:nx==='L2 support'?'Divya Iyer':t.assigned,msgs:[...t.msgs,{t:'Escalated to '+nx+'.',by:me.name,at:'now',me:true,internal:true}]}:t)})); this.toast('Escalated to '+nx+'.');},
+            onRemote:()=>this.reqRemote(td.cust)};})()}:{msgs:[]},
+      replyDraft:s.reply, onReply:e=>this.setState({reply:e.target.value}),
+      sendReply:()=>this.send(td,me,false), sendResolve:()=>this.send(td,me,true),
+      ...this.extraVals(view,me,inr,cd,td)
+    };
+  }
+}
+</script>
+</body>
+</html>

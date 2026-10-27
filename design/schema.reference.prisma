@@ -1,0 +1,97 @@
+// Medoro target schema — PostgreSQL 16. Money = BigInt paise. Posted rows are immutable (DB triggers block UPDATE/DELETE).
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+enum BatchStatus { ok quarantine damaged recalled }
+enum PoStatus { draft ordered partially_received received cancelled }
+enum PayMode { cash upi card credit split }
+enum MsgStatus { queued sent delivered read failed }
+enum VoucherType { receipt payment journal credit_note debit_note reversal sales purchase }
+
+model Tenant { id String @id @default(uuid()) name String gstin String? createdAt DateTime @default(now())
+  branches Branch[] users User[] roles Role[] }
+
+model Branch { id String @id @default(uuid()) tenantId String tenant Tenant @relation(fields:[tenantId],references:[id])
+  name String address String? gstin String? drugLicence String?
+  @@unique([tenantId,name]) }
+
+model User { id String @id @default(uuid()) tenantId String tenant Tenant @relation(fields:[tenantId],references:[id])
+  name String email String? phone String? passwordHash String? mfaSecret String? mfaRequired Boolean @default(false)
+  tokenVersion Int @default(0) active Boolean @default(true) roleId String role Role @relation(fields:[roleId],references:[id])
+  branchIds String[] lastLoginAt DateTime?
+  @@unique([tenantId,email]) @@unique([tenantId,phone]) }
+
+model Role { id String @id @default(uuid()) tenantId String tenant Tenant @relation(fields:[tenantId],references:[id])
+  name String permissions String[] locked Boolean @default(false) users User[]
+  @@unique([tenantId,name]) }
+
+model Session { id String @id userId String tokenVersion Int deviceId String? ip String? createdAt DateTime @default(now()) expiresAt DateTime revokedAt DateTime? @@index([userId]) }
+
+model Medicine { id String @id @default(uuid()) tenantId String name String generic String strength String form String
+  manufacturer String pack String unitsPerPack Int @default(1) barcode String? hsn String gstRate Int mrpPaise BigInt
+  schedule String? reorderLevel Int @default(0) rack String? active Boolean @default(true) version Int @default(0)
+  batches Batch[]
+  @@unique([tenantId,barcode]) @@index([tenantId,name]) @@index([tenantId,generic]) }
+
+model Batch { id String @id @default(uuid()) tenantId String branchId String medicineId String medicine Medicine @relation(fields:[medicineId],references:[id])
+  batchNo String mfgDate DateTime? expiryDate DateTime qtyAvailable Int qtyQuarantined Int @default(0)
+  costPaise BigInt mrpPaise BigInt supplierId String? grnId String? status BatchStatus @default(ok) version Int @default(0)
+  @@unique([tenantId,branchId,medicineId,batchNo]) @@index([branchId,medicineId,expiryDate]) }
+
+model StockMovement { id String @id @default(uuid()) tenantId String branchId String batchId String qty Int
+  type String refType String refId String userId String at DateTime @default(now()) note String?
+  @@index([batchId,at]) @@index([tenantId,refType,refId]) }
+
+model Supplier { id String @id @default(uuid()) tenantId String name String gstin String? creditDays Int @default(0)
+  leadDays Decimal @default(1) acceptsReturns Boolean @default(true) version Int @default(0) @@unique([tenantId,name]) }
+
+model PurchaseOrder { id String @id @default(uuid()) tenantId String branchId String no String supplierId String status PoStatus @default(draft)
+  createdBy String createdAt DateTime @default(now()) source String? items PurchaseOrderItem[] @@unique([tenantId,no]) }
+model PurchaseOrderItem { id String @id @default(uuid()) poId String po PurchaseOrder @relation(fields:[poId],references:[id]) medicineId String qty Int ratePaise BigInt }
+
+model Grn { id String @id @default(uuid()) tenantId String branchId String no String supplierId String supplierInvoiceNo String
+  invoiceDate DateTime totalPaise BigInt poId String? scanDocId String? approvedBy String approvedAt DateTime
+  @@unique([tenantId,supplierId,supplierInvoiceNo]) @@unique([tenantId,no]) }
+
+model ScanDocument { id String @id @default(uuid()) tenantId String storagePath String sha256 String status String extracted Json confidence Json createdAt DateTime @default(now()) }
+
+model Customer { id String @id @default(uuid()) tenantId String name String phone String? creditLimitPaise BigInt @default(0)
+  waOptIn Boolean @default(false) optInAt DateTime? optInMethod String? erasedAt DateTime? version Int @default(0) @@unique([tenantId,phone]) }
+
+model Sale { id String @id @default(uuid()) tenantId String branchId String invoiceNo String idempotencyKey String
+  customerId String? prescriber String? rxNo String? subtotalPaise BigInt discountPaise BigInt taxablePaise BigInt
+  cgstPaise BigInt sgstPaise BigInt roundOffPaise BigInt totalPaise BigInt payMode PayMode shiftId String? userId String
+  at DateTime @default(now()) items SaleItem[] payments Payment[]
+  @@unique([tenantId,idempotencyKey]) @@unique([tenantId,branchId,invoiceNo]) @@index([branchId,at]) }
+model SaleItem { id String @id @default(uuid()) saleId String sale Sale @relation(fields:[saleId],references:[id]) batchId String medicineId String
+  qty Int mrpPaise BigInt discountPaise BigInt taxablePaise BigInt gstRate Int costPaise BigInt returnedQty Int @default(0) }
+model Payment { id String @id @default(uuid()) saleId String sale Sale @relation(fields:[saleId],references:[id]) mode PayMode amountPaise BigInt ref String? }
+
+model InvoiceSequence { tenantId String branchId String fiscalYear String next Int @@id([tenantId,branchId,fiscalYear]) }
+
+model SalesReturn { id String @id @default(uuid()) tenantId String creditNoteNo String saleId String reason String condition String
+  refundMode String amountPaise BigInt userId String at DateTime @default(now()) lines Json @@unique([tenantId,creditNoteNo]) }
+
+model Shift { id String @id @default(uuid()) branchId String counter String openedBy String openingPaise BigInt openedAt DateTime
+  closedBy String? expectedPaise BigInt? countedPaise BigInt? closedAt DateTime? }
+
+model Voucher { id String @id @default(uuid()) tenantId String no String type VoucherType date DateTime narration String
+  postedBy String postedAt DateTime @default(now()) reversesId String? lines LedgerLine[] @@unique([tenantId,no]) }
+model LedgerLine { id String @id @default(uuid()) voucherId String voucher Voucher @relation(fields:[voucherId],references:[id]) account String debitPaise BigInt @default(0) creditPaise BigInt @default(0) }
+
+model AuditEvent { id BigInt @id @default(autoincrement()) tenantId String userId String? action String entity String entityId String?
+  before Json? after Json? ip String? at DateTime @default(now()) prevHash String hash String @@index([tenantId,at]) }
+
+model WaMessage { id String @id @default(uuid()) tenantId String invoiceId String recipient String idempotencyKey String @unique
+  wamid String? status MsgStatus attempts Int @default(0) errorCode String? updatedAt DateTime @updatedAt }
+
+model Integration { id String @id @default(uuid()) tenantId String kind String config Json encryptedSecret Bytes? connectedAt DateTime? rotatedAt DateTime? @@unique([tenantId,kind]) }
+
+model BackupManifest { id String @id @default(uuid()) tenantId String startedAt DateTime finishedAt DateTime? kind String sizeBytes BigInt?
+  sha256 String? schemaVersion String driveFileId String? status String error String? rowCounts Json? }
+
+model Recall { id String @id @default(uuid()) tenantId String source String sourceRef String publishedAt DateTime product String batchNos String[] reason String status String }
+
+model OfflineOp { id String @id tenantId String deviceId String kind String payload Json baseVersion Int status String conflict Json? createdAt DateTime receivedAt DateTime @default(now()) }
+
+model SubscriptionMeta { tenantId String @id plan String addons String[] status String renewsAt DateTime? graceUntil DateTime? licenceToken String? }

@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", "IBM Plex Sans Devanagari", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-cond: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+
+  --color-teal: #0B5E5B;
+  --color-teal-hover: #094A48;
+  --color-teal-tint: #E1F1EF;
+  --color-teal-soft: #F2F9F8;
+  --color-teal-border: #9FCFC9;
+  --color-teal-line: #CFE6E3;
+  --color-navy: #0B3A78;
+  --color-leaf: #0A9A80;
+  --color-blue: #2459C9;
+  --color-blue-tint: #EAF0FC;
+
+  --color-page: #F7F8F9;
+  --color-bg: #F5F6F7;
+  --color-surface: #FFFFFF;
+  --color-subtle: #FAFBFB;
+  --color-side: #FBFBFC;
+  --color-line: #E6E8EB;
+  --color-line-soft: #EEF0F2;
+  --color-row: #F1F3F4;
+  --color-input: #CDD2D7;
+  --color-ink: #1F2328;
+  --color-ink-strong: #101418;
+  --color-ink-2: #3D454D;
+  --color-muted: #5B636B;
+  --color-faint: #6B737B;
+  --color-fainter: #8A929A;
+  --color-hover: #F0F2F4;
+  --color-chip: #F2F4F5;
+
+  --color-ok-bg: #E6F4EC;
+  --color-ok: #1E7F4F;
+  --color-warn-bg: #FDF2E1;
+  --color-warn: #94570A;
+  --color-bad-bg: #FBEAE8;
+  --color-bad: #B3261E;
+  --color-gray-bg: #EEF0F2;
+  --color-gray: #4B535B;
+
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, .05);
+  --shadow-pop: 0 1px 2px rgba(16, 24, 40, .06), 0 12px 32px -4px rgba(16, 24, 40, .16);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, .25);
+
+  --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
+  @keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+}
+
+html, body { margin: 0; padding: 0; background: var(--color-bg); }
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--color-teal); text-decoration: none; }
+a:hover { color: var(--color-teal-hover); }
+input, select, button, textarea { font-family: inherit; font-size: inherit; }
+.tnum { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--color-teal); outline-offset: 1px; }

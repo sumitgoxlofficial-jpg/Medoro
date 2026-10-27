@@ -1,0 +1,259 @@
+"use client";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import {
+  ChevronDown, ChevronRight, Search, Bell, ShieldCheck, Ellipsis, CircleUser, CreditCard, Languages,
+  Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor,
+} from "lucide-react";
+import { cn } from "@/components/ui/cn";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { ToastProvider, useToast } from "@/components/ui/toast";
+import { DICT, type Lang } from "@/lib/i18n";
+import { NAV, READY, screenOf, type ScreenId } from "@/lib/nav";
+import { NAV_ICONS } from "./icons";
+import { listSessions, revokeOtherSessions, revokeSession, setBranch, setLang, setViewAs } from "@/app/app/actions";
+import { signOut } from "@/app/(auth)/actions";
+
+export type ShellProps = {
+  tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
+  perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
+  mfa: boolean; deployment: string; liveDevices: number;
+  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[];
+  children: React.ReactNode;
+};
+
+const BADGE = { amber: ["#FDF2E1", "#94570A"], red: ["#FDECEC", "#C0362C"] } as const;
+
+export function Shell(p: ShellProps) {
+  return <ToastProvider><ShellInner {...p} /></ToastProvider>;
+}
+
+function ShellInner(p: ShellProps) {
+  const path = usePathname();
+  const router = useRouter();
+  const toast = useToast();
+  const t = DICT[p.lang];
+  const [narrow, setNarrow] = useState(false);
+  const [closed, setClosed] = useState<Record<string, boolean>>({});
+  const [menu, setMenu] = useState(false);
+  const [profile, setProfile] = useState(false);
+  const [, start] = useTransition();
+
+  useEffect(() => {
+    const on = () => setNarrow(window.innerWidth < 1180);
+    on(); window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
+      if (e.key === "F2" && READY.has("pos") && p.perms.includes("sale")) { e.preventDefault(); router.push("/app/pos?focus=1"); }
+      else if (e.key === "?" && !typing) { e.preventDefault(); showShortcuts(); }
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  });
+
+  const showShortcuts = () => { setMenu(false); toast("F2 search · F4 hold · F9 complete sale · Esc close · ? shortcuts", "gray"); };
+
+  const allowed = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));
+  const cur = screenOf(path);
+  const title = cur ? t[cur.id] : "";
+  const initials = p.userName.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
+
+  return (
+    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (narrow ? "76px" : "232px") + " minmax(0,1fr)" }}>
+      <aside className="bg-side border-r border-line flex flex-col min-h-0">
+        <div className="h-14 flex items-center px-2.5 border-b border-line-soft flex-none">
+          <div className="flex items-center gap-[9px] w-full p-1.5 rounded-lg">
+            <span className="size-7 rounded-[7px] bg-white border border-line flex items-center justify-center flex-none shadow-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/medoro-mark.png" alt="Medoro" className="w-5 h-auto" />
+            </span>
+            {!narrow ? (
+              <span className="flex flex-col min-w-0 flex-1 leading-tight">
+                <span className="text-[13.5px] font-semibold text-ink-strong truncate">{p.tenantName}</span>
+                <span className="text-[11.5px] text-faint whitespace-nowrap">{p.branchCount} branch{p.branchCount === 1 ? "" : "es"}</span>
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <nav className="flex flex-col gap-px p-2 flex-1 overflow-y-auto overflow-x-hidden">
+          {allowed.map((n, i) => {
+            const a = cur?.id === n.id;
+            const head = !narrow && (i === 0 || allowed[i - 1].group !== n.group);
+            const hidden = !narrow && closed[n.group] && !a;
+            const Icon = NAV_ICONS[n.icon as keyof typeof NAV_ICONS];
+            const b = p.badges[n.id];
+            return (
+              <div key={n.id} className="contents">
+                {head ? (
+                  <button onClick={() => setClosed((x) => ({ ...x, [n.group]: !x[n.group] }))} className="flex items-center gap-1 px-2 pt-3.5 pb-[5px] text-[11px] font-semibold tracking-[.04em] text-fainter hover:text-ink-2 cursor-pointer text-left">
+                    {closed[n.group] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}{t[n.group]}
+                  </button>
+                ) : null}
+                {!hidden ? (
+                  <Link href={n.href} title={t[n.id]} className={cn("relative flex items-center rounded-md min-h-[30px] text-[13px] no-underline",
+                    narrow ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2 py-1.5",
+                    a ? "bg-white text-ink-strong font-semibold shadow-[0_1px_2px_rgba(16,24,40,.08),0_0_0_1px_#E6E8EB]" : "text-ink-2 font-medium hover:bg-hover hover:text-ink-2")}>
+                    <Icon size={16} className="flex-none" style={{ color: a ? "#0B5E5B" : "#6B737B" }} />
+                    {!narrow ? <span className="flex-1 truncate">{t[n.id]}</span> : <span className="text-[10px] leading-none whitespace-nowrap">{n.abbr}</span>}
+                    {!narrow && b && b[0] ? <span className="min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold flex items-center justify-center tnum" style={{ background: BADGE[b[1]][0], color: BADGE[b[1]][1] }}>{b[0]}</span> : null}
+                  </Link>
+                ) : null}
+              </div>
+            );
+          })}
+        </nav>
+        {!narrow ? (
+          <div title="Your live database runs on infrastructure you control. Medoro only holds licence data." className="mx-2 my-1.5 flex items-center gap-2 h-8 px-2.5 border border-line bg-white rounded-[7px] text-[12px] text-ink-2">
+            <ShieldCheck size={14} className="text-[#18794E]" /><span className="truncate">Strict mode · data on your server</span>
+          </div>
+        ) : null}
+        <div className="relative border-t border-line-soft px-2 py-1.5">
+          {menu ? (
+            <>
+              <div className="fixed inset-0 z-[70]" onClick={() => setMenu(false)} />
+              <div className="absolute left-2 bottom-[calc(100%+6px)] w-64 bg-white border border-line rounded-[10px] shadow-pop z-[71] p-1 flex flex-col">
+                <div className="flex items-center gap-2.5 p-2.5">
+                  <Avatar initials={initials} size={34} />
+                  <div className="flex flex-col min-w-0 leading-tight"><span className="text-[13.5px] font-semibold text-ink-strong truncate">{p.userName}</span><span className="text-[12px] text-faint truncate">{p.userEmail}</span></div>
+                </div>
+                <div className="flex gap-1 flex-wrap px-2.5 pb-2.5">
+                  <Chip bg="#E1F1EF" fg="#0B5E5B" strong>{p.role}</Chip>
+                  <Chip bg="#F2F4F5" fg="#3D454D"><MapPin size={11} />{p.branchName}</Chip>
+                  {p.mfa ? <Chip bg="#E7F6EE" fg="#18794E"><ShieldCheck size={11} />MFA</Chip> : null}
+                </div>
+                <div className="h-px bg-line-soft -mx-1 mb-1" />
+                <MenuItem icon={CircleUser} onClick={() => { setMenu(false); setProfile(true); }}>Profile & sessions</MenuItem>
+                {p.perms.includes("users") && READY.has("plan") ? <MenuItem icon={CreditCard} onClick={() => { setMenu(false); router.push("/app/plan"); }}>Subscription</MenuItem> : null}
+                <div className="flex items-center gap-2.5 h-[34px] pl-2.5 pr-1.5 text-[13px]">
+                  <Languages size={15} className="text-faint" /><span className="flex-1">Language</span>
+                  <LangToggle lang={p.lang} small onChange={(l) => start(() => setLang(l))} />
+                </div>
+                <div className="h-px bg-line-soft -mx-1 my-1" />
+                <MenuItem icon={Keyboard} kbd="?" onClick={showShortcuts}>Keyboard shortcuts</MenuItem>
+                <MenuItem icon={LifeBuoy} onClick={() => { setMenu(false); toast("Support: help.medoro.in · 9am–9pm", "gray"); }}>Help & support</MenuItem>
+                <div className="h-px bg-line-soft -mx-1 my-1" />
+                <MenuItem icon={LogOut} danger onClick={() => start(() => signOut())}>Sign out</MenuItem>
+                <div className="px-3.5 py-1.5 text-[11px] text-[#A3AAB1] border-t border-line-soft -mx-1 mt-1">Medoro 0.1.0 · {p.deployment}</div>
+              </div>
+            </>
+          ) : null}
+          <button onClick={() => setMenu((x) => !x)} title="Account menu" className={cn("flex items-center gap-[9px] p-1.5 w-full rounded-lg cursor-pointer text-left hover:bg-hover", menu && "bg-hover")}>
+            <Avatar initials={initials} size={28} />
+            {!narrow ? (
+              <>
+                <div className="flex flex-col min-w-0 flex-1 leading-tight"><div className="text-[13px] font-semibold truncate text-ink-strong">{p.userName}</div><div className="text-[11.5px] text-faint">{p.role} · {p.branchName}</div></div>
+                <Ellipsis size={16} className="text-fainter" />
+              </>
+            ) : null}
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex flex-col min-w-0 min-h-0">
+        <header className="flex items-center gap-2.5 h-14 px-5 bg-white border-b border-line flex-none">
+          <div className="flex items-center gap-1.5 text-[13.5px] min-w-0 flex-none">
+            {!narrow ? <><span className="text-faint whitespace-nowrap max-w-[160px] truncate">{p.tenantName.split(" ")[0]}</span><ChevronRight size={14} className="text-[#A3AAB1]" /></> : null}
+            <div className="relative flex items-center">
+              <select value={p.branchId} onChange={(e) => start(() => setBranch(e.target.value))} aria-label="Branch" className="appearance-none border-0 bg-transparent py-1 pl-1.5 pr-5 rounded-md text-[13.5px] text-ink-2 font-medium cursor-pointer outline-none hover:bg-chip">
+                {p.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              <ChevronDown size={13} className="absolute right-1 text-fainter pointer-events-none" />
+            </div>
+            <ChevronRight size={14} className="text-[#A3AAB1]" />
+            <span className="font-semibold whitespace-nowrap">{title}</span>
+          </div>
+          {READY.has("pos") && p.perms.includes("sale") ? (
+            <Link href="/app/pos?focus=1" className="mx-auto flex items-center gap-2 w-[min(380px,32vw)] min-w-[140px] h-[34px] px-2.5 border border-line bg-page rounded-lg text-fainter text-[13px] no-underline hover:border-input hover:bg-white hover:text-fainter">
+              <Search size={15} /><span className="flex-1 truncate">Search medicines, invoices…</span><span className="font-mono text-[11px] border border-[#E3E6E9] bg-white rounded px-[5px] text-faint">F2</span>
+            </Link>
+          ) : <div className="mx-auto" />}
+          <div className="flex items-center gap-1.5 flex-none">
+            <div title={`${p.liveDevices} device${p.liveDevices === 1 ? "" : "s"} active on your server in the last 5 minutes`} className="flex items-center gap-1.5 h-[30px] px-[9px] rounded-[7px] text-ok text-[12.5px] font-medium whitespace-nowrap">
+              <span className="size-[7px] rounded-full bg-[#22A06B] shadow-[0_0_0_3px_#DCF2E7] animate-pulse-dot" />{!narrow ? "Synced" : null}
+            </div>
+            <div className="w-px h-5 bg-line" />
+            <LangToggle lang={p.lang} onChange={(l) => start(() => setLang(l))} />
+            {p.canViewAs ? (
+              <div title="Preview the app as another role. Permissions can only narrow." className="relative flex items-center">
+                <UserRoundCog size={14} className="absolute left-[9px] text-faint pointer-events-none" />
+                <select value={p.role} aria-label="View as role" onChange={(e) => { const r = e.target.value; start(async () => { await setViewAs(r); toast(r === p.realRole ? "Back to your own role." : `Now viewing as ${r}. Menus and actions follow that role.`, "blue"); }); }}
+                  className="appearance-none h-[30px] border border-line rounded-[7px] pl-7 pr-6 text-[12.5px] bg-white text-ink-2 font-medium cursor-pointer outline-none hover:border-input">
+                  {["Owner", "Manager", "Pharmacist", "Cashier", "Accountant"].map((r) => <option key={r} value={r}>{r === p.realRole ? r : `View as ${r}`}</option>)}
+                </select>
+                <ChevronDown size={13} className="absolute right-[7px] text-fainter pointer-events-none" />
+              </div>
+            ) : null}
+            <button onClick={() => toast(p.alerts.length ? p.alerts.join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title="Notifications" className="relative size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
+              <Bell size={17} />{p.alerts.length ? <span className="absolute top-[7px] right-2 size-[7px] rounded-full bg-[#D64545] border-[1.5px] border-white" /> : null}
+            </button>
+          </div>
+        </header>
+        <main className="flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 bg-page max-[640px]:px-4">{p.children}</main>
+      </div>
+      <ProfileModal open={profile} onClose={() => setProfile(false)} name={p.userName} email={p.userEmail} role={p.role} initials={initials} />
+    </div>
+  );
+}
+
+function Avatar({ initials, size }: { initials: string; size: number }) {
+  return (
+    <div className="relative rounded-full text-white flex items-center justify-center font-semibold flex-none" style={{ width: size, height: size, fontSize: size * 0.4, background: "linear-gradient(135deg,#2459C9,#0A9A80)" }}>
+      {initials}<span className="absolute -right-px -bottom-px size-[9px] rounded-full bg-[#22A06B] border-2 border-side" />
+    </div>
+  );
+}
+
+function Chip({ bg, fg, strong, children }: { bg: string; fg: string; strong?: boolean; children: React.ReactNode }) {
+  return <span className="h-5 px-[7px] rounded-[5px] text-[11.5px] flex items-center gap-1" style={{ background: bg, color: fg, fontWeight: strong ? 600 : 500 }}>{children}</span>;
+}
+
+function MenuItem({ icon: Icon, children, onClick, kbd, danger }: { icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>; children: React.ReactNode; onClick: () => void; kbd?: string; danger?: boolean }) {
+  return (
+    <button onClick={onClick} className={cn("flex items-center gap-2.5 h-[34px] px-2.5 rounded-md text-[13px] cursor-pointer text-left", danger ? "text-[#C0362C] hover:bg-[#FDECEC]" : "text-ink hover:bg-chip")}>
+      <Icon size={15} style={{ color: danger ? "#C0362C" : "#6B737B" }} /><span className="flex-1">{children}</span>
+      {kbd ? <span className="font-mono text-[11px] text-fainter border border-line rounded px-[5px] leading-[18px]">{kbd}</span> : null}
+    </button>
+  );
+}
+
+function LangToggle({ lang, onChange, small }: { lang: Lang; onChange: (l: Lang) => void; small?: boolean }) {
+  const b = (l: Lang, label: string) => (
+    <button key={l} onClick={() => onChange(l)} className={cn("rounded-[5px] font-semibold cursor-pointer text-ink", small ? "h-[22px] px-2 text-[11.5px]" : "w-[30px] h-[26px] text-[12px]", lang === l ? "bg-white shadow-[0_1px_2px_rgba(16,24,40,.12)]" : "bg-transparent")}>{label}</button>
+  );
+  return <div className={cn("inline-flex gap-px bg-chip p-0.5", small ? "rounded-md" : "rounded-[7px]")}>{b("en", "EN")}{b("hi", small ? "हिंदी" : "हि")}</div>;
+}
+
+function ProfileModal({ open, onClose, name, email, role, initials }: { open: boolean; onClose: () => void; name: string; email: string; role: string; initials: string }) {
+  const toast = useToast();
+  const [sessions, setSessions] = useState<Awaited<ReturnType<typeof listSessions>>>([]);
+  const [, start] = useTransition();
+  useEffect(() => { if (open) listSessions().then(setSessions); }, [open]);
+  const fmt = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return (
+    <Modal open={open} onClose={onClose} width={480}
+      footer={<><Button onClick={() => start(async () => { await revokeOtherSessions(); setSessions(await listSessions()); toast("All other devices signed out.", "green"); })}>Sign out all other devices</Button><Button variant="primary" onClick={onClose}>Done</Button></>}>
+      <div className="flex items-center gap-3 pt-5">
+        <div className="size-11 rounded-full bg-blue-tint text-blue flex items-center justify-center font-semibold text-[16px]">{initials}</div>
+        <div className="flex flex-col"><strong className="text-[17px]">{name}</strong><span className="text-[12.5px] text-muted">{role} · {email}</span></div>
+      </div>
+      <div className="flex flex-col">
+        <div className="text-[12.5px] text-muted font-medium mb-1">Active sessions</div>
+        {sessions.map((s) => (
+          <div key={s.id} className="flex items-center gap-2.5 py-2 border-b border-row text-[13.5px]">
+            <Monitor size={16} className="text-muted" />
+            <div className="flex flex-col flex-1 min-w-0"><span className="font-medium">{s.device}</span><span className="text-[12px] text-muted truncate">signed in {fmt(s.created)} · {s.ip ?? "local"} · last active {fmt(s.lastSeen)}</span></div>
+            {s.isThis ? <span className="text-[12px] text-ok">This device</span> : (
+              <Button size="sm" variant="danger-outline" onClick={() => start(async () => { await revokeSession(s.id); setSessions(await listSessions()); toast("Session signed out.", "green"); })}>Revoke</Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}

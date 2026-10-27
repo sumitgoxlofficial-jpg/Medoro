@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Devanagari:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/lucide-static@latest/font/lucide.css" rel="stylesheet">
+<style>html,body{margin:0;padding:0;background:#F5F6F7}*{box-sizing:border-box}a{color:#0B5E5B;text-decoration:none}a:hover{color:#094A48;text-decoration:underline}input,select,button{font-family:inherit}@keyframes mdSpin{to{transform:rotate(360deg)}}</style>
+</helmet>
+<div data-screen-label="Sign in and onboarding" style="min-height:100vh;background:#F5F6F7;font-family:'IBM Plex Sans','IBM Plex Sans Devanagari',system-ui,sans-serif;color:#1F2328;display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:24px;line-height:1.45">
+  <a href="Medoro Website.dc.html" style="display:flex;align-items:center;gap:10px;text-decoration:none"><img src="assets/medoro-mark.png" alt="" style="width:40px;height:auto"><span style="font-weight:700;font-size:22px"><span style="color:#0B3A78">Med</span><span style="color:#0A9A80">oro</span></span></a>
+
+  <sc-if value="{{ isSignIn }}" hint-placeholder-val="{{ true }}">
+    <div style="background:#fff;border:1px solid #E3E6E9;border-radius:14px;padding:28px;width:min(420px,100%);display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:20px;font-weight:600">Sign in</div>
+      <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px;align-self:flex-start">
+        <sc-for list="{{ methodTabs }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
+      </div>
+      <sc-if value="{{ isOtp }}" hint-placeholder-val="{{ true }}">
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Mobile number<input value="{{ phone }}" onChange="{{ onPhone }}" placeholder="98220 41736" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none"></label>
+        <sc-if value="{{ otpSent }}"><label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">6-digit OTP (demo: 246810)<input value="{{ otp }}" onChange="{{ onOtp }}" inputmode="numeric" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:18px;letter-spacing:.3em;color:#1F2328;outline:none;font-family:'IBM Plex Mono',monospace"></label></sc-if>
+      </sc-if>
+      <sc-if value="{{ isPwd }}">
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Email<input value="{{ email }}" onChange="{{ onEmail }}" placeholder="you@pharmacy.in" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Password<input type="password" value="{{ pwd }}" onChange="{{ onPwd }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none"></label>
+      </sc-if>
+      <sc-if value="{{ hasErr }}"><div style="font-size:13px;color:#B3261E">{{ err }}</div></sc-if>
+      <button onClick="{{ onPrimary }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">{{ primaryLabel }}</button>
+      <div style="font-size:12.5px;color:#5B636B;text-align:center">New pharmacy? <a href="#" onClick="{{ onNew }}">Start a 14-day trial</a></div>
+      <button onClick="{{ goEmployee }}" style="display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #CDD2D7;background:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:#1F2328;cursor:pointer" style-hover="border-color:#0B5E5B;color:#0B5E5B"><i class="icon-id-card" style="font-size:16px"></i>Employee login (counter staff)</button>
+      <div style="font-size:11.5px;color:#8A929A;text-align:center">Rate-limited sign-in · sessions can be revoked from Users</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isEmployee }}">
+    <div style="background:#fff;border:1px solid #E3E6E9;border-radius:14px;padding:28px;width:min(440px,100%);display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:10px;align-items:center"><span style="width:36px;height:36px;border-radius:9px;background:#E1F1EF;color:#0B5E5B;display:flex;align-items:center;justify-content:center;flex:none"><i class="icon-id-card" style="font-size:18px"></i></span><div style="display:flex;flex-direction:column;line-height:1.3"><span style="font-size:20px;font-weight:600">Employee login</span><span style="font-size:13px;color:#5B636B">For pharmacists, cashiers and accountants</span></div></div>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Pharmacy code<input value="{{ empCode }}" onChange="{{ onEmpCode }}" placeholder="SANJ-PUNE" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none;text-transform:uppercase;letter-spacing:.04em;font-family:'IBM Plex Mono',monospace"></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Employee ID<input value="{{ empId }}" onChange="{{ onEmpId }}" placeholder="E-104" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none;text-transform:uppercase;font-family:'IBM Plex Mono',monospace"></label>
+      <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">4-digit PIN<input type="password" value="{{ empPin }}" onChange="{{ onEmpPin }}" inputmode="numeric" placeholder="••••" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:20px;letter-spacing:.4em;color:#1F2328;outline:none;font-family:'IBM Plex Mono',monospace"></label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:13px;color:#5B636B">Counter</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px">
+          <sc-for list="{{ counters }}" as="c"><button onClick="{{ c.onClick }}" style="border:{{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};border-radius:8px;padding:9px 10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;flex-direction:column;line-height:1.3">{{ c.name }}<span style="font-size:11.5px;font-weight:400;color:#5B636B">{{ c.branch }}</span></button></sc-for>
+        </div>
+      </div>
+      <sc-if value="{{ hasErr }}"><div style="font-size:13px;color:#B3261E">{{ err }}</div></sc-if>
+      <button onClick="{{ onEmpLogin }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">Start shift</button>
+      <div style="background:#F7F8F9;border:1px solid #EEF0F2;border-radius:8px;padding:10px 12px;font-size:12px;color:#5B636B;display:flex;flex-direction:column;gap:2px">
+        <strong style="color:#1F2328;font-weight:600">Demo staff (PIN 1234, or the PIN you just created for E-108)</strong>
+        <span>E-104 Rahul Patil · Pharmacist · E-108 Sneha Kulkarni · Cashier · E-112 Amit Joshi · Accountant</span>
+      </div>
+      <button onClick="{{ goEmpSignup }}" style="display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #CDD2D7;background:#fff;border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:#1F2328;cursor:pointer" style-hover="border-color:#0B5E5B;color:#0B5E5B"><i class="icon-user-plus" style="font-size:16px"></i>New employee? Create your account</button>
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;flex-wrap:wrap"><a href="#" onClick="{{ goOwner }}">← Owner / manager sign-in</a><span style="color:#5B636B">Forgot PIN? Ask your manager to reset it.</span></div>
+      <div style="font-size:11.5px;color:#8A929A;text-align:center">5 wrong PINs lock the ID for 15 minutes · shift start is logged</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isEmpSignup }}">
+    <div style="background:#fff;border:1px solid #E3E6E9;border-radius:14px;padding:28px;width:min(460px,100%);display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:10px;align-items:center"><span style="width:36px;height:36px;border-radius:9px;background:#E1F1EF;color:#0B5E5B;display:flex;align-items:center;justify-content:center;flex:none"><i class="icon-user-plus" style="font-size:18px"></i></span><div style="display:flex;flex-direction:column;line-height:1.3"><span style="font-size:20px;font-weight:600">Create employee account</span><span style="font-size:13px;color:#5B636B">Use the invite code your owner or manager sent you</span></div></div>
+      <div style="display:flex;gap:6px">
+        <sc-for list="{{ esSteps }}" as="st"><div style="flex:1;display:flex;flex-direction:column;gap:5px"><div style="height:3px;border-radius:2px;background:{{ st.c }}"></div><span style="font-size:11.5px;color:{{ st.fg }};font-weight:600">{{ st.l }}</span></div></sc-for>
+      </div>
+      <sc-if value="{{ esStep1 }}" hint-placeholder-val="{{ true }}">
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Pharmacy code<input value="{{ esCode }}" onChange="{{ onEsCode }}" placeholder="SANJ-PUNE" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none;text-transform:uppercase;font-family:'IBM Plex Mono',monospace"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Invite code (demo: 7Q4K-29)<input value="{{ esInv }}" onChange="{{ onEsInv }}" placeholder="XXXX-00" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none;text-transform:uppercase;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace"></label>
+      </sc-if>
+      <sc-if value="{{ esStep2 }}">
+        <div style="background:#F2F9F8;border:1px solid #CFE6E3;border-radius:8px;padding:10px 12px;font-size:13px;color:#0B5E5B">Invite found: <strong>Sneha Kulkarni</strong> · Cashier · Kothrud · Sanjeevani Medicals</div>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Mobile number on the invite<input value="{{ esPhone }}" onChange="{{ onEsPhone }}" placeholder="98220 41736" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:15px;color:#1F2328;outline:none"></label>
+        <sc-if value="{{ esOtpSent }}"><label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">6-digit OTP (demo: 246810)<input value="{{ esOtp }}" onChange="{{ onEsOtp }}" inputmode="numeric" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:18px;letter-spacing:.3em;color:#1F2328;outline:none;font-family:'IBM Plex Mono',monospace"></label></sc-if>
+      </sc-if>
+      <sc-if value="{{ esStep3 }}">
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Create a 4-digit PIN<input type="password" value="{{ esPin }}" onChange="{{ onEsPin }}" inputmode="numeric" placeholder="••••" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:20px;letter-spacing:.4em;color:#1F2328;outline:none;font-family:'IBM Plex Mono',monospace"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:13px;color:#5B636B">Confirm PIN<input type="password" value="{{ esPin2 }}" onChange="{{ onEsPin2 }}" inputmode="numeric" placeholder="••••" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:20px;letter-spacing:.4em;color:#1F2328;outline:none;font-family:'IBM Plex Mono',monospace"></label>
+        <span style="font-size:12px;color:#5B636B">Avoid easy PINs like 1111 or 1234. Never share your PIN, because every bill is recorded under your name.</span>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#3D454D"><input type="checkbox" checked="{{ esAgree }}" onChange="{{ onEsAgree }}" style="margin-top:3px">I agree to the staff terms and the pharmacy’s privacy notice.</label>
+      </sc-if>
+      <sc-if value="{{ esDone }}">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:8px 0">
+          <span style="width:48px;height:48px;border-radius:50%;background:#E7F6EE;color:#18794E;display:flex;align-items:center;justify-content:center"><i class="icon-check" style="font-size:24px"></i></span>
+          <strong style="font-size:17px">Account ready</strong>
+          <span style="font-size:14px;color:#5B636B">Your employee ID is <strong style="font-family:'IBM Plex Mono',monospace;color:#1F2328">E-108</strong>. Use it with pharmacy code <span style="white-space:nowrap">SANJ-PUNE</span> and your PIN.</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hasErr }}"><div style="font-size:13px;color:#B3261E">{{ err }}</div></sc-if>
+      <button onClick="{{ onEsNext }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">{{ esBtn }}</button>
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;flex-wrap:wrap"><a href="#" onClick="{{ goEmpLogin }}" style="white-space:nowrap">← Employee login</a><span style="color:#5B636B">No code? Ask your manager to add you in Users.</span></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isMfa }}">
+    <div style="background:#fff;border:1px solid #E3E6E9;border-radius:14px;padding:28px;width:min(420px,100%);display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:10px;align-items:center"><i class="icon-shield-check" style="font-size:22px;color:#0B5E5B"></i><div style="font-size:20px;font-weight:600">Two-step verification</div></div>
+      <div style="font-size:13.5px;color:#3D454D">Owners and managers must use an authenticator app. Enter the 6-digit code (demo: 135790).</div>
+      <input value="{{ mfa }}" onChange="{{ onMfa }}" inputmode="numeric" style="border:1px solid #CDD2D7;border-radius:8px;padding:11px 12px;font-size:20px;letter-spacing:.35em;outline:none;font-family:'IBM Plex Mono',monospace;text-align:center">
+      <sc-if value="{{ hasErr }}"><div style="font-size:13px;color:#B3261E">{{ err }}</div></sc-if>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" checked="{{ trust }}" onChange="{{ onTrust }}" style="accent-color:#0B5E5B">Trust this counter PC for 30 days</label>
+      <button onClick="{{ onVerifyMfa }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">Verify</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isWizard }}">
+    <div style="width:min(860px,100%);display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <sc-for list="{{ stepper }}" as="st"><div style="flex:1;min-width:110px;display:flex;flex-direction:column;gap:6px"><div style="height:4px;border-radius:2px;background:{{ st.bar }}"></div><span style="font-size:12.5px;color:{{ st.fg }};font-weight:{{ st.fw }}">{{ st.n }}. {{ st.label }}</span></div></sc-for>
+      </div>
+      <div style="background:#fff;border:1px solid #E3E6E9;border-radius:14px;padding:26px 28px;display:flex;flex-direction:column;gap:16px">
+        <sc-if value="{{ s1 }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:19px;font-weight:600">Your pharmacy</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+            <input value="{{ ph.name }}" onChange="{{ set.name }}" placeholder="Pharmacy name *" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none">
+            <input value="{{ ph.gstin }}" onChange="{{ set.gstin }}" placeholder="GSTIN (15 characters)" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;font-family:'IBM Plex Mono',monospace">
+            <input value="{{ ph.dl }}" onChange="{{ set.dl }}" placeholder="Drug licence no. (20B/21B) *" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none">
+            <input value="{{ ph.pharmacist }}" onChange="{{ set.pharmacist }}" placeholder="Registered pharmacist & reg. no." style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none">
+            <input value="{{ ph.addr }}" onChange="{{ set.addr }}" placeholder="Address, city, PIN" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;grid-column:1/-1">
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;font-size:13.5px">Interface language
+            <select value="{{ ph.lang }}" onChange="{{ set.lang }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option value="en">English</option><option value="hi">हिंदी</option><option value="hinglish">English + Hinglish AI</option></select>
+          </div>
+        </sc-if>
+        <sc-if value="{{ s2 }}">
+          <div style="font-size:19px;font-weight:600">Where should your live database run?</div>
+          <div style="font-size:13.5px;color:#5B636B">You own this database. Medoro connects to it but never hosts your pharmacy records.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px">
+            <sc-for list="{{ hostOpts }}" as="h"><button onClick="{{ h.onClick }}" style="text-align:left;border:{{ h.bd }};background:{{ h.bg }};border-radius:10px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:5px;color:#1F2328"><i class="{{ h.icon }}" style="font-size:20px;color:#0B5E5B"></i><strong style="font-size:14px">{{ h.label }}</strong><span style="font-size:12.5px;color:#5B636B">{{ h.desc }}</span></button></sc-for>
+          </div>
+          <sc-if value="{{ needsDb }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px">
+              <input value="{{ db.host }}" onChange="{{ dbSet.host }}" placeholder="Host" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;outline:none">
+              <input value="{{ db.port }}" onChange="{{ dbSet.port }}" placeholder="Port" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;outline:none">
+              <input value="{{ db.name }}" onChange="{{ dbSet.name }}" placeholder="Database" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;outline:none">
+              <input value="{{ db.user }}" onChange="{{ dbSet.user }}" placeholder="User" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:13.5px;font-family:'IBM Plex Mono',monospace;outline:none">
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button onClick="{{ onTestDb }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 13px;font-size:13.5px;cursor:pointer">Test connection</button>
+              <span style="font-size:13px;color:{{ dbFg }};display:flex;gap:6px;align-items:center"><i class="{{ dbIcon }}" style="animation:{{ dbAnim }}"></i>{{ dbStatus }}</span>
+            </div>
+            <div style="font-size:12px;color:#6B737B">TLS is required. The database is never exposed to browsers; all access goes through the Medoro app service on your server.</div>
+          </sc-if>
+        </sc-if>
+        <sc-if value="{{ s3 }}">
+          <div style="font-size:19px;font-weight:600">Branches & counters</div>
+          <sc-for list="{{ branches }}" as="b"><div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #F1F3F4;font-size:14px"><i class="icon-store" style="color:#0B5E5B"></i><strong style="font-weight:600">{{ b.name }}</strong><span style="color:#5B636B">{{ b.counters }} counter(s)</span><button onClick="{{ b.onRemove }}" style="margin-left:auto;border:0;background:transparent;color:#8A929A;cursor:pointer">Remove</button></div></sc-for>
+          <div style="display:flex;gap:8px"><input value="{{ newBranch }}" onChange="{{ onNewBranch }}" placeholder="Branch name" style="flex:1;border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"><button onClick="{{ onAddBranch }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 13px;font-size:14px;cursor:pointer">Add branch</button></div>
+        </sc-if>
+        <sc-if value="{{ s4 }}">
+          <div style="font-size:19px;font-weight:600">Invite your team</div>
+          <sc-for list="{{ invites }}" as="iv"><div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #F1F3F4;font-size:14px"><span style="font-weight:500">{{ iv.who }}</span><span style="padding:2px 9px;border-radius:999px;font-size:12px;background:#E1F1EF;color:#0B5E5B">{{ iv.role }}</span><span style="margin-left:auto;font-size:12.5px;color:#5B636B">{{ iv.st }}</span></div></sc-for>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><input value="{{ invWho }}" onChange="{{ onInvWho }}" placeholder="Email or mobile" style="flex:1;min-width:200px;border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"><select value="{{ invRole }}" onChange="{{ onInvRole }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px;font-size:14px;background:#fff"><option>Manager</option><option>Pharmacist</option><option>Cashier</option><option>Accountant</option></select><button onClick="{{ onInvite }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 13px;font-size:14px;cursor:pointer">Send invite</button></div>
+          <div style="font-size:12px;color:#6B737B">Roles can be fine-tuned later in Users & branches. MFA is enforced for Manager.</div>
+        </sc-if>
+        <sc-if value="{{ s5 }}">
+          <div style="font-size:19px;font-weight:600">Backups & recovery kit</div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border:1px solid #E3E6E9;border-radius:10px"><i class="icon-hard-drive-upload" style="font-size:22px;color:#2459C9"></i><div style="flex:1;display:flex;flex-direction:column"><strong style="font-size:14px">Google Drive</strong><span style="font-size:12.5px;color:#5B636B">{{ driveText }}</span></div><button onClick="{{ onDrive }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">{{ driveBtn }}</button></div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border:1px solid #E3E6E9;border-radius:10px"><i class="icon-key-round" style="font-size:22px;color:#0B5E5B"></i><div style="flex:1;display:flex;flex-direction:column"><strong style="font-size:14px">Encryption recovery kit</strong><span style="font-size:12.5px;color:#5B636B">{{ kitText }}</span></div><button onClick="{{ onKit }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Download & print</button></div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13.5px"><input type="checkbox" checked="{{ kitAck }}" onChange="{{ onKitAck }}" style="accent-color:#0B5E5B">I've stored the recovery kit offline. Without it, backups can't be restored.</label>
+        </sc-if>
+        <sc-if value="{{ s6 }}">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 0;text-align:center">
+            <i class="icon-circle-check" style="font-size:40px;color:#1E7F4F"></i>
+            <div style="font-size:20px;font-weight:600">{{ ph.name }} is ready</div>
+            <div style="font-size:14px;color:#3D454D;max-width:480px">{{ summary }}</div>
+            <a href="Medoro App.dc.html" style="margin-top:8px;background:#0B5E5B;color:#fff;padding:12px 22px;border-radius:10px;font-weight:600;text-decoration:none">Open Medoro</a>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasErr }}"><div style="font-size:13px;color:#B3261E">{{ err }}</div></sc-if>
+        <sc-if value="{{ showNav }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;justify-content:space-between;border-top:1px solid #EEF0F2;padding-top:14px">
+            <button onClick="{{ onBack }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Back</button>
+            <button onClick="{{ onNext }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {view:'signin',method:'otp',phone:'',otpSent:false,otp:'',email:'',pwd:'',mfa:'',trust:true,err:'',step:1,
+    ph:{name:'',gstin:'',dl:'',pharmacist:'',addr:'',lang:'en'},host:'lan',db:{host:'192.168.1.20',port:'5432',name:'medoro',user:'medoro_app'},dbState:'idle',
+    branches:[{name:'Main branch',counters:1}],newBranch:'',invites:[],invWho:'',invRole:'Cashier',drive:false,kit:false,kitAck:false};
+  e(err){ this.setState({err}); }
+  next(){
+    const s=this.state; this.setState({err:''});
+    if(s.step===1){ if(!s.ph.name.trim()||!s.ph.dl.trim()) return this.e('Pharmacy name and drug licence number are required.'); if(s.ph.gstin&&!/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(s.ph.gstin.toUpperCase())) return this.e('GSTIN format looks wrong (e.g. 27AAKFS3192P1Z6).'); }
+    if(s.step===2&&s.host!=='local'&&s.dbState!=='ok') return this.e('Test the database connection before continuing.');
+    if(s.step===3&&!s.branches.length) return this.e('Add at least one branch.');
+    if(s.step===5){ if(!s.kit||!s.kitAck) return this.e('Download the recovery kit and confirm you stored it.'); }
+    this.setState({step:s.step+1});
+  }
+  componentDidMount(){ try{ if(new URLSearchParams(location.search).get('view')==='employee') this.setState({view:'employee'}); }catch(e){} }
+  renderVals(){
+    const s=this.state, set=k=>e=>{const v=e.target.value;this.setState(x=>({ph:{...x.ph,[k]:k==='gstin'?v.toUpperCase():v}}));}, dbSet=k=>e=>{const v=e.target.value;this.setState(x=>({db:{...x.db,[k]:v},dbState:'idle'}));};
+    const tab=(id,label,cur,fn)=>({label,onClick:fn,bg:cur===id?'#fff':'transparent',fg:cur===id?'#1F2328':'#5B636B',sh:cur===id?'0 1px 2px rgba(0,0,0,.1)':'none'});
+    const hosts=[['cloud','icon-cloud','Your cloud server','Your own AWS, Azure or GCP account, or another provider you choose'],['onprem','icon-server','On-premises server','A server you own, in the shop or at your office'],['lan','icon-network','Shop LAN','One PC hosts the database and the other counters join over Wi-Fi or LAN'],['local','icon-monitor','Single device','SQLite on one computer, no sharing']];
+    const labels=['Pharmacy','Database','Branches','Team','Backups','Done'];
+    const dbMap={idle:['Not tested','#5B636B','icon-circle','none'],testing:['Connecting over TLS…','#0B5E5B','icon-loader-circle','mdSpin 1s linear infinite'],ok:['Connected · PostgreSQL 16 · TLS 1.3 · migrations ready (42)','#1E7F4F','icon-circle-check','none'],fail:['Could not connect. Check host, port and firewall.','#B3261E','icon-circle-alert','none']}[s.dbState];
+    return {
+      isSignIn:s.view==='signin', isMfa:s.view==='mfa', isWizard:s.view==='wizard', isEmployee:s.view==='employee',
+      goEmployee:()=>this.setState({view:'employee',err:''}),
+      isEmpSignup:s.view==='empSignup', goEmpSignup:()=>this.setState({view:'empSignup',es:1,err:''}), goEmpLogin:e=>{e.preventDefault();this.setState({view:'employee',err:''});},
+      ...(()=>{const st=s.es||1, v=k=>s['es_'+k]||'', sv=(k,fn)=>e=>this.setState({['es_'+k]:fn?fn(e.target.value):e.target.value,err:''});
+        return {esStep1:st===1, esStep2:st===2, esStep3:st===3, esDone:st===4,
+          esSteps:['Invite','Verify','PIN'].map((l,i)=>({l,c:st>i?'#0B5E5B':'#E3E6E9',fg:st>i?'#0B5E5B':'#8A929A'})),
+          esCode:v('code'), esInv:v('inv'), esPhone:v('phone'), esOtp:v('otp'), esPin:v('pin'), esPin2:v('pin2'), esAgree:!!s.es_agree, esOtpSent:!!s.es_sent,
+          onEsCode:sv('code',x=>x.toUpperCase()), onEsInv:sv('inv',x=>x.toUpperCase()), onEsPhone:sv('phone',x=>x.replace(/[^\d ]/g,'')), onEsOtp:sv('otp',x=>x.replace(/\D/g,'').slice(0,6)),
+          onEsPin:sv('pin',x=>x.replace(/\D/g,'').slice(0,4)), onEsPin2:sv('pin2',x=>x.replace(/\D/g,'').slice(0,4)), onEsAgree:e=>this.setState({es_agree:e.target.checked}),
+          esBtn:st===1?'Find my invite':st===2?(s.es_sent?'Verify OTP':'Send OTP'):st===3?'Create account':'Go to employee login',
+          onEsNext:()=>{
+            if(st===1){ if(v('code').trim().length<4) return this.e('Enter the pharmacy code from your invite.'); if(v('inv').trim()!=='7Q4K-29') return this.e('Invite code not found or expired. Codes are valid for 48 hours.'); return this.setState({es:2,err:''}); }
+            if(st===2){ if(!/^[6-9]\d{9}$/.test(v('phone').replace(/\D/g,''))) return this.e('Enter the 10-digit mobile number your manager added.'); if(!s.es_sent) return this.setState({es_sent:true}); if(v('otp')!=='246810') return this.e('Incorrect OTP. 4 attempts left.'); return this.setState({es:3,err:''}); }
+            if(st===3){ const p=v('pin'); if(p.length!==4) return this.e('PIN must be 4 digits.'); if(/^(\d)\1{3}$/.test(p)||['1234','4321','0000','1212'].includes(p)) return this.e('That PIN is too easy to guess. Choose another.'); if(p!==v('pin2')) return this.e('PINs do not match.'); if(!s.es_agree) return this.e('Please accept the staff terms.'); return this.setState({es:4,err:''}); }
+            this.setState({view:'employee',empCode:'SANJ-PUNE',empId:'E-108',empPin:'',es_created:v('pin'),err:''});
+          }};})(), goOwner:e=>{e.preventDefault();this.setState({view:'signin',err:''});},
+      empCode:s.empCode||'', empId:s.empId||'', empPin:s.empPin||'',
+      onEmpCode:e=>this.setState({empCode:e.target.value.toUpperCase()}), onEmpId:e=>this.setState({empId:e.target.value.toUpperCase()}), onEmpPin:e=>this.setState({empPin:e.target.value.replace(/\D/g,'').slice(0,4)}),
+      counters:[['c1','Counter 1','Kothrud'],['c2','Counter 2','Kothrud'],['c3','Counter 1','Baner']].map(c=>{const a=(s.counter||'c1')===c[0];return {name:c[1],branch:c[2],bd:a?'1.5px solid #0B5E5B':'1px solid #CDD2D7',bg:a?'#E1F1EF':'#fff',fg:a?'#0B5E5B':'#1F2328',onClick:()=>this.setState({counter:c[0]})};}),
+      onEmpLogin:()=>{ const staff={'E-104':['Rahul Patil','Pharmacist'],'E-108':['Sneha Kulkarni','Cashier'],'E-112':['Amit Joshi','Accountant']};
+        if((s.empCode||'').trim().length<4) return this.e('Enter your pharmacy code. Your manager can find it in Users.');
+        const st=staff[(s.empId||'').trim()]; if(!st) return this.e('Employee ID not found for this pharmacy.');
+        const okPin=(s.empId||'').trim()==='E-108'&&s.es_created?s.es_created:'1234';
+        if(s.empPin!==okPin) return this.e('Wrong PIN. 4 attempts left.');
+        const br=(s.counter||'c1')==='c3'?'Baner':'Kothrud';
+        window.location.href='Medoro App.dc.html?role='+st[1]+'&branch='+br; },
+      methodTabs:[tab('otp','Mobile OTP',s.method,()=>this.setState({method:'otp',err:''})),tab('pwd','Email & password',s.method,()=>this.setState({method:'pwd',err:''}))],
+      isOtp:s.method==='otp', isPwd:s.method==='pwd', phone:s.phone, onPhone:e=>this.setState({phone:e.target.value.replace(/[^\d ]/g,'')}), otpSent:s.otpSent, otp:s.otp, onOtp:e=>this.setState({otp:e.target.value.replace(/\D/g,'').slice(0,6)}),
+      email:s.email, onEmail:e=>this.setState({email:e.target.value}), pwd:s.pwd, onPwd:e=>this.setState({pwd:e.target.value}),
+      hasErr:!!s.err, err:s.err,
+      primaryLabel:s.method==='otp'?(s.otpSent?'Verify OTP':'Send OTP'):'Sign in',
+      onPrimary:()=>{ this.setState({err:''});
+        if(s.method==='otp'){ const p=s.phone.replace(/\D/g,''); if(!/^[6-9]\d{9}$/.test(p)) return this.e('Enter a valid 10-digit Indian mobile number.'); if(!s.otpSent) return this.setState({otpSent:true}); if(s.otp!=='246810') return this.e('Incorrect OTP. 4 attempts left.'); }
+        else { if(!/\S+@\S+\.\S+/.test(s.email)) return this.e('Enter a valid email.'); if(s.pwd.length<10) return this.e('Password must be at least 10 characters.'); }
+        this.setState({view:'mfa'}); },
+      onNew:e=>{e.preventDefault();this.setState({view:'wizard',step:1,err:''});},
+      mfa:s.mfa, onMfa:e=>this.setState({mfa:e.target.value.replace(/\D/g,'').slice(0,6)}), trust:s.trust, onTrust:e=>this.setState({trust:e.target.checked}),
+      onVerifyMfa:()=>{ if(s.mfa!=='135790') return this.e('Code did not match. Codes refresh every 30 seconds.'); window.location.href='Medoro App.dc.html'; },
+      stepper:labels.map((l,i)=>({n:i+1,label:l,bar:i+1<=s.step?'#0B5E5B':'#DCE0E3',fg:i+1===s.step?'#1F2328':'#6B737B',fw:i+1===s.step?'600':'400'})),
+      s1:s.step===1,s2:s.step===2,s3:s.step===3,s4:s.step===4,s5:s.step===5,s6:s.step===6, showNav:s.step<6,
+      ph:s.ph, set:{name:set('name'),gstin:set('gstin'),dl:set('dl'),pharmacist:set('pharmacist'),addr:set('addr'),lang:set('lang')},
+      hostOpts:hosts.map(h=>({label:h[2],desc:h[3],icon:h[1],bg:s.host===h[0]?'#F0F7F6':'#fff',bd:s.host===h[0]?'2px solid #0B5E5B':'1px solid #E3E6E9',onClick:()=>this.setState({host:h[0],dbState:h[0]==='local'?'ok':'idle',err:''})})),
+      needsDb:s.host!=='local', db:s.db, dbSet:{host:dbSet('host'),port:dbSet('port'),name:dbSet('name'),user:dbSet('user')},
+      onTestDb:()=>{ this.setState({dbState:'testing',err:''}); setTimeout(()=>this.setState(x=>({dbState:x.db.host.trim()&&/^\d+$/.test(x.db.port)&&x.db.name.trim()?'ok':'fail'})),1200); },
+      dbStatus:dbMap[0], dbFg:dbMap[1], dbIcon:dbMap[2], dbAnim:dbMap[3],
+      branches:s.branches.map((b,i)=>({...b,onRemove:()=>this.setState(x=>({branches:x.branches.filter((_,j)=>j!==i)}))})),
+      newBranch:s.newBranch, onNewBranch:e=>this.setState({newBranch:e.target.value}), onAddBranch:()=>{ if(!s.newBranch.trim()) return; this.setState(x=>({branches:[...x.branches,{name:x.newBranch.trim(),counters:1}],newBranch:''})); },
+      invites:s.invites, invWho:s.invWho, onInvWho:e=>this.setState({invWho:e.target.value}), invRole:s.invRole, onInvRole:e=>this.setState({invRole:e.target.value}),
+      onInvite:()=>{ if(!s.invWho.trim()) return this.e('Enter an email or mobile number.'); this.setState(x=>({invites:[...x.invites,{who:x.invWho.trim(),role:x.invRole,st:'Invite sent (demo)'}],invWho:'',err:''})); },
+      driveText:s.drive?'Connected · scope drive.file · daily 02:30, keep 30 days':'Not connected. You can do this later in Backup & restore.', driveBtn:s.drive?'Disconnect':'Connect', onDrive:()=>this.setState({drive:!s.drive}),
+      kitText:s.kit?'Downloaded · key fingerprint 7C:1E:A4:09':'Contains your backup decryption key. Medoro never keeps a copy.', onKit:()=>this.setState({kit:true}), kitAck:s.kitAck, onKitAck:e=>this.setState({kitAck:e.target.checked}),
+      summary:({cloud:'Your cloud server',onprem:'On-premises server',lan:'Shop LAN server',local:'Single device'}[s.host])+' · '+s.branches.length+' branch(es) · '+s.invites.length+' invite(s) · backups '+(s.drive?'on Google Drive':'not yet connected')+'. Strict customer-controlled mode is on.',
+      onBack:()=>this.setState({step:Math.max(1,s.step-1),err:''}), onNext:()=>this.next()
+    };
+  }
+}
+</script>
+</body>
+</html>
