@@ -51,16 +51,31 @@
   @keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
 }
 
-html, body { margin: 0; padding: 0; background: var(--color-bg); }
-body {
-  font-family: var(--font-sans);
-  color: var(--color-ink);
-  font-size: 14px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
+/* In the base layer so Tailwind utilities (text-white on a link, etc.) win. */
+@layer base {
+  html, body { margin: 0; padding: 0; background: var(--color-bg); }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--color-teal); text-decoration: none; }
+  a:hover { color: var(--color-teal-hover); }
+  input, select, button, textarea { font-family: inherit; font-size: inherit; }
 }
-a { color: var(--color-teal); text-decoration: none; }
-a:hover { color: var(--color-teal-hover); }
-input, select, button, textarea { font-family: inherit; font-size: inherit; }
 .tnum { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid var(--color-teal); outline-offset: 1px; }
+
+/* Marketing site motion. Hidden only once JS adds .reveal, so content shows without JS. */
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+.reveal.revealed { opacity: 1; transform: none; }
+@keyframes site-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.site-marquee { animation: site-marquee 38s linear infinite; }
+.site-marquee:hover { animation-play-state: paused; }
+@keyframes site-rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+.site-rise { animation: site-rise .8s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) { .site-marquee, .site-rise { animation: none; } }
+html:has(.site-root) { scroll-behavior: smooth; }
+.site-root section { scroll-margin-top: 84px; }
