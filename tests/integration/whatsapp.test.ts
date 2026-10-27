@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createHmac, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { connectWhatsApp, handleWebhook, sendInvoice, verifyWebhook } from "@/domain/comms/whatsapp";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
@@ -7,7 +7,8 @@ import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
-const SECRET = "0123456789abcdef0123456789abcdef";
+// Built at runtime so secret scanners don't mistake the test fixture for a real key.
+const SECRET = randomBytes(16).toString("hex");
 let fail = false;
 const calls: string[] = [];
 const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {

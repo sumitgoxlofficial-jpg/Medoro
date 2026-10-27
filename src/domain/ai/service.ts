@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { can, type Ctx } from "@/server/context";
@@ -43,7 +44,7 @@ export async function ask(ctx: Ctx, raw: string): Promise<AiReply> {
   if (tool.kind === "read") return { tool: tool.name, ...(await tool.run(ctx, parsed.data as never)) };
 
   const pv = await tool.preview!(ctx, parsed.data as never);
-  const input = tool.input.parse({ ...parsed.data, ...(pv.bound ?? {}) });
+  const input = tool.input.parse({ ...(parsed.data as Record<string, unknown>), ...(pv.bound ?? {}) }) as Prisma.InputJsonValue;
   const token = randomBytes(18).toString("base64url");
   const expiresAt = new Date(Date.now() + CONFIRM_MS);
   await db.aiConfirmation.create({ data: { token, tenantId: ctx.tenantId, userId: ctx.userId, tool: tool.name, inputHash: hashInput(input), input, preview: { summary: pv.summary }, expiresAt } });

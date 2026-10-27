@@ -7,8 +7,8 @@ export const supplierSchema = z.object({
   name: z.string().trim().min(2, "Supplier name is required.").max(120),
   gstin: z.string().trim().toUpperCase().refine((g) => !g || GSTIN_RE.test(g), "GSTIN format looks wrong.").default(""),
   phone: z.string().trim().max(20).default(""),
-  creditDays: z.union([z.string(), z.number()]).pipe(z.coerce.number().int().min(0).max(365)).default(30),
-  leadDays: z.union([z.string(), z.number()]).pipe(z.coerce.number().min(0).max(60)).default(1),
+  creditDays: z.union([z.string(), z.number()]).pipe(z.coerce.number<string | number>().int().min(0).max(365)).default(30),
+  leadDays: z.union([z.string(), z.number()]).pipe(z.coerce.number<string | number>().min(0).max(60)).default(1),
   acceptsReturns: z.boolean().default(true),
   opening: paise("Opening balance can’t be negative.").default(0),
 });

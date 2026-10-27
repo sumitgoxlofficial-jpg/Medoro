@@ -36,7 +36,7 @@ export const setupSchema = z.object({
   branches: z.array(z.object({ name: z.string().trim().min(2, "Branch name is required."), counters: z.number().int().min(1).max(20) })).min(1, "Add at least one branch."),
   invites: z.array(z.object({ contact: z.string().trim().min(3), role: z.enum(ROLE_OPTIONS), branch: z.string().optional() })).max(50),
   backupKey: z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Download the recovery kit first."),
-  kitAck: z.literal(true, { errorMap: () => ({ message: "Confirm you stored the recovery kit offline." }) }),
+  kitAck: z.literal(true, { error: "Confirm you stored the recovery kit offline." }),
 });
 export type SetupInput = z.input<typeof setupSchema>;
 
