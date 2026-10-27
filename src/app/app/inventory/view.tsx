@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, X, Pencil, PackageOpen } from "lucide-react";
+import { Search, Plus, X, Pencil, PackageOpen, Upload } from "lucide-react";
+import { ImportDialog } from "@/components/import-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Empty } from "@/components/ui/card";
@@ -30,6 +31,7 @@ export function InventoryView({ list, detail, q, filter, openAdd, canEdit, canAd
   const sp = useSearchParams();
   const [query, setQuery] = useState(q);
   const [modal, setModal] = useState<null | "add" | "edit">(openAdd && canEdit ? "add" : null);
+  const [importing, setImporting] = useState(false);
 
   const nav = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams(sp.toString());
@@ -60,6 +62,7 @@ export function InventoryView({ list, detail, q, filter, openAdd, canEdit, canAd
         </div>
         <div className="ml-auto flex gap-2.5 items-center">
           <span className="text-[12.5px] text-muted">{list.rows.length} of {list.total} medicines</span>
+          {canEdit ? <Button onClick={() => setImporting(true)}><Upload size={15} />Import</Button> : null}
           {canEdit ? <Button variant="primary" onClick={() => setModal("add")}><Plus size={16} />Add medicine</Button> : null}
         </div>
       </div>
@@ -91,11 +94,12 @@ export function InventoryView({ list, detail, q, filter, openAdd, canEdit, canAd
           <Empty icon={Search} title="No medicines match" body="Try a different name, generic or barcode, or clear the filter." />
         ) : (
           <Empty icon={PackageOpen} title="Your catalogue is empty" body="Add each medicine you stock with its MRP, GST rate and reorder level. Then receive batches to make it sellable."
-            action={canEdit ? <Button variant="primary" onClick={() => setModal("add")}><Plus size={16} />Add your first medicine</Button> : null} />
+            action={canEdit ? <div className="flex gap-2 justify-center flex-wrap"><Button variant="primary" onClick={() => setModal("add")}><Plus size={16} />Add your first medicine</Button><Button onClick={() => setImporting(true)}><Upload size={15} />Import from Excel or CSV</Button></div> : null} />
         )}
       </div>
 
       {detail ? <Drawer d={detail} onClose={() => nav({ sel: null })} onEdit={() => setModal("edit")} canEdit={canEdit} canAdjust={canAdjust} canPurchase={canPurchase} /> : null}
+      <ImportDialog kind="medicines" open={importing} onClose={() => setImporting(false)} />
       <MedicineModal open={modal !== null} edit={modal === "edit" ? detail?.medicine ?? null : null} onClose={() => setModal(null)} onSaved={(id) => { setModal(null); if (id) nav({ sel: id, q: null, filter: null }); }} />
     </div>
   );

@@ -30,6 +30,7 @@ pnpm lint && pnpm typecheck
 | Dashboard | KPIs, 14-day sales, collections, insights, low stock, expiring batches, branch performance, backup status, activity |
 | Billing (POS) | FEFO batches, Rx prescriber rule, discount caps, split payments, credit limits, held carts, idempotent commit, thermal/A4 invoices, WhatsApp send |
 | Returns & shift | Returns against invoices (restock or damaged), credit notes, refund modes, shift open/close with cash difference posted |
+| Data import | Medicines with opening stock, suppliers and customers from Excel (.xlsx) or CSV. Every row is checked first with a reason for each problem; nothing is saved until all rows pass; re-running a file skips what's already there |
 | Inventory | Batches, receive stock, quarantine, return to supplier, write-off, transfers between branches, movement ledger, stock count, recalls, expiry prevention |
 | Stock intelligence | Reorder forecast and draft POs, seasonal planner (after 12 months of sales), supplier price comparison, slow stock, anomaly review |
 | Purchases | POs, supplier invoice review (manual entry; remote OCR optional), GRN with totals check |
