@@ -25,6 +25,8 @@ export type Ctx = {
   branches: { id: string; name: string; code: string }[];
   lang: "en" | "hi";
   sessionId: string;
+  counterId: string | null;
+  counterName: string | null;
 };
 
 /** Loads the signed-in user's context for this request, or null. */
@@ -53,6 +55,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     branchId: br.id, branchName: br.name, branchCode: br.code,
     branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })),
     lang: c.get(LANG_COOKIE)?.value === "hi" ? "hi" : "en", sessionId: s.id,
+    counterId: s.counterId, counterName: s.counterId ? (await db.counter.findUnique({ where: { id: s.counterId } }))?.name ?? null : null,
   };
 });
 

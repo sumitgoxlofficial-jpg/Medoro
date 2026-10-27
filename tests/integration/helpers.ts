@@ -33,6 +33,6 @@ export async function ctxFor(role: RoleName = "Owner", branchName = "Main"): Pro
   return {
     tenantId: t.id, tenantName: t.name, userId: u.id, userName: u.name, userEmail: u.email ?? "", realRole: "Owner", role,
     perms: [...DEFAULT_GRANTS[role]], branchId: br.id, branchName: br.name, branchCode: br.code,
-    branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })), lang: "en", sessionId: "test",
+    branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })), lang: "en", sessionId: "test", counterId: null, counterName: null,
   };
 }
