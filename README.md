@@ -37,7 +37,7 @@ pnpm lint && pnpm typecheck
 | Suppliers & customers | Balances, payments, statements, credit limits |
 | Accounting & reports | P&L, day book, expenses, reversals (never edits), nine CSV reports for your CA |
 | WhatsApp & messaging | Your own Meta Cloud API credentials, invoice template sends with delivery status, signed webhook, STOP opt-outs, refill reminders and consent-gated campaigns |
-| Backup & restore | Encrypted backups (AES-256-GCM, recovery-kit key), verification, test restore, Google Drive upload, daily schedule with retries |
+| Backup & restore | Encrypted backups (AES-256-GCM, recovery-kit key), verification, Google Drive upload, daily schedule with retries. Full restore: loads into a test copy first, shows backup vs live, takes a safety backup, then swaps in one transaction after the owner types the pharmacy code |
 | Users & branches | Roles matrix, invites, PIN/password resets, branch management, transfers approval, audit trail with chain verification |
 | Sync, subscription, privacy | Devices and offline queue, plan status, full data export, customer erasure, strict mode |
 | AI assistant | Drawer (Ask AI / Ctrl+J) that answers from registered tools over the same services, with the same permissions; English and Hinglish; refuses clinical questions; drafts POs only after a single-use 5-minute confirmation. Rule-based by default; set `LOCAL_LLM_URL` + `LOCAL_LLM_MODEL` to plan with a local Ollama model |

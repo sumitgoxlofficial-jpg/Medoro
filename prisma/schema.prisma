@@ -931,3 +931,19 @@ model RemoteAccessRequest {
   decidedAt   DateTime?
   expiresAt   DateTime?
 }
+
+// A restore from backup: loaded into a test copy (a separate schema) first, applied to live only after the owner confirms.
+model RestoreRun {
+  id             String    @id @default(uuid())
+  tenantId       String
+  manifestId     String
+  schemaName     String // e.g. restore_ab12cd34; dropped after apply or discard
+  status         String // prepared, applied, discarded, failed
+  summary        Json // per-table counts, backup vs live, and key figures
+  createdBy      String
+  createdAt      DateTime  @default(now())
+  appliedAt      DateTime?
+  appliedBy      String?
+  safetyBackupId String?
+  error          String?
+}
