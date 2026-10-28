@@ -2,10 +2,14 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { db } from "./db";
 
-// Files (invoice scans, backups) live either on this server's disk (STORAGE_DIR, for self-hosted
-// installs) or, when SUPABASE_URL and SUPABASE_SECRET_KEY are set, in a private Supabase Storage
-// bucket (for hosts like Vercel whose disk doesn't persist). Keys are "<tenantId>/<kind>/<file>".
+// Files (invoice scans, backups) live in one of:
+//  - a private Supabase Storage bucket, when SUPABASE_URL and SUPABASE_SECRET_KEY are set;
+//  - the database (FileObject table), when STORAGE_BACKEND=database or on Vercel without a bucket,
+//    since serverless disks don't persist;
+//  - this server's disk (STORAGE_DIR), for self-hosted installs.
+// Keys are "<tenantId>/<kind>/<file>".
 const ROOT = path.resolve(process.env.STORAGE_DIR ?? "./storage");
 export const ALLOWED = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as const;
 // Vercel caps request bodies at 4.5 MB.
@@ -16,7 +20,7 @@ const sb = () => {
   const url = process.env.SUPABASE_URL?.replace(/\/$/, ""), key = process.env.SUPABASE_SECRET_KEY;
   return url && key ? { url, key, bucket: process.env.SUPABASE_STORAGE_BUCKET || "medoro-private" } : null;
 };
-export const storageKind = () => (sb() ? "supabase" : "disk");
+export const storageKind = () => (sb() ? "supabase" : process.env.STORAGE_BACKEND === "database" || process.env.VERCEL ? "database" : "disk");
 const headers = (key: string, extra: Record<string, string> = {}) => ({ apikey: key, ...(key.startsWith("eyJ") ? { Authorization: `Bearer ${key}` } : {}), ...extra });
 const safe = (key: string) => {
   const k = key.split(path.sep).join("/");
@@ -36,6 +40,11 @@ function ensureBucket(c: NonNullable<ReturnType<typeof sb>>) {
 
 export async function putObject(key: string, bytes: Buffer, contentType = "application/octet-stream") {
   const k = safe(key), c = sb();
+  if (storageKind() === "database") {
+    const data = { tenantId: k.split("/")[0], contentType, bytes: new Uint8Array(bytes) };
+    await db.fileObject.upsert({ where: { key: k }, create: { key: k, ...data }, update: data });
+    return;
+  }
   if (!c) {
     await mkdir(path.dirname(path.join(ROOT, k)), { recursive: true });
     await writeFile(path.join(ROOT, k), bytes, { mode: 0o600 });
@@ -49,6 +58,10 @@ export async function putObject(key: string, bytes: Buffer, contentType = "appli
 /** The object's bytes, or null if it doesn't exist. */
 export async function getObject(key: string): Promise<Buffer | null> {
   const k = safe(key), c = sb();
+  if (storageKind() === "database") {
+    const f = await db.fileObject.findUnique({ where: { key: k } });
+    return f ? Buffer.from(f.bytes) : null;
+  }
   if (!c) {
     const full = path.resolve(ROOT, k);
     if (!full.startsWith(ROOT + path.sep)) throw new Error("Bad path");
@@ -62,6 +75,7 @@ export async function getObject(key: string): Promise<Buffer | null> {
 
 export async function deleteObject(key: string) {
   const k = safe(key), c = sb();
+  if (storageKind() === "database") { await db.fileObject.deleteMany({ where: { key: k } }); return; }
   if (!c) { await rm(path.join(ROOT, k), { force: true }); return; }
   await fetch(`${c.url}/storage/v1/object/${c.bucket}`, { method: "DELETE", headers: headers(c.key, { "Content-Type": "application/json" }), body: JSON.stringify({ prefixes: [k] }), signal: AbortSignal.timeout(15_000) });
 }

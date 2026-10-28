@@ -965,3 +965,15 @@ model SupportGrant {
   revokedAt   DateTime?
   revokedBy   String?
 }
+
+/// Files kept in the database (invoice scans, encrypted backups) when the host has no persistent disk
+/// and no object storage is configured. Key: "<tenantId>/<kind>/<file>".
+model FileObject {
+  key         String   @id
+  tenantId    String
+  contentType String
+  bytes       Bytes
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+}
