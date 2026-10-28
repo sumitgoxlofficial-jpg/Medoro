@@ -49,6 +49,7 @@ Each module exposes **services** (pure business rules plus repository calls) and
 - Optimistic `version` on master data (medicines, suppliers, customers, prices).
 - Live multi-device updates go over server-sent events per branch channel.
 - Offline (opt-in per device): each device gets a **reserved stock quota** per batch. Queued operations carry a ULID, the device ID and a base version. On reconnect the server re-validates price, permission and stock, then posts the operation or marks a conflict for review. Offline sales show as "provisional" until they post.
+  Implemented in `src/domain/sales/offline.ts` and `/offline`: share = floor(stock ÷ (offline devices in the branch + 1)), refreshed every 5 minutes while online; bill ids are random `off_…` keys used as the sale idempotency key, so resending never double-posts; bills keep their device time (accepted up to 7 days back, never in the future); credit and split payments stay online-only. Conflicts are settled on Sync & offline by re-allocating the same quantities with FEFO from current stock, or closing with a note.
 
 ## 6. AI
 The AI calls tools that wrap the domain services (see AI_ASSISTANT.md). It runs on a local model by default (Ollama or llama.cpp on the app host). Remote providers need explicit opt-in and get minimised context.

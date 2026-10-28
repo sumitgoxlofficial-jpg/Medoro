@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #F5F6F7; color: #14191E; }
+.card { width: min(460px, calc(100vw - 32px)); background: #fff; border: 1px solid #E3E6E9; border-radius: 14px; padding: 28px; box-shadow: 0 8px 24px rgba(16,24,40,.06); }
+h1 { font-size: 22px; margin: 10px 0 6px; }
+p { font-size: 14px; color: #4B535B; line-height: 1.5; }
+code { background: #EEF0F2; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+label { display: block; font-size: 13px; color: #6B737B; margin: 14px 0 6px; }
+input { width: 100%; box-sizing: border-box; border: 1px solid #CDD2D7; border-radius: 8px; padding: 10px 12px; font-size: 15px; outline: none; }
+input:focus { border-color: #0B5E5B; }
+.row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+button { height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid #E3E6E9; background: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+button.primary { background: #0B5E5B; border-color: #0B5E5B; color: #fff; }
+button:disabled { opacity: .6; cursor: default; }
+#err { color: #B3261E; background: #FBEAE8; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; margin: 10px 0 0; }
+.small { font-size: 12.5px; color: #8A929A; margin-top: 18px; }

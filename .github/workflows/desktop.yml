@@ -1,0 +1,54 @@
+name: Desktop app
+# Builds the Medoro desktop installers (Windows .msi/.exe, macOS .dmg, Linux .deb/.AppImage).
+# Runs when desktop/ changes, on a desktop-v* tag (which also drafts a GitHub release), or by hand.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["desktop-v*"]
+  pull_request:
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, args: "" }
+          - { os: macos-latest, args: "--target universal-apple-darwin" }
+          - { os: ubuntu-22.04, args: "" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - name: Linux build libraries
+        if: matrix.os == 'ubuntu-22.04'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: "desktop/src-tauri -> target" }
+      - run: npm install --no-audit --no-fund
+        working-directory: desktop
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          args: ${{ matrix.args }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/desktop-v') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'Medoro desktop __VERSION__' || '' }}
+          releaseDraft: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medoro-desktop-${{ matrix.os }}
+          path: |
+            desktop/src-tauri/target/**/release/bundle/**/*.msi
+            desktop/src-tauri/target/**/release/bundle/**/*.exe
+            desktop/src-tauri/target/**/release/bundle/**/*.dmg
+            desktop/src-tauri/target/**/release/bundle/**/*.deb
+            desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+          if-no-files-found: ignore

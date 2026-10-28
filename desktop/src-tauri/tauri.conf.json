@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Medoro",
+  "version": "1.0.0",
+  "identifier": "in.medoro.desktop",
+  "build": { "frontendDist": "../src" },
+  "app": {
+    "windows": [
+      { "label": "main", "title": "Medoro", "width": 1360, "height": 860, "minWidth": 1024, "minHeight": 640, "center": true }
+    ],
+    "security": { "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src *" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Business",
+    "shortDescription": "Pharmacy billing, stock and accounts",
+    "longDescription": "Medoro for your counter: billing, stock and accounts from your pharmacy's own server, with offline billing when the connection drops.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  }
+}

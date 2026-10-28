@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medoro</title>
+  <link rel="stylesheet" href="start.css" />
+</head>
+<body>
+  <main class="card">
+    <img src="medoro-mark.png" alt="" width="56" height="56" />
+    <h1>Medoro</h1>
+    <p id="lead">Enter the address of your pharmacy’s Medoro server. Your IT person or the owner’s setup screen shows it, for example <code>https://medoro.shop.local</code>.</p>
+    <form id="f">
+      <label for="url">Server address</label>
+      <input id="url" type="url" required placeholder="https://medoro.yourpharmacy.in" autocomplete="url" spellcheck="false" />
+      <p id="err" role="alert" hidden></p>
+      <div class="row">
+        <button type="submit" class="primary">Connect</button>
+        <button type="button" id="off" hidden>Open offline billing</button>
+      </div>
+    </form>
+    <p class="small">Medoro keeps your data on your server. This app stores only the server address on this computer.</p>
+  </main>
+  <script src="start.js"></script>
+</body>
+</html>

@@ -1,4 +1,6 @@
-import { requireCtx } from "@/server/context";
+import { requireCtx, can } from "@/server/context";
+import { offlineOverview } from "@/domain/sales/offline";
+import { OfflinePanel } from "./offline-panel";
 import { db } from "@/server/db";
 import { Badge } from "@/components/ui/badge";
 import { PageHead } from "@/components/page-head";
@@ -16,11 +18,11 @@ function ago(d: Date) {
 
 export default async function Page() {
   const ctx = await requireCtx();
-  const [sessions, counters, branches, ops] = await Promise.all([
+  const [sessions, counters, branches, off] = await Promise.all([
     db.session.findMany({ where: { user: { tenantId: ctx.tenantId }, revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: { select: { name: true } } }, orderBy: { lastSeenAt: "desc" } }),
     db.counter.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true } }),
-    db.offlineOp.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "desc" }, take: 50 }),
+    offlineOverview(ctx),
   ]);
   const devices = sessions.map((s) => {
     const c = counters.find((x) => x.id === s.counterId);
@@ -43,12 +45,7 @@ export default async function Page() {
             </div>
           ))}
         </div>
-        <div className={card}>
-          <div className="font-semibold text-[15px] mb-1">Offline queue</div>
-          {ops.length ? ops.map((o) => <div key={o.id} className="flex gap-3 py-1.5 text-[13.5px]"><span className="font-mono text-[12px]">{o.id}</span><span>{o.kind}</span><Badge tone={o.status === "conflict" ? "red" : o.status === "pending" ? "amber" : "green"}>{o.status}</Badge></div>)
-            : <div className="text-[13px] text-muted">Nothing queued. Browser counters work online against your server, so every sale posts immediately.</div>}
-          <div className="text-[12px] text-faint mt-2">Offline billing needs the Medoro desktop app on the counter, which reserves a stock quota per device and queues sales with unique IDs. Price, permission and stock are rechecked before anything posts; until then an offline sale is provisional.</div>
-        </div>
+        <OfflinePanel devices={off.devices} ops={off.ops} branchId={ctx.branchId} branchName={ctx.branchName} counterName={ctx.counterName} canManage={!ctx.readOnly && (can(ctx, "users") || can(ctx, "adjust"))} />
       </div>
     </>
   );

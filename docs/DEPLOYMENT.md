@@ -20,6 +20,10 @@ Same as A on a customer-owned server. Use an internal CA or Caddy with DNS-01 fo
 ## D. Single device
 Tauri app with SQLite. Backups still go to Drive. A migration wizard upgrades it to PostgreSQL later.
 
+## Installing on counters
+- **Browser / PWA**: open the server in Chrome or Edge and choose *Install app* (Android: *Add to home screen*). Offline billing needs the site on HTTPS (or `localhost`); on a plain-HTTP LAN address browsers don't run service workers.
+- **Desktop app**: installers from the *Desktop app* workflow (`desktop/`). On first start, enter the server address. Offline billing works in the Windows app (WebView2) as in Chrome; on macOS and Linux the system web views have limited service worker support, so use Chrome/Edge's installed app there if a counter must bill offline.
+
 ## Health & operations
 - `GET /api/health` (liveness), `/api/ready` (DB and migrations).
 - Migrations: `prisma migrate deploy` runs on start; the app refuses to start if migrations are pending.

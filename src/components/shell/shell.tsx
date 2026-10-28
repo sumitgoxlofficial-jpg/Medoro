@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AiDrawer } from "./ai-drawer";
 import { useLive } from "./use-live";
+import { useOfflineAgent } from "./use-offline-agent";
 import { cn } from "@/components/ui/cn";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ function ShellInner(p: ShellProps) {
   const [profile, setProfile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const live = useLive();
+  const offlineReady = useOfflineAgent(p.branchId);
   const [, start] = useTransition();
 
   useEffect(() => {
@@ -169,6 +171,13 @@ function ShellInner(p: ShellProps) {
           <div role="status" className="flex-none bg-[#0E1A1F] text-white text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap">
             <ShieldCheck size={15} className="text-[#5FD3BC]" /><strong>Medoro support · read-only</strong>
             <span className="text-[#B8C7CC]">Access granted by the pharmacy until {p.supportUntil}. Changes and downloads are blocked; everything you open is audited.</span>
+          </div>
+        ) : null}
+        {live === "offline" ? (
+          <div role="status" className="flex-none bg-[#FDF2E1] text-[#6B4A0E] text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap">
+            <strong>No connection to your server.</strong>
+            <span>{offlineReady ? "This counter can keep billing offline; bills post when the connection is back." : "Screens can’t load until it’s back."}</span>
+            {offlineReady ? <a href="/offline" className="font-semibold text-teal underline">Open offline billing</a> : null}
           </div>
         ) : null}
         <header className="flex items-center gap-2.5 h-14 px-5 bg-white border-b border-line flex-none">
