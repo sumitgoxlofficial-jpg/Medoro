@@ -60,7 +60,24 @@ describe("hosting safety", () => {
     expect(v.join(" ")).toMatch(/HOST_KEY/);
     expect(v.join(" ")).toMatch(/DIRECT_URL/);
     expect(v.join(" ")).toMatch(/CRON_SECRET/);
+    expect(v.join(" ")).not.toMatch(/SUPABASE_URL/);
     expect(v.join(" ")).toMatch(/NEXT_PUBLIC_SUPABASE_SECRET_KEY looks like a secret/);
     expect(v.join(" ")).not.toMatch(/x"/);
+  });
+});
+
+describe("database file storage", () => {
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+  it("keeps files in the database on Vercel when no bucket is configured", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("SUPABASE_URL", "");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "");
+    const s = await import("@/server/storage");
+    expect(s.storageKind()).toBe("database");
+    const { rel } = await s.saveDocument("tenant-x", Buffer.from("%PDF-1.4 db"), "application/pdf");
+    expect((await db.fileObject.findUniqueOrThrow({ where: { key: rel } })).tenantId).toBe("tenant-x");
+    expect((await s.readDocument(rel)).toString()).toBe("%PDF-1.4 db");
+    await s.deleteObject(rel);
+    expect(await s.getObject(rel)).toBeNull();
   });
 });
