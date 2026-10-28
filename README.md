@@ -26,6 +26,7 @@ pnpm lint && pnpm typecheck
 | Website & legal | Marketing site at `/` (product, AI, data ownership, pricing, FAQ) and `/legal` (about, help, privacy, terms, refunds, cookies, DPDP, grievance). Legal text is a draft for lawyer review |
 | First-run setup | Pharmacy (GSTIN/drug licence checks), owner account, database check, branches & counters, team invite codes, backup recovery kit (key generated in the browser, sealed on the server) |
 | Sign-in | Email + password (Argon2id), TOTP two-step verification (required for owners/managers, "trust this PC" for 30 days), lockout after 5 failures. Mobile OTP when `OTP_PROVIDER` is set. Counter staff: pharmacy code + employee ID + PIN + counter |
+| Live multi-device sync | A sale, stock receipt or voucher on one device shows up on every other open screen within about a second (Postgres NOTIFY → one listener per app server → server-sent events → screen refresh, keeping carts and forms). The header pill shows Live / Connecting / Offline |
 | App shell | Permission-filtered nav with live badges, branch switcher, EN/हिंदी, "View as" role preview (narrows only), sessions & revoke |
 | Dashboard | KPIs, 14-day sales, collections, insights, low stock, expiring batches, branch performance, backup status, activity |
 | Billing (POS) | FEFO batches, Rx prescriber rule, discount caps, split payments, credit limits, held carts, idempotent commit, thermal/A4 invoices, WhatsApp send |

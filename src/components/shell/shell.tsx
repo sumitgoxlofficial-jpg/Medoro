@@ -7,6 +7,7 @@ import {
   Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor, Sparkles,
 } from "lucide-react";
 import { AiDrawer } from "./ai-drawer";
+import { useLive } from "./use-live";
 import { cn } from "@/components/ui/cn";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ function ShellInner(p: ShellProps) {
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const live = useLive();
   const [, start] = useTransition();
 
   useEffect(() => {
@@ -187,8 +189,10 @@ function ShellInner(p: ShellProps) {
             </Link>
           ) : <div className="mx-auto" />}
           <div className="flex items-center gap-1.5 flex-none">
-            <div title={`${p.liveDevices} device${p.liveDevices === 1 ? "" : "s"} active on your server in the last 5 minutes`} className="flex items-center gap-1.5 h-[30px] px-[9px] rounded-[7px] text-ok text-[12.5px] font-medium whitespace-nowrap">
-              <span className="size-[7px] rounded-full bg-[#22A06B] shadow-[0_0_0_3px_#DCF2E7] animate-pulse-dot" />{!narrow ? "Synced" : null}
+            <div title={live === "live" ? `Live: changes from other devices appear here automatically. ${p.liveDevices} device${p.liveDevices === 1 ? "" : "s"} active in the last 5 minutes.` : live === "offline" ? "This device is offline." : "Connecting to your server for live updates…"}
+              className={cn("flex items-center gap-1.5 h-[30px] px-[9px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap", live === "live" ? "text-ok" : live === "offline" ? "text-bad" : "text-[#94570A]")}>
+              <span className={cn("size-[7px] rounded-full", live === "live" ? "bg-[#22A06B] shadow-[0_0_0_3px_#DCF2E7] animate-pulse-dot" : live === "offline" ? "bg-[#D64545]" : "bg-[#E0A82E]")} />
+              {!narrow ? (live === "live" ? "Live" : live === "offline" ? "Offline" : "Connecting") : null}
             </div>
             <div className="w-px h-5 bg-line" />
             <LangToggle lang={p.lang} onChange={(l) => start(() => setLang(l))} />
