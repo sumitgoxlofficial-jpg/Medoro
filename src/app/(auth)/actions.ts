@@ -139,14 +139,17 @@ export async function signOut() {
 
 // ───────────── Employee (counter staff) ─────────────
 
-export async function countersFor(code: string): Promise<{ id: string; name: string; branch: string }[]> {
+/** Counters to offer at employee login. Once a known employee ID is typed, only that person's branches are listed. */
+export async function countersFor(code: string, employeeNo = ""): Promise<{ id: string; name: string; branch: string }[]> {
   const t = await db.tenant.findUnique({ where: { code: code.trim().toUpperCase() } });
   if (!t) return [];
-  const [cs, bs] = await Promise.all([
+  const [cs, bs, u] = await Promise.all([
     db.counter.findMany({ where: { tenantId: t.id, active: true }, orderBy: { name: "asc" } }),
-    db.branch.findMany({ where: { tenantId: t.id, active: true } }),
+    db.branch.findMany({ where: { tenantId: t.id, active: true }, orderBy: { createdAt: "asc" } }),
+    employeeNo.trim() ? db.user.findFirst({ where: { tenantId: t.id, employeeNo: employeeNo.trim().toUpperCase(), active: true }, select: { branchIds: true } }) : null,
   ]);
-  return cs.map((c) => ({ id: c.id, name: c.name, branch: bs.find((b) => b.id === c.branchId)?.name ?? "" })).sort((a, b) => a.branch.localeCompare(b.branch));
+  const allowed = u?.branchIds.length ? bs.filter((b) => u.branchIds.includes(b.id)) : bs;
+  return allowed.flatMap((b) => cs.filter((c) => c.branchId === b.id).map((c) => ({ id: c.id, name: c.name, branch: b.name })));
 }
 
 export async function employeeSignIn(input: { code: string; employeeNo: string; pin: string; counterId: string }): Promise<R<string>> {

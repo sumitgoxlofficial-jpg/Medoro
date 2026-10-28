@@ -88,9 +88,9 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
 
   useEffect(() => {
     if (code.trim().length < 4) { setCounters([]); return; }
-    const t = setTimeout(() => countersFor(code).then((c) => { setCounters(c); setCounter((x) => (c.some((y) => y.id === x) ? x : c[0]?.id ?? "")); }), 350);
+    const t = setTimeout(() => countersFor(code, emp).then((c) => { setCounters(c); setCounter((x) => (c.some((y) => y.id === x) ? x : c[0]?.id ?? "")); }), 350);
     return () => clearTimeout(t);
-  }, [code]);
+  }, [code, emp]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
