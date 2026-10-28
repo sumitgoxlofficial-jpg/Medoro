@@ -1,0 +1,22 @@
+{
+  "name": "Medoro Pharmacy",
+  "short_name": "Medoro",
+  "description": "Billing, stock and accounts for your pharmacy. Runs on your own server.",
+  "id": "/app",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F5F6F7",
+  "theme_color": "#0B5E5B",
+  "orientation": "any",
+  "categories": ["business", "medical", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "New bill", "url": "/app/pos", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Offline billing", "url": "/offline", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

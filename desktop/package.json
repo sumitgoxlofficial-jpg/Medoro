@@ -1,0 +1,15 @@
+{
+  "name": "medoro-desktop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Medoro desktop app: opens your pharmacy's Medoro server in its own window, with offline billing.",
+  "scripts": {
+    "tauri": "tauri",
+    "icons": "tauri icon ../public/icons/icon-512.png",
+    "build": "tauri build",
+    "dev": "tauri dev"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.9.6"
+  }
+}

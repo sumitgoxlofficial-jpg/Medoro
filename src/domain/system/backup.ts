@@ -1,17 +1,15 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { gunzipSync, gzipSync } from "node:zlib";
-import path from "node:path";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { fingerprint, unseal } from "@/server/vault";
+import { deleteObject, getObject, putObject } from "@/server/storage";
 import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, swapIn, type RestoreSummary } from "./restore";
 import { driveUpload, driveConfigured } from "./gdrive";
 
-const ROOT = path.resolve(process.env.STORAGE_DIR ?? "./storage");
 const MAGIC = Buffer.from("MEDORO-BACKUP-1\n");
 const SCHEMA = BACKUP_FORMAT;
 const json = (v: unknown) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x instanceof Uint8Array ? undefined : x));
@@ -60,15 +58,17 @@ export async function runBackup(tenantId: string, kind: "manual" | "scheduled" |
     const rowCounts = counts(data as unknown as Record<string, unknown>);
     const file = encryptBackup(Buffer.from(json(data)), master, { tenantId, manifestId: m.id, createdAt: m.startedAt.toISOString(), schemaVersion: SCHEMA, rowCounts });
     const sha256 = createHash("sha256").update(file).digest("hex");
-    const rel = path.join(tenantId, "backups", `${m.startedAt.toISOString().replace(/[:.]/g, "-")}.mdrbak`);
-    await mkdir(path.dirname(path.join(ROOT, rel)), { recursive: true });
-    await writeFile(path.join(ROOT, rel), file, { mode: 0o600 });
+    const name = `${m.startedAt.toISOString().replace(/[:.]/g, "-")}.mdrbak`;
+    const rel = `${tenantId}/backups/${name}`;
+    await putObject(rel, file);
     // Verify by reading the file back and decrypting it.
-    const back = decryptBackup(await readFile(path.join(ROOT, rel)), master);
+    const stored = await getObject(rel);
+    if (!stored) throw new Error("Verification failed: the backup file couldn’t be read back.");
+    const back = decryptBackup(stored, master);
     if (JSON.stringify(counts(back.data)) !== JSON.stringify(rowCounts)) throw new Error("Verification failed: row counts differ after decrypting.");
     let driveFileId: string | null = null, note: string | null = null;
     if (await driveConfigured(tenantId)) {
-      try { driveFileId = await driveUpload(tenantId, path.basename(rel), file); } catch (e) { note = `Saved on server; Drive upload failed: ${e instanceof Error ? e.message : "unknown error"}`; }
+      try { driveFileId = await driveUpload(tenantId, name, file); } catch (e) { note = `Saved on server; Drive upload failed: ${e instanceof Error ? e.message : "unknown error"}`; }
     }
     await db.backupManifest.update({ where: { id: m.id }, data: { finishedAt: new Date(), sizeBytes: BigInt(file.length), sha256, driveFileId, status: note ? "partial" : "verified", error: note, rowCounts, localPath: rel } });
     await writeAudit(db, { tenantId, userId: user?.id ?? null, userName: user?.name ?? "Scheduler", action: "Backup completed", entity: "backup", entityId: m.id, detail: `${kind} · ${(file.length / 1048576).toFixed(1)} MB · ${driveFileId ? "Drive + server" : "server only"}` });
@@ -93,7 +93,7 @@ async function openBackup(ctx: Ctx, id: string) {
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
   const rel = m?.localPath;
   if (!m || !rel) throw new UserError("Backup file not found on this server.");
-  const file = await readFile(path.join(ROOT, rel)).catch(() => null);
+  const file = await getObject(rel).catch(() => null);
   if (!file) throw new UserError("The backup file has been removed by retention or moved.");
   if (createHash("sha256").update(file).digest("hex") !== m.sha256) throw new UserError("Checksum mismatch: the file has changed since it was written.");
   return { m, ...decryptBackup(file, await masterKey(ctx.tenantId)) };
@@ -172,7 +172,7 @@ export async function testRestore(ctx: Ctx, id: string) {
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
   const rel = m?.localPath;
   if (!m || !rel) throw new UserError("Backup file not found on this server.");
-  const file = await readFile(path.join(ROOT, rel)).catch(() => null);
+  const file = await getObject(rel).catch(() => null);
   if (!file) throw new UserError("The backup file has been removed by retention or moved.");
   if (createHash("sha256").update(file).digest("hex") !== m.sha256) throw new UserError("Checksum mismatch: the file has changed since it was written.");
   const { data } = decryptBackup(file, await masterKey(ctx.tenantId));
@@ -184,10 +184,13 @@ export async function testRestore(ctx: Ctx, id: string) {
   return { sales: len(data, "Sale", "sales"), batches: len(data, "Batch", "batches"), vouchers: len(data, "Voucher", "vouchers"), restorable: isRestorable(data) };
 }
 
-export async function backupFilePath(ctx: Ctx, id: string) {
+/** The encrypted backup file for download, or null. */
+export async function backupFile(ctx: Ctx, id: string) {
   authorize(ctx, "integrations");
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
-  return m?.localPath ? path.join(ROOT, m.localPath) : null;
+  if (!m?.localPath) return null;
+  const bytes = await getObject(m.localPath).catch(() => null);
+  return bytes ? { bytes, name: m.localPath.split(/[\\/]/).pop()! } : null;
 }
 
 type BackupSettings = { schedule: string; retention: number };
@@ -211,20 +214,21 @@ export async function prune(tenantId: string) {
   const { retention } = await backupSettings(tenantId);
   const old = await db.backupManifest.findMany({ where: { tenantId, status: { in: ["verified", "partial"] }, startedAt: { lt: new Date(Date.now() - retention * 86400_000) } } });
   for (const m of old) {
-    if (m.localPath) await rm(path.join(ROOT, m.localPath), { force: true });
+    if (m.localPath) await deleteObject(m.localPath).catch(() => {});
     await db.backupManifest.update({ where: { id: m.id }, data: { status: "expired" } });
   }
 }
 
 /** Called every minute by the in-process scheduler: one scheduled backup per day after the set time (IST). */
-export async function scheduledTick(now = new Date()) {
+/** `daily`: called once a day by a host cron (e.g. Vercel), so ignore each pharmacy's chosen time. */
+export async function scheduledTick(now = new Date(), opts: { daily?: boolean } = {}) {
   await cleanupRestores().catch(() => {});
   const ist = new Date(now.getTime() + 330 * 60_000);
   const hhmm = ist.toISOString().slice(11, 16), day = ist.toISOString().slice(0, 10);
   const dayStart = new Date(Date.parse(day + "T00:00:00Z") - 330 * 60_000);
   for (const t of await db.tenant.findMany({ select: { id: true } })) {
     const s = await backupSettings(t.id);
-    if (hhmm < s.schedule) continue;
+    if (!opts.daily && hhmm < s.schedule) continue;
     const done = await db.backupManifest.findFirst({ where: { tenantId: t.id, kind: { in: ["scheduled", "retry"] }, startedAt: { gte: dayStart }, status: { not: "failed" } } });
     const failures = await db.backupManifest.count({ where: { tenantId: t.id, kind: { in: ["scheduled", "retry"] }, startedAt: { gte: dayStart }, status: "failed" } });
     if (done || failures >= 3) continue;
@@ -232,4 +236,3 @@ export async function scheduledTick(now = new Date()) {
   }
 }
 
-export async function fileSize(p: string) { return (await stat(p)).size; }
