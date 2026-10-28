@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X, MessageCircle, Mail } from "lucide-react";
 
-export const WA = "https://wa.me/912067900000";
+export const WA = "https://wa.me/916207774673";
 
 export function Wordmark({ size = 24 }: { size?: number }) {
   return (
@@ -79,7 +79,7 @@ export function SiteFooter() {
             <Link href="/" className="no-underline"><Wordmark size={18} /></Link>
             <span className="text-[14px] text-[#4B535B] max-w-[300px]">Smarter Pharmacy. Simpler Business. Pharmacy software built in Pune for India.</span>
             <div className="flex flex-col gap-1 text-[14px]">
-              <a href={WA} className="text-ink-strong flex gap-1.5 items-center"><MessageCircle size={14} className="text-ok" />WhatsApp +91 20 6790 0000</a>
+              <a href={WA} className="text-ink-strong flex gap-1.5 items-center"><MessageCircle size={14} className="text-ok" />WhatsApp +91 62077 74673</a>
               <a href="mailto:hello@medoro.in" className="text-ink-strong flex gap-1.5 items-center"><Mail size={14} className="text-faint" />hello@medoro.in</a>
               <span className="text-faint text-[13px]">Mon–Sat, 9 am to 9 pm IST</span>
             </div>
