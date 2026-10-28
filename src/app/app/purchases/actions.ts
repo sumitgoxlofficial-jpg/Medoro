@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/server/db";
 import { run, UserError } from "@/server/action";
 import { writeAudit } from "@/server/audit";
-import { MAX_BYTES, saveDocument, sniff } from "@/server/storage";
+import { MAX_BYTES, MAX_LABEL, saveDocument, sniff } from "@/server/storage";
 import { createPo, postGrnTx, purchaseCatalogue, setPoStatus } from "@/domain/purchasing/service";
 import { extractInvoice, matchMedicine, ocrConfigured } from "@/domain/purchasing/ocr";
 import type { GrnInput, PoInput } from "@/domain/purchasing/contracts";
@@ -18,7 +18,7 @@ export async function uploadInvoiceAction(form: FormData) {
     if (!ctx.perms.includes("purchase")) throw new UserError("Your role cannot receive purchases.");
     const f = form.get("file");
     if (!(f instanceof File)) throw new UserError("Choose a file.");
-    if (f.size > MAX_BYTES) throw new UserError("File is larger than 10 MB.");
+    if (f.size > MAX_BYTES) throw new UserError(`File is larger than ${MAX_LABEL}.`);
     const bytes = Buffer.from(await f.arrayBuffer());
     const mime = sniff(bytes);
     if (!mime) throw new UserError("Upload a PDF, JPG, PNG or WebP of the invoice.");

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { isSetupDone } from "@/domain/identity/service";
 import { readSession } from "@/server/auth";
+import { setupGate, setupUnlocked } from "@/server/setup-gate";
+import { Unlock } from "./unlock";
 import { Wizard } from "./wizard";
 
 export const metadata = { title: "Set up your pharmacy" };
@@ -13,5 +15,6 @@ export default async function Page() {
     const s = await readSession(true);
     if (!s || s.mfaPassed || s.user.mfaEnabled) redirect("/signin");
   }
+  else if (!(await setupUnlocked())) return <Unlock disabled={setupGate() === "disabled"} />;
   return <Wizard deployment={(process.env.DEPLOYMENT_MODE as "cloud" | "onprem" | "lan" | "single") ?? "lan"} />;
 }

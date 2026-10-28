@@ -4,6 +4,8 @@ import { subscribe } from "@/server/live";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Serverless hosts end long requests; the browser reconnects on its own (retry: 3000).
+export const maxDuration = 300;
 
 /**
  * Server-sent events: tells the signed-in browser when something in its pharmacy changed

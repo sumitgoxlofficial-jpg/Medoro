@@ -3,14 +3,14 @@ import { revalidatePath } from "next/cache";
 import { run, UserError } from "@/server/action";
 import { IMPORT_KINDS, TEMPLATE_EXAMPLE, previewImport, runImport, templateHeader, type ImportKind } from "@/domain/imports/service";
 
-const MAX_BYTES = 10 * 1024 * 1024;
+import { MAX_BYTES, MAX_LABEL } from "@/server/storage";
 
 async function fileOf(fd: FormData) {
   const kind = String(fd.get("kind")) as ImportKind;
   if (!IMPORT_KINDS.includes(kind)) throw new UserError("Choose what to import.");
   const f = fd.get("file");
   if (!(f instanceof File) || !f.size) throw new UserError("Choose a file to upload.");
-  if (f.size > MAX_BYTES) throw new UserError("The file is over 10 MB. Split it and import in parts.");
+  if (f.size > MAX_BYTES) throw new UserError(`The file is over ${MAX_LABEL}. Split it and import in parts.`);
   return { kind, name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) };
 }
 

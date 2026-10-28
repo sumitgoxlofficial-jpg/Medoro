@@ -10,6 +10,7 @@ import { otpEnabled, sendOtp, verifyOtp } from "@/server/otp";
 import { checkTotp, newTotpSecret, openSecret } from "@/server/totp";
 import { UserError } from "@/server/action";
 import { createPharmacy, isSetupDone, nextEmployeeNo } from "@/domain/identity/service";
+import { setupUnlocked, unlockSetup } from "@/server/setup-gate";
 import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
 
@@ -31,9 +32,16 @@ async function finishSignIn(user: { id: string; tenantId: string; name: string; 
 
 // ───────────── First-run setup ─────────────
 
+export async function unlockSetupAction(token: string): Promise<R<null>> {
+  if (await isSetupDone()) return fail("This installation is already set up. Sign in instead.");
+  await new Promise((r) => setTimeout(r, 400)); // slow down guessing
+  return (await unlockSetup(token)) ? { ok: true, data: null } : fail("That setup token is not right.");
+}
+
 export async function setupAction(input: SetupInput): Promise<R<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string }>> {
   try {
     if (await isSetupDone()) return fail("This installation is already set up. Sign in instead.");
+    if (!(await setupUnlocked())) return fail("Enter the setup token first.");
     const r = await createPharmacy(input);
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
     await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup" });
@@ -44,6 +52,7 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
 /** Checks the live database this server is configured with. */
 export async function testDatabase(): Promise<R<string>> {
   if (await isSetupDone()) return fail("Already set up.");
+  if (!(await setupUnlocked())) return fail("Enter the setup token first.");
   try {
     const [v] = await db.$queryRaw<{ v: string }[]>`SELECT current_setting('server_version') AS v`;
     const [ssl] = await db.$queryRaw<{ ssl: boolean | null }[]>`SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()`;

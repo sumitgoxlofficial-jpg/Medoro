@@ -6,6 +6,7 @@ import { Client } from "pg";
  * Live change feed. One LISTEN connection per app server receives `medoro_change` notifications
  * from the database triggers (see the live_change_events migration) and fans them out to the
  * browsers connected to /api/events. Works with several app servers because Postgres does the fan-out.
+ * LISTEN needs a session connection, so it uses DIRECT_URL when set (a pooler in transaction mode drops it).
  */
 export type Change = { t: string; tenant: string | null; branch: string | null };
 
@@ -17,7 +18,7 @@ async function connect() {
   if (hub.client) return;
   if (hub.connecting) return hub.connecting;
   hub.connecting = (async () => {
-    const c = new Client({ connectionString: process.env.DATABASE_URL });
+    const c = new Client({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL });
     c.on("notification", (n) => {
       if (n.channel !== "medoro_change" || !n.payload) return;
       try { const ch = JSON.parse(n.payload) as Change; if (ch.tenant) hub.emitter.emit(ch.tenant, ch); } catch { /* ignore malformed */ }
