@@ -45,7 +45,7 @@ export function SiteHeader() {
               <Link href="/signin" className="text-ink-strong text-[13px] font-semibold tracking-[.1em] uppercase px-3 py-2 whitespace-nowrap hover:text-teal">Sign in</Link>
               <Link href="/signin?view=employee" className="text-ink-strong text-[13px] font-semibold tracking-[.1em] uppercase px-3 py-2 whitespace-nowrap hover:text-teal">Employee login</Link>
             </div>
-            <Link href="/setup" className="flex items-center bg-teal text-white h-11 px-[22px] rounded-full text-[15px] font-semibold whitespace-nowrap shadow-[0_8px_20px_-8px_rgba(11,94,91,.55)] hover:bg-teal-hover hover:text-white max-[400px]:px-4">Get started</Link>
+            <Link href="/start" className="flex items-center bg-teal text-white h-11 px-[22px] rounded-full text-[15px] font-semibold whitespace-nowrap shadow-[0_8px_20px_-8px_rgba(11,94,91,.55)] hover:bg-teal-hover hover:text-white max-[400px]:px-4">Get started</Link>
             <button onClick={() => setOpen((x) => !x)} aria-label="Menu" aria-expanded={open} className="min-[1280px]:hidden size-[42px] border border-[#E6E8EB] bg-white rounded-full flex items-center justify-center cursor-pointer text-ink-strong">
               {open ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -66,7 +66,7 @@ export function SiteHeader() {
 const FOOT: { t: string; links: [string, string][] }[] = [
   { t: "Product", links: [["Billing & POS", "/#product"], ["Expiry prevention", "/#product"], ["Invoice scanner", "/#product"], ["Accounts & GST", "/#product"], ["WhatsApp invoices", "/#product"], ["AI Manager", "/#ai"], ["Pricing", "/#pricing"]] },
   { t: "Company", links: [["About Medoro", "/legal#about"], ["Data ownership", "/#data"], ["Security", "/#security"], ["FAQ", "/#faq"], ["Contact", "/legal#contact"]] },
-  { t: "Resources", links: [["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Sign in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/login"], ["Start free trial", "/setup"], ["WhatsApp support", WA]] },
+  { t: "Resources", links: [["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Sign in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/login"], ["Start free trial", "/start"], ["WhatsApp support", WA]] },
   { t: "Legal", links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Refund policy", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
 
