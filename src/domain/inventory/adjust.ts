@@ -9,6 +9,7 @@ import { daysTo, fiscalYear } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
+import { allocateToBills } from "@/domain/parties/balances";
 
 async function lockBatch(tx: Tx, ctx: Ctx, id: string) {
   const r = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE id = ${id} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
@@ -26,6 +27,7 @@ export async function returnToSupplier(ctx: Ctx, batchId: string, qty: number, r
     if (!b.supplier) throw new UserError("This batch has no supplier on record (opening stock). Write it off instead.");
     if (!b.supplier.acceptsReturns) throw new UserError(`${b.supplier.name} doesn’t accept returns.`);
     if (qty > b.qtyAvailable) throw new UserError(`Only ${b.qtyAvailable} in stock.`);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"party:" + b.supplier.id}))`;
     const taxable = qty * big(b.costPaise), gst = Math.round((taxable * b.medicine.gstRate) / 100), half = Math.floor(gst / 2);
     const fy = fiscalYear();
     const no = `DN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "DN:" + fy))}`;
@@ -34,6 +36,7 @@ export async function returnToSupplier(ctx: Ctx, batchId: string, qty: number, r
     await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: -qty, type: "supplier_return", refType: "stock_out", refId: so.id, userId: ctx.userId, note: `${no} · ${reason}` } });
     await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "debit_note", userId: ctx.userId, refType: "supplier_return", refId: so.id, narration: `${no} · return to ${b.supplier.name} · ${b.medicine.name} ${b.batchNo} × ${qty}`,
       lines: [{ account: ACC.creditors, dr: taxable + gst, partyType: "supplier", partyId: b.supplier.id }, { account: ACC.purchases, cr: taxable }, { account: ACC.inCgst, cr: half }, { account: ACC.inSgst, cr: gst - half }] });
+    await allocateToBills(tx, ctx.tenantId, b.supplier.id, taxable + gst, b.grnId);
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Debit note ${no}`, entity: "stock_out", entityId: so.id, detail: `${b.medicine.name} ${b.batchNo} × ${qty} → ${b.supplier.name} · ${inr(taxable + gst)}` });
     return no;
   });

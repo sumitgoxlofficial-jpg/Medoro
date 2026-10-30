@@ -44,6 +44,7 @@ describe("stock operations and intelligence", () => {
     const no = await returnToSupplier(ctx, b1, 5, "Near expiry");
     expect(no).toMatch(/^DN-/);
     expect((await listSuppliers(ctx))[0].balance).toBe(before - 5 * 1350 - Math.round(5 * 1350 * 0.12));
+    expect((await listSuppliers(ctx))[0].nextDue?.amount).toBe(60500 - 7560); // debit note settles the GRN's bill
     await expect(returnToSupplier(ctx, b2, 1, "x")).rejects.toThrow(/opening stock/);
     await writeOff(ctx, b2, 1, "Damaged strip");
     expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(19);

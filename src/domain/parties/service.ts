@@ -8,7 +8,7 @@ import { big, inr } from "@/lib/money";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { customerSchema, type CustomerInput } from "@/domain/sales/contracts";
-import { customerBalance, customerBalances, supplierBalances } from "./balances";
+import { allocateToBills, customerBalance, customerBalances, supplierBalances } from "./balances";
 import { paymentSchema, supplierSchema, type PaymentInput, type SupplierInput } from "./contracts";
 
 export async function listSuppliers(ctx: Ctx) {
@@ -106,14 +106,7 @@ export async function paySupplier(ctx: Ctx, raw: PaymentInput) {
     const v = await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "payment", userId: ctx.userId, refType: "supplier_payment", refId: s.id,
       narration: `Payment to ${s.name} · ${i.method}${i.ref ? " · " + i.ref : ""}`,
       lines: [{ account: ACC.creditors, dr: i.amount, partyType: "supplier", partyId: s.id }, { account: moneyAccount(i.method), cr: i.amount }] });
-    let left = i.amount;
-    for (const b of await tx.supplierBill.findMany({ where: { tenantId: ctx.tenantId, supplierId: s.id }, orderBy: [{ dueDate: "asc" }, { date: "asc" }] })) {
-      const open = big(b.amountPaise) - big(b.paidPaise);
-      if (open <= 0 || left <= 0) continue;
-      const take = Math.min(open, left);
-      await tx.supplierBill.update({ where: { id: b.id }, data: { paidPaise: { increment: BigInt(take) } } });
-      left -= take;
-    }
+    await allocateToBills(tx, ctx.tenantId, s.id, i.amount);
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Voucher posted ${v.no}`, entity: "voucher", entityId: v.id, detail: `Payment to ${s.name} · ${inr(i.amount)} · ${i.method}` });
     return v.no;
   });
