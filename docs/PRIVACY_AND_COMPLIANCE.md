@@ -27,3 +27,6 @@ Access/export, correction, erasure (anonymise the party on tax records), grievan
 
 ## Children & sensitive data
 No profiling or targeting based on health. Campaigns can't be segmented by medicine category.
+
+## AI assistant
+Rules or a model on the app host by default. A remote AI provider is used only after the owner opts in, never in strict mode; customer names, phone numbers and emails are replaced with placeholders before anything is sent unless the owner allows names. The assistant can be switched off per pharmacy (owner or manager) or for the whole server (`AI_ENABLED=0`). See AI_ASSISTANT.md.

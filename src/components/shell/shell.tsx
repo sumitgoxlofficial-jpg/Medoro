@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, Search, Bell, ShieldCheck, Ellipsis, CircleUser, CreditCard, Languages,
   Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor, Sparkles, KeyRound,
 } from "lucide-react";
-import { AiDrawer } from "./ai-drawer";
+import { AiDrawer, type AiShell } from "./ai-drawer";
 import { useLive } from "./use-live";
 import { useOfflineAgent } from "./use-offline-agent";
 import { cn } from "@/components/ui/cn";
@@ -26,7 +26,7 @@ export type ShellProps = {
   tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
-  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; aiMode: "llm" | "rules"; supportUntil: string | null;
+  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; ai: AiShell; supportUntil: string | null;
   subscription: { tone: "amber" | "red"; text: string; renew: boolean } | null;
   children: React.ReactNode;
 };
@@ -47,6 +47,7 @@ function ShellInner(p: ShellProps) {
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const showAi = !p.ai.globalOff && (p.ai.enabled || p.ai.canManage);
   const live = useLive();
   const offlineReady = useOfflineAgent(p.branchId);
   const [, start] = useTransition();
@@ -81,7 +82,7 @@ function ShellInner(p: ShellProps) {
     const k = (e: KeyboardEvent) => {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
       if (e.key === "F2" && READY.has("pos") && p.perms.includes("sale")) { e.preventDefault(); router.push("/app/pos?focus=1"); }
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") { e.preventDefault(); setAiOpen((x) => !x); }
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && showAi) { e.preventDefault(); setAiOpen((x) => !x); }
       else if (e.key === "Escape" && aiOpen && narrow) setAiOpen(false);
       else if (e.key === "?" && !typing) { e.preventDefault(); showShortcuts(); }
     };
@@ -97,7 +98,7 @@ function ShellInner(p: ShellProps) {
   const initials = p.userName.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (narrow ? "76px" : "232px") + " minmax(0,1fr)" + (aiOpen && !narrow ? " 380px" : "") }}>
+    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (narrow ? "76px" : "232px") + " minmax(0,1fr)" + (aiOpen && showAi && !narrow ? " 380px" : "") }}>
       <aside className="bg-side border-r border-line flex flex-col min-h-0">
         <div className="h-14 flex items-center px-2.5 border-b border-line-soft flex-none">
           <div className="flex items-center gap-[9px] w-full p-1.5 rounded-lg">
@@ -245,14 +246,14 @@ function ShellInner(p: ShellProps) {
             <button onClick={() => toast(p.alerts.length ? p.alerts.join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title="Notifications" className="relative size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
               <Bell size={17} />{p.alerts.length ? <span className="absolute top-[7px] right-2 size-[7px] rounded-full bg-[#D64545] border-[1.5px] border-white" /> : null}
             </button>
-            <button onClick={() => setAiOpen((x) => !x)} title="Ask AI (Ctrl+J)" aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
+            {showAi ? <button onClick={() => setAiOpen((x) => !x)} title="Ask AI (Ctrl+J)" aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
               <Sparkles size={15} />{!narrow ? t.ask : null}
-            </button>
+            </button> : null}
           </div>
         </header>
         <main className="flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 bg-page max-[640px]:px-4">{p.children}</main>
       </div>
-      <AiDrawer open={aiOpen} floating={narrow} onClose={() => setAiOpen(false)} lang={p.lang} placeholder={t.aiPh} mode={p.aiMode} />
+      {showAi ? <AiDrawer open={aiOpen} floating={narrow} onClose={() => setAiOpen(false)} lang={p.lang} placeholder={t.aiPh} ai={p.ai} /> : null}
       <ProfileModal open={profile} onClose={() => setProfile(false)} name={p.userName} email={p.userEmail} role={p.role} initials={initials} />
     </div>
   );

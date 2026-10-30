@@ -1,10 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Wrench, ShieldAlert, LoaderCircle, SendHorizontal, HardDrive } from "lucide-react";
-import { aiAsk, aiCancel, aiConfirm } from "@/app/app/ai-actions";
+import { useRouter } from "next/navigation";
+import { Sparkles, X, Wrench, ShieldAlert, LoaderCircle, SendHorizontal, HardDrive, Globe, Power } from "lucide-react";
+import { aiAsk, aiCancel, aiConfirm, aiSettingsAction } from "@/app/app/ai-actions";
 import type { AiReply } from "@/domain/ai/service";
 import type { Lang } from "@/lib/i18n";
+
+/** What the shell knows about the assistant for this pharmacy and user. */
+export type AiShell = { enabled: boolean; globalOff: boolean; mode: "rules" | "local" | "remote"; canManage: boolean };
 
 type Msg = { id: number; role: "user" | "ai"; text: string; reply?: AiReply; state?: "pending" | "done" | "cancelled" };
 
@@ -12,12 +16,15 @@ type Msg = { id: number; role: "user" | "ai"; text: string; reply?: AiReply; sta
 export const askAi = (prompt: string) => window.dispatchEvent(new CustomEvent("medoro:ai", { detail: prompt }));
 
 const SUGGEST = {
-  en: ["Aaj ki total sale kitni hai?", "Next month kya zyada bikega?", "Expiring in next 30 days", "What should I reorder?", "Supplier payments due", "Check last backup", "Prepare cash reconciliation"],
-  hi: ["Aaj ki total sale kitni hai?", "Agle mahine kya zyada bikega?", "Kaun si dawai 30 din mein expire hogi?", "Kya reorder karna chahiye?", "Supplier payment due dikhao"],
+  en: ["Aaj ki total sale kitni hai?", "Next month kya zyada bikega?", "Expiring in next 30 days", "What should I reorder?", "Supplier payments due", "GST report last month", "Check last backup", "Prepare cash reconciliation"],
+  hi: ["आज की बिक्री कितनी है?", "अगले महीने क्या ज़्यादा बिकेगा?", "30 दिन में कौन सी दवा एक्सपायर होगी?", "क्या रीऑर्डर करना है?", "सप्लायर बकाया दिखाओ", "पिछले महीने की GST रिपोर्ट"],
 };
 
-export function AiDrawer({ open, floating, onClose, lang, placeholder, mode }: { open: boolean; floating: boolean; onClose: () => void; lang: Lang; placeholder: string; mode: "llm" | "rules" }) {
+export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { open: boolean; floating: boolean; onClose: () => void; lang: Lang; placeholder: string; ai: AiShell }) {
+  const router = useRouter();
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [switching, setSwitching] = useState(false);
+  const [switchErr, setSwitchErr] = useState("");
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const list = useRef<HTMLDivElement>(null);
@@ -48,8 +55,18 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, mode }: {
     push(r.ok ? { role: "ai", text: r.data.text, reply: r.data } : { role: "ai", text: r.error });
   };
 
+  const setEnabled = async (enabled: boolean) => {
+    if (!enabled && !window.confirm("Turn the AI assistant off for everyone in this pharmacy? Billing and other screens are not affected.")) return;
+    setSwitching(true); setSwitchErr("");
+    const r = await aiSettingsAction({ enabled }).catch(() => ({ ok: false as const, error: "Couldn’t reach your server." }));
+    setSwitching(false);
+    if (!r.ok) return setSwitchErr(r.error);
+    if (!enabled) onClose();
+    router.refresh();
+  };
+
   useEffect(() => {
-    const on = (e: Event) => { const p = (e as CustomEvent<string>).detail; if (p) send(p); };
+    const on = (e: Event) => { const p = (e as CustomEvent<string>).detail; if (p && ai.enabled) send(p); };
     window.addEventListener("medoro:ai", on);
     return () => window.removeEventListener("medoro:ai", on);
   });
@@ -65,9 +82,15 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, mode }: {
       </div>
 
       <div ref={list} className="flex-1 overflow-auto p-4 flex flex-col gap-3 bg-[#FAFBFB]">
-        {!msgs.length ? (
+        {!ai.enabled ? (
+          <div className="text-[13px] text-muted bg-white border border-line rounded-xl p-3 flex flex-col gap-2.5">
+            <div>The AI assistant is switched off for this pharmacy. Nobody can ask it questions until an owner or manager turns it back on. Billing and every other screen work as usual.</div>
+            <button onClick={() => setEnabled(true)} disabled={switching} className="self-start flex items-center gap-1.5 bg-teal text-white rounded-[7px] px-3 py-[7px] text-[13px] font-semibold cursor-pointer disabled:opacity-60"><Power size={14} />Turn the assistant on</button>
+            {switchErr ? <div className="text-[12.5px] text-[#B42318]">{switchErr}</div> : null}
+          </div>
+        ) : !msgs.length ? (
           <div className="text-[13px] text-muted bg-white border border-line rounded-xl p-3">
-            Ask about today’s sales, stock running low, expiring batches, supplier and customer dues, the cash drawer or backups. Answers come from your own data, with the basis shown. I can prepare a draft purchase order, which you confirm before anything is saved.
+            Ask about today’s sales, stock and batches, expiring batches, supplier and customer dues, the cash drawer, reports or backups. Answers come from your own data, with the basis shown. I can also prepare a draft purchase order, an expense, a stock adjustment, a refund or a backup, and nothing changes until you confirm.
           </div>
         ) : null}
         {msgs.map((m) => m.role === "user" ? (
@@ -98,23 +121,32 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, mode }: {
             {m.reply?.link ? (
               m.reply.link.href.startsWith("#ai:")
                 ? <button onClick={() => send(m.reply!.link!.href.slice(4))} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold cursor-pointer">{m.reply.link.label}</button>
-                : <Link href={m.reply.link.href} onClick={() => floating && onClose()} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{m.reply.link.label}</Link>
+                : m.reply.link.href.startsWith("/api/")
+                  ? <a href={m.reply.link.href} download className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{m.reply.link.label}</a>
+                  : <Link href={m.reply.link.href} onClick={() => floating && onClose()} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{m.reply.link.label}</Link>
             ) : null}
           </div>
         ))}
-        {busy ? <div className="self-start text-[13px] text-muted flex gap-1.5 items-center"><LoaderCircle size={14} className="animate-spin" />Querying local data…</div> : null}
+        {busy ? <div className="self-start text-[13px] text-muted flex gap-1.5 items-center"><LoaderCircle size={14} className="animate-spin" />{ai.mode === "remote" ? "Asking the remote model…" : "Querying local data…"}</div> : null}
       </div>
 
-      <div className="flex flex-wrap gap-1.5 px-4 pt-2.5">
-        {SUGGEST[lang].map((s) => <button key={s} onClick={() => send(s)} className="border border-[#E3E6E9] bg-white text-ink-2 rounded-full px-2.5 py-[5px] text-[12.5px] cursor-pointer hover:border-[#9FCFC9] hover:text-teal">{s}</button>)}
-      </div>
-      <form onSubmit={(e) => { e.preventDefault(); send(q); }} className="flex gap-2 px-4 pt-3 pb-2">
-        <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder={placeholder} aria-label="Ask Medoro AI" className="flex-1 min-w-0 border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-teal" />
-        <button type="submit" title="Send" disabled={busy} className="bg-teal text-white rounded-lg px-3.5 cursor-pointer disabled:opacity-60"><SendHorizontal size={17} /></button>
-      </form>
-      <div className="px-4 pb-3.5 text-[11.5px] text-faint flex gap-1.5 items-center">
-        <HardDrive size={13} />{mode === "llm" ? "Local model on your server." : "Runs on your server, no AI model needed."} Nothing sent to external AI. Not clinical advice.
-      </div>
+      {ai.enabled ? (
+        <>
+          <div className="flex flex-wrap gap-1.5 px-4 pt-2.5">
+            {SUGGEST[lang].map((s) => <button key={s} onClick={() => send(s)} className="border border-[#E3E6E9] bg-white text-ink-2 rounded-full px-2.5 py-[5px] text-[12.5px] cursor-pointer hover:border-[#9FCFC9] hover:text-teal">{s}</button>)}
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); send(q); }} className="flex gap-2 px-4 pt-3 pb-2">
+            <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder={placeholder} aria-label="Ask Medoro AI" className="flex-1 min-w-0 border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-teal" />
+            <button type="submit" title="Send" disabled={busy} className="bg-teal text-white rounded-lg px-3.5 cursor-pointer disabled:opacity-60"><SendHorizontal size={17} /></button>
+          </form>
+          <div className="px-4 pb-3.5 text-[11.5px] text-faint flex gap-1.5 items-center flex-wrap">
+            {ai.mode === "remote" ? <Globe size={13} /> : <HardDrive size={13} />}
+            {ai.mode === "remote" ? "Remote AI provider (owner opted in). Minimised data, no customer names or phones by default." : ai.mode === "local" ? "Local model on your server. Nothing sent to external AI." : "Runs on your server, no AI model needed. Nothing sent to external AI."} Not clinical advice.
+            {ai.canManage ? <button onClick={() => setEnabled(false)} disabled={switching} className="underline cursor-pointer text-faint hover:text-ink">Turn off</button> : null}
+            {switchErr ? <span className="text-[#B42318]">{switchErr}</span> : null}
+          </div>
+        </>
+      ) : null}
     </aside>
   );
 }

@@ -728,6 +728,15 @@ model Campaign {
   createdAt DateTime @default(now())
 }
 
+/// One row per AI question, kept for a minute: a sliding-window rate limit shared by every app instance.
+model AiAsk {
+  id     BigInt   @id @default(autoincrement())
+  userId String
+  at     DateTime @default(now())
+
+  @@index([userId, at])
+}
+
 model AiConfirmation {
   token     String    @id
   tenantId  String
