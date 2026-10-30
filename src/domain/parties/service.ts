@@ -7,21 +7,24 @@ import { addDays, dateOnly, daysTo, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
+import { supplierPerformance } from "@/domain/purchasing/service";
 import { customerSchema, type CustomerInput } from "@/domain/sales/contracts";
 import { allocateToBills, customerBalance, customerBalances, supplierBalances } from "./balances";
 import { paymentSchema, supplierSchema, type PaymentInput, type SupplierInput } from "./contracts";
 
 export async function listSuppliers(ctx: Ctx) {
-  const [rows, bal, bills] = await Promise.all([
+  const [rows, bal, bills, perf] = await Promise.all([
     db.supplier.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { name: "asc" } }),
     supplierBalances(db, ctx.tenantId),
     db.supplierBill.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { dueDate: "asc" } }),
+    supplierPerformance(db, ctx.tenantId),
   ]);
   return rows.map((s) => {
     const open = bills.find((b) => b.supplierId === s.id && b.paidPaise < b.amountPaise);
+    const p = perf.get(s.id);
     return {
-      id: s.id, name: s.name, gstin: s.gstin, phone: s.phone, creditDays: s.creditDays, leadDays: Number(s.leadDays), acceptsReturns: s.acceptsReturns,
-      accuracy: s.accuracyPct, balance: bal.get(s.id) ?? 0, version: s.version,
+      id: s.id, name: s.name, gstin: s.gstin, phone: s.phone, creditDays: s.creditDays, leadDays: Number(s.leadDays), acceptsReturns: s.acceptsReturns, stateCode: s.stateCode ?? "",
+      accuracy: p ? p.fillPct : null, onTime: p ? p.onTimePct : null, orders: p?.orders ?? 0, balance: bal.get(s.id) ?? 0, version: s.version,
       nextDue: open ? { date: open.dueDate.toISOString().slice(0, 10), days: daysTo(open.dueDate), amount: big(open.amountPaise) - big(open.paidPaise) } : null,
     };
   });
@@ -48,7 +51,7 @@ export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: S
   const i = supplierSchema.parse(raw);
   const dup = await tx.supplier.findFirst({ where: { tenantId: ctx.tenantId, name: { equals: i.name, mode: "insensitive" }, ...(id ? { NOT: { id } } : {}) } });
   if (dup) throw new UserError(`${dup.name} already exists.`);
-  const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns };
+  const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns, stateCode: i.stateCode || null };
   if (id) {
     const r = await tx.supplier.updateMany({ where: { id, tenantId: ctx.tenantId }, data: { ...data, version: { increment: 1 } } });
     if (!r.count) throw new UserError("Supplier not found.");

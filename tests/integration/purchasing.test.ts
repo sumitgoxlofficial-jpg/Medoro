@@ -39,7 +39,7 @@ describe("purchasing", () => {
     await expect(postGrnTx(ctx, { ...grn, statedTotal: "2688", lines: [line(dolo, "DL1", 100, "24", "33.60", items[0].id)] })).rejects.toThrow(/already posted/);
     await postGrnTx(ctx, { ...grn, invoiceNo: "MMA/2", statedTotal: "2464", lines: [line(pan, "PN1", 20, "110", "155", items[1].id)] });
     expect((await listOrders(ctx))[0].status).toBe("received");
-    await expect(setPoStatus(ctx, po.id, "cancel")).rejects.toThrow(/can’t be cancelled/);
+    await expect(setPoStatus(ctx, po.id, "cancel", "Not needed")).rejects.toThrow(/can’t be cancelled/);
   });
 
   it("free goods lower unit cost; re-received batches add up; mismatched batches are refused", async () => {

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Truck, Users, Upload } from "lucide-react";
+import { Plus, Pencil, Truck, Users, Upload, FileText } from "lucide-react";
 import { ImportDialog } from "@/components/import-dialog";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { inr, inr0 } from "@/lib/money";
 import { dayMonth } from "@/lib/dates";
 import { PAY_METHODS } from "@/domain/parties/contracts";
+import { GST_STATES } from "@/domain/accounting/gst";
 import type { listCustomers, listSuppliers } from "@/domain/parties/service";
 import { paySupplierAction, receiveAction, saveCustomerAction, saveSupplierAction } from "./actions";
 
@@ -57,11 +58,13 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
                       <td className={td}><div className="font-semibold">{s.name}</div><div className="text-[12px] text-muted font-mono">{s.gstin ?? "No GSTIN"}{s.phone ? ` · ${s.phone}` : ""}</div></td>
                       <td className={td}>{s.creditDays} days</td>
                       <td className={td}>{s.leadDays} d</td>
-                      <td className={td + " font-semibold"} style={{ color: s.accuracy >= 95 ? "#1E7F4F" : s.accuracy >= 90 ? "#94570A" : "#B3261E" }}>{s.accuracy}%</td>
+                      <td className={td}>{s.accuracy == null ? <span className="text-fainter" title="Computed from placed purchase orders and their GRNs">No PO history</span>
+                        : <div className="flex flex-col"><span className="font-semibold" style={{ color: s.accuracy >= 95 ? "#1E7F4F" : s.accuracy >= 90 ? "#94570A" : "#B3261E" }}>{s.accuracy}% filled</span><span className="text-[12px] text-muted">{s.onTime}% on time · {s.orders} PO{s.orders === 1 ? "" : "s"}</span></div>}</td>
                       <td className={td + " text-right font-semibold tnum"}>{inr0(s.balance)}</td>
                       <td className={td}>{s.nextDue ? <Badge tone={d! <= 3 ? "red" : d! <= 7 ? "amber" : "gray"}>{dayMonth(new Date(s.nextDue.date + "T00:00:00Z"))} ({d! < 0 ? `${-d!} d overdue` : `${d} d`})</Badge> : <span className="text-fainter">—</span>}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/supplier/${s.id}`)}><FileText size={13} />Statement</Button>
                           {canPay && s.balance > 0 ? <Button size="sm" onClick={() => setPay({ kind: "sup", id: s.id, name: s.name, bal: s.balance })}>Record payment</Button> : null}
                           {canEditSup ? <Button size="sm" variant="ghost" aria-label={`Edit ${s.name}`} onClick={() => setSupEdit(s)}><Pencil size={13} /></Button> : null}
                         </div>
@@ -89,6 +92,7 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
                       <td className={td + " text-muted"}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
+                          {canPay ? <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/customer/${c.id}`)}><FileText size={13} />Statement</Button> : null}
                           {canPay && c.due > 0 ? <Button size="sm" onClick={() => setPay({ kind: "cus", id: c.id, name: c.name, bal: c.due })}>Receive payment</Button> : null}
                           <Button size="sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setCusEdit(c)}><Pencil size={13} /></Button>
                         </div>
@@ -114,12 +118,12 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
 function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; canPay: boolean; onClose: () => void }) {
   const toast = useToast();
   const isNew = edit === "new";
-  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, opening: "" });
+  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", opening: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
   useEffect(() => {
     setErr("");
-    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, opening: "" });
-    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, opening: "" });
+    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, stateCode: edit.stateCode, opening: "" });
+    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", opening: "" });
   }, [edit]);
   const save = () => start(async () => {
     const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f);
@@ -131,7 +135,8 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save supplier</Button></>}>
       <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
         <Field label="Name *" className="col-span-full"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-        <Field label="GSTIN"><Input value={f.gstin} onChange={(e) => setF({ ...f, gstin: e.target.value.toUpperCase() })} className="font-mono" maxLength={15} /></Field>
+        <Field label="GSTIN"><Input value={f.gstin} onChange={(e) => { const g = e.target.value.toUpperCase(); setF({ ...f, gstin: g, stateCode: GST_STATES.some(([c]) => c === g.slice(0, 2)) ? g.slice(0, 2) : f.stateCode }); }} className="font-mono" maxLength={15} /></Field>
+        <Field label="State" hint="Out-of-state suppliers are billed IGST."><Select value={f.stateCode} onChange={(e) => setF({ ...f, stateCode: e.target.value })}><option value="">From GSTIN / not set</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</Select></Field>
         <Field label="Phone"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
         <Field label="Credit terms (days)"><Input value={f.creditDays} onChange={(e) => setF({ ...f, creditDays: e.target.value.replace(/\D/g, "") })} inputMode="numeric" /></Field>
         <Field label="Lead time (days)" hint="Order to delivery. Used for reorder points."><Input value={f.leadDays} onChange={(e) => setF({ ...f, leadDays: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" /></Field>

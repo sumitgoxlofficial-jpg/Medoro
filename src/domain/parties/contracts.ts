@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GSTIN_RE } from "@/domain/identity/contracts";
+import { GST_STATES } from "@/domain/accounting/gst";
 
 const paise = (msg: string) => z.union([z.string(), z.number()]).transform((v) => Math.round((parseFloat(String(v === "" ? 0 : v)) || 0) * 100)).refine((p) => p >= 0, msg);
 
@@ -10,8 +11,9 @@ export const supplierSchema = z.object({
   creditDays: z.union([z.string(), z.number()]).pipe(z.coerce.number<string | number>().int().min(0).max(365)).default(30),
   leadDays: z.union([z.string(), z.number()]).pipe(z.coerce.number<string | number>().min(0).max(60)).default(1),
   acceptsReturns: z.boolean().default(true),
+  stateCode: z.string().trim().refine((c) => !c || GST_STATES.some(([k]) => k === c), "Choose the supplier’s state.").default(""),
   opening: paise("Opening balance can’t be negative.").default(0),
-});
+}).refine((s) => !s.gstin || !s.stateCode || s.gstin.slice(0, 2) === s.stateCode, { message: "The state doesn’t match the GSTIN (its first two digits are the state code).", path: ["stateCode"] });
 export type SupplierInput = z.input<typeof supplierSchema>;
 
 export const PAY_METHODS = ["Cash", "UPI", "Bank transfer (NEFT)", "Cheque"] as const;

@@ -12,29 +12,30 @@ import { useToast } from "@/components/ui/toast";
 import { inr, inr0, toPaise } from "@/lib/money";
 import { dayMonth, daysTo } from "@/lib/dates";
 import { grnTotals } from "@/domain/purchasing/contracts";
-import type { listOrders, purchaseCatalogue, recentGrns } from "@/domain/purchasing/service";
-import { createPoAction, poStatusAction, postGrnAction, uploadInvoiceAction } from "./actions";
+import type { listOrders, pendingScans, purchaseCatalogue, recentGrns } from "@/domain/purchasing/service";
+import { createPoAction, discardScanAction, poStatusAction, postGrnAction, uploadInvoiceAction } from "./actions";
 
 type Order = Awaited<ReturnType<typeof listOrders>>[number];
 type Cat = Awaited<ReturnType<typeof purchaseCatalogue>>[number];
 type Grn = Awaited<ReturnType<typeof recentGrns>>[number];
+type Scan = Awaited<ReturnType<typeof pendingScans>>[number];
 type Sup = { id: string; name: string };
 
-const STATUS: Record<string, [string, Tone]> = { draft: ["Draft", "gray"], ordered: ["Ordered", "blue"], partially_received: ["Partially received", "amber"], received: ["Received", "green"], cancelled: ["Cancelled", "red"] };
+const STATUS: Record<string, [string, Tone]> = { draft: ["Draft", "gray"], ordered: ["Ordered", "blue"], partially_received: ["Partially received", "amber"], received: ["Received", "green"], cancelled: ["Cancelled", "red"], closed: ["Closed short", "gray"] };
 const th = "text-left text-[12px] font-medium text-muted px-3 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3 py-2.5 border-b border-row";
 const cell = "border border-input rounded-md px-2 py-1.5 text-[13px] bg-white outline-none focus:border-teal w-full min-w-0";
 const wrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 
-export function PurchasesView({ tab, poId, orders, catalogue, suppliers, grns, ocr, today }: {
-  tab: "po" | "receive"; poId: string | null; orders: Order[]; catalogue: Cat[]; suppliers: Sup[]; grns: Grn[]; ocr: boolean; today: string;
+export function PurchasesView({ tab, poId, orders, catalogue, suppliers, grns, scans, ocr, today }: {
+  tab: "po" | "receive"; poId: string | null; orders: Order[]; catalogue: Cat[]; suppliers: Sup[]; grns: Grn[]; scans: Scan[]; ocr: boolean; today: string;
 }) {
   const router = useRouter();
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       <Segmented value={tab} onChange={(v) => router.replace(v === "receive" ? "/app/purchases?tab=receive" : "/app/purchases")} className="self-start bg-[#EEF0F2]"
-        options={[{ value: "po", label: "Purchase orders" }, { value: "receive", label: "Receive invoice (GRN)" }]} />
-      {tab === "po" ? <Orders orders={orders} catalogue={catalogue} suppliers={suppliers} grns={grns} /> : <Receive key={poId ?? "none"} po={orders.find((o) => o.id === poId) ?? null} orders={orders} catalogue={catalogue} suppliers={suppliers} ocr={ocr} today={today} />}
+        options={[{ value: "po", label: "Purchase orders" }, { value: "receive", label: `Receive invoice (GRN)${scans.length ? ` · ${scans.length} to review` : ""}` }]} />
+      {tab === "po" ? <Orders orders={orders} catalogue={catalogue} suppliers={suppliers} grns={grns} /> : <Receive key={poId ?? "none"} po={orders.find((o) => o.id === poId) ?? null} orders={orders} catalogue={catalogue} suppliers={suppliers} scans={scans} ocr={ocr} today={today} />}
     </div>
   );
 }
@@ -45,7 +46,13 @@ function Orders({ orders, catalogue, suppliers, grns }: { orders: Order[]; catal
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [, start] = useTransition();
-  const act = (id: string, a: "place" | "cancel") => start(async () => { const r = await poStatusAction(id, a); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); });
+  const act = (id: string, a: "place" | "cancel" | "close", reason = "") => start(async () => { const r = await poStatusAction(id, a, reason); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); });
+  const withReason = (o: Order, a: "cancel" | "close") => {
+    const reason = prompt(a === "cancel" ? `Cancel ${o.no}? Enter the reason:` : `Close ${o.no} short? Lines not yet delivered can’t be received against it any more. Enter the reason:`, "");
+    if (reason === null) return;
+    if (reason.trim().length < 3) return toast("Enter a reason.", "red");
+    act(o.id, a, reason);
+  };
   return (
     <>
       <div className="flex justify-end"><Button variant="primary" onClick={() => setCreating(true)} disabled={!suppliers.length || !catalogue.length} title={!suppliers.length ? "Add a supplier first" : !catalogue.length ? "Add medicines first" : ""}><Plus size={16} />New purchase order</Button></div>
@@ -69,12 +76,14 @@ function Orders({ orders, catalogue, suppliers, grns }: { orders: Order[]; catal
                           {o.status === "draft" ? <Button size="sm" variant="primary" onClick={() => act(o.id, "place")}>Place order</Button> : null}
                           {o.status === "ordered" || o.status === "partially_received" ? <Button size="sm" variant="primary" onClick={() => router.push(`/app/purchases?tab=receive&po=${o.id}`)}>Receive</Button> : null}
                           {o.status !== "draft" && o.status !== "cancelled" ? <Button size="sm" aria-label="Print" onClick={() => window.open(`/print/po/${o.id}`, "_blank", "noopener")}><Printer size={13} /></Button> : null}
-                          {o.status === "draft" || o.status === "ordered" ? <Button size="sm" variant="danger-outline" onClick={() => { if (confirm(`Cancel ${o.no}?`)) act(o.id, "cancel"); }}>Cancel</Button> : null}
+                          {o.status === "partially_received" ? <Button size="sm" onClick={() => withReason(o, "close")}>Close short</Button> : null}
+                          {o.status === "draft" || o.status === "ordered" ? <Button size="sm" variant="danger-outline" onClick={() => withReason(o, "cancel")}>Cancel</Button> : null}
                         </div>
                       </td>
                     </tr>
                     {isOpen ? (
                       <tr><td colSpan={8} className="bg-subtle px-10 py-2 border-b border-row">
+                        {o.closedReason ? <div className="text-[12.5px] text-muted pb-1">{o.status === "closed" ? "Closed short" : "Cancelled"}: {o.closedReason}</div> : null}
                         {o.items.map((i) => (
                           <div key={i.id} className="grid grid-cols-[minmax(0,1fr)_100px_110px_140px] gap-3 py-1 text-[13px]">
                             <span>{i.name}</span><span className="tnum text-right">{i.qty} × {inr(i.rate)}</span><span className="tnum text-right">{inr(i.qty * i.rate)}</span>
@@ -145,7 +154,7 @@ function NewPo({ open, onClose, catalogue, suppliers }: { open: boolean; onClose
 type RLine = { key: string; medicineId: string; batchNo: string; expiry: string; qty: string; freeQty: string; rate: string; mrp: string; poItemId: string | null; text?: string; confidence?: number; verified: boolean };
 const blank = (): RLine => ({ key: crypto.randomUUID(), medicineId: "", batchNo: "", expiry: "", qty: "", freeQty: "", rate: "", mrp: "", poItemId: null, verified: false });
 
-function Receive({ po, orders, catalogue, suppliers, ocr, today }: { po: Order | null; orders: Order[]; catalogue: Cat[]; suppliers: Sup[]; ocr: boolean; today: string }) {
+function Receive({ po, orders, catalogue, suppliers, scans, ocr, today }: { po: Order | null; orders: Order[]; catalogue: Cat[]; suppliers: Sup[]; scans: Scan[]; ocr: boolean; today: string }) {
   const toast = useToast();
   const router = useRouter();
   const [sup, setSup] = useState(po?.supplierId ?? ""), [poId, setPoId] = useState(po?.id ?? "");
@@ -185,14 +194,25 @@ function Receive({ po, orders, catalogue, suppliers, ocr, today }: { po: Order |
     setUploading(false);
     if (!r.ok) return toast(r.error, "red");
     setDoc({ id: r.data.id, mime: r.data.mime, name: r.data.name });
-    const x = r.data.extracted;
-    if (x) {
-      if (x.invoiceNo) setInv(x.invoiceNo);
-      if (x.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(x.invoiceDate)) setDate(x.invoiceDate);
-      if (x.total) setStated(String(x.total));
+    if (r.data.extracted) applyExtracted(r.data.extracted);
+    else if (r.data.ocrError) toast(`OCR failed: ${r.data.ocrError} Enter the lines by hand.`, "amber");
+  };
+  const applyExtracted = (x: NonNullable<Scan["extracted"]>) => {
+    if (!x.lines?.length && !x.invoiceNo) return;
+    if (x.invoiceNo) setInv(x.invoiceNo);
+    if (x.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(x.invoiceDate)) setDate(x.invoiceDate);
+    if (x.total) setStated(String(x.total));
+    if (x.lines?.length) {
       setLines(x.lines.map((l) => ({ ...blank(), medicineId: l.medicineId ?? "", batchNo: (l.batch ?? "").toUpperCase(), expiry: l.expiry?.slice(0, 7) ?? "", qty: l.qty ? String(l.qty) : "", freeQty: l.freeQty ? String(l.freeQty) : "", rate: l.rate ? String(l.rate) : "", mrp: l.mrp ? String(l.mrp) : "", text: l.text, confidence: l.confidence })));
       toast(`Extracted ${x.lines.length} lines. Check every flagged line against the invoice.`, "blue");
-    } else if (r.data.ocrError) toast(`OCR failed: ${r.data.ocrError} Enter the lines by hand.`, "amber");
+    }
+  };
+  const resume = (s: Scan) => { setDoc({ id: s.id, mime: s.mime, name: s.name }); if (s.extracted) applyExtracted(s.extracted); };
+  const discard = (s: Scan) => {
+    const reason = prompt(`Discard ${s.name}? It leaves the review queue (the file is kept for audit). Reason:`, "");
+    if (reason === null) return;
+    if (reason.trim().length < 3) return toast("Enter a reason.", "red");
+    start(async () => { const r = await discardScanAction(s.id, reason); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok && doc?.id === s.id) setDoc(null); });
   };
 
   const approve = () => start(async () => {
@@ -237,6 +257,19 @@ function Receive({ po, orders, catalogue, suppliers, ocr, today }: { po: Order |
             </label>
           )}
           <span className="text-[11.5px] text-faint">Optional, but keeping the invoice with the GRN helps audits.</span>
+          {doc ? <Button size="sm" variant="danger-outline" className="self-start" disabled={pending} onClick={() => discard({ id: doc.id, name: doc.name, mime: doc.mime, at: "", by: "", extracted: null })}>Discard this invoice</Button> : null}
+          {!doc && scans.length ? (
+            <div className="flex flex-col gap-1 border-t border-row pt-2">
+              <span className="text-[12.5px] font-semibold">Uploaded, awaiting review ({scans.length})</span>
+              {scans.map((s) => (
+                <div key={s.id} className="flex items-center gap-2 text-[12.5px]">
+                  <span className="flex-1 min-w-0 truncate" title={s.name}>{s.name} <span className="text-faint">· {dayMonth(new Date(s.at))}{s.by ? ` · ${s.by}` : ""}</span></span>
+                  <Button size="sm" onClick={() => resume(s)}>Open</Button>
+                  <Button size="sm" variant="ghost" disabled={pending} onClick={() => discard(s)} aria-label={`Discard ${s.name}`}><Trash2 size={13} /></Button>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className={wrap + " overflow-auto"}>
