@@ -8,7 +8,7 @@
 - **No default credentials.** The setup wizard creates the owner.
 
 ## Authorisation
-- Permission keys (sale, disc, credit, refund, adjust, purchase, payments, reports, users, integrations, aiAct), assigned per role and overridable per user.
+- Permission keys (sale, disc, credit, refund, adjust, purchase, payments, reports, users, integrations, aiAct), assigned per role and overridable per user: the owner or a user manager can allow or withhold single permissions for one person on top of their role (Users → shield icon). Effective permissions = role ∪ grants − revokes, computed on every request; only the owner can grant `users` or `integrations`; the owner's own permissions are locked; every change is audited. "View as" still only narrows.
 - Every service call runs through `authorize(ctx, perm, {tenantId, branchId})`. Tenant and branch filters are applied in the repository layer, and PostgreSQL row-level security policies add a second layer.
 
 ## Input & output
