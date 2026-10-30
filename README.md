@@ -31,7 +31,7 @@ pnpm lint && pnpm typecheck
 | Desktop app (`desktop/`) | Tauri app for Windows, macOS and Linux that opens your Medoro server in its own window (it stores only the server address). Installers are built by the "Desktop app" GitHub workflow; tag `desktop-vX.Y.Z` to draft a release |
 | App shell | Permission-filtered nav with live badges, branch switcher, EN/हिंदी, "View as" role preview (narrows only), sessions & revoke |
 | Dashboard | KPIs, 14-day sales, collections, insights, low stock, expiring batches, branch performance, backup status, activity |
-| Billing (POS) | FEFO batches, Rx prescriber rule, discount caps, split payments, credit limits, held carts, idempotent commit, thermal/A4 invoices, WhatsApp send |
+| Billing (POS) | FEFO batches, Rx prescriber rule, discount caps, split payments, credit limits, loyalty points (earn and redeem), held carts, idempotent commit, thermal/A4 invoices, WhatsApp send |
 | Returns & shift | Returns against invoices (restock or damaged), credit notes, refund modes, shift open/close with cash difference posted |
 | Data import | Medicines with opening stock, suppliers and customers from Excel (.xlsx) or CSV. Every row is checked first with a reason for each problem; nothing is saved until all rows pass; re-running a file skips what's already there |
 | Inventory | Batches, receive stock (opening stock posts to Inventory against Opening balance equity), per-batch actions (stock adjustment +/− with reason, write-off, return to supplier, transfer request, quarantine/release), a Transfers tab to approve/receive/reject/cancel inter-branch transfers, movement ledger, stock count, recalls with one-click supplier return, expiry prevention |
@@ -39,7 +39,8 @@ pnpm lint && pnpm typecheck
 | Purchases | POs (place, cancel or close short with a reason), supplier invoice review with a queue of uploaded invoices to open or discard (manual entry; remote OCR optional), GRN with totals check, IGST for out-of-state suppliers |
 | Suppliers & customers | Balances, payments, ledger statements for any date range (screen, print, CSV), delivery accuracy from POs vs GRNs, credit limits |
 | Accounting & reports | P&L, day book, account ledger with running balance, trial balance, expenses, reversals (never edits), GST summary with CGST/SGST/IGST, ten CSV reports for your CA |
-| WhatsApp & messaging | Your own Meta Cloud API credentials, invoice template sends with delivery status, signed webhook, STOP opt-outs, refill reminders and consent-gated campaigns |
+| WhatsApp & messaging | Meta Embedded Signup (or pasted credentials), invoice PDF or link sends with delivery status, retry worker with backoff, invalid-number and revoked-token handling, signed webhook, STOP opt-outs, refill, feedback and payment reminders, store updates and campaigns, SMS fallback (MSG91/Twilio/HTTP with DLT templates), credit notes on WhatsApp |
+| Loyalty | Points per ₹100 paid, redemption at Billing as a tender, proportional reversal on returns and voids, expiry, history on the customer, points on the receipt |
 | Backup & restore | Encrypted backups (AES-256-GCM, recovery-kit key), verification, Google Drive upload, daily schedule with retries. Full restore: loads into a test copy first, shows backup vs live, takes a safety backup, then swaps in one transaction after the owner types the pharmacy code |
 | Users & branches | Roles matrix, invites, PIN/password resets, branch management, transfers overview, audit trail with chain verification |
 | Sync, subscription, privacy | Devices, offline counters and bills, plan status, full data export, customer erasure, strict mode |
