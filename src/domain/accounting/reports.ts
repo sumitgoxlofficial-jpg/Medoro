@@ -93,9 +93,9 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
   const T = ctx.tenantId;
   switch (id) {
     case "sales-register": {
-      const s = await db.sale.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, include: { customer: { select: { name: true } } }, orderBy: { at: "asc" } });
-      return [["Invoice", "Date", "Customer", "MRP total", "Discount", "Taxable", "CGST", "SGST", "Round off", "Total", "Mode", "Prescriber"],
-        ...s.map((x) => [x.invoiceNo, ist(x.at), x.customer?.name ?? "Walk-in", r2(big(x.subtotalPaise)), r2(big(x.discountPaise)), r2(big(x.taxablePaise)), r2(big(x.cgstPaise)), r2(big(x.sgstPaise)), r2(big(x.roundOffPaise)), r2(big(x.totalPaise)), x.payMode, x.prescriber])];
+      const s = await db.sale.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, include: { customer: { select: { name: true } }, voided: { select: { id: true } } }, orderBy: { at: "asc" } });
+      return [["Invoice", "Date", "Customer", "MRP total", "Discount", "Taxable", "CGST", "SGST", "Round off", "Total", "Mode", "Prescriber", "Status"],
+        ...s.map((x) => [x.invoiceNo, ist(x.at), x.customer?.name ?? "Walk-in", r2(big(x.subtotalPaise)), r2(big(x.discountPaise)), r2(big(x.taxablePaise)), r2(big(x.cgstPaise)), r2(big(x.sgstPaise)), r2(big(x.roundOffPaise)), r2(big(x.totalPaise)), x.payMode, x.prescriber, x.voided ? "Void" : ""])];
     }
     case "stock-valuation": {
       const b = await db.batch.findMany({ where: { tenantId: T, branchId: B, qtyAvailable: { gt: 0 } }, include: { medicine: true }, orderBy: [{ medicine: { name: "asc" } }, { expiryDate: "asc" }] });

@@ -29,6 +29,9 @@ Uses the **official Meta WhatsApp Business Platform (Cloud API)** only. Unoffici
 ## Auto-send
 Optional, off by default. It sends only when the customer has recorded opt-in consent and an approved template exists.
 
+## Refill reminders and feedback requests
+Turned on under Customer messaging, each with its own approved template (body variables: refill `{{1}}` first name, `{{2}}` medicine, `{{3}}` due date; feedback `{{1}}` first name, `{{2}}` invoice number; a template with fewer variables gets the first ones). The scheduler (`/api/cron/tick`) sends refill reminders once a day per pharmacy from 10:00 IST to opted-in customers due within 2 days (or up to a week overdue): one message per customer per day and one per refill cycle (`refill:<customer>:<medicine>:<last purchase>`). Feedback requests go the chosen number of hours after a sale, once per sale (`fb:<sale>`) and at most once in 30 days per customer, never for voided bills. Both are logged as `wa_messages` with delivery status; failed ones are retried on later runs, up to 3 attempts. "Send due now" runs the refill reminders immediately.
+
 ## Privacy
 The message body excludes prescriber and diagnosis details. Opt-outs ("STOP") are honoured automatically and recorded.
 

@@ -4,7 +4,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
-import { daysTo, fiscalYear, startOfTodayIST } from "@/lib/dates";
+import { daysTo, fiscalYear, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big, inr, shareOf } from "@/lib/money";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
@@ -25,24 +25,29 @@ export async function lockOpenShift(tx: Tx, ctx: Ctx) {
   return rows.length ? s : null;
 }
 
+/** Whether a sale can still be voided: same day (India time), not voided, nothing returned yet. */
+export const voidable = (s: { at: Date; voided?: unknown; items: { returnedQty: number }[] }) =>
+  !s.voided && todayISO(s.at) === todayISO() && s.items.every((i) => i.returnedQty === 0);
+
 export async function recentInvoices(ctx: Ctx, q: string) {
   const term = q.trim();
   const rows = await db.sale.findMany({
     where: { tenantId: ctx.tenantId, branchId: ctx.branchId, ...(term ? { OR: [{ invoiceNo: { contains: term, mode: "insensitive" } }, { customer: { name: { contains: term, mode: "insensitive" } } }] } : {}) },
-    include: { customer: { select: { name: true } } }, orderBy: { at: "desc" }, take: 30,
+    include: { customer: { select: { name: true } }, voided: { select: { id: true } } }, orderBy: { at: "desc" }, take: 30,
   });
-  return rows.map((s) => ({ id: s.id, no: s.invoiceNo, at: s.at.toISOString(), customer: s.customer?.name ?? "Walk-in", total: big(s.totalPaise) }));
+  return rows.map((s) => ({ id: s.id, no: s.invoiceNo, at: s.at.toISOString(), customer: s.customer?.name ?? "Walk-in", total: big(s.totalPaise), voided: !!s.voided }));
 }
 
 export async function returnableLines(ctx: Ctx, saleId: string) {
-  const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, customer: true } });
+  const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, customer: true, voided: true } });
   if (!s) return null;
   const [meds, batches] = await Promise.all([
     db.medicine.findMany({ where: { id: { in: s.items.map((i) => i.medicineId) } }, select: { id: true, name: true } }),
     db.batch.findMany({ where: { id: { in: s.items.map((i) => i.batchId) } }, select: { id: true, batchNo: true, expiryDate: true } }),
   ]);
   return {
-    id: s.id, no: s.invoiceNo, customer: s.customer?.name ?? null, payMode: s.payMode, hasCustomer: !!s.customerId,
+    id: s.id, no: s.invoiceNo, customer: s.customer?.name ?? null, payMode: s.payMode, hasCustomer: !!s.customerId, total: big(s.totalPaise),
+    voided: s.voided ? { at: s.voided.at.toISOString(), reason: s.voided.reason } : null, canVoid: voidable(s),
     lines: s.items.map((i) => {
       const b = batches.find((x) => x.id === i.batchId)!;
       return { itemId: i.id, name: meds.find((m) => m.id === i.medicineId)!.name, batchNo: b.batchNo, expired: daysTo(b.expiryDate) <= 0, sold: i.qty, returned: i.returnedQty, unitNet: (big(i.mrpPaise) * i.qty - big(i.discountPaise)) / i.qty };
@@ -59,8 +64,9 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput) {
   return db.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "SaleItem" WHERE "saleId" = ${i.saleId} FOR UPDATE`;
     if (!rows.length) throw new UserError("Invoice not found.");
-    const sale = await tx.sale.findFirst({ where: { id: i.saleId, tenantId: ctx.tenantId }, include: { items: true, customer: true } });
+    const sale = await tx.sale.findFirst({ where: { id: i.saleId, tenantId: ctx.tenantId }, include: { items: true, customer: true, voided: true } });
     if (!sale) throw new UserError("Invoice not found.");
+    if (sale.voided) throw new UserError(`${sale.invoiceNo} was voided; nothing is left to return.`);
     if (sale.branchId !== ctx.branchId) throw new UserError("Process returns at the branch that made the sale.");
     if (i.refundMode === "Adjust customer credit" && !sale.customerId) throw new UserError("Walk-in sales can’t be refunded to customer credit.");
     // Credit sales are always settled against the customer's balance.
@@ -99,26 +105,54 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput) {
       lines: [{ account: ACC.salesReturns, dr: taxable }, { account: ACC.cgst, dr: half }, { account: ACC.sgst, dr: tax - half }, credit],
     });
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Refund processed ${cn}`, entity: "sales_return", entityId: ret.id, detail: `${sale.invoiceNo} · ${inr(refund)} · ${mode} · ${i.condition}` });
-    return { creditNote: cn, amount: refund, mode };
+    return { id: ret.id, creditNote: cn, amount: refund, mode };
   });
 }
+
+/** Everything needed to print a credit note. GST totals come from its voucher, so they match the books. */
+export async function creditNoteData(ctx: Ctx, id: string) {
+  const r = await db.salesReturn.findFirst({ where: { id, tenantId: ctx.tenantId } });
+  if (!r) return null;
+  const [sale, branch, tenant, user, voucher] = await Promise.all([
+    db.sale.findUniqueOrThrow({ where: { id: r.saleId }, include: { customer: true, items: true } }),
+    db.branch.findUniqueOrThrow({ where: { id: r.branchId } }),
+    db.tenant.findUniqueOrThrow({ where: { id: r.tenantId } }),
+    db.user.findUnique({ where: { id: r.userId }, select: { name: true } }),
+    db.voucher.findFirst({ where: { tenantId: r.tenantId, refType: "sales_return", refId: r.id }, include: { lines: true } }),
+  ]);
+  const meds = await db.medicine.findMany({ where: { id: { in: sale.items.map((i) => i.medicineId) } }, select: { id: true, hsn: true } });
+  const sum = (acc: string) => (voucher?.lines ?? []).filter((l) => l.account === acc).reduce((a, l) => a + big(l.debitPaise), 0);
+  const lines = (r.lines as { itemId: string; name: string; batchNo: string; qty: number; amount: number; restocked: boolean }[]).map((l) => {
+    const it = sale.items.find((x) => x.id === l.itemId);
+    return { name: l.name, batchNo: l.batchNo, qty: l.qty, amount: l.amount, restocked: l.restocked, gstRate: it?.gstRate ?? 0, hsn: meds.find((m) => m.id === it?.medicineId)?.hsn ?? "" };
+  });
+  return {
+    id: r.id, no: r.creditNoteNo, at: r.at.toISOString(), reason: r.reason, condition: r.condition, refundMode: r.refundMode, by: user?.name ?? "",
+    invoiceNo: sale.invoiceNo, invoiceAt: sale.at.toISOString(),
+    pharmacy: { name: tenant.name, legalName: tenant.legalName, gstin: branch.gstin ?? tenant.gstin, address: branch.address, dl: branch.drugLicence },
+    customer: sale.customer ? { name: sale.customer.name, phone: sale.customer.phone } : null,
+    lines, totals: { taxable: sum(ACC.salesReturns), cgst: sum(ACC.cgst), sgst: sum(ACC.sgst), total: big(r.amountPaise) },
+  };
+}
+export type CreditNote = NonNullable<Awaited<ReturnType<typeof creditNoteData>>>;
 
 export async function todaysCreditNotes(ctx: Ctx) {
   const rows = await db.salesReturn.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: startOfTodayIST() } }, orderBy: { at: "desc" } });
   const sales = await db.sale.findMany({ where: { id: { in: rows.map((r) => r.saleId) } }, include: { customer: { select: { name: true } } } });
-  return rows.map((r) => { const s = sales.find((x) => x.id === r.saleId); return { no: r.creditNoteNo, invoice: s?.invoiceNo ?? "", customer: s?.customer?.name ?? "Walk-in", reason: r.reason, mode: r.refundMode, amount: big(r.amountPaise) }; });
+  return rows.map((r) => { const s = sales.find((x) => x.id === r.saleId); return { id: r.id, no: r.creditNoteNo, invoice: s?.invoiceNo ?? "", customer: s?.customer?.name ?? "Walk-in", reason: r.reason, mode: r.refundMode, amount: big(r.amountPaise) }; });
 }
 
 // ───────────── Shifts ─────────────
 
 async function expected(shift: { id: string; openingPaise: bigint; openedAt: Date; openedBy: string; branchId: string; tenantId: string }, q: Tx = db) {
-  const [cashSales, refunds, expenses] = await Promise.all([
+  const [cashSales, refunds, voids, expenses] = await Promise.all([
     q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(p."amountPaise") s FROM "Payment" p JOIN "Sale" x ON x.id = p."saleId" WHERE x."shiftId" = ${shift.id} AND p.mode = 'cash'`,
     q.salesReturn.aggregate({ where: { shiftId: shift.id, refundMode: "Cash" }, _sum: { amountPaise: true } }),
+    q.saleVoid.aggregate({ where: { shiftId: shift.id }, _sum: { cashRefundPaise: true } }),
     q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(l."creditPaise") s FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId"
       WHERE v."tenantId" = ${shift.tenantId} AND v."branchId" = ${shift.branchId} AND v."refType" = 'expense' AND v."postedBy" = ${shift.openedBy} AND v."postedAt" >= ${shift.openedAt} AND l.account = ${ACC.cash}`,
   ]);
-  const open = big(shift.openingPaise), cash = Number(cashSales[0]?.s ?? 0), ref = big(refunds._sum.amountPaise), exp = Number(expenses[0]?.s ?? 0);
+  const open = big(shift.openingPaise), cash = Number(cashSales[0]?.s ?? 0), ref = big(refunds._sum.amountPaise) + big(voids._sum.cashRefundPaise), exp = Number(expenses[0]?.s ?? 0);
   return { open, cash, refunds: ref, expenses: exp, expected: open + cash - ref - exp };
 }
 

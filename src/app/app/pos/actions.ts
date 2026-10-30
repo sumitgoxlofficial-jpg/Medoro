@@ -6,6 +6,8 @@ import { commitSale, createCustomer, heldCart, holdCart, invoiceData, listHeld, 
 import type { CustomerInput, SaleInput } from "@/domain/sales/contracts";
 import { saleMessage, sendInvoice, waSettings } from "@/domain/comms/whatsapp";
 import { db } from "@/server/db";
+import type { z } from "zod";
+import { approveDiscount, type approvalSchema } from "@/domain/sales/approval";
 
 export async function searchAction(q: string) {
   const ctx = await getCtx();
@@ -43,6 +45,10 @@ export async function invoiceAction(id: string) {
 
 export async function addCustomerAction(input: CustomerInput) {
   return run(async (ctx) => { const id = await createCustomer(ctx, input); return { id, customers: await posCustomers(ctx) }; }, "Customer added.");
+}
+
+export async function approveDiscountAction(input: z.input<typeof approvalSchema>) {
+  return run((ctx) => approveDiscount(ctx, input));
 }
 
 export async function holdAction(label: string, cart: unknown) {

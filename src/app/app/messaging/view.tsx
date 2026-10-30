@@ -4,20 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { dayMonth } from "@/lib/dates";
-import type { listCampaigns, optOuts, refillReminders } from "@/domain/comms/crm";
-import { crmAction, draftAction, sendAction } from "./actions";
+import type { CrmSettings, listCampaigns, optOuts, refillReminders } from "@/domain/comms/crm";
+import { crmAction, draftAction, sendAction, sendRefillsAction } from "./actions";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
+const sel = "border border-input rounded-lg px-2 py-1.5 text-[13px] bg-white";
 
 export function CrmView({ s, reminders, campaigns, outs, counts, templates, connected }: {
-  s: { refill: boolean; feedback: boolean }; reminders: Awaited<ReturnType<typeof refillReminders>>; campaigns: Awaited<ReturnType<typeof listCampaigns>>;
+  s: CrmSettings; reminders: Awaited<ReturnType<typeof refillReminders>>; campaigns: Awaited<ReturnType<typeof listCampaigns>>;
   outs: Awaited<ReturnType<typeof optOuts>>; counts: { opted: number; all: number }; templates: string[]; connected: boolean;
 }) {
   const toast = useToast();
   const [pending, start] = useTransition();
   const [p, setP] = useState(s);
   const [name, setName] = useState(""), [tpl, setTpl] = useState(templates[0] ?? "");
-  const toggle = (k: "refill" | "feedback", v: boolean) => { setP({ ...p, [k]: v }); start(async () => { const r = await crmAction({ [k]: v }); if (!r.ok) toast(r.error, "red"); }); };
+  const save = (patch: Partial<CrmSettings>) => { setP({ ...p, ...patch }); start(async () => { const r = await crmAction(patch); if (!r.ok) toast(r.error, "red"); }); };
+  const toggle = (k: "refill" | "feedback", v: boolean) => save({ [k]: v });
+  const tplOptions = (cur: string) => [...new Set([cur, ...templates])].map((x) => <option key={x} value={x}>{x}{templates.includes(x) ? "" : " (not approved)"}</option>);
+  const sendRefills = () => start(async () => {
+    const r = await sendRefillsAction();
+    if (!r.ok) return toast(r.error, "red");
+    toast(r.data.sent || r.data.failed ? `Refill reminders: ${r.data.sent} sent${r.data.failed ? `, ${r.data.failed} failed` : ""}.` : "No reminders due that haven’t been sent already.", r.data.failed && !r.data.sent ? "red" : "green");
+  });
   // The server sends in time-boxed runs and skips recipients already handled, so repeating finishes (or resumes) it.
   const send = (c: { id: string; name: string; audience: number; status: string }) => {
     if (!confirm(c.status === "draft" ? `Send “${c.name}” to ${c.audience} opted-in customers?` : `Resume “${c.name}”? Customers who already got it are skipped.`)) return;
@@ -38,18 +46,33 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
       <div className="flex flex-col gap-4">
         <div className={card}>
           <div className="flex items-baseline justify-between"><div className="font-semibold text-[15px]">Programs</div><span className="text-[12.5px] text-muted">{counts.opted} of {counts.all} customers opted in</span></div>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={p.refill} onChange={(e) => toggle("refill", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Refill reminders</span><span className="text-[12.5px] text-muted">Based only on how often a customer buys an item. Medoro does not infer conditions or target by health.</span></span></label>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={p.refill} onChange={(e) => toggle("refill", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Refill reminders</span><span className="text-[12.5px] text-muted">Based only on how often a customer buys an item. Medoro does not infer conditions or target by health. Sent once a day from 10:00, once per refill.</span></span></label>
+          {p.refill ? (
+            <div className="flex gap-2 items-center flex-wrap pl-7 text-[12.5px] text-muted">
+              Template <select value={p.refillTemplate} onChange={(e) => save({ refillTemplate: e.target.value })} aria-label="Refill template" className={sel}>{tplOptions(p.refillTemplate)}</select>
+              <span className="text-faint">{"{{1}}"} name · {"{{2}}"} medicine · {"{{3}}"} due date</span>
+            </div>
+          ) : null}
           <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={p.feedback} onChange={(e) => toggle("feedback", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Feedback request</span><span className="text-[12.5px] text-muted">One message after a purchase, at most once a month per customer.</span></span></label>
+          {p.feedback ? (
+            <div className="flex gap-2 items-center flex-wrap pl-7 text-[12.5px] text-muted">
+              Template <select value={p.feedbackTemplate} onChange={(e) => save({ feedbackTemplate: e.target.value })} aria-label="Feedback template" className={sel}>{tplOptions(p.feedbackTemplate)}</select>
+              <select value={p.feedbackHours} onChange={(e) => save({ feedbackHours: Number(e.target.value) })} aria-label="Hours after purchase" className={sel}>{[1, 2, 4, 8, 24, 48].map((h) => <option key={h} value={h}>{h} h after purchase</option>)}</select>
+              <span className="text-faint">{"{{1}}"} name · {"{{2}}"} invoice no.</span>
+            </div>
+          ) : null}
         </div>
         {p.refill ? (
           <div className={card}>
-            <div className="font-semibold text-[15px]">Upcoming refill reminders</div>
+            <div className="flex items-center justify-between gap-2"><div className="font-semibold text-[15px]">Upcoming refill reminders</div>{connected ? <Button size="sm" disabled={pending} onClick={sendRefills}>Send due now</Button> : null}</div>
             {reminders.length ? reminders.map((r) => (
               <div key={r.customerId + r.medicine} className="flex flex-col py-1.5 border-b border-row last:border-0 text-[13.5px]">
-                <span><strong className="font-semibold">{r.customer}</strong> · {r.medicine} · <span style={{ color: r.inDays < 0 ? "#B3261E" : "#0B5E5B" }}>{r.inDays < 0 ? `${-r.inDays} d overdue` : r.inDays === 0 ? "today" : `in ${r.inDays} d`}</span></span>
+                <span className="flex gap-2 items-center flex-wrap"><span><strong className="font-semibold">{r.customer}</strong> · {r.medicine} · <span style={{ color: r.inDays < 0 ? "#B3261E" : "#0B5E5B" }}>{r.inDays < 0 ? `${-r.inDays} d overdue` : r.inDays === 0 ? "today" : `in ${r.inDays} d`}</span></span>
+                  {r.reminder ? <Badge tone={r.reminder === "failed" ? "red" : r.reminder === "queued" ? "amber" : "green"}>Reminder {r.reminder}</Badge> : null}</span>
                 <span className="text-[12px] text-faint">Buys about every {r.interval} days (last on {dayMonth(new Date(r.last + "T00:00:00Z"))})</span>
               </div>
             )) : <div className="text-[13px] text-fainter">Reminders appear when an opted-in customer has bought the same item at least twice and is due within a week.</div>}
+            <div className="text-[12px] text-faint">Reminders go to customers due within 2 days (or up to a week overdue), one message per customer a day.</div>
           </div>
         ) : null}
       </div>

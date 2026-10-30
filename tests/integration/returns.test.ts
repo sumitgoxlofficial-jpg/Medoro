@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale } from "@/domain/sales/service";
-import { closeShift, currentShift, openShift, processReturn } from "@/domain/sales/returns";
+import { closeShift, creditNoteData, currentShift, openShift, processReturn } from "@/domain/sales/returns";
 import { addDays, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -31,6 +31,11 @@ describe("returns and shifts", () => {
     const r1 = await processReturn(mgr, { saleId: s.saleId, lines: [{ itemId: item.id, qty: 1 }], condition: "sealed", refundMode: "Cash", reason: "Wrong item" });
     expect(r1.amount).toBe(13950); // net per unit after discount
     expect(r1.creditNote).toMatch(/^CN-\d{4}-0001$/);
+    const cn = await creditNoteData(mgr, r1.id);
+    expect(cn).toMatchObject({ no: r1.creditNote, invoiceNo: s.invoiceNo, refundMode: "Cash", lines: [{ name: "Pan 40", qty: 1, amount: 13950, gstRate: 12, restocked: true }] });
+    expect(cn!.totals.taxable + cn!.totals.cgst + cn!.totals.sgst).toBe(cn!.totals.total);
+    expect(cn!.totals.total).toBe(13950);
+    expect(await creditNoteData(await ctxFor("Manager", "Second"), "00000000-0000-0000-0000-000000000000")).toBeNull();
     expect((await db.batch.findUniqueOrThrow({ where: { id: batch } })).qtyAvailable).toBe(17);
     await processReturn(mgr, { saleId: s.saleId, lines: [{ itemId: item.id, qty: 1 }], condition: "damaged", refundMode: "Cash", reason: "Opened strip" });
     expect((await db.batch.findUniqueOrThrow({ where: { id: batch } })).qtyAvailable).toBe(17);

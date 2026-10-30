@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer, invoiceData } from "@/domain/sales/service";
+import { approveDiscount } from "@/domain/sales/approval";
+import { hashPassword } from "@/server/auth";
 import { addDays, todayISO, dateOnly } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -63,6 +65,10 @@ describe("sale commit", () => {
     expect(x.saleId).toBe(y.saleId);
     expect(await db.sale.count({ where: { idempotencyKey: s.idempotencyKey } })).toBe(1);
     expect((await db.batch.findUniqueOrThrow({ where: { id: late } })).qtyAvailable).toBe(9);
+    // A key kept after a network error and reused for another cart must not replay the first sale.
+    await expect(commitSale(ctx, { ...s, lines: [{ medicineId: dolo, batchId: late, qty: 2 }] })).rejects.toThrow(/already used/);
+    await expect(commitSale(ctx, { ...s, discountPct: 2 })).rejects.toThrow(/already used/);
+    expect((await commitSale(ctx, s)).replayed).toBe(true);
   });
 
   it("two counters racing for the last units: exactly one succeeds", async () => {
@@ -107,5 +113,34 @@ describe("sale commit", () => {
     await expect(db.sale.update({ where: { id: s.id }, data: { totalPaise: 1n } })).rejects.toThrow(/append-only/);
     const it = await db.saleItem.findFirstOrThrow({ where: { saleId: s.id } });
     await expect(db.saleItem.update({ where: { id: it.id }, data: { qty: 99 } })).rejects.toThrow(/returnedQty/);
+  });
+
+  it("a manager approves a discount above the cashier's cap with their PIN: once, for that cart only", async () => {
+    const t = await db.tenant.findFirstOrThrow();
+    const role = (name: string) => db.role.findFirstOrThrow({ where: { tenantId: t.id, name } });
+    await db.user.create({ data: { tenantId: t.id, name: "Meera Manager", employeeNo: "E-201", roleId: (await role("Manager")).id, pinHash: await hashPassword("4826") } });
+    await db.user.create({ data: { tenantId: t.id, name: "Kiran Cashier", employeeNo: "E-202", roleId: (await role("Cashier")).id, pinHash: await hashPassword("5937") } });
+    const ctx = await ctxFor("Cashier");
+    const b = (await receiveBatch(await ctxFor(), { medicineId: dolo, batchNo: "APP", expiry: addDays(todayISO(), 300), qty: 20, cost: "10", mrp: "33.60", supplierId: null, invoiceNo: "" })).batchId;
+    const lines = [{ medicineId: dolo, batchId: b, qty: 4 }];
+    await expect(commitSale(ctx, sale(lines, { discountPct: 15 }))).rejects.toThrow(/above 5% needs manager approval/);
+    await expect(approveDiscount(ctx, { approver: "E-201", secret: "1111", lines, discountPct: 15 })).rejects.toThrow(/Wrong ID or PIN.*4 attempts left/);
+    await expect(approveDiscount(ctx, { approver: "e-202", secret: "5937", lines, discountPct: 15 })).rejects.toThrow(/can’t approve/);
+    await expect(approveDiscount(ctx, { approver: "E-201", secret: "4826", lines, discountPct: 60 })).rejects.toThrow(/above 50% aren’t allowed/);
+    const a = await approveDiscount(ctx, { approver: "e-201", secret: "4826", lines, discountPct: 15 });
+    expect(a.approver).toBe("Meera Manager");
+
+    await expect(commitSale(ctx, sale([{ ...lines[0], qty: 5 }], { discountPct: 15, approval: a.token }))).rejects.toThrow(/cart changed/);
+    await expect(commitSale(ctx, sale(lines, { discountPct: 15, approval: "forged-token" }))).rejects.toThrow(/expired or was already used/);
+    const s = await commitSale(ctx, sale(lines, { discountPct: 15, approval: a.token }));
+    expect(s.total).toBe(11400); // 4 × 33.60 = 134.40, −15% = 114.24 → 114
+    expect(await db.discountApproval.findFirstOrThrow()).toMatchObject({ saleId: s.saleId, usedAt: expect.any(Date) });
+    expect((await db.auditEvent.findFirstOrThrow({ where: { entityId: s.saleId } })).detail).toMatch(/discount 15% approved by Meera Manager/);
+    expect(await db.auditEvent.count({ where: { action: "Discount approval refused" } })).toBe(2);
+    await expect(commitSale(ctx, sale(lines, { discountPct: 15, approval: a.token }))).rejects.toThrow(/already used/);
+    await expect(commitSale(await ctxFor(), sale(lines, { discountPct: 60 }))).rejects.toThrow(/above 50% aren’t allowed/);
+
+    for (let i = 0; i < 5; i++) await approveDiscount(ctx, { approver: "E-201", secret: "0000", lines, discountPct: 15 }).catch(() => {});
+    await expect(approveDiscount(ctx, { approver: "E-201", secret: "4826", lines, discountPct: 15 })).rejects.toThrow(/Too many wrong attempts/);
   });
 });

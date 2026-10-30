@@ -47,7 +47,7 @@ export async function outputGstByRate(tenantId: string, p: Period, branchIds: st
     db.$queryRaw<GstRow[]>`
       SELECT si."gstRate" rate, SUM(si."taxablePaise")::bigint taxable, SUM(si."mrpPaise" * si.qty - si."discountPaise" - si."taxablePaise")::bigint tax
       FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId"
-      WHERE s."tenantId" = ${tenantId} AND s.at >= ${p.from} AND s.at < ${p.to} ${inBranches(Prisma.sql`s."branchId"`, branchIds)} GROUP BY 1`,
+      WHERE s."tenantId" = ${tenantId} AND s.at >= ${p.from} AND s.at < ${p.to} AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id) ${inBranches(Prisma.sql`s."branchId"`, branchIds)} GROUP BY 1`,
     db.$queryRaw<GstRow[]>`
       SELECT x.rate, SUM(x.taxable)::bigint taxable, SUM(x.amount - x.taxable)::bigint tax FROM (
         SELECT si."gstRate" rate, (l->>'amount')::bigint amount, ROUND(si."taxablePaise"::numeric * (l->>'qty')::int / si.qty) taxable

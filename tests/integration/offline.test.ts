@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
-import { commitSale } from "@/domain/sales/service";
+import { commitSale, searchForSale } from "@/domain/sales/service";
 import { enableDevice, disableDevice, resolveOp, snapshot, syncOps, offlineOverview } from "@/domain/sales/offline";
 import { addDays, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
@@ -60,6 +60,8 @@ describe("offline billing", () => {
     const dev = (await db.device.findFirstOrThrow({ where: { name: "Counter 2" } })).id;
     // An online counter sells D1 down to 1 while Counter 2 is offline.
     await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: dolo, batchId: d1, qty: 6 }], customerId: null, discountPct: 0, pay: { mode: "cash" } });
+    // Counter 1 reconnects and refreshes, giving up its share of D1's last unit.
+    await snapshot(ctx, (await db.device.findFirstOrThrow({ where: { name: "Counter 1" } })).id);
     const short = op([{ medicineId: dolo, batchId: d1, qty: 3 }]);
     const tooOld = op([{ medicineId: dolo, batchId: d2, qty: 1 }], { createdAt: new Date(Date.now() - 9 * 86_400_000).toISOString() });
     const junk = { id: "nope" };
@@ -116,12 +118,56 @@ describe("offline billing", () => {
 
     const stranger = { ...op(line), cashierId: ravi.id };
     expect((await syncOps(syncer, dev, [stranger]))[0].message).toMatch(/can’t bill on this device/);
+
+    // A cashier can't borrow a manager's discount cap by putting the manager's id on the bill.
+    const mgrRole = await db.role.findFirstOrThrow({ where: { tenantId: t.id, name: "Manager" } });
+    const meera = await db.user.create({ data: { tenantId: t.id, name: "Meera", phone: "9850021879", roleId: mgrRole.id, employeeNo: "E-104" } });
+    await snapshot({ ...(await ctxFor("Manager")), userId: meera.id, userName: meera.name }, dev);
+    const asSneha = { ...(await ctxFor("Cashier")), userId: sneha.id, userName: sneha.name };
+    const forged = { ...op(line), cashierId: meera.id, sale: { ...op(line).sale, discountPct: 15 } };
+    expect((await syncOps(asSneha, dev, [forged]))[0]).toMatchObject({ status: "conflict", message: expect.stringMatching(/above 5%/) });
+    expect(await db.sale.count({ where: { idempotencyKey: forged.id } })).toBe(0);
+    expect((await resolveOp(syncer, forged.id, "repost")).status).toBe("posted");
+    expect((await db.sale.findFirstOrThrow({ where: { idempotencyKey: forged.id } })).userId).toBe(meera.id);
+    expect((await syncOps(syncer, dev, [{ ...op(line), cashierId: meera.id, sale: { ...op(line).sale, discountPct: 15 } }]))[0].status).toBe("posted");
+
     await db.user.update({ where: { id: sneha.id }, data: { active: false } });
     expect((await syncOps(syncer, dev, [{ ...op(line), cashierId: sneha.id }]))[0].status).toBe("conflict");
 
     const legacy = op(line);
     expect((await syncOps(syncer, dev, [legacy]))[0].status).toBe("posted");
     expect((await db.sale.findFirstOrThrow({ where: { idempotencyKey: legacy.id } })).userId).toBe(syncer.userId);
+  });
+
+  it("online sales leave offline counters' reserved stock alone; each device's own bills use its share", async () => {
+    const ctx = await ctxFor("Cashier");
+    const crocin = await createMedicine(await ctxFor(), { ...base, name: "Crocin Advance", generic: "Paracetamol", strength: "500 mg", mrp: "20" });
+    const c1 = (await receiveBatch(await ctxFor(), { medicineId: crocin, batchNo: "C1", expiry: addDays(todayISO(), 200), qty: 9, cost: "10", mrp: "20", supplierId: null, invoiceNo: "" })).batchId;
+    const [one, two] = await Promise.all(["Counter 1", "Counter 2"].map(async (n) => (await db.device.findFirstOrThrow({ where: { name: n } })).id));
+    expect((await snapshot(ctx, one)).batches.find((b) => b.id === c1)?.allowance).toBe(3);
+    await snapshot(ctx, two);
+    const online = (qty: number) => commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: crocin, batchId: c1, qty }], customerId: null, discountPct: 0, pay: { mode: "cash" } });
+    await expect(online(4)).rejects.toThrow(/only 3 of Crocin Advance \(C1\) left \(6 more kept for offline counters\)/);
+    await online(3);
+    expect((await syncOps(ctx, one, [op([{ medicineId: crocin, batchId: c1, qty: 3 }])]))[0].status).toBe("posted");
+    const q = (await db.device.findUniqueOrThrow({ where: { id: one } })).quota as { batches: Record<string, number> };
+    expect(q.batches[c1]).toBe(0);
+    await expect(online(1)).rejects.toThrow(/only 0 of Crocin/);
+    expect((await searchForSale(ctx, "Crocin"))[0].batches[0].qtyAvailable).toBe(0);
+    expect((await syncOps(ctx, two, [op([{ medicineId: crocin, batchId: c1, qty: 3 }])]))[0].status).toBe("posted");
+    expect((await db.batch.findUniqueOrThrow({ where: { id: c1 } })).qtyAvailable).toBe(0);
+
+    // C1 is sold out: a manager posts the Dolo on this bill and refunds the customer for the Crocin.
+    const mixed = op([{ medicineId: crocin, batchId: c1, qty: 2 }, { medicineId: dolo, batchId: d2, qty: 1 }], { totalPaise: 7400 });
+    expect((await syncOps(ctx, one, [mixed]))[0].message).toMatch(/only 0 of Crocin/);
+    const mgr = await ctxFor("Manager");
+    await expect(resolveOp(mgr, mixed.id, "repost")).rejects.toThrow(/Not enough sellable stock/);
+    const r = await resolveOp(mgr, mixed.id, "partial");
+    expect(r).toMatchObject({ status: "posted", refund: 4000 });
+    const items = await db.saleItem.findMany({ where: { sale: { idempotencyKey: mixed.id } } });
+    expect(items.map((i) => [i.medicineId, i.qty])).toEqual([[dolo, 1]]);
+    expect((await offlineOverview(mgr)).ops.find((x) => x.id === mixed.id)).toMatchObject({ status: "posted", resolution: expect.stringMatching(/Posted 1 of 3 units .* refund ₹40/) });
+    expect((await syncOps(ctx, one, [mixed]))[0].status).toBe("posted");
   });
 
   it("refuses a device that was turned off or belongs to another pharmacy", async () => {

@@ -516,6 +516,7 @@ model Sale {
   at             DateTime   @default(now())
   items          SaleItem[]
   payments       Payment[]
+  voided         SaleVoid?
 
   @@unique([tenantId, idempotencyKey])
   @@unique([tenantId, branchId, invoiceNo])
@@ -1017,4 +1018,41 @@ model FileObject {
   createdAt   DateTime @default(now())
 
   @@index([tenantId])
+}
+
+/// A same-day void of a whole sale. Append-only; the sale itself is never changed.
+model SaleVoid {
+  id              String   @id @default(uuid())
+  tenantId        String
+  branchId        String
+  saleId          String   @unique
+  sale            Sale     @relation(fields: [saleId], references: [id])
+  reason          String
+  userId          String
+  shiftId         String?
+  /// Refunds per payment mode: [{ mode, amountPaise }]
+  refunds         Json
+  cashRefundPaise BigInt   @default(0)
+  at              DateTime @default(now())
+
+  @@index([tenantId, branchId, at])
+}
+
+/// A manager's on-the-spot approval of a discount above the cashier's cap: single use, bound to the cart.
+model DiscountApproval {
+  id          String    @id @default(uuid())
+  tenantId    String
+  branchId    String
+  tokenHash   String    @unique
+  requestedBy String
+  approvedBy  String
+  discountPct Decimal
+  cartHash    String
+  totalPaise  BigInt
+  expiresAt   DateTime
+  usedAt      DateTime?
+  saleId      String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
 }
