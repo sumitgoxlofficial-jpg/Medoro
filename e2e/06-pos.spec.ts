@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { OWNER_STATE, addToCart, answerDialogs, completeSale, db, expectToast, importMedicines, monthsAhead, newSale, uid } from "./helpers";
+import { OWNER_STATE, addToCart, anonContext, createStaff, employeeLogin, state, answerDialogs, completeSale, db, expectToast, importMedicines, monthsAhead, newSale, uid } from "./helpers";
 
 /** Spec 6 · POS billing. */
 test.describe("POS", () => {
@@ -122,6 +122,45 @@ test.describe("POS", () => {
     await expect(chip).toHaveCount(0);
     await page.getByRole("button", { name: "Clear" }).click();
     await expect(page.getByText("Scan a barcode or search to start a bill")).toBeVisible();
+  });
+
+  test("a discount above the cashier's cap needs a manager's PIN at the counter", async ({ page, browser }) => {
+    const approver = await createStaff(browser, page, "Pharmacist", `Approver ${run}`);
+    const cashier = await createStaff(browser, page, "Cashier", `Till ${run}`);
+    const ctx = await anonContext(browser);
+    const p = await ctx.newPage();
+    await employeeLogin(p, state().tenantCode, cashier.employeeNo, cashier.pin);
+    await expect(p).toHaveURL(/\/app$/);
+    await p.goto("/app/pos");
+    await addToCart(p, otc);
+    await p.getByLabel("Discount percent").fill("60");
+    await expect(p.getByText("Discounts above 50% aren’t allowed.")).toBeVisible();
+    await p.getByLabel("Discount percent").fill("10");
+    await p.getByRole("button", { name: /^Complete sale/ }).click();
+    await expectToast(p, "Discount above 5% needs manager approval.");
+
+    await p.getByRole("button", { name: "Get manager approval for 10%" }).click();
+    const dlg = p.getByRole("dialog");
+    await dlg.getByLabel(/Manager’s employee ID/).fill(approver.employeeNo);
+    await dlg.getByLabel("Manager’s PIN or password").fill("1357");
+    await dlg.getByRole("button", { name: "Approve" }).click();
+    await expect(dlg.getByText(/Wrong ID or PIN\/password, or this person can’t approve discounts\. 4 attempts left\./)).toBeVisible();
+    await dlg.getByLabel("Manager’s PIN or password").fill(approver.pin);
+    await dlg.getByRole("button", { name: "Approve" }).click();
+    await expectToast(p, `Discount approved by ${approver.name}.`);
+    await expect(p.getByText(`Approved by ${approver.name} for this cart`)).toBeVisible();
+
+    // Changing the cart voids the approval.
+    await p.getByRole("button", { name: "Increase" }).click();
+    await expect(p.getByRole("button", { name: "Get manager approval for 10%" })).toBeVisible();
+    await p.getByRole("button", { name: "Decrease" }).click();
+    await expect(p.getByText(`Approved by ${approver.name} for this cart`)).toBeVisible();
+
+    const invoice = await completeSale(p);
+    const sale = await db().sale.findFirstOrThrow({ where: { invoiceNo: invoice } });
+    expect(Number(sale.discountPct)).toBe(10);
+    expect(await db().discountApproval.count({ where: { approvedBy: (await db().user.findFirstOrThrow({ where: { employeeNo: approver.employeeNo } })).id, usedAt: { not: null } } })).toBe(1);
+    await ctx.close();
   });
 
   test("double-clicking Complete posts the bill once", async ({ page }) => {

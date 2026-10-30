@@ -11,7 +11,7 @@ const STATE_FILE = path.join(AUTH_DIR, "state.json");
 
 export type SuiteState = {
   pharmacy: string; tenantCode: string; ownerName: string; ownerEmail: string; ownerPassword: string; totpSecret: string;
-  branches: string[]; recoveryKey: string;
+  branches: string[]; recoveryKey: string; recoveryCodes: string[];
 };
 
 export const OWNER = {
@@ -101,13 +101,24 @@ export async function ownerPasswordStep(page: Page, email: string, password: str
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-export async function enterTotp(page: Page, secret: string, trust = true) {
+/** Enters the current TOTP. On first enrolment the recovery codes screen follows; its codes are returned. */
+export async function enterTotp(page: Page, secret: string, trust = true): Promise<string[] | null> {
   await expect(page).toHaveURL(/\/signin\/mfa/);
   const box = page.getByLabel("Trust this counter PC for 30 days");
   if ((await box.isChecked()) !== trust) await box.click();
   await page.getByLabel("6-digit code").fill(totp(secret));
   await page.getByRole("button", { name: "Verify" }).click();
+  const save = page.getByText("Save your recovery codes");
+  await expect(save.or(page.getByRole("heading", { name: "Dashboard" }))).toBeVisible();
+  let codes: string[] | null = null;
+  if (await save.isVisible()) {
+    codes = (await page.locator("div.grid.font-mono > span").allInnerTexts()).map((c) => c.trim());
+    expect(codes).toHaveLength(10);
+    await page.getByLabel("I’ve saved these codes").check();
+    await page.getByRole("button", { name: "Continue" }).click();
+  }
   await expect(page).toHaveURL(/\/app$/);
+  return codes;
 }
 
 /** A fresh context signed in as the owner with password + TOTP (does not reuse the saved state). */

@@ -22,6 +22,7 @@ test("first-run setup wizard → MFA enrolment → dashboard", async ({ page }) 
 
   // ── 1. Pharmacy: required fields, GSTIN format, pharmacy code, then success
   await expect(page.getByText("Your pharmacy")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Restore from a backup instead/ })).toBeVisible();
   await page.getByLabel("Pharmacy name").fill(OWNER.pharmacy);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Pharmacy name and drug licence number are required.")).toBeVisible();
@@ -86,6 +87,7 @@ test("first-run setup wizard → MFA enrolment → dashboard", async ({ page }) 
 
   // ── 6. Recovery kit must be downloaded and acknowledged
   await expect(page.getByText("Backups & recovery kit")).toBeVisible();
+  await expect(page.getByText(/Google sign-in isn’t configured on this server/)).toBeVisible(); // Drive step is optional
   await page.getByRole("button", { name: "Finish setup" }).click();
   await expect(page.getByText("Download the recovery kit and confirm you stored it.")).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download & print" }).click()]);
@@ -114,14 +116,15 @@ test("first-run setup wizard → MFA enrolment → dashboard", async ({ page }) 
   await page.getByLabel("6-digit code").fill(totp(secret, Date.now() - 10 * 60_000)); // a stale code is refused
   await page.getByRole("button", { name: "Verify" }).click();
   await expect(page.getByText("Code did not match. Codes refresh every 30 seconds.")).toBeVisible();
-  await enterTotp(page, secret);
+  const recoveryCodes = await enterTotp(page, secret); // the recovery-codes screen follows enrolment
+  expect(recoveryCodes!.every((c) => /^[0-9a-z]{4}(-[0-9a-z]{4}){3}$/.test(c))).toBe(true);
 
   // ── Dashboard
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByText(OWNER.pharmacy).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Users & branches" })).toBeVisible();
 
-  saveState({ pharmacy: OWNER.pharmacy, tenantCode: OWNER.tenantCode, ownerName: OWNER.ownerName, ownerEmail: OWNER.ownerEmail, ownerPassword: OWNER.ownerPassword, totpSecret: secret, branches: OWNER.branches, recoveryKey });
+  saveState({ pharmacy: OWNER.pharmacy, tenantCode: OWNER.tenantCode, ownerName: OWNER.ownerName, ownerEmail: OWNER.ownerEmail, ownerPassword: OWNER.ownerPassword, totpSecret: secret, branches: OWNER.branches, recoveryKey, recoveryCodes: recoveryCodes! });
   await page.context().storageState({ path: OWNER_STATE });
 
   const t = await db().tenant.findUniqueOrThrow({ where: { code: OWNER.tenantCode }, include: { branches: true } });

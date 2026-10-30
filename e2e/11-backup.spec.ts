@@ -28,7 +28,7 @@ test("create backup, verify it, restore to a test copy", async ({ page }) => {
   await expectToast(page, "Test copy ready. Review it at the top of the page.");
   const panel = page.locator("section").filter({ hasText: "Restore ready to review" });
   await expect(panel).toBeVisible();
-  await expect(panel.getByText("In the backup")).toBeVisible();
+  await expect(panel.getByRole("columnheader", { name: "In the backup" })).toBeVisible();
   await expect(panel.getByRole("button", { name: "Restore this backup" })).toBeDisabled();
   await panel.getByLabel("Pharmacy code").fill(t.code);
   await expect(panel.getByRole("button", { name: "Restore this backup" })).toBeEnabled();

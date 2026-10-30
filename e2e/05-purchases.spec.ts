@@ -11,7 +11,7 @@ test("PO → place → GRN against PO with totals check → supplier payment", a
   await page.getByRole("button", { name: "Add supplier" }).first().click();
   let dlg = page.getByRole("dialog");
   await dlg.getByLabel("Name *").fill(supplier);
-  await dlg.getByLabel("GSTIN").fill("27AABCM1234F1Z5");
+  await dlg.getByRole("textbox", { name: "GSTIN" }).fill("27AABCM1234F1Z5");
   await dlg.getByLabel("Credit terms (days)").fill("15");
   await dlg.getByRole("button", { name: "Save supplier" }).click();
   await expectToast(page, "Supplier added.");
@@ -73,4 +73,17 @@ test("PO → place → GRN against PO with totals check → supplier payment", a
   await dlg.getByRole("button", { name: "Post voucher" }).click();
   await expectToast(page, /posted for ₹1,000\.00\./);
   await expect(rowOf(page, supplier)).toContainText("₹2,360");
+
+  // Supplier statement: GRN and payment as ledger lines, CSV and print versions.
+  await rowOf(page, supplier).getByRole("button", { name: "Statement" }).click();
+  await expect(page.getByRole("heading", { name: `Statement · ${supplier}` })).toBeVisible();
+  await expect(page.getByText(/^Closing \(.*\) ₹2,360\.40$/)).toBeVisible();
+  await expect(page.locator("tr").filter({ hasText: /GRN-/ }).first()).toContainText("₹3,360.40");
+  await expect(page.locator("tr").filter({ hasText: /₹1,000\.00/ }).first()).toBeVisible();
+  const csv = await page.request.get((await page.getByRole("link", { name: "CSV" }).getAttribute("href"))!);
+  expect(csv.status()).toBe(200);
+  expect(await csv.text()).toMatch(/3,?360\.40/);
+  const print = await page.request.get((await page.getByRole("link", { name: "Print" }).getAttribute("href"))!);
+  expect(print.status()).toBe(200);
+  expect(await print.text()).toContain(supplier);
 });
