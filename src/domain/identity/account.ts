@@ -35,13 +35,14 @@ async function checkCurrent(ctx: Ctx, hash: string | null, given: string, what: 
   await clearFailures(keys);
 }
 
-/** Saves the new secret and signs out the user's other devices. */
+/** Saves the new secret, signs out the user's other devices and voids trusted-PC cookies (token version bump). */
 async function saveCredential(ctx: Ctx, data: { passwordHash: string } | { pinHash: string }, action: string) {
   const { ip } = await clientInfo();
   await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: ctx.userId }, data });
+    const u = await tx.user.update({ where: { id: ctx.userId }, data: { ...data, tokenVersion: { increment: 1 } } });
+    await tx.session.update({ where: { id: ctx.sessionId }, data: { tokenVersion: u.tokenVersion } });
     await tx.session.updateMany({ where: { userId: ctx.userId, revokedAt: null, NOT: { id: ctx.sessionId } }, data: { revokedAt: new Date() } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action, entity: "user", entityId: ctx.userId, detail: "other devices signed out", ip });
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action, entity: "user", entityId: ctx.userId, detail: "other devices and trusted PCs signed out", ip });
   });
 }
 

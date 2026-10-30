@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { createHash } from "node:crypto";
 import { Secret, TOTP } from "otpauth";
 import { db } from "@/server/db";
-import { createSession, hashPassword, readSession, SESSION_COOKIE } from "@/server/auth";
+import { createSession, hashPassword, isTrustedDevice, readSession, SESSION_COOKIE, setTrustedDevice } from "@/server/auth";
 import { getCtx, type Ctx } from "@/server/context";
 import { openSecret } from "@/server/totp";
 import { resetJwksCache } from "@/server/google-oidc";
@@ -121,22 +121,38 @@ describe("account recovery, providers and Google sign-in", () => {
 
     await expect(changePassword(ctx, "not-my-password", "brand-new-password")).rejects.toThrow("Your current password is incorrect. 4 attempts left.");
     await expect(changePassword(ctx, PW, "short")).rejects.toThrow(/10 characters/);
+    await setTrustedDevice(ctx.userId, (await db.user.findUniqueOrThrow({ where: { id: ctx.userId } })).tokenVersion);
+    const tv = (await db.user.findUniqueOrThrow({ where: { id: ctx.userId } })).tokenVersion;
+    expect(await isTrustedDevice(ctx.userId, tv)).toBe(true);
     await changePassword(ctx, PW, "brand-new-password");
+    const after = await db.user.findUniqueOrThrow({ where: { id: ctx.userId } });
+    expect(after.tokenVersion).toBe(tv + 1);
+    expect(await isTrustedDevice(ctx.userId, after.tokenVersion)).toBe(false);
     expect(await db.session.count({ where: { userId: ctx.userId, revokedAt: null } })).toBe(1);
     expect((await getCtx())?.sessionId).toBe(ctx.sessionId);
-    jar.clear();
+    // The trusted-PC cookie is still in the jar but no longer skips the authenticator.
+    jar.delete(SESSION_COOKIE);
     expect((await passwordSignIn(EMAIL, PW)).ok).toBe(false);
-    expect((await passwordSignIn(EMAIL, "brand-new-password")).ok).toBe(true);
+    expect(await passwordSignIn(EMAIL, "brand-new-password")).toEqual({ ok: true, data: "/signin/mfa" });
     await restoreOwner();
 
     const t = await db.tenant.findFirstOrThrow();
     const role = await db.role.findFirstOrThrow({ where: { tenantId: t.id, name: "Cashier" } });
     const cashier = await db.user.create({ data: { tenantId: t.id, name: "Cash Person", phone: "9850000099", employeeNo: "E-150", pinHash: await hashPassword("3971"), roleId: role.id, branchIds: [] } });
-    const cctx = { ...(await ctxFor("Cashier")), userId: cashier.id, userName: cashier.name, sessionId: "counter" };
+    const counter = await db.counter.findFirstOrThrow({ where: { tenantId: t.id } });
+    jar.clear();
+    await createSession(cashier.id, 0, { mfaPassed: true, counterId: counter.id, firstFactor: "pin" });
+    const otherShift = (await readSession())!.id;
+    jar.clear();
+    await createSession(cashier.id, 0, { mfaPassed: true, counterId: counter.id, firstFactor: "pin" });
+    const cctx = (await getCtx())!;
     await expect(changePassword(cctx, "x", "brand-new-password")).rejects.toThrow(/PIN instead/);
     await expect(changePin(cctx, "1111", "4826")).rejects.toThrow(/current PIN is incorrect/);
     await expect(changePin(cctx, "3971", "1234")).rejects.toThrow(/too easy/);
     await changePin(cctx, "3971", "4826");
+    expect((await db.user.findUniqueOrThrow({ where: { id: cashier.id } })).tokenVersion).toBe(1);
+    expect((await getCtx())?.sessionId).toBe(cctx.sessionId);
+    expect((await db.session.findUniqueOrThrow({ where: { id: otherShift } })).revokedAt).not.toBeNull();
     expect(await audits("PIN changed")).toBe(1);
     expect(await audits("Password changed")).toBe(1);
   });
