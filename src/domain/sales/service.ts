@@ -84,6 +84,8 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<
   } else if (m === "credit") {
     if (!can(ctx, "credit")) throw new UserError("Your role cannot make credit sales.");
     if (!customer) throw new UserError("Select a customer for a credit sale.");
+    // Serialise credit sales per customer so two counters can't both fit under the limit.
+    await tx.$queryRaw`SELECT id FROM "Customer" WHERE id = ${customer.id} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
     const due = await customerBalance(tx, ctx.tenantId, customer.id);
     if (due + t.total > big(customer.creditLimitPaise)) throw new UserError(`Exceeds ${customer.name}’s credit limit (${inr0(big(customer.creditLimitPaise))}, ${inr0(due)} already due).`);
     pay.credit = t.total;
