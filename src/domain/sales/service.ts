@@ -11,6 +11,7 @@ import { discountCap } from "@/domain/identity/permissions";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { customerBalance } from "@/domain/parties/balances";
+import { saleTaxSplit } from "@/domain/gst/tax";
 import { lockOpenShift } from "./returns";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
 
@@ -104,13 +105,14 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const prefix = (tenant.settings as { invoicePrefix?: string }).invoicePrefix ?? "INV";
   const invoiceNo = `${prefix}/${branch.code}/${fy}/${String(n).padStart(6, "0")}`;
   const shift = await lockOpenShift(tx, ctx);
+  const g = saleTaxSplit(branch.gstin ?? tenant.gstin, customer, t.tax);
 
   const sale = await tx.sale.create({
     data: {
       tenantId: ctx.tenantId, branchId: ctx.branchId, invoiceNo, idempotencyKey: input.idempotencyKey, customerId: customer?.id ?? null,
       prescriber: rx ? input.prescriber!.trim() : input.prescriber?.trim() || null, rxNo: input.rxNo?.trim() || null,
       subtotalPaise: BigInt(t.mrpTotal), discountPaise: BigInt(t.discount), discountPct: new Prisma.Decimal(input.discountPct), taxablePaise: BigInt(t.taxable),
-      cgstPaise: BigInt(t.cgst), sgstPaise: BigInt(t.sgst), roundOffPaise: BigInt(t.roundOff), totalPaise: BigInt(t.total), costPaise: BigInt(t.cost),
+      cgstPaise: BigInt(g.cgst), sgstPaise: BigInt(g.sgst), igstPaise: BigInt(g.igst), placeOfSupply: g.pos, customerGstin: g.gstin, roundOffPaise: BigInt(t.roundOff), totalPaise: BigInt(t.total), costPaise: BigInt(t.cost),
       payMode: m, shiftId: shift?.id ?? null, userId: ctx.userId, ...(at ? { at } : {}),
       items: { create: lines.map(({ b, qty }, i) => ({ batchId: b.id, medicineId: b.medicineId, qty, mrpPaise: b.mrpPaise, discountPaise: BigInt(t.lines[i].discount), taxablePaise: BigInt(t.lines[i].taxable), gstRate: b.medicine.gstRate, costPaise: b.costPaise })) },
       payments: { create: (Object.entries(pay) as [keyof typeof pay, number][]).filter(([, a]) => a > 0).map(([mode, a]) => ({ mode, amountPaise: BigInt(a), ref: mode === "cash" ? null : input.pay.ref || null })) },
@@ -125,7 +127,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const vl: Line[] = [
     { account: ACC.cash, dr: pay.cash }, { account: ACC.bank, dr: pay.upi + pay.card },
     ...(pay.credit ? [{ account: ACC.debtors, dr: pay.credit, partyType: "customer" as const, partyId: customer!.id }] : []),
-    { account: ACC.sales, cr: t.taxable }, { account: ACC.cgst, cr: t.cgst }, { account: ACC.sgst, cr: t.sgst },
+    { account: ACC.sales, cr: t.taxable }, { account: ACC.cgst, cr: g.cgst }, { account: ACC.sgst, cr: g.sgst }, { account: ACC.igst, cr: g.igst },
     t.roundOff >= 0 ? { account: ACC.roundOff, cr: t.roundOff } : { account: ACC.roundOff, dr: -t.roundOff },
   ];
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "sales", narration: `Sale ${invoiceNo}${customer ? " · " + customer.name : ""}`, userId: ctx.userId, refType: "sale", refId: sale.id, date: at, lines: vl });
@@ -150,12 +152,13 @@ export async function invoiceData(ctx: Ctx, saleId: string) {
   return {
     id: s.id, invoiceNo: s.invoiceNo, at: s.at.toISOString(), payMode: s.payMode, prescriber: s.prescriber, rxNo: s.rxNo, cashier: user?.name ?? "",
     pharmacy: { name: tenant.name, legalName: tenant.legalName, gstin: branch.gstin ?? tenant.gstin, address: branch.address, dl: branch.drugLicence, phone: tenant.phone, pharmacist: (tenant.settings as { pharmacist?: string }).pharmacist ?? "" },
-    customer: s.customer ? { name: s.customer.name, phone: s.customer.phone, optIn: s.customer.waOptIn } : null,
+    customer: s.customer ? { name: s.customer.name, phone: s.customer.phone, optIn: s.customer.waOptIn, gstin: s.customerGstin, address: [s.customer.address, s.customer.pincode].filter(Boolean).join(" ") || null } : null,
+    placeOfSupply: s.placeOfSupply,
     lines: s.items.map((i) => {
       const m = meds.find((x) => x.id === i.medicineId)!, b = batches.find((x) => x.id === i.batchId)!;
       return { name: m.name, pack: m.pack, hsn: m.hsn, schedule: m.schedule, batchNo: b.batchNo, expiry: b.expiryDate.toISOString().slice(0, 10), qty: i.qty, mrp: big(i.mrpPaise), amount: big(i.mrpPaise) * i.qty, discount: big(i.discountPaise), taxable: big(i.taxablePaise), gstRate: i.gstRate };
     }),
-    totals: { mrp: big(s.subtotalPaise), discount: big(s.discountPaise), taxable: big(s.taxablePaise), cgst: big(s.cgstPaise), sgst: big(s.sgstPaise), roundOff: big(s.roundOffPaise), total: big(s.totalPaise) },
+    totals: { mrp: big(s.subtotalPaise), discount: big(s.discountPaise), taxable: big(s.taxablePaise), cgst: big(s.cgstPaise), sgst: big(s.sgstPaise), igst: big(s.igstPaise), roundOff: big(s.roundOffPaise), total: big(s.totalPaise) },
     payments: s.payments.map((p) => ({ mode: p.mode, amount: big(p.amountPaise), ref: p.ref })),
     idempotencyKey: s.idempotencyKey,
   };
@@ -183,7 +186,8 @@ export async function posCustomers(ctx: Ctx) {
   const cs = await db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" }, take: 500 });
   const { customerBalances } = await import("@/domain/parties/balances");
   const bal = await customerBalances(db, ctx.tenantId);
-  return cs.map((c) => ({ id: c.id, name: c.name, phone: c.phone, optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0 }));
+  const br = await db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, include: { tenant: { select: { gstin: true } } } });
+  return cs.map((c) => ({ id: c.id, name: c.name, phone: c.phone, optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0, gstin: c.gstin, igst: saleTaxSplit(br.gstin ?? br.tenant.gstin, c, 0).inter }));
 }
 
 export async function createCustomer(ctx: Ctx, raw: CustomerInput) {
@@ -193,7 +197,7 @@ export async function createCustomer(ctx: Ctx, raw: CustomerInput) {
   if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
   return db.$transaction(async (tx) => {
     if (i.phone && (await tx.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: i.phone } }))) throw new UserError("A customer with this mobile number already exists.");
-    const c = await tx.customer.create({ data: { tenantId: ctx.tenantId, name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Counter, recorded by ${ctx.userName}` : null, creditLimitPaise: BigInt(i.creditLimit) } });
+    const c = await tx.customer.create({ data: { tenantId: ctx.tenantId, name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Counter, recorded by ${ctx.userName}` : null, creditLimitPaise: BigInt(i.creditLimit), gstin: i.gstin || null, stateCode: i.stateCode || null, address: i.address || null, pincode: i.pincode || null } });
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Customer added", entity: "customer", entityId: c.id, detail: `${c.name}${c.waOptIn ? " · WhatsApp opt-in" : ""}` });
     return c.id;
   });

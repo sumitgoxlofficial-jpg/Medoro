@@ -96,7 +96,7 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput) {
     await postVoucher(tx, {
       tenantId: ctx.tenantId, branchId: ctx.branchId, type: "credit_note", userId: ctx.userId, refType: "sales_return", refId: ret.id, no: cn,
       narration: `${cn} · return against ${sale.invoiceNo} · ${i.reason}`,
-      lines: [{ account: ACC.salesReturns, dr: taxable }, { account: ACC.cgst, dr: half }, { account: ACC.sgst, dr: tax - half }, credit],
+      lines: [{ account: ACC.salesReturns, dr: taxable }, ...(big(sale.igstPaise) > 0 ? [{ account: ACC.igst, dr: tax }] : [{ account: ACC.cgst, dr: half }, { account: ACC.sgst, dr: tax - half }]), credit],
     });
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Refund processed ${cn}`, entity: "sales_return", entityId: ret.id, detail: `${sale.invoiceNo} · ${inr(refund)} · ${mode} · ${i.condition}` });
     return { creditNote: cn, amount: refund, mode };

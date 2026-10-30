@@ -38,6 +38,7 @@ export async function listCustomers(ctx: Ctx) {
   ]);
   return rows.map((c) => ({
     id: c.id, name: c.name, phone: c.phone, optIn: c.waOptIn, optInAt: c.optInAt?.toISOString() ?? null, limit: big(c.creditLimitPaise),
+    gstin: c.gstin, stateCode: c.stateCode ?? "", address: c.address ?? "", pincode: c.pincode ?? "",
     due: bal.get(c.id) ?? 0, lastVisit: last.find((l) => l.customerId === c.id)?._max.at?.toISOString() ?? null, version: c.version,
   }));
 }
@@ -84,7 +85,7 @@ export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: C
   if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
   const consentChanged = !before || before.waOptIn !== i.waOptIn;
   const consent = consentChanged ? { optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
-  const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), ...consent };
+  const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), gstin: i.gstin || null, stateCode: i.stateCode || null, address: i.address || null, pincode: i.pincode || null, ...consent };
   let cid = id;
   if (id) await tx.customer.update({ where: { id }, data: { ...data, version: { increment: 1 } } });
   else cid = (await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } })).id;
@@ -94,7 +95,7 @@ export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: C
       lines: [{ account: ACC.debtors, dr: opening, partyType: "customer", partyId: cid! }, { account: ACC.opening, cr: opening }] });
   }
   await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: id ? "Customer updated" : "Customer added", entity: "customer", entityId: cid,
-    detail: `${i.name}${consentChanged && id ? (i.waOptIn ? " · WhatsApp opt-in" : " · WhatsApp opt-out") : ""}${before && big(before.creditLimitPaise) !== i.creditLimit ? ` · limit ${inr(big(before.creditLimitPaise))} → ${inr(i.creditLimit)}` : ""}` });
+    detail: `${i.name}${i.gstin ? " · GSTIN " + i.gstin : ""}${consentChanged && id ? (i.waOptIn ? " · WhatsApp opt-in" : " · WhatsApp opt-out") : ""}${before && big(before.creditLimitPaise) !== i.creditLimit ? ` · limit ${inr(big(before.creditLimitPaise))} → ${inr(i.creditLimit)}` : ""}` });
   return cid!;
 }
 

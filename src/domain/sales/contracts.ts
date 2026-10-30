@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GST_STATES, validGstin } from "@/domain/accounting/gst";
 
 export const PAY_MODES = ["cash", "upi", "card", "split", "credit"] as const;
 
@@ -23,7 +24,11 @@ export const customerSchema = z.object({
   phone: z.string().transform((s) => s.replace(/\D/g, "").replace(/^(91|0)(?=[6-9]\d{9}$)/, "")).refine((p) => p === "" || /^[6-9]\d{9}$/.test(p), "Enter a valid 10-digit mobile number."),
   waOptIn: z.boolean().default(false),
   creditLimit: z.union([z.string(), z.number()]).transform((v) => Math.round((parseFloat(String(v || 0)) || 0) * 100)).refine((p) => p >= 0, "Credit limit can’t be negative.").default(0),
-});
+  gstin: z.string().trim().toUpperCase().refine((g) => !g || validGstin(g), "This GSTIN isn’t valid. Check all 15 characters.").default(""),
+  stateCode: z.string().trim().refine((c) => !c || GST_STATES.some(([k]) => k === c), "Choose the state.").default(""),
+  address: z.string().trim().max(200).default(""),
+  pincode: z.string().trim().refine((p) => !p || /^[1-9]\d{5}$/.test(p), "Enter a 6-digit PIN code.").default(""),
+}).refine((c) => !c.gstin || !c.stateCode || c.gstin.slice(0, 2) === c.stateCode, { message: "The state doesn’t match the GSTIN (its first two digits are the state code).", path: ["stateCode"] });
 export type CustomerInput = z.input<typeof customerSchema>;
 
 export const REFUND_MODES = ["Cash", "UPI refund", "Adjust customer credit"] as const;

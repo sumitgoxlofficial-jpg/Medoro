@@ -14,7 +14,7 @@ import { getDevice } from "@/lib/offline/store";
 import type { Invoice, SaleMedicine } from "@/domain/sales/service";
 import { addCustomerAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
 
-type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number };
+type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number; gstin?: string | null; igst?: boolean };
 type Line = { key: string; medicineId: string; batchId: string; qty: number };
 type Pay = "cash" | "upi" | "card" | "split" | "credit";
 type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string };
@@ -301,9 +301,9 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             <button onClick={() => setNewCust(true)} className="text-teal text-[12.5px] font-semibold flex items-center gap-1 cursor-pointer"><UserPlus size={13} />New</button></div>
           <select id="pos-cust" value={cart.cust} onChange={(e) => set({ cust: e.target.value })} className={inp}>
             <option value="">Walk-in customer (no details stored)</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : ""}</option>)}
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}</option>)}
           </select>
-          {cust ? <div className="text-[12.5px] text-muted">Outstanding {inr0(cust.due)} · limit {inr0(cust.limit)} · WhatsApp {cust.optIn ? "opted in" : "not opted in"}</div> : null}
+          {cust ? <div className="text-[12.5px] text-muted">Outstanding {inr0(cust.due)} · limit {inr0(cust.limit)} · WhatsApp {cust.optIn ? "opted in" : "not opted in"}{cust.gstin ? ` · B2B tax invoice${cust.igst ? ", inter-state (IGST)" : ""}` : ""}</div> : null}
           {needsRx ? (
             <div className="flex flex-col gap-1.5 p-2.5 bg-bad-bg rounded-lg mt-1">
               <div className="text-[12.5px] font-semibold text-bad flex gap-1.5 items-center"><FileText size={14} />Schedule H/H1: prescription required</div>
@@ -319,7 +319,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             <span className="text-muted">Discount % <span className="text-[11.5px]">(max {discCap}% for {role})</span></span>
             <div className="flex items-center gap-2"><input value={cart.disc} onChange={(e) => set({ disc: e.target.value.replace(/[^\d.]/g, "") })} aria-label="Discount percent" className="w-[54px] border border-input rounded-md px-1.5 py-1 text-right text-[13.5px]" /><span className="tnum min-w-[70px] text-right">{inr(-totals.discount)}</span></div>
           </div>
-          <Row k="Taxable value" v={inr(totals.taxable)} /><Row k="CGST" v={inr(totals.cgst)} /><Row k="SGST" v={inr(totals.sgst)} /><Row k="Round off" v={inr(totals.roundOff)} />
+          <Row k="Taxable value" v={inr(totals.taxable)} />{cust?.igst ? <Row k="IGST" v={inr(totals.tax)} /> : <><Row k="CGST" v={inr(totals.cgst)} /><Row k="SGST" v={inr(totals.sgst)} /></>}<Row k="Round off" v={inr(totals.roundOff)} />
           <div className="flex justify-between items-baseline border-t border-[#E3E6E9] pt-2.5 mt-[3px]"><span className="font-semibold text-[14px]">{t.total}</span><span className="text-[26px] font-bold tracking-[-.01em] tnum">{inr(totals.total)}</span></div>
         </div>
 
@@ -457,10 +457,10 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
           <div className="w-[300px] bg-white px-4 py-[18px] font-mono text-[11.5px] leading-normal text-ink shadow-[0_2px_8px_rgba(0,0,0,.08)] flex flex-col gap-1.5">
             <div className="text-center flex flex-col"><strong className="text-[13px] uppercase">{s.pharmacy.name}</strong>{s.pharmacy.address ? <span>{s.pharmacy.address}</span> : null}<span>{s.pharmacy.gstin ? `GSTIN ${s.pharmacy.gstin}` : ""}{s.pharmacy.dl ? ` · DL ${s.pharmacy.dl}` : ""}</span></div>
             <div className="border-t border-dashed border-fainter pt-1.5 flex justify-between"><span>{s.invoiceNo}</span><span>{hhmm(when)}</span></div>
-            <div>{s.customer?.name ?? "Walk-in customer"}</div>
+            <div>{s.customer?.name ?? "Walk-in customer"}{s.customer?.gstin ? ` · GSTIN ${s.customer.gstin}` : ""}</div>
             <div className="border-t border-dashed border-fainter pt-1.5 flex flex-col gap-[3px]">
               {s.lines.map((l, i) => <div key={i} className="flex justify-between gap-2.5"><span>{l.qty} × {l.name} ({l.batchNo})</span><span className="whitespace-nowrap">{inr(l.amount)}</span></div>)}
-              {[["Discount", -s.totals.discount], ["Taxable value", s.totals.taxable], ["CGST", s.totals.cgst], ["SGST", s.totals.sgst], ["Round off", s.totals.roundOff]].map(([k, v]) => (
+              {[["Discount", -s.totals.discount], ["Taxable value", s.totals.taxable], ...(s.totals.igst ? [["IGST", s.totals.igst]] : [["CGST", s.totals.cgst], ["SGST", s.totals.sgst]]), ["Round off", s.totals.roundOff]].map(([k, v]) => (
                 <div key={k as string} className="flex justify-between gap-2.5"><span>{k}</span><span className="whitespace-nowrap">{inr(v as number)}</span></div>
               ))}
             </div>
@@ -474,10 +474,10 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
 }
 
 function NewCustomer({ open, canCredit, onClose, onSaved }: { open: boolean; canCredit: boolean; onClose: () => void; onSaved: (id: string, list: Customer[]) => void }) {
-  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, creditLimit: "" });
+  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, creditLimit: "", gstin: "" });
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
-  useEffect(() => { if (open) { setF({ name: "", phone: "", waOptIn: false, creditLimit: "" }); setErr(""); } }, [open]);
+  useEffect(() => { if (open) { setF({ name: "", phone: "", waOptIn: false, creditLimit: "", gstin: "" }); setErr(""); } }, [open]);
   const save = () => start(async () => {
     const r = await addCustomerAction(f);
     if (!r.ok) return setErr(r.error);
@@ -488,6 +488,7 @@ function NewCustomer({ open, canCredit, onClose, onSaved }: { open: boolean; can
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save customer</Button></>}>
       <Field label="Name *"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
       <Field label="Mobile"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" placeholder="98220 41736" /></Field>
+      <Field label="GSTIN" hint="Business customers only: makes this a B2B tax invoice. Add the address under Parties."><Input value={f.gstin} onChange={(e) => setF({ ...f, gstin: e.target.value.toUpperCase() })} className="font-mono" maxLength={15} /></Field>
       {canCredit ? <Field label="Credit limit ₹" hint="Leave 0 for cash-only customers."><Input value={f.creditLimit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
       <Checkbox checked={f.waOptIn} onChange={(e) => setF({ ...f, waOptIn: e.target.checked })} label="Customer agrees to receive invoices and reminders on WhatsApp (recorded with your name and time)" />
       {err ? <div role="alert" className={cn("text-[13px] text-bad")}>{err}</div> : null}

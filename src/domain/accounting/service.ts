@@ -35,30 +35,31 @@ async function accountTotals(tenantId: string, from: Date | null, to: Date) {
   return new Map(rows.map((r) => [r.account, { dr: Number(r.dr), cr: Number(r.cr) }]));
 }
 
-type GstRow = { rate: number; taxable: bigint; tax: bigint };
+type GstRow = { rate: number; inter: boolean; taxable: bigint; tax: bigint };
 const inBranches = (col: Prisma.Sql, branchIds: string[] | null) => (branchIds ? Prisma.sql`AND ${col} = ANY(${branchIds}::text[])` : Prisma.empty);
 
 /**
  * Output GST by slab for the period, net of credit notes (sales returns) issued in it, split the same way the
- * credit-note voucher splits them. `branchIds` null = the whole pharmacy.
+ * credit-note voucher splits them. `igst` is the part on inter-state sales. `branchIds` null = the whole pharmacy.
  */
 export async function outputGstByRate(tenantId: string, p: Period, branchIds: string[] | null) {
   const [sold, returned] = await Promise.all([
     db.$queryRaw<GstRow[]>`
-      SELECT si."gstRate" rate, SUM(si."taxablePaise")::bigint taxable, SUM(si."mrpPaise" * si.qty - si."discountPaise" - si."taxablePaise")::bigint tax
+      SELECT si."gstRate" rate, s."igstPaise" > 0 inter, SUM(si."taxablePaise")::bigint taxable, SUM(si."mrpPaise" * si.qty - si."discountPaise" - si."taxablePaise")::bigint tax
       FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId"
-      WHERE s."tenantId" = ${tenantId} AND s.at >= ${p.from} AND s.at < ${p.to} ${inBranches(Prisma.sql`s."branchId"`, branchIds)} GROUP BY 1`,
+      WHERE s."tenantId" = ${tenantId} AND s.at >= ${p.from} AND s.at < ${p.to} ${inBranches(Prisma.sql`s."branchId"`, branchIds)} GROUP BY 1, 2`,
     db.$queryRaw<GstRow[]>`
-      SELECT x.rate, SUM(x.taxable)::bigint taxable, SUM(x.amount - x.taxable)::bigint tax FROM (
-        SELECT si."gstRate" rate, (l->>'amount')::bigint amount, ROUND(si."taxablePaise"::numeric * (l->>'qty')::int / si.qty) taxable
-        FROM "SalesReturn" r CROSS JOIN LATERAL jsonb_array_elements(r.lines) l JOIN "SaleItem" si ON si.id = l->>'itemId'
-        WHERE r."tenantId" = ${tenantId} AND r.at >= ${p.from} AND r.at < ${p.to} ${inBranches(Prisma.sql`r."branchId"`, branchIds)}) x GROUP BY 1`,
+      SELECT x.rate, x.inter, SUM(x.taxable)::bigint taxable, SUM(x.amount - x.taxable)::bigint tax FROM (
+        SELECT si."gstRate" rate, s."igstPaise" > 0 inter, (l->>'amount')::bigint amount, ROUND(si."taxablePaise"::numeric * (l->>'qty')::int / si.qty) taxable
+        FROM "SalesReturn" r CROSS JOIN LATERAL jsonb_array_elements(r.lines) l JOIN "SaleItem" si ON si.id = l->>'itemId' JOIN "Sale" s ON s.id = r."saleId"
+        WHERE r."tenantId" = ${tenantId} AND r.at >= ${p.from} AND r.at < ${p.to} ${inBranches(Prisma.sql`r."branchId"`, branchIds)}) x GROUP BY 1, 2`,
   ]);
   const rates = [...new Set([...sold, ...returned].map((r) => r.rate))].sort((a, b) => a - b);
+  const sum = (rows: GstRow[], rate: number, f: (r: GstRow) => bigint, inter?: boolean) => rows.filter((r) => r.rate === rate && (inter === undefined || r.inter === inter)).reduce((a, r) => a + Number(f(r)), 0);
   return rates.map((rate) => {
-    const s = sold.find((r) => r.rate === rate), r = returned.find((x) => x.rate === rate);
-    const grossTaxable = Number(s?.taxable ?? 0), grossTax = Number(s?.tax ?? 0), retTaxable = Number(r?.taxable ?? 0), retTax = Number(r?.tax ?? 0);
-    return { rate, grossTaxable, grossTax, retTaxable, retTax, taxable: grossTaxable - retTaxable, tax: grossTax - retTax };
+    const grossTaxable = sum(sold, rate, (r) => r.taxable), grossTax = sum(sold, rate, (r) => r.tax), retTaxable = sum(returned, rate, (r) => r.taxable), retTax = sum(returned, rate, (r) => r.tax);
+    const igst = sum(sold, rate, (r) => r.tax, true) - sum(returned, rate, (r) => r.tax, true);
+    return { rate, grossTaxable, grossTax, retTaxable, retTax, taxable: grossTaxable - retTaxable, tax: grossTax - retTax, igst };
   });
 }
 
@@ -109,7 +110,7 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
   const expenses = expenseLines.reduce((a, x) => a + x.amount, 0);
   const bal = (a: string) => (all.get(a)?.dr ?? 0) - (all.get(a)?.cr ?? 0);
   const rates = [...new Set([...gstOut.map((g) => g.rate), ...gstIn.map((g) => g.rate)])].sort((a, b) => a - b);
-  const retTax = dr(ACC.cgst) + dr(ACC.sgst); // output tax reversed by credit notes is posted as debits
+  const retTax = dr(ACC.cgst) + dr(ACC.sgst) + dr(ACC.igst); // output tax reversed by credit notes is posted as debits
   const gst = rates.map((r) => {
     const o = gstOut.find((g) => g.rate === r), i = gstIn.find((g) => g.rate === r);
     return { rate: r, outTaxable: o?.taxable ?? 0, outTax: o?.tax ?? 0, inTaxable: i?.taxable ?? 0, inTax: i?.tax ?? 0 };

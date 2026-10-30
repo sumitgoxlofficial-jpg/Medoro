@@ -51,6 +51,7 @@ const COLS: Record<ImportKind, { key: string; label: string; required?: boolean;
     { key: "creditLimit", label: "Credit limit", aliases: ["creditlimit", "limit"] },
     { key: "opening", label: "Opening balance (they owe)", aliases: ["opening", "openingbalance", "balance", "due", "receivable", "outstanding"] },
     { key: "waOptIn", label: "WhatsApp opt-in (yes/no)", aliases: ["waoptin", "whatsappoptin", "optin", "consent"] },
+    { key: "gstin", label: "GSTIN (B2B)", aliases: ["gstin", "gst", "gstno", "gstnumber"] },
   ],
 };
 
@@ -176,7 +177,7 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
     const phoneless = new Set(all.filter((c) => !c.phone && !c.erasedAt).map((c) => nameKey(c.name)));
     const seen = new Map<string, number>();
     for (const { line, v } of rows) {
-      const input = { name: v.name, phone: v.phone ?? "", creditLimit: cleanNumber(v.creditLimit ?? "") || "0", waOptIn: yes(v.waOptIn ?? ""), opening: cleanNumber(v.opening ?? "") || "0" };
+      const input = { name: v.name, phone: v.phone ?? "", creditLimit: cleanNumber(v.creditLimit ?? "") || "0", waOptIn: yes(v.waOptIn ?? ""), opening: cleanNumber(v.opening ?? "") || "0", gstin: v.gstin ?? "" };
       const p = customerSchema.safeParse(input);
       const errors = p.success ? [] : zodErrors(p.error);
       if (Number(input.creditLimit) > 0 && !can(ctx, "credit")) errors.push("Credit limits need the credit permission.");

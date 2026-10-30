@@ -52,7 +52,7 @@ export async function invoicePdf(inv: Invoice): Promise<Uint8Array> {
   text(`${inv.pharmacy.gstin ? "GSTIN " + inv.pharmacy.gstin : ""}${inv.pharmacy.dl ? "   DL " + inv.pharmacy.dl : ""}`, 40);
   right(new Date(inv.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }), 555); y -= 10;
   rule(40, 1.2, rgb(0.04, 0.37, 0.36)); y -= 18;
-  text(`Bill to: ${inv.customer ? clean(inv.customer.name, "Customer") : "Walk-in customer"}`, 40, 10); y -= 22;
+  text(`Bill to: ${inv.customer ? clean(inv.customer.name, "Customer") : "Walk-in customer"}${inv.customer?.gstin ? ` · GSTIN ${inv.customer.gstin}` : ""}`, 40, 10); y -= 22;
   tableHead();
 
   const rowsFrom = (top: number) => Math.floor((top - BOTTOM) / ROW);
@@ -74,7 +74,7 @@ export async function invoicePdf(inv: Invoice): Promise<Uint8Array> {
 
   y -= 4; rule(330); y -= 14;
   const t = inv.totals;
-  for (const [k, v, bold] of [["MRP total", t.mrp], ["Discount", -t.discount], ["Taxable value", t.taxable], ["CGST", t.cgst], ["SGST", t.sgst], ["Round off", t.roundOff], ["Total", t.total, true]] as [string, number, boolean?][]) {
+  for (const [k, v, bold] of [["MRP total", t.mrp], ["Discount", -t.discount], ["Taxable value", t.taxable], ...(t.igst ? [["IGST", t.igst]] : [["CGST", t.cgst], ["SGST", t.sgst]]), ["Round off", t.roundOff], ["Total", t.total, true]] as [string, number, boolean?][]) {
     text(k, 340, bold ? 11 : 9, bold ? b : f); right(rs(v), 555, bold ? 11 : 9, bold ? b : f); y -= bold ? 18 : 13;
   }
   y -= 6; text(`Paid by ${inv.payments.map((p) => p.mode.toUpperCase()).join(" + ")}. Prices are MRP inclusive of GST.`, 40); y -= 12;
