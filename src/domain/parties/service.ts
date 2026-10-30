@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/server/db";
+import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
@@ -40,55 +40,59 @@ export async function listCustomers(ctx: Ctx) {
 }
 
 export async function saveSupplier(ctx: Ctx, id: string | null, raw: SupplierInput) {
+  return db.$transaction((tx) => saveSupplierIn(tx, ctx, id, raw));
+}
+
+export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: SupplierInput) {
   authorizeAny(ctx, "purchase", "payments");
   const i = supplierSchema.parse(raw);
-  return db.$transaction(async (tx) => {
-    const dup = await tx.supplier.findFirst({ where: { tenantId: ctx.tenantId, name: { equals: i.name, mode: "insensitive" }, ...(id ? { NOT: { id } } : {}) } });
-    if (dup) throw new UserError(`${dup.name} already exists.`);
-    const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns };
-    if (id) {
-      const r = await tx.supplier.updateMany({ where: { id, tenantId: ctx.tenantId }, data: { ...data, version: { increment: 1 } } });
-      if (!r.count) throw new UserError("Supplier not found.");
-      await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Supplier updated", entity: "supplier", entityId: id, detail: i.name });
-      return id;
-    }
-    const s = await tx.supplier.create({ data: { tenantId: ctx.tenantId, ...data } });
-    if (i.opening > 0) {
-      authorize(ctx, "payments");
-      await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: s.id, narration: `Opening balance · ${s.name}`,
-        lines: [{ account: ACC.opening, dr: i.opening }, { account: ACC.creditors, cr: i.opening, partyType: "supplier", partyId: s.id }] });
-      await tx.supplierBill.create({ data: { tenantId: ctx.tenantId, supplierId: s.id, ref: "Opening balance", date: dateOnly(todayISO()), dueDate: dateOnly(addDays(todayISO(), i.creditDays)), amountPaise: BigInt(i.opening) } });
-    }
-    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Supplier added", entity: "supplier", entityId: s.id, detail: `${s.name}${i.opening ? " · opening " + inr(i.opening) : ""}` });
-    return s.id;
-  });
+  const dup = await tx.supplier.findFirst({ where: { tenantId: ctx.tenantId, name: { equals: i.name, mode: "insensitive" }, ...(id ? { NOT: { id } } : {}) } });
+  if (dup) throw new UserError(`${dup.name} already exists.`);
+  const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns };
+  if (id) {
+    const r = await tx.supplier.updateMany({ where: { id, tenantId: ctx.tenantId }, data: { ...data, version: { increment: 1 } } });
+    if (!r.count) throw new UserError("Supplier not found.");
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Supplier updated", entity: "supplier", entityId: id, detail: i.name });
+    return id;
+  }
+  const s = await tx.supplier.create({ data: { tenantId: ctx.tenantId, ...data } });
+  if (i.opening > 0) {
+    authorize(ctx, "payments");
+    await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: s.id, narration: `Opening balance · ${s.name}`,
+      lines: [{ account: ACC.opening, dr: i.opening }, { account: ACC.creditors, cr: i.opening, partyType: "supplier", partyId: s.id }] });
+    await tx.supplierBill.create({ data: { tenantId: ctx.tenantId, supplierId: s.id, ref: "Opening balance", date: dateOnly(todayISO()), dueDate: dateOnly(addDays(todayISO(), i.creditDays)), amountPaise: BigInt(i.opening) } });
+  }
+  await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Supplier added", entity: "supplier", entityId: s.id, detail: `${s.name}${i.opening ? " · opening " + inr(i.opening) : ""}` });
+  return s.id;
 }
 
 export async function saveCustomer(ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }) {
+  return db.$transaction((tx) => saveCustomerIn(tx, ctx, id, raw));
+}
+
+export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }) {
   authorize(ctx, "sale");
   const i = customerSchema.parse(raw);
   const opening = Math.round((parseFloat(String(raw.opening ?? 0)) || 0) * 100);
-  return db.$transaction(async (tx) => {
-    if (i.phone && (await tx.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: i.phone, ...(id ? { NOT: { id } } : {}) } }))) throw new UserError("Another customer has this mobile number.");
-    const before = id ? await tx.customer.findFirst({ where: { id, tenantId: ctx.tenantId, erasedAt: null } }) : null;
-    if (id && !before) throw new UserError("Customer not found.");
-    if (big(before?.creditLimitPaise) !== i.creditLimit && !can(ctx, "credit")) throw new UserError("Your role cannot change credit limits.");
-    if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
-    const consentChanged = !before || before.waOptIn !== i.waOptIn;
-    const consent = consentChanged ? { optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
-    const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), ...consent };
-    let cid = id;
-    if (id) await tx.customer.update({ where: { id }, data: { ...data, version: { increment: 1 } } });
-    else cid = (await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } })).id;
-    if (!id && opening > 0) {
-      authorize(ctx, "payments");
-      await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: cid!, narration: `Opening balance · ${i.name}`,
-        lines: [{ account: ACC.debtors, dr: opening, partyType: "customer", partyId: cid! }, { account: ACC.opening, cr: opening }] });
-    }
-    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: id ? "Customer updated" : "Customer added", entity: "customer", entityId: cid,
-      detail: `${i.name}${consentChanged && id ? (i.waOptIn ? " · WhatsApp opt-in" : " · WhatsApp opt-out") : ""}${before && big(before.creditLimitPaise) !== i.creditLimit ? ` · limit ${inr(big(before.creditLimitPaise))} → ${inr(i.creditLimit)}` : ""}` });
-    return cid!;
-  });
+  if (i.phone && (await tx.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: i.phone, ...(id ? { NOT: { id } } : {}) } }))) throw new UserError("Another customer has this mobile number.");
+  const before = id ? await tx.customer.findFirst({ where: { id, tenantId: ctx.tenantId, erasedAt: null } }) : null;
+  if (id && !before) throw new UserError("Customer not found.");
+  if (big(before?.creditLimitPaise) !== i.creditLimit && !can(ctx, "credit")) throw new UserError("Your role cannot change credit limits.");
+  if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
+  const consentChanged = !before || before.waOptIn !== i.waOptIn;
+  const consent = consentChanged ? { optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
+  const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), ...consent };
+  let cid = id;
+  if (id) await tx.customer.update({ where: { id }, data: { ...data, version: { increment: 1 } } });
+  else cid = (await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } })).id;
+  if (!id && opening > 0) {
+    authorize(ctx, "payments");
+    await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: cid!, narration: `Opening balance · ${i.name}`,
+      lines: [{ account: ACC.debtors, dr: opening, partyType: "customer", partyId: cid! }, { account: ACC.opening, cr: opening }] });
+  }
+  await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: id ? "Customer updated" : "Customer added", entity: "customer", entityId: cid,
+    detail: `${i.name}${consentChanged && id ? (i.waOptIn ? " · WhatsApp opt-in" : " · WhatsApp opt-out") : ""}${before && big(before.creditLimitPaise) !== i.creditLimit ? ` · limit ${inr(big(before.creditLimitPaise))} → ${inr(i.creditLimit)}` : ""}` });
+  return cid!;
 }
 
 const moneyAccount = (method: string) => (method === "Cash" ? ACC.cash : ACC.bank);
