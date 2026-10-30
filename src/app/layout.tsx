@@ -13,6 +13,7 @@ import "@fontsource/ibm-plex-sans-condensed/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL ?? "https://medoro.in"),
   title: { default: "Medoro", template: "%s · Medoro" },
   description: "Smarter Pharmacy. Simpler Business. Pharmacy management for Indian medical stores.",
   icons: { icon: "/medoro-mark.png", apple: "/icons/apple-touch-icon.png" },
