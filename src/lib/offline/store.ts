@@ -4,12 +4,13 @@
  * server: every bill is rechecked when it syncs.
  */
 import type { OfflineSnapshot, OfflineOpInput, SyncResult } from "@/domain/sales/offline-types";
+import { baseQty } from "@/lib/units";
 
 export type Device = { deviceId: string; name: string; tenant: string; branchId: string };
 export type QueuedBill = OfflineOpInput & {
   state: "pending" | "posted" | "conflict";
   invoiceNo?: string; message?: string; sentAt?: string; cashier?: string;
-  view: { name: string; batchNo: string; qty: number; mrpPaise: number }[];
+  view: { name: string; batchNo: string; qty: number; mrpPaise: number; unit?: string }[];
 };
 
 const DB = "medoro-offline", STORE = "kv";
@@ -57,13 +58,14 @@ export async function nextReceipt(deviceId: string) {
   return `OFF-${deviceId.slice(0, 4).toUpperCase()}-${String(n).padStart(4, "0")}`;
 }
 
-/** Units of each batch this device may still sell: its allowance minus bills not yet posted. */
+/** Stock units of each batch this device may still sell: its allowance minus bills not yet posted. */
 export function remaining(snap: OfflineSnapshot, queue: QueuedBill[]) {
   const left: Record<string, number> = {};
+  const ps = new Map(snap.medicines.map((m) => [m.id, m.packSize ?? 1]));
   for (const b of snap.batches) left[b.id] = b.allowance;
   for (const bill of queue) {
     if (bill.state !== "pending") continue;
-    for (const l of bill.sale.lines) if (l.batchId in left) left[l.batchId] -= l.qty;
+    for (const l of bill.sale.lines) if (l.batchId in left) left[l.batchId] -= baseQty(l.qty, l.unit, ps.get(l.medicineId) ?? 1);
   }
   return left;
 }

@@ -4,7 +4,8 @@ export const PAY_MODES = ["cash", "upi", "card", "split", "credit"] as const;
 
 export const saleSchema = z.object({
   idempotencyKey: z.string().min(16).max(64).regex(/^[A-Za-z0-9_-]+$/),
-  lines: z.array(z.object({ medicineId: z.string().uuid(), batchId: z.string().uuid(), qty: z.number().int().min(1).max(10000) })).min(1, "Cart is empty.").max(200),
+  // qty is in `unit`: whole packs, or loose units (tabs) for medicines sold loose.
+  lines: z.array(z.object({ medicineId: z.string().uuid(), batchId: z.string().uuid(), qty: z.number().int().min(1).max(10000), unit: z.enum(["pack", "loose"]).optional() })).min(1, "Cart is empty.").max(200),
   customerId: z.string().uuid().nullable(),
   discountPct: z.number().min(0, "Discount can’t be negative.").max(100),
   pay: z.object({
@@ -15,6 +16,7 @@ export const saleSchema = z.object({
   }),
   prescriber: z.string().trim().max(120).optional(),
   rxNo: z.string().trim().max(60).optional(),
+  doctorId: z.string().uuid().nullable().optional(),
 });
 export type SaleInput = z.infer<typeof saleSchema>;
 

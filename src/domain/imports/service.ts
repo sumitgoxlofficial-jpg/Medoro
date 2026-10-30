@@ -11,6 +11,7 @@ import { customerSchema } from "@/domain/sales/contracts";
 import { createMedicineIn, receiveBatchIn } from "@/domain/inventory/service";
 import { saveCustomerIn, saveSupplierIn } from "@/domain/parties/service";
 import { cleanNumber, headerKey, parseExpiry, readTable, yes, type Table } from "./parse";
+import { parseComposition } from "@/domain/inventory/salts";
 
 export const IMPORT_KINDS = ["medicines", "suppliers", "customers"] as const;
 export type ImportKind = (typeof IMPORT_KINDS)[number];
@@ -20,11 +21,16 @@ export const MAX_ROWS = 5000;
 const COLS: Record<ImportKind, { key: string; label: string; required?: boolean; aliases: string[] }[]> = {
   medicines: [
     { key: "name", label: "Brand name", required: true, aliases: ["name", "brand", "brandname", "medicine", "medicinename", "product", "productname", "item", "itemname"] },
-    { key: "generic", label: "Generic / salt", required: true, aliases: ["generic", "salt", "genericname", "composition", "molecule"] },
-    { key: "strength", label: "Strength", required: true, aliases: ["strength", "dose", "potency"] },
+    { key: "generic", label: "Generic / salt", aliases: ["generic", "salt", "genericname", "molecule"] },
+    { key: "strength", label: "Strength", aliases: ["strength", "dose", "potency"] },
+    { key: "composition", label: "Composition", aliases: ["composition", "saltcomposition", "salts", "contents", "content"] },
     { key: "form", label: "Form", required: true, aliases: ["form", "dosageform", "type"] },
     { key: "manufacturer", label: "Manufacturer", required: true, aliases: ["manufacturer", "company", "mfr", "mfg", "brandowner"] },
-    { key: "pack", label: "Pack", aliases: ["pack", "packsize", "packing", "unitsperpack"] },
+    { key: "pack", label: "Pack", aliases: ["pack", "packsize", "packing"] },
+    { key: "packSize", label: "Units per pack", aliases: ["unitsperpack", "unitsperstrip", "tabsperstrip", "conversion", "packqty"] },
+    { key: "packUnit", label: "Pack unit", aliases: ["packunit", "packtype"] },
+    { key: "looseUnit", label: "Loose unit", aliases: ["looseunit", "baseunit"] },
+    { key: "allowLoose", label: "Sell loose (yes/no)", aliases: ["allowloose", "loose", "sellloose", "loosesale"] },
     { key: "mrp", label: "MRP", required: true, aliases: ["mrp", "mrpperpack", "price"] },
     { key: "gstRate", label: "GST %", required: true, aliases: ["gst", "gstrate", "gstpercent", "tax", "taxrate"] },
     { key: "schedule", label: "Schedule", aliases: ["schedule", "drugschedule", "sch"] },
@@ -56,7 +62,7 @@ const COLS: Record<ImportKind, { key: string; label: string; required?: boolean;
 
 export const templateHeader = (kind: ImportKind) => COLS[kind].map((c) => c.label);
 export const TEMPLATE_EXAMPLE: Record<ImportKind, string[]> = {
-  medicines: ["Dolo 650", "Paracetamol", "650 mg", "Tablet", "Micro Labs", "15", "33.60", "12", "", "3004", "8901234567890", "20", "A1", "DL24091", "11/2027", "40", "24.50"],
+  medicines: ["Dolo 650", "Paracetamol", "650 mg", "Paracetamol 650mg", "Tablet", "Micro Labs", "15 tabs", "15", "strip", "tab", "yes", "33.60", "12", "", "3004", "8901234567890", "20", "A1", "DL24091", "11/2027", "40", "24.50"],
   suppliers: ["Mahavir Medical Agencies", "27AABCM1234F1Z5", "9822012345", "30", "2", "0"],
   customers: ["Ramesh Kulkarni", "9890112345", "2000", "0", "yes"],
 };
@@ -76,7 +82,10 @@ function mapColumns(kind: ImportKind, t: Table) {
     if (i >= 0) idx[c.key] = i;
     return { label: c.label, found: i >= 0 ? t[0][i] : null, required: !!c.required };
   });
-  const missing = columns.filter((c) => c.required && !c.found).map((c) => c.label);
+  const has = (label: string) => columns.some((c) => c.label === label && c.found);
+  // A composition column ("Paracetamol 500mg + Caffeine 25mg") can stand in for generic; strength is checked per row.
+  const salt = kind === "medicines" && !has("Composition") && !has("Generic / salt") ? ["Generic / salt"] : [];
+  const missing = [...columns.filter((c) => c.required && !c.found).map((c) => c.label), ...salt];
   if (missing.length) throw new UserError(`Missing column${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Download the template to see the expected headers.`);
   const rows: Mapped[] = t.slice(1).map((r, i) => ({ line: i + 2, v: Object.fromEntries(Object.entries(idx).map(([k, j]) => [k, (r[j] ?? "").trim()])) }));
   return { columns, rows };
@@ -112,7 +121,14 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
       if (schedule === null) errors.push(`Schedule “${v.schedule}” should be blank, H, H1, X or G.`);
       const gst = cleanNumber(v.gstRate ?? "");
       if (!(GST_RATES as readonly number[]).includes(Number(gst))) errors.push(`GST “${v.gstRate}” should be 0, 5, 12, 18 or 28.`);
-      const med = { name: v.name, generic: v.generic, strength: v.strength, form: form ?? "Other", manufacturer: v.manufacturer, pack: v.pack ?? "", mrp: cleanNumber(v.mrp ?? ""), gstRate: gst || "0", schedule: schedule ?? "", reorderLevel: cleanNumber(v.reorderLevel ?? "") || "10", barcode: v.barcode ?? "", hsn: v.hsn || "3004", rack: v.rack ?? "" };
+      // A salt column with strengths in it ("Paracetamol 500mg + Caffeine 25mg") is a composition.
+      const composition = v.composition || (/\d/.test(v.generic ?? "") ? v.generic! : "");
+      const salts = composition ? parseComposition(composition) : [];
+      const generic = !v.generic || /\d/.test(v.generic) ? salts.map((x) => x.name).join(" + ") || (v.generic ?? "") : v.generic;
+      const strength = v.strength || salts.map((x) => x.strength).filter(Boolean).join(" + ");
+      const packSize = cleanNumber(v.packSize ?? "") || "1";
+      const med = { name: v.name, generic, strength, form: form ?? "Other", manufacturer: v.manufacturer, pack: v.pack ?? "", mrp: cleanNumber(v.mrp ?? ""), gstRate: gst || "0", schedule: schedule ?? "", reorderLevel: cleanNumber(v.reorderLevel ?? "") || "10", barcode: v.barcode ?? "", hsn: v.hsn || "3004", rack: v.rack ?? "",
+        composition, packSize, packUnit: v.packUnit ?? "", looseUnit: v.looseUnit ?? "", allowLoose: yes(v.allowLoose ?? "") && Number(packSize) > 1 };
       const p = medicineSchema.safeParse(med);
       if (!p.success) errors.push(...zodErrors(p.error));
       const k = key(v.name ?? "", v.strength ?? "");

@@ -7,6 +7,7 @@ import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
 import { daysTo, fiscalYear } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
+import { fmtQty, stockValue } from "@/lib/units";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { allocateToBills } from "@/domain/parties/balances";
@@ -50,10 +51,10 @@ export async function returnToSupplierIn(tx: Tx, ctx: Ctx, batchId: string, qty:
   if (b.branchId !== ctx.branchId) throw new UserError("Return stock from the branch that holds it.");
   if (!b.supplier) throw new UserError("This batch has no supplier on record (opening stock). Write it off instead.");
   if (!b.supplier.acceptsReturns && !opts.recall) throw new UserError(`${b.supplier.name} doesn’t accept returns.`);
-  if (qty > b.qtyAvailable) throw new UserError(`Only ${b.qtyAvailable} in stock.`);
+  if (qty > b.qtyAvailable) throw new UserError(`Only ${fmtQty(b.qtyAvailable, b.medicine)} in stock.`);
   if (reason.trim().length < 3) throw new UserError("Enter the reason.");
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"party:" + b.supplier.id}))`;
-  const taxable = qty * big(b.costPaise), gst = Math.round((taxable * b.medicine.gstRate) / 100), half = Math.floor(gst / 2);
+  const taxable = stockValue(big(b.costPaise), qty, b.medicine.packSize), gst = Math.round((taxable * b.medicine.gstRate) / 100), half = Math.floor(gst / 2);
   const grn = b.grnId ? await tx.grn.findUnique({ where: { id: b.grnId }, select: { igst: true } }) : null;
   const igst = grn ? grn.igst : await supplierIsInterState(tx, ctx.tenantId, ctx.branchId, b.supplier);
   const fy = fiscalYear();
@@ -61,11 +62,11 @@ export async function returnToSupplierIn(tx: Tx, ctx: Ctx, batchId: string, qty:
   await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { decrement: qty }, version: { increment: 1 } } });
   const so = await tx.stockOut.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, kind: "supplier_return", supplierId: b.supplierId, batchId: b.id, qty, valuePaise: BigInt(taxable + gst), reason, userId: ctx.userId } });
   await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: -qty, type: "supplier_return", refType: "stock_out", refId: so.id, userId: ctx.userId, note: `${no} · ${reason}` } });
-  await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "debit_note", userId: ctx.userId, refType: "supplier_return", refId: so.id, narration: `${no} · return to ${b.supplier.name} · ${b.medicine.name} ${b.batchNo} × ${qty}`,
+  await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "debit_note", userId: ctx.userId, refType: "supplier_return", refId: so.id, narration: `${no} · return to ${b.supplier.name} · ${b.medicine.name} ${b.batchNo} × ${fmtQty(qty, b.medicine)}`,
     lines: [{ account: ACC.creditors, dr: taxable + gst, partyType: "supplier", partyId: b.supplier.id }, { account: ACC.purchases, cr: taxable },
       ...(igst ? [{ account: ACC.inIgst, cr: gst }] : [{ account: ACC.inCgst, cr: half }, { account: ACC.inSgst, cr: gst - half }])] });
   await allocateToBills(tx, ctx.tenantId, b.supplier.id, taxable + gst, b.grnId);
-  await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Debit note ${no}`, entity: "stock_out", entityId: so.id, detail: `${b.medicine.name} ${b.batchNo} × ${qty} → ${b.supplier.name} · ${inr(taxable + gst)}${opts.recall ? " · recall" : ""}` });
+  await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Debit note ${no}`, entity: "stock_out", entityId: so.id, detail: `${b.medicine.name} ${b.batchNo} × ${fmtQty(qty, b.medicine)} → ${b.supplier.name} · ${inr(taxable + gst)}${opts.recall ? " · recall" : ""}` });
   return no;
 }
 
@@ -79,15 +80,15 @@ export async function writeOff(ctx: Ctx, batchId: string, qty: number, reason: s
   return db.$transaction(async (tx) => {
     const b = await lockBatch(tx, ctx, batchId);
     if (b.branchId !== ctx.branchId) throw new UserError("Write off stock at the branch that holds it.");
-    if (qty > b.qtyAvailable) throw new UserError(`Only ${b.qtyAvailable} in stock.`);
-    const value = qty * big(b.costPaise);
+    if (qty > b.qtyAvailable) throw new UserError(`Only ${fmtQty(b.qtyAvailable, b.medicine)} in stock.`);
+    const value = stockValue(big(b.costPaise), qty, b.medicine.packSize);
     const fy = fiscalYear();
     const no = `WO-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "WO:" + fy))}`;
     await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { decrement: qty }, version: { increment: 1 } } });
     const so = await tx.stockOut.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, kind: "write_off", batchId: b.id, qty, valuePaise: BigInt(value), reason, userId: ctx.userId } });
     await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: -qty, type: "write_off", refType: "stock_out", refId: so.id, userId: ctx.userId, note: `${no} · ${reason}` } });
-    await postStockValue(tx, ctx, { refType: "write_off", refId: so.id, narration: `${no} · write-off ${b.medicine.name} ${b.batchNo} × ${qty} · ${reason}`, moves: [{ batch: b, value: -value }] });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Stock written off ${no}`, entity: "stock_out", entityId: so.id, detail: `${b.medicine.name} ${b.batchNo} × ${qty} · ${inr(value)} · ${reason}${daysTo(b.expiryDate) <= 0 ? " · expired" : ""}` });
+    await postStockValue(tx, ctx, { refType: "write_off", refId: so.id, narration: `${no} · write-off ${b.medicine.name} ${b.batchNo} × ${fmtQty(qty, b.medicine)} · ${reason}`, moves: [{ batch: b, value: -value }] });
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Stock written off ${no}`, entity: "stock_out", entityId: so.id, detail: `${b.medicine.name} ${b.batchNo} × ${fmtQty(qty, b.medicine)} · ${inr(value)} · ${reason}${daysTo(b.expiryDate) <= 0 ? " · expired" : ""}` });
     return no;
   });
 }
@@ -100,8 +101,8 @@ export async function adjustStock(ctx: Ctx, batchId: string, delta: number, reas
   return db.$transaction(async (tx) => {
     const b = await lockBatch(tx, ctx, batchId);
     if (b.branchId !== ctx.branchId) throw new UserError("Adjust stock at the branch that holds it.");
-    if (b.qtyAvailable + delta < 0) throw new UserError(`Only ${b.qtyAvailable} in stock.`);
-    const value = delta * big(b.costPaise);
+    if (b.qtyAvailable + delta < 0) throw new UserError(`Only ${fmtQty(b.qtyAvailable, b.medicine)} in stock.`);
+    const value = stockValue(big(b.costPaise), delta, b.medicine.packSize);
     const fy = fiscalYear();
     const no = `SA-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "SA:" + fy))}`;
     await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { increment: delta }, version: { increment: 1 } } });
@@ -120,7 +121,7 @@ export async function listBranchTransfers(ctx: Ctx) {
   const mine = ctx.branches.map((b) => b.id);
   const ts = await db.transfer.findMany({ where: { tenantId: ctx.tenantId, OR: [{ fromBranch: { in: mine } }, { toBranch: { in: mine } }] }, orderBy: { createdAt: "desc" }, take: 100 });
   const [batches, branches, users] = await Promise.all([
-    db.batch.findMany({ where: { id: { in: ts.map((t) => t.batchId) } }, include: { medicine: { select: { name: true } } } }),
+    db.batch.findMany({ where: { id: { in: ts.map((t) => t.batchId) } }, include: { medicine: { select: { name: true, packSize: true, packUnit: true, looseUnit: true } } } }),
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true } }),
     db.user.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(ts.map((t) => t.createdBy))] } }, select: { id: true, name: true } }),
   ]);
@@ -130,7 +131,7 @@ export async function listBranchTransfers(ctx: Ctx) {
     const b = batches.find((x) => x.id === t.batchId);
     const pending = t.status === "pending", transit = t.status === "in_transit";
     return {
-      id: t.id, no: t.no, from: bn(t.fromBranch), to: bn(t.toBranch), item: b ? `${b.medicine.name} · ${b.batchNo}` : "", qty: t.qty, status: t.status, note: t.note,
+      id: t.id, no: t.no, from: bn(t.fromBranch), to: bn(t.toBranch), item: b ? `${b.medicine.name} · ${b.batchNo}` : "", qty: t.qty, qtyText: b ? fmtQty(t.qty, b.medicine) : String(t.qty), status: t.status, note: t.note,
       createdAt: t.createdAt.toISOString(), by: users.find((u) => u.id === t.createdBy)?.name ?? "",
       canApprove: adj && pending && mine.includes(t.fromBranch) && (t.createdBy !== ctx.userId || can(ctx, "users")),
       canReject: adj && pending && (mine.includes(t.fromBranch) || mine.includes(t.toBranch)),
@@ -149,10 +150,10 @@ export async function requestTransfer(ctx: Ctx, batchId: string, toBranch: strin
     if (b.branchId !== ctx.branchId) throw new UserError("Transfer from the branch that holds the stock.");
     if (!(await tx.branch.findFirst({ where: { id: toBranch, tenantId: ctx.tenantId, active: true } }))) throw new UserError("Branch not found.");
     if (b.status !== "ok" || daysTo(b.expiryDate) <= 0) throw new UserError("Blocked or expired stock can’t be transferred for sale.");
-    if (qty > b.qtyAvailable) throw new UserError(`Only ${b.qtyAvailable} in stock.`);
+    if (qty > b.qtyAvailable) throw new UserError(`Only ${fmtQty(b.qtyAvailable, b.medicine)} in stock.`);
     const no = `TR-${pad(await nextSeq(tx, ctx.tenantId, "TR"))}`;
     const t = await tx.transfer.create({ data: { tenantId: ctx.tenantId, no, fromBranch: ctx.branchId, toBranch, batchId, qty, status: "pending", createdBy: ctx.userId, note: note || null } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Transfer requested", entity: "transfer", entityId: t.id, detail: `${no} · ${b.medicine.name} ${b.batchNo} × ${qty}` });
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Transfer requested", entity: "transfer", entityId: t.id, detail: `${no} · ${b.medicine.name} ${b.batchNo} × ${fmtQty(qty, b.medicine)}` });
     return no;
   });
 }
@@ -169,7 +170,7 @@ export async function approveTransfer(ctx: Ctx, id: string) {
     const b = await lockBatch(tx, ctx, t.batchId);
     if (b.status !== "ok") throw new UserError(`${b.medicine.name} ${b.batchNo} is ${b.status === "quarantine" ? "quarantined" : b.status}${b.statusNote ? ` (${b.statusNote})` : ""}. Reject the transfer.`);
     if (daysTo(b.expiryDate) <= 0) throw new UserError(`${b.medicine.name} ${b.batchNo} has expired. Reject the transfer.`);
-    if (b.qtyAvailable < t.qty) throw new UserError(`Only ${b.qtyAvailable} left in ${b.batchNo}. Edit or reject the transfer.`);
+    if (b.qtyAvailable < t.qty) throw new UserError(`Only ${fmtQty(b.qtyAvailable, b.medicine)} left in ${b.batchNo}. Edit or reject the transfer.`);
     await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { decrement: t.qty }, version: { increment: 1 } } });
     await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: t.fromBranch, batchId: b.id, qty: -t.qty, type: "transfer_out", refType: "transfer", refId: t.id, userId: ctx.userId, note: t.no } });
     if (!(await tx.transfer.updateMany({ where: { id, status: "pending" }, data: { status: "in_transit", approvedBy: ctx.userId, approvedAt: new Date() } })).count) throw new UserError("Only pending transfers can be approved.");
@@ -246,7 +247,7 @@ export async function postCount(ctx: Ctx, raw: z.input<typeof countSchema>) {
     const ids = i.lines.map((l) => l.batchId);
     const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} AND "branchId" = ${ctx.branchId} AND id = ANY(${ids}) ORDER BY id FOR UPDATE`;
     if (locked.length !== ids.length) throw new UserError("Some batches aren’t at this branch.");
-    const batches = await tx.batch.findMany({ where: { id: { in: ids } }, include: { medicine: { select: { name: true } } } });
+    const batches = await tx.batch.findMany({ where: { id: { in: ids } }, include: { medicine: { select: { name: true, packSize: true } } } });
     const fy = fiscalYear();
     const no = `SC-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "SC:" + fy))}`;
     let value = 0, changed = 0;
@@ -254,12 +255,13 @@ export async function postCount(ctx: Ctx, raw: z.input<typeof countSchema>) {
     for (const l of i.lines) {
       const b = batches.find((x) => x.id === l.batchId)!;
       const system = b.qtyAvailable, d = l.counted - system;
-      out.push({ batchId: b.id, name: b.medicine.name, batchNo: b.batchNo, system, counted: l.counted, diff: d, valuePaise: d * big(b.costPaise) });
+      const dv = stockValue(big(b.costPaise), d, b.medicine.packSize);
+      out.push({ batchId: b.id, name: b.medicine.name, batchNo: b.batchNo, system, counted: l.counted, diff: d, valuePaise: dv });
       if (!d) continue;
       await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { increment: d }, version: { increment: 1 } } });
       await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: d, type: "count", refType: "stock_count", refId: no, userId: ctx.userId, note: `${no} · counted ${l.counted}, system ${system}` } });
-      value += d * big(b.costPaise); changed++;
-      moves.push({ batch: b, value: d * big(b.costPaise) });
+      value += dv; changed++;
+      moves.push({ batch: b, value: dv });
     }
     await tx.stockCount.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, userId: ctx.userId, lines: out, note: i.note || null } });
     await postStockValue(tx, ctx, { refType: "stock_count", refId: no, narration: `${no} · stock count variance`, moves });

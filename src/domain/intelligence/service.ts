@@ -4,6 +4,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, dateOnly, daysTo, isoOf, startOfTodayIST, todayISO } from "@/lib/dates";
+import { fmtQty, stockValue } from "@/lib/units";
 import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { createPo } from "@/domain/purchasing/service";
@@ -37,16 +38,17 @@ export async function expiryRows(ctx: Ctx, windowDays: number) {
   ]);
   const elsewhere = await Promise.all(branches.map(async (b) => ({ b, v: await velocity(ctx.tenantId, b.id) })));
   const rows = batches.map((b) => {
-    const d = daysTo(b.expiryDate, today), v = vel.get(b.medicineId) ?? 0, cost = big(b.costPaise);
+    // Quantities here are stock units (loose units for medicines sold loose); velocity is per pack, so scale it.
+    const ps = b.medicine.packSize, d = daysTo(b.expiryDate, today), v = (vel.get(b.medicineId) ?? 0) * ps, cost = big(b.costPaise);
     const sold = Math.min(b.qtyAvailable, Math.floor(v * Math.max(0, d))), unsold = b.qtyAvailable - sold;
-    const best = elsewhere.map((x) => ({ ...x.b, v: x.v.get(b.medicineId) ?? 0 })).sort((a, c) => c.v - a.v)[0];
+    const best = elsewhere.map((x) => ({ ...x.b, v: (x.v.get(b.medicineId) ?? 0) * ps })).sort((a, c) => c.v - a.v)[0];
     let rec: { kind: "none" | "return" | "transfer" | "promote" | "writeoff"; text: string; branchId?: string };
     if (d <= 0) rec = b.supplier?.acceptsReturns ? { kind: "return", text: `Expired. Return to ${b.supplier.name} if they accept expired returns, else write off.` } : { kind: "writeoff", text: "Expired and blocked from sale. Write off." };
     else if (!unsold) rec = { kind: "none", text: "Sells through before expiry at the current rate." };
     else if (b.supplier?.acceptsReturns && d >= 20) rec = { kind: "return", text: `Return ${unsold} to ${b.supplier.name} while there are ${d} days left.` };
     else if (best && best.v > v && Math.floor(best.v * d) > 0) rec = { kind: "transfer", text: `${best.name} sells ${best.v.toFixed(1)}/day. Transfer ${Math.min(unsold, Math.floor(best.v * d))}.`, branchId: best.id };
     else rec = { kind: "promote", text: "Recommend to regular customers or discount within your cap." };
-    return { id: b.id, medicine: b.medicine.name, batchNo: b.batchNo, expiry: isoOf(b.expiryDate), days: d, qty: b.qtyAvailable, cost, mrp: big(b.mrpPaise), status: b.status, velocity: v, sold, unsold, exposure: b.qtyAvailable * cost, loss: unsold * cost, supplier: b.supplier?.name ?? null, rec };
+    return { id: b.id, medicine: b.medicine.name, batchNo: b.batchNo, expiry: isoOf(b.expiryDate), days: d, qty: b.qtyAvailable, qtyText: fmtQty(b.qtyAvailable, b.medicine), unitWord: ps > 1 ? `${b.medicine.looseUnit}s` : "units", cost, mrp: big(b.mrpPaise), status: b.status, velocity: v, sold, unsold, exposure: stockValue(cost, b.qtyAvailable, ps), loss: stockValue(cost, unsold, ps), supplier: b.supplier?.name ?? null, rec };
   });
   return { rows: rows.filter((r) => r.days > 0), expired: rows.filter((r) => r.days <= 0), branches };
 }
@@ -131,16 +133,16 @@ export async function priceComparison(ctx: Ctx) {
 
 export async function slowStock(ctx: Ctx) {
   const [batches, vel] = await Promise.all([
-    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } }, include: { medicine: { select: { name: true, createdAt: true } } } }),
+    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } }, include: { medicine: { select: { name: true, createdAt: true, packSize: true } } } }),
     velocity(ctx.tenantId, ctx.branchId, 90),
   ]);
-  const by = new Map<string, { name: string; qty: number; value: number; age: number }>();
+  const by = new Map<string, { name: string; qty: number; value: number; age: number; ps: number }>();
   for (const b of batches) {
-    const x = by.get(b.medicineId) ?? { name: b.medicine.name, qty: 0, value: 0, age: 0 };
-    x.qty += b.qtyAvailable; x.value += b.qtyAvailable * big(b.costPaise); x.age = Math.max(x.age, -daysTo(b.createdAt));
+    const x = by.get(b.medicineId) ?? { name: b.medicine.name, qty: 0, value: 0, age: 0, ps: b.medicine.packSize };
+    x.qty += b.qtyAvailable; x.value += stockValue(big(b.costPaise), b.qtyAvailable, x.ps); x.age = Math.max(x.age, -daysTo(b.createdAt));
     by.set(b.medicineId, x);
   }
-  return [...by.entries()].map(([id, x]) => { const v = vel.get(id) ?? 0; return { ...x, velocity: v, cover: v ? Math.floor(x.qty / v) : null }; })
+  return [...by.entries()].map(([id, x]) => { const v = vel.get(id) ?? 0; return { ...x, velocity: v, cover: v ? Math.floor(x.qty / x.ps / v) : null }; })
     .filter((x) => x.age >= 30 && (x.velocity < 1 / 7 || (x.cover ?? 9999) > 90))
     .map((x) => ({ ...x, note: x.velocity === 0 ? "Dead stock: no sales in 90 days" : x.velocity < 1 / 7 ? "Slow mover: under 1 a week" : "Overstocked versus demand" }))
     .sort((a, b) => b.value - a.value);

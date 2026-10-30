@@ -63,8 +63,9 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   const grn = await tx.grn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no: grnNo, supplierId: supplier.id, supplierInvoiceNo: i.invoiceNo, invoiceDate: dateOnly(i.invoiceDate), totalPaise: BigInt(payable), poId: po?.id ?? null, scanDocId: i.scanDocId, igst, approvedBy: ctx.userId } });
 
   for (const l of lines) {
-    const units = l.qty + l.freeQty;
-    const unitCost = Math.round((l.rate * l.qty) / units); // free goods lower the effective cost
+    const packs = l.qty + l.freeQty;
+    const unitCost = Math.round((l.rate * l.qty) / packs); // per pack; free goods lower the effective cost
+    const units = packs * l.m.packSize; // stock is kept in stock units (loose units for medicines sold loose)
     const found = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} AND "branchId" = ${ctx.branchId} AND "medicineId" = ${l.m.id} AND "batchNo" = ${l.batchNo} FOR UPDATE`;
     const existing = found.length ? await tx.batch.findUniqueOrThrow({ where: { id: found[0].id } }) : null;
     let batchId: string;

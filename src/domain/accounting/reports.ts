@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import type { Ctx } from "@/server/context";
 import { addDays, dateOnly, daysTo, isoOf, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
+import { fmtQty, stockValue } from "@/lib/units";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
 import { inputGstByRate, outputGstByRate, trialBalance, type Period } from "./service";
@@ -100,7 +101,7 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
     case "stock-valuation": {
       const b = await db.batch.findMany({ where: { tenantId: T, branchId: B, qtyAvailable: { gt: 0 } }, include: { medicine: true }, orderBy: [{ medicine: { name: "asc" } }, { expiryDate: "asc" }] });
       return [["Medicine", "Strength", "Batch", "Expiry", "Qty", "Cost/pack", "MRP/pack", "Value at cost", "Status"],
-        ...b.map((x) => [x.medicine.name, x.medicine.strength, x.batchNo, isoOf(x.expiryDate), x.qtyAvailable, r2(big(x.costPaise)), r2(big(x.mrpPaise)), r2(x.qtyAvailable * big(x.costPaise)), x.status])];
+        ...b.map((x) => [x.medicine.name, x.medicine.strength, x.batchNo, isoOf(x.expiryDate), fmtQty(x.qtyAvailable, x.medicine), r2(big(x.costPaise)), r2(big(x.mrpPaise)), r2(stockValue(big(x.costPaise), x.qtyAvailable, x.medicine.packSize)), x.status])];
     }
     case "expiry-exposure": {
       const [b, vel] = await Promise.all([
@@ -108,8 +109,8 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
         velocity(T, B),
       ]);
       return [["Medicine", "Batch", "Expiry", "Days left", "Qty", "Exposure at cost", "Projected unsold", "Projected loss at cost"],
-        ...b.map((x) => { const d = daysTo(x.expiryDate), sold = Math.min(x.qtyAvailable, Math.floor((vel.get(x.medicineId) ?? 0) * Math.max(0, d))), left = x.qtyAvailable - sold;
-          return [x.medicine.name, x.batchNo, isoOf(x.expiryDate), d, x.qtyAvailable, r2(x.qtyAvailable * big(x.costPaise)), left, r2(left * big(x.costPaise))]; })];
+        ...b.map((x) => { const d = daysTo(x.expiryDate), sold = Math.min(x.qtyAvailable, Math.floor((vel.get(x.medicineId) ?? 0) * x.medicine.packSize * Math.max(0, d))), left = x.qtyAvailable - sold;
+          return [x.medicine.name, x.batchNo, isoOf(x.expiryDate), d, fmtQty(x.qtyAvailable, x.medicine), r2(stockValue(big(x.costPaise), x.qtyAvailable, x.medicine.packSize)), fmtQty(left, x.medicine), r2(stockValue(big(x.costPaise), left, x.medicine.packSize))]; })];
     }
     case "low-stock": {
       const [m, s, v] = await Promise.all([db.medicine.findMany({ where: { tenantId: T, active: true }, orderBy: { name: "asc" } }), sellableByMedicine(T, B), velocity(T, B)]);

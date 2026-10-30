@@ -6,7 +6,9 @@ import { UserError } from "@/server/action";
 import { big } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
 import { discountCap } from "@/domain/identity/permissions";
-import { fefoOrder, isSellable } from "@/domain/inventory/fefo";
+import { allocateUnits, isSellable } from "@/domain/inventory/fefo";
+import { branchRacks } from "@/domain/inventory/catalog";
+import { baseQty, canSellLoose } from "@/lib/units";
 import { commitSale, OFFLINE_MAX_DAYS, withinOfflineWindow } from "./service";
 import type { SaleInput } from "./contracts";
 import { opSchema, type OfflineOpInput, type OfflineSnapshot, type SyncResult } from "./offline-types";
@@ -56,12 +58,14 @@ export async function snapshot(ctx: Ctx, deviceId: string): Promise<OfflineSnaps
   authorize(ctx, "sale");
   const dev = await deviceFor(ctx, deviceId);
   const today = todayISO();
-  const [tenant, branch, devices, meds, batches] = await Promise.all([
+  const [tenant, branch, devices, meds, batches, racks, doctors] = await Promise.all([
     db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
     db.branch.findUniqueOrThrow({ where: { id: ctx.branchId } }),
     db.device.count({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, offline: true } }),
     db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, orderBy: { name: "asc" } }),
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, status: "ok", qtyAvailable: { gt: 0 } } }),
+    branchRacks(ctx.tenantId, ctx.branchId),
+    db.doctor.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { id: true, name: true, regNo: true }, orderBy: { name: "asc" }, take: 2000 }),
   ]);
   const shares = devices + 1;
   const sellable = batches.filter((b) => isSellable(b, today));
@@ -76,15 +80,17 @@ export async function snapshot(ctx: Ctx, deviceId: string): Promise<OfflineSnaps
     deviceId: dev.id, deviceName: dev.name, takenAt: takenAt.toISOString(), validDays: OFFLINE_MAX_DAYS,
     pharmacy: { name: tenant.name, branch: branch.name, address: branch.address, gstin: branch.gstin, dlNo: branch.drugLicence },
     cashier: ctx.userName, cashierId: ctx.userId, discCap: discountCap(ctx.perms),
-    medicines: meds.filter((m) => withStock.has(m.id)).map((m) => ({ id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, schedule: m.schedule, gstRate: m.gstRate, barcode: m.barcode })),
+    medicines: meds.filter((m) => withStock.has(m.id)).map((m) => ({ id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, schedule: m.schedule, gstRate: m.gstRate, barcode: m.barcode,
+      composition: m.composition, rack: racks.get(m.id) ?? m.rack, packSize: m.packSize, packUnit: m.packUnit, looseUnit: m.looseUnit, allowLoose: canSellLoose(m) })),
     batches: sellable.filter((b) => quota[b.id] > 0).map((b) => ({ id: b.id, medicineId: b.medicineId, batchNo: b.batchNo, expiry: b.expiryDate.toISOString().slice(0, 10), mrpPaise: big(b.mrpPaise), version: b.version, allowance: quota[b.id] })),
+    doctors,
   };
 }
 
 
 const toSale = (op: OfflineOpInput, lines = op.sale.lines): SaleInput => ({
   idempotencyKey: op.id, lines, customerId: null, discountPct: op.sale.discountPct,
-  pay: { mode: op.sale.pay.mode, tenderedPaise: op.sale.pay.tenderedPaise, ref: op.sale.pay.ref }, prescriber: op.sale.prescriber, rxNo: op.sale.rxNo,
+  pay: { mode: op.sale.pay.mode, tenderedPaise: op.sale.pay.tenderedPaise, ref: op.sale.pay.ref }, prescriber: op.sale.prescriber, rxNo: op.sale.rxNo, doctorId: op.sale.doctorId ?? null,
 });
 
 /** Posts queued offline bills. Safe to resend: each bill posts once, keyed by its id. */
@@ -172,17 +178,26 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
   const who: Ctx = { ...cashier, perms: [...new Set([...cashier.perms, ...ctx.perms])] };
   // Same medicines and quantities, re-allocated across the batches that are sellable now.
   const day = todayISO(late ? undefined : billed);
+  // Whole packs are allocated before loose units so a pack is never split across batches.
   const meds = [...new Set(op.sale.lines.map((l) => l.medicineId))];
-  const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds } } });
+  const [batches, packSizes] = await Promise.all([
+    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds } } }),
+    db.medicine.findMany({ where: { tenantId: ctx.tenantId, id: { in: meds } }, select: { id: true, packSize: true } }),
+  ]);
   const lines: SaleInput["lines"] = [];
+  const used: Record<string, number> = {};
   for (const m of meds) {
-    let need = op.sale.lines.filter((l) => l.medicineId === m).reduce((a, l) => a + l.qty, 0);
-    for (const b of fefoOrder(batches, m, day)) {
-      if (need <= 0) break;
-      const take = Math.min(need, b.qtyAvailable);
-      lines.push({ medicineId: m, batchId: b.id, qty: take }); need -= take;
+    const ps = packSizes.find((x) => x.id === m)?.packSize ?? 1;
+    for (const unit of ["pack", "loose"] as const) {
+      const qty = op.sale.lines.filter((l) => l.medicineId === m && (l.unit ?? "pack") === unit).reduce((a, l) => a + l.qty, 0);
+      if (!qty) continue;
+      let got: ReturnType<typeof allocateUnits<(typeof batches)[number]>>;
+      try { got = allocateUnits(batches, m, qty, baseQty(1, unit, ps), day, used); } catch { throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, or close it with a note."); }
+      for (const g of got) {
+        lines.push({ medicineId: m, batchId: g.batch.id, qty: g.qty, ...(unit === "loose" ? { unit } : {}) });
+        used[g.batch.id] = (used[g.batch.id] ?? 0) + baseQty(g.qty, unit, ps);
+      }
     }
-    if (need > 0) throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, or close it with a note.");
   }
   const r = await post(ctx, op, async () => who, lines, late ? { note: `billed offline ${billed.toISOString()}, settled by ${ctx.userName}` } : { at: billed });
   if (r.status === "conflict") throw new UserError(r.message ?? "Couldn’t post this bill.");
