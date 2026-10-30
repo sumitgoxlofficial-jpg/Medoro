@@ -357,6 +357,92 @@ model StockOut {
   @@unique([tenantId, no])
 }
 
+// Expiry / breakage claim on a supplier: stock leaves at once; the payable drops only when their credit note arrives.
+model SupplierClaim {
+  id             String    @id @default(uuid())
+  tenantId       String
+  branchId       String
+  no             String
+  supplierId     String
+  batchId        String
+  stockOutId     String
+  qty            Int
+  reason         String // expiry, near_expiry, breakage, wrong_item
+  note           String?
+  status         String // raised, acknowledged, credited, rejected
+  claimPaise     BigInt
+  creditPaise    BigInt    @default(0)
+  writeOffPaise  BigInt    @default(0)
+  writeOffReason String?
+  credits        Json      @default("[]") // [{ref, amount, at, voucherNo}]
+  raisedBy       String
+  raisedAt       DateTime  @default(now())
+  ackAt          DateTime?
+  settledAt      DateTime?
+
+  @@unique([tenantId, no])
+  @@index([tenantId, supplierId, status])
+}
+
+// Cheques received from customers and issued to suppliers. Postings go through clearing accounts.
+model Cheque {
+  id           String    @id @default(uuid())
+  tenantId     String
+  branchId     String
+  direction    String // received, issued
+  partyType    String // customer, supplier
+  partyId      String
+  no           String
+  bank         String
+  chequeDate   DateTime  @db.Date
+  amountPaise  BigInt
+  status       String // pending, deposited, cleared, bounced
+  voucherId    String
+  note         String?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  depositedAt  DateTime?
+  clearedAt    DateTime?
+  bouncedAt    DateTime?
+  bounceReason String?
+  chargePaise  BigInt    @default(0)
+
+  @@unique([tenantId, direction, partyId, no])
+  @@index([tenantId, status, chequeDate])
+}
+
+model BankStatement {
+  id        String     @id @default(uuid())
+  tenantId  String
+  fileName  String
+  lines     Int
+  createdBy String
+  createdAt DateTime   @default(now())
+  items     BankLine[]
+}
+
+// One bank statement row. Amount is signed: + money in (deposit), − money out (withdrawal).
+model BankLine {
+  id           String        @id @default(uuid())
+  tenantId     String
+  statementId  String
+  statement    BankStatement @relation(fields: [statementId], references: [id])
+  date         DateTime      @db.Date
+  description  String
+  ref          String?
+  amountPaise  BigInt
+  balancePaise BigInt?
+  row          Int           @default(0) // position in the imported file, to order same-day lines
+  fingerprint  String
+  ledgerLineId String?       @unique
+  matchedBy    String? // auto, manual
+  reconciledAt DateTime?
+  reconciledBy String?
+
+  @@unique([tenantId, fingerprint])
+  @@index([tenantId, date])
+}
+
 model Recall {
   id          String   @id @default(uuid())
   tenantId    String
@@ -375,19 +461,21 @@ model Recall {
 // ───────────── Parties ─────────────
 
 model Supplier {
-  id             String          @id @default(uuid())
-  tenantId       String
-  name           String
-  gstin          String?
-  phone          String?
-  creditDays     Int             @default(0)
-  leadDays       Decimal         @default(1)
-  acceptsReturns Boolean         @default(true)
-  accuracyPct    Int             @default(100) // unused: delivery accuracy is computed from POs and GRNs
-  stateCode      String? // 2-digit GST state code; falls back to the GSTIN prefix
-  version        Int             @default(0)
-  batches        Batch[]
-  orders         PurchaseOrder[]
+  id               String          @id @default(uuid())
+  tenantId         String
+  name             String
+  gstin            String?
+  phone            String?
+  creditDays       Int             @default(0)
+  leadDays         Decimal         @default(1)
+  acceptsReturns   Boolean         @default(true)
+  accuracyPct      Int             @default(100) // unused: delivery accuracy is computed from POs and GRNs
+  stateCode        String? // 2-digit GST state code; falls back to the GSTIN prefix
+  returnWindowDays Int             @default(90) // expiry returns accepted up to this many days before expiry
+  ebillMapping     Json? // saved column mapping for this supplier's digital bills
+  version          Int             @default(0)
+  batches          Batch[]
+  orders           PurchaseOrder[]
 
   @@unique([tenantId, name])
 }
@@ -475,6 +563,13 @@ model PurchaseOrderItem {
   medicineId String
   qty        Int
   ratePaise  BigInt
+  freeQty    Int           @default(0)
+  ptsPaise   BigInt?
+  mrpPaise   BigInt?
+  scheme     String? // e.g. "10+2"
+  schemePct  Decimal       @default(0) @db.Decimal(5, 2)
+  tradePct   Decimal       @default(0) @db.Decimal(5, 2)
+  cashPct    Decimal       @default(0) @db.Decimal(5, 2)
 }
 
 model Grn {
@@ -489,6 +584,8 @@ model Grn {
   poId              String?
   scanDocId         String?
   igst              Boolean   @default(false) // inter-state: input tax booked as IGST
+  itc               Boolean   @default(true) // false: GST not claimable (composition), so it is part of cost
+  gstBase           String    @default("net") // net, before_cd, gross: see docs/PURCHASING.md
   approvedBy        String
   approvedAt        DateTime  @default(now())
   items             GrnItem[]
@@ -508,6 +605,29 @@ model GrnItem {
   freeQty    Int     @default(0)
   ratePaise  BigInt // per pack, excluding GST
   gstRate    Int
+  ptsPaise   BigInt?
+  mrpPaise   BigInt?
+  scheme     String?
+  schemePct  Decimal @default(0) @db.Decimal(5, 2)
+  tradePct   Decimal @default(0) @db.Decimal(5, 2)
+  cashPct    Decimal @default(0) @db.Decimal(5, 2)
+  discPaise  BigInt  @default(0) // scheme + trade + cash discounts on the paid quantity
+  basePaise  BigInt? // value GST was computed on; null on GRNs posted before pricing fields
+  gstPaise   BigInt?
+  costPaise  BigInt? // landed cost per unit: after discounts, spread over free units (+ GST when not claimable)
+}
+
+// Learned links from a supplier's item code (or "N:" + normalised name) to a catalogue medicine.
+model SupplierItemMap {
+  id         String   @id @default(uuid())
+  tenantId   String
+  supplierId String
+  code       String
+  medicineId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, supplierId, code])
 }
 
 model ScanDocument {

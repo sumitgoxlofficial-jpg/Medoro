@@ -160,9 +160,11 @@ export async function draftSeasonal(ctx: Ctx, lines: { medicineId: string; qty: 
 
 // ───────────── Supplier prices from purchase history ─────────────
 
+/** Latest landed cost per unit from each supplier (PTR less scheme, trade and cash discounts, spread over free goods). */
 export async function priceComparison(ctx: Ctx) {
-  const rows = await db.$queryRaw<{ medicineId: string; supplierId: string; rate: bigint; at: Date }[]>`
-    SELECT DISTINCT ON (gi."medicineId", g."supplierId") gi."medicineId", g."supplierId", gi."ratePaise" rate, g."approvedAt" at
+  const rows = await db.$queryRaw<{ medicineId: string; supplierId: string; rate: bigint; ptr: bigint; scheme: string | null; free: number; qty: number; at: Date }[]>`
+    SELECT DISTINCT ON (gi."medicineId", g."supplierId") gi."medicineId", g."supplierId",
+      COALESCE(gi."costPaise", ROUND(gi."ratePaise" * gi.qty / NULLIF(gi.qty + gi."freeQty", 0)))::bigint rate, gi."ratePaise" ptr, gi.scheme, gi."freeQty" free, gi.qty, g."approvedAt" at
     FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId" WHERE g."tenantId" = ${ctx.tenantId}
     ORDER BY gi."medicineId", g."supplierId", g."approvedAt" DESC`;
   const meds = await db.medicine.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.medicineId))] } }, select: { id: true, name: true } });
@@ -172,7 +174,8 @@ export async function priceComparison(ctx: Ctx) {
   return [...byMed.entries()].filter(([, rs]) => rs.length > 1).map(([mid, rs]) => {
     const last = [...rs].sort((a, b) => +b.at - +a.at)[0], best = [...rs].sort((a, b) => Number(a.rate - b.rate))[0];
     return {
-      name: meds.find((m) => m.id === mid)?.name ?? "", quotes: rs.map((r) => ({ supplier: sups.find((s) => s.id === r.supplierId)?.name ?? "", rate: Number(r.rate), date: r.at.toISOString() })),
+      name: meds.find((m) => m.id === mid)?.name ?? "",
+      quotes: rs.map((r) => ({ supplier: sups.find((s) => s.id === r.supplierId)?.name ?? "", rate: Number(r.rate), ptr: Number(r.ptr), deal: r.scheme || (r.free ? `${r.qty}+${r.free}` : ""), date: r.at.toISOString() })),
       best: sups.find((s) => s.id === best.supplierId)?.name ?? "", savingPct: last.rate > best.rate ? (Number(last.rate - best.rate) / Number(last.rate)) * 100 : 0,
     };
   });

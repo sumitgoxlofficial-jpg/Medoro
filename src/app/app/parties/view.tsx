@@ -121,12 +121,12 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
 function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; canPay: boolean; onClose: () => void }) {
   const toast = useToast();
   const isNew = edit === "new";
-  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", opening: "" });
+  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", returnWindowDays: "90", opening: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
   useEffect(() => {
     setErr("");
-    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, stateCode: edit.stateCode, opening: "" });
-    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", opening: "" });
+    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, stateCode: edit.stateCode, returnWindowDays: String(edit.returnWindowDays), opening: "" });
+    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", returnWindowDays: "90", opening: "" });
   }, [edit]);
   const save = () => start(async () => {
     const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f, isNew ? undefined : (edit as Sup).version);
@@ -146,6 +146,7 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
         {isNew && canPay ? <Field label="Opening balance you owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
       </div>
       <Checkbox checked={f.acceptsReturns} onChange={(e) => setF({ ...f, acceptsReturns: e.target.checked })} label="Accepts returns of near-expiry stock" />
+      {f.acceptsReturns ? <Field label="Expiry return window (days)" hint="Stock expiring within this many days is suggested for an expiry claim to this supplier."><Input value={f.returnWindowDays} onChange={(e) => setF({ ...f, returnWindowDays: e.target.value.replace(/\D/g, "") })} inputMode="numeric" className="max-w-[140px]" /></Field> : null}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );
@@ -214,11 +215,12 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
 function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; name: string; bal: number } | null; onClose: () => void }) {
   const toast = useToast();
   const [amount, setAmount] = useState(""), [method, setMethod] = useState<(typeof PAY_METHODS)[number]>("Cash"), [ref, setRef] = useState("");
+  const [chq, setChq] = useState({ chequeNo: "", bank: "", chequeDate: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { setAmount(""); setRef(""); setErr(""); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); }, [pay]);
+  useEffect(() => { setAmount(""); setRef(""); setErr(""); setChq({ chequeNo: "", bank: "", chequeDate: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10) }); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); }, [pay]);
   if (!pay) return null;
   const submit = () => start(async () => {
-    const input = { partyId: pay.id, amount, method, ref };
+    const input = { partyId: pay.id, amount, method, ref, ...(method === "Cheque" ? chq : {}) };
     const r = pay.kind === "sup" ? await paySupplierAction(input) : await receiveAction(input);
     if (!r.ok) return setErr(r.error);
     toast(`${r.data} posted for ${inr(Math.round(parseFloat(amount) * 100))}.`, "green"); onClose();
@@ -231,8 +233,15 @@ function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; na
         <Button onClick={() => setAmount((pay.bal / 100).toFixed(2))} className="h-[38px]">Full</Button>
       </div>
       <Select value={method} onChange={(e) => setMethod(e.target.value as typeof method)} aria-label="Method">{PAY_METHODS.map((m) => <option key={m}>{m}</option>)}</Select>
-      {method !== "Cash" ? <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="UTR / cheque no. (optional)" /> : null}
-      <div className="text-[12px] text-faint">Posts a {pay.kind === "sup" ? "payment voucher (PV)" : "receipt voucher (RV)"}. Posted vouchers can only be reversed, not edited.</div>
+      {method === "Cheque" ? (
+        <div className="grid grid-cols-[110px_minmax(0,1fr)_150px] gap-2">
+          <Input value={chq.chequeNo} onChange={(e) => setChq({ ...chq, chequeNo: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="Cheque no." aria-label="Cheque number" inputMode="numeric" className="font-mono" />
+          <Input value={chq.bank} onChange={(e) => setChq({ ...chq, bank: e.target.value })} placeholder={pay.kind === "sup" ? "Your bank" : "Drawn on (bank)"} aria-label="Bank" />
+          <Input type="date" value={chq.chequeDate} onChange={(e) => setChq({ ...chq, chequeDate: e.target.value })} aria-label="Cheque date" />
+        </div>
+      ) : null}
+      {method !== "Cash" ? <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder={method === "Cheque" ? "Note (optional)" : "UTR / reference (optional)"} /> : null}
+      <div className="text-[12px] text-faint">{method === "Cheque" ? `Posts a ${pay.kind === "sup" ? "payment" : "receipt"} voucher to ${pay.kind === "sup" ? "Cheques issued" : "Cheques in hand"}; the bank moves when you mark the cheque cleared under Cheques. Post-dated cheques are fine.` : <>Posts a {pay.kind === "sup" ? "payment voucher (PV)" : "receipt voucher (RV)"}. Posted vouchers can only be reversed, not edited.</>}</div>
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );

@@ -19,6 +19,11 @@ export const ACC = {
   cashDiff: "Cash short/excess",
   codClearing: "Cash with delivery staff",
   opening: "Opening balance equity",
+  claims: "Supplier claims receivable",
+  claimLoss: "Claim write-off",
+  chequesInHand: "Cheques in hand",
+  chequesIssued: "Cheques issued (uncleared)",
+  bankCharges: "Bank charges",
 } as const;
 
 export const EXPENSE_ACCOUNTS = [
