@@ -5,7 +5,7 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeView, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
-import { addDays, istDate, todayISO } from "@/lib/dates";
+import { addDays, istDate, istMidnight, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
 import { postVoucher } from "./post";
 import { ACC, EXPENSE_ACCOUNTS } from "./accounts";
@@ -62,12 +62,34 @@ export async function outputGstByRate(tenantId: string, p: Period, branchIds: st
   });
 }
 
-/** Input taxable value by slab from purchase invoices dated in the period. */
+/**
+ * Input GST by slab for the period: purchase invoices dated in it, less debit notes raised in it. Purchase tax
+ * is computed per line exactly as it was posted; debit-note tax is read from the posted input-tax ledger lines.
+ * The slab totals therefore agree with the Input CGST/SGST/IGST ledgers.
+ */
 export async function inputGstByRate(tenantId: string, p: Period, branchIds: string[] | null) {
-  const rows = await db.$queryRaw<{ rate: number; taxable: bigint }[]>`
-    SELECT gi."gstRate" rate, SUM(gi."ratePaise" * gi.qty)::bigint taxable FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId"
-    WHERE g."tenantId" = ${tenantId} AND g."invoiceDate" >= ${p.fromDay}::date AND g."invoiceDate" < ${p.toDay}::date ${inBranches(Prisma.sql`g."branchId"`, branchIds)} GROUP BY 1 ORDER BY 1`;
-  return rows.map((r) => { const taxable = Number(r.taxable); return { rate: r.rate, taxable, tax: Math.round((taxable * r.rate) / 100) }; });
+  const [bought, returned] = await Promise.all([
+    db.$queryRaw<{ rate: number; igst: boolean; taxable: bigint; tax: bigint }[]>`
+      SELECT gi."gstRate" rate, g.igst, SUM(gi."ratePaise" * gi.qty)::bigint taxable, SUM(ROUND((gi."ratePaise" * gi.qty * gi."gstRate")::numeric / 100))::bigint tax
+      FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId"
+      WHERE g."tenantId" = ${tenantId} AND g."invoiceDate" >= ${p.fromDay}::date AND g."invoiceDate" < ${p.toDay}::date ${inBranches(Prisma.sql`g."branchId"`, branchIds)} GROUP BY 1, 2`,
+    db.$queryRaw<{ rate: number; taxable: bigint; cs: bigint; ig: bigint }[]>`
+      SELECT m."gstRate" rate,
+        SUM(CASE WHEN l.account = ${ACC.purchases} THEN l."creditPaise" - l."debitPaise" ELSE 0 END)::bigint taxable,
+        SUM(CASE WHEN l.account IN (${ACC.inCgst}, ${ACC.inSgst}) THEN l."creditPaise" - l."debitPaise" ELSE 0 END)::bigint cs,
+        SUM(CASE WHEN l.account = ${ACC.inIgst} THEN l."creditPaise" - l."debitPaise" ELSE 0 END)::bigint ig
+      FROM "Voucher" v JOIN "LedgerLine" l ON l."voucherId" = v.id JOIN "StockOut" so ON so.id = v."refId" JOIN "Batch" b ON b.id = so."batchId" JOIN "Medicine" m ON m.id = b."medicineId"
+      WHERE v."tenantId" = ${tenantId} AND v."refType" = 'supplier_return' AND v.date >= ${p.from} AND v.date < ${p.to} ${inBranches(Prisma.sql`v."branchId"`, branchIds)} GROUP BY 1`,
+  ]);
+  const rates = [...new Set([...bought.map((r) => r.rate), ...returned.map((r) => r.rate)])].sort((a, b) => a - b);
+  return rates.map((rate) => {
+    const b = bought.filter((r) => r.rate === rate), r = returned.find((x) => x.rate === rate);
+    const sum = (f: (x: (typeof b)[number]) => bigint, igst: boolean) => b.filter((x) => x.igst === igst).reduce((a, x) => a + Number(f(x)), 0);
+    const grossTaxable = sum((x) => x.taxable, false) + sum((x) => x.taxable, true), retTaxable = Number(r?.taxable ?? 0);
+    const cs = sum((x) => x.tax, false) - Number(r?.cs ?? 0), igst = sum((x) => x.tax, true) - Number(r?.ig ?? 0);
+    const cgst = Math.floor(cs / 2);
+    return { rate, grossTaxable, retTaxable, taxable: grossTaxable - retTaxable, tax: cs + igst, cgst, sgst: cs - cgst, igst };
+  });
 }
 
 export async function accountsOverview(ctx: Ctx, p: Period) {
@@ -96,11 +118,61 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
     period: p,
     pl: { sales, cogs, gross: sales - cogs, expenseLines, expenses, net: sales - cogs - expenses },
     cash: { cash: bal(ACC.cash), bank: bal(ACC.bank), receivable: bal(ACC.debtors), payable: -bal(ACC.creditors) },
-    gst, gstTotals: { out: cr(ACC.cgst) + cr(ACC.sgst), returnsReversed: retTax, in: dr(ACC.inCgst) + dr(ACC.inSgst) },
+    gst, gstTotals: { out: cr(ACC.cgst) + cr(ACC.sgst) + cr(ACC.igst), returnsReversed: retTax, in: dr(ACC.inCgst) + dr(ACC.inSgst) + dr(ACC.inIgst), inIgst: dr(ACC.inIgst) },
   };
 }
 
 export const DAY_BOOK_PAGE = 100;
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+export function dayRange(from: string | undefined, to: string | undefined, fallback: Period) {
+  const f = from && ISO_DAY.test(from) ? from : fallback.fromDay, t = to && ISO_DAY.test(to) ? to : addDays(fallback.toDay, -1);
+  if (f > t) throw new UserError("The start date is after the end date.");
+  return { fromDay: f, toDay: t, from: istMidnight(f), to: istMidnight(addDays(t, 1)) };
+}
+
+/** Accounts that have postings, plus the standard chart. */
+export async function accountNames(ctx: Ctx) {
+  const used = await db.$queryRaw<{ account: string }[]>`SELECT DISTINCT l.account FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${ctx.tenantId}`;
+  return [...new Set([...Object.values(ACC), ...EXPENSE_ACCOUNTS, ...used.map((u) => u.account)])].sort((a, b) => a.localeCompare(b));
+}
+
+const partyNames = async (tenantId: string, lines: { partyType: string | null; partyId: string | null }[]) => {
+  const ids = (t: string) => [...new Set(lines.filter((l) => l.partyType === t && l.partyId).map((l) => l.partyId!))];
+  const [s, c] = await Promise.all([
+    db.supplier.findMany({ where: { tenantId, id: { in: ids("supplier") } }, select: { id: true, name: true } }),
+    db.customer.findMany({ where: { tenantId, id: { in: ids("customer") } }, select: { id: true, name: true } }),
+  ]);
+  return new Map([...s, ...c].map((x) => [x.id, x.name]));
+};
+
+/** One account's postings between two IST dates (inclusive), with opening and running balance (+ = debit). */
+export async function accountLedger(ctx: Ctx, account: string, fromDay?: string, toDay?: string) {
+  authorizeView(ctx, "reports");
+  const r = dayRange(fromDay, toDay, periodOf("month"));
+  const [open, lines] = await Promise.all([
+    db.$queryRaw<{ bal: bigint | null }[]>`SELECT SUM(l."debitPaise" - l."creditPaise") bal FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${ctx.tenantId} AND l.account = ${account} AND v.date < ${r.from}`,
+    db.ledgerLine.findMany({ where: { account, voucher: { tenantId: ctx.tenantId, date: { gte: r.from, lt: r.to } } }, include: { voucher: true }, orderBy: [{ voucher: { date: "asc" } }, { voucher: { no: "asc" } }], take: 5000 }),
+  ]);
+  const names = await partyNames(ctx.tenantId, lines);
+  const opening = Number(open[0]?.bal ?? 0);
+  let bal = opening, totalDr = 0, totalCr = 0;
+  const rows = lines.map((l) => {
+    const dr = big(l.debitPaise), cr = big(l.creditPaise);
+    bal += dr - cr; totalDr += dr; totalCr += cr;
+    return { id: l.id, date: l.voucher.date.toISOString(), no: l.voucher.no, type: l.voucher.type, narration: l.voucher.narration, party: l.partyId ? names.get(l.partyId) ?? "" : "", dr, cr, balance: bal };
+  });
+  return { account, fromDay: r.fromDay, toDay: r.toDay, opening, rows, totalDr, totalCr, closing: bal, truncated: lines.length >= 5000 };
+}
+
+/** Closing balance of every account as of the end of an IST date. Debits equal credits. */
+export async function trialBalance(ctx: Ctx, asOfDay?: string) {
+  authorizeView(ctx, "reports");
+  const day = asOfDay && ISO_DAY.test(asOfDay) ? asOfDay : todayISO();
+  const tot = await accountTotals(ctx.tenantId, null, istMidnight(addDays(day, 1)));
+  const rows = [...tot].map(([account, t]) => ({ account, dr: Math.max(t.dr - t.cr, 0), cr: Math.max(t.cr - t.dr, 0) })).filter((r) => r.dr || r.cr).sort((a, b) => a.account.localeCompare(b.account));
+  return { asOf: day, rows, dr: rows.reduce((a, r) => a + r.dr, 0), cr: rows.reduce((a, r) => a + r.cr, 0) };
+}
 
 /** Newest first, a page at a time; pass the last voucher id shown as `after` for the next page. */
 export async function dayBook(ctx: Ctx, p: Period, after?: string, take = DAY_BOOK_PAGE) {

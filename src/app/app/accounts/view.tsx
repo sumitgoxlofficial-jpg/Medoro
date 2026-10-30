@@ -71,7 +71,8 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
             <div key={g.rate} className="grid grid-cols-[50px_1fr_1fr_1fr] gap-2 text-[13px] tnum"><span>{g.rate}%</span><span className="text-right">{inr0(g.outTaxable)}</span><span className="text-right">{inr0(g.outTax)}</span><span className="text-right">{inr0(g.inTax)}</span></div>
           )) : <div className="text-[13px] text-fainter">No taxable sales or purchases in this period.</div>}
           <div className="flex justify-between text-[13.5px] font-semibold border-t border-line-soft pt-2"><span>Net output tax after credit notes</span><span className="tnum">{inr0(ov.gstTotals.out)}</span></div>
-          <div className="flex justify-between text-[13.5px]"><span className="text-ink-2">Input tax credit (purchases)</span><span className="tnum">{inr0(ov.gstTotals.in)}</span></div>
+          <div className="flex justify-between text-[13.5px]"><span className="text-ink-2">Input tax credit (purchases, net of debit notes)</span><span className="tnum">{inr0(ov.gstTotals.in)}</span></div>
+          {ov.gstTotals.inIgst ? <div className="flex justify-between text-[12.5px] text-muted"><span>of which IGST (inter-state suppliers)</span><span className="tnum">{inr0(ov.gstTotals.inIgst)}</span></div> : null}
           <div className="text-[12px] text-faint">Have your CA check this before filing. Medoro does not file returns.</div>
         </div>
       </div>

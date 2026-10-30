@@ -5,7 +5,7 @@ import { addDays, dateOnly, daysTo, isoOf, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
-import { inputGstByRate, outputGstByRate, type Period } from "./service";
+import { inputGstByRate, outputGstByRate, trialBalance, type Period } from "./service";
 
 export const REPORTS = [
   ["sales-register", "Sales register", "Invoices with tax split"],
@@ -16,12 +16,13 @@ export const REPORTS = [
   ["customer-dues", "Customer dues", "Receivables"],
   ["gst-summary", "GST summary", "Output and input tax by slab"],
   ["day-book", "Day book", "All vouchers with ledger lines"],
+  ["trial-balance", "Trial balance", "Account balances at period end"],
   ["stock-movements", "Stock movements", "Immutable stock ledger"],
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
 
 /** Reports built from pharmacy-level balances and ledgers; the rest are per branch. */
-export const PHARMACY_REPORTS: readonly ReportId[] = ["supplier-dues", "customer-dues", "day-book"];
+export const PHARMACY_REPORTS: readonly ReportId[] = ["supplier-dues", "customer-dues", "day-book", "trial-balance"];
 /** "branch": the current branch. "all": every branch the user can access. */
 export type ReportScope = "branch" | "all";
 export const scopeOf = (v: string | null | undefined): ReportScope => (v === "all" ? "all" : "branch");
@@ -57,9 +58,10 @@ async function gstSummary(T: string, p: Period, branchIds: string[]): Promise<Ro
   const [out, inn] = await Promise.all([outputGstByRate(T, p, branchIds), inputGstByRate(T, p, branchIds)]);
   const rates = [...new Set([...out.map((x) => x.rate), ...inn.map((x) => x.rate)])].sort((a, b) => a - b);
   const half = (n: number) => [r2(Math.floor(n / 2)), r2(n - Math.floor(n / 2))];
-  return [["Slab %", "Sales taxable", "Credit notes taxable", "Output taxable (net)", "Output CGST", "Output SGST", "Input taxable", "Input CGST", "Input SGST"],
+  // Retail sales are intra-state, so output IGST is zero; the column keeps the layout GSTR-ready.
+  return [["Slab %", "Sales taxable", "Credit notes taxable", "Output taxable (net)", "Output CGST", "Output SGST", "Output IGST", "Purchases taxable", "Debit notes taxable", "Input taxable (net)", "Input CGST", "Input SGST", "Input IGST"],
     ...rates.map((r) => { const o = out.find((x) => x.rate === r), i = inn.find((x) => x.rate === r);
-      return [r, r2(o?.grossTaxable ?? 0), r2(o?.retTaxable ?? 0), r2(o?.taxable ?? 0), ...half(o?.tax ?? 0), r2(i?.taxable ?? 0), ...half(i?.tax ?? 0)]; })];
+      return [r, r2(o?.grossTaxable ?? 0), r2(o?.retTaxable ?? 0), r2(o?.taxable ?? 0), ...half(o?.tax ?? 0), r2(0), r2(i?.grossTaxable ?? 0), r2(i?.retTaxable ?? 0), r2(i?.taxable ?? 0), r2(i?.cgst ?? 0), r2(i?.sgst ?? 0), r2(i?.igst ?? 0)]; })];
 }
 
 async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period): Promise<Rows> {
@@ -77,6 +79,10 @@ async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period): Promise<Rows> {
     case "day-book": {
       const v = await db.voucher.findMany({ where: { tenantId: T, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "asc" }, { no: "asc" }] });
       return [["Voucher", "Date", "Type", "Narration", "Account", "Debit", "Credit"], ...v.flatMap((x) => x.lines.map((l) => [x.no, ist(x.date), x.type, x.narration, l.account, r2(big(l.debitPaise)), r2(big(l.creditPaise))]))];
+    }
+    case "trial-balance": {
+      const tb = await trialBalance(ctx, addDays(p.toDay, -1));
+      return [["Account", "Debit", "Credit"], ...tb.rows.map((r) => [r.account, r2(r.dr), r2(r.cr)]), ["Total", r2(tb.dr), r2(tb.cr)]];
     }
     default:
       throw new Error(`${id} is a branch report.`);
