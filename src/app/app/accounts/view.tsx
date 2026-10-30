@@ -109,6 +109,9 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
             <div key={r.id} className="flex items-center gap-3 border border-line rounded-[10px] px-3 py-2.5">
               <div className="flex flex-col flex-1 min-w-0"><span className="text-[13.5px] font-semibold">{r.name}</span><span className="text-[12px] text-faint">{r.desc}{r.pharmacy && branchName ? " · all branches" : ""}</span></div>
               <a href={`/api/reports/${r.id}?period=${periodKey}${scope === "all" && !r.pharmacy ? "&scope=all" : ""}`} className="flex items-center gap-1 border border-input rounded-md px-2 py-1 text-[12.5px] text-ink hover:border-teal no-underline"><Download size={13} />CSV</a>
+              {r.id === "customer-dues" ? <button type="button" title="In strict mode, mobile numbers need a reason (kept in the audit trail)" className="text-[12px] text-teal cursor-pointer"
+                onClick={() => { const why = prompt("Why do you need customer mobile numbers in this export?", ""); if (why && why.trim().length >= 5) window.location.href = `/api/reports/${r.id}?period=${periodKey}&reason=${encodeURIComponent(why.trim())}`; }}>+ phones</button> : null}
+              {r.id === "h1-register" ? <a href={`/app/accounts?view=h1&period=${periodKey}`} className="text-[12px] text-teal no-underline">View</a> : null}
             </div>
           ))}
         </div>

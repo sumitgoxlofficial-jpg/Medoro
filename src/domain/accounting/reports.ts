@@ -5,6 +5,7 @@ import { addDays, dateOnly, daysTo, isoOf, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
+import { maskPhone } from "@/lib/mask";
 import { inputGstByRate, outputGstByRate, trialBalance, type Period } from "./service";
 
 export const REPORTS = [
@@ -18,6 +19,7 @@ export const REPORTS = [
   ["day-book", "Day book", "All vouchers with ledger lines"],
   ["trial-balance", "Trial balance", "Account balances at period end"],
   ["stock-movements", "Stock movements", "Immutable stock ledger"],
+  ["h1-register", "Schedule H1 register", "H1, X and NDPS sales with patient and prescriber"],
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
 
@@ -44,9 +46,11 @@ const ist = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slic
 
 type Rows = (string | number | null)[][];
 
-export async function reportRows(ctx: Ctx, id: ReportId, p: Period, scope: ReportScope = "branch"): Promise<Rows> {
+export type ReportOptions = { showPhones?: boolean };
+
+export async function reportRows(ctx: Ctx, id: ReportId, p: Period, scope: ReportScope = "branch", opts: ReportOptions = {}): Promise<Rows> {
   const branches = reportBranches(ctx, id, scope);
-  if (!branches) return pharmacyRows(ctx, id, p);
+  if (!branches) return pharmacyRows(ctx, id, p, opts);
   if (id === "gst-summary") return gstSummary(ctx.tenantId, p, branches.map((b) => b.id));
   if (branches.length === 1) return branchRows(ctx, id, p, branches[0].id);
   // Several branches: one block per branch with a leading Branch column.
@@ -64,7 +68,7 @@ async function gstSummary(T: string, p: Period, branchIds: string[]): Promise<Ro
       return [r, r2(o?.grossTaxable ?? 0), r2(o?.retTaxable ?? 0), r2(o?.taxable ?? 0), ...half(o?.tax ?? 0), r2(0), r2(i?.grossTaxable ?? 0), r2(i?.retTaxable ?? 0), r2(i?.taxable ?? 0), r2(i?.cgst ?? 0), r2(i?.sgst ?? 0), r2(i?.igst ?? 0)]; })];
 }
 
-async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period): Promise<Rows> {
+async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period, opts: ReportOptions): Promise<Rows> {
   const T = ctx.tenantId;
   switch (id) {
     case "supplier-dues": {
@@ -74,7 +78,7 @@ async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period): Promise<Rows> {
     }
     case "customer-dues": {
       const [c, bal] = await Promise.all([db.customer.findMany({ where: { tenantId: T, erasedAt: null }, orderBy: { name: "asc" } }), customerBalances(db, T)]);
-      return [["Customer", "Phone", "Outstanding", "Credit limit"], ...c.filter((x) => (bal.get(x.id) ?? 0) !== 0 || big(x.creditLimitPaise) > 0).map((x) => [x.name, x.phone, r2(bal.get(x.id) ?? 0), r2(big(x.creditLimitPaise))])];
+      return [["Customer", "Phone", "Outstanding", "Credit limit"], ...c.filter((x) => (bal.get(x.id) ?? 0) !== 0 || big(x.creditLimitPaise) > 0).map((x) => [x.name, opts.showPhones ? x.phone : maskPhone(x.phone), r2(bal.get(x.id) ?? 0), r2(big(x.creditLimitPaise))])];
     }
     case "day-book": {
       const v = await db.voucher.findMany({ where: { tenantId: T, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "asc" }, { no: "asc" }] });
@@ -121,7 +125,36 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
       const users = await db.user.findMany({ where: { tenantId: T }, select: { id: true, name: true } });
       return [["Time", "Medicine", "Batch", "Type", "Qty", "Reference", "By"], ...m.map((x) => [ist(x.at), x.batch.medicine.name, x.batch.batchNo, x.type, x.qty, x.note ?? x.refType, users.find((u) => u.id === x.userId)?.name ?? ""])];
     }
+    case "h1-register": {
+      const rows = await h1Register(T, B, p);
+      return [H1_HEAD, ...rows.map((r) => [r.date, r.invoiceNo, r.patient, r.prescriber, r.prescriberReg, r.rxNo, r.medicine, r.schedule, r.batchNo, r.expiry, r.qty, r.returned, r.billedBy])];
+    }
     default:
       throw new Error(`${id} is a pharmacy report.`);
   }
+}
+
+export const H1_SCHEDULES = ["H1", "X", "NDPS"] as const;
+const H1_HEAD = ["Date", "Invoice", "Patient", "Prescriber", "Prescriber reg. no.", "Rx no.", "Medicine", "Schedule", "Batch", "Expiry", "Qty", "Returned", "Billed by"];
+
+/** Schedule H1 register: every sale line of an H1, X or NDPS medicine at a branch, oldest first. */
+export async function h1Register(T: string, B: string, p: Period) {
+  const items = await db.saleItem.findMany({
+    where: { sale: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, medicineId: { in: (await db.medicine.findMany({ where: { tenantId: T, schedule: { in: [...H1_SCHEDULES] } }, select: { id: true } })).map((m) => m.id) } },
+    include: { sale: { include: { customer: { select: { name: true } } } } },
+    orderBy: [{ sale: { at: "asc" } }, { id: "asc" }],
+  });
+  const [meds, batches, users] = await Promise.all([
+    db.medicine.findMany({ where: { id: { in: [...new Set(items.map((i) => i.medicineId))] } }, select: { id: true, name: true, strength: true, schedule: true } }),
+    db.batch.findMany({ where: { id: { in: [...new Set(items.map((i) => i.batchId))] } }, select: { id: true, batchNo: true, expiryDate: true } }),
+    db.user.findMany({ where: { tenantId: T }, select: { id: true, name: true } }),
+  ]);
+  return items.map((i) => {
+    const m = meds.find((x) => x.id === i.medicineId), b = batches.find((x) => x.id === i.batchId);
+    return {
+      id: i.id, saleId: i.saleId, date: ist(i.sale.at), invoiceNo: i.sale.invoiceNo, patient: i.sale.patientName ?? i.sale.customer?.name ?? "", prescriber: i.sale.prescriber ?? "",
+      prescriberReg: i.sale.prescriberReg ?? "", rxNo: i.sale.rxNo ?? "", medicine: m ? `${m.name} ${m.strength}` : "", schedule: m?.schedule ?? "", batchNo: b?.batchNo ?? "",
+      expiry: b ? isoOf(b.expiryDate).slice(0, 7) : "", qty: i.qty, returned: i.returnedQty, billedBy: users.find((u) => u.id === i.sale.userId)?.name ?? "",
+    };
+  });
 }
