@@ -33,15 +33,21 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
   const margin = cur.taxable ? ((cur.taxable - cur.cost) / cur.taxable) * 100 : null;
   const margin7 = last7.taxable ? ((last7.taxable - last7.cost) / last7.taxable) * 100 : null;
 
-  const [grns, expenses, debtors, creditors, dueBills, payRows] = await Promise.all([
+  const [grns, expenses, reversals, debtors, creditors, dueBills, payRows] = await Promise.all([
     db.grn.aggregate({ where: { tenantId, branchId, approvedAt: { gte: from } }, _sum: { totalPaise: true }, _count: true }),
     db.voucher.findMany({ where: { tenantId, branchId, refType: "expense", date: { gte: from } }, include: { lines: true } }),
+    db.voucher.findMany({ where: { tenantId, branchId, refType: "reversal", date: { gte: from } }, include: { lines: true } }),
     db.$queryRaw<{ id: string; bal: bigint }[]>`SELECT "partyId" AS id, SUM("debitPaise" - "creditPaise") AS bal FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${tenantId} AND l.account = ${ACC.debtors} GROUP BY "partyId"`,
     db.$queryRaw<{ bal: bigint }[]>`SELECT COALESCE(SUM("creditPaise" - "debitPaise"), 0) AS bal FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${tenantId} AND l.account = ${ACC.creditors}`,
     db.supplierBill.findMany({ where: { tenantId, dueDate: { lte: dateOnly(addDays(todayISO(), 7)) } } }),
     db.$queryRaw<{ mode: string; amt: bigint }[]>`SELECT p.mode::text AS mode, SUM(p."amountPaise") AS amt FROM "Payment" p JOIN "Sale" s ON s.id = p."saleId" WHERE s."tenantId" = ${tenantId} AND s."branchId" = ${branchId} AND s.at >= ${from} GROUP BY p.mode`,
   ]);
-  const expenseTotal = expenses.reduce((a, v) => a + v.lines.reduce((b, l) => b + big(l.debitPaise), 0), 0);
+  // Reversals are dated when posted (like the P&L), so they net off in the period they were made.
+  const reversedIds = reversals.map((r) => r.reversesId).filter((x): x is string => !!x);
+  const expenseIds = new Set((await db.voucher.findMany({ where: { tenantId, id: { in: reversedIds }, refType: "expense" }, select: { id: true } })).map((v) => v.id));
+  const expenseReversals = reversals.filter((r) => r.reversesId && expenseIds.has(r.reversesId));
+  const expenseTotal = expenses.reduce((a, v) => a + v.lines.reduce((b, l) => b + big(l.debitPaise), 0), 0) - expenseReversals.reduce((a, v) => a + v.lines.reduce((b, l) => b + big(l.creditPaise), 0), 0);
+  const expenseCount = expenses.filter((v) => !expenseIds.has(v.id)).length;
   const receivable = debtors.reduce((a, r) => a + Math.max(0, Number(r.bal)), 0);
   const onCredit = debtors.filter((r) => Number(r.bal) > 0).length;
   const payable = Number(creditors[0]?.bal ?? 0);
@@ -102,7 +108,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
     kpi: {
       sales: cur.total - cur.returns, bills: cur.bills, salesPrev: prev.total - prev.returns,
       margin, margin7, purchases: big(grns._sum.totalPaise), grnCount: grns._count,
-      expenses: expenseTotal, expenseCount: expenses.length, receivable, onCredit, payable, dueWeek,
+      expenses: expenseTotal, expenseCount, receivable, onCredit, payable, dueWeek,
     },
     history, pay, lowStock, expiring, insights, branchPerf,
     backup: { last: lastBackup ? dayMonth(lastBackup.startedAt, true) + " · " + hhmm(lastBackup.startedAt) : null, driveConnected: !!drive?.connectedAt },
