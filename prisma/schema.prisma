@@ -120,6 +120,8 @@ model User {
   failedLogins Int       @default(0)
   lockedUntil  DateTime?
   isSupport    Boolean   @default(false) // the read-only "Medoro support" login an owner can grant
+  permGrants   String[]  @default([]) // permissions granted to this user on top of the role
+  permRevokes  String[]  @default([]) // role permissions withheld from this user
   sessions     Session[]
   createdAt    DateTime  @default(now())
 
@@ -352,15 +354,35 @@ model Customer {
   name             String
   phone            String?
   creditLimitPaise BigInt    @default(0)
-  waOptIn          Boolean   @default(false)
+  waOptIn          Boolean   @default(false) // transactional WhatsApp: invoices and refill reminders
   optInAt          DateTime?
   optInMethod      String?
+  smsOptIn         Boolean   @default(false) // transactional SMS
+  marketingWa      Boolean   @default(false) // offers and campaigns, separate from transactional consent
+  marketingSms     Boolean   @default(false)
   erasedAt         DateTime?
   version          Int       @default(0)
   createdAt        DateTime  @default(now())
   sales            Sale[]
 
   @@unique([tenantId, phone])
+}
+
+/// Every consent given or withdrawn, append-only. Customer flags hold the current state.
+model ConsentRecord {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  purpose    String // transactional, marketing
+  channel    String // whatsapp, sms
+  granted    Boolean
+  method     String // counter, form, reply, import
+  source     String // where it was recorded: pos, parties, import, whatsapp
+  userId     String?
+  userName   String?
+  at         DateTime @default(now())
+
+  @@index([tenantId, customerId, at])
 }
 
 // Balances are derived from vouchers; this table holds supplier bills for due-date tracking.
@@ -467,6 +489,8 @@ model Sale {
   customer       Customer?  @relation(fields: [customerId], references: [id])
   prescriber     String?
   rxNo           String?
+  prescriberReg  String? // prescriber's registration number (Schedule H1 register)
+  patientName    String? // patient on a bill with no customer (Schedule H1 register)
   subtotalPaise  BigInt
   discountPaise  BigInt
   discountPct    Decimal    @default(0)
