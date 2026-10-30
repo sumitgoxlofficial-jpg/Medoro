@@ -35,3 +35,12 @@ A signed JWT (Ed25519) licence is refreshed daily when online and valid offline 
 
 ## Environment
 See `.env.example`. Secrets go into the OS keystore or Docker secrets, never into the image.
+
+- `SESSION_SECRET` (32+ random characters) signs sessions. It can be rotated; everyone signs in again.
+- `HOST_KEY` (32+ random characters, different from `SESSION_SECRET`) seals stored integration secrets
+  (WhatsApp, Google Drive), the backup key and authenticator secrets. **Required in production**: the app
+  refuses to start without it. Keep a copy offline; losing or changing it makes those sealed values unreadable.
+- Upgrading an install that ran without `HOST_KEY`: its secrets were sealed with a key derived from
+  `SESSION_SECRET`. Add a new `HOST_KEY` and keep `SESSION_SECRET` unchanged; the old values still open (the
+  server logs a warning). Re-seal them under `HOST_KEY` by reconnecting WhatsApp and Google Drive, re-entering
+  the backup recovery kit and re-enrolling authenticators, and only then rotate `SESSION_SECRET`.
