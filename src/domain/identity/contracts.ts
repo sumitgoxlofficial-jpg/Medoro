@@ -9,7 +9,20 @@ const EASY_PINS = ["1234", "4321", "0000", "1212", "2580", "1122"];
 export const pinSchema = z.string().regex(/^\d{4}$/, "PIN must be 4 digits.")
   .refine((p) => !/^(\d)\1{3}$/.test(p) && !EASY_PINS.includes(p), "That PIN is too easy to guess. Choose another.");
 
-export const passwordSchema = z.string().min(10, "Password must be at least 10 characters.").max(200);
+// Passwords of 10+ characters that top public breach lists; checked offline.
+const BREACHED = new Set([
+  "1234567890", "0987654321", "1111111111", "0000000000", "123456789a", "a123456789", "1q2w3e4r5t", "1qaz2wsx3edc", "qwertyuiop", "qwerty1234",
+  "qwerty12345", "qwerty123456", "password12", "password123", "password1234", "passw0rd123", "iloveyou12", "iloveyou123", "abcdefghij", "abcd123456",
+  "abc1234567", "1234567890a", "12345678910", "123456789012", "1234qwerty", "123qweasdzxc", "zaq12wsxcde", "asdfghjkl1", "asdfghjkl123", "zxcvbnm123",
+  "welcome123", "welcome@123", "admin12345", "admin@1234", "india12345", "india@1234", "pharmacy123", "medoro1234", "changeme123", "letmein123",
+]);
+const weakPassword = (p: string) => {
+  const s = p.toLowerCase();
+  return BREACHED.has(s) || /^(.)\1+$/.test(s) || "01234567890123456789".includes(s) || "98765432109876543210".includes(s) || /^(password|passw0rd|qwerty|admin|welcome|india|medoro|pharmacy)[\d@#!._-]*$/.test(s);
+};
+
+export const passwordSchema = z.string().min(10, "Password must be at least 10 characters.").max(200)
+  .refine((p) => !weakPassword(p), "That password appears in public breach lists. Choose another.");
 
 export const pharmacySchema = z.object({
   name: z.string().trim().min(2, "Pharmacy name is required."),
