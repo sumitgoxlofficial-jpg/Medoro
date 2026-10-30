@@ -14,6 +14,7 @@ import { ROLE_OPTIONS } from "@/domain/identity/contracts";
 import type { auditTrail, listBranches, listTeam, listTransfers, MemberPatch, roleMatrix } from "@/domain/identity/admin";
 import type { Perm } from "@/domain/identity/permissions";
 import { branchAction, counterAction, inviteAction, memberAction, permAction, resetAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
+import { UserPermsModal, overrideCount } from "./user-perms";
 
 type Team = Awaited<ReturnType<typeof listTeam>>;
 type Br = Awaited<ReturnType<typeof listBranches>>[number];
@@ -34,6 +35,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
   const [invite, setInvite] = useState(false);
   const [code, setCode] = useState<{ code: string; tenantCode: string; name: string; reset?: boolean } | null>(null);
   const [edit, setEdit] = useState<Team["users"][number] | null>(null);
+  const [permUser, setPermUser] = useState<Team["users"][number] | null>(null);
   const [brEdit, setBrEdit] = useState<Br | "new" | null>(null);
   const [chain, setChain] = useState<string | null>(null);
   const res = (r: { ok: true; message?: string } | { ok: false; error: string }) => toast(r.ok ? r.message ?? "Saved." : r.error, r.ok ? "green" : "red");
@@ -67,7 +69,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                 {team.users.map((u) => (
                   <tr key={u.id} style={{ opacity: u.active ? 1 : 0.55 }}>
                     <td className={td}><div className="font-semibold">{u.name}{u.isMe ? <span className="text-faint font-normal"> (you)</span> : null}</div><div className="text-[12px] text-muted">{u.employeeNo ? <span className="font-mono">{u.employeeNo} · </span> : null}{u.contact}</div></td>
-                    <td className={td}><Badge tone={ROLE_TONE[u.role] ?? "gray"}>{u.role}</Badge>{!u.active ? <Badge tone="red" className="ml-1">Deactivated</Badge> : null}</td>
+                    <td className={td}><Badge tone={ROLE_TONE[u.role] ?? "gray"}>{u.role}</Badge>{overrideCount(u) ? <Badge tone="blue" className="ml-1">{overrideCount(u)} custom</Badge> : null}{!u.active ? <Badge tone="red" className="ml-1">Deactivated</Badge> : null}</td>
                     <td className={td + " text-ink-2"}>{u.branch}</td>
                     <td className={td} style={{ color: u.mfa ? "#1E7F4F" : u.mfaRequired ? "#B3261E" : "#8A929A" }}>{u.mfa ? "On" : u.mfaRequired ? "Required, not set up" : "Off (PIN)"}</td>
                     <td className={td + " text-muted"}>{when(u.lastSeen)}</td>
@@ -75,6 +77,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                       {!u.isMe && u.role !== "Owner" ? (
                         <div className="flex gap-1.5 justify-end">
                           <Button size="sm" variant="ghost" aria-label={`Edit ${u.name}`} onClick={() => setEdit(u)}><Pencil size={13} /></Button>
+                          <Button size="sm" variant="ghost" aria-label={`Permissions for ${u.name}`} title="Permissions for this person" onClick={() => setPermUser(u)}><ShieldCheck size={13} /></Button>
                           <Button size="sm" disabled={pending} onClick={() => { if (confirm(`Issue a ${u.role === "Manager" ? "password" : "PIN"} reset for ${u.name}? They’ll be signed out everywhere.`)) start(async () => { const r = await resetAction(u.id); if (!r.ok) return toast(r.error, "red"); setCode({ ...r.data, reset: true }); }); }}><KeyRound size={13} />Reset</Button>
                         </div>
                       ) : null}
@@ -177,6 +180,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
 
       <InviteModal open={invite} onClose={() => setInvite(false)} branches={branches} onDone={(c) => { setInvite(false); setCode(c); }} tenantCode={tenantCode} />
       <MemberModal user={edit} branches={branches} onClose={() => setEdit(null)} />
+      <UserPermsModal user={permUser} perms={perms} onClose={() => { setPermUser(null); router.refresh(); }} />
       <BranchModal edit={brEdit} onClose={() => setBrEdit(null)} />
     </div>
   );

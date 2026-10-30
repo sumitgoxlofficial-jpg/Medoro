@@ -5,7 +5,7 @@ import { authorize, authorizeAny, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { big } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
-import { discountCap } from "@/domain/identity/permissions";
+import { discountCap, effectivePerms } from "@/domain/identity/permissions";
 import { fefoOrder, isSellable } from "@/domain/inventory/fefo";
 import { commitSale, OFFLINE_MAX_DAYS, withinOfflineWindow } from "./service";
 import type { SaleInput } from "./contracts";
@@ -123,10 +123,10 @@ async function cashierCtx(ctx: Ctx, dev: Dev, op: OfflineOpInput): Promise<Ctx> 
   if (!op.cashierId || op.cashierId === ctx.userId) return ctx;
   const u = await db.user.findFirst({ where: { id: op.cashierId, tenantId: ctx.tenantId }, include: { role: true } });
   const seen = (dev.quota as DeviceQuota).users ?? [];
-  if (!u || !u.active || u.isSupport || !seen.includes(u.id) || (u.branchIds.length && !u.branchIds.includes(dev.branchId)) || !u.role.permissions.includes("sale")) {
+  if (!u || !u.active || u.isSupport || !seen.includes(u.id) || (u.branchIds.length && !u.branchIds.includes(dev.branchId)) || !effectivePerms(u.role.permissions, u.permGrants, u.permRevokes).includes("sale")) {
     throw new UserError("The cashier on this bill can’t bill on this device (left, deactivated, or never used it).");
   }
-  return { ...ctx, userId: u.id, userName: u.name, userEmail: u.email ?? u.phone ?? "", realRole: u.role.name, role: u.role.name, perms: u.role.permissions, readOnly: false };
+  return { ...ctx, userId: u.id, userName: u.name, userEmail: u.email ?? u.phone ?? "", realRole: u.role.name, role: u.role.name, perms: effectivePerms(u.role.permissions, u.permGrants, u.permRevokes), readOnly: false };
 }
 
 async function post(ctx: Ctx, op: OfflineOpInput, who: () => Promise<Ctx>, lines = op.sale.lines, opts: { at?: Date; note?: string } = { at: new Date(op.createdAt) }): Promise<SyncResult> {

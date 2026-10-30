@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { BRANCH_COOKIE, LANG_COOKIE, VIEWAS_COOKIE, getCtx } from "@/server/context";
-import { ROLE_NAMES } from "@/domain/identity/permissions";
+import { effectivePerms, ROLE_NAMES } from "@/domain/identity/permissions";
 
 const opts = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 };
 
@@ -26,7 +26,7 @@ export async function setViewAs(role: string) {
     (await cookies()).delete(VIEWAS_COOKIE);
   } else {
     const real = await db.user.findUnique({ where: { id: ctx.userId }, include: { role: true } });
-    if (!real?.role.permissions.includes("users")) return;
+    if (!real || !effectivePerms(real.role.permissions, real.permGrants, real.permRevokes).includes("users")) return;
     (await cookies()).set(VIEWAS_COOKIE, role, { ...opts, maxAge: 60 * 60 * 12 });
   }
   revalidatePath("/app", "layout");

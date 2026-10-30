@@ -7,7 +7,7 @@ import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { verifyChain } from "@/lib/audit-hash";
 import { GSTIN_RE, inviteContact, passwordSchema, pinSchema, ROLE_OPTIONS } from "./contracts";
-import { PERMS, type Perm } from "./permissions";
+import { OWNER_ONLY_GRANTS, PERMS, PERM_LABEL, type Perm } from "./permissions";
 import { branchCodes, newInviteCode, nextEmployeeNo } from "./service";
 
 export async function listTeam(ctx: Ctx) {
@@ -22,7 +22,7 @@ export async function listTeam(ctx: Ctx) {
   return {
     users: users.map((u) => ({
       id: u.id, name: u.name, contact: u.email ?? u.phone ?? "", phone: u.phone, employeeNo: u.employeeNo, role: u.role.name, branchIds: u.branchIds, branch: bn(u.branchIds),
-      mfa: u.mfaEnabled, mfaRequired: u.mfaRequired, active: u.active, lastSeen: seen.find((s) => s.userId === u.id)?._max.lastSeenAt?.toISOString() ?? null, isMe: u.id === ctx.userId,
+      mfa: u.mfaEnabled, mfaRequired: u.mfaRequired, active: u.active, rolePerms: u.role.permissions, grants: u.permGrants, revokes: u.permRevokes, lastSeen: seen.find((s) => s.userId === u.id)?._max.lastSeenAt?.toISOString() ?? null, isMe: u.id === ctx.userId,
     })),
     invites: invites.map((i) => ({ id: i.id, code: i.code, contact: i.contact, role: i.roleName, branch: branches.find((b) => b.id === i.branchId)?.name ?? "All branches", expiresAt: i.expiresAt.toISOString(), reset: !!i.userId })),
   };
@@ -115,6 +115,30 @@ export async function updateMember(ctx: Ctx, userId: string, patch: MemberPatch)
     data.tokenVersion = { increment: 1 }; // changes take effect immediately: existing sessions end
     await tx.user.update({ where: { id: u.id }, data });
     await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "User updated", entity: "user", entityId: u.id, detail: `${u.name} · ${notes.join(", ")}` });
+  });
+}
+
+/** Per-user override of one permission: "grant" adds it on top of the role, "revoke" withholds it, "role" follows the role. */
+export async function setUserPermission(ctx: Ctx, userId: string, perm: Perm, state: "role" | "grant" | "revoke") {
+  authorize(ctx, "users");
+  if (ctx.realRole !== ctx.role) throw new UserError("Switch back from “View as” before changing permissions.");
+  if (!(PERMS as readonly string[]).includes(perm) || !["role", "grant", "revoke"].includes(state)) throw new UserError("Unknown permission.");
+  if (state === "grant" && OWNER_ONLY_GRANTS.includes(perm) && ctx.realRole !== "Owner") throw new UserError(`Only the owner can grant “${PERM_LABEL[perm]}”.`);
+  return db.$transaction(async (tx) => {
+    const u = await tx.user.findFirst({ where: { id: userId, tenantId: ctx.tenantId, isSupport: false }, include: { role: true } });
+    if (!u) throw new UserError("User not found.");
+    if (u.id === ctx.userId) throw new UserError("You can’t change your own permissions.");
+    if (u.role.locked || u.role.name === "Owner") throw new UserError("Owner permissions are locked.");
+    const grants = u.permGrants.filter((p) => p !== perm), revokes = u.permRevokes.filter((p) => p !== perm);
+    if (state === "grant" && !u.role.permissions.includes(perm)) grants.push(perm);
+    if (state === "revoke" && u.role.permissions.includes(perm)) revokes.push(perm);
+    const was = u.permGrants.includes(perm) ? "granted" : u.permRevokes.includes(perm) ? "revoked" : "role";
+    const now = grants.includes(perm) ? "granted" : revokes.includes(perm) ? "revoked" : "role";
+    if (was === now) return now;
+    await tx.user.update({ where: { id: u.id }, data: { permGrants: grants, permRevokes: revokes } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: now === "granted" ? "User permission granted" : now === "revoked" ? "User permission revoked" : "User permission reset to role", entity: "user", entityId: u.id,
+      detail: `${u.name} · ${PERM_LABEL[perm]} · ${was} → ${now}`, before: { grants: u.permGrants, revokes: u.permRevokes }, after: { grants, revokes } });
+    return now;
   });
 }
 

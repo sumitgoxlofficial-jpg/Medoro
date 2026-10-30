@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { DEFAULT_GRANTS, ForbiddenError, type Perm, type RoleName, ROLE_NAMES } from "@/domain/identity/permissions";
+import { DEFAULT_GRANTS, effectivePerms, ForbiddenError, type Perm, type RoleName, ROLE_NAMES } from "@/domain/identity/permissions";
 import { db } from "./db";
 import { readSession } from "./auth";
 
@@ -47,13 +47,14 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
   const wanted = c.get(BRANCH_COOKIE)?.value;
   const br = branches.find((b) => b.id === wanted) ?? branches[0];
 
-  // "View as" lets an owner preview another role. It can only narrow permissions.
-  let role = u.role.name, perms = u.role.permissions;
+  // Per-user overrides apply on top of the role. "View as" lets an owner preview another role; it can only narrow.
+  const own = effectivePerms(u.role.permissions, u.permGrants, u.permRevokes);
+  let role = u.role.name, perms: string[] = own;
   const va = c.get(VIEWAS_COOKIE)?.value;
-  if (va && va !== role && perms.includes("users") && (ROLE_NAMES as readonly string[]).includes(va)) {
+  if (va && va !== role && own.includes("users") && (ROLE_NAMES as readonly string[]).includes(va)) {
     const r = await db.role.findFirst({ where: { tenantId: u.tenantId, name: va } });
     const p = r?.permissions ?? DEFAULT_GRANTS[va as RoleName];
-    perms = p.filter((x) => u.role.permissions.includes(x));
+    perms = p.filter((x) => own.includes(x as Perm));
     role = va;
   }
   return {

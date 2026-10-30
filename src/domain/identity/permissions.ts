@@ -28,6 +28,14 @@ export const DEFAULT_GRANTS: Record<RoleName, Perm[]> = {
   Accountant: ["payments", "reports"],
 };
 
+/** Role permissions plus the user's own grants, minus the user's revokes. Unknown keys are ignored. */
+export function effectivePerms(role: readonly string[], grants: readonly string[] = [], revokes: readonly string[] = []): Perm[] {
+  return PERMS.filter((p) => (role.includes(p) || grants.includes(p)) && !revokes.includes(p));
+}
+
+/** Granting these needs the owner: they control users, integrations and backups. */
+export const OWNER_ONLY_GRANTS: readonly Perm[] = ["users", "integrations"];
+
 /** Max discount % a user may give without approval. */
 export const discountCap = (perms: readonly string[]) => (perms.includes("disc") ? 20 : 5);
 
