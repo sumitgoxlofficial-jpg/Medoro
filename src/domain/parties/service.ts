@@ -9,7 +9,10 @@ import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { supplierPerformance } from "@/domain/purchasing/service";
 import { customerSchema, type CustomerInput } from "@/domain/sales/contracts";
+import { isMasked } from "@/lib/mask";
+import { phoneMasker } from "@/domain/system/strict";
 import { allocateToBills, customerBalance, customerBalances, supplierBalances } from "./balances";
+import { applyConsents, consentHistory, type ConsentInput } from "./consent";
 import { paymentSchema, supplierSchema, type PaymentInput, type SupplierInput } from "./contracts";
 
 export async function listSuppliers(ctx: Ctx) {
@@ -31,15 +34,23 @@ export async function listSuppliers(ctx: Ctx) {
 }
 
 export async function listCustomers(ctx: Ctx) {
-  const [rows, bal, last] = await Promise.all([
+  const [rows, bal, last, mask] = await Promise.all([
     db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" } }),
     customerBalances(db, ctx.tenantId),
     db.sale.groupBy({ by: ["customerId"], where: { tenantId: ctx.tenantId, customerId: { not: null } }, _max: { at: true } }),
+    phoneMasker(ctx),
   ]);
   return rows.map((c) => ({
-    id: c.id, name: c.name, phone: c.phone, optIn: c.waOptIn, optInAt: c.optInAt?.toISOString() ?? null, limit: big(c.creditLimitPaise),
+    id: c.id, name: c.name, phone: mask(c.phone), optIn: c.waOptIn, smsOptIn: c.smsOptIn, marketingWa: c.marketingWa, marketingSms: c.marketingSms,
+    optInAt: c.optInAt?.toISOString() ?? null, limit: big(c.creditLimitPaise),
     due: bal.get(c.id) ?? 0, lastVisit: last.find((l) => l.customerId === c.id)?._max.at?.toISOString() ?? null, version: c.version,
   }));
+}
+
+/** Consent records for one customer, newest first: purpose, channel, given or withdrawn, how, where, by whom and when. */
+export async function customerConsents(ctx: Ctx, customerId: string) {
+  if (!can(ctx, "sale")) throw new UserError("Your role cannot view customers.");
+  return consentHistory(db, ctx.tenantId, customerId);
 }
 
 export async function saveSupplier(ctx: Ctx, id: string | null, raw: SupplierInput) {
@@ -69,13 +80,15 @@ export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: S
   return s.id;
 }
 
-export async function saveCustomer(ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }) {
+export async function saveCustomer(ctx: Ctx, id: string | null, raw: CustomerInput & ConsentInput & { opening?: string | number }) {
   return db.$transaction((tx) => saveCustomerIn(tx, ctx, id, raw));
 }
 
-export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }) {
+export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: CustomerInput & ConsentInput & { opening?: string | number }, source = "parties") {
   authorize(ctx, "sale");
-  const i = customerSchema.parse(raw);
+  // A masked number (strict mode, staff below manager) means "unchanged".
+  const keep = id && isMasked(raw.phone) ? await tx.customer.findFirst({ where: { id, tenantId: ctx.tenantId }, select: { phone: true } }) : null;
+  const i = customerSchema.parse(keep ? { ...raw, phone: keep.phone ?? "" } : raw);
   const opening = Math.round((parseFloat(String(raw.opening ?? 0)) || 0) * 100);
   if (i.phone && (await tx.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: i.phone, ...(id ? { NOT: { id } } : {}) } }))) throw new UserError("Another customer has this mobile number.");
   const before = id ? await tx.customer.findFirst({ where: { id, tenantId: ctx.tenantId, erasedAt: null } }) : null;
@@ -85,17 +98,17 @@ export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: C
   const consentChanged = !before || before.waOptIn !== i.waOptIn;
   const consent = consentChanged ? { optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
   const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), ...consent };
-  let cid = id;
-  if (id) await tx.customer.update({ where: { id }, data: { ...data, version: { increment: 1 } } });
-  else cid = (await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } })).id;
+  const saved = id ? await tx.customer.update({ where: { id }, data: { ...data, version: { increment: 1 } } }) : await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } });
+  const cid = saved.id;
+  const consents = await applyConsents(tx, ctx, saved, before, { ...raw, waOptIn: i.waOptIn }, source);
   if (!id && opening > 0) {
     authorize(ctx, "payments");
-    await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: cid!, narration: `Opening balance · ${i.name}`,
-      lines: [{ account: ACC.debtors, dr: opening, partyType: "customer", partyId: cid! }, { account: ACC.opening, cr: opening }] });
+    await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: cid, narration: `Opening balance · ${i.name}`,
+      lines: [{ account: ACC.debtors, dr: opening, partyType: "customer", partyId: cid }, { account: ACC.opening, cr: opening }] });
   }
   await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: id ? "Customer updated" : "Customer added", entity: "customer", entityId: cid,
-    detail: `${i.name}${consentChanged && id ? (i.waOptIn ? " · WhatsApp opt-in" : " · WhatsApp opt-out") : ""}${before && big(before.creditLimitPaise) !== i.creditLimit ? ` · limit ${inr(big(before.creditLimitPaise))} → ${inr(i.creditLimit)}` : ""}` });
-  return cid!;
+    detail: `${i.name}${consents.length ? " · consent " + consents.join(", ") : ""}${before && big(before.creditLimitPaise) !== i.creditLimit ? ` · limit ${inr(big(before.creditLimitPaise))} → ${inr(i.creditLimit)}` : ""}` });
+  return cid;
 }
 
 const moneyAccount = (method: string) => (method === "Cash" ? ACC.cash : ACC.bank);

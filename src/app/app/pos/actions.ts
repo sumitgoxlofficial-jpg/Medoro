@@ -4,6 +4,7 @@ import { getCtx } from "@/server/context";
 import { run } from "@/server/action";
 import { commitSale, createCustomer, heldCart, holdCart, invoiceData, listHeld, posCustomers, searchForSale, takeHeld } from "@/domain/sales/service";
 import type { CustomerInput, SaleInput } from "@/domain/sales/contracts";
+import type { ConsentInput } from "@/domain/parties/consent";
 import { saleMessage, sendInvoice, waSettings } from "@/domain/comms/whatsapp";
 import { db } from "@/server/db";
 
@@ -41,7 +42,7 @@ export async function invoiceAction(id: string) {
   return ctx ? invoiceData(ctx, id) : null;
 }
 
-export async function addCustomerAction(input: CustomerInput) {
+export async function addCustomerAction(input: CustomerInput & ConsentInput) {
   return run(async (ctx) => { const id = await createCustomer(ctx, input); return { id, customers: await posCustomers(ctx) }; }, "Customer added.");
 }
 

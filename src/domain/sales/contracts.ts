@@ -15,6 +15,8 @@ export const saleSchema = z.object({
   }),
   prescriber: z.string().trim().max(120).optional(),
   rxNo: z.string().trim().max(60).optional(),
+  prescriberReg: z.string().trim().max(40).optional(),
+  patientName: z.string().trim().max(120).optional(),
 });
 export type SaleInput = z.infer<typeof saleSchema>;
 
