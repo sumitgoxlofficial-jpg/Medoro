@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { db } from "@/server/db";
+import { db, type Tx } from "@/server/db";
 import { seal } from "@/server/vault";
 import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
@@ -95,11 +95,14 @@ export async function moveLead(s: Staff, id: string, dir: "back" | "forward") {
   if (l.stage === "trial") {
     if (l.discountStatus === "pending") throw new UserError("Waiting for the super admin to approve the discount.");
     const disc = l.discountStatus === "approved" ? l.discountPct ?? 0 : 0;
-    await logSaleTx(s, { pharmacy: l.name, phone: l.phone, city: l.city === "—" ? "" : l.city, product: l.product as ProductId, cycle: "m" }, l.staffId, { leadId: l.id, discountPct: disc });
-    await db.$transaction([
-      db.lead.update({ where: { id }, data: { stage: "won", nextOn: null } }),
-      db.leadLog.create({ data: { leadId: id, staffId: s.id, text: `Won ${day(todayISO())} by ${s.name.split(" ")[0]}` } }),
-    ]);
+    // Closing the lead and logging its sale is one step; the conditional update stops a double submit.
+    const sale = await db.$transaction(async (tx) => {
+      const won = await tx.lead.updateMany({ where: { id, stage: "trial" }, data: { stage: "won", nextOn: null } });
+      if (!won.count) throw new UserError("This lead was already closed.");
+      await tx.leadLog.create({ data: { leadId: id, staffId: s.id, text: `Won ${day(todayISO())} by ${s.name.split(" ")[0]}` } });
+      return logSaleTx(tx, { pharmacy: l.name, phone: l.phone, city: l.city === "—" ? "" : l.city, product: l.product as ProductId, cycle: "m" }, l.staffId, { leadId: l.id, discountPct: disc });
+    });
+    await staffAudit(s, "Sale logged", sale.detail);
     await staffAudit(s, "Lead won", `${l.code} · ${l.name}`);
     return { won: true };
   }
@@ -165,22 +168,24 @@ export const saleSchema = z.object({
   product: z.enum(PRODUCT_IDS), cycle: z.enum(["m", "y"]),
 });
 
-async function logSaleTx(s: Staff, raw: z.input<typeof saleSchema>, staffId: string, extra: { leadId?: string; discountPct?: number } = {}) {
+/** Creates the pending sale in `tx`; the caller records the audit detail once it commits. */
+async function logSaleTx(tx: Tx, raw: z.input<typeof saleSchema>, staffId: string, extra: { leadId?: string; discountPct?: number } = {}) {
   const i = saleSchema.parse(raw);
-  const dup = await db.cpSale.findFirst({ where: { phone: i.phone, product: i.product, status: "pending" } });
+  const dup = await tx.cpSale.findFirst({ where: { phone: i.phone, product: i.product, status: "pending" } });
   if (dup) throw new UserError("This sale is already waiting for verification.");
-  const existing = await db.cpCustomer.findUnique({ where: { phone: i.phone } });
+  const existing = await tx.cpCustomer.findUnique({ where: { phone: i.phone } });
   const type = existing && (existing.product === i.product || existing.addons.includes(i.product)) ? "renewal" : "new";
   const amount = amountPaise(i.product, i.cycle, extra.discountPct ?? 0);
   const rate = await rateFor(staffId, i.product, type);
-  const sale = await db.cpSale.create({ data: { date: dateOnly(todayISO()), ...i, customerId: existing?.id ?? null, type, staffId, status: "pending", amountPaise: amount, ratePct: rate, commissionPaise: Math.round((amount * rate) / 100), leadId: extra.leadId ?? null } });
-  await staffAudit(s, "Sale logged", `${i.pharmacy} · ${product(i.product).name} · ${rupees(amount)}`);
-  return sale.id;
+  const sale = await tx.cpSale.create({ data: { date: dateOnly(todayISO()), ...i, customerId: existing?.id ?? null, type, staffId, status: "pending", amountPaise: amount, ratePct: rate, commissionPaise: Math.round((amount * rate) / 100), leadId: extra.leadId ?? null } });
+  return { id: sale.id, detail: `${i.pharmacy} · ${product(i.product).name} · ${rupees(amount)}` };
 }
 
 export async function logSale(s: Staff, raw: z.input<typeof saleSchema>) {
   allow(s, "sales");
-  return logSaleTx(s, raw, s.id);
+  const r = await db.$transaction((tx) => logSaleTx(tx, raw, s.id));
+  await staffAudit(s, "Sale logged", r.detail);
+  return r.id;
 }
 
 /** Super admin confirms the customer's payment arrived. Creates or updates the customer account. */

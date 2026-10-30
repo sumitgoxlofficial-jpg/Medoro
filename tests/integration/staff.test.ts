@@ -148,4 +148,15 @@ describe("staff console", () => {
     // Sales only see their own customers.
     expect(await customerDetail({ ...karan, id: "someone-else" }, c.id)).toBeNull();
   });
+
+  it("winning a lead twice at once logs one sale", async () => {
+    const karan = await asStaff("karan.s@medoro.in");
+    await createLead(karan, { name: "Twin Clicks Pharmacy", phone: "9823055999", source: "Referral", product: "starter" });
+    const lead = await db.lead.findFirstOrThrow({ where: { phone: "9823055999" } });
+    for (let i = 0; i < 3; i++) await moveLead(karan, lead.id, "forward");
+    const r = await Promise.allSettled([moveLead(karan, lead.id, "forward"), moveLead(karan, lead.id, "forward")]);
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
+    expect(await db.cpSale.count({ where: { leadId: lead.id } })).toBe(1);
+    expect((await db.lead.findUniqueOrThrow({ where: { id: lead.id } })).stage).toBe("won");
+  });
 });
