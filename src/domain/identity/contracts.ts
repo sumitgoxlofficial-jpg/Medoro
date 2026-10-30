@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEPLOYMENTS } from "./deployment";
 
 export const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 export const MOBILE_RE = /^[6-9]\d{9}$/;
@@ -32,7 +33,7 @@ export const ROLE_OPTIONS = ["Manager", "Pharmacist", "Cashier", "Accountant"] a
 export const setupSchema = z.object({
   pharmacy: pharmacySchema,
   owner: ownerSchema,
-  deployment: z.enum(["cloud", "onprem", "lan", "single"]),
+  deployment: z.enum(DEPLOYMENTS),
   branches: z.array(z.object({ name: z.string().trim().min(2, "Branch name is required."), counters: z.number().int().min(1).max(20) })).min(1, "Add at least one branch."),
   invites: z.array(z.object({ contact: z.string().trim().min(3), role: z.enum(ROLE_OPTIONS), branch: z.string().optional() })).max(50),
   backupKey: z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Download the recovery kit first."),

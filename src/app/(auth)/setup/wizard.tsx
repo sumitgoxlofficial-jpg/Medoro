@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Cloud, Server, Network, Monitor, Store, HardDriveUpload, KeyRound, CircleCheck, CircleAlert, Circle, LoaderCircle, Trash2, Copy } from "lucide-react";
+import { Cloud, Server, Network, Database, Store, HardDriveUpload, KeyRound, CircleCheck, CircleAlert, Circle, LoaderCircle, Trash2, Copy } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -10,12 +10,12 @@ import { setupAction, testDatabase } from "../actions";
 
 const LABELS = ["Pharmacy", "Your account", "Database", "Branches", "Team", "Backups", "Done"];
 const inp = "border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none bg-white focus:border-teal focus:ring-2 focus:ring-teal/15 w-full";
-type Dep = "cloud" | "onprem" | "lan" | "single";
+type Dep = "cloud" | "onprem" | "lan" | "hosted";
 const HOSTS: [Dep, React.ComponentType<{ size?: number; className?: string }>, string, string][] = [
   ["cloud", Cloud, "Your cloud server", "Your own AWS, Azure or GCP account, or another provider you choose"],
   ["onprem", Server, "On-premises server", "A server you own, in the shop or at your office"],
   ["lan", Network, "Shop LAN", "One PC hosts the database and the other counters join over Wi-Fi or LAN"],
-  ["single", Monitor, "Single device", "One computer, no sharing"],
+  ["hosted", Database, "Hosted PostgreSQL", "A managed database such as Supabase or Neon, reached over TLS"],
 ];
 
 const suggestCode = (name: string, addr: string) => {

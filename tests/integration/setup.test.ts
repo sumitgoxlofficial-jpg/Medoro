@@ -33,6 +33,7 @@ describe("first-run setup", () => {
     await resetDb();
     await expect(makePharmacy({ pharmacy: { name: "A", code: "AAAA", gstin: "27ABC", dl: "X-1", pharmacist: "", address: "", lang: "en" } })).rejects.toThrow(/GSTIN/);
     await expect(makePharmacy({ invites: [{ contact: "9850000003", role: "Manager" }] })).rejects.toThrow(/by email/);
+    await expect(makePharmacy({ deployment: "hosted" })).rejects.toThrow(/on this machine/);
     expect(await db.tenant.count()).toBe(0);
   });
 });

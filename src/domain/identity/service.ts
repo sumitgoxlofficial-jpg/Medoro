@@ -7,6 +7,7 @@ import { fingerprint, seal } from "@/server/vault";
 import { UserError } from "@/server/action";
 import { DEFAULT_GRANTS, ROLE_NAMES } from "./permissions";
 import { inviteContact, setupSchema, type SetupInput } from "./contracts";
+import { deploymentMismatch } from "./deployment";
 
 export const isSetupDone = async () => (await db.tenant.count()) > 0;
 
@@ -40,6 +41,8 @@ export async function nextEmployeeNo(tx: Tx, tenantId: string) {
 /** First-run setup. Creates the pharmacy, branches, counters, roles, owner and invites in one transaction. */
 export async function createPharmacy(raw: SetupInput) {
   const input = setupSchema.parse(raw);
+  const mismatch = deploymentMismatch(input.deployment, process.env.DATABASE_URL);
+  if (mismatch) throw new UserError(mismatch);
   const invites = input.invites.map((i) => ({ ...i, c: inviteContact(i.contact) }));
   const bad = invites.find((i) => !i.c);
   if (bad) throw new UserError(`“${bad.contact}” is not a valid email or mobile number.`);

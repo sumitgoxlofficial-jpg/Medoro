@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const hm = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
   if (supportEnd && !ctx.readOnly && ctx.perms.includes("users")) alerts.unshift(`Medoro support has read-only access until ${hm(supportEnd)}. End it under Privacy & data.`);
   const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;
-  const deployment = { cloud: "Your cloud", onprem: "On-premises", lan: "Shop LAN", single: "Single device" }[((tenant.settings as { deployment?: string }).deployment ?? "lan") as "lan"] ?? "Self-hosted";
+  const deployment = { cloud: "Your cloud", onprem: "On-premises", lan: "Shop LAN", hosted: "Hosted PostgreSQL", single: "Single device" }[((tenant.settings as { deployment?: string }).deployment ?? "lan") as "lan"] ?? "Self-hosted";
   return (
     <Shell
       tenantName={ctx.tenantName} branchCount={ctx.branches.length} userName={ctx.userName} userEmail={ctx.userEmail}

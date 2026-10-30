@@ -4,6 +4,7 @@ import { readSession } from "@/server/auth";
 import { setupGate, setupUnlocked } from "@/server/setup-gate";
 import { Unlock } from "./unlock";
 import { Wizard } from "./wizard";
+import { DEPLOYMENTS, databaseKind, type Deployment } from "@/domain/identity/deployment";
 
 export const metadata = { title: "Set up your pharmacy" };
 export const dynamic = "force-dynamic";
@@ -16,5 +17,6 @@ export default async function Page() {
     if (!s || s.mfaPassed || s.user.mfaEnabled) redirect("/signin");
   }
   else if (!(await setupUnlocked())) return <Unlock disabled={setupGate() === "disabled"} />;
-  return <Wizard deployment={(process.env.DEPLOYMENT_MODE as "cloud" | "onprem" | "lan" | "single") ?? "lan"} />;
+  const mode = process.env.DEPLOYMENT_MODE as Deployment | undefined;
+  return <Wizard deployment={mode && DEPLOYMENTS.includes(mode) ? mode : databaseKind(process.env.DATABASE_URL) === "managed" ? "hosted" : "lan"} />;
 }
