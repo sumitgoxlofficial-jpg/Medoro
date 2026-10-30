@@ -53,4 +53,29 @@ describe("returns and shifts", () => {
     const item = await db.saleItem.findFirstOrThrow({ where: { saleId: s.saleId } });
     await expect(processReturn(mgr, { saleId: s.saleId, lines: [{ itemId: item.id, qty: 1 }], condition: "sealed", refundMode: "Adjust customer credit", reason: "x x x" })).rejects.toThrow(/Walk-in/);
   });
+
+  it("partial returns never refund more than the line's net, and the voucher carries the credit note number", async () => {
+    const mgr = await ctxFor("Manager");
+    const s = await commitSale(mgr, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: batch, qty: 3 }], customerId: null, discountPct: 3.3, pay: { mode: "upi" } });
+    const item = await db.saleItem.findFirstOrThrow({ where: { saleId: s.saleId } });
+    const net = Number(item.mrpPaise) * 3 - Number(item.discountPaise);
+    expect(net % 3).not.toBe(0);
+    const rs = [];
+    for (let i = 0; i < 3; i++) rs.push(await processReturn(mgr, { saleId: s.saleId, lines: [{ itemId: item.id, qty: 1 }], condition: "sealed", refundMode: "UPI refund", reason: "Not needed" }));
+    expect(rs.reduce((a, r) => a + r.amount, 0)).toBe(net);
+    for (const r of rs) {
+      const ret = await db.salesReturn.findFirstOrThrow({ where: { creditNoteNo: r.creditNote } });
+      expect((await db.voucher.findFirstOrThrow({ where: { refId: ret.id, type: "credit_note" } })).no).toBe(r.creditNote);
+    }
+  });
+
+  it("closing a shift counts cash from sales committed on it", async () => {
+    const mgr = await ctxFor("Manager");
+    await openShift(mgr, "100");
+    const s = await commitSale(mgr, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: batch, qty: 1 }], customerId: null, discountPct: 0, pay: { mode: "cash" } });
+    const c = await closeShift(mgr, "255");
+    expect(c).toEqual({ expected: 10000 + s.total, counted: 25500, diff: 0 });
+    expect((await db.shift.findFirstOrThrow({ where: { closedAt: { not: null } }, orderBy: { closedAt: "desc" } })).expectedPaise).toBe(BigInt(10000 + s.total));
+    expect((await db.sale.findUniqueOrThrow({ where: { id: s.saleId } })).shiftId).not.toBeNull();
+  });
 });

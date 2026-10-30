@@ -11,6 +11,7 @@ import { discountCap } from "@/domain/identity/permissions";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { customerBalance } from "@/domain/parties/balances";
+import { lockOpenShift } from "./returns";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
 
 export const OFFLINE_MAX_DAYS = 7;
@@ -102,7 +103,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const n = await nextSeq(tx, ctx.tenantId, `INV:${ctx.branchId}:${fy}`);
   const prefix = (tenant.settings as { invoicePrefix?: string }).invoicePrefix ?? "INV";
   const invoiceNo = `${prefix}/${branch.code}/${fy}/${String(n).padStart(6, "0")}`;
-  const shift = await tx.shift.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, closedAt: null, counter: ctx.counterId ?? "user:" + ctx.userId } });
+  const shift = await lockOpenShift(tx, ctx);
 
   const sale = await tx.sale.create({
     data: {

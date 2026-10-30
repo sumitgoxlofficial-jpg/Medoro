@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cartTotals, inr, inr0, taxableFromInclusive, toPaise } from "./money";
+import { cartTotals, inr, inr0, shareOf, taxableFromInclusive, toPaise } from "./money";
 
 describe("money", () => {
   it("formats rupees the Indian way", () => {
@@ -42,6 +42,16 @@ describe("money", () => {
       expect(t.sgst - t.cgst).toBeLessThanOrEqual(1);
       expect(Math.abs(t.roundOff)).toBeLessThanOrEqual(50);
       expect(t.total).toBe(t.net + t.roundOff);
+    }
+  });
+
+  it("splits partial returns so they never add up to more than the line", () => {
+    expect([0, 1, 2].map((d) => shareOf(101, 3, d, 1))).toEqual([34, 33, 34]);
+    expect(shareOf(101, 3, 0, 1) + shareOf(101, 3, 1, 2)).toBe(101);
+    for (const [total, qty] of [[55800, 4], [99999, 7], [1, 3]]) {
+      let sum = 0;
+      for (let d = 0; d < qty; d++) sum += shareOf(total, qty, d, 1);
+      expect(sum).toBe(total);
     }
   });
 });
