@@ -126,7 +126,7 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
     else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", opening: "" });
   }, [edit]);
   const save = () => start(async () => {
-    const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f);
+    const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f, isNew ? undefined : (edit as Sup).version);
     if (!r.ok) return setErr(r.error);
     toast(r.message!, "green"); onClose();
   });
@@ -159,7 +159,7 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
     else setF({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
   }, [edit]);
   const save = () => start(async () => {
-    const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f);
+    const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f, isNew ? undefined : (edit as Cus).version);
     if (!r.ok) return setErr(r.error);
     toast(r.message!, "green"); onClose();
   });
