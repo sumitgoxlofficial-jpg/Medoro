@@ -5,7 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { db } from "@/server/db";
 import { putObject } from "@/server/storage";
-import { backupFile, decryptBackup, runBackup, testRestore } from "@/domain/system/backup";
+import { backupFile, decryptBackup, runBackup, saveBackupSettings, scheduledTick, testRestore } from "@/domain/system/backup";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 describe("encrypted backups", () => {
@@ -28,5 +28,19 @@ describe("encrypted backups", () => {
     await putObject(m.localPath!, file);
     await expect(testRestore(ctx, r.id)).rejects.toThrow(/Checksum mismatch/);
     await expect(testRestore(await ctxFor("Manager"), r.id)).rejects.toThrow(/role/);
+  });
+
+  it("scheduler: a backup stuck in running counts as failed, and parallel ticks start only one backup", async () => {
+    const ctx = await ctxFor();
+    await saveBackupSettings(ctx, { schedule: "00:00", retention: 30 });
+    const now = new Date();
+    const stuck = await db.backupManifest.create({ data: { tenantId: ctx.tenantId, kind: "scheduled", schemaVersion: "2", status: "running", startedAt: new Date(now.getTime() - 31 * 60_000) } });
+    await Promise.all([scheduledTick(now), scheduledTick(now), scheduledTick(now)]);
+    expect((await db.backupManifest.findUniqueOrThrow({ where: { id: stuck.id } })).status).toBe("failed");
+    const started = await db.backupManifest.findMany({ where: { tenantId: ctx.tenantId, kind: { in: ["scheduled", "retry"] }, id: { not: stuck.id } } });
+    expect(started).toHaveLength(1);
+    expect(started[0].status).toBe("verified");
+    await scheduledTick(new Date());
+    expect(await db.backupManifest.count({ where: { tenantId: ctx.tenantId, kind: { in: ["scheduled", "retry"] } } })).toBe(2);
   });
 });
