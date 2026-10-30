@@ -15,8 +15,8 @@ import { UserError } from "@/server/action";
 export const BACKUP_FORMAT = "medoro-backup-v2";
 /** Tenant tables kept as they are on this server. */
 const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "RestoreRun", "FileObject"]);
-/** Tenant rows that are cleared, not restored: everyone signs in again after a restore. */
-const CLEAR = new Set(["Session", "AiConfirmation"]);
+/** Tenant rows that are cleared, not restored: everyone signs in again after a restore, and pending reset codes die. */
+const CLEAR = new Set(["Session", "AiConfirmation", "AuthCode"]);
 /** Tables that don't belong to any pharmacy. */
 const GLOBAL = new Set(["Tenant", "LoginAttempt", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest"]);
 

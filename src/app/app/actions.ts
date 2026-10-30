@@ -5,6 +5,8 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { BRANCH_COOKIE, LANG_COOKIE, VIEWAS_COOKIE, getCtx } from "@/server/context";
 import { ROLE_NAMES } from "@/domain/identity/permissions";
+import { run } from "@/server/action";
+import { changePassword, changePin, disconnectGoogle, profileSecurity, regenerateRecoveryCodes } from "@/domain/identity/account";
 
 const opts = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 365 };
 
@@ -52,3 +54,11 @@ export async function revokeOtherSessions() {
   await db.session.updateMany({ where: { userId: ctx.userId, revokedAt: null, NOT: { id: ctx.sessionId } }, data: { revokedAt: new Date() } });
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "All other sessions revoked", entity: "session" });
 }
+
+// ───────────── Profile: own sign-in settings ─────────────
+
+export async function securityInfo() { return run((c) => profileSecurity(c)); }
+export async function changePasswordAction(current: string, next: string) { return run((c) => changePassword(c, current, next), "Password changed. Your other devices were signed out."); }
+export async function changePinAction(current: string, next: string) { return run((c) => changePin(c, current, next), "PIN changed. Your other devices were signed out."); }
+export async function regenerateCodesAction() { return run((c) => regenerateRecoveryCodes(c)); }
+export async function disconnectGoogleAction() { return run((c) => disconnectGoogle(c), "Google sign-in disconnected."); }
