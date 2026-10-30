@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeAny, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { big } from "@/lib/money";
 import { todayISO } from "@/lib/dates";
@@ -20,6 +20,8 @@ export { opSchema, type OfflineOpInput, type OfflineSnapshot, type SyncResult };
  * anything that no longer fits (stock, price, permission) becomes a conflict for a manager to settle.
  */
 
+const branchIdsOf = (ctx: Ctx) => ctx.branches.map((b) => b.id);
+
 async function deviceFor(ctx: Ctx, deviceId: string) {
   const d = await db.device.findFirst({ where: { id: deviceId, tenantId: ctx.tenantId } });
   if (!d || !d.offline) throw new UserError("Offline billing is turned off for this device. Ask a manager to turn it on in Sync & offline.");
@@ -37,7 +39,7 @@ export async function enableDevice(ctx: Ctx, name: string) {
 
 export async function disableDevice(ctx: Ctx, deviceId: string) {
   authorizeAny(ctx, "users", "adjust");
-  const d = await db.device.findFirst({ where: { id: deviceId, tenantId: ctx.tenantId } });
+  const d = await db.device.findFirst({ where: { id: deviceId, tenantId: ctx.tenantId, branchId: { in: branchIdsOf(ctx) } } });
   if (!d) throw new UserError("Device not found.");
   await db.device.update({ where: { id: d.id }, data: { offline: false, quota: {} } });
   await writeAudit(db, { tenantId: ctx.tenantId, branchId: d.branchId, userId: ctx.userId, userName: ctx.userName, action: "Offline billing turned off", entity: "device", entityId: d.id, detail: d.name });
@@ -125,7 +127,8 @@ async function post(ctx: Ctx, op: OfflineOpInput, lines = op.sale.lines): Promis
 export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "close", note = "") {
   authorizeAny(ctx, "adjust", "users");
   const o = await db.offlineOp.findFirst({ where: { id: opId, tenantId: ctx.tenantId } });
-  if (!o) throw new UserError("Offline bill not found.");
+  const opDev = o ? await db.device.findFirst({ where: { id: o.deviceId, tenantId: ctx.tenantId } }) : null;
+  if (!o || (opDev && !branchIdsOf(ctx).includes(opDev.branchId))) throw new UserError("Offline bill not found.");
   if (o.status !== "conflict") throw new UserError("This bill is already settled.");
   if (action === "close") {
     if (note.trim().length < 3) throw new UserError("Say how it was settled (e.g. refunded the customer).");
@@ -134,8 +137,7 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
     return { status: "resolved" as const };
   }
   const op = opSchema.parse(o.payload);
-  const dev = await db.device.findUnique({ where: { id: o.deviceId } });
-  if (dev && dev.branchId !== ctx.branchId) throw new UserError("Switch to the branch this bill was made in, then post it.");
+  if (opDev && opDev.branchId !== ctx.branchId) throw new UserError("Switch to the branch this bill was made in, then post it.");
   // Same medicines and quantities, re-allocated across the batches that are sellable now.
   const day = todayISO(new Date(op.createdAt));
   const meds = [...new Set(op.sale.lines.map((l) => l.medicineId))];
@@ -155,11 +157,14 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
   return { status: "posted" as const, invoiceNo: r.invoiceNo };
 }
 
+export const canManageOffline = (ctx: Ctx) => can(ctx, "users") || can(ctx, "adjust");
+
+/** Offline devices and bills in the user's branches; counter staff only see the branch they're signed in to. */
 export async function offlineOverview(ctx: Ctx) {
-  const [devices, ops] = await Promise.all([
-    db.device.findMany({ where: { tenantId: ctx.tenantId, offline: true }, orderBy: { name: "asc" } }),
-    db.offlineOp.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "desc" }, take: 50 }),
-  ]);
+  const branchIds = canManageOffline(ctx) ? branchIdsOf(ctx) : [ctx.branchId];
+  const all = await db.device.findMany({ where: { tenantId: ctx.tenantId, branchId: { in: branchIds } }, orderBy: { name: "asc" } });
+  const devices = all.filter((d) => d.offline);
+  const ops = await db.offlineOp.findMany({ where: { tenantId: ctx.tenantId, deviceId: { in: all.map((d) => d.id) } }, orderBy: { createdAt: "desc" }, take: 50 });
   return {
     devices: devices.map((d) => ({ id: d.id, name: d.name, branchId: d.branchId, lastSeen: d.lastSeen.toISOString() })),
     ops: ops.map((o) => {
