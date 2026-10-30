@@ -29,7 +29,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
         drive={drive?.connectedAt ? { account: (drive.config as { account?: string }).account ?? "", since: drive.connectedAt.toISOString() } : null}
         driveApp={driveAppConfigured()} fingerprint={(key?.config as { fingerprint?: string } | null)?.fingerprint ?? null} keyDate={key?.connectedAt?.toISOString() ?? null}
         settings={settings} flash={(await searchParams).drive ?? null}
-        canRestore={can(ctx, "users")} pendingRestore={pending} code={tenant.code}
+        canRestore={can(ctx, "users")} pendingRestore={pending} code={tenant.code} hostCron={!!process.env.VERCEL}
       />
     </>
   );

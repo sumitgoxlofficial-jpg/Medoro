@@ -14,9 +14,9 @@ const ST: Record<string, [string, Tone]> = { verified: ["Verified", "green"], pa
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
 const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"] };
 
-export function BackupView({ history, drive, driveApp, fingerprint, keyDate, settings, flash, canRestore, pendingRestore, code }: {
+export function BackupView({ history, drive, driveApp, fingerprint, keyDate, settings, flash, canRestore, pendingRestore, code, hostCron }: {
   history: H[]; drive: { account: string; since: string } | null; driveApp: boolean; fingerprint: string | null; keyDate: string | null; settings: { schedule: string; retention: number }; flash: string | null;
-  canRestore: boolean; pendingRestore: PendingRestore | null; code: string;
+  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean;
 }) {
   const toast = useToast();
   const [pending, start] = useTransition();
@@ -68,7 +68,7 @@ export function BackupView({ history, drive, driveApp, fingerprint, keyDate, set
             {s.schedule !== settings.schedule || s.retention !== settings.retention ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
             <Button variant="primary" disabled={running} onClick={async () => { setRunning(true); const r = await backupNowAction(); setRunning(false); toast(r.ok ? `Backup verified · ${(r.data.size / 1048576).toFixed(2)} MB${r.data.drive ? " · uploaded to Drive" : " · kept on this server"}${r.data.note ? ". " + r.data.note : ""}` : r.error, r.ok ? (r.data.note ? "amber" : "green") : "red"); }}>{running ? "Backing up…" : "Back up now"}</Button>
           </div>
-          <div className="text-[12px] text-faint">Times are India time. Failed scheduled backups retry up to 3 times that day.</div>
+          <div className="text-[12px] text-faint">{hostCron ? "On this hosting the scheduled backup runs once a day at about 03:00 India time, whatever time is set here. If it fails, use Back up now." : "Times are India time. A failed scheduled backup is retried up to 2 more times that day, at least 30 minutes apart."}</div>
         </div>
       </div>
       {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">Snapshot → encrypt → write → verify{drive ? " → upload" : ""}… <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}

@@ -13,7 +13,7 @@ server-side sessions); Supabase Auth and `supabase-js` are not used, so no Supab
 | Supabase data API | n/a | Locked: migration `lock_data_api` enables RLS on every table and revokes the `anon`/`authenticated` roles. The app connects as the table owner, which bypasses RLS. A test fails if any table lacks RLS |
 | Tenant isolation | Server-side: every query is scoped to the signed-in user's pharmacy (`ctx.tenantId`), permissions checked on the server | Same |
 | Files (invoice scans, backups) | `STORAGE_DIR` on disk | Private bucket `medoro-private` (created automatically), server-side secret key |
-| Daily backups | In-process timer | Vercel Cron, 21:30 UTC (03:00 IST), `GET /api/cron/tick` with `CRON_SECRET` |
+| Daily backups | In-process timer at the pharmacy's chosen time, failed runs retried (max 3/day, 30 min apart) | Vercel Cron, 21:30 UTC (03:00 IST), `GET /api/cron/tick` with `CRON_SECRET`; once a day on Hobby, so the chosen time and same-day retries don't apply |
 | Live updates | LISTEN/NOTIFY + SSE | Same over `DIRECT_URL`; functions end after 300 s and browsers reconnect automatically |
 | First-run setup | Open on first visit | Locked until the visitor enters `SETUP_TOKEN` |
 | Upload size | 10 MB | 4 MB (Vercel request limit) |

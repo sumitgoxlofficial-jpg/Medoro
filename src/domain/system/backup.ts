@@ -9,6 +9,7 @@ import { fingerprint, unseal } from "@/server/vault";
 import { deleteObject, getObject, putObject } from "@/server/storage";
 import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, swapIn, type RestoreSummary } from "./restore";
 import { driveUpload, driveConfigured } from "./gdrive";
+import { backupDecision, istClock, STALE_RUNNING_MS } from "./schedule";
 
 const MAGIC = Buffer.from("MEDORO-BACKUP-1\n");
 const SCHEMA = BACKUP_FORMAT;
@@ -49,9 +50,9 @@ export function decryptBackup(file: Buffer, master: Buffer) {
 const counts = (d: Record<string, unknown>) => Object.fromEntries(Object.entries((d.tables as Record<string, unknown>) ?? d).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, (v as unknown[]).length]));
 const len = (d: Record<string, unknown>, v2: string, v1: string) => (((d.tables as Record<string, unknown[]>)?.[v2] ?? d[v1]) as unknown[] | undefined)?.length ?? 0;
 
-/** Takes a backup now. Used by "Back up now" and the daily scheduler. */
-export async function runBackup(tenantId: string, kind: "manual" | "scheduled" | "retry", user?: { id: string; name: string }) {
-  const m = await db.backupManifest.create({ data: { tenantId, kind, schemaVersion: SCHEMA, status: "running" } });
+/** Takes a backup now. Used by "Back up now" and the daily scheduler (which passes the "running" manifest it claimed). */
+export async function runBackup(tenantId: string, kind: "manual" | "scheduled" | "retry", user?: { id: string; name: string }, claimed?: { id: string; startedAt: Date }) {
+  const m = claimed ?? await db.backupManifest.create({ data: { tenantId, kind, schemaVersion: SCHEMA, status: "running" } });
   try {
     const master = await masterKey(tenantId);
     const data = await dumpForBackup(tenantId);
@@ -219,20 +220,31 @@ export async function prune(tenantId: string) {
   }
 }
 
-/** Called every minute by the in-process scheduler: one scheduled backup per day after the set time (IST). */
-/** `daily`: called once a day by a host cron (e.g. Vercel), so ignore each pharmacy's chosen time. */
+/** Marks backups that never finished (server stopped or timed out) as failed so they count as a failed attempt. */
+async function failStale(now: Date) {
+  await db.backupManifest.updateMany({ where: { status: "running", startedAt: { lt: new Date(now.getTime() - STALE_RUNNING_MS) } }, data: { status: "failed", finishedAt: now, error: "Didn’t finish in time (the server stopped or timed out)." } });
+}
+
+/**
+ * Called every minute by the in-process scheduler, or by a host cron (`daily`: once a day, e.g. Vercel Hobby).
+ * Each tenant's decision and its "running" manifest are made under a transaction-scoped advisory lock, so
+ * several app servers can't start the same backup. (A session lock would not survive a transaction-mode pooler.)
+ */
 export async function scheduledTick(now = new Date(), opts: { daily?: boolean } = {}) {
   await cleanupRestores().catch(() => {});
-  const ist = new Date(now.getTime() + 330 * 60_000);
-  const hhmm = ist.toISOString().slice(11, 16), day = ist.toISOString().slice(0, 10);
-  const dayStart = new Date(Date.parse(day + "T00:00:00Z") - 330 * 60_000);
+  await failStale(now).catch(() => {});
+  const { hhmm, dayStart } = istClock(now);
   for (const t of await db.tenant.findMany({ select: { id: true } })) {
     const s = await backupSettings(t.id);
     if (!opts.daily && hhmm < s.schedule) continue;
-    const done = await db.backupManifest.findFirst({ where: { tenantId: t.id, kind: { in: ["scheduled", "retry"] }, startedAt: { gte: dayStart }, status: { not: "failed" } } });
-    const failures = await db.backupManifest.count({ where: { tenantId: t.id, kind: { in: ["scheduled", "retry"] }, startedAt: { gte: dayStart }, status: "failed" } });
-    if (done || failures >= 3) continue;
-    await runBackup(t.id, failures ? "retry" : "scheduled").catch(() => {});
+    const claimed = await db.$transaction(async (tx) => {
+      const [lock] = await tx.$queryRaw<{ ok: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext(${"backup:" + t.id})) AS ok`;
+      if (!lock?.ok) return null;
+      const attempts = await tx.backupManifest.findMany({ where: { tenantId: t.id, kind: { in: ["scheduled", "retry"] }, startedAt: { gte: dayStart } }, select: { status: true, startedAt: true, finishedAt: true } });
+      const d = backupDecision(now, s.schedule, attempts, opts.daily);
+      if (!d.run) return null;
+      return tx.backupManifest.create({ data: { tenantId: t.id, kind: d.kind, schemaVersion: SCHEMA, status: "running" } });
+    }).catch(() => null);
+    if (claimed) await runBackup(t.id, claimed.kind as "scheduled" | "retry", undefined, claimed).catch(() => {});
   }
 }
-

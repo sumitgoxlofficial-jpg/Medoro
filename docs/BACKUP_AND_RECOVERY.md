@@ -12,7 +12,11 @@
 5. The master key lives in the OS keystore on the host **and** in a printed or QR recovery kit held by the owner. Medoro never has it.
 
 ## Schedule & retention
-Daily at the configured time plus manual runs. Retention of 7/30/90/365 days removes old files from Drive. Failures alert the owner (in-app, plus email or WhatsApp if configured) and retry 3 times.
+Daily at the configured time plus manual runs. Retention of 7/30/90/365 days removes old files from Drive. Failures alert the owner (in-app, plus email or WhatsApp if configured). On self-hosted installs a failed
+scheduled backup is retried up to 2 more times that day, at least 30 minutes apart; a backup still "running"
+after 30 minutes (server stopped or timed out) counts as failed. Several app servers can share one database:
+a PostgreSQL advisory lock makes sure only one of them starts each backup. On Vercel the host cron fires once a
+day (03:00 IST), so the configured time and same-day retries don't apply there.
 
 ## Restore
 Backup & restore → **Restore…** on a backup row (owner or anyone with *Manage users & roles*):
