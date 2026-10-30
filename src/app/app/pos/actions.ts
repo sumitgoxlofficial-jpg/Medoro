@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { getCtx } from "@/server/context";
 import { run } from "@/server/action";
+import { enforce, userKey } from "@/server/ratelimit";
 import { commitSale, createCustomer, heldCart, holdCart, invoiceData, listHeld, posCustomers, searchForSale, takeHeld } from "@/domain/sales/service";
 import type { CustomerInput, SaleInput } from "@/domain/sales/contracts";
 import { saleMessage, sendInvoice, waSettings } from "@/domain/comms/whatsapp";
@@ -28,7 +29,7 @@ export async function commitSaleAction(input: SaleInput) {
 }
 
 export async function sendInvoiceAction(saleId: string, phone: string, consent: boolean) {
-  return run(async (ctx) => sendInvoice(ctx, saleId, phone, consent));
+  return run(async (ctx) => { await enforce("waSend", userKey(ctx)); return sendInvoice(ctx, saleId, phone, consent); });
 }
 
 export async function messageStatusAction(saleId: string) {

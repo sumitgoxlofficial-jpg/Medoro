@@ -161,6 +161,15 @@ model LoginAttempt {
   updatedAt   DateTime  @updatedAt
 }
 
+// Fixed-window request counters for expensive or abusable actions (src/server/ratelimit.ts).
+model RateLimit {
+  key         String   @id
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@index([windowStart])
+}
+
 model Session {
   id           String    @id // sha256 of the cookie token
   userId       String
