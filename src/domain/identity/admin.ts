@@ -2,12 +2,13 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
+import { hashPassword } from "@/server/auth";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { verifyChain } from "@/lib/audit-hash";
-import { GSTIN_RE, inviteContact, ROLE_OPTIONS } from "./contracts";
+import { GSTIN_RE, inviteContact, passwordSchema, pinSchema, ROLE_OPTIONS } from "./contracts";
 import { PERMS, type Perm } from "./permissions";
-import { branchCodes, newInviteCode } from "./service";
+import { branchCodes, newInviteCode, nextEmployeeNo } from "./service";
 
 export async function listTeam(ctx: Ctx) {
   authorize(ctx, "users");
@@ -68,8 +69,16 @@ export async function issueReset(ctx: Ctx, userId: string) {
   });
 }
 
-export async function updateMember(ctx: Ctx, userId: string, patch: { role?: string; branchIds?: string[]; active?: boolean }) {
+/** Managers sign in with email + password; every other role uses employee ID + PIN at the counter. */
+const usesPassword = (role: string) => role === "Manager";
+
+export type MemberPatch = { role?: string; branchIds?: string[]; active?: boolean; pin?: string; password?: string };
+
+export async function updateMember(ctx: Ctx, userId: string, patch: MemberPatch) {
   authorize(ctx, "users");
+  // Hash outside the transaction: Argon2 is slow.
+  const pwHash = patch.password ? await hashPassword(passwordSchema.parse(patch.password)) : null;
+  const pinHash = patch.pin ? await hashPassword(pinSchema.parse(patch.pin)) : null;
   return db.$transaction(async (tx) => {
     const u = await tx.user.findFirst({ where: { id: userId, tenantId: ctx.tenantId }, include: { role: true } });
     if (!u) throw new UserError("User not found.");
@@ -81,7 +90,19 @@ export async function updateMember(ctx: Ctx, userId: string, patch: { role?: str
       if (!(ROLE_OPTIONS as readonly string[]).includes(patch.role)) throw new UserError("Unknown role.");
       if (patch.role === "Manager" && !u.email) throw new UserError("Managers need an email address to sign in with a password.");
       const r = await tx.role.findFirstOrThrow({ where: { tenantId: ctx.tenantId, name: patch.role } });
-      data.roleId = r.id; data.mfaRequired = patch.role === "Manager";
+      data.roleId = r.id; data.mfaRequired = usesPassword(patch.role);
+      // Switching between password and PIN sign-in needs the new credential now, or they'd be locked out.
+      if (usesPassword(patch.role) !== usesPassword(u.role.name)) {
+        if (usesPassword(patch.role)) {
+          if (!pwHash) throw new UserError(`Set a password for ${u.name}: managers sign in with email and password.`);
+          data.passwordHash = pwHash; data.pinHash = null;
+        } else {
+          if (!pinHash) throw new UserError(`Set a 4-digit PIN for ${u.name}: ${patch.role}s sign in with employee ID and PIN.`);
+          data.pinHash = pinHash; data.passwordHash = null;
+          if (!u.employeeNo) data.employeeNo = await nextEmployeeNo(tx, ctx.tenantId);
+        }
+        notes.push("sign-in credential set");
+      }
       notes.push(`role ${u.role.name} → ${patch.role}`);
     }
     if (patch.branchIds) {
