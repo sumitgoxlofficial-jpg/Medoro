@@ -5,7 +5,7 @@ import { PRODUCTS, SALE_STATUS, product, rupees, type StaffRoleId } from "@/staf
 import { logSale, previewCommission, verifySale } from "../../actions";
 import { Empty, Kpi, Panel, Pill, btn, btnPrimary, fieldCls, fmtDay, lbl, panel, td, th, useRun } from "../ui";
 
-type Row = { id: string; date: string; pharmacy: string; product: string; cycle: string; type: string; staff: string; status: string; amount: number; commission: number; rate: number };
+type Row = { id: string; date: string; payRef: string | null; pharmacy: string; product: string; cycle: string; type: string; staff: string; status: string; amount: number; commission: number; rate: number };
 const SC: Record<string, [string, string]> = { pending: ["#FDF2E1", "#94570A"], verified: ["#EAF0FC", "#2459C9"], paid: ["#E7F6EE", "#18794E"], rejected: ["#FDECEC", "#C0362C"] };
 
 export function SalesView({ role, referral, rows, bank, month }: { role: StaffRoleId; referral: string | null; rows: Row[]; bank: string | null; month: string }) {
@@ -53,7 +53,7 @@ export function SalesView({ role, referral, rows, bank, month }: { role: StaffRo
               return (
                 <tr key={x.id}>
                   <td className={td + " whitespace-nowrap"}>{fmtDay(x.date)}</td>
-                  <td className={td + " font-semibold"}>{x.pharmacy}</td>
+                  <td className={td + " font-semibold"}>{x.pharmacy}{x.payRef ? <div className="text-[12px] text-muted font-normal">Paid via app · ref {x.payRef}</div> : null}</td>
                   <td className={td}>{p.name}{"once" in p ? "" : x.cycle === "y" ? " · yearly" : " · monthly"} · {x.type === "new" ? "New" : "Renewal"}</td>
                   {!sales ? <td className={td}>{x.staff}</td> : null}
                   <td className={td + " text-right tnum"}>{rupees(x.amount)}</td>

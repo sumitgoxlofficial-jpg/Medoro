@@ -1,24 +1,46 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
-import { HardDriveUpload, KeyRound, Download, CloudOff } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { HardDriveUpload, KeyRound, Download, CloudOff, TriangleAlert, DatabaseBackup } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { dayMonth, hhmm } from "@/lib/dates";
-import { backupNowAction, disconnectAction, prepareRestoreAction, restoreAction, settingsAction } from "./actions";
+import type { DriveState } from "@/domain/system/gdrive";
+import { backupNowAction, disconnectAction, driveBackupsAction, prepareRestoreAction, reenterKitAction, restoreAction, restoreFromDriveAction, settingsAction } from "./actions";
 import { RestorePanel, type PendingRestore } from "./restore-panel";
 
 type H = { id: string; at: string; kind: string; size: number; sha: string | null; status: string; error: string | null; drive: boolean; local: boolean };
-const ST: Record<string, [string, Tone]> = { verified: ["Verified", "green"], partial: ["Server only", "amber"], failed: ["Failed", "red"], running: ["Running", "blue"], expired: ["Expired", "gray"] };
+const ST: Record<string, [string, Tone]> = { verified: ["Verified", "green"], partial: ["Partial", "amber"], failed: ["Failed", "red"], running: ["Running", "blue"], expired: ["Expired", "gray"] };
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
-const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"] };
+const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"], scope: ["Drive access wasn’t ticked on Google’s consent screen. Connect again and allow it.", "red"] };
+type DriveFile = { id: string; name: string; size: number; createdTime: string; known: boolean };
 
-export function BackupView({ history, drive, driveApp, fingerprint, keyDate, settings, flash, canRestore, pendingRestore, code }: {
-  history: H[]; drive: { account: string; since: string } | null; driveApp: boolean; fingerprint: string | null; keyDate: string | null; settings: { schedule: string; retention: number }; flash: string | null;
-  canRestore: boolean; pendingRestore: PendingRestore | null; code: string;
+export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron }: {
+  history: H[]; drive: DriveState; folder: string; driveApp: boolean; fingerprint: string | null; keyDate: string | null; keyState: "ok" | "missing" | "unreadable";
+  settings: { schedule: string; retention: number; files: "server" | "gdrive" }; flash: string | null; problems: string[];
+  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean;
 }) {
   const toast = useToast();
+  const router = useRouter();
+  const connected = drive.status === "connected";
+  const [kit, setKit] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [driveFiles, setDriveFiles] = useState<DriveFile[] | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
+  const prepared = (r: { ok: true } | { ok: false; error: string }) => {
+    setLoading(null);
+    if (!r.ok) return toast(r.error, "red");
+    toast("Test copy ready. Review it at the top of the page.", "green");
+    router.refresh(); window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const upload = () => {
+    if (!file) return;
+    setLoading("upload");
+    const fd = new FormData(); fd.set("file", file); fd.set("kit", kit);
+    fetch("/api/backups/import", { method: "POST", body: fd }).then((r) => r.json()).then(prepared, () => prepared({ ok: false, error: "Upload failed. Check the connection and try again." }));
+  };
   const [pending, start] = useTransition();
   const [running, setRunning] = useState(false);
   const [s, setS] = useState(settings);
@@ -37,14 +59,24 @@ export function BackupView({ history, drive, driveApp, fingerprint, keyDate, set
   useEffect(() => { if (flash && FLASH[flash]) toast(...FLASH[flash]); }, [flash, toast]);
   return (
     <div className="flex flex-col gap-4 max-w-[1300px]">
+      {problems.length ? (
+        <div role="alert" className="flex gap-2.5 items-start bg-bad-bg border border-[#F0C8C3] rounded-xl p-3.5 text-[13.5px] text-bad">
+          <TriangleAlert size={17} className="flex-none mt-0.5" /><div className="flex flex-col gap-0.5">{problems.map((x) => <span key={x}>{x}</span>)}</div>
+        </div>
+      ) : null}
       {pendingRestore ? <RestorePanel key={pendingRestore.runId} p={pendingRestore} code={code} /> : null}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
         <div className={card}>
           <div className="flex items-center gap-2 font-semibold text-[15px]"><HardDriveUpload size={18} className="text-teal" />Google Drive</div>
-          {drive ? (
+          {drive.status === "connected" ? (
             <>
-              <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>/Medoro Backups</span><span className="text-muted">OAuth scope</span><span className="font-mono text-[12.5px]">drive.file</span></div>
-              <Button variant="danger-outline" className="self-start" disabled={pending} onClick={() => start(async () => { const r = await disconnectAction(); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Disconnect & revoke</Button>
+              <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>{folder}</span><span className="text-muted">OAuth scope</span><span className="font-mono text-[12.5px]">drive.file</span></div>
+              <Button variant="danger-outline" className="self-start" disabled={pending} onClick={() => start(async () => { const r = await disconnectAction(); toast(r.ok ? r.data : r.error, r.ok ? "green" : "red"); })}>Disconnect & revoke</Button>
+            </>
+          ) : drive.status === "lost" && driveApp ? (
+            <>
+              <div className="text-[13px] text-bad bg-bad-bg rounded-lg p-2.5">Google stopped accepting Medoro’s access{drive.account ? ` to ${drive.account}` : ""} on {dayMonth(new Date(drive.at), true)}. Backups are kept on this server until you reconnect.{drive.reason ? <span className="block text-[12px] mt-0.5">{drive.reason}</span> : null}</div>
+              <a href="/api/integrations/google/start" className="self-start bg-teal text-white rounded-lg px-3 py-2 text-[13.5px] font-semibold no-underline hover:bg-teal-hover hover:text-white">Reconnect Google Drive</a>
             </>
           ) : driveApp ? (
             <>
@@ -58,20 +90,29 @@ export function BackupView({ history, drive, driveApp, fingerprint, keyDate, set
         <div className={card}>
           <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />Encryption</div>
           <div className="text-[13.5px]">AES-256-GCM with a fresh key per backup, encrypted on your server before anything leaves it.</div>
-          <div className="text-[13px] text-muted">That key is wrapped by your recovery-kit key, which never goes to Drive or Medoro.{keyDate ? ` Kit created ${dayMonth(new Date(keyDate), true)}.` : ""}{fingerprint ? <> Fingerprint <span className="font-mono">{fingerprint}</span>.</> : " No key found."}</div>
+          <div className="text-[13px] text-muted">Each backup’s key is wrapped by your recovery-kit key. This server keeps a copy of that key sealed with its <span className="font-mono text-[12px]">HOST_KEY</span> so it can back up and restore on its own; it never goes to Drive or Medoro. On a new server, the printed kit opens your backups.{keyDate ? ` Kit created ${dayMonth(new Date(keyDate), true)}.` : ""}{fingerprint ? <> Fingerprint <span className="font-mono">{fingerprint}</span>.</> : " No key found."}</div>
+          {keyState !== "ok" ? (
+            <div className="flex flex-col gap-2 bg-bad-bg rounded-lg p-2.5">
+              <span className="text-[13px] text-bad">{keyState === "missing" ? "This server has no backup key." : "This server can’t open its copy of the backup key (its HOST_KEY changed)."} Backups stop until you enter the recovery kit.</span>
+              <textarea value={kit} onChange={(e) => setKit(e.target.value)} rows={2} placeholder="Paste the recovery kit or its 43-character key" aria-label="Recovery kit" className="border border-input rounded-md px-2 py-1.5 text-[12.5px] font-mono bg-white" />
+              <Button variant="primary" className="self-start" disabled={pending || !kit.trim()} onClick={() => start(async () => { const r = await reenterKitAction(kit); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok) setKit(""); })}>Use this kit</Button>
+            </div>
+          ) : null}
         </div>
         <div className={card}>
           <div className="font-semibold text-[15px]">Schedule & retention</div>
           <label className="flex items-center justify-between text-[13.5px]">Daily at<input type="time" value={s.schedule} onChange={(e) => setS({ ...s, schedule: e.target.value })} className="border border-input rounded-md px-2 py-1" /></label>
           <label className="flex items-center justify-between text-[13.5px]">Keep backups for<select value={s.retention} onChange={(e) => setS({ ...s, retention: Number(e.target.value) })} className="border border-input rounded-md px-2 py-1 bg-white">{[[7, "7 days"], [30, "30 days"], [90, "90 days"], [365, "1 year"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+          <label className="flex items-center justify-between text-[13.5px]" title="Invoice scans and other uploaded documents">Uploaded files<select value={s.files} onChange={(e) => setS({ ...s, files: e.target.value as "server" | "gdrive" })} className="border border-input rounded-md px-2 py-1 bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!connected && settings.files !== "gdrive"}>In Google Drive</option></select></label>
+          {s.files === "gdrive" ? <div className="text-[12px] text-faint -mt-1">New uploads go to {folder}/files. If Drive can’t be reached they’re kept on this server. Every backup includes the files.</div> : null}
           <div className="flex gap-2">
-            {s.schedule !== settings.schedule || s.retention !== settings.retention ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
+            {s.schedule !== settings.schedule || s.retention !== settings.retention || s.files !== settings.files ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention, s.files); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
             <Button variant="primary" disabled={running} onClick={async () => { setRunning(true); const r = await backupNowAction(); setRunning(false); toast(r.ok ? `Backup verified · ${(r.data.size / 1048576).toFixed(2)} MB${r.data.drive ? " · uploaded to Drive" : " · kept on this server"}${r.data.note ? ". " + r.data.note : ""}` : r.error, r.ok ? (r.data.note ? "amber" : "green") : "red"); }}>{running ? "Backing up…" : "Back up now"}</Button>
           </div>
-          <div className="text-[12px] text-faint">Times are India time. Failed scheduled backups retry up to 3 times that day.</div>
+          <div className="text-[12px] text-faint">{hostCron ? "On this hosting the scheduled backup runs once a day at about 03:00 India time, whatever time is set here. If it fails, use Back up now." : "Times are India time. A failed scheduled backup is retried up to 2 more times that day, at least 30 minutes apart."}</div>
         </div>
       </div>
-      {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">Snapshot → encrypt → write → verify{drive ? " → upload" : ""}… <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}
+      {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">Snapshot → encrypt → write → verify{connected ? " → upload" : ""}… <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}
       <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto">
         <div className="font-semibold text-[15px] px-4 pt-3.5 pb-2">Backup history</div>
         {history.length ? (
@@ -103,6 +144,28 @@ export function BackupView({ history, drive, driveApp, fingerprint, keyDate, set
           </table>
         ) : <div className="px-4 pb-4 text-[13px] text-fainter">No backups yet. Take one now, or wait for the daily schedule.</div>}
       </div>
+      {canRestore ? (
+        <div className={card}>
+          <div className="flex items-center gap-2 font-semibold text-[15px]"><DatabaseBackup size={18} className="text-teal" />Restore a backup file, or one from Google Drive</div>
+          <div className="text-[13px] text-muted">For a backup that isn’t in the history below, e.g. downloaded earlier or made on another server. It opens with this server’s key; if it was made with a different copy of the key, paste the recovery kit. It loads into a test copy first and live data changes only after you confirm.</div>
+          <textarea value={kit} onChange={(e) => setKit(e.target.value)} rows={2} placeholder="Recovery kit or its 43-character key (optional)" aria-label="Recovery kit for restore" className="border border-input rounded-md px-2 py-1.5 text-[12.5px] font-mono max-w-[560px]" />
+          <div className="flex gap-2 items-center flex-wrap">
+            <input type="file" accept=".mdrbak,application/octet-stream" aria-label="Backup file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+            <Button disabled={!file || !!loading} onClick={upload}>{loading === "upload" ? "Decrypting and loading…" : "Load uploaded file"}</Button>
+            {connected ? <Button disabled={!!loading} onClick={() => { setLoading("list"); driveBackupsAction().then((r) => { setLoading(null); if (r.ok) setDriveFiles(r.data); else toast(r.error, "red"); }); }}>{loading === "list" ? "Looking in Drive…" : "Show backups in Google Drive"}</Button> : null}
+          </div>
+          {driveFiles ? (driveFiles.length ? (
+            <div className="border border-line rounded-lg max-h-[280px] overflow-auto">
+              {driveFiles.map((f) => (
+                <div key={f.id} className="flex items-center gap-3 px-3 py-2 border-b border-row last:border-0 text-[13px]">
+                  <span className="flex-1">{dayMonth(new Date(f.createdTime), true)} · {hhmm(new Date(f.createdTime))}<span className="text-faint"> · {(f.size / 1048576).toFixed(2)} MB{f.known ? " · also on this server" : ""}</span></span>
+                  <Button size="sm" disabled={!!loading} onClick={() => { setLoading(f.id); restoreFromDriveAction(f.id, kit).then(prepared); }}>{loading === f.id ? "Downloading…" : "Restore…"}</Button>
+                </div>
+              ))}
+            </div>
+          ) : <div className="text-[13px] text-fainter">No Medoro backups of this pharmacy in the connected Drive.</div>) : null}
+        </div>
+      ) : null}
       <Modal open={!!restore} onClose={() => setRestore(null)} title="Test restore" sub={restore ? `${dayMonth(new Date(restore.h.at), true)} · ${restore.h.kind}` : ""} width={460} footer={<Button onClick={() => setRestore(null)}>Close</Button>}>
         {restore && !restore.result && !restore.error ? <div className="text-[13.5px]">Checking checksum → unwrapping key → decrypting → comparing every table with the manifest…</div> : null}
         {restore?.result ? <div className="text-[13.5px] text-ok bg-ok-bg rounded-lg p-3">Verified. {restore.result} Live data has not been changed.</div> : null}

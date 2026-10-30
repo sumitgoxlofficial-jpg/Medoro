@@ -3,14 +3,18 @@ import { redirect } from "next/navigation";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import {
-  checkLock, clearFailures, clientInfo, createSession, destroySession, hashPassword, isTrustedDevice,
+  checkLock, clearFailures, clientInfo, createSession, destroySession, hashPassword, lockKeys,
   markMfaPassed, readSession, recordFailure, setTrustedDevice, verifyPassword,
 } from "@/server/auth";
-import { otpEnabled, sendOtp, verifyOtp } from "@/server/otp";
+import { otpEnabled, sendOtp, throttleSend, verifyOtp } from "@/server/otp";
 import { checkTotp, newTotpSecret, openSecret } from "@/server/totp";
+import { finishSignIn } from "@/server/signin";
 import { UserError } from "@/server/action";
 import { createPharmacy, isSetupDone, nextEmployeeNo } from "@/domain/identity/service";
+import { confirmMfaReset, completePasswordReset, issueRecoveryCodes, looksLikeRecoveryCode, redeemRecoveryCode, requestMfaReset, requestPasswordReset } from "@/domain/identity/recovery";
+import { confirmPendingLink } from "@/domain/identity/google";
 import { setupUnlocked, unlockSetup } from "@/server/setup-gate";
+import { adoptSetupDrive } from "@/server/setup-drive";
 import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
 
@@ -18,17 +22,6 @@ type R<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 const fail = (error: string): R<never> => ({ ok: false, error });
 const errMsg = (e: unknown) =>
   e instanceof ZodError ? e.issues[0]?.message ?? "Invalid input." : e instanceof UserError ? e.message : (console.error(e), "Something went wrong. Nothing was saved.");
-
-async function finishSignIn(user: { id: string; tenantId: string; name: string; tokenVersion: number; mfaEnabled: boolean; mfaRequired: boolean }, how: string, opts: { counterId?: string; device?: string } = {}) {
-  const needMfa = (user.mfaEnabled || user.mfaRequired) && !(user.mfaEnabled && (await isTrustedDevice(user.id, user.tokenVersion)));
-  await createSession(user.id, user.tokenVersion, { mfaPassed: !needMfa, ...opts });
-  const { ip } = await clientInfo();
-  await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    await writeAudit(tx, { tenantId: user.tenantId, userId: user.id, userName: user.name, action: needMfa ? "Password accepted, MFA pending" : "Signed in", entity: "session", detail: how, ip });
-  });
-  return needMfa ? "/signin/mfa" : "/app";
-}
 
 // ───────────── First-run setup ─────────────
 
@@ -44,7 +37,8 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
     if (!(await setupUnlocked())) return fail("Enter the setup token first.");
     const r = await createPharmacy(input);
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
-    await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup" });
+    await adoptSetupDrive(owner.tenantId).catch((e) => console.error("[setup] Google Drive not kept:", e));
+    await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
 }
@@ -70,16 +64,17 @@ export async function passwordSignIn(email: string, password: string): Promise<R
   if (!/^\S+@\S+\.\S+$/.test(e)) return fail("Enter a valid email.");
   if (password.length < 10) return fail("Password must be at least 10 characters.");
   const { ip } = await clientInfo();
-  const keys = ["acct:" + e, "ip:" + (ip ?? "?")];
+  const keys = lockKeys("acct:" + e, ip);
   const mins = await checkLock(keys);
   if (mins) return fail(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
-  const user = await db.user.findFirst({ where: { email: e, active: true } });
+  const user = await db.user.findFirst({ where: { email: e, active: true }, orderBy: { createdAt: "asc" } });
   if (!user || !(await verifyPassword(user.passwordHash, password))) {
     const left = await recordFailure(keys);
     return fail(left ? `Email or password is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many attempts. Sign-in is locked for 15 minutes.");
   }
   await clearFailures(keys);
-  return { ok: true, data: await finishSignIn(user, "Email and password") };
+  await confirmPendingLink(user.id);
+  return { ok: true, data: await finishSignIn(user, "password", "Email and password") };
 }
 
 export async function requestSignInOtp(phone: string): Promise<R> {
@@ -88,9 +83,12 @@ export async function requestSignInOtp(phone: string): Promise<R> {
   if (!MOBILE_RE.test(p)) return fail("Enter a valid 10-digit Indian mobile number.");
   const mins = await checkLock(["acct:" + p]);
   if (mins) return fail(`Too many attempts. Try again in ${mins} minutes.`);
-  const user = await db.user.findFirst({ where: { phone: p, active: true } });
-  // Same response whether or not the number exists, so the form can't be used to find accounts.
-  if (user) { try { await sendOtp(p, "signin"); } catch (e) { return fail(errMsg(e)); } }
+  try {
+    await throttleSend(p);
+    const user = await db.user.findFirst({ where: { phone: p, active: true } });
+    // Same response whether or not the number exists, so the form can't be used to find accounts.
+    if (user) await sendOtp(p, "signin");
+  } catch (e) { return fail(errMsg(e)); }
   return { ok: true };
 }
 
@@ -104,32 +102,68 @@ export async function otpSignIn(phone: string, code: string): Promise<R<string>>
   const user = await db.user.findFirst({ where: { phone: p, active: true } });
   if (!user) return fail("No account uses this number.");
   await clearFailures(["acct:" + p]);
-  return { ok: true, data: await finishSignIn(user, "Mobile OTP") };
+  return { ok: true, data: await finishSignIn(user, "otp", "Mobile OTP") };
 }
 
 // ───────────── MFA ─────────────
 
-export async function verifyMfa(code: string, trust: boolean): Promise<R<string>> {
+type MfaDone = { next: string; recoveryCodes?: string[]; remaining?: number };
+
+/** Accepts an authenticator code, or (once enrolled) one of the user's recovery codes. */
+export async function verifyMfa(code: string, trust: boolean): Promise<R<MfaDone>> {
   const s = await readSession(true);
   if (!s) return fail("Your sign-in has expired. Start again.");
-  if (!/^\d{6}$/.test(code)) return fail("Enter the 6-digit code from your authenticator app.");
   const u = s.user;
   if (!u.mfaSecret) return fail("Set up your authenticator first.");
+  code = String(code ?? "").trim();
+  const totp = /^\d{6}$/.test(code), recovery = !totp && u.mfaEnabled && looksLikeRecoveryCode(code);
+  if (!totp && !recovery) return fail(u.mfaEnabled ? "Enter the 6-digit code from your authenticator app, or a recovery code." : "Enter the 6-digit code from your authenticator app.");
   const keys = ["mfa:" + u.id];
   const mins = await checkLock(keys);
   if (mins) return fail(`Too many attempts. Try again in ${mins} minutes.`);
-  if (!checkTotp(openSecret(u.mfaSecret), code)) {
+  const remaining = recovery ? await redeemRecoveryCode(u.id, code) : null;
+  if (recovery ? remaining === null : !checkTotp(openSecret(u.mfaSecret), code)) {
     const left = await recordFailure(keys);
-    return fail(left ? "Code did not match. Codes refresh every 30 seconds." : "Too many attempts. Locked for 15 minutes.");
+    if (!left) return fail("Too many attempts. Locked for 15 minutes.");
+    return fail(recovery ? "That recovery code doesn’t match or was already used." : "Code did not match. Codes refresh every 30 seconds.");
   }
   await clearFailures(keys);
   await markMfaPassed(s.id);
-  await db.$transaction(async (tx) => {
+  const recoveryCodes = await db.$transaction(async (tx) => {
+    const codes = u.mfaEnabled ? undefined : await issueRecoveryCodes(tx, u.id);
     if (!u.mfaEnabled) await tx.user.update({ where: { id: u.id }, data: { mfaEnabled: true } });
-    await writeAudit(tx, { tenantId: u.tenantId, userId: u.id, userName: u.name, action: u.mfaEnabled ? "Signed in with MFA" : "Authenticator set up", entity: "session" });
+    await writeAudit(tx, {
+      tenantId: u.tenantId, userId: u.id, userName: u.name, entity: "session",
+      action: !u.mfaEnabled ? "Authenticator set up" : recovery ? "Signed in with a recovery code" : "Signed in with MFA",
+      detail: !u.mfaEnabled ? "10 recovery codes issued" : recovery ? `${remaining} recovery code${remaining === 1 ? "" : "s"} left` : null,
+    });
+    return codes;
   });
   if (trust) await setTrustedDevice(u.id, u.tokenVersion);
-  return { ok: true, data: "/app" };
+  return { ok: true, data: { next: "/app", recoveryCodes, remaining: recovery ? remaining! : undefined } };
+}
+
+/** Lost authenticator: sends a code to the email or mobile on the account. Returns the masked destination. */
+export async function sendMfaResetCode(): Promise<R<string>> {
+  const s = await readSession(true);
+  if (!s || s.mfaPassed) return fail("Your sign-in has expired. Start again.");
+  try { return { ok: true, data: await requestMfaReset(s) }; } catch (e) { return fail(errMsg(e)); }
+}
+
+export async function resetMfaWithCode(code: string): Promise<R<null>> {
+  const s = await readSession(true);
+  if (!s || s.mfaPassed) return fail("Your sign-in has expired. Start again.");
+  try { await confirmMfaReset(s, code); return { ok: true, data: null }; } catch (e) { return fail(errMsg(e)); }
+}
+
+// ───────────── Forgot password ─────────────
+
+export async function forgotPassword(contact: string): Promise<R> {
+  try { await requestPasswordReset(contact); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
+}
+
+export async function resetPassword(input: { contact: string; code: string; password: string }): Promise<R> {
+  try { await completePasswordReset(input); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
 }
 
 /** Creates an unconfirmed TOTP secret for a user who hasn't enrolled yet. */
@@ -166,22 +200,22 @@ export async function employeeSignIn(input: { code: string; employeeNo: string; 
   if (code.length < 4) return fail("Enter your pharmacy code. Your manager can find it in Users.");
   if (!/^\d{4}$/.test(input.pin)) return fail("Enter your 4-digit PIN.");
   const { ip } = await clientInfo();
-  const keys = ["emp:" + code + ":" + no, "ip:" + (ip ?? "?")];
+  const keys = lockKeys("emp:" + code + ":" + no, ip);
   const mins = await checkLock(keys);
   if (mins) return fail(`This ID is locked for ${mins} more minute${mins > 1 ? "s" : ""}.`);
   const t = await db.tenant.findUnique({ where: { code } });
   const user = t ? await db.user.findFirst({ where: { tenantId: t.id, employeeNo: no, active: true }, include: { role: true } }) : null;
   if (!user || !(await verifyPassword(user.pinHash, input.pin))) {
     const left = await recordFailure(keys);
-    return fail(!user && t ? "Employee ID not found for this pharmacy." : left ? `Wrong PIN. ${left} attempt${left > 1 ? "s" : ""} left.` : "5 wrong PINs. This ID is locked for 15 minutes.");
+    return fail(left ? `Employee ID or PIN is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many wrong attempts. This ID is locked for 15 minutes.");
   }
   const counter = await db.counter.findFirst({ where: { id: input.counterId, tenantId: user.tenantId, active: true } });
   if (!counter) return fail("Choose your counter.");
   if (user.branchIds.length && !user.branchIds.includes(counter.branchId)) return fail("You are not assigned to that branch.");
   if (user.mfaRequired) return fail("Owners and managers sign in with email and password.");
   await clearFailures(keys);
-  const next = await finishSignIn(user, `Employee PIN · ${counter.name}`, { counterId: counter.id, device: counter.name });
-  return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/acc" : "/app") : next };
+  const next = await finishSignIn(user, "pin", `Employee PIN · ${counter.name}`, { counterId: counter.id, device: counter.name });
+  return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/accounts" : "/app") : next };
 }
 
 export async function findInvite(code: string, inviteCode: string): Promise<R<{ role: string; branch: string; pharmacy: string; name: string | null; kind: "phone" | "email" }>> {
@@ -200,7 +234,7 @@ export async function checkInviteContact(code: string, inviteCode: string, conta
   const c = inviteContact(contact);
   if (!c || (c.phone ?? c.email) !== inv.contact) return fail("That doesn’t match the mobile number or email on the invite.");
   if (c.phone && otpEnabled()) {
-    try { await sendOtp(c.phone, "invite"); } catch (e) { return fail(errMsg(e)); }
+    try { await throttleSend(c.phone); await sendOtp(c.phone, "invite"); } catch (e) { return fail(errMsg(e)); }
     return { ok: true, data: { otpSent: true } };
   }
   return { ok: true, data: { otpSent: false } };

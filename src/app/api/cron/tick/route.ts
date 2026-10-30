@@ -1,5 +1,12 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { scheduledTick } from "@/domain/system/backup";
+import { messagingTick } from "@/domain/comms/crm";
+import { licenceTick } from "@/domain/system/licence";
+import { log } from "@/server/log";
+import { dailyJobs } from "@/domain/system/daily";
+import { reportMailTick } from "@/domain/reports/mailer";
+import { deliveryTick } from "@/domain/comms/delivery";
+import { expirePoints } from "@/domain/sales/loyalty";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -8,8 +15,15 @@ let running = false;
 async function tick(daily: boolean) {
   if (running) return new Response("busy");
   running = true;
-  try { await scheduledTick(new Date(), { daily }); return new Response("ok"); }
-  catch (e) { console.error("[scheduler]", e); return new Response("error", { status: 500 }); }
+  try {
+    const now = new Date();
+    let failed = false;
+    // Each job runs even if another fails.
+    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now)]) {
+      try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; }
+    }
+    return failed ? new Response("error", { status: 500 }) : new Response("ok");
+  }
   finally { running = false; }
 }
 

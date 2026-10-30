@@ -7,6 +7,7 @@ import { fingerprint, seal } from "@/server/vault";
 import { UserError } from "@/server/action";
 import { DEFAULT_GRANTS, ROLE_NAMES } from "./permissions";
 import { inviteContact, setupSchema, type SetupInput } from "./contracts";
+import { deploymentMismatch } from "./deployment";
 
 export const isSetupDone = async () => (await db.tenant.count()) > 0;
 
@@ -28,9 +29,6 @@ export function branchCodes(names: string[]) {
   });
 }
 
-export const invoicePrefix = (name: string) =>
-  name.split(/\s+/).filter((w) => /^[A-Za-z]/.test(w)).slice(0, 3).map((w) => w[0].toUpperCase()).join("") || "INV";
-
 export async function nextEmployeeNo(tx: Tx, tenantId: string) {
   const rows = await tx.user.findMany({ where: { tenantId, employeeNo: { not: null } }, select: { employeeNo: true } });
   const max = rows.reduce((m, r) => Math.max(m, Number(r.employeeNo!.replace(/\D/g, "")) || 0), 100);
@@ -40,6 +38,8 @@ export async function nextEmployeeNo(tx: Tx, tenantId: string) {
 /** First-run setup. Creates the pharmacy, branches, counters, roles, owner and invites in one transaction. */
 export async function createPharmacy(raw: SetupInput) {
   const input = setupSchema.parse(raw);
+  const mismatch = deploymentMismatch(input.deployment, process.env.DATABASE_URL);
+  if (mismatch) throw new UserError(mismatch);
   const invites = input.invites.map((i) => ({ ...i, c: inviteContact(i.contact) }));
   const bad = invites.find((i) => !i.c);
   if (bad) throw new UserError(`“${bad.contact}” is not a valid email or mobile number.`);
@@ -58,7 +58,7 @@ export async function createPharmacy(raw: SetupInput) {
       data: {
         code: p.code, name: p.name, gstin: p.gstin || null, phone: input.owner.phone,
         settings: {
-          invoicePrefix: invoicePrefix(p.name), lang: p.lang, pharmacist: p.pharmacist, deployment: input.deployment,
+          lang: p.lang, pharmacist: p.pharmacist, deployment: input.deployment,
           policy: { cover: 21, safety: 2 }, anomaly: { disc: 5, refunds: 2, cash: 200 },
           privacy: { strict: true, remoteAi: false, telemetry: false, crash: false, retentionYears: 8 },
           crm: { refill: false, loyalty: false, feedback: false }, wa: { auto: false, pdf: true },

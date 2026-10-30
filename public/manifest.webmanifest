@@ -16,6 +16,8 @@
     { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
+    { "name": "Owner view", "short_name": "Owner", "description": "Today's sales, cash, stock risks and approvals", "url": "/app/owner", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Orders", "url": "/app/orders", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "New bill", "url": "/app/pos", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Offline billing", "url": "/offline", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]

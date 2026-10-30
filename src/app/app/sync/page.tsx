@@ -1,5 +1,5 @@
 import { requireCtx, can } from "@/server/context";
-import { offlineOverview } from "@/domain/sales/offline";
+import { canManageOffline, offlineOverview } from "@/domain/sales/offline";
 import { OfflinePanel } from "./offline-panel";
 import { db } from "@/server/db";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,10 @@ function ago(d: Date) {
 
 export default async function Page() {
   const ctx = await requireCtx();
+  // Everyone can see their own sign-ins and this branch's offline billing; the full device list (with IPs) is for user admins.
+  const allUsers = can(ctx, "users");
   const [sessions, counters, branches, off] = await Promise.all([
-    db.session.findMany({ where: { user: { tenantId: ctx.tenantId }, revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: { select: { name: true } } }, orderBy: { lastSeenAt: "desc" } }),
+    db.session.findMany({ where: { user: { tenantId: ctx.tenantId }, ...(allUsers ? {} : { userId: ctx.userId }), revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: { select: { name: true } } }, orderBy: { lastSeenAt: "desc" } }),
     db.counter.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true } }),
     offlineOverview(ctx),
@@ -35,7 +37,7 @@ export default async function Page() {
       <PageHead title={t(ctx.lang).sync} sub="Devices connected to your server and offline reconciliation" />
       <div className="flex flex-col gap-4 max-w-[1100px]">
         <div className={card}>
-          <div className="font-semibold text-[15px] mb-1">Devices on the live database</div>
+          <div className="font-semibold text-[15px] mb-1">{allUsers ? "Devices on the live database" : "Your devices on the live database"}</div>
           {devices.map((d) => (
             <div key={d.id} className="flex items-center gap-3 py-2 border-b border-row last:border-0 text-[13.5px] flex-wrap">
               {d.mobile ? <Smartphone size={16} className="text-muted" /> : <Monitor size={16} className="text-muted" />}
@@ -45,7 +47,7 @@ export default async function Page() {
             </div>
           ))}
         </div>
-        <OfflinePanel devices={off.devices} ops={off.ops} branchId={ctx.branchId} branchName={ctx.branchName} counterName={ctx.counterName} canManage={!ctx.readOnly && (can(ctx, "users") || can(ctx, "adjust"))} />
+        <OfflinePanel devices={off.devices} ops={off.ops} branchId={ctx.branchId} branchName={ctx.branchName} counterName={ctx.counterName} canManage={!ctx.readOnly && canManageOffline(ctx)} />
       </div>
     </>
   );

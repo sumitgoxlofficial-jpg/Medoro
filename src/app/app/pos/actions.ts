@@ -2,10 +2,15 @@
 import { revalidatePath } from "next/cache";
 import { getCtx } from "@/server/context";
 import { run } from "@/server/action";
+import { enforce, userKey } from "@/server/ratelimit";
 import { commitSale, createCustomer, heldCart, holdCart, invoiceData, listHeld, posCustomers, searchForSale, takeHeld } from "@/domain/sales/service";
 import type { CustomerInput, SaleInput } from "@/domain/sales/contracts";
+import type { ConsentInput } from "@/domain/parties/consent";
 import { saleMessage, sendInvoice, waSettings } from "@/domain/comms/whatsapp";
+import { sendPointsMessage } from "@/domain/comms/crm";
 import { db } from "@/server/db";
+import type { z } from "zod";
+import { approveDiscount, type approvalSchema } from "@/domain/sales/approval";
 
 export async function searchAction(q: string) {
   const ctx = await getCtx();
@@ -21,14 +26,15 @@ export async function commitSaleAction(input: SaleInput) {
     const ctx = await getCtx();
     if (ctx && input.customerId && !r.data.replayed) {
       const [settings, cust] = await Promise.all([waSettings(ctx.tenantId), db.customer.findUnique({ where: { id: input.customerId } })]);
-      if (settings.auto && cust?.waOptIn && cust.phone) void sendInvoice(ctx, r.data.saleId, cust.phone, true, true).catch(() => {});
+      if (settings.auto && cust?.waOptIn && !cust.waInvalidAt && cust.phone) void sendInvoice(ctx, r.data.saleId, cust.phone, true, true).catch(() => {});
+      void sendPointsMessage(ctx.tenantId, r.data.saleId).catch(() => {});
     }
   }
   return r;
 }
 
 export async function sendInvoiceAction(saleId: string, phone: string, consent: boolean) {
-  return run(async (ctx) => sendInvoice(ctx, saleId, phone, consent));
+  return run(async (ctx) => { await enforce("waSend", userKey(ctx)); return sendInvoice(ctx, saleId, phone, consent); });
 }
 
 export async function messageStatusAction(saleId: string) {
@@ -41,8 +47,12 @@ export async function invoiceAction(id: string) {
   return ctx ? invoiceData(ctx, id) : null;
 }
 
-export async function addCustomerAction(input: CustomerInput) {
+export async function addCustomerAction(input: CustomerInput & ConsentInput) {
   return run(async (ctx) => { const id = await createCustomer(ctx, input); return { id, customers: await posCustomers(ctx) }; }, "Customer added.");
+}
+
+export async function approveDiscountAction(input: z.input<typeof approvalSchema>) {
+  return run((ctx) => approveDiscount(ctx, input));
 }
 
 export async function holdAction(label: string, cart: unknown) {

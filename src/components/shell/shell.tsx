@@ -4,9 +4,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
   ChevronDown, ChevronRight, Search, Bell, ShieldCheck, Ellipsis, CircleUser, CreditCard, Languages,
-  Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor, Sparkles,
+  Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor, Sparkles, KeyRound,
 } from "lucide-react";
-import { AiDrawer } from "./ai-drawer";
+import { AiDrawer, type AiShell } from "./ai-drawer";
 import { useLive } from "./use-live";
 import { useOfflineAgent } from "./use-offline-agent";
 import { cn } from "@/components/ui/cn";
@@ -16,14 +16,18 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { DICT, type Lang } from "@/lib/i18n";
 import { NAV, READY, screenOf, type ScreenId } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
-import { listSessions, revokeOtherSessions, revokeSession, setBranch, setLang, setViewAs } from "@/app/app/actions";
+import {
+  changePasswordAction, changePinAction, disconnectGoogleAction, listSessions, regenerateCodesAction, revokeOtherSessions, revokeSession, securityInfo, setBranch, setLang, setViewAs,
+} from "@/app/app/actions";
+import { Input } from "@/components/ui/field";
 import { signOut } from "@/app/(auth)/actions";
 
 export type ShellProps = {
   tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
-  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; aiMode: "llm" | "rules"; supportUntil: string | null;
+  badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; ai: AiShell; supportUntil: string | null;
+  subscription: { tone: "amber" | "red"; text: string; renew: boolean } | null;
   children: React.ReactNode;
 };
 
@@ -43,6 +47,7 @@ function ShellInner(p: ShellProps) {
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const showAi = !p.ai.globalOff && (p.ai.enabled || p.ai.canManage);
   const live = useLive();
   const offlineReady = useOfflineAgent(p.branchId);
   const [, start] = useTransition();
@@ -56,11 +61,28 @@ function ShellInner(p: ShellProps) {
     return () => { window.removeEventListener("resize", on); window.removeEventListener("medoro:ai", ask); };
   }, []);
 
+  // Result of Profile → Connect Google (the OAuth callback lands on /app?google=…).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const g = q.get("google");
+    if (!g) return;
+    const msg: Record<string, [string, "green" | "red" | "gray"]> = {
+      linked: ["Google sign-in connected. Next time, use “Continue with Google”.", "green"],
+      taken: ["That Google account is already connected to another Medoro user.", "red"],
+      unsupported: ["Google sign-in is for owners and managers, who sign in with a password.", "red"],
+      cancelled: ["Connecting Google was cancelled.", "gray"],
+    };
+    const [text, tone] = msg[g] ?? ["Couldn’t connect Google. Try again.", "red"];
+    toast(text, tone);
+    q.delete("google");
+    window.history.replaceState(null, "", window.location.pathname + (q.size ? `?${q}` : ""));
+  }, [toast]);
+
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
       if (e.key === "F2" && READY.has("pos") && p.perms.includes("sale")) { e.preventDefault(); router.push("/app/pos?focus=1"); }
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") { e.preventDefault(); setAiOpen((x) => !x); }
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && showAi) { e.preventDefault(); setAiOpen((x) => !x); }
       else if (e.key === "Escape" && aiOpen && narrow) setAiOpen(false);
       else if (e.key === "?" && !typing) { e.preventDefault(); showShortcuts(); }
     };
@@ -76,7 +98,7 @@ function ShellInner(p: ShellProps) {
   const initials = p.userName.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (narrow ? "76px" : "232px") + " minmax(0,1fr)" + (aiOpen && !narrow ? " 380px" : "") }}>
+    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (narrow ? "76px" : "232px") + " minmax(0,1fr)" + (aiOpen && showAi && !narrow ? " 380px" : "") }}>
       <aside className="bg-side border-r border-line flex flex-col min-h-0">
         <div className="h-14 flex items-center px-2.5 border-b border-line-soft flex-none">
           <div className="flex items-center gap-[9px] w-full p-1.5 rounded-lg">
@@ -147,7 +169,7 @@ function ShellInner(p: ShellProps) {
                 </div>
                 <div className="h-px bg-line-soft -mx-1 my-1" />
                 <MenuItem icon={Keyboard} kbd="?" onClick={showShortcuts}>Keyboard shortcuts</MenuItem>
-                <MenuItem icon={LifeBuoy} onClick={() => { setMenu(false); toast("Support: help.medoro.in · 9am–9pm", "gray"); }}>Help & support</MenuItem>
+                <MenuItem icon={LifeBuoy} onClick={() => { setMenu(false); router.push("/app/help"); }}>Help & support</MenuItem>
                 <div className="h-px bg-line-soft -mx-1 my-1" />
                 <MenuItem icon={LogOut} danger onClick={() => start(() => signOut())}>Sign out</MenuItem>
                 <div className="px-3.5 py-1.5 text-[11px] text-[#A3AAB1] border-t border-line-soft -mx-1 mt-1">Medoro 0.1.0 · {p.deployment}</div>
@@ -171,6 +193,12 @@ function ShellInner(p: ShellProps) {
           <div role="status" className="flex-none bg-[#0E1A1F] text-white text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap">
             <ShieldCheck size={15} className="text-[#5FD3BC]" /><strong>Medoro support · read-only</strong>
             <span className="text-[#B8C7CC]">Access granted by the pharmacy until {p.supportUntil}. Changes and downloads are blocked; everything you open is audited.</span>
+          </div>
+        ) : null}
+        {p.subscription ? (
+          <div role="status" className={cn("flex-none text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap", p.subscription.tone === "red" ? "bg-[#FBEAE8] text-[#8C1D18]" : "bg-[#FDF2E1] text-[#6B4A0E]")}>
+            <CreditCard size={15} /><span>{p.subscription.text}</span>
+            {p.subscription.renew ? <Link href="/app/plan" className="font-semibold text-teal underline">Renew</Link> : <span>Ask the owner to renew.</span>}
           </div>
         ) : null}
         {live === "offline" ? (
@@ -218,14 +246,14 @@ function ShellInner(p: ShellProps) {
             <button onClick={() => toast(p.alerts.length ? p.alerts.join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title="Notifications" className="relative size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
               <Bell size={17} />{p.alerts.length ? <span className="absolute top-[7px] right-2 size-[7px] rounded-full bg-[#D64545] border-[1.5px] border-white" /> : null}
             </button>
-            <button onClick={() => setAiOpen((x) => !x)} title="Ask AI (Ctrl+J)" aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
+            {showAi ? <button onClick={() => setAiOpen((x) => !x)} title="Ask AI (Ctrl+J)" aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
               <Sparkles size={15} />{!narrow ? t.ask : null}
-            </button>
+            </button> : null}
           </div>
         </header>
         <main className="flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 bg-page max-[640px]:px-4">{p.children}</main>
       </div>
-      <AiDrawer open={aiOpen} floating={narrow} onClose={() => setAiOpen(false)} lang={p.lang} placeholder={t.aiPh} mode={p.aiMode} />
+      {showAi ? <AiDrawer open={aiOpen} floating={narrow} onClose={() => setAiOpen(false)} lang={p.lang} placeholder={t.aiPh} ai={p.ai} /> : null}
       <ProfileModal open={profile} onClose={() => setProfile(false)} name={p.userName} email={p.userEmail} role={p.role} initials={initials} />
     </div>
   );
@@ -272,6 +300,7 @@ function ProfileModal({ open, onClose, name, email, role, initials }: { open: bo
         <div className="size-11 rounded-full bg-blue-tint text-blue flex items-center justify-center font-semibold text-[16px]">{initials}</div>
         <div className="flex flex-col"><strong className="text-[17px]">{name}</strong><span className="text-[12.5px] text-muted">{role} · {email}</span></div>
       </div>
+      {open ? <SignInSecurity /> : null}
       <div className="flex flex-col">
         <div className="text-[12.5px] text-muted font-medium mb-1">Active sessions</div>
         {sessions.map((s) => (
@@ -285,5 +314,94 @@ function ProfileModal({ open, onClose, name, email, role, initials }: { open: bo
         ))}
       </div>
     </Modal>
+  );
+}
+
+type Security = Extract<Awaited<ReturnType<typeof securityInfo>>, { ok: true }>["data"];
+
+/** Profile → password or PIN, Google sign-in and recovery codes for the signed-in user. */
+function SignInSecurity() {
+  const toast = useToast();
+  const [sec, setSec] = useState<Security | null>(null);
+  const [panel, setPanel] = useState<"secret" | null>(null);
+  const [cur, setCur] = useState(""), [next, setNext] = useState(""), [next2, setNext2] = useState("");
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [err, setErr] = useState(""), [pending, start] = useTransition();
+  const load = () => securityInfo().then((r) => { if (r.ok) setSec(r.data); });
+  useEffect(() => { securityInfo().then((r) => { if (r.ok) setSec(r.data); }); }, []);
+  if (!sec) return null;
+  const pin = !sec.hasPassword && sec.hasPin;
+  const row = "flex items-center gap-2.5 py-2 border-b border-row text-[13.5px]";
+
+  const saveSecret = () => {
+    setErr("");
+    if (next !== next2) return setErr(pin ? "PINs do not match." : "Passwords do not match.");
+    start(async () => {
+      const r = pin ? await changePinAction(cur, next) : await changePasswordAction(cur, next);
+      if (!r.ok) return setErr(r.error);
+      toast(r.message ?? "Saved.", "green");
+      setPanel(null); setCur(""); setNext(""); setNext2("");
+    });
+  };
+
+  return (
+    <div className="flex flex-col">
+      <div className="text-[12.5px] text-muted font-medium mb-1">Sign-in & security</div>
+      {sec.hasPassword || sec.hasPin ? (
+        <div className={row}>
+          <KeyRound size={16} className="text-muted" />
+          <span className="flex-1 font-medium">{pin ? "PIN" : "Password"}</span>
+          {panel !== "secret" ? <Button size="sm" onClick={() => { setPanel("secret"); setErr(""); }}>Change</Button> : null}
+        </div>
+      ) : null}
+      {panel === "secret" ? (
+        <div className="flex flex-col gap-2 py-2.5 border-b border-row">
+          {pin ? (
+            <>
+              <Input type="password" inputMode="numeric" placeholder="Current PIN" aria-label="Current PIN" value={cur} onChange={(e) => setCur(e.target.value.replace(/\D/g, "").slice(0, 4))} autoComplete="off" />
+              <Input type="password" inputMode="numeric" placeholder="New 4-digit PIN" aria-label="New PIN" value={next} onChange={(e) => setNext(e.target.value.replace(/\D/g, "").slice(0, 4))} autoComplete="off" />
+              <Input type="password" inputMode="numeric" placeholder="Confirm new PIN" aria-label="Confirm new PIN" value={next2} onChange={(e) => setNext2(e.target.value.replace(/\D/g, "").slice(0, 4))} autoComplete="off" />
+            </>
+          ) : (
+            <>
+              <Input type="password" placeholder="Current password" aria-label="Current password" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" />
+              <Input type="password" placeholder="New password (10+ characters)" aria-label="New password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
+              <Input type="password" placeholder="Confirm new password" aria-label="Confirm new password" value={next2} onChange={(e) => setNext2(e.target.value)} autoComplete="new-password" />
+            </>
+          )}
+          {err ? <div role="alert" className="text-[12.5px] text-bad">{err}</div> : null}
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" variant="ghost" onClick={() => { setPanel(null); setErr(""); }}>Cancel</Button>
+            <Button size="sm" variant="primary" disabled={pending} onClick={saveSecret}>{pending ? "Saving…" : pin ? "Change PIN" : "Change password"}</Button>
+          </div>
+        </div>
+      ) : null}
+      {sec.google.email || sec.google.available ? (
+        <div className={row}>
+          <span className="size-4 flex items-center justify-center font-bold text-[13px] text-muted">G</span>
+          <div className="flex flex-col flex-1 min-w-0"><span className="font-medium">Google sign-in</span><span className="text-[12px] text-muted truncate">{sec.google.email ? `Connected · ${sec.google.email}` : "Not connected"}</span></div>
+          {sec.google.email ? (
+            <Button size="sm" variant="danger-outline" disabled={pending} onClick={() => { if (confirm("Disconnect Google? You’ll sign in with your password.")) start(async () => { const r = await disconnectGoogleAction(); toast(r.ok ? r.message ?? "Disconnected." : r.error, r.ok ? "green" : "red"); await load(); }); }}>Disconnect</Button>
+          ) : <a href="/api/auth/google/start?intent=link" className="h-7 px-2.5 inline-flex items-center rounded-md border border-input bg-white text-[12.5px] font-medium text-ink no-underline hover:border-teal">Connect Google</a>}
+        </div>
+      ) : null}
+      {sec.mfa ? (
+        <div className={row}>
+          <ShieldCheck size={16} className="text-muted" />
+          <div className="flex flex-col flex-1 min-w-0"><span className="font-medium">Recovery codes</span><span className="text-[12px]" style={{ color: sec.recoveryLeft <= 3 ? "#B3261E" : "#6B737B" }}>{sec.recoveryLeft} of 10 left · each signs in once without your authenticator</span></div>
+          <Button size="sm" disabled={pending} onClick={() => { if (confirm("Make 10 new recovery codes? Your old codes stop working.")) start(async () => { const r = await regenerateCodesAction(); if (!r.ok) return toast(r.error, "red"); setCodes(r.data); await load(); }); }}>Regenerate</Button>
+        </div>
+      ) : null}
+      {codes ? (
+        <div className="flex flex-col gap-2 py-2.5 border-b border-row">
+          <span className="text-[12.5px] text-muted">Save these now: they won’t be shown again.</span>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 bg-chip rounded-lg p-3 font-mono text-[13.5px]">{codes.map((c) => <span key={c}>{c}</span>)}</div>
+          <div className="flex gap-2 justify-end">
+            <Button size="sm" onClick={() => { navigator.clipboard.writeText(`Medoro recovery codes (each works once)\n\n${codes.join("\n")}\n`); toast("Copied.", "gray"); }}>Copy</Button>
+            <Button size="sm" variant="primary" onClick={() => setCodes(null)}>I’ve saved them</Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

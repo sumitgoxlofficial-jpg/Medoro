@@ -6,6 +6,7 @@ import { UserError } from "@/server/action";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { allow, staffAudit, type Staff } from "./auth";
 import { MOBILE_RE, SLA_MIN, TICKET_CATEGORIES, TICKET_CHANNELS, digits } from "./constants";
+import { approvedLink, billingEvents } from "./licence";
 
 const CP = "_cp";
 // Sales see the pharmacies they sold to; customer care and super admins see all.
@@ -26,9 +27,10 @@ export function health(status: string, highOpen: number, lastCheckIn: Date | nul
 export async function customerDetail(s: Staff, id: string) {
   const c = await db.cpCustomer.findFirst({ where: { id, ...custScope(s) }, include: { notes: { orderBy: { at: "desc" } }, tickets: { orderBy: { createdAt: "desc" } } } });
   if (!c) return null;
-  const [salesperson, remote] = await Promise.all([
+  const [salesperson, remote, billing] = await Promise.all([
     c.salesStaffId ? db.staffUser.findUnique({ where: { id: c.salesStaffId }, select: { name: true } }) : null,
     db.remoteAccessRequest.findFirst({ where: { customerId: id }, orderBy: { requestedAt: "desc" } }),
+    billingEvents(id),
   ]);
   const hi = c.tickets.filter((t) => t.status !== "resolved" && t.priority === "high").length;
   return {
@@ -38,7 +40,8 @@ export async function customerDetail(s: Staff, id: string) {
     salesperson: salesperson?.name ?? null, health: health(c.status, hi, c.lastCheckIn), highOpen: hi,
     notes: c.notes.map((n) => ({ id: n.id, text: n.text, by: n.byName, at: n.at.toISOString() })),
     tickets: c.tickets.map((t) => ({ id: t.id, code: t.code, subject: t.subject, status: t.status })),
-    remote: remote ? { status: remote.status, at: remote.requestedAt.toISOString() } : null,
+    remote: remote ? { status: remote.status, at: remote.requestedAt.toISOString(), ...(s.role !== "sales" ? { access: approvedLink(remote) } : {}) } : null,
+    licensed: !!c.licenceId, graceDays: c.graceDays, billing,
   };
 }
 
@@ -128,11 +131,11 @@ export async function ticketDetail(id: string) {
     id: t.id, code: t.code, subject: t.subject, category: t.category, channel: t.channel, priority: t.priority, status: t.status, assigneeId: t.assigneeId, escalatedTo: t.escalatedTo,
     customer: t.customer, firstResponseDue: t.firstResponseDue.toISOString(), firstResponseAt: t.firstResponseAt?.toISOString() ?? null, resolvedAt: t.resolvedAt?.toISOString() ?? null,
     messages: t.messages.map((m) => ({ id: m.id, text: m.text, by: m.byName, internal: m.internal, fromCustomer: m.fromCustomer, at: m.at.toISOString() })),
-    remote: remote ? { status: remote.status, at: remote.requestedAt.toISOString() } : null,
+    remote: remote ? { status: remote.status, at: remote.requestedAt.toISOString(), access: approvedLink(remote) } : null,
   };
 }
 
-/** Saves a reply or internal note. Replies are sent to the customer by the agent (WhatsApp link); Medoro records them here. */
+/** Saves a reply or internal note. Replies reach the pharmacy's Help screen at its next licence check-in; internal notes never leave the console. */
 export async function replyTicket(s: Staff, id: string, text: string, internal: boolean, resolve: boolean) {
   allow(s, "super_admin", "care");
   const body = String(text ?? "").trim().slice(0, 4000);

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { db } from "./db";
+import { driveConfigured, driveDownload, driveUpload, tenantDrive } from "@/domain/system/gdrive";
 
 // Files (invoice scans, backups) live in one of:
 //  - a private Supabase Storage bucket, when SUPABASE_URL and SUPABASE_SECRET_KEY are set;
@@ -10,6 +11,8 @@ import { db } from "./db";
 //    since serverless disks don't persist;
 //  - this server's disk (STORAGE_DIR), for self-hosted installs.
 // Keys are "<tenantId>/<kind>/<file>".
+// Uploaded documents can instead go to the pharmacy's Google Drive (Backup & restore → Uploaded files); a FileObject
+// row without bytes then records the Drive file id, and reads stream it back from Drive.
 const ROOT = path.resolve(process.env.STORAGE_DIR ?? "./storage");
 export const ALLOWED = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as const;
 // Vercel caps request bodies at 4.5 MB.
@@ -41,7 +44,7 @@ function ensureBucket(c: NonNullable<ReturnType<typeof sb>>) {
 export async function putObject(key: string, bytes: Buffer, contentType = "application/octet-stream") {
   const k = safe(key), c = sb();
   if (storageKind() === "database") {
-    const data = { tenantId: k.split("/")[0], contentType, bytes: new Uint8Array(bytes) };
+    const data = { tenantId: k.split("/")[0], contentType, bytes: new Uint8Array(bytes), driveFileId: null };
     await db.fileObject.upsert({ where: { key: k }, create: { key: k, ...data }, update: data });
     return;
   }
@@ -60,7 +63,7 @@ export async function getObject(key: string): Promise<Buffer | null> {
   const k = safe(key), c = sb();
   if (storageKind() === "database") {
     const f = await db.fileObject.findUnique({ where: { key: k } });
-    return f ? Buffer.from(f.bytes) : null;
+    return f?.bytes ? Buffer.from(f.bytes) : null;
   }
   if (!c) {
     const full = path.resolve(ROOT, k);
@@ -80,17 +83,49 @@ export async function deleteObject(key: string) {
   await fetch(`${c.url}/storage/v1/object/${c.bucket}`, { method: "DELETE", headers: headers(c.key, { "Content-Type": "application/json" }), body: JSON.stringify({ prefixes: [k] }), signal: AbortSignal.timeout(15_000) });
 }
 
+export type FileStore = "server" | "gdrive";
+export async function fileStore(tenantId: string): Promise<FileStore> {
+  const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
+  return (t?.settings as { backup?: { files?: FileStore } } | undefined)?.backup?.files === "gdrive" ? "gdrive" : "server";
+}
+
+/** Saves an uploaded document where the pharmacy chose. If Drive is chosen but unreachable, it's kept on the server. */
 export async function saveDocument(tenantId: string, bytes: Buffer, mime: keyof typeof ALLOWED) {
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const rel = `${tenantId}/scans/${sha256}.${ALLOWED[mime]}`;
+  if ((await fileStore(tenantId)) === "gdrive" && (await driveConfigured(tenantId))) {
+    try {
+      const have = await db.fileObject.findUnique({ where: { key: rel }, select: { driveFileId: true } });
+      const driveFileId = have?.driveFileId ?? await driveUpload(tenantId, "files", rel.split("/").pop()!, bytes, { mimeType: mime, appProperties: { medoroKind: "file", medoroTenant: tenantId } });
+      await db.fileObject.upsert({ where: { key: rel }, create: { key: rel, tenantId, contentType: mime, driveFileId }, update: { driveFileId } });
+      return { sha256, rel, store: "gdrive" as const };
+    } catch (e) {
+      console.warn("[storage] Drive upload failed, keeping the file on the server:", e instanceof Error ? e.message : e);
+    }
+  }
   await putObject(rel, bytes, mime);
-  return { sha256, rel };
+  return { sha256, rel, store: "server" as const };
 }
 
 export async function readDocument(rel: string) {
-  const b = await getObject(rel);
+  const k = safe(rel);
+  const m = await db.fileObject.findUnique({ where: { key: k }, select: { tenantId: true, driveFileId: true } });
+  if (m?.driveFileId) {
+    const local = await getObject(k).catch(() => null);
+    if (local) return local;
+    try { return await driveDownload(tenantDrive(m.tenantId), m.driveFileId); }
+    catch (e) { throw new Error(`This file is kept in Google Drive, which couldn’t be reached: ${e instanceof Error ? e.message : "unknown error"}`); }
+  }
+  const b = await getObject(k);
   if (!b) throw new Error("Document not found");
   return b;
+}
+
+/** Writes a file from a backup back to this server's storage (a Drive copy, if any, is no longer used). */
+export async function restoreFile(key: string, bytes: Buffer, contentType: string) {
+  const k = safe(key);
+  await db.fileObject.deleteMany({ where: { key: k, bytes: null } });
+  await putObject(k, bytes, contentType);
 }
 
 /** Checks magic bytes so a renamed file can't pose as a PDF or image. */

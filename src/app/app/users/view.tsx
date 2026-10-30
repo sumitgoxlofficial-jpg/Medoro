@@ -11,22 +11,42 @@ import { useToast } from "@/components/ui/toast";
 import { inrShort } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { ROLE_OPTIONS } from "@/domain/identity/contracts";
-import type { auditTrail, listBranches, listTeam, listTransfers, roleMatrix } from "@/domain/identity/admin";
+import type { auditTrail, listBranches, listTeam, listTransfers, MemberPatch, roleMatrix } from "@/domain/identity/admin";
 import type { Perm } from "@/domain/identity/permissions";
-import { branchAction, counterAction, inviteAction, memberAction, permAction, resetAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
+import { branchAction, counterAction, inviteAction, maxDiscountAction, memberAction, permAction, resetAction, resetTwoStepAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
+import { UserPermsModal, overrideCount } from "./user-perms";
 
 type Team = Awaited<ReturnType<typeof listTeam>>;
 type Br = Awaited<ReturnType<typeof listBranches>>[number];
 const ROLE_TONE: Record<string, Tone> = { Owner: "teal", Manager: "blue", Pharmacist: "green", Cashier: "gray", Accountant: "amber" };
-const TR: Record<string, [string, Tone]> = { pending: ["Pending approval", "amber"], in_transit: ["In transit", "blue"], received: ["Received", "green"], rejected: ["Rejected", "gray"] };
+const TR: Record<string, [string, Tone]> = { pending: ["Pending approval", "amber"], in_transit: ["In transit", "blue"], received: ["Received", "green"], rejected: ["Rejected", "gray"], cancelled: ["Cancelled", "gray"] };
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const when = (iso: string | null) => (iso ? `${dayMonth(new Date(iso))} ${hhmm(new Date(iso))}` : "Never");
 
-export function UsersView({ tab, team, roles, perms, branches, transfers, audit, tenantCode, myBranches, canAdjust }: {
+function DiscountCeiling({ initial, isOwner }: { initial: number; isOwner: boolean }) {
+  const toast = useToast();
+  const [pending, start] = useTransition();
+  const [v, setV] = useState(String(initial));
+  const save = () => start(async () => {
+    const r = await maxDiscountAction(Number(v));
+    toast(r.ok ? r.message ?? "Saved." : r.error, r.ok ? "green" : "red");
+  });
+  return (
+    <div className="flex items-end gap-3 flex-wrap mt-4 pt-3 border-t border-row">
+      <Field label="Maximum discount on any bill, even with approval (%)">
+        <Input type="number" min={0} max={90} step={1} value={v} disabled={!isOwner} onChange={(e) => setV(e.target.value)} className="w-[110px]" aria-label="Maximum discount percent" />
+      </Field>
+      {isOwner ? <Button variant="primary" disabled={pending || v === String(initial)} onClick={save}>Save</Button> : <span className="text-[12.5px] text-faint pb-2">Only the owner can change this.</span>}
+    </div>
+  );
+}
+
+export function UsersView({ tab, team, roles, perms, branches, transfers, audit, tenantCode, myBranches, canAdjust, maxDisc, isOwner }: {
   tab: "users" | "roles" | "branches" | "audit"; team: Team; roles: Awaited<ReturnType<typeof roleMatrix>>; perms: { id: Perm; label: string }[];
   branches: Br[]; transfers: Awaited<ReturnType<typeof listTransfers>>; audit: Awaited<ReturnType<typeof auditTrail>>; tenantCode: string; myBranches: string[]; canAdjust: boolean;
+  maxDisc: number; isOwner: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -34,6 +54,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
   const [invite, setInvite] = useState(false);
   const [code, setCode] = useState<{ code: string; tenantCode: string; name: string; reset?: boolean } | null>(null);
   const [edit, setEdit] = useState<Team["users"][number] | null>(null);
+  const [permUser, setPermUser] = useState<Team["users"][number] | null>(null);
   const [brEdit, setBrEdit] = useState<Br | "new" | null>(null);
   const [chain, setChain] = useState<string | null>(null);
   const res = (r: { ok: true; message?: string } | { ok: false; error: string }) => toast(r.ok ? r.message ?? "Saved." : r.error, r.ok ? "green" : "red");
@@ -67,7 +88,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                 {team.users.map((u) => (
                   <tr key={u.id} style={{ opacity: u.active ? 1 : 0.55 }}>
                     <td className={td}><div className="font-semibold">{u.name}{u.isMe ? <span className="text-faint font-normal"> (you)</span> : null}</div><div className="text-[12px] text-muted">{u.employeeNo ? <span className="font-mono">{u.employeeNo} · </span> : null}{u.contact}</div></td>
-                    <td className={td}><Badge tone={ROLE_TONE[u.role] ?? "gray"}>{u.role}</Badge>{!u.active ? <Badge tone="red" className="ml-1">Deactivated</Badge> : null}</td>
+                    <td className={td}><Badge tone={ROLE_TONE[u.role] ?? "gray"}>{u.role}</Badge>{overrideCount(u) ? <Badge tone="blue" className="ml-1">{overrideCount(u)} custom</Badge> : null}{!u.active ? <Badge tone="red" className="ml-1">Deactivated</Badge> : null}</td>
                     <td className={td + " text-ink-2"}>{u.branch}</td>
                     <td className={td} style={{ color: u.mfa ? "#1E7F4F" : u.mfaRequired ? "#B3261E" : "#8A929A" }}>{u.mfa ? "On" : u.mfaRequired ? "Required, not set up" : "Off (PIN)"}</td>
                     <td className={td + " text-muted"}>{when(u.lastSeen)}</td>
@@ -75,7 +96,9 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                       {!u.isMe && u.role !== "Owner" ? (
                         <div className="flex gap-1.5 justify-end">
                           <Button size="sm" variant="ghost" aria-label={`Edit ${u.name}`} onClick={() => setEdit(u)}><Pencil size={13} /></Button>
+                          <Button size="sm" variant="ghost" aria-label={`Permissions for ${u.name}`} title="Permissions for this person" onClick={() => setPermUser(u)}><ShieldCheck size={13} /></Button>
                           <Button size="sm" disabled={pending} onClick={() => { if (confirm(`Issue a ${u.role === "Manager" ? "password" : "PIN"} reset for ${u.name}? They’ll be signed out everywhere.`)) start(async () => { const r = await resetAction(u.id); if (!r.ok) return toast(r.error, "red"); setCode({ ...r.data, reset: true }); }); }}><KeyRound size={13} />Reset</Button>
+                          {u.mfa ? <Button size="sm" disabled={pending} title="Reset two-step verification" onClick={() => { if (confirm(`Reset two-step verification for ${u.name}? Their authenticator and recovery codes stop working, they’re signed out everywhere, and they set up a new authenticator at their next sign-in.`)) start(async () => { const r = await resetTwoStepAction(u.id); toast(r.ok ? `${r.data} will set up a new authenticator at next sign-in.` : r.error, r.ok ? "green" : "red"); }); }}><ShieldCheck size={13} />Reset 2-step</Button> : null}
                         </div>
                       ) : null}
                     </td>
@@ -121,6 +144,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
             ))}
           </div>
           <div className="text-[12px] text-faint mt-3">Enforced on the server for every request. Use “View as” in the header to try a role. Owner permissions are locked.</div>
+          <DiscountCeiling initial={maxDisc} isOwner={isOwner} />
         </div>
       ) : null}
 
@@ -149,6 +173,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                   <span className="flex gap-1.5 justify-end">
                     {canAdjust && x.status === "pending" && myBranches.includes(x.fromId) ? <><Button size="sm" variant="primary" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "approve")))}>Approve</Button><Button size="sm" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "reject")))}>Reject</Button></> : null}
                     {canAdjust && x.status === "in_transit" && myBranches.includes(x.toId) ? <Button size="sm" variant="primary" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "receive")))}>Mark received</Button> : null}
+                    {canAdjust && x.status === "in_transit" && myBranches.includes(x.fromId) ? <Button size="sm" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "cancel")))}>Cancel</Button> : null}
                   </span>
                 </div>
               );
@@ -176,6 +201,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
 
       <InviteModal open={invite} onClose={() => setInvite(false)} branches={branches} onDone={(c) => { setInvite(false); setCode(c); }} tenantCode={tenantCode} />
       <MemberModal user={edit} branches={branches} onClose={() => setEdit(null)} />
+      <UserPermsModal user={permUser} perms={perms} onClose={() => { setPermUser(null); router.refresh(); }} />
       <BranchModal edit={brEdit} onClose={() => setBrEdit(null)} />
     </div>
   );
@@ -201,16 +227,24 @@ function InviteModal({ open, onClose, branches, onDone, tenantCode }: { open: bo
 
 function MemberModal({ user, branches, onClose }: { user: Team["users"][number] | null; branches: Br[]; onClose: () => void }) {
   const toast = useToast();
-  const [role, setRole] = useState(""), [bids, setBids] = useState<string[]>([]);
+  const [role, setRole] = useState(""), [bids, setBids] = useState<string[]>([]), [secret, setSecret] = useState("");
   const [pending, start] = useTransition();
   const [lastId, setLastId] = useState<string | null>(null);
-  if (user && user.id !== lastId) { setLastId(user.id); setRole(user.role); setBids(user.branchIds); }
+  if (user && user.id !== lastId) { setLastId(user.id); setRole(user.role); setBids(user.branchIds); setSecret(""); }
   if (!user) return null;
-  const save = (patch: { role?: string; branchIds?: string[]; active?: boolean }) => start(async () => { const r = await memberAction(user.id, patch); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok) onClose(); });
+  // Moving between Manager (email + password) and a counter role (employee ID + PIN) needs the new credential.
+  const needs = (role === "Manager") !== (user.role === "Manager") ? (role === "Manager" ? "password" : "pin") : null;
+  const save = (patch: MemberPatch) => start(async () => { const r = await memberAction(user.id, patch); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok) onClose(); });
   return (
     <Modal open onClose={onClose} title={user.name} sub={`${user.employeeNo ?? ""} ${user.contact}`} width={460}
-      footer={<><Button variant={user.active ? "danger-outline" : "outline"} className="mr-auto" disabled={pending} onClick={() => { if (confirm(user.active ? `Deactivate ${user.name}? They’ll be signed out and can’t sign in.` : `Reactivate ${user.name}?`)) save({ active: !user.active }); }}>{user.active ? "Deactivate" : "Reactivate"}</Button><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={pending} onClick={() => save({ role, branchIds: bids })}>Save</Button></>}>
-      <Field label="Role"><Select value={role} onChange={(e) => setRole(e.target.value)}>{ROLE_OPTIONS.map((r) => <option key={r}>{r}</option>)}</Select></Field>
+      footer={<><Button variant={user.active ? "danger-outline" : "outline"} className="mr-auto" disabled={pending} onClick={() => { if (confirm(user.active ? `Deactivate ${user.name}? They’ll be signed out and can’t sign in.` : `Reactivate ${user.name}?`)) save({ active: !user.active }); }}>{user.active ? "Deactivate" : "Reactivate"}</Button><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={pending} onClick={() => save({ role, branchIds: bids, ...(needs === "password" ? { password: secret } : needs === "pin" ? { pin: secret } : {}) })}>Save</Button></>}>
+      <Field label="Role"><Select value={role} onChange={(e) => { setRole(e.target.value); setSecret(""); }}>{ROLE_OPTIONS.map((r) => <option key={r}>{r}</option>)}</Select></Field>
+      {needs === "password" ? (
+        <Field label="New password (min 10 characters)"><Input type="password" autoComplete="new-password" value={secret} onChange={(e) => setSecret(e.target.value)} /></Field>
+      ) : needs === "pin" ? (
+        <Field label="New 4-digit PIN"><Input inputMode="numeric" autoComplete="off" maxLength={4} value={secret} onChange={(e) => setSecret(e.target.value.replace(/\D/g, ""))} /></Field>
+      ) : null}
+      {needs ? <div className="text-[12px] text-faint">{needs === "password" ? "Managers sign in with their email, this password and an authenticator app. Share it with them privately." : `${role}s sign in at the counter with employee ID ${user.employeeNo ?? "(assigned on save)"} and this PIN. Share it with them privately.`}</div> : null}
       <div className="flex flex-col gap-1.5 text-[12.5px] text-muted font-medium">Branches
         <label className="flex gap-2 text-[13.5px] text-ink font-normal"><input type="checkbox" className="accent-teal" checked={!bids.length} onChange={(e) => setBids(e.target.checked ? [] : [branches[0].id])} />All branches</label>
         {bids.length ? branches.map((b) => <label key={b.id} className="flex gap-2 text-[13.5px] text-ink font-normal pl-5"><input type="checkbox" className="accent-teal" checked={bids.includes(b.id)} onChange={(e) => setBids(e.target.checked ? [...bids, b.id] : bids.filter((x) => x !== b.id).length ? bids.filter((x) => x !== b.id) : bids)} />{b.name}</label>) : null}

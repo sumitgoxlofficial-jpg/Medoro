@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Download, BookOpen } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { inr, inr0 } from "@/lib/money";
 import { dayMonth } from "@/lib/dates";
 import type { accountsOverview, dayBook } from "@/domain/accounting/service";
-import { expenseAction, reverseAction } from "./actions";
+import { dayBookAction, expenseAction, reverseAction } from "./actions";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col gap-2";
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
@@ -24,12 +24,23 @@ export function PeriodPicker({ value }: { value: string }) {
     options={[{ value: "month", label: "This month" }, { value: "last", label: "Last month" }, { value: "fy", label: "This FY" }]} />;
 }
 
-export function AccountsView({ ov, book, reports, expenseAccounts, canPay, periodKey }: {
-  ov: Awaited<ReturnType<typeof accountsOverview>>; book: Awaited<ReturnType<typeof dayBook>>; reports: { id: string; name: string; desc: string }[];
+type Entry = Awaited<ReturnType<typeof dayBook>>[number];
+
+export function AccountsView({ ov, book: firstPage, pageSize, reports, branchName, expenseAccounts, canPay, periodKey }: {
+  ov: Awaited<ReturnType<typeof accountsOverview>>; book: Entry[]; pageSize: number; reports: { id: string; name: string; desc: string; pharmacy: boolean }[]; branchName: string | null;
   expenseAccounts: string[]; canPay: boolean; periodKey: string;
 }) {
   const toast = useToast();
   const [exp, setExp] = useState(false);
+  const [scope, setScope] = useState<"branch" | "all">("branch");
+  const [book, setBook] = useState(firstPage), [more, setMore] = useState(firstPage.length >= pageSize), [loading, startLoad] = useTransition();
+  useEffect(() => { setBook(firstPage); setMore(firstPage.length >= pageSize); }, [firstPage, pageSize]);
+  const loadMore = () => startLoad(async () => {
+    const r = await dayBookAction(periodKey, book[book.length - 1].id);
+    if (!r.ok) return toast(r.error, "red");
+    setBook((b) => [...b, ...r.data.filter((x) => !b.some((y) => y.id === x.id))]);
+    setMore(r.data.length >= pageSize);
+  });
   const [, start] = useTransition();
   const pl = ov.pl;
   const Row = ({ l, v, b, neg }: { l: string; v: number; b?: boolean; neg?: boolean }) => (
@@ -60,14 +71,15 @@ export function AccountsView({ ov, book, reports, expenseAccounts, canPay, perio
             <div key={g.rate} className="grid grid-cols-[50px_1fr_1fr_1fr] gap-2 text-[13px] tnum"><span>{g.rate}%</span><span className="text-right">{inr0(g.outTaxable)}</span><span className="text-right">{inr0(g.outTax)}</span><span className="text-right">{inr0(g.inTax)}</span></div>
           )) : <div className="text-[13px] text-fainter">No taxable sales or purchases in this period.</div>}
           <div className="flex justify-between text-[13.5px] font-semibold border-t border-line-soft pt-2"><span>Net output tax after credit notes</span><span className="tnum">{inr0(ov.gstTotals.out)}</span></div>
-          <div className="flex justify-between text-[13.5px]"><span className="text-ink-2">Input tax credit (purchases)</span><span className="tnum">{inr0(ov.gstTotals.in)}</span></div>
+          <div className="flex justify-between text-[13.5px]"><span className="text-ink-2">Input tax credit (purchases, net of debit notes)</span><span className="tnum">{inr0(ov.gstTotals.in)}</span></div>
+          {ov.gstTotals.inIgst ? <div className="flex justify-between text-[12.5px] text-muted"><span>of which IGST (inter-state suppliers)</span><span className="tnum">{inr0(ov.gstTotals.inIgst)}</span></div> : null}
           <div className="text-[12px] text-faint">Have your CA check this before filing. Medoro does not file returns.</div>
         </div>
       </div>
 
       <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto">
         <div className="flex items-baseline justify-between px-4 pt-3.5 pb-2 gap-3 flex-wrap"><div className="font-semibold text-[15px]">Day book</div><span className="text-[12px] text-faint">Posted entries are immutable. Use Reverse to correct payments, receipts and expenses.</span></div>
-        {book.length ? (
+        {book.length ? (<>
           <table className="w-full border-collapse min-w-[900px] text-[13.5px]">
             <thead><tr className="bg-subtle"><th className={th}>Voucher</th><th className={th}>Narration</th><th className={th}>Debit</th><th className={th}>Credit</th><th className={th + " text-right"}>Amount</th><th className={th} /></tr></thead>
             <tbody>
@@ -85,16 +97,21 @@ export function AccountsView({ ov, book, reports, expenseAccounts, canPay, perio
               ))}
             </tbody>
           </table>
-        ) : <Empty icon={BookOpen} title="No entries in this period" body="Sales, purchases, payments and expenses post here automatically." />}
+          {more ? <div className="px-4 py-3"><Button size="sm" disabled={loading} onClick={loadMore}>{loading ? "Loading…" : "Load more"}</Button></div> : null}
+        </>) : <Empty icon={BookOpen} title="No entries in this period" body="Sales, purchases, payments and expenses post here automatically." />}
       </div>
 
       <div className={card}>
-        <div className="flex items-baseline justify-between gap-3 flex-wrap"><div className="font-semibold text-[15px]">Reports</div><span className="text-[12px] text-faint">Generated on your server for the selected period. CSV opens in Excel, Sheets or a Tally import.</span></div>
+        <div className="flex items-baseline justify-between gap-3 flex-wrap"><div className="font-semibold text-[15px]">Reports</div><span className="text-[12px] text-faint">Generated on your server for the selected period. CSV opens in Excel, Sheets or a Tally import.</span>
+          {branchName ? <Segmented value={scope} onChange={(v) => setScope(v as "branch" | "all")} className="bg-white border border-line" options={[{ value: "branch", label: branchName }, { value: "all", label: "All branches" }]} /> : null}</div>
         <div className="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
           {reports.map((r) => (
             <div key={r.id} className="flex items-center gap-3 border border-line rounded-[10px] px-3 py-2.5">
-              <div className="flex flex-col flex-1 min-w-0"><span className="text-[13.5px] font-semibold">{r.name}</span><span className="text-[12px] text-faint">{r.desc}</span></div>
-              <a href={`/api/reports/${r.id}?period=${periodKey}`} className="flex items-center gap-1 border border-input rounded-md px-2 py-1 text-[12.5px] text-ink hover:border-teal no-underline"><Download size={13} />CSV</a>
+              <div className="flex flex-col flex-1 min-w-0"><span className="text-[13.5px] font-semibold">{r.name}</span><span className="text-[12px] text-faint">{r.desc}{r.pharmacy && branchName ? " · all branches" : ""}</span></div>
+              <a href={`/api/reports/${r.id}?period=${periodKey}${scope === "all" && !r.pharmacy ? "&scope=all" : ""}`} className="flex items-center gap-1 border border-input rounded-md px-2 py-1 text-[12.5px] text-ink hover:border-teal no-underline"><Download size={13} />CSV</a>
+              {r.id === "customer-dues" ? <button type="button" title="In strict mode, mobile numbers need a reason (kept in the audit trail)" className="text-[12px] text-teal cursor-pointer"
+                onClick={() => { const why = prompt("Why do you need customer mobile numbers in this export?", ""); if (why && why.trim().length >= 5) window.location.href = `/api/reports/${r.id}?period=${periodKey}&reason=${encodeURIComponent(why.trim())}`; }}>+ phones</button> : null}
+              {r.id === "h1-register" ? <a href={`/app/accounts?view=h1&period=${periodKey}`} className="text-[12px] text-teal no-underline">View</a> : null}
             </div>
           ))}
         </div>

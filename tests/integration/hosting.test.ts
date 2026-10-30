@@ -54,10 +54,13 @@ describe("hosting safety", () => {
   });
 
   it("refuses to start on Vercel with missing or weak settings, and flags public secrets", () => {
-    const base = { DATABASE_URL: "postgres://x", SESSION_SECRET: "s".repeat(40) } as unknown as NodeJS.ProcessEnv;
+    const base = { DATABASE_URL: "postgres://x", SESSION_SECRET: "s".repeat(40), HOST_KEY: "h".repeat(40) } as unknown as NodeJS.ProcessEnv;
     expect(checkEnv(base)).toEqual([]);
+    expect(checkEnv({ ...base, HOST_KEY: "" }).join(" ")).toMatch(/HOST_KEY/);
+    expect(checkEnv({ ...base, HOST_KEY: base.SESSION_SECRET }).join(" ")).toMatch(/HOST_KEY must differ/);
+    expect(checkEnv({ ...base, HOST_KEY: "old-short-key" }).join(" ")).toMatch(/Move it to HOST_KEY_PREVIOUS/);
+    expect(checkEnv({ ...base, HOST_KEY_PREVIOUS: "old-short-key" })).toEqual([]);
     const v = checkEnv({ ...base, VERCEL: "1", NEXT_PUBLIC_SUPABASE_SECRET_KEY: "x" } as unknown as NodeJS.ProcessEnv);
-    expect(v.join(" ")).toMatch(/HOST_KEY/);
     expect(v.join(" ")).toMatch(/DIRECT_URL/);
     expect(v.join(" ")).toMatch(/CRON_SECRET/);
     expect(v.join(" ")).not.toMatch(/SUPABASE_URL/);

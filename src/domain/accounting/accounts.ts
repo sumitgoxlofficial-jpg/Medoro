@@ -7,6 +7,8 @@ export const ACC = {
   sgst: "Output SGST",
   inCgst: "Input CGST",
   inSgst: "Input SGST",
+  igst: "Output IGST",
+  inIgst: "Input IGST",
   roundOff: "Round off",
   debtors: "Sundry debtors",
   creditors: "Sundry creditors",
@@ -15,7 +17,14 @@ export const ACC = {
   salesReturns: "Sales returns",
   stockLoss: "Stock loss",
   cashDiff: "Cash short/excess",
+  codClearing: "Cash with delivery staff",
+  loyalty: "Loyalty points redeemed",
   opening: "Opening balance equity",
+  claims: "Supplier claims receivable",
+  claimLoss: "Claim write-off",
+  chequesInHand: "Cheques in hand",
+  chequesIssued: "Cheques issued (uncleared)",
+  bankCharges: "Bank charges",
 } as const;
 
 export const EXPENSE_ACCOUNTS = [

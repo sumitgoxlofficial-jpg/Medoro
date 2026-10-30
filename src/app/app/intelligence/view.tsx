@@ -27,12 +27,15 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
   const [t, setT] = useState({ disc: String(thr.disc), refunds: String(thr.refunds), cash: String(thr.cash) });
   const [fallback, setFallback] = useState(suppliers[0]?.id ?? "");
   const [sel, setSel] = useState<Record<string, boolean>>({});
+  const [seaSup, setSeaSup] = useState<Record<string, string>>({});
   useEffect(() => setSel({}), [month]);
   const need = fc.filter((r) => r.suggestion > 0);
   const setPolicy = (cover: number, safety: number) => start(async () => { const r = await policyAction(cover, safety); if (!r.ok) toast(r.error, "red"); });
   const seaRows = sea.ready ? sea.plan : [];
   const chosen = seaRows.filter((r) => r.need > 0 && sel[r.id] !== false);
   const costOf = (id: string) => fc.find((f) => f.id === id)?.cost ?? 0;
+  const supOf = (id: string) => fc.find((f) => f.id === id)?.supplierId ?? null;
+  const unassigned = chosen.filter((r) => !supOf(r.id) && !seaSup[r.id]);
 
   return (
     <div className="flex flex-col gap-4 max-w-[1400px]">
@@ -55,7 +58,14 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
                     return (
                       <tr key={r.id}>
                         <td className={td}><input type="checkbox" className="accent-teal" disabled={!r.need} checked={!!r.need && sel[r.id] !== false} onChange={(e) => setSel({ ...sel, [r.id]: e.target.checked })} aria-label={`Include ${r.name}`} /></td>
-                        <td className={td + " font-semibold"}>{r.name}</td>
+                        <td className={td}>
+                          <div className="font-semibold">{r.name}</div>
+                          {supOf(r.id) ? <div className="text-[12px] text-faint">{fc.find((f) => f.id === r.id)?.supplier}</div> : canPurchase && r.need ? (
+                            <select value={seaSup[r.id] ?? ""} onChange={(e) => setSeaSup({ ...seaSup, [r.id]: e.target.value })} aria-label={`Supplier for ${r.name}`} className="mt-1 border border-input rounded-md px-2 py-0.5 text-[12px] bg-white">
+                              <option value="">Choose supplier…</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                          ) : null}
+                        </td>
                         <td className={td}><div className="flex items-end gap-[2px] h-7">{r.bars.map((b, i) => <div key={i} title={`${MONTHS[i]}: ${Math.round(b * 100)}% of average`} className="w-[7px] rounded-sm" style={{ height: Math.round(4 + (b / mx) * 22), background: i === month ? "#0B5E5B" : i === cur ? "#7FB8B1" : "#D5E7E4" }} />)}</div></td>
                         <td className={td + " text-right tnum text-teal font-semibold"}>+{Math.round(r.lift)}%</td>
                         <td className={td + " text-right tnum"}>{r.expected}</td><td className={td + " text-right tnum"}>{r.atStart}</td>
@@ -69,7 +79,7 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-[12px] text-faint flex-1 min-w-[260px]">Basis: the same month in your sales history compared with the 12-month average, current stock and expected sales until then. Weather and outbreaks can shift real demand, so review before ordering.</span>
               <span className="text-[13px]">{chosen.length} selected · <strong>{inr0(chosen.reduce((a, r) => a + r.need * costOf(r.id), 0))}</strong> at cost</span>
-              {canPurchase ? <Button variant="primary" disabled={!chosen.length || !fallback || pending} onClick={() => start(async () => { const r = await seasonalPoAction(fallback, chosen.map((x) => ({ medicineId: x.id, qty: x.need, rate: costOf(x.id) / 100 })), MONTHS[month]); toast(r.ok ? `${r.data} saved as draft for ${MONTHS[month]}. Nothing is sent until you place it.` : r.error, r.ok ? "green" : "red"); })}>Create draft PO for {MONTHS[month]}</Button> : null}
+              {canPurchase ? <Button variant="primary" disabled={!chosen.length || unassigned.length > 0 || pending} title={unassigned.length ? "Choose a supplier for each selected item" : undefined} onClick={() => start(async () => { const r = await seasonalPoAction(chosen.map((x) => ({ medicineId: x.id, qty: x.need, rate: costOf(x.id) / 100, supplierId: supOf(x.id) ?? seaSup[x.id] ?? null })), MONTHS[month]); toast(r.ok ? `${r.data.join(", ")} saved as draft for ${MONTHS[month]}. Nothing is sent until you place it.` : r.error, r.ok ? "green" : "red"); })}>Create draft PO for {MONTHS[month]}</Button> : null}
             </div>
           </>
         ) : <div className="text-[13px] text-muted">No items sell noticeably above average in {MONTHS[month]}. Normal reorder rules are enough.</div>}
@@ -111,11 +121,11 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
 
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <div className={card + " p-4 flex flex-col gap-2"}>
-          <div className="font-semibold text-[15px]">Supplier price comparison</div>
+          <div className="font-semibold text-[15px]">Supplier price comparison <span className="text-[12px] font-normal text-faint">landed cost per unit, after schemes and discounts</span></div>
           {prices.length ? prices.map((p) => (
             <div key={p.name} className="flex flex-col gap-0.5 py-1.5 border-b border-row last:border-0">
               <div className="flex justify-between gap-2"><strong className="text-[13.5px]">{p.name}</strong><span className="text-[12.5px]" style={{ color: p.savingPct ? "#1E7F4F" : "#5B636B" }}>Best: {p.best}{p.savingPct ? ` · ${p.savingPct.toFixed(1)}% below last price` : " · last price is best"}</span></div>
-              <div className="text-[12.5px] text-muted">{p.quotes.map((q) => `${q.supplier} ${inr(q.rate)}`).join(" · ")}</div>
+              <div className="text-[12.5px] text-muted">{p.quotes.map((q) => `${q.supplier} ${inr(q.rate)}${q.deal || q.ptr !== q.rate ? ` (PTR ${inr(q.ptr)}${q.deal ? ", " + q.deal : ""})` : ""}`).join(" · ")}</div>
             </div>
           )) : <div className="text-[13px] text-fainter">Shows once you’ve bought the same medicine from more than one supplier. Based on your GRN history.</div>}
         </div>

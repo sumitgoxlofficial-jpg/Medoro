@@ -1,14 +1,23 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { getCtx } from "@/server/context";
-import { consentUrl, driveAppConfigured } from "@/domain/system/gdrive";
+import { isSetupDone } from "@/domain/identity/service";
+import { setupUnlocked } from "@/server/setup-gate";
+import { consentUrl, driveAppConfigured, pkce } from "@/domain/system/gdrive";
 
-export async function GET() {
-  const ctx = await getCtx();
-  if (ctx?.readOnly) return new Response("Medoro support access is read-only.", { status: 403 });
-  if (!ctx || !ctx.perms.includes("integrations")) return new Response("Forbidden", { status: 403 });
+/** Starts Google consent for Drive. `?setup=1`: during first-run setup, before a pharmacy exists (opened in a popup). */
+export async function GET(req: Request) {
+  const setup = new URL(req.url).searchParams.get("setup") === "1";
+  if (setup) {
+    if ((await isSetupDone()) || !(await setupUnlocked())) return new Response("Setup is closed.", { status: 403 });
+  } else {
+    const ctx = await getCtx();
+    if (ctx?.readOnly) return new Response("Medoro support access is read-only.", { status: 403 });
+    if (!ctx || !ctx.perms.includes("integrations")) return new Response("Forbidden", { status: 403 });
+  }
   if (!driveAppConfigured()) return new Response("Google OAuth isn't configured on this server.", { status: 400 });
   const state = randomBytes(16).toString("base64url");
-  (await cookies()).set("medoro_gstate", state, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 600 });
-  return Response.redirect(consentUrl(state), 302);
+  const { verifier, challenge } = pkce();
+  (await cookies()).set("medoro_gstate", `${setup ? "setup" : "app"}.${state}.${verifier}`, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/api/integrations/google", maxAge: 600 });
+  return Response.redirect(consentUrl(state, challenge), 302);
 }

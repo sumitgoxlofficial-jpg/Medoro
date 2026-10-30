@@ -13,6 +13,7 @@ import { inr0 } from "@/lib/money";
 import { READY, type ScreenId } from "@/lib/nav";
 import type { Dict } from "@/lib/i18n";
 import type { DashboardData, Range } from "@/domain/reports/dashboard";
+import { dashboardAccess } from "@/domain/reports/dashboard-access";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col";
 const rangeLabel = { today: "today", "7d": "last 7 days", "30d": "last 30 days" };
@@ -22,7 +23,7 @@ function Go({ screen, href, children, className }: { screen: ScreenId; href: str
   return READY.has(screen) ? <Link href={href} className={className ?? "text-teal text-[13px] font-semibold hover:text-teal-hover"}>{children}</Link> : null;
 }
 
-export function DashActions({ range, data, branch }: { range: Range; data: DashboardData; branch: string }) {
+export function DashActions({ range, data, branch, canExport }: { range: Range; data: DashboardData; branch: string; canExport: boolean }) {
   const router = useRouter();
   const toast = useToast();
   return (
@@ -31,7 +32,7 @@ export function DashActions({ range, data, branch }: { range: Range; data: Dashb
         <Segmented value={range} onChange={(v) => router.push(v === "today" ? "/app" : `/app?range=${v}`)} className="bg-transparent p-0"
           options={[{ value: "today", label: "Today" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]} />
       </div>
-      <Button onClick={() => {
+      {canExport ? <Button onClick={() => {
         const k = data.kpi;
         downloadCsv(`dashboard-${branch.toLowerCase()}-${range}`, [
           ["Metric", "Value"], ["Period", rangeLabel[range]], ["Bills", k.bills], ["Net sales (₹)", k.sales / 100],
@@ -40,7 +41,7 @@ export function DashActions({ range, data, branch }: { range: Range; data: Dashb
           ["Receivables (₹)", k.receivable / 100], ["Payables (₹)", k.payable / 100],
         ]);
         toast("CSV exported (generated on this device)", "green");
-      }}><Download size={15} />Export</Button>
+      }}><Download size={15} />Export</Button> : null}
     </div>
   );
 }
@@ -53,7 +54,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
   };
   const salesDelta = k.salesPrev > 0 ? delta(((k.sales - k.salesPrev) / k.salesPrev) * 100, "%", true) : null;
   const marginDelta = k.margin != null && k.margin7 != null ? delta(k.margin - k.margin7, " pts", true) : null;
-  const fin = perms.includes("reports"), pay = fin || perms.includes("payments");
+  const { fin, pay, activity: showActivity } = dashboardAccess(perms);
   const kpis = [
     { label: data.range === "today" ? t.sales : `Sales, ${rangeLabel[data.range]}`, value: inr0(k.sales), Icon: IndianRupee, ibg: "#E1F1EF", ifg: "#0B5E5B", d: salesDelta, sub: `${salesDelta ? "vs previous · " : ""}${k.bills} bill${k.bills === 1 ? "" : "s"}` },
     { label: t.margin, value: k.margin == null ? "—" : k.margin.toFixed(1) + "%", Icon: Percent, ibg: "#EAF0FC", ifg: "#2459C9", d: marginDelta, sub: marginDelta ? "vs 7-day average" : "No sales yet" },
@@ -141,7 +142,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
             const [bg, fg] = e.days <= 30 ? ["#FBEAE8", "#B3261E"] : e.days <= 60 ? ["#FDF2E1", "#94570A"] : ["#EEF0F2", "#4B535B"];
             return (
               <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2.5 items-center py-[7px] border-b border-row">
-                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qty} units{e.status !== "ok" ? ` · ${e.status}` : ""}</span></div>
+                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qtyText}{e.qtyText === String(e.qty) ? " units" : ""}{e.status !== "ok" ? ` · ${e.status}` : ""}</span></div>
                 <span className="text-[13px] tnum">{inr0(e.value)}</span>
                 <span className="px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap" style={{ background: bg, color: fg }}>{e.days} days</span>
               </div>
@@ -158,13 +159,13 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
           ))}
           <div className="mt-auto pt-3 border-t border-line-soft flex items-center gap-2.5">
             {data.backup.last ? <CloudCheck size={20} className="text-ok" /> : <CloudOff size={20} className="text-warn" />}
-            <div className="flex flex-col flex-1"><span className="text-[13px] font-semibold">Last verified backup</span><span className="text-[12.5px] text-muted">{data.backup.last ?? "None yet"} · {data.backup.driveConnected ? "Google Drive connected" : "Drive not connected"}</span></div>
+            <div className="flex flex-col flex-1"><span className="text-[13px] font-semibold">Last verified backup</span><span className="text-[12.5px] text-muted">{data.backup.last ?? "None yet"} · {data.backup.driveConnected ? "Google Drive connected" : "Drive not connected"}</span>{data.backup.problems.map((x) => <span key={x} role="alert" className="text-[12.5px] text-bad">{x}</span>)}</div>
             <Go screen="bak" href="/app/backup" className="border border-input bg-white rounded-[7px] px-2.5 py-1.5 text-[12.5px] text-ink">Open</Go>
           </div>
         </div>
       </div>
 
-      <div className={card + " gap-1"}>
+      {showActivity ? <div className={card + " gap-1"}>
         <div className="font-semibold text-[15px] mb-1.5">{t.activity}</div>
         {data.activity.map((a) => (
           <div key={a.id} className="grid grid-cols-[96px_minmax(0,1fr)_auto] gap-3 py-[7px] border-b border-row text-[13.5px] items-baseline max-sm:grid-cols-[72px_minmax(0,1fr)]">
@@ -173,7 +174,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
             <span className="text-muted text-[12.5px] whitespace-nowrap max-sm:hidden">{a.who}</span>
           </div>
         ))}
-      </div>
+      </div> : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Truck, Users, Upload } from "lucide-react";
+import { Plus, Pencil, Truck, Users, Upload, FileText } from "lucide-react";
 import { ImportDialog } from "@/components/import-dialog";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
@@ -13,23 +13,35 @@ import { useToast } from "@/components/ui/toast";
 import { inr, inr0 } from "@/lib/money";
 import { dayMonth } from "@/lib/dates";
 import { PAY_METHODS } from "@/domain/parties/contracts";
+import { GST_STATES } from "@/domain/accounting/gst";
 import type { listCustomers, listSuppliers } from "@/domain/parties/service";
-import { paySupplierAction, receiveAction, saveCustomerAction, saveSupplierAction } from "./actions";
+import { METHODS, METHOD_LABEL, PURPOSE_LABEL, type Method } from "@/domain/parties/consent-labels";
+import type { consentHistory } from "@/domain/parties/consent";
+import { consentsAction, paySupplierAction, pointsAction, receiveAction, remindAction, saveCustomerAction, saveSupplierAction } from "./actions";
 
 type Sup = Awaited<ReturnType<typeof listSuppliers>>[number];
 type Cus = Awaited<ReturnType<typeof listCustomers>>[number];
+type ConsentRow = Awaited<ReturnType<typeof consentHistory>>[number];
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
 const tableWrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto";
 
-export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canEditSup }: { tab: "sup" | "cus"; suppliers: Sup[]; customers: Cus[]; canPay: boolean; canCredit: boolean; canEditSup: boolean }) {
+export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canEditSup, canMessage }: { tab: "sup" | "cus"; suppliers: Sup[]; customers: Cus[]; canPay: boolean; canCredit: boolean; canEditSup: boolean; canMessage: boolean }) {
   const router = useRouter();
   const [supEdit, setSupEdit] = useState<Sup | null | "new">(null);
   const [cusEdit, setCusEdit] = useState<Cus | null | "new">(null);
   const [pay, setPay] = useState<{ kind: "sup" | "cus"; id: string; name: string; bal: number } | null>(null);
   const [q, setQ] = useState("");
   const [importing, setImporting] = useState(false);
-  const match = (s: string | null) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
+  const [points, setPoints] = useState<Cus | null>(null);
+  const [reminding, startRemind] = useTransition();
+  const toast = useToast();
+  const remind = (c: Cus) => startRemind(async () => {
+    const r = await remindAction(c.id);
+    if (!r.ok) return toast(r.error, "red");
+    toast(r.data.sent ? `Payment reminder sent to ${c.name}.` : r.data.failed ? "The reminder failed; see the WhatsApp delivery log." : `${c.name} has no WhatsApp or SMS consent, or was reminded today.`, r.data.sent ? "green" : "amber");
+  });
+  const match = (s: string | null | undefined) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
 
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
@@ -57,11 +69,13 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
                       <td className={td}><div className="font-semibold">{s.name}</div><div className="text-[12px] text-muted font-mono">{s.gstin ?? "No GSTIN"}{s.phone ? ` · ${s.phone}` : ""}</div></td>
                       <td className={td}>{s.creditDays} days</td>
                       <td className={td}>{s.leadDays} d</td>
-                      <td className={td + " font-semibold"} style={{ color: s.accuracy >= 95 ? "#1E7F4F" : s.accuracy >= 90 ? "#94570A" : "#B3261E" }}>{s.accuracy}%</td>
+                      <td className={td}>{s.accuracy == null ? <span className="text-fainter" title="Computed from placed purchase orders and their GRNs">No PO history</span>
+                        : <div className="flex flex-col"><span className="font-semibold" style={{ color: s.accuracy >= 95 ? "#1E7F4F" : s.accuracy >= 90 ? "#94570A" : "#B3261E" }}>{s.accuracy}% filled</span><span className="text-[12px] text-muted">{s.onTime}% on time · {s.orders} PO{s.orders === 1 ? "" : "s"}</span></div>}</td>
                       <td className={td + " text-right font-semibold tnum"}>{inr0(s.balance)}</td>
                       <td className={td}>{s.nextDue ? <Badge tone={d! <= 3 ? "red" : d! <= 7 ? "amber" : "gray"}>{dayMonth(new Date(s.nextDue.date + "T00:00:00Z"))} ({d! < 0 ? `${-d!} d overdue` : `${d} d`})</Badge> : <span className="text-fainter">—</span>}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/supplier/${s.id}`)}><FileText size={13} />Statement</Button>
                           {canPay && s.balance > 0 ? <Button size="sm" onClick={() => setPay({ kind: "sup", id: s.id, name: s.name, bal: s.balance })}>Record payment</Button> : null}
                           {canEditSup ? <Button size="sm" variant="ghost" aria-label={`Edit ${s.name}`} onClick={() => setSupEdit(s)}><Pencil size={13} /></Button> : null}
                         </div>
@@ -78,17 +92,20 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
           <div className={tableWrap}>
             {customers.length ? (
               <table className="w-full border-collapse min-w-[820px] text-[14px]">
-                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>WhatsApp consent</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
+                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>Consent</th><th className={th + " text-right"}>Points</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
                 <tbody>
-                  {customers.filter((c) => match(c.name) || match(c.phone)).map((c) => (
+                  {customers.filter((c) => match(c.name) || match(c.phone) || match(c.gstin)).map((c) => (
                     <tr key={c.id}>
-                      <td className={td}><div className="font-semibold">{c.name}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}</div></td>
-                      <td className={td}><Badge tone={c.optIn ? "green" : "gray"}>{c.optIn ? "Opted in" : "Not opted in"}</Badge></td>
+                      <td className={td}><div className="font-semibold">{c.name}{c.gstin ? <> <Badge tone="gray">B2B</Badge></> : null}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}{c.gstin ? <span className="font-mono"> · {c.gstin}</span> : null}</div></td>
+                      <td className={td}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.waInvalid ? <Badge tone="red" title={c.waInvalid}>Not on WhatsApp</Badge> : null}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
+                      <td className={td + " text-right tnum"}><button onClick={() => setPoints(c)} className={c.points ? "text-teal font-semibold cursor-pointer" : "text-fainter cursor-pointer"} aria-label={`Points of ${c.name}`}>{c.points}</button></td>
                       <td className={td + " text-right tnum"}>{c.limit ? inr0(c.limit) : "No credit"}</td>
                       <td className={td + " text-right font-semibold tnum"} style={{ color: c.due > 0 ? "#B3261E" : "#5B636B" }}>{inr0(c.due)}</td>
                       <td className={td + " text-muted"}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
+                          {canPay ? <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/customer/${c.id}`)}><FileText size={13} />Statement</Button> : null}
+                          {canMessage && c.due > 0 && (c.optIn || c.smsOptIn) ? <Button size="sm" variant="ghost" disabled={reminding} onClick={() => remind(c)}>Remind</Button> : null}
                           {canPay && c.due > 0 ? <Button size="sm" onClick={() => setPay({ kind: "cus", id: c.id, name: c.name, bal: c.due })}>Receive payment</Button> : null}
                           <Button size="sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setCusEdit(c)}><Pencil size={13} /></Button>
                         </div>
@@ -99,13 +116,14 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
               </table>
             ) : <Empty icon={Users} title="No customers yet" body="Customers are optional. Add regulars who buy on credit or want invoices on WhatsApp." action={<Button variant="primary" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>} />}
           </div>
-          <div className="text-[12.5px] text-muted">Profiles are optional. Only name and phone are stored. No diagnosis or prescription details are kept on the customer record.</div>
+          <div className="text-[12.5px] text-muted">Profiles are optional. Only name and phone are stored, plus GSTIN and billing address for business customers. No diagnosis or prescription details are kept on the customer record.</div>
         </>
       )}
 
       <SupplierModal edit={supEdit} canPay={canPay} onClose={() => setSupEdit(null)} />
       <CustomerModal edit={cusEdit} canCredit={canCredit} canPay={canPay} onClose={() => setCusEdit(null)} />
       <PayModal pay={pay} onClose={() => setPay(null)} />
+      <PointsModal customer={points} onClose={() => setPoints(null)} />
       <ImportDialog key={tab} kind={tab === "sup" ? "suppliers" : "customers"} open={importing} onClose={() => setImporting(false)} />
     </div>
   );
@@ -114,15 +132,15 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
 function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; canPay: boolean; onClose: () => void }) {
   const toast = useToast();
   const isNew = edit === "new";
-  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, opening: "" });
+  const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", returnWindowDays: "90", opening: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
   useEffect(() => {
     setErr("");
-    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, opening: "" });
-    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, opening: "" });
+    if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, stateCode: edit.stateCode, returnWindowDays: String(edit.returnWindowDays), opening: "" });
+    else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", returnWindowDays: "90", opening: "" });
   }, [edit]);
   const save = () => start(async () => {
-    const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f);
+    const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f, isNew ? undefined : (edit as Sup).version);
     if (!r.ok) return setErr(r.error);
     toast(r.message!, "green"); onClose();
   });
@@ -131,41 +149,76 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save supplier</Button></>}>
       <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
         <Field label="Name *" className="col-span-full"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-        <Field label="GSTIN"><Input value={f.gstin} onChange={(e) => setF({ ...f, gstin: e.target.value.toUpperCase() })} className="font-mono" maxLength={15} /></Field>
+        <Field label="GSTIN"><Input value={f.gstin} onChange={(e) => { const g = e.target.value.toUpperCase(); setF({ ...f, gstin: g, stateCode: GST_STATES.some(([c]) => c === g.slice(0, 2)) ? g.slice(0, 2) : f.stateCode }); }} className="font-mono" maxLength={15} /></Field>
+        <Field label="State" hint="Out-of-state suppliers are billed IGST."><Select value={f.stateCode} onChange={(e) => setF({ ...f, stateCode: e.target.value })}><option value="">From GSTIN / not set</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</Select></Field>
         <Field label="Phone"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
         <Field label="Credit terms (days)"><Input value={f.creditDays} onChange={(e) => setF({ ...f, creditDays: e.target.value.replace(/\D/g, "") })} inputMode="numeric" /></Field>
         <Field label="Lead time (days)" hint="Order to delivery. Used for reorder points."><Input value={f.leadDays} onChange={(e) => setF({ ...f, leadDays: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" /></Field>
         {isNew && canPay ? <Field label="Opening balance you owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
       </div>
       <Checkbox checked={f.acceptsReturns} onChange={(e) => setF({ ...f, acceptsReturns: e.target.checked })} label="Accepts returns of near-expiry stock" />
+      {f.acceptsReturns ? <Field label="Expiry return window (days)" hint="Stock expiring within this many days is suggested for an expiry claim to this supplier."><Input value={f.returnWindowDays} onChange={(e) => setF({ ...f, returnWindowDays: e.target.value.replace(/\D/g, "") })} inputMode="numeric" className="max-w-[140px]" /></Field> : null}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );
 }
 
+const BLANK_CUS = { name: "", phone: "", waOptIn: false, smsOptIn: false, marketingWa: false, marketingSms: false, consentMethod: "counter" as Method, creditLimit: "", opening: "", gstin: "", stateCode: "", address: "", pincode: "" };
+
 function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null | "new"; canCredit: boolean; canPay: boolean; onClose: () => void }) {
   const toast = useToast();
   const isNew = edit === "new";
-  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
+  const [f, setF] = useState(BLANK_CUS);
+  const [history, setHistory] = useState<ConsentRow[] | null>(null);
   const [err, setErr] = useState(""), [pending, start] = useTransition();
   useEffect(() => {
-    setErr("");
-    if (edit && edit !== "new") setF({ name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", opening: "" });
-    else setF({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
+    setErr(""); setHistory(null);
+    if (edit && edit !== "new") {
+      setF({ ...BLANK_CUS, name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, smsOptIn: edit.smsOptIn, marketingWa: edit.marketingWa, marketingSms: edit.marketingSms, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", gstin: edit.gstin ?? "", stateCode: edit.stateCode, address: edit.address, pincode: edit.pincode });
+      void consentsAction(edit.id).then((r) => setHistory(r.ok ? r.data : []));
+    } else setF(BLANK_CUS);
   }, [edit]);
   const save = () => start(async () => {
-    const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f);
+    const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f, isNew ? undefined : (edit as Cus).version);
     if (!r.ok) return setErr(r.error);
     toast(r.message!, "green"); onClose();
   });
+  const box = (k: "waOptIn" | "smsOptIn" | "marketingWa" | "marketingSms", label: string) => <Checkbox checked={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.checked })} label={label} />;
   return (
-    <Modal open={!!edit} onClose={onClose} title={isNew ? "Add customer" : "Edit customer"} width={480}
+    <Modal open={!!edit} onClose={onClose} title={isNew ? "Add customer" : "Edit customer"} width={520}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save customer</Button></>}>
       <Field label="Name *"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-      <Field label="Mobile"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
+      <Field label="Mobile" hint={f.phone.includes("•") ? "Masked in strict mode. Leave it as it is to keep the number." : undefined}><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
       <Field label="Credit limit ₹" hint={canCredit ? "0 means cash only." : "Only managers can change credit limits."}><Input value={f.creditLimit} disabled={!canCredit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field>
       {isNew && canPay ? <Field label="Opening balance they owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
-      <Checkbox checked={f.waOptIn} onChange={(e) => setF({ ...f, waOptIn: e.target.checked })} label="Customer agrees to receive invoices and reminders on WhatsApp (recorded with your name and time)" />
+      <details open={!!f.gstin}>
+        <summary className="cursor-pointer text-[13.5px] font-medium">Business customer (GSTIN, tax invoice)</summary>
+        <div className="grid grid-cols-2 gap-2.5 mt-2 max-sm:grid-cols-1">
+          <Field label="GSTIN" hint="B2B invoices show it and go to GSTR-1 B2B."><Input value={f.gstin} onChange={(e) => { const g = e.target.value.toUpperCase(); setF({ ...f, gstin: g, stateCode: GST_STATES.some(([c]) => c === g.slice(0, 2)) ? g.slice(0, 2) : f.stateCode }); }} className="font-mono" maxLength={15} /></Field>
+          <Field label="Place of supply" hint="Another state means IGST."><Select value={f.stateCode} onChange={(e) => setF({ ...f, stateCode: e.target.value })}><option value="">Your state / from GSTIN</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</Select></Field>
+          <Field label="Billing address" className="col-span-full"><Input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder="Street, area, city" /></Field>
+          <Field label="PIN code"><Input value={f.pincode} onChange={(e) => setF({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} inputMode="numeric" /></Field>
+        </div>
+      </details>
+      <div className="flex flex-col gap-1.5 border-t border-row pt-2.5">
+        <span className="text-[12.5px] font-semibold text-muted">Consent · {PURPOSE_LABEL.transactional}</span>
+        {box("waOptIn", "Invoices and refill reminders on WhatsApp")}
+        {box("smsOptIn", "Invoices and refill reminders by SMS")}
+        <span className="text-[12.5px] font-semibold text-muted pt-1">Consent · {PURPOSE_LABEL.marketing} (separate, optional)</span>
+        {box("marketingWa", "Offers and health camps on WhatsApp")}
+        {box("marketingSms", "Offers and health camps by SMS")}
+        <Field label="How was it given?"><Select value={f.consentMethod} onChange={(e) => setF({ ...f, consentMethod: e.target.value as Method })}>{METHODS.filter((m) => m !== "import").map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}</Select></Field>
+        <span className="text-[12px] text-faint">Each change is recorded with purpose, channel, method, your name and the time. Withdrawal takes effect immediately.</span>
+      </div>
+      {history?.length ? (
+        <div className="flex flex-col gap-0.5 text-[12.5px] max-h-[150px] overflow-auto border-t border-row pt-2">
+          <span className="font-semibold text-muted">Consent history</span>
+          {history.map((h, i) => (
+            <span key={i}><Badge tone={h.granted ? "green" : "gray"}>{h.granted ? "Given" : "Withdrawn"}</Badge> {PURPOSE_LABEL[h.purpose]} · {h.channel === "sms" ? "SMS" : "WhatsApp"} · {METHOD_LABEL[h.method as Method] ?? h.method} · {h.by ?? "System"} · {dayMonth(new Date(h.at), true)}</span>
+          ))}
+        </div>
+      ) : null}
+      {edit && edit !== "new" && edit.waInvalid ? <div className="text-[12.5px] text-bad">WhatsApp reported: {edit.waInvalid}. Correct the number (or record WhatsApp consent again) to try WhatsApp again.</div> : null}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );
@@ -174,11 +227,12 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
 function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; name: string; bal: number } | null; onClose: () => void }) {
   const toast = useToast();
   const [amount, setAmount] = useState(""), [method, setMethod] = useState<(typeof PAY_METHODS)[number]>("Cash"), [ref, setRef] = useState("");
+  const [chq, setChq] = useState({ chequeNo: "", bank: "", chequeDate: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { setAmount(""); setRef(""); setErr(""); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); }, [pay]);
+  useEffect(() => { setAmount(""); setRef(""); setErr(""); setChq({ chequeNo: "", bank: "", chequeDate: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10) }); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); }, [pay]);
   if (!pay) return null;
   const submit = () => start(async () => {
-    const input = { partyId: pay.id, amount, method, ref };
+    const input = { partyId: pay.id, amount, method, ref, ...(method === "Cheque" ? chq : {}) };
     const r = pay.kind === "sup" ? await paySupplierAction(input) : await receiveAction(input);
     if (!r.ok) return setErr(r.error);
     toast(`${r.data} posted for ${inr(Math.round(parseFloat(amount) * 100))}.`, "green"); onClose();
@@ -191,9 +245,42 @@ function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; na
         <Button onClick={() => setAmount((pay.bal / 100).toFixed(2))} className="h-[38px]">Full</Button>
       </div>
       <Select value={method} onChange={(e) => setMethod(e.target.value as typeof method)} aria-label="Method">{PAY_METHODS.map((m) => <option key={m}>{m}</option>)}</Select>
-      {method !== "Cash" ? <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="UTR / cheque no. (optional)" /> : null}
-      <div className="text-[12px] text-faint">Posts a {pay.kind === "sup" ? "payment voucher (PV)" : "receipt voucher (RV)"}. Posted vouchers can only be reversed, not edited.</div>
+      {method === "Cheque" ? (
+        <div className="grid grid-cols-[110px_minmax(0,1fr)_150px] gap-2">
+          <Input value={chq.chequeNo} onChange={(e) => setChq({ ...chq, chequeNo: e.target.value.replace(/\D/g, "").slice(0, 6) })} placeholder="Cheque no." aria-label="Cheque number" inputMode="numeric" className="font-mono" />
+          <Input value={chq.bank} onChange={(e) => setChq({ ...chq, bank: e.target.value })} placeholder={pay.kind === "sup" ? "Your bank" : "Drawn on (bank)"} aria-label="Bank" />
+          <Input type="date" value={chq.chequeDate} onChange={(e) => setChq({ ...chq, chequeDate: e.target.value })} aria-label="Cheque date" />
+        </div>
+      ) : null}
+      {method !== "Cash" ? <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder={method === "Cheque" ? "Note (optional)" : "UTR / reference (optional)"} /> : null}
+      <div className="text-[12px] text-faint">{method === "Cheque" ? `Posts a ${pay.kind === "sup" ? "payment" : "receipt"} voucher to ${pay.kind === "sup" ? "Cheques issued" : "Cheques in hand"}; the bank moves when you mark the cheque cleared under Cheques. Post-dated cheques are fine.` : <>Posts a {pay.kind === "sup" ? "payment voucher (PV)" : "receipt voucher (RV)"}. Posted vouchers can only be reversed, not edited.</>}</div>
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+    </Modal>
+  );
+}
+
+const KIND: Record<string, string> = { earn: "Earned", redeem: "Redeemed", reverse: "Taken back (return)", restore: "Given back (return)", expire: "Expired" };
+
+function PointsModal({ customer, onClose }: { customer: Cus | null; onClose: () => void }) {
+  const [data, setData] = useState<Awaited<ReturnType<typeof pointsAction>> | null>(null);
+  useEffect(() => { setData(null); if (customer) pointsAction(customer.id).then(setData, () => setData(null)); }, [customer]);
+  if (!customer) return null;
+  return (
+    <Modal open onClose={onClose} title={`Loyalty points · ${customer.name}`} sub={data ? <>Balance <strong>{data.balance}</strong> points (worth {inr(data.value)})</> : "Loading…"} width={560}
+      footer={<Button onClick={onClose}>Close</Button>}>
+      {data?.rows.length ? (
+        <table className="w-full border-collapse text-[13.5px]">
+          <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Entry</th><th className={th}>Bill / note</th><th className={th + " text-right"}>Points</th></tr></thead>
+          <tbody>{data.rows.map((r) => (
+            <tr key={r.id}>
+              <td className={td}>{dayMonth(new Date(r.at))}</td>
+              <td className={td}>{KIND[r.kind] ?? r.kind}{r.expiresAt && r.points > 0 ? <div className="text-[11.5px] text-faint">expires {dayMonth(new Date(r.expiresAt), true)}</div> : null}</td>
+              <td className={td + " font-mono text-[12px]"}>{r.note ?? "—"}{r.value ? <span className="text-faint"> · {inr(r.value)}</span> : null}</td>
+              <td className={td + " text-right tnum font-semibold"} style={{ color: r.points < 0 ? "#B3261E" : "#1E7F4F" }}>{r.points > 0 ? "+" : ""}{r.points}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      ) : <div className="text-[13px] text-fainter">{data ? "No points yet. Points are earned on bills when loyalty is turned on under Customer messaging." : ""}</div>}
     </Modal>
   );
 }

@@ -5,13 +5,14 @@ import { Copy, Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { grantSupportAction, revokeSupportAction } from "./actions";
+import { decideRemoteAction, grantSupportAction, revokeSupportAction } from "./actions";
 
 type Grant = { id: string; reason: string; minutes: number; createdBy: string; createdAt: string; expiresAt: string; usedAt: string | null; usedIp: string | null; revokedAt: string | null; revokedBy: string | null; active: boolean };
+type Ask = { id: string; by: string; ticket: string | null; requestedAt: string };
 const t = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 /** Lets the owner give Medoro support a single-use, read-only, time-limited login. */
-export function SupportCard({ grants }: { grants: Grant[] }) {
+export function SupportCard({ grants, requests = [] }: { grants: Grant[]; requests?: Ask[] }) {
   const toast = useToast();
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -26,11 +27,27 @@ export function SupportCard({ grants }: { grants: Grant[] }) {
     setLink({ url: r.data.link, until: r.data.expiresAt }); setReason(""); router.refresh();
   });
   const revoke = () => start(async () => { const r = await revokeSupportAction(); toast(r.ok ? r.message ?? "Ended." : r.error, r.ok ? "green" : "red"); setLink(null); router.refresh(); });
+  const decide = (id: string, approve: boolean) => start(async () => {
+    const r = await decideRemoteAction(id, approve, hours * 60);
+    if (!r.ok) return toast(r.error, "red");
+    toast(r.message ?? "Done.", "green");
+    if (r.data) setLink({ url: r.data.link, until: r.data.expiresAt });
+    router.refresh();
+  });
 
   return (
     <section className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3 max-w-[1300px]">
       <div className="flex items-center gap-2 font-semibold text-[15px]"><Headset size={18} className="text-teal" />Medoro support access</div>
       <p className="m-0 text-[13.5px] text-ink-2">Medoro staff can’t see your data. If support needs to look at something, give them a link here. It signs them in as <strong>Medoro support</strong>, can only look (no changes, no downloads), works once, and ends when the time is up or you revoke it. Everything they open is in your audit trail.</p>
+
+      {requests.map((q) => (
+        <div key={q.id} role="alert" className="flex gap-3 items-center flex-wrap bg-[#EAF0FC] rounded-lg px-3 py-2.5 text-[13.5px] text-[#1C3F8F]">
+          <Badge tone="blue">Medoro support requested access</Badge>
+          <span className="flex-1 min-w-[200px]">{q.by}{q.ticket ? ` · ticket ${q.ticket}` : ""} · {t(q.requestedAt)}. Approving creates a read-only link for {hours} hour{hours === 1 ? "" : "s"} (change it below) and sends it to them.</span>
+          <Button variant="primary" disabled={busy} onClick={() => decide(q.id, true)}>Approve</Button>
+          <Button disabled={busy} onClick={() => decide(q.id, false)}>Decline</Button>
+        </div>
+      ))}
 
       {active ? (
         <div className="flex gap-3 items-center flex-wrap bg-[#FDF2E1] rounded-lg px-3 py-2.5 text-[13.5px] text-[#6B4A0E]">

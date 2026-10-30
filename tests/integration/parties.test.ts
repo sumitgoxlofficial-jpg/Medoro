@@ -38,4 +38,19 @@ describe("parties", () => {
     await receiveFromCustomer(ctx, { partyId: id, amount: "1500", method: "UPI" });
     expect((await listCustomers(ctx)).find((x) => x.id === id)!.due).toBe(0);
   });
+
+  it("rejects stale supplier and customer edits (optimistic concurrency)", async () => {
+    const ctx = await ctxFor();
+    const sid = await saveSupplier(ctx, null, { name: "Stale Distributors", creditDays: "15" });
+    const seen = (await listSuppliers(ctx)).find((s) => s.id === sid)!.version;
+    await saveSupplier(ctx, sid, { name: "Stale Distributors", creditDays: "20" }, seen);
+    await expect(saveSupplier(ctx, sid, { name: "Stale Distributors", creditDays: "30" }, seen)).rejects.toThrow(/Someone else changed this supplier/);
+    expect((await db.supplier.findUniqueOrThrow({ where: { id: sid } })).creditDays).toBe(20);
+
+    const cid = await saveCustomer(ctx, null, { name: "Stale Customer", phone: "9822099999", waOptIn: false, creditLimit: "0" });
+    const cv = (await listCustomers(ctx)).find((c) => c.id === cid)!.version;
+    await saveCustomer(ctx, cid, { name: "Stale Customer A", phone: "9822099999", waOptIn: false, creditLimit: "0" }, cv);
+    await expect(saveCustomer(ctx, cid, { name: "Stale Customer B", phone: "9822099999", waOptIn: false, creditLimit: "0" }, cv)).rejects.toThrow(/Someone else changed this customer/);
+    expect((await db.customer.findUniqueOrThrow({ where: { id: cid } })).name).toBe("Stale Customer A");
+  });
 });

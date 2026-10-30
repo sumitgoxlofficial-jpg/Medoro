@@ -15,7 +15,7 @@ describe("first-run setup", () => {
     const t = await db.tenant.findFirstOrThrow();
     expect(await db.branch.count({ where: { tenantId: t.id } })).toBe(2);
     expect(await db.counter.count({ where: { tenantId: t.id } })).toBe(3);
-    expect(await db.role.count({ where: { tenantId: t.id } })).toBe(5);
+    expect(await db.role.count({ where: { tenantId: t.id } })).toBe(6);
     const owner = await db.user.findFirstOrThrow({ where: { tenantId: t.id }, include: { role: true } });
     expect(owner.role.name).toBe("Owner");
     expect(owner.mfaRequired).toBe(true);
@@ -33,6 +33,7 @@ describe("first-run setup", () => {
     await resetDb();
     await expect(makePharmacy({ pharmacy: { name: "A", code: "AAAA", gstin: "27ABC", dl: "X-1", pharmacist: "", address: "", lang: "en" } })).rejects.toThrow(/GSTIN/);
     await expect(makePharmacy({ invites: [{ contact: "9850000003", role: "Manager" }] })).rejects.toThrow(/by email/);
+    await expect(makePharmacy({ deployment: "hosted" })).rejects.toThrow(/on this machine/);
     expect(await db.tenant.count()).toBe(0);
   });
 });

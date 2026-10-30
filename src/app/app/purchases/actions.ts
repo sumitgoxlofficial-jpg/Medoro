@@ -4,14 +4,17 @@ import { db } from "@/server/db";
 import { run, UserError } from "@/server/action";
 import { writeAudit } from "@/server/audit";
 import { MAX_BYTES, MAX_LABEL, saveDocument, sniff } from "@/server/storage";
-import { createPo, postGrnTx, purchaseCatalogue, setPoStatus } from "@/domain/purchasing/service";
+import { approveSupplierInvoice, createPo, discardScan, purchaseCatalogue, setPoStatus } from "@/domain/purchasing/service";
 import { extractInvoice, matchMedicine, ocrConfigured } from "@/domain/purchasing/ocr";
 import type { GrnInput, PoInput } from "@/domain/purchasing/contracts";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 export async function createPoAction(input: PoInput) { return fresh(await run((c) => createPo(c, input))); }
-export async function poStatusAction(id: string, action: "place" | "cancel") { return fresh(await run((c) => setPoStatus(c, id, action), action === "place" ? "Order placed. Share the PO with your supplier." : "Order cancelled.")); }
-export async function postGrnAction(input: GrnInput) { return fresh(await run((c) => postGrnTx(c, input))); }
+export async function poStatusAction(id: string, action: "place" | "cancel" | "close", reason = "") {
+  return fresh(await run((c) => setPoStatus(c, id, action, reason), action === "place" ? "Order placed. Share the PO with your supplier." : action === "cancel" ? "Order cancelled." : "Order closed short. The rest won’t be received against it."));
+}
+export async function discardScanAction(id: string, reason: string) { return fresh(await run((c) => discardScan(c, id, reason), "Invoice discarded. The file is kept for audit.")); }
+export async function postGrnAction(input: GrnInput) { return fresh(await run((c) => approveSupplierInvoice(c, input))); }
 
 export async function uploadInvoiceAction(form: FormData) {
   return run(async (ctx) => {

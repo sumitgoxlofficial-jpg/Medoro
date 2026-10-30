@@ -41,14 +41,14 @@ export const TICKET_STATUS = { open: "Open", waiting: "Waiting on customer", res
 export const PRIORITY = { high: "High", medium: "Medium", low: "Low" } as const;
 /** First-response targets in minutes. */
 export const SLA_MIN = { high: 30, medium: 240, low: 1440 } as const;
-export const TICKET_CHANNELS = ["Phone", "WhatsApp", "Email", "Chat"] as const;
+export const TICKET_CHANNELS = ["Phone", "WhatsApp", "Email", "Chat", "App"] as const;
 export const TICKET_CATEGORIES = ["General", "Billing counter", "Hardware · printer", "WhatsApp setup", "Backup", "Plan change", "Reports", "Data import"] as const;
 
 export const MACROS = [
-  { id: "printer", label: "Printer cuts receipt", t: "Please open Settings → Printers, set paper width to 80 mm and print a test page. If it still cuts early, send us a photo of the receipt." },
-  { id: "wa", label: "WhatsApp template rejected", t: "Meta rejects templates when the display name differs from your GST name. Update it in Meta Business Manager, then press Resubmit in Settings → WhatsApp." },
-  { id: "pin", label: "Staff PIN reset", t: "The owner or a manager can reset a staff PIN from Users → select the person → Reset PIN. The new PIN works immediately." },
-  { id: "pay", label: "Payment link", t: "Here is a secure link to renew your plan by UPI or card. Your data stays safe and nothing is deleted while the payment is pending." },
+  { id: "printer", label: "Printer cuts receipt", t: "Medoro prints receipts through the browser. In the print window choose your thermal printer, set paper size to 80 mm (or your roll width), margins to None, and turn off headers and footers. Then print the next bill from Billing (POS). If it still cuts early, send us a photo of the receipt." },
+  { id: "wa", label: "WhatsApp template rejected", t: "Meta rejects templates when the display name differs from your GST name. Fix it in Meta Business Manager and resubmit the template there; once Meta approves it, open WhatsApp in Medoro and press Sync next to Message templates." },
+  { id: "pin", label: "Staff PIN reset", t: "The owner can reset a staff PIN from Users & branches: find the person and press Reset. Medoro shows a one-time reset code; the person uses it at Sign in → Employee login → New employee to set a new PIN." },
+  { id: "pay", label: "How to renew", t: "To renew, open Subscription in Medoro (under System). Pay by UPI or bank transfer with the reference shown there, then tap “I’ve paid” and enter the transaction number. Your data stays safe and nothing is deleted while we check the payment." },
 ] as const;
 
 export const IFSC_BANKS: Record<string, string> = {

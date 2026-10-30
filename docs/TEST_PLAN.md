@@ -5,7 +5,7 @@ Synthetic data only (`seed/synthetic.json`). Tools: Vitest (unit), Vitest with a
 ## Levels
 - **Unit:** money and GST maths, FEFO allocator, reorder policy, expiry projection, anomaly rules, idempotency helpers, Zod contracts.
 - **Integration:** services against real PostgreSQL inside transactions. Concurrency tests use parallel connections.
-- **E2E:** Playwright against the dockerised stack, with mocked Meta, Google and OCR servers.
+- **E2E:** Playwright (`e2e/`, `playwright.config.ts`) against a production build (`next build` + `next start`) and a freshly migrated PostgreSQL. The `setup` project runs the real first-run wizard once (TOTP computed from the enrolment key) and saves the owner's session; every other spec depends on it and seeds its own data through the UI. Tests run serially on one database. External services (Meta, Google, OCR, LLM) are not configured, so those paths show their "not connected" state; email (password-reset codes) goes through `MAIL_PROVIDER=http` to an HTTPS sink the spec starts (`e2e/mail-sink.ts`; the script makes a self-signed cert and sets `NODE_EXTRA_CA_CERTS`). Run with `bash wsl-e2e.sh <worktree> [playwright args]` from the worktree parent, or `pnpm test:e2e` with the environment that script exports.
 - **Security:** authz matrix tests (every route × every role), tenant-isolation fuzzing, ZAP baseline, dependency audit.
 
 ## Mandatory scenarios (brief §22)
@@ -34,6 +34,9 @@ Synthetic data only (`seed/synthetic.json`). Tools: Vitest (unit), Vitest with a
 | 21 | Expiry & reorder recs | Unit | Synthetic velocity → expected projected loss and suggestion |
 | 22 | Subscription lifecycle | Int | trial→active→grace→read-only; offline licence 30-day window |
 | 23 | Keyboard & responsive | E2E | F2/F4/F9 flow; 1440, 1024 and 390 px screenshots; axe has no serious issues |
+| 24 | Loose sale & pack sizes | Unit + Int | Tab price = MRP ÷ pack rounded down (≤ MRP per strip); strip + tab lines from one batch; stock, ledger and returns in stock units; pack-size change rescales with a `unit` movement; offline loose bill posts (`src/lib/units.test.ts`, `tests/integration/catalog.test.ts`) |
+| 25 | Salts, substitutes, search | Unit + Int | Order-independent composition key matches the SQL back-fill; brand/salt/typo search; substitutes in stock first; sample import is idempotent |
+| 26 | Doctors & labels | Unit + Int | Doctor-linked Rx sale keeps prescriber text; sales-by-doctor totals net of returns; Code 128/EAN-13 known encodings; internal `29…` EAN scans at the POS |
 
 ## Release gates
 - No open critical or high security, financial-integrity or data-loss defects.

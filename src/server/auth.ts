@@ -18,22 +18,37 @@ const secret = () => {
 export const hashPassword = (pw: string) => argonHash(pw, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
 export const verifyPassword = (h: string | null | undefined, pw: string) => (h ? argonVerify(h, pw).catch(() => false) : Promise.resolve(false));
 
-export async function clientInfo() {
-  const h = await headers();
-  return { ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? null, userAgent: h.get("user-agent") };
+/**
+ * Client IP from proxy headers, which anyone can forge unless a proxy we control sets them. On Vercel the
+ * edge overwrites them; behind your own reverse proxy set TRUST_PROXY=1 and the hop it appends (the last) is used.
+ */
+export function clientIp(h: Pick<Headers, "get">, env: Record<string, string | undefined> = process.env) {
+  if (env.VERCEL) return h.get("x-real-ip")?.trim() || h.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  if (env.TRUST_PROXY === "1") return h.get("x-forwarded-for")?.split(",").pop()?.trim() || h.get("x-real-ip")?.trim() || null;
+  return null;
 }
 
-export async function createSession(userId: string, tokenVersion: number, opts: { device?: string; counterId?: string; mfaPassed: boolean; expiresAt?: Date }) {
+export async function clientInfo() {
+  const h = await headers();
+  return { ip: clientIp(h), userAgent: h.get("user-agent") };
+}
+
+export async function createSession(userId: string, tokenVersion: number, opts: { device?: string; counterId?: string; mfaPassed: boolean; expiresAt?: Date; firstFactor?: "password" | "google" | "otp" | "pin" }) {
   const token = randomBytes(32).toString("base64url");
   const { ip, userAgent } = await clientInfo();
   const expiresAt = opts.expiresAt ?? new Date(Date.now() + COUNTER_HOURS * 3600_000);
   await db.session.create({
-    data: { id: sha(token), userId, tokenVersion, device: opts.device ?? null, counterId: opts.counterId ?? null, mfaPassed: opts.mfaPassed, expiresAt, ip, userAgent },
+    data: { id: sha(token), userId, tokenVersion, device: opts.device ?? null, counterId: opts.counterId ?? null, mfaPassed: opts.mfaPassed, firstFactor: opts.firstFactor ?? null, expiresAt, ip, userAgent },
   });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", expires: expiresAt,
   });
 }
+
+// Owner and manager sessions end after SESSION_IDLE_MINUTES without activity; counter sessions last the shift.
+const ADMIN_ROLES = new Set(["Owner", "Manager"]);
+export const idleLimitMs = (role: string, env: Record<string, string | undefined> = process.env) =>
+  ADMIN_ROLES.has(role) ? (Number(env.SESSION_IDLE_MINUTES) > 0 ? Number(env.SESSION_IDLE_MINUTES) : 120) * 60_000 : COUNTER_HOURS * 3600_000;
 
 /** The current session. MFA-pending sessions are returned only when `allowPendingMfa` is set. */
 export async function readSession(allowPendingMfa = false) {
@@ -41,6 +56,10 @@ export async function readSession(allowPendingMfa = false) {
   if (!token) return null;
   const s = await db.session.findUnique({ where: { id: sha(token) }, include: { user: { include: { role: true, tenant: true } } } });
   if (!s || s.revokedAt || s.expiresAt < new Date() || !s.user.active || s.tokenVersion !== s.user.tokenVersion) return null;
+  if (Date.now() - s.lastSeenAt.getTime() > idleLimitMs(s.user.role.name)) {
+    await db.session.updateMany({ where: { id: s.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    return null;
+  }
   if (!s.mfaPassed && !allowPendingMfa) return null;
   if (Date.now() - s.lastSeenAt.getTime() > 60_000) {
     await db.session.update({ where: { id: s.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
@@ -80,8 +99,13 @@ export async function isTrustedDevice(userId: string, tokenVersion: number) {
   return uid === userId && Number(tv) === tokenVersion && Number(exp) > Date.now();
 }
 
-// ── Lockout: 5 failures → 15-minute cooldown per key (account and IP).
-const MAX_FAILS = 5, LOCK_MIN = 15;
+// ── Lockout: 5 failures → 15-minute cooldown per account. A shop shares one IP, so the per-IP
+// throttle ("ip:" keys) only trips on volume no single counter reaches, within a sliding 15-minute window.
+const MAX_FAILS = 5, IP_MAX_FAILS = 50, LOCK_MIN = 15, IP_WINDOW_MIN = 15;
+export const maxFails = (key: string) => (key.startsWith("ip:") ? IP_MAX_FAILS : MAX_FAILS);
+
+/** Lockout keys for one sign-in: the account, plus the client IP when it is known. */
+export const lockKeys = (account: string, ip: string | null) => (ip ? [account, "ip:" + ip] : [account]);
 
 export async function checkLock(keys: string[]) {
   const rows = await db.loginAttempt.findMany({ where: { key: { in: keys } } });
@@ -89,16 +113,44 @@ export async function checkLock(keys: string[]) {
   return locked ? Math.ceil((locked.lockedUntil!.getTime() - Date.now()) / 60_000) : 0;
 }
 
+/** Counts a failure on every key; returns attempts left on the account key (0 = now locked). */
 export async function recordFailure(keys: string[]) {
   let left = MAX_FAILS;
   for (const key of keys) {
-    const r = await db.loginAttempt.upsert({ where: { key }, create: { key, failures: 1 }, update: { failures: { increment: 1 } } });
-    if (r.failures >= MAX_FAILS) await db.loginAttempt.update({ where: { key }, data: { failures: 0, lockedUntil: new Date(Date.now() + LOCK_MIN * 60_000) } });
-    left = Math.min(left, MAX_FAILS - r.failures);
+    const max = maxFails(key), isIp = key.startsWith("ip:");
+    const prev = isIp ? await db.loginAttempt.findUnique({ where: { key } }) : null;
+    const stale = !!prev && prev.updatedAt.getTime() < Date.now() - IP_WINDOW_MIN * 60_000;
+    const r = stale
+      ? await db.loginAttempt.update({ where: { key }, data: { failures: 1 } })
+      : await db.loginAttempt.upsert({ where: { key }, create: { key, failures: 1 }, update: { failures: { increment: 1 } } });
+    if (r.failures >= max) await db.loginAttempt.update({ where: { key }, data: { failures: 0, lockedUntil: new Date(Date.now() + LOCK_MIN * 60_000) } });
+    if (!isIp) left = Math.min(left, max - r.failures);
   }
   return Math.max(0, left);
 }
 
+/**
+ * Sliding-window send limit (OTP, reset and verification codes) on LoginAttempt rows. Counts this
+ * send against every key and returns 0, or the minutes to wait when any key is already at its limit.
+ */
+export async function rateLimit(limits: { key: string; max: number }[], windowMin = 15) {
+  const now = Date.now(), win = windowMin * 60_000;
+  const rows = await db.loginAttempt.findMany({ where: { key: { in: limits.map((l) => l.key) } } });
+  let wait = 0;
+  for (const l of limits) {
+    const r = rows.find((x) => x.key === l.key);
+    if (r && r.updatedAt.getTime() > now - win && r.failures >= l.max) wait = Math.max(wait, Math.ceil((r.updatedAt.getTime() + win - now) / 60_000));
+  }
+  if (wait) return wait;
+  for (const l of limits) {
+    const r = rows.find((x) => x.key === l.key);
+    const stale = !r || r.updatedAt.getTime() <= now - win;
+    await db.loginAttempt.upsert({ where: { key: l.key }, create: { key: l.key, failures: 1 }, update: stale ? { failures: 1, lockedUntil: null } : { failures: { increment: 1 } } });
+  }
+  return 0;
+}
+
+/** Clears the account keys after a good sign-in. The IP throttle is left to expire on its own. */
 export async function clearFailures(keys: string[]) {
-  await db.loginAttempt.deleteMany({ where: { key: { in: keys } } });
+  await db.loginAttempt.deleteMany({ where: { key: { in: keys.filter((k) => !k.startsWith("ip:")) } } });
 }

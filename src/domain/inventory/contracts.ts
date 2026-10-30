@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const FORMS = ["Tablet", "Capsule", "Syrup", "Suspension", "Injection", "Gel", "Cream", "Ointment", "Drops", "Sachet", "Powder", "Inhaler", "Device", "Other"] as const;
 export const GST_RATES = [0, 5, 12, 18, 28] as const;
-export const SCHEDULES = ["", "H", "H1", "X", "G"] as const;
+/** Drug schedules: H, H1 and X (Drugs and Cosmetics Rules), G, and NDPS (narcotic and psychotropic substances). */
+export const SCHEDULES = ["", "H", "H1", "X", "G", "NDPS"] as const;
 
 const rupees = (msg: string) => z.union([z.string(), z.number()]).transform((v) => Math.round(parseFloat(String(v)) * 100)).refine((p) => Number.isFinite(p) && p > 0, msg);
 
@@ -20,7 +21,14 @@ export const medicineSchema = z.object({
   barcode: z.string().trim().max(32).regex(/^[0-9A-Za-z-]*$/, "Barcode: digits and letters only.").default(""),
   hsn: z.string().trim().regex(/^\d{4,8}$/, "HSN is 4–8 digits.").default("3004"),
   rack: z.string().trim().max(20).default(""),
-});
+  composition: z.string().trim().max(300).default(""),
+  packSize: z.coerce.number().int("Units per pack must be a whole number.").min(1, "Units per pack must be at least 1.").max(10000).default(1),
+  packUnit: z.string().trim().max(20).default("pack").transform((s) => s || "pack"),
+  looseUnit: z.string().trim().max(20).default("unit").transform((s) => s || "unit"),
+  allowLoose: z.union([z.boolean(), z.string()]).transform((v) => v === true || v === "true" || v === "1" || v === "on").default(false),
+  caseSize: z.coerce.number().int("Packs per case must be a whole number.").min(1).max(10000).default(1),
+  caseUnit: z.string().trim().max(20).default("box").transform((s) => s || "box"),
+}).refine((m) => !m.allowLoose || m.packSize > 1, { message: "Loose sale needs more than one unit per pack.", path: ["allowLoose"] });
 export type MedicineInput = z.input<typeof medicineSchema>;
 
 export const receiveSchema = z.object({
@@ -29,6 +37,7 @@ export const receiveSchema = z.object({
   // Packs print expiry as MM/YYYY, meaning the end of that month.
   expiry: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/, "Enter the expiry month.").transform(endOfMonthIfMonth),
   qty: z.coerce.number().int("Quantity must be a whole number.").min(1, "Quantity must be at least 1.").max(1_000_000),
+  unit: z.enum(["pack", "case"]).default("pack"),
   cost: rupees("Enter purchase cost per pack."),
   mrp: rupees("Enter MRP per pack."),
   supplierId: z.string().uuid().nullable().default(null),

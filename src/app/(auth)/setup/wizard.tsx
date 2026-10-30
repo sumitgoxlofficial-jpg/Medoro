@@ -1,21 +1,23 @@
 "use client";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Cloud, Server, Network, Monitor, Store, HardDriveUpload, KeyRound, CircleCheck, CircleAlert, Circle, LoaderCircle, Trash2, Copy } from "lucide-react";
+import { Cloud, Server, Network, Database, Store, HardDriveUpload, KeyRound, CircleCheck, CircleAlert, Circle, LoaderCircle, Trash2, Copy } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { GSTIN_RE, MOBILE_RE, ROLE_OPTIONS, inviteContact, normPhone } from "@/domain/identity/contracts";
 import { setupAction, testDatabase } from "../actions";
+import { useSetupDrive } from "./drive-connect";
+import { downloadRecoveryKit } from "@/components/recovery-kit";
 
 const LABELS = ["Pharmacy", "Your account", "Database", "Branches", "Team", "Backups", "Done"];
 const inp = "border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none bg-white focus:border-teal focus:ring-2 focus:ring-teal/15 w-full";
-type Dep = "cloud" | "onprem" | "lan" | "single";
+type Dep = "cloud" | "onprem" | "lan" | "hosted";
 const HOSTS: [Dep, React.ComponentType<{ size?: number; className?: string }>, string, string][] = [
   ["cloud", Cloud, "Your cloud server", "Your own AWS, Azure or GCP account, or another provider you choose"],
   ["onprem", Server, "On-premises server", "A server you own, in the shop or at your office"],
   ["lan", Network, "Shop LAN", "One PC hosts the database and the other counters join over Wi-Fi or LAN"],
-  ["single", Monitor, "Single device", "One computer, no sharing"],
+  ["hosted", Database, "Hosted PostgreSQL", "A managed database such as Supabase or Neon, reached over TLS"],
 ];
 
 const suggestCode = (name: string, addr: string) => {
@@ -24,8 +26,9 @@ const suggestCode = (name: string, addr: string) => {
   return w ? (city ? `${w}-${city}` : w) : "";
 };
 
-export function Wizard({ deployment }: { deployment: Dep }) {
+export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void }) {
   const router = useRouter();
+  const drive = useSetupDrive(driveAccount);
   const toast = useToast();
   const [step, setStep] = useState(1);
   const [err, setErr] = useState("");
@@ -60,18 +63,7 @@ export function Wizard({ deployment }: { deployment: Dep }) {
     const key = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
     const fp = Array.from(digest.slice(0, 4), (b) => b.toString(16).padStart(2, "0").toUpperCase()).join(":");
-    const text = [
-      "MEDORO BACKUP RECOVERY KIT", "==========================", "",
-      `Pharmacy: ${ph.name}`, `Pharmacy code: ${ph.code}`, `Created: ${new Date().toLocaleString("en-IN")}`, "",
-      "Backup decryption key:", key, "", `Key fingerprint: ${fp}`, "",
-      "Keep this printed and offline (a locker or safe). Anyone with this key and your backup",
-      "files can read your data. Without it, encrypted backups cannot be restored.",
-      "Medoro does not keep a copy of this key.",
-    ].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-    a.download = `medoro-recovery-kit-${ph.code || "pharmacy"}.txt`;
-    document.body.appendChild(a); a.click(); a.remove();
+    downloadRecoveryKit({ pharmacy: ph.name, code: ph.code, key, fingerprint: fp });
     setKit({ key, fp });
   };
 
@@ -127,6 +119,9 @@ export function Wizard({ deployment }: { deployment: Dep }) {
 
   return (
     <div className="w-[min(860px,100%)] flex flex-col gap-[18px]">
+      {step === 1 && onRestore ? (
+        <button type="button" onClick={onRestore} className="self-start text-[13.5px] text-teal cursor-pointer bg-transparent border-0 p-0">Moving to a new server or recovering from a backup? Restore from a backup instead →</button>
+      ) : null}
       <div className="flex gap-1.5 flex-wrap">
         {LABELS.map((l, i) => (
           <div key={l} className="flex-1 min-w-[96px] flex flex-col gap-1.5">
@@ -171,7 +166,7 @@ export function Wizard({ deployment }: { deployment: Dep }) {
               <input className={inp} value={owner.password} onChange={setO("password")} placeholder="Password (10+ characters) *" aria-label="Password" type="password" autoComplete="new-password" />
               <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder="Confirm password *" aria-label="Confirm password" type="password" autoComplete="new-password" />
             </div>
-            <div className="text-[12.5px] text-faint">After setup you’ll scan a QR code with an authenticator app. Two-step verification is required for owners and managers.</div>
+            <div className="text-[12.5px] text-faint">After setup you’ll scan a QR code with an authenticator app and save 10 recovery codes. Two-step verification is required for owners and managers. You can connect Google sign-in later from Profile; your password stays as the way back in.</div>
           </>
         ) : null}
 
@@ -245,12 +240,15 @@ export function Wizard({ deployment }: { deployment: Dep }) {
             <div className="text-[19px] font-semibold">Backups & recovery kit</div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <HardDriveUpload size={20} className="text-teal" />
-              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive</strong><span className="text-[12.5px] text-muted">Connect after setup in Backup & restore. Backups are encrypted on your server before upload.</span></div>
+              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive <span className="font-normal text-muted">(optional)</span></strong>
+                <span className="text-[12.5px] text-muted">{!driveApp ? "Google sign-in isn’t configured on this server; you can connect later in Backup & restore." : drive.account ? <>Connected as {drive.account}. Daily backups go to Medoro/{ph.name || "your pharmacy"} in this Drive, encrypted on your server first.</> : "Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore."}</span>
+                {drive.msg ? <span className="text-[12.5px] text-bad">{drive.msg}</span> : null}</div>
+              {driveApp ? (drive.account ? <Button onClick={() => void drive.forget()}>Remove</Button> : <Button onClick={drive.connect}>Connect</Button>) : null}
             </div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <KeyRound size={20} className="text-teal" />
               <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Encryption recovery kit</strong>
-                <span className="text-[12.5px] text-muted">{kit ? <>Downloaded · key fingerprint <span className="font-mono">{kit.fp}</span></> : "Contains your backup decryption key. Medoro never keeps a copy."}</span></div>
+                <span className="text-[12.5px] text-muted">{kit ? <>Downloaded · key fingerprint <span className="font-mono">{kit.fp}</span></> : "Contains your backup decryption key: the only way to open backups on a new server. Your server keeps a sealed copy to run backups; Medoro never receives it."}</span></div>
               <Button variant="primary" onClick={makeKit}>{kit ? "Download again" : "Download & print"}</Button>
             </div>
             <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={kitAck} onChange={(e) => setKitAck(e.target.checked)} />I&apos;ve stored the recovery kit offline. Without it, backups can&apos;t be restored.</label>
@@ -262,7 +260,7 @@ export function Wizard({ deployment }: { deployment: Dep }) {
             <CircleCheck size={44} className="text-ok" />
             <div className="text-[22px] font-semibold">{ph.name} is ready</div>
             <div className="text-[13.5px] text-muted max-w-[560px]">
-              {HOSTS.find((h) => h[0] === host)![2]} · {branches.length} branch(es) · {result.invites.length} invite(s) · backups not yet connected. Strict customer-controlled mode is on. Pharmacy code <span className="font-mono text-ink">{result.tenantCode}</span>.
+              {HOSTS.find((h) => h[0] === host)![2]} · {branches.length} branch(es) · {result.invites.length} invite(s) · {drive.account ? "Google Drive connected" : "Google Drive not connected"}. Strict customer-controlled mode is on. Pharmacy code <span className="font-mono text-ink">{result.tenantCode}</span>.
             </div>
             {result.invites.length ? (
               <div className="w-full max-w-[560px] border border-line rounded-[10px] text-left">

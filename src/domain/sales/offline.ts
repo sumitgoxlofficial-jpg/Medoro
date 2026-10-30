@@ -1,13 +1,15 @@
 import "server-only";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeAny, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
-import { big } from "@/lib/money";
-import { todayISO } from "@/lib/dates";
-import { discountCap } from "@/domain/identity/permissions";
+import { big, inr } from "@/lib/money";
+import { dayMonth, hhmm, todayISO } from "@/lib/dates";
+import { discountCap, effectivePerms } from "@/domain/identity/permissions";
 import { fefoOrder, isSellable } from "@/domain/inventory/fefo";
-import { commitSale, OFFLINE_MAX_DAYS } from "./service";
+import { branchRacks } from "@/domain/inventory/catalog";
+import { baseQty, canSellLoose } from "@/lib/units";
+import { commitSale, OFFLINE_MAX_DAYS, reservedForDevices, withinOfflineWindow, type DeviceQuota } from "./service";
 import type { SaleInput } from "./contracts";
 import { opSchema, type OfflineOpInput, type OfflineSnapshot, type SyncResult } from "./offline-types";
 
@@ -19,6 +21,9 @@ export { opSchema, type OfflineOpInput, type OfflineSnapshot, type SyncResult };
  * and sends the queued bills when it reconnects. The server rechecks everything before posting;
  * anything that no longer fits (stock, price, permission) becomes a conflict for a manager to settle.
  */
+
+const branchIdsOf = (ctx: Ctx) => ctx.branches.map((b) => b.id);
+type Dev = { id: string; branchId: string; quota: unknown };
 
 async function deviceFor(ctx: Ctx, deviceId: string) {
   const d = await db.device.findFirst({ where: { id: deviceId, tenantId: ctx.tenantId } });
@@ -37,7 +42,7 @@ export async function enableDevice(ctx: Ctx, name: string) {
 
 export async function disableDevice(ctx: Ctx, deviceId: string) {
   authorizeAny(ctx, "users", "adjust");
-  const d = await db.device.findFirst({ where: { id: deviceId, tenantId: ctx.tenantId } });
+  const d = await db.device.findFirst({ where: { id: deviceId, tenantId: ctx.tenantId, branchId: { in: branchIdsOf(ctx) } } });
   if (!d) throw new UserError("Device not found.");
   await db.device.update({ where: { id: d.id }, data: { offline: false, quota: {} } });
   await writeAudit(db, { tenantId: ctx.tenantId, branchId: d.branchId, userId: ctx.userId, userName: ctx.userName, action: "Offline billing turned off", entity: "device", entityId: d.id, detail: d.name });
@@ -52,34 +57,41 @@ export async function snapshot(ctx: Ctx, deviceId: string): Promise<OfflineSnaps
   authorize(ctx, "sale");
   const dev = await deviceFor(ctx, deviceId);
   const today = todayISO();
-  const [tenant, branch, devices, meds, batches] = await Promise.all([
+  const [tenant, branch, devices, meds, batches, racks, doctors] = await Promise.all([
     db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }),
     db.branch.findUniqueOrThrow({ where: { id: ctx.branchId } }),
     db.device.count({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, offline: true } }),
     db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, orderBy: { name: "asc" } }),
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, status: "ok", qtyAvailable: { gt: 0 } } }),
+    branchRacks(ctx.tenantId, ctx.branchId),
+    db.doctor.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { id: true, name: true, regNo: true }, orderBy: { name: "asc" }, take: 2000 }),
   ]);
   const shares = devices + 1;
   const sellable = batches.filter((b) => isSellable(b, today));
   const quota: Record<string, number> = {};
   for (const b of sellable) quota[b.id] = Math.floor(b.qtyAvailable / shares);
   const takenAt = new Date();
-  await db.device.update({ where: { id: dev.id }, data: { quota: { at: takenAt.toISOString(), batches: quota }, lastSeen: takenAt } });
+  // Users who took a snapshot here are the ones whose offline bills this device may carry.
+  const users = [...new Set([...((dev.quota as DeviceQuota).users ?? []), ctx.userId])].slice(-50);
+  await db.device.update({ where: { id: dev.id }, data: { quota: { at: takenAt.toISOString(), batches: quota, users }, lastSeen: takenAt } });
   const withStock = new Set(sellable.filter((b) => quota[b.id] > 0).map((b) => b.medicineId));
   return {
     deviceId: dev.id, deviceName: dev.name, takenAt: takenAt.toISOString(), validDays: OFFLINE_MAX_DAYS,
     pharmacy: { name: tenant.name, branch: branch.name, address: branch.address, gstin: branch.gstin, dlNo: branch.drugLicence },
-    cashier: ctx.userName, discCap: discountCap(ctx.perms),
-    medicines: meds.filter((m) => withStock.has(m.id)).map((m) => ({ id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, schedule: m.schedule, gstRate: m.gstRate, barcode: m.barcode })),
+    cashier: ctx.userName, cashierId: ctx.userId, discCap: discountCap(ctx.perms),
+    medicines: meds.filter((m) => withStock.has(m.id)).map((m) => ({ id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, schedule: m.schedule, gstRate: m.gstRate, barcode: m.barcode,
+      composition: m.composition, rack: racks.get(m.id) ?? m.rack, packSize: m.packSize, packUnit: m.packUnit, looseUnit: m.looseUnit, allowLoose: canSellLoose(m) })),
     batches: sellable.filter((b) => quota[b.id] > 0).map((b) => ({ id: b.id, medicineId: b.medicineId, batchNo: b.batchNo, expiry: b.expiryDate.toISOString().slice(0, 10), mrpPaise: big(b.mrpPaise), version: b.version, allowance: quota[b.id] })),
+    doctors,
   };
 }
 
 
 const toSale = (op: OfflineOpInput, lines = op.sale.lines): SaleInput => ({
   idempotencyKey: op.id, lines, customerId: null, discountPct: op.sale.discountPct,
-  pay: { mode: op.sale.pay.mode, tenderedPaise: op.sale.pay.tenderedPaise, ref: op.sale.pay.ref }, prescriber: op.sale.prescriber, rxNo: op.sale.rxNo,
-});
+  pay: { mode: op.sale.pay.mode, tenderedPaise: op.sale.pay.tenderedPaise, ref: op.sale.pay.ref }, prescriber: op.sale.prescriber, rxNo: op.sale.rxNo, doctorId: op.sale.doctorId ?? null,
+    prescriberReg: op.sale.prescriberReg, patientName: op.sale.patientName,
+  });
 
 /** Posts queued offline bills. Safe to resend: each bill posts once, keyed by its id. */
 export async function syncOps(ctx: Ctx, deviceId: string, raw: unknown[]): Promise<SyncResult[]> {
@@ -97,7 +109,7 @@ export async function syncOps(ctx: Ctx, deviceId: string, raw: unknown[]): Promi
     if (!seen) {
       await db.offlineOp.create({ data: { id: op.id, tenantId: ctx.tenantId, deviceId: dev.id, kind: "sale", payload: op as object, baseVersion: op.baseVersion, status: "pending", createdAt: new Date(op.createdAt) } });
     }
-    out.push(await post(ctx, op));
+    out.push(await post(ctx, op, dev.id, () => cashierCtx(ctx, dev, op)));
   }
   await db.device.update({ where: { id: dev.id }, data: { lastSeen: new Date() } });
   return out;
@@ -108,10 +120,32 @@ function resultOf(o: { id: string; status: string; conflict: unknown; resolution
   return o.status === "posted" || o.status === "resolved" ? { id: o.id, status: "posted", invoiceNo: c.invoiceNo, message: o.resolution ?? undefined } : { id: o.id, status: "conflict", message: c.message };
 }
 
-async function post(ctx: Ctx, op: OfflineOpInput, lines = op.sale.lines): Promise<SyncResult> {
+/**
+ * The context to post an offline bill as: the cashier who billed it on the device, checked again now
+ * (same pharmacy, active, may sell at this branch, and has used this device). Bills queued before
+ * devices recorded the cashier post as the user sending them. The cashier id comes from the device,
+ * so it only attributes the bill: permissions are those both the cashier and the sender hold.
+ */
+async function cashierCtx(ctx: Ctx, dev: Dev, op: OfflineOpInput): Promise<Ctx> {
+  if (!op.cashierId || op.cashierId === ctx.userId) return ctx;
+  const u = await db.user.findFirst({ where: { id: op.cashierId, tenantId: ctx.tenantId }, include: { role: true } });
+  const seen = (dev.quota as DeviceQuota).users ?? [];
+  if (!u || !u.active || u.isSupport || !seen.includes(u.id) || (u.branchIds.length && !u.branchIds.includes(dev.branchId)) || !effectivePerms(u.role.permissions, u.permGrants, u.permRevokes).includes("sale")) {
+    throw new UserError("The cashier on this bill can’t bill on this device (left, deactivated, or never used it).");
+  }
+  // The cashier's own effective permissions, never more than the device sender's.
+  const perms = effectivePerms(u.role.permissions, u.permGrants, u.permRevokes).filter((p) => ctx.perms.includes(p));
+  return { ...ctx, userId: u.id, userName: u.name, userEmail: u.email ?? u.phone ?? "", realRole: u.role.name, role: u.role.name, perms, readOnly: false };
+}
+
+async function post(ctx: Ctx, op: OfflineOpInput, deviceId: string | undefined, who: () => Promise<Ctx>, lines = op.sale.lines, opts: { at?: Date; note?: string } = { at: new Date(op.createdAt) }): Promise<SyncResult> {
   try {
-    const r = await commitSale(ctx, toSale(op, lines), { at: new Date(op.createdAt) });
-    const note = r.total !== op.sale.totalPaise ? `Posted at ${r.total / 100} (device showed ${op.sale.totalPaise / 100}).` : null;
+    const as = await who();
+    const by = as.userId !== ctx.userId ? `sent by ${ctx.userName}` : "";
+    const r = await commitSale(as, toSale(op, lines), { at: opts.at, note: [opts.note, by].filter(Boolean).join(" · ") || undefined, deviceId });
+    const late = opts.at ? null : `Billed ${dayMonth(new Date(op.createdAt), true)} ${hhmm(new Date(op.createdAt))}; posted today, past the ${OFFLINE_MAX_DAYS}-day offline window.`;
+    const diff = r.total !== op.sale.totalPaise ? `Posted at ${r.total / 100} (device showed ${op.sale.totalPaise / 100}).` : null;
+    const note = [diff, late].filter(Boolean).join(" ") || null;
     await db.offlineOp.update({ where: { id: op.id }, data: { status: "posted", conflict: { invoiceNo: r.invoiceNo, saleId: r.saleId, ...(note ? { message: note } : {}) } } });
     return { id: op.id, status: "posted", invoiceNo: r.invoiceNo, message: note ?? undefined };
   } catch (e) {
@@ -121,11 +155,15 @@ async function post(ctx: Ctx, op: OfflineOpInput, lines = op.sale.lines): Promis
   }
 }
 
-/** A manager settles a conflict: post it from current stock (FEFO), or close it with a note. */
-export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "close", note = "") {
+/**
+ * A manager settles a conflict: post it from current stock (FEFO), post what is in stock and refund
+ * the customer for the rest ("partial"), or close it with a note.
+ */
+export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "partial" | "close", note = "") {
   authorizeAny(ctx, "adjust", "users");
   const o = await db.offlineOp.findFirst({ where: { id: opId, tenantId: ctx.tenantId } });
-  if (!o) throw new UserError("Offline bill not found.");
+  const opDev = o ? await db.device.findFirst({ where: { id: o.deviceId, tenantId: ctx.tenantId } }) : null;
+  if (!o || (opDev && !branchIdsOf(ctx).includes(opDev.branchId))) throw new UserError("Offline bill not found.");
   if (o.status !== "conflict") throw new UserError("This bill is already settled.");
   if (action === "close") {
     if (note.trim().length < 3) throw new UserError("Say how it was settled (e.g. refunded the customer).");
@@ -134,32 +172,71 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
     return { status: "resolved" as const };
   }
   const op = opSchema.parse(o.payload);
-  const dev = await db.device.findUnique({ where: { id: o.deviceId } });
+  const dev = opDev;
   if (dev && dev.branchId !== ctx.branchId) throw new UserError("Switch to the branch this bill was made in, then post it.");
+  // Inside the offline window it keeps its billed time. Older bills post today (an earlier GST
+  // period may already be filed) and the billed time is kept in the audit trail and the bill's note.
+  const billed = new Date(op.createdAt);
+  const late = !withinOfflineWindow(billed);
+  // The cashier may have left since; the manager settling it then takes responsibility. Settling is
+  // the manager's approval, so their permissions (e.g. discount cap) apply too.
+  const cashier = dev ? await cashierCtx(ctx, dev, op).catch((e) => { if (e instanceof UserError) return ctx; throw e; }) : ctx;
+  const who: Ctx = { ...cashier, perms: [...new Set([...cashier.perms, ...ctx.perms])] };
   // Same medicines and quantities, re-allocated across the batches that are sellable now.
-  const day = todayISO(new Date(op.createdAt));
+  const day = todayISO(late ? undefined : billed);
+  // Whole packs are allocated before loose units so a pack is never split across batches.
   const meds = [...new Set(op.sale.lines.map((l) => l.medicineId))];
-  const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds } } });
+  const [all, reserved, packSizes] = await Promise.all([
+    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds } } }),
+    reservedForDevices(db, ctx.tenantId, ctx.branchId, dev?.id),
+    db.medicine.findMany({ where: { tenantId: ctx.tenantId, id: { in: meds } }, select: { id: true, packSize: true } }),
+  ]);
+  const batches = all.map((b) => ({ ...b, qtyAvailable: Math.max(0, b.qtyAvailable - (reserved.get(b.id) ?? 0)) }));
   const lines: SaleInput["lines"] = [];
+  const used: Record<string, number> = {};
+  let short = 0;
   for (const m of meds) {
-    let need = op.sale.lines.filter((l) => l.medicineId === m).reduce((a, l) => a + l.qty, 0);
-    for (const b of fefoOrder(batches, m, day)) {
-      if (need <= 0) break;
-      const take = Math.min(need, b.qtyAvailable);
-      lines.push({ medicineId: m, batchId: b.id, qty: take }); need -= take;
+    const ps = packSizes.find((x) => x.id === m)?.packSize ?? 1;
+    for (const unit of ["pack", "loose"] as const) {
+      const qty = op.sale.lines.filter((l) => l.medicineId === m && (l.unit ?? "pack") === unit).reduce((a, l) => a + l.qty, 0);
+      if (!qty) continue;
+      const per = baseQty(1, unit, ps);
+      let need = qty;
+      for (const b of fefoOrder(batches, m, day)) {
+        if (need <= 0) break;
+        const take = Math.min(need, Math.floor((b.qtyAvailable - (used[b.id] ?? 0)) / per));
+        if (take <= 0) continue;
+        lines.push({ medicineId: m, batchId: b.id, qty: take, ...(unit === "loose" ? { unit } : {}) });
+        used[b.id] = (used[b.id] ?? 0) + take * per;
+        need -= take;
+      }
+      if (need > 0 && action === "repost") throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, post what’s in stock and refund the rest, or close it with a note.");
+      short += need;
     }
-    if (need > 0) throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, or close it with a note.");
   }
-  const r = await post(ctx, op, lines);
+  if (!lines.length) throw new UserError("None of this bill’s items are in stock now. Close it with a note (e.g. refunded the customer).");
+  const r = await post(ctx, op, dev?.id, async () => who, lines, late ? { note: `billed offline ${billed.toISOString()}, settled by ${ctx.userName}` } : { at: billed });
   if (r.status === "conflict") throw new UserError(r.message ?? "Couldn’t post this bill.");
-  return { status: "posted" as const, invoiceNo: r.invoiceNo };
+  if (short > 0) {
+    const posted = await db.sale.findFirstOrThrow({ where: { tenantId: ctx.tenantId, idempotencyKey: op.id } });
+    const refund = Math.max(0, op.sale.totalPaise - Number(posted.totalPaise));
+    const units = lines.reduce((a, l) => a + l.qty, 0);
+    const resolution = `Posted ${units} of ${units + short} units as ${r.invoiceNo}; refund ${inr(refund)} to the customer for the rest.${note.trim() ? " " + note.trim() : ""}`.slice(0, 200);
+    await db.offlineOp.update({ where: { id: o.id }, data: { resolution } });
+    await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Offline bill part-posted", entity: "offline_op", entityId: o.id, detail: resolution });
+    return { status: "posted" as const, invoiceNo: r.invoiceNo, refund };
+  }
+  return { status: "posted" as const, invoiceNo: r.invoiceNo, refund: 0 };
 }
 
+export const canManageOffline = (ctx: Ctx) => can(ctx, "users") || can(ctx, "adjust");
+
+/** Offline devices and bills in the user's branches; counter staff only see the branch they're signed in to. */
 export async function offlineOverview(ctx: Ctx) {
-  const [devices, ops] = await Promise.all([
-    db.device.findMany({ where: { tenantId: ctx.tenantId, offline: true }, orderBy: { name: "asc" } }),
-    db.offlineOp.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "desc" }, take: 50 }),
-  ]);
+  const branchIds = canManageOffline(ctx) ? branchIdsOf(ctx) : [ctx.branchId];
+  const all = await db.device.findMany({ where: { tenantId: ctx.tenantId, branchId: { in: branchIds } }, orderBy: { name: "asc" } });
+  const devices = all.filter((d) => d.offline);
+  const ops = await db.offlineOp.findMany({ where: { tenantId: ctx.tenantId, deviceId: { in: all.map((d) => d.id) } }, orderBy: { createdAt: "desc" }, take: 50 });
   return {
     devices: devices.map((d) => ({ id: d.id, name: d.name, branchId: d.branchId, lastSeen: d.lastSeen.toISOString() })),
     ops: ops.map((o) => {

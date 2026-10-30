@@ -58,7 +58,7 @@ export function RestorePanel({ p, code }: { p: PendingRestore; code: string }) {
             <TriangleAlert size={16} className="mt-0.5 flex-none" />
             <div className="flex flex-col gap-1">
               <span><strong>Everything recorded after {when(s.backupAt)} will be removed</strong>{lost ? `, including ${lost} invoice${lost > 1 ? "s" : ""}` : ""}. Invoices that were already given to customers will no longer be in your records.</span>
-              <span>A safety backup of current data is taken first, so this can be undone. Everyone, including you, is signed out and signs in again. WhatsApp, Google Drive, the backup key and backup history stay as they are.</span>
+              <span>A safety backup of current data is taken first, so this can be undone. Everyone, including you, is signed out and signs in again. Stored files (invoice scans) in the backup are written back. WhatsApp, Google Drive, the backup key and backup history stay as they are.</span>
             </div>
           </div>
           <label className="flex flex-col gap-1 text-[13px] text-muted"><span>Type the pharmacy code <strong className="font-mono text-ink">{code}</strong> to confirm</span>

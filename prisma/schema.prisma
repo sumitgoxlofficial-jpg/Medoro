@@ -24,6 +24,7 @@ enum PoStatus {
   partially_received
   received
   cancelled
+  closed // short-closed: the remaining quantity is no longer expected
 }
 
 enum PayMode {
@@ -32,6 +33,8 @@ enum PayMode {
   card
   credit
   split
+  cod // cash on delivery: with the delivery person until handed over (docs/ORDERS_AND_DELIVERY.md)
+  loyalty // points redeemed at the counter (see LoyaltyLedger)
 }
 
 enum MsgStatus {
@@ -98,29 +101,36 @@ model Role {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  tenantId     String
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  name         String
-  email        String?
-  phone        String?
-  passwordHash String?
-  employeeNo   String? // E-101; used with pharmacy code + PIN at counters
-  pinHash      String?
-  mfaSecret    String?
-  mfaRequired  Boolean   @default(false)
-  mfaEnabled   Boolean   @default(false)
-  tokenVersion Int       @default(0)
-  active       Boolean   @default(true)
-  roleId       String
-  role         Role      @relation(fields: [roleId], references: [id])
-  branchIds    String[] // empty = all branches
-  lastLoginAt  DateTime?
-  failedLogins Int       @default(0)
-  lockedUntil  DateTime?
-  isSupport    Boolean   @default(false) // the read-only "Medoro support" login an owner can grant
-  sessions     Session[]
-  createdAt    DateTime  @default(now())
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  name            String
+  email           String?
+  phone           String?
+  passwordHash    String?
+  employeeNo      String? // E-101; used with pharmacy code + PIN at counters
+  pinHash         String?
+  mfaSecret       String?
+  mfaRequired     Boolean        @default(false)
+  mfaEnabled      Boolean        @default(false)
+  tokenVersion    Int            @default(0)
+  active          Boolean        @default(true)
+  roleId          String
+  role            Role           @relation(fields: [roleId], references: [id])
+  branchIds       String[] // empty = all branches
+  lastLoginAt     DateTime?
+  failedLogins    Int            @default(0)
+  lockedUntil     DateTime?
+  isSupport       Boolean        @default(false) // the read-only "Medoro support" login an owner can grant
+  googleSub       String?        @unique // linked "Sign in with Google" account (OIDC subject)
+  googleEmail     String?
+  passwordResetAt DateTime? // last forgot-password reset; holds back an OTP-only MFA reset for 24 h
+  permGrants      String[]       @default([]) // permissions granted to this user on top of the role
+  permRevokes     String[]       @default([]) // role permissions withheld from this user
+  sessions        Session[]
+  recoveryCodes   RecoveryCode[]
+  authCodes       AuthCode[]
+  createdAt       DateTime       @default(now())
 
   @@unique([tenantId, email])
   @@unique([tenantId, phone])
@@ -160,6 +170,43 @@ model LoginAttempt {
   updatedAt   DateTime  @updatedAt
 }
 
+// One-time MFA recovery codes, stored as hashes. Shown once at enrolment or regeneration.
+model RecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Single-use codes sent by email or SMS for password reset and lost-authenticator recovery.
+model AuthCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String // reset, mfa-reset
+  channel   String // email, sms
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, purpose])
+}
+
+// Fixed-window request counters for expensive or abusable actions (src/server/ratelimit.ts).
+model RateLimit {
+  key         String   @id
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@index([windowStart])
+}
+
 model Session {
   id           String    @id // sha256 of the cookie token
   userId       String
@@ -168,6 +215,7 @@ model Session {
   device       String?
   counterId    String?
   mfaPassed    Boolean   @default(false)
+  firstFactor  String? // password, google, otp or pin: what this sign-in proved before MFA
   ip           String?
   userAgent    String?
   createdAt    DateTime  @default(now())
@@ -190,7 +238,7 @@ model Sequence {
 // ───────────── Catalogue & inventory ─────────────
 
 model Medicine {
-  id           String   @id @default(uuid())
+  id           String         @id @default(uuid())
   tenantId     String
   name         String
   generic      String
@@ -198,22 +246,63 @@ model Medicine {
   form         String
   manufacturer String
   pack         String
-  unitsPerPack Int      @default(1)
+  unitsPerPack Int            @default(1)
   barcode      String?
   hsn          String
   gstRate      Int
   mrpPaise     BigInt
   schedule     String? // H, H1, X or null
-  reorderLevel Int      @default(0)
+  reorderLevel Int            @default(0)
   rack         String?
-  active       Boolean  @default(true)
-  version      Int      @default(0)
-  createdAt    DateTime @default(now())
+  composition  String? // salts with strengths, e.g. "Paracetamol 500mg + Caffeine 25mg"
+  saltKey      String? // order-independent normalised composition; equal keys are substitutes
+  packSize     Int            @default(1) // stock units in one MRP pack; batch quantities are in stock units
+  packUnit     String         @default("pack") // what one MRP pack is called: strip, bottle
+  looseUnit    String         @default("unit") // the stock unit when sold loose: tab, cap
+  allowLoose   Boolean        @default(false)
+  caseSize     Int            @default(1) // packs in one purchase case
+  caseUnit     String         @default("box")
+  active       Boolean        @default(true)
+  version      Int            @default(0)
+  createdAt    DateTime       @default(now())
   batches      Batch[]
+  racks        MedicineRack[]
 
   @@unique([tenantId, barcode])
   @@index([tenantId, name])
   @@index([tenantId, generic])
+  @@index([tenantId, saltKey])
+}
+
+// Branch-specific shelf location; falls back to Medicine.rack.
+model MedicineRack {
+  tenantId   String
+  branchId   String
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  rack       String
+  updatedAt  DateTime @updatedAt
+
+  @@id([branchId, medicineId])
+  @@index([tenantId, branchId, rack])
+}
+
+model Doctor {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String
+  qualification String?
+  regNo         String? // State Medical Council / NMC registration number
+  clinic        String?
+  phone         String?
+  address       String?
+  active        Boolean  @default(true)
+  version       Int      @default(0)
+  createdAt     DateTime @default(now())
+  sales         Sale[]
+
+  @@unique([tenantId, regNo])
+  @@index([tenantId, name])
 }
 
 model Batch {
@@ -310,6 +399,92 @@ model StockOut {
   @@unique([tenantId, no])
 }
 
+// Expiry / breakage claim on a supplier: stock leaves at once; the payable drops only when their credit note arrives.
+model SupplierClaim {
+  id             String    @id @default(uuid())
+  tenantId       String
+  branchId       String
+  no             String
+  supplierId     String
+  batchId        String
+  stockOutId     String
+  qty            Int
+  reason         String // expiry, near_expiry, breakage, wrong_item
+  note           String?
+  status         String // raised, acknowledged, credited, rejected
+  claimPaise     BigInt
+  creditPaise    BigInt    @default(0)
+  writeOffPaise  BigInt    @default(0)
+  writeOffReason String?
+  credits        Json      @default("[]") // [{ref, amount, at, voucherNo}]
+  raisedBy       String
+  raisedAt       DateTime  @default(now())
+  ackAt          DateTime?
+  settledAt      DateTime?
+
+  @@unique([tenantId, no])
+  @@index([tenantId, supplierId, status])
+}
+
+// Cheques received from customers and issued to suppliers. Postings go through clearing accounts.
+model Cheque {
+  id           String    @id @default(uuid())
+  tenantId     String
+  branchId     String
+  direction    String // received, issued
+  partyType    String // customer, supplier
+  partyId      String
+  no           String
+  bank         String
+  chequeDate   DateTime  @db.Date
+  amountPaise  BigInt
+  status       String // pending, deposited, cleared, bounced
+  voucherId    String
+  note         String?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  depositedAt  DateTime?
+  clearedAt    DateTime?
+  bouncedAt    DateTime?
+  bounceReason String?
+  chargePaise  BigInt    @default(0)
+
+  @@unique([tenantId, direction, partyId, no])
+  @@index([tenantId, status, chequeDate])
+}
+
+model BankStatement {
+  id        String     @id @default(uuid())
+  tenantId  String
+  fileName  String
+  lines     Int
+  createdBy String
+  createdAt DateTime   @default(now())
+  items     BankLine[]
+}
+
+// One bank statement row. Amount is signed: + money in (deposit), − money out (withdrawal).
+model BankLine {
+  id           String        @id @default(uuid())
+  tenantId     String
+  statementId  String
+  statement    BankStatement @relation(fields: [statementId], references: [id])
+  date         DateTime      @db.Date
+  description  String
+  ref          String?
+  amountPaise  BigInt
+  balancePaise BigInt?
+  row          Int           @default(0) // position in the imported file, to order same-day lines
+  fingerprint  String
+  ledgerLineId String?       @unique
+  matchedBy    String? // auto, manual
+  reconciledAt DateTime?
+  reconciledBy String?
+
+  @@unique([tenantId, fingerprint])
+  @@index([tenantId, date])
+}
+
 model Recall {
   id          String   @id @default(uuid())
   tenantId    String
@@ -317,6 +492,7 @@ model Recall {
   sourceRef   String
   publishedAt DateTime @db.Date
   product     String
+  medicineId  String? // null on notices recorded before recalls were tied to a medicine
   batchNos    String[]
   reason      String
   status      String // open, quarantined, returned, resolved
@@ -327,18 +503,21 @@ model Recall {
 // ───────────── Parties ─────────────
 
 model Supplier {
-  id             String          @id @default(uuid())
-  tenantId       String
-  name           String
-  gstin          String?
-  phone          String?
-  creditDays     Int             @default(0)
-  leadDays       Decimal         @default(1)
-  acceptsReturns Boolean         @default(true)
-  accuracyPct    Int             @default(100)
-  version        Int             @default(0)
-  batches        Batch[]
-  orders         PurchaseOrder[]
+  id               String          @id @default(uuid())
+  tenantId         String
+  name             String
+  gstin            String?
+  phone            String?
+  creditDays       Int             @default(0)
+  leadDays         Decimal         @default(1)
+  acceptsReturns   Boolean         @default(true)
+  accuracyPct      Int             @default(100) // unused: delivery accuracy is computed from POs and GRNs
+  stateCode        String? // 2-digit GST state code; falls back to the GSTIN prefix
+  returnWindowDays Int             @default(90) // expiry returns accepted up to this many days before expiry
+  ebillMapping     Json? // saved column mapping for this supplier's digital bills
+  version          Int             @default(0)
+  batches          Batch[]
+  orders           PurchaseOrder[]
 
   @@unique([tenantId, name])
 }
@@ -349,15 +528,44 @@ model Customer {
   name             String
   phone            String?
   creditLimitPaise BigInt    @default(0)
-  waOptIn          Boolean   @default(false)
+  waOptIn          Boolean   @default(false) // transactional WhatsApp: invoices and refill reminders
   optInAt          DateTime?
   optInMethod      String?
+  smsOptIn         Boolean   @default(false) // transactional SMS
+  marketingWa      Boolean   @default(false) // offers and campaigns, separate from transactional consent
+  marketingSms     Boolean   @default(false)
+  smsOptInAt       DateTime?
+  smsOptInMethod   String?
+  // Meta reported the number isn't on WhatsApp: automatic sends skip it until the number changes
+  waInvalidAt      DateTime?
+  waInvalidReason  String?
   erasedAt         DateTime?
+  gstin            String? // B2B buyer: tax invoice, GSTR-1 B2B
+  stateCode        String? // place of supply when goods go to another state; falls back to the GSTIN prefix
+  address          String? // billing address for B2B tax invoices and e-invoices
+  pincode          String?
   version          Int       @default(0)
   createdAt        DateTime  @default(now())
   sales            Sale[]
 
   @@unique([tenantId, phone])
+}
+
+/// Every consent given or withdrawn, append-only. Customer flags hold the current state.
+model ConsentRecord {
+  id         String   @id @default(uuid())
+  tenantId   String
+  customerId String
+  purpose    String // transactional, marketing
+  channel    String // whatsapp, sms
+  granted    Boolean
+  method     String // counter, form, reply, import
+  source     String // where it was recorded: pos, parties, import, whatsapp
+  userId     String?
+  userName   String?
+  at         DateTime @default(now())
+
+  @@index([tenantId, customerId, at])
 }
 
 // Balances are derived from vouchers; this table holds supplier bills for due-date tracking.
@@ -376,17 +584,21 @@ model SupplierBill {
 // ───────────── Purchasing ─────────────
 
 model PurchaseOrder {
-  id         String              @id @default(uuid())
-  tenantId   String
-  branchId   String
-  no         String
-  supplierId String
-  supplier   Supplier            @relation(fields: [supplierId], references: [id])
-  status     PoStatus            @default(draft)
-  createdBy  String
-  createdAt  DateTime            @default(now())
-  source     String? // manual, intel, ai, seasonal
-  items      PurchaseOrderItem[]
+  id           String              @id @default(uuid())
+  tenantId     String
+  branchId     String
+  no           String
+  supplierId   String
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  status       PoStatus            @default(draft)
+  createdBy    String
+  createdAt    DateTime            @default(now())
+  source       String? // manual, intel, ai, seasonal
+  placedAt     DateTime?
+  closedAt     DateTime?
+  closedBy     String?
+  closedReason String?
+  items        PurchaseOrderItem[]
 
   @@unique([tenantId, no])
 }
@@ -398,6 +610,13 @@ model PurchaseOrderItem {
   medicineId String
   qty        Int
   ratePaise  BigInt
+  freeQty    Int           @default(0)
+  ptsPaise   BigInt?
+  mrpPaise   BigInt?
+  scheme     String? // e.g. "10+2"
+  schemePct  Decimal       @default(0) @db.Decimal(5, 2)
+  tradePct   Decimal       @default(0) @db.Decimal(5, 2)
+  cashPct    Decimal       @default(0) @db.Decimal(5, 2)
 }
 
 model Grn {
@@ -411,6 +630,9 @@ model Grn {
   totalPaise        BigInt
   poId              String?
   scanDocId         String?
+  igst              Boolean   @default(false) // inter-state: input tax booked as IGST
+  itc               Boolean   @default(true) // false: GST not claimable (composition), so it is part of cost
+  gstBase           String    @default("net") // net, before_cd, gross: see docs/PURCHASING.md
   approvedBy        String
   approvedAt        DateTime  @default(now())
   items             GrnItem[]
@@ -430,6 +652,29 @@ model GrnItem {
   freeQty    Int     @default(0)
   ratePaise  BigInt // per pack, excluding GST
   gstRate    Int
+  ptsPaise   BigInt?
+  mrpPaise   BigInt?
+  scheme     String?
+  schemePct  Decimal @default(0) @db.Decimal(5, 2)
+  tradePct   Decimal @default(0) @db.Decimal(5, 2)
+  cashPct    Decimal @default(0) @db.Decimal(5, 2)
+  discPaise  BigInt  @default(0) // scheme + trade + cash discounts on the paid quantity
+  basePaise  BigInt? // value GST was computed on; null on GRNs posted before pricing fields
+  gstPaise   BigInt?
+  costPaise  BigInt? // landed cost per unit: after discounts, spread over free units (+ GST when not claimable)
+}
+
+// Learned links from a supplier's item code (or "N:" + normalised name) to a catalogue medicine.
+model SupplierItemMap {
+  id         String   @id @default(uuid())
+  tenantId   String
+  supplierId String
+  code       String
+  medicineId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, supplierId, code])
 }
 
 model ScanDocument {
@@ -459,12 +704,19 @@ model Sale {
   customer       Customer?  @relation(fields: [customerId], references: [id])
   prescriber     String?
   rxNo           String?
+  prescriberReg  String? // prescriber's registration number (Schedule H1 register)
+  patientName    String? // patient on a bill with no customer (Schedule H1 register)
+  doctorId       String?
+  doctor         Doctor?    @relation(fields: [doctorId], references: [id])
   subtotalPaise  BigInt
   discountPaise  BigInt
   discountPct    Decimal    @default(0)
   taxablePaise   BigInt
   cgstPaise      BigInt
   sgstPaise      BigInt
+  igstPaise      BigInt     @default(0) // inter-state supply: all tax is IGST, CGST/SGST are zero
+  placeOfSupply  String? // 2-digit state code
+  customerGstin  String? // buyer GSTIN at the time of sale
   roundOffPaise  BigInt
   totalPaise     BigInt
   costPaise      BigInt     @default(0)
@@ -475,16 +727,18 @@ model Sale {
   at             DateTime   @default(now())
   items          SaleItem[]
   payments       Payment[]
+  voided         SaleVoid?
 
   @@unique([tenantId, idempotencyKey])
   @@unique([tenantId, branchId, invoiceNo])
   @@index([branchId, at])
+  @@index([tenantId, doctorId, at])
 }
 
 model SaleItem {
-  id            String @id @default(uuid())
+  id            String  @id @default(uuid())
   saleId        String
-  sale          Sale   @relation(fields: [saleId], references: [id])
+  sale          Sale    @relation(fields: [saleId], references: [id])
   batchId       String
   medicineId    String
   qty           Int
@@ -493,7 +747,9 @@ model SaleItem {
   taxablePaise  BigInt
   gstRate       Int
   costPaise     BigInt
-  returnedQty   Int    @default(0)
+  returnedQty   Int     @default(0)
+  loose         Boolean @default(false) // qty, MRP and cost are per loose unit, not per pack
+  packSize      Int     @default(1) // Medicine.packSize when sold
 }
 
 model Payment {
@@ -618,8 +874,15 @@ model WaMessage {
   status         MsgStatus
   attempts       Int       @default(0)
   errorCode      String?
+  channel        String    @default("whatsapp") // whatsapp | sms
+  customerId     String?
+  payload        Json? // what to send, so the delivery worker can retry it
+  errorKind      String? // retry | permanent | invalid | auth
+  nextAttemptAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
 }
 
 model Integration {
@@ -682,7 +945,17 @@ model Campaign {
   template  String
   audience  Int
   status    String // draft, scheduled, sent
+  message   String? // store update text, sent as body variable 2
   createdAt DateTime @default(now())
+}
+
+/// One row per AI question, kept for a minute: a sliding-window rate limit shared by every app instance.
+model AiAsk {
+  id     BigInt   @id @default(autoincrement())
+  userId String
+  at     DateTime @default(now())
+
+  @@index([userId, at])
 }
 
 model AiConfirmation {
@@ -697,14 +970,39 @@ model AiConfirmation {
   usedAt    DateTime?
 }
 
+// The pharmacy's copy of its Medoro licence. Fields below `licenceToken` come from the last licence
+// document the licence server signed (see src/domain/system/licence.ts).
 model SubscriptionMeta {
-  tenantId     String    @id
-  plan         String
-  addons       String[]
-  status       String
-  renewsAt     DateTime?
-  graceUntil   DateTime?
-  licenceToken String?
+  tenantId      String    @id
+  plan          String
+  addons        String[]
+  status        String // trial, active, grace, cancelled (as issued)
+  renewsAt      DateTime? // trial end or paid-until
+  graceUntil    DateTime?
+  licenceToken  String? // sealed instance token used to sign check-ins
+  licenceId     String?
+  graceDays     Int       @default(7)
+  signedDoc     String? // the last verified licence document, as received
+  issuedAt      DateTime?
+  checkedAt     DateTime? // last check-in attempt
+  checkError    String?
+  inbox         Json      @default("{}") // invoices, billing events, tickets and support requests from Medoro
+  supportSeenAt DateTime?
+}
+
+// Requests to Medoro (tickets, add-on and plan changes, payment claims, support-access answers),
+// sent immediately when possible and otherwise with the next licence check-in.
+model LicenceOutbox {
+  id        String    @id @default(uuid())
+  tenantId  String
+  kind      String
+  payload   Json
+  createdBy String
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+  result    Json?
+
+  @@index([tenantId, sentAt])
 }
 
 // One pending SMS code per phone: hashed, 5-minute expiry, 5 attempts.
@@ -803,31 +1101,55 @@ model CpSetting {
 }
 
 model CpCustomer {
-  id           String    @id @default(uuid())
-  code         String    @unique
+  id           String           @id @default(uuid())
+  code         String           @unique
   name         String
   owner        String
-  phone        String    @unique // 10 digits
-  email        String    @default("")
-  city         String    @default("")
-  address      String    @default("")
-  gstin        String    @default("")
-  drugLicence  String    @default("")
+  phone        String           @unique // 10 digits
+  email        String           @default("")
+  city         String           @default("")
+  address      String           @default("")
+  gstin        String           @default("")
+  drugLicence  String           @default("")
   product      String // starter, pro, multi
   addons       String[]
   cycle        String // m, y
   status       String // trial, active, grace, cancelled
-  since        DateTime  @db.Date
-  renewsOn     DateTime? @db.Date
-  branches     Int       @default(1)
-  devices      Int       @default(1)
-  deployment   String    @default("")
+  since        DateTime         @db.Date
+  renewsOn     DateTime?        @db.Date
+  branches     Int              @default(1)
+  devices      Int              @default(1)
+  deployment   String           @default("")
   lastCheckIn  DateTime?
   appVersion   String?
   salesStaffId String?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime         @default(now())
+  licenceId    String?          @unique
+  licenceToken String? // sealed; the instance signs check-ins with it
+  graceDays    Int              @default(7)
   notes        CpNote[]
   tickets      Ticket[]
+  billing      CpBillingEvent[]
+}
+
+// Billing history per customer: invoices, payment claims from the app, add-on/cancel requests, trial extensions.
+model CpBillingEvent {
+  id          String     @id @default(uuid())
+  customerId  String
+  customer    CpCustomer @relation(fields: [customerId], references: [id])
+  kind        String // invoice, payment_claim, addon_add, addon_remove, cancel, trial_extended
+  status      String // open, done, rejected
+  number      String?    @unique // invoice number
+  amountPaise Int        @default(0) // before GST
+  gstPaise    Int        @default(0)
+  reference   String?
+  detail      String     @default("")
+  saleId      String?
+  requestId   String?    @unique // the pharmacy's outbox id, so a resend is not a duplicate
+  byName      String
+  createdAt   DateTime   @default(now())
+  decidedAt   DateTime?
+  decidedBy   String?
 }
 
 model CpNote {
@@ -855,6 +1177,7 @@ model Lead {
   lostReason     String?
   discountPct    Int?
   discountStatus String? // pending, approved, rejected
+  email          String    @default("")
   createdAt      DateTime  @default(now())
   logs           LeadLog[]
 }
@@ -888,6 +1211,7 @@ model CpSale {
   verifiedAt      DateTime?
   paidAt          DateTime?
   payoutRef       String?
+  payRef          String? // UPI/bank reference the pharmacy entered in its app
   createdAt       DateTime  @default(now())
 }
 
@@ -931,6 +1255,7 @@ model RemoteAccessRequest {
   requestedAt DateTime  @default(now())
   decidedAt   DateTime?
   expiresAt   DateTime?
+  link        String? // sealed single-use support link the owner approved with
 }
 
 // A restore from backup: loaded into a test copy (a separate schema) first, applied to live only after the owner confirms.
@@ -966,14 +1291,197 @@ model SupportGrant {
   revokedBy   String?
 }
 
+/// IRP and e-way bill results, append-only. The latest row of a kind for a document wins; a cancellation is a new row.
+model EInvoice {
+  id        String   @id @default(uuid())
+  tenantId  String
+  branchId  String
+  docType   String // sale, transfer
+  docId     String
+  docNo     String
+  kind      String // irn, irn_cancel, ewb
+  irn       String?
+  ackNo     String?
+  ackDt     String?
+  signedQr  String?
+  signedInv String?
+  ewbNo     String?
+  ewbDate   String?
+  ewbValid  String?
+  request   Json
+  response  Json
+  userId    String
+  at        DateTime @default(now())
+
+  @@index([tenantId, docType, docId])
+}
+
 /// Files kept in the database (invoice scans, encrypted backups) when the host has no persistent disk
 /// and no object storage is configured. Key: "<tenantId>/<kind>/<file>".
 model FileObject {
   key         String   @id
   tenantId    String
   contentType String
-  bytes       Bytes
+  bytes       Bytes? // null when the file is kept in the pharmacy's Google Drive
+  driveFileId String?
   createdAt   DateTime @default(now())
 
   @@index([tenantId])
+}
+
+/// A same-day void of a whole sale. Append-only; the sale itself is never changed.
+model SaleVoid {
+  id              String   @id @default(uuid())
+  tenantId        String
+  branchId        String
+  saleId          String   @unique
+  sale            Sale     @relation(fields: [saleId], references: [id])
+  reason          String
+  userId          String
+  shiftId         String?
+  /// Refunds per payment mode: [{ mode, amountPaise }]
+  refunds         Json
+  cashRefundPaise BigInt   @default(0)
+  at              DateTime @default(now())
+
+  @@index([tenantId, branchId, at])
+}
+
+/// A manager's on-the-spot approval of a discount above the cashier's cap: single use, bound to the cart.
+model DiscountApproval {
+  id          String    @id @default(uuid())
+  tenantId    String
+  branchId    String
+  tokenHash   String    @unique
+  requestedBy String
+  approvedBy  String
+  discountPct Decimal
+  cartHash    String
+  totalPaise  BigInt
+  expiresAt   DateTime
+  usedAt      DateTime?
+  saleId      String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+// ───────────── Orders & home delivery ─────────────
+
+enum OrderStatus {
+  new
+  confirmed
+  packed
+  out_for_delivery
+  delivered
+  cancelled
+  returned
+}
+
+/// A customer order (phone, WhatsApp or counter) delivered to an address. Packing bills it as a normal sale.
+model DeliveryOrder {
+  id             String              @id @default(uuid())
+  tenantId       String
+  branchId       String
+  no             String
+  source         String // phone, whatsapp, walk_in
+  customerId     String?
+  name           String
+  phone          String
+  address        String
+  slotDate       DateTime?           @db.Date
+  slot           String?
+  notes          String?
+  payMode        String // cod, prepaid, credit
+  payRef         String?
+  discountPct    Decimal             @default(0)
+  prescriber     String?
+  prescriberReg  String? // Schedule H1, X and NDPS items: prescriber's registration number
+  rxPath         String?
+  rxMime         String?
+  waConsent      Boolean             @default(false)
+  status         OrderStatus         @default(new)
+  estimatePaise  BigInt              @default(0)
+  saleId         String?             @unique
+  invoiceNo      String?
+  totalPaise     BigInt?
+  riderId        String?
+  otpHash        String?
+  otpAttempts    Int                 @default(0)
+  proof          String? // otp, signature
+  receivedBy     String?
+  collectedPaise BigInt              @default(0)
+  collectedMode  String? // cash, upi
+  settlementId   String?
+  reason         String? // cancel/return reason, or the last failed delivery attempt
+  createdBy      String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deliveredAt    DateTime?
+  items          DeliveryOrderItem[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, riderId, status])
+}
+
+model DeliveryOrderItem {
+  id         String        @id @default(uuid())
+  orderId    String
+  order      DeliveryOrder @relation(fields: [orderId], references: [id])
+  medicineId String
+  qty        Int
+}
+
+/// Order history: every status change, failed attempt and customer notification. Append-only.
+model DeliveryEvent {
+  id       String   @id @default(uuid())
+  tenantId String
+  branchId String
+  orderId  String
+  kind     String // a status, attempt_failed, notified, rx_uploaded, rider_assigned
+  note     String?
+  userId   String?
+  userName String?
+  at       DateTime @default(now())
+
+  @@index([orderId, at])
+}
+
+/// Cash on delivery handed over by a delivery person at the counter. Append-only.
+model RiderSettlement {
+  id            String   @id @default(uuid())
+  tenantId      String
+  branchId      String
+  no            String
+  riderId       String
+  orderIds      String[]
+  expectedPaise BigInt
+  countedPaise  BigInt
+  shiftId       String?
+  userId        String
+  note          String?
+  at            DateTime @default(now())
+
+  @@unique([tenantId, no])
+  @@index([tenantId, branchId, at])
+}
+
+/// Loyalty points, one row per change; a balance is the sum of points. Append-only.
+model LoyaltyLedger {
+  id         String    @id @default(uuid())
+  tenantId   String
+  customerId String
+  kind       String // earn, redeem, reverse, restore, expire
+  points     Int
+  valuePaise BigInt    @default(0) // redeem/restore: rupee value at the sale's point rate
+  saleId     String?
+  returnId   String?
+  expiresAt  DateTime?
+  note       String?
+  userId     String?
+  at         DateTime  @default(now())
+
+  @@index([tenantId, customerId])
+  @@index([saleId])
 }

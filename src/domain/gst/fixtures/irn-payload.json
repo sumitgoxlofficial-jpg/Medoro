@@ -1,0 +1,100 @@
+{
+  "Version": "1.1",
+  "TranDtls": {
+    "TaxSch": "GST",
+    "SupTyp": "B2B",
+    "RegRev": "N",
+    "IgstOnIntra": "N"
+  },
+  "DocDtls": {
+    "Typ": "INV",
+    "No": "SM/MA/000123",
+    "Dt": "31/10/2026"
+  },
+  "SellerDtls": {
+    "Gstin": "27AAPFU0939F1ZV",
+    "LglNm": "Sanjeevani Medical LLP",
+    "TrdNm": "Sanjeevani Medical",
+    "Addr1": "Shop 4, FC Road, Shivajinagar, Pune 411005",
+    "Loc": "Pune",
+    "Pin": 411005,
+    "Stcd": "27",
+    "Ph": "9822041736"
+  },
+  "BuyerDtls": {
+    "Gstin": "29AAGCB7383J1Z4",
+    "LglNm": "City Care Hospital",
+    "Addr1": "12 Residency Road",
+    "Loc": "Bengaluru",
+    "Pin": 560025,
+    "Stcd": "29",
+    "Ph": "9845012345",
+    "Pos": "29"
+  },
+  "ItemList": [
+    {
+      "SlNo": "1",
+      "PrdDesc": "Telma 40 40 mg",
+      "IsServc": "N",
+      "HsnCd": "3004",
+      "Qty": 2,
+      "Unit": "PAC",
+      "UnitPrice": 207.145,
+      "TotAmt": 414.29,
+      "Discount": 41.43,
+      "AssAmt": 372.86,
+      "GstRt": 12,
+      "IgstAmt": 44.74,
+      "CgstAmt": 0,
+      "SgstAmt": 0,
+      "CesRt": 0,
+      "CesAmt": 0,
+      "CesNonAdvlAmt": 0,
+      "StateCesRt": 0,
+      "StateCesAmt": 0,
+      "StateCesNonAdvlAmt": 0,
+      "OthChrg": 0,
+      "TotItemVal": 417.6,
+      "BchDtls": {
+        "Nm": "TL1",
+        "ExpDt": "31/12/2027"
+      }
+    },
+    {
+      "SlNo": "2",
+      "PrdDesc": "Crocin 650",
+      "IsServc": "N",
+      "HsnCd": "30049099",
+      "Qty": 1,
+      "Unit": "PAC",
+      "UnitPrice": 30.48,
+      "TotAmt": 30.48,
+      "Discount": 0,
+      "AssAmt": 30.48,
+      "GstRt": 5,
+      "IgstAmt": 1.52,
+      "CgstAmt": 0,
+      "SgstAmt": 0,
+      "CesRt": 0,
+      "CesAmt": 0,
+      "CesNonAdvlAmt": 0,
+      "StateCesRt": 0,
+      "StateCesAmt": 0,
+      "StateCesNonAdvlAmt": 0,
+      "OthChrg": 0,
+      "TotItemVal": 32
+    }
+  ],
+  "ValDtls": {
+    "AssVal": 403.34,
+    "CgstVal": 0,
+    "SgstVal": 0,
+    "IgstVal": 46.26,
+    "CesVal": 0,
+    "StCesVal": 0,
+    "Discount": 0,
+    "OthChrg": 0,
+    "RndOffAmt": 0.4,
+    "TotInvVal": 450
+  }
+}

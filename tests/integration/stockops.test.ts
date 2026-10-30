@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
-import { createMedicine, receiveBatch } from "@/domain/inventory/service";
-import { approveTransfer, postCount, receiveTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
+import { createMedicine, receiveBatch, setQuarantine } from "@/domain/inventory/service";
+import { approveTransfer, cancelTransfer, postCount, receiveTransfer, rejectTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
 import { addRecall, listRecalls, quarantineRecall } from "@/domain/inventory/recalls";
-import { anomalies, expiryRows, forecast } from "@/domain/intelligence/service";
+import { anomalies, draftSeasonal, expiryRows, forecast } from "@/domain/intelligence/service";
 import { commitSale } from "@/domain/sales/service";
 import { listSuppliers, saveSupplier } from "@/domain/parties/service";
 import { addDays, todayISO } from "@/lib/dates";
@@ -25,16 +25,17 @@ describe("stock operations and intelligence", () => {
     b2 = (await db.batch.findFirstOrThrow({ where: { batchNo: "OK2" } })).id;
   });
 
-  it("count adjusts relative to the snapshot, keeping sales made meanwhile", async () => {
+  it("count adjusts against the quantity at posting time, so re-posting the same count is a no-op", async () => {
     const ctx = await ctxFor("Pharmacist");
-    const snapshot = 40;
     await commitSale(ctx, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: b1, qty: 2 }], customerId: null, discountPct: 0, pay: { mode: "cash" } });
-    const r = await postCount(ctx, { lines: [{ batchId: b1, system: snapshot, counted: 37 }] });
+    const r = await postCount(ctx, { lines: [{ batchId: b1, counted: 35 }] });
     expect(r.changed).toBe(1);
     expect((await db.batch.findUniqueOrThrow({ where: { id: b1 } })).qtyAvailable).toBe(35); // 38 after sale, −3 short
+    expect((await postCount(ctx, { lines: [{ batchId: b1, counted: 35 }] })).changed).toBe(0);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: b1 } })).qtyAvailable).toBe(35);
     const j = await db.voucher.findFirstOrThrow({ where: { refType: "stock_count" }, include: { lines: true } });
     expect(j.lines.find((l) => l.account === "Stock loss")!.debitPaise).toBe(4050n);
-    await expect(postCount(await ctxFor("Cashier"), { lines: [{ batchId: b1, system: 1, counted: 1 }] })).rejects.toThrow(/role/);
+    await expect(postCount(await ctxFor("Cashier"), { lines: [{ batchId: b1, counted: 1 }] })).rejects.toThrow(/role/);
   });
 
   it("supplier return reduces stock and payable; write-off posts stock loss; opening stock can't be returned", async () => {
@@ -43,6 +44,7 @@ describe("stock operations and intelligence", () => {
     const no = await returnToSupplier(ctx, b1, 5, "Near expiry");
     expect(no).toMatch(/^DN-/);
     expect((await listSuppliers(ctx))[0].balance).toBe(before - 5 * 1350 - Math.round(5 * 1350 * 0.12));
+    expect((await listSuppliers(ctx))[0].nextDue?.amount).toBe(60500 - 7560); // debit note settles the GRN's bill
     await expect(returnToSupplier(ctx, b2, 1, "x")).rejects.toThrow(/opening stock/);
     await writeOff(ctx, b2, 1, "Damaged strip");
     expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(19);
@@ -62,28 +64,71 @@ describe("stock operations and intelligence", () => {
     expect(dest.qtyAvailable).toBe(4);
   });
 
-  it("recalls match batches across branches and quarantine them", async () => {
+  it("transfers: no self-approval below owner, blocked stock can't be dispatched, in-transit can be cancelled", async () => {
     const ctx = await ctxFor();
-    await addRecall(ctx, { product: "Okacet 10 mg", batches: "ok2, ZZ9", source: "Manufacturer notice 12/2026", publishedAt: todayISO(), reason: "Labelling" });
+    const second = ctx.branches.find((b) => b.name === "Second")!.id;
+    const no = await requestTransfer(await ctxFor("Pharmacist"), b2, second, 2);
+    const t = await db.transfer.findFirstOrThrow({ where: { no } });
+    await expect(approveTransfer(await ctxFor("Pharmacist"), t.id)).rejects.toThrow(/other than the requester/);
+    await setQuarantine(ctx, b2, true, "Check");
+    await expect(approveTransfer(ctx, t.id)).rejects.toThrow(/quarantined/);
+    await setQuarantine(ctx, b2, false, "");
+    await approveTransfer(ctx, t.id);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(13);
+    await cancelTransfer(ctx, t.id);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(15);
+    await expect(rejectTransfer(ctx, t.id)).rejects.toThrow(/pending/);
+
+    const no2 = await requestTransfer(ctx, b2, second, 1);
+    const t2 = await db.transfer.findFirstOrThrow({ where: { no: no2 } });
+    await approveTransfer(ctx, t2.id);
+    await setQuarantine(ctx, b2, true, "Leaking strips");
+    expect(await receiveTransfer(await ctxFor("Owner", "Second"), t2.id)).toMatch(/quarantined/);
+    const dest = await db.batch.findFirstOrThrow({ where: { branchId: second, batchNo: "OK2", medicineId: med } });
+    expect([dest.qtyAvailable, dest.status]).toEqual([5, "quarantine"]);
+    await setQuarantine(ctx, b2, false, "");
+    await setQuarantine(ctx, dest.id, false, "");
+  });
+
+  it("recalls match medicine + batch across branches and quarantine them", async () => {
+    const ctx = await ctxFor();
+    const other = await createMedicine(ctx, { name: "Dolo", generic: "Paracetamol", strength: "650 mg", form: "Tablet", manufacturer: "Micro", pack: "15", mrp: "30", gstRate: 12, schedule: "", reorderLevel: 0, barcode: "", hsn: "3004", rack: "" });
+    await receiveBatch(ctx, { medicineId: other, batchNo: "OK2", expiry: addDays(todayISO(), 300).slice(0, 10), qty: 5, cost: "10", mrp: "30", supplierId: null, invoiceNo: "" });
+    await expect(addRecall(ctx, { medicineId: "", batches: "OK2", source: "Manufacturer notice", publishedAt: todayISO() })).rejects.toThrow(/medicine/);
+    await addRecall(ctx, { medicineId: med, batches: "ok2, ZZ9", source: "Manufacturer notice 12/2026", publishedAt: todayISO(), reason: "Labelling" });
     let r = (await listRecalls(ctx))[0];
     expect(r.matches.filter((m) => m.sellable)).toHaveLength(2);
     expect(await quarantineRecall(ctx, r.id)).toBe(2);
     r = (await listRecalls(ctx))[0];
     expect(r.matches.every((m) => m.status === "quarantine")).toBe(true);
     expect(r.status).toBe("investigating");
+    expect((await db.batch.findFirstOrThrow({ where: { medicineId: other } })).status).toBe("ok");
   });
 
   it("forecasts reorders, projects expiry loss and flags big discounts", async () => {
     const ctx = await ctxFor();
-    const f = (await forecast(ctx, { cover: 21, safety: 2 }))[0];
+    const f = (await forecast(ctx, { cover: 21, safety: 2 })).find((x) => x.id === med)!;
     expect(f.stock).toBe(30); // OK1 only; OK2 quarantined
     expect(f.suggestion).toBe(0); // exactly at the reorder level and above the reorder point
     const e = await expiryRows(ctx, 60);
     expect(e.rows[0]).toMatchObject({ batchNo: "OK1", qty: 30 });
     expect(e.rows[0].rec.kind).toBe("return");
     await commitSale(await ctxFor("Manager"), { idempotencyKey: key(), lines: [{ medicineId: med, batchId: b1, qty: 1 }], customerId: null, discountPct: 15, pay: { mode: "cash" } });
-    expect((await forecast(ctx, { cover: 21, safety: 2 }))[0].suggestion).toBeGreaterThan(0); // 29 < 30
+    expect((await forecast(ctx, { cover: 21, safety: 2 })).find((x) => x.id === med)!.suggestion).toBeGreaterThan(0); // 29 < 30
     const a = await anomalies(ctx, { disc: 5, refunds: 2, cash: 200 });
     expect(a.some((x) => x.rule.startsWith("Discount above"))).toBe(true);
+  });
+
+  it("seasonal draft POs go to each item's own supplier", async () => {
+    const ctx = await ctxFor();
+    const dolo = (await db.medicine.findFirstOrThrow({ where: { name: "Dolo" } })).id;
+    const lines = [{ medicineId: med, qty: 10, rate: 13.5 }, { medicineId: dolo, qty: 5, rate: 10 }];
+    await expect(draftSeasonal(ctx, lines, "Jul")).rejects.toThrow(/supplier for Dolo/);
+    const other = await saveSupplier(ctx, null, { name: "Aaa Agencies", creditDays: "7" });
+    const nos = await draftSeasonal(ctx, [lines[0], { ...lines[1], supplierId: other }], "Jul");
+    expect(nos).toHaveLength(2);
+    const pos = await db.purchaseOrder.findMany({ where: { no: { in: nos } }, include: { items: true } });
+    expect(pos.find((p) => p.supplierId === sup)!.items.map((i) => i.medicineId)).toEqual([med]);
+    expect(pos.find((p) => p.supplierId === other)!.items.map((i) => i.medicineId)).toEqual([dolo]);
   });
 });

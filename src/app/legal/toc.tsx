@@ -12,10 +12,10 @@ export function Toc({ items }: { items: { id: string; title: string }[] }) {
   }, [items]);
   return (
     <nav aria-label="On this page" className="min-[900px]:sticky top-24 flex flex-row flex-wrap min-[900px]:flex-col gap-0.5">
-      <span className="text-[12px] font-semibold tracking-[.08em] uppercase text-fainter px-2.5 pb-2 w-full">On this page</span>
+      <span className="text-[13px] font-semibold tracking-[.08em] uppercase text-[var(--s-muted)] px-3 pb-2 w-full">On this page</span>
       {items.map((t) => (
         <a key={t.id} href={`#${t.id}`} onClick={() => setActive(t.id)} aria-current={active === t.id ? "true" : undefined}
-          className={`text-[14px] px-2.5 py-[7px] rounded-md hover:bg-[#F2F4F5] hover:text-ink-strong ${active === t.id ? "text-teal bg-teal-tint font-semibold" : "text-[#4B535B]"}`}>{t.title}</a>
+          className={`text-[15px] px-3 py-2 rounded-md transition-colors hover:bg-[var(--s-soft)] hover:text-[var(--s-ink)] ${active === t.id ? "text-[var(--s-brand-ink)] bg-[var(--s-brand-tint)] font-semibold" : "text-[var(--s-ink-2)]"}`}>{t.title}</a>
       ))}
     </nav>
   );

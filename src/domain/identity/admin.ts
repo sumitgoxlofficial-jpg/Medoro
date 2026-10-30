@@ -2,12 +2,14 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
+import { hashPassword } from "@/server/auth";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { verifyChain } from "@/lib/audit-hash";
-import { GSTIN_RE, inviteContact, ROLE_OPTIONS } from "./contracts";
-import { PERMS, type Perm } from "./permissions";
-import { branchCodes, newInviteCode } from "./service";
+import { GSTIN_RE, inviteContact, passwordSchema, pinSchema, ROLE_OPTIONS } from "./contracts";
+import { OWNER_ONLY_GRANTS, PERMS, PERM_LABEL, type Perm } from "./permissions";
+import { branchCodes, newInviteCode, nextEmployeeNo } from "./service";
+import { validSeries } from "@/lib/docno";
 
 export async function listTeam(ctx: Ctx) {
   authorize(ctx, "users");
@@ -21,7 +23,7 @@ export async function listTeam(ctx: Ctx) {
   return {
     users: users.map((u) => ({
       id: u.id, name: u.name, contact: u.email ?? u.phone ?? "", phone: u.phone, employeeNo: u.employeeNo, role: u.role.name, branchIds: u.branchIds, branch: bn(u.branchIds),
-      mfa: u.mfaEnabled, mfaRequired: u.mfaRequired, active: u.active, lastSeen: seen.find((s) => s.userId === u.id)?._max.lastSeenAt?.toISOString() ?? null, isMe: u.id === ctx.userId,
+      mfa: u.mfaEnabled, mfaRequired: u.mfaRequired, active: u.active, rolePerms: u.role.permissions, grants: u.permGrants, revokes: u.permRevokes, lastSeen: seen.find((s) => s.userId === u.id)?._max.lastSeenAt?.toISOString() ?? null, isMe: u.id === ctx.userId,
     })),
     invites: invites.map((i) => ({ id: i.id, code: i.code, contact: i.contact, role: i.roleName, branch: branches.find((b) => b.id === i.branchId)?.name ?? "All branches", expiresAt: i.expiresAt.toISOString(), reset: !!i.userId })),
   };
@@ -68,8 +70,32 @@ export async function issueReset(ctx: Ctx, userId: string) {
   });
 }
 
-export async function updateMember(ctx: Ctx, userId: string, patch: { role?: string; branchIds?: string[]; active?: boolean }) {
+/** Clears another user's authenticator: they set up a new one at their next sign-in. */
+export async function resetTwoStep(ctx: Ctx, userId: string) {
   authorize(ctx, "users");
+  return db.$transaction(async (tx) => {
+    const u = await tx.user.findFirst({ where: { id: userId, tenantId: ctx.tenantId, isSupport: false }, include: { role: true } });
+    if (!u) throw new UserError("User not found.");
+    if (u.id === ctx.userId) throw new UserError("You can’t reset your own two-step verification here. At sign-in, use a recovery code or “Lost your authenticator?”.");
+    if (u.role.name === "Owner") throw new UserError("Only the owner can reset the owner’s two-step verification, with a recovery code or an email/SMS code at sign-in.");
+    if (!u.mfaEnabled && !u.mfaSecret) throw new UserError(`${u.name} hasn’t set up two-step verification.`);
+    await tx.user.update({ where: { id: u.id }, data: { mfaSecret: null, mfaEnabled: false, tokenVersion: { increment: 1 } } });
+    await tx.recoveryCode.deleteMany({ where: { userId: u.id } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Two-step verification reset", entity: "user", entityId: u.id, detail: `${u.name} · sets up a new authenticator at next sign-in · signed out everywhere` });
+    return u.name;
+  });
+}
+
+/** Managers sign in with email + password; every other role uses employee ID + PIN at the counter. */
+const usesPassword = (role: string) => role === "Manager";
+
+export type MemberPatch = { role?: string; branchIds?: string[]; active?: boolean; pin?: string; password?: string };
+
+export async function updateMember(ctx: Ctx, userId: string, patch: MemberPatch) {
+  authorize(ctx, "users");
+  // Hash outside the transaction: Argon2 is slow.
+  const pwHash = patch.password ? await hashPassword(passwordSchema.parse(patch.password)) : null;
+  const pinHash = patch.pin ? await hashPassword(pinSchema.parse(patch.pin)) : null;
   return db.$transaction(async (tx) => {
     const u = await tx.user.findFirst({ where: { id: userId, tenantId: ctx.tenantId }, include: { role: true } });
     if (!u) throw new UserError("User not found.");
@@ -81,7 +107,19 @@ export async function updateMember(ctx: Ctx, userId: string, patch: { role?: str
       if (!(ROLE_OPTIONS as readonly string[]).includes(patch.role)) throw new UserError("Unknown role.");
       if (patch.role === "Manager" && !u.email) throw new UserError("Managers need an email address to sign in with a password.");
       const r = await tx.role.findFirstOrThrow({ where: { tenantId: ctx.tenantId, name: patch.role } });
-      data.roleId = r.id; data.mfaRequired = patch.role === "Manager";
+      data.roleId = r.id; data.mfaRequired = usesPassword(patch.role);
+      // Switching between password and PIN sign-in needs the new credential now, or they'd be locked out.
+      if (usesPassword(patch.role) !== usesPassword(u.role.name)) {
+        if (usesPassword(patch.role)) {
+          if (!pwHash) throw new UserError(`Set a password for ${u.name}: managers sign in with email and password.`);
+          data.passwordHash = pwHash; data.pinHash = null;
+        } else {
+          if (!pinHash) throw new UserError(`Set a 4-digit PIN for ${u.name}: ${patch.role}s sign in with employee ID and PIN.`);
+          data.pinHash = pinHash; data.passwordHash = null;
+          if (!u.employeeNo) data.employeeNo = await nextEmployeeNo(tx, ctx.tenantId);
+        }
+        notes.push("sign-in credential set");
+      }
       notes.push(`role ${u.role.name} → ${patch.role}`);
     }
     if (patch.branchIds) {
@@ -97,6 +135,30 @@ export async function updateMember(ctx: Ctx, userId: string, patch: { role?: str
   });
 }
 
+/** Per-user override of one permission: "grant" adds it on top of the role, "revoke" withholds it, "role" follows the role. */
+export async function setUserPermission(ctx: Ctx, userId: string, perm: Perm, state: "role" | "grant" | "revoke") {
+  authorize(ctx, "users");
+  if (ctx.realRole !== ctx.role) throw new UserError("Switch back from “View as” before changing permissions.");
+  if (!(PERMS as readonly string[]).includes(perm) || !["role", "grant", "revoke"].includes(state)) throw new UserError("Unknown permission.");
+  if (state === "grant" && OWNER_ONLY_GRANTS.includes(perm) && ctx.realRole !== "Owner") throw new UserError(`Only the owner can grant “${PERM_LABEL[perm]}”.`);
+  return db.$transaction(async (tx) => {
+    const u = await tx.user.findFirst({ where: { id: userId, tenantId: ctx.tenantId, isSupport: false }, include: { role: true } });
+    if (!u) throw new UserError("User not found.");
+    if (u.id === ctx.userId) throw new UserError("You can’t change your own permissions.");
+    if (u.role.locked || u.role.name === "Owner") throw new UserError("Owner permissions are locked.");
+    const grants = u.permGrants.filter((p) => p !== perm), revokes = u.permRevokes.filter((p) => p !== perm);
+    if (state === "grant" && !u.role.permissions.includes(perm)) grants.push(perm);
+    if (state === "revoke" && u.role.permissions.includes(perm)) revokes.push(perm);
+    const was = u.permGrants.includes(perm) ? "granted" : u.permRevokes.includes(perm) ? "revoked" : "role";
+    const now = grants.includes(perm) ? "granted" : revokes.includes(perm) ? "revoked" : "role";
+    if (was === now) return now;
+    await tx.user.update({ where: { id: u.id }, data: { permGrants: grants, permRevokes: revokes } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: now === "granted" ? "User permission granted" : now === "revoked" ? "User permission revoked" : "User permission reset to role", entity: "user", entityId: u.id,
+      detail: `${u.name} · ${PERM_LABEL[perm]} · ${was} → ${now}`, before: { grants: u.permGrants, revokes: u.permRevokes }, after: { grants, revokes } });
+    return now;
+  });
+}
+
 export async function revokeInvite(ctx: Ctx, id: string) {
   authorize(ctx, "users");
   const r = await db.invite.updateMany({ where: { id, tenantId: ctx.tenantId, usedAt: null }, data: { expiresAt: new Date() } });
@@ -108,7 +170,7 @@ export async function revokeInvite(ctx: Ctx, id: string) {
 
 export async function roleMatrix(ctx: Ctx) {
   const roles = await db.role.findMany({ where: { tenantId: ctx.tenantId, NOT: { name: "Medoro support (read-only)" } } });
-  const order = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant"];
+  const order = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant", "Delivery"];
   return roles.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)).map((r) => ({ id: r.id, name: r.name, locked: r.locked, perms: r.permissions }));
 }
 
@@ -134,7 +196,7 @@ export async function listBranches(ctx: Ctx) {
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "asc" } }),
     db.counter.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.user.findMany({ where: { tenantId: ctx.tenantId, active: true, isSupport: false }, select: { branchIds: true } }),
-    db.$queryRaw<{ branchId: string; v: bigint }[]>`SELECT "branchId", SUM("qtyAvailable" * "costPaise") v FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} GROUP BY 1`,
+    db.$queryRaw<{ branchId: string; v: bigint }[]>`SELECT "branchId", ROUND(SUM(b."qtyAvailable" * b."costPaise"::numeric / m."packSize"))::bigint v FROM "Batch" b JOIN "Medicine" m ON m.id = b."medicineId" WHERE b."tenantId" = ${ctx.tenantId} GROUP BY 1`,
   ]);
   return branches.map((b, i) => ({
     id: b.id, name: b.name, code: b.code, main: i === 0, address: b.address, gstin: b.gstin, dl: b.drugLicence, active: b.active,
@@ -164,6 +226,7 @@ export async function saveBranch(ctx: Ctx, id: string | null, raw: z.input<typeo
       const used = (await tx.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { code: true } })).map((b) => b.code);
       let code = branchCodes([i.name])[0];
       for (let k = 2; used.includes(code); k++) code = code.slice(0, 2) + k;
+      if (!validSeries(code)) throw new UserError("Too many branches with similar names. Use a different branch name.");
       const b = await tx.branch.create({ data: { tenantId: ctx.tenantId, code, ...data } });
       await tx.counter.create({ data: { tenantId: ctx.tenantId, branchId: b.id, name: "Counter 1" } });
       id = b.id;

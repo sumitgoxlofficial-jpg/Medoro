@@ -1,12 +1,15 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import { Printer, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { REFUND_MODES } from "@/domain/sales/contracts";
 import type { currentShift, recentInvoices, returnableLines, todaysCreditNotes } from "@/domain/sales/returns";
-import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction } from "./actions";
+import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction, sendCreditNoteAction, voidAction } from "./actions";
 
 type Inv = Awaited<ReturnType<typeof recentInvoices>>[number];
 type Lines = NonNullable<Awaited<ReturnType<typeof returnableLines>>>;
@@ -23,16 +26,18 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
   const [cond, setCond] = useState<"sealed" | "damaged">("sealed"), [mode, setMode] = useState<(typeof REFUND_MODES)[number]>("Cash"), [reason, setReason] = useState("");
   const [pending, start] = useTransition();
   const [opening, setOpening] = useState(""), [counted, setCounted] = useState("");
+  const [voidReason, setVoidReason] = useState("");
+  const [issued, setIssued] = useState<{ id: string; creditNote: string; amount: number; mode: string; money?: number; pointsBack?: number; pointsTaken?: number; phone?: string | null } | null>(null);
 
   useEffect(() => { setInvoices(initial); }, [initial]);
   useEffect(() => { if (!q.trim()) { setInvoices(initial); return; } const h = setTimeout(() => findInvoicesAction(q).then(setInvoices), 250); return () => clearTimeout(h); }, [q, initial]);
-  useEffect(() => { setQty({}); setLines(null); if (sel) linesAction(sel).then((l) => { setLines(l); if (l?.payMode === "credit") setMode("Adjust customer credit"); }); }, [sel]);
+  useEffect(() => { setQty({}); setLines(null); setVoidReason(""); if (sel) linesAction(sel).then((l) => { setLines(l); if (l?.payMode === "credit") setMode("Adjust customer credit"); }); }, [sel]);
 
   const refund = lines ? lines.lines.reduce((a, l) => a + Math.round(l.unitNet * Math.min(Number(qty[l.itemId] || 0), l.sold - l.returned)), 0) : 0;
   const submit = () => start(async () => {
     const r = await returnAction({ saleId: sel, lines: lines!.lines.map((l) => ({ itemId: l.itemId, qty: Number(qty[l.itemId] || 0) })), condition: cond, refundMode: mode, reason });
     if (!r.ok) return toast(r.error, "red");
-    toast(`${r.data.creditNote} issued for ${inr(r.data.amount)}.`, "green");
+    setIssued(r.data);
     setReason(""); setQty({}); setLines(await linesAction(sel));
   });
 
@@ -46,17 +51,18 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Invoice no. or customer" aria-label="Find invoice" className={inp + " max-w-[220px]"} />
           <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Invoice" className={inp + " flex-1 min-w-[240px]"}>
             <option value="">{invoices.length ? "Select a committed invoice…" : "No invoices found"}</option>
-            {invoices.map((i) => <option key={i.id} value={i.id}>{i.no} · {i.customer} · {inr(i.total)} · {dayMonth(new Date(i.at))} {hhmm(new Date(i.at))}</option>)}
+            {invoices.map((i) => <option key={i.id} value={i.id}>{i.no} · {i.customer} · {inr(i.total)} · {dayMonth(new Date(i.at))} {hhmm(new Date(i.at))}{i.voided ? " · VOID" : ""}</option>)}
           </select>
         </div>
         {lines ? (
           <>
+            {lines.voided ? <div role="status" className="text-[13px] text-bad bg-bad-bg rounded-lg px-3 py-2"><strong>VOID</strong> · {dayMonth(new Date(lines.voided.at))} {hhmm(new Date(lines.voided.at))} · {lines.voided.reason}</div> : null}
             <div className="border border-[#E3E6E9] rounded-lg overflow-hidden">
               {lines.lines.map((l) => {
                 const max = l.sold - l.returned;
                 return (
                   <div key={l.itemId} className="grid grid-cols-[minmax(0,1fr)_auto_80px] gap-3 items-center px-3 py-2.5 border-b border-row last:border-0 text-[13.5px]">
-                    <div className="flex flex-col min-w-0"><strong className="font-semibold">{l.name}</strong><span className="text-[12px] text-muted">{l.batchNo} · sold {l.sold} · returned {l.returned} · {inr(Math.round(l.unitNet))} each{l.expired ? " · batch expired" : ""}</span></div>
+                    <div className="flex flex-col min-w-0"><strong className="font-semibold">{l.name}</strong><span className="text-[12px] text-muted">{l.batchNo} · sold {l.soldText} · returned {l.returned} · {inr(Math.round(l.unitNet))} per {l.unit || "unit"}{l.expired ? " · batch expired" : ""}</span></div>
                     <span className="text-[12px] text-faint whitespace-nowrap">{max ? `max ${max}` : "fully returned"}</span>
                     <input value={qty[l.itemId] ?? ""} onChange={(e) => setQty({ ...qty, [l.itemId]: String(Math.min(Number(e.target.value.replace(/\D/g, "") || 0), max) || "") })} disabled={!max} placeholder="0" aria-label={`Return qty ${l.name}`} inputMode="numeric"
                       className="border border-input rounded-md px-2 py-1.5 text-right text-[14px] disabled:bg-chip" />
@@ -77,6 +83,24 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
             </div>
             {!canRefund ? <div className="text-[12.5px] text-bad">Your role cannot approve refunds. A manager must process this.</div> : null}
             <div className="text-[12px] text-faint">Refunds are the amount actually paid (after discount), with GST reversed. Sealed returns go back to the same batch. Opened or damaged items are not restocked. Expired stock is never resold.</div>
+            {lines.canVoid && canRefund ? (
+              <div className="flex flex-col gap-2 border-t border-line-soft pt-3">
+                <div className="text-[13.5px] font-semibold">Void the whole bill</div>
+                <div className="text-[12px] text-muted">Only for today’s bills with nothing returned. Every item goes back to its batch and each payment is refunded the way it was paid ({lines.payMode === "credit" ? "taken off the customer’s balance" : lines.payMode.toUpperCase()}). The invoice keeps its number and is marked VOID.</div>
+                <div className="flex gap-2 flex-wrap">
+                  <input value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Reason for voiding (required)" aria-label="Void reason" className={inp + " flex-1 min-w-[200px]"} />
+                  <Button className="text-bad" disabled={pending || voidReason.trim().length < 3} onClick={() => {
+                    if (!confirm(`Void ${lines.no} and refund ${inr(lines.total)}?`)) return;
+                    start(async () => {
+                      const r = await voidAction(sel, voidReason);
+                      if (!r.ok) return toast(r.error, "red");
+                      toast(`${r.data.invoiceNo} voided. Refund ${r.data.refunds.map((x) => `${x.mode === "credit" ? "credit" : x.mode.toUpperCase()} ${inr(x.amountPaise)}`).join(" + ")}.`, "green");
+                      setVoidReason(""); setLines(await linesAction(sel)); setInvoices(await findInvoicesAction(q));
+                    });
+                  }}>Void bill</Button>
+                </div>
+              </div>
+            ) : null}
           </>
         ) : null}
         {creditNotes.length ? (
@@ -84,7 +108,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
             <div className="text-[12.5px] text-muted font-medium">Credit notes today</div>
             {creditNotes.map((c) => (
               <div key={c.no} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 py-1.5 border-b border-row text-[13px] items-baseline">
-                <span className="font-mono text-[12px]">{c.no}</span><span className="truncate">{c.customer} <span className="text-muted">· {c.invoice} · {c.reason} · {c.mode}</span></span><strong className="tnum">{inr(c.amount)}</strong>
+                <a href={`/print/credit-note/${c.id}?format=a4`} target="_blank" rel="noreferrer" className="font-mono text-[12px] text-teal underline">{c.no}</a><span className="truncate">{c.customer} <span className="text-muted">· {c.invoice} · {c.reason} · {c.mode}</span></span><strong className="tnum">{inr(c.amount)}</strong>
               </div>
             ))}
           </div>
@@ -96,7 +120,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
         {o ? (
           <>
             <div className="text-[12.5px] text-muted">Opened {dayMonth(new Date(o.openedAt))} {hhmm(new Date(o.openedAt))}</div>
-            {[["Opening float", o.open], ["Cash sales", o.cash], ["Cash refunds", -o.refunds], ["Cash expenses", -o.expenses]].map(([k, v]) => (
+            {[["Opening float", o.open], ["Cash sales", o.cash], ...(o.cod ? [["Delivery cash handed over", o.cod] as const] : []), ["Cash refunds", -o.refunds], ["Cash expenses", -o.expenses]].map(([k, v]) => (
               <div key={k as string} className="flex justify-between text-[13.5px]"><span className="text-muted">{k}</span><span className="tnum">{inr(v as number)}</span></div>
             ))}
             <div className="flex justify-between text-[14px] font-semibold border-t border-[#E3E6E9] pt-2"><span>Expected in drawer</span><span className="tnum">{inr(o.expected)}</span></div>
@@ -118,6 +142,39 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
         )}
         <div className="text-[12px] text-faint">Any difference is posted to Cash short/excess and shows in the audit trail.</div>
       </div>
+      <Modal open={!!issued} onClose={() => setIssued(null)} title={issued ? `Credit note ${issued.creditNote} issued` : ""} sub={issued ? `Refund ${inr(issued.amount)} · ${issued.mode}${issued.money !== undefined && issued.money < issued.amount ? ` (${inr(issued.money)} paid, ${issued.pointsBack} points given back)` : ""}${issued.pointsTaken ? ` · ${issued.pointsTaken} earned points taken back` : ""}` : ""}
+        footer={<Button variant="primary" onClick={() => setIssued(null)} autoFocus>Done</Button>}>
+        {issued ? (
+          <>
+            <div className="flex gap-2">
+              <Button className="flex-1 h-10" onClick={() => printCreditNote(issued.id, "thermal", toast)}><Printer size={16} />Thermal 80mm</Button>
+              <Button className="flex-1 h-10" onClick={() => printCreditNote(issued.id, "a4", toast)}><FileDown size={16} />A4 / PDF</Button>
+            </div>
+            <SendCreditNote id={issued.id} phone={issued.phone ?? ""} />
+          </>
+        ) : null}
+      </Modal>
     </div>
   );
+}
+
+function SendCreditNote({ id, phone: initial }: { id: string; phone: string }) {
+  const toast = useToast();
+  const [phone, setPhone] = useState(initial), [ok, setOk] = useState(false), [sent, setSent] = useState(false);
+  const [pending, start] = useTransition();
+  return (
+    <div className="flex flex-col gap-2 border border-[#CFE6D8] bg-[#F6FBF8] rounded-[10px] p-3 mt-1">
+      <div className="text-[13.5px] font-semibold">Send on WhatsApp</div>
+      <input value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d ]/g, "")); setOk(false); }} disabled={sent} placeholder="Customer mobile (10 digits)" aria-label="WhatsApp number for credit note" className={inp} />
+      <Checkbox checked={ok} disabled={sent} onChange={(e) => setOk(e.target.checked)} label="I read the number back to the customer and they consent" />
+      <Button disabled={!ok || pending || sent} onClick={() => start(async () => { const r = await sendCreditNoteAction(id, phone, ok); if (!r.ok) return toast(r.error, "red"); setSent(true); toast("Credit note sent on WhatsApp.", "green"); })}>{sent ? "Sent" : pending ? "Sending…" : "Send credit note"}</Button>
+    </div>
+  );
+}
+
+function printCreditNote(id: string, format: "thermal" | "a4", toast: ReturnType<typeof useToast>) {
+  // "noopener" in the features makes window.open return null even when the tab opened.
+  const w = window.open(`/print/credit-note/${id}?format=${format}`, "_blank");
+  if (!w) toast("Allow pop-ups to print credit notes.", "amber");
+  else w.opener = null;
 }

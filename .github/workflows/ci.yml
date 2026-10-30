@@ -24,6 +24,7 @@ jobs:
       - run: pnpm prisma generate
       - run: pnpm lint && pnpm typecheck
       - run: pnpm prisma migrate deploy
+      # Unit tests (src/**) and integration tests against the Postgres service (tests/integration/**).
       - run: pnpm test
       - run: pnpm build
   security:
@@ -40,3 +41,34 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile && pnpm audit --audit-level=high
+      # CycloneDX SBOM of production dependencies (app and desktop shell), kept as a build artifact.
+      - run: npx --yes @cyclonedx/cyclonedx-npm@4 --ignore-npm-errors --omit dev --output-format JSON --output-file sbom-app.cdx.json
+      - run: npm ci --ignore-scripts && npx --yes @cyclonedx/cyclonedx-npm@4 --omit dev --output-format JSON --output-file ../sbom-desktop.cdx.json
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom-*.cdx.json
+          retention-days: 90
+  docker:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci0only0not0secret
+      SESSION_SECRET: ci-only-not-a-real-secret-0123456789abcdef
+      HOST_KEY: ci-only-host-key-not-secret-0123456789abcdef
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet && docker compose --profile https config --quiet
+      - run: docker compose build migrate app
+      - name: Boot the stack and wait for /api/ready
+        run: |
+          docker compose up -d app
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3000/api/ready; then echo; exit 0; fi
+            sleep 3
+          done
+          docker compose logs
+          exit 1
+      - run: curl -fsSI http://127.0.0.1:3000/signin | grep -i "content-security-policy"
+      - if: always()
+        run: docker compose down -v

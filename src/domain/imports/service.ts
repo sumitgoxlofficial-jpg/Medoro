@@ -8,9 +8,10 @@ import { daysTo } from "@/lib/dates";
 import { FORMS, GST_RATES, SCHEDULES, endOfMonthIfMonth as endOfMonth, medicineSchema } from "@/domain/inventory/contracts";
 import { supplierSchema } from "@/domain/parties/contracts";
 import { customerSchema } from "@/domain/sales/contracts";
-import { createMedicine, receiveBatch } from "@/domain/inventory/service";
-import { saveCustomer, saveSupplier } from "@/domain/parties/service";
+import { createMedicineIn, receiveBatchIn } from "@/domain/inventory/service";
+import { saveCustomerIn, saveSupplierIn } from "@/domain/parties/service";
 import { cleanNumber, headerKey, parseExpiry, readTable, yes, type Table } from "./parse";
+import { parseComposition } from "@/domain/inventory/salts";
 
 export const IMPORT_KINDS = ["medicines", "suppliers", "customers"] as const;
 export type ImportKind = (typeof IMPORT_KINDS)[number];
@@ -20,14 +21,19 @@ export const MAX_ROWS = 5000;
 const COLS: Record<ImportKind, { key: string; label: string; required?: boolean; aliases: string[] }[]> = {
   medicines: [
     { key: "name", label: "Brand name", required: true, aliases: ["name", "brand", "brandname", "medicine", "medicinename", "product", "productname", "item", "itemname"] },
-    { key: "generic", label: "Generic / salt", required: true, aliases: ["generic", "salt", "genericname", "composition", "molecule"] },
-    { key: "strength", label: "Strength", required: true, aliases: ["strength", "dose", "potency"] },
+    { key: "generic", label: "Generic / salt", aliases: ["generic", "salt", "genericname", "molecule"] },
+    { key: "strength", label: "Strength", aliases: ["strength", "dose", "potency"] },
+    { key: "composition", label: "Composition", aliases: ["composition", "saltcomposition", "salts", "contents", "content"] },
     { key: "form", label: "Form", required: true, aliases: ["form", "dosageform", "type"] },
     { key: "manufacturer", label: "Manufacturer", required: true, aliases: ["manufacturer", "company", "mfr", "mfg", "brandowner"] },
-    { key: "pack", label: "Pack", aliases: ["pack", "packsize", "packing", "unitsperpack"] },
+    { key: "pack", label: "Pack", aliases: ["pack", "packsize", "packing"] },
+    { key: "packSize", label: "Units per pack", aliases: ["unitsperpack", "unitsperstrip", "tabsperstrip", "conversion", "packqty"] },
+    { key: "packUnit", label: "Pack unit", aliases: ["packunit", "packtype"] },
+    { key: "looseUnit", label: "Loose unit", aliases: ["looseunit", "baseunit"] },
+    { key: "allowLoose", label: "Sell loose (yes/no)", aliases: ["allowloose", "loose", "sellloose", "loosesale"] },
     { key: "mrp", label: "MRP", required: true, aliases: ["mrp", "mrpperpack", "price"] },
     { key: "gstRate", label: "GST %", required: true, aliases: ["gst", "gstrate", "gstpercent", "tax", "taxrate"] },
-    { key: "schedule", label: "Schedule", aliases: ["schedule", "drugschedule", "sch"] },
+    { key: "schedule", label: "Schedule", aliases: ["schedule", "drugschedule", "sch", "scheduletype", "drugcategory"] },
     { key: "hsn", label: "HSN", aliases: ["hsn", "hsncode"] },
     { key: "barcode", label: "Barcode", aliases: ["barcode", "ean", "upc"] },
     { key: "reorderLevel", label: "Reorder level", aliases: ["reorderlevel", "reorder", "minstock", "minimumstock"] },
@@ -51,12 +57,13 @@ const COLS: Record<ImportKind, { key: string; label: string; required?: boolean;
     { key: "creditLimit", label: "Credit limit", aliases: ["creditlimit", "limit"] },
     { key: "opening", label: "Opening balance (they owe)", aliases: ["opening", "openingbalance", "balance", "due", "receivable", "outstanding"] },
     { key: "waOptIn", label: "WhatsApp opt-in (yes/no)", aliases: ["waoptin", "whatsappoptin", "optin", "consent"] },
+    { key: "gstin", label: "GSTIN (B2B)", aliases: ["gstin", "gst", "gstno", "gstnumber"] },
   ],
 };
 
 export const templateHeader = (kind: ImportKind) => COLS[kind].map((c) => c.label);
 export const TEMPLATE_EXAMPLE: Record<ImportKind, string[]> = {
-  medicines: ["Dolo 650", "Paracetamol", "650 mg", "Tablet", "Micro Labs", "15", "33.60", "12", "", "3004", "8901234567890", "20", "A1", "DL24091", "11/2027", "40", "24.50"],
+  medicines: ["Dolo 650", "Paracetamol", "650 mg", "Paracetamol 650mg", "Tablet", "Micro Labs", "15 tabs", "15", "strip", "tab", "yes", "33.60", "12", "", "3004", "8901234567890", "20", "A1", "DL24091", "11/2027", "40", "24.50"],
   suppliers: ["Mahavir Medical Agencies", "27AABCM1234F1Z5", "9822012345", "30", "2", "0"],
   customers: ["Ramesh Kulkarni", "9890112345", "2000", "0", "yes"],
 };
@@ -76,15 +83,23 @@ function mapColumns(kind: ImportKind, t: Table) {
     if (i >= 0) idx[c.key] = i;
     return { label: c.label, found: i >= 0 ? t[0][i] : null, required: !!c.required };
   });
-  const missing = columns.filter((c) => c.required && !c.found).map((c) => c.label);
+  const has = (label: string) => columns.some((c) => c.label === label && c.found);
+  // A composition column ("Paracetamol 500mg + Caffeine 25mg") can stand in for generic; strength is checked per row.
+  const salt = kind === "medicines" && !has("Composition") && !has("Generic / salt") ? ["Generic / salt"] : [];
+  const missing = [...columns.filter((c) => c.required && !c.found).map((c) => c.label), ...salt];
   if (missing.length) throw new UserError(`Missing column${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Download the template to see the expected headers.`);
   const rows: Mapped[] = t.slice(1).map((r, i) => ({ line: i + 2, v: Object.fromEntries(Object.entries(idx).map(([k, j]) => [k, (r[j] ?? "").trim()])) }));
   return { columns, rows };
 }
 
 const zodErrors = (e: z.ZodError) => e.issues.map((i) => i.message);
+const nameKey = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const formOf = (s: string) => FORMS.find((f) => f.toLowerCase() === s.toLowerCase().replace(/s$/, "") || f.toLowerCase() === s.toLowerCase()) ?? null;
-const scheduleOf = (s: string) => { const v = s.toUpperCase().replace(/SCHEDULE|SCH\.?|\s/g, ""); return (SCHEDULES as readonly string[]).includes(v) ? v : null; };
+const scheduleOf = (s: string) => {
+  const v = s.toUpperCase().replace(/SCHEDULE|SCH\.?|\s/g, "");
+  const n = /^(NDPS|NARCOTICS?|PSYCHOTROPIC|NRX)$/.test(v) ? "NDPS" : v === "OTC" || v === "NONE" ? "" : v;
+  return (SCHEDULES as readonly string[]).includes(n) ? n : null;
+};
 
 /** Validates every row and works out what importing it would do. Nothing is written. */
 async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
@@ -94,12 +109,13 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
   if (kind === "medicines") {
     authorizeAny(ctx, "adjust", "purchase");
     const [meds, batches] = await Promise.all([
-      db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { id: true, name: true, strength: true, barcode: true } }),
+      db.medicine.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true, strength: true, barcode: true, active: true } }),
       db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId }, select: { medicineId: true, batchNo: true } }),
     ]);
     const key = (n: string, s: string) => `${n.toLowerCase()}|${s.toLowerCase()}`;
-    const existing = new Map(meds.map((m) => [key(m.name, m.strength), m.id]));
-    const barcodes = new Set(meds.map((m) => m.barcode).filter(Boolean));
+    const existing = new Map(meds.filter((m) => m.active).map((m) => [key(m.name, m.strength), m.id]));
+    const barcodes = new Set(meds.map((m) => m.barcode).filter(Boolean)); // unique across inactive medicines too
+    const fileBarcodes = new Map<string, { k: string; line: number }>();
     const batchSet = new Set(batches.map((b) => `${b.medicineId}|${b.batchNo}`));
     const seenMed = new Map<string, number>(), seenBatch = new Set<string>();
     for (const { line, v } of rows) {
@@ -107,10 +123,17 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
       const form = formOf(v.form ?? "");
       if (!form) errors.push(`Form “${v.form}” isn’t one of: ${FORMS.join(", ")}.`);
       const schedule = scheduleOf(v.schedule ?? "");
-      if (schedule === null) errors.push(`Schedule “${v.schedule}” should be blank, H, H1, X or G.`);
+      if (schedule === null) errors.push(`Schedule “${v.schedule}” should be blank, H, H1, X, G or NDPS (narcotic).`);
       const gst = cleanNumber(v.gstRate ?? "");
       if (!(GST_RATES as readonly number[]).includes(Number(gst))) errors.push(`GST “${v.gstRate}” should be 0, 5, 12, 18 or 28.`);
-      const med = { name: v.name, generic: v.generic, strength: v.strength, form: form ?? "Other", manufacturer: v.manufacturer, pack: v.pack ?? "", mrp: cleanNumber(v.mrp ?? ""), gstRate: gst || "0", schedule: schedule ?? "", reorderLevel: cleanNumber(v.reorderLevel ?? "") || "10", barcode: v.barcode ?? "", hsn: v.hsn || "3004", rack: v.rack ?? "" };
+      // A salt column with strengths in it ("Paracetamol 500mg + Caffeine 25mg") is a composition.
+      const composition = v.composition || (/\d/.test(v.generic ?? "") ? v.generic! : "");
+      const salts = composition ? parseComposition(composition) : [];
+      const generic = !v.generic || /\d/.test(v.generic) ? salts.map((x) => x.name).join(" + ") || (v.generic ?? "") : v.generic;
+      const strength = v.strength || salts.map((x) => x.strength).filter(Boolean).join(" + ");
+      const packSize = cleanNumber(v.packSize ?? "") || "1";
+      const med = { name: v.name, generic, strength, form: form ?? "Other", manufacturer: v.manufacturer, pack: v.pack ?? "", mrp: cleanNumber(v.mrp ?? ""), gstRate: gst || "0", schedule: schedule ?? "", reorderLevel: cleanNumber(v.reorderLevel ?? "") || "10", barcode: v.barcode ?? "", hsn: v.hsn || "3004", rack: v.rack ?? "",
+        composition, packSize, packUnit: v.packUnit ?? "", looseUnit: v.looseUnit ?? "", allowLoose: yes(v.allowLoose ?? "") && Number(packSize) > 1 };
       const p = medicineSchema.safeParse(med);
       if (!p.success) errors.push(...zodErrors(p.error));
       const k = key(v.name ?? "", v.strength ?? "");
@@ -118,6 +141,11 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
       const firstLine = seenMed.get(k);
       if (!medId && firstLine === undefined) seenMed.set(k, line);
       if (!medId && v.barcode && barcodes.has(v.barcode)) errors.push(`Barcode ${v.barcode} is already used by another medicine.`);
+      const bc = fileBarcodes.get(v.barcode ?? "");
+      if (!medId && firstLine === undefined && v.barcode) {
+        if (bc && bc.k !== k) errors.push(`Barcode ${v.barcode} is also on row ${bc.line} for a different medicine.`);
+        else if (!bc) fileBarcodes.set(v.barcode, { k, line });
+      }
 
       let stock: { batchNo: string; expiry: string; qty: string; cost: string; mrp: string } | null = null;
       const bk = `${medId ?? k}|${(v.batch ?? "").toUpperCase()}`;
@@ -163,20 +191,24 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
 
   if (kind === "customers") {
     authorizeAny(ctx, "sale");
-    const phones = new Set((await db.customer.findMany({ where: { tenantId: ctx.tenantId, phone: { not: null } }, select: { phone: true } })).map((c) => c.phone!));
+    const all = await db.customer.findMany({ where: { tenantId: ctx.tenantId }, select: { phone: true, name: true, erasedAt: true } });
+    const phones = new Set(all.filter((c) => c.phone).map((c) => c.phone!));
+    // Customers without a mobile can only be told apart by name.
+    const phoneless = new Set(all.filter((c) => !c.phone && !c.erasedAt).map((c) => nameKey(c.name)));
     const seen = new Map<string, number>();
     for (const { line, v } of rows) {
-      const input = { name: v.name, phone: v.phone ?? "", creditLimit: cleanNumber(v.creditLimit ?? "") || "0", waOptIn: yes(v.waOptIn ?? ""), opening: cleanNumber(v.opening ?? "") || "0" };
+      const input = { name: v.name, phone: v.phone ?? "", creditLimit: cleanNumber(v.creditLimit ?? "") || "0", waOptIn: yes(v.waOptIn ?? ""), opening: cleanNumber(v.opening ?? "") || "0", consentMethod: "import" as const, gstin: v.gstin ?? "" };
       const p = customerSchema.safeParse(input);
       const errors = p.success ? [] : zodErrors(p.error);
       if (Number(input.creditLimit) > 0 && !can(ctx, "credit")) errors.push("Credit limits need the credit permission.");
       if (Number(input.opening) > 0 && !can(ctx, "payments")) errors.push("Opening balances need the payments permission.");
       if (!/^\d*(\.\d+)?$/.test(input.opening)) errors.push(`Opening balance “${v.opening}” isn’t a number.`);
       const ph = p.success ? p.data.phone : "";
-      const dupLine = ph ? seen.get(ph) : undefined;
-      if (ph && !seen.has(ph)) seen.set(ph, line);
-      const exists = !!ph && (phones.has(ph) || dupLine !== undefined);
-      out.push({ line, label: v.name ?? "", action: exists ? "skip" : "create", note: exists ? `Mobile already on file${dupLine ? ` (row ${dupLine})` : ""}` : "New customer", errors: exists ? [] : errors, input });
+      const nk = ph || "name:" + nameKey(v.name ?? "");
+      const dupLine = nk !== "name:" ? seen.get(nk) : undefined;
+      if (nk !== "name:" && !seen.has(nk)) seen.set(nk, line);
+      const exists = ph ? phones.has(ph) || dupLine !== undefined : nk !== "name:" && (phoneless.has(nameKey(v.name ?? "")) || dupLine !== undefined);
+      out.push({ line, label: v.name ?? "", action: exists ? "skip" : "create", note: exists ? `${ph ? "Mobile" : "Customer without mobile"} already on file${dupLine ? ` (row ${dupLine})` : ""}` : "New customer", errors: exists ? [] : errors, input });
     }
   }
 
@@ -197,37 +229,40 @@ function tableOf(fileName: string, bytes: Uint8Array) {
 }
 
 /**
- * Re-validates the file on the server and imports rows without errors through the same
+ * Re-validates the file on the server and imports it all-or-nothing in one transaction, through the same
  * services the screens use. Re-running the same file is safe: rows already imported are skipped.
  */
 export async function runImport(ctx: Ctx, kind: ImportKind, fileName: string, bytes: Uint8Array) {
   const { preview, work } = await plan(ctx, kind, tableOf(fileName, bytes));
   if (preview.bad) throw new UserError(`${preview.bad} row${preview.bad > 1 ? "s have" : " has"} problems. Fix them in the file and upload it again.`);
-  let created = 0, stocked = 0;
-  const failed: string[] = [];
-  const medIds = new Map<string, string>();
-  for (const r of work) {
-    if (r.action === "skip") continue;
-    try {
-      if (kind === "medicines") {
-        const { med, stock, key } = r.input as { med: Parameters<typeof createMedicine>[1]; stock: { batchNo: string; expiry: string; qty: string; cost: string; mrp: string } | null; key: string };
-        let id = medIds.get(key);
-        if (!id) {
-          const found = await db.medicine.findFirst({ where: { tenantId: ctx.tenantId, active: true, name: { equals: String(med.name), mode: "insensitive" }, strength: { equals: String(med.strength), mode: "insensitive" } }, select: { id: true } });
-          id = found?.id ?? (await createMedicine(ctx, med));
-          if (!found) created++;
-          medIds.set(key, id);
+  const { created, stocked } = await db.$transaction(async (tx) => {
+    let created = 0, stocked = 0;
+    const medIds = new Map<string, string>();
+    for (const r of work) {
+      if (r.action === "skip") continue;
+      try {
+        if (kind === "medicines") {
+          const { med, stock, key } = r.input as { med: Parameters<typeof createMedicineIn>[2]; stock: { batchNo: string; expiry: string; qty: string; cost: string; mrp: string } | null; key: string };
+          let id = medIds.get(key);
+          if (!id) {
+            const found = await tx.medicine.findFirst({ where: { tenantId: ctx.tenantId, active: true, name: { equals: String(med.name), mode: "insensitive" }, strength: { equals: String(med.strength), mode: "insensitive" } }, select: { id: true } });
+            id = found?.id ?? (await createMedicineIn(tx, ctx, med));
+            if (!found) created++;
+            medIds.set(key, id);
+          }
+          if (stock) { await receiveBatchIn(tx, ctx, { medicineId: id, batchNo: stock.batchNo, expiry: stock.expiry, qty: stock.qty, cost: stock.cost, mrp: stock.mrp, supplierId: null, invoiceNo: "" }); stocked++; }
+        } else if (kind === "suppliers") {
+          await saveSupplierIn(tx, ctx, null, r.input as Parameters<typeof saveSupplierIn>[3]); created++;
+        } else {
+          await saveCustomerIn(tx, ctx, null, r.input as Parameters<typeof saveCustomerIn>[3], "import"); created++;
         }
-        if (stock) { await receiveBatch(ctx, { medicineId: id, batchNo: stock.batchNo, expiry: stock.expiry, qty: stock.qty, cost: stock.cost, mrp: stock.mrp, supplierId: null, invoiceNo: "" }); stocked++; }
-      } else if (kind === "suppliers") {
-        await saveSupplier(ctx, null, r.input as Parameters<typeof saveSupplier>[2]); created++;
-      } else {
-        await saveCustomer(ctx, null, r.input as Parameters<typeof saveCustomer>[2]); created++;
+      } catch (e) {
+        if (e instanceof UserError) throw new UserError(`Row ${r.line}: ${e.message} Nothing was imported.`);
+        throw e;
       }
-    } catch (e) {
-      failed.push(`Row ${r.line}: ${e instanceof Error && e instanceof UserError ? e.message : "couldn’t be saved"}`);
     }
-  }
-  await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Data imported", entity: "import", detail: `${kind} from ${fileName.slice(0, 80)} · ${created} created${kind === "medicines" ? `, ${stocked} batches` : ""}, ${preview.skip} skipped${failed.length ? `, ${failed.length} failed` : ""}` });
-  return { created, stocked, skipped: preview.skip, failed };
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Data imported", entity: "import", detail: `${kind} from ${fileName.slice(0, 80)} · ${created} created${kind === "medicines" ? `, ${stocked} batches` : ""}, ${preview.skip} skipped` });
+    return { created, stocked };
+  }, { maxWait: 10_000, timeout: 600_000 }); // up to MAX_ROWS rows, several statements each
+  return { created, stocked, skipped: preview.skip, failed: [] as string[] };
 }

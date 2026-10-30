@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { SwRegister } from "@/components/sw-register";
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
@@ -13,6 +14,7 @@ import "@fontsource/ibm-plex-sans-condensed/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL ?? "https://medoro.in"),
   title: { default: "Medoro", template: "%s · Medoro" },
   description: "Smarter Pharmacy. Simpler Business. Pharmacy management for Indian medical stores.",
   icons: { icon: "/medoro-mark.png", apple: "/icons/apple-touch-icon.png" },
@@ -22,7 +24,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#0B5E5B" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Reading the request headers renders every page per request, so Next.js can stamp the CSP nonce
+// from middleware.ts on its scripts (a prerendered page would carry no nonce and be blocked).
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await headers();
   return (
     <html lang="en">
       <body>{children}<SwRegister /></body>

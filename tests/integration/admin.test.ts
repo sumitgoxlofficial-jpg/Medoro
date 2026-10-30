@@ -30,6 +30,27 @@ describe("team and roles", () => {
     expect((await db.invite.findFirstOrThrow({ where: { code: r.code } })).userId).toBe(u.id);
   });
 
+  it("switching between PIN and password roles needs the new credential", async () => {
+    const ctx = await ctxFor();
+    const t = await db.tenant.findFirstOrThrow();
+    const cashier = await db.role.findFirstOrThrow({ where: { tenantId: t.id, name: "Cashier" } });
+    const u = await db.user.create({ data: { tenantId: t.id, name: "Kiran", email: "kiran@test.in", phone: "9850021999", roleId: cashier.id, employeeNo: "E-150", pinHash: "x" } });
+    await expect(updateMember(ctx, u.id, { role: "Manager" })).rejects.toThrow(/Set a password/);
+    await expect(updateMember(ctx, u.id, { role: "Manager", password: "short" })).rejects.toThrow(/10 characters/);
+    await updateMember(ctx, u.id, { role: "Manager", password: "a-long-password" });
+    let after = await db.user.findUniqueOrThrow({ where: { id: u.id }, include: { role: true } });
+    expect(after.role.name).toBe("Manager"); expect(after.mfaRequired).toBe(true);
+    expect(after.passwordHash).toBeTruthy(); expect(after.pinHash).toBeNull();
+
+    await expect(updateMember(ctx, u.id, { role: "Cashier" })).rejects.toThrow(/PIN/);
+    await expect(updateMember(ctx, u.id, { role: "Cashier", pin: "1234" })).rejects.toThrow(/easy/);
+    await updateMember(ctx, u.id, { role: "Cashier", pin: "4826" });
+    after = await db.user.findUniqueOrThrow({ where: { id: u.id }, include: { role: true } });
+    expect(after.role.name).toBe("Cashier"); expect(after.mfaRequired).toBe(false);
+    expect(after.pinHash).toBeTruthy(); expect(after.passwordHash).toBeNull();
+    await updateMember(ctx, u.id, { role: "Pharmacist" }); // PIN role to PIN role: no new credential needed
+  });
+
   it("branches and audit chain", async () => {
     const ctx = await ctxFor();
     await saveBranch(ctx, null, { name: "Aundh", address: "DP Road" });
