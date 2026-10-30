@@ -5,6 +5,7 @@ import { createMedicine } from "@/domain/inventory/service";
 import { requestTransfer } from "@/domain/inventory/adjust";
 import { commitSale, invoiceData, posCustomers } from "@/domain/sales/service";
 import { processReturn } from "@/domain/sales/returns";
+import { voidSale } from "@/domain/sales/void";
 import { postGrnTx } from "@/domain/purchasing/service";
 import { saveCustomer, saveSupplier } from "@/domain/parties/service";
 import { accountsOverview, periodOf, trialBalance } from "@/domain/accounting/service";
@@ -195,5 +196,17 @@ describe("GST compliance", () => {
     const ewb = irpCalls.at(-1)!.body as { action: string; data: { subSupplyType: string; docType: string; totInvValue: number; fromPincode: number } };
     expect(ewb).toMatchObject({ action: "GENEWAYBILL", data: { subSupplyType: "5", docType: "CHL", totInvValue: 80000, fromPincode: 411005 } });
     expect((await db.auditEvent.findMany({ where: { action: { in: ["IRN generated", "IRN cancelled", "E-way bill generated"] } } })).length).toBe(4);
+  });
+
+  it("reports a voided bill as a cancelled document, not as a supply", async () => {
+    const ctx = await ctxFor();
+    const b = await db.batch.findFirstOrThrow({ where: { batchNo: "TL1" } });
+    const before = (await gstr1For(ctx, HOME)).json;
+    const id = (await commitSale(ctx, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: b.id, qty: 2 }], customerId: null, discountPct: 0, pay: { mode: "cash" } })).saleId;
+    await voidSale(ctx, id, "Wrong items billed");
+    const g = (await gstr1For(ctx, HOME)).json;
+    expect(g.b2cs).toEqual(before.b2cs);
+    expect(g.hsn!.hsn_b2c).toEqual(before.hsn!.hsn_b2c);
+    expect(g.doc_issue!.doc_det[0].docs[0]).toMatchObject({ totnum: 4, cancel: 2, net_issue: 2 });
   });
 });

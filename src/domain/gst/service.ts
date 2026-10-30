@@ -86,13 +86,19 @@ export function monthPeriod(month: string | undefined): Period & { month: string
 
 type SaleRow = Prisma.SaleGetPayload<{ include: { items: true } }>;
 
-/** IRNs cancelled at the IRP: those invoices are withdrawn from GSTR-1 (with the credit notes that reversed them). */
+/**
+ * Invoices withdrawn from GSTR-1 and reported as cancelled documents: IRNs cancelled at the IRP (with the credit notes
+ * that reversed them) and bills voided on the day they were made.
+ */
 async function cancelledIrnSales(tenantId: string, saleIds: string[]) {
   if (!saleIds.length) return new Set<string>();
-  const rows = await db.eInvoice.findMany({ where: { tenantId, docType: "sale", docId: { in: saleIds }, kind: { in: ["irn", "irn_cancel"] } }, orderBy: { at: "asc" } });
+  const [rows, voids] = await Promise.all([
+    db.eInvoice.findMany({ where: { tenantId, docType: "sale", docId: { in: saleIds }, kind: { in: ["irn", "irn_cancel"] } }, orderBy: { at: "asc" } }),
+    db.saleVoid.findMany({ where: { tenantId, saleId: { in: saleIds } }, select: { saleId: true } }),
+  ]);
   const last = new Map<string, string>();
   for (const r of rows) last.set(r.docId, r.kind);
-  return new Set([...last].filter(([, k]) => k === "irn_cancel").map(([id]) => id));
+  return new Set([...[...last].filter(([, k]) => k === "irn_cancel").map(([id]) => id), ...voids.map((v) => v.saleId)]);
 }
 
 /**
@@ -156,7 +162,7 @@ export async function gstDocs(tenantId: string, branchIds: string[], p: Period) 
   }
   const warnings = [
     ...docs.filter((d) => d.no.length > 16).slice(0, 1).map((d) => `Document numbers longer than 16 characters (e.g. ${d.no}) are rejected by the GST portal and the IRP. Use a shorter invoice prefix.`),
-    ...(cancelled.length ? [`${cancelled.length} invoice(s) with a cancelled IRN are reported as cancelled documents: ${cancelled.join(", ")}.`] : []),
+    ...(cancelled.length ? [`${cancelled.length} voided invoice(s) or invoice(s) with a cancelled IRN are reported as cancelled documents: ${cancelled.join(", ")}.`] : []),
   ];
   return { docs, cancelled, warnings };
 }
