@@ -17,6 +17,8 @@ export const saleSchema = z.object({
   rxNo: z.string().trim().max(60).optional(),
   // Manager approval for a discount above the cashier's cap (see approval.ts).
   approval: z.string().max(100).optional(),
+  prescriberReg: z.string().trim().max(40).optional(),
+  patientName: z.string().trim().max(120).optional(),
 });
 export type SaleInput = z.infer<typeof saleSchema>;
 

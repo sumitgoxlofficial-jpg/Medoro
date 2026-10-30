@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const FORMS = ["Tablet", "Capsule", "Syrup", "Suspension", "Injection", "Gel", "Cream", "Ointment", "Drops", "Sachet", "Powder", "Inhaler", "Device", "Other"] as const;
 export const GST_RATES = [0, 5, 12, 18, 28] as const;
-export const SCHEDULES = ["", "H", "H1", "X", "G"] as const;
+/** Drug schedules: H, H1 and X (Drugs and Cosmetics Rules), G, and NDPS (narcotic and psychotropic substances). */
+export const SCHEDULES = ["", "H", "H1", "X", "G", "NDPS"] as const;
 
 const rupees = (msg: string) => z.union([z.string(), z.number()]).transform((v) => Math.round(parseFloat(String(v)) * 100)).refine((p) => Number.isFinite(p) && p > 0, msg);
 

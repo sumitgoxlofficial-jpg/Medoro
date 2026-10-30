@@ -27,7 +27,7 @@ const COLS: Record<ImportKind, { key: string; label: string; required?: boolean;
     { key: "pack", label: "Pack", aliases: ["pack", "packsize", "packing", "unitsperpack"] },
     { key: "mrp", label: "MRP", required: true, aliases: ["mrp", "mrpperpack", "price"] },
     { key: "gstRate", label: "GST %", required: true, aliases: ["gst", "gstrate", "gstpercent", "tax", "taxrate"] },
-    { key: "schedule", label: "Schedule", aliases: ["schedule", "drugschedule", "sch"] },
+    { key: "schedule", label: "Schedule", aliases: ["schedule", "drugschedule", "sch", "scheduletype", "drugcategory"] },
     { key: "hsn", label: "HSN", aliases: ["hsn", "hsncode"] },
     { key: "barcode", label: "Barcode", aliases: ["barcode", "ean", "upc"] },
     { key: "reorderLevel", label: "Reorder level", aliases: ["reorderlevel", "reorder", "minstock", "minimumstock"] },
@@ -85,7 +85,11 @@ function mapColumns(kind: ImportKind, t: Table) {
 const zodErrors = (e: z.ZodError) => e.issues.map((i) => i.message);
 const nameKey = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const formOf = (s: string) => FORMS.find((f) => f.toLowerCase() === s.toLowerCase().replace(/s$/, "") || f.toLowerCase() === s.toLowerCase()) ?? null;
-const scheduleOf = (s: string) => { const v = s.toUpperCase().replace(/SCHEDULE|SCH\.?|\s/g, ""); return (SCHEDULES as readonly string[]).includes(v) ? v : null; };
+const scheduleOf = (s: string) => {
+  const v = s.toUpperCase().replace(/SCHEDULE|SCH\.?|\s/g, "");
+  const n = /^(NDPS|NARCOTICS?|PSYCHOTROPIC|NRX)$/.test(v) ? "NDPS" : v === "OTC" || v === "NONE" ? "" : v;
+  return (SCHEDULES as readonly string[]).includes(n) ? n : null;
+};
 
 /** Validates every row and works out what importing it would do. Nothing is written. */
 async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
@@ -109,7 +113,7 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
       const form = formOf(v.form ?? "");
       if (!form) errors.push(`Form “${v.form}” isn’t one of: ${FORMS.join(", ")}.`);
       const schedule = scheduleOf(v.schedule ?? "");
-      if (schedule === null) errors.push(`Schedule “${v.schedule}” should be blank, H, H1, X or G.`);
+      if (schedule === null) errors.push(`Schedule “${v.schedule}” should be blank, H, H1, X, G or NDPS (narcotic).`);
       const gst = cleanNumber(v.gstRate ?? "");
       if (!(GST_RATES as readonly number[]).includes(Number(gst))) errors.push(`GST “${v.gstRate}” should be 0, 5, 12, 18 or 28.`);
       const med = { name: v.name, generic: v.generic, strength: v.strength, form: form ?? "Other", manufacturer: v.manufacturer, pack: v.pack ?? "", mrp: cleanNumber(v.mrp ?? ""), gstRate: gst || "0", schedule: schedule ?? "", reorderLevel: cleanNumber(v.reorderLevel ?? "") || "10", barcode: v.barcode ?? "", hsn: v.hsn || "3004", rack: v.rack ?? "" };
@@ -176,7 +180,7 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
     const phoneless = new Set(all.filter((c) => !c.phone && !c.erasedAt).map((c) => nameKey(c.name)));
     const seen = new Map<string, number>();
     for (const { line, v } of rows) {
-      const input = { name: v.name, phone: v.phone ?? "", creditLimit: cleanNumber(v.creditLimit ?? "") || "0", waOptIn: yes(v.waOptIn ?? ""), opening: cleanNumber(v.opening ?? "") || "0" };
+      const input = { name: v.name, phone: v.phone ?? "", creditLimit: cleanNumber(v.creditLimit ?? "") || "0", waOptIn: yes(v.waOptIn ?? ""), opening: cleanNumber(v.opening ?? "") || "0", consentMethod: "import" as const };
       const p = customerSchema.safeParse(input);
       const errors = p.success ? [] : zodErrors(p.error);
       if (Number(input.creditLimit) > 0 && !can(ctx, "credit")) errors.push("Credit limits need the credit permission.");
@@ -233,7 +237,7 @@ export async function runImport(ctx: Ctx, kind: ImportKind, fileName: string, by
         } else if (kind === "suppliers") {
           await saveSupplierIn(tx, ctx, null, r.input as Parameters<typeof saveSupplierIn>[3]); created++;
         } else {
-          await saveCustomerIn(tx, ctx, null, r.input as Parameters<typeof saveCustomerIn>[3]); created++;
+          await saveCustomerIn(tx, ctx, null, r.input as Parameters<typeof saveCustomerIn>[3], "import"); created++;
         }
       } catch (e) {
         if (e instanceof UserError) throw new UserError(`Row ${r.line}: ${e.message} Nothing was imported.`);

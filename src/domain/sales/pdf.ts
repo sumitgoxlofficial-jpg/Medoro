@@ -78,6 +78,7 @@ export async function invoicePdf(inv: Invoice): Promise<Uint8Array> {
     text(k, 340, bold ? 11 : 9, bold ? b : f); right(rs(v), 555, bold ? 11 : 9, bold ? b : f); y -= bold ? 18 : 13;
   }
   y -= 6; text(`Paid by ${inv.payments.map((p) => p.mode.toUpperCase()).join(" + ")}. Prices are MRP inclusive of GST.`, 40); y -= 12;
+  if (inv.pharmacy.grievance) { text(inv.pharmacy.grievance, 40, 8); y -= 11; }
   text("Computer-generated invoice from Medoro.", 40, 8, f, rgb(0.45, 0.45, 0.45));
 
   const pages = doc.getPages();

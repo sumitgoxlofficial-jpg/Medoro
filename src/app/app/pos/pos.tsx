@@ -17,7 +17,7 @@ import { addCustomerAction, approveDiscountAction, commitSaleAction, holdAction,
 type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number };
 type Line = { key: string; medicineId: string; batchId: string; qty: number };
 type Pay = "cash" | "upi" | "card" | "split" | "credit";
-type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string };
+type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string; docreg?: string; patient?: string };
 type Dict = { search: string; cart: string; customer: string; payment: string; total: string; complete: string; hold: string };
 
 const empty = (): Cart => ({ lines: [], meds: {}, cust: "", disc: "0", pay: "cash", tender: "", split: "", ref: "", doctor: "", rxno: "" });
@@ -144,7 +144,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })),
       customerId: cart.cust || null, discountPct: disc,
       pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
-      prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined,
+      prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined, prescriberReg: cart.docreg || undefined, patientName: cart.patient || undefined,
     };
     const sig = JSON.stringify(body);
     if (idemRef.current.sig !== null && idemRef.current.sig !== sig) freshKey();
@@ -323,6 +323,10 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
               <div className="text-[12.5px] font-semibold text-bad flex gap-1.5 items-center"><FileText size={14} />Schedule H/H1: prescription required</div>
               <input value={cart.doctor} onChange={(e) => set({ doctor: e.target.value })} placeholder="Prescriber name *" aria-label="Prescriber name" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
               <input value={cart.rxno} onChange={(e) => set({ rxno: e.target.value })} placeholder="Rx / register entry no." aria-label="Prescription number" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
+              {cart.lines.some((l) => ["H1", "X", "NDPS"].includes(cart.meds[l.medicineId]?.schedule ?? "")) ? <>
+                <input value={cart.docreg ?? ""} onChange={(e) => set({ docreg: e.target.value })} placeholder="Prescriber registration no. (H1 register)" aria-label="Prescriber registration number" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
+                {cust ? null : <input value={cart.patient ?? ""} onChange={(e) => set({ patient: e.target.value })} placeholder="Patient name (H1 register)" aria-label="Patient name" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />}
+              </> : null}
             </div>
           ) : null}
         </div>
@@ -495,10 +499,10 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
 }
 
 function NewCustomer({ open, canCredit, onClose, onSaved }: { open: boolean; canCredit: boolean; onClose: () => void; onSaved: (id: string, list: Customer[]) => void }) {
-  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, creditLimit: "" });
+  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, marketingWa: false, creditLimit: "" });
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
-  useEffect(() => { if (open) { setF({ name: "", phone: "", waOptIn: false, creditLimit: "" }); setErr(""); } }, [open]);
+  useEffect(() => { if (open) { setF({ name: "", phone: "", waOptIn: false, marketingWa: false, creditLimit: "" }); setErr(""); } }, [open]);
   const save = () => start(async () => {
     const r = await addCustomerAction(f);
     if (!r.ok) return setErr(r.error);
@@ -511,6 +515,7 @@ function NewCustomer({ open, canCredit, onClose, onSaved }: { open: boolean; can
       <Field label="Mobile"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" placeholder="98220 41736" /></Field>
       {canCredit ? <Field label="Credit limit ₹" hint="Leave 0 for cash-only customers."><Input value={f.creditLimit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
       <Checkbox checked={f.waOptIn} onChange={(e) => setF({ ...f, waOptIn: e.target.checked })} label="Customer agrees to receive invoices and reminders on WhatsApp (recorded with your name and time)" />
+      <Checkbox checked={f.marketingWa} onChange={(e) => setF({ ...f, marketingWa: e.target.checked })} label="Customer also agrees to offers on WhatsApp (marketing, optional)" />
       {err ? <div role="alert" className={cn("text-[13px] text-bad")}>{err}</div> : null}
     </Modal>
   );

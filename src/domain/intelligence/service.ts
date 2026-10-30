@@ -6,7 +6,7 @@ import { UserError } from "@/server/action";
 import { addDays, dateOnly, daysTo, isoOf, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
-import { createPo } from "@/domain/purchasing/service";
+import { createPo, createPoIn } from "@/domain/purchasing/service";
 import { inr } from "@/lib/money";
 import { monthCoverage, seasonalLine } from "./seasonal";
 
@@ -53,11 +53,11 @@ export async function expiryRows(ctx: Ctx, windowDays: number) {
 
 // ───────────── Reorder forecast ─────────────
 
-export async function forecast(ctx: Ctx, policy: { cover: number; safety: number }) {
+export async function forecast(ctx: Ctx, policy: { cover: number; safety: number }, branchId = ctx.branchId) {
   const [meds, stock, vel, lastBatches, sups] = await Promise.all([
     db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, orderBy: { name: "asc" } }),
-    sellableByMedicine(ctx.tenantId, ctx.branchId), velocity(ctx.tenantId, ctx.branchId),
-    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, supplierId: { not: null } }, orderBy: { createdAt: "desc" }, select: { medicineId: true, supplierId: true, costPaise: true } }),
+    sellableByMedicine(ctx.tenantId, branchId), velocity(ctx.tenantId, branchId),
+    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId, supplierId: { not: null } }, orderBy: { createdAt: "desc" }, select: { medicineId: true, supplierId: true, costPaise: true } }),
     db.supplier.findMany({ where: { tenantId: ctx.tenantId } }),
   ]);
   return meds.map((m) => {
@@ -88,6 +88,57 @@ export async function draftFromForecast(ctx: Ctx, policy: { cover: number; safet
   const out = [];
   for (const [s, rs] of bySup) out.push((await createPo(ctx, { supplierId: s, source: "intel", note: `Reorder policy ${policy.cover} d cover, ${policy.safety} d safety`, lines: rs.map((r) => ({ medicineId: r.id, qty: r.suggestion, rate: r.cost / 100 })) })).no);
   return out;
+}
+
+// ───────────── Central buying (multi-branch) ─────────────
+
+type Policy = { cover: number; safety: number };
+
+/**
+ * Reorder suggestions from every branch the user can access, grouped by supplier: one consolidated order per supplier
+ * with the quantity each branch needs. Items without a supplier on record are grouped under supplierId null.
+ */
+export async function centralBuying(ctx: Ctx, policy: Policy) {
+  const per = await Promise.all(ctx.branches.map(async (b) => ({ b, rows: (await forecast(ctx, policy, b.id)).filter((r) => r.suggestion > 0) })));
+  const sups = new Map<string, { supplierId: string | null; supplier: string; value: number; lines: Map<string, { medicineId: string; name: string; rate: number; qty: Record<string, number>; total: number }> }>();
+  for (const { b, rows } of per) for (const r of rows) {
+    const k = r.supplierId ?? "";
+    const s = sups.get(k) ?? { supplierId: r.supplierId, supplier: r.supplier ?? "No supplier on record", value: 0, lines: new Map() };
+    const l = s.lines.get(r.id) ?? { medicineId: r.id, name: r.name, rate: r.cost, qty: {}, total: 0 };
+    l.qty[b.id] = (l.qty[b.id] ?? 0) + r.suggestion; l.total += r.suggestion; l.rate = Math.max(l.rate, r.cost);
+    s.value += r.suggestion * r.cost;
+    s.lines.set(r.id, l); sups.set(k, s);
+  }
+  return {
+    branches: ctx.branches.map((b) => ({ id: b.id, name: b.name, code: b.code })),
+    suppliers: [...sups.values()].sort((a, b) => (a.supplierId ? 0 : 1) - (b.supplierId ? 0 : 1) || b.value - a.value).map((s) => ({ ...s, lines: [...s.lines.values()].sort((a, b) => a.name.localeCompare(b.name)) })),
+  };
+}
+
+/** One click: a draft PO per supplier per branch, delivered to that branch, all created together or not at all. */
+export async function draftCentral(ctx: Ctx, policy: Policy, fallbackSupplierId: string | null) {
+  authorize(ctx, "purchase");
+  if (ctx.branches.length < 2) throw new UserError("Central buying needs access to two or more branches.");
+  const plan = await centralBuying(ctx, policy);
+  if (!plan.suppliers.length) throw new UserError("No branch needs reordering under this policy.");
+  const missing = plan.suppliers.find((s) => !s.supplierId);
+  if (missing && !fallbackSupplierId) throw new UserError(`${missing.lines.length} item(s) have no supplier on record. Choose a default supplier.`);
+  const ref = `Central order ${new Date().toISOString().slice(0, 10)}`;
+  return db.$transaction(async (tx) => {
+    const out: { no: string; branch: string; supplier: string }[] = [];
+    const bySup = new Map<string, typeof plan.suppliers[number]["lines"]>();
+    for (const s of plan.suppliers) { const id = s.supplierId ?? fallbackSupplierId!; bySup.set(id, [...(bySup.get(id) ?? []), ...s.lines]); }
+    for (const [supplierId, lines] of bySup) for (const b of plan.branches) {
+      const mine = lines.filter((l) => l.qty[b.id] > 0);
+      if (!mine.length) continue;
+      const merged = new Map<string, { medicineId: string; qty: number; rate: number }>();
+      for (const l of mine) { const m = merged.get(l.medicineId); merged.set(l.medicineId, { medicineId: l.medicineId, qty: (m?.qty ?? 0) + l.qty[b.id], rate: l.rate / 100 }); }
+      const po = await createPoIn(tx, ctx, { supplierId, source: "intel", note: `${ref} · ${b.name} · ${policy.cover} d cover`, lines: [...merged.values()] }, b.id);
+      out.push({ no: po.no, branch: b.name, supplier: supplierId });
+    }
+    const names = await tx.supplier.findMany({ where: { id: { in: [...bySup.keys()] } }, select: { id: true, name: true } });
+    return out.map((o) => ({ ...o, supplier: names.find((n) => n.id === o.supplier)?.name ?? "" }));
+  }, { timeout: 30000 });
 }
 
 /** Seasonal pre-stock: one draft PO per supplier, each item going to its last supplier unless one is chosen. */

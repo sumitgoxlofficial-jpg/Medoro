@@ -354,7 +354,7 @@ function MedicineModal({ open, edit, onClose, onSaved }: { open: boolean; edit: 
         <Field label="Pack"><Input value={f.pack} onChange={set("pack")} placeholder="e.g. 10 tabs" /></Field>
         <Field label="MRP per pack ₹ *"><Input value={f.mrp} onChange={set("mrp")} inputMode="decimal" /></Field>
         <Field label="GST rate"><Select value={f.gstRate} onChange={set("gstRate")}>{GST_RATES.map((g) => <option key={g} value={g}>GST {g}%</option>)}</Select></Field>
-        <Field label="Schedule"><Select value={f.schedule} onChange={set("schedule")}><option value="">OTC</option><option value="H">Schedule H</option><option value="H1">Schedule H1</option><option value="X">Schedule X</option><option value="G">Schedule G</option></Select></Field>
+        <Field label="Schedule"><Select value={f.schedule} onChange={set("schedule")}><option value="">OTC</option><option value="H">Schedule H</option><option value="H1">Schedule H1</option><option value="X">Schedule X</option><option value="G">Schedule G</option><option value="NDPS">Narcotic (NDPS)</option></Select></Field>
         <Field label="Reorder level"><Input value={f.reorderLevel} onChange={set("reorderLevel")} inputMode="numeric" /></Field>
         <Field label="Barcode"><Input value={f.barcode} onChange={set("barcode")} className="font-mono" placeholder="Scan or type" /></Field>
         <div className="grid grid-cols-2 gap-2.5">

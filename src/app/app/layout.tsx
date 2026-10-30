@@ -8,6 +8,7 @@ import { activeGrantEnd } from "@/domain/identity/support";
 import { accessFor } from "@/domain/system/access";
 import { subscriptionBanner } from "@/domain/system/subscription";
 import { remoteRequests, supportInbox } from "@/domain/system/licence";
+import { effectivePerms } from "@/domain/identity/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <Shell
       tenantName={ctx.tenantName} branchCount={ctx.branches.length} userName={ctx.userName} userEmail={ctx.userEmail}
-      role={ctx.role} realRole={ctx.realRole} canViewAs={user.role.permissions.includes("users")} perms={ctx.perms}
+      role={ctx.role} realRole={ctx.realRole} canViewAs={effectivePerms(user.role.permissions, user.permGrants, user.permRevokes).includes("users")} perms={ctx.perms}
       branchId={ctx.branchId} branchName={ctx.branchName} branches={ctx.branches} lang={ctx.lang} mfa={user.mfaEnabled}
       deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts} ai={{ enabled: ai.enabled, globalOff: ai.globalOff, mode: ai.mode, canManage: ai.canManage }} supportUntil={ctx.readOnly && supportEnd ? hm(supportEnd) : null}
       subscription={banner ? { ...banner, renew: ctx.perms.includes("users") } : null}

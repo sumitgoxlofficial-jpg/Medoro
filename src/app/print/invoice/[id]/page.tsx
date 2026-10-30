@@ -49,6 +49,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <div className="hr" />
         <div className="c">Paid: {payLabel}</div>
         <div className="c">Prices include GST · Thank you</div>
+        {s.pharmacy.grievance ? <div className="c" style={{ fontSize: 10 }}>{s.pharmacy.grievance}</div> : null}
         <AutoPrint />
       </div>
     );
@@ -99,6 +100,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </table>
       </div>
       <div style={{ marginTop: 10 }}>Paid by {payLabel}. Prices are MRP inclusive of GST. Billed by {s.cashier}.</div>
+      {s.pharmacy.grievance ? <div style={{ marginTop: 4, color: "#555", fontSize: 10.5 }}>{s.pharmacy.grievance}</div> : null}
       <div style={{ marginTop: 28, display: "flex", justifyContent: "flex-end" }}><div style={{ borderTop: "1px solid #999", paddingTop: 4, width: 200, textAlign: "center" }}>Authorised signatory</div></div>
       <AutoPrint />
     </div>

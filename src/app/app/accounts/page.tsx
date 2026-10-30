@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
 import { UserError } from "@/server/action";
 import { accountLedger, accountNames, accountsOverview, dayBook, DAY_BOOK_PAGE, periodOf, trialBalance } from "@/domain/accounting/service";
-import { PHARMACY_REPORTS, REPORTS } from "@/domain/accounting/reports";
+import { h1Register, PHARMACY_REPORTS, REPORTS } from "@/domain/accounting/reports";
+import { H1RegisterView } from "./h1";
 import { ACC, EXPENSE_ACCOUNTS } from "@/domain/accounting/accounts";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
@@ -15,7 +16,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const ctx = await requireCtx();
   if (!can(ctx, "reports")) redirect("/app");
   const sp = await searchParams;
-  const view = sp.view === "tb" ? "tb" : sp.view === "ledger" ? "ledger" : "overview";
+  const view = sp.view === "tb" ? "tb" : sp.view === "ledger" ? "ledger" : sp.view === "h1" ? "h1" : "overview";
+  if (view === "h1") {
+    const p = periodOf(sp.period);
+    const rows = await h1Register(ctx.tenantId, ctx.branchId, p);
+    return <><PageHead title={t(ctx.lang).acc} sub={`Schedule H1 register · ${ctx.branchName} · ${p.label}`} /><AccountsTabs view={view} /><H1RegisterView rows={rows} periodKey={p.key} branchName={ctx.branchName} /></>;
+  }
   if (view === "tb") {
     const tb = await trialBalance(ctx, sp.asof);
     return <><PageHead title={t(ctx.lang).acc} sub={`Trial balance as on ${tb.asOf} · all branches`} /><AccountsTabs view={view} /><TrialBalanceView tb={tb} /></>;

@@ -11,6 +11,8 @@ import { discountCap } from "@/domain/identity/permissions";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { customerBalance } from "@/domain/parties/balances";
+import { applyConsents, type ConsentInput } from "@/domain/parties/consent";
+import { invoiceGrievance } from "@/domain/system/privacy";
 import { lockOpenShift } from "./returns";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
 import { consumeApproval, maxDiscount } from "./approval";
@@ -143,7 +145,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const sale = await tx.sale.create({
     data: {
       tenantId: ctx.tenantId, branchId: ctx.branchId, invoiceNo, idempotencyKey: input.idempotencyKey, customerId: customer?.id ?? null,
-      prescriber: rx ? input.prescriber!.trim() : input.prescriber?.trim() || null, rxNo: input.rxNo?.trim() || null,
+      prescriber: rx ? input.prescriber!.trim() : input.prescriber?.trim() || null, rxNo: input.rxNo?.trim() || null, prescriberReg: input.prescriberReg?.trim() || null, patientName: input.patientName?.trim() || null,
       subtotalPaise: BigInt(t.mrpTotal), discountPaise: BigInt(t.discount), discountPct: new Prisma.Decimal(input.discountPct), taxablePaise: BigInt(t.taxable),
       cgstPaise: BigInt(t.cgst), sgstPaise: BigInt(t.sgst), roundOffPaise: BigInt(t.roundOff), totalPaise: BigInt(t.total), costPaise: BigInt(t.cost),
       payMode: m, shiftId: shift?.id ?? null, userId: ctx.userId, ...(at ? { at } : {}),
@@ -195,8 +197,8 @@ export async function invoiceData(ctx: Ctx, saleId: string) {
     db.user.findUnique({ where: { id: s.userId }, select: { name: true } }),
   ]);
   return {
-    id: s.id, invoiceNo: s.invoiceNo, at: s.at.toISOString(), payMode: s.payMode, prescriber: s.prescriber, rxNo: s.rxNo, cashier: user?.name ?? "",
-    pharmacy: { name: tenant.name, legalName: tenant.legalName, gstin: branch.gstin ?? tenant.gstin, address: branch.address, dl: branch.drugLicence, phone: tenant.phone, pharmacist: (tenant.settings as { pharmacist?: string }).pharmacist ?? "" },
+    id: s.id, invoiceNo: s.invoiceNo, at: s.at.toISOString(), payMode: s.payMode, prescriber: s.prescriber, rxNo: s.rxNo, prescriberReg: s.prescriberReg, patientName: s.patientName, cashier: user?.name ?? "",
+    pharmacy: { name: tenant.name, legalName: tenant.legalName, gstin: branch.gstin ?? tenant.gstin, address: branch.address, dl: branch.drugLicence, phone: tenant.phone, pharmacist: (tenant.settings as { pharmacist?: string }).pharmacist ?? "", grievance: invoiceGrievance(tenant) as string | undefined },
     customer: s.customer ? { name: s.customer.name, phone: s.customer.phone, optIn: s.customer.waOptIn } : null,
     lines: s.items.map((i) => {
       const m = meds.find((x) => x.id === i.medicineId)!, b = batches.find((x) => x.id === i.batchId)!;
@@ -237,7 +239,7 @@ export async function posCustomers(ctx: Ctx) {
   return cs.map((c) => ({ id: c.id, name: c.name, phone: c.phone, optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0 }));
 }
 
-export async function createCustomer(ctx: Ctx, raw: CustomerInput) {
+export async function createCustomer(ctx: Ctx, raw: CustomerInput & ConsentInput) {
   authorize(ctx, "sale");
   const i = customerSchema.parse(raw);
   if (i.creditLimit > 0 && !can(ctx, "credit")) throw new UserError("Your role cannot set a credit limit.");
@@ -245,7 +247,8 @@ export async function createCustomer(ctx: Ctx, raw: CustomerInput) {
   return db.$transaction(async (tx) => {
     if (i.phone && (await tx.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: i.phone } }))) throw new UserError("A customer with this mobile number already exists.");
     const c = await tx.customer.create({ data: { tenantId: ctx.tenantId, name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Counter, recorded by ${ctx.userName}` : null, creditLimitPaise: BigInt(i.creditLimit) } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Customer added", entity: "customer", entityId: c.id, detail: `${c.name}${c.waOptIn ? " · WhatsApp opt-in" : ""}` });
+    const consents = await applyConsents(tx, ctx, c, null, raw, "pos");
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Customer added", entity: "customer", entityId: c.id, detail: `${c.name}${consents.length ? " · consent " + consents.join(", ") : ""}` });
     return c.id;
   });
 }

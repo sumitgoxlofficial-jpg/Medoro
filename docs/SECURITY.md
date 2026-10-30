@@ -22,7 +22,7 @@
 - Only an account that already connected this Google subject signs in, and it still goes through the MFA step. A first Google sign-in whose verified email matches exactly one active password account is never linked by email alone: the person must enter that account's password, which completes the link. Deactivated or locked accounts are refused. Link, unlink and sign-ins are audited.
 
 ## Authorisation
-- Permission keys (sale, disc, credit, refund, adjust, purchase, payments, reports, users, integrations, aiAct), assigned per role and overridable per user.
+- Permission keys (sale, disc, credit, refund, adjust, purchase, payments, reports, users, integrations, aiAct), assigned per role and overridable per user: the owner or a user manager can allow or withhold single permissions for one person on top of their role (Users → shield icon). Effective permissions = role ∪ grants − revokes, computed on every request; only the owner can grant `users` or `integrations`; the owner's own permissions are locked; every change is audited. "View as" still only narrows.
 - Every service call runs through `authorize(ctx, perm)`, and every query carries the caller's `tenantId` (and branch where relevant) from the server-side session, never from the client.
 
 ## Tenant isolation

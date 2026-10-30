@@ -11,9 +11,24 @@ export const metadata: Metadata = { title: "Company, help and legal · Medoro", 
 
 type Sec = { id: string; icon: typeof Shield; kicker: string; title: string; intro: string; points: string[]; cta?: [string, string, typeof Shield] };
 
-const SECTIONS: Sec[] = [
-  { id: "about", icon: Building2, kicker: "Company", title: "About Medoro", intro: "Medoro builds pharmacy software for Indian medical stores and pharmacy chains: billing, batch inventory, expiry control, purchases, accounts and an AI manager, all running on a database the pharmacy controls.", points: ["Based in Pune, Maharashtra (placeholder: Medoro Technologies Pvt. Ltd.)", "Built for MRP-inclusive GST, FEFO batches and Schedule H and H1 registers", "We never hold your pharmacy’s operational records"] },
-  { id: "contact", icon: Phone, kicker: "Company", title: "Contact us", intro: "Sales, setup help and support, Monday to Saturday, 9 am to 9 pm IST.", points: ["WhatsApp: +91 62077 74673", "Email: hello@medoro.in · support@medoro.in", "Address: Kothrud, Pune 411038, Maharashtra (placeholder)"], cta: ["WhatsApp us", WA, MessageCircle] },
+export const dynamic = "force-dynamic";
+
+/** Company and grievance-officer details come from the environment, so each deployment shows its own. */
+function company() {
+  const e = process.env;
+  return {
+    name: e.MEDORO_COMPANY_NAME?.trim() || "Medoro Technologies",
+    address: e.MEDORO_COMPANY_ADDRESS?.trim() || "Pune, Maharashtra, India",
+    officer: e.MEDORO_GRIEVANCE_NAME?.trim() || "The Grievance Officer",
+    email: e.MEDORO_GRIEVANCE_EMAIL?.trim() || "grievance@medoro.in",
+    phone: e.MEDORO_GRIEVANCE_PHONE?.trim() || "",
+    configured: !!(e.MEDORO_COMPANY_NAME && e.MEDORO_COMPANY_ADDRESS && e.MEDORO_GRIEVANCE_NAME),
+  };
+}
+
+const sections = (c: ReturnType<typeof company>): Sec[] => [
+  { id: "about", icon: Building2, kicker: "Company", title: "About Medoro", intro: "Medoro builds pharmacy software for Indian medical stores and pharmacy chains: billing, batch inventory, expiry control, purchases, accounts and an AI manager, all running on a database the pharmacy controls.", points: [`${c.name}, ${c.address}`, "Built for MRP-inclusive GST, FEFO batches and Schedule H and H1 registers", "We never hold your pharmacy’s operational records"] },
+  { id: "contact", icon: Phone, kicker: "Company", title: "Contact us", intro: "Sales, setup help and support, Monday to Saturday, 9 am to 9 pm IST.", points: ["WhatsApp: +91 62077 74673", "Email: hello@medoro.in · support@medoro.in", `Address: ${c.address}`], cta: ["WhatsApp us", WA, MessageCircle] },
   { id: "help", icon: LifeBuoy, kicker: "Resources", title: "Help & setup", intro: "Most pharmacies are billing within an afternoon.", points: ["1. Start the free trial and create the owner account with two-step sign-in", "2. Choose where your database lives: a shop PC, your server or your cloud", "3. Import medicines and opening stock from Excel or CSV", "4. Connect a thermal printer and barcode scanner, then add staff and roles", "5. Connect WhatsApp Business and Google Drive backups when you are ready"], cta: ["Start free trial", "/start", ArrowRight] },
   { id: "backup", icon: HardDriveUpload, kicker: "Resources", title: "Backup & recovery", intro: "Backups are encrypted on your own server before they upload to your own Google Drive. They open only with your backup key: the printed recovery kit, and a sealed copy your server keeps so it can back up and restore on its own. Medoro never receives the key.", points: ["Daily automatic backup, plus manual backups any time", "Every backup is checked with integrity hashes", "Restores go to a test copy first, and you confirm before it goes live", "On a new server, the recovery kit restores a backup file or one from your Google Drive", "Keep your printed recovery kit in two safe places. If your server is lost, backups cannot be opened without it"] },
   { id: "privacy", icon: Shield, kicker: "Legal", title: "Privacy policy", intro: "Your pharmacy’s records, including invoices, stock, customers and prescriptions, stay in the database you control. Medoro processes only the account data needed to run your subscription.", points: ["We hold: the account owner’s name, email and phone, plan, licence check-ins, branch and device counts, app version, and the support tickets and payment references you send from the app", "We do not hold: invoices, stock, customer or patient details, or backup contents", "WhatsApp receives the customer number and invoice PDF only when you send one", "Outside AI is off by default. If you turn it on, settings show exactly what is sent", "We never sell data or use pharmacy records to train AI models"] },
@@ -21,10 +36,12 @@ const SECTIONS: Sec[] = [
   { id: "refund", icon: ReceiptIndianRupee, kicker: "Legal", title: "Refund policy", intro: "Try Medoro free for 14 days before you pay anything.", points: ["Monthly plans: cancel any time. The plan stays active until the paid period ends, with no partial refunds", "Yearly plans: a full refund if requested within 7 days of payment, and pro-rated after that for service failures only", "One-time setup and migration fees are refundable only if the work has not started", "Refunds go back to the original payment method within 7–10 working days"] },
   { id: "cookies", icon: Cookie, kicker: "Legal", title: "Cookie policy", intro: "medoro.in uses essential cookies only, to keep you signed in and remember your language.", points: ["No advertising or cross-site tracking cookies", "Optional analytics run only with your consent, and you can change this at any time", "The Medoro app on your own server sets only session cookies"] },
   { id: "dpdp", icon: UserCheck, kicker: "Legal", title: "Your DPDP rights", intro: "Under India’s Digital Personal Data Protection Act, 2023, you can exercise these rights over the personal data Medoro holds about you.", points: ["Access: ask what personal data we hold and why", "Correction and erasure: fix or delete your account data", "Withdraw consent for optional processing at any time", "Nominate someone to exercise these rights for you", "Pharmacy customers should contact their pharmacy, which controls its own records"], cta: ["Email a request", "mailto:privacy@medoro.in", Mail] },
-  { id: "grievance", icon: BadgeHelp, kicker: "Legal", title: "Grievance officer", intro: "For privacy complaints or concerns about how data is handled, contact our grievance officer. We acknowledge within 48 hours and resolve within 30 days.", points: ["Name: [Grievance officer name]", "Email: grievance@medoro.in", "Address: Medoro Technologies Pvt. Ltd., Kothrud, Pune 411038 (placeholder)", "If you are not satisfied, you can approach the Data Protection Board of India"], cta: ["Email the grievance officer", "mailto:grievance@medoro.in", Mail] },
+  { id: "grievance", icon: BadgeHelp, kicker: "Legal", title: "Grievance officer", intro: "For privacy complaints or concerns about how data is handled, contact our grievance officer. We acknowledge within 48 hours and resolve within 30 days.", points: [`Name: ${c.officer}`, `Email: ${c.email}`, ...(c.phone ? [`Phone: ${c.phone}`] : []), `Address: ${c.name}, ${c.address}`, "Customers of a pharmacy that uses Medoro: your pharmacy’s grievance contact is printed on your invoice", "If you are not satisfied, you can approach the Data Protection Board of India"], cta: ["Email the grievance officer", `mailto:${c.email}`, Mail] },
 ];
 
 export default function Legal() {
+  const c = company();
+  const SECTIONS = sections(c);
   return (
     <div className="site-root bg-white text-ink-strong leading-[1.6] min-h-dvh text-[16px]">
       <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-[#EEF0F2]">
@@ -42,7 +59,7 @@ export default function Legal() {
             <h1 className="m-0 font-bold text-[clamp(32px,4.4vw,48px)] leading-[1.1] tracking-[-.03em]">Company, help and legal</h1>
             <p className="m-0 text-[16px] text-[#4B535B]">Last updated 27 October 2026.</p>
             <div role="note" className="flex gap-2.5 items-start bg-[#FDF2E1] border border-[#F3D9A8] rounded-[10px] px-3.5 py-3 text-[14px] text-[#6B4A0E]">
-              <TriangleAlert size={16} className="mt-[3px] flex-none" /><span>Draft text. Have a qualified lawyer review it before launch. Company name, address and officer details are placeholders.</span>
+              <TriangleAlert size={16} className="mt-[3px] flex-none" /><span>Draft text. Have a qualified lawyer review it before launch.{c.configured ? "" : " Company and grievance officer details are still to be confirmed."}</span>
             </div>
           </div>
           {SECTIONS.map((s) => (

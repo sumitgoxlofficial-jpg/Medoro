@@ -15,10 +15,13 @@ import { dayMonth } from "@/lib/dates";
 import { PAY_METHODS } from "@/domain/parties/contracts";
 import { GST_STATES } from "@/domain/accounting/gst";
 import type { listCustomers, listSuppliers } from "@/domain/parties/service";
-import { paySupplierAction, receiveAction, saveCustomerAction, saveSupplierAction } from "./actions";
+import { METHODS, METHOD_LABEL, PURPOSE_LABEL, type Method } from "@/domain/parties/consent-labels";
+import type { consentHistory } from "@/domain/parties/consent";
+import { consentsAction, paySupplierAction, receiveAction, saveCustomerAction, saveSupplierAction } from "./actions";
 
 type Sup = Awaited<ReturnType<typeof listSuppliers>>[number];
 type Cus = Awaited<ReturnType<typeof listCustomers>>[number];
+type ConsentRow = Awaited<ReturnType<typeof consentHistory>>[number];
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
 const tableWrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto";
@@ -81,12 +84,12 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
           <div className={tableWrap}>
             {customers.length ? (
               <table className="w-full border-collapse min-w-[820px] text-[14px]">
-                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>WhatsApp consent</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
+                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>Consent</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
                 <tbody>
                   {customers.filter((c) => match(c.name) || match(c.phone)).map((c) => (
                     <tr key={c.id}>
                       <td className={td}><div className="font-semibold">{c.name}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}</div></td>
-                      <td className={td}><Badge tone={c.optIn ? "green" : "gray"}>{c.optIn ? "Opted in" : "Not opted in"}</Badge></td>
+                      <td className={td}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
                       <td className={td + " text-right tnum"}>{c.limit ? inr0(c.limit) : "No credit"}</td>
                       <td className={td + " text-right font-semibold tnum"} style={{ color: c.due > 0 ? "#B3261E" : "#5B636B" }}>{inr0(c.due)}</td>
                       <td className={td + " text-muted"}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
@@ -148,29 +151,52 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
   );
 }
 
+const BLANK_CUS = { name: "", phone: "", waOptIn: false, smsOptIn: false, marketingWa: false, marketingSms: false, consentMethod: "counter" as Method, creditLimit: "", opening: "" };
+
 function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null | "new"; canCredit: boolean; canPay: boolean; onClose: () => void }) {
   const toast = useToast();
   const isNew = edit === "new";
-  const [f, setF] = useState({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
+  const [f, setF] = useState(BLANK_CUS);
+  const [history, setHistory] = useState<ConsentRow[] | null>(null);
   const [err, setErr] = useState(""), [pending, start] = useTransition();
   useEffect(() => {
-    setErr("");
-    if (edit && edit !== "new") setF({ name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", opening: "" });
-    else setF({ name: "", phone: "", waOptIn: false, creditLimit: "", opening: "" });
+    setErr(""); setHistory(null);
+    if (edit && edit !== "new") {
+      setF({ ...BLANK_CUS, name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, smsOptIn: edit.smsOptIn, marketingWa: edit.marketingWa, marketingSms: edit.marketingSms, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "" });
+      void consentsAction(edit.id).then((r) => setHistory(r.ok ? r.data : []));
+    } else setF(BLANK_CUS);
   }, [edit]);
   const save = () => start(async () => {
     const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f, isNew ? undefined : (edit as Cus).version);
     if (!r.ok) return setErr(r.error);
     toast(r.message!, "green"); onClose();
   });
+  const box = (k: "waOptIn" | "smsOptIn" | "marketingWa" | "marketingSms", label: string) => <Checkbox checked={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.checked })} label={label} />;
   return (
-    <Modal open={!!edit} onClose={onClose} title={isNew ? "Add customer" : "Edit customer"} width={480}
+    <Modal open={!!edit} onClose={onClose} title={isNew ? "Add customer" : "Edit customer"} width={520}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save customer</Button></>}>
       <Field label="Name *"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus /></Field>
-      <Field label="Mobile"><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
+      <Field label="Mobile" hint={f.phone.includes("•") ? "Masked in strict mode. Leave it as it is to keep the number." : undefined}><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
       <Field label="Credit limit ₹" hint={canCredit ? "0 means cash only." : "Only managers can change credit limits."}><Input value={f.creditLimit} disabled={!canCredit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field>
       {isNew && canPay ? <Field label="Opening balance they owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
-      <Checkbox checked={f.waOptIn} onChange={(e) => setF({ ...f, waOptIn: e.target.checked })} label="Customer agrees to receive invoices and reminders on WhatsApp (recorded with your name and time)" />
+      <div className="flex flex-col gap-1.5 border-t border-row pt-2.5">
+        <span className="text-[12.5px] font-semibold text-muted">Consent · {PURPOSE_LABEL.transactional}</span>
+        {box("waOptIn", "Invoices and refill reminders on WhatsApp")}
+        {box("smsOptIn", "Invoices and refill reminders by SMS")}
+        <span className="text-[12.5px] font-semibold text-muted pt-1">Consent · {PURPOSE_LABEL.marketing} (separate, optional)</span>
+        {box("marketingWa", "Offers and health camps on WhatsApp")}
+        {box("marketingSms", "Offers and health camps by SMS")}
+        <Field label="How was it given?"><Select value={f.consentMethod} onChange={(e) => setF({ ...f, consentMethod: e.target.value as Method })}>{METHODS.filter((m) => m !== "import").map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}</Select></Field>
+        <span className="text-[12px] text-faint">Each change is recorded with purpose, channel, method, your name and the time. Withdrawal takes effect immediately.</span>
+      </div>
+      {history?.length ? (
+        <div className="flex flex-col gap-0.5 text-[12.5px] max-h-[150px] overflow-auto border-t border-row pt-2">
+          <span className="font-semibold text-muted">Consent history</span>
+          {history.map((h, i) => (
+            <span key={i}><Badge tone={h.granted ? "green" : "gray"}>{h.granted ? "Given" : "Withdrawn"}</Badge> {PURPOSE_LABEL[h.purpose]} · {h.channel === "sms" ? "SMS" : "WhatsApp"} · {METHOD_LABEL[h.method as Method] ?? h.method} · {h.by ?? "System"} · {dayMonth(new Date(h.at), true)}</span>
+          ))}
+        </div>
+      ) : null}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );

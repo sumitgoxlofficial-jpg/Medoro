@@ -3,6 +3,7 @@ import { scheduledTick } from "@/domain/system/backup";
 import { messagingTick } from "@/domain/comms/crm";
 import { licenceTick } from "@/domain/system/licence";
 import { log } from "@/server/log";
+import { dailyJobs } from "@/domain/system/daily";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -15,7 +16,7 @@ async function tick(daily: boolean) {
     const now = new Date();
     let failed = false;
     // Each job runs even if another fails.
-    for (const job of [() => scheduledTick(now, { daily }), () => messagingTick(now, { daily }), () => licenceTick()]) {
+    for (const job of [() => scheduledTick(now, { daily }), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now)]) {
       try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; }
     }
     return failed ? new Response("error", { status: 500 }) : new Response("ok");
