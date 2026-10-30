@@ -3,7 +3,8 @@ import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
-import { nextSeq, pad } from "@/server/sequence";
+import { nextSeq } from "@/server/sequence";
+import { gstDocNo } from "@/lib/docno";
 import { daysTo, fiscalYear, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big, inr, shareOf } from "@/lib/money";
 import { fmtSold } from "@/lib/units";
@@ -104,7 +105,7 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput, opts: { codUncol
       await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: restock ? units : 0, type: restock ? "return" : "return_damaged", refType: "sales_return", refId: sale.id, userId: ctx.userId, note: restock ? "Sales return, restocked" : "Sales return, not restocked" } });
     }
     const fy = fiscalYear();
-    const cn = `CN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "CN:" + fy))}`;
+    const cn = gstDocNo("CN-", fy, await nextSeq(tx, ctx.tenantId, "CN:" + fy), 4);
     const shift = await lockOpenShift(tx, ctx);
     const half = Math.floor(tax / 2);
     const credit: Line = cod ? { account: ACC.codClearing, cr: refund } : mode === "Cash" ? { account: ACC.cash, cr: refund } : mode === "UPI refund" ? { account: ACC.bank, cr: refund } : { account: ACC.debtors, cr: refund, partyType: "customer", partyId: sale.customerId! };

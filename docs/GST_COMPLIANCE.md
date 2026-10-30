@@ -53,9 +53,12 @@ v3.2.x template: `gstin`, `fp` MMYYYY, `b2b[].ctin`, `inv[].inum`, `idt` DD-MM-Y
 Compliance app (resilient-tech/india-compliance, `gst_returns/fields/gstr1.py`), whose JSON the portal accepts,
 and GSTN's advisory on the Table 12 B2B/B2C split (Phase III, from the May 2025 return).
 
-Document numbers longer than 16 characters are rejected by the portal and the IRP. Medoro's default numbers
-(`PREFIX/BRANCH/FY/000001`) fit only with a 1-character prefix and a 2-character branch code; the screen warns
-when a number is too long.
+Document numbers longer than 16 characters are rejected by the portal and the IRP (CGST Rule 46(b): up to 16
+characters of A–Z, 0–9, `/` and `-`, unique per fiscal year). Sales invoices are numbered `<BRANCH><FY>-<serial>`
+(e.g. `MAI2627-000001`, 14 characters): the branch code is the series (1–5 letters/digits, unique per pharmacy), so
+even the 999999th invoice of a year fits. Credit notes are `CN-<FY>-<serial>` and supplier debit notes
+`DN-<FY>-<serial>`. Numbers already issued in the older `PREFIX/BRANCH/FY/000001` format are never rewritten; the
+screen warns about them and new documents continue the same serial in the short format.
 
 ## GSTR-3B (screen, CSV, JSON)
 

@@ -9,6 +9,7 @@ import { verifyChain } from "@/lib/audit-hash";
 import { GSTIN_RE, inviteContact, passwordSchema, pinSchema, ROLE_OPTIONS } from "./contracts";
 import { OWNER_ONLY_GRANTS, PERMS, PERM_LABEL, type Perm } from "./permissions";
 import { branchCodes, newInviteCode, nextEmployeeNo } from "./service";
+import { validSeries } from "@/lib/docno";
 
 export async function listTeam(ctx: Ctx) {
   authorize(ctx, "users");
@@ -225,6 +226,7 @@ export async function saveBranch(ctx: Ctx, id: string | null, raw: z.input<typeo
       const used = (await tx.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { code: true } })).map((b) => b.code);
       let code = branchCodes([i.name])[0];
       for (let k = 2; used.includes(code); k++) code = code.slice(0, 2) + k;
+      if (!validSeries(code)) throw new UserError("Too many branches with similar names. Use a different branch name.");
       const b = await tx.branch.create({ data: { tenantId: ctx.tenantId, code, ...data } });
       await tx.counter.create({ data: { tenantId: ctx.tenantId, branchId: b.id, name: "Counter 1" } });
       id = b.id;

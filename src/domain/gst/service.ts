@@ -8,6 +8,7 @@ import { authorize, authorizeAny, authorizeView, type Ctx } from "@/server/conte
 import { UserError } from "@/server/action";
 import { addDays, istDate, istMidnight, todayISO } from "@/lib/dates";
 import { big, shareOf, taxableFromInclusive } from "@/lib/money";
+import { GST_DOC_RE } from "@/lib/docno";
 import { stockValue } from "@/lib/units";
 import { ACC } from "@/domain/accounting/accounts";
 import { stateName, stateOf } from "@/domain/accounting/gst";
@@ -164,8 +165,9 @@ export async function gstDocs(tenantId: string, branchIds: string[], p: Period) 
       lines: split(raw, inter, Math.floor(tax / 2)), orig: { no: s.invoiceNo, date: istDate(s.at), value: big(s.totalPaise), inter, ctin: s.customerGstin },
     });
   }
+  const long = docs.map((d) => d.no).filter((no) => !GST_DOC_RE.test(no));
   const warnings = [
-    ...docs.filter((d) => d.no.length > 16).slice(0, 1).map((d) => `Document numbers longer than 16 characters (e.g. ${d.no}) are rejected by the GST portal and the IRP. Use a shorter invoice prefix.`),
+    ...(long.length ? [`${long.length} document(s) carry old-format numbers longer than 16 characters (e.g. ${long[0]}), which the GST portal and the IRP reject. Issued numbers can’t be changed; documents issued now use the 16-character format.`] : []),
     ...(cancelled.length ? [`${cancelled.length} voided invoice(s) or invoice(s) with a cancelled IRN are reported as cancelled documents: ${cancelled.join(", ")}.`] : []),
   ];
   return { docs, cancelled, warnings };
@@ -382,7 +384,7 @@ export async function generateIrn(ctx: Ctx, saleId: string) {
   const { cfg, api } = await client(ctx);
   const s = await saleForIrn(ctx, saleId);
   if (!s.customerGstin || !s.customer) throw new UserError("E-invoices are for B2B invoices: this sale has no customer GSTIN.");
-  if (!/^[1-9A-Z][0-9A-Z/-]{0,15}$/.test(s.invoiceNo)) throw new UserError(`Invoice number ${s.invoiceNo} is longer than 16 characters (or uses other characters), which the IRP rejects. Use a shorter invoice prefix for new invoices.`);
+  if (!GST_DOC_RE.test(s.invoiceNo)) throw new UserError(`Invoice number ${s.invoiceNo} was issued in the old format (over 16 characters), which the IRP rejects. Invoices issued now use the 16-character format and can be e-invoiced.`);
   const rows = await einvRows(ctx.tenantId, "sale", s.id);
   if (activeIrn(rows)) throw new UserError("This invoice already has an IRN.");
   if (latest(rows, ["irn", "irn_cancel"])?.kind === "irn_cancel") throw new UserError("This invoice’s IRN was cancelled. The IRP doesn’t issue a new IRN for the same number.");

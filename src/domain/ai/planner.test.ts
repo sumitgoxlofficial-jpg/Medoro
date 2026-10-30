@@ -59,6 +59,7 @@ describe("rule planner", () => {
     expect(tool("adjust batch X9 add 5 because found in store")).toEqual(["request_stock_adjustment", { batchNo: "X9", delta: 5, reason: "found in store" }]);
     expect(tool("adjust batch X9 5 reason recount")[0]).toBe("reply");
     expect(tool("Refund invoice INV/MAI/2627/000123, sealed, reason wrong medicine")).toEqual(["request_refund", { invoice: "INV/MAI/2627/000123", condition: "sealed", reason: "wrong medicine" }]);
+    expect(tool("Refund invoice MAI2627-000123, reason wrong medicine")).toEqual(["request_refund", { invoice: "MAI2627-000123", reason: "wrong medicine" }]);
     expect(tool("return 2 dolo 650 from invoice 17 by upi reason not needed")).toEqual(["request_refund", { invoice: "17", qty: 2, medicine: "dolo 650", refundMode: "UPI refund", reason: "not needed" }]);
     expect(tool("bill 42 ka refund karo")).toEqual(["request_refund", { invoice: "42", reason: "" }]);
     expect(tool("refund kar do")[0]).toBe("reply");

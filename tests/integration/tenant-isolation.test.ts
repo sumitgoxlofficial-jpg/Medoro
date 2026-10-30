@@ -33,7 +33,7 @@ type Seed = { ctx: Ctx; mark: string; supplierId: string; customerId: string; me
 
 async function secondTenant(): Promise<Ctx> {
   const a = await db.tenant.findFirstOrThrow();
-  const t = await db.tenant.create({ data: { code: "BETA-MUM", name: "BETASECRET Pharmacy", settings: { ...(a.settings as object), invoicePrefix: "BET" } } });
+  const t = await db.tenant.create({ data: { code: "BETA-MUM", name: "BETASECRET Pharmacy", settings: a.settings as object } });
   const b = await db.branch.create({ data: { tenantId: t.id, name: "BETASECRET Main", code: "BTM" } });
   const role = await db.role.create({ data: { tenantId: t.id, name: "Owner", permissions: [...DEFAULT_GRANTS.Owner], locked: true } });
   const u = await db.user.create({ data: { tenantId: t.id, name: "BETASECRET Owner", email: "owner@beta.in", phone: "9811100001", roleId: role.id } });

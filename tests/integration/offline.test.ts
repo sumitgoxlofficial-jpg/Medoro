@@ -45,7 +45,7 @@ describe("offline billing", () => {
     const o = op([{ medicineId: dolo, batchId: d1, qty: 2 }], { createdAt: billedAt, totalPaise: 6700 });
     const [r] = await syncOps(ctx, dev, [o]);
     expect(r.status).toBe("posted");
-    expect(r.invoiceNo).toMatch(/\/000001$/);
+    expect(r.invoiceNo).toMatch(/-000001$/);
     const sale = await db.sale.findFirstOrThrow({ where: { invoiceNo: r.invoiceNo } });
     expect(sale.at.toISOString()).toBe(billedAt);
     expect(sale.idempotencyKey).toBe(o.id);
@@ -80,7 +80,7 @@ describe("offline billing", () => {
     await resolveOp(mgr, tooOld.id, "close", "Customer refunded");
     const ov = await offlineOverview(mgr);
     expect(ov.ops.find((x) => x.id === tooOld.id)?.status).toBe("resolved");
-    expect(ov.ops.find((x) => x.id === short.id)?.invoiceNo).toMatch(/INV|TMS/);
+    expect(ov.ops.find((x) => x.id === short.id)?.invoiceNo).toMatch(/^MAI\d{4}-\d{6}$/);
     // Resending a settled bill reports its outcome and doesn't post twice.
     expect((await syncOps(ctx, dev, [short]))[0].status).toBe("posted");
     expect(await db.sale.count({ where: { idempotencyKey: short.id } })).toBe(1);

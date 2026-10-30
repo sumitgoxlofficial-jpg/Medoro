@@ -5,6 +5,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq } from "@/server/sequence";
+import { invoiceNo as makeInvoiceNo, validSeries } from "@/lib/docno";
 import { daysTo, fiscalYear, todayISO } from "@/lib/dates";
 import { big, cartTotals, inr, inr0 } from "@/lib/money";
 import { discountCap } from "@/domain/identity/permissions";
@@ -151,8 +152,8 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
   const fy = fiscalYear(today);
   const n = await nextSeq(tx, ctx.tenantId, `INV:${ctx.branchId}:${fy}`);
-  const prefix = (tenant.settings as { invoicePrefix?: string }).invoicePrefix ?? "INV";
-  const invoiceNo = `${prefix}/${branch.code}/${fy}/${String(n).padStart(6, "0")}`;
+  if (!validSeries(branch.code)) throw new UserError(`Branch code ${branch.code} can’t number GST invoices (1–5 letters or digits). Contact support.`);
+  const invoiceNo = makeInvoiceNo(branch.code, fy, n);
   const shift = await lockOpenShift(tx, ctx);
   const g = saleTaxSplit(branch.gstin ?? tenant.gstin, customer, t.tax);
 

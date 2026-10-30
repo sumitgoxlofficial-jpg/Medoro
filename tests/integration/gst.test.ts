@@ -29,10 +29,7 @@ describe("GST compliance", () => {
     await resetDb(); await makePharmacy();
     for (const k of Object.keys(ENV)) { saved[k] = process.env[k]; process.env[k] = ENV[k as keyof typeof ENV]; }
     const t = await db.tenant.findFirstOrThrow();
-    await db.tenant.update({ where: { id: t.id }, data: { settings: { ...(t.settings as object), invoicePrefix: "T" } } });
     await db.branch.updateMany({ where: { tenantId: t.id }, data: { address: "Shop 4, FC Road, Pune 411005" } });
-    // The IRP takes document numbers up to 16 characters: a short prefix and branch code keep T/MA/2627/000001 within it.
-    await db.branch.updateMany({ where: { tenantId: t.id, name: "Main" }, data: { code: "MA" } });
     const ctx = await ctxFor();
     const sup = await saveSupplier(ctx, null, { name: "Sai Healthcare", gstin: "27AABCS1429B1ZU" });
     med = await createMedicine(ctx, { name: "Telma 40", generic: "Telmisartan", strength: "40 mg", form: "Tablet", manufacturer: "Glenmark", pack: "15", mrp: "1120", gstRate: 12, schedule: "", reorderLevel: 5, barcode: "", hsn: "30049099", rack: "" });

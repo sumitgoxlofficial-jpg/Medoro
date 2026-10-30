@@ -71,7 +71,7 @@ describe("orders and home delivery", () => {
     await expect(packOrder(cashier, id)).rejects.toThrow(/is new/);
     expect((await confirmOrder(cashier, id)).channel).toBe("none");
     const sale = await packOrder(cashier, id);
-    expect(sale.invoiceNo).toMatch(/\/000001$/);
+    expect(sale.invoiceNo).toMatch(/-000001$/);
     expect([await qty(early), await qty(late)]).toEqual([0, 18]);
     const s = await db.sale.findUniqueOrThrow({ where: { id: sale.saleId }, include: { payments: true } });
     expect(s).toMatchObject({ payMode: "cod", customerId: cust.id, prescriber: "Dr Mehta" });

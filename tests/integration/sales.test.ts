@@ -5,7 +5,9 @@ import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer, invoiceData } from "@/domain/sales/service";
 import { approveDiscount } from "@/domain/sales/approval";
 import { hashPassword } from "@/server/auth";
-import { addDays, todayISO, dateOnly } from "@/lib/dates";
+import { addDays, todayISO, dateOnly, fiscalYear } from "@/lib/dates";
+import { GST_DOC_RE } from "@/lib/docno";
+import { processReturn } from "@/domain/sales/returns";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 const key = () => "k_" + randomUUID().replace(/-/g, "");
@@ -36,7 +38,7 @@ describe("sale commit", () => {
     const ctx = await ctxFor("Cashier");
     const a = await commitSale(ctx, sale([{ medicineId: dolo, batchId: early, qty: 2 }]));
     const b = await commitSale(ctx, sale([{ medicineId: dolo, batchId: early, qty: 1 }]));
-    expect(a.invoiceNo).toMatch(/^TMS\/MAI\/\d{4}\/000001$/);
+    expect(a.invoiceNo).toMatch(/^MAI\d{4}-000001$/);
     expect(b.invoiceNo.slice(-6)).toBe("000002");
     expect(a.total).toBe(6700); // 67.20 → 67
     expect((await db.batch.findUniqueOrThrow({ where: { id: early } })).qtyAvailable).toBe(0);
@@ -142,5 +144,20 @@ describe("sale commit", () => {
 
     for (let i = 0; i < 5; i++) await approveDiscount(ctx, { approver: "E-201", secret: "0000", lines, discountPct: 15 }).catch(() => {});
     await expect(approveDiscount(ctx, { approver: "E-201", secret: "4826", lines, discountPct: 15 })).rejects.toThrow(/Too many wrong attempts/);
+  });
+  it("GST document numbers stay within 16 characters up to the 999999th of the year", async () => {
+    const ctx = await ctxFor();
+    const fy = fiscalYear();
+    await db.sequence.update({ where: { tenantId_key: { tenantId: ctx.tenantId, key: `INV:${ctx.branchId}:${fy}` } }, data: { next: 999999 } });
+    await db.batch.update({ where: { id: late }, data: { qtyAvailable: 10 } });
+    const s = await commitSale(ctx, sale([{ medicineId: dolo, batchId: late, qty: 1 }]));
+    expect(s.invoiceNo).toBe(`MAI${fy}-999999`);
+    expect(s.invoiceNo.length).toBeLessThanOrEqual(16);
+    await db.sequence.upsert({ where: { tenantId_key: { tenantId: ctx.tenantId, key: "CN:" + fy } }, create: { tenantId: ctx.tenantId, key: "CN:" + fy, next: 999999 }, update: { next: 999999 } });
+    const item = await db.saleItem.findFirstOrThrow({ where: { saleId: s.saleId } });
+    await processReturn(ctx, { saleId: s.saleId, lines: [{ itemId: item.id, qty: 1 }], condition: "sealed", refundMode: "Cash", reason: "Not needed" });
+    const cn = (await db.salesReturn.findFirstOrThrow({ where: { saleId: s.saleId } })).creditNoteNo;
+    expect(cn).toBe(`CN-${fy}-999999`);
+    expect(cn).toMatch(GST_DOC_RE);
   });
 });

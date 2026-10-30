@@ -39,7 +39,7 @@ English, Hinglish and Devanagari Hindi (Devanagari digits are understood), for e
 - “Record expense ₹1,250 electricity by UPI”, “500 ka chai ka kharcha likho”, “₹500 बिजली का खर्च”
 - “Take a backup now”, “backup le lo”
 - “Adjust Dolo 650 batch DL1 by -2 reason damaged strip”, “dolo batch DL1 ka stock 2 kam karo kyunki toot gaya”
-- “Refund invoice INV/MAI/2627/000123, sealed, reason wrong medicine”, “return 2 dolo 650 from invoice 17 by upi reason not needed”, “bill 42 ka refund karo, wajah …”
+- “Refund invoice MAI2627-000123, sealed, reason wrong medicine”, “return 2 dolo 650 from invoice 17 by upi reason not needed”, “bill 42 ka refund karo, wajah …”
 Missing details (amount, batch, invoice, direction) get a one-line follow-up question instead of a guess.
 
 ## Confirmation protocol

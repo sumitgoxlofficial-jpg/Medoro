@@ -29,7 +29,7 @@ describe("clean", () => {
 });
 
 const inv = (n: number): Invoice => ({
-  id: "s1", invoiceNo: "INV/MAI/2627/000001", at: new Date().toISOString(), payMode: "cash", prescriber: null, rxNo: null, doctor: null, cashier: "A",
+  id: "s1", invoiceNo: "MAI2627-000001", at: new Date().toISOString(), payMode: "cash", prescriber: null, rxNo: null, doctor: null, cashier: "A",
   pharmacy: { name: "Test", legalName: null, gstin: null, address: "Pune", dl: null, phone: null, pharmacist: "" },
   customer: { name: "रमेश", phone: null, optIn: false },
   lines: Array.from({ length: n }, (_, i) => ({ name: `Item ${i}`, pack: "10", hsn: "3004", schedule: null, batchNo: "B1", expiry: "2027-01-01", qty: 1, qtyText: "1", loose: false, mrp: 100, amount: 100, discount: 0, taxable: 89, gstRate: 12 })),

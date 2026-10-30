@@ -111,7 +111,7 @@ export function rulePlan(raw: string, lang: "en" | "hi", month: number, year = n
   // Refunds against an invoice (write)
   if (/(refund|\breturn\b|wapas|vapas|वापस|वापसी|रिफंड|लौटा)/.test(l)) {
     const inv = text.match(/(?:invoice|bill|\binv\b|बिल|इनवॉइस)\s*(?:no\.?|number|#|:)?\s*((?:[a-z0-9][a-z0-9/-]*)?\d)/i)?.[1] ?? text.match(/\b([a-z]{2,6}\/[a-z0-9/]*\d)\b/i)?.[1];
-    if (!inv) return ask("Which invoice? For example: “Refund invoice INV/MAI/2627/000123, reason wrong medicine”.", "Kaun sa bill? Jaise: “Bill 123 ka refund karo, wajah galat dawai”.", "कौन सा बिल? जैसे: “बिल 123 का रिफंड करो, कारण गलत दवा”।");
+    if (!inv) return ask("Which invoice? For example: “Refund invoice MAI2627-000123, reason wrong medicine”.", "Kaun sa bill? Jaise: “Bill 123 ka refund karo, wajah galat dawai”.", "कौन सा बिल? जैसे: “बिल 123 का रिफंड करो, कारण गलत दवा”।");
     const body = withoutReason(l);
     const part = body.match(/(?:return|refund)\s+(\d+)\s+(?:units?\s+of\s+|x\s+)?([a-z][a-z0-9 .-]{1,40}?)\s+(?:from|against|of|in|on)\s+(?:the\s+)?(?:invoice|bill|inv)/);
     const refundMode = /(upi|gpay|phonepe|paytm)/.test(body) ? "UPI refund" : /(customer credit|\bcredit\b|udhaar|khata|उधार|खाता)/.test(body) ? "Adjust customer credit" : /(cash|nakad|नकद|कैश)/.test(body) ? "Cash" : undefined;

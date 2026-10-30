@@ -5,6 +5,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
+import { gstDocNo } from "@/lib/docno";
 import { daysTo, fiscalYear } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
 import { fmtQty, stockValue } from "@/lib/units";
@@ -73,7 +74,7 @@ export async function returnToSupplierIn(tx: Tx, ctx: Ctx, batchId: string, qty:
   const { taxable, gst, igst } = await returnValue(tx, ctx, b, b.supplier, qty);
   const half = Math.floor(gst / 2);
   const fy = fiscalYear();
-  const no = `DN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "DN:" + fy))}`;
+  const no = gstDocNo("DN-", fy, await nextSeq(tx, ctx.tenantId, "DN:" + fy), 4);
   await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { decrement: qty }, version: { increment: 1 } } });
   const so = await tx.stockOut.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, kind: "supplier_return", supplierId: b.supplierId, batchId: b.id, qty, valuePaise: BigInt(taxable + gst), reason, userId: ctx.userId } });
   await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: -qty, type: "supplier_return", refType: "stock_out", refId: so.id, userId: ctx.userId, note: `${no} · ${reason}` } });

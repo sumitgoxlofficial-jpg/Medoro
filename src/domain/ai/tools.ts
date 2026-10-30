@@ -59,7 +59,8 @@ async function findSale(ctx: Ctx, ref: string) {
   const where = { tenantId: ctx.tenantId, branchId: ctx.branchId };
   const exact = await db.sale.findFirst({ where: { ...where, invoiceNo: { equals: ref, mode: "insensitive" } } });
   if (exact || !/^\d{1,6}$/.test(ref)) return exact;
-  return db.sale.findFirst({ where: { ...where, invoiceNo: { endsWith: "/" + ref.padStart(6, "0") } }, orderBy: { at: "desc" } });
+  const tail = ref.padStart(6, "0");
+  return db.sale.findFirst({ where: { ...where, OR: [{ invoiceNo: { endsWith: "-" + tail } }, { invoiceNo: { endsWith: "/" + tail } }] }, orderBy: { at: "desc" } });
 }
 
 type RefundIn = { invoice: string; medicine?: string; qty?: number; refundMode?: (typeof REFUND_MODES)[number]; condition?: "sealed" | "damaged"; reason: string; saleId?: string; lines?: { itemId: string; qty: number; left: number }[] };

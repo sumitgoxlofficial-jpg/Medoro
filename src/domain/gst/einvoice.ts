@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createPublicKey, publicEncrypt, randomBytes, constants, type KeyObject } from "node:crypto";
 import { rs, dmy } from "./common";
+import { GST_DOC_RE } from "@/lib/docno";
 
 // E-invoice (IRN) and e-way bill client for the NIC IRP, direct or through a GSP.
 // Payload: e-invoice schema INV-01 version 1.1 (NIC API v1.03). Auth: NIC API v1.04 (AppKey + SEK).
@@ -40,7 +41,7 @@ function party(p: EinvParty) {
 
 /** Amounts are paise in, rupees out. TotAmt is the pre-tax value before discount; AssAmt = TotAmt − Discount. */
 export function buildIrnPayload(d: EinvDoc) {
-  if (!/^[1-9A-Z][0-9A-Z/-]{0,15}$/.test(d.no)) throw new Error(`Document number ${d.no} must be 1–16 characters (A–Z, 0–9, / and -) and not start with 0, / or -.`);
+  if (!GST_DOC_RE.test(d.no)) throw new Error(`Document number ${d.no} must be 1–16 characters (A–Z, 0–9, / and -) and not start with 0, / or -.`);
   const items = d.items.map((it, i) => {
     const disc = it.gross - it.taxable;
     return {

@@ -159,7 +159,7 @@ describe("AI assistant", () => {
     const done = await confirm(ctx, (await ask2()).confirm!.token);
     expect(done.text).toMatch(/Credit note CN-\d{4}-\d+ issued: ₹310\.00 refunded as Cash/);
     expect((await db.batch.findUniqueOrThrow({ where: { id: pn.id } })).qtyAvailable).toBe(18);
-    const n = sale.invoiceNo.split("/").pop()!.replace(/^0+/, "");
+    const n = sale.invoiceNo.split(/[/-]/).pop()!.replace(/^0+/, "");
     expect((await ask(ctx, `bill ${n} ka refund karo, wajah customer ne mana kiya`)).rows?.[0].b).toBe("PN1 · 1 of 1");
     expect(await ask(await ctxFor("Cashier"), `return 1 pan 40 from invoice ${sale.invoiceNo} reason test`)).toMatchObject({ refused: true });
   });
