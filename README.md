@@ -19,6 +19,11 @@ Tests (unit + integration against a real PostgreSQL; uses `TEST_DATABASE_URL`, d
 pnpm test
 pnpm lint && pnpm typecheck
 ```
+End-to-end (Playwright, `e2e/`): needs a production build, an empty migrated database and the server environment (`SESSION_SECRET`, `HOST_KEY`, `OTP_PROVIDER=console`, `STAFF_BOOTSTRAP_EMAIL`, …); see `docs/TEST_PLAN.md`.
+```bash
+pnpm prisma migrate reset --force && pnpm build
+pnpm test:e2e                     # starts `next start` itself; add a file or -g filter to narrow
+```
 
 ## What works now
 | Area | Notes |
@@ -63,6 +68,7 @@ Built into the core: money in integer paise with GST back-calculated from MRP, F
 | `src/lib` | Money, dates, i18n, navigation |
 | `prisma/` | Schema and migrations |
 | `tests/integration` | Service tests against PostgreSQL |
+| `e2e/` | Playwright end-to-end specs (setup wizard first, then one spec per area) |
 | `design/` | The original clickable prototype, assets and handoff notes (reference only) |
 | `docs/` | Architecture, security, privacy, data ownership, AI, WhatsApp, testing, deployment, backup |
 

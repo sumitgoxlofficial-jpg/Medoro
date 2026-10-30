@@ -1,0 +1,5 @@
+Brand name,Generic / salt,Strength,Form,Manufacturer,Pack,MRP,GST %,Schedule,HSN,Barcode,Reorder level,Rack,Batch,Expiry,Opening qty,Cost per pack (excl. GST)
+Imp Calpol {{RUN}},Paracetamol,500 mg,Tablet,GSK,15 tabs,32.50,12,,3004,,10,A1,CP{{RUN}}A,11/2031,40,22.10
+Imp Calpol {{RUN}},Paracetamol,500 mg,Tablet,GSK,15 tabs,32.50,12,,3004,,10,A1,CP{{RUN}}B,03/2032,25,22.10
+Imp Azithral {{RUN}},Azithromycin,500 mg,Tablets,Alembic,3 tabs,119.00,12,H,3004,,5,B2,AZ{{RUN}},08/2031,12,80.00
+Imp Benadryl {{RUN}},Diphenhydramine,100 ml,Syrup,J&J,1 bottle,105.00,12,,3004,,4,C1,,,,
