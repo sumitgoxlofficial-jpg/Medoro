@@ -207,14 +207,55 @@ model Medicine {
   schedule     String? // H, H1, X or null
   reorderLevel Int      @default(0)
   rack         String?
+  composition  String? // salts with strengths, e.g. "Paracetamol 500mg + Caffeine 25mg"
+  saltKey      String? // order-independent normalised composition; equal keys are substitutes
+  packSize     Int      @default(1) // stock units in one MRP pack; batch quantities are in stock units
+  packUnit     String   @default("pack") // what one MRP pack is called: strip, bottle
+  looseUnit    String   @default("unit") // the stock unit when sold loose: tab, cap
+  allowLoose   Boolean  @default(false)
+  caseSize     Int      @default(1) // packs in one purchase case
+  caseUnit     String   @default("box")
   active       Boolean  @default(true)
   version      Int      @default(0)
   createdAt    DateTime @default(now())
   batches      Batch[]
+  racks        MedicineRack[]
 
   @@unique([tenantId, barcode])
   @@index([tenantId, name])
   @@index([tenantId, generic])
+  @@index([tenantId, saltKey])
+}
+
+// Branch-specific shelf location; falls back to Medicine.rack.
+model MedicineRack {
+  tenantId   String
+  branchId   String
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  rack       String
+  updatedAt  DateTime @updatedAt
+
+  @@id([branchId, medicineId])
+  @@index([tenantId, branchId, rack])
+}
+
+model Doctor {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String
+  qualification String?
+  regNo         String? // State Medical Council / NMC registration number
+  clinic        String?
+  phone         String?
+  address       String?
+  active        Boolean  @default(true)
+  version       Int      @default(0)
+  createdAt     DateTime @default(now())
+  sales         Sale[]
+
+  @@unique([tenantId, regNo])
+  @@index([tenantId, name])
 }
 
 model Batch {
@@ -467,6 +508,8 @@ model Sale {
   customer       Customer?  @relation(fields: [customerId], references: [id])
   prescriber     String?
   rxNo           String?
+  doctorId       String?
+  doctor         Doctor?    @relation(fields: [doctorId], references: [id])
   subtotalPaise  BigInt
   discountPaise  BigInt
   discountPct    Decimal    @default(0)
@@ -487,6 +530,7 @@ model Sale {
   @@unique([tenantId, idempotencyKey])
   @@unique([tenantId, branchId, invoiceNo])
   @@index([branchId, at])
+  @@index([tenantId, doctorId, at])
 }
 
 model SaleItem {
@@ -502,6 +546,8 @@ model SaleItem {
   gstRate       Int
   costPaise     BigInt
   returnedQty   Int    @default(0)
+  loose         Boolean @default(false) // qty, MRP and cost are per loose unit, not per pack
+  packSize      Int     @default(1) // Medicine.packSize when sold
 }
 
 model Payment {
