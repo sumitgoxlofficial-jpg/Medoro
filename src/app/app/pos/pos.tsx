@@ -13,20 +13,27 @@ import { isSellable, nextFefo } from "@/domain/inventory/fefo";
 import { getDevice } from "@/lib/offline/store";
 import type { Invoice, SaleMedicine } from "@/domain/sales/service";
 import { addCustomerAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
+import { baseQty, fmtQty, fmtSold, unitPrice, type SaleUnit } from "@/lib/units";
+import { SubstitutesPanel } from "./substitutes";
+import { DoctorPicker, type DoctorOpt } from "./doctor-picker";
 
 type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number };
-type Line = { key: string; medicineId: string; batchId: string; qty: number };
+// qty is in `unit`: whole packs, or loose units for medicines sold loose. Batches hold stock units.
+type Line = { key: string; medicineId: string; batchId: string; qty: number; unit?: SaleUnit };
 type Pay = "cash" | "upi" | "card" | "split" | "credit";
-type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string };
+type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string; doctorId?: string };
 type Dict = { search: string; cart: string; customer: string; payment: string; total: string; complete: string; hold: string };
 
-const empty = (): Cart => ({ lines: [], meds: {}, cust: "", disc: "0", pay: "cash", tender: "", split: "", ref: "", doctor: "", rxno: "" });
+const empty = (): Cart => ({ lines: [], meds: {}, cust: "", disc: "0", pay: "cash", tender: "", split: "", ref: "", doctor: "", rxno: "", doctorId: "" });
+const psOf = (m: SaleMedicine | undefined) => m?.packSize ?? 1;
+const baseOf = (c: Cart, l: Line) => baseQty(l.qty, l.unit, psOf(c.meds[l.medicineId]));
+const needOf = (c: Cart, l: Pick<Line, "medicineId" | "unit">) => baseQty(1, l.unit, psOf(c.meds[l.medicineId]));
 const newKey = () => "k_" + crypto.randomUUID().replace(/-/g, "");
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const inp = "border border-input rounded-lg px-[11px] py-[9px] text-[14px] outline-none bg-white focus:border-teal w-full";
 
-export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, canCredit, discCap, role, storageKey, waConnected }: {
-  dict: Dict; customers: Customer[]; held: { id: string; label: string }[]; canCredit: boolean; discCap: number; role: string; storageKey: string; waConnected: boolean;
+export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, canCredit, discCap, role, storageKey, waConnected, doctors: initialDoctors = [] }: {
+  dict: Dict; customers: Customer[]; held: { id: string; label: string }[]; canCredit: boolean; discCap: number; role: string; storageKey: string; waConnected: boolean; doctors?: DoctorOpt[];
 }) {
   const toast = useToast();
   const sp = useSearchParams();
@@ -42,6 +49,10 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const [netDown, setNetDown] = useState(false);
   const [sale, setSale] = useState<Invoice | null>(null);
   const [newCust, setNewCust] = useState(false);
+  const [subs, setSubs] = useState<{ id: string; name: string; reason?: string } | null>(null);
+  const [doctors, setDoctors] = useState(initialDoctors);
+  const cartRef = useRef(cart);
+  useEffect(() => { cartRef.current = cart; }, [cart]);
   const idemRef = useRef<string>(newKey());
   const [, start] = useTransition();
 
@@ -57,8 +68,8 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   useEffect(() => setHeld(initialHeld), [initialHeld]);
 
   const set = (p: Partial<Cart>) => setCart((c) => ({ ...c, ...p }));
-  const used = (lines: Line[], batchId: string, except?: string) => lines.filter((l) => l.batchId === batchId && l.key !== except).reduce((a, l) => a + l.qty, 0);
-  const usedMap = (lines: Line[]) => lines.reduce<Record<string, number>>((m, l) => ({ ...m, [l.batchId]: (m[l.batchId] ?? 0) + l.qty }), {});
+  const used = (c: Cart, batchId: string, except?: string) => c.lines.filter((l) => l.batchId === batchId && l.key !== except).reduce((a, l) => a + baseOf(c, l), 0);
+  const usedMap = (c: Cart) => c.lines.reduce<Record<string, number>>((m, l) => ({ ...m, [l.batchId]: (m[l.batchId] ?? 0) + baseOf(c, l) }), {});
   const batchOf = (c: Cart, l: Line) => c.meds[l.medicineId]?.batches.find((b) => b.id === l.batchId);
 
   // Search (debounced). A full barcode followed by Enter adds the item directly.
@@ -69,47 +80,63 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     return () => clearTimeout(h);
   }, [q]);
 
-  const add = useCallback((m: SaleMedicine) => {
-    setCart((c) => {
-      const meds = { ...c.meds, [m.id]: m };
-      const b = nextFefo(m.batches, m.id, usedMap(c.lines));
-      if (!b) { toast(`${m.name}: no sellable stock. Expired and quarantined batches are blocked.`, "red"); return c; }
-      const ex = c.lines.find((l) => l.batchId === b.id);
-      const lines = ex ? c.lines.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l)) : [...c.lines, { key: newKey(), medicineId: m.id, batchId: b.id, qty: 1 }];
+  const add = useCallback((m: SaleMedicine, unit: SaleUnit = "pack") => {
+    const now = { ...cartRef.current, meds: { ...cartRef.current.meds, [m.id]: m } };
+    const out = !nextFefo(m.batches, m.id, usedMap(now), undefined, needOf(now, { medicineId: m.id, unit }));
+    if (!out) setCart((c) => {
+      const meds = { ...c.meds, [m.id]: m }, cc = { ...c, meds };
+      const b = nextFefo(m.batches, m.id, usedMap(cc), undefined, needOf(cc, { medicineId: m.id, unit }));
+      if (!b) return c;
+      const ex = c.lines.find((l) => l.batchId === b.id && (l.unit ?? "pack") === unit);
+      const lines = ex ? c.lines.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l)) : [...c.lines, { key: newKey(), medicineId: m.id, batchId: b.id, qty: 1, ...(unit === "loose" ? { unit } : {}) }];
       return { ...c, meds, lines };
     });
+    if (out) {
+      // Out of stock: offer same-composition brands that are on the shelf.
+      toast(`${m.name}: no sellable stock${unit === "pack" && m.allowLoose ? ` for a whole ${m.packUnit}` : ""}. Expired and quarantined batches are blocked.`, "red");
+      if (m.hasSalt) setSubs({ id: m.id, name: m.name, reason: "Out of stock." });
+    }
     setQ(""); setResults(null);
   }, [toast]);
 
   const inc = (key: string) => setCart((c) => {
-    const l = c.lines.find((x) => x.key === key)!, b = batchOf(c, l)!;
-    if (used(c.lines, b.id) < b.qtyAvailable) return { ...c, lines: c.lines.map((x) => (x.key === key ? { ...x, qty: x.qty + 1 } : x)) };
-    const nb = nextFefo(c.meds[l.medicineId].batches, l.medicineId, usedMap(c.lines));
-    if (nb) { toast(`Batch ${b.batchNo} exhausted. Next FEFO batch ${nb.batchNo} added.`, "blue"); return { ...c, lines: [...c.lines, { key: newKey(), medicineId: l.medicineId, batchId: nb.id, qty: 1 }] }; }
-    toast(`Only ${c.meds[l.medicineId].batches.filter((x) => isSellable(x)).reduce((a, x) => a + x.qtyAvailable, 0)} sellable in stock.`, "red");
+    const l = c.lines.find((x) => x.key === key)!, b = batchOf(c, l)!, need = needOf(c, l), m = c.meds[l.medicineId];
+    if (b.qtyAvailable - used(c, b.id) >= need) return { ...c, lines: c.lines.map((x) => (x.key === key ? { ...x, qty: x.qty + 1 } : x)) };
+    const nb = nextFefo(m.batches, l.medicineId, usedMap(c), undefined, need);
+    if (nb) { toast(`Batch ${b.batchNo} exhausted. Next FEFO batch ${nb.batchNo} added.`, "blue"); return { ...c, lines: [...c.lines, { key: newKey(), medicineId: l.medicineId, batchId: nb.id, qty: 1, ...(l.unit === "loose" ? { unit: l.unit } : {}) }] }; }
+    toast(`Only ${fmtQty(m.batches.filter((x) => isSellable(x)).reduce((a, x) => a + x.qtyAvailable, 0), { packSize: psOf(m), packUnit: m.packUnit ?? "pack", looseUnit: m.looseUnit ?? "unit" })} sellable in stock.`, "red");
     return c;
   });
   const dec = (key: string) => set({ lines: cart.lines.map((x) => (x.key === key ? { ...x, qty: x.qty - 1 } : x)).filter((x) => x.qty > 0) });
   const setQty = (key: string, v: string) => setCart((c) => {
     const l = c.lines.find((x) => x.key === key)!, b = batchOf(c, l)!;
     let n = parseInt(v.replace(/\D/g, ""), 10); if (!n || n < 1) n = 1;
-    const max = b.qtyAvailable - used(c.lines, b.id, key);
+    const max = Math.floor((b.qtyAvailable - used(c, b.id, key)) / needOf(c, l));
     if (n > max) { n = max; toast(`Only ${max} available in batch ${b.batchNo}`, "amber"); }
     return { ...c, lines: c.lines.map((x) => (x.key === key ? { ...x, qty: n } : x)) };
   });
   const setBatch = (key: string, batchId: string) => setCart((c) => {
     const l = c.lines.find((x) => x.key === key)!, b = c.meds[l.medicineId].batches.find((x) => x.id === batchId)!;
     if (!isSellable(b)) { toast("That batch is blocked for sale.", "red"); return c; }
-    const max = b.qtyAvailable - used(c.lines, b.id, key);
+    const max = Math.floor((b.qtyAvailable - used(c, b.id, key)) / needOf(c, l));
     if (max < 1) { toast(`Batch ${b.batchNo} is already fully in the cart.`, "amber"); return c; }
     if (l.qty > max) toast(`Quantity reduced to ${max} (batch availability).`, "amber");
     return { ...c, lines: c.lines.map((x) => (x.key === key ? { ...x, batchId, qty: Math.min(x.qty, max) } : x)) };
   });
 
+  // Switches a line between whole packs and loose units, keeping it within the batch.
+  const setUnit = (key: string, unit: SaleUnit) => setCart((c) => {
+    const l = c.lines.find((x) => x.key === key)!, b = batchOf(c, l)!;
+    const max = Math.floor((b.qtyAvailable - used(c, b.id, key)) / needOf(c, { medicineId: l.medicineId, unit }));
+    if (max < 1) { toast(`Not enough left in batch ${b.batchNo} for a whole ${c.meds[l.medicineId].packUnit}.`, "amber"); return c; }
+    return { ...c, lines: c.lines.map((x) => (x.key === key ? { ...x, unit: unit === "loose" ? unit : undefined, qty: Math.min(x.qty, max) } : x)) };
+  });
+
   const disc = parseFloat(cart.disc) || 0;
+  const priceOf = (l: Line) => { const m = cart.meds[l.medicineId], b = m?.batches.find((x) => x.id === l.batchId); return unitPrice(b?.mrp ?? 0, l.unit, psOf(m)); };
   const totals = useMemo(() => cartTotals(cart.lines.map((l) => {
     const m = cart.meds[l.medicineId], b = m?.batches.find((x) => x.id === l.batchId);
-    return { mrpPaise: b?.mrp ?? 0, qty: l.qty, gstRate: m?.gstRate ?? 0 };
+    return { mrpPaise: unitPrice(b?.mrp ?? 0, l.unit, psOf(m)), qty: l.qty, gstRate: m?.gstRate ?? 0 };
   }), disc), [cart.lines, cart.meds, disc]);
   const cust = customers.find((c) => c.id === cart.cust);
   const needsRx = cart.lines.some((l) => cart.meds[l.medicineId]?.schedule);
@@ -117,7 +144,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const checkoutError = () => {
     if (!cart.lines.length) return "Cart is empty.";
     if (disc < 0 || disc > discCap) return `Discount above ${discCap}% needs manager approval.`;
-    if (needsRx && !cart.doctor.trim()) return "Enter prescriber name for Schedule H/H1 items.";
+    if (needsRx && !cart.doctor.trim() && !cart.doctorId) return "Enter prescriber name for Schedule H/H1 items.";
     if (cart.pay === "cash" && cart.tender && toPaise(cart.tender) < totals.total) return "Cash tendered is less than the total.";
     if (cart.pay === "split" && (!cart.split || toPaise(cart.split) <= 0 || toPaise(cart.split) >= totals.total)) return "Enter a cash part between ₹1 and the total.";
     if (cart.pay === "credit") {
@@ -135,10 +162,10 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     try {
       const r = await commitSaleAction({
         idempotencyKey: idemRef.current,
-        lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })),
+        lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty, ...(l.unit === "loose" ? { unit: l.unit } : {}) })),
         customerId: cart.cust || null, discountPct: disc,
         pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
-        prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined,
+        prescriber: cart.doctorId ? undefined : cart.doctor || undefined, rxNo: cart.rxno || undefined, doctorId: cart.doctorId || null,
       });
       setNetDown(false);
       if (!r.ok) {
@@ -189,10 +216,20 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       if (e.key === "F2") { e.preventDefault(); e.stopImmediatePropagation(); if (!sale) searchRef.current?.focus(); }
       else if (e.key === "F9") { e.preventDefault(); complete(); }
       else if (e.key === "F4") { e.preventDefault(); if (!sale) hold(); }
+      else if (e.key === "F6") {
+        // Substitutes for the highlighted search result, else for the last item in the cart.
+        e.preventDefault();
+        const m = results?.[hl] ?? cartRef.current.meds[cartRef.current.lines.at(-1)?.medicineId ?? ""];
+        if (m && !sale) setSubs({ id: m.id, name: m.name });
+      } else if (e.key === "F7") {
+        e.preventDefault();
+        const l = cartRef.current.lines.at(-1), m = l && cartRef.current.meds[l.medicineId];
+        if (l && m?.allowLoose && !sale) setUnit(l.key, l.unit === "loose" ? "pack" : "loose");
+      }
     };
     window.addEventListener("keydown", k, true);
     return () => window.removeEventListener("keydown", k, true);
-  }, [complete, hold, sale]);
+  }, [complete, hold, sale, results, hl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSearchKey = (e: React.KeyboardEvent) => {
     const res = results ?? [];
@@ -208,6 +245,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const payTabs: [Pay, string][] = [["cash", "Cash"], ["upi", "UPI"], ["card", "Card"], ["split", "Split"], ...(canCredit ? [["credit", "Credit"] as [Pay, string]] : [])];
   const tender = toPaise(cart.tender), splitCash = toPaise(cart.split);
   const unitCount = cart.lines.reduce((a, l) => a + l.qty, 0);
+  const packDef = (m: SaleMedicine) => ({ packSize: psOf(m), packUnit: m.packUnit ?? "pack", looseUnit: m.looseUnit ?? "unit" });
 
   return (
     <div className="grid gap-4 max-w-[1400px] items-start grid-cols-[minmax(0,1fr)_minmax(330px,380px)] max-[900px]:grid-cols-1">
@@ -221,27 +259,27 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             {results && results.length ? (
               <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-input rounded-[10px] shadow-[0_12px_32px_rgba(0,0,0,.12)] z-20 overflow-hidden">
                 {results.map((m, i) => {
-                  const st = m.batches.filter((b) => isSellable(b)).reduce((a, b) => a + b.qtyAvailable, 0) - cart.lines.filter((l) => l.medicineId === m.id).reduce((a, l) => a + l.qty, 0);
-                  const nb = nextFefo(m.batches, m.id, usedMap(cart.lines));
+                  const st = m.batches.filter((b) => isSellable(b)).reduce((a, b) => a + b.qtyAvailable, 0) - cart.lines.filter((l) => l.medicineId === m.id).reduce((a, l) => a + baseOf(cart, l), 0);
+                  const nb = nextFefo(m.batches, m.id, usedMap(cart));
                   return (
                     <button key={m.id} onMouseDown={(e) => { e.preventDefault(); add(m); }} onMouseEnter={() => setHl(i)}
                       className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3.5 items-center w-full border-b border-row px-3.5 py-2.5 text-left cursor-pointer" style={{ background: i === hl ? "#F0F7F6" : "#fff" }}>
                       <div className="flex flex-col min-w-0">
                         <div className="flex gap-1.5 items-center"><span className="font-semibold text-[14.5px]">{m.name}</span>{m.schedule ? <RxTag s={m.schedule} /> : null}</div>
-                        <span className="text-[12.5px] text-muted truncate">{m.generic} · {m.strength} · {m.manufacturer}</span>
+                        <span className="text-[12.5px] text-muted truncate">{m.composition ?? `${m.generic} · ${m.strength}`} · {m.manufacturer}{m.rack ? <> · <strong className="font-mono text-ink-2">Rack {m.rack}</strong></> : null}</span>
                       </div>
                       <div className="flex flex-col items-end">
-                        <span className="text-[12.5px] font-semibold" style={{ color: st > 0 ? (st < m.reorderLevel ? "#94570A" : "#1E7F4F") : "#B3261E" }}>{st > 0 ? `${st} in stock` : "No sellable stock"}</span>
+                        <span className="text-[12.5px] font-semibold" style={{ color: st > 0 ? (st < m.reorderLevel * psOf(m) ? "#94570A" : "#1E7F4F") : "#B3261E" }}>{st > 0 ? `${fmtQty(st, packDef(m))} in stock` : m.hasSalt ? "Out of stock · F6 substitutes" : "No sellable stock"}</span>
                         <span className="text-[11.5px] text-faint">{nb ? `FEFO ${nb.batchNo} · exp ${monthYear(nb.expiryDate)}` : ""}</span>
                       </div>
                       <span className="font-semibold tnum">{nb ? inr(nb.mrp) : m.batches[0] ? inr(m.batches[0].mrp) : "—"}</span>
                     </button>
                   );
                 })}
-                <div className="px-3.5 py-[7px] text-[11.5px] text-faint bg-subtle">↑ ↓ to select · Enter to add · batch picked by FEFO (expired & quarantined blocked)</div>
+                <div className="px-3.5 py-[7px] text-[11.5px] text-faint bg-subtle">↑ ↓ to select · Enter to add · F6 substitutes (same salt) · batch picked by FEFO (expired & quarantined blocked)</div>
               </div>
             ) : results && q.trim() ? (
-              <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-input rounded-[10px] p-3.5 z-20 text-[13.5px] text-muted">No medicine matches. Check spelling or try the generic name.</div>
+              <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-input rounded-[10px] p-3.5 z-20 text-[13.5px] text-muted">No medicine matches. Check spelling or try the salt name.</div>
             ) : null}
           </div>
         </div>
@@ -272,11 +310,21 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
               <div key={l.key} className="grid grid-cols-[minmax(0,1.6fr)_minmax(150px,1fr)_auto_auto_28px] gap-3 items-center px-4 py-3 border-b border-row max-[700px]:grid-cols-[minmax(0,1fr)_auto_28px]">
                 <div className="flex flex-col min-w-0 gap-0.5">
                   <div className="flex gap-1.5 items-center flex-wrap"><span className="font-semibold">{m.name}</span>{m.schedule ? <RxTag s={m.schedule} /> : null}</div>
-                  <span className="text-[12px] text-muted truncate">{m.generic} · {m.strength} · {m.pack}</span>
+                  <span className="text-[12px] text-muted truncate">{m.composition ?? `${m.generic} · ${m.strength}`} · {m.pack}{m.rack ? ` · rack ${m.rack}` : ""}</span>
+                  {m.allowLoose ? (
+                    <span className="flex gap-1 mt-0.5" role="group" aria-label={`Unit for ${m.name}`}>
+                      {(["pack", "loose"] as const).map((u) => (
+                        <button key={u} onClick={() => setUnit(l.key, u)} className="text-[11.5px] rounded px-1.5 py-px border cursor-pointer"
+                          style={(l.unit ?? "pack") === u ? { background: "#0B5E5B", color: "#fff", borderColor: "#0B5E5B" } : { background: "#fff", color: "#3D454D", borderColor: "#CDD2D7" }}>
+                          {u === "pack" ? `${m.packUnit} of ${m.packSize}` : `loose ${m.looseUnit}`}
+                        </button>
+                      ))}
+                    </span>
+                  ) : null}
                   {d <= 45 ? <span className="text-[12px] text-warn">Expires in {d} days</span> : null}
                 </div>
                 <select value={l.batchId} onChange={(e) => setBatch(l.key, e.target.value)} aria-label={`Batch for ${m.name}`} className="border border-input rounded-[7px] px-2 py-1.5 text-[12.5px] bg-white min-w-0 w-full max-[700px]:order-last max-[700px]:col-span-3">
-                  {m.batches.map((x) => <option key={x.id} value={x.id} disabled={!isSellable(x)}>{x.batchNo} · exp {monthYear(x.expiryDate)} · {x.qtyAvailable}{isSellable(x) ? "" : x.status !== "ok" ? " · quarantined" : " · expired"}</option>)}
+                  {m.batches.map((x) => <option key={x.id} value={x.id} disabled={!isSellable(x)}>{x.batchNo} · exp {monthYear(x.expiryDate)} · {fmtQty(x.qtyAvailable, packDef(m))}{isSellable(x) ? "" : x.status !== "ok" ? " · quarantined" : " · expired"}</option>)}
                 </select>
                 <div className="flex items-center border border-input rounded-[7px] overflow-hidden">
                   <button onClick={() => dec(l.key)} aria-label="Decrease" className="bg-bg w-[30px] h-8 cursor-pointer text-[16px]">−</button>
@@ -284,15 +332,15 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
                   <button onClick={() => inc(l.key)} aria-label="Increase" className="bg-bg w-[30px] h-8 cursor-pointer text-[16px]">+</button>
                 </div>
                 <div className="flex flex-col items-end min-w-[86px] max-[700px]:hidden">
-                  <span className="font-semibold tnum">{inr(b.mrp * l.qty)}</span>
-                  <span className="text-[11.5px] text-faint">{inr(b.mrp)} · GST {m.gstRate}%</span>
+                  <span className="font-semibold tnum">{inr(priceOf(l) * l.qty)}</span>
+                  <span className="text-[11.5px] text-faint">{fmtSold(l.qty, l.unit, packDef(m))} × {inr(priceOf(l))} · GST {m.gstRate}%</span>
                 </div>
                 <button onClick={() => set({ lines: cart.lines.filter((x) => x.key !== l.key) })} title="Remove" aria-label="Remove" className="text-fainter p-1 rounded-md cursor-pointer hover:text-bad"><Trash2 size={16} /></button>
               </div>
             );
           })}
         </div>
-        <div className="text-[12px] text-faint flex gap-3.5 flex-wrap"><span>F2 search</span><span>↑↓ Enter add</span><span>F4 hold</span><span>F9 complete</span><span>Prices are MRP inclusive of GST</span></div>
+        <div className="text-[12px] text-faint flex gap-3.5 flex-wrap"><span>F2 search</span><span>↑↓ Enter add</span><span>F4 hold</span><span>F6 substitutes</span><span>F7 loose/pack</span><span>F9 complete</span><span>Prices are MRP inclusive of GST</span></div>
       </div>
 
       <div className="flex flex-col gap-3 sticky top-0">
@@ -307,10 +355,12 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
           {needsRx ? (
             <div className="flex flex-col gap-1.5 p-2.5 bg-bad-bg rounded-lg mt-1">
               <div className="text-[12.5px] font-semibold text-bad flex gap-1.5 items-center"><FileText size={14} />Schedule H/H1: prescription required</div>
-              <input value={cart.doctor} onChange={(e) => set({ doctor: e.target.value })} placeholder="Prescriber name *" aria-label="Prescriber name" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
+              <DoctorPicker doctors={doctors} setDoctors={setDoctors} doctorId={cart.doctorId ?? ""} text={cart.doctor} required onChange={(p) => set({ doctorId: p.doctorId, doctor: p.text })} />
               <input value={cart.rxno} onChange={(e) => set({ rxno: e.target.value })} placeholder="Rx / register entry no." aria-label="Prescription number" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
             </div>
-          ) : null}
+          ) : (
+            <DoctorPicker doctors={doctors} setDoctors={setDoctors} doctorId={cart.doctorId ?? ""} text={cart.doctor} required={false} onChange={(p) => set({ doctorId: p.doctorId, doctor: p.text })} />
+          )}
         </div>
 
         <div className={card + " px-4 py-3.5 flex flex-col gap-[7px] text-[13.5px]"}>
@@ -352,6 +402,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
         </div>
       </div>
 
+      <SubstitutesPanel medicine={subs} reason={subs?.reason} onAdd={(m) => add(m)} onClose={() => { setSubs(null); setTimeout(() => searchRef.current?.focus(), 50); }} />
       <SaleModal sale={sale} waConnected={waConnected} onNew={() => { setSale(null); setTimeout(() => searchRef.current?.focus(), 50); }} />
       <NewCustomer open={newCust} canCredit={canCredit} onClose={() => setNewCust(false)} onSaved={(id, list) => { setCustomers(list); set({ cust: id }); setNewCust(false); }} />
     </div>
@@ -459,7 +510,7 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
             <div className="border-t border-dashed border-fainter pt-1.5 flex justify-between"><span>{s.invoiceNo}</span><span>{hhmm(when)}</span></div>
             <div>{s.customer?.name ?? "Walk-in customer"}</div>
             <div className="border-t border-dashed border-fainter pt-1.5 flex flex-col gap-[3px]">
-              {s.lines.map((l, i) => <div key={i} className="flex justify-between gap-2.5"><span>{l.qty} × {l.name} ({l.batchNo})</span><span className="whitespace-nowrap">{inr(l.amount)}</span></div>)}
+              {s.lines.map((l, i) => <div key={i} className="flex justify-between gap-2.5"><span>{l.qtyText} × {l.name} ({l.batchNo})</span><span className="whitespace-nowrap">{inr(l.amount)}</span></div>)}
               {[["Discount", -s.totals.discount], ["Taxable value", s.totals.taxable], ["CGST", s.totals.cgst], ["SGST", s.totals.sgst], ["Round off", s.totals.roundOff]].map(([k, v]) => (
                 <div key={k as string} className="flex justify-between gap-2.5"><span>{k}</span><span className="whitespace-nowrap">{inr(v as number)}</span></div>
               ))}
