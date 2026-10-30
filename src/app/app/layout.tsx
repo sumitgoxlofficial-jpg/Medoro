@@ -3,7 +3,7 @@ import { requireCtx } from "@/server/context";
 import { db } from "@/server/db";
 import { Shell } from "@/components/shell/shell";
 import { badgesAndAlerts } from "@/domain/reports/alerts";
-import { aiMode } from "@/domain/ai/service";
+import { aiStatus } from "@/domain/ai/settings";
 import { activeGrantEnd } from "@/domain/identity/support";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user || !tenant) redirect("/signin");
   const { badges, alerts } = await badgesAndAlerts(ctx.tenantId, ctx.branchId);
   const supportEnd = await activeGrantEnd(ctx.tenantId);
+  const ai = await aiStatus(ctx);
   const hm = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
   if (supportEnd && !ctx.readOnly && ctx.perms.includes("users")) alerts.unshift(`Medoro support has read-only access until ${hm(supportEnd)}. End it under Privacy & data.`);
   const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;
@@ -27,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       tenantName={ctx.tenantName} branchCount={ctx.branches.length} userName={ctx.userName} userEmail={ctx.userEmail}
       role={ctx.role} realRole={ctx.realRole} canViewAs={user.role.permissions.includes("users")} perms={ctx.perms}
       branchId={ctx.branchId} branchName={ctx.branchName} branches={ctx.branches} lang={ctx.lang} mfa={user.mfaEnabled}
-      deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts} aiMode={aiMode()} supportUntil={ctx.readOnly && supportEnd ? hm(supportEnd) : null}
+      deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts} ai={{ enabled: ai.enabled, globalOff: ai.globalOff, mode: ai.mode, canManage: ai.canManage }} supportUntil={ctx.readOnly && supportEnd ? hm(supportEnd) : null}
     >
       {children}
     </Shell>

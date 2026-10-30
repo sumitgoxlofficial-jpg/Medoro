@@ -4,7 +4,10 @@ import { Download, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import type { Privacy } from "@/domain/system/privacy";
+import { aiSettingsAction } from "@/app/app/ai-actions";
 import { eraseAction, privacyAction } from "./actions";
+
+type AiView = { enabled: boolean; globalOff: boolean; remoteNames: boolean; mode: "rules" | "local" | "remote"; note: string | null; remoteHost: string | null };
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 
@@ -17,17 +20,20 @@ function Toggle({ checked, onChange, title, body, disabled }: { checked: boolean
   );
 }
 
-export function PrivacyView({ p: initial, customers, wa, drive, licence }: { p: Privacy; customers: { id: string; name: string }[]; wa: boolean; drive: boolean; licence: boolean }) {
+export function PrivacyView({ p: initial, customers, wa, drive, licence, ai: aiInitial }: { p: Privacy; customers: { id: string; name: string }[]; wa: boolean; drive: boolean; licence: boolean; ai: AiView }) {
   const toast = useToast();
   const [p, setP] = useState(initial);
+  const [ai, setAi] = useState(aiInitial);
   const [erase, setErase] = useState("");
   const [pending, start] = useTransition();
   const save = (patch: Partial<Privacy>, msg?: string) => start(async () => { const r = await privacyAction(patch); if (!r.ok) return toast(r.error, "red"); setP(r.data); if (msg) toast(msg, "amber"); });
+  const saveAi = (patch: { enabled?: boolean; remoteNames?: boolean }) => start(async () => { const r = await aiSettingsAction(patch); if (!r.ok) return toast(r.error, "red"); setAi((x) => ({ ...x, ...r.data })); });
+  const remoteGets = !p.remoteAi || p.strict ? "Nothing (remote AI is off)" : aiInitial.mode !== "remote" ? "Nothing (no remote provider in use)" : `Your question and tool results (totals, item and supplier names)${ai.remoteNames ? ", including customer names" : "; customer names, phone numbers and emails replaced with placeholders"}${aiInitial.remoteHost ? ` · ${aiInitial.remoteHost}` : ""}`;
   const svc = [
     { svc: "Medoro control plane", gets: licence ? "Account, plan, licence check-ins, device count" : "Nothing (licence server not configured)", never: "Invoices, stock, customers, backups" },
     { svc: "Meta WhatsApp Cloud API", gets: wa ? "Recipient number, invoice PDF, template text" : "Nothing (not connected)", never: "Prescriber details, other records" },
     { svc: "Google Drive", gets: drive ? "Encrypted backup files only" : "Nothing (not connected)", never: "Encryption key or readable data" },
-    { svc: "External AI provider", gets: p.remoteAi ? "Minimised query context (aggregates, no customer names)" : "Nothing (remote AI is off)", never: "Credentials, keys, full database" },
+    { svc: "External AI provider", gets: remoteGets, never: "Credentials, keys, full database, logs of your questions" },
   ];
   return (
     <div className="flex flex-col gap-4 max-w-[1200px]">
@@ -38,7 +44,9 @@ export function PrivacyView({ p: initial, customers, wa, drive, licence }: { p: 
         <div className={card}>
           <div className="font-semibold text-[15px]">Data controls</div>
           <Toggle checked={p.strict} onChange={(v) => save({ strict: v })} title="Strict customer-controlled mode" body="Transactions, analytics, reports and AI all stay on your server. Nothing operational is copied to Medoro." />
-          <Toggle checked={p.remoteAi} onChange={(v) => save({ remoteAi: v }, v ? "Remote AI on. Strict mode is relaxed." : undefined)} title="Allow remote AI provider" body="Would send minimised context (aggregates, no names or phone numbers). No remote provider is configured in this version, so the assistant stays local either way." />
+          <Toggle checked={ai.enabled && !ai.globalOff} disabled={ai.globalOff || pending} onChange={(v) => saveAi({ enabled: v })} title="AI assistant" body={ai.globalOff ? "Switched off on this server (AI_ENABLED=0)." : `Ask AI drawer for every user. Off hides it and refuses all AI requests; billing never depends on it. Now: ${aiInitial.mode === "remote" ? "remote model" : aiInitial.mode === "local" ? "local model" : "rules on your server, no model"}${aiInitial.note ? ` (${aiInitial.note})` : ""}.`} />
+          <Toggle checked={p.remoteAi} onChange={(v) => save({ remoteAi: v }, v ? "Remote AI on. Strict mode is relaxed." : undefined)} title="Allow remote AI provider" body={aiInitial.remoteHost ? `Lets the assistant use the configured remote model (${aiInitial.remoteHost}) when AI_MODE=remote. Strict mode must be off.` : "No remote provider is configured on this server (REMOTE_AI_URL), so the assistant stays local either way."} />
+          <Toggle checked={ai.remoteNames} disabled={!p.remoteAi || pending} onChange={(v) => saveAi({ remoteNames: v })} title="Share customer names with the remote AI" body="Off: customer names, phone numbers and emails are replaced with placeholders before anything is sent, and put back in the answer on your server." />
           <Toggle checked={p.telemetry} onChange={(v) => save({ telemetry: v })} title="Anonymous usage telemetry" body="Records your preference. This version doesn’t send telemetry." />
           <Toggle checked={p.crash} onChange={(v) => save({ crash: v })} title="Crash reports" body="Records your preference. This version doesn’t send crash reports." />
           <label className="flex items-center gap-2 text-[13.5px]">Keep sales & prescription records for
