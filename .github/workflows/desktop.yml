@@ -1,6 +1,8 @@
 name: Desktop app
-# Builds the Medoro desktop installers (Windows .msi/.exe, macOS .dmg, Linux .deb/.AppImage).
-# Runs when desktop/ changes, on a desktop-v* tag (which also drafts a GitHub release), or by hand.
+# Builds the Medoro desktop installers (Windows .msi/.exe, macOS universal .dmg, Linux .deb/.AppImage).
+# Runs when desktop/ changes, on a desktop-v* tag (which also drafts a GitHub release with latest.json
+# for the auto-updater), or by hand. Signing and updater artifacts switch on only when their secrets
+# exist (see desktop/README.md); without them the build is unsigned and still succeeds.
 on:
   workflow_dispatch:
   push:
@@ -19,6 +21,12 @@ jobs:
           - { os: macos-latest, args: "--target universal-apple-darwin" }
           - { os: ubuntu-22.04, args: "" }
     runs-on: ${{ matrix.os }}
+    env:
+      HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+      HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' && secrets.WINDOWS_CERTIFICATE_PASSWORD != '' }}
+      HAS_TRUSTED_SIGNING: ${{ secrets.AZURE_CLIENT_SECRET != '' && secrets.AZURE_TRUSTED_SIGNING_ACCOUNT != '' }}
+      HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_SIGNING_IDENTITY != '' }}
+      HAS_APPLE_NOTARY: ${{ secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,20 +36,95 @@ jobs:
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - name: Linux build libraries
         if: matrix.os == 'ubuntu-22.04'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev libgtk-3-dev
       - uses: swatinem/rust-cache@v2
         with: { workspaces: "desktop/src-tauri -> target" }
       - run: npm install --no-audit --no-fund
         working-directory: desktop
+
+      - name: Updater signing key
+        if: env.HAS_UPDATER_KEY == 'true'
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          {
+            echo "TAURI_SIGNING_PRIVATE_KEY<<MEDORO_EOF"; echo "$KEY"; echo "MEDORO_EOF"
+            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<MEDORO_EOF"; echo "$KEY_PASSWORD"; echo "MEDORO_EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Windows code signing certificate
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERT == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "medoro-signing.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $pw = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pw | Where-Object HasPrivateKey | Select-Object -First 1
+          Remove-Item $pfx
+          if (-not $cert) { throw "WINDOWS_CERTIFICATE has no private key" }
+          "WINDOWS_CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Azure Trusted Signing
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERT != 'true' && env.HAS_TRUSTED_SIGNING == 'true'
+        shell: bash
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: |
+          cargo install trusted-signing-cli --locked
+          {
+            echo "AZURE_TENANT_ID=$AZURE_TENANT_ID"
+            echo "AZURE_CLIENT_ID=$AZURE_CLIENT_ID"
+            echo "AZURE_CLIENT_SECRET<<MEDORO_EOF"; echo "$AZURE_CLIENT_SECRET"; echo "MEDORO_EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: macOS signing and notarisation
+        if: runner.os == 'macOS' && env.HAS_APPLE_CERT == 'true'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          {
+            echo "APPLE_CERTIFICATE<<MEDORO_EOF"; echo "$APPLE_CERTIFICATE"; echo "MEDORO_EOF"
+            echo "APPLE_CERTIFICATE_PASSWORD<<MEDORO_EOF"; echo "$APPLE_CERTIFICATE_PASSWORD"; echo "MEDORO_EOF"
+            echo "APPLE_SIGNING_IDENTITY<<MEDORO_EOF"; echo "$APPLE_SIGNING_IDENTITY"; echo "MEDORO_EOF"
+            if [ "$HAS_APPLE_NOTARY" = "true" ]; then
+              echo "APPLE_ID=$APPLE_ID"
+              echo "APPLE_PASSWORD<<MEDORO_EOF"; echo "$APPLE_PASSWORD"; echo "MEDORO_EOF"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+            fi
+          } >> "$GITHUB_ENV"
+
+      - name: Build config
+        shell: bash
+        env:
+          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          AZURE_TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          AZURE_TRUSTED_SIGNING_ACCOUNT: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          AZURE_TRUSTED_SIGNING_PROFILE: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+        run: node desktop/scripts/ci-config.mjs
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: desktop
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --config src-tauri/tauri.ci.conf.json
           tagName: ${{ startsWith(github.ref, 'refs/tags/desktop-v') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'Medoro desktop __VERSION__' || '' }}
           releaseDraft: true
+          includeUpdaterJson: ${{ env.HAS_UPDATER_KEY == 'true' }}
       - uses: actions/upload-artifact@v4
         with:
           name: medoro-desktop-${{ matrix.os }}
@@ -51,4 +134,6 @@ jobs:
             desktop/src-tauri/target/**/release/bundle/**/*.dmg
             desktop/src-tauri/target/**/release/bundle/**/*.deb
             desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+            desktop/src-tauri/target/**/release/bundle/**/*.app.tar.gz
+            desktop/src-tauri/target/**/release/bundle/**/*.sig
           if-no-files-found: ignore
