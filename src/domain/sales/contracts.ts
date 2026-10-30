@@ -8,7 +8,8 @@ export const saleSchema = z.object({
   customerId: z.string().uuid().nullable(),
   discountPct: z.number().min(0, "Discount can’t be negative.").max(100),
   pay: z.object({
-    mode: z.enum(PAY_MODES),
+    // "cod" is only accepted for orders billed at packing (see domain/orders).
+    mode: z.enum([...PAY_MODES, "cod"]),
     cashPaise: z.number().int().min(0).optional(), // split: cash part; rest goes to UPI
     tenderedPaise: z.number().int().min(0).optional(), // cash: what the customer handed over
     ref: z.string().trim().max(60).optional(),

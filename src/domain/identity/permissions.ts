@@ -1,5 +1,5 @@
 export const PERMS = [
-  "sale", "disc", "credit", "refund", "adjust", "purchase", "payments", "reports", "users", "integrations", "aiAct",
+  "sale", "disc", "credit", "refund", "adjust", "purchase", "payments", "reports", "users", "integrations", "aiAct", "delivery",
 ] as const;
 export type Perm = (typeof PERMS)[number];
 
@@ -15,9 +15,10 @@ export const PERM_LABEL: Record<Perm, string> = {
   users: "Manage users & roles",
   integrations: "Integrations & backups",
   aiAct: "Confirm AI actions",
+  delivery: "Deliver orders",
 };
 
-export const ROLE_NAMES = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant"] as const;
+export const ROLE_NAMES = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant", "Delivery"] as const;
 export type RoleName = (typeof ROLE_NAMES)[number];
 
 export const DEFAULT_GRANTS: Record<RoleName, Perm[]> = {
@@ -26,6 +27,7 @@ export const DEFAULT_GRANTS: Record<RoleName, Perm[]> = {
   Pharmacist: ["sale", "disc", "adjust"],
   Cashier: ["sale"],
   Accountant: ["payments", "reports"],
+  Delivery: ["delivery"],
 };
 
 /** Max discount % a user may give without approval. */

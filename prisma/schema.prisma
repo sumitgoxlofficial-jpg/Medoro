@@ -33,6 +33,7 @@ enum PayMode {
   card
   credit
   split
+  cod // cash on delivery: with the delivery person until handed over (docs/ORDERS_AND_DELIVERY.md)
 }
 
 enum MsgStatus {
@@ -1055,4 +1056,104 @@ model DiscountApproval {
   createdAt   DateTime  @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+// ───────────── Orders & home delivery ─────────────
+
+enum OrderStatus {
+  new
+  confirmed
+  packed
+  out_for_delivery
+  delivered
+  cancelled
+  returned
+}
+
+/// A customer order (phone, WhatsApp or counter) delivered to an address. Packing bills it as a normal sale.
+model DeliveryOrder {
+  id             String              @id @default(uuid())
+  tenantId       String
+  branchId       String
+  no             String
+  source         String // phone, whatsapp, walk_in
+  customerId     String?
+  name           String
+  phone          String
+  address        String
+  slotDate       DateTime?           @db.Date
+  slot           String?
+  notes          String?
+  payMode        String // cod, prepaid, credit
+  payRef         String?
+  discountPct    Decimal             @default(0)
+  prescriber     String?
+  rxPath         String?
+  rxMime         String?
+  waConsent      Boolean             @default(false)
+  status         OrderStatus         @default(new)
+  estimatePaise  BigInt              @default(0)
+  saleId         String?             @unique
+  invoiceNo      String?
+  totalPaise     BigInt?
+  riderId        String?
+  otpHash        String?
+  otpAttempts    Int                 @default(0)
+  proof          String? // otp, signature
+  receivedBy     String?
+  collectedPaise BigInt              @default(0)
+  collectedMode  String? // cash, upi
+  settlementId   String?
+  reason         String? // cancel/return reason, or the last failed delivery attempt
+  createdBy      String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deliveredAt    DateTime?
+  items          DeliveryOrderItem[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, riderId, status])
+}
+
+model DeliveryOrderItem {
+  id         String        @id @default(uuid())
+  orderId    String
+  order      DeliveryOrder @relation(fields: [orderId], references: [id])
+  medicineId String
+  qty        Int
+}
+
+/// Order history: every status change, failed attempt and customer notification. Append-only.
+model DeliveryEvent {
+  id       String   @id @default(uuid())
+  tenantId String
+  branchId String
+  orderId  String
+  kind     String // a status, attempt_failed, notified, rx_uploaded, rider_assigned
+  note     String?
+  userId   String?
+  userName String?
+  at       DateTime @default(now())
+
+  @@index([orderId, at])
+}
+
+/// Cash on delivery handed over by a delivery person at the counter. Append-only.
+model RiderSettlement {
+  id            String   @id @default(uuid())
+  tenantId      String
+  branchId      String
+  no            String
+  riderId       String
+  orderIds      String[]
+  expectedPaise BigInt
+  countedPaise  BigInt
+  shiftId       String?
+  userId        String
+  note          String?
+  at            DateTime @default(now())
+
+  @@unique([tenantId, no])
+  @@index([tenantId, branchId, at])
 }

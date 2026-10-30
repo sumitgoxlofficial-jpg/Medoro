@@ -41,7 +41,7 @@ export async function reservedForDevices(q: DbOrTx, tenantId: string, branchId: 
  * stock (row-locked), batch eligibility, prices from the database, discount cap,
  * prescription rule, credit permission and limit. Same idempotency key → same sale.
  */
-export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date; note?: string; deviceId?: string } = {}): Promise<CommitResult> {
+export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date; note?: string; deviceId?: string; cod?: boolean } = {}): Promise<CommitResult> {
   authorize(ctx, "sale");
   const input = saleSchema.parse(raw);
   // Offline sales keep the time they were billed; bounded so a wrong device clock can't backdate books.
@@ -51,6 +51,7 @@ export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date; no
   }
   const existing = await replayOf(ctx.tenantId, input);
   if (existing) return existing;
+  if (input.pay.mode === "cod" && !opts.cod) throw new UserError("Cash on delivery is billed from Orders when the order is packed.");
   try {
     return await db.$transaction((tx) => commitTx(tx, ctx, input, at, opts.note, opts.deviceId), { timeout: 15000 });
   } catch (e) {
@@ -113,7 +114,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const customer = input.customerId ? await tx.customer.findFirst({ where: { id: input.customerId, tenantId: ctx.tenantId, erasedAt: null } }) : null;
   if (input.customerId && !customer) throw new UserError("Customer not found.");
 
-  const pay = { cash: 0, upi: 0, card: 0, credit: 0 };
+  const pay = { cash: 0, upi: 0, card: 0, credit: 0, cod: 0 };
   const m = input.pay.mode;
   if (m === "split") {
     const cash = input.pay.cashPaise ?? -1;
@@ -171,6 +172,8 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
 
   const vl: Line[] = [
     { account: ACC.cash, dr: pay.cash }, { account: ACC.bank, dr: pay.upi + pay.card },
+    // Billed at packing, collected at the door: held against the delivery staff until handed over.
+    { account: ACC.codClearing, dr: pay.cod },
     ...(pay.credit ? [{ account: ACC.debtors, dr: pay.credit, partyType: "customer" as const, partyId: customer!.id }] : []),
     { account: ACC.sales, cr: t.taxable }, { account: ACC.cgst, cr: t.cgst }, { account: ACC.sgst, cr: t.sgst },
     t.roundOff >= 0 ? { account: ACC.roundOff, cr: t.roundOff } : { account: ACC.roundOff, dr: -t.roundOff },

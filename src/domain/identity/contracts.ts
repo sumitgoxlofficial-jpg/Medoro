@@ -27,7 +27,7 @@ export const ownerSchema = z.object({
   password: passwordSchema,
 });
 
-export const ROLE_OPTIONS = ["Manager", "Pharmacist", "Cashier", "Accountant"] as const;
+export const ROLE_OPTIONS = ["Manager", "Pharmacist", "Cashier", "Accountant", "Delivery"] as const;
 
 export const setupSchema = z.object({
   pharmacy: pharmacySchema,
