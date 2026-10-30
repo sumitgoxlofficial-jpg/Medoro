@@ -70,7 +70,8 @@ export async function outputGstByRate(tenantId: string, p: Period, branchIds: st
 export async function inputGstByRate(tenantId: string, p: Period, branchIds: string[] | null) {
   const [bought, returned] = await Promise.all([
     db.$queryRaw<{ rate: number; igst: boolean; taxable: bigint; tax: bigint }[]>`
-      SELECT gi."gstRate" rate, g.igst, SUM(gi."ratePaise" * gi.qty)::bigint taxable, SUM(ROUND((gi."ratePaise" * gi.qty * gi."gstRate")::numeric / 100))::bigint tax
+      SELECT gi."gstRate" rate, g.igst, SUM(COALESCE(gi."basePaise", gi."ratePaise" * gi.qty))::bigint taxable,
+        SUM(CASE WHEN g.itc THEN COALESCE(gi."gstPaise", ROUND((gi."ratePaise" * gi.qty * gi."gstRate")::numeric / 100)) ELSE 0 END)::bigint tax
       FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId"
       WHERE g."tenantId" = ${tenantId} AND g."invoiceDate" >= ${p.fromDay}::date AND g."invoiceDate" < ${p.toDay}::date ${inBranches(Prisma.sql`g."branchId"`, branchIds)} GROUP BY 1, 2`,
     db.$queryRaw<{ rate: number; taxable: bigint; cs: bigint; ig: bigint }[]>`
@@ -79,7 +80,7 @@ export async function inputGstByRate(tenantId: string, p: Period, branchIds: str
         SUM(CASE WHEN l.account IN (${ACC.inCgst}, ${ACC.inSgst}) THEN l."creditPaise" - l."debitPaise" ELSE 0 END)::bigint cs,
         SUM(CASE WHEN l.account = ${ACC.inIgst} THEN l."creditPaise" - l."debitPaise" ELSE 0 END)::bigint ig
       FROM "Voucher" v JOIN "LedgerLine" l ON l."voucherId" = v.id JOIN "StockOut" so ON so.id = v."refId" JOIN "Batch" b ON b.id = so."batchId" JOIN "Medicine" m ON m.id = b."medicineId"
-      WHERE v."tenantId" = ${tenantId} AND v."refType" = 'supplier_return' AND v.date >= ${p.from} AND v.date < ${p.to} ${inBranches(Prisma.sql`v."branchId"`, branchIds)} GROUP BY 1`,
+      WHERE v."tenantId" = ${tenantId} AND v."refType" IN ('supplier_return', 'supplier_claim') AND v.date >= ${p.from} AND v.date < ${p.to} ${inBranches(Prisma.sql`v."branchId"`, branchIds)} GROUP BY 1`,
   ]);
   const rates = [...new Set([...bought.map((r) => r.rate), ...returned.map((r) => r.rate)])].sort((a, b) => a - b);
   return rates.map((rate) => {
@@ -105,7 +106,7 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
   const dr = (a: string) => -cr(a);
   const sales = cr(ACC.sales) - dr(ACC.salesReturns);
   const cogs = Number(cogsRows[0]?.c ?? 0);
-  const expenseLines = [...EXPENSE_ACCOUNTS, ACC.stockLoss, ACC.cashDiff, ACC.roundOff].map((a) => ({ account: a, amount: dr(a) })).filter((x) => x.amount !== 0);
+  const expenseLines = [...EXPENSE_ACCOUNTS, ACC.stockLoss, ACC.claimLoss, ACC.cashDiff, ACC.roundOff].map((a) => ({ account: a, amount: dr(a) })).filter((x) => x.amount !== 0);
   const expenses = expenseLines.reduce((a, x) => a + x.amount, 0);
   const bal = (a: string) => (all.get(a)?.dr ?? 0) - (all.get(a)?.cr ?? 0);
   const rates = [...new Set([...gstOut.map((g) => g.rate), ...gstIn.map((g) => g.rate)])].sort((a, b) => a - b);

@@ -10,6 +10,8 @@ import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { isInterState, stateOf } from "@/domain/accounting/gst";
 import { grnSchema, grnTotals, poSchema, type GrnInput, type PoInput } from "./contracts";
+import { priceLine, rulesOf, schemeFree } from "./pricing";
+import { nameKey } from "./ebill";
 
 export const ROUND_TOLERANCE = 100; // printed total may differ from the computed one by up to ₹1 (round-off)
 
@@ -46,12 +48,14 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
     if (!m) throw new UserError(`Line ${n + 1}: medicine not found.`);
     if (daysTo(l.expiry) <= 0) throw new UserError(`Line ${n + 1} (${m.name}): batch has already expired.`);
     if (l.rate > l.mrp) throw new UserError(`Line ${n + 1} (${m.name}): rate is above MRP. Check the invoice.`);
+    if (l.pts != null && l.pts > l.mrp) throw new UserError(`Line ${n + 1} (${m.name}): PTS is above MRP. Check the invoice.`);
     const k = m.id + "|" + l.batchNo;
     if (seen.has(k)) throw new UserError(`Line ${n + 1}: ${m.name} batch ${l.batchNo} appears twice. Combine the lines.`);
     seen.add(k);
-    return { ...l, m };
+    return { ...l, freeQty: l.freeQty || schemeFree(l.qty, l.scheme), m };
   });
-  const t = grnTotals(lines.map((l) => ({ qty: l.qty, rate: l.rate, gstRate: l.m.gstRate })));
+  const rules = rulesOf((await tx.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { settings: true } })).settings);
+  const t = grnTotals(lines.map((l) => ({ qty: l.qty, freeQty: l.freeQty, rate: l.rate, gstRate: l.m.gstRate, schemePct: l.schemePct, tradePct: l.tradePct, cashPct: l.cashPct })), rules);
   const payable = i.statedTotal ?? Math.round(t.total / 100) * 100;
   const roundOff = payable - t.total;
   if (Math.abs(roundOff) > ROUND_TOLERANCE) throw new UserError(`Totals don’t match: lines add up to ${inr(t.total)}, the invoice says ${inr(payable)}.`);
@@ -60,34 +64,38 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
 
   const fy = fiscalYear();
   const grnNo = `GRN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "GRN:" + fy))}`;
-  const grn = await tx.grn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no: grnNo, supplierId: supplier.id, supplierInvoiceNo: i.invoiceNo, invoiceDate: dateOnly(i.invoiceDate), totalPaise: BigInt(payable), poId: po?.id ?? null, scanDocId: i.scanDocId, igst, approvedBy: ctx.userId } });
+  const grn = await tx.grn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no: grnNo, supplierId: supplier.id, supplierInvoiceNo: i.invoiceNo, invoiceDate: dateOnly(i.invoiceDate), totalPaise: BigInt(payable), poId: po?.id ?? null, scanDocId: i.scanDocId, igst, itc: rules.itc, gstBase: rules.gstBase, approvedBy: ctx.userId } });
 
-  for (const l of lines) {
-    const units = l.qty + l.freeQty;
-    const unitCost = Math.round((l.rate * l.qty) / units); // free goods lower the effective cost
+  for (const [n, l] of lines.entries()) {
+    const p = t.lines[n], units = p.units;
     const found = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} AND "branchId" = ${ctx.branchId} AND "medicineId" = ${l.m.id} AND "batchNo" = ${l.batchNo} FOR UPDATE`;
     const existing = found.length ? await tx.batch.findUniqueOrThrow({ where: { id: found[0].id } }) : null;
     let batchId: string;
     if (existing) {
       if (isoOf(existing.expiryDate) !== l.expiry || big(existing.mrpPaise) !== l.mrp) throw new UserError(`${l.m.name} batch ${l.batchNo} already exists with a different expiry or MRP. Check the batch number.`);
-      // One row per batch number (unique key), so a top-up blends cost by weighted average and the batch's
+      // One row per batch number (unique key), so a top-up blends landed cost by weighted average and the batch's
       // supplier becomes the latest one; each receipt's own supplier and rate stay on its GRN.
       const onHand = Math.max(existing.qtyAvailable, 0);
-      const cost = onHand ? Math.round((onHand * big(existing.costPaise) + units * unitCost) / (onHand + units)) : unitCost;
+      const cost = onHand ? Math.round((onHand * big(existing.costPaise) + p.cost) / (onHand + units)) : p.landed;
       await tx.batch.update({ where: { id: existing.id }, data: { qtyAvailable: { increment: units }, costPaise: BigInt(cost), supplierId: supplier.id, grnId: grn.id, version: { increment: 1 } } });
       batchId = existing.id;
     } else {
-      batchId = (await tx.batch.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: l.m.id, batchNo: l.batchNo, expiryDate: dateOnly(l.expiry), qtyAvailable: units, costPaise: BigInt(unitCost), mrpPaise: BigInt(l.mrp), supplierId: supplier.id, grnId: grn.id } })).id;
+      batchId = (await tx.batch.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: l.m.id, batchNo: l.batchNo, expiryDate: dateOnly(l.expiry), qtyAvailable: units, costPaise: BigInt(p.landed), mrpPaise: BigInt(l.mrp), supplierId: supplier.id, grnId: grn.id } })).id;
     }
-    await tx.grnItem.create({ data: { grnId: grn.id, poItemId: l.poItemId, medicineId: l.m.id, batchId, qty: l.qty, freeQty: l.freeQty, ratePaise: BigInt(l.rate), gstRate: l.m.gstRate } });
+    await tx.grnItem.create({ data: { grnId: grn.id, poItemId: l.poItemId, medicineId: l.m.id, batchId, qty: l.qty, freeQty: l.freeQty, ratePaise: BigInt(l.rate), gstRate: l.m.gstRate,
+      ptsPaise: l.pts == null ? null : BigInt(l.pts), mrpPaise: BigInt(l.mrp), scheme: l.scheme || null, schemePct: l.schemePct, tradePct: l.tradePct, cashPct: l.cashPct,
+      discPaise: BigInt(p.disc), basePaise: BigInt(p.taxable), gstPaise: BigInt(p.gst), costPaise: BigInt(p.landed) } });
     await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId, qty: units, type: "grn", refType: "grn", refId: grn.id, userId: ctx.userId, note: grnNo } });
+    for (const code of [l.supplierCode, l.sourceName && nameKey(l.sourceName)]) {
+      if (code) await tx.supplierItemMap.upsert({ where: { tenantId_supplierId_code: { tenantId: ctx.tenantId, supplierId: supplier.id, code } }, create: { tenantId: ctx.tenantId, supplierId: supplier.id, code, medicineId: l.m.id }, update: { medicineId: l.m.id } });
+    }
   }
   const half = Math.floor(t.gst / 2);
   await postVoucher(tx, {
     tenantId: ctx.tenantId, branchId: ctx.branchId, type: "purchase", userId: ctx.userId, refType: "grn", refId: grn.id, date: i.invoiceDate === todayISO() ? new Date() : istMidnight(i.invoiceDate),
-    narration: `${supplier.name} · Inv ${i.invoiceNo} · ${grnNo}${igst ? " · IGST" : ""}`,
+    narration: `${supplier.name} · Inv ${i.invoiceNo} · ${grnNo}${igst ? " · IGST" : ""}${rules.itc ? "" : " · GST in cost"}`,
     lines: [
-      { account: ACC.purchases, dr: t.taxable }, ...(igst ? [{ account: ACC.inIgst, dr: t.gst }] : [{ account: ACC.inCgst, dr: half }, { account: ACC.inSgst, dr: t.gst - half }]),
+      ...(rules.itc ? [{ account: ACC.purchases, dr: t.net }, ...(igst ? [{ account: ACC.inIgst, dr: t.gst }] : [{ account: ACC.inCgst, dr: half }, { account: ACC.inSgst, dr: t.gst - half }])] : [{ account: ACC.purchases, dr: t.net + t.gst }]),
       roundOff >= 0 ? { account: ACC.roundOff, dr: roundOff } : { account: ACC.roundOff, cr: -roundOff },
       { account: ACC.creditors, cr: payable, partyType: "supplier", partyId: supplier.id },
     ],
@@ -119,10 +127,17 @@ export async function listOrders(ctx: Ctx) {
   const meds = await db.medicine.findMany({ where: { id: { in: [...new Set(pos.flatMap((p) => p.items.map((i) => i.medicineId)))] } }, select: { id: true, name: true, strength: true } });
   return pos.map((p) => ({
     id: p.id, no: p.no, supplierId: p.supplierId, supplier: p.supplier.name, date: p.createdAt.toISOString(), status: p.status, source: p.source, closedReason: p.closedReason,
-    total: p.items.reduce((a, i) => a + i.qty * big(i.ratePaise), 0),
-    items: p.items.map((i) => ({ id: i.id, medicineId: i.medicineId, name: meds.find((m) => m.id === i.medicineId)?.name ?? "", qty: i.qty, rate: big(i.ratePaise), received: received.find((r) => r.poItemId === i.id)?._sum.qty ?? 0 })),
+    total: p.items.reduce((a, i) => a + poLineNet(i), 0),
+    items: p.items.map((i) => ({
+      id: i.id, medicineId: i.medicineId, name: meds.find((m) => m.id === i.medicineId)?.name ?? "", qty: i.qty, rate: big(i.ratePaise), received: received.find((r) => r.poItemId === i.id)?._sum.qty ?? 0,
+      freeQty: i.freeQty, pts: i.ptsPaise == null ? null : big(i.ptsPaise), mrp: i.mrpPaise == null ? null : big(i.mrpPaise), scheme: i.scheme ?? "", schemePct: Number(i.schemePct), tradePct: Number(i.tradePct), cashPct: Number(i.cashPct), net: poLineNet(i),
+    })),
   }));
 }
+
+/** PO line value after its scheme, trade and cash discounts, excluding GST. */
+const poLineNet = (i: { qty: number; ratePaise: bigint; schemePct: unknown; tradePct: unknown; cashPct: unknown }) =>
+  priceLine({ qty: i.qty, rate: big(i.ratePaise), gstRate: 0, schemePct: Number(i.schemePct), tradePct: Number(i.tradePct), cashPct: Number(i.cashPct) }).net;
 
 export async function createPo(ctx: Ctx, raw: PoInput) {
   authorize(ctx, "purchase");
@@ -134,8 +149,8 @@ export async function createPo(ctx: Ctx, raw: PoInput) {
     if (meds !== new Set(i.lines.map((l) => l.medicineId)).size) throw new UserError("A line has an unknown medicine.");
     const fy = fiscalYear();
     const no = `PO-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "PO:" + fy))}`;
-    const po = await tx.purchaseOrder.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, supplierId: s.id, createdBy: ctx.userId, source: i.source, items: { create: i.lines.map((l) => ({ medicineId: l.medicineId, qty: l.qty, ratePaise: BigInt(l.rate) })) } } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Draft PO created", entity: "purchase_order", entityId: po.id, detail: `${no} · ${s.name} · ${i.lines.length} item(s) · ${inr(i.lines.reduce((a, l) => a + l.qty * l.rate, 0))}${i.note ? " · " + i.note : ""}` });
+    const po = await tx.purchaseOrder.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, supplierId: s.id, createdBy: ctx.userId, source: i.source, items: { create: i.lines.map((l) => ({ medicineId: l.medicineId, qty: l.qty, ratePaise: BigInt(l.rate), freeQty: l.freeQty || schemeFree(l.qty, l.scheme), ptsPaise: l.pts == null ? null : BigInt(l.pts), mrpPaise: l.mrp == null ? null : BigInt(l.mrp), scheme: l.scheme || null, schemePct: l.schemePct, tradePct: l.tradePct, cashPct: l.cashPct })) } } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Draft PO created", entity: "purchase_order", entityId: po.id, detail: `${no} · ${s.name} · ${i.lines.length} item(s) · ${inr(i.lines.reduce((a, l) => a + priceLine({ qty: l.qty, rate: l.rate, gstRate: 0, schemePct: l.schemePct, tradePct: l.tradePct, cashPct: l.cashPct }).net, 0))}${i.note ? " · " + i.note : ""}` });
     return { id: po.id, no };
   });
 }

@@ -18,6 +18,11 @@ export const ACC = {
   stockLoss: "Stock loss",
   cashDiff: "Cash short/excess",
   opening: "Opening balance equity",
+  claims: "Supplier claims receivable",
+  claimLoss: "Claim write-off",
+  chequesInHand: "Cheques in hand",
+  chequesIssued: "Cheques issued (uncleared)",
+  bankCharges: "Bank charges",
 } as const;
 
 export const EXPENSE_ACCOUNTS = [
