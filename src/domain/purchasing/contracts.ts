@@ -13,13 +13,19 @@ export const grnLineSchema = z.object({
   rate: money("Enter the rate."), // per pack, excluding GST
   mrp: money("Enter the MRP."),
   poItemId: z.string().uuid().nullable().default(null),
+  /** Index of the OCR-extracted line this came from, and whether the user checked it against the invoice. */
+  ocrIndex: z.number().int().min(0).max(999).nullable().default(null),
+  verified: z.boolean().default(false),
 });
+
+/** OCR lines below this confidence must be verified by a person before the invoice can be approved. */
+export const LOW_CONFIDENCE = 0.8;
 
 export const grnSchema = z.object({
   supplierId: z.string().uuid({ message: "Choose the supplier." }),
   invoiceNo: z.string().trim().min(1, "Enter the supplier invoice number.").max(40),
   invoiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the invoice date."),
-  statedTotal: z.union([z.string(), z.number()]).transform((v) => (v === "" || v == null ? null : Math.round(parseFloat(String(v)) * 100))).nullable().default(null),
+  statedTotal: z.union([z.string(), z.number()]).transform((v) => (v === "" || v == null ? null : Math.round(parseFloat(String(v)) * 100))).refine((v) => v == null || (Number.isFinite(v) && v > 0), "Enter the total printed on the invoice as an amount.").nullable().default(null),
   poId: z.string().uuid().nullable().default(null),
   scanDocId: z.string().uuid().nullable().default(null),
   lines: z.array(grnLineSchema).min(1, "Add at least one line."),

@@ -9,7 +9,7 @@ import { big, inr } from "@/lib/money";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { isInterState, stateOf } from "@/domain/accounting/gst";
-import { grnSchema, grnTotals, poSchema, type GrnInput, type PoInput } from "./contracts";
+import { grnSchema, grnTotals, LOW_CONFIDENCE, poSchema, type GrnInput, type PoInput } from "./contracts";
 
 export const ROUND_TOLERANCE = 100; // printed total may differ from the computed one by up to ₹1 (round-off)
 
@@ -55,7 +55,18 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   const payable = i.statedTotal ?? Math.round(t.total / 100) * 100;
   const roundOff = payable - t.total;
   if (Math.abs(roundOff) > ROUND_TOLERANCE) throw new UserError(`Totals don’t match: lines add up to ${inr(t.total)}, the invoice says ${inr(payable)}.`);
-  if (i.scanDocId && !(await tx.scanDocument.findFirst({ where: { id: i.scanDocId, tenantId: ctx.tenantId, status: "review" } }))) throw new UserError("That uploaded invoice was already posted or discarded. Upload it again.");
+  if (i.scanDocId) {
+    const doc = await tx.scanDocument.findFirst({ where: { id: i.scanDocId, tenantId: ctx.tenantId, status: "review" } });
+    if (!doc) throw new UserError("That uploaded invoice was already posted or discarded. Upload it again.");
+    if (i.statedTotal == null) throw new UserError("Enter the total printed on the invoice. Uploaded invoices are approved only when the lines add up to it.");
+    const extracted = (doc.extracted as OcrExtract | null)?.lines ?? [];
+    i.lines.forEach((l, n) => {
+      if (l.ocrIndex == null) return;
+      const x = extracted[l.ocrIndex];
+      if (!x) throw new UserError(`Line ${n + 1} doesn’t match a line read from the uploaded invoice.`);
+      if (!(x.confidence >= LOW_CONFIDENCE) && !l.verified) throw new UserError(`Line ${n + 1} (“${x.text.slice(0, 40)}”) was read with low confidence. Check it against the invoice and tick “Verified”.`);
+    });
+  }
   const igst = await supplierIsInterState(tx, ctx.tenantId, ctx.branchId, supplier);
 
   const fy = fiscalYear();
@@ -103,6 +114,12 @@ export async function postGrnTx(ctx: Ctx, raw: GrnInput) {
   return db.$transaction((tx) => postGrn(tx, ctx, raw), { timeout: 20000 });
 }
 
+/** Supplier invoice approval from the Purchases screen: the printed total is required and must match the lines (± ₹1). */
+export async function approveSupplierInvoice(ctx: Ctx, raw: GrnInput) {
+  if (raw.statedTotal == null || String(raw.statedTotal).trim() === "") throw new UserError("Enter the total printed on the supplier invoice. It’s approved only when the lines add up to it.");
+  return postGrnTx(ctx, raw);
+}
+
 async function refreshPoStatus(tx: Tx, poId: string) {
   const po = await tx.purchaseOrder.findUniqueOrThrow({ where: { id: poId }, include: { items: true } });
   const got = await tx.grnItem.groupBy({ by: ["poItemId"], where: { poItemId: { in: po.items.map((x) => x.id) } }, _sum: { qty: true } });
@@ -125,19 +142,23 @@ export async function listOrders(ctx: Ctx) {
 }
 
 export async function createPo(ctx: Ctx, raw: PoInput) {
+  return db.$transaction((tx) => createPoIn(tx, ctx, raw));
+}
+
+/** Draft PO for `branchId` (default: the current branch; must be one the user can access). */
+export async function createPoIn(tx: Tx, ctx: Ctx, raw: PoInput, branchId = ctx.branchId) {
   authorize(ctx, "purchase");
   const i = poSchema.parse(raw);
-  return db.$transaction(async (tx) => {
-    const s = await tx.supplier.findFirst({ where: { id: i.supplierId, tenantId: ctx.tenantId } });
-    if (!s) throw new UserError("Supplier not found.");
-    const meds = await tx.medicine.count({ where: { tenantId: ctx.tenantId, id: { in: i.lines.map((l) => l.medicineId) } } });
-    if (meds !== new Set(i.lines.map((l) => l.medicineId)).size) throw new UserError("A line has an unknown medicine.");
-    const fy = fiscalYear();
-    const no = `PO-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "PO:" + fy))}`;
-    const po = await tx.purchaseOrder.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, supplierId: s.id, createdBy: ctx.userId, source: i.source, items: { create: i.lines.map((l) => ({ medicineId: l.medicineId, qty: l.qty, ratePaise: BigInt(l.rate) })) } } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Draft PO created", entity: "purchase_order", entityId: po.id, detail: `${no} · ${s.name} · ${i.lines.length} item(s) · ${inr(i.lines.reduce((a, l) => a + l.qty * l.rate, 0))}${i.note ? " · " + i.note : ""}` });
-    return { id: po.id, no };
-  });
+  if (!ctx.branches.some((b) => b.id === branchId)) throw new UserError("You don’t have access to that branch.");
+  const s = await tx.supplier.findFirst({ where: { id: i.supplierId, tenantId: ctx.tenantId } });
+  if (!s) throw new UserError("Supplier not found.");
+  const meds = await tx.medicine.count({ where: { tenantId: ctx.tenantId, id: { in: i.lines.map((l) => l.medicineId) } } });
+  if (meds !== new Set(i.lines.map((l) => l.medicineId)).size) throw new UserError("A line has an unknown medicine.");
+  const fy = fiscalYear();
+  const no = `PO-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "PO:" + fy))}`;
+  const po = await tx.purchaseOrder.create({ data: { tenantId: ctx.tenantId, branchId, no, supplierId: s.id, createdBy: ctx.userId, source: i.source, items: { create: i.lines.map((l) => ({ medicineId: l.medicineId, qty: l.qty, ratePaise: BigInt(l.rate) })) } } });
+  await writeAudit(tx, { tenantId: ctx.tenantId, branchId, userId: ctx.userId, userName: ctx.userName, action: "Draft PO created", entity: "purchase_order", entityId: po.id, detail: `${no} · ${s.name} · ${i.lines.length} item(s) · ${inr(i.lines.reduce((a, l) => a + l.qty * l.rate, 0))}${i.note ? " · " + i.note : ""}` });
+  return { id: po.id, no };
 }
 
 export async function setPoStatus(ctx: Ctx, id: string, action: "place" | "cancel" | "close", reason = "") {

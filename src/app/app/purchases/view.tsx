@@ -11,7 +11,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { inr, inr0, toPaise } from "@/lib/money";
 import { dayMonth, daysTo } from "@/lib/dates";
-import { grnTotals } from "@/domain/purchasing/contracts";
+import { grnTotals, LOW_CONFIDENCE } from "@/domain/purchasing/contracts";
 import type { listOrders, pendingScans, purchaseCatalogue, recentGrns } from "@/domain/purchasing/service";
 import { createPoAction, discardScanAction, poStatusAction, postGrnAction, uploadInvoiceAction } from "./actions";
 
@@ -151,7 +151,7 @@ function NewPo({ open, onClose, catalogue, suppliers }: { open: boolean; onClose
   );
 }
 
-type RLine = { key: string; medicineId: string; batchNo: string; expiry: string; qty: string; freeQty: string; rate: string; mrp: string; poItemId: string | null; text?: string; confidence?: number; verified: boolean };
+type RLine = { key: string; medicineId: string; batchNo: string; expiry: string; qty: string; freeQty: string; rate: string; mrp: string; poItemId: string | null; text?: string; confidence?: number; ocrIndex?: number; verified: boolean };
 const blank = (): RLine => ({ key: crypto.randomUUID(), medicineId: "", batchNo: "", expiry: "", qty: "", freeQty: "", rate: "", mrp: "", poItemId: null, verified: false });
 
 function Receive({ po, orders, catalogue, suppliers, scans, ocr, today }: { po: Order | null; orders: Order[]; catalogue: Cat[]; suppliers: Sup[]; scans: Scan[]; ocr: boolean; today: string }) {
@@ -176,7 +176,7 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today }: { po: 
     if (!(parseInt(l.qty) > 0)) f.push("Invalid quantity");
     if (!(toPaise(l.rate) > 0)) f.push("Invalid rate");
     if (!(toPaise(l.mrp) > 0)) f.push("MRP missing"); else if (toPaise(l.rate) > toPaise(l.mrp)) f.push("Rate above MRP");
-    if (l.confidence != null && l.confidence < 0.8 && !l.verified) f.push("Low confidence: confirm");
+    if (l.confidence != null && l.confidence < LOW_CONFIDENCE && !l.verified) f.push("Low confidence: confirm");
     if (lines.some((x) => x.key !== l.key && x.medicineId === l.medicineId && x.batchNo.trim().toUpperCase() === l.batchNo.trim().toUpperCase() && l.batchNo)) f.push("Duplicate line");
     return f;
   };
@@ -203,7 +203,7 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today }: { po: 
     if (x.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(x.invoiceDate)) setDate(x.invoiceDate);
     if (x.total) setStated(String(x.total));
     if (x.lines?.length) {
-      setLines(x.lines.map((l) => ({ ...blank(), medicineId: l.medicineId ?? "", batchNo: (l.batch ?? "").toUpperCase(), expiry: l.expiry?.slice(0, 7) ?? "", qty: l.qty ? String(l.qty) : "", freeQty: l.freeQty ? String(l.freeQty) : "", rate: l.rate ? String(l.rate) : "", mrp: l.mrp ? String(l.mrp) : "", text: l.text, confidence: l.confidence })));
+      setLines(x.lines.map((l, ocrIndex) => ({ ...blank(), ocrIndex, medicineId: l.medicineId ?? "", batchNo: (l.batch ?? "").toUpperCase(), expiry: l.expiry?.slice(0, 7) ?? "", qty: l.qty ? String(l.qty) : "", freeQty: l.freeQty ? String(l.freeQty) : "", rate: l.rate ? String(l.rate) : "", mrp: l.mrp ? String(l.mrp) : "", text: l.text, confidence: l.confidence })));
       toast(`Extracted ${x.lines.length} lines. Check every flagged line against the invoice.`, "blue");
     }
   };
@@ -218,7 +218,7 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today }: { po: 
   const approve = () => start(async () => {
     const r = await postGrnAction({
       supplierId: sup, invoiceNo: inv, invoiceDate: date, statedTotal: stated, poId: poId || null, scanDocId: doc?.id ?? null,
-      lines: lines.map((l) => ({ medicineId: l.medicineId, batchNo: l.batchNo, expiry: l.expiry, qty: l.qty, freeQty: l.freeQty || "0", rate: l.rate, mrp: l.mrp, poItemId: l.poItemId })),
+      lines: lines.map((l) => ({ medicineId: l.medicineId, batchNo: l.batchNo, expiry: l.expiry, qty: l.qty, freeQty: l.freeQty || "0", rate: l.rate, mrp: l.mrp, poItemId: l.poItemId, ocrIndex: l.ocrIndex ?? null, verified: l.verified })),
     });
     if (!r.ok) return toast(r.error, "red");
     setDone(`${r.data.grnNo} posted · ${lines.length} batch line(s) · ${inr(r.data.total)} added to ${suppliers.find((s) => s.id === sup)?.name} payable`);
@@ -301,9 +301,9 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today }: { po: 
                     {f.length || l.confidence != null ? (
                       <tr style={{ background: f.length ? "#FFFBF5" : undefined }}><td colSpan={10} className="px-3 pb-2 pt-0 border-b border-row">
                         <div className="flex gap-3 items-center text-[12px] flex-wrap">
-                          {l.confidence != null ? <Badge tone={l.confidence >= 0.9 ? "green" : l.confidence >= 0.8 ? "amber" : "red"}>{Math.round(l.confidence * 100)}% confidence</Badge> : null}
+                          {l.confidence != null ? <Badge tone={l.confidence >= 0.9 ? "green" : l.confidence >= LOW_CONFIDENCE ? "amber" : "red"}>{Math.round(l.confidence * 100)}% confidence</Badge> : null}
                           {f.length ? <span className="text-warn flex items-center gap-1"><CircleAlert size={13} />{f.join(" · ")}</span> : null}
-                          {l.confidence != null && l.confidence < 0.8 ? <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" className="accent-teal" checked={l.verified} onChange={(e) => set(l.key, { verified: e.target.checked })} />Verified against the invoice</label> : null}
+                          {l.confidence != null && l.confidence < LOW_CONFIDENCE ? <label className="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" className="accent-teal" checked={l.verified} onChange={(e) => set(l.key, { verified: e.target.checked })} />Verified against the invoice</label> : null}
                         </div>
                       </td></tr>
                     ) : null}
