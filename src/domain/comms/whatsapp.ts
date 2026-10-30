@@ -11,7 +11,7 @@ import { invoicePdf } from "@/domain/sales/pdf";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
 
 const GRAPH = () => `https://graph.facebook.com/${process.env.WA_GRAPH_VERSION ?? "v21.0"}`;
-export type WaConfig = { wabaId: string; phoneNumberId: string; displayPhone: string; verifiedName?: string; verifyToken: string; webhookVerified: boolean; invoiceTemplate: string; templateLang: string; templates: { name: string; language: string; status: string; category: string }[] };
+export type WaConfig = { wabaId: string; phoneNumberId: string; displayPhone: string; verifiedName?: string; verifyToken: string; webhookVerified: boolean; invoiceTemplate: string; templateLang: string; templates: { name: string; language: string; status: string; category: string; params?: number }[] };
 type Secrets = { token: string; appSecret: string };
 
 async function integration(tenantId: string) {
@@ -58,8 +58,13 @@ export async function syncTemplates(ctx: Ctx) {
   authorize(ctx, "integrations");
   const w = await integration(ctx.tenantId);
   if (!w) throw new UserError("WhatsApp is not connected.");
-  const r = await graph<{ data: { name: string; language: string; status: string; category: string }[] }>(`/${w.cfg.wabaId}/message_templates?fields=name,language,status,category&limit=100`, w.sec.token);
-  await db.integration.update({ where: { id: w.id }, data: { config: { ...w.cfg, templates: r.data.map((t) => ({ name: t.name, language: t.language, status: t.status.toLowerCase(), category: t.category.toLowerCase() })) } } });
+  const r = await graph<{ data: { name: string; language: string; status: string; category: string; components?: { type: string; text?: string }[] }[] }>(`/${w.cfg.wabaId}/message_templates?fields=name,language,status,category,components&limit=100`, w.sec.token);
+  // How many {{n}} variables the body has, so automated sends fill exactly those.
+  const params = (t: { components?: { type: string; text?: string }[] }) => {
+    const body = t.components?.find((c) => c.type.toUpperCase() === "BODY");
+    return body ? new Set(body.text?.match(/\{\{\s*\d+\s*\}\}/g) ?? []).size : undefined;
+  };
+  await db.integration.update({ where: { id: w.id }, data: { config: { ...w.cfg, templates: r.data.map((t) => ({ name: t.name, language: t.language, status: t.status.toLowerCase(), category: t.category.toLowerCase(), params: params(t) })) } } });
   return r.data.length;
 }
 

@@ -1,23 +1,28 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/server/db";
-import { connectWhatsApp, handleWebhook, sendInvoice, verifyWebhook } from "@/domain/comms/whatsapp";
-import { campaignRef, draftCampaign, retryCampaignMessage, sendCampaign } from "@/domain/comms/crm";
+import { connectWhatsApp, handleWebhook, sendInvoice, syncTemplates, verifyWebhook } from "@/domain/comms/whatsapp";
+import { campaignRef, draftCampaign, messagingTick, refillReminders, retryCampaignMessage, saveCrm, sendCampaign, sendFeedbackRequests, sendRefillsNow } from "@/domain/comms/crm";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
-import { addDays, todayISO } from "@/lib/dates";
+import { addDays, dayMonth, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 // Built at runtime so secret scanners don't mistake the test fixture for a real key.
 const SECRET = randomBytes(16).toString("hex");
-let fail = false;
+let fail = false, crmTemplates = false;
+const sentBodies: { to: string; template: { name: string; components: { parameters: { text: string }[] }[] } }[] = [];
 const calls: string[] = [];
 const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
   const u = String(url); calls.push(`${init?.method ?? "GET"} ${u.replace(/^https:\/\/graph\.facebook\.com\/v[\d.]+/, "")}`);
   const ok = (j: unknown) => new Response(JSON.stringify(j), { status: 200, headers: { "Content-Type": "application/json" } });
   if (u.includes("fields=display_phone_number")) return ok({ display_phone_number: "+91 20 2546 7788", verified_name: "Test Medical" });
-  if (u.includes("message_templates")) return ok({ data: [{ name: "invoice_share", language: "en", status: "APPROVED", category: "UTILITY" }] });
+  if (u.includes("message_templates")) return ok({ data: [{ name: "invoice_share", language: "en", status: "APPROVED", category: "UTILITY" }, ...(crmTemplates ? [
+    { name: "refill_reminder", language: "en", status: "APPROVED", category: "UTILITY", components: [{ type: "BODY", text: "Hi {{1}}, your {{2}} may be running out around {{3}}." }] },
+    { name: "feedback_request", language: "en", status: "APPROVED", category: "MARKETING", components: [{ type: "HEADER", text: "Thanks" }, { type: "BODY", text: "Hi {{1}}, how was your visit ({{2}})?" }] },
+  ] : [])] });
   if (u.endsWith("/media")) return ok({ id: "media-1" });
+  if (u.endsWith("/messages") && typeof init?.body === "string") sentBodies.push(JSON.parse(init.body));
   if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp" } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
   throw new Error("unexpected " + u);
 });
@@ -109,5 +114,60 @@ describe("WhatsApp", () => {
     await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
     await db.customer.update({ where: { id: ids[1] }, data: { waOptIn: false } });
     await expect(retryCampaignMessage(ctx, m.id)).rejects.toThrow(/opted out/);
+  });
+
+  it("sends refill reminders once a day, once per refill cycle, only to opted-in customers", async () => {
+    fail = false; crmTemplates = true;
+    const ctx = await ctxFor();
+    await syncTemplates(ctx);
+    expect((await db.integration.findFirstOrThrow({ where: { kind: "whatsapp" } })).config).toMatchObject({ templates: expect.arrayContaining([expect.objectContaining({ name: "refill_reminder", params: 3 })]) });
+    const med = (await db.medicine.findFirstOrThrow()).id, batch = (await db.batch.findFirstOrThrow()).id;
+    const sunita = await createCustomer(ctx, { name: "Sunita Patil", phone: "9822000201", waOptIn: true, creditLimit: "0" });
+    // She buys every 10 days; the last purchase was 10 days ago, so a refill is due today.
+    for (const days of [20, 10]) {
+      const s = await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: med, batchId: batch, qty: 1 }], customerId: sunita, discountPct: 0, pay: { mode: "cash" } });
+      await db.$transaction([db.$executeRaw`SET LOCAL session_replication_role = replica`, db.$executeRaw`UPDATE "Sale" SET at = ${new Date(Date.now() - days * 86400_000)} WHERE id = ${s.saleId}`]);
+    }
+    await expect(sendRefillsNow(ctx)).rejects.toThrow(/Turn on refill reminders/);
+    await saveCrm(ctx, { refill: true });
+    const msgs = () => calls.filter((c) => c.endsWith("/messages")).length;
+    let before = msgs();
+    await messagingTick(new Date(), { daily: true });
+    expect(msgs() - before).toBe(1);
+    expect(sentBodies.at(-1)).toMatchObject({ to: "919822000201", template: { name: "refill_reminder", components: [{ parameters: [{ text: "Sunita" }, { text: "Pan 40" }, { text: dayMonth(new Date()) }] }] } });
+    const r = (await refillReminders(ctx)).find((x) => x.customerId === sunita)!;
+    expect(r).toMatchObject({ inDays: 0, reminder: "sent" });
+    const m = await db.waMessage.findUniqueOrThrow({ where: { idempotencyKey: r.key } });
+
+    before = msgs();
+    await messagingTick(new Date(), { daily: true }); // already ran today
+    expect(await sendRefillsNow(ctx)).toEqual({ sent: 0, failed: 0, skipped: 0 }); // already reminded this cycle
+    expect(msgs()).toBe(before);
+    await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
+    expect(await sendRefillsNow(ctx)).toMatchObject({ sent: 1 });
+    expect(await db.waMessage.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: "sent", attempts: 2 });
+
+    await db.customer.update({ where: { id: sunita }, data: { waOptIn: false } });
+    expect((await refillReminders(ctx)).find((x) => x.customerId === sunita)).toBeUndefined();
+    await db.customer.update({ where: { id: sunita }, data: { waOptIn: true } });
+  });
+
+  it("asks for feedback hours after a sale, once per sale and once a month per customer", async () => {
+    const ctx = await ctxFor();
+    const med = (await db.medicine.findFirstOrThrow()).id, batch = (await db.batch.findFirstOrThrow()).id;
+    const sunita = (await db.customer.findFirstOrThrow({ where: { phone: "9822000201" } })).id;
+    const sell = () => commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: med, batchId: batch, qty: 1 }], customerId: sunita, discountPct: 0, pay: { mode: "cash" } });
+    const s = await sell();
+    await expect(sendFeedbackRequests(ctx.tenantId)).rejects.toThrow(/Turn on feedback/);
+    await saveCrm(ctx, { feedback: true, feedbackHours: 2 });
+    expect(await sendFeedbackRequests(ctx.tenantId)).toEqual({ sent: 0, failed: 0, skipped: 0 }); // too soon
+    const later = new Date(Date.now() + 3 * 3600_000);
+    expect(await sendFeedbackRequests(ctx.tenantId, later)).toMatchObject({ sent: 1 });
+    expect(sentBodies.at(-1)).toMatchObject({ template: { name: "feedback_request", components: [{ parameters: [{ text: "Sunita" }, { text: s.invoiceNo }] }] } });
+    expect(await db.waMessage.findUniqueOrThrow({ where: { idempotencyKey: `fb:${s.saleId}` } })).toMatchObject({ status: "sent", invoiceId: `feedback:${s.saleId}` });
+    expect(await sendFeedbackRequests(ctx.tenantId, later)).toMatchObject({ sent: 0 });
+    await sell();
+    expect(await sendFeedbackRequests(ctx.tenantId, later)).toMatchObject({ sent: 0, skipped: 1 });
+    await expect(saveCrm(ctx, { feedbackHours: 0 })).rejects.toThrow(/1 to 72 hours/);
   });
 });
