@@ -5,20 +5,26 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
-import { fingerprint, unseal } from "@/server/vault";
-import { deleteObject, getObject, putObject } from "@/server/storage";
-import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, swapIn, type RestoreSummary } from "./restore";
-import { driveUpload, driveConfigured } from "./gdrive";
+import { fingerprint, reseal, unseal } from "@/server/vault";
+import { deleteObject, getObject, putObject, type FileStore } from "@/server/storage";
+import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, restoreFiles, swapIn, type RestoreSummary } from "./restore";
+import { driveConfigured, driveDelete, driveUpload, listDriveBackups, tenantDrive } from "./gdrive";
 import { backupDecision, istClock, STALE_RUNNING_MS } from "./schedule";
 
 const MAGIC = Buffer.from("MEDORO-BACKUP-1\n");
-const SCHEMA = BACKUP_FORMAT;
-const json = (v: unknown) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x instanceof Uint8Array ? undefined : x));
+export const SCHEMA = BACKUP_FORMAT;
+export const json = (v: unknown) => JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x instanceof Uint8Array ? undefined : x));
 
-async function masterKey(tenantId: string) {
+/** The backup key (the recovery-kit key), which this server keeps sealed with HOST_KEY to run backups and restores. */
+export async function masterKey(tenantId: string) {
   const i = await db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "backup_key" } } });
-  if (!i?.encryptedSecret) throw new UserError("No backup key on this server. It is created during setup.");
-  return unseal(i.encryptedSecret);
+  if (!i?.encryptedSecret) throw new UserError("No backup key on this server. Enter the recovery kit under Backup & restore → Encryption.");
+  let key: Buffer;
+  try { key = unseal(i.encryptedSecret); }
+  catch { throw new UserError("This server can’t open its copy of the backup key (HOST_KEY changed?). Enter the recovery kit under Backup & restore → Encryption."); }
+  const again = reseal(i.encryptedSecret);
+  if (again) await db.integration.update({ where: { id: i.id }, data: { encryptedSecret: new Uint8Array(again), rotatedAt: new Date() } });
+  return key;
 }
 
 /** File = MAGIC | u32 header length | header JSON | ciphertext. A fresh data key per backup, wrapped by the master key. */
@@ -33,10 +39,19 @@ export function encryptBackup(plain: Buffer, master: Buffer, meta: Record<string
   return Buffer.concat([MAGIC, len, header, body]);
 }
 
-export function decryptBackup(file: Buffer, master: Buffer) {
-  if (!file.subarray(0, MAGIC.length).equals(MAGIC)) throw new Error("Not a Medoro backup file.");
+export type BackupHeader = { tenantId?: string; createdAt?: string; schemaVersion?: string; rowCounts?: Record<string, number>; keyFingerprint?: string; wrappedKey: string; wrapIv: string; wrapTag: string; iv: string; tag: string };
+
+/** The unencrypted header: whose backup, when, and the fingerprint of the key that opens it. */
+export function readHeader(file: Buffer): BackupHeader {
+  if (file.length < MAGIC.length + 4 || !file.subarray(0, MAGIC.length).equals(MAGIC)) throw new UserError("This isn’t a Medoro backup file (.mdrbak).");
   const hl = file.readUInt32BE(MAGIC.length);
-  const header = JSON.parse(file.subarray(MAGIC.length + 4, MAGIC.length + 4 + hl).toString());
+  try { return JSON.parse(file.subarray(MAGIC.length + 4, MAGIC.length + 4 + hl).toString()); }
+  catch { throw new UserError("The backup file is damaged: its header can’t be read."); }
+}
+
+export function decryptBackup(file: Buffer, master: Buffer) {
+  const header = readHeader(file);
+  const hl = file.readUInt32BE(MAGIC.length);
   const w = createDecipheriv("aes-256-gcm", master, Buffer.from(header.wrapIv, "base64"));
   w.setAuthTag(Buffer.from(header.wrapTag, "base64"));
   const dataKey = Buffer.concat([w.update(Buffer.from(header.wrappedKey, "base64")), w.final()]); // throws on a wrong key
@@ -47,7 +62,10 @@ export function decryptBackup(file: Buffer, master: Buffer) {
 }
 
 /** Row counts per table. Older (v1) backups were exports with top-level arrays; v2 keeps raw rows under `tables`. */
-const counts = (d: Record<string, unknown>) => Object.fromEntries(Object.entries((d.tables as Record<string, unknown>) ?? d).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, (v as unknown[]).length]));
+export const counts = (d: Record<string, unknown>): Record<string, number> => ({
+  ...Object.fromEntries(Object.entries((d.tables as Record<string, unknown>) ?? d).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, (v as unknown[]).length])),
+  ...(d.tables && Array.isArray(d.files) ? { Files: d.files.length } : {}),
+});
 const len = (d: Record<string, unknown>, v2: string, v1: string) => (((d.tables as Record<string, unknown[]>)?.[v2] ?? d[v1]) as unknown[] | undefined)?.length ?? 0;
 
 /** Takes a backup now. Used by "Back up now" and the daily scheduler (which passes the "running" manifest it claimed). */
@@ -55,7 +73,7 @@ export async function runBackup(tenantId: string, kind: "manual" | "scheduled" |
   const m = claimed ?? await db.backupManifest.create({ data: { tenantId, kind, schemaVersion: SCHEMA, status: "running" } });
   try {
     const master = await masterKey(tenantId);
-    const data = await dumpForBackup(tenantId);
+    const { data, missingFiles } = await dumpForBackup(tenantId);
     const rowCounts = counts(data as unknown as Record<string, unknown>);
     const file = encryptBackup(Buffer.from(json(data)), master, { tenantId, manifestId: m.id, createdAt: m.startedAt.toISOString(), schemaVersion: SCHEMA, rowCounts });
     const sha256 = createHash("sha256").update(file).digest("hex");
@@ -69,8 +87,10 @@ export async function runBackup(tenantId: string, kind: "manual" | "scheduled" |
     if (JSON.stringify(counts(back.data)) !== JSON.stringify(rowCounts)) throw new Error("Verification failed: row counts differ after decrypting.");
     let driveFileId: string | null = null, note: string | null = null;
     if (await driveConfigured(tenantId)) {
-      try { driveFileId = await driveUpload(tenantId, name, file); } catch (e) { note = `Saved on server; Drive upload failed: ${e instanceof Error ? e.message : "unknown error"}`; }
+      const appProperties = { medoroKind: "backup", medoroTenant: tenantId, medoroCode: data.tenant.code, medoroPharmacy: data.tenant.name.slice(0, 60), medoroCreatedAt: m.startedAt.toISOString() };
+      try { driveFileId = await driveUpload(tenantId, "backups", name, file, { appProperties }); } catch (e) { note = `Saved on server; Drive upload failed: ${e instanceof Error ? e.message : "unknown error"}`; }
     }
+    if (missingFiles.length) note = `${note ? note + " " : ""}${missingFiles.length} stored file(s) couldn’t be read (Google Drive unreachable?) and aren’t in this backup.`;
     await db.backupManifest.update({ where: { id: m.id }, data: { finishedAt: new Date(), sizeBytes: BigInt(file.length), sha256, driveFileId, status: note ? "partial" : "verified", error: note, rowCounts, localPath: rel } });
     await writeAudit(db, { tenantId, userId: user?.id ?? null, userName: user?.name ?? "Scheduler", action: "Backup completed", entity: "backup", entityId: m.id, detail: `${kind} · ${(file.length / 1048576).toFixed(1)} MB · ${driveFileId ? "Drive + server" : "server only"}` });
     await prune(tenantId);
@@ -90,7 +110,7 @@ export async function backupNow(ctx: Ctx) {
   return runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
 }
 
-async function openBackup(ctx: Ctx, id: string) {
+export async function openBackup(ctx: Ctx, id: string) {
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
   const rel = m?.localPath;
   if (!m || !rel) throw new UserError("Backup file not found on this server.");
@@ -105,12 +125,13 @@ const RESTORE_HOURS = 24;
 /** Step 1 of a restore: load the backup into a test copy and compare it with live data. Live data is untouched. */
 export async function prepareRestore(ctx: Ctx, id: string) {
   authorize(ctx, "users");
-  const { m, data } = await openBackup(ctx, id);
+  const { m, header, data } = await openBackup(ctx, id);
   if (!isRestorable(data)) throw new UserError("This backup was made before full restores were supported. It can still be test-restored and downloaded; take a new backup to be able to restore.");
   for (const old of await db.restoreRun.findMany({ where: { tenantId: ctx.tenantId, status: "prepared" } })) await discardRun(old.id, old.schemaName);
-  const { schema, summary } = await prepare(ctx.tenantId, data, m.startedAt.toISOString());
+  const at = header.createdAt ?? m.startedAt.toISOString();
+  const { schema, summary } = await prepare(ctx.tenantId, data, at);
   const run = await db.restoreRun.create({ data: { tenantId: ctx.tenantId, manifestId: m.id, schemaName: schema, status: "prepared", summary: summary as object, createdBy: ctx.userName } });
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Restore prepared", entity: "backup", entityId: m.id, detail: `Test copy of the ${m.startedAt.toISOString().slice(0, 16).replace("T", " ")} UTC backup; live data unchanged` });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Restore prepared", entity: "backup", entityId: m.id, detail: `Test copy of the ${at.slice(0, 16).replace("T", " ")} UTC backup; live data unchanged` });
   return { runId: run.id, summary };
 }
 
@@ -151,6 +172,7 @@ export async function applyRestore(ctx: Ctx, runId: string, confirmCode: string)
     throw new UserError(`The safety backup of current data failed, so nothing was restored. ${e instanceof Error ? e.message : ""}`.trim());
   });
   try {
+    await restoreFiles(data);
     await swapIn(ctx, r.schemaName, data.tenant, `Restored the ${summary.backupAt.slice(0, 16).replace("T", " ")} UTC backup · safety backup ${safety.id.slice(0, 8)} taken first · ${summary.backupFigures.sales} sales, ${summary.backupFigures.medicines} medicines`);
   } catch (e) {
     await db.restoreRun.update({ where: { id: r.id }, data: { status: "failed", error: (e instanceof Error ? e.message : "failed").slice(0, 300) } });
@@ -194,35 +216,54 @@ export async function backupFile(ctx: Ctx, id: string) {
   return bytes ? { bytes, name: m.localPath.split(/[\\/]/).pop()! } : null;
 }
 
-type BackupSettings = { schedule: string; retention: number };
+type BackupSettings = { schedule: string; retention: number; files: FileStore };
 export async function backupSettings(tenantId: string): Promise<BackupSettings> {
   const t = await db.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const b = (t.settings as { backup?: Partial<BackupSettings> }).backup ?? {};
-  return { schedule: b.schedule ?? "02:30", retention: b.retention ?? 30 };
+  return { schedule: b.schedule ?? "02:30", retention: b.retention ?? 30, files: b.files === "gdrive" ? "gdrive" : "server" };
 }
 
-export async function saveBackupSettings(ctx: Ctx, s: BackupSettings) {
+export async function saveBackupSettings(ctx: Ctx, input: { schedule: string; retention: number; files?: FileStore }) {
   authorize(ctx, "integrations");
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.schedule) || ![7, 30, 90, 365].includes(s.retention)) throw new UserError("Invalid schedule.");
   const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
-  const cur = (t.settings as { backup?: object }).backup ?? {};
+  const cur = (t.settings as { backup?: Partial<BackupSettings> }).backup ?? {};
+  const s = { schedule: input.schedule, retention: input.retention, files: input.files ?? cur.files ?? "server" };
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.schedule) || ![7, 30, 90, 365].includes(s.retention) || !["server", "gdrive"].includes(s.files)) throw new UserError("Invalid schedule.");
+  if (s.files === "gdrive" && cur.files !== "gdrive" && !(await driveConfigured(ctx.tenantId))) throw new UserError("Connect Google Drive first.");
   await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), backup: { ...cur, ...s } } } });
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Backup schedule changed", entity: "tenant", detail: `daily ${s.schedule} · keep ${s.retention} days` });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Backup schedule changed", entity: "tenant", detail: `daily ${s.schedule} · keep ${s.retention} days · new files ${s.files === "gdrive" ? "in Google Drive" : "on the server"}` });
 }
 
-/** Deletes local backup files older than the retention period; manifests stay as a record. */
-export async function prune(tenantId: string) {
+/**
+ * Deletes backups older than the retention period, on this server and in Drive; manifests stay as a record.
+ * The newest successful backup is always kept, however old, and so is the newest backup in Drive.
+ */
+export async function prune(tenantId: string, now = new Date()) {
   const { retention } = await backupSettings(tenantId);
-  const old = await db.backupManifest.findMany({ where: { tenantId, status: { in: ["verified", "partial"] }, startedAt: { lt: new Date(Date.now() - retention * 86400_000) } } });
+  const cutoff = new Date(now.getTime() - retention * 86400_000);
+  const ok = { tenantId, status: { in: ["verified", "partial"] } };
+  const newest = await db.backupManifest.findFirst({ where: { ...ok, kind: { not: "imported" } }, orderBy: { startedAt: "desc" } });
+  const drive = await driveConfigured(tenantId) ? tenantDrive(tenantId) : null;
+  const inDrive = drive ? await listDriveBackups(drive, tenantId).catch(() => null) : null;
+  const keep = new Set([newest?.driveFileId, inDrive?.[0]?.id].filter(Boolean));
+  const old = await db.backupManifest.findMany({ where: { ...ok, startedAt: { lt: cutoff }, ...(newest ? { id: { not: newest.id } } : {}) } });
   for (const m of old) {
     if (m.localPath) await deleteObject(m.localPath).catch(() => {});
+    if (drive && inDrive && m.driveFileId && !keep.has(m.driveFileId)) await driveDelete(drive, m.driveFileId).catch(() => {});
     await db.backupManifest.update({ where: { id: m.id }, data: { status: "expired" } });
+  }
+  // Drive backups this server has no record of: made by another server, or before a restore.
+  for (const f of drive ? inDrive ?? [] : []) {
+    if (!keep.has(f.id) && new Date(f.createdTime) < cutoff) await driveDelete(drive!, f.id).catch(() => {});
   }
 }
 
-/** Marks backups that never finished (server stopped or timed out) as failed so they count as a failed attempt. */
+/**
+ * Marks backups that never finished (server stopped or timed out) as failed so they count as a failed attempt.
+ * finishedAt stays empty: the run died at an unknown time, so the retry gap counts from its start, not from now.
+ */
 async function failStale(now: Date) {
-  await db.backupManifest.updateMany({ where: { status: "running", startedAt: { lt: new Date(now.getTime() - STALE_RUNNING_MS) } }, data: { status: "failed", finishedAt: now, error: "Didn’t finish in time (the server stopped or timed out)." } });
+  await db.backupManifest.updateMany({ where: { status: "running", startedAt: { lt: new Date(now.getTime() - STALE_RUNNING_MS) } }, data: { status: "failed", error: "Didn’t finish in time (the server stopped or timed out)." } });
 }
 
 /**

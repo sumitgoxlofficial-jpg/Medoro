@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.session.count({ where: { user: { tenantId: ctx.tenantId }, revokedAt: null, lastSeenAt: { gt: new Date(Date.now() - 5 * 60_000) } } }),
   ]);
   if (!user || !tenant) redirect("/signin");
-  const { badges, alerts } = await badgesAndAlerts(ctx.tenantId, ctx.branchId);
+  const { badges, alerts } = await badgesAndAlerts(ctx.tenantId, ctx.branchId, ctx.perms);
   const supportEnd = await activeGrantEnd(ctx.tenantId);
   const hm = (d: Date) => d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
   if (supportEnd && !ctx.readOnly && ctx.perms.includes("users")) alerts.unshift(`Medoro support has read-only access until ${hm(supportEnd)}. End it under Privacy & data.`);

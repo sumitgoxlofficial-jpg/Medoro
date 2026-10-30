@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { seal, unseal } from "./vault";
+import { reseal, seal, unseal } from "./vault";
 
 describe("vault", () => {
   afterEach(() => vi.unstubAllEnvs());
@@ -23,5 +23,21 @@ describe("vault", () => {
     expect(unseal(box).toString()).toBe("backup-key");
     vi.stubEnv("HOST_KEY", "x".repeat(40));
     expect(() => unseal(box)).toThrow();
+  });
+
+  it("opens values sealed with the HOST_KEY before an upgrade via HOST_KEY_PREVIOUS, and re-seals them with the new one", () => {
+    vi.stubEnv("SESSION_SECRET", "s".repeat(40));
+    vi.stubEnv("HOST_KEY", "short-old-key");
+    const old = seal("drive-token");
+    vi.stubEnv("HOST_KEY", "n".repeat(40));
+    expect(() => unseal(old)).toThrow();
+    expect(reseal(seal("fresh"))).toBeNull();
+    vi.stubEnv("HOST_KEY_PREVIOUS", "short-old-key");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(unseal(old).toString()).toBe("drive-token");
+    const again = reseal(old)!;
+    vi.stubEnv("HOST_KEY_PREVIOUS", "");
+    expect(unseal(again).toString()).toBe("drive-token");
+    warn.mockRestore();
   });
 });

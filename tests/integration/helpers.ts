@@ -1,8 +1,9 @@
 import { db } from "@/server/db";
 import { createPharmacy } from "@/domain/identity/service";
 
-/** Empties every table. Append-only triggers are row-level, so TRUNCATE still works. */
+/** Empties every table, and drops restore test copies left by an interrupted run. Append-only triggers are row-level, so TRUNCATE still works. */
 export async function resetDb() {
+  for (const s of await db.$queryRaw<{ n: string }[]>`SELECT nspname n FROM pg_namespace WHERE nspname LIKE 'restore\_%'`) await db.$executeRawUnsafe(`DROP SCHEMA "${s.n}" CASCADE`);
   const tables = await db.$queryRaw<{ tablename: string }[]>`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> '_prisma_migrations'`;
   await db.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.tablename}"`).join(", ")} RESTART IDENTITY CASCADE`);
 }

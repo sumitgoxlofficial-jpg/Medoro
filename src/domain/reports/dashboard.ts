@@ -4,6 +4,7 @@ import { addDays, dateOnly, daysTo, hhmm, dayMonth, startOfTodayIST, todayISO } 
 import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { ACC } from "@/domain/accounting/accounts";
+import { backupHealth } from "./alerts";
 
 export type Range = "today" | "7d" | "30d";
 const DAY = 86400_000;
@@ -99,6 +100,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
     db.auditEvent.findMany({ where: { tenantId }, orderBy: { id: "desc" }, take: 6 }),
   ]);
   const drive = await db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "gdrive" } } });
+  const backupProblems = await backupHealth(tenantId);
 
   const pay = { cash: 0, upi: 0, card: 0, credit: 0 } as Record<string, number>;
   for (const r of payRows) pay[r.mode] = (pay[r.mode] ?? 0) + Number(r.amt);
@@ -111,7 +113,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
       expenses: expenseTotal, expenseCount, receivable, onCredit, payable, dueWeek,
     },
     history, pay, lowStock, expiring, insights, branchPerf,
-    backup: { last: lastBackup ? dayMonth(lastBackup.startedAt, true) + " · " + hhmm(lastBackup.startedAt) : null, driveConnected: !!drive?.connectedAt },
+    backup: { last: lastBackup ? dayMonth(lastBackup.startedAt, true) + " · " + hhmm(lastBackup.startedAt) : null, driveConnected: !!drive?.connectedAt, problems: backupProblems },
     activity: activity.map((a) => ({ id: String(a.id), when: dayMonth(a.at) + " " + hhmm(a.at), who: a.userName ?? "System", action: a.action, detail: a.detail })),
   };
 }
