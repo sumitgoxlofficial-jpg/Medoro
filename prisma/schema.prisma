@@ -405,6 +405,10 @@ model Customer {
   marketingWa      Boolean   @default(false) // offers and campaigns, separate from transactional consent
   marketingSms     Boolean   @default(false)
   erasedAt         DateTime?
+  gstin            String? // B2B buyer: tax invoice, GSTR-1 B2B
+  stateCode        String? // place of supply when goods go to another state; falls back to the GSTIN prefix
+  address          String? // billing address for B2B tax invoices and e-invoices
+  pincode          String?
   version          Int       @default(0)
   createdAt        DateTime  @default(now())
   sales            Sale[]
@@ -541,6 +545,9 @@ model Sale {
   taxablePaise   BigInt
   cgstPaise      BigInt
   sgstPaise      BigInt
+  igstPaise      BigInt     @default(0) // inter-state supply: all tax is IGST, CGST/SGST are zero
+  placeOfSupply  String? // 2-digit state code
+  customerGstin  String? // buyer GSTIN at the time of sale
   roundOffPaise  BigInt
   totalPaise     BigInt
   costPaise      BigInt     @default(0)
@@ -1102,6 +1109,31 @@ model SupportGrant {
   usedIp      String?
   revokedAt   DateTime?
   revokedBy   String?
+}
+
+/// IRP and e-way bill results, append-only. The latest row of a kind for a document wins; a cancellation is a new row.
+model EInvoice {
+  id        String   @id @default(uuid())
+  tenantId  String
+  branchId  String
+  docType   String // sale, transfer
+  docId     String
+  docNo     String
+  kind      String // irn, irn_cancel, ewb
+  irn       String?
+  ackNo     String?
+  ackDt     String?
+  signedQr  String?
+  signedInv String?
+  ewbNo     String?
+  ewbDate   String?
+  ewbValid  String?
+  request   Json
+  response  Json
+  userId    String
+  at        DateTime @default(now())
+
+  @@index([tenantId, docType, docId])
 }
 
 /// Files kept in the database (invoice scans, encrypted backups) when the host has no persistent disk

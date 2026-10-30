@@ -9,18 +9,38 @@ import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
 import { AccountsView, PeriodPicker } from "./view";
 import { AccountsTabs, LedgerView, TrialBalanceView } from "./ledger";
+import { GstView } from "./gst";
+import { einvoiceQueue, einvoiceState, gstr1For, gstr3bFor, gstRollup, monthPeriod, registrations, tallyMapping } from "@/domain/gst/service";
+import { gstr1Summary } from "@/domain/gst/gstr1";
+import { gstr3bRows } from "@/domain/gst/gstr3b";
+import { todayISO } from "@/lib/dates";
 
 export const metadata = { title: "Accounting & reports" };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ period?: string; view?: string; account?: string; from?: string; to?: string; asof?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ period?: string; view?: string; account?: string; from?: string; to?: string; asof?: string; gstin?: string; month?: string }> }) {
   const ctx = await requireCtx();
   if (!can(ctx, "reports")) redirect("/app");
   const sp = await searchParams;
-  const view = sp.view === "tb" ? "tb" : sp.view === "ledger" ? "ledger" : sp.view === "h1" ? "h1" : "overview";
+  const view = sp.view === "tb" ? "tb" : sp.view === "ledger" ? "ledger" : sp.view === "h1" ? "h1" : sp.view === "gst" ? "gst" : "overview";
   if (view === "h1") {
     const p = periodOf(sp.period);
     const rows = await h1Register(ctx.tenantId, ctx.branchId, p);
     return <><PageHead title={t(ctx.lang).acc} sub={`Schedule H1 register · ${ctx.branchName} · ${p.label}`} /><AccountsTabs view={view} /><H1RegisterView rows={rows} periodKey={p.key} branchName={ctx.branchName} /></>;
+  }
+  if (view === "gst") {
+    const regs = await registrations(ctx), month = monthPeriod(sp.month).month;
+    const gstin = regs.list.find((r) => r.gstin === sp.gstin)?.gstin ?? regs.list[0]?.gstin ?? "";
+    const [g1, g3, rollup, queue, einv, tally] = await Promise.all([
+      gstin ? gstr1For(ctx, gstin, month) : null, gstin ? gstr3bFor(ctx, gstin, month) : null, gstRollup(ctx, month), einvoiceQueue(ctx, month), einvoiceState(ctx.tenantId), tallyMapping(ctx),
+    ]);
+    return (
+      <>
+        <PageHead title={t(ctx.lang).acc} sub={`GST returns, e-invoices and Tally export · ${g1?.period.label ?? month}`} />
+        <AccountsTabs view={view} />
+        <GstView regs={regs} gstin={gstin} month={month} g1={g1 ? gstr1Summary(g1.json) : null} warnings={g1?.warnings ?? []} g3={g3 ? gstr3bRows(g3.json) : null}
+          rollup={rollup} queue={queue} einv={einv} tally={tally} canIntegrations={can(ctx, "integrations")} canRefund={can(ctx, "refund")} today={todayISO()} />
+      </>
+    );
   }
   if (view === "tb") {
     const tb = await trialBalance(ctx, sp.asof);

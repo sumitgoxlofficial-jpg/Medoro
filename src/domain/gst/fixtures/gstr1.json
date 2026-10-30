@@ -1,0 +1,258 @@
+{
+  "gstin": "27AAPFU0939F1ZV",
+  "fp": "102026",
+  "version": "GST3.2.4",
+  "hash": "hash",
+  "b2b": [
+    {
+      "ctin": "27AABCS1429B1ZU",
+      "inv": [
+        {
+          "inum": "A/01",
+          "idt": "03-10-2026",
+          "val": 1330,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "txval": 200,
+                "rt": 5,
+                "camt": 5,
+                "samt": 5,
+                "csamt": 0
+              }
+            },
+            {
+              "num": 2,
+              "itm_det": {
+                "txval": 1000,
+                "rt": 12,
+                "camt": 60,
+                "samt": 60,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAGCB7383J1Z4",
+      "inv": [
+        {
+          "inum": "A/02",
+          "idt": "05-10-2026",
+          "val": 560,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "txval": 500,
+                "rt": 12,
+                "iamt": 60,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cl": [
+    {
+      "pos": "33",
+      "inv": [
+        {
+          "inum": "A/04",
+          "idt": "07-10-2026",
+          "val": 112000,
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "txval": 100000,
+                "rt": 12,
+                "iamt": 12000,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cs": [
+    {
+      "sply_ty": "INTER",
+      "rt": 12,
+      "typ": "OE",
+      "pos": "24",
+      "txval": 100,
+      "iamt": 12,
+      "csamt": 0
+    },
+    {
+      "sply_ty": "INTRA",
+      "rt": 12,
+      "typ": "OE",
+      "pos": "27",
+      "txval": 189.29,
+      "camt": 11.35,
+      "samt": 11.36,
+      "csamt": 0
+    }
+  ],
+  "nil": {
+    "inv": [
+      {
+        "sply_ty": "INTRAB2C",
+        "expt_amt": 0,
+        "nil_amt": 50,
+        "ngsup_amt": 0
+      }
+    ]
+  },
+  "cdnr": [
+    {
+      "ctin": "27AABCS1429B1ZU",
+      "nt": [
+        {
+          "ntty": "C",
+          "nt_num": "CN-2627-0001",
+          "nt_dt": "12-10-2026",
+          "val": 112,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "txval": 100,
+                "rt": 12,
+                "camt": 6,
+                "samt": 6,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cdnur": [
+    {
+      "typ": "B2CL",
+      "ntty": "C",
+      "nt_num": "CN-2627-0002",
+      "nt_dt": "13-10-2026",
+      "val": 11200,
+      "pos": "33",
+      "itms": [
+        {
+          "num": 1,
+          "itm_det": {
+            "txval": 10000,
+            "rt": 12,
+            "iamt": 1200,
+            "csamt": 0
+          }
+        }
+      ]
+    }
+  ],
+  "hsn": {
+    "hsn_b2b": [
+      {
+        "num": 1,
+        "hsn_sc": "3004",
+        "desc": "MEDICAMENTS IN MEASURED DOSES",
+        "uqc": "PAC",
+        "qty": 2,
+        "rt": 5,
+        "txval": 200,
+        "iamt": 0,
+        "camt": 5,
+        "samt": 5,
+        "csamt": 0
+      },
+      {
+        "num": 2,
+        "hsn_sc": "3004",
+        "desc": "MEDICAMENTS IN MEASURED DOSES",
+        "uqc": "PAC",
+        "qty": 14,
+        "rt": 12,
+        "txval": 1400,
+        "iamt": 60,
+        "camt": 54,
+        "samt": 54,
+        "csamt": 0
+      }
+    ],
+    "hsn_b2c": [
+      {
+        "num": 1,
+        "hsn_sc": "3004",
+        "desc": "MEDICAMENTS IN MEASURED DOSES",
+        "uqc": "PAC",
+        "qty": 1,
+        "rt": 0,
+        "txval": 50,
+        "iamt": 0,
+        "camt": 0,
+        "samt": 0,
+        "csamt": 0
+      },
+      {
+        "num": 2,
+        "hsn_sc": "3004",
+        "desc": "MEDICAMENTS IN MEASURED DOSES",
+        "uqc": "PAC",
+        "qty": 39,
+        "rt": 12,
+        "txval": 90289.29,
+        "iamt": 10812,
+        "camt": 11.35,
+        "samt": 11.36,
+        "csamt": 0
+      }
+    ]
+  },
+  "doc_issue": {
+    "doc_det": [
+      {
+        "doc_num": 1,
+        "docs": [
+          {
+            "num": 1,
+            "from": "A/01",
+            "to": "A/07",
+            "totnum": 7,
+            "cancel": 1,
+            "net_issue": 6
+          }
+        ]
+      },
+      {
+        "doc_num": 5,
+        "docs": [
+          {
+            "num": 1,
+            "from": "CN-2627-0001",
+            "to": "CN-2627-0003",
+            "totnum": 3,
+            "cancel": 0,
+            "net_issue": 3
+          }
+        ]
+      }
+    ]
+  }
+}

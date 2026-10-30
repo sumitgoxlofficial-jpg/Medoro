@@ -19,3 +19,19 @@ export function stateOf(code: string | null | undefined, gstin?: string | null):
 
 /** Inter-state only when both states are known and differ; unknown states stay intra-state. */
 export const isInterState = (a: string | null, b: string | null) => !!a && !!b && a !== b;
+
+export const stateName = (code: string | null | undefined) => GST_STATES.find(([c]) => c === code)?.[1] ?? "";
+
+const GSTIN_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const GSTIN_SHAPE = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
+/** Format, known state code and the GSTN check character (base-36, weights 1 and 2 alternating). */
+export function validGstin(g: string): boolean {
+  if (!GSTIN_SHAPE.test(g) || !KNOWN.has(g.slice(0, 2))) return false;
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    const v = GSTIN_CHARS.indexOf(g[i]) * (i % 2 ? 2 : 1);
+    sum += Math.floor(v / 36) + (v % 36);
+  }
+  return GSTIN_CHARS[(36 - (sum % 36)) % 36] === g[14];
+}

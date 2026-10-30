@@ -33,7 +33,7 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
   const [pay, setPay] = useState<{ kind: "sup" | "cus"; id: string; name: string; bal: number } | null>(null);
   const [q, setQ] = useState("");
   const [importing, setImporting] = useState(false);
-  const match = (s: string | null) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
+  const match = (s: string | null | undefined) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
 
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
@@ -86,9 +86,9 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
               <table className="w-full border-collapse min-w-[820px] text-[14px]">
                 <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>Consent</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
                 <tbody>
-                  {customers.filter((c) => match(c.name) || match(c.phone)).map((c) => (
+                  {customers.filter((c) => match(c.name) || match(c.phone) || match(c.gstin)).map((c) => (
                     <tr key={c.id}>
-                      <td className={td}><div className="font-semibold">{c.name}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}</div></td>
+                      <td className={td}><div className="font-semibold">{c.name}{c.gstin ? <> <Badge tone="gray">B2B</Badge></> : null}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}{c.gstin ? <span className="font-mono"> · {c.gstin}</span> : null}</div></td>
                       <td className={td}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
                       <td className={td + " text-right tnum"}>{c.limit ? inr0(c.limit) : "No credit"}</td>
                       <td className={td + " text-right font-semibold tnum"} style={{ color: c.due > 0 ? "#B3261E" : "#5B636B" }}>{inr0(c.due)}</td>
@@ -106,7 +106,7 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
               </table>
             ) : <Empty icon={Users} title="No customers yet" body="Customers are optional. Add regulars who buy on credit or want invoices on WhatsApp." action={<Button variant="primary" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>} />}
           </div>
-          <div className="text-[12.5px] text-muted">Profiles are optional. Only name and phone are stored. No diagnosis or prescription details are kept on the customer record.</div>
+          <div className="text-[12.5px] text-muted">Profiles are optional. Only name and phone are stored, plus GSTIN and billing address for business customers. No diagnosis or prescription details are kept on the customer record.</div>
         </>
       )}
 
@@ -151,7 +151,7 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
   );
 }
 
-const BLANK_CUS = { name: "", phone: "", waOptIn: false, smsOptIn: false, marketingWa: false, marketingSms: false, consentMethod: "counter" as Method, creditLimit: "", opening: "" };
+const BLANK_CUS = { name: "", phone: "", waOptIn: false, smsOptIn: false, marketingWa: false, marketingSms: false, consentMethod: "counter" as Method, creditLimit: "", opening: "", gstin: "", stateCode: "", address: "", pincode: "" };
 
 function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null | "new"; canCredit: boolean; canPay: boolean; onClose: () => void }) {
   const toast = useToast();
@@ -162,7 +162,7 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
   useEffect(() => {
     setErr(""); setHistory(null);
     if (edit && edit !== "new") {
-      setF({ ...BLANK_CUS, name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, smsOptIn: edit.smsOptIn, marketingWa: edit.marketingWa, marketingSms: edit.marketingSms, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "" });
+      setF({ ...BLANK_CUS, name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, smsOptIn: edit.smsOptIn, marketingWa: edit.marketingWa, marketingSms: edit.marketingSms, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", gstin: edit.gstin ?? "", stateCode: edit.stateCode, address: edit.address, pincode: edit.pincode });
       void consentsAction(edit.id).then((r) => setHistory(r.ok ? r.data : []));
     } else setF(BLANK_CUS);
   }, [edit]);
@@ -179,6 +179,15 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
       <Field label="Mobile" hint={f.phone.includes("•") ? "Masked in strict mode. Leave it as it is to keep the number." : undefined}><Input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="tel" /></Field>
       <Field label="Credit limit ₹" hint={canCredit ? "0 means cash only." : "Only managers can change credit limits."}><Input value={f.creditLimit} disabled={!canCredit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field>
       {isNew && canPay ? <Field label="Opening balance they owe ₹" hint="From your old books, if any."><Input value={f.opening} onChange={(e) => setF({ ...f, opening: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
+      <details open={!!f.gstin}>
+        <summary className="cursor-pointer text-[13.5px] font-medium">Business customer (GSTIN, tax invoice)</summary>
+        <div className="grid grid-cols-2 gap-2.5 mt-2 max-sm:grid-cols-1">
+          <Field label="GSTIN" hint="B2B invoices show it and go to GSTR-1 B2B."><Input value={f.gstin} onChange={(e) => { const g = e.target.value.toUpperCase(); setF({ ...f, gstin: g, stateCode: GST_STATES.some(([c]) => c === g.slice(0, 2)) ? g.slice(0, 2) : f.stateCode }); }} className="font-mono" maxLength={15} /></Field>
+          <Field label="Place of supply" hint="Another state means IGST."><Select value={f.stateCode} onChange={(e) => setF({ ...f, stateCode: e.target.value })}><option value="">Your state / from GSTIN</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}</Select></Field>
+          <Field label="Billing address" className="col-span-full"><Input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} placeholder="Street, area, city" /></Field>
+          <Field label="PIN code"><Input value={f.pincode} onChange={(e) => setF({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} inputMode="numeric" /></Field>
+        </div>
+      </details>
       <div className="flex flex-col gap-1.5 border-t border-row pt-2.5">
         <span className="text-[12.5px] font-semibold text-muted">Consent · {PURPOSE_LABEL.transactional}</span>
         {box("waOptIn", "Invoices and refill reminders on WhatsApp")}
