@@ -13,6 +13,7 @@ import { ACC } from "@/domain/accounting/accounts";
 import { customerBalance } from "@/domain/parties/balances";
 import { lockOpenShift } from "./returns";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
+import { consumeApproval, maxDiscount } from "./approval";
 
 export const OFFLINE_MAX_DAYS = 7;
 export const withinOfflineWindow = (at: Date, now = Date.now()) =>
@@ -98,13 +99,16 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   }
 
   const cap = discountCap(ctx.perms);
-  if (input.discountPct > cap) throw new UserError(`Discount above ${cap}% needs manager approval.`);
+  const ceiling = await maxDiscount(ctx.tenantId, tx);
+  if (input.discountPct > ceiling) throw new UserError(`Discounts above ${ceiling}% aren’t allowed.`);
+  if (input.discountPct > cap && !input.approval) throw new UserError(`Discount above ${cap}% needs manager approval.`);
   const rx = input.lines.some((l) => byId.get(l.batchId)!.medicine.schedule);
   if (rx && !input.prescriber?.trim()) throw new UserError("Enter the prescriber’s name for Schedule H/H1 items.");
 
   const lines = input.lines.map((l) => { const b = byId.get(l.batchId)!; return { b, qty: l.qty }; });
   const t = cartTotals(lines.map(({ b, qty }) => ({ mrpPaise: big(b.mrpPaise), qty, gstRate: b.medicine.gstRate, costPaise: big(b.costPaise) })), input.discountPct);
   if (t.total <= 0) throw new UserError("The bill total must be more than zero.");
+  const approval = input.discountPct > cap ? await consumeApproval(tx, ctx, input.approval!, input.lines, input.discountPct, t.total) : null;
 
   const customer = input.customerId ? await tx.customer.findFirst({ where: { id: input.customerId, tenantId: ctx.tenantId, erasedAt: null } }) : null;
   if (input.customerId && !customer) throw new UserError("Customer not found.");
@@ -147,6 +151,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
       payments: { create: (Object.entries(pay) as [keyof typeof pay, number][]).filter(([, a]) => a > 0).map(([mode, a]) => ({ mode, amountPaise: BigInt(a), ref: mode === "cash" ? null : input.pay.ref || null })) },
     },
   });
+  if (approval) await tx.discountApproval.update({ where: { id: approval.id }, data: { saleId: sale.id } });
   for (const [id, q] of need) {
     const r = await tx.batch.updateMany({ where: { id, qtyAvailable: { gte: q } }, data: { qtyAvailable: { decrement: q }, version: { increment: 1 } } });
     if (!r.count) throw new UserError("Stock changed on another device. Review the cart.");
@@ -173,7 +178,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "sales", narration: `Sale ${invoiceNo}${customer ? " · " + customer.name : ""}`, userId: ctx.userId, refType: "sale", refId: sale.id, date: at, lines: vl });
   await writeAudit(tx, {
     tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Sale committed", entity: "sale", entityId: sale.id,
-    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
+    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%${approval ? ` approved by ${approval.by}` : ""}` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
   });
   return { saleId: sale.id, invoiceNo, total: t.total, replayed: false };
 }

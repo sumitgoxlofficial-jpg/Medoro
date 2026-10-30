@@ -12,7 +12,7 @@ import { daysTo, monthYear, hhmm } from "@/lib/dates";
 import { isSellable, nextFefo } from "@/domain/inventory/fefo";
 import { getDevice } from "@/lib/offline/store";
 import type { Invoice, SaleMedicine } from "@/domain/sales/service";
-import { addCustomerAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
+import { addCustomerAction, approveDiscountAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
 
 type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number };
 type Line = { key: string; medicineId: string; batchId: string; qty: number };
@@ -25,8 +25,8 @@ const newKey = () => "k_" + crypto.randomUUID().replace(/-/g, "");
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const inp = "border border-input rounded-lg px-[11px] py-[9px] text-[14px] outline-none bg-white focus:border-teal w-full";
 
-export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, canCredit, discCap, role, storageKey, waConnected }: {
-  dict: Dict; customers: Customer[]; held: { id: string; label: string }[]; canCredit: boolean; discCap: number; role: string; storageKey: string; waConnected: boolean;
+export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, canCredit, discCap, maxDisc, role, storageKey, waConnected }: {
+  dict: Dict; customers: Customer[]; held: { id: string; label: string }[]; canCredit: boolean; discCap: number; maxDisc: number; role: string; storageKey: string; waConnected: boolean;
 }) {
   const toast = useToast();
   const sp = useSearchParams();
@@ -42,6 +42,8 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const [netDown, setNetDown] = useState(false);
   const [sale, setSale] = useState<Invoice | null>(null);
   const [newCust, setNewCust] = useState(false);
+  const [approval, setApproval] = useState<{ token: string; sig: string; by: string } | null>(null);
+  const [askApproval, setAskApproval] = useState(false);
   // The key stays the same only while retrying the exact same bill after a network error.
   const idemRef = useRef<{ key: string; sig: string | null }>({ key: newKey(), sig: null });
   const freshKey = () => { idemRef.current = { key: newKey(), sig: null }; };
@@ -113,12 +115,16 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     const m = cart.meds[l.medicineId], b = m?.batches.find((x) => x.id === l.batchId);
     return { mrpPaise: b?.mrp ?? 0, qty: l.qty, gstRate: m?.gstRate ?? 0 };
   }), disc), [cart.lines, cart.meds, disc]);
+  // A manager's approval fits only the cart and discount it was given for.
+  const approvalSig = JSON.stringify([cart.lines.map((l) => [l.batchId, l.qty]), disc]);
+  const approved = !!approval && approval.sig === approvalSig;
   const cust = customers.find((c) => c.id === cart.cust);
   const needsRx = cart.lines.some((l) => cart.meds[l.medicineId]?.schedule);
 
   const checkoutError = () => {
     if (!cart.lines.length) return "Cart is empty.";
-    if (disc < 0 || disc > discCap) return `Discount above ${discCap}% needs manager approval.`;
+    if (disc < 0 || disc > maxDisc) return `Discounts above ${maxDisc}% aren’t allowed.`;
+    if (disc > discCap && !approved) return `Discount above ${discCap}% needs manager approval.`;
     if (needsRx && !cart.doctor.trim()) return "Enter prescriber name for Schedule H/H1 items.";
     if (cart.pay === "cash" && cart.tender && toPaise(cart.tender) < totals.total) return "Cash tendered is less than the total.";
     if (cart.pay === "split" && (!cart.split || toPaise(cart.split) <= 0 || toPaise(cart.split) >= totals.total)) return "Enter a cash part between ₹1 and the total.";
@@ -144,11 +150,12 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     if (idemRef.current.sig !== null && idemRef.current.sig !== sig) freshKey();
     idemRef.current.sig = sig;
     try {
-      const r = await commitSaleAction({ idempotencyKey: idemRef.current.key, ...body });
+      const r = await commitSaleAction({ idempotencyKey: idemRef.current.key, ...body, approval: disc > discCap && approved ? approval!.token : undefined });
       setNetDown(false);
       if (!r.ok) {
         toast(r.error, "red");
         if (/already used/.test(r.error)) freshKey();
+        if (/approv/.test(r.error)) setApproval(null);
         // Refresh batch info so the cashier sees current stock.
         if (/Stock changed|blocked|expired|quarantined/.test(r.error)) {
           const ids = [...new Set(cart.lines.map((l) => l.medicineId))];
@@ -161,6 +168,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       setSale(inv);
       setCart(empty());
       freshKey();
+      setApproval(null);
     } catch {
       // The request may have reached the server; the idempotency key is kept so a retry posts at most once.
       toast("Couldn’t reach the server. Check the connection and press Complete again; the bill won’t be posted twice.", "red");
@@ -169,7 +177,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       setBusy(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, sale, cart, disc, totals, cust, needsRx]);
+  }, [busy, sale, cart, disc, totals, cust, needsRx, approval, approved]);
 
   const hold = useCallback(() => {
     if (!cart.lines.length) return;
@@ -325,6 +333,11 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             <span className="text-muted">Discount % <span className="text-[11.5px]">(max {discCap}% for {role})</span></span>
             <div className="flex items-center gap-2"><input value={cart.disc} onChange={(e) => set({ disc: e.target.value.replace(/[^\d.]/g, "") })} aria-label="Discount percent" className="w-[54px] border border-input rounded-md px-1.5 py-1 text-right text-[13.5px]" /><span className="tnum min-w-[70px] text-right">{inr(-totals.discount)}</span></div>
           </div>
+          {disc > discCap ? (
+            disc > maxDisc ? <div className="text-[12.5px] text-bad">Discounts above {maxDisc}% aren’t allowed.</div>
+              : approved ? <div className="text-[12.5px] text-ok flex gap-1.5 items-center"><Check size={14} />Approved by {approval!.by} for this cart</div>
+              : <button onClick={() => cart.lines.length ? setAskApproval(true) : toast("Add items first.", "amber")} className="self-end text-[12.5px] font-semibold text-teal cursor-pointer">Get manager approval for {disc}%</button>
+          ) : null}
           <Row k="Taxable value" v={inr(totals.taxable)} /><Row k="CGST" v={inr(totals.cgst)} /><Row k="SGST" v={inr(totals.sgst)} /><Row k="Round off" v={inr(totals.roundOff)} />
           <div className="flex justify-between items-baseline border-t border-[#E3E6E9] pt-2.5 mt-[3px]"><span className="font-semibold text-[14px]">{t.total}</span><span className="text-[26px] font-bold tracking-[-.01em] tnum">{inr(totals.total)}</span></div>
         </div>
@@ -360,6 +373,8 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
 
       <SaleModal sale={sale} waConnected={waConnected} onNew={() => { setSale(null); setTimeout(() => searchRef.current?.focus(), 50); }} />
       <NewCustomer open={newCust} canCredit={canCredit} onClose={() => setNewCust(false)} onSaved={(id, list) => { setCustomers(list); set({ cust: id }); setNewCust(false); }} />
+      <ApproveDiscount open={askApproval} disc={disc} total={totals.total} lines={cart.lines} onClose={() => setAskApproval(false)}
+        onApproved={(token, by) => { setApproval({ token, sig: approvalSig, by }); setAskApproval(false); toast(`Discount approved by ${by}.`, "green"); }} />
     </div>
   );
 }
@@ -497,6 +512,26 @@ function NewCustomer({ open, canCredit, onClose, onSaved }: { open: boolean; can
       {canCredit ? <Field label="Credit limit ₹" hint="Leave 0 for cash-only customers."><Input value={f.creditLimit} onChange={(e) => setF({ ...f, creditLimit: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field> : null}
       <Checkbox checked={f.waOptIn} onChange={(e) => setF({ ...f, waOptIn: e.target.checked })} label="Customer agrees to receive invoices and reminders on WhatsApp (recorded with your name and time)" />
       {err ? <div role="alert" className={cn("text-[13px] text-bad")}>{err}</div> : null}
+    </Modal>
+  );
+}
+
+function ApproveDiscount({ open, disc, total, lines, onClose, onApproved }: { open: boolean; disc: number; total: number; lines: Line[]; onClose: () => void; onApproved: (token: string, by: string) => void }) {
+  const [f, setF] = useState({ approver: "", secret: "" });
+  const [err, setErr] = useState("");
+  const [pending, start] = useTransition();
+  useEffect(() => { if (open) { setF({ approver: "", secret: "" }); setErr(""); } }, [open]);
+  const approve = () => start(async () => {
+    const r = await approveDiscountAction({ ...f, discountPct: disc, lines: lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })) });
+    if (!r.ok) { setF((x) => ({ ...x, secret: "" })); return setErr(r.error); }
+    onApproved(r.data.token, r.data.approver);
+  });
+  return (
+    <Modal open={open} onClose={onClose} title={`Approve ${disc}% discount`} sub={`Bill total after discount ${inr(total)}. A manager enters their own ID and PIN or password; it is recorded in the audit trail.`}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={approve} disabled={pending || !f.approver || !f.secret}>Approve</Button></>}>
+      <Field label="Manager’s employee ID, email or mobile"><Input value={f.approver} onChange={(e) => setF({ ...f, approver: e.target.value })} autoFocus autoComplete="off" /></Field>
+      <Field label="Manager’s PIN or password"><Input type="password" value={f.secret} onChange={(e) => setF({ ...f, secret: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter" && f.approver && f.secret) approve(); }} autoComplete="off" /></Field>
+      {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );
 }
