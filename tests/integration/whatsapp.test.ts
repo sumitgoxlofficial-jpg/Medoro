@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { connectWhatsApp, handleWebhook, sendInvoice, syncTemplates, verifyWebhook } from "@/domain/comms/whatsapp";
-import { campaignRef, draftCampaign, messagingTick, refillReminders, retryCampaignMessage, saveCrm, sendCampaign, sendFeedbackRequests, sendRefillsNow } from "@/domain/comms/crm";
+import { campaignRef, draftCampaign, messagingTick, refillReminders, saveCrm, sendCampaign, sendFeedbackRequests, sendRefillsNow } from "@/domain/comms/crm";
+import { retryMessage } from "@/domain/comms/delivery";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, dayMonth, todayISO } from "@/lib/dates";
@@ -16,14 +17,14 @@ const calls: string[] = [];
 const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
   const u = String(url); calls.push(`${init?.method ?? "GET"} ${u.replace(/^https:\/\/graph\.facebook\.com\/v[\d.]+/, "")}`);
   const ok = (j: unknown) => new Response(JSON.stringify(j), { status: 200, headers: { "Content-Type": "application/json" } });
-  if (u.includes("fields=display_phone_number")) return ok({ display_phone_number: "+91 20 2546 7788", verified_name: "Test Medical" });
+  if (u.includes("display_phone_number")) return ok({ display_phone_number: "+91 20 2546 7788", verified_name: "Test Medical" });
   if (u.includes("message_templates")) return ok({ data: [{ name: "invoice_share", language: "en", status: "APPROVED", category: "UTILITY" }, ...(crmTemplates ? [
     { name: "refill_reminder", language: "en", status: "APPROVED", category: "UTILITY", components: [{ type: "BODY", text: "Hi {{1}}, your {{2}} may be running out around {{3}}." }] },
     { name: "feedback_request", language: "en", status: "APPROVED", category: "MARKETING", components: [{ type: "HEADER", text: "Thanks" }, { type: "BODY", text: "Hi {{1}}, how was your visit ({{2}})?" }] },
   ] : [])] });
   if (u.endsWith("/media")) return ok({ id: "media-1" });
   if (u.endsWith("/messages") && typeof init?.body === "string") sentBodies.push(JSON.parse(init.body));
-  if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp" } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
+  if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp", code: 131000 } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
   throw new Error("unexpected " + u);
 });
 
@@ -109,11 +110,11 @@ describe("WhatsApp", () => {
 
     const m = await db.waMessage.findUniqueOrThrow({ where: { idempotencyKey: `camp:${camp.id}:${ids[1]}` } });
     await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
-    expect((await retryCampaignMessage(ctx, m.id)).status).toBe("sent");
+    expect((await retryMessage(ctx, m.id)).status).toBe("sent");
     expect(await db.waMessage.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: "sent", attempts: 2 });
     await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
     await db.customer.update({ where: { id: ids[1] }, data: { waOptIn: false } });
-    await expect(retryCampaignMessage(ctx, m.id)).rejects.toThrow(/opted out/);
+    await expect(retryMessage(ctx, m.id)).rejects.toThrow(/opted out/);
   });
 
   it("sends refill reminders once a day, once per refill cycle, only to opted-in customers", async () => {

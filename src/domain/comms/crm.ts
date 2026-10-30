@@ -1,19 +1,26 @@
 import "server-only";
+import type { Customer } from "@prisma/client";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { Prisma } from "@prisma/client";
-import { unseal } from "@/server/vault";
+import { smsAvailable, smsNeedsTemplate, smsText, SMS_TYPES, type SmsType } from "@/server/sms";
 import { addDays, dayMonth, isoOf, todayISO } from "@/lib/dates";
 import { istClock } from "@/domain/system/schedule";
-import type { WaConfig } from "./whatsapp";
+import { customerBalances } from "@/domain/parties/balances";
+import { loyaltySettings, salePoints } from "@/domain/sales/loyalty";
+import { activeAccount, approvedTemplate, dispatch, queueMessage, smsReady, smsSettings, waAccount, type Payload, type SmsSettings, type WaTemplate } from "./delivery";
 
-export type CrmSettings = { refill: boolean; feedback: boolean; refillTemplate: string; feedbackTemplate: string; feedbackHours: number };
+export type CrmSettings = {
+  refill: boolean; feedback: boolean; payment: boolean; refillTemplate: string; feedbackTemplate: string; paymentTemplate: string; feedbackHours: number;
+  /** Day of the week (0 Sunday … 6 Saturday) for the weekly payment reminders. */
+  paymentDay: number;
+};
 
 export async function crmSettings(tenantId: string): Promise<CrmSettings> {
   const t = await db.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  return { refill: false, feedback: false, refillTemplate: "refill_reminder", feedbackTemplate: "feedback_request", feedbackHours: 4, ...((t.settings as { crm?: object }).crm ?? {}) };
+  return { refill: false, feedback: false, payment: false, refillTemplate: "refill_reminder", feedbackTemplate: "feedback_request", paymentTemplate: "payment_reminder", feedbackHours: 4, paymentDay: 1, ...((t.settings as { crm?: object }).crm ?? {}) };
 }
 
 const TEMPLATE_RE = /^[a-z0-9_]{1,512}$/;
@@ -21,9 +28,8 @@ const TEMPLATE_RE = /^[a-z0-9_]{1,512}$/;
 export async function saveCrm(ctx: Ctx, patch: Partial<CrmSettings>) {
   authorize(ctx, "integrations");
   const p: Partial<CrmSettings> = {};
-  if (patch.refill !== undefined) p.refill = !!patch.refill;
-  if (patch.feedback !== undefined) p.feedback = !!patch.feedback;
-  for (const k of ["refillTemplate", "feedbackTemplate"] as const) {
+  for (const k of ["refill", "feedback", "payment"] as const) if (patch[k] !== undefined) p[k] = !!patch[k];
+  for (const k of ["refillTemplate", "feedbackTemplate", "paymentTemplate"] as const) {
     if (patch[k] === undefined) continue;
     if (!TEMPLATE_RE.test(patch[k]!)) throw new UserError("Choose an approved template.");
     p[k] = patch[k];
@@ -33,9 +39,62 @@ export async function saveCrm(ctx: Ctx, patch: Partial<CrmSettings>) {
     if (!(h >= 1 && h <= 72)) throw new UserError("Send feedback requests 1 to 72 hours after the purchase.");
     p.feedbackHours = h;
   }
+  if (patch.paymentDay !== undefined) {
+    const d = Math.round(Number(patch.paymentDay));
+    if (!(d >= 0 && d <= 6)) throw new UserError("Choose a day of the week.");
+    p.paymentDay = d;
+  }
   const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
   await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), crm: { ...((t.settings as { crm?: object }).crm ?? {}), ...p } } } });
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Messaging programs changed", entity: "tenant", detail: JSON.stringify(p) });
+}
+
+/** SMS for customers without WhatsApp consent: on/off and the MSG91 (DLT-linked) template id per message type. */
+export async function saveSmsSettings(ctx: Ctx, patch: { enabled?: boolean; templates?: Partial<Record<SmsType, string>> }) {
+  authorize(ctx, "integrations");
+  const cur = await smsSettings(ctx.tenantId);
+  const next: SmsSettings = { enabled: patch.enabled ?? cur.enabled, templates: { ...cur.templates } };
+  for (const [k, v] of Object.entries(patch.templates ?? {}) as [SmsType, string][]) {
+    if (!SMS_TYPES.includes(k)) continue;
+    const id = (v ?? "").trim();
+    if (id && !/^[A-Za-z0-9_-]{4,40}$/.test(id)) throw new UserError("Template ids are letters and digits, as shown in your SMS gateway.");
+    if (id) next.templates[k] = id; else delete next.templates[k];
+  }
+  if (next.enabled && !smsAvailable()) throw new UserError("No SMS gateway is set up on this server (SMS_PROVIDER or OTP_PROVIDER).");
+  const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
+  await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), sms: next } } });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "SMS messaging changed", entity: "tenant", detail: `${next.enabled ? "on" : "off"} · templates ${Object.keys(next.templates).join(", ") || "none"}` });
+}
+
+export async function smsStatus(tenantId: string) {
+  return { ...(await smsSettings(tenantId)), available: smsAvailable(), needsTemplate: smsNeedsTemplate() };
+}
+
+const firstName = (n: string) => n.split(" ")[0];
+
+/**
+ * Which channel reaches each customer for one kind of message: WhatsApp when they opted in (and the number
+ * isn't flagged as not on WhatsApp) and the template is approved; else SMS when they gave SMS consent and SMS
+ * is set up for this type. A connected WhatsApp with the template missing is an error the owner must fix.
+ */
+async function router(tenantId: string, template: string | null, smsType: SmsType | null) {
+  const [w, s, t] = await Promise.all([activeAccount(tenantId), smsSettings(tenantId), db.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true } })]);
+  const tpl: WaTemplate | null = w && template ? await approvedTemplate(w, template) : null;
+  const sms = !!smsType && smsReady(s, smsType);
+  if (!tpl && !sms) {
+    const any = await waAccount(tenantId);
+    throw new UserError(any?.cfg.disconnected ? "WhatsApp is disconnected (Meta rejected the access token). Reconnect it under WhatsApp." : "Connect WhatsApp Business first.");
+  }
+  return {
+    wa: !!tpl, sms,
+    /** Prisma filter for customers this router can reach. */
+    audience: { OR: [...(tpl ? [{ waOptIn: true, waInvalidAt: null }] : []), ...(sms ? [{ smsOptIn: true }] : [])] } satisfies Prisma.CustomerWhereInput,
+    payload(c: Pick<Customer, "waOptIn" | "waInvalidAt" | "smsOptIn">, vars: string[]): Payload | null {
+      if (tpl && c.waOptIn && !c.waInvalidAt) return { ch: "wa", template: tpl.name, vars, n: 1 };
+      if (sms && c.smsOptIn) return { ch: "sms", type: smsType!, vars, text: smsText(smsType!, vars, t.name) };
+      return null;
+    },
+  };
 }
 
 /** Refill reminders come only from purchase intervals: no conditions are inferred. */
@@ -48,7 +107,7 @@ export async function refillReminders(ctx: Ctx) {
 async function refillDue(tenantId: string) {
   const rows = await db.$queryRaw<{ customerId: string; medicineId: string; ats: Date[] }[]>`
     SELECT s."customerId", si."medicineId", array_agg(s.at ORDER BY s.at) ats FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" JOIN "Customer" c ON c.id = s."customerId"
-    WHERE s."tenantId" = ${tenantId} AND c."waOptIn" AND c."erasedAt" IS NULL AND s.at >= ${new Date(Date.now() - 365 * 86400_000)}
+    WHERE s."tenantId" = ${tenantId} AND (c."waOptIn" OR c."smsOptIn") AND c."erasedAt" IS NULL AND s.at >= ${new Date(Date.now() - 365 * 86400_000)}
       AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id)
     GROUP BY 1, 2 HAVING COUNT(DISTINCT date_trunc('day', s.at)) >= 2`;
   const [cs, ms] = await Promise.all([
@@ -68,22 +127,32 @@ async function refillDue(tenantId: string) {
   }).filter((r) => r.interval >= 5 && r.inDays >= -7 && r.inDays <= 7).sort((a, b) => a.inDays - b.inDays);
 }
 
+// ───────────── Campaigns and store updates ─────────────
+
 export async function listCampaigns(ctx: Ctx) {
   const cs = await db.campaign.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "desc" }, take: 50 });
   const sent = await db.waMessage.groupBy({ by: ["invoiceId", "status"], where: { tenantId: ctx.tenantId, invoiceId: { in: cs.map((c) => campaignRef(c.id)) } }, _count: true });
-  return cs.map((c) => ({ id: c.id, name: c.name, template: c.template, audience: c.audience, status: c.status, createdAt: c.createdAt.toISOString(),
+  return cs.map((c) => ({ id: c.id, name: c.name, template: c.template, message: c.message, audience: c.audience, status: c.status, createdAt: c.createdAt.toISOString(),
     delivered: sent.filter((s) => s.invoiceId === campaignRef(c.id) && (s.status === "delivered" || s.status === "read")).reduce((a, s) => a + s._count, 0),
     failed: sent.filter((s) => s.invoiceId === campaignRef(c.id) && s.status === "failed").reduce((a, s) => a + s._count, 0),
     handled: sent.filter((s) => s.invoiceId === campaignRef(c.id)).reduce((a, s) => a + s._count, 0) }));
 }
 
-export async function draftCampaign(ctx: Ctx, name: string, template: string) {
+/**
+ * Drafts a campaign. With a message it's a store update: the text goes as body variable 2 (variable 1 is
+ * the customer's first name) and as the SMS text for customers reached by SMS.
+ */
+export async function draftCampaign(ctx: Ctx, name: string, template: string, message?: string) {
   authorize(ctx, "integrations");
   if (name.trim().length < 3) throw new UserError("Name the campaign.");
-  if (!/^[a-z0-9_]{1,512}$/.test(template)) throw new UserError("Choose an approved template.");
-  const audience = await db.customer.count({ where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } } });
-  const c = await db.campaign.create({ data: { tenantId: ctx.tenantId, name: name.trim(), template, audience, status: "draft" } });
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign drafted", entity: "campaign", entityId: c.id, detail: `${c.name} · ${template} · ${audience} opted in` });
+  if (!TEMPLATE_RE.test(template)) throw new UserError("Choose an approved template.");
+  // WhatsApp variables can't contain line breaks, tabs or long runs of spaces.
+  const text = message?.replace(/\s+/g, " ").trim() || null;
+  if (text && text.length > 300) throw new UserError("Keep the update under 300 characters.");
+  const r = await router(ctx.tenantId, template, "campaign");
+  const audience = await db.customer.count({ where: { tenantId: ctx.tenantId, erasedAt: null, phone: { not: null }, ...r.audience } });
+  const c = await db.campaign.create({ data: { tenantId: ctx.tenantId, name: name.trim(), template, message: text, audience, status: "draft" } });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: text ? "Store update drafted" : "Campaign drafted", entity: "campaign", entityId: c.id, detail: `${c.name} · ${template} · ${audience} opted in` });
 }
 
 /** Campaign messages are logged with this in place of an invoice id. */
@@ -92,43 +161,23 @@ const CAMPAIGN_BATCH = 100;
 // Stop well inside a server action's time limit; the caller repeats until done.
 const SEND_BUDGET_MS = 40_000;
 
-async function campaignSender(tenantId: string, template: string) {
-  const i = await db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "whatsapp" } } });
-  if (!i?.connectedAt || !i.encryptedSecret) throw new UserError("Connect WhatsApp Business first.");
-  const cfg = i.config as WaConfig, tok = (JSON.parse(unseal(i.encryptedSecret).toString()) as { token: string }).token;
-  const tpl = cfg.templates.find((t) => t.name === template);
-  if (!tpl || tpl.status !== "approved") throw new UserError(`Template ${template} isn’t approved by Meta yet.`);
-  // Body variables in order; a template with fewer variables gets only the first ones (unknown count: just the name).
-  return async (phone: string, vars: string[]) => {
-    const parameters = vars.slice(0, tpl.params ?? 1).map((text) => ({ type: "text", text }));
-    const res = await fetch(`https://graph.facebook.com/${process.env.WA_GRAPH_VERSION ?? "v21.0"}/${cfg.phoneNumberId}/messages`, {
-      method: "POST", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, signal: AbortSignal.timeout(20_000),
-      body: JSON.stringify({ messaging_product: "whatsapp", to: "91" + phone, type: "template", template: { name: tpl.name, language: { code: tpl.language }, components: parameters.length ? [{ type: "body", parameters }] : [] } }),
-    });
-    const j = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string } };
-    if (!res.ok || !j.messages) throw new Error(j.error?.message ?? String(res.status));
-    return j.messages[0].id;
-  };
-}
-
-const firstName = (n: string) => n.split(" ")[0];
-
 /**
- * Sends a template to every opted-in customer (body variable 1 = their name), in batches. Each
- * recipient's message is recorded before it goes out, so running it again (after a crash, a timeout
- * or a "Resume") skips everyone already handled. Returns done: false when it stopped for time.
+ * Sends a template to every opted-in customer (variable 1 = their name, 2 = the update text), in batches,
+ * on WhatsApp or (without WhatsApp consent) SMS. Each recipient's message is recorded before it goes out, so
+ * running it again (after a crash, a timeout or a "Resume") skips everyone already handled. Returns done:
+ * false when it stopped for time.
  */
 export async function sendCampaign(ctx: Ctx, id: string) {
   authorize(ctx, "integrations");
   const c = await db.campaign.findFirst({ where: { id, tenantId: ctx.tenantId } });
   if (!c || !["draft", "sending", "failed"].includes(c.status)) throw new UserError("This campaign was already sent.");
-  const send = await campaignSender(ctx.tenantId, c.template);
+  const route = await router(ctx.tenantId, c.template, "campaign");
   if (c.status !== "sending") {
     const r = await db.campaign.updateMany({ where: { id, status: c.status }, data: { status: "sending" } });
     if (!r.count) throw new UserError("Already sending.");
   } else {
     // A run that died between recording and sending: Meta may or may not have it, so don't resend blindly.
-    await db.waMessage.updateMany({ where: { tenantId: ctx.tenantId, invoiceId: campaignRef(id), status: "queued", updatedAt: { lt: new Date(Date.now() - 2 * 60_000) } }, data: { status: "failed", errorCode: "Interrupted before WhatsApp confirmed it. Retry if the customer didn’t get it." } });
+    await db.waMessage.updateMany({ where: { tenantId: ctx.tenantId, invoiceId: campaignRef(id), status: "queued", updatedAt: { lt: new Date(Date.now() - 2 * 60_000) } }, data: { status: "failed", errorKind: "permanent", errorCode: "Interrupted before it was confirmed. Retry if the customer didn’t get it." } });
   }
   const started = Date.now();
   let ok = 0, bad = 0, cursor: string | undefined;
@@ -136,7 +185,7 @@ export async function sendCampaign(ctx: Ctx, id: string) {
     for (;;) {
       if (Date.now() - started > SEND_BUDGET_MS) return { ok, bad, done: false };
       const people = await db.customer.findMany({
-        where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } }, orderBy: { id: "asc" }, take: CAMPAIGN_BATCH,
+        where: { tenantId: ctx.tenantId, erasedAt: null, phone: { not: null }, ...route.audience }, orderBy: { id: "asc" }, take: CAMPAIGN_BATCH,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       });
       if (!people.length) break;
@@ -145,15 +194,13 @@ export async function sendCampaign(ctx: Ctx, id: string) {
       const seen = new Set((await db.waMessage.findMany({ where: { idempotencyKey: { in: keys } }, select: { idempotencyKey: true } })).map((m) => m.idempotencyKey));
       for (const p of people) {
         const key = `camp:${id}:${p.id}`;
-        if (seen.has(key)) continue;
+        const payload = route.payload(p, c.message ? [firstName(p.name), c.message] : [firstName(p.name)]);
+        if (seen.has(key) || !payload) continue;
         // A concurrent run may claim the same recipient; the unique key lets exactly one send.
-        const m = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: campaignRef(id), invoiceNo: c.name.slice(0, 60), recipient: p.phone!, idempotencyKey: key, status: "queued", attempts: 1 } })
+        const m = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: campaignRef(id), invoiceNo: c.name.slice(0, 60), recipient: p.phone!, idempotencyKey: key, status: "queued", attempts: 1, channel: payload.ch === "sms" ? "sms" : "whatsapp", customerId: p.id, payload } })
           .catch((e) => { if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return null; throw e; });
         if (!m) continue;
-        try {
-          const wamid = await send(p.phone!, [firstName(p.name)]);
-          await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid } }); ok++;
-        } catch (e) { await db.waMessage.update({ where: { id: m.id }, data: { status: "failed", errorCode: (e instanceof Error ? e.message : "failed").slice(0, 200) } }); bad++; }
+        if ((await dispatch(m)).ok) ok++; else bad++;
       }
     }
   } catch (e) {
@@ -167,63 +214,25 @@ export async function sendCampaign(ctx: Ctx, id: string) {
   return { ok, bad, done: true };
 }
 
-/** Retries one failed campaign message (3 attempts in all), only if the customer is still opted in. */
-export async function retryCampaignMessage(ctx: Ctx, messageId: string) {
-  authorize(ctx, "integrations");
-  const m = await db.waMessage.findFirst({ where: { id: messageId, tenantId: ctx.tenantId } });
-  if (!m || !m.invoiceId.startsWith(campaignRef(""))) throw new UserError("Message not found.");
-  if (m.status !== "failed") throw new UserError(`Already ${m.status}.`);
-  if (m.attempts >= 3) throw new UserError("Retry limit reached (3 attempts).");
-  const c = await db.campaign.findFirst({ where: { id: m.invoiceId.slice(campaignRef("").length), tenantId: ctx.tenantId } });
-  if (!c) throw new UserError("Campaign not found.");
-  const p = await db.customer.findFirst({ where: { id: m.idempotencyKey.split(":")[2], tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } } });
-  if (!p) throw new UserError("This customer has opted out or has no mobile number now.");
-  const send = await campaignSender(ctx.tenantId, c.template);
-  const claimed = await db.waMessage.updateMany({ where: { id: m.id, status: "failed", attempts: m.attempts }, data: { status: "queued", attempts: m.attempts + 1, recipient: p.phone!, errorCode: null } });
-  if (!claimed.count) throw new UserError("This message is already being retried.");
-  try {
-    const wamid = await send(p.phone!, [firstName(p.name)]);
-    await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid } });
-  } catch (e) {
-    const msg = (e instanceof Error ? e.message : "Send failed").slice(0, 200);
-    await db.waMessage.update({ where: { id: m.id }, data: { status: "failed", errorCode: msg } });
-    throw new UserError(msg);
-  }
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign message retried", entity: "wa_message", entityId: m.id, detail: `${c.name} → ${p.phone!.slice(0, 5)}•••••` });
-  return { status: "sent" as const, id: m.id };
-}
-
 export async function optOuts(ctx: Ctx) {
-  const cs = await db.customer.findMany({ where: { tenantId: ctx.tenantId, waOptIn: false, optInMethod: { startsWith: "Opted out" } }, orderBy: { optInAt: "desc" }, take: 50 });
-  return cs.map((c) => ({ phone: c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5, 6)}••••` : "—", via: c.optInMethod ?? "", at: c.optInAt?.toISOString() ?? null }));
+  const cs = await db.customer.findMany({ where: { tenantId: ctx.tenantId, OR: [{ waOptIn: false, optInMethod: { startsWith: "Opted out" } }, { smsOptIn: false, smsOptInMethod: { startsWith: "Opted out" } }] }, orderBy: { optInAt: "desc" }, take: 50 });
+  return cs.map((c) => {
+    const sms = !c.smsOptIn && c.smsOptInMethod?.startsWith("Opted out");
+    return { phone: c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5, 6)}••••` : "—", via: (sms && !c.optInMethod?.startsWith("Opted out") ? c.smsOptInMethod : c.optInMethod) ?? "", at: (sms ? c.smsOptInAt : c.optInAt)?.toISOString() ?? null };
+  });
 }
 
 export async function optInCount(ctx: Ctx) {
-  const [opted, all] = await Promise.all([db.customer.count({ where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null } }), db.customer.count({ where: { tenantId: ctx.tenantId, erasedAt: null } })]);
-  return { opted, all };
+  const [opted, sms, all] = await Promise.all([
+    db.customer.count({ where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null } }),
+    db.customer.count({ where: { tenantId: ctx.tenantId, smsOptIn: true, waOptIn: false, erasedAt: null } }),
+    db.customer.count({ where: { tenantId: ctx.tenantId, erasedAt: null } }),
+  ]);
+  return { opted, sms, all };
 }
 
 type Actor = { userId?: string; userName?: string };
 type RunResult = { sent: number; failed: number; skipped: number };
-
-/**
- * Records a scheduled message under its idempotency key before sending, so a cycle is messaged once.
- * A failed one is retried on a later run, up to 3 attempts. Returns null when there's nothing to send.
- */
-async function claim(tenantId: string, key: string, ref: string, label: string, phone: string) {
-  const m = await db.waMessage.create({ data: { tenantId, invoiceId: ref, invoiceNo: label.slice(0, 60), recipient: phone, idempotencyKey: key, status: "queued", attempts: 1 } })
-    .catch((e) => { if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return null; throw e; });
-  if (m) return m;
-  const old = await db.waMessage.findUnique({ where: { idempotencyKey: key } });
-  if (!old || old.status !== "failed" || old.attempts >= 3) return null;
-  const r = await db.waMessage.updateMany({ where: { id: old.id, status: "failed", attempts: old.attempts }, data: { status: "queued", attempts: old.attempts + 1, recipient: phone, errorCode: null } });
-  return r.count ? { ...old, attempts: old.attempts + 1 } : null;
-}
-
-async function deliver(id: string, go: () => Promise<string>) {
-  try { await db.waMessage.update({ where: { id }, data: { status: "sent", wamid: await go() } }); return true; }
-  catch (e) { await db.waMessage.update({ where: { id }, data: { status: "failed", errorCode: (e instanceof Error ? e.message : "failed").slice(0, 200) } }); return false; }
-}
 
 /**
  * Sends today's refill reminders: opted-in customers whose usual refill is due within 2 days (or up to a
@@ -232,18 +241,19 @@ async function deliver(id: string, go: () => Promise<string>) {
 export async function sendRefillReminders(tenantId: string, by: Actor = {}): Promise<RunResult> {
   const s = await crmSettings(tenantId);
   if (!s.refill) throw new UserError("Turn on refill reminders first.");
-  const send = await campaignSender(tenantId, s.refillTemplate);
+  const route = await router(tenantId, s.refillTemplate, "refill");
   const due = (await refillDue(tenantId)).filter((r) => r.inDays <= 2 && r.phone);
   const out = { sent: 0, failed: 0, skipped: 0 }, done = new Set<string>();
   for (const r of due) {
     if (done.has(r.customerId)) { out.skipped++; continue; }
-    // Opt-in can change between the query and the send (a STOP reply, an erasure).
-    const c = await db.customer.findFirst({ where: { id: r.customerId, tenantId, waOptIn: true, erasedAt: null, phone: { not: null } } });
-    if (!c) { out.skipped++; continue; }
-    const m = await claim(tenantId, r.key, `refill:${c.id}`, `Refill · ${r.medicine}`, c.phone!);
+    // Consent can change between the query and the send (a STOP reply, an erasure).
+    const c = await db.customer.findFirst({ where: { id: r.customerId, tenantId, erasedAt: null, phone: { not: null } } });
+    const payload = c && route.payload(c, [firstName(c.name), r.medicine, dayMonth(new Date(r.due + "T00:00:00+05:30"))]);
+    if (!c || !payload) { out.skipped++; continue; }
+    const m = await queueMessage(tenantId, { key: r.key, ref: `refill:${c.id}`, label: `Refill · ${r.medicine}`, phone: c.phone!, customerId: c.id, payload });
     if (!m) continue;
     done.add(c.id);
-    if (await deliver(m.id, () => send(c.phone!, [firstName(c.name), r.medicine, dayMonth(new Date(r.due + "T00:00:00+05:30"))]))) out.sent++; else out.failed++;
+    if ((await dispatch(m)).ok) out.sent++; else out.failed++;
   }
   if (out.sent || out.failed) await writeAudit(db, { tenantId, userId: by.userId ?? null, userName: by.userName ?? "Scheduler", action: "Refill reminders sent", entity: "campaign", detail: `${out.sent} sent · ${out.failed} failed · template ${s.refillTemplate}` });
   return out;
@@ -251,15 +261,15 @@ export async function sendRefillReminders(tenantId: string, by: Actor = {}): Pro
 
 /**
  * Asks for feedback a set number of hours after a sale, once per sale and at most once a month per
- * customer, only to opted-in customers. Variables: name, invoice number.
+ * customer, only to customers opted in on WhatsApp. Variables: name, invoice number.
  */
 export async function sendFeedbackRequests(tenantId: string, now = new Date()): Promise<RunResult> {
   const s = await crmSettings(tenantId);
   if (!s.feedback) throw new UserError("Turn on feedback requests first.");
-  const send = await campaignSender(tenantId, s.feedbackTemplate);
+  const route = await router(tenantId, s.feedbackTemplate, null);
   const until = new Date(now.getTime() - s.feedbackHours * 3600_000);
   const sales = await db.sale.findMany({
-    where: { tenantId, at: { gte: new Date(until.getTime() - 48 * 3600_000), lte: until }, voided: { is: null }, customer: { waOptIn: true, erasedAt: null, phone: { not: null } } },
+    where: { tenantId, at: { gte: new Date(until.getTime() - 48 * 3600_000), lte: until }, voided: { is: null }, customer: { waOptIn: true, waInvalidAt: null, erasedAt: null, phone: { not: null } } },
     include: { customer: true }, orderBy: { at: "asc" }, take: 500,
   });
   const out = { sent: 0, failed: 0, skipped: 0 }, done = new Set<string>();
@@ -270,10 +280,12 @@ export async function sendFeedbackRequests(tenantId: string, now = new Date()): 
     if (prev && (prev.status !== "failed" || prev.attempts >= 3)) continue;
     const recent = await db.waMessage.count({ where: { tenantId, invoiceId: { startsWith: "feedback:" }, recipient: c.phone!, status: { not: "failed" }, createdAt: { gte: new Date(now.getTime() - 30 * 86400_000) } } });
     if (recent) { out.skipped++; continue; }
-    const m = await claim(tenantId, `fb:${sale.id}`, `feedback:${sale.id}`, sale.invoiceNo, c.phone!);
+    const payload = route.payload(c, [firstName(c.name), sale.invoiceNo]);
+    if (!payload) { out.skipped++; continue; }
+    const m = await queueMessage(tenantId, { key: `fb:${sale.id}`, ref: `feedback:${sale.id}`, label: sale.invoiceNo, phone: c.phone!, customerId: c.id, payload });
     if (!m) continue;
     done.add(c.id);
-    if (await deliver(m.id, () => send(c.phone!, [firstName(c.name), sale.invoiceNo]))) out.sent++; else out.failed++;
+    if ((await dispatch(m)).ok) out.sent++; else out.failed++;
   }
   if (out.sent || out.failed) await writeAudit(db, { tenantId, userName: "Scheduler", action: "Feedback requests sent", entity: "campaign", detail: `${out.sent} sent · ${out.failed} failed · template ${s.feedbackTemplate}` });
   return out;
@@ -284,26 +296,94 @@ export async function sendRefillsNow(ctx: Ctx) {
   return sendRefillReminders(ctx.tenantId, ctx);
 }
 
+// ───────────── Payment reminders ─────────────
+
+const rupees = (p: number) => (p / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Customers with an outstanding credit balance, largest first, with the last reminder sent to each. */
+export async function paymentDues(ctx: Ctx) {
+  const bal = await customerBalances(db, ctx.tenantId);
+  const ids = [...bal].filter(([, v]) => v > 0).map(([k]) => k);
+  const [cs, last] = await Promise.all([
+    db.customer.findMany({ where: { id: { in: ids }, tenantId: ctx.tenantId, erasedAt: null } }),
+    db.waMessage.groupBy({ by: ["customerId"], where: { tenantId: ctx.tenantId, invoiceId: { startsWith: "payrem:" }, status: { not: "failed" }, customerId: { in: ids } }, _max: { createdAt: true } }),
+  ]);
+  return cs.map((c) => ({
+    id: c.id, name: c.name, phone: c.phone, due: bal.get(c.id) ?? 0, wa: c.waOptIn && !c.waInvalidAt, sms: c.smsOptIn,
+    lastReminder: last.find((l) => l.customerId === c.id)?._max.createdAt?.toISOString() ?? null,
+  })).sort((a, b) => b.due - a.due);
+}
+
+/**
+ * Reminds customers of their outstanding balance (variables: name, amount due, pharmacy), only those who
+ * consented to WhatsApp or SMS. At most one reminder per customer a day; the weekly run also skips anyone
+ * reminded in the past 6 days.
+ */
+export async function sendPaymentReminders(tenantId: string, opts: { customerIds?: string[]; weekly?: boolean; by?: Actor } = {}): Promise<RunResult> {
+  const s = await crmSettings(tenantId);
+  if (opts.weekly && !s.payment) throw new UserError("Turn on payment reminders first.");
+  const route = await router(tenantId, s.paymentTemplate, "payment");
+  const [bal, tenant] = await Promise.all([customerBalances(db, tenantId), db.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true } })]);
+  const ids = [...bal].filter(([id, v]) => v > 0 && (!opts.customerIds || opts.customerIds.includes(id))).map(([id]) => id);
+  const people = await db.customer.findMany({ where: { id: { in: ids }, tenantId, erasedAt: null, phone: { not: null }, ...route.audience } });
+  const today = todayISO(), out = { sent: 0, failed: 0, skipped: ids.length - people.length };
+  for (const c of people) {
+    if (opts.weekly && (await db.waMessage.count({ where: { tenantId, customerId: c.id, invoiceId: { startsWith: "payrem:" }, status: { not: "failed" }, createdAt: { gte: new Date(Date.now() - 6 * 86400_000) } } }))) { out.skipped++; continue; }
+    const payload = route.payload(c, [firstName(c.name), rupees(bal.get(c.id)!), tenant.name]);
+    if (!payload) { out.skipped++; continue; }
+    const m = await queueMessage(tenantId, { key: `pay:${c.id}:${today}`, ref: `payrem:${c.id}`, label: `Payment due · ${rupees(bal.get(c.id)!)}`, phone: c.phone!, customerId: c.id, payload });
+    if (!m) { out.skipped++; continue; }
+    if ((await dispatch(m)).ok) out.sent++; else out.failed++;
+  }
+  if (out.sent || out.failed) await writeAudit(db, { tenantId, userId: opts.by?.userId ?? null, userName: opts.by?.userName ?? "Scheduler", action: "Payment reminders sent", entity: "campaign", detail: `${out.sent} sent · ${out.failed} failed · ${out.skipped} skipped` });
+  return out;
+}
+
+export async function sendPaymentRemindersNow(ctx: Ctx, customerIds?: string[]) {
+  authorize(ctx, "integrations");
+  return sendPaymentReminders(ctx.tenantId, { customerIds, by: ctx });
+}
+
 const REFILL_TIME = "10:00";
 
 /**
+ * Optional message after a sale that earned points (variables: name, points earned, balance), when loyalty
+ * messages are on and the customer consented on WhatsApp or SMS. Once per sale.
+ */
+export async function sendPointsMessage(tenantId: string, saleId: string) {
+  const ls = await loyaltySettings(tenantId);
+  if (!ls.enabled || !ls.notify) return null;
+  const sale = await db.sale.findFirst({ where: { id: saleId, tenantId }, include: { customer: true } });
+  const c = sale?.customer;
+  if (!sale || !c?.phone || c.erasedAt) return null;
+  const pts = await salePoints(tenantId, saleId, c.id);
+  if (!pts?.earned) return null;
+  const route = await router(tenantId, ls.template, "loyalty");
+  const payload = route.payload(c, [firstName(c.name), String(pts.earned), String(pts.balance)]);
+  if (!payload) return null;
+  const m = await queueMessage(tenantId, { key: `pts:${saleId}`, ref: `loyalty:${saleId}`, label: `${pts.earned} points · ${sale.invoiceNo}`, phone: c.phone, customerId: c.id, payload });
+  return m ? dispatch(m) : null;
+}
+
+/**
  * Scheduled messaging, run from the cron tick. Refill reminders go once a day per pharmacy (from 10:00
- * India time; the daily host cron runs them whenever it fires). Feedback requests are checked every 10 minutes.
+ * India time; the daily host cron runs them whenever it fires), payment reminders once a week on the chosen
+ * day from 10:00. Feedback requests are checked every 10 minutes.
  */
 export async function messagingTick(now = new Date(), opts: { daily?: boolean } = {}) {
-  const tenants = await db.$queryRaw<{ id: string; refill: boolean; feedback: boolean }[]>`
-    SELECT id, COALESCE((settings->'crm'->>'refill')::boolean, false) refill, COALESCE((settings->'crm'->>'feedback')::boolean, false) feedback
-    FROM "Tenant" WHERE settings->'crm'->>'refill' = 'true' OR settings->'crm'->>'feedback' = 'true'`;
+  const tenants = await db.$queryRaw<{ id: string; refill: boolean; feedback: boolean; payment: boolean; payday: number }[]>`
+    SELECT id, COALESCE((settings->'crm'->>'refill')::boolean, false) refill, COALESCE((settings->'crm'->>'feedback')::boolean, false) feedback,
+      COALESCE((settings->'crm'->>'payment')::boolean, false) payment, COALESCE((settings->'crm'->>'paymentDay')::int, 1) payday
+    FROM "Tenant" WHERE settings->'crm'->>'refill' = 'true' OR settings->'crm'->>'feedback' = 'true' OR settings->'crm'->>'payment' = 'true'`;
   const { hhmm } = istClock(now);
+  const weekday = new Date(now.getTime() + 330 * 60_000).getUTCDay();
+  const day = todayISO(now);
+  const log = (e: unknown) => { if (!(e instanceof UserError)) console.error("[messaging]", e); };
+  // Claim today's run atomically so two servers or overlapping ticks can't both send.
+  const claim = (id: string, key: string) => db.$executeRaw`UPDATE "Tenant" SET settings = jsonb_set(settings, ${`{${key}}`}::text[], to_jsonb(${day}::text)) WHERE id = ${id} AND COALESCE(settings->>${key}, '') <> ${day}`;
   for (const t of tenants) {
-    if (t.feedback && (opts.daily || Math.floor(now.getTime() / 60_000) % 10 === 0)) {
-      await sendFeedbackRequests(t.id, now).catch((e) => { if (!(e instanceof UserError)) console.error("[messaging]", e); });
-    }
-    if (t.refill && (opts.daily || hhmm >= REFILL_TIME)) {
-      const day = todayISO(now);
-      // Claim today's run atomically so two servers or overlapping ticks can't both send.
-      const claimed = await db.$executeRaw`UPDATE "Tenant" SET settings = jsonb_set(settings, '{crmRefillDay}', to_jsonb(${day}::text)) WHERE id = ${t.id} AND COALESCE(settings->>'crmRefillDay', '') <> ${day}`;
-      if (claimed) await sendRefillReminders(t.id).catch((e) => { if (!(e instanceof UserError)) console.error("[messaging]", e); });
-    }
+    if (t.feedback && (opts.daily || Math.floor(now.getTime() / 60_000) % 10 === 0)) await sendFeedbackRequests(t.id, now).catch(log);
+    if (t.refill && (opts.daily || hhmm >= REFILL_TIME) && (await claim(t.id, "crmRefillDay"))) await sendRefillReminders(t.id).catch(log);
+    if (t.payment && weekday === t.payday && (opts.daily || hhmm >= REFILL_TIME) && (await claim(t.id, "crmPayDay"))) await sendPaymentReminders(t.id, { weekly: true }).catch(log);
   }
 }
