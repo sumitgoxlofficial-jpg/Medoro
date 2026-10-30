@@ -116,6 +116,19 @@ describe("offline billing", () => {
 
     const stranger = { ...op(line), cashierId: ravi.id };
     expect((await syncOps(syncer, dev, [stranger]))[0].message).toMatch(/can’t bill on this device/);
+
+    // A cashier can't borrow a manager's discount cap by putting the manager's id on the bill.
+    const mgrRole = await db.role.findFirstOrThrow({ where: { tenantId: t.id, name: "Manager" } });
+    const meera = await db.user.create({ data: { tenantId: t.id, name: "Meera", phone: "9850021879", roleId: mgrRole.id, employeeNo: "E-104" } });
+    await snapshot({ ...(await ctxFor("Manager")), userId: meera.id, userName: meera.name }, dev);
+    const asSneha = { ...(await ctxFor("Cashier")), userId: sneha.id, userName: sneha.name };
+    const forged = { ...op(line), cashierId: meera.id, sale: { ...op(line).sale, discountPct: 15 } };
+    expect((await syncOps(asSneha, dev, [forged]))[0]).toMatchObject({ status: "conflict", message: expect.stringMatching(/above 5%/) });
+    expect(await db.sale.count({ where: { idempotencyKey: forged.id } })).toBe(0);
+    expect((await resolveOp(syncer, forged.id, "repost")).status).toBe("posted");
+    expect((await db.sale.findFirstOrThrow({ where: { idempotencyKey: forged.id } })).userId).toBe(meera.id);
+    expect((await syncOps(syncer, dev, [{ ...op(line), cashierId: meera.id, sale: { ...op(line).sale, discountPct: 15 } }]))[0].status).toBe("posted");
+
     await db.user.update({ where: { id: sneha.id }, data: { active: false } });
     expect((await syncOps(syncer, dev, [{ ...op(line), cashierId: sneha.id }]))[0].status).toBe("conflict");
 

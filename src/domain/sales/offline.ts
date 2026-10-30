@@ -117,7 +117,8 @@ function resultOf(o: { id: string; status: string; conflict: unknown; resolution
 /**
  * The context to post an offline bill as: the cashier who billed it on the device, checked again now
  * (same pharmacy, active, may sell at this branch, and has used this device). Bills queued before
- * devices recorded the cashier post as the user sending them.
+ * devices recorded the cashier post as the user sending them. The cashier id comes from the device,
+ * so it only attributes the bill: permissions are those both the cashier and the sender hold.
  */
 async function cashierCtx(ctx: Ctx, dev: Dev, op: OfflineOpInput): Promise<Ctx> {
   if (!op.cashierId || op.cashierId === ctx.userId) return ctx;
@@ -126,7 +127,8 @@ async function cashierCtx(ctx: Ctx, dev: Dev, op: OfflineOpInput): Promise<Ctx> 
   if (!u || !u.active || u.isSupport || !seen.includes(u.id) || (u.branchIds.length && !u.branchIds.includes(dev.branchId)) || !u.role.permissions.includes("sale")) {
     throw new UserError("The cashier on this bill can’t bill on this device (left, deactivated, or never used it).");
   }
-  return { ...ctx, userId: u.id, userName: u.name, userEmail: u.email ?? u.phone ?? "", realRole: u.role.name, role: u.role.name, perms: u.role.permissions, readOnly: false };
+  const perms = u.role.permissions.filter((p) => ctx.perms.includes(p));
+  return { ...ctx, userId: u.id, userName: u.name, userEmail: u.email ?? u.phone ?? "", realRole: u.role.name, role: u.role.name, perms, readOnly: false };
 }
 
 async function post(ctx: Ctx, op: OfflineOpInput, who: () => Promise<Ctx>, lines = op.sale.lines, opts: { at?: Date; note?: string } = { at: new Date(op.createdAt) }): Promise<SyncResult> {
