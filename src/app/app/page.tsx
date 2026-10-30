@@ -5,6 +5,7 @@ import { t } from "@/lib/i18n";
 import { weekdayLong } from "@/lib/dates";
 import { PageHead } from "@/components/page-head";
 import { Dashboard, DashActions } from "./dashboard";
+import { DueCheques } from "./cheques/due-widget";
 
 export const metadata = { title: "Dashboard" };
 
@@ -18,6 +19,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
     <>
       <PageHead title={d.dash} sub={`${weekdayLong()} · ${ctx.branchName}`} right={<DashActions range={range} data={data} branch={ctx.branchName} canExport={can(ctx, "reports") && !ctx.readOnly} />} />
       <Dashboard data={data} dict={d} perms={ctx.perms} />
+      <DueCheques ctx={ctx} />
     </>
   );
 }

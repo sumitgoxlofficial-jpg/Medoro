@@ -16,6 +16,8 @@ import { dayMonth, monthYear, todayISO } from "@/lib/dates";
 import { FORMS, GST_RATES, type MedicineInput, type ReceiveInput } from "@/domain/inventory/contracts";
 import type { listInventory, medicineDetail, InvFilter } from "@/domain/inventory/service";
 import type { listBranchTransfers } from "@/domain/inventory/adjust";
+import { raiseClaimAction } from "../purchases/claims-actions";
+import { CLAIM_REASONS, type ClaimReason } from "@/domain/inventory/claim-types";
 import { addMedicineAction, adjustAction, editMedicineAction, quarantineAction, receiveBatchAction, requestTransferAction, returnAction, transferAction, writeOffAction } from "./actions";
 
 type List = Awaited<ReturnType<typeof listInventory>>;
@@ -216,7 +218,7 @@ function Drawer({ d, onClose, onEdit, canEdit, canAdjust, canPurchase }: { d: De
   );
 }
 
-const ACTIONS = { adjust: "Stock adjustment (+/−)", writeoff: "Write off", return: "Return to supplier (debit note)", transfer: "Transfer to another branch", quarantine: "Quarantine", release: "Release from quarantine" } as const;
+const ACTIONS = { adjust: "Stock adjustment (+/−)", writeoff: "Write off", return: "Return to supplier (debit note)", claim: "Expiry / breakage claim on supplier", transfer: "Transfer to another branch", quarantine: "Quarantine", release: "Release from quarantine" } as const;
 type ActionId = keyof typeof ACTIONS;
 
 function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, onClose }: {
@@ -229,7 +231,7 @@ function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, on
   const avail: ActionId[] = !b ? [] : (Object.keys(ACTIONS) as ActionId[]).filter((a) =>
     a === "adjust" ? canAdjust
       : a === "writeoff" ? canAdjust && b.qty > 0
-        : a === "return" ? canPurchase && b.hasSupplier && b.qty > 0
+        : a === "return" || a === "claim" ? canPurchase && b.hasSupplier && b.qty > 0
           : a === "transfer" ? canAdjust && b.status === "ok" && b.days > 0 && b.qty > 0 && branches.length > 0
             : a === "quarantine" ? canAdjust && b.status === "ok"
               : canAdjust && b.status === "quarantine");
@@ -244,6 +246,7 @@ function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, on
     const r = f.action === "adjust" ? await adjustAction(b.id, f.dir === "add" ? qty : -qty, reason)
       : f.action === "writeoff" ? (reason.length < 3 ? null : await writeOffAction(b.id, qty, `${f.kind}: ${reason}`))
         : f.action === "return" ? await returnAction(b.id, qty, reason)
+          : f.action === "claim" ? await raiseClaimAction(b.id, qty, (f.kind in CLAIM_REASONS ? f.kind : b.days <= 0 ? "expiry" : "breakage") as ClaimReason, reason)
           : f.action === "transfer" ? await requestTransferAction(b.id, f.to, qty, reason)
             : await quarantineAction(b.id, f.action === "quarantine", reason);
     if (!r) return setErr("Describe what happened.");
@@ -252,6 +255,7 @@ function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, on
     toast(f.action === "adjust" ? `${no} posted. ${b.batchNo} is now ${b.qty + (f.dir === "add" ? qty : -qty)}.`
       : f.action === "writeoff" ? `${no} posted to Stock loss.`
         : f.action === "return" ? `${no} raised. Stock and payable reduced.`
+          : f.action === "claim" ? `${no} raised. Track it under Purchases → Claims; the payable drops when the credit note arrives.`
           : f.action === "transfer" ? `${no} requested. Someone else at ${branches.find((x) => x.id === f.to)?.name ?? "the branch"} or a manager approves it under Inventory → Transfers.`
             : r.message ?? "Saved.", "green");
     onClose();
@@ -273,6 +277,12 @@ function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, on
             <Field label="Units"><Input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} inputMode="numeric" autoFocus /></Field>
           </div>
         ) : null}
+        {f.action === "claim" ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Reason"><Select value={f.kind in CLAIM_REASONS ? f.kind : b.days <= 0 ? "expiry" : "breakage"} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(CLAIM_REASONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
+            <Field label="Units"><Input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} inputMode="numeric" autoFocus /></Field>
+          </div>
+        ) : null}
         {f.action === "return" || f.action === "transfer" ? (
           <div className="grid grid-cols-2 gap-2.5">
             {f.action === "transfer" ? <Field label="To branch"><Select value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })}>{branches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field> : null}
@@ -283,7 +293,7 @@ function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, on
           <Input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder={f.action === "adjust" ? "e.g. found in back store, miscounted at GRN" : f.action === "writeoff" ? "e.g. strip torn, water damage" : f.action === "return" ? "e.g. near expiry, wrong item supplied" : f.action === "quarantine" ? "e.g. supplier advisory, damaged pack" : "Optional"} />
         </Field>
         <div className="text-[12px] text-faint">
-          {f.action === "adjust" ? "Posts a stock movement and an accounting journal at cost (Inventory and Stock loss). Audited." : f.action === "writeoff" ? "Removes the units and posts their cost to Stock loss." : f.action === "return" ? "Raises a debit note: reduces stock, the supplier payable and input GST." : f.action === "transfer" ? "Creates a request. Stock leaves this branch when someone other than you (or an owner) approves it." : f.action === "quarantine" ? "Blocks the batch from sale until released." : "Makes the batch sellable again."}
+          {f.action === "adjust" ? "Posts a stock movement and an accounting journal at cost (Inventory and Stock loss). Audited." : f.action === "writeoff" ? "Removes the units and posts their cost to Stock loss." : f.action === "return" ? "Raises a debit note: reduces stock, the supplier payable and input GST." : f.action === "claim" ? "Sends the units back as a claim: stock and input GST go down now; the payable drops when the supplier’s credit note is recorded under Purchases → Claims." : f.action === "transfer" ? "Creates a request. Stock leaves this branch when someone other than you (or an owner) approves it." : f.action === "quarantine" ? "Blocks the batch from sale until released." : "Makes the batch sellable again."}
         </div>
       </> : <div className="text-[13.5px] text-muted">No actions are available for this batch with your role.</div>}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}

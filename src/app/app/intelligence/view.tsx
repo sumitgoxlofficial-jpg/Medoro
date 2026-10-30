@@ -121,11 +121,11 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
 
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <div className={card + " p-4 flex flex-col gap-2"}>
-          <div className="font-semibold text-[15px]">Supplier price comparison</div>
+          <div className="font-semibold text-[15px]">Supplier price comparison <span className="text-[12px] font-normal text-faint">landed cost per unit, after schemes and discounts</span></div>
           {prices.length ? prices.map((p) => (
             <div key={p.name} className="flex flex-col gap-0.5 py-1.5 border-b border-row last:border-0">
               <div className="flex justify-between gap-2"><strong className="text-[13.5px]">{p.name}</strong><span className="text-[12.5px]" style={{ color: p.savingPct ? "#1E7F4F" : "#5B636B" }}>Best: {p.best}{p.savingPct ? ` · ${p.savingPct.toFixed(1)}% below last price` : " · last price is best"}</span></div>
-              <div className="text-[12.5px] text-muted">{p.quotes.map((q) => `${q.supplier} ${inr(q.rate)}`).join(" · ")}</div>
+              <div className="text-[12.5px] text-muted">{p.quotes.map((q) => `${q.supplier} ${inr(q.rate)}${q.deal || q.ptr !== q.rate ? ` (PTR ${inr(q.ptr)}${q.deal ? ", " + q.deal : ""})` : ""}`).join(" · ")}</div>
             </div>
           )) : <div className="text-[13px] text-fainter">Shows once you’ve bought the same medicine from more than one supplier. Based on your GRN history.</div>}
         </div>
