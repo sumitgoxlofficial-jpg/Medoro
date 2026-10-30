@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck, Copy, Download } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { AuthButton, AuthCard, AuthError, authInput } from "@/components/auth-ui";
+import type { ResetOption } from "@/domain/identity/recovery";
 import { resetMfaWithCode, sendMfaResetCode, signOut, verifyMfa } from "../../actions";
 
 type Mode = "totp" | "recovery" | "lost";
 const codeInput = "w-full border border-input rounded-lg py-3 text-center font-mono text-[24px] tracking-[.4em] outline-none focus:border-teal focus:ring-2 focus:ring-teal/15";
 
-export function MfaForm({ enrol, name, reset }: { enrol: { qr: string; secret: string } | null; name: string; reset: { channel: "email" | "sms"; to: string } | null }) {
+export function MfaForm({ enrol, name, reset }: { enrol: { qr: string; secret: string } | null; name: string; reset: ResetOption | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("totp");
   const [code, setCode] = useState(""), [trust, setTrust] = useState(true);
@@ -65,8 +66,8 @@ export function MfaForm({ enrol, name, reset }: { enrol: { qr: string; secret: s
         ) : (
           <div className="text-[13.5px] text-muted">
             {sentTo ? <>We sent a 6-digit code to <strong className="text-ink">{sentTo}</strong>. Enter it to remove your old authenticator and set up a new one. Your other devices will be signed out.</>
-              : reset ? <>Lost your phone or authenticator? We can send a code to <strong className="text-ink">{reset.to}</strong> to reset two-step verification.</>
-                : <>Email and SMS aren’t set up on this server. Use a recovery code, or ask the owner to reset your two-step verification from Users.</>}
+              : reset?.ok ? <>Lost your phone or authenticator? We can send a code to <strong className="text-ink">{reset.to}</strong> to reset two-step verification.</>
+                : <>{reset?.reason ?? "Use a recovery code, or ask the owner to reset your two-step verification from Users."}</>}
           </div>
         )}
         {mode === "recovery" && !enrol ? (
@@ -80,7 +81,7 @@ export function MfaForm({ enrol, name, reset }: { enrol: { qr: string; secret: s
         <AuthError>{err}</AuthError>
         {mode !== "lost" || enrol ? <label className="flex items-center gap-2 text-[13px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal" checked={trust} onChange={(e) => setTrust(e.target.checked)} />Trust this counter PC for 30 days</label> : null}
         {mode === "lost" && !enrol ? (
-          <AuthButton type="submit" disabled={pending || !reset || (!!sentTo && code.length !== 6)}>{pending ? "Please wait…" : sentTo ? "Reset two-step verification" : "Send code"}</AuthButton>
+          <AuthButton type="submit" disabled={pending || !reset?.ok || (!!sentTo && code.length !== 6)}>{pending ? "Please wait…" : sentTo ? "Reset two-step verification" : "Send code"}</AuthButton>
         ) : (
           <AuthButton type="submit" disabled={pending || (mode === "recovery" && !enrol ? code.replace(/[^0-9a-z]/gi, "").length !== 16 : code.length !== 6)}>{pending ? "Checking…" : "Verify"}</AuthButton>
         )}

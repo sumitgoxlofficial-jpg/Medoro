@@ -36,7 +36,7 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
     if (!(await setupUnlocked())) return fail("Enter the setup token first.");
     const r = await createPharmacy(input);
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
-    await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup" });
+    await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
 }
@@ -72,7 +72,7 @@ export async function passwordSignIn(email: string, password: string): Promise<R
   }
   await clearFailures(keys);
   await confirmPendingLink(user.id);
-  return { ok: true, data: await finishSignIn(user, "Email and password") };
+  return { ok: true, data: await finishSignIn(user, "password", "Email and password") };
 }
 
 export async function requestSignInOtp(phone: string): Promise<R> {
@@ -100,7 +100,7 @@ export async function otpSignIn(phone: string, code: string): Promise<R<string>>
   const user = await db.user.findFirst({ where: { phone: p, active: true } });
   if (!user) return fail("No account uses this number.");
   await clearFailures(["acct:" + p]);
-  return { ok: true, data: await finishSignIn(user, "Mobile OTP") };
+  return { ok: true, data: await finishSignIn(user, "otp", "Mobile OTP") };
 }
 
 // ───────────── MFA ─────────────
@@ -212,7 +212,7 @@ export async function employeeSignIn(input: { code: string; employeeNo: string; 
   if (user.branchIds.length && !user.branchIds.includes(counter.branchId)) return fail("You are not assigned to that branch.");
   if (user.mfaRequired) return fail("Owners and managers sign in with email and password.");
   await clearFailures(keys);
-  const next = await finishSignIn(user, `Employee PIN · ${counter.name}`, { counterId: counter.id, device: counter.name });
+  const next = await finishSignIn(user, "pin", `Employee PIN · ${counter.name}`, { counterId: counter.id, device: counter.name });
   return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/accounts" : "/app") : next };
 }
 

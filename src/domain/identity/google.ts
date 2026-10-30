@@ -20,7 +20,7 @@ export async function googleSignIn(c: GoogleClaims) {
       return "/signin?google=inactive";
     }
     if (await checkLock(["acct:" + (u.email ?? u.id)])) return "/signin?google=locked";
-    return finishSignIn(u, "Google");
+    return finishSignIn(u, "google", "Google");
   }
   const matches = await db.user.findMany({ where: { email: c.email, active: true, isSupport: false, passwordHash: { not: null }, googleSub: null }, take: 2, select: { id: true } });
   if (matches.length !== 1) return "/signin?google=nouser";

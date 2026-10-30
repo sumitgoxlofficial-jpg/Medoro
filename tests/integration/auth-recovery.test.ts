@@ -352,4 +352,56 @@ describe("account recovery, providers and Google sign-in", () => {
     await db.session.update({ where: { id: s.id }, data: { lastSeenAt: new Date(Date.now() - 5 * 3600_000) } });
     expect((await readSession())?.id).toBe(s.id);
   });
+  it("the email/SMS two-step reset needs a password first factor; Google or mobile-OTP sign-ins can't use it and hold it for 24 h", async () => {
+    const owner = await db.user.findFirstOrThrow({ where: { email: EMAIL } });
+    expect(owner).toMatchObject({ googleSub: "g-owner", mfaEnabled: true });
+    const viaGoogle = async () => {
+      jar.clear();
+      const s = new URL((await googleStart(new Request(`${APP}/api/auth/google/start`))).headers.get("location")!).searchParams;
+      idClaims = google.claims({ aud: CLIENT, nonce: s.get("nonce"), sub: "g-owner", email: EMAIL });
+      expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/signin/mfa`);
+    };
+    const mailsAndSms = () => sent.filter((s) => !s.url.includes("oauth2.googleapis.com")).length;
+    const refused = { ok: false, error: expect.stringMatching(/needs a sign-in with your password/) };
+
+    // A password session asks for a code; a Google session can't spend it.
+    await db.session.updateMany({ where: { userId: owner.id, firstFactor: { in: ["google", "otp"] } }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });
+    jar.clear();
+    await passwordSignIn(EMAIL, PW);
+    expect((await readSession(true))?.firstFactor).toBe("password");
+    expect(await sendMfaResetCode()).toEqual({ ok: true, data: "o***@test.in" });
+    const code = lastCode();
+
+    await viaGoogle();
+    expect((await readSession(true))).toMatchObject({ firstFactor: "google", mfaPassed: false });
+    const before = mailsAndSms();
+    expect(await sendMfaResetCode()).toEqual(refused);
+    expect(await resetMfaWithCode(code)).toEqual(refused);
+    expect(mailsAndSms()).toBe(before);
+
+    // Mobile-OTP sign-in, with SMS the only channel left: still refused, nothing sent.
+    vi.stubEnv("MAIL_PROVIDER", "");
+    jar.clear();
+    expect(await requestSignInOtp(PHONE)).toEqual({ ok: true });
+    expect(await otpSignIn(PHONE, lastCode())).toEqual({ ok: true, data: "/signin/mfa" });
+    expect((await readSession(true))?.firstFactor).toBe("otp");
+    const sms = mailsAndSms();
+    expect(await sendMfaResetCode()).toEqual(refused);
+    expect(await resetMfaWithCode(code)).toEqual(refused);
+    expect(mailsAndSms()).toBe(sms);
+    expect(await db.user.findUniqueOrThrow({ where: { id: owner.id } })).toMatchObject({ mfaEnabled: true });
+    expect(await db.recoveryCode.count({ where: { userId: owner.id, usedAt: null } })).toBe(10);
+
+    // Those sign-ins hold the reset back for 24 h even for a password session…
+    vi.stubEnv("MAIL_PROVIDER", "resend");
+    jar.clear();
+    await passwordSignIn(EMAIL, PW);
+    expect(await sendMfaResetCode()).toMatchObject({ ok: false, error: expect.stringMatching(/signed in to this account with Google or a mobile code recently/) });
+    expect(await resetMfaWithCode(code)).toMatchObject({ ok: false, error: expect.stringMatching(/paused/) });
+    // …and once they are older, the password session's reset works.
+    await db.session.updateMany({ where: { userId: owner.id, firstFactor: { in: ["google", "otp"] } }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });
+    expect(await sendMfaResetCode()).toEqual({ ok: true, data: "o***@test.in" });
+    expect(await resetMfaWithCode(lastCode())).toEqual({ ok: true, data: null });
+    expect(await db.user.findUniqueOrThrow({ where: { id: owner.id } })).toMatchObject({ mfaEnabled: false, mfaSecret: null });
+  });
 });

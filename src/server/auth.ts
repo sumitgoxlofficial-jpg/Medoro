@@ -33,12 +33,12 @@ export async function clientInfo() {
   return { ip: clientIp(h), userAgent: h.get("user-agent") };
 }
 
-export async function createSession(userId: string, tokenVersion: number, opts: { device?: string; counterId?: string; mfaPassed: boolean; expiresAt?: Date }) {
+export async function createSession(userId: string, tokenVersion: number, opts: { device?: string; counterId?: string; mfaPassed: boolean; expiresAt?: Date; firstFactor?: "password" | "google" | "otp" | "pin" }) {
   const token = randomBytes(32).toString("base64url");
   const { ip, userAgent } = await clientInfo();
   const expiresAt = opts.expiresAt ?? new Date(Date.now() + COUNTER_HOURS * 3600_000);
   await db.session.create({
-    data: { id: sha(token), userId, tokenVersion, device: opts.device ?? null, counterId: opts.counterId ?? null, mfaPassed: opts.mfaPassed, expiresAt, ip, userAgent },
+    data: { id: sha(token), userId, tokenVersion, device: opts.device ?? null, counterId: opts.counterId ?? null, mfaPassed: opts.mfaPassed, firstFactor: opts.firstFactor ?? null, expiresAt, ip, userAgent },
   });
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", expires: expiresAt,
