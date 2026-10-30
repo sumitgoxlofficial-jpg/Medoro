@@ -241,5 +241,9 @@ describe("orders and home delivery", () => {
     await confirmOrder(cashier, id);
     const sale = await packOrder(cashier, id);
     expect(await db.sale.findUniqueOrThrow({ where: { id: sale.saleId } })).toMatchObject({ patientName: "Meena Kulkarni", prescriberReg: "MMC-4411", prescriber: "Dr Rao" });
+    // Picking an existing customer in strict mode sends the masked number; the stored one is used.
+    const cust = await db.customer.findFirstOrThrow({ where: { phone: "9822011199" } });
+    const again = await createOrder(cashier, { ...order, customerId: cust.id, phone: "••••••1199", prescriberReg: "MMC-4411" });
+    expect((await db.deliveryOrder.findUniqueOrThrow({ where: { id: again.id } })).phone).toBe("9822011199");
   });
 });

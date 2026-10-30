@@ -24,7 +24,7 @@ What strict mode enforces on the server (`isStrict(ctx)` in `src/domain/system/s
 |---|---|
 | Remote AI off (strict mode and remote AI exclude each other) | Privacy settings; AI module checks `isStrict` / `assertNotStrict` |
 | No telemetry or crash reports, even if their toggles are on | `domain/system/telemetry.ts` (also needs `TELEMETRY_URL` / `CRASH_REPORT_URL`) |
-| Customer mobile numbers masked (`98220•••36`) for every role except Owner and Manager (follows "View as") | Customer lists, customer-dues report |
+| Customer mobile numbers masked to the last 4 digits (`••••••1736`) for every role except Owner and Manager (follows "View as") | Customer lists, POS and order customer pickers, customer statements, refill reminders, customer-dues report |
 | Exports include customer mobile numbers only with a recorded reason (audited) | Full JSON/CSV export; customer-dues CSV (Owner/Manager) |
 | Every new customer mobile number gets a consent record, so the log shows a clear yes or no | Customer forms at the counter and in Suppliers & customers |
 

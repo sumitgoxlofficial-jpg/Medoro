@@ -11,6 +11,7 @@ import { putObject, getObject, ALLOWED } from "@/server/storage";
 import { addDays, dateOnly, fiscalYear, isoOf, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big, cartTotals, inr } from "@/lib/money";
 import { isH1 } from "@/lib/rx";
+import { isMasked } from "@/lib/mask";
 import { allocateFefo, fefoOrder } from "@/domain/inventory/fefo";
 import { sellableByMedicine } from "@/domain/inventory/queries";
 import { commitSale, reservedForDevices } from "@/domain/sales/service";
@@ -108,6 +109,11 @@ export async function riders(ctx: Ctx) {
 
 export async function createOrder(ctx: Ctx, raw: OrderInput) {
   authorize(ctx, "sale");
+  // A picked customer's number may reach the form masked; the stored number is used.
+  if (raw.customerId && isMasked(raw.phone)) {
+    const c = await db.customer.findFirst({ where: { id: raw.customerId, tenantId: ctx.tenantId, erasedAt: null }, select: { phone: true } });
+    raw = { ...raw, phone: c?.phone ?? "" };
+  }
   const i = orderSchema.parse(raw);
   if (i.payMode === "credit" && !can(ctx, "credit")) throw new UserError("Your role cannot take orders on credit.");
   if (i.slotDate && i.slotDate < todayISO()) throw new UserError("The delivery date is in the past.");

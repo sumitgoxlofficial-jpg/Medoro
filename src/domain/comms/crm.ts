@@ -7,6 +7,8 @@ import { Prisma } from "@prisma/client";
 import { unseal } from "@/server/vault";
 import { addDays, dayMonth, isoOf, todayISO } from "@/lib/dates";
 import { istClock } from "@/domain/system/schedule";
+import { phoneMasker } from "@/domain/system/strict";
+import { maskPhone } from "@/lib/mask";
 import type { WaConfig } from "./whatsapp";
 
 export type CrmSettings = { refill: boolean; feedback: boolean; refillTemplate: string; feedbackTemplate: string; feedbackHours: number };
@@ -40,9 +42,9 @@ export async function saveCrm(ctx: Ctx, patch: Partial<CrmSettings>) {
 
 /** Refill reminders come only from purchase intervals: no conditions are inferred. */
 export async function refillReminders(ctx: Ctx) {
-  const rows = await refillDue(ctx.tenantId);
+  const [rows, mask] = await Promise.all([refillDue(ctx.tenantId), phoneMasker(ctx)]);
   const msgs = await db.waMessage.findMany({ where: { tenantId: ctx.tenantId, idempotencyKey: { in: rows.map((r) => r.key) } }, select: { idempotencyKey: true, status: true } });
-  return rows.map((r) => ({ ...r, reminder: msgs.find((m) => m.idempotencyKey === r.key)?.status ?? null }));
+  return rows.map((r) => ({ ...r, phone: mask(r.phone), reminder: msgs.find((m) => m.idempotencyKey === r.key)?.status ?? null }));
 }
 
 async function refillDue(tenantId: string) {
@@ -198,7 +200,7 @@ export async function retryCampaignMessage(ctx: Ctx, messageId: string) {
 
 export async function optOuts(ctx: Ctx) {
   const cs = await db.customer.findMany({ where: { tenantId: ctx.tenantId, waOptIn: false, optInMethod: { startsWith: "Opted out" } }, orderBy: { optInAt: "desc" }, take: 50 });
-  return cs.map((c) => ({ phone: c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5, 6)}••••` : "—", via: c.optInMethod ?? "", at: c.optInAt?.toISOString() ?? null }));
+  return cs.map((c) => ({ phone: maskPhone(c.phone) ?? "—", via: c.optInMethod ?? "", at: c.optInAt?.toISOString() ?? null }));
 }
 
 export async function optInCount(ctx: Ctx) {

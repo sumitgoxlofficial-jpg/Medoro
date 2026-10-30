@@ -7,6 +7,7 @@ import { UserError } from "@/server/action";
 import { nextSeq } from "@/server/sequence";
 import { invoiceNo as makeInvoiceNo, validSeries } from "@/lib/docno";
 import { isH1 } from "@/lib/rx";
+import { phoneMasker } from "@/domain/system/strict";
 import { daysTo, fiscalYear, todayISO } from "@/lib/dates";
 import { big, cartTotals, inr, inr0 } from "@/lib/money";
 import { discountCap } from "@/domain/identity/permissions";
@@ -279,7 +280,8 @@ export async function posCustomers(ctx: Ctx) {
   const { customerBalances } = await import("@/domain/parties/balances");
   const bal = await customerBalances(db, ctx.tenantId);
   const br = await db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, include: { tenant: { select: { gstin: true } } } });
-  return cs.map((c) => ({ id: c.id, name: c.name, phone: c.phone, optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0, gstin: c.gstin, igst: saleTaxSplit(br.gstin ?? br.tenant.gstin, c, 0).inter }));
+  const mask = await phoneMasker(ctx);
+  return cs.map((c) => ({ id: c.id, name: c.name, phone: mask(c.phone), optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0, gstin: c.gstin, igst: saleTaxSplit(br.gstin ?? br.tenant.gstin, c, 0).inter }));
 }
 
 export async function createCustomer(ctx: Ctx, raw: CustomerInput & ConsentInput) {

@@ -5,6 +5,7 @@ import { UserError } from "@/server/action";
 import { big } from "@/lib/money";
 import { dayRange, periodOf } from "@/domain/accounting/service";
 import { ACC } from "@/domain/accounting/accounts";
+import { phoneMasker } from "@/domain/system/strict";
 
 export type PartyType = "supplier" | "customer";
 
@@ -40,7 +41,7 @@ export async function partyStatement(ctx: Ctx, type: PartyType, id: string, from
     return { id: l.id, date: v.date.toISOString(), no: v.no, kind: v.refType === "opening" ? "Opening balance" : KIND[v.type] ?? v.type, narration: v.narration, debit: dr, credit: cr, balance: bal };
   });
   return {
-    type, party: { id: party.id, name: party.name, gstin: "gstin" in party ? party.gstin : null, phone: party.phone },
+    type, party: { id: party.id, name: party.name, gstin: "gstin" in party ? party.gstin : null, phone: type === "customer" ? (await phoneMasker(ctx))(party.phone) : party.phone },
     fromDay: r.fromDay, toDay: r.toDay, opening, rows, debit, credit, closing: bal,
   };
 }

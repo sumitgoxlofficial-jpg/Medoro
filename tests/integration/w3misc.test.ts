@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { unzipSync, strFromU8 } from "fflate";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
-import { commitSale, createCustomer, invoiceData } from "@/domain/sales/service";
+import { commitSale, createCustomer, invoiceData, posCustomers } from "@/domain/sales/service";
 import { customerConsents, listCustomers, saveCustomer, saveSupplier } from "@/domain/parties/service";
 import { consentWhere, hasConsent } from "@/domain/parties/consent";
 import { exportCsvFiles, fullExport, getGrievance, saveGrievance, savePrivacy } from "@/domain/system/privacy";
@@ -67,14 +67,16 @@ describe("privacy, consent, permissions, purchasing controls, H1 register, centr
     expect(await isStrict(T)).toBe(true);
     const cashier = await ctxFor("Cashier"), manager = await ctxFor("Manager");
     const masked = (await listCustomers(cashier)).find((c) => c.name === "Meena Joshi")!;
-    expect(masked.phone).toBe("98220•••01");
+    expect(masked.phone).toBe("••••••0201");
     expect((await listCustomers(manager)).find((c) => c.name === "Meena Joshi")!.phone).toBe("9822000201");
+    expect((await posCustomers(cashier)).find((c) => c.name === "Meena Joshi")!.phone).toBe("••••••0201");
+    expect((await posCustomers(manager)).find((c) => c.name === "Meena Joshi")!.phone).toBe("9822000201");
     await saveCustomer(cashier, masked.id, { name: "Meena J", phone: masked.phone!, waOptIn: true, creditLimit: "0", smsOptIn: true });
     expect((await db.customer.findUniqueOrThrow({ where: { id: masked.id } })).phone).toBe("9822000201");
 
     const owner = await ctxFor();
     const plain = await fullExport(owner);
-    expect(plain.customers.find((c) => c.id === masked.id)!.phone).toBe("98220•••01");
+    expect(plain.customers.find((c) => c.id === masked.id)!.phone).toBe("••••••0201");
     await expect(fullExport(owner, { reason: "x" })).rejects.toThrow(/reason/);
     const full = await fullExport(owner, { reason: "Moving to a new server" }, "csv");
     expect(full.customers.find((c) => c.id === masked.id)!.phone).toBe("9822000201");

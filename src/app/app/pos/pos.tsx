@@ -15,6 +15,7 @@ import type { Invoice, SaleMedicine } from "@/domain/sales/service";
 import { addCustomerAction, approveDiscountAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
 import { baseQty, fmtQty, fmtSold, unitPrice, type SaleUnit } from "@/lib/units";
 import { isH1 } from "@/lib/rx";
+import { isMasked } from "@/lib/mask";
 import { SubstitutesPanel } from "./substitutes";
 import { DoctorPicker, type DoctorOpt } from "./doctor-picker";
 
@@ -369,7 +370,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             <button onClick={() => setNewCust(true)} className="text-teal text-[12.5px] font-semibold flex items-center gap-1 cursor-pointer"><UserPlus size={13} />New</button></div>
           <select id="pos-cust" value={cart.cust} onChange={(e) => set({ cust: e.target.value })} className={inp}>
             <option value="">Walk-in customer (no details stored)</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}</option>)}
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${isMasked(c.phone) ? c.phone : `${c.phone.slice(0, 5)} ${c.phone.slice(5)}`}` : ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}</option>)}
           </select>
           {cust ? <div className="text-[12.5px] text-muted">Outstanding {inr0(cust.due)} · limit {inr0(cust.limit)} · WhatsApp {cust.optIn ? "opted in" : "not opted in"}{cust.gstin ? ` · B2B tax invoice${cust.igst ? ", inter-state (IGST)" : ""}` : ""}</div> : null}
           {needsRx ? (

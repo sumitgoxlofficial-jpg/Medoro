@@ -37,7 +37,7 @@ describe("consent and masking helpers", () => {
   });
 
   it("masks phones but keeps enough to tell customers apart", () => {
-    expect(maskPhone("9822041736")).toBe("98220•••36");
+    expect(maskPhone("9822041736")).toBe("••••••1736");
     expect(maskPhone(null)).toBeNull();
     expect(maskPhone("123")).toBe("••••");
   });

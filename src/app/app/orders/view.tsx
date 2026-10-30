@@ -13,6 +13,7 @@ import { useActionToast, useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
 import { isH1 } from "@/lib/rx";
+import { isMasked } from "@/lib/mask";
 import { mapsLink, ORDER_PAY, ORDER_SOURCES, PAY_LABEL, SOURCE_LABEL, STATUS_LABEL, type OrderPay, type OrderStatus } from "@/domain/orders/contracts";
 import type { OrderView, recentSettlements, riderCash, riders } from "@/domain/orders/service";
 import type { NotifyEvent } from "@/domain/orders/notify";
@@ -200,7 +201,7 @@ function NewOrder({ open, onClose, customers, canCredit }: { open: boolean; onCl
   useEffect(() => { if (!q.trim()) { setHits([]); return; } const h = setTimeout(() => searchMedsAction(q).then(setHits), 250); return () => clearTimeout(h); }, [q]);
   const custHits = useMemo(() => {
     const t = cq.trim().toLowerCase();
-    return t.length < 2 ? [] : customers.filter((c) => c.name.toLowerCase().includes(t) || (c.phone ?? "").includes(t)).slice(0, 6);
+    return t.length < 2 ? [] : customers.filter((c) => c.name.toLowerCase().includes(t) || (isMasked(c.phone) ? t.replace(/\D/g, "").length >= 4 && t.replace(/\D/g, "").endsWith(c.phone!.replace(/\D/g, "")) : (c.phone ?? "").includes(t))).slice(0, 6);
   }, [cq, customers]);
   const needRx = items.some((i) => i.med.schedule);
   const needH1 = items.some((i) => isH1(i.med.schedule));
