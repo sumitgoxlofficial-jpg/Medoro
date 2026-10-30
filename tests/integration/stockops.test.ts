@@ -78,6 +78,16 @@ describe("stock operations and intelligence", () => {
     await cancelTransfer(ctx, t.id);
     expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(15);
     await expect(rejectTransfer(ctx, t.id)).rejects.toThrow(/pending/);
+
+    const no2 = await requestTransfer(ctx, b2, second, 1);
+    const t2 = await db.transfer.findFirstOrThrow({ where: { no: no2 } });
+    await approveTransfer(ctx, t2.id);
+    await setQuarantine(ctx, b2, true, "Leaking strips");
+    expect(await receiveTransfer(await ctxFor("Owner", "Second"), t2.id)).toMatch(/quarantined/);
+    const dest = await db.batch.findFirstOrThrow({ where: { branchId: second, batchNo: "OK2", medicineId: med } });
+    expect([dest.qtyAvailable, dest.status]).toEqual([5, "quarantine"]);
+    await setQuarantine(ctx, b2, false, "");
+    await setQuarantine(ctx, dest.id, false, "");
   });
 
   it("recalls match medicine + batch across branches and quarantine them", async () => {
