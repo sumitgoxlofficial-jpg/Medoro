@@ -78,7 +78,8 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   const grn = await tx.grn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no: grnNo, supplierId: supplier.id, supplierInvoiceNo: i.invoiceNo, invoiceDate: dateOnly(i.invoiceDate), totalPaise: BigInt(payable), poId: po?.id ?? null, scanDocId: i.scanDocId, igst, itc: rules.itc, gstBase: rules.gstBase, approvedBy: ctx.userId } });
 
   for (const [n, l] of lines.entries()) {
-    const p = t.lines[n], units = p.units;
+    // Priced per pack (paid + free packs); stock is kept in stock units (loose units for medicines sold loose).
+    const p = t.lines[n], units = p.units * l.m.packSize;
     const found = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} AND "branchId" = ${ctx.branchId} AND "medicineId" = ${l.m.id} AND "batchNo" = ${l.batchNo} FOR UPDATE`;
     const existing = found.length ? await tx.batch.findUniqueOrThrow({ where: { id: found[0].id } }) : null;
     let batchId: string;
@@ -87,7 +88,7 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
       // One row per batch number (unique key), so a top-up blends landed cost by weighted average and the batch's
       // supplier becomes the latest one; each receipt's own supplier and rate stay on its GRN.
       const onHand = Math.max(existing.qtyAvailable, 0);
-      const cost = onHand ? Math.round((onHand * big(existing.costPaise) + p.cost) / (onHand + units)) : p.landed;
+      const cost = onHand ? Math.round((onHand * big(existing.costPaise) + p.cost * l.m.packSize) / (onHand + units)) : p.landed; // per pack, weighted by stock units
       await tx.batch.update({ where: { id: existing.id }, data: { qtyAvailable: { increment: units }, costPaise: BigInt(cost), supplierId: supplier.id, grnId: grn.id, version: { increment: 1 } } });
       batchId = existing.id;
     } else {

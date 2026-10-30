@@ -1,7 +1,7 @@
 import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
-  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "acc"
+  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "doc" | "acc"
   | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Engagement" | "System"; abbr: string; sub: string };
@@ -22,6 +22,7 @@ export const NAV: NavDef[] = [
   { id: "parties", href: "/app/parties", icon: "Contact", perm: "payments", group: "Business", abbr: "Parties", sub: "Balances, terms and payments" },
   { id: "chq", href: "/app/cheques", icon: "Banknote", perm: "payments", group: "Business", abbr: "Cheques", sub: "Cheques received and issued: post-dated, deposit, clearing and bounces" },
   { id: "bank", href: "/app/bank", icon: "Scale", perm: "payments", group: "Business", abbr: "Bank", sub: "Import bank statements and match them to your books" },
+  { id: "doc", href: "/app/doctors", icon: "Stethoscope", perm: "sale", group: "Business", abbr: "Doctors", sub: "Doctor master, prescriptions and sales by referring doctor" },
   { id: "acc", href: "/app/accounts", icon: "Landmark", perm: "reports", group: "Business", abbr: "A/c", sub: "Ledgers, P&L, GST summary and exports" },
   { id: "wa", href: "/app/whatsapp", icon: "MessageCircle", perm: "integrations", group: "Engagement", abbr: "WhatsApp", sub: "Meta WhatsApp Business Cloud API" },
   { id: "crm", href: "/app/messaging", icon: "Megaphone", perm: "integrations", group: "Engagement", abbr: "CRM", sub: "Opt-in reminders, campaigns, loyalty and opt-outs" },
@@ -34,7 +35,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
+export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "doc", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
 

@@ -8,8 +8,10 @@ import { cartTotals, inr, toPaise } from "@/lib/money";
 import { daysTo, monthYear, todayISO } from "@/lib/dates";
 import type { OfflineSnapshot } from "@/domain/sales/offline-types";
 import { getDevice, getQueue, getSnapshot, nextReceipt, randomId, remaining, saveQueue, syncNow, type Device, type QueuedBill } from "@/lib/offline/store";
+import { baseQty, fmtQty, fmtSold, unitPrice, type SaleUnit } from "@/lib/units";
+import { searchTokens } from "@/domain/inventory/salts";
 
-type Line = { key: string; medicineId: string; batchId: string; qty: number };
+type Line = { key: string; medicineId: string; batchId: string; qty: number; unit?: SaleUnit };
 type Pay = "cash" | "upi" | "card";
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const inp = "border border-input rounded-lg px-[11px] py-[9px] text-[14px] outline-none bg-white focus:border-teal w-full";
@@ -40,6 +42,7 @@ export function OfflinePos() {
   const [ref, setRef] = useState("");
   const [doctor, setDoctor] = useState("");
   const [rxno, setRxno] = useState("");
+  const [doctorId, setDoctorId] = useState("");
   const [msg, setMsg] = useState<{ text: string; tone: "red" | "green" | "amber" } | null>(null);
   const [receipt, setReceipt] = useState<QueuedBill | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -57,35 +60,40 @@ export function OfflinePos() {
   const medById = useMemo(() => new Map(snap?.medicines.map((m) => [m.id, m]) ?? []), [snap]);
   const batchById = useMemo(() => new Map(snap?.batches.map((b) => [b.id, b]) ?? []), [snap]);
   const today = todayISO();
-  const usedIn = (ls: Line[], batchId: string) => ls.filter((l) => l.batchId === batchId).reduce((a, l) => a + l.qty, 0);
-  const fefo = (medicineId: string, ls: Line[]) => (snap?.batches ?? [])
-    .filter((b) => b.medicineId === medicineId && daysTo(b.expiry, today) > 0 && (left[b.id] ?? 0) - usedIn(ls, b.id) > 0)
+  // Allowances and batch use are in stock units; a whole pack needs packSize of them from one batch.
+  const psOf = (medicineId: string) => medById.get(medicineId)?.packSize ?? 1;
+  const usedIn = (ls: Line[], batchId: string) => ls.filter((l) => l.batchId === batchId).reduce((a, l) => a + baseQty(l.qty, l.unit, psOf(l.medicineId)), 0);
+  const fefo = (medicineId: string, ls: Line[], unit?: SaleUnit) => (snap?.batches ?? [])
+    .filter((b) => b.medicineId === medicineId && daysTo(b.expiry, today) > 0 && (left[b.id] ?? 0) - usedIn(ls, b.id) >= baseQty(1, unit, psOf(medicineId)))
     .sort((a, b) => (a.expiry < b.expiry ? -1 : a.expiry > b.expiry ? 1 : a.id < b.id ? -1 : 1))[0];
 
   const results = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t || !snap) return [];
-    return snap.medicines.filter((m) => m.name.toLowerCase().includes(t) || m.generic.toLowerCase().includes(t) || m.barcode === q.trim()).slice(0, 8);
+    const tokens = searchTokens(t);
+    return snap.medicines.filter((m) => m.barcode === q.trim() || tokens.every((k) => [m.name, m.generic, m.composition ?? ""].some((f) => f.toLowerCase().includes(k)))).slice(0, 8);
   }, [q, snap]);
 
-  const add = (medicineId: string) => {
+  const add = (medicineId: string, unit?: SaleUnit) => {
     setLines((ls) => {
-      const b = fefo(medicineId, ls);
-      if (!b) { say(`${medById.get(medicineId)?.name}: this device’s offline allowance is used up. Bill it when back online.`, "amber"); return ls; }
-      const ex = ls.find((l) => l.batchId === b.id);
-      return ex ? ls.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l)) : [...ls, { key: randomId("l"), medicineId, batchId: b.id, qty: 1 }];
+      const b = fefo(medicineId, ls, unit);
+      if (!b) { say(`${medById.get(medicineId)?.name}: this device’s offline allowance is used up${unit !== "loose" && medById.get(medicineId)?.allowLoose ? " for a whole pack; try loose" : ""}. Bill it when back online.`, "amber"); return ls; }
+      const ex = ls.find((l) => l.batchId === b.id && l.unit === unit);
+      return ex ? ls.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l)) : [...ls, { key: randomId("l"), medicineId, batchId: b.id, qty: 1, ...(unit === "loose" ? { unit } : {}) }];
     });
     setQ(""); setMsg(null); searchRef.current?.focus();
   };
   const inc = (key: string) => {
     const l = lines.find((x) => x.key === key)!;
-    if ((left[l.batchId] ?? 0) - usedIn(lines, l.batchId) > 0) setLines(lines.map((x) => (x.key === key ? { ...x, qty: x.qty + 1 } : x)));
-    else add(l.medicineId);
+    if ((left[l.batchId] ?? 0) - usedIn(lines, l.batchId) >= baseQty(1, l.unit, psOf(l.medicineId))) setLines(lines.map((x) => (x.key === key ? { ...x, qty: x.qty + 1 } : x)));
+    else add(l.medicineId, l.unit);
   };
   const dec = (key: string) => setLines(lines.map((x) => (x.key === key ? { ...x, qty: x.qty - 1 } : x)).filter((x) => x.qty > 0));
 
   const d = parseFloat(disc) || 0;
-  const totals = useMemo(() => cartTotals(lines.map((l) => ({ mrpPaise: batchById.get(l.batchId)?.mrpPaise ?? 0, qty: l.qty, gstRate: medById.get(l.medicineId)?.gstRate ?? 0 })), d), [lines, d, batchById, medById]);
+  const priceOf = useCallback((l: Line) => unitPrice(batchById.get(l.batchId)?.mrpPaise ?? 0, l.unit, medById.get(l.medicineId)?.packSize ?? 1), [batchById, medById]);
+  const totals = useMemo(() => cartTotals(lines.map((l) => ({ mrpPaise: priceOf(l), qty: l.qty, gstRate: medById.get(l.medicineId)?.gstRate ?? 0 })), d), [lines, d, priceOf, medById]);
+  const packDef = (medicineId: string) => { const m = medById.get(medicineId); return { packSize: m?.packSize ?? 1, packUnit: m?.packUnit ?? "pack", looseUnit: m?.looseUnit ?? "unit" }; };
   const needsRx = lines.some((l) => medById.get(l.medicineId)?.schedule);
   const stale = snap ? Date.now() - new Date(snap.takenAt).getTime() > snap.validDays * 86_400_000 : false;
   const pending = queue.filter((b) => b.state === "pending");
@@ -96,7 +104,7 @@ export function OfflinePos() {
     if (!lines.length) return say("Cart is empty.");
     if (stale) return say(`This device’s price list is more than ${snap.validDays} days old. Reconnect to refresh it before billing.`);
     if (d < 0 || d > snap.discCap) return say(`Discount above ${snap.discCap}% needs a manager, online.`);
-    if (needsRx && !doctor.trim()) return say("Enter the prescriber’s name for Schedule H/H1 items.");
+    if (needsRx && !doctor.trim() && !doctorId) return say("Enter the prescriber’s name for Schedule H/H1 items.");
     if (pay === "cash" && tender && toPaise(tender) < totals.total) return say("Cash tendered is less than the total.");
     if (totals.total <= 0) return say("The bill total must be more than zero.");
     completing.current = true;
@@ -104,13 +112,13 @@ export function OfflinePos() {
       const bill: QueuedBill = {
         id: randomId("off_"), createdAt: new Date().toISOString(), baseVersion: Math.max(0, ...lines.map((l) => batchById.get(l.batchId)?.version ?? 0)),
         receipt: await nextReceipt(dev.deviceId), state: "pending", cashierId: snap.cashierId, cashier: snap.cashier,
-        sale: { lines: lines.map(({ medicineId, batchId, qty }) => ({ medicineId, batchId, qty })), discountPct: d, pay: { mode: pay, tenderedPaise: pay === "cash" && tender ? toPaise(tender) : undefined, ref: pay !== "cash" && ref ? ref : undefined }, prescriber: doctor.trim() || undefined, rxNo: rxno.trim() || undefined, totalPaise: totals.total },
-        view: lines.map((l) => ({ name: medById.get(l.medicineId)?.name ?? "", batchNo: batchById.get(l.batchId)?.batchNo ?? "", qty: l.qty, mrpPaise: batchById.get(l.batchId)?.mrpPaise ?? 0 })),
+        sale: { lines: lines.map(({ medicineId, batchId, qty, unit }) => ({ medicineId, batchId, qty, ...(unit === "loose" ? { unit } : {}) })), discountPct: d, pay: { mode: pay, tenderedPaise: pay === "cash" && tender ? toPaise(tender) : undefined, ref: pay !== "cash" && ref ? ref : undefined }, prescriber: doctorId ? undefined : doctor.trim() || undefined, rxNo: rxno.trim() || undefined, ...(doctorId ? { doctorId } : {}), totalPaise: totals.total },
+        view: lines.map((l) => ({ name: medById.get(l.medicineId)?.name ?? "", batchNo: batchById.get(l.batchId)?.batchNo ?? "", qty: l.qty, mrpPaise: priceOf(l), unit: fmtSold(l.qty, l.unit, packDef(l.medicineId)) })),
       };
       const next = [...(await getQueue()), bill];
       await saveQueue(next);
       setQueue(next); setReceipt(bill);
-      setLines([]); setDisc("0"); setTender(""); setRef(""); setDoctor(""); setRxno(""); setMsg(null);
+      setLines([]); setDisc("0"); setTender(""); setRef(""); setDoctor(""); setDoctorId(""); setRxno(""); setMsg(null);
     } finally { completing.current = false; }
   };
 
@@ -190,11 +198,12 @@ export function OfflinePos() {
                 {results.map((m) => {
                   const avail = (snap.batches.filter((b) => b.medicineId === m.id && daysTo(b.expiry, today) > 0)).reduce((a, b) => a + Math.max(0, (left[b.id] ?? 0) - usedIn(lines, b.id)), 0);
                   return (
-                    <button key={m.id} type="button" onClick={() => add(m.id)} className="w-full text-left px-3 py-2 hover:bg-page flex gap-3 items-center border-b border-row last:border-0">
-                      <span className="flex-1 min-w-0"><span className="font-medium">{m.name}</span> <span className="text-muted text-[12.5px]">{m.generic} {m.strength}</span></span>
+                    <div key={m.id} className="w-full px-3 py-2 hover:bg-page flex gap-3 items-center border-b border-row last:border-0">
+                      <button type="button" onClick={() => add(m.id)} className="flex-1 min-w-0 text-left"><span className="font-medium">{m.name}</span> <span className="text-muted text-[12.5px]">{m.composition ?? `${m.generic} ${m.strength}`}{m.rack ? ` · rack ${m.rack}` : ""}</span></button>
                       {m.schedule ? <Badge tone="purple">Sch {m.schedule}</Badge> : null}
-                      <span className="text-[12.5px] text-muted">{avail} offline</span>
-                    </button>
+                      {m.allowLoose ? <button type="button" onClick={() => add(m.id, "loose")} className="text-[12px] border border-line rounded px-1.5 py-0.5">+ loose {m.looseUnit}</button> : null}
+                      <span className="text-[12.5px] text-muted">{fmtQty(avail, packDef(m.id))} offline</span>
+                    </div>
                   );
                 })}
               </div>
@@ -209,10 +218,10 @@ export function OfflinePos() {
                   <span className="flex-1 min-w-[160px]"><span className="font-medium">{m?.name}</span><br /><span className="text-[12px] text-muted">Batch {b?.batchNo} · exp {b ? monthYear(b.expiry) : ""}</span></span>
                   <span className="inline-flex items-center border border-line rounded-lg">
                     <button type="button" aria-label="Less" onClick={() => dec(l.key)} className="w-8 h-8">−</button>
-                    <span className="w-8 text-center font-mono">{l.qty}</span>
+                    <span className="min-w-8 px-1 text-center font-mono">{fmtSold(l.qty, l.unit, packDef(l.medicineId))}</span>
                     <button type="button" aria-label="More" onClick={() => inc(l.key)} className="w-8 h-8">+</button>
                   </span>
-                  <span className="w-[90px] text-right font-mono">{inr((b?.mrpPaise ?? 0) * l.qty)}</span>
+                  <span className="w-[90px] text-right font-mono">{inr(priceOf(l) * l.qty)}</span>
                   <button type="button" aria-label="Remove" onClick={() => setLines(lines.filter((x) => x.key !== l.key))} className="text-muted hover:text-bad"><Trash2 size={15} /></button>
                 </div>
               );
@@ -233,7 +242,15 @@ export function OfflinePos() {
             </div>
             {needsRx ? (
               <div className="grid grid-cols-2 gap-2">
-                <label className="flex flex-col gap-1 text-[12.5px] text-muted">Prescriber<input className={inp} value={doctor} onChange={(e) => setDoctor(e.target.value)} /></label>
+                <label className="flex flex-col gap-1 text-[12.5px] text-muted">Prescriber
+                  {snap.doctors?.length ? (
+                    <select className={inp} value={doctorId} onChange={(e) => { setDoctorId(e.target.value); setDoctor(""); }} aria-label="Doctor">
+                      <option value="">Type a name below</option>
+                      {snap.doctors.map((x) => <option key={x.id} value={x.id}>Dr {x.name}{x.regNo ? ` · ${x.regNo}` : ""}</option>)}
+                    </select>
+                  ) : null}
+                  {!doctorId ? <input className={inp} value={doctor} onChange={(e) => setDoctor(e.target.value)} placeholder="Prescriber name" /> : null}
+                </label>
                 <label className="flex flex-col gap-1 text-[12.5px] text-muted">Rx no.<input className={inp} value={rxno} onChange={(e) => setRxno(e.target.value)} /></label>
               </div>
             ) : null}
@@ -271,7 +288,7 @@ export function OfflinePos() {
             <div className="text-center text-[13px] font-semibold">{receipt.invoiceNo ? `Tax invoice ${receipt.invoiceNo}` : `Provisional receipt ${receipt.receipt}`}</div>
             <div className="text-[12px] text-muted text-center">{when(receipt.createdAt)} · {receipt.cashier ?? snap.cashier} · {receipt.sale.pay.mode.toUpperCase()}</div>
             <div className="border-t border-b border-row py-2 flex flex-col gap-1 text-[13px]">
-              {receipt.view.map((v, i) => <div key={i} className="flex gap-2"><span className="flex-1">{v.name} <span className="text-muted text-[11.5px]">({v.batchNo})</span></span><span className="font-mono">{v.qty} × {inr(v.mrpPaise)}</span></div>)}
+              {receipt.view.map((v, i) => <div key={i} className="flex gap-2"><span className="flex-1">{v.name} <span className="text-muted text-[11.5px]">({v.batchNo})</span></span><span className="font-mono">{v.unit ?? v.qty} × {inr(v.mrpPaise)}</span></div>)}
             </div>
             {receipt.sale.discountPct ? <div className="flex justify-between text-[13px]"><span>Discount</span><span>{receipt.sale.discountPct}%</span></div> : null}
             <div className="flex justify-between text-[16px] font-semibold"><span>Total</span><span className="font-mono">{inr(receipt.sale.totalPaise)}</span></div>

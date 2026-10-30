@@ -44,7 +44,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         {s.lines.map((l, i) => (
           <div key={i} style={{ marginBottom: 3 }}>
             <div>{l.name}{l.schedule ? ` [${l.schedule}]` : ""}</div>
-            <div className="r"><span>{l.qty} × {inr(l.mrp)} · {l.batchNo} · {monthYear(l.expiry)}</span><span>{inr(l.amount)}</span></div>
+            <div className="r"><span>{l.qtyText} × {inr(l.mrp)} · {l.batchNo} · {monthYear(l.expiry)}</span><span>{inr(l.amount)}</span></div>
           </div>
         ))}
         <div className="hr" />
@@ -101,7 +101,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             const net = l.amount - l.discount, split = gstSplit(net, l.taxable);
             return (
               <tr key={i}><td>{i + 1}</td><td>{l.name}{l.schedule ? ` (Sch. ${l.schedule})` : ""}<br /><span style={{ color: "#555" }}>{l.pack}</span></td><td>{l.hsn}</td><td>{l.batchNo}</td><td>{monthYear(l.expiry)}</td>
-                <td className="num">{l.qty}</td><td className="num">{inr(l.mrp)}</td><td className="num">{inr(l.discount)}</td><td className="num">{inr(l.taxable)}</td><td className="num">{l.gstRate}</td>{split.map((x, j) => <td key={j} className="num">{inr(x)}</td>)}<td className="num">{inr(net)}</td></tr>
+                <td className="num">{l.qtyText}</td><td className="num">{inr(l.mrp)}</td><td className="num">{inr(l.discount)}</td><td className="num">{inr(l.taxable)}</td><td className="num">{l.gstRate}</td>{split.map((x, j) => <td key={j} className="num">{inr(x)}</td>)}<td className="num">{inr(net)}</td></tr>
             );
           })}
         </tbody>

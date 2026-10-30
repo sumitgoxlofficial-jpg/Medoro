@@ -6,6 +6,7 @@ import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
 import { daysTo, fiscalYear, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big, inr, shareOf } from "@/lib/money";
+import { fmtSold } from "@/lib/units";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 
@@ -42,15 +43,17 @@ export async function returnableLines(ctx: Ctx, saleId: string) {
   const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, customer: true, voided: true } });
   if (!s) return null;
   const [meds, batches] = await Promise.all([
-    db.medicine.findMany({ where: { id: { in: s.items.map((i) => i.medicineId) } }, select: { id: true, name: true } }),
+    db.medicine.findMany({ where: { id: { in: s.items.map((i) => i.medicineId) } }, select: { id: true, name: true, packSize: true, packUnit: true, looseUnit: true } }),
     db.batch.findMany({ where: { id: { in: s.items.map((i) => i.batchId) } }, select: { id: true, batchNo: true, expiryDate: true } }),
   ]);
   return {
     id: s.id, no: s.invoiceNo, customer: s.customer?.name ?? null, payMode: s.payMode, hasCustomer: !!s.customerId, total: big(s.totalPaise),
     voided: s.voided ? { at: s.voided.at.toISOString(), reason: s.voided.reason } : null, canVoid: voidable(s),
     lines: s.items.map((i) => {
-      const b = batches.find((x) => x.id === i.batchId)!;
-      return { itemId: i.id, name: meds.find((m) => m.id === i.medicineId)!.name, batchNo: b.batchNo, expired: daysTo(b.expiryDate) <= 0, sold: i.qty, returned: i.returnedQty, unitNet: (big(i.mrpPaise) * i.qty - big(i.discountPaise)) / i.qty };
+      const b = batches.find((x) => x.id === i.batchId)!, m = meds.find((x) => x.id === i.medicineId)!;
+      // Returned in the unit it was sold in: strips for a strip line, tabs for a loose line.
+      const unit = i.loose ? m.looseUnit : m.packSize > 1 ? m.packUnit : "";
+      return { itemId: i.id, name: m.name, batchNo: b.batchNo, expired: daysTo(b.expiryDate) <= 0, sold: i.qty, soldText: fmtSold(i.qty, i.loose ? "loose" : "pack", m), unit, returned: i.returnedQty, unitNet: (big(i.mrpPaise) * i.qty - big(i.discountPaise)) / i.qty };
     }),
   };
 }
@@ -76,7 +79,7 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput, opts: { codUncol
 
     let refund = 0, taxable = 0, tax = 0;
     const taken = new Map<string, number>();
-    const out: { itemId: string; name: string; batchNo: string; qty: number; amount: number; restocked: boolean }[] = [];
+    const out: { itemId: string; name: string; batchNo: string; qty: number; unit: string | null; units: number; amount: number; restocked: boolean }[] = [];
     for (const w of wanted) {
       const it = sale.items.find((x) => x.id === w.itemId);
       if (!it) throw new UserError("A line doesn’t belong to this invoice.");
@@ -87,13 +90,18 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput, opts: { codUncol
       const amt = shareOf(net, it.qty, done, w.qty);
       const tb = shareOf(big(it.taxablePaise), it.qty, done, w.qty);
       refund += amt; taxable += tb; tax += amt - tb;
-      const b = await tx.batch.findUniqueOrThrow({ where: { id: it.batchId }, include: { medicine: { select: { name: true } } } });
+      const b = await tx.batch.findUniqueOrThrow({ where: { id: it.batchId }, include: { medicine: { select: { name: true, packSize: true, packUnit: true, looseUnit: true } } } });
+      // Stock units to put back: a pack is the medicine's current pack size; a loose unit is one stock unit at the
+      // pack size it was sold under (a later pack-size change rescales stock by a whole multiple).
+      const ps = b.medicine.packSize;
+      const units = it.loose ? (w.qty * ps) / it.packSize : w.qty * ps;
+      if (!Number.isInteger(units)) throw new UserError(`${b.medicine.name}: its pack size changed since this sale, so loose units can’t be put back exactly. Return it as damaged and adjust stock.`);
       // Expired or blocked stock is never put back on sale.
       const restock = i.condition === "sealed" && daysTo(b.expiryDate) > 0 && b.status === "ok";
       await tx.saleItem.update({ where: { id: it.id }, data: { returnedQty: { increment: w.qty } } });
-      if (restock) await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { increment: w.qty }, version: { increment: 1 } } });
-      out.push({ itemId: it.id, name: b.medicine.name, batchNo: b.batchNo, qty: w.qty, amount: amt, restocked: restock });
-      await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: restock ? w.qty : 0, type: restock ? "return" : "return_damaged", refType: "sales_return", refId: sale.id, userId: ctx.userId, note: restock ? "Sales return, restocked" : "Sales return, not restocked" } });
+      if (restock) await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { increment: units }, version: { increment: 1 } } });
+      out.push({ itemId: it.id, name: b.medicine.name, batchNo: b.batchNo, qty: w.qty, unit: it.loose ? b.medicine.looseUnit : ps > 1 ? b.medicine.packUnit : null, units, amount: amt, restocked: restock });
+      await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: restock ? units : 0, type: restock ? "return" : "return_damaged", refType: "sales_return", refId: sale.id, userId: ctx.userId, note: restock ? "Sales return, restocked" : "Sales return, not restocked" } });
     }
     const fy = fiscalYear();
     const cn = `CN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "CN:" + fy))}`;

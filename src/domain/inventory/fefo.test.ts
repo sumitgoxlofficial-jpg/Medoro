@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allocateFefo, isSellable, nextFefo } from "./fefo";
+import { allocateFefo, allocateUnits, isSellable, nextFefo } from "./fefo";
 
 const T = "2026-10-27";
 const b = (id: string, exp: string, qty: number, status = "ok") => ({ id, medicineId: "m1", expiryDate: exp, qtyAvailable: qty, status });
@@ -24,5 +24,15 @@ describe("FEFO", () => {
   it("splits a quantity across batches and refuses to oversell", () => {
     expect(allocateFefo(batches, "m1", 20, T).map((x) => [x.batch.id, x.qty])).toEqual([["early", 18], ["late", 2]]);
     expect(() => allocateFefo(batches, "m1", 41, T)).toThrow(/Only 40/);
+  });
+
+  it("works in stock units: a whole pack needs pack-size units from one batch", () => {
+    // early holds 18 tabs (1 strip of 15 + 3), late 22 (1 strip + 7).
+    expect(nextFefo(batches, "m1", { early: 4 }, T, 15)?.id).toBe("late");
+    expect(nextFefo(batches, "m1", { early: 3 }, T, 15)?.id).toBe("early");
+    expect(nextFefo(batches, "m1", { early: 4 }, T, 1)?.id).toBe("early");
+    expect(allocateUnits(batches, "m1", 2, 15, T).map((x) => [x.batch.id, x.qty])).toEqual([["early", 1], ["late", 1]]);
+    expect(allocateUnits(batches, "m1", 10, 1, T, { early: 15 }).map((x) => [x.batch.id, x.qty])).toEqual([["early", 3], ["late", 7]]);
+    expect(() => allocateUnits(batches, "m1", 3, 15, T)).toThrow(/Only 2/);
   });
 });

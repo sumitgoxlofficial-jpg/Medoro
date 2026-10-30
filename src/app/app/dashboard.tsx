@@ -142,7 +142,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
             const [bg, fg] = e.days <= 30 ? ["#FBEAE8", "#B3261E"] : e.days <= 60 ? ["#FDF2E1", "#94570A"] : ["#EEF0F2", "#4B535B"];
             return (
               <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2.5 items-center py-[7px] border-b border-row">
-                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qty} units{e.status !== "ok" ? ` · ${e.status}` : ""}</span></div>
+                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qtyText}{e.qtyText === String(e.qty) ? " units" : ""}{e.status !== "ok" ? ` · ${e.status}` : ""}</span></div>
                 <span className="text-[13px] tnum">{inr0(e.value)}</span>
                 <span className="px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap" style={{ background: bg, color: fg }}>{e.days} days</span>
               </div>

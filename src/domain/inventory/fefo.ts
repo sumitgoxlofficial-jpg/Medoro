@@ -24,12 +24,33 @@ export function fefoOrder<T extends BatchLike>(batches: T[], medicineId: string,
 
 /**
  * Next FEFO batch with free quantity, given what is already allocated in the cart.
- * `used` maps batchId → qty already in the cart.
+ * `used` maps batchId → stock units already in the cart; `need` is the stock units one more sold unit takes
+ * (the pack size for a whole pack, 1 for a loose unit), so a pack is never split across batches.
  */
 export function nextFefo<T extends BatchLike>(
-  batches: T[], medicineId: string, used: Record<string, number> = {}, today = todayISO(),
+  batches: T[], medicineId: string, used: Record<string, number> = {}, today = todayISO(), need = 1,
 ): T | undefined {
-  return fefoOrder(batches, medicineId, today).find((b) => b.qtyAvailable - (used[b.id] ?? 0) > 0);
+  return fefoOrder(batches, medicineId, today).find((b) => b.qtyAvailable - (used[b.id] ?? 0) >= need);
+}
+
+/**
+ * Split `qty` sold units across batches in FEFO order, each unit taking `per` stock units from one batch.
+ * Returns sold-unit quantities per batch. Throws if stock is short.
+ */
+export function allocateUnits<T extends BatchLike>(
+  batches: T[], medicineId: string, qty: number, per = 1, today = todayISO(), used: Record<string, number> = {},
+): { batch: T; qty: number }[] {
+  const out: { batch: T; qty: number }[] = [];
+  let left = qty;
+  for (const b of fefoOrder(batches, medicineId, today)) {
+    if (left <= 0) break;
+    const take = Math.min(left, Math.floor((b.qtyAvailable - (used[b.id] ?? 0)) / per));
+    if (take <= 0) continue;
+    out.push({ batch: b, qty: take });
+    left -= take;
+  }
+  if (left > 0) throw new Error(`Only ${qty - left} sellable in stock`);
+  return out;
 }
 
 /** Split a requested quantity across batches in FEFO order. Throws if stock is short. */

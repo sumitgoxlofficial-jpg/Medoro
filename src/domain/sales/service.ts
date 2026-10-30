@@ -17,6 +17,8 @@ import { saleTaxSplit } from "@/domain/gst/tax";
 import { lockOpenShift } from "./returns";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
 import { consumeApproval, maxDiscount } from "./approval";
+import { baseQty, canSellLoose, fmtQty, fmtSold, unitCost, unitPrice } from "@/lib/units";
+import { branchRacks, rankSubstitutes, searchCatalog } from "@/domain/inventory/catalog";
 
 export const OFFLINE_MAX_DAYS = 7;
 export const withinOfflineWindow = (at: Date, now = Date.now()) =>
@@ -86,11 +88,13 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   await tx.$queryRaw`SELECT id FROM "Batch" WHERE id IN (${Prisma.join(ids)}) AND "tenantId" = ${ctx.tenantId} ORDER BY id FOR UPDATE`;
   const batches = await tx.batch.findMany({ where: { id: { in: ids }, tenantId: ctx.tenantId }, include: { medicine: true } });
   const byId = new Map(batches.map((b) => [b.id, b]));
+  // Batches hold stock units: a pack takes packSize units, a loose unit takes one.
   const need = new Map<string, number>();
   for (const l of input.lines) {
     const b = byId.get(l.batchId);
     if (!b || b.branchId !== ctx.branchId || b.medicineId !== l.medicineId) throw new UserError("A cart line doesn’t match this branch’s stock. Review the cart.");
-    need.set(b.id, (need.get(b.id) ?? 0) + l.qty);
+    if (l.unit === "loose" && !canSellLoose(b.medicine)) throw new UserError(`${b.medicine.name} isn’t sold loose. Sell whole ${b.medicine.packUnit}s.`);
+    need.set(b.id, (need.get(b.id) ?? 0) + baseQty(l.qty, l.unit, b.medicine.packSize));
   }
   // Stock reserved for offline counters isn't sellable here; a device's own bills may use its share.
   const reserved = await reservedForDevices(tx, ctx.tenantId, ctx.branchId, deviceId);
@@ -99,7 +103,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
     if (b.status !== "ok") throw new UserError(`${b.medicine.name} batch ${b.batchNo} is ${b.status === "quarantine" ? "quarantined" : b.status} and blocked from sale.`);
     if (daysTo(b.expiryDate, today) <= 0) throw new UserError(`${b.medicine.name} batch ${b.batchNo} has expired and is blocked from sale.`);
     const held = Math.min(reserved.get(id) ?? 0, b.qtyAvailable);
-    if (b.qtyAvailable - held < q) throw new UserError(`Stock changed on another device: only ${b.qtyAvailable - held} of ${b.medicine.name} (${b.batchNo}) left${held ? ` (${held} more kept for offline counters)` : ""}. Review the cart.`);
+    if (b.qtyAvailable - held < q) throw new UserError(`Stock changed on another device: only ${fmtQty(b.qtyAvailable - held, b.medicine)} of ${b.medicine.name} (${b.batchNo}) left${held ? ` (${fmtQty(held, b.medicine)} more kept for offline counters)` : ""}. Review the cart.`);
   }
 
   const cap = discountCap(ctx.perms);
@@ -107,10 +111,17 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   if (input.discountPct > ceiling) throw new UserError(`Discounts above ${ceiling}% aren’t allowed.`);
   if (input.discountPct > cap && !input.approval) throw new UserError(`Discount above ${cap}% needs manager approval.`);
   const rx = input.lines.some((l) => byId.get(l.batchId)!.medicine.schedule);
-  if (rx && !input.prescriber?.trim()) throw new UserError("Enter the prescriber’s name for Schedule H/H1 items.");
+  const doctor = input.doctorId ? await tx.doctor.findFirst({ where: { id: input.doctorId, tenantId: ctx.tenantId } }) : null;
+  if (input.doctorId && !doctor) throw new UserError("Doctor not found. Pick the doctor again.");
+  const prescriber = input.prescriber?.trim() || (doctor ? `Dr ${doctor.name}${doctor.regNo ? ` (Reg ${doctor.regNo})` : ""}` : "");
+  if (rx && !prescriber) throw new UserError("Enter the prescriber’s name for Schedule H/H1 items.");
 
-  const lines = input.lines.map((l) => { const b = byId.get(l.batchId)!; return { b, qty: l.qty }; });
-  const t = cartTotals(lines.map(({ b, qty }) => ({ mrpPaise: big(b.mrpPaise), qty, gstRate: b.medicine.gstRate, costPaise: big(b.costPaise) })), input.discountPct);
+  // A loose unit sells at MRP ÷ pack size rounded down, so a full strip sold loose never exceeds the printed MRP.
+  const lines = input.lines.map((l) => {
+    const b = byId.get(l.batchId)!, loose = l.unit === "loose", ps = b.medicine.packSize;
+    return { b, qty: l.qty, loose, ps, base: baseQty(l.qty, l.unit, ps), mrp: unitPrice(big(b.mrpPaise), l.unit, ps), cost: unitCost(big(b.costPaise), l.unit, ps) };
+  });
+  const t = cartTotals(lines.map(({ mrp, qty, b, cost }) => ({ mrpPaise: mrp, qty, gstRate: b.medicine.gstRate, costPaise: cost })), input.discountPct);
   if (t.total <= 0) throw new UserError("The bill total must be more than zero.");
   const approval = input.discountPct > cap ? await consumeApproval(tx, ctx, input.approval!, input.lines, input.discountPct, t.total) : null;
 
@@ -148,11 +159,11 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const sale = await tx.sale.create({
     data: {
       tenantId: ctx.tenantId, branchId: ctx.branchId, invoiceNo, idempotencyKey: input.idempotencyKey, customerId: customer?.id ?? null,
-      prescriber: rx ? input.prescriber!.trim() : input.prescriber?.trim() || null, rxNo: input.rxNo?.trim() || null, prescriberReg: input.prescriberReg?.trim() || null, patientName: input.patientName?.trim() || null,
+      prescriber: prescriber || null, rxNo: input.rxNo?.trim() || null, prescriberReg: input.prescriberReg?.trim() || doctor?.regNo || null, patientName: input.patientName?.trim() || null, doctorId: doctor?.id ?? null,
       subtotalPaise: BigInt(t.mrpTotal), discountPaise: BigInt(t.discount), discountPct: new Prisma.Decimal(input.discountPct), taxablePaise: BigInt(t.taxable),
       cgstPaise: BigInt(g.cgst), sgstPaise: BigInt(g.sgst), igstPaise: BigInt(g.igst), placeOfSupply: g.pos, customerGstin: g.gstin, roundOffPaise: BigInt(t.roundOff), totalPaise: BigInt(t.total), costPaise: BigInt(t.cost),
       payMode: m, shiftId: shift?.id ?? null, userId: ctx.userId, ...(at ? { at } : {}),
-      items: { create: lines.map(({ b, qty }, i) => ({ batchId: b.id, medicineId: b.medicineId, qty, mrpPaise: b.mrpPaise, discountPaise: BigInt(t.lines[i].discount), taxablePaise: BigInt(t.lines[i].taxable), gstRate: b.medicine.gstRate, costPaise: b.costPaise })) },
+      items: { create: lines.map(({ b, qty, mrp, cost, loose, ps }, i) => ({ batchId: b.id, medicineId: b.medicineId, qty, mrpPaise: BigInt(mrp), discountPaise: BigInt(t.lines[i].discount), taxablePaise: BigInt(t.lines[i].taxable), gstRate: b.medicine.gstRate, costPaise: BigInt(cost), loose, packSize: ps })) },
       payments: { create: (Object.entries(pay) as [keyof typeof pay, number][]).filter(([, a]) => a > 0).map(([mode, a]) => ({ mode, amountPaise: BigInt(a), ref: mode === "cash" ? null : input.pay.ref || null })) },
     },
   });
@@ -161,7 +172,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
     const r = await tx.batch.updateMany({ where: { id, qtyAvailable: { gte: q } }, data: { qtyAvailable: { decrement: q }, version: { increment: 1 } } });
     if (!r.count) throw new UserError("Stock changed on another device. Review the cart.");
   }
-  await tx.stockMovement.createMany({ data: lines.map(({ b, qty }) => ({ tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: -qty, type: "sale", refType: "sale", refId: sale.id, userId: ctx.userId, note: invoiceNo })) });
+  await tx.stockMovement.createMany({ data: lines.map(({ b, base }) => ({ tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: -base, type: "sale", refType: "sale", refId: sale.id, userId: ctx.userId, note: invoiceNo })) });
   if (deviceId) {
     // The device has now used this much of its reserved share.
     await tx.$queryRaw`SELECT id FROM "Device" WHERE id = ${deviceId} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
@@ -185,14 +196,14 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "sales", narration: `Sale ${invoiceNo}${customer ? " · " + customer.name : ""}`, userId: ctx.userId, refType: "sale", refId: sale.id, date: at, lines: vl });
   await writeAudit(tx, {
     tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Sale committed", entity: "sale", entityId: sale.id,
-    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%${approval ? ` approved by ${approval.by}` : ""}` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
+    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%${approval ? ` approved by ${approval.by}` : ""}` : ""}${rx ? " · Rx" : ""}${doctor ? ` · Dr ${doctor.name}` : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
   });
   return { saleId: sale.id, invoiceNo, total: t.total, replayed: false };
 }
 
 /** Everything needed to print or show an invoice. */
 export async function invoiceData(ctx: Ctx, saleId: string) {
-  const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, payments: true, customer: true, voided: true } });
+  const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, payments: true, customer: true, voided: true, doctor: true } });
   if (!s) return null;
   const [branch, tenant, meds, batches, user] = await Promise.all([
     db.branch.findUniqueOrThrow({ where: { id: s.branchId } }),
@@ -203,12 +214,13 @@ export async function invoiceData(ctx: Ctx, saleId: string) {
   ]);
   return {
     id: s.id, invoiceNo: s.invoiceNo, at: s.at.toISOString(), payMode: s.payMode, prescriber: s.prescriber, rxNo: s.rxNo, prescriberReg: s.prescriberReg, patientName: s.patientName, cashier: user?.name ?? "",
+    doctor: s.doctor ? { id: s.doctor.id, name: s.doctor.name, qualification: s.doctor.qualification, regNo: s.doctor.regNo, clinic: s.doctor.clinic } : null,
     pharmacy: { name: tenant.name, legalName: tenant.legalName, gstin: branch.gstin ?? tenant.gstin, address: branch.address, dl: branch.drugLicence, phone: tenant.phone, pharmacist: (tenant.settings as { pharmacist?: string }).pharmacist ?? "", grievance: invoiceGrievance(tenant) as string | undefined },
     customer: s.customer ? { name: s.customer.name, phone: s.customer.phone, optIn: s.customer.waOptIn, gstin: s.customerGstin, address: [s.customer.address, s.customer.pincode].filter(Boolean).join(" ") || null } : null,
     placeOfSupply: s.placeOfSupply,
     lines: s.items.map((i) => {
       const m = meds.find((x) => x.id === i.medicineId)!, b = batches.find((x) => x.id === i.batchId)!;
-      return { name: m.name, pack: m.pack, hsn: m.hsn, schedule: m.schedule, batchNo: b.batchNo, expiry: b.expiryDate.toISOString().slice(0, 10), qty: i.qty, mrp: big(i.mrpPaise), amount: big(i.mrpPaise) * i.qty, discount: big(i.discountPaise), taxable: big(i.taxablePaise), gstRate: i.gstRate };
+      return { name: m.name, pack: i.loose ? `loose ${m.looseUnit}` : m.packSize > 1 ? `${m.packUnit} of ${m.packSize}` : m.pack, hsn: m.hsn, schedule: m.schedule, batchNo: b.batchNo, expiry: b.expiryDate.toISOString().slice(0, 10), qty: i.qty, qtyText: fmtSold(i.qty, i.loose ? "loose" : "pack", m), loose: i.loose, mrp: big(i.mrpPaise), amount: big(i.mrpPaise) * i.qty, discount: big(i.discountPaise), taxable: big(i.taxablePaise), gstRate: i.gstRate };
     }),
     totals: { mrp: big(s.subtotalPaise), discount: big(s.discountPaise), taxable: big(s.taxablePaise), cgst: big(s.cgstPaise), sgst: big(s.sgstPaise), igst: big(s.igstPaise), roundOff: big(s.roundOffPaise), total: big(s.totalPaise) },
     payments: s.payments.map((p) => ({ mode: p.mode, amount: big(p.amountPaise), ref: p.ref })),
@@ -218,25 +230,43 @@ export async function invoiceData(ctx: Ctx, saleId: string) {
 }
 export type Invoice = NonNullable<Awaited<ReturnType<typeof invoiceData>>>;
 
-/** Medicines matching a search, with this branch's batches (blocked ones included, flagged). */
+/** Medicines matching a search (brand, salt/composition, barcode or internal code), with this branch's batches (blocked ones included, flagged). */
 export async function searchForSale(ctx: Ctx, q: string) {
-  const term = q.trim();
-  if (!term) return [];
-  const exact = /^\d{6,}$/.test(term) ? await db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true, barcode: term } }) : [];
-  const meds = exact.length ? exact : await db.medicine.findMany({
-    where: { tenantId: ctx.tenantId, active: true, OR: [{ name: { contains: term, mode: "insensitive" } }, { generic: { contains: term, mode: "insensitive" } }] },
-    orderBy: { name: "asc" }, take: 7,
-  });
-  const [batches, reserved] = await Promise.all([
+  const { meds, barcodeHit } = await searchCatalog(ctx.tenantId, q, 7);
+  return saleMedicines(ctx, meds, barcodeHit);
+}
+
+type MedRow = Awaited<ReturnType<typeof db.medicine.findMany>>[number];
+
+async function saleMedicines(ctx: Ctx, meds: MedRow[], barcodeHit = false) {
+  if (!meds.length) return [];
+  // Stock reserved for offline counters isn't offered here (commitSale refuses it too).
+  const [batches, racks, reserved] = await Promise.all([
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds.map((m) => m.id) }, qtyAvailable: { gt: 0 } }, orderBy: [{ expiryDate: "asc" }, { batchNo: "asc" }] }),
+    branchRacks(ctx.tenantId, ctx.branchId),
     reservedForDevices(db, ctx.tenantId, ctx.branchId),
   ]);
   return meds.map((m) => ({
-    id: m.id, name: m.name, generic: m.generic, strength: m.strength, manufacturer: m.manufacturer, pack: m.pack, gstRate: m.gstRate, schedule: m.schedule, reorderLevel: m.reorderLevel, barcodeHit: exact.length > 0,
+    id: m.id, name: m.name, generic: m.generic, strength: m.strength, manufacturer: m.manufacturer, pack: m.pack, gstRate: m.gstRate, schedule: m.schedule, reorderLevel: m.reorderLevel, barcodeHit,
+    composition: m.composition, hasSalt: !!m.saltKey, rack: racks.get(m.id) ?? m.rack,
+    packSize: m.packSize, packUnit: m.packUnit, looseUnit: m.looseUnit, allowLoose: canSellLoose(m),
     batches: batches.filter((b) => b.medicineId === m.id).map((b) => ({ id: b.id, medicineId: m.id, batchNo: b.batchNo, expiryDate: b.expiryDate.toISOString().slice(0, 10), qtyAvailable: Math.max(0, b.qtyAvailable - (reserved.get(b.id) ?? 0)), status: b.status as string, mrp: big(b.mrpPaise), cost: big(b.costPaise) })),
   }));
 }
 export type SaleMedicine = Awaited<ReturnType<typeof searchForSale>>[number];
+
+/** Same-composition medicines for the counter, ready to add to the cart: in stock first, cheapest per unit (or best margin). */
+export async function substitutesForSale(ctx: Ctx, medicineId: string, sort: "price" | "margin" = "price") {
+  authorize(ctx, "sale");
+  const m = await db.medicine.findFirst({ where: { id: medicineId, tenantId: ctx.tenantId } });
+  if (!m) return { of: null, rows: [] };
+  const of = { id: m.id, name: m.name, composition: m.composition ?? `${m.generic} ${m.strength}` };
+  if (!m.saltKey) return { of, rows: [] };
+  const alts = await db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true, saltKey: m.saltKey, NOT: { id: m.id } }, take: 40 });
+  const ranked = await rankSubstitutes(ctx, alts, sort);
+  const full = await saleMedicines(ctx, ranked.map((r) => alts.find((a) => a.id === r.id)!));
+  return { of, rows: ranked.map((r) => ({ ...r, med: full.find((f) => f.id === r.id)! })) };
+}
 
 export async function posCustomers(ctx: Ctx) {
   const cs = await db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" }, take: 500 });

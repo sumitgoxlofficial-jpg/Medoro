@@ -46,15 +46,15 @@ export function ExpiryView({ w, data, recovered, canAdjust, canPurchase }: { w: 
                 <tr key={r.id}>
                   <td className={td}><div className="font-semibold">{r.medicine}</div><div className="text-[12px] font-mono text-muted">{r.batchNo}{r.status !== "ok" ? ` · ${r.status}` : ""}</div></td>
                   <td className={td}><div className="flex flex-col"><span>{monthYear(r.expiry)}</span><Badge tone={r.days <= 30 ? "red" : r.days <= 60 ? "amber" : "gray"} className="self-start mt-0.5">{r.days} days</Badge></div></td>
-                  <td className={td + " text-right tnum"}>{r.qty}</td>
+                  <td className={td + " text-right tnum"}>{r.qtyText}</td>
                   <td className={td + " text-right tnum"}>{inr0(r.exposure)}</td>
                   <td className={td}><div>{r.unsold ? `${r.sold} sell, ${r.unsold} left at expiry` : "All sell before expiry"}</div><div className="text-[12px] text-faint">{r.velocity ? `${r.velocity.toFixed(1)}/day × ${r.days} d` : "No sales in 28 days"}</div></td>
                   <td className={td + " text-right tnum font-semibold"} style={{ color: r.loss ? "#B3261E" : "#1E7F4F" }}>{inr0(r.loss)}</td>
                   <td className={td + " text-[13px] max-w-[260px]"}>{r.rec.text}</td>
                   <td className={td + " whitespace-nowrap"}>
                     <div className="flex gap-1.5 justify-end">
-                      {r.rec.kind === "return" && canPurchase ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Return how many of ${r.batchNo} to ${r.supplier}?`, r.unsold); if (n) start(async () => done(await returnAction(r.id, n, "Near expiry"), (x) => `${x} raised. Stock and payable reduced.`)); }}>Return</Button> : null}
-                      {r.rec.kind === "transfer" && canAdjust ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Transfer how many of ${r.batchNo}?`, r.unsold); if (n) start(async () => done(await transferAction(r.id, r.rec.branchId!, n), (x) => `${x} requested. It is approved under Inventory → Transfers by someone other than you (or an owner).`)); }}>Transfer</Button> : null}
+                      {r.rec.kind === "return" && canPurchase ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Return how many ${r.unitWord} of ${r.batchNo} to ${r.supplier}?`, r.unsold); if (n) start(async () => done(await returnAction(r.id, n, "Near expiry"), (x) => `${x} raised. Stock and payable reduced.`)); }}>Return</Button> : null}
+                      {r.rec.kind === "transfer" && canAdjust ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Transfer how many ${r.unitWord} of ${r.batchNo}?`, r.unsold); if (n) start(async () => done(await transferAction(r.id, r.rec.branchId!, n), (x) => `${x} requested. It is approved under Inventory → Transfers by someone other than you (or an owner).`)); }}>Transfer</Button> : null}
                       {canAdjust && r.status === "ok" ? <Button size="sm" disabled={pending} onClick={() => start(async () => { const x = await quarantineAction(r.id); toast(x.ok ? x.message! : x.error, x.ok ? "green" : "red"); })}>Quarantine</Button> : null}
                     </div>
                   </td>
@@ -69,10 +69,10 @@ export function ExpiryView({ w, data, recovered, canAdjust, canPurchase }: { w: 
           <div className="font-semibold text-[14.5px] text-bad flex items-center gap-1.5"><Ban size={16} />Expired, blocked from sale</div>
           {data.expired.map((x) => (
             <div key={x.id} className="flex items-center gap-3 flex-wrap text-[13.5px] py-1 border-b border-[#F3D9D5] last:border-0">
-              <strong>{x.medicine}</strong><span className="font-mono text-[12.5px]">{x.batchNo}</span><span className="text-muted">expired {monthYear(x.expiry)} · {x.qty} units · {inr0(x.exposure)} at cost</span>
+              <strong>{x.medicine}</strong><span className="font-mono text-[12.5px]">{x.batchNo}</span><span className="text-muted">expired {monthYear(x.expiry)} · {x.qtyText} · {inr0(x.exposure)} at cost</span>
               <div className="ml-auto flex gap-1.5">
-                {x.supplier && canPurchase ? <Button size="sm" disabled={pending} onClick={() => { const n = ask(`Return how many to ${x.supplier}?`, x.qty); if (n) start(async () => done(await returnAction(x.id, n, "Expired"), (v) => `${v} raised.`)); }}>Return to supplier</Button> : null}
-                {canAdjust ? <Button size="sm" variant="danger-outline" disabled={pending} onClick={() => { const n = ask(`Write off how many of ${x.batchNo}?`, x.qty); if (n) start(async () => done(await writeOffAction(x.id, n, "Expired"), (v) => `${v} posted to Stock loss.`)); }}>Write off</Button> : null}
+                {x.supplier && canPurchase ? <Button size="sm" disabled={pending} onClick={() => { const n = ask(`Return how many ${x.unitWord} to ${x.supplier}?`, x.qty); if (n) start(async () => done(await returnAction(x.id, n, "Expired"), (v) => `${v} raised.`)); }}>Return to supplier</Button> : null}
+                {canAdjust ? <Button size="sm" variant="danger-outline" disabled={pending} onClick={() => { const n = ask(`Write off how many ${x.unitWord} of ${x.batchNo}?`, x.qty); if (n) start(async () => done(await writeOffAction(x.id, n, "Expired"), (v) => `${v} posted to Stock loss.`)); }}>Write off</Button> : null}
               </div>
             </div>
           ))}

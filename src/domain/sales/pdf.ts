@@ -66,7 +66,7 @@ export async function invoicePdf(inv: Invoice): Promise<Uint8Array> {
     }
     for (const l of inv.lines.slice(i, i + count)) {
       const exp = new Date(l.expiry + "T00:00:00Z");
-      const vals = [String(i + 1), clean(l.name, "Item").slice(0, 32), l.batchNo, `${exp.getUTCMonth() + 1}/${exp.getUTCFullYear()}`, String(l.qty), rs(l.mrp), rs(l.discount), String(l.gstRate), rs(l.amount - l.discount)];
+      const vals = [String(i + 1), clean(l.name, "Item").slice(0, 32), l.batchNo, `${exp.getUTCMonth() + 1}/${exp.getUTCFullYear()}`, l.qtyText, rs(l.mrp), rs(l.discount), String(l.gstRate), rs(l.amount - l.discount)];
       cols.forEach(([, x, r], k) => (r ? right(vals[k], x) : text(vals[k], x)));
       y -= ROW; i++;
     }

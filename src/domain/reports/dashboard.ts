@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/server/db";
 import { addDays, dateOnly, daysTo, hhmm, dayMonth, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
+import { fmtQty, stockValue } from "@/lib/units";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { ACC } from "@/domain/accounting/accounts";
 import { backupHealth } from "./alerts";
@@ -69,14 +70,14 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
     velocity(tenantId, branchId),
     db.batch.findMany({
       where: { tenantId, branchId, qtyAvailable: { gt: 0 }, expiryDate: { gt: dateOnly(todayISO()), lte: dateOnly(addDays(todayISO(), 90)) } },
-      include: { medicine: { select: { name: true } } }, orderBy: { expiryDate: "asc" },
+      include: { medicine: { select: { name: true, packSize: true, packUnit: true, looseUnit: true } } }, orderBy: { expiryDate: "asc" },
     }),
   ]);
   const lowStock = meds.map((m) => ({ ...m, stock: sellable.get(m.id) ?? 0, vel: vel.get(m.id) ?? 0 }))
     .filter((m) => m.reorderLevel > 0 && m.stock < m.reorderLevel)
     .sort((a, b) => a.stock / a.reorderLevel - b.stock / b.reorderLevel)
     .map((m) => ({ id: m.id, name: m.name, stock: m.stock, reorder: m.reorderLevel, coverDays: m.vel > 0 ? Math.floor(m.stock / m.vel) : null }));
-  const expiring = batches.map((b) => ({ id: b.id, name: b.medicine.name, batchNo: b.batchNo, qty: b.qtyAvailable, days: daysTo(b.expiryDate), value: b.qtyAvailable * big(b.costPaise), status: b.status }));
+  const expiring = batches.map((b) => ({ id: b.id, name: b.medicine.name, batchNo: b.batchNo, qty: b.qtyAvailable, qtyText: fmtQty(b.qtyAvailable, b.medicine), days: daysTo(b.expiryDate), value: stockValue(big(b.costPaise), b.qtyAvailable, b.medicine.packSize), status: b.status }));
 
   // Insights: only what the data supports, each with its basis.
   const insights: { title: string; body: string; basis: string; href: string; cta: string }[] = [];

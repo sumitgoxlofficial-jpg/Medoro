@@ -61,7 +61,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
                 const max = l.sold - l.returned;
                 return (
                   <div key={l.itemId} className="grid grid-cols-[minmax(0,1fr)_auto_80px] gap-3 items-center px-3 py-2.5 border-b border-row last:border-0 text-[13.5px]">
-                    <div className="flex flex-col min-w-0"><strong className="font-semibold">{l.name}</strong><span className="text-[12px] text-muted">{l.batchNo} · sold {l.sold} · returned {l.returned} · {inr(Math.round(l.unitNet))} each{l.expired ? " · batch expired" : ""}</span></div>
+                    <div className="flex flex-col min-w-0"><strong className="font-semibold">{l.name}</strong><span className="text-[12px] text-muted">{l.batchNo} · sold {l.soldText} · returned {l.returned} · {inr(Math.round(l.unitNet))} per {l.unit || "unit"}{l.expired ? " · batch expired" : ""}</span></div>
                     <span className="text-[12px] text-faint whitespace-nowrap">{max ? `max ${max}` : "fully returned"}</span>
                     <input value={qty[l.itemId] ?? ""} onChange={(e) => setQty({ ...qty, [l.itemId]: String(Math.min(Number(e.target.value.replace(/\D/g, "") || 0), max) || "") })} disabled={!max} placeholder="0" aria-label={`Return qty ${l.name}`} inputMode="numeric"
                       className="border border-input rounded-md px-2 py-1.5 text-right text-[14px] disabled:bg-chip" />

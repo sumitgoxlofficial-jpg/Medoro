@@ -43,6 +43,7 @@ Each module exposes **services** (pure business rules plus repository calls) and
   6. Take the invoice number from a per-branch, per-fiscal-year sequence row locked `FOR UPDATE`.
   7. Post ledger vouchers. Write the audit event.
 - **Money:** `BIGINT` paise. GST is back-calculated from the MRP-inclusive price per line: `taxable = round(net × 100 / (100 + rate))`, CGST = floor(tax / 2), SGST = remainder. Round-off goes to the nearest rupee on a separate line.
+- **Units:** batches hold stock units (the smallest unit a medicine is sold in; whole packs when `packSize` is 1). Prices and costs stay per pack; a loose unit sells at MRP ÷ pack size rounded down. See [CATALOG.md](CATALOG.md).
 - **Immutability:** invoices, vouchers and movements are append-only. Corrections are credit notes, reversals or adjustment movements. A database trigger blocks `UPDATE` and `DELETE` on posted tables.
 
 ## 5. Concurrency & sync

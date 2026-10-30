@@ -195,7 +195,7 @@ export async function listBranches(ctx: Ctx) {
     db.branch.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "asc" } }),
     db.counter.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.user.findMany({ where: { tenantId: ctx.tenantId, active: true, isSupport: false }, select: { branchIds: true } }),
-    db.$queryRaw<{ branchId: string; v: bigint }[]>`SELECT "branchId", SUM("qtyAvailable" * "costPaise") v FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} GROUP BY 1`,
+    db.$queryRaw<{ branchId: string; v: bigint }[]>`SELECT "branchId", ROUND(SUM(b."qtyAvailable" * b."costPaise"::numeric / m."packSize"))::bigint v FROM "Batch" b JOIN "Medicine" m ON m.id = b."medicineId" WHERE b."tenantId" = ${ctx.tenantId} GROUP BY 1`,
   ]);
   return branches.map((b, i) => ({
     id: b.id, name: b.name, code: b.code, main: i === 0, address: b.address, gstin: b.gstin, dl: b.drugLicence, active: b.active,
