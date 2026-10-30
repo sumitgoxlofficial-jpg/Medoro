@@ -16,7 +16,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     <>
       <PageHead title={t(ctx.lang).parties} sub="Balances, terms and payments" />
       <PartiesView tab={tab === "cus" ? "cus" : "sup"} suppliers={suppliers} customers={customers}
-        canPay={can(ctx, "payments")} canCredit={can(ctx, "credit")} canEditSup={can(ctx, "purchase") || can(ctx, "payments")} />
+        canPay={can(ctx, "payments")} canCredit={can(ctx, "credit")} canEditSup={can(ctx, "purchase") || can(ctx, "payments")} canMessage={can(ctx, "integrations")} />
     </>
   );
 }

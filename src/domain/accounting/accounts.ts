@@ -18,6 +18,7 @@ export const ACC = {
   stockLoss: "Stock loss",
   cashDiff: "Cash short/excess",
   codClearing: "Cash with delivery staff",
+  loyalty: "Loyalty points redeemed",
   opening: "Opening balance equity",
   claims: "Supplier claims receivable",
   claimLoss: "Claim write-off",

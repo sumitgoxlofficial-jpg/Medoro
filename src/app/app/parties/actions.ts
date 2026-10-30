@@ -5,6 +5,9 @@ import { customerConsents, paySupplier, receiveFromCustomer, saveCustomer, saveS
 import type { ConsentInput } from "@/domain/parties/consent";
 import type { PaymentInput, SupplierInput } from "@/domain/parties/contracts";
 import type { CustomerInput } from "@/domain/sales/contracts";
+import { getCtx } from "@/server/context";
+import { customerPoints } from "@/domain/sales/loyalty";
+import { sendPaymentRemindersNow } from "@/domain/comms/crm";
 
 function requireVersion(v: unknown) {
   if (typeof v !== "number" || !Number.isInteger(v) || v < 0) throw new UserError("This form is out of date. Reopen it and try again.");
@@ -16,3 +19,9 @@ export async function saveCustomerAction(id: string | null, input: CustomerInput
 export async function paySupplierAction(input: PaymentInput) { return fresh(await run(async (c) => { const no = await paySupplier(c, input); return no; })); }
 export async function receiveAction(input: PaymentInput) { return fresh(await run(async (c) => { const no = await receiveFromCustomer(c, input); return no; })); }
 export async function consentsAction(customerId: string) { return run((c) => customerConsents(c, customerId)); }
+export async function remindAction(customerId: string) { return fresh(await run((c) => sendPaymentRemindersNow(c, [customerId]))); }
+export async function pointsAction(customerId: string) {
+  const ctx = await getCtx();
+  if (!ctx || (!ctx.perms.includes("sale") && !ctx.perms.includes("payments"))) return { balance: 0, value: 0, rows: [] };
+  return customerPoints(ctx, customerId);
+}

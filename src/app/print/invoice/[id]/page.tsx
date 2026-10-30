@@ -22,6 +22,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const igst = s.totals.igst > 0;
   const taxRows: [string, number][] = igst ? [["IGST", s.totals.igst]] : [["CGST", s.totals.cgst], ["SGST", s.totals.sgst]];
   const pos = s.placeOfSupply ? `${s.placeOfSupply} ${stateName(s.placeOfSupply)}` : null;
+  const pointsLine = s.points ? `Loyalty points: ${s.points.redeemed ? `${s.points.redeemed} redeemed, ` : ""}${s.points.earned} earned, balance ${s.points.balance}` : null;
   const payLabel = s.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amount)}${p.ref ? ` (${p.ref})` : ""}`).join(" + ");
 
   if (format === "thermal") {
@@ -55,6 +56,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <div className="r" style={{ fontSize: 14, fontWeight: 700 }}><span>TOTAL</span><span>{inr(s.totals.total)}</span></div>
         <div className="hr" />
         <div className="c">Paid: {payLabel}</div>
+        {pointsLine ? <div className="c">{pointsLine}</div> : null}
         <div className="c">Prices include GST · Thank you</div>
         {s.pharmacy.grievance ? <div className="c" style={{ fontSize: 10 }}>{s.pharmacy.grievance}</div> : null}
         {e?.irn ? (
@@ -129,6 +131,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       ) : null}
       <div style={{ marginTop: 10 }}>Paid by {payLabel}. Prices are MRP inclusive of GST. Billed by {s.cashier}.</div>
       {s.pharmacy.grievance ? <div style={{ marginTop: 4, color: "#555", fontSize: 10.5 }}>{s.pharmacy.grievance}</div> : null}
+      {pointsLine ? <div>{pointsLine}</div> : null}
       <div style={{ marginTop: 28, display: "flex", justifyContent: "flex-end" }}><div style={{ borderTop: "1px solid #999", paddingTop: 4, width: 200, textAlign: "center" }}>Authorised signatory</div></div>
       <AutoPrint />
     </div>
