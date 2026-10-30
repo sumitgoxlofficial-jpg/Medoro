@@ -1,0 +1,82 @@
+# Medoro on one machine: PostgreSQL 16 + a one-shot migrate job + the app (+ optional HTTPS proxy).
+#   cp .env.example .env   # or: bash scripts/lan-setup.sh, which writes .env and certificates
+#   docker compose up -d --build                    # http://<this-pc>:3000
+#   docker compose --profile https up -d --build    # https://medoro.local (certs from scripts/lan-setup.*)
+# Use a URL-safe POSTGRES_PASSWORD (letters and digits); it is embedded in DATABASE_URL.
+name: medoro
+
+x-db-url: &db-url postgresql://medoro:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/medoro
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: medoro
+      POSTGRES_USER: medoro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medoro -d medoro"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # No published port: only the app reaches the database.
+
+  migrate:
+    build: { context: ., target: migrate, args: { NPM_CONFIG_REGISTRY: "${NPM_CONFIG_REGISTRY:-}" } }
+    image: medoro/migrate:local
+    environment:
+      DATABASE_URL: *db-url
+      DATABASE_MIGRATOR_URL: ${DATABASE_MIGRATOR_URL:-}
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  app:
+    build: { context: ., target: app, args: { NPM_CONFIG_REGISTRY: "${NPM_CONFIG_REGISTRY:-}" } }
+    image: medoro/app:local
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: *db-url
+      DIRECT_URL: *db-url
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET (32+ random characters) in .env}
+      HOST_KEY: ${HOST_KEY:?set HOST_KEY (32+ random characters, not SESSION_SECRET) in .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-lan}
+      STORAGE_DIR: /data/storage
+    ports:
+      - "${MEDORO_HTTP_PORT:-3000}:3000"
+    volumes:
+      - appdata:/data
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+  https:
+    profiles: ["https"]
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      MEDORO_HOST: ${MEDORO_HOST:-medoro.local}
+    ports:
+      - "${MEDORO_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+    depends_on:
+      app: { condition: service_started }
+
+volumes:
+  pgdata:
+  appdata:
