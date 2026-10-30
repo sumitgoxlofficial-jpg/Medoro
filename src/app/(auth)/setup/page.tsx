@@ -7,6 +7,7 @@ import { driveAppConfigured } from "@/domain/system/gdrive";
 import { Start } from "./start";
 import { Unlock } from "./unlock";
 import { Wizard } from "./wizard";
+import { DEPLOYMENTS, databaseKind, type Deployment } from "@/domain/identity/deployment";
 
 export const metadata = { title: "Set up your pharmacy" };
 export const dynamic = "force-dynamic";
@@ -19,7 +20,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
     if (!s || s.mfaPassed || s.user.mfaEnabled) redirect("/signin");
   }
   else if (!(await setupUnlocked())) return <Unlock disabled={setupGate() === "disabled"} />;
-  const deployment = (process.env.DEPLOYMENT_MODE as "cloud" | "onprem" | "lan" | "single") ?? "lan";
+  const mode = process.env.DEPLOYMENT_MODE as Deployment | undefined;
+  const deployment: Deployment = mode && DEPLOYMENTS.includes(mode) ? mode : databaseKind(process.env.DATABASE_URL) === "managed" ? "hosted" : "lan";
   if (await isSetupDone()) return <Wizard deployment={deployment} />;
   const restore = (await searchParams).restore === "1";
   return <Start deployment={deployment} driveApp={driveAppConfigured()} driveAccount={(await setupDrive())?.account ?? null} restore={restore} />;

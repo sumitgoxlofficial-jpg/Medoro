@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (asks.length) { badges.privacy = [asks.length, "amber"]; alerts.unshift("Medoro support asked for access to your data. Approve or decline under Privacy & data."); }
   const banner = subscriptionBanner(access);
   const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;
-  const deployment = { cloud: "Your cloud", onprem: "On-premises", lan: "Shop LAN", single: "Single device" }[((tenant.settings as { deployment?: string }).deployment ?? "lan") as "lan"] ?? "Self-hosted";
+  const deployment = { cloud: "Your cloud", onprem: "On-premises", lan: "Shop LAN", hosted: "Hosted PostgreSQL", single: "Single device" }[((tenant.settings as { deployment?: string }).deployment ?? "lan") as "lan"] ?? "Self-hosted";
   return (
     <Shell
       tenantName={ctx.tenantName} branchCount={ctx.branches.length} userName={ctx.userName} userEmail={ctx.userEmail}

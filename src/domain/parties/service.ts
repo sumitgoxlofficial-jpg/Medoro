@@ -42,19 +42,19 @@ export async function listCustomers(ctx: Ctx) {
   }));
 }
 
-export async function saveSupplier(ctx: Ctx, id: string | null, raw: SupplierInput) {
-  return db.$transaction((tx) => saveSupplierIn(tx, ctx, id, raw));
+export async function saveSupplier(ctx: Ctx, id: string | null, raw: SupplierInput, version?: number) {
+  return db.$transaction((tx) => saveSupplierIn(tx, ctx, id, raw, version));
 }
 
-export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: SupplierInput) {
+export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: SupplierInput, version?: number) {
   authorizeAny(ctx, "purchase", "payments");
   const i = supplierSchema.parse(raw);
   const dup = await tx.supplier.findFirst({ where: { tenantId: ctx.tenantId, name: { equals: i.name, mode: "insensitive" }, ...(id ? { NOT: { id } } : {}) } });
   if (dup) throw new UserError(`${dup.name} already exists.`);
   const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns, stateCode: i.stateCode || null };
   if (id) {
-    const r = await tx.supplier.updateMany({ where: { id, tenantId: ctx.tenantId }, data: { ...data, version: { increment: 1 } } });
-    if (!r.count) throw new UserError("Supplier not found.");
+    const r = await tx.supplier.updateMany({ where: { id, tenantId: ctx.tenantId, ...(version === undefined ? {} : { version }) }, data: { ...data, version: { increment: 1 } } });
+    if (!r.count) throw new UserError((await tx.supplier.count({ where: { id, tenantId: ctx.tenantId } })) ? "Someone else changed this supplier. Reopen it and try again." : "Supplier not found.");
     await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Supplier updated", entity: "supplier", entityId: id, detail: i.name });
     return id;
   }
@@ -69,11 +69,11 @@ export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: S
   return s.id;
 }
 
-export async function saveCustomer(ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }) {
-  return db.$transaction((tx) => saveCustomerIn(tx, ctx, id, raw));
+export async function saveCustomer(ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }, version?: number) {
+  return db.$transaction((tx) => saveCustomerIn(tx, ctx, id, raw, version));
 }
 
-export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }) {
+export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: CustomerInput & { opening?: string | number }, version?: number) {
   authorize(ctx, "sale");
   const i = customerSchema.parse(raw);
   const opening = Math.round((parseFloat(String(raw.opening ?? 0)) || 0) * 100);
@@ -86,8 +86,10 @@ export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: C
   const consent = consentChanged ? { optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
   const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), ...consent };
   let cid = id;
-  if (id) await tx.customer.update({ where: { id }, data: { ...data, version: { increment: 1 } } });
-  else cid = (await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } })).id;
+  if (id) {
+    const r = await tx.customer.updateMany({ where: { id, tenantId: ctx.tenantId, erasedAt: null, ...(version === undefined ? {} : { version }) }, data: { ...data, version: { increment: 1 } } });
+    if (!r.count) throw new UserError("Someone else changed this customer. Reopen it and try again.");
+  } else cid = (await tx.customer.create({ data: { tenantId: ctx.tenantId, ...data } })).id;
   if (!id && opening > 0) {
     authorize(ctx, "payments");
     await postVoucher(tx, { tenantId: ctx.tenantId, type: "journal", userId: ctx.userId, refType: "opening", refId: cid!, narration: `Opening balance · ${i.name}`,

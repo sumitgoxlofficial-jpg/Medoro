@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { scheduledTick } from "@/domain/system/backup";
 import { messagingTick } from "@/domain/comms/crm";
 import { licenceTick } from "@/domain/system/licence";
+import { log } from "@/server/log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -15,7 +16,7 @@ async function tick(daily: boolean) {
     let failed = false;
     // Each job runs even if another fails.
     for (const job of [() => scheduledTick(now, { daily }), () => messagingTick(now, { daily }), () => licenceTick()]) {
-      try { await job(); } catch (e) { console.error("[scheduler]", e); failed = true; }
+      try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; }
     }
     return failed ? new Response("error", { status: 500 }) : new Response("ok");
   }

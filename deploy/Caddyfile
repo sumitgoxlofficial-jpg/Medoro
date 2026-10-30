@@ -1,0 +1,11 @@
+# HTTPS in front of the app with the certificate from scripts/lan-setup.(sh|ps1).
+{
+	auto_https disable_redirects
+	admin off
+	default_sni {$MEDORO_HOST:medoro.local}
+}
+
+https:// {
+	tls /certs/medoro.crt /certs/medoro.key
+	reverse_proxy app:3000
+}
