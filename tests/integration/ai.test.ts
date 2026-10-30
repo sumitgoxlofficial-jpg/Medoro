@@ -32,6 +32,7 @@ describe("AI assistant", () => {
     const r = await ask(await ctxFor("Cashier"), "Supplier payments due");
     expect(r).toMatchObject({ refused: true });
     expect(r.rows).toBeUndefined();
+    expect(await db.auditEvent.findFirst({ where: { action: "AI request refused", entityId: r.tool } })).toMatchObject({ detail: expect.stringMatching(/role Cashier/) });
   });
 
   it("write tools preview first; the token is single-use and bound to the user", async () => {

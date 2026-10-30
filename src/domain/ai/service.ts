@@ -36,8 +36,10 @@ export async function ask(ctx: Ctx, raw: string): Promise<AiReply> {
 
   const tool = toolFor(plan.tool);
   if (!tool) return { text: "I can’t do that yet." };
-  if (!toolsFor(ctx).includes(tool))
+  if (!toolsFor(ctx).includes(tool)) {
+    await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "AI request refused", entity: "ai", entityId: tool.name, detail: `${tool.kind === "write" ? "Action" : "Data"} not allowed for role ${ctx.role} (asked in chat)` });
     return { tool: tool.name, refused: true, text: tool.kind === "write" ? `Your role (${ctx.role}) can’t confirm AI actions. Ask a manager or the owner.` : `Your role (${ctx.role}) doesn’t have access to this information.` };
+  }
   const parsed = tool.input.safeParse(plan.input);
   if (!parsed.success) return { text: "I didn’t understand that. Try rephrasing, or pick one of the suggestions." };
 
