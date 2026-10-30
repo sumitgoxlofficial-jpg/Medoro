@@ -44,6 +44,7 @@ export function OfflinePos() {
   const [receipt, setReceipt] = useState<QueuedBill | null>(null);
   const [syncing, setSyncing] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const completing = useRef(false);
 
   const load = useCallback(async () => {
     const [d, s, qu] = await Promise.all([getDevice(), getSnapshot(), getQueue()]);
@@ -91,23 +92,26 @@ export function OfflinePos() {
   const conflicts = queue.filter((b) => b.state === "conflict");
 
   const complete = async () => {
-    if (!snap || !dev) return;
+    if (!snap || !dev || completing.current) return;
     if (!lines.length) return say("Cart is empty.");
     if (stale) return say(`This device’s price list is more than ${snap.validDays} days old. Reconnect to refresh it before billing.`);
     if (d < 0 || d > snap.discCap) return say(`Discount above ${snap.discCap}% needs a manager, online.`);
     if (needsRx && !doctor.trim()) return say("Enter the prescriber’s name for Schedule H/H1 items.");
     if (pay === "cash" && tender && toPaise(tender) < totals.total) return say("Cash tendered is less than the total.");
     if (totals.total <= 0) return say("The bill total must be more than zero.");
-    const bill: QueuedBill = {
-      id: randomId("off_"), createdAt: new Date().toISOString(), baseVersion: Math.max(0, ...lines.map((l) => batchById.get(l.batchId)?.version ?? 0)),
-      receipt: await nextReceipt(dev.deviceId), state: "pending",
-      sale: { lines: lines.map(({ medicineId, batchId, qty }) => ({ medicineId, batchId, qty })), discountPct: d, pay: { mode: pay, tenderedPaise: pay === "cash" && tender ? toPaise(tender) : undefined, ref: pay !== "cash" && ref ? ref : undefined }, prescriber: doctor.trim() || undefined, rxNo: rxno.trim() || undefined, totalPaise: totals.total },
-      view: lines.map((l) => ({ name: medById.get(l.medicineId)?.name ?? "", batchNo: batchById.get(l.batchId)?.batchNo ?? "", qty: l.qty, mrpPaise: batchById.get(l.batchId)?.mrpPaise ?? 0 })),
-    };
-    const next = [...(await getQueue()), bill];
-    await saveQueue(next);
-    setQueue(next); setReceipt(bill);
-    setLines([]); setDisc("0"); setTender(""); setRef(""); setDoctor(""); setRxno(""); setMsg(null);
+    completing.current = true;
+    try {
+      const bill: QueuedBill = {
+        id: randomId("off_"), createdAt: new Date().toISOString(), baseVersion: Math.max(0, ...lines.map((l) => batchById.get(l.batchId)?.version ?? 0)),
+        receipt: await nextReceipt(dev.deviceId), state: "pending", cashierId: snap.cashierId, cashier: snap.cashier,
+        sale: { lines: lines.map(({ medicineId, batchId, qty }) => ({ medicineId, batchId, qty })), discountPct: d, pay: { mode: pay, tenderedPaise: pay === "cash" && tender ? toPaise(tender) : undefined, ref: pay !== "cash" && ref ? ref : undefined }, prescriber: doctor.trim() || undefined, rxNo: rxno.trim() || undefined, totalPaise: totals.total },
+        view: lines.map((l) => ({ name: medById.get(l.medicineId)?.name ?? "", batchNo: batchById.get(l.batchId)?.batchNo ?? "", qty: l.qty, mrpPaise: batchById.get(l.batchId)?.mrpPaise ?? 0 })),
+      };
+      const next = [...(await getQueue()), bill];
+      await saveQueue(next);
+      setQueue(next); setReceipt(bill);
+      setLines([]); setDisc("0"); setTender(""); setRef(""); setDoctor(""); setRxno(""); setMsg(null);
+    } finally { completing.current = false; }
   };
 
   const sync = async () => {
@@ -265,7 +269,7 @@ export function OfflinePos() {
           <div className="bg-white rounded-xl p-5 w-full max-w-[420px] flex flex-col gap-2 print:shadow-none print:max-w-none">
             <div className="text-center"><strong className="text-[16px]">{snap.pharmacy.name}</strong><br /><span className="text-[12px] text-muted">{snap.pharmacy.branch}{snap.pharmacy.address ? ` · ${snap.pharmacy.address}` : ""}{snap.pharmacy.gstin ? ` · GSTIN ${snap.pharmacy.gstin}` : ""}{snap.pharmacy.dlNo ? ` · DL ${snap.pharmacy.dlNo}` : ""}</span></div>
             <div className="text-center text-[13px] font-semibold">{receipt.invoiceNo ? `Tax invoice ${receipt.invoiceNo}` : `Provisional receipt ${receipt.receipt}`}</div>
-            <div className="text-[12px] text-muted text-center">{when(receipt.createdAt)} · {snap.cashier} · {receipt.sale.pay.mode.toUpperCase()}</div>
+            <div className="text-[12px] text-muted text-center">{when(receipt.createdAt)} · {receipt.cashier ?? snap.cashier} · {receipt.sale.pay.mode.toUpperCase()}</div>
             <div className="border-t border-b border-row py-2 flex flex-col gap-1 text-[13px]">
               {receipt.view.map((v, i) => <div key={i} className="flex gap-2"><span className="flex-1">{v.name} <span className="text-muted text-[11.5px]">({v.batchNo})</span></span><span className="font-mono">{v.qty} × {inr(v.mrpPaise)}</span></div>)}
             </div>

@@ -8,7 +8,7 @@ import type { OfflineSnapshot, OfflineOpInput, SyncResult } from "@/domain/sales
 export type Device = { deviceId: string; name: string; tenant: string; branchId: string };
 export type QueuedBill = OfflineOpInput & {
   state: "pending" | "posted" | "conflict";
-  invoiceNo?: string; message?: string; sentAt?: string;
+  invoiceNo?: string; message?: string; sentAt?: string; cashier?: string;
   view: { name: string; batchNo: string; qty: number; mrpPaise: number }[];
 };
 
@@ -77,7 +77,7 @@ export async function syncNow(): Promise<{ sent: number; posted: number; conflic
   let posted = 0, conflicts = 0;
   for (let i = 0; i < pending.length; i += 50) {
     const chunk = pending.slice(i, i + 50);
-    const ops = chunk.map(({ id, createdAt, baseVersion, receipt, sale }) => ({ id, createdAt, baseVersion, receipt, sale }));
+    const ops = chunk.map(({ id, createdAt, baseVersion, receipt, cashierId, sale }) => ({ id, createdAt, baseVersion, receipt, cashierId, sale }));
     const r = await fetch("/api/offline/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: dev.deviceId, ops }), credentials: "same-origin" });
     const j = (await r.json().catch(() => ({}))) as { results?: SyncResult[]; error?: string };
     if (!r.ok || !j.results) return { sent: i, posted, conflicts, error: j.error ?? `Server said ${r.status}.` };

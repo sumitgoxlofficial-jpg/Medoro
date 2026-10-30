@@ -14,6 +14,8 @@ import { customerBalance } from "@/domain/parties/balances";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
 
 export const OFFLINE_MAX_DAYS = 7;
+export const withinOfflineWindow = (at: Date, now = Date.now()) =>
+  !Number.isNaN(at.getTime()) && at.getTime() <= now + 5 * 60_000 && at.getTime() >= now - OFFLINE_MAX_DAYS * 86_400_000;
 export type CommitResult = { saleId: string; invoiceNo: string; total: number; replayed: boolean };
 
 /**
@@ -21,18 +23,18 @@ export type CommitResult = { saleId: string; invoiceNo: string; total: number; r
  * stock (row-locked), batch eligibility, prices from the database, discount cap,
  * prescription rule, credit permission and limit. Same idempotency key → same sale.
  */
-export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date } = {}): Promise<CommitResult> {
+export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date; note?: string } = {}): Promise<CommitResult> {
   authorize(ctx, "sale");
   const input = saleSchema.parse(raw);
   // Offline sales keep the time they were billed; bounded so a wrong device clock can't backdate books.
   const at = opts.at;
-  if (at && (Number.isNaN(at.getTime()) || at.getTime() > Date.now() + 5 * 60_000 || at.getTime() < Date.now() - OFFLINE_MAX_DAYS * 86_400_000)) {
+  if (at && !withinOfflineWindow(at)) {
     throw new UserError(`The bill time must be within the last ${OFFLINE_MAX_DAYS} days.`);
   }
   const existing = await db.sale.findUnique({ where: { tenantId_idempotencyKey: { tenantId: ctx.tenantId, idempotencyKey: input.idempotencyKey } } });
   if (existing) return { saleId: existing.id, invoiceNo: existing.invoiceNo, total: big(existing.totalPaise), replayed: true };
   try {
-    return await db.$transaction((tx) => commitTx(tx, ctx, input, at), { timeout: 15000 });
+    return await db.$transaction((tx) => commitTx(tx, ctx, input, at, opts.note), { timeout: 15000 });
   } catch (e) {
     // A concurrent request with the same key won the race: return its result.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -43,7 +45,7 @@ export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date } =
   }
 }
 
-async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<CommitResult> {
+async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: string): Promise<CommitResult> {
   const today = todayISO(at);
   const ids = [...new Set(input.lines.map((l) => l.batchId))];
   // Lock the batches so two counters can't sell the same last unit.
@@ -128,7 +130,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "sales", narration: `Sale ${invoiceNo}${customer ? " · " + customer.name : ""}`, userId: ctx.userId, refType: "sale", refId: sale.id, date: at, lines: vl });
   await writeAudit(tx, {
     tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Sale committed", entity: "sale", entityId: sale.id,
-    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}`,
+    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
   });
   return { saleId: sale.id, invoiceNo, total: t.total, replayed: false };
 }
