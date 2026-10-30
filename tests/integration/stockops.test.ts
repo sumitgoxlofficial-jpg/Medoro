@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
-import { createMedicine, receiveBatch } from "@/domain/inventory/service";
-import { approveTransfer, postCount, receiveTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
+import { createMedicine, receiveBatch, setQuarantine } from "@/domain/inventory/service";
+import { approveTransfer, cancelTransfer, postCount, receiveTransfer, rejectTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
 import { addRecall, listRecalls, quarantineRecall } from "@/domain/inventory/recalls";
 import { anomalies, expiryRows, forecast } from "@/domain/intelligence/service";
 import { commitSale } from "@/domain/sales/service";
@@ -61,6 +61,22 @@ describe("stock operations and intelligence", () => {
     await receiveTransfer(ctx, t.id);
     const dest = await db.batch.findFirstOrThrow({ where: { branchId: second, batchNo: "OK2" } });
     expect(dest.qtyAvailable).toBe(4);
+  });
+
+  it("transfers: no self-approval below owner, blocked stock can't be dispatched, in-transit can be cancelled", async () => {
+    const ctx = await ctxFor();
+    const second = ctx.branches.find((b) => b.name === "Second")!.id;
+    const no = await requestTransfer(await ctxFor("Pharmacist"), b2, second, 2);
+    const t = await db.transfer.findFirstOrThrow({ where: { no } });
+    await expect(approveTransfer(await ctxFor("Pharmacist"), t.id)).rejects.toThrow(/other than the requester/);
+    await setQuarantine(ctx, b2, true, "Check");
+    await expect(approveTransfer(ctx, t.id)).rejects.toThrow(/quarantined/);
+    await setQuarantine(ctx, b2, false, "");
+    await approveTransfer(ctx, t.id);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(13);
+    await cancelTransfer(ctx, t.id);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: b2 } })).qtyAvailable).toBe(15);
+    await expect(rejectTransfer(ctx, t.id)).rejects.toThrow(/pending/);
   });
 
   it("recalls match batches across branches and quarantine them", async () => {

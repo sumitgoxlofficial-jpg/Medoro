@@ -29,12 +29,13 @@ export async function listInventory(ctx: Ctx, q: string, filter: InvFilter) {
     const sellable = m.batches.filter((b) => isSellable(b, today)).reduce((a, b) => a + b.qtyAvailable, 0);
     const blocked = m.batches.filter((b) => !isSellable(b, today)).length;
     const near = m.batches.filter((b) => daysTo(b.expiryDate, today) > 0).sort((a, b) => +a.expiryDate - +b.expiryDate)[0];
+    const soonest = m.batches.length ? Math.min(...m.batches.map((b) => daysTo(b.expiryDate, today))) : null;
     return {
       id: m.id, name: m.name, meta: `${m.generic} · ${m.strength} · ${m.form}`, manufacturer: m.manufacturer, sellable, reorder: m.reorderLevel,
       batches: m.batches.length, blocked, nearExpiry: near ? near.expiryDate.toISOString().slice(0, 10) : null, nearDays: near ? daysTo(near.expiryDate, today) : null,
-      mrp: big(m.mrpPaise), gst: m.gstRate, schedule: m.schedule,
+      mrp: big(m.mrpPaise), gst: m.gstRate, schedule: m.schedule, soonest,
     };
-  }).filter((r) => filter === "low" ? r.sellable < r.reorder : filter === "exp" ? r.nearDays != null && r.nearDays <= 90 : true);
+  }).filter((r) => filter === "low" ? r.sellable < r.reorder : filter === "exp" ? r.soonest != null && r.soonest <= 90 : true);
   return { rows, total };
 }
 
