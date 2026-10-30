@@ -38,14 +38,19 @@ export async function eraseCustomer(ctx: Ctx, customerId: string) {
     if (due !== 0) throw new UserError(`${c.name} has an outstanding balance. Settle it before erasure.`);
     const ref = c.id.slice(0, 8).toUpperCase();
     await tx.customer.update({ where: { id: c.id }, data: { name: `Erased customer ${ref}`, phone: null, waOptIn: false, optInAt: null, optInMethod: null, creditLimitPaise: 0n, erasedAt: new Date() } });
+    const sales = await tx.sale.findMany({ where: { tenantId: ctx.tenantId, customerId: c.id }, select: { id: true } });
+    await tx.waMessage.updateMany({
+      where: { tenantId: ctx.tenantId, OR: [{ invoiceId: { in: sales.map((x) => x.id) } }, ...(c.phone ? [{ recipient: c.phone }] : [])] },
+      data: { recipient: "erased" },
+    });
     await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Customer data erased", entity: "customer", entityId: c.id, detail: `${ref} · invoices kept with anonymised party for tax records` });
   });
 }
 
-/** Every row the pharmacy owns. Secrets (password/PIN hashes, sealed tokens) are excluded. */
+/** Every row the pharmacy owns. Secrets (password/PIN hashes, invite codes, token hashes, sealed tokens) are excluded. */
 export async function dumpTenant(tenantId: string) {
   const T = { tenantId };
-  const [tenant, branches, counters, roles, users, medicines, batches, movements, suppliers, customers, sales, returns, shifts, vouchers, grns, pos, bills, counts, transfers, recalls, stockOuts, wa, backups, audit] = await Promise.all([
+  const [tenant, branches, counters, roles, users, medicines, batches, movements, suppliers, customers, sales, returns, shifts, vouchers, grns, pos, bills, counts, transfers, recalls, stockOuts, wa, backups, audit, documents, devices, offlineOps, campaigns, invites, subscription, supportGrants, heldCarts] = await Promise.all([
     db.tenant.findUnique({ where: { id: tenantId } }), db.branch.findMany({ where: T }), db.counter.findMany({ where: T }), db.role.findMany({ where: T }),
     db.user.findMany({ where: T, select: { id: true, name: true, email: true, phone: true, employeeNo: true, roleId: true, branchIds: true, active: true, mfaEnabled: true, createdAt: true, lastLoginAt: true } }),
     db.medicine.findMany({ where: T }), db.batch.findMany({ where: T }), db.stockMovement.findMany({ where: T }), db.supplier.findMany({ where: T }), db.customer.findMany({ where: T }),
@@ -53,8 +58,11 @@ export async function dumpTenant(tenantId: string) {
     db.voucher.findMany({ where: T, include: { lines: true } }), db.grn.findMany({ where: T, include: { items: true } }), db.purchaseOrder.findMany({ where: T, include: { items: true } }),
     db.supplierBill.findMany({ where: T }), db.stockCount.findMany({ where: T }), db.transfer.findMany({ where: T }), db.recall.findMany({ where: T }), db.stockOut.findMany({ where: T }),
     db.waMessage.findMany({ where: T }), db.backupManifest.findMany({ where: T }), db.auditEvent.findMany({ where: T }),
+    db.scanDocument.findMany({ where: T }), db.device.findMany({ where: T }), db.offlineOp.findMany({ where: T }), db.campaign.findMany({ where: T }),
+    db.invite.findMany({ where: T, omit: { code: true } }), db.subscriptionMeta.findUnique({ where: T, omit: { licenceToken: true } }),
+    db.supportGrant.findMany({ where: T, omit: { tokenHash: true } }), db.heldCart.findMany({ where: T }),
   ]);
-  return { exportedAt: new Date().toISOString(), format: "medoro-export-v1", tenant, branches, counters, roles, users, medicines, batches, movements, suppliers, customers, sales, returns, shifts, vouchers, grns, purchaseOrders: pos, supplierBills: bills, stockCounts: counts, transfers, recalls, stockOuts, whatsappMessages: wa, backups, audit };
+  return { exportedAt: new Date().toISOString(), format: "medoro-export-v1", tenant, branches, counters, roles, users, medicines, batches, movements, suppliers, customers, sales, returns, shifts, vouchers, grns, purchaseOrders: pos, supplierBills: bills, stockCounts: counts, transfers, recalls, stockOuts, whatsappMessages: wa, backups, audit, scanDocuments: documents, devices, offlineOps, campaigns, invites, subscription, supportGrants, heldCarts };
 }
 
 export async function fullExport(ctx: Ctx) {
