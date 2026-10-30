@@ -1,7 +1,7 @@
 export type Lang = "en" | "hi";
 
 const en = {
-  dash: "Dashboard", pos: "Billing (POS)", ret: "Returns & shift", inv: "Inventory", count: "Stock count", recall: "Recalls & alerts",
+  dash: "Dashboard", own: "Owner view", pos: "Billing (POS)", ord: "Orders & delivery", dlv: "My deliveries", ret: "Returns & shift", inv: "Inventory", count: "Stock count", recall: "Recalls & alerts",
   exp: "Expiry prevention", intel: "Stock intelligence", pur: "Purchases", parties: "Suppliers & customers", acc: "Accounting & reports",
   wa: "WhatsApp", crm: "Customer messaging", bak: "Backup & restore", sync: "Sync & offline", users: "Users & branches",
   plan: "Subscription", privacy: "Privacy & data", admin: "Medoro admin",
@@ -12,7 +12,7 @@ const en = {
   Operations: "Operations", Intelligence: "Intelligence", Business: "Business", Engagement: "Engagement", System: "System",
 };
 const hi: typeof en = {
-  dash: "डैशबोर्ड", pos: "बिलिंग (POS)", ret: "रिटर्न और शिफ्ट", inv: "इन्वेंटरी", count: "स्टॉक गिनती", recall: "रिकॉल और अलर्ट",
+  dash: "डैशबोर्ड", own: "मालिक व्यू", pos: "बिलिंग (POS)", ord: "ऑर्डर और डिलीवरी", dlv: "मेरी डिलीवरी", ret: "रिटर्न और शिफ्ट", inv: "इन्वेंटरी", count: "स्टॉक गिनती", recall: "रिकॉल और अलर्ट",
   exp: "एक्सपायरी रोकथाम", intel: "स्टॉक इंटेलिजेंस", pur: "खरीद", parties: "सप्लायर और ग्राहक", acc: "हिसाब और रिपोर्ट",
   wa: "व्हाट्सऐप", crm: "ग्राहक संदेश", bak: "बैकअप और रीस्टोर", sync: "सिंक और ऑफ़लाइन", users: "यूज़र और ब्रांच",
   plan: "सब्सक्रिप्शन", privacy: "प्राइवेसी और डेटा", admin: "Medoro एडमिन",

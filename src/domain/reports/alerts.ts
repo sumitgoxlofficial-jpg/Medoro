@@ -7,7 +7,7 @@ import type { ScreenId } from "@/lib/nav";
 /** Sidebar badges and the bell's alert list, from live data. */
 export async function badgesAndAlerts(tenantId: string, branchId: string) {
   const today = dateOnly(todayISO());
-  const [meds, sellable, exp30, waFailed, recalls, conflicts, due] = await Promise.all([
+  const [meds, sellable, exp30, waFailed, recalls, conflicts, due, newOrders] = await Promise.all([
     db.medicine.findMany({ where: { tenantId, active: true, reorderLevel: { gt: 0 } }, select: { id: true, name: true, reorderLevel: true } }),
     sellableByMedicine(tenantId, branchId),
     db.batch.count({ where: { tenantId, branchId, qtyAvailable: { gt: 0 }, status: "ok", expiryDate: { gt: today, lte: dateOnly(addDays(todayISO(), 30)) } } }),
@@ -15,13 +15,15 @@ export async function badgesAndAlerts(tenantId: string, branchId: string) {
     db.recall.count({ where: { tenantId, status: { not: "resolved" } } }),
     db.offlineOp.count({ where: { tenantId, status: "conflict" } }),
     db.supplierBill.findMany({ where: { tenantId, dueDate: { lte: dateOnly(addDays(todayISO(), 3)) } } }),
+    db.deliveryOrder.count({ where: { tenantId, branchId, status: "new" } }),
   ]);
   const low = meds.filter((m) => (sellable.get(m.id) ?? 0) < m.reorderLevel);
   const dueOpen = due.filter((b) => b.paidPaise < b.amountPaise);
   const badges: Partial<Record<ScreenId, [number, "amber" | "red"]>> = {
-    inv: [low.length, "amber"], exp: [exp30, "red"], wa: [waFailed, "red"], recall: [recalls, "amber"], sync: [conflicts, "red"],
+    inv: [low.length, "amber"], exp: [exp30, "red"], wa: [waFailed, "red"], recall: [recalls, "amber"], sync: [conflicts, "red"], ord: [newOrders, "amber"],
   };
   const alerts: string[] = [];
+  if (newOrders) alerts.push(`${newOrders} new order${newOrders > 1 ? "s" : ""} to confirm`);
   if (low.length) alerts.push(low.length === 1 ? `${low[0].name} low stock` : `${low.length} medicines low on stock`);
   if (exp30) alerts.push(`${exp30} batch${exp30 > 1 ? "es" : ""} expire in 30 days`);
   if (dueOpen.length) alerts.push(`${dueOpen.length} supplier payment${dueOpen.length > 1 ? "s" : ""} due in 3 days`);

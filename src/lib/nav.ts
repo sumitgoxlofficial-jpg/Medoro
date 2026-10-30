@@ -1,14 +1,17 @@
 import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
-  | "dash" | "pos" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "acc"
+  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "acc"
   | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Engagement" | "System"; abbr: string; sub: string };
 
 export const NAV: NavDef[] = [
   { id: "dash", href: "/app", icon: "LayoutDashboard", perm: null, group: "Operations", abbr: "Home", sub: "" },
+  { id: "own", href: "/app/owner", icon: "Smartphone", perm: "reports", group: "Operations", abbr: "Owner", sub: "Today across branches, on your phone" },
   { id: "pos", href: "/app/pos", icon: "ScanBarcode", perm: "sale", group: "Operations", abbr: "POS", sub: "F2 search · F4 hold · F9 complete" },
+  { id: "ord", href: "/app/orders", icon: "Bike", perm: "sale", group: "Operations", abbr: "Orders", sub: "Phone, WhatsApp and counter orders for home delivery" },
+  { id: "dlv", href: "/app/deliveries", icon: "Navigation", perm: "delivery", group: "Operations", abbr: "Deliver", sub: "Your deliveries: call, navigate, mark delivered" },
   { id: "ret", href: "/app/returns", icon: "Undo2", perm: "sale", group: "Operations", abbr: "Returns", sub: "Sales returns, refunds and cashier shift close" },
   { id: "inv", href: "/app/inventory", icon: "Package", perm: null, group: "Operations", abbr: "Stock", sub: "Catalogue, batches and stock ledger" },
   { id: "count", href: "/app/count", icon: "ClipboardCheck", perm: "adjust", group: "Operations", abbr: "Count", sub: "Physical count against system stock" },
@@ -28,7 +31,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "pos", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy"]);
+export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy"]);
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
 
