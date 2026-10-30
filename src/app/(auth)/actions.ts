@@ -181,7 +181,7 @@ export async function employeeSignIn(input: { code: string; employeeNo: string; 
   if (user.mfaRequired) return fail("Owners and managers sign in with email and password.");
   await clearFailures(keys);
   const next = await finishSignIn(user, `Employee PIN · ${counter.name}`, { counterId: counter.id, device: counter.name });
-  return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/acc" : "/app") : next };
+  return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/accounts" : "/app") : next };
 }
 
 export async function findInvite(code: string, inviteCode: string): Promise<R<{ role: string; branch: string; pharmacy: string; name: string | null; kind: "phone" | "email" }>> {
