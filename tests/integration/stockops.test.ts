@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { createMedicine, receiveBatch, setQuarantine } from "@/domain/inventory/service";
 import { approveTransfer, cancelTransfer, postCount, receiveTransfer, rejectTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
 import { addRecall, listRecalls, quarantineRecall } from "@/domain/inventory/recalls";
-import { anomalies, expiryRows, forecast } from "@/domain/intelligence/service";
+import { anomalies, draftSeasonal, expiryRows, forecast } from "@/domain/intelligence/service";
 import { commitSale } from "@/domain/sales/service";
 import { listSuppliers, saveSupplier } from "@/domain/parties/service";
 import { addDays, todayISO } from "@/lib/dates";
@@ -107,5 +107,18 @@ describe("stock operations and intelligence", () => {
     expect((await forecast(ctx, { cover: 21, safety: 2 })).find((x) => x.id === med)!.suggestion).toBeGreaterThan(0); // 29 < 30
     const a = await anomalies(ctx, { disc: 5, refunds: 2, cash: 200 });
     expect(a.some((x) => x.rule.startsWith("Discount above"))).toBe(true);
+  });
+
+  it("seasonal draft POs go to each item's own supplier", async () => {
+    const ctx = await ctxFor();
+    const dolo = (await db.medicine.findFirstOrThrow({ where: { name: "Dolo" } })).id;
+    const lines = [{ medicineId: med, qty: 10, rate: 13.5 }, { medicineId: dolo, qty: 5, rate: 10 }];
+    await expect(draftSeasonal(ctx, lines, "Jul")).rejects.toThrow(/supplier for Dolo/);
+    const other = await saveSupplier(ctx, null, { name: "Aaa Agencies", creditDays: "7" });
+    const nos = await draftSeasonal(ctx, [lines[0], { ...lines[1], supplierId: other }], "Jul");
+    expect(nos).toHaveLength(2);
+    const pos = await db.purchaseOrder.findMany({ where: { no: { in: nos } }, include: { items: true } });
+    expect(pos.find((p) => p.supplierId === sup)!.items.map((i) => i.medicineId)).toEqual([med]);
+    expect(pos.find((p) => p.supplierId === other)!.items.map((i) => i.medicineId)).toEqual([dolo]);
   });
 });

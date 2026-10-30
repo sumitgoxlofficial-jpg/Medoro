@@ -8,6 +8,7 @@ import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { createPo } from "@/domain/purchasing/service";
 import { inr } from "@/lib/money";
+import { monthCoverage, seasonalLine } from "./seasonal";
 
 type Settings = { policy?: { cover: number; safety: number }; anomaly?: { disc: number; refunds: number; cash: number } };
 export async function settings(tenantId: string) {
@@ -86,6 +87,23 @@ export async function draftFromForecast(ctx: Ctx, policy: { cover: number; safet
   }
   const out = [];
   for (const [s, rs] of bySup) out.push((await createPo(ctx, { supplierId: s, source: "intel", note: `Reorder policy ${policy.cover} d cover, ${policy.safety} d safety`, lines: rs.map((r) => ({ medicineId: r.id, qty: r.suggestion, rate: r.cost / 100 })) })).no);
+  return out;
+}
+
+/** Seasonal pre-stock: one draft PO per supplier, each item going to its last supplier unless one is chosen. */
+export async function draftSeasonal(ctx: Ctx, lines: { medicineId: string; qty: number; rate: number; supplierId?: string | null }[], month: string) {
+  authorize(ctx, "purchase");
+  if (!lines.length) throw new UserError("Select items to order.");
+  const last = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: lines.map((l) => l.medicineId) }, supplierId: { not: null } }, orderBy: { createdAt: "desc" }, select: { medicineId: true, supplierId: true } });
+  const meds = await db.medicine.findMany({ where: { tenantId: ctx.tenantId, id: { in: lines.map((l) => l.medicineId) } }, select: { id: true, name: true } });
+  const bySup = new Map<string, typeof lines>();
+  for (const l of lines) {
+    const s = l.supplierId || last.find((b) => b.medicineId === l.medicineId)?.supplierId;
+    if (!s) throw new UserError(`Choose a supplier for ${meds.find((m) => m.id === l.medicineId)?.name ?? "each item"}.`);
+    bySup.set(s, [...(bySup.get(s) ?? []), l]);
+  }
+  const out = [];
+  for (const [s, ls] of bySup) out.push((await createPo(ctx, { supplierId: s, source: "seasonal", note: `Seasonal pre-stock for ${month}`, lines: ls.map(({ medicineId, qty, rate }) => ({ medicineId, qty, rate })) })).no);
   return out;
 }
 
@@ -171,21 +189,20 @@ export async function seasonal(ctx: Ctx, targetMonth: number) {
   const first = await db.sale.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId }, orderBy: { at: "asc" }, select: { at: true } });
   const months = first ? Math.floor((Date.now() - first.at.getTime()) / (30.4 * 86400_000)) : 0;
   if (months < 12) return { ready: false as const, months };
+  const since = new Date(Date.now() - 730 * 86400_000);
   const rows = await db.$queryRaw<{ medicineId: string; m: number; q: bigint }[]>`
     SELECT si."medicineId", EXTRACT(MONTH FROM s.at AT TIME ZONE 'Asia/Kolkata')::int m, SUM(si.qty) q FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId"
-    WHERE s."tenantId" = ${ctx.tenantId} AND s."branchId" = ${ctx.branchId} AND s.at >= ${new Date(Date.now() - 730 * 86400_000)} GROUP BY 1, 2`;
+    WHERE s."tenantId" = ${ctx.tenantId} AND s."branchId" = ${ctx.branchId} AND s.at >= ${since} GROUP BY 1, 2`;
   const [meds, stock] = await Promise.all([db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { id: true, name: true } }), sellableByMedicine(ctx.tenantId, ctx.branchId)]);
   const cur = new Date(startOfTodayIST().getTime() + 330 * 60000).getUTCMonth();
+  const now = new Date();
+  const cov = monthCoverage(new Date(Math.max(first!.at.getTime(), since.getTime())), now);
   const plan = meds.map((m) => {
-    const mult = Array.from({ length: 12 }, (_, i) => Number(rows.find((r) => r.medicineId === m.id && r.m === i + 1)?.q ?? 0));
-    const avg = mult.reduce((a, b) => a + b, 0) / 12;
-    if (!avg) return null;
-    const lift = (mult[targetMonth] / avg - 1) * 100;
-    const ahead = (targetMonth - cur + 12) % 12 || 12;
-    let consumed = 0; for (let k = 0; k < ahead; k++) consumed += mult[(cur + k) % 12] * (k === 0 ? 0.5 : 1) / (months >= 24 ? 2 : 1);
-    const expected = Math.ceil(mult[targetMonth] / (months >= 24 ? 2 : 1));
-    const st = stock.get(m.id) ?? 0, atStart = Math.max(0, Math.floor(st - consumed));
-    return { id: m.id, name: m.name, lift, expected, stock: st, atStart, need: Math.max(0, expected - atStart), bars: mult.map((v) => (avg ? v / avg : 0)) };
+    const sums = Array.from({ length: 12 }, (_, i) => Number(rows.find((r) => r.medicineId === m.id && r.m === i + 1)?.q ?? 0));
+    const l = seasonalLine(sums, cov, targetMonth, cur);
+    if (!l) return null;
+    const st = stock.get(m.id) ?? 0, atStart = Math.max(0, Math.floor(st - l.consumed));
+    return { id: m.id, name: m.name, lift: l.lift, expected: l.expected, stock: st, atStart, need: Math.max(0, l.expected - atStart), bars: l.bars };
   }).filter((x): x is NonNullable<typeof x> => !!x && x.lift >= 10).sort((a, b) => b.lift - a.lift);
   return { ready: true as const, months, plan };
 }
