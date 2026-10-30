@@ -23,6 +23,20 @@ export async function maxDiscount(tenantId: string, q: DbOrTx = db) {
   return Number.isFinite(v) ? Math.min(Math.max(v, 0), 99) : DEFAULT_MAX_DISCOUNT;
 }
 
+/** The owner sets the hard discount ceiling (0–90%); approvals can't go above it. */
+export async function saveMaxDiscount(ctx: Ctx, pct: number) {
+  authorize(ctx, "users");
+  if (ctx.realRole !== "Owner" || ctx.role !== "Owner") throw new UserError("Only the owner can change the discount ceiling.");
+  if (!Number.isInteger(pct) || pct < 0 || pct > 90) throw new UserError("Enter a whole number from 0 to 90.");
+  const before = await maxDiscount(ctx.tenantId);
+  await db.$transaction(async (tx) => {
+    const t = await tx.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { settings: true } });
+    await tx.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), maxDiscountPct: pct } } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Discount ceiling changed", entity: "tenant", entityId: ctx.tenantId, detail: `${before}% → ${pct}%` });
+  });
+  return pct;
+}
+
 /** What an approval is bound to: the exact batches and quantities, and the discount. */
 export function cartHash(lines: { batchId: string; qty: number }[], discountPct: number) {
   const per = lines.reduce<Record<string, number>>((m, l) => ({ ...m, [l.batchId]: (m[l.batchId] ?? 0) + l.qty }), {});

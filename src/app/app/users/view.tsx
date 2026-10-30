@@ -13,7 +13,7 @@ import { dayMonth, hhmm } from "@/lib/dates";
 import { ROLE_OPTIONS } from "@/domain/identity/contracts";
 import type { auditTrail, listBranches, listTeam, listTransfers, MemberPatch, roleMatrix } from "@/domain/identity/admin";
 import type { Perm } from "@/domain/identity/permissions";
-import { branchAction, counterAction, inviteAction, memberAction, permAction, resetAction, resetTwoStepAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
+import { branchAction, counterAction, inviteAction, maxDiscountAction, memberAction, permAction, resetAction, resetTwoStepAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
 import { UserPermsModal, overrideCount } from "./user-perms";
 
 type Team = Awaited<ReturnType<typeof listTeam>>;
@@ -25,9 +25,28 @@ const td = "px-3.5 py-2.5 border-b border-row";
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const when = (iso: string | null) => (iso ? `${dayMonth(new Date(iso))} ${hhmm(new Date(iso))}` : "Never");
 
-export function UsersView({ tab, team, roles, perms, branches, transfers, audit, tenantCode, myBranches, canAdjust }: {
+function DiscountCeiling({ initial, isOwner }: { initial: number; isOwner: boolean }) {
+  const toast = useToast();
+  const [pending, start] = useTransition();
+  const [v, setV] = useState(String(initial));
+  const save = () => start(async () => {
+    const r = await maxDiscountAction(Number(v));
+    toast(r.ok ? r.message ?? "Saved." : r.error, r.ok ? "green" : "red");
+  });
+  return (
+    <div className="flex items-end gap-3 flex-wrap mt-4 pt-3 border-t border-row">
+      <Field label="Maximum discount on any bill, even with approval (%)">
+        <Input type="number" min={0} max={90} step={1} value={v} disabled={!isOwner} onChange={(e) => setV(e.target.value)} className="w-[110px]" aria-label="Maximum discount percent" />
+      </Field>
+      {isOwner ? <Button variant="primary" disabled={pending || v === String(initial)} onClick={save}>Save</Button> : <span className="text-[12.5px] text-faint pb-2">Only the owner can change this.</span>}
+    </div>
+  );
+}
+
+export function UsersView({ tab, team, roles, perms, branches, transfers, audit, tenantCode, myBranches, canAdjust, maxDisc, isOwner }: {
   tab: "users" | "roles" | "branches" | "audit"; team: Team; roles: Awaited<ReturnType<typeof roleMatrix>>; perms: { id: Perm; label: string }[];
   branches: Br[]; transfers: Awaited<ReturnType<typeof listTransfers>>; audit: Awaited<ReturnType<typeof auditTrail>>; tenantCode: string; myBranches: string[]; canAdjust: boolean;
+  maxDisc: number; isOwner: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -125,6 +144,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
             ))}
           </div>
           <div className="text-[12px] text-faint mt-3">Enforced on the server for every request. Use “View as” in the header to try a role. Owner permissions are locked.</div>
+          <DiscountCeiling initial={maxDisc} isOwner={isOwner} />
         </div>
       ) : null}
 

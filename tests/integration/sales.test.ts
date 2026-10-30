@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer, invoiceData } from "@/domain/sales/service";
-import { approveDiscount } from "@/domain/sales/approval";
+import { approveDiscount, maxDiscount, saveMaxDiscount } from "@/domain/sales/approval";
 import { hashPassword } from "@/server/auth";
 import { addDays, todayISO, dateOnly, fiscalYear } from "@/lib/dates";
 import { GST_DOC_RE } from "@/lib/docno";
@@ -165,5 +165,19 @@ describe("sale commit", () => {
     const cn = (await db.salesReturn.findFirstOrThrow({ where: { saleId: s.saleId } })).creditNoteNo;
     expect(cn).toBe(`CN-${fy}-999999`);
     expect(cn).toMatch(GST_DOC_RE);
+  });
+
+  it("only the owner sets the discount ceiling, within 0–90%", async () => {
+    const owner = await ctxFor(), manager = await ctxFor("Manager");
+    await expect(saveMaxDiscount(manager, 30)).rejects.toThrow(/Manage users|Only the owner/);
+    await expect(saveMaxDiscount({ ...owner, role: "Manager" }, 30)).rejects.toThrow(/Only the owner/);
+    await expect(saveMaxDiscount(owner, 91)).rejects.toThrow(/0 to 90/);
+    await expect(saveMaxDiscount(owner, 12.5)).rejects.toThrow(/whole number/);
+    await saveMaxDiscount(owner, 30);
+    expect(await maxDiscount(owner.tenantId)).toBe(30);
+    await db.batch.update({ where: { id: late }, data: { qtyAvailable: 10 } });
+    await expect(commitSale(owner, sale([{ medicineId: dolo, batchId: late, qty: 1 }], { discountPct: 35 }))).rejects.toThrow(/above 30% aren’t allowed/);
+    expect((await db.auditEvent.findFirstOrThrow({ where: { action: "Discount ceiling changed" } })).detail).toBe("50% → 30%");
+    await saveMaxDiscount(owner, 50);
   });
 });

@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { run } from "@/server/action";
 import { addCounter, inviteEmployee, issueReset, resetTwoStep, revokeInvite, saveBranch, setUserPermission, togglePermission, updateMember, verifyAudit, type branchSchema, type inviteSchema, type MemberPatch } from "@/domain/identity/admin";
 import { approveTransfer, cancelTransfer, receiveTransfer, rejectTransfer } from "@/domain/inventory/adjust";
+import { saveMaxDiscount } from "@/domain/sales/approval";
 import type { Perm } from "@/domain/identity/permissions";
 import type { z } from "zod";
 
@@ -24,3 +25,4 @@ export async function transferAction(id: string, a: "approve" | "reject" | "rece
   return fresh(await run((c) => (a === "approve" ? approveTransfer(c, id) : a === "reject" ? rejectTransfer(c, id) : cancelTransfer(c, id)), a === "approve" ? "Approved. Stock is in transit." : a === "reject" ? "Transfer rejected." : "Transfer cancelled. Stock is back at the sending branch."));
 }
 export async function verifyAction() { return run(async (c) => verifyAudit(c)); }
+export async function maxDiscountAction(pct: number) { return fresh(await run((c) => saveMaxDiscount(c, pct), "Discount ceiling saved.")); }
