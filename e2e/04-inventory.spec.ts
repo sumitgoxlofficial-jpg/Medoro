@@ -34,16 +34,45 @@ test.describe("inventory", () => {
     await expect(line.getByText("Sellable", { exact: true })).toBeVisible();
     await expect(drawer.getByText(/Sellable · reorder/).locator("..")).toContainText("30 · 10");
 
-    await line.getByRole("button", { name: "Quarantine" }).click();
+    const actions = async (action: string, f: { qty?: string; reason?: string; dir?: "add" | "remove"; to?: string } = {}) => {
+      await line.getByRole("button", { name: `Actions for ${batch}` }).click();
+      const m = page.getByRole("dialog").filter({ hasText: "in stock · cost" });
+      await m.getByLabel("Action").selectOption({ label: action });
+      if (f.dir) await m.getByLabel("Direction").selectOption(f.dir);
+      if (f.to) await m.getByLabel("To branch").selectOption({ label: f.to });
+      if (f.qty) await m.getByRole("textbox", { name: "Units" }).fill(f.qty);
+      if (f.reason != null) await m.getByLabel(/^(Details \(required\)|Note)$/).fill(f.reason);
+      await m.getByRole("button", { name: action, exact: true }).click();
+      await expect(m).toHaveCount(0);
+    };
+    const sellable = drawer.getByText(/Sellable · reorder/).locator("..");
+
+    await actions("Quarantine", { reason: "Damaged strips" });
     await expectToast(page, "Batch quarantined. It is blocked from sale.");
     await expect(line.getByText("Quarantined")).toBeVisible();
     await expect(line).toContainText("Damaged strips");
-    await expect(drawer.getByText(/Sellable · reorder/).locator("..")).toContainText("0 · 10");
+    await expect(sellable).toContainText("0 · 10");
 
-    await line.getByRole("button", { name: "Release" }).click();
+    await actions("Release from quarantine");
     await expectToast(page, "Batch released for sale.");
     await expect(line.getByText("Sellable", { exact: true })).toBeVisible();
-    await expect(drawer.getByText("No movements yet.")).toHaveCount(0);
+
+    await actions("Stock adjustment (+/−)", { dir: "remove", qty: "2", reason: "miscounted at GRN" });
+    await expectToast(page, new RegExp(`posted\\. ${batch} is now 28\\.`));
+    await actions("Write off", { qty: "3", reason: "strip torn" });
+    await expectToast(page, /posted to Stock loss\./);
+    await expect(sellable).toContainText("25 · 10");
+    expect((await db().batch.findFirstOrThrow({ where: { batchNo: batch } })).qtyAvailable).toBe(25);
+
+    // A transfer requested from the batch shows under Inventory → Transfers and can be rejected there.
+    await actions("Transfer to another branch", { to: "Kothrud", qty: "4", reason: "Kothrud is short" });
+    await expectToast(page, /requested\./);
+    await page.goto("/app/inventory?tab=transfers");
+    const tr = page.locator("div.grid").filter({ hasText: "Kothrud is short" });
+    await expect(tr.getByText("Awaiting approval")).toBeVisible();
+    await tr.getByRole("button", { name: "Reject" }).click();
+    await expect(tr.getByText("Rejected", { exact: true })).toBeVisible();
+    expect((await db().batch.findFirstOrThrow({ where: { batchNo: batch } })).qtyAvailable).toBe(25);
   });
 
   test("near-expiry batches show on the expiry page; a stock count posts the variance", async ({ page }) => {
@@ -88,11 +117,11 @@ test.describe("inventory", () => {
     const r = rowOf(page, mainBatch);
     await expect(r).toContainText(`${kothrud} sells`);
     await r.getByRole("button", { name: "Transfer" }).click();
-    await expectToast(page, /requested\. Approve it in Users & branches\./);
+    await expectToast(page, /requested\. It is approved under Inventory → Transfers/);
 
-    await page.goto("/app/users?tab=branches");
+    await page.goto("/app/inventory?tab=transfers");
     const tr = page.locator("div.grid").filter({ hasText: `${main} → ${kothrud}` }).filter({ hasText: name });
-    await expect(tr.getByText("Pending approval")).toBeVisible();
+    await expect(tr.getByText("Awaiting approval")).toBeVisible();
     await tr.getByRole("button", { name: "Approve" }).click();
     await expectToast(page, "Approved. Stock is in transit.");
     await expect(tr.getByText("In transit")).toBeVisible();
