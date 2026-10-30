@@ -25,16 +25,17 @@ describe("stock operations and intelligence", () => {
     b2 = (await db.batch.findFirstOrThrow({ where: { batchNo: "OK2" } })).id;
   });
 
-  it("count adjusts relative to the snapshot, keeping sales made meanwhile", async () => {
+  it("count adjusts against the quantity at posting time, so re-posting the same count is a no-op", async () => {
     const ctx = await ctxFor("Pharmacist");
-    const snapshot = 40;
     await commitSale(ctx, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: b1, qty: 2 }], customerId: null, discountPct: 0, pay: { mode: "cash" } });
-    const r = await postCount(ctx, { lines: [{ batchId: b1, system: snapshot, counted: 37 }] });
+    const r = await postCount(ctx, { lines: [{ batchId: b1, counted: 35 }] });
     expect(r.changed).toBe(1);
     expect((await db.batch.findUniqueOrThrow({ where: { id: b1 } })).qtyAvailable).toBe(35); // 38 after sale, −3 short
+    expect((await postCount(ctx, { lines: [{ batchId: b1, counted: 35 }] })).changed).toBe(0);
+    expect((await db.batch.findUniqueOrThrow({ where: { id: b1 } })).qtyAvailable).toBe(35);
     const j = await db.voucher.findFirstOrThrow({ where: { refType: "stock_count" }, include: { lines: true } });
     expect(j.lines.find((l) => l.account === "Stock loss")!.debitPaise).toBe(4050n);
-    await expect(postCount(await ctxFor("Cashier"), { lines: [{ batchId: b1, system: 1, counted: 1 }] })).rejects.toThrow(/role/);
+    await expect(postCount(await ctxFor("Cashier"), { lines: [{ batchId: b1, counted: 1 }] })).rejects.toThrow(/role/);
   });
 
   it("supplier return reduces stock and payable; write-off posts stock loss; opening stock can't be returned", async () => {

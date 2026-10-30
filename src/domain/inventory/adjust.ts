@@ -125,19 +125,21 @@ export async function rejectTransfer(ctx: Ctx, id: string) {
 
 // ───────────── Stock count ─────────────
 
-export const countSchema = z.object({ lines: z.array(z.object({ batchId: z.string().uuid(), system: z.number().int().min(0), counted: z.number().int().min(0) })).min(1, "Enter counted quantities first."), note: z.string().max(200).default("") });
+export const countSchema = z.object({ lines: z.array(z.object({ batchId: z.string().uuid(), counted: z.number().int().min(0) })).min(1, "Enter counted quantities first."), note: z.string().max(200).default("") });
 
 /**
- * Posts a physical count. Each adjustment is counted − system-at-count-time, applied to the current
- * quantity, so sales made while counting aren't lost. Variance at cost posts to Stock loss.
+ * Posts a physical count. Each adjustment is counted − the batch's quantity at posting time (read under
+ * row lock), so re-posting the same count or counting batches received after the screen opened is safe.
+ * Variance at cost posts to Stock loss.
  */
 export async function postCount(ctx: Ctx, raw: z.input<typeof countSchema>) {
   authorize(ctx, "adjust");
   const i = countSchema.parse(raw);
+  if (new Set(i.lines.map((l) => l.batchId)).size !== i.lines.length) throw new UserError("A batch is listed twice.");
   return db.$transaction(async (tx) => {
     const ids = i.lines.map((l) => l.batchId);
     const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} AND "branchId" = ${ctx.branchId} AND id = ANY(${ids}) ORDER BY id FOR UPDATE`;
-    if (locked.length !== new Set(ids).size) throw new UserError("Some batches aren’t at this branch.");
+    if (locked.length !== ids.length) throw new UserError("Some batches aren’t at this branch.");
     const batches = await tx.batch.findMany({ where: { id: { in: ids } }, include: { medicine: { select: { name: true } } } });
     const fy = fiscalYear();
     const no = `SC-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "SC:" + fy))}`;
@@ -145,13 +147,12 @@ export async function postCount(ctx: Ctx, raw: z.input<typeof countSchema>) {
     const out = [];
     for (const l of i.lines) {
       const b = batches.find((x) => x.id === l.batchId)!;
-      const d = l.counted - l.system;
-      out.push({ batchId: b.id, name: b.medicine.name, batchNo: b.batchNo, system: l.system, counted: l.counted, diff: d, valuePaise: d * big(b.costPaise) });
+      const system = b.qtyAvailable, d = l.counted - system;
+      out.push({ batchId: b.id, name: b.medicine.name, batchNo: b.batchNo, system, counted: l.counted, diff: d, valuePaise: d * big(b.costPaise) });
       if (!d) continue;
-      const apply = Math.max(d, -b.qtyAvailable);
-      await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { increment: apply }, version: { increment: 1 } } });
-      await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: apply, type: "count", refType: "stock_count", refId: no, userId: ctx.userId, note: `${no} · counted ${l.counted}, system ${l.system}` } });
-      value += apply * big(b.costPaise); changed++;
+      await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { increment: d }, version: { increment: 1 } } });
+      await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: d, type: "count", refType: "stock_count", refId: no, userId: ctx.userId, note: `${no} · counted ${l.counted}, system ${system}` } });
+      value += d * big(b.costPaise); changed++;
     }
     await tx.stockCount.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, no, userId: ctx.userId, lines: out, note: i.note || null } });
     if (value) await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "journal", userId: ctx.userId, refType: "stock_count", refId: no, narration: `${no} · stock count variance`,
