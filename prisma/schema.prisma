@@ -24,6 +24,7 @@ enum PoStatus {
   partially_received
   received
   cancelled
+  closed // short-closed: the remaining quantity is no longer expected
 }
 
 enum PayMode {
@@ -336,7 +337,8 @@ model Supplier {
   creditDays     Int             @default(0)
   leadDays       Decimal         @default(1)
   acceptsReturns Boolean         @default(true)
-  accuracyPct    Int             @default(100)
+  accuracyPct    Int             @default(100) // unused: delivery accuracy is computed from POs and GRNs
+  stateCode      String? // 2-digit GST state code; falls back to the GSTIN prefix
   version        Int             @default(0)
   batches        Batch[]
   orders         PurchaseOrder[]
@@ -377,17 +379,21 @@ model SupplierBill {
 // ───────────── Purchasing ─────────────
 
 model PurchaseOrder {
-  id         String              @id @default(uuid())
-  tenantId   String
-  branchId   String
-  no         String
-  supplierId String
-  supplier   Supplier            @relation(fields: [supplierId], references: [id])
-  status     PoStatus            @default(draft)
-  createdBy  String
-  createdAt  DateTime            @default(now())
-  source     String? // manual, intel, ai, seasonal
-  items      PurchaseOrderItem[]
+  id           String              @id @default(uuid())
+  tenantId     String
+  branchId     String
+  no           String
+  supplierId   String
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  status       PoStatus            @default(draft)
+  createdBy    String
+  createdAt    DateTime            @default(now())
+  source       String? // manual, intel, ai, seasonal
+  placedAt     DateTime?
+  closedAt     DateTime?
+  closedBy     String?
+  closedReason String?
+  items        PurchaseOrderItem[]
 
   @@unique([tenantId, no])
 }
@@ -412,6 +418,7 @@ model Grn {
   totalPaise        BigInt
   poId              String?
   scanDocId         String?
+  igst              Boolean   @default(false) // inter-state: input tax booked as IGST
   approvedBy        String
   approvedAt        DateTime  @default(now())
   items             GrnItem[]

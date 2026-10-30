@@ -7,6 +7,8 @@ export const ACC = {
   sgst: "Output SGST",
   inCgst: "Input CGST",
   inSgst: "Input SGST",
+  igst: "Output IGST",
+  inIgst: "Input IGST",
   roundOff: "Round off",
   debtors: "Sundry debtors",
   creditors: "Sundry creditors",
