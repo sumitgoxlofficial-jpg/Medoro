@@ -7,6 +7,7 @@ import { todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
 import { postVoucher } from "@/domain/accounting/post";
 import { lockOpenShift } from "./returns";
+import { adjustPointsForReturn } from "./loyalty";
 
 /**
  * Cancels today's bill in full. Nothing is edited: stock goes back to the same batches, the sales
@@ -38,6 +39,9 @@ export async function voidSale(ctx: Ctx, saleId: string, rawReason: string) {
     const cash = refunds.filter((r) => r.mode === "cash").reduce((a, r) => a + r.amountPaise, 0);
     const shift = await lockOpenShift(tx, ctx);
     const v = await tx.saleVoid.create({ data: { tenantId: ctx.tenantId, branchId: sale.branchId, saleId: sale.id, reason: reason.slice(0, 200), userId: ctx.userId, shiftId: shift?.id ?? null, refunds, cashRefundPaise: BigInt(cash) } });
+    // Earned points are taken back and redeemed ones given back in full.
+    const base = sale.items.reduce((a, it) => a + big(it.mrpPaise) * it.qty - big(it.discountPaise), 0);
+    await adjustPointsForReturn(tx, ctx, sale, v.id, `Void of ${sale.invoiceNo}`, base, base);
     await postVoucher(tx, {
       tenantId: ctx.tenantId, branchId: sale.branchId, type: "reversal", userId: ctx.userId, refType: "sale_void", refId: v.id, reversesId: orig.id,
       narration: `Void of ${sale.invoiceNo}${sale.customer ? " · " + sale.customer.name : ""} · ${reason.slice(0, 120)}`,

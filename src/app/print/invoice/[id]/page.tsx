@@ -16,6 +16,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const s = await invoiceData(ctx, id);
   if (!s) notFound();
   const voidNote = s.voided ? `VOID · cancelled ${fmtDate(s.voided.at)} · ${s.voided.reason}` : null;
+  const pointsLine = s.points ? `Loyalty points: ${s.points.redeemed ? `${s.points.redeemed} redeemed, ` : ""}${s.points.earned} earned, balance ${s.points.balance}` : null;
   const payLabel = s.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amount)}${p.ref ? ` (${p.ref})` : ""}`).join(" + ");
 
   if (format === "thermal") {
@@ -48,6 +49,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <div className="r" style={{ fontSize: 14, fontWeight: 700 }}><span>TOTAL</span><span>{inr(s.totals.total)}</span></div>
         <div className="hr" />
         <div className="c">Paid: {payLabel}</div>
+        {pointsLine ? <div className="c">{pointsLine}</div> : null}
         <div className="c">Prices include GST · Thank you</div>
         <AutoPrint />
       </div>
@@ -99,6 +101,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         </table>
       </div>
       <div style={{ marginTop: 10 }}>Paid by {payLabel}. Prices are MRP inclusive of GST. Billed by {s.cashier}.</div>
+      {pointsLine ? <div>{pointsLine}</div> : null}
       <div style={{ marginTop: 28, display: "flex", justifyContent: "flex-end" }}><div style={{ borderTop: "1px solid #999", paddingTop: 4, width: 200, textAlign: "center" }}>Authorised signatory</div></div>
       <AutoPrint />
     </div>

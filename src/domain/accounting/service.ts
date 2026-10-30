@@ -105,7 +105,7 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
   const dr = (a: string) => -cr(a);
   const sales = cr(ACC.sales) - dr(ACC.salesReturns);
   const cogs = Number(cogsRows[0]?.c ?? 0);
-  const expenseLines = [...EXPENSE_ACCOUNTS, ACC.stockLoss, ACC.cashDiff, ACC.roundOff].map((a) => ({ account: a, amount: dr(a) })).filter((x) => x.amount !== 0);
+  const expenseLines = [...EXPENSE_ACCOUNTS, ACC.loyalty, ACC.stockLoss, ACC.cashDiff, ACC.roundOff].map((a) => ({ account: a, amount: dr(a) })).filter((x) => x.amount !== 0);
   const expenses = expenseLines.reduce((a, x) => a + x.amount, 0);
   const bal = (a: string) => (all.get(a)?.dr ?? 0) - (all.get(a)?.cr ?? 0);
   const rates = [...new Set([...gstOut.map((g) => g.rate), ...gstIn.map((g) => g.rate)])].sort((a, b) => a - b);
