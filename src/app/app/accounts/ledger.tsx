@@ -9,11 +9,11 @@ const td = "px-3.5 py-2 border-b border-row align-top";
 const inp = "border border-input rounded-lg px-2.5 py-1.5 text-[13.5px] text-ink bg-white";
 const drcr = (n: number) => `${inr(Math.abs(n))} ${n < 0 ? "Cr" : n > 0 ? "Dr" : ""}`.trim();
 
-export function AccountsTabs({ view }: { view: "overview" | "tb" | "ledger" }) {
+export function AccountsTabs({ view }: { view: "overview" | "tb" | "ledger" | "gst" }) {
   const tab = (v: string, label: string, href: string) => (
     <Link key={v} href={href} className={"rounded-full px-3 py-1.5 text-[13px] font-medium border no-underline " + (view === v ? "bg-teal text-white border-teal" : "bg-white text-ink-2 border-input")}>{label}</Link>
   );
-  return <div className="flex gap-1.5 mb-3.5">{tab("overview", "Overview", "/app/accounts")}{tab("tb", "Trial balance", "/app/accounts?view=tb")}{tab("ledger", "Account ledger", "/app/accounts?view=ledger")}</div>;
+  return <div className="flex gap-1.5 mb-3.5">{tab("overview", "Overview", "/app/accounts")}{tab("tb", "Trial balance", "/app/accounts?view=tb")}{tab("ledger", "Account ledger", "/app/accounts?view=ledger")}{tab("gst", "GST returns", "/app/accounts?view=gst")}</div>;
 }
 
 export function TrialBalanceView({ tb }: { tb: Awaited<ReturnType<typeof trialBalance>> }) {
