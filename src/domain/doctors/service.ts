@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeAny, authorizeView, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, istMidnight, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
@@ -67,7 +67,7 @@ export type DoctorSalesRow = { key: string; doctorId: string | null; name: strin
  * that name and are marked unlinked. Returns are credit notes against those bills.
  */
 export async function doctorSales(ctx: Ctx, fromDay: string, toDay: string, branchId: string | "all") {
-  authorize(ctx, "reports");
+  authorizeView(ctx, "reports");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDay) || !/^\d{4}-\d{2}-\d{2}$/.test(toDay) || fromDay > toDay) throw new UserError("Choose a valid period.");
   const mine = ctx.branches.map((b) => b.id);
   if (branchId !== "all" && !mine.includes(branchId)) throw new UserError("You don’t have access to that branch.");

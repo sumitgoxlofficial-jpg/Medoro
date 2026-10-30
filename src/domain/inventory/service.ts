@@ -165,6 +165,9 @@ async function rescaleStock(tx: Tx, ctx: Ctx, m: { id: string; name: string; pac
   return held.length;
 }
 
+/** "3 strips + 2 tabs" for medicines kept in loose units; "30 units" for medicines kept in packs. */
+const receivedText = (units: number, m: Parameters<typeof fmtQty>[1]) => (m.packSize > 1 ? fmtQty(units, m) : `${units} unit${units === 1 ? "" : "s"}`);
+
 /** Receives a batch. With a supplier it posts a one-line GRN (payable, input GST, supplier bill). Cost is per pack excluding GST. */
 export async function receiveBatch(ctx: Ctx, raw: ReceiveInput) {
   return db.$transaction((tx) => receiveBatchIn(tx, ctx, raw));
@@ -187,7 +190,7 @@ export async function receiveBatchIn(tx: Tx, ctx: Ctx, raw: ReceiveInput) {
     const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
       lines: [{ medicineId: m.id, batchNo: i.batchNo, expiry: i.expiry, qty: packs, freeQty: 0, rate: i.cost / 100, mrp: i.mrp / 100, poItemId: null }] });
     const b = await tx.batch.findFirstOrThrow({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
-    return { batchId: b.id, grnNo: r.grnNo, units, unitsText: fmtQty(units, m) };
+    return { batchId: b.id, grnNo: r.grnNo, units, unitsText: receivedText(units, m) };
   }
   const b = await tx.batch.create({
     data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo, expiryDate: dateOnly(i.expiry), qtyAvailable: units, costPaise: BigInt(i.cost), mrpPaise: BigInt(i.mrp) },
@@ -197,7 +200,7 @@ export async function receiveBatchIn(tx: Tx, ctx: Ctx, raw: ReceiveInput) {
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "journal", userId: ctx.userId, refType: "opening_stock", refId: b.id, narration: `Opening stock · ${m.name} ${i.batchNo} × ${fmtQty(units, m)}`,
     lines: [{ account: ACC.inventory, dr: packs * i.cost }, { account: ACC.opening, cr: packs * i.cost }] });
   await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Opening stock entered", entity: "batch", entityId: b.id, detail: `${m.name} · ${i.batchNo} × ${fmtQty(units, m)}` });
-  return { batchId: b.id, grnNo: null as string | null, units, unitsText: fmtQty(units, m) };
+  return { batchId: b.id, grnNo: null as string | null, units, unitsText: receivedText(units, m) };
 }
 /** Quarantine blocks a batch from sale; release makes it sellable again. Logged as a zero-qty movement. */
 export async function setQuarantine(ctx: Ctx, batchId: string, quarantine: boolean, note: string) {

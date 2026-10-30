@@ -106,7 +106,7 @@ export function authorizeAny(ctx: Ctx, ...ps: Perm[]) {
   if (ps.every((p) => BUSINESS_PERMS.has(p))) requireSubscription(ctx);
 }
 
-/** Permission check for screens that only show data; read-only support sessions may look. */
-export function authorizeView(ctx: Ctx, p: Perm) {
-  if (!can(ctx, p)) throw new ForbiddenError(p);
+/** Permission check for screens that only show data (any of `ps`); read-only support sessions may look. */
+export function authorizeView(ctx: Ctx, ...ps: [Perm, ...Perm[]]) {
+  if (!ps.some((p) => can(ctx, p))) throw new ForbiddenError(ps[0]);
 }

@@ -44,6 +44,8 @@ test.describe("business", () => {
       await dlg.getByLabel("MRP per pack ₹ *").fill("20");
       await dlg.getByRole("button", { name: "Save medicine" }).click();
       await expect(dlg.getByText(/^Subscription expired — renew from Plan\./)).toBeVisible();
+      // Full exports are rate-limited per user (3 an hour); earlier specs already downloaded with this owner.
+      await db().rateLimit.deleteMany({ where: { key: { startsWith: "fullExport:" } } });
       expect((await page.request.get("/api/export")).status()).toBe(200);
     } finally {
       await db().subscriptionMeta.update({ where: { tenantId: t.id }, data: { status: before.status, renewsAt: before.renewsAt, graceDays: before.graceDays, signedDoc: before.signedDoc } });

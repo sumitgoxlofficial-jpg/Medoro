@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeView, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
 import { addDays, dateOnly, daysTo, fiscalYear, isoOf, todayISO } from "@/lib/dates";
@@ -124,7 +124,7 @@ export async function creditClaim(ctx: Ctx, id: string, raw: ClaimCreditInput) {
 
 /** Open and recent claims with their age, and an aging summary of what each supplier still owes on claims. */
 export async function listClaims(ctx: Ctx) {
-  authorizeAny(ctx, "purchase", "payments");
+  authorizeView(ctx, "purchase", "payments");
   const claims = await db.supplierClaim.findMany({ where: { tenantId: ctx.tenantId, OR: [{ status: { in: ["raised", "acknowledged"] } }, { settledAt: { gte: new Date(Date.now() - 90 * 86400_000) } }] }, orderBy: { raisedAt: "desc" }, take: 300 });
   const [sups, batches] = await Promise.all([
     db.supplier.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(claims.map((c) => c.supplierId))] } }, select: { id: true, name: true } }),
@@ -154,7 +154,7 @@ export async function listClaims(ctx: Ctx) {
  * return window (already expired stock included), grouped by supplier.
  */
 export async function nearExpiryClaims(ctx: Ctx) {
-  authorizeAny(ctx, "purchase", "payments");
+  authorizeView(ctx, "purchase", "payments");
   const sups = await db.supplier.findMany({ where: { tenantId: ctx.tenantId, acceptsReturns: true }, select: { id: true, name: true, returnWindowDays: true } });
   const maxWindow = Math.max(0, ...sups.map((s) => s.returnWindowDays));
   const batches = await db.batch.findMany({

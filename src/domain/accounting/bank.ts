@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeView, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, dateOnly, isoOf } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
@@ -165,7 +165,7 @@ export async function unmatchBankLine(ctx: Ctx, bankLineId: string) {
  * from), book entries on the Bank account not on any statement, and the last statement balance against the books.
  */
 export async function bankReconciliation(ctx: Ctx) {
-  authorizeAny(ctx, "payments", "reports");
+  authorizeView(ctx, "payments", "reports");
   const [open, matched, first, last, recent] = await Promise.all([
     db.bankLine.findMany({ where: { tenantId: ctx.tenantId, ledgerLineId: null }, orderBy: { date: "asc" }, take: 500 }),
     db.bankLine.count({ where: { tenantId: ctx.tenantId, ledgerLineId: { not: null } } }),

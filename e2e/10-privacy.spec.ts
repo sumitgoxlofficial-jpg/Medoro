@@ -7,7 +7,7 @@ test.describe("privacy & data", () => {
   test("full export downloads JSON of the pharmacy's data", async ({ page }) => {
     await page.goto("/app/privacy");
     await expect(page.getByText("Strict customer-controlled mode is on")).toBeVisible();
-    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "Export all pharmacy data (JSON)" }).click()]);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "Export all data (JSON)" }).click()]);
     expect(dl.suggestedFilename()).toMatch(/^medoro-export-\d{4}-\d{2}-\d{2}\.json$/);
     const raw = readFileSync(await dl.path(), "utf8");
     const data = JSON.parse(raw);
