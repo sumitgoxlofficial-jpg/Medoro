@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { checkLock, clearFailures, lockKeys, recordFailure } from "@/server/auth";
+import { db } from "@/server/db";
 import { resetDb } from "./helpers";
 
 describe("sign-in lockout", () => {
@@ -26,5 +27,21 @@ describe("sign-in lockout", () => {
     await recordFailure(k);
     await clearFailures(k);
     expect(await recordFailure(k)).toBe(4);
+  });
+
+  it("the IP counter is a sliding window: failures older than 15 minutes stop counting", async () => {
+    const ip = "10.4.4.4";
+    for (let i = 0; i < 49; i++) await recordFailure(lockKeys(`acct:w${i}@x.in`, ip));
+    await db.$executeRaw`UPDATE "LoginAttempt" SET "updatedAt" = now() - interval '16 minutes' WHERE key = ${"ip:" + ip}`;
+    await recordFailure(lockKeys("acct:late@x.in", ip));
+    expect((await db.loginAttempt.findUniqueOrThrow({ where: { key: "ip:" + ip } })).failures).toBe(1);
+    expect(await checkLock(lockKeys("acct:fresh@x.in", ip))).toBe(0);
+  });
+
+  it("attempts left always refers to the account, not the shared IP", async () => {
+    const ip = "10.5.5.5";
+    for (let i = 0; i < 47; i++) await recordFailure(lockKeys(`acct:v${i}@x.in`, ip));
+    expect(await recordFailure(lockKeys("acct:me@x.in", ip))).toBe(4);
+    expect(await recordFailure(lockKeys("acct:me@x.in", ip))).toBe(3);
   });
 });
