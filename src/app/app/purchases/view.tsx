@@ -46,6 +46,12 @@ function Orders({ orders, catalogue, suppliers, grns }: { orders: Order[]; catal
   const [creating, setCreating] = useState(false);
   const [, start] = useTransition();
   const act = (id: string, a: "place" | "cancel") => start(async () => { const r = await poStatusAction(id, a); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); });
+  const printPo = (id: string) => {
+    // "noopener" in the features makes window.open return null even when the tab opened.
+    const w = window.open(`/print/po/${id}`, "_blank");
+    if (!w) toast("Allow pop-ups to print purchase orders.", "amber");
+    else w.opener = null;
+  };
   return (
     <>
       <div className="flex justify-end"><Button variant="primary" onClick={() => setCreating(true)} disabled={!suppliers.length || !catalogue.length} title={!suppliers.length ? "Add a supplier first" : !catalogue.length ? "Add medicines first" : ""}><Plus size={16} />New purchase order</Button></div>
@@ -68,7 +74,7 @@ function Orders({ orders, catalogue, suppliers, grns }: { orders: Order[]; catal
                         <div className="flex gap-1.5 justify-end">
                           {o.status === "draft" ? <Button size="sm" variant="primary" onClick={() => act(o.id, "place")}>Place order</Button> : null}
                           {o.status === "ordered" || o.status === "partially_received" ? <Button size="sm" variant="primary" onClick={() => router.push(`/app/purchases?tab=receive&po=${o.id}`)}>Receive</Button> : null}
-                          {o.status !== "draft" && o.status !== "cancelled" ? <Button size="sm" aria-label="Print" onClick={() => window.open(`/print/po/${o.id}`, "_blank", "noopener")}><Printer size={13} /></Button> : null}
+                          {o.status !== "draft" && o.status !== "cancelled" ? <Button size="sm" aria-label="Print" onClick={() => printPo(o.id)}><Printer size={13} /></Button> : null}
                           {o.status === "draft" || o.status === "ordered" ? <Button size="sm" variant="danger-outline" onClick={() => { if (confirm(`Cancel ${o.no}?`)) act(o.id, "cancel"); }}>Cancel</Button> : null}
                         </div>
                       </td>
