@@ -4,7 +4,7 @@
 - Sign-in: mobile OTP (rate-limited, 6 digits, 5-minute expiry, 5 attempts) or email plus password (Argon2id, at least 10 characters, breach-list check).
 - MFA with TOTP is **required** for Owner and Manager and optional for others. There are recovery codes.
 - Sessions: httpOnly, Secure, SameSite=Lax cookies. Server-side session table; `token_version` lets one action revoke every session. Idle timeout 12 h on counters, 2 h for admin screens.
-- Login lockout: 5 failures → 15-minute cooldown per account and IP.
+- Login lockout: 5 failures → 15-minute cooldown per account; 50 failures from one IP → 15-minute IP throttle. Proxy headers are only trusted on Vercel or with `TRUST_PROXY=1`.
 - **No default credentials.** The setup wizard creates the owner.
 
 ## Authorisation
