@@ -105,7 +105,7 @@ export function RestoreSetup({ driveApp, driveAccount, onBack }: { driveApp: boo
       )}
       <label className="flex flex-col gap-1.5 text-[13px] text-muted"><span className="flex items-center gap-1.5"><KeyRound size={15} className="text-teal" />Recovery kit: paste the whole kit or its 43-character backup decryption key</span>
         <textarea value={kit} onChange={(e) => { setKit(e.target.value); reset(); }} rows={3} className={cn(inp, "font-mono text-[13px]")} aria-label="Recovery kit" autoComplete="off" spellCheck={false} />
-        <span className="text-[12.5px]">or open the kit file: <input type="file" accept=".txt,text/plain" className="text-[12.5px]" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setKit(await f.text()); reset(); } }} /></span>
+        <span className="text-[12.5px]">or open the kit file: <input type="file" accept=".html,.txt,text/html,text/plain" className="text-[12.5px]" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { setKit(await f.text()); reset(); } }} /></span>
       </label>
       {preview ? (
         <div className="flex flex-col gap-2.5 border border-teal-line bg-[#F7FBFA] rounded-[10px] p-3.5">

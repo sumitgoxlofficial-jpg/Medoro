@@ -17,7 +17,9 @@ import { driveDownload, saveDriveToken, tenantDrive } from "./gdrive";
 /** The 32-byte key from a recovery kit: paste the whole kit or just the key line. */
 export function parseKit(text: string) {
   const t = String(text ?? "").trim();
-  const m = /Backup decryption key:\s*([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/.exec(t) ?? /^([A-Za-z0-9_-]{43})$/.exec(t);
+  // The printable kit page (meta tag), an older text kit, the bare key, or the key as printed in groups of four.
+  const m = /<meta name="medoro-recovery-key" content="([A-Za-z0-9_-]{43})">/.exec(t)
+    ?? /Backup decryption key:\s*([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/.exec(t) ?? /^([A-Za-z0-9_-]{43})$/.exec(t.replace(/\s+/g, ""));
   const key = m ? Buffer.from(m[1], "base64url") : null;
   if (!key || key.length !== 32) throw new UserError("Enter the 43-character backup decryption key from the recovery kit, or paste the whole kit.");
   return key;

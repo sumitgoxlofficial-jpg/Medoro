@@ -91,10 +91,11 @@ test("first-run setup wizard → MFA enrolment → dashboard", async ({ page }) 
   await page.getByRole("button", { name: "Finish setup" }).click();
   await expect(page.getByText("Download the recovery kit and confirm you stored it.")).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download & print" }).click()]);
-  expect(dl.suggestedFilename()).toBe(`medoro-recovery-kit-${OWNER.tenantCode}.txt`);
-  const lines = readFileSync(await dl.path(), "utf8").split("\n");
-  expect(lines[0]).toBe("MEDORO BACKUP RECOVERY KIT");
-  const recoveryKey = lines[lines.indexOf("Backup decryption key:") + 1].trim();
+  expect(dl.suggestedFilename()).toBe(`medoro-recovery-kit-${OWNER.tenantCode}.html`);
+  const kitPage = readFileSync(await dl.path(), "utf8");
+  expect(kitPage).toContain("<h1>Medoro backup recovery kit</h1>");
+  expect(kitPage).toContain("<svg"); // the key as a QR code
+  const recoveryKey = /<meta name="medoro-recovery-key" content="([^"]+)">/.exec(kitPage)?.[1] ?? "";
   expect(recoveryKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
   await expect(page.getByText(/Downloaded · key fingerprint/)).toBeVisible();
   await page.getByLabel(/stored the recovery kit offline/).check();

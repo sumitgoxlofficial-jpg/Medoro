@@ -11,6 +11,7 @@ import { backupFile, discardRestore, prune, runBackup, saveBackupSettings, testR
 import { consentUrl, driveDisconnect, driveState, DriveScopeMissing, exchangeCode, pkce, saveDriveToken } from "@/domain/system/gdrive";
 import { freshRestore, importBackup, parseKit, previewFreshRestore, reenterKit } from "@/domain/system/recovery";
 import { backupHealth, badgesAndAlerts } from "@/domain/reports/alerts";
+import { recoveryKitHtml } from "@/components/recovery-kit";
 import { ctxFor, KEY, makePharmacy, resetDb } from "./helpers";
 
 type DFile = { id: string; name: string; parents: string[]; mimeType: string; appProperties?: Record<string, string>; bytes: Buffer; createdTime: string };
@@ -261,6 +262,9 @@ describe("Google Drive: connect, back up, store files, prune and recover", () =>
     await resetDb();
     vi.stubEnv("HOST_KEY", "n".repeat(40));
     expect(() => parseKit("not a key")).toThrow(/43-character/);
+    const kitPage = recoveryKitHtml({ pharmacy: "Test Medical Store", code: "TEST-PUNE", key: KEY, fingerprint: "AB:CD:EF:01" });
+    expect(parseKit(kitPage).equals(Buffer.from(KEY, "base64url"))).toBe(true);
+    expect(parseKit(KEY.match(/.{1,4}/g)!.join(" ")).equals(Buffer.from(KEY, "base64url"))).toBe(true);
     await expect(previewFreshRestore(file, "C".repeat(43))).rejects.toThrow(/doesn’t open this backup/);
     const pv = await previewFreshRestore(file, KEY);
     expect(pv).toMatchObject({ pharmacy: "Test Medical Store", code: "TEST-PUNE", users: 1, branches: 2, files: 1 });
