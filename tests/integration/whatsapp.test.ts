@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { connectWhatsApp, handleWebhook, sendInvoice, verifyWebhook } from "@/domain/comms/whatsapp";
+import { campaignRef, draftCampaign, retryCampaignMessage, sendCampaign } from "@/domain/comms/crm";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, todayISO } from "@/lib/dates";
@@ -80,5 +81,31 @@ describe("WhatsApp", () => {
     await expect(sendInvoice(ctx, sale, "9822041736", true)).rejects.toThrow(/Recipient/);
     await expect(sendInvoice(ctx, sale, "9822041736", true)).rejects.toThrow(/limit/);
     expect((await db.waMessage.findFirstOrThrow()).attempts).toBe(3);
+  });
+
+  it("campaigns resume without resending, finish as sent, and failed messages can be retried", async () => {
+    fail = false;
+    const ctx = await ctxFor();
+    const ids = [];
+    for (const [n, ph] of [["Asha Rao", "9822000101"], ["Bina", "9822000102"], ["Chetan", "9822000103"]] as const) ids.push(await createCustomer(ctx, { name: n, phone: ph, waOptIn: true, creditLimit: "0" }));
+    await draftCampaign(ctx, "Diwali", "invoice_share");
+    const camp = await db.campaign.findFirstOrThrow({ where: { name: "Diwali" } });
+    // A previous run reached Asha, then the server died with the campaign still "sending".
+    await db.campaign.update({ where: { id: camp.id }, data: { status: "sending" } });
+    await db.waMessage.create({ data: { tenantId: camp.tenantId, invoiceId: campaignRef(camp.id), invoiceNo: "Diwali", recipient: "9822000101", idempotencyKey: `camp:${camp.id}:${ids[0]}`, status: "sent", attempts: 1 } });
+    const before = calls.filter((c) => c.endsWith("/messages")).length;
+    const r = await sendCampaign(ctx, camp.id);
+    expect(r).toEqual({ ok: 2, bad: 0, done: true });
+    expect(calls.filter((c) => c.endsWith("/messages")).length - before).toBe(2);
+    expect(await db.campaign.findUniqueOrThrow({ where: { id: camp.id } })).toMatchObject({ status: "sent", audience: 3 });
+    await expect(sendCampaign(ctx, camp.id)).rejects.toThrow(/already sent/);
+
+    const m = await db.waMessage.findUniqueOrThrow({ where: { idempotencyKey: `camp:${camp.id}:${ids[1]}` } });
+    await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
+    expect((await retryCampaignMessage(ctx, m.id)).status).toBe("sent");
+    expect(await db.waMessage.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: "sent", attempts: 2 });
+    await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
+    await db.customer.update({ where: { id: ids[1] }, data: { waOptIn: false } });
+    await expect(retryCampaignMessage(ctx, m.id)).rejects.toThrow(/opted out/);
   });
 });

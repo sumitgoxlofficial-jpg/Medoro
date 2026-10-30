@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
+import { Prisma } from "@prisma/client";
 import { unseal } from "@/server/vault";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import type { WaConfig } from "./whatsapp";
@@ -42,10 +43,11 @@ export async function refillReminders(ctx: Ctx) {
 
 export async function listCampaigns(ctx: Ctx) {
   const cs = await db.campaign.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "desc" }, take: 50 });
-  const sent = await db.waMessage.groupBy({ by: ["invoiceId", "status"], where: { tenantId: ctx.tenantId, invoiceId: { in: cs.map((c) => "campaign:" + c.id) } }, _count: true });
+  const sent = await db.waMessage.groupBy({ by: ["invoiceId", "status"], where: { tenantId: ctx.tenantId, invoiceId: { in: cs.map((c) => campaignRef(c.id)) } }, _count: true });
   return cs.map((c) => ({ id: c.id, name: c.name, template: c.template, audience: c.audience, status: c.status, createdAt: c.createdAt.toISOString(),
-    delivered: sent.filter((s) => s.invoiceId === "campaign:" + c.id && (s.status === "delivered" || s.status === "read")).reduce((a, s) => a + s._count, 0),
-    failed: sent.filter((s) => s.invoiceId === "campaign:" + c.id && s.status === "failed").reduce((a, s) => a + s._count, 0) }));
+    delivered: sent.filter((s) => s.invoiceId === campaignRef(c.id) && (s.status === "delivered" || s.status === "read")).reduce((a, s) => a + s._count, 0),
+    failed: sent.filter((s) => s.invoiceId === campaignRef(c.id) && s.status === "failed").reduce((a, s) => a + s._count, 0),
+    handled: sent.filter((s) => s.invoiceId === campaignRef(c.id)).reduce((a, s) => a + s._count, 0) }));
 }
 
 export async function draftCampaign(ctx: Ctx, name: string, template: string) {
@@ -57,35 +59,107 @@ export async function draftCampaign(ctx: Ctx, name: string, template: string) {
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign drafted", entity: "campaign", entityId: c.id, detail: `${c.name} · ${template} · ${audience} opted in` });
 }
 
-/** Sends a template to every opted-in customer (body variable 1 = their name). Each recipient once. */
+/** Campaign messages are logged with this in place of an invoice id. */
+export const campaignRef = (id: string) => "campaign:" + id;
+const CAMPAIGN_BATCH = 100;
+// Stop well inside a server action's time limit; the caller repeats until done.
+const SEND_BUDGET_MS = 40_000;
+
+async function campaignSender(tenantId: string, template: string) {
+  const i = await db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "whatsapp" } } });
+  if (!i?.connectedAt || !i.encryptedSecret) throw new UserError("Connect WhatsApp Business first.");
+  const cfg = i.config as WaConfig, tok = (JSON.parse(unseal(i.encryptedSecret).toString()) as { token: string }).token;
+  const tpl = cfg.templates.find((t) => t.name === template);
+  if (!tpl || tpl.status !== "approved") throw new UserError(`Template ${template} isn’t approved by Meta yet.`);
+  return async (phone: string, name: string) => {
+    const res = await fetch(`https://graph.facebook.com/${process.env.WA_GRAPH_VERSION ?? "v21.0"}/${cfg.phoneNumberId}/messages`, {
+      method: "POST", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, signal: AbortSignal.timeout(20_000),
+      body: JSON.stringify({ messaging_product: "whatsapp", to: "91" + phone, type: "template", template: { name: tpl.name, language: { code: tpl.language }, components: [{ type: "body", parameters: [{ type: "text", text: name.split(" ")[0] }] }] } }),
+    });
+    const j = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string } };
+    if (!res.ok || !j.messages) throw new Error(j.error?.message ?? String(res.status));
+    return j.messages[0].id;
+  };
+}
+
+/**
+ * Sends a template to every opted-in customer (body variable 1 = their name), in batches. Each
+ * recipient's message is recorded before it goes out, so running it again (after a crash, a timeout
+ * or a "Resume") skips everyone already handled. Returns done: false when it stopped for time.
+ */
 export async function sendCampaign(ctx: Ctx, id: string) {
   authorize(ctx, "integrations");
   const c = await db.campaign.findFirst({ where: { id, tenantId: ctx.tenantId } });
-  if (!c || c.status !== "draft") throw new UserError("Only draft campaigns can be sent.");
-  const i = await db.integration.findUnique({ where: { tenantId_kind: { tenantId: ctx.tenantId, kind: "whatsapp" } } });
-  if (!i?.connectedAt || !i.encryptedSecret) throw new UserError("Connect WhatsApp Business first.");
-  const cfg = i.config as WaConfig, tok = (JSON.parse(unseal(i.encryptedSecret).toString()) as { token: string }).token;
-  const tpl = cfg.templates.find((t) => t.name === c.template);
-  if (!tpl || tpl.status !== "approved") throw new UserError(`Template ${c.template} isn’t approved by Meta yet.`);
-  const r = await db.campaign.updateMany({ where: { id, status: "draft" }, data: { status: "sending" } });
-  if (!r.count) throw new UserError("Already sending.");
-  const people = await db.customer.findMany({ where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } }, take: 1000 });
-  let ok = 0, bad = 0;
-  for (const p of people) {
-    const key = `camp:${id}:${p.id}`;
-    if (await db.waMessage.findUnique({ where: { idempotencyKey: key } })) continue;
-    const m = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: "campaign:" + id, invoiceNo: c.name.slice(0, 60), recipient: p.phone!, idempotencyKey: key, status: "queued", attempts: 1 } });
-    try {
-      const res = await fetch(`https://graph.facebook.com/${process.env.WA_GRAPH_VERSION ?? "v21.0"}/${cfg.phoneNumberId}/messages`, { method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, signal: AbortSignal.timeout(20_000),
-        body: JSON.stringify({ messaging_product: "whatsapp", to: "91" + p.phone, type: "template", template: { name: tpl.name, language: { code: tpl.language }, components: [{ type: "body", parameters: [{ type: "text", text: p.name.split(" ")[0] }] }] } }) });
-      const j = (await res.json()) as { messages?: { id: string }[]; error?: { message?: string } };
-      if (!res.ok || !j.messages) throw new Error(j.error?.message ?? String(res.status));
-      await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid: j.messages[0].id } }); ok++;
-    } catch (e) { await db.waMessage.update({ where: { id: m.id }, data: { status: "failed", errorCode: (e instanceof Error ? e.message : "failed").slice(0, 200) } }); bad++; }
+  if (!c || !["draft", "sending", "failed"].includes(c.status)) throw new UserError("This campaign was already sent.");
+  const send = await campaignSender(ctx.tenantId, c.template);
+  if (c.status !== "sending") {
+    const r = await db.campaign.updateMany({ where: { id, status: c.status }, data: { status: "sending" } });
+    if (!r.count) throw new UserError("Already sending.");
+  } else {
+    // A run that died between recording and sending: Meta may or may not have it, so don't resend blindly.
+    await db.waMessage.updateMany({ where: { tenantId: ctx.tenantId, invoiceId: campaignRef(id), status: "queued", updatedAt: { lt: new Date(Date.now() - 2 * 60_000) } }, data: { status: "failed", errorCode: "Interrupted before WhatsApp confirmed it. Retry if the customer didn’t get it." } });
   }
-  await db.campaign.update({ where: { id }, data: { status: "sent", audience: people.length } });
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign sent", entity: "campaign", entityId: id, detail: `${c.name} · ${ok} sent · ${bad} failed` });
-  return { ok, bad };
+  const started = Date.now();
+  let ok = 0, bad = 0, cursor: string | undefined;
+  try {
+    for (;;) {
+      if (Date.now() - started > SEND_BUDGET_MS) return { ok, bad, done: false };
+      const people = await db.customer.findMany({
+        where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } }, orderBy: { id: "asc" }, take: CAMPAIGN_BATCH,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      if (!people.length) break;
+      cursor = people[people.length - 1].id;
+      const keys = people.map((p) => `camp:${id}:${p.id}`);
+      const seen = new Set((await db.waMessage.findMany({ where: { idempotencyKey: { in: keys } }, select: { idempotencyKey: true } })).map((m) => m.idempotencyKey));
+      for (const p of people) {
+        const key = `camp:${id}:${p.id}`;
+        if (seen.has(key)) continue;
+        // A concurrent run may claim the same recipient; the unique key lets exactly one send.
+        const m = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: campaignRef(id), invoiceNo: c.name.slice(0, 60), recipient: p.phone!, idempotencyKey: key, status: "queued", attempts: 1 } })
+          .catch((e) => { if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return null; throw e; });
+        if (!m) continue;
+        try {
+          const wamid = await send(p.phone!, p.name);
+          await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid } }); ok++;
+        } catch (e) { await db.waMessage.update({ where: { id: m.id }, data: { status: "failed", errorCode: (e instanceof Error ? e.message : "failed").slice(0, 200) } }); bad++; }
+      }
+    }
+  } catch (e) {
+    await db.campaign.updateMany({ where: { id, status: "sending" }, data: { status: "failed" } });
+    await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign stopped", entity: "campaign", entityId: id, detail: `${c.name} · ${ok} sent · ${bad} failed before an error; resume to continue` });
+    throw e;
+  }
+  const recipients = await db.waMessage.count({ where: { tenantId: ctx.tenantId, invoiceId: campaignRef(id) } });
+  await db.campaign.updateMany({ where: { id, status: "sending" }, data: { status: "sent", audience: recipients } });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign sent", entity: "campaign", entityId: id, detail: `${c.name} · ${recipients} recipients · ${ok} sent · ${bad} failed in the last run` });
+  return { ok, bad, done: true };
+}
+
+/** Retries one failed campaign message (3 attempts in all), only if the customer is still opted in. */
+export async function retryCampaignMessage(ctx: Ctx, messageId: string) {
+  authorize(ctx, "integrations");
+  const m = await db.waMessage.findFirst({ where: { id: messageId, tenantId: ctx.tenantId } });
+  if (!m || !m.invoiceId.startsWith(campaignRef(""))) throw new UserError("Message not found.");
+  if (m.status !== "failed") throw new UserError(`Already ${m.status}.`);
+  if (m.attempts >= 3) throw new UserError("Retry limit reached (3 attempts).");
+  const c = await db.campaign.findFirst({ where: { id: m.invoiceId.slice(campaignRef("").length), tenantId: ctx.tenantId } });
+  if (!c) throw new UserError("Campaign not found.");
+  const p = await db.customer.findFirst({ where: { id: m.idempotencyKey.split(":")[2], tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } } });
+  if (!p) throw new UserError("This customer has opted out or has no mobile number now.");
+  const send = await campaignSender(ctx.tenantId, c.template);
+  const claimed = await db.waMessage.updateMany({ where: { id: m.id, status: "failed", attempts: m.attempts }, data: { status: "queued", attempts: m.attempts + 1, recipient: p.phone!, errorCode: null } });
+  if (!claimed.count) throw new UserError("This message is already being retried.");
+  try {
+    const wamid = await send(p.phone!, p.name);
+    await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid } });
+  } catch (e) {
+    const msg = (e instanceof Error ? e.message : "Send failed").slice(0, 200);
+    await db.waMessage.update({ where: { id: m.id }, data: { status: "failed", errorCode: msg } });
+    throw new UserError(msg);
+  }
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Campaign message retried", entity: "wa_message", entityId: m.id, detail: `${c.name} → ${p.phone!.slice(0, 5)}•••••` });
+  return { status: "sent" as const, id: m.id };
 }
 
 export async function optOuts(ctx: Ctx) {

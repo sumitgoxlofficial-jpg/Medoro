@@ -75,3 +75,10 @@ export function cartTotals(items: TaxLineInput[], discountPct: number): CartTota
   const cgst = Math.floor(tax / 2);
   return { lines, mrpTotal, discount, taxable, tax, cgst, sgst: tax - cgst, net, roundOff: total - net, total, cost };
 }
+
+/**
+ * Share of `total` for `units` more of `qty`, after `done` were already taken. Allocates on the
+ * cumulative count so repeated partial returns add up to exactly `total`, never more.
+ */
+export const shareOf = (total: Paise, qty: number, done: number, units: number): Paise =>
+  Math.round((total * (done + units)) / qty) - Math.round((total * done) / qty);

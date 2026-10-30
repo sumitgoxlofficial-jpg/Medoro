@@ -10,6 +10,7 @@ import { cn } from "@/components/ui/cn";
 import { cartTotals, inr, inr0, toPaise } from "@/lib/money";
 import { daysTo, monthYear, hhmm } from "@/lib/dates";
 import { isSellable, nextFefo } from "@/domain/inventory/fefo";
+import { getDevice } from "@/lib/offline/store";
 import type { Invoice, SaleMedicine } from "@/domain/sales/service";
 import { addCustomerAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
 
@@ -38,6 +39,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const [results, setResults] = useState<SaleMedicine[] | null>(null);
   const [hl, setHl] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [netDown, setNetDown] = useState(false);
   const [sale, setSale] = useState<Invoice | null>(null);
   const [newCust, setNewCust] = useState(false);
   const idemRef = useRef<string>(newKey());
@@ -50,6 +52,9 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   }, [storageKey]);
   useEffect(() => { if (loaded) try { localStorage.setItem(storageKey, JSON.stringify(cart)); } catch {} }, [cart, loaded, storageKey]);
   useEffect(() => { if (sp.get("focus")) searchRef.current?.focus(); }, [sp]);
+  // Customers and held carts change on other counters; take fresh server data without touching the cart.
+  useEffect(() => setCustomers(initialCustomers), [initialCustomers]);
+  useEffect(() => setHeld(initialHeld), [initialHeld]);
 
   const set = (p: Partial<Cart>) => setCart((c) => ({ ...c, ...p }));
   const used = (lines: Line[], batchId: string, except?: string) => lines.filter((l) => l.batchId === batchId && l.key !== except).reduce((a, l) => a + l.qty, 0);
@@ -127,29 +132,36 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     const err = checkoutError();
     if (err) { toast(err, "red"); return; }
     setBusy(true);
-    const r = await commitSaleAction({
-      idempotencyKey: idemRef.current,
-      lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })),
-      customerId: cart.cust || null, discountPct: disc,
-      pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
-      prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined,
-    });
-    if (!r.ok) {
-      setBusy(false);
-      toast(r.error, "red");
-      // Refresh batch info so the cashier sees current stock.
-      if (/Stock changed|blocked|expired|quarantined/.test(r.error)) {
-        const ids = [...new Set(cart.lines.map((l) => l.medicineId))];
-        const fresh = await Promise.all(ids.map((id) => searchAction(cart.meds[id].name)));
-        setCart((c) => ({ ...c, meds: { ...c.meds, ...Object.fromEntries(fresh.flat().filter((m) => ids.includes(m.id)).map((m) => [m.id, m])) } }));
+    try {
+      const r = await commitSaleAction({
+        idempotencyKey: idemRef.current,
+        lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })),
+        customerId: cart.cust || null, discountPct: disc,
+        pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
+        prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined,
+      });
+      setNetDown(false);
+      if (!r.ok) {
+        toast(r.error, "red");
+        // Refresh batch info so the cashier sees current stock.
+        if (/Stock changed|blocked|expired|quarantined/.test(r.error)) {
+          const ids = [...new Set(cart.lines.map((l) => l.medicineId))];
+          const fresh = await Promise.all(ids.map((id) => searchAction(cart.meds[id].name)));
+          setCart((c) => ({ ...c, meds: { ...c.meds, ...Object.fromEntries(fresh.flat().filter((m) => ids.includes(m.id)).map((m) => [m.id, m])) } }));
+        }
+        return;
       }
-      return;
+      const inv = await invoiceAction(r.data.saleId);
+      setSale(inv);
+      setCart(empty());
+      idemRef.current = newKey();
+    } catch {
+      // The request may have reached the server; the idempotency key is kept so a retry posts at most once.
+      toast("Couldn’t reach the server. Check the connection and press Complete again; the bill won’t be posted twice.", "red");
+      setNetDown(await getDevice().then((d) => !!d, () => false));
+    } finally {
+      setBusy(false);
     }
-    const inv = await invoiceAction(r.data.saleId);
-    setSale(inv);
-    setCart(empty());
-    idemRef.current = newKey();
-    setBusy(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, sale, cart, disc, totals, cust, needsRx]);
 
@@ -328,6 +340,11 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             style={{ background: cart.lines.length && !busy ? "#0B5E5B" : "#8DB5B1" }}>
             {busy ? "Committing sale…" : `${t.complete} · ${inr(totals.total)}`}<span className="font-mono text-[11px] opacity-80 border border-white/50 rounded px-1">F9</span>
           </button>
+          {netDown ? (
+            <div className="text-[12.5px] text-warn bg-warn-bg px-2.5 py-2 rounded-[7px]">
+              Still no connection? This counter has offline billing. Retry first (the bill may already be saved), then <a href="/offline" className="font-semibold underline">open offline billing</a>.
+            </div>
+          ) : null}
           <div className="flex gap-2">
             <Button className="flex-1" onClick={hold}>{t.hold} (F4)</Button>
             <Button className="flex-1 text-bad" onClick={() => { if (cart.lines.length && !confirm("Clear this cart?")) return; setCart(empty()); }}>Clear</Button>
@@ -356,17 +373,30 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
   const [phone, setPhone] = useState(""), [verified, setVerified] = useState(false);
   const [msg, setMsg] = useState<{ status: string; attempts: number; error: string | null } | null>(null);
   const [sending, setSending] = useState(false);
-  useEffect(() => { setPhone(sale?.customer?.phone ?? ""); setVerified(false); setMsg(null); }, [sale]);
-  // Delivery updates arrive through Meta's webhook; poll the stored status while the receipt is open.
   useEffect(() => {
-    if (!sale || !msg || msg.status === "read" || msg.status === "failed") return;
-    const t = setInterval(() => messageStatusAction(sale.id).then((m) => m && setMsg(m)), 3000);
+    setPhone(sale?.customer?.phone ?? ""); setVerified(false); setMsg(null);
+    if (!sale) return;
+    // Auto-send may already have queued a message for this sale.
+    let live = true;
+    messageStatusAction(sale.id).then((m) => { if (live && m) setMsg(m); }, () => {});
+    return () => { live = false; };
+  }, [sale]);
+  // Delivery updates arrive through Meta's webhook; poll the stored status while the receipt is open.
+  // With no message yet, keep checking for opted-in customers, whose invoice auto-send runs in the background.
+  useEffect(() => {
+    if (!sale || (msg ? msg.status === "read" || msg.status === "failed" : !sale.customer?.optIn)) return;
+    const t = setInterval(() => messageStatusAction(sale.id).then((m) => m && setMsg(m), () => {}), 3000);
     return () => clearInterval(t);
   }, [sale, msg]);
   if (!sale) return null;
   const s = sale;
   const payLabel = s.payments.length > 1 ? s.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amount)}`).join(" + ") : s.payMode.toUpperCase();
-  const print = (format: "thermal" | "a4") => { const w = window.open(`/print/invoice/${s.id}?format=${format}`, "_blank", "noopener"); if (!w) toast("Allow pop-ups to print invoices.", "amber"); };
+  const print = (format: "thermal" | "a4") => {
+    // "noopener" in the features makes window.open return null even when the tab opened.
+    const w = window.open(`/print/invoice/${s.id}?format=${format}`, "_blank");
+    if (!w) toast("Allow pop-ups to print invoices.", "amber");
+    else w.opener = null;
+  };
   const when = new Date(s.at);
   const failed = msg?.status === "failed";
   const idx = msg ? WA_STEPS.indexOf(msg.status as (typeof WA_STEPS)[number]) : -1;

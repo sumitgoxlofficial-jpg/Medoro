@@ -84,6 +84,46 @@ describe("offline billing", () => {
     expect(await db.sale.count({ where: { idempotencyKey: short.id } })).toBe(1);
   });
 
+  it("a conflict older than the offline window can still be posted, dated today with the billed time kept", async () => {
+    const ctx = await ctxFor("Cashier"), mgr = await ctxFor("Manager");
+    const dev = (await db.device.findFirstOrThrow({ where: { name: "Counter 1" } })).id;
+    const old = op([{ medicineId: dolo, batchId: d2, qty: 1 }], { createdAt: new Date(Date.now() - 10 * 86_400_000).toISOString() });
+    expect((await syncOps(ctx, dev, [old]))[0].message).toMatch(/last 7 days/);
+    expect((await resolveOp(mgr, old.id, "repost")).status).toBe("posted");
+    const sale = await db.sale.findFirstOrThrow({ where: { idempotencyKey: old.id } });
+    expect(Date.now() - sale.at.getTime()).toBeLessThan(60_000);
+    expect((await offlineOverview(mgr)).ops.find((x) => x.id === old.id)?.message).toMatch(/past the 7-day offline window/);
+  });
+
+  it("posts offline bills as the cashier who made them, rechecked against the device", async () => {
+    const t = await db.tenant.findFirstOrThrow();
+    const role = await db.role.findFirstOrThrow({ where: { tenantId: t.id, name: "Cashier" } });
+    const sneha = await db.user.create({ data: { tenantId: t.id, name: "Sneha", phone: "9850021877", roleId: role.id, employeeNo: "E-102" } });
+    const ravi = await db.user.create({ data: { tenantId: t.id, name: "Ravi", phone: "9850021878", roleId: role.id, employeeNo: "E-103" } });
+    const syncer = await ctxFor("Manager");
+    const dev = (await db.device.findFirstOrThrow({ where: { name: "Counter 1" } })).id;
+    const s = await snapshot({ ...(await ctxFor("Cashier")), userId: sneha.id, userName: sneha.name }, dev);
+    expect(s.cashierId).toBe(sneha.id);
+    const line = [{ medicineId: dolo, batchId: d2, qty: 1 }];
+
+    const mine = { ...op(line), cashierId: sneha.id };
+    expect((await syncOps(syncer, dev, [mine]))[0].status).toBe("posted");
+    expect((await db.sale.findFirstOrThrow({ where: { idempotencyKey: mine.id } })).userId).toBe(sneha.id);
+
+    // The cashier's own discount cap applies, not the syncing manager's.
+    const disc = { ...op(line), cashierId: sneha.id, sale: { ...op(line).sale, discountPct: 8 } };
+    expect((await syncOps(syncer, dev, [disc]))[0].message).toMatch(/above 5%/);
+
+    const stranger = { ...op(line), cashierId: ravi.id };
+    expect((await syncOps(syncer, dev, [stranger]))[0].message).toMatch(/can’t bill on this device/);
+    await db.user.update({ where: { id: sneha.id }, data: { active: false } });
+    expect((await syncOps(syncer, dev, [{ ...op(line), cashierId: sneha.id }]))[0].status).toBe("conflict");
+
+    const legacy = op(line);
+    expect((await syncOps(syncer, dev, [legacy]))[0].status).toBe("posted");
+    expect((await db.sale.findFirstOrThrow({ where: { idempotencyKey: legacy.id } })).userId).toBe(syncer.userId);
+  });
+
   it("refuses a device that was turned off or belongs to another pharmacy", async () => {
     const mgr = await ctxFor("Manager");
     const dev = (await db.device.findFirstOrThrow({ where: { name: "Counter 2" } })).id;

@@ -18,6 +18,21 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
   const [p, setP] = useState(s);
   const [name, setName] = useState(""), [tpl, setTpl] = useState(templates[0] ?? "");
   const toggle = (k: "refill" | "feedback", v: boolean) => { setP({ ...p, [k]: v }); start(async () => { const r = await crmAction({ [k]: v }); if (!r.ok) toast(r.error, "red"); }); };
+  // The server sends in time-boxed runs and skips recipients already handled, so repeating finishes (or resumes) it.
+  const send = (c: { id: string; name: string; audience: number; status: string }) => {
+    if (!confirm(c.status === "draft" ? `Send “${c.name}” to ${c.audience} opted-in customers?` : `Resume “${c.name}”? Customers who already got it are skipped.`)) return;
+    start(async () => {
+      let ok = 0, bad = 0;
+      for (;;) {
+        const r = await sendAction(c.id);
+        if (!r.ok) return toast(ok || bad ? `Stopped after ${ok} sent: ${r.error} Resume to continue.` : r.error, "red");
+        ok += r.data.ok; bad += r.data.bad;
+        if (r.data.done) break;
+        toast(`Sending… ${ok} sent so far.`, "blue");
+      }
+      toast(`Sent to ${ok}${bad ? `, ${bad} failed` : ""}.`, bad && !ok ? "red" : "green");
+    });
+  };
   return (
     <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] max-w-[1300px] items-start">
       <div className="flex flex-col gap-4">
@@ -44,8 +59,9 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
           {campaigns.map((c) => (
             <div key={c.id} className="flex items-center gap-3 py-1.5 border-b border-row text-[13.5px]">
               <div className="flex flex-col flex-1 min-w-0"><strong className="font-semibold">{c.name}</strong><span className="text-[12px] text-faint">{c.template} · {c.audience} opted in · {dayMonth(new Date(c.createdAt))}</span></div>
-              <Badge tone={c.status === "sent" ? "green" : c.status === "draft" ? "blue" : "amber"}>{c.status === "sent" ? `Sent · ${c.delivered} delivered${c.failed ? ` · ${c.failed} failed` : ""}` : c.status}</Badge>
-              {c.status === "draft" && connected ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { if (confirm(`Send “${c.name}” to ${c.audience} opted-in customers?`)) start(async () => { const r = await sendAction(c.id); toast(r.ok ? `Sent to ${r.data.ok}${r.data.bad ? `, ${r.data.bad} failed` : ""}.` : r.error, r.ok ? "green" : "red"); }); }}>Send</Button> : null}
+              <Badge tone={c.status === "sent" ? "green" : c.status === "draft" ? "blue" : c.status === "failed" ? "red" : "amber"}>{c.status === "sent" ? `Sent · ${c.delivered} delivered${c.failed ? ` · ${c.failed} failed` : ""}` : c.status === "sending" || c.status === "failed" ? `${c.status === "failed" ? "Stopped" : "Sending"} · ${c.handled} of ~${c.audience}` : c.status}</Badge>
+              {c.status === "draft" && connected ? <Button size="sm" variant="primary" disabled={pending} onClick={() => send(c)}>Send</Button> : null}
+              {(c.status === "sending" || c.status === "failed") && connected ? <Button size="sm" disabled={pending} onClick={() => send(c)}>Resume</Button> : null}
             </div>
           ))}
           {connected ? (

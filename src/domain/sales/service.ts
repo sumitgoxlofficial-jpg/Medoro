@@ -11,9 +11,12 @@ import { discountCap } from "@/domain/identity/permissions";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { customerBalance } from "@/domain/parties/balances";
+import { lockOpenShift } from "./returns";
 import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "./contracts";
 
 export const OFFLINE_MAX_DAYS = 7;
+export const withinOfflineWindow = (at: Date, now = Date.now()) =>
+  !Number.isNaN(at.getTime()) && at.getTime() <= now + 5 * 60_000 && at.getTime() >= now - OFFLINE_MAX_DAYS * 86_400_000;
 export type CommitResult = { saleId: string; invoiceNo: string; total: number; replayed: boolean };
 
 /**
@@ -21,18 +24,18 @@ export type CommitResult = { saleId: string; invoiceNo: string; total: number; r
  * stock (row-locked), batch eligibility, prices from the database, discount cap,
  * prescription rule, credit permission and limit. Same idempotency key → same sale.
  */
-export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date } = {}): Promise<CommitResult> {
+export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date; note?: string } = {}): Promise<CommitResult> {
   authorize(ctx, "sale");
   const input = saleSchema.parse(raw);
   // Offline sales keep the time they were billed; bounded so a wrong device clock can't backdate books.
   const at = opts.at;
-  if (at && (Number.isNaN(at.getTime()) || at.getTime() > Date.now() + 5 * 60_000 || at.getTime() < Date.now() - OFFLINE_MAX_DAYS * 86_400_000)) {
+  if (at && !withinOfflineWindow(at)) {
     throw new UserError(`The bill time must be within the last ${OFFLINE_MAX_DAYS} days.`);
   }
   const existing = await db.sale.findUnique({ where: { tenantId_idempotencyKey: { tenantId: ctx.tenantId, idempotencyKey: input.idempotencyKey } } });
   if (existing) return { saleId: existing.id, invoiceNo: existing.invoiceNo, total: big(existing.totalPaise), replayed: true };
   try {
-    return await db.$transaction((tx) => commitTx(tx, ctx, input, at), { timeout: 15000 });
+    return await db.$transaction((tx) => commitTx(tx, ctx, input, at, opts.note), { timeout: 15000 });
   } catch (e) {
     // A concurrent request with the same key won the race: return its result.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -43,7 +46,7 @@ export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date } =
   }
 }
 
-async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<CommitResult> {
+async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: string): Promise<CommitResult> {
   const today = todayISO(at);
   const ids = [...new Set(input.lines.map((l) => l.batchId))];
   // Lock the batches so two counters can't sell the same last unit.
@@ -84,6 +87,8 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<
   } else if (m === "credit") {
     if (!can(ctx, "credit")) throw new UserError("Your role cannot make credit sales.");
     if (!customer) throw new UserError("Select a customer for a credit sale.");
+    // Serialise credit sales per customer so two counters can't both fit under the limit.
+    await tx.$queryRaw`SELECT id FROM "Customer" WHERE id = ${customer.id} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
     const due = await customerBalance(tx, ctx.tenantId, customer.id);
     if (due + t.total > big(customer.creditLimitPaise)) throw new UserError(`Exceeds ${customer.name}’s credit limit (${inr0(big(customer.creditLimitPaise))}, ${inr0(due)} already due).`);
     pay.credit = t.total;
@@ -98,7 +103,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<
   const n = await nextSeq(tx, ctx.tenantId, `INV:${ctx.branchId}:${fy}`);
   const prefix = (tenant.settings as { invoicePrefix?: string }).invoicePrefix ?? "INV";
   const invoiceNo = `${prefix}/${branch.code}/${fy}/${String(n).padStart(6, "0")}`;
-  const shift = await tx.shift.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, closedAt: null, counter: ctx.counterId ?? "user:" + ctx.userId } });
+  const shift = await lockOpenShift(tx, ctx);
 
   const sale = await tx.sale.create({
     data: {
@@ -126,7 +131,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date): Promise<
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "sales", narration: `Sale ${invoiceNo}${customer ? " · " + customer.name : ""}`, userId: ctx.userId, refType: "sale", refId: sale.id, date: at, lines: vl });
   await writeAudit(tx, {
     tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Sale committed", entity: "sale", entityId: sale.id,
-    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}`,
+    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%` : ""}${rx ? " · Rx" : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
   });
   return { saleId: sale.id, invoiceNo, total: t.total, replayed: false };
 }

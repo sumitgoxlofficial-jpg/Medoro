@@ -92,6 +92,16 @@ describe("sale commit", () => {
     expect(pays.map((p) => [p.mode, Number(p.amountPaise)]).sort()).toEqual([["cash", 5000], ["upi", sp.total - 5000]]);
   });
 
+  it("concurrent credit sales can't together exceed a customer's limit", async () => {
+    await db.batch.update({ where: { id: late }, data: { qtyAvailable: 10 } });
+    const manager = await ctxFor("Manager");
+    const cust = await createCustomer(manager, { name: "Suresh", phone: "9822041799", waOptIn: false, creditLimit: "200" });
+    // Each bill is ₹101; one fits under ₹200, two don't.
+    const r = await Promise.allSettled([1, 2].map(() => commitSale(manager, sale([{ medicineId: dolo, batchId: late, qty: 3 }], { customerId: cust, pay: { mode: "credit" } }))));
+    expect(r.filter((x) => x.status === "fulfilled")).toHaveLength(1);
+    expect(String((r.find((x) => x.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/credit limit/);
+  });
+
   it("posted sales can't be edited", async () => {
     const s = await db.sale.findFirstOrThrow();
     await expect(db.sale.update({ where: { id: s.id }, data: { totalPaise: 1n } })).rejects.toThrow(/append-only/);
