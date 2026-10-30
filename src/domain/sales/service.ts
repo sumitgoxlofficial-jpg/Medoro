@@ -32,18 +32,30 @@ export async function commitSale(ctx: Ctx, raw: SaleInput, opts: { at?: Date; no
   if (at && !withinOfflineWindow(at)) {
     throw new UserError(`The bill time must be within the last ${OFFLINE_MAX_DAYS} days.`);
   }
-  const existing = await db.sale.findUnique({ where: { tenantId_idempotencyKey: { tenantId: ctx.tenantId, idempotencyKey: input.idempotencyKey } } });
-  if (existing) return { saleId: existing.id, invoiceNo: existing.invoiceNo, total: big(existing.totalPaise), replayed: true };
+  const existing = await replayOf(ctx.tenantId, input);
+  if (existing) return existing;
   try {
     return await db.$transaction((tx) => commitTx(tx, ctx, input, at, opts.note), { timeout: 15000 });
   } catch (e) {
     // A concurrent request with the same key won the race: return its result.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      const s = await db.sale.findUnique({ where: { tenantId_idempotencyKey: { tenantId: ctx.tenantId, idempotencyKey: input.idempotencyKey } } });
-      if (s) return { saleId: s.id, invoiceNo: s.invoiceNo, total: big(s.totalPaise), replayed: true };
+      const s = await replayOf(ctx.tenantId, input);
+      if (s) return s;
     }
     throw e;
   }
+}
+
+const lineSig = (ls: { batchId: string; qty: number }[]) =>
+  Object.entries(ls.reduce<Record<string, number>>((m, l) => ({ ...m, [l.batchId]: (m[l.batchId] ?? 0) + l.qty }), {})).sort().join(";");
+
+/** The sale already saved under this key, if any. A key reused for a different cart is refused, never replayed. */
+async function replayOf(tenantId: string, input: SaleInput): Promise<CommitResult | null> {
+  const s = await db.sale.findUnique({ where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: input.idempotencyKey } }, include: { items: true } });
+  if (!s) return null;
+  const same = lineSig(s.items) === lineSig(input.lines) && Number(s.discountPct) === input.discountPct && (s.customerId ?? null) === (input.customerId ?? null) && s.payMode === input.pay.mode;
+  if (!same) throw new UserError(`This bill’s key was already used for ${s.invoiceNo}, which has different items or payment. Start a new bill.`);
+  return { saleId: s.id, invoiceNo: s.invoiceNo, total: big(s.totalPaise), replayed: true };
 }
 
 async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: string): Promise<CommitResult> {

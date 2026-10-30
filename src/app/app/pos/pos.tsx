@@ -42,7 +42,9 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const [netDown, setNetDown] = useState(false);
   const [sale, setSale] = useState<Invoice | null>(null);
   const [newCust, setNewCust] = useState(false);
-  const idemRef = useRef<string>(newKey());
+  // The key stays the same only while retrying the exact same bill after a network error.
+  const idemRef = useRef<{ key: string; sig: string | null }>({ key: newKey(), sig: null });
+  const freshKey = () => { idemRef.current = { key: newKey(), sig: null }; };
   const [, start] = useTransition();
 
   // Restore the cart after a reload or crash; save it on every change.
@@ -132,17 +134,21 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     const err = checkoutError();
     if (err) { toast(err, "red"); return; }
     setBusy(true);
+    const body = {
+      lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })),
+      customerId: cart.cust || null, discountPct: disc,
+      pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
+      prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined,
+    };
+    const sig = JSON.stringify(body);
+    if (idemRef.current.sig !== null && idemRef.current.sig !== sig) freshKey();
+    idemRef.current.sig = sig;
     try {
-      const r = await commitSaleAction({
-        idempotencyKey: idemRef.current,
-        lines: cart.lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })),
-        customerId: cart.cust || null, discountPct: disc,
-        pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
-        prescriber: cart.doctor || undefined, rxNo: cart.rxno || undefined,
-      });
+      const r = await commitSaleAction({ idempotencyKey: idemRef.current.key, ...body });
       setNetDown(false);
       if (!r.ok) {
         toast(r.error, "red");
+        if (/already used/.test(r.error)) freshKey();
         // Refresh batch info so the cashier sees current stock.
         if (/Stock changed|blocked|expired|quarantined/.test(r.error)) {
           const ids = [...new Set(cart.lines.map((l) => l.medicineId))];
@@ -154,7 +160,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       const inv = await invoiceAction(r.data.saleId);
       setSale(inv);
       setCart(empty());
-      idemRef.current = newKey();
+      freshKey();
     } catch {
       // The request may have reached the server; the idempotency key is kept so a retry posts at most once.
       toast("Couldn’t reach the server. Check the connection and press Complete again; the bill won’t be posted twice.", "red");
@@ -171,7 +177,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     start(async () => {
       const r = await holdAction(label, cart);
       if (!r.ok) return toast(r.error, "red");
-      setHeld(r.data); setCart(empty()); toast("Cart held. Recall it from the bar above the cart.", "blue");
+      setHeld(r.data); setCart(empty()); freshKey(); toast("Cart held. Recall it from the bar above the cart.", "blue");
     });
   }, [cart, totals.total, toast]);
 
@@ -180,7 +186,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     start(async () => {
       const r = await recallAction(id);
       if (!r.ok) return toast("That held cart was already recalled on another counter.", "amber");
-      setCart({ ...empty(), ...(r.data.cart as Cart) }); setHeld(r.data.held);
+      setCart({ ...empty(), ...(r.data.cart as Cart) }); setHeld(r.data.held); freshKey();
     });
   };
 
@@ -347,7 +353,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
           ) : null}
           <div className="flex gap-2">
             <Button className="flex-1" onClick={hold}>{t.hold} (F4)</Button>
-            <Button className="flex-1 text-bad" onClick={() => { if (cart.lines.length && !confirm("Clear this cart?")) return; setCart(empty()); }}>Clear</Button>
+            <Button className="flex-1 text-bad" onClick={() => { if (cart.lines.length && !confirm("Clear this cart?")) return; setCart(empty()); freshKey(); }}>Clear</Button>
           </div>
         </div>
       </div>

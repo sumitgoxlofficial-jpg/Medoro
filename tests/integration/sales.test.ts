@@ -63,6 +63,10 @@ describe("sale commit", () => {
     expect(x.saleId).toBe(y.saleId);
     expect(await db.sale.count({ where: { idempotencyKey: s.idempotencyKey } })).toBe(1);
     expect((await db.batch.findUniqueOrThrow({ where: { id: late } })).qtyAvailable).toBe(9);
+    // A key kept after a network error and reused for another cart must not replay the first sale.
+    await expect(commitSale(ctx, { ...s, lines: [{ medicineId: dolo, batchId: late, qty: 2 }] })).rejects.toThrow(/already used/);
+    await expect(commitSale(ctx, { ...s, discountPct: 2 })).rejects.toThrow(/already used/);
+    expect((await commitSale(ctx, s)).replayed).toBe(true);
   });
 
   it("two counters racing for the last units: exactly one succeeds", async () => {
