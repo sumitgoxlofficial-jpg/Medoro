@@ -1,6 +1,8 @@
 import "server-only";
 import { ZodError } from "zod";
 import { getCtx, type Ctx } from "./context";
+import { log } from "./log";
+import { countAction } from "./metrics";
 
 export type ActionResult<T = unknown> = { ok: true; data: T; message?: string } | { ok: false; error: string };
 
@@ -13,11 +15,14 @@ export async function run<T>(fn: (ctx: Ctx) => Promise<T>, message?: string): Pr
   if (ctx.readOnly) return { ok: false, error: "Medoro support access is read-only. Ask the pharmacy owner to make this change." };
   try {
     const data = await fn(ctx);
+    countAction("ok");
     return { ok: true, data, message };
   } catch (e) {
+    if (e instanceof ZodError || e instanceof UserError || (e instanceof Error && "status" in e)) countAction("user_error");
     if (e instanceof ZodError) return { ok: false, error: e.issues[0]?.message ?? "Invalid input." };
     if (e instanceof UserError || (e instanceof Error && "status" in e)) return { ok: false, error: e.message };
-    console.error(e);
+    countAction("error");
+    log.error("Server action failed.", { err: e });
     return { ok: false, error: "Something went wrong. Nothing was saved." };
   }
 }

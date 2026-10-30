@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { UserError } from "@/server/action";
+import { log } from "@/server/log";
 import { tokenMatches } from "@/server/setup-gate";
 import { createPharmacy, isSetupDone } from "@/domain/identity/service";
 import { passwordSchema } from "@/domain/identity/contracts";
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     if (e instanceof ZodError) return NextResponse.json({ error: e.issues[0]?.message ?? "Invalid input." }, { status: 400 });
     if (e instanceof UserError) return NextResponse.json({ error: e.message }, { status: 409 });
-    console.error(e);
+    log.error("Demo seed failed.", { err: e });
     return NextResponse.json({ error: "Something went wrong. Nothing was saved." }, { status: 500 });
   }
 }
