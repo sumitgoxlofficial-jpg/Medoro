@@ -44,3 +44,19 @@ See `.env.example`. Secrets go into the OS keystore or Docker secrets, never int
   `SESSION_SECRET`. Add a new `HOST_KEY` and keep `SESSION_SECRET` unchanged; the old values still open (the
   server logs a warning). Re-seal them under `HOST_KEY` by reconnecting WhatsApp and Google Drive, re-entering
   the backup recovery kit and re-enrolling authenticators, and only then rotate `SESSION_SECRET`.
+
+### Changing HOST_KEY (e.g. upgrading from a short key)
+New installs must use a `HOST_KEY` of at least 32 characters, and the app refuses to start with a shorter one.
+An existing install with a shorter key upgrades like this:
+
+1. Move the old value to `HOST_KEY_PREVIOUS` and set `HOST_KEY` to a new random value (`openssl rand -base64 48`).
+   Restart. Values sealed with the old key still open through `HOST_KEY_PREVIOUS`; new values are sealed with
+   `HOST_KEY`.
+2. The backup key and the Google Drive token are re-sealed with the new key automatically the next time they are
+   used (the next backup does both).
+3. Reconnect WhatsApp and have people with an authenticator app set it up again (or keep `HOST_KEY_PREVIOUS`
+   until they have). The server logs a warning while anything still opens only with the old key.
+4. Then remove `HOST_KEY_PREVIOUS`.
+
+If the old key is lost instead, the backup key can be restored from the printed recovery kit: Backup & restore
+→ Encryption → *Use this kit*. Reconnect Google Drive and WhatsApp; authenticators are set up again.
