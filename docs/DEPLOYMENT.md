@@ -31,7 +31,7 @@ Tauri app with SQLite. Backups still go to Drive. A migration wizard upgrades it
 - Observability: local Prometheus metrics; logs stay on the host with redaction.
 
 ## Licence
-A signed JWT (Ed25519) licence is refreshed daily when online and valid offline for 30 days. After a payment failure there's a 7-day grace period, then read-only. Exports always work.
+The licence server is the staff console of Medoro's own deployment (`/api/license/*`). Generate its key pair with `node scripts/licence-keys.mjs`: `LICENSE_SIGNING_KEY` goes only on that deployment, `LICENSE_PUBLIC_KEY` on every pharmacy install together with `LICENSE_SERVER_URL`. An install registers on its first check-in (trial: 14 days from setup), then checks in hourly from the built-in scheduler, daily from a host cron, and when Subscription, Help or Privacy is opened. Requests are signed with the install's own token (HMAC); every answer is a licence document signed with Ed25519 and verified before it is stored. When Medoro can't be reached, the last signed licence keeps applying. After the trial or paid period there are 7 days of grace (the licence can set another number), then the app is read-only for sales, purchases, stock changes and messaging; sign-in, viewing, exports, backups and restore always work. With `LICENSE_SERVER_URL` unset (pure self-hosting, development) nothing is limited.
 
 ## Environment
 See `.env.example`. Secrets go into the OS keystore or Docker secrets, never into the image.
