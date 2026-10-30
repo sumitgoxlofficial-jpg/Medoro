@@ -6,6 +6,7 @@ import { authorize, authorizeAny, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
 import { dateOnly, daysTo, isoOf } from "@/lib/dates";
+import { returnToSupplierIn } from "./adjust";
 
 export const RECALL_STATUS = ["open", "investigating", "supplier_return", "resolved"] as const;
 export const recallSchema = z.object({
@@ -24,7 +25,7 @@ export async function listRecalls(ctx: Ctx) {
   const branches = await db.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true } });
   return recalls.map((r) => ({
     id: r.id, ref: r.sourceRef, product: r.product, source: r.source, publishedAt: isoOf(r.publishedAt), reason: r.reason, status: r.status, batchNos: r.batchNos,
-    matches: batches.filter((b) => affects(r, b)).map((b) => ({ id: b.id, medicine: b.medicine.name, batchNo: b.batchNo, branch: branches.find((x) => x.id === b.branchId)?.name ?? "", qty: b.qtyAvailable, status: b.status, sellable: b.status === "ok" && b.qtyAvailable > 0 && daysTo(b.expiryDate) > 0 })),
+    matches: batches.filter((b) => affects(r, b)).map((b) => ({ id: b.id, medicine: b.medicine.name, batchNo: b.batchNo, branch: branches.find((x) => x.id === b.branchId)?.name ?? "", here: b.branchId === ctx.branchId, returnable: b.branchId === ctx.branchId && !!b.supplierId && b.qtyAvailable > 0, qty: b.qtyAvailable, status: b.status, sellable: b.status === "ok" && b.qtyAvailable > 0 && daysTo(b.expiryDate) > 0 })),
   }));
 }
 
@@ -65,7 +66,34 @@ export async function quarantineRecall(ctx: Ctx, id: string) {
 export async function setRecallStatus(ctx: Ctx, id: string, status: (typeof RECALL_STATUS)[number]) {
   authorizeAny(ctx, "adjust", "users");
   if (!RECALL_STATUS.includes(status)) throw new UserError("Unknown status.");
+  if (status === "supplier_return") {
+    const r = await db.recall.findFirst({ where: { id, tenantId: ctx.tenantId } });
+    if (!r) throw new UserError("Recall not found.");
+    const here = await db.batch.count({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchNo: { in: r.batchNos }, qtyAvailable: { gt: 0 }, supplierId: { not: null }, ...(r.medicineId ? { medicineId: r.medicineId } : {}) } });
+    if (here) { await returnRecalled(ctx, id); return; }
+  }
   const r = await db.recall.updateMany({ where: { id, tenantId: ctx.tenantId }, data: { status } });
   if (!r.count) throw new UserError("Recall not found.");
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Recall status changed", entity: "recall", entityId: id, detail: status });
+}
+
+/**
+ * Raises a debit note to the supplier for every recalled batch with stock at the current branch, and marks
+ * the recall "Supplier return raised". Opening-stock batches (no supplier) are left for a write-off.
+ */
+export async function returnRecalled(ctx: Ctx, id: string) {
+  authorize(ctx, "purchase");
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"recall:" + id}))`;
+    const r = await tx.recall.findFirst({ where: { id, tenantId: ctx.tenantId } });
+    if (!r) throw new UserError("Recall not found.");
+    const bs = await tx.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchNo: { in: r.batchNos }, qtyAvailable: { gt: 0 }, ...(r.medicineId ? { medicineId: r.medicineId } : {}) }, include: { medicine: { select: { name: true } } }, orderBy: { batchNo: "asc" } });
+    const returnable = bs.filter((b) => b.supplierId);
+    if (!returnable.length) throw new UserError(bs.length ? "The recalled stock here is opening stock with no supplier on record. Write it off instead." : `No recalled stock left at ${ctx.branchName}.`);
+    const notes: string[] = [];
+    for (const b of returnable) notes.push(await returnToSupplierIn(tx, ctx, b.id, b.qtyAvailable, `Recall ${r.sourceRef}`, { recall: true }));
+    await tx.recall.update({ where: { id }, data: { status: "supplier_return" } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Recall supplier return ${r.sourceRef}`, entity: "recall", entityId: id, detail: `${notes.join(", ")}${bs.length > returnable.length ? ` · ${bs.length - returnable.length} opening-stock batch(es) not returnable` : ""}` });
+    return { notes, skipped: bs.filter((b) => !b.supplierId).map((b) => `${b.medicine.name} ${b.batchNo}`) };
+  });
 }

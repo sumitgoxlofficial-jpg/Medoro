@@ -54,7 +54,7 @@ export function ExpiryView({ w, data, recovered, canAdjust, canPurchase }: { w: 
                   <td className={td + " whitespace-nowrap"}>
                     <div className="flex gap-1.5 justify-end">
                       {r.rec.kind === "return" && canPurchase ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Return how many of ${r.batchNo} to ${r.supplier}?`, r.unsold); if (n) start(async () => done(await returnAction(r.id, n, "Near expiry"), (x) => `${x} raised. Stock and payable reduced.`)); }}>Return</Button> : null}
-                      {r.rec.kind === "transfer" && canAdjust ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Transfer how many of ${r.batchNo}?`, r.unsold); if (n) start(async () => done(await transferAction(r.id, r.rec.branchId!, n), (x) => `${x} requested. Approve it in Users & branches.`)); }}>Transfer</Button> : null}
+                      {r.rec.kind === "transfer" && canAdjust ? <Button size="sm" variant="primary" disabled={pending} onClick={() => { const n = ask(`Transfer how many of ${r.batchNo}?`, r.unsold); if (n) start(async () => done(await transferAction(r.id, r.rec.branchId!, n), (x) => `${x} requested. It is approved under Inventory → Transfers by someone other than you (or an owner).`)); }}>Transfer</Button> : null}
                       {canAdjust && r.status === "ok" ? <Button size="sm" disabled={pending} onClick={() => start(async () => { const x = await quarantineAction(r.id); toast(x.ok ? x.message! : x.error, x.ok ? "green" : "red"); })}>Quarantine</Button> : null}
                     </div>
                   </td>

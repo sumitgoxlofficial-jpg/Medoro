@@ -6,6 +6,8 @@ import { UserError } from "@/server/action";
 import { dateOnly, daysTo, hhmm, dayMonth, todayISO } from "@/lib/dates";
 import { postGrn } from "@/domain/purchasing/service";
 import { big, inr } from "@/lib/money";
+import { postVoucher } from "@/domain/accounting/post";
+import { ACC } from "@/domain/accounting/accounts";
 import { isSellable } from "./fefo";
 import { sellableByMedicine, velocity } from "./queries";
 import { medicineSchema, receiveSchema, type MedicineInput, type ReceiveInput } from "./contracts";
@@ -43,11 +45,12 @@ export async function medicineDetail(ctx: Ctx, id: string) {
   const m = await db.medicine.findFirst({ where: { id, tenantId: ctx.tenantId } });
   if (!m) return null;
   const today = todayISO();
-  const [batches, moves, vel, suppliers] = await Promise.all([
+  const [batches, moves, vel, suppliers, branches] = await Promise.all([
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: id }, include: { supplier: { select: { name: true } } }, orderBy: [{ expiryDate: "asc" }, { batchNo: "asc" }] }),
     db.stockMovement.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, batch: { medicineId: id } }, include: { batch: { select: { batchNo: true } } }, orderBy: { at: "desc" }, take: 25 }),
     velocity(ctx.tenantId, ctx.branchId),
     db.supplier.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.branch.findMany({ where: { tenantId: ctx.tenantId, active: true, NOT: { id: ctx.branchId } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   const users = await db.user.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(moves.map((x) => x.userId))] } }, select: { id: true, name: true } });
   return {
@@ -59,10 +62,10 @@ export async function medicineDetail(ctx: Ctx, id: string) {
     velocity: vel.get(id) ?? 0,
     batches: batches.map((b) => ({
       id: b.id, batchNo: b.batchNo, expiry: b.expiryDate.toISOString().slice(0, 10), days: daysTo(b.expiryDate, today), qty: b.qtyAvailable,
-      cost: big(b.costPaise), mrp: big(b.mrpPaise), supplier: b.supplier?.name ?? "Opening stock", status: b.status, note: b.statusNote,
+      cost: big(b.costPaise), mrp: big(b.mrpPaise), supplier: b.supplier?.name ?? "Opening stock", hasSupplier: !!b.supplierId, status: b.status, note: b.statusNote,
     })),
     moves: moves.map((x) => ({ id: x.id, when: dayMonth(x.at) + " " + hhmm(x.at), type: x.type, batchNo: x.batch.batchNo, qty: x.qty, ref: x.note ?? x.refType, by: users.find((u) => u.id === x.userId)?.name ?? "" })),
-    suppliers,
+    suppliers, branches,
   };
 }
 
@@ -128,7 +131,7 @@ export async function receiveBatchIn(tx: Tx, ctx: Ctx, raw: ReceiveInput) {
   const m = await tx.medicine.findFirst({ where: { id: i.medicineId, tenantId: ctx.tenantId, active: true } });
   if (!m) throw new UserError("Medicine not found.");
   const exists = await tx.batch.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
-  if (exists) throw new UserError(`Batch ${i.batchNo} already exists for ${m.name}. Use a stock adjustment to correct its quantity.`);
+  if (exists) throw new UserError(`Batch ${i.batchNo} already exists for ${m.name}. Use Actions → Stock adjustment on that batch to correct its quantity.`);
   if (i.supplierId) {
     const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
       lines: [{ medicineId: m.id, batchNo: i.batchNo, expiry: i.expiry, qty: i.qty, freeQty: 0, rate: i.cost / 100, mrp: i.mrp / 100, poItemId: null }] });
@@ -139,6 +142,9 @@ export async function receiveBatchIn(tx: Tx, ctx: Ctx, raw: ReceiveInput) {
     data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo, expiryDate: dateOnly(i.expiry), qtyAvailable: i.qty, costPaise: BigInt(i.cost), mrpPaise: BigInt(i.mrp) },
   });
   await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: i.qty, type: "opening", refType: "opening", refId: b.id, userId: ctx.userId, note: "Opening stock" } });
+  // Stock already on the shelves enters the books at cost against Opening balance equity.
+  await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "journal", userId: ctx.userId, refType: "opening_stock", refId: b.id, narration: `Opening stock · ${m.name} ${i.batchNo} × ${i.qty}`,
+    lines: [{ account: ACC.inventory, dr: i.qty * i.cost }, { account: ACC.opening, cr: i.qty * i.cost }] });
   await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Opening stock entered", entity: "batch", entityId: b.id, detail: `${m.name} · ${i.batchNo} × ${i.qty}` });
   return { batchId: b.id, grnNo: null as string | null };
 }

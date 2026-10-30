@@ -14,7 +14,7 @@ export default async function Page() {
   return (
     <>
       <PageHead title={t(ctx.lang).recall} sub="Verified recall notices matched to your batches in every branch" />
-      <RecallsView recalls={await listRecalls(ctx)} canAdjust={can(ctx, "adjust")} canRecord={can(ctx, "adjust") || can(ctx, "users")} today={todayISO()} medicines={meds.map((m) => ({ id: m.id, label: `${m.name} ${m.strength}`.trim() }))} />
+      <RecallsView recalls={await listRecalls(ctx)} canAdjust={can(ctx, "adjust")} canPurchase={can(ctx, "purchase")} branchName={ctx.branchName} canRecord={can(ctx, "adjust") || can(ctx, "users")} today={todayISO()} medicines={meds.map((m) => ({ id: m.id, label: `${m.name} ${m.strength}`.trim() }))} />
     </>
   );
 }

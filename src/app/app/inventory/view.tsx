@@ -1,30 +1,33 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, X, Pencil, PackageOpen, Upload } from "lucide-react";
+import { Search, Plus, X, Pencil, PackageOpen, Upload, ArrowLeftRight, MoreHorizontal } from "lucide-react";
 import { ImportDialog } from "@/components/import-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Empty } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
+import { Segmented } from "@/components/ui/segmented";
 import { useActionToast, useToast } from "@/components/ui/toast";
 import { cn } from "@/components/ui/cn";
 import { inr } from "@/lib/money";
-import { monthYear, todayISO } from "@/lib/dates";
+import { dayMonth, monthYear, todayISO } from "@/lib/dates";
 import { FORMS, GST_RATES, type MedicineInput, type ReceiveInput } from "@/domain/inventory/contracts";
 import type { listInventory, medicineDetail, InvFilter } from "@/domain/inventory/service";
-import { addMedicineAction, editMedicineAction, quarantineAction, receiveBatchAction } from "./actions";
+import type { listBranchTransfers } from "@/domain/inventory/adjust";
+import { addMedicineAction, adjustAction, editMedicineAction, quarantineAction, receiveBatchAction, requestTransferAction, returnAction, transferAction, writeOffAction } from "./actions";
 
 type List = Awaited<ReturnType<typeof listInventory>>;
 type Detail = NonNullable<Awaited<ReturnType<typeof medicineDetail>>>;
+type Transfers = Awaited<ReturnType<typeof listBranchTransfers>>;
 
 const FILTERS: [InvFilter, string][] = [["all", "All"], ["low", "Low stock"], ["rx", "Schedule H/H1"], ["exp", "Expiring ≤ 90 d"]];
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
 
-export function InventoryView({ list, detail, q, filter, openAdd, canEdit, canAdjust, canPurchase }: {
-  list: List; detail: Detail | null; q: string; filter: InvFilter; openAdd: boolean; canEdit: boolean; canAdjust: boolean; canPurchase: boolean;
+export function InventoryView({ list, detail, q, filter, openAdd, tab, transfers, canEdit, canAdjust, canPurchase }: {
+  list: List; detail: Detail | null; q: string; filter: InvFilter; openAdd: boolean; tab: "stock" | "transfers"; transfers: Transfers; canEdit: boolean; canAdjust: boolean; canPurchase: boolean;
 }) {
   const router = useRouter();
   const path = usePathname();
@@ -46,8 +49,16 @@ export function InventoryView({ list, detail, q, filter, openAdd, canEdit, canAd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  const open = transfers.filter((t) => t.canApprove || t.canReceive).length;
+  const tabs = (
+    <Segmented value={tab} onChange={(v) => nav({ tab: v === "transfers" ? "transfers" : null, sel: null })} className="self-start bg-[#EEF0F2]"
+      options={[{ value: "stock", label: "Stock" }, { value: "transfers", label: `Transfers${open ? ` (${open} to act on)` : ""}` }]} />
+  );
+  if (tab === "transfers") return <div className="flex flex-col gap-3.5 max-w-[1400px]">{tabs}<TransfersPanel transfers={transfers} /></div>;
+
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
+      {tabs}
       <div className="flex gap-2.5 flex-wrap items-center">
         <div className="relative flex-1 min-w-[240px] max-w-[420px]">
           <Search size={16} className="absolute left-[11px] top-1/2 -translate-y-1/2 text-fainter" />
@@ -107,7 +118,6 @@ export function InventoryView({ list, detail, q, filter, openAdd, canEdit, canAd
 
 function Drawer({ d, onClose, onEdit, canEdit, canAdjust, canPurchase }: { d: Detail; onClose: () => void; onEdit: () => void; canEdit: boolean; canAdjust: boolean; canPurchase: boolean }) {
   const m = d.medicine;
-  const toastR = useActionToast();
   const toast = useToast();
   const [pending, start] = useTransition();
   const [rcv, setRcv] = useState({ batchNo: "", expiry: "", qty: "", cost: "", mrp: (m.mrp / 100).toFixed(2), supplierId: "", invoiceNo: "" });
@@ -120,11 +130,7 @@ function Drawer({ d, onClose, onEdit, canEdit, canAdjust, canPurchase }: { d: De
     toast(`Batch ${rcv.batchNo.toUpperCase()} received: ${rcv.qty} units${r.data.grnNo ? " · " + r.data.grnNo : ""}.`, "green");
     setRcv((x) => ({ ...x, batchNo: "", expiry: "", qty: "", cost: "", invoiceNo: "" }));
   });
-  const quarantine = (id: string, q: boolean) => {
-    const note = q ? window.prompt("Reason for quarantine (e.g. damaged, supplier advisory):", "") : "";
-    if (q && note === null) return;
-    start(async () => { toastR(await quarantineAction(id, q, note ?? "")); });
-  };
+  const [act, setAct] = useState<Detail["batches"][number] | null>(null);
   const status = (b: Detail["batches"][number]): [string, Tone] =>
     b.status === "quarantine" ? ["Quarantined", "amber"] : b.status !== "ok" ? [b.status[0].toUpperCase() + b.status.slice(1), "red"]
       : b.days <= 0 ? ["Expired · blocked", "red"] : b.qty === 0 ? ["Sold out", "gray"] : b.days <= 60 ? [`${b.days} days left`, "amber"] : ["Sellable", "green"];
@@ -159,8 +165,8 @@ function Drawer({ d, onClose, onEdit, canEdit, canAdjust, canPurchase }: { d: De
                       <div className="flex flex-col min-w-0"><span className="font-mono font-medium">{b.batchNo}</span><span className="text-[12px] text-muted truncate">Exp {monthYear(b.expiry)} · {b.supplier} · cost {inr(b.cost)}{b.mrp !== m.mrp ? ` · MRP ${inr(b.mrp)}` : ""}{b.note ? ` · ${b.note}` : ""}</span></div>
                       <span className="font-semibold tnum">{b.qty}</span>
                       <Badge tone={tone}>{label}</Badge>
-                      {canAdjust && b.days > 0 && b.qty > 0 && (b.status === "ok" || b.status === "quarantine")
-                        ? <Button size="sm" disabled={pending} onClick={() => quarantine(b.id, b.status === "ok")}>{b.status === "ok" ? "Quarantine" : "Release"}</Button> : <span />}
+                      {canAdjust || (canPurchase && b.hasSupplier && b.qty > 0)
+                        ? <Button size="sm" disabled={pending} onClick={() => setAct(b)} aria-label={`Actions for ${b.batchNo}`}><MoreHorizontal size={14} />Actions</Button> : <span />}
                     </div>
                   );
                 })}
@@ -205,7 +211,113 @@ function Drawer({ d, onClose, onEdit, canEdit, canAdjust, canPurchase }: { d: De
           </div>
         </div>
       </div>
+      <BatchActions batch={act} medicine={m.name} branches={d.branches} canAdjust={canAdjust} canPurchase={canPurchase} onClose={() => setAct(null)} />
     </>
+  );
+}
+
+const ACTIONS = { adjust: "Stock adjustment (+/−)", writeoff: "Write off", return: "Return to supplier (debit note)", transfer: "Transfer to another branch", quarantine: "Quarantine", release: "Release from quarantine" } as const;
+type ActionId = keyof typeof ACTIONS;
+
+function BatchActions({ batch: b, medicine, branches, canAdjust, canPurchase, onClose }: {
+  batch: Detail["batches"][number] | null; medicine: string; branches: Detail["branches"]; canAdjust: boolean; canPurchase: boolean; onClose: () => void;
+}) {
+  const toast = useToast();
+  const [pending, start] = useTransition();
+  const [f, setF] = useState({ action: "adjust" as ActionId, dir: "remove" as "add" | "remove", qty: "", reason: "", kind: "Damaged", to: "" });
+  const [err, setErr] = useState("");
+  const avail: ActionId[] = !b ? [] : (Object.keys(ACTIONS) as ActionId[]).filter((a) =>
+    a === "adjust" ? canAdjust
+      : a === "writeoff" ? canAdjust && b.qty > 0
+        : a === "return" ? canPurchase && b.hasSupplier && b.qty > 0
+          : a === "transfer" ? canAdjust && b.status === "ok" && b.days > 0 && b.qty > 0 && branches.length > 0
+            : a === "quarantine" ? canAdjust && b.status === "ok"
+              : canAdjust && b.status === "quarantine");
+  useEffect(() => { if (b) { setF({ action: avail[0] ?? "adjust", dir: "remove", qty: "", reason: "", kind: b.days <= 0 ? "Expired" : "Damaged", to: branches[0]?.id ?? "" }); setErr(""); } }, [b?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!b) return null;
+  const qty = parseInt(f.qty) || 0;
+  const needsQty = f.action !== "quarantine" && f.action !== "release";
+  const submit = () => start(async () => {
+    setErr("");
+    if (needsQty && qty < 1) return setErr("Enter a quantity.");
+    const reason = f.reason.trim();
+    const r = f.action === "adjust" ? await adjustAction(b.id, f.dir === "add" ? qty : -qty, reason)
+      : f.action === "writeoff" ? (reason.length < 3 ? null : await writeOffAction(b.id, qty, `${f.kind}: ${reason}`))
+        : f.action === "return" ? await returnAction(b.id, qty, reason)
+          : f.action === "transfer" ? await requestTransferAction(b.id, f.to, qty, reason)
+            : await quarantineAction(b.id, f.action === "quarantine", reason);
+    if (!r) return setErr("Describe what happened.");
+    if (!r.ok) return setErr(r.error);
+    const no = typeof r.data === "string" ? r.data : "";
+    toast(f.action === "adjust" ? `${no} posted. ${b.batchNo} is now ${b.qty + (f.dir === "add" ? qty : -qty)}.`
+      : f.action === "writeoff" ? `${no} posted to Stock loss.`
+        : f.action === "return" ? `${no} raised. Stock and payable reduced.`
+          : f.action === "transfer" ? `${no} requested. Someone else at ${branches.find((x) => x.id === f.to)?.name ?? "the branch"} or a manager approves it under Inventory → Transfers.`
+            : r.message ?? "Saved.", "green");
+    onClose();
+  });
+  return (
+    <Modal open onClose={onClose} width={480} title={`${medicine} · ${b.batchNo}`} sub={<>{b.qty} in stock · cost {inr(b.cost)} · exp {monthYear(b.expiry)}{b.status !== "ok" ? ` · ${b.status}` : ""}</>}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant={f.action === "writeoff" ? "danger" : "primary"} onClick={submit} disabled={pending || !avail.length}>{pending ? "Saving…" : ACTIONS[f.action]}</Button></>}>
+      {avail.length ? <>
+        <Field label="Action"><Select value={f.action} onChange={(e) => setF({ ...f, action: e.target.value as ActionId })}>{avail.map((a) => <option key={a} value={a}>{ACTIONS[a]}</option>)}</Select></Field>
+        {f.action === "adjust" ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Direction"><Select value={f.dir} onChange={(e) => setF({ ...f, dir: e.target.value as "add" | "remove" })}><option value="remove">Remove units (−)</option><option value="add">Add units (+)</option></Select></Field>
+            <Field label="Units"><Input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} inputMode="numeric" autoFocus /></Field>
+          </div>
+        ) : null}
+        {f.action === "writeoff" ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Reason"><Select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}><option>Damaged</option><option>Expired</option><option>Lost</option></Select></Field>
+            <Field label="Units"><Input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} inputMode="numeric" autoFocus /></Field>
+          </div>
+        ) : null}
+        {f.action === "return" || f.action === "transfer" ? (
+          <div className="grid grid-cols-2 gap-2.5">
+            {f.action === "transfer" ? <Field label="To branch"><Select value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })}>{branches.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field> : null}
+            <Field label="Units"><Input value={f.qty} onChange={(e) => setF({ ...f, qty: e.target.value.replace(/\D/g, "") })} inputMode="numeric" autoFocus /></Field>
+          </div>
+        ) : null}
+        <Field label={f.action === "adjust" || f.action === "return" || f.action === "writeoff" ? "Details (required)" : "Note"}>
+          <Input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder={f.action === "adjust" ? "e.g. found in back store, miscounted at GRN" : f.action === "writeoff" ? "e.g. strip torn, water damage" : f.action === "return" ? "e.g. near expiry, wrong item supplied" : f.action === "quarantine" ? "e.g. supplier advisory, damaged pack" : "Optional"} />
+        </Field>
+        <div className="text-[12px] text-faint">
+          {f.action === "adjust" ? "Posts a stock movement and an accounting journal at cost (Inventory and Stock loss). Audited." : f.action === "writeoff" ? "Removes the units and posts their cost to Stock loss." : f.action === "return" ? "Raises a debit note: reduces stock, the supplier payable and input GST." : f.action === "transfer" ? "Creates a request. Stock leaves this branch when someone other than you (or an owner) approves it." : f.action === "quarantine" ? "Blocks the batch from sale until released." : "Makes the batch sellable again."}
+        </div>
+      </> : <div className="text-[13.5px] text-muted">No actions are available for this batch with your role.</div>}
+      {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+    </Modal>
+  );
+}
+
+const TR: Record<string, [string, Tone]> = { pending: ["Awaiting approval", "amber"], in_transit: ["In transit", "blue"], received: ["Received", "green"], rejected: ["Rejected", "red"], cancelled: ["Cancelled", "gray"] };
+
+function TransfersPanel({ transfers }: { transfers: Transfers }) {
+  const toastR = useActionToast();
+  const [pending, start] = useTransition();
+  const go = (id: string, a: "approve" | "reject" | "receive" | "cancel") => start(async () => { toastR(await transferAction(id, a)); });
+  return (
+    <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-4 py-3">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap mb-1"><div className="font-semibold text-[14.5px]">Stock transfers</div><span className="text-[12px] text-faint">Approve at the sending branch, receive at the destination. Request one from a batch’s Actions.</span></div>
+      {transfers.length ? transfers.map((x) => {
+        const [label, tone] = TR[x.status] ?? [x.status, "gray"];
+        return (
+          <div key={x.id} className="grid grid-cols-[90px_minmax(150px,1fr)_minmax(0,1.6fr)_60px_auto_auto] gap-3 items-center py-2 border-b border-row last:border-0 text-[13.5px] max-md:grid-cols-2">
+            <span className="flex flex-col"><span className="font-mono text-[12.5px]">{x.no}</span><span className="text-[11.5px] text-faint">{dayMonth(new Date(x.createdAt))}</span></span>
+            <span>{x.from} → {x.to}</span>
+            <span className="text-muted truncate" title={x.note ?? ""}>{x.item}<span className="text-faint"> · by {x.by}{x.note ? ` · ${x.note}` : ""}</span></span>
+            <span className="tnum">× {x.qty}</span><Badge tone={tone}>{label}</Badge>
+            <span className="flex gap-1.5 justify-end">
+              {x.canApprove ? <Button size="sm" variant="primary" disabled={pending} onClick={() => go(x.id, "approve")}>Approve</Button> : x.status === "pending" && x.canReject ? <span className="text-[12px] text-faint self-center">Needs another approver</span> : null}
+              {x.canReject ? <Button size="sm" disabled={pending} onClick={() => go(x.id, "reject")}>Reject</Button> : null}
+              {x.canReceive ? <Button size="sm" variant="primary" disabled={pending} onClick={() => go(x.id, "receive")}>Mark received</Button> : null}
+              {x.canCancel ? <Button size="sm" disabled={pending} onClick={() => { if (confirm(`Cancel ${x.no}? The stock goes back to ${x.from}.`)) go(x.id, "cancel"); }}>Cancel</Button> : null}
+            </span>
+          </div>
+        );
+      }) : <Empty icon={ArrowLeftRight} title="No transfers yet" body="Open a medicine, choose Actions on a batch and pick “Transfer to another branch”." />}
+    </div>
   );
 }
 
