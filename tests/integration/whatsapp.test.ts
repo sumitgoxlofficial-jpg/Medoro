@@ -86,6 +86,8 @@ describe("WhatsApp", () => {
   it("campaigns resume without resending, finish as sent, and failed messages can be retried", async () => {
     fail = false;
     const ctx = await ctxFor();
+    // Ramesh was opted back in only for the retry test above; he texted STOP, so campaigns must skip him.
+    await db.customer.updateMany({ where: { phone: "9822041736" }, data: { waOptIn: false, optInMethod: "Opted out by replying STOP on WhatsApp" } });
     const ids = [];
     for (const [n, ph] of [["Asha Rao", "9822000101"], ["Bina", "9822000102"], ["Chetan", "9822000103"]] as const) ids.push(await createCustomer(ctx, { name: n, phone: ph, waOptIn: true, creditLimit: "0" }));
     await draftCampaign(ctx, "Diwali", "invoice_share");
