@@ -109,6 +109,33 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput) {
   });
 }
 
+/** Everything needed to print a credit note. GST totals come from its voucher, so they match the books. */
+export async function creditNoteData(ctx: Ctx, id: string) {
+  const r = await db.salesReturn.findFirst({ where: { id, tenantId: ctx.tenantId } });
+  if (!r) return null;
+  const [sale, branch, tenant, user, voucher] = await Promise.all([
+    db.sale.findUniqueOrThrow({ where: { id: r.saleId }, include: { customer: true, items: true } }),
+    db.branch.findUniqueOrThrow({ where: { id: r.branchId } }),
+    db.tenant.findUniqueOrThrow({ where: { id: r.tenantId } }),
+    db.user.findUnique({ where: { id: r.userId }, select: { name: true } }),
+    db.voucher.findFirst({ where: { tenantId: r.tenantId, refType: "sales_return", refId: r.id }, include: { lines: true } }),
+  ]);
+  const meds = await db.medicine.findMany({ where: { id: { in: sale.items.map((i) => i.medicineId) } }, select: { id: true, hsn: true } });
+  const sum = (acc: string) => (voucher?.lines ?? []).filter((l) => l.account === acc).reduce((a, l) => a + big(l.debitPaise), 0);
+  const lines = (r.lines as { itemId: string; name: string; batchNo: string; qty: number; amount: number; restocked: boolean }[]).map((l) => {
+    const it = sale.items.find((x) => x.id === l.itemId);
+    return { name: l.name, batchNo: l.batchNo, qty: l.qty, amount: l.amount, restocked: l.restocked, gstRate: it?.gstRate ?? 0, hsn: meds.find((m) => m.id === it?.medicineId)?.hsn ?? "" };
+  });
+  return {
+    id: r.id, no: r.creditNoteNo, at: r.at.toISOString(), reason: r.reason, condition: r.condition, refundMode: r.refundMode, by: user?.name ?? "",
+    invoiceNo: sale.invoiceNo, invoiceAt: sale.at.toISOString(),
+    pharmacy: { name: tenant.name, legalName: tenant.legalName, gstin: branch.gstin ?? tenant.gstin, address: branch.address, dl: branch.drugLicence },
+    customer: sale.customer ? { name: sale.customer.name, phone: sale.customer.phone } : null,
+    lines, totals: { taxable: sum(ACC.salesReturns), cgst: sum(ACC.cgst), sgst: sum(ACC.sgst), total: big(r.amountPaise) },
+  };
+}
+export type CreditNote = NonNullable<Awaited<ReturnType<typeof creditNoteData>>>;
+
 export async function todaysCreditNotes(ctx: Ctx) {
   const rows = await db.salesReturn.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: startOfTodayIST() } }, orderBy: { at: "desc" } });
   const sales = await db.sale.findMany({ where: { id: { in: rows.map((r) => r.saleId) } }, include: { customer: { select: { name: true } } } });
