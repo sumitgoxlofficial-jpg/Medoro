@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
-import { big } from "@/lib/money";
+import { big, inr } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
 import { discountCap } from "@/domain/identity/permissions";
 import { fefoOrder, isSellable } from "@/domain/inventory/fefo";
@@ -147,8 +147,11 @@ async function post(ctx: Ctx, op: OfflineOpInput, deviceId: string | undefined, 
   }
 }
 
-/** A manager settles a conflict: post it from current stock (FEFO), or close it with a note. */
-export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "close", note = "") {
+/**
+ * A manager settles a conflict: post it from current stock (FEFO), post what is in stock and refund
+ * the customer for the rest ("partial"), or close it with a note.
+ */
+export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "partial" | "close", note = "") {
   authorizeAny(ctx, "adjust", "users");
   const o = await db.offlineOp.findFirst({ where: { id: opId, tenantId: ctx.tenantId } });
   const opDev = o ? await db.device.findFirst({ where: { id: o.deviceId, tenantId: ctx.tenantId } }) : null;
@@ -180,6 +183,7 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
   ]);
   const batches = all.map((b) => ({ ...b, qtyAvailable: Math.max(0, b.qtyAvailable - (reserved.get(b.id) ?? 0)) }));
   const lines: SaleInput["lines"] = [];
+  let short = 0;
   for (const m of meds) {
     let need = op.sale.lines.filter((l) => l.medicineId === m).reduce((a, l) => a + l.qty, 0);
     for (const b of fefoOrder(batches, m, day)) {
@@ -187,11 +191,22 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
       const take = Math.min(need, b.qtyAvailable);
       lines.push({ medicineId: m, batchId: b.id, qty: take }); need -= take;
     }
-    if (need > 0) throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, or close it with a note.");
+    if (need > 0 && action === "repost") throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, post what’s in stock and refund the rest, or close it with a note.");
+    short += need;
   }
+  if (!lines.length) throw new UserError("None of this bill’s items are in stock now. Close it with a note (e.g. refunded the customer).");
   const r = await post(ctx, op, dev?.id, async () => who, lines, late ? { note: `billed offline ${billed.toISOString()}, settled by ${ctx.userName}` } : { at: billed });
   if (r.status === "conflict") throw new UserError(r.message ?? "Couldn’t post this bill.");
-  return { status: "posted" as const, invoiceNo: r.invoiceNo };
+  if (short > 0) {
+    const posted = await db.sale.findFirstOrThrow({ where: { tenantId: ctx.tenantId, idempotencyKey: op.id } });
+    const refund = Math.max(0, op.sale.totalPaise - Number(posted.totalPaise));
+    const units = lines.reduce((a, l) => a + l.qty, 0);
+    const resolution = `Posted ${units} of ${units + short} units as ${r.invoiceNo}; refund ${inr(refund)} to the customer for the rest.${note.trim() ? " " + note.trim() : ""}`.slice(0, 200);
+    await db.offlineOp.update({ where: { id: o.id }, data: { resolution } });
+    await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Offline bill part-posted", entity: "offline_op", entityId: o.id, detail: resolution });
+    return { status: "posted" as const, invoiceNo: r.invoiceNo, refund };
+  }
+  return { status: "posted" as const, invoiceNo: r.invoiceNo, refund: 0 };
 }
 
 export const canManageOffline = (ctx: Ctx) => can(ctx, "users") || can(ctx, "adjust");

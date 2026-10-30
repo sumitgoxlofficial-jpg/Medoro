@@ -41,7 +41,7 @@ export function OfflinePanel({ devices, ops, branchId, branchName, counterName, 
     if (mine?.deviceId === id) { await del("device"); await del("snapshot"); setMine(null); }
     toast(r.message ?? "Turned off.", "green"); router.refresh();
   });
-  const resolve = (id: string, action: "repost" | "close") => start(async () => {
+  const resolve = (id: string, action: "repost" | "partial" | "close") => start(async () => {
     const r = await resolveOfflineAction(id, action, note[id] ?? "");
     toast(r.ok ? r.message ?? "Done." : r.error, r.ok ? "green" : "red");
     if (r.ok) router.refresh();
@@ -91,10 +91,11 @@ export function OfflinePanel({ devices, ops, branchId, branchName, counterName, 
               <Badge tone={o.status === "conflict" ? "red" : o.status === "pending" ? "amber" : "green"}>{o.status === "posted" ? "Posted" : o.status === "resolved" ? "Closed" : o.status === "conflict" ? "Needs review" : "Pending"}</Badge>
             </div>
             {o.message ? <div className={o.status === "conflict" ? "text-bad text-[13px]" : "text-muted text-[12.5px]"}>{o.message}</div> : null}
-            {o.resolution ? <div className="text-muted text-[12.5px]">Closed: {o.resolution}</div> : null}
+            {o.resolution ? <div className="text-muted text-[12.5px]">{o.status === "resolved" ? "Closed" : "Settled"}: {o.resolution}</div> : null}
             {o.status === "conflict" && canManage ? (
               <div className="flex gap-2 flex-wrap items-center">
                 <Button size="sm" variant="primary" disabled={busy} onClick={() => resolve(o.id, "repost")}>Post from current stock</Button>
+                <Button size="sm" disabled={busy} onClick={() => resolve(o.id, "partial")} title="Post the items in stock now; the bill shows the refund due for the rest">Post what’s in stock, refund the rest</Button>
                 <input value={note[o.id] ?? ""} onChange={(e) => setNote({ ...note, [o.id]: e.target.value })} placeholder="Or say how it was settled" aria-label="Settlement note" className="border border-input rounded-md px-2 py-1 text-[13px] flex-1 min-w-[180px]" />
                 <Button size="sm" disabled={busy} onClick={() => resolve(o.id, "close")}>Close with note</Button>
               </div>

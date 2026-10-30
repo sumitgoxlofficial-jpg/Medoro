@@ -156,6 +156,18 @@ describe("offline billing", () => {
     expect((await searchForSale(ctx, "Crocin"))[0].batches[0].qtyAvailable).toBe(0);
     expect((await syncOps(ctx, two, [op([{ medicineId: crocin, batchId: c1, qty: 3 }])]))[0].status).toBe("posted");
     expect((await db.batch.findUniqueOrThrow({ where: { id: c1 } })).qtyAvailable).toBe(0);
+
+    // C1 is sold out: a manager posts the Dolo on this bill and refunds the customer for the Crocin.
+    const mixed = op([{ medicineId: crocin, batchId: c1, qty: 2 }, { medicineId: dolo, batchId: d2, qty: 1 }], { totalPaise: 7400 });
+    expect((await syncOps(ctx, one, [mixed]))[0].message).toMatch(/only 0 of Crocin/);
+    const mgr = await ctxFor("Manager");
+    await expect(resolveOp(mgr, mixed.id, "repost")).rejects.toThrow(/Not enough sellable stock/);
+    const r = await resolveOp(mgr, mixed.id, "partial");
+    expect(r).toMatchObject({ status: "posted", refund: 4000 });
+    const items = await db.saleItem.findMany({ where: { sale: { idempotencyKey: mixed.id } } });
+    expect(items.map((i) => [i.medicineId, i.qty])).toEqual([[dolo, 1]]);
+    expect((await offlineOverview(mgr)).ops.find((x) => x.id === mixed.id)).toMatchObject({ status: "posted", resolution: expect.stringMatching(/Posted 1 of 3 units .* refund ₹40/) });
+    expect((await syncOps(ctx, one, [mixed]))[0].status).toBe("posted");
   });
 
   it("refuses a device that was turned off or belongs to another pharmacy", async () => {
