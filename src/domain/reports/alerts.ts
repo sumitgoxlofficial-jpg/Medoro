@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { addDays, dateOnly, todayISO } from "@/lib/dates";
 import { sellableByMedicine } from "@/domain/inventory/queries";
 import { driveState } from "@/domain/system/gdrive";
+import { waAuthProblem } from "@/domain/comms/whatsapp";
 import type { ScreenId } from "@/lib/nav";
 
 const OVERDUE_MS = 26 * 3600_000;
@@ -53,7 +54,8 @@ export async function badgesAndAlerts(tenantId: string, branchId: string, perms:
   if (recalls) alerts.push(`${recalls} open recall${recalls > 1 ? "s" : ""}`);
   if (waFailed) alerts.push(`${waFailed} WhatsApp message${waFailed > 1 ? "s" : ""} failed`);
   if (perms.includes("integrations")) {
-    const backup = await backupHealth(tenantId);
+    const [backup, wa] = await Promise.all([backupHealth(tenantId), waAuthProblem(tenantId)]);
+    if (wa) alerts.unshift(wa);
     if (backup.length) { badges.bak = [backup.length, "red"]; alerts.unshift(...backup); }
   }
   return { badges, alerts };

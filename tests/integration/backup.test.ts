@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { mkdtemp } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
@@ -42,5 +42,18 @@ describe("encrypted backups", () => {
     expect(started[0].status).toBe("verified");
     await scheduledTick(new Date());
     expect(await db.backupManifest.count({ where: { tenantId: ctx.tenantId, kind: { in: ["scheduled", "retry"] } } })).toBe(2);
+  });
+
+  it("emails the owner when a scheduled backup fails", async () => {
+    const ctx = await ctxFor();
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    process.env.MAIL_PROVIDER = "console";
+    // An unreachable storage bucket makes the backup fail.
+    process.env.SUPABASE_URL = "http://127.0.0.1:9"; process.env.SUPABASE_SECRET_KEY = "x";
+    try {
+      await expect(runBackup(ctx.tenantId, "scheduled")).rejects.toThrow();
+      const mail = info.mock.calls.map((c) => String(c[0])).find((s) => s.startsWith("[mail] to owner@test.in"));
+      expect(mail).toMatch(/backup failed/);
+    } finally { delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SECRET_KEY; delete process.env.MAIL_PROVIDER; info.mockRestore(); }
   });
 });

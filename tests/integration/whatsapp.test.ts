@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/server/db";
-import { connectWhatsApp, handleWebhook, sendInvoice, syncTemplates, verifyWebhook } from "@/domain/comms/whatsapp";
+import { connectWhatsApp, handleWebhook, sendInvoice, syncTemplates, verifyWebhook, waAuthProblem } from "@/domain/comms/whatsapp";
 import { campaignRef, draftCampaign, messagingTick, refillReminders, retryCampaignMessage, saveCrm, sendCampaign, sendFeedbackRequests, sendRefillsNow } from "@/domain/comms/crm";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
@@ -10,7 +10,7 @@ import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 // Built at runtime so secret scanners don't mistake the test fixture for a real key.
 const SECRET = randomBytes(16).toString("hex");
-let fail = false, crmTemplates = false;
+let fail = false, crmTemplates = false, failCode: number | undefined;
 const sentBodies: { to: string; template: { name: string; components: { parameters: { text: string }[] }[] } }[] = [];
 const calls: string[] = [];
 const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -23,7 +23,7 @@ const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
   ] : [])] });
   if (u.endsWith("/media")) return ok({ id: "media-1" });
   if (u.endsWith("/messages") && typeof init?.body === "string") sentBodies.push(JSON.parse(init.body));
-  if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp" } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
+  if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp", code: failCode } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
   throw new Error("unexpected " + u);
 });
 
@@ -169,5 +169,25 @@ describe("WhatsApp", () => {
     await sell();
     expect(await sendFeedbackRequests(ctx.tenantId, later)).toMatchObject({ sent: 0, skipped: 1 });
     await expect(saveCrm(ctx, { feedbackHours: 0 })).rejects.toThrow(/1 to 72 hours/);
+  });
+  it("doesn't retry numbers Meta says can't get WhatsApp, and pauses on a rejected token", async () => {
+    const ctx = await ctxFor();
+    const med = (await db.medicine.findFirstOrThrow()).id, batch = (await db.batch.findFirstOrThrow()).id;
+    const sell = async () => (await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: med, batchId: batch, qty: 1 }], customerId: null, discountPct: 0, pay: { mode: "cash" } })).saleId;
+    fail = true; failCode = 131026;
+    const a = await sell();
+    await expect(sendInvoice(ctx, a, "9822000301", true)).rejects.toThrow(/can’t receive WhatsApp/);
+    expect((await db.waMessage.findFirstOrThrow({ where: { invoiceId: a } })).attempts).toBe(3);
+    await expect(sendInvoice(ctx, a, "9822000301", true)).rejects.toThrow(/limit/);
+    const i = await db.integration.findFirstOrThrow({ where: { kind: "whatsapp" } });
+    await db.integration.update({ where: { id: i.id }, data: { config: { ...(i.config as object), templates: [{ name: "invoice_share", language: "en", status: "pending", category: "utility" }] } } });
+    await expect(sendInvoice(ctx, await sell(), "9822000301", true)).rejects.toThrow(/isn’t approved/);
+    await db.integration.update({ where: { id: i.id }, data: { config: i.config as object } });
+    failCode = 190;
+    const b = await sell();
+    await expect(sendInvoice(ctx, b, "9822000301", true)).rejects.toThrow(/paused/);
+    expect(await waAuthProblem(ctx.tenantId)).toMatch(/Reconnect/);
+    await expect(sendInvoice(ctx, b, "9822000301", true)).rejects.toThrow(/isn’t connected/);
+    fail = false; failCode = undefined;
   });
 });

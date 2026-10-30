@@ -20,11 +20,30 @@ async function integration(tenantId: string) {
   return { id: i.id, cfg: i.config as WaConfig, sec: JSON.parse(unseal(i.encryptedSecret).toString()) as Secrets, rotatedAt: i.rotatedAt, connectedAt: i.connectedAt };
 }
 
+/** Meta errors that won't succeed on retry: the number can't get WhatsApp messages. */
+const NOT_ON_WHATSAPP = new Set([131026, 131030, 131021, 131045]);
+/** OAuthException: the access token expired or was revoked. */
+const TOKEN_ERROR = 190;
+class MetaError extends UserError { constructor(message: string, readonly code?: number) { super(message); } }
+
 async function graph<T>(path: string, token: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${GRAPH()}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) }, signal: AbortSignal.timeout(20_000) });
   const j = (await r.json().catch(() => ({}))) as T & { error?: { message?: string; code?: number } };
-  if (!r.ok || j.error) throw new UserError(`Meta: ${j.error?.message ?? r.status}`);
+  if (!r.ok || j.error) throw new MetaError(`Meta: ${j.error?.message ?? r.status}`, j.error?.code);
   return j;
+}
+
+/** A revoked or expired token pauses WhatsApp until the owner reconnects; the bell shows why. */
+async function pauseForToken(tenantId: string, id: string, cfg: WaConfig, reason: string) {
+  await db.integration.update({ where: { id }, data: { connectedAt: null, config: { ...cfg, authError: reason.slice(0, 200) } } });
+  await writeAudit(db, { tenantId, action: "WhatsApp paused", entity: "integration", entityId: id, detail: `Meta rejected the access token: ${reason.slice(0, 160)}` });
+}
+
+/** Why WhatsApp stopped, if Meta rejected the token; cleared on reconnect. */
+export async function waAuthProblem(tenantId: string) {
+  const i = await db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "whatsapp" } }, select: { connectedAt: true, config: true } });
+  const why = (i?.config as { authError?: string } | null)?.authError;
+  return i && !i.connectedAt && why ? `WhatsApp is paused: Meta rejected the access token (${why}). Reconnect it under WhatsApp.` : null;
 }
 
 export const connectSchema = z.object({
@@ -96,6 +115,8 @@ export async function sendInvoice(ctx: Ctx, saleId: string, rawPhone: string, co
   ]);
   if (optedOut && !optedIn) throw new UserError("This customer opted out of WhatsApp messages. Record their consent again on the customer before sending.");
   if (!consent) throw new UserError("Confirm the number with the customer and get their consent first.");
+  const tpl = (w.cfg.templates ?? []).find((t) => t.name === w.cfg.invoiceTemplate && t.language === w.cfg.templateLang);
+  if ((auto || tpl) && tpl?.status !== "approved") throw new UserError(`The invoice template “${w.cfg.invoiceTemplate}” isn’t approved by Meta yet. Sync templates under WhatsApp once it is.`);
   const inv = await invoiceData(ctx, saleId);
   if (!inv) throw new UserError("Invoice not found.");
   if (inv.voided) throw new UserError(`${inv.invoiceNo} was voided; it can’t be sent.`);
@@ -126,7 +147,14 @@ export async function sendInvoice(ctx: Ctx, saleId: string, rawPhone: string, co
     return { status: "sent" as const, id: msg.id };
   } catch (e) {
     const m = e instanceof Error ? e.message : "Send failed";
-    await db.waMessage.update({ where: { id: msg.id }, data: { status: "failed", errorCode: m.slice(0, 200) } });
+    const code = e instanceof MetaError ? e.code : undefined;
+    // Undeliverable numbers aren't retried; a rejected token pauses sending until the owner reconnects.
+    await db.waMessage.update({ where: { id: msg.id }, data: { status: "failed", errorCode: m.slice(0, 200), ...(code && NOT_ON_WHATSAPP.has(code) ? { attempts: 3 } : {}) } });
+    if (code === TOKEN_ERROR) {
+      await pauseForToken(ctx.tenantId, w.id, w.cfg, m);
+      throw new UserError("WhatsApp is paused: Meta rejected the access token. The owner needs to reconnect it under WhatsApp. Print the bill for now.");
+    }
+    if (code && NOT_ON_WHATSAPP.has(code)) throw new UserError("This number can’t receive WhatsApp messages. Check it with the customer, or print the bill.");
     throw e instanceof UserError ? e : new UserError(m);
   }
 }

@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
+import { mailEnabled, sendMail } from "@/server/mail";
 import { fingerprint, reseal, unseal } from "@/server/vault";
 import { deleteObject, getObject, putObject, type FileStore } from "@/server/storage";
 import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, restoreFiles, swapIn, type RestoreSummary } from "./restore";
@@ -99,7 +100,20 @@ export async function runBackup(tenantId: string, kind: "manual" | "scheduled" |
     const msg = e instanceof Error ? e.message : "Backup failed.";
     await db.backupManifest.update({ where: { id: m.id }, data: { finishedAt: new Date(), status: "failed", error: msg.slice(0, 300) } });
     await writeAudit(db, { tenantId, userId: user?.id ?? null, userName: user?.name ?? "Scheduler", action: "Backup failed", entity: "backup", entityId: m.id, detail: msg.slice(0, 200) });
+    if (kind !== "manual") await alertOwners(tenantId, msg);
     throw e instanceof UserError ? e : new UserError(msg);
+  }
+}
+
+/** Emails the owner when a scheduled backup fails (the bell and Backup screen show it too). */
+async function alertOwners(tenantId: string, error: string) {
+  if (!mailEnabled()) return;
+  const [tenant, owners] = await Promise.all([
+    db.tenant.findUnique({ where: { id: tenantId }, select: { name: true } }),
+    db.user.findMany({ where: { tenantId, active: true, isSupport: false, role: { name: "Owner" }, email: { not: null } }, select: { email: true } }),
+  ]);
+  for (const o of owners) {
+    await sendMail({ to: o.email!, subject: `Medoro: backup failed for ${tenant?.name ?? "your pharmacy"}`, text: `Tonight's backup didn't finish: ${error.slice(0, 300)}\n\nOpen Medoro → Backup & restore and choose "Back up now". If it fails again, check the server's storage and Google Drive connection.` }).catch(() => {});
   }
 }
 
