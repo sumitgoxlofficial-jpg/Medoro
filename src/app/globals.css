@@ -68,14 +68,84 @@
 .tnum { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid var(--color-teal); outline-offset: 1px; }
 
-/* Marketing site motion. Hidden only once JS adds .reveal, so content shows without JS. */
-.reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
-.reveal.revealed { opacity: 1; transform: none; }
+/* ───────── Marketing site (/, /start, /legal). Everything is scoped to .site-root. ───────── */
+.site-root {
+  --s-ink: #0E1614;
+  --s-ink-2: #36403E;
+  --s-muted: #556260;
+  --s-line: #E2E6E5;
+  --s-line-2: #EEF1F0;
+  --s-soft: #F5F7F6;
+  --s-brand: #0B5E5B;
+  --s-brand-ink: #084744;
+  --s-brand-tint: #E7F2F0;
+  --s-dark: #0A1D1C;
+  --s-ease: cubic-bezier(.22, 1, .36, 1);
+  color: var(--s-ink);
+  font-size: 16px;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
+.site-root section[id] { scroll-margin-top: 80px; }
+.site-root :focus-visible { outline: 3px solid var(--s-brand); outline-offset: 3px; border-radius: 6px; }
+.site-root .site-dark :focus-visible { outline-color: #7FD1C3; }
+.site-display { font-family: "IBM Plex Sans Condensed", "IBM Plex Sans Devanagari", "IBM Plex Sans", sans-serif; font-weight: 700; letter-spacing: -.012em; line-height: 1.02; text-wrap: balance; }
+.site-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.site-root .site-link-arrow svg { transition: transform .25s var(--s-ease); }
+.site-root .site-link-arrow:hover svg { transform: translateX(3px); }
+
+/* Device frames */
+.site-browser { background: #fff; border: 1px solid #D5DBDA; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 1px rgba(14,22,20,.04), 0 24px 48px -24px rgba(14,22,20,.28); }
+.site-phone { background: #0E1614; border-radius: 34px; padding: 7px; box-shadow: 0 30px 60px -24px rgba(14,22,20,.45); }
+.site-phone > div { border-radius: 28px; overflow: hidden; background: #fff; }
+
+/* Load-in for the hero only */
+@keyframes site-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.site-up { animation: site-up .8s var(--s-ease) both; animation-delay: calc(var(--d, 0) * 90ms); }
+
+/* Section reveals: scroll-driven where supported; otherwise SiteMotion adds .will-reveal / .is-in. */
+@keyframes site-reveal { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+@supports (animation-timeline: view()) {
+  .site-root [data-reveal] { animation: site-reveal linear both; animation-timeline: view(); animation-range: entry calc(var(--d, 0) * 6%) entry calc(70% + var(--d, 0) * 6%); }
+  /* Hero product shot: starts tilted back, settles flat as it scrolls into full view. */
+  @keyframes site-tilt { from { transform: perspective(1800px) rotateX(16deg) scale(.93); } to { transform: perspective(1800px) rotateX(0) scale(1); } }
+  .site-root .site-tilt { transform-origin: 50% 100%; animation: site-tilt linear both; animation-timeline: view(); animation-range: entry 10% cover 50%; }
+  @keyframes site-drift { from { transform: translateY(70px); } to { transform: translateY(-30px); } }
+  .site-root .site-drift { animation: site-drift linear both; animation-timeline: view(); animation-range: entry 0% exit 20%; }
+}
+.site-root .will-reveal { opacity: 0; transform: translateY(32px); transition: opacity .8s var(--s-ease), transform .8s var(--s-ease); transition-delay: calc(var(--d, 0) * 80ms); }
+.site-root .will-reveal.is-in { opacity: 1; transform: none; }
+
+/* Feature panel swap */
+@keyframes site-swap { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
+.site-swap { animation: site-swap .5s var(--s-ease) both; }
+
+/* Keystroke demo: keys press in turn once the block is in view. */
+@keyframes site-key { 0%, 100% { transform: none; box-shadow: 0 2px 0 #C9D1CF; background: #fff; } 40% { transform: translateY(2px); box-shadow: 0 0 0 #C9D1CF; background: var(--s-brand-tint); } }
+@keyframes site-line { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.site-keys [data-step] { animation-play-state: paused; }
+.site-keys.is-in kbd[data-step] { animation: site-key .5s var(--s-ease) both; animation-delay: calc(var(--step) * 650ms + 200ms); }
+.site-keys.is-in li[data-step] { animation: site-line .5s var(--s-ease) both; animation-delay: calc(var(--step) * 650ms + 450ms); }
+.site-keys:not(.is-in) li[data-step] { opacity: .35; }
+
+/* Marquee of things Medoro works with: pauses on hover, focus, the pause button and reduced motion. */
 @keyframes site-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.site-marquee { animation: site-marquee 38s linear infinite; }
-.site-marquee:hover { animation-play-state: paused; }
-@keyframes site-rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
-.site-rise { animation: site-rise .8s cubic-bezier(.22,1,.36,1) both; }
-@media (prefers-reduced-motion: reduce) { .site-marquee, .site-rise { animation: none; } }
-html:has(.site-root) { scroll-behavior: smooth; }
-.site-root section { scroll-margin-top: 84px; }
+.site-marquee { animation: site-marquee 45s linear infinite; }
+.site-marquee-wrap:hover .site-marquee, .site-marquee-wrap:focus-within .site-marquee, .site-marquee-wrap[data-paused="true"] .site-marquee { animation-play-state: paused; }
+
+/* FAQ: native <details>, animated where ::details-content is supported. */
+.site-faq summary { list-style: none; cursor: pointer; }
+.site-faq summary::-webkit-details-marker { display: none; }
+.site-faq summary .site-plus { transition: transform .3s var(--s-ease); }
+.site-faq details[open] summary .site-plus { transform: rotate(45deg); }
+.site-faq details::details-content { block-size: 0; overflow: hidden; transition: block-size .35s var(--s-ease), content-visibility .35s allow-discrete; }
+.site-faq details[open]::details-content { block-size: auto; }
+@supports (interpolate-size: allow-keywords) { .site-faq { interpolate-size: allow-keywords; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.site-root) { scroll-behavior: auto; }
+  .site-root *, .site-root *::before, .site-root *::after { animation: none !important; transition: none !important; }
+  .site-root .will-reveal { opacity: 1; transform: none; }
+  .site-keys li[data-step] { opacity: 1 !important; }
+}
