@@ -12,13 +12,14 @@ type R = Awaited<ReturnType<typeof listRecalls>>[number];
 const ST: Record<string, [string, Tone]> = { open: ["Open", "red"], investigating: ["Investigating", "amber"], supplier_return: ["Supplier return raised", "amber"], resolved: ["Resolved", "green"] };
 const inp = "border border-input rounded-lg px-3 py-2 text-[13.5px] outline-none bg-white focus:border-teal";
 
-export function RecallsView({ recalls, canAdjust, canRecord, today }: { recalls: R[]; canAdjust: boolean; canRecord: boolean; today: string }) {
+export function RecallsView({ recalls, canAdjust, canRecord, today, medicines }: { recalls: R[]; canAdjust: boolean; canRecord: boolean; today: string; medicines: { id: string; label: string }[] }) {
   const toast = useToast();
-  const [f, setF] = useState({ product: "", batches: "", source: "", publishedAt: "", reason: "" });
+  const blank = { product: "", medicineId: "", batches: "", source: "", publishedAt: "", reason: "" };
+  const [f, setF] = useState(blank);
   const [pending, start] = useTransition();
   return (
     <div className="flex flex-col gap-3.5 max-w-[1100px]">
-      <div className="text-[13px] text-ink-2 bg-teal-soft border border-teal-line rounded-[10px] px-3.5 py-2.5">Record only notices from verified sources (CDSCO, state drug controller, manufacturer). Medoro never generates recall notices. It matches the batch numbers in the notice against stock in every branch.</div>
+      <div className="text-[13px] text-ink-2 bg-teal-soft border border-teal-line rounded-[10px] px-3.5 py-2.5">Record only notices from verified sources (CDSCO, state drug controller, manufacturer). Medoro never generates recall notices. It matches the medicine and batch numbers in the notice against stock in every branch.</div>
       {recalls.length ? recalls.map((r) => {
         const [label, tone] = ST[r.status] ?? [r.status, "gray"];
         const live = r.matches.filter((m) => m.sellable);
@@ -49,13 +50,14 @@ export function RecallsView({ recalls, canAdjust, canRecord, today }: { recalls:
         <div className="bg-white border border-line rounded-xl px-4 py-3.5 flex flex-col gap-2.5">
           <div className="font-semibold text-[14.5px]">Record a verified notice</div>
           <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-            <input className={inp} value={f.product} onChange={(e) => setF({ ...f, product: e.target.value })} placeholder="Product & strength *" aria-label="Product" />
+            <input className={inp} list="recall-meds" value={f.product} onChange={(e) => setF({ ...f, product: e.target.value, medicineId: medicines.find((m) => m.label === e.target.value)?.id ?? "" })} placeholder="Medicine & strength (from catalogue) *" aria-label="Medicine" />
+            <datalist id="recall-meds">{medicines.map((m) => <option key={m.id} value={m.label} />)}</datalist>
             <input className={inp + " font-mono"} value={f.batches} onChange={(e) => setF({ ...f, batches: e.target.value.toUpperCase() })} placeholder="Affected batches, comma separated *" aria-label="Batches" />
             <input className={inp} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} placeholder="Source & reference no. *" aria-label="Source" />
             <input className={inp} type="date" max={today} value={f.publishedAt} onChange={(e) => setF({ ...f, publishedAt: e.target.value })} aria-label="Published on" />
             <input className={inp} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Reason as stated in notice" aria-label="Reason" />
           </div>
-          <Button variant="primary" className="self-start" disabled={pending} onClick={() => start(async () => { const x = await addRecallAction(f); if (!x.ok) return toast(x.error, "red"); toast(`${x.data} recorded and matched against stock.`, "green"); setF({ product: "", batches: "", source: "", publishedAt: "", reason: "" }); })}>Record & match stock</Button>
+          <Button variant="primary" className="self-start" disabled={pending} onClick={() => start(async () => { const x = await addRecallAction({ medicineId: f.medicineId, batches: f.batches, source: f.source, publishedAt: f.publishedAt, reason: f.reason }); if (!x.ok) return toast(x.error, "red"); toast(`${x.data} recorded and matched against stock.`, "green"); setF(blank); })}>Record & match stock</Button>
         </div>
       ) : null}
     </div>

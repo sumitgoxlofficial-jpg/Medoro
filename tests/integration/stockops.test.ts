@@ -79,27 +79,31 @@ describe("stock operations and intelligence", () => {
     await expect(rejectTransfer(ctx, t.id)).rejects.toThrow(/pending/);
   });
 
-  it("recalls match batches across branches and quarantine them", async () => {
+  it("recalls match medicine + batch across branches and quarantine them", async () => {
     const ctx = await ctxFor();
-    await addRecall(ctx, { product: "Okacet 10 mg", batches: "ok2, ZZ9", source: "Manufacturer notice 12/2026", publishedAt: todayISO(), reason: "Labelling" });
+    const other = await createMedicine(ctx, { name: "Dolo", generic: "Paracetamol", strength: "650 mg", form: "Tablet", manufacturer: "Micro", pack: "15", mrp: "30", gstRate: 12, schedule: "", reorderLevel: 0, barcode: "", hsn: "3004", rack: "" });
+    await receiveBatch(ctx, { medicineId: other, batchNo: "OK2", expiry: addDays(todayISO(), 300).slice(0, 10), qty: 5, cost: "10", mrp: "30", supplierId: null, invoiceNo: "" });
+    await expect(addRecall(ctx, { medicineId: "", batches: "OK2", source: "Manufacturer notice", publishedAt: todayISO() })).rejects.toThrow(/medicine/);
+    await addRecall(ctx, { medicineId: med, batches: "ok2, ZZ9", source: "Manufacturer notice 12/2026", publishedAt: todayISO(), reason: "Labelling" });
     let r = (await listRecalls(ctx))[0];
     expect(r.matches.filter((m) => m.sellable)).toHaveLength(2);
     expect(await quarantineRecall(ctx, r.id)).toBe(2);
     r = (await listRecalls(ctx))[0];
     expect(r.matches.every((m) => m.status === "quarantine")).toBe(true);
     expect(r.status).toBe("investigating");
+    expect((await db.batch.findFirstOrThrow({ where: { medicineId: other } })).status).toBe("ok");
   });
 
   it("forecasts reorders, projects expiry loss and flags big discounts", async () => {
     const ctx = await ctxFor();
-    const f = (await forecast(ctx, { cover: 21, safety: 2 }))[0];
+    const f = (await forecast(ctx, { cover: 21, safety: 2 })).find((x) => x.id === med)!;
     expect(f.stock).toBe(30); // OK1 only; OK2 quarantined
     expect(f.suggestion).toBe(0); // exactly at the reorder level and above the reorder point
     const e = await expiryRows(ctx, 60);
     expect(e.rows[0]).toMatchObject({ batchNo: "OK1", qty: 30 });
     expect(e.rows[0].rec.kind).toBe("return");
     await commitSale(await ctxFor("Manager"), { idempotencyKey: key(), lines: [{ medicineId: med, batchId: b1, qty: 1 }], customerId: null, discountPct: 15, pay: { mode: "cash" } });
-    expect((await forecast(ctx, { cover: 21, safety: 2 }))[0].suggestion).toBeGreaterThan(0); // 29 < 30
+    expect((await forecast(ctx, { cover: 21, safety: 2 })).find((x) => x.id === med)!.suggestion).toBeGreaterThan(0); // 29 < 30
     const a = await anomalies(ctx, { disc: 5, refunds: 2, cash: 200 });
     expect(a.some((x) => x.rule.startsWith("Discount above"))).toBe(true);
   });
