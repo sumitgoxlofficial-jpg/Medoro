@@ -7,6 +7,7 @@ import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
 import { addDays, dateOnly, daysTo, fiscalYear, isoOf, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
+import { stockValue } from "@/lib/units";
 import { postVoucher } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
 import { allocateToBills } from "@/domain/parties/balances";
@@ -158,11 +159,11 @@ export async function nearExpiryClaims(ctx: Ctx) {
   const maxWindow = Math.max(0, ...sups.map((s) => s.returnWindowDays));
   const batches = await db.batch.findMany({
     where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 }, supplierId: { in: sups.map((s) => s.id) }, expiryDate: { lte: dateOnly(addDays(todayISO(), maxWindow)) } },
-    include: { medicine: { select: { name: true } } }, orderBy: { expiryDate: "asc" },
+    include: { medicine: { select: { name: true, packSize: true } } }, orderBy: { expiryDate: "asc" },
   });
   return sups.map((s) => {
     const items = batches.filter((b) => b.supplierId === s.id && daysTo(b.expiryDate) <= s.returnWindowDays).map((b) => ({
-      batchId: b.id, item: b.medicine.name, batchNo: b.batchNo, expiry: isoOf(b.expiryDate), days: daysTo(b.expiryDate), qty: b.qtyAvailable, value: b.qtyAvailable * big(b.costPaise),
+      batchId: b.id, item: b.medicine.name, batchNo: b.batchNo, expiry: isoOf(b.expiryDate), days: daysTo(b.expiryDate), qty: b.qtyAvailable, value: stockValue(big(b.costPaise), b.qtyAvailable, b.medicine.packSize),
     }));
     return { supplierId: s.id, supplier: s.name, window: s.returnWindowDays, items, value: items.reduce((a, x) => a + x.value, 0) };
   }).filter((g) => g.items.length).sort((a, b) => b.value - a.value);

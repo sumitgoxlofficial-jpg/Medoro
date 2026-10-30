@@ -8,6 +8,7 @@ import { authorize, authorizeAny, authorizeView, type Ctx } from "@/server/conte
 import { UserError } from "@/server/action";
 import { addDays, istDate, istMidnight, todayISO } from "@/lib/dates";
 import { big, shareOf, taxableFromInclusive } from "@/lib/money";
+import { stockValue } from "@/lib/units";
 import { ACC } from "@/domain/accounting/accounts";
 import { stateName, stateOf } from "@/domain/accounting/gst";
 import { periodOf, type Period } from "@/domain/accounting/service";
@@ -86,6 +87,9 @@ export function monthPeriod(month: string | undefined): Period & { month: string
 
 type SaleRow = Prisma.SaleGetPayload<{ include: { items: true } }>;
 
+/** HSN quantity in the pack's UQC: loose units count as a fraction of their pack. */
+const packQty = (i: { loose: boolean; packSize: number }, qty: number) => (i.loose && i.packSize > 1 ? Math.round((qty / i.packSize) * 100) / 100 : qty);
+
 /**
  * Invoices withdrawn from GSTR-1 and reported as cancelled documents: IRNs cancelled at the IRP (with the credit notes
  * that reversed them) and bills voided on the day they were made.
@@ -137,7 +141,7 @@ export async function gstDocs(tenantId: string, branchIds: string[], p: Period) 
   for (const s of sales) {
     if (cancelledIds.has(s.id)) { cancelled.push(s.invoiceNo); continue; }
     const inter = big(s.igstPaise) > 0;
-    const raw = s.items.map((i) => lineOf(i.medicineId, i.gstRate, i.qty, big(i.taxablePaise), big(i.mrpPaise) * i.qty - big(i.discountPaise) - big(i.taxablePaise)));
+    const raw = s.items.map((i) => lineOf(i.medicineId, i.gstRate, packQty(i, i.qty), big(i.taxablePaise), big(i.mrpPaise) * i.qty - big(i.discountPaise) - big(i.taxablePaise)));
     docs.push({ kind: "inv", no: s.invoiceNo, date: istDate(s.at), value: big(s.totalPaise), pos: s.placeOfSupply ?? home(s.branchId), ctin: s.customerGstin, inter, branchId: s.branchId, lines: split(raw, inter, big(s.cgstPaise)) });
   }
   const done = new Map<string, number>();
@@ -151,7 +155,7 @@ export async function gstDocs(tenantId: string, branchIds: string[], p: Period) 
       const before = done.get(it.id) ?? 0;
       done.set(it.id, before + l.qty);
       const taxable = shareOf(big(it.taxablePaise), it.qty, before, l.qty);
-      raw.push(lineOf(it.medicineId, it.gstRate, l.qty, taxable, l.amount - taxable));
+      raw.push(lineOf(it.medicineId, it.gstRate, packQty(it, l.qty), taxable, l.amount - taxable));
     }
     if (!inPeriod || cancelledIds.has(s.id)) continue;
     const inter = big(s.igstPaise) > 0, tax = raw.reduce((a, l) => a + l.tax, 0);
@@ -461,7 +465,7 @@ export async function generateSaleEwb(ctx: Ctx, saleId: string, raw: TransportIn
 /** Value of a transfer at cost, with the medicine's GST rate (shown; a same-GSTIN transfer carries no tax). */
 async function transferGoods(tenantId: string, batchId: string, qty: number) {
   const b = await db.batch.findFirstOrThrow({ where: { id: batchId, tenantId }, include: { medicine: true } });
-  return { b, value: qty * big(b.costPaise) };
+  return { b, value: stockValue(big(b.costPaise), qty, b.medicine.packSize) }; // qty in stock units, cost per pack
 }
 
 export async function generateTransferEwb(ctx: Ctx, transferId: string, raw: TransportInput) {

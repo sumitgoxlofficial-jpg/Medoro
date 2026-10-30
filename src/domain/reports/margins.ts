@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { authorizeView, type Ctx } from "@/server/context";
 import { big } from "@/lib/money";
+import { stockValue } from "@/lib/units";
 import { exGst, marginPct } from "@/domain/purchasing/pricing";
 
 export type MarginBy = "item" | "category" | "supplier";
@@ -30,11 +31,13 @@ export async function salesMargins(ctx: Ctx, from: Date, to: Date, by: MarginBy,
 /** Margin on stock in hand: MRP excluding GST against each batch's landed cost. */
 export async function stockMargins(ctx: Ctx) {
   authorizeView(ctx, "reports");
-  const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } }, include: { medicine: { select: { id: true, name: true, strength: true, gstRate: true } } } });
+  const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } }, include: { medicine: { select: { id: true, name: true, strength: true, gstRate: true, packSize: true } } } });
   const by = new Map<string, { name: string; qty: number; sell: number; cost: number }>();
   for (const b of batches) {
     const x = by.get(b.medicineId) ?? { name: `${b.medicine.name} ${b.medicine.strength}`, qty: 0, sell: 0, cost: 0 };
-    x.qty += b.qtyAvailable; x.sell += b.qtyAvailable * exGst(big(b.mrpPaise), b.medicine.gstRate); x.cost += b.qtyAvailable * big(b.costPaise);
+    // Stock is in stock units; MRP and cost are per pack.
+    const ps = b.medicine.packSize;
+    x.qty += b.qtyAvailable; x.sell += stockValue(exGst(big(b.mrpPaise), b.medicine.gstRate), b.qtyAvailable, ps); x.cost += stockValue(big(b.costPaise), b.qtyAvailable, ps);
     by.set(b.medicineId, x);
   }
   return [...by.entries()].map(([id, x]) => ({ id, ...x, margin: x.sell - x.cost, pct: marginPct(x.sell, x.cost) })).sort((a, b) => (a.pct ?? 0) - (b.pct ?? 0));

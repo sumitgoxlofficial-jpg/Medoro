@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { createMedicine } from "@/domain/inventory/service";
-import { createPo, listOrders, postGrnTx } from "@/domain/purchasing/service";
+import { approveSupplierInvoice, createPo, listOrders, postGrnTx } from "@/domain/purchasing/service";
 import { parseEbill } from "@/domain/purchasing/ebill-service";
 import { priceComparison } from "@/domain/intelligence/service";
 import { inputGstByRate, periodOf } from "@/domain/accounting/service";
@@ -172,5 +172,33 @@ describe("purchase pricing, e-bills and claims", () => {
     expect((await salesMargins(ctx, new Date(Date.now() - 86400_000), new Date(Date.now() + 60_000), "category"))[0]).toMatchObject({ name: "Tablet" });
     const st = (await stockMargins(ctx)).find((r) => r.id === dolo)!;
     expect(st.pct).toBeGreaterThan(20);
+  });
+
+  it("GRN in packs with a scheme from an uploaded invoice: printed total, verified lines, stock units and per-pack cost", async () => {
+    const ctx = await ctxFor("Manager");
+    const strip = await createMedicine(ctx, { name: "Cetzine 10", generic: "Cetirizine", strength: "10 mg", form: "Tablet", manufacturer: "Dr Reddy's", pack: "10", mrp: "20", gstRate: 12, schedule: "", reorderLevel: 0, barcode: "", hsn: "3004", rack: "",
+      packSize: 10, packUnit: "strip", looseUnit: "tab", allowLoose: true });
+    const doc = await db.scanDocument.create({ data: { tenantId: ctx.tenantId, fileName: "kd77.pdf", storagePath: "scans/kd77.pdf", mime: "application/pdf", sha256: "x", status: "review", extracted: { lines: [{ text: "CETZINE 10 TAB 10x10", qty: 10, confidence: 0.5 }] }, confidence: {}, createdBy: ctx.userId } });
+    const line = { medicineId: strip, batchNo: "CZ1", expiry: exp, qty: 10, freeQty: "", scheme: "10+2", rate: "12", mrp: "20", poItemId: null, ocrIndex: 0 };
+    // 10 strips × ₹12 = ₹120 + 12% GST = ₹134.40; the invoice prints ₹134.
+    const inv = { supplierId: sup2, invoiceNo: "KD/77", invoiceDate: todayISO(), poId: null, scanDocId: doc.id, lines: [line] };
+    await expect(approveSupplierInvoice(ctx, { ...inv, statedTotal: null })).rejects.toThrow(/total printed/);
+    await expect(approveSupplierInvoice(ctx, { ...inv, statedTotal: "134" })).rejects.toThrow(/low confidence/);
+    await expect(approveSupplierInvoice(ctx, { ...inv, statedTotal: "150", lines: [{ ...line, verified: true }] })).rejects.toThrow(/Totals don’t match/);
+    expect((await approveSupplierInvoice(ctx, { ...inv, statedTotal: "134", lines: [{ ...line, verified: true }] })).total).toBe(13400);
+    const b = await db.batch.findFirstOrThrow({ where: { batchNo: "CZ1" } });
+    // 12 strips (2 free) of 10 tabs held as 120 tabs; landed cost per strip spreads the free goods: 12000 / 12.
+    expect([b.qtyAvailable, b.costPaise]).toEqual([120, 1000n]);
+    expect((await db.stockMovement.findFirstOrThrow({ where: { batchId: b.id, type: "grn" } })).qty).toBe(120);
+    expect((await db.grnItem.findFirstOrThrow({ where: { batchId: b.id } })).freeQty).toBe(2);
+    // Top-up: 5 strips at ₹13, blended per strip and weighted by tabs: (120 × 1000 + 6500 × 10) / 170.
+    await postGrnTx(ctx, { supplierId: sup2, invoiceNo: "KD/78", invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null, lines: [{ ...line, qty: 5, scheme: "", rate: "13", ocrIndex: undefined }] });
+    expect(await db.batch.findFirstOrThrow({ where: { id: b.id } })).toMatchObject({ qtyAvailable: 170, costPaise: 1088n });
+    // Stock in hand is valued per strip: 17 strips at ₹17.86 ex-GST and ₹10.88 cost.
+    expect((await stockMargins(ctx)).find((r) => r.id === strip)).toMatchObject({ qty: 170, sell: 30362, cost: 18496 });
+    // A debit note for 5 tabs reverses half a strip at cost.
+    await returnToSupplier(ctx, b.id, 5, "Damaged strip");
+    const dn = await db.voucher.findFirstOrThrow({ where: { refType: "supplier_return" }, include: { lines: true }, orderBy: { postedAt: "desc" } });
+    expect(dn.lines.find((l) => l.account === ACC.purchases)?.creditPaise).toBe(544n);
   });
 });
