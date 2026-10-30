@@ -45,7 +45,7 @@ jobs:
       - run: npx --yes @cyclonedx/cyclonedx-npm@4 --ignore-npm-errors --omit dev --output-format JSON --output-file sbom-app.cdx.json
       - run: npm ci --ignore-scripts && npx --yes @cyclonedx/cyclonedx-npm@4 --omit dev --output-format JSON --output-file ../sbom-desktop.cdx.json
         working-directory: desktop
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-cyclonedx
           path: sbom-*.cdx.json
