@@ -11,6 +11,7 @@ import { supplierPerformance } from "@/domain/purchasing/service";
 import { customerSchema, type CustomerInput } from "@/domain/sales/contracts";
 import { allocateToBills, customerBalance, customerBalances, supplierBalances } from "./balances";
 import { paymentSchema, supplierSchema, type PaymentInput, type SupplierInput } from "./contracts";
+import { chequeLabel, recordCheque } from "./cheques";
 
 export async function listSuppliers(ctx: Ctx) {
   const [rows, bal, bills, perf] = await Promise.all([
@@ -23,7 +24,7 @@ export async function listSuppliers(ctx: Ctx) {
     const open = bills.find((b) => b.supplierId === s.id && b.paidPaise < b.amountPaise);
     const p = perf.get(s.id);
     return {
-      id: s.id, name: s.name, gstin: s.gstin, phone: s.phone, creditDays: s.creditDays, leadDays: Number(s.leadDays), acceptsReturns: s.acceptsReturns, stateCode: s.stateCode ?? "",
+      id: s.id, name: s.name, gstin: s.gstin, phone: s.phone, creditDays: s.creditDays, leadDays: Number(s.leadDays), acceptsReturns: s.acceptsReturns, stateCode: s.stateCode ?? "", returnWindowDays: s.returnWindowDays,
       accuracy: p ? p.fillPct : null, onTime: p ? p.onTimePct : null, orders: p?.orders ?? 0, balance: bal.get(s.id) ?? 0, version: s.version,
       nextDue: open ? { date: open.dueDate.toISOString().slice(0, 10), days: daysTo(open.dueDate), amount: big(open.amountPaise) - big(open.paidPaise) } : null,
     };
@@ -51,7 +52,7 @@ export async function saveSupplierIn(tx: Tx, ctx: Ctx, id: string | null, raw: S
   const i = supplierSchema.parse(raw);
   const dup = await tx.supplier.findFirst({ where: { tenantId: ctx.tenantId, name: { equals: i.name, mode: "insensitive" }, ...(id ? { NOT: { id } } : {}) } });
   if (dup) throw new UserError(`${dup.name} already exists.`);
-  const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns, stateCode: i.stateCode || null };
+  const data = { name: i.name, gstin: i.gstin || null, phone: i.phone || null, creditDays: i.creditDays, leadDays: i.leadDays, acceptsReturns: i.acceptsReturns, stateCode: i.stateCode || null, returnWindowDays: i.returnWindowDays };
   if (id) {
     const r = await tx.supplier.updateMany({ where: { id, tenantId: ctx.tenantId }, data: { ...data, version: { increment: 1 } } });
     if (!r.count) throw new UserError("Supplier not found.");
@@ -110,9 +111,11 @@ export async function paySupplier(ctx: Ctx, raw: PaymentInput) {
     if (!s) throw new UserError("Supplier not found.");
     const bal = (await supplierBalances(tx, ctx.tenantId)).get(s.id) ?? 0;
     if (i.amount > bal) throw new UserError(`Amount exceeds the outstanding balance ${inr(bal)}.`);
-    const v = await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "payment", userId: ctx.userId, refType: "supplier_payment", refId: s.id,
-      narration: `Payment to ${s.name} · ${i.method}${i.ref ? " · " + i.ref : ""}`,
-      lines: [{ account: ACC.creditors, dr: i.amount, partyType: "supplier", partyId: s.id }, { account: moneyAccount(i.method), cr: i.amount }] });
+    const chq = i.method === "Cheque";
+    const v = await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "payment", userId: ctx.userId, refType: chq ? "cheque_payment" : "supplier_payment", refId: s.id,
+      narration: `Payment to ${s.name} · ${chq ? chequeLabel(i) : i.method}${i.ref ? " · " + i.ref : ""}`,
+      lines: [{ account: ACC.creditors, dr: i.amount, partyType: "supplier", partyId: s.id }, { account: chq ? ACC.chequesIssued : moneyAccount(i.method), cr: i.amount }] });
+    if (chq) await recordCheque(tx, ctx, { direction: "issued", partyType: "supplier", partyId: s.id, input: i, voucherId: v.id });
     await allocateToBills(tx, ctx.tenantId, s.id, i.amount);
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Voucher posted ${v.no}`, entity: "voucher", entityId: v.id, detail: `Payment to ${s.name} · ${inr(i.amount)} · ${i.method}` });
     return v.no;
@@ -128,9 +131,11 @@ export async function receiveFromCustomer(ctx: Ctx, raw: PaymentInput) {
     if (!c) throw new UserError("Customer not found.");
     const due = await customerBalance(tx, ctx.tenantId, c.id);
     if (i.amount > due) throw new UserError(`Amount exceeds the outstanding balance ${inr(due)}.`);
-    const v = await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "receipt", userId: ctx.userId, refType: "customer_receipt", refId: c.id,
-      narration: `Receipt from ${c.name} · ${i.method}${i.ref ? " · " + i.ref : ""}`,
-      lines: [{ account: moneyAccount(i.method), dr: i.amount }, { account: ACC.debtors, cr: i.amount, partyType: "customer", partyId: c.id }] });
+    const chq = i.method === "Cheque";
+    const v = await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "receipt", userId: ctx.userId, refType: chq ? "cheque_receipt" : "customer_receipt", refId: c.id,
+      narration: `Receipt from ${c.name} · ${chq ? chequeLabel(i) : i.method}${i.ref ? " · " + i.ref : ""}`,
+      lines: [{ account: chq ? ACC.chequesInHand : moneyAccount(i.method), dr: i.amount }, { account: ACC.debtors, cr: i.amount, partyType: "customer", partyId: c.id }] });
+    if (chq) await recordCheque(tx, ctx, { direction: "received", partyType: "customer", partyId: c.id, input: i, voucherId: v.id });
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Voucher posted ${v.no}`, entity: "voucher", entityId: v.id, detail: `Receipt from ${c.name} · ${inr(i.amount)} · ${i.method}` });
     return v.no;
   });

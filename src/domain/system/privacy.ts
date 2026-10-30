@@ -62,7 +62,10 @@ export async function dumpTenant(tenantId: string) {
     db.invite.findMany({ where: T, omit: { code: true } }), db.subscriptionMeta.findUnique({ where: T, omit: { licenceToken: true } }),
     db.supportGrant.findMany({ where: T, omit: { tokenHash: true } }), db.heldCart.findMany({ where: T }),
   ]);
-  return { exportedAt: new Date().toISOString(), format: "medoro-export-v1", tenant, branches, counters, roles, users, medicines, batches, movements, suppliers, customers, sales, returns, shifts, vouchers, grns, purchaseOrders: pos, supplierBills: bills, stockCounts: counts, transfers, recalls, stockOuts, whatsappMessages: wa, backups, audit, scanDocuments: documents, devices, offlineOps, campaigns, invites, subscription, supportGrants, heldCarts };
+  const [supplierClaims, cheques, bankStatements, bankLines, supplierItemMaps] = await Promise.all([
+    db.supplierClaim.findMany({ where: T }), db.cheque.findMany({ where: T }), db.bankStatement.findMany({ where: T }), db.bankLine.findMany({ where: T }), db.supplierItemMap.findMany({ where: T }),
+  ]);
+  return { exportedAt: new Date().toISOString(), format: "medoro-export-v1", tenant, branches, counters, roles, users, medicines, batches, movements, suppliers, customers, sales, returns, shifts, vouchers, grns, purchaseOrders: pos, supplierBills: bills, stockCounts: counts, transfers, recalls, stockOuts, whatsappMessages: wa, backups, audit, scanDocuments: documents, devices, offlineOps, campaigns, invites, subscription, supportGrants, heldCarts, supplierClaims, cheques, bankStatements, bankLines, supplierItemMaps };
 }
 
 export async function fullExport(ctx: Ctx) {

@@ -12,7 +12,7 @@ import { ACC } from "@/domain/accounting/accounts";
 import { allocateToBills } from "@/domain/parties/balances";
 import { supplierIsInterState } from "@/domain/purchasing/service";
 
-async function lockBatch(tx: Tx, ctx: Ctx, id: string) {
+export async function lockBatch(tx: Tx, ctx: Ctx, id: string) {
   const r = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE id = ${id} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
   if (!r.length) throw new UserError("Batch not found.");
   return tx.batch.findUniqueOrThrow({ where: { id }, include: { medicine: true, supplier: true } });
@@ -36,6 +36,22 @@ export async function postStockValue(tx: Tx, ctx: Ctx, v: { refType: string; ref
   return postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "journal", userId: ctx.userId, refType: v.refType, refId: v.refId, narration: v.narration, lines });
 }
 
+/**
+ * Value of goods going back to a supplier at batch (landed) cost. Input GST is reversed on it when the GRN
+ * claimed input GST; when GST was part of cost (no ITC) the whole cost goes back to Purchases.
+ */
+export async function returnValue(tx: Tx, ctx: Ctx, b: { grnId: string | null; costPaise: bigint; medicine: { gstRate: number } }, supplier: { stateCode: string | null; gstin: string | null }, qty: number) {
+  const grn = b.grnId ? await tx.grn.findUnique({ where: { id: b.grnId }, select: { igst: true, itc: true } }) : null;
+  const igst = grn ? grn.igst : await supplierIsInterState(tx, ctx.tenantId, ctx.branchId, supplier);
+  const taxable = qty * big(b.costPaise), gst = grn && !grn.itc ? 0 : Math.round((taxable * b.medicine.gstRate) / 100);
+  return { taxable, gst, igst };
+}
+
+export const gstReversal = (gst: number, igst: boolean) => {
+  const half = Math.floor(gst / 2);
+  return igst ? [{ account: ACC.inIgst, cr: gst }] : [{ account: ACC.inCgst, cr: half }, { account: ACC.inSgst, cr: gst - half }];
+};
+
 /** Return goods to the supplier: reduces stock and the payable, reverses input GST (debit note). */
 export async function returnToSupplier(ctx: Ctx, batchId: string, qty: number, reason: string) {
   authorize(ctx, "purchase");
@@ -53,9 +69,8 @@ export async function returnToSupplierIn(tx: Tx, ctx: Ctx, batchId: string, qty:
   if (qty > b.qtyAvailable) throw new UserError(`Only ${b.qtyAvailable} in stock.`);
   if (reason.trim().length < 3) throw new UserError("Enter the reason.");
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"party:" + b.supplier.id}))`;
-  const taxable = qty * big(b.costPaise), gst = Math.round((taxable * b.medicine.gstRate) / 100), half = Math.floor(gst / 2);
-  const grn = b.grnId ? await tx.grn.findUnique({ where: { id: b.grnId }, select: { igst: true } }) : null;
-  const igst = grn ? grn.igst : await supplierIsInterState(tx, ctx.tenantId, ctx.branchId, b.supplier);
+  const { taxable, gst, igst } = await returnValue(tx, ctx, b, b.supplier, qty);
+  const half = Math.floor(gst / 2);
   const fy = fiscalYear();
   const no = `DN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "DN:" + fy))}`;
   await tx.batch.update({ where: { id: b.id }, data: { qtyAvailable: { decrement: qty }, version: { increment: 1 } } });
