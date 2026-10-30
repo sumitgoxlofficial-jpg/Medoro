@@ -173,7 +173,7 @@ export async function employeeSignIn(input: { code: string; employeeNo: string; 
   const user = t ? await db.user.findFirst({ where: { tenantId: t.id, employeeNo: no, active: true }, include: { role: true } }) : null;
   if (!user || !(await verifyPassword(user.pinHash, input.pin))) {
     const left = await recordFailure(keys);
-    return fail(!user && t ? "Employee ID not found for this pharmacy." : left ? `Wrong PIN. ${left} attempt${left > 1 ? "s" : ""} left.` : "5 wrong PINs. This ID is locked for 15 minutes.");
+    return fail(left ? `Employee ID or PIN is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many wrong attempts. This ID is locked for 15 minutes.");
   }
   const counter = await db.counter.findFirst({ where: { id: input.counterId, tenantId: user.tenantId, active: true } });
   if (!counter) return fail("Choose your counter.");
