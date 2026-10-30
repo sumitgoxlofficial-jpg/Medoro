@@ -33,6 +33,7 @@ enum PayMode {
   card
   credit
   split
+  loyalty // points redeemed at the counter (see LoyaltyLedger)
 }
 
 enum MsgStatus {
@@ -388,6 +389,13 @@ model Customer {
   waOptIn          Boolean   @default(false)
   optInAt          DateTime?
   optInMethod      String?
+  // SMS marketing consent, recorded separately from WhatsApp
+  smsOptIn         Boolean   @default(false)
+  smsOptInAt       DateTime?
+  smsOptInMethod   String?
+  // Meta reported the number isn't on WhatsApp: automatic sends skip it until the number changes
+  waInvalidAt      DateTime?
+  waInvalidReason  String?
   erasedAt         DateTime?
   version          Int       @default(0)
   createdAt        DateTime  @default(now())
@@ -660,8 +668,15 @@ model WaMessage {
   status         MsgStatus
   attempts       Int       @default(0)
   errorCode      String?
+  channel        String    @default("whatsapp") // whatsapp | sms
+  customerId     String?
+  payload        Json? // what to send, so the delivery worker can retry it
+  errorKind      String? // retry | permanent | invalid | auth
+  nextAttemptAt  DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
 }
 
 model Integration {
@@ -724,6 +739,7 @@ model Campaign {
   template  String
   audience  Int
   status    String // draft, scheduled, sent
+  message   String? // store update text, sent as body variable 2
   createdAt DateTime @default(now())
 }
 
@@ -1055,4 +1071,23 @@ model DiscountApproval {
   createdAt   DateTime  @default(now())
 
   @@index([tenantId, createdAt])
+}
+
+/// Loyalty points, one row per change; a balance is the sum of points. Append-only.
+model LoyaltyLedger {
+  id         String    @id @default(uuid())
+  tenantId   String
+  customerId String
+  kind       String // earn, redeem, reverse, restore, expire
+  points     Int
+  valuePaise BigInt    @default(0) // redeem/restore: rupee value at the sale's point rate
+  saleId     String?
+  returnId   String?
+  expiresAt  DateTime?
+  note       String?
+  userId     String?
+  at         DateTime  @default(now())
+
+  @@index([tenantId, customerId])
+  @@index([saleId])
 }
