@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 };
 
 const MARQUEE = [[ScanBarcode, "Barcode billing"], [Layers, "FEFO batch picking"], [BadgeIndianRupee, "MRP-inclusive GST"], [MessageCircle, "WhatsApp PDF invoices"], [Hourglass, "Expiry loss prevention"], [FileScan, "Supplier bill scanner"], [Landmark, "Day book & P&L"], [Sparkles, "Hinglish AI manager"], [GitBranch, "Multi-branch transfers"], [CloudUpload, "Encrypted Drive backups"]] as const;
-const TRUST = ["14-day free trial", "No card needed", "Pay by UPI or card", "GST-ready", "Excel export", "DPDP-ready consent"];
-const FACTS = [["FEFO", "Earliest-expiring batch picked on every bill"], ["GST", "MRP-inclusive, CGST and SGST split, Excel for your CA"], ["हिंदी", "Ask the AI in English, Hindi or Hinglish"], ["0", "Pharmacy records kept on Medoro’s servers"]];
+const TRUST = ["14-day free trial", "No card needed", "Pay by UPI or bank transfer", "GST-ready", "CSV reports for your CA", "DPDP-ready consent"];
+const FACTS = [["FEFO", "Earliest-expiring batch picked on every bill"], ["GST", "MRP-inclusive, CGST and SGST split, CSV for your CA"], ["हिंदी", "Ask the AI in English, Hindi or Hinglish"], ["0", "Pharmacy records kept on Medoro’s servers"]];
 const POS = ["Brand, salt or barcode search", "Cash, UPI, card and split", "Held carts and credit sales", "A4 and thermal receipts", "Returns and credit notes", "Shift cash reconciliation"];
 const TILES = [
   [Hourglass, "Expiry loss prevention", "See which batches won’t sell in time. Return them to the supplier or move them to another branch before they expire.", "#FDF2E1", "#94570A"],
@@ -35,21 +35,21 @@ const SEC = [
   [ScrollText, "Tamper-evident audit trail", "Every void, discount, refund and stock adjustment is logged with who and when."],
   [Lock, "Encrypted backups", "Backups are encrypted before they leave your PC. Only your recovery key opens them."],
   [FileCheck, "Consent records", "WhatsApp opt-in and opt-out are recorded per customer, with the date and method."],
-  [Download, "Export and leave any time", "Your full data as CSV, plus a database dump. No lock-in."],
+  [Download, "Export and leave any time", "Your full data as a JSON export, CSV reports for your CA, and encrypted backups only your key opens. No lock-in."],
 ] as const;
 const FAQ: { title: string; items: [string, string][] }[] = [
   { title: "Product", items: [
-    ["Does Medoro handle GST billing?", "Yes. Prices are MRP-inclusive and Medoro works out the taxable value with the CGST and SGST split for every line. Invoices are numbered per branch and financial year, and a GST summary exports to Excel for your CA. Have your CA confirm the setup for your business."],
+    ["Does Medoro handle GST billing?", "Yes. Prices are MRP-inclusive and Medoro works out the taxable value with the CGST and SGST split for every line. Invoices are numbered per branch and financial year, and a GST summary downloads as a CSV (opens in Excel) for your CA. Have your CA confirm the setup for your business."],
     ["Can it stop expired medicines from being sold?", "Yes. Billing picks the earliest-expiring sellable batch automatically. Expired, quarantined and recalled batches are blocked on the server, even if someone tries to add them by hand."],
     ["Do I need to install anything?", "No. Medoro runs in Chrome or any modern browser on PCs, tablets and phones. If the database is on a PC in your shop, counters on the shop network keep billing even when the internet is down."]] },
   { title: "Data and privacy", items: [
-    ["Where is my data stored?", "On a database you control: a PC in your shop, your own server or your own cloud account. Medoro’s servers hold only your account, plan and licence. You can export everything, any time."],
-    ["What leaves my server?", "Only what you turn on. WhatsApp gets the customer number and the invoice PDF. Google Drive gets encrypted backup files it cannot read. Outside AI is off unless you switch it on, and the settings show exactly what would be sent."],
+    ["Where is my data stored?", "On a database you control: a PC in your shop, your own server or your own cloud account. Medoro’s servers hold only your account, plan, licence and the support tickets you send. You can export everything, any time."],
+    ["What leaves my server?", "Only what you turn on. Medoro’s licence server gets your pharmacy name and owner contact once, then the app version and branch and counter counts at each check-in. WhatsApp gets the customer number and the invoice PDF. Google Drive gets encrypted backup files it cannot read. Outside AI is off unless you switch it on, and the settings show exactly what would be sent."],
     ["Is the AI giving medical advice?", "No. The AI answers business questions about sales, stock, expiry and dues. It refuses dosage or treatment questions and refers them to the pharmacist."]] },
   { title: "Pricing and trial", items: [
-    ["How long is the free trial?", "14 days, no card needed. Your data stays where it is when the trial ends. Pay by UPI or card to continue."],
+    ["How long is the free trial?", "14 days, no card needed. After that there are 7 days of grace, then Medoro turns read-only until you pay: your data stays where it is, and viewing, exports and backups keep working. Pay by UPI or bank transfer and tap “I’ve paid” on the Subscription page."],
     ["Can I move my data from my current software?", "Yes. Import medicines, batches, suppliers and customers from Excel or CSV. Assisted migration is a one-time service, listed under add-ons."],
-    ["How do I cancel?", "From Settings, under Subscription, any time. The plan stays active until the end of the paid period, then the software goes read-only. Your data stays on your server and can always be exported."]] },
+    ["How do I cancel?", "In the app, open Subscription (under System) and choose Cancel subscription, any time. The plan stays active until the end of the paid period, then the software goes read-only. Your data stays on your server and can always be exported."]] },
 ];
 
 const eyebrow = "text-[13px] font-semibold text-teal tracking-[.06em]";
@@ -73,7 +73,7 @@ export default function Home() {
               <span className="text-teal font-semibold mt-1.5">One Medoro for your whole store. 14-day free trial.</span>
             </div>
             <div className="site-rise [animation-delay:270ms] flex gap-3 flex-wrap mt-1.5">
-              <Link href="/setup" className="flex items-center gap-2.5 bg-teal text-white h-[clamp(48px,6vh,58px)] px-[clamp(18px,2.2vw,30px)] rounded-full text-[clamp(15px,1.4vw,17px)] font-semibold whitespace-nowrap shadow-[0_12px_28px_-10px_rgba(11,94,91,.6)] hover:bg-teal-hover hover:text-white">Start free trial<ArrowRight size={18} /></Link>
+              <Link href="/start" className="flex items-center gap-2.5 bg-teal text-white h-[clamp(48px,6vh,58px)] px-[clamp(18px,2.2vw,30px)] rounded-full text-[clamp(15px,1.4vw,17px)] font-semibold whitespace-nowrap shadow-[0_12px_28px_-10px_rgba(11,94,91,.6)] hover:bg-teal-hover hover:text-white">Start free trial<ArrowRight size={18} /></Link>
               <a href="#pricing" className="flex items-center gap-2 bg-white text-ink-strong h-[clamp(48px,6vh,58px)] px-[clamp(18px,2.2vw,30px)] rounded-full text-[clamp(15px,1.4vw,17px)] font-semibold whitespace-nowrap border border-input hover:border-teal hover:text-teal">See pricing</a>
             </div>
             <a href={WA} className="site-rise [animation-delay:360ms] flex items-center gap-2 text-[17px] font-semibold text-teal pl-1.5 hover:text-teal-hover">Talk to us on WhatsApp<ArrowRight size={17} /></a>
@@ -173,7 +173,7 @@ export default function Home() {
             <div className="flex flex-col gap-2.5 mt-1.5">
               {AI_POINTS.map((p) => <div key={p} className="flex gap-2.5 items-start text-[14.5px] text-[#DCE6E9]"><Check size={16} className="text-[#5FD3BC] mt-0.5 flex-none" />{p}</div>)}
             </div>
-            <Link href="/setup" className="self-start mt-2 flex items-center gap-2 bg-white text-[#0E1A1F] h-11 px-[18px] rounded-[9px] text-[14.5px] font-semibold hover:bg-teal-tint hover:text-[#0E1A1F]"><Sparkles size={15} />Try it free for 14 days</Link>
+            <Link href="/start" className="self-start mt-2 flex items-center gap-2 bg-white text-[#0E1A1F] h-11 px-[18px] rounded-[9px] text-[14.5px] font-semibold hover:bg-teal-tint hover:text-[#0E1A1F]"><Sparkles size={15} />Try it free for 14 days</Link>
           </div>
           <div aria-label="Sample conversation" className="relative bg-[#162429] border border-[#24363C] rounded-2xl p-[18px] flex flex-col gap-3 shadow-[0_30px_60px_-20px_rgba(0,0,0,.5)]">
             <div className="flex items-center gap-2 pb-3 border-b border-[#24363C]"><span className="size-[26px] rounded-[7px] bg-teal flex items-center justify-center"><Sparkles size={14} /></span><strong className="text-[14px]">Medoro AI</strong><span className="ml-auto text-[11.5px] text-[#7F9399] flex gap-[5px] items-center"><span className="size-1.5 rounded-full bg-[#22A06B]" />On your server</span></div>
@@ -225,7 +225,7 @@ export default function Home() {
         <div data-reveal className="flex flex-col gap-3 items-center text-center">
           <span className={eyebrow}>PRICING</span>
           <h2 className="m-0 text-[clamp(30px,4vw,44px)] leading-[1.1] tracking-[-.03em] font-bold text-balance">Simple plans. Start free for 14 days.</h2>
-          <p className="m-0 text-[16px] text-[#4B535B] max-w-[620px] text-pretty">Prices in rupees, including GST. Pay by UPI or card. Cancel any time and your data stays on your server.</p>
+          <p className="m-0 text-[16px] text-[#4B535B] max-w-[620px] text-pretty">Prices in rupees, including GST. Pay by UPI or bank transfer. Cancel any time and your data stays on your server.</p>
         </div>
         <Pricing />
         <p className="m-0 text-[12.5px] text-fainter text-center max-w-[820px] self-center text-pretty">Proposed launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messaging is subject to Meta’s conversation charges. Hosting costs for your own server or cloud are separate.</p>
@@ -246,7 +246,7 @@ export default function Home() {
           <h2 className="m-0 text-[clamp(28px,4vw,44px)] leading-[1.1] tracking-[-.03em] font-bold text-balance max-w-[720px]">Run a calmer pharmacy, starting today.</h2>
           <p className="m-0 text-[16.5px] text-[#CFE0F5] max-w-[560px]">Set up your counter in an afternoon. Import your stock from Excel and we’ll help you on WhatsApp.</p>
           <div className="flex gap-2.5 flex-wrap justify-center mt-1.5">
-            <Link href="/setup" className="flex items-center gap-2 bg-white text-[#0B3A78] h-12 px-[22px] rounded-[10px] text-[15.5px] font-semibold hover:bg-teal-tint hover:text-[#0B3A78]">Start 14-day free trial</Link>
+            <Link href="/start" className="flex items-center gap-2 bg-white text-[#0B3A78] h-12 px-[22px] rounded-[10px] text-[15.5px] font-semibold hover:bg-teal-tint hover:text-[#0B3A78]">Start 14-day free trial</Link>
             <a href={WA} className="flex items-center gap-2 border border-white/35 text-white h-12 px-5 rounded-[10px] text-[15.5px] font-medium hover:bg-white/10 hover:text-white">Talk to us on WhatsApp</a>
           </div>
         </div>

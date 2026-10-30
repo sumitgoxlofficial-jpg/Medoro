@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, type Ctx } from "@/server/context";
+import { authorize, requireSubscription, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { Prisma } from "@prisma/client";
 import { unseal } from "@/server/vault";
@@ -79,6 +79,7 @@ export async function listCampaigns(ctx: Ctx) {
 
 export async function draftCampaign(ctx: Ctx, name: string, template: string) {
   authorize(ctx, "integrations");
+  requireSubscription(ctx);
   if (name.trim().length < 3) throw new UserError("Name the campaign.");
   if (!/^[a-z0-9_]{1,512}$/.test(template)) throw new UserError("Choose an approved template.");
   const audience = await db.customer.count({ where: { tenantId: ctx.tenantId, waOptIn: true, erasedAt: null, phone: { not: null } } });
@@ -120,6 +121,7 @@ const firstName = (n: string) => n.split(" ")[0];
  */
 export async function sendCampaign(ctx: Ctx, id: string) {
   authorize(ctx, "integrations");
+  requireSubscription(ctx);
   const c = await db.campaign.findFirst({ where: { id, tenantId: ctx.tenantId } });
   if (!c || !["draft", "sending", "failed"].includes(c.status)) throw new UserError("This campaign was already sent.");
   const send = await campaignSender(ctx.tenantId, c.template);
@@ -170,6 +172,7 @@ export async function sendCampaign(ctx: Ctx, id: string) {
 /** Retries one failed campaign message (3 attempts in all), only if the customer is still opted in. */
 export async function retryCampaignMessage(ctx: Ctx, messageId: string) {
   authorize(ctx, "integrations");
+  requireSubscription(ctx);
   const m = await db.waMessage.findFirst({ where: { id: messageId, tenantId: ctx.tenantId } });
   if (!m || !m.invoiceId.startsWith(campaignRef(""))) throw new UserError("Message not found.");
   if (m.status !== "failed") throw new UserError(`Already ${m.status}.`);

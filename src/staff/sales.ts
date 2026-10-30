@@ -39,7 +39,7 @@ export async function saveRates(s: Staff, raw: Record<string, { first: string | 
   await staffAudit(s, "Commission rates saved", PRODUCT_IDS.map((id) => `${id} ${rates[id].first}/${rates[id].renew}`).join(", "));
 }
 
-async function rateFor(staffId: string, productId: string, type: "new" | "renewal") {
+export async function rateFor(staffId: string, productId: string, type: "new" | "renewal") {
   const [rates, u] = await Promise.all([getRates(), db.staffUser.findUnique({ where: { id: staffId }, select: { bonusPct: true } })]);
   const r = rates[productId as ProductId] ?? { first: 0, renew: 0 };
   return (type === "new" ? r.first : r.renew) + Number(u?.bonusPct ?? 0);
@@ -154,7 +154,7 @@ export async function pipeline(s: Staff) {
   ]);
   const name = new Map(staff.map((u) => [u.id, u.name]));
   return leads.map((l) => ({
-    id: l.id, code: l.code, name: l.name, owner: l.owner, phone: l.phone, city: l.city, source: l.source, product: l.product, stage: l.stage,
+    id: l.id, code: l.code, name: l.name, owner: l.owner, phone: l.phone, email: l.email, city: l.city, source: l.source, product: l.product, stage: l.stage,
     nextOn: l.nextOn ? isoOf(l.nextOn) : null, lostReason: l.lostReason, discountPct: l.discountPct, discountStatus: l.discountStatus,
     last: l.logs[0]?.text ?? null, staff: name.get(l.staffId) ?? "", valuePaise: Math.round(product(l.product).m * 100 * (l.discountStatus === "approved" ? (100 - (l.discountPct ?? 0)) / 100 : 1)),
   }));
@@ -196,12 +196,16 @@ export async function verifySale(s: Staff, id: string, decision: "verify" | "rej
     if (!sale || sale.status !== "pending") throw new UserError("Only pending sales can be verified.");
     if (decision === "reject") {
       await tx.cpSale.update({ where: { id }, data: { status: "rejected", verifiedBy: s.name, verifiedAt: new Date() } });
+      await tx.cpBillingEvent.updateMany({ where: { saleId: id, kind: "payment_claim", status: "open" }, data: { status: "rejected", decidedAt: new Date(), decidedBy: s.name } });
       return null;
     }
     const today = todayISO();
     const p = product(sale.product);
-    const renews = "once" in p && p.once ? null : dateOnly(sale.cycle === "y" ? addDays(today, 365) : addDays(today, 30));
+    const once = "once" in p && p.once;
     let c = await tx.cpCustomer.findUnique({ where: { phone: sale.phone } });
+    // A renewal paid early (or during the trial) starts when the current period ends.
+    const from = c?.renewsOn && isoOf(c.renewsOn) > today ? isoOf(c.renewsOn) : today;
+    const renews = once ? null : dateOnly(addDays(from, sale.cycle === "y" ? 365 : 30));
     if (!c) {
       if ("addon" in p || "once" in p) throw new UserError("This pharmacy isn’t a customer yet. Verify its plan sale first.");
       const n = await nextSeq(tx, CP, "CUST");
@@ -210,6 +214,10 @@ export async function verifySale(s: Staff, id: string, decision: "verify" | "rej
       await tx.cpCustomer.update({ where: { id: c.id }, data: "addon" in p ? { addons: c.addons.includes(sale.product) ? c.addons : [...c.addons, sale.product], status: "active" } : { product: sale.product, cycle: sale.cycle, status: "active", renewsOn: renews } });
     }
     await tx.cpSale.update({ where: { id }, data: { status: "verified", verifiedBy: s.name, verifiedAt: new Date(), customerId: c.id } });
+    const n = await nextSeq(tx, CP, "INVOICE");
+    const period = once ? "" : "addon" in p ? (sale.cycle === "y" ? " · 1 year" : " · 1 month") : ` · ${sale.cycle === "y" ? "1 year" : "1 month"}, paid until ${day(isoOf(renews!))}`;
+    await tx.cpBillingEvent.create({ data: { customerId: c.id, kind: "invoice", status: "done", number: `MED-${today.slice(0, 4)}-${String(n).padStart(5, "0")}`, amountPaise: sale.amountPaise, gstPaise: Math.round((sale.amountPaise * 18) / 100), reference: sale.payRef, detail: p.name + period, saleId: sale.id, byName: s.name } });
+    await tx.cpBillingEvent.updateMany({ where: { saleId: id, kind: "payment_claim", status: "open" }, data: { status: "done", decidedAt: new Date(), decidedBy: s.name } });
     return c.code;
   }).then(async (code) => { await staffAudit(s, decision === "verify" ? "Sale verified" : "Sale rejected", id + (code ? ` · ${code}` : "")); return code; });
 }
@@ -220,7 +228,7 @@ export async function salesList(s: Staff) {
     db.staffUser.findMany({ select: { id: true, name: true } }),
   ]);
   const name = new Map(staff.map((u) => [u.id, u.name]));
-  return rows.map((x) => ({ id: x.id, date: isoOf(x.date), pharmacy: x.pharmacy, product: x.product, cycle: x.cycle, type: x.type, staff: name.get(x.staffId) ?? "", staffId: x.staffId, status: x.status, amount: x.amountPaise, commission: x.commissionPaise, rate: Number(x.ratePct) }));
+  return rows.map((x) => ({ id: x.id, date: isoOf(x.date), payRef: x.payRef, pharmacy: x.pharmacy, product: x.product, cycle: x.cycle, type: x.type, staff: name.get(x.staffId) ?? "", staffId: x.staffId, status: x.status, amount: x.amountPaise, commission: x.commissionPaise, rate: Number(x.ratePct) }));
 }
 
 // ── Bank details for commission payouts. Encrypted at rest; only the last 4 digits are ever shown.
@@ -259,7 +267,8 @@ export async function myBank(s: Staff) {
 /** Records the payout for verified sales whose salesperson has a verified bank account. Money moves through the bank, outside Medoro. */
 export async function runPayout(s: Staff) {
   allow(s, "super_admin");
-  const ver = await db.cpSale.findMany({ where: { status: "verified" } });
+  // Payments a pharmacy reported from its app without a salesperson carry no commission.
+  const ver = await db.cpSale.findMany({ where: { status: "verified", staffId: { not: "" } } });
   if (!ver.length) throw new UserError("Nothing verified to pay out yet.");
   const banks = await db.staffBank.findMany({ where: { staffId: { in: [...new Set(ver.map((x) => x.staffId))] } }, include: { staff: { select: { name: true } } } });
   const ok = new Set(banks.filter((b) => b.status === "verified").map((b) => b.staffId));
@@ -273,7 +282,7 @@ export async function runPayout(s: Staff) {
 
 export async function payouts(s: Staff) {
   const [rows, staff, banks] = await Promise.all([
-    db.cpSale.findMany({ where: { ...(s.role === "sales" ? { staffId: s.id } : {}), status: { not: "rejected" } }, orderBy: { date: "desc" } }),
+    db.cpSale.findMany({ where: { ...(s.role === "sales" ? { staffId: s.id } : { staffId: { not: "" } }), status: { not: "rejected" } }, orderBy: { date: "desc" } }),
     db.staffUser.findMany({ select: { id: true, name: true } }),
     db.staffBank.findMany(),
   ]);

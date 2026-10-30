@@ -10,7 +10,7 @@ The pharmacy owns its operational data. Medoro's software runs against a databas
 | Backup files | Customer's Google Drive (encrypted before upload) | Only holders of the recovery key |
 | Backup encryption key | Customer's recovery kit (offline) plus the OS keystore on the app host | Owner |
 | WhatsApp access token | Server vault on the customer's app host | The app service only |
-| Account, plan, licence, device count | Medoro control plane | Medoro billing and support |
+| Account, plan, licence, branch and device counts, support tickets and payment references sent from the app | Medoro control plane | Medoro billing and support |
 | Support attachments | Only what the customer uploads to a ticket | Assigned support staff |
 
 ## Strict customer-controlled mode (default)
@@ -22,7 +22,7 @@ The pharmacy owns its operational data. Medoro's software runs against a databas
 ## External services
 | Service | Receives | Never receives |
 |---|---|---|
-| Medoro control plane | Tenant ID, plan, licence check-ins, app version, device count | Operational records |
+| Medoro control plane | Pharmacy name and owner contact (once, to start the licence), licence check-ins with app version and branch and counter counts, and the tickets, payment references and support-access answers the owner sends | Operational records |
 | Meta WhatsApp Cloud API | Recipient number, invoice PDF, template params | Prescriber details, other records |
 | Google Drive | Encrypted backup blobs plus a manifest (hashes, sizes) | Keys, plaintext |
 | Remote AI (opt-in) | Minimised aggregates, no names or phones | Credentials, the full database |

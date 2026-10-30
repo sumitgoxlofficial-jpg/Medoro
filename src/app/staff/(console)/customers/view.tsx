@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { MessageCircle, Phone, Plus, Search, X } from "lucide-react";
-import { CUSTOMER_STATUS, PRIORITY, PRODUCTS, TICKET_CATEGORIES, TICKET_CHANNELS, TICKET_STATUS, product, type StaffRoleId } from "@/staff/constants";
-import { addNote, addTrialCustomer, createTicket, requestRemote, setCustomerStatus } from "../../actions";
+import { Copy, KeyRound, MessageCircle, Phone, Plus, Search, X } from "lucide-react";
+import { CUSTOMER_STATUS, PRIORITY, PRODUCTS, TICKET_CATEGORIES, TICKET_CHANNELS, TICKET_STATUS, product, rupees, type StaffRoleId } from "@/staff/constants";
+import { addNote, addTrialCustomer, createTicket, decideBillingRequest, extendTrial, issueLicenceKey, requestRemote, setCustomerStatus } from "../../actions";
 import { Empty, Pill, Tabs, btn, btnPrimary, fieldCls, fmtDay, fmtTime, lbl, panel, selSm, td, th, useRun } from "../ui";
 
 type Row = { id: string; code: string; name: string; owner: string; phone: string; email: string; city: string; gstin: string; product: string; addons: string[]; cycle: string; status: string; openTickets: number };
@@ -12,6 +12,8 @@ type Detail = NonNullable<Awaited<ReturnType<typeof import("@/staff/support").cu
 const SC: Record<string, [string, string]> = { active: ["#E7F6EE", "#18794E"], trial: ["#EAF0FC", "#2459C9"], grace: ["#FDF2E1", "#94570A"], cancelled: ["#F2F4F5", "#5B636B"] };
 const plan = (p: string, addons: string[], cycle: string) => `${product(p).name}${addons.includes("ai") ? " + AI" : ""} · ${cycle === "y" ? "Yearly" : "Monthly"}`;
 const phoneFmt = (p: string) => `+91 ${p.slice(0, 5)} ${p.slice(5)}`;
+const BC: Record<string, [string, string]> = { open: ["#FDF2E1", "#94570A"], done: ["#E7F6EE", "#18794E"], rejected: ["#F2F4F5", "#5B636B"] };
+const BILLING_KIND: Record<string, string> = { invoice: "Invoice", payment_claim: "Payment reported", addon_add: "Add-on request", addon_remove: "Add-on removal", cancel: "Cancellation", trial_extended: "Trial extended" };
 
 export function CustomersView({ role, rows, detail }: { role: StaffRoleId; rows: Row[]; detail: Detail | null }) {
   const router = useRouter();
@@ -20,10 +22,13 @@ export function CustomersView({ role, rows, detail }: { role: StaffRoleId; rows:
   const [f, setF] = useState<"all" | keyof typeof CUSTOMER_STATUS>("all");
   const [note, setNote] = useState("");
   const [add, setAdd] = useState<null | { name: string; owner: string; phone: string; email: string; city: string; product: string; cycle: string }>(null);
+  const [issued, setKey] = useState<{ id: string; key: string } | null>(null);
+  const [days, setDays] = useState("7");
   const [tk, setTk] = useState<null | { subject: string; message: string; priority: string; channel: string; category: string }>(null);
   const list = useMemo(() => rows.filter((c) => (f === "all" || c.status === f) && (!q || [c.name, c.owner, c.phone, c.gstin, c.city, c.code, c.email].join(" ").toLowerCase().includes(q.toLowerCase()))), [rows, f, q]);
   const care = role !== "sales";
   const d = detail;
+  const key = issued && issued.id === d?.id ? issued.key : null;
 
   return (
     <>
@@ -81,6 +86,38 @@ export function CustomersView({ role, rows, detail }: { role: StaffRoleId; rows:
                   <select aria-label="Customer status" className={selSm} value={d.status} onChange={(e) => run(() => setCustomerStatus(d.id, e.target.value))}>{Object.entries(CUSTOMER_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
               ) : null}
             </div>
+            {care || d.billing.length ? (
+              <div className="px-4 py-3 border-t border-[#EEF0F2] flex flex-col gap-2">
+                <div className="flex items-center gap-2"><strong className="text-[13.5px]">Licence & billing</strong>
+                  {care ? <button className={btn + " ml-auto"} disabled={busy} onClick={() => { if (!d.licensed || confirm("Issue a new licence key? The installation using the current key stops checking in until the new key is entered under Subscription.")) run(() => issueLicenceKey(d.id), (k) => { setKey({ id: d.id, key: k }); }); }}><KeyRound size={14} />{d.licensed ? "Reissue licence key" : "Issue licence key"}</button> : null}</div>
+                <span className="text-[12.5px] text-muted">{d.licensed ? `Licensed installation · ${d.graceDays} days’ grace after the renewal date` : "No installation linked yet. Pharmacies that start a trial from the app are linked automatically."}</span>
+                {key ? (
+                  <div className="flex flex-col gap-1 bg-[#F2F9F8] border border-teal-line rounded-lg p-2.5">
+                    <div className="flex gap-1.5 items-center"><code className="flex-1 min-w-0 truncate text-[12px]">{key}</code><button className={btn} onClick={() => { navigator.clipboard?.writeText(key); }}><Copy size={13} />Copy</button></div>
+                    <span className="text-[12px] text-muted">Shown once. Send it to the owner; they enter it in Medoro under Subscription → Licence.</span>
+                  </div>
+                ) : null}
+                {care && d.status === "trial" ? (
+                  <form onSubmit={(e) => { e.preventDefault(); run(() => extendTrial(d.id, Number(days)), (end) => `Trial extended to ${fmtDay(end)}. The pharmacy gets it with its next check-in.`); }} className="flex gap-1.5 items-center text-[13px]">
+                    <span className="text-muted">Extend trial by</span>
+                    <input aria-label="Days" type="number" min={1} max={30} value={days} onChange={(e) => setDays(e.target.value)} className={selSm + " w-16"} />
+                    <span className="text-muted">days</span><button disabled={busy} className={btn}>Extend</button>
+                  </form>
+                ) : null}
+                {d.remote?.access ? (
+                  <div className="text-[13px] bg-[#E7F6EE] rounded-lg px-2.5 py-2">Owner approved read-only access until {fmtTime(d.remote.access.expiresAt)}. <a href={d.remote.access.link} target="_blank" rel="noreferrer" className="font-semibold">Open support session</a> (works once).</div>
+                ) : d.remote?.status === "denied" ? <div className="text-[13px] text-muted">The owner declined the last remote-access request.</div> : null}
+                {d.billing.map((b) => (
+                  <div key={b.id} className="flex flex-col gap-0.5 border border-[#EEF0F2] rounded-lg px-2.5 py-2 text-[13px]">
+                    <div className="flex gap-2 items-center"><span className="flex-1 min-w-0">{b.number ? <span className="font-mono">{b.number} · </span> : null}{b.detail}</span><Pill bg={BC[b.status][0]} fg={BC[b.status][1]}>{BILLING_KIND[b.kind] ?? b.kind} · {b.status === "open" ? "open" : b.status === "done" ? "done" : "declined"}</Pill></div>
+                    <span className="text-[12px] text-muted">{b.amount ? `${rupees(b.amount + b.gst)} incl. GST · ` : ""}{b.reference ? `Ref ${b.reference} · ` : ""}{b.by} · {fmtTime(b.at)}{b.decidedBy ? ` · decided by ${b.decidedBy}` : ""}</span>
+                    {b.status === "open" && ["addon_add", "addon_remove", "cancel"].includes(b.kind) && role === "super_admin" ? (
+                      <div className="flex gap-1.5 mt-1"><button disabled={busy} className={btn} onClick={() => run(() => decideBillingRequest(b.id, true))}>Approve</button><button disabled={busy} className={btn} onClick={() => run(() => decideBillingRequest(b.id, false))}>Decline</button></div>
+                    ) : b.status === "open" && b.kind === "payment_claim" ? <Link href="/staff/sales" className="text-[12.5px] font-semibold mt-0.5">Verify the payment under Sales →</Link> : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {care ? (
               <div className="px-4 py-3 border-t border-[#EEF0F2] flex flex-col gap-2">
                 <div className="flex items-center"><strong className="text-[13.5px]">Tickets</strong>{!tk ? <button className={btn + " ml-auto"} onClick={() => setTk({ subject: "", message: "", priority: "medium", channel: "Phone", category: "General" })}><Plus size={14} />New ticket</button> : null}</div>

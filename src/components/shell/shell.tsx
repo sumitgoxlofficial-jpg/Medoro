@@ -27,6 +27,7 @@ export type ShellProps = {
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
   badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; aiMode: "llm" | "rules"; supportUntil: string | null;
+  subscription: { tone: "amber" | "red"; text: string; renew: boolean } | null;
   children: React.ReactNode;
 };
 
@@ -167,7 +168,7 @@ function ShellInner(p: ShellProps) {
                 </div>
                 <div className="h-px bg-line-soft -mx-1 my-1" />
                 <MenuItem icon={Keyboard} kbd="?" onClick={showShortcuts}>Keyboard shortcuts</MenuItem>
-                <MenuItem icon={LifeBuoy} onClick={() => { setMenu(false); toast("Support: help.medoro.in · 9am–9pm", "gray"); }}>Help & support</MenuItem>
+                <MenuItem icon={LifeBuoy} onClick={() => { setMenu(false); router.push("/app/help"); }}>Help & support</MenuItem>
                 <div className="h-px bg-line-soft -mx-1 my-1" />
                 <MenuItem icon={LogOut} danger onClick={() => start(() => signOut())}>Sign out</MenuItem>
                 <div className="px-3.5 py-1.5 text-[11px] text-[#A3AAB1] border-t border-line-soft -mx-1 mt-1">Medoro 0.1.0 · {p.deployment}</div>
@@ -191,6 +192,12 @@ function ShellInner(p: ShellProps) {
           <div role="status" className="flex-none bg-[#0E1A1F] text-white text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap">
             <ShieldCheck size={15} className="text-[#5FD3BC]" /><strong>Medoro support · read-only</strong>
             <span className="text-[#B8C7CC]">Access granted by the pharmacy until {p.supportUntil}. Changes and downloads are blocked; everything you open is audited.</span>
+          </div>
+        ) : null}
+        {p.subscription ? (
+          <div role="status" className={cn("flex-none text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap", p.subscription.tone === "red" ? "bg-[#FBEAE8] text-[#8C1D18]" : "bg-[#FDF2E1] text-[#6B4A0E]")}>
+            <CreditCard size={15} /><span>{p.subscription.text}</span>
+            {p.subscription.renew ? <Link href="/app/plan" className="font-semibold text-teal underline">Renew</Link> : <span>Ask the owner to renew.</span>}
           </div>
         ) : null}
         {live === "offline" ? (

@@ -33,7 +33,7 @@ export function Pricing() {
               <div className="flex items-baseline gap-1"><span className="text-[40px] font-bold tracking-[-.03em] tnum">{inr(yearly ? Math.round((p.m * 10) / 12) : p.m)}</span><span className="text-[14px] text-faint">/ month</span></div>
               <span className="text-[13px] text-faint">{yearly ? `Billed ${inr(p.m * 10)} yearly · 2 months free` : "Billed monthly after the 14-day trial"}</span>
             </div>
-            <Link href="/setup" className={`flex items-center justify-center h-11 rounded-[9px] text-[14.5px] font-semibold hover:opacity-90 ${p.rec ? "bg-teal text-white hover:text-white" : "bg-white text-ink-strong border border-[#E6E8EB] hover:text-ink-strong"}`}>Start free trial</Link>
+            <Link href="/start" className={`flex items-center justify-center h-11 rounded-[9px] text-[14.5px] font-semibold hover:opacity-90 ${p.rec ? "bg-teal text-white hover:text-white" : "bg-white text-ink-strong border border-[#E6E8EB] hover:text-ink-strong"}`}>Start free trial</Link>
             <span className="text-[13px] font-semibold text-teal">{p.cap}</span>
             <div className="flex flex-col gap-[9px] border-t border-[#EEF0F2] pt-4">
               {p.feats.map((f) => <span key={f} className="flex gap-[9px] items-start text-[14px] text-[#1F2328]"><Check size={15} className="text-[#18794E] mt-[3px] flex-none" />{f}</span>)}

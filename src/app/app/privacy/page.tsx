@@ -7,16 +7,18 @@ import { t } from "@/lib/i18n";
 import { PrivacyView } from "./view";
 import { SupportCard } from "./support-card";
 import { supportStatus } from "@/domain/identity/support";
+import { checkIn, remoteRequests } from "@/domain/system/licence";
 
 export const metadata = { title: "Privacy & data" };
 
 export default async function Page() {
   const ctx = await requireCtx();
   if (!can(ctx, "users")) redirect("/app");
-  const [p, customers, integrations, grants] = await Promise.all([
+  if (!ctx.readOnly) await checkIn(ctx.tenantId, { minAgeMs: 10 * 60_000, timeoutMs: 4000 });
+  const [p, customers, integrations, grants, asks] = await Promise.all([
     getPrivacy(ctx.tenantId), db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.integration.findMany({ where: { tenantId: ctx.tenantId }, select: { kind: true, connectedAt: true } }),
-    supportStatus(ctx),
+    supportStatus(ctx), remoteRequests(ctx.tenantId),
   ]);
   const on = (k: string) => integrations.some((i) => i.kind === k && i.connectedAt);
   return (
@@ -24,7 +26,7 @@ export default async function Page() {
       <PageHead title={t(ctx.lang).privacy} sub="Data ownership, external services, export and deletion" />
       <div className="flex flex-col gap-4">
         <PrivacyView p={p} customers={customers} wa={on("whatsapp")} drive={on("gdrive")} licence={!!process.env.LICENSE_SERVER_URL} />
-        <SupportCard grants={grants} />
+        <SupportCard grants={grants} requests={asks} />
       </div>
     </>
   );

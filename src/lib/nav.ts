@@ -2,7 +2,7 @@ import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
   | "dash" | "pos" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "acc"
-  | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "admin";
+  | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Engagement" | "System"; abbr: string; sub: string };
 
@@ -25,10 +25,11 @@ export const NAV: NavDef[] = [
   { id: "users", href: "/app/users", icon: "ShieldCheck", perm: "users", group: "System", abbr: "Users", sub: "Roles, permissions, branches and audit trail" },
   { id: "plan", href: "/app/plan", icon: "CreditCard", perm: "users", group: "System", abbr: "Plan", sub: "Plan, entitlements, licence and Medoro invoices" },
   { id: "privacy", href: "/app/privacy", icon: "Lock", perm: "users", group: "System", abbr: "Privacy", sub: "Data ownership, external services, export and deletion" },
+  { id: "help", href: "/app/help", icon: "LifeBuoy", perm: null, group: "System", abbr: "Help", sub: "Support tickets and replies from Medoro" },
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "pos", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy"]);
+export const READY = new Set<ScreenId>(["dash", "pos", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
 

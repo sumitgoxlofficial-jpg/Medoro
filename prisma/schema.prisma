@@ -739,14 +739,39 @@ model AiConfirmation {
   usedAt    DateTime?
 }
 
+// The pharmacy's copy of its Medoro licence. Fields below `licenceToken` come from the last licence
+// document the licence server signed (see src/domain/system/licence.ts).
 model SubscriptionMeta {
-  tenantId     String    @id
-  plan         String
-  addons       String[]
-  status       String
-  renewsAt     DateTime?
-  graceUntil   DateTime?
-  licenceToken String?
+  tenantId      String    @id
+  plan          String
+  addons        String[]
+  status        String // trial, active, grace, cancelled (as issued)
+  renewsAt      DateTime? // trial end or paid-until
+  graceUntil    DateTime?
+  licenceToken  String? // sealed instance token used to sign check-ins
+  licenceId     String?
+  graceDays     Int       @default(7)
+  signedDoc     String? // the last verified licence document, as received
+  issuedAt      DateTime?
+  checkedAt     DateTime? // last check-in attempt
+  checkError    String?
+  inbox         Json      @default("{}") // invoices, billing events, tickets and support requests from Medoro
+  supportSeenAt DateTime?
+}
+
+// Requests to Medoro (tickets, add-on and plan changes, payment claims, support-access answers),
+// sent immediately when possible and otherwise with the next licence check-in.
+model LicenceOutbox {
+  id        String    @id @default(uuid())
+  tenantId  String
+  kind      String
+  payload   Json
+  createdBy String
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+  result    Json?
+
+  @@index([tenantId, sentAt])
 }
 
 // One pending SMS code per phone: hashed, 5-minute expiry, 5 attempts.
@@ -868,8 +893,32 @@ model CpCustomer {
   appVersion   String?
   salesStaffId String?
   createdAt    DateTime  @default(now())
+  licenceId    String?   @unique
+  licenceToken String? // sealed; the instance signs check-ins with it
+  graceDays    Int       @default(7)
   notes        CpNote[]
   tickets      Ticket[]
+  billing      CpBillingEvent[]
+}
+
+// Billing history per customer: invoices, payment claims from the app, add-on/cancel requests, trial extensions.
+model CpBillingEvent {
+  id          String     @id @default(uuid())
+  customerId  String
+  customer    CpCustomer @relation(fields: [customerId], references: [id])
+  kind        String // invoice, payment_claim, addon_add, addon_remove, cancel, trial_extended
+  status      String // open, done, rejected
+  number      String?    @unique // invoice number
+  amountPaise Int        @default(0) // before GST
+  gstPaise    Int        @default(0)
+  reference   String?
+  detail      String     @default("")
+  saleId      String?
+  requestId   String?    @unique // the pharmacy's outbox id, so a resend is not a duplicate
+  byName      String
+  createdAt   DateTime   @default(now())
+  decidedAt   DateTime?
+  decidedBy   String?
 }
 
 model CpNote {
@@ -897,6 +946,7 @@ model Lead {
   lostReason     String?
   discountPct    Int?
   discountStatus String? // pending, approved, rejected
+  email          String    @default("")
   createdAt      DateTime  @default(now())
   logs           LeadLog[]
 }
@@ -930,6 +980,7 @@ model CpSale {
   verifiedAt      DateTime?
   paidAt          DateTime?
   payoutRef       String?
+  payRef          String? // UPI/bank reference the pharmacy entered in its app
   createdAt       DateTime  @default(now())
 }
 
@@ -973,6 +1024,7 @@ model RemoteAccessRequest {
   requestedAt DateTime  @default(now())
   decidedAt   DateTime?
   expiresAt   DateTime?
+  link        String? // sealed single-use support link the owner approved with
 }
 
 // A restore from backup: loaded into a test copy (a separate schema) first, applied to live only after the owner confirms.
