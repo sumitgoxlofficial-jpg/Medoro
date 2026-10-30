@@ -159,7 +159,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
           ))}
           <div className="mt-auto pt-3 border-t border-line-soft flex items-center gap-2.5">
             {data.backup.last ? <CloudCheck size={20} className="text-ok" /> : <CloudOff size={20} className="text-warn" />}
-            <div className="flex flex-col flex-1"><span className="text-[13px] font-semibold">Last verified backup</span><span className="text-[12.5px] text-muted">{data.backup.last ?? "None yet"} · {data.backup.driveConnected ? "Google Drive connected" : "Drive not connected"}</span></div>
+            <div className="flex flex-col flex-1"><span className="text-[13px] font-semibold">Last verified backup</span><span className="text-[12.5px] text-muted">{data.backup.last ?? "None yet"} · {data.backup.driveConnected ? "Google Drive connected" : "Drive not connected"}</span>{data.backup.problems.map((x) => <span key={x} role="alert" className="text-[12.5px] text-bad">{x}</span>)}</div>
             <Go screen="bak" href="/app/backup" className="border border-input bg-white rounded-[7px] px-2.5 py-1.5 text-[12.5px] text-ink">Open</Go>
           </div>
         </div>

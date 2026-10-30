@@ -973,7 +973,8 @@ model FileObject {
   key         String   @id
   tenantId    String
   contentType String
-  bytes       Bytes
+  bytes       Bytes? // null when the file is kept in the pharmacy's Google Drive
+  driveFileId String?
   createdAt   DateTime @default(now())
 
   @@index([tenantId])

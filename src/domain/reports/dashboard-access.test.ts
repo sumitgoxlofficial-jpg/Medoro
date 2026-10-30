@@ -6,7 +6,7 @@ const data = {
   range: "today", catalogueSize: 1,
   kpi: { sales: 1000, bills: 2, salesPrev: 900, margin: 22, margin7: 20, purchases: 500, grnCount: 1, expenses: 70, expenseCount: 1, receivable: 300, onCredit: 2, payable: 400, dueWeek: 100 },
   history: [], pay: { cash: 1000, upi: 0, card: 0, credit: 0 }, lowStock: [], expiring: [], insights: [], branchPerf: [],
-  backup: { last: null, driveConnected: false },
+  backup: { last: null, driveConnected: false, problems: [] },
   activity: [{ id: "1", when: "", who: "Owner", action: "Signed in", detail: null }],
 } as DashboardData;
 

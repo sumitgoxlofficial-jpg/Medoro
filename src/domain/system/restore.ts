@@ -4,16 +4,18 @@ import { db, type DbOrTx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import type { Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
+import { readDocument, restoreFile } from "@/server/storage";
 
 /**
  * Full restore of one pharmacy from a backup, in two steps:
  *   1. prepare: decrypt the backup into a test copy (a separate Postgres schema), check it, and compare it with live data;
  *   2. apply: after the owner confirms, take a safety backup, then replace the pharmacy's live rows with the test copy in one transaction.
  * Integrations (WhatsApp, Drive, the backup key), backup history and the licence stay as they are on this server.
+ * Stored files (invoice scans) travel in the backup as `files` and are written back to this server's storage.
  */
 
 export const BACKUP_FORMAT = "medoro-backup-v2";
-/** Tenant tables kept as they are on this server. */
+/** Tenant tables kept as they are on this server. FileObject only indexes storage; file contents travel as `files`. */
 const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "RestoreRun", "FileObject"]);
 /** Tenant rows that are cleared, not restored: everyone signs in again after a restore. */
 const CLEAR = new Set(["Session", "AiConfirmation"]);
@@ -75,10 +77,24 @@ export async function dumpForBackup(tenantId: string) {
     tables[t.name] = r[0].rows;
   }
   const tenant = await db.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  return { format: BACKUP_FORMAT, exportedAt: new Date().toISOString(), tenant: { id: tenant.id, code: tenant.code, name: tenant.name, legalName: tenant.legalName, gstin: tenant.gstin, phone: tenant.phone, settings: tenant.settings }, tables };
+  const files: BackupFile[] = [], missingFiles: string[] = [];
+  const docs = await db.scanDocument.findMany({ where: { tenantId, storagePath: { not: null } }, select: { storagePath: true, mime: true } });
+  for (const [key, mime] of new Map(docs.map((d) => [d.storagePath!, d.mime]))) {
+    const b = await readDocument(key).catch(() => null);
+    if (b) files.push({ key, contentType: mime ?? "application/octet-stream", data: b.toString("base64") });
+    else missingFiles.push(key);
+  }
+  const data: RestoreData = { format: BACKUP_FORMAT, exportedAt: new Date().toISOString(), tenant: { id: tenant.id, code: tenant.code, name: tenant.name, legalName: tenant.legalName, gstin: tenant.gstin, phone: tenant.phone, settings: tenant.settings }, tables, files };
+  return { data, missingFiles };
 }
 
-export type RestoreData = Awaited<ReturnType<typeof dumpForBackup>>;
+export type BackupFile = { key: string; contentType: string; data: string };
+export type RestoreData = {
+  format: string; exportedAt: string; tables: Record<string, unknown[]>;
+  tenant: { id: string; code: string; name: string; legalName: string | null; gstin: string | null; phone: string | null; settings: unknown };
+  /** Absent in backups made before files were included. */
+  files?: BackupFile[];
+};
 export const isRestorable = (d: Record<string, unknown>): d is RestoreData => d.format === BACKUP_FORMAT && !!d.tables;
 
 type Figures = { sales: number; salesTotal: number; lastSale: string | null; medicines: number; stockUnits: number; customers: number; suppliers: number; vouchers: number };
@@ -136,6 +152,10 @@ export async function prepare(tenantId: string, data: RestoreData, createdAt: st
       const l = await db.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM public.${q(t.name)} WHERE ${scope("public", t)}`, tenantId);
       tables.push({ name: t.name, backup: Number(b[0].n), live: Number(l[0].n) });
     }
+    const files = data.files ?? [];
+    if (!data.files) notes.push("This backup was made before stored files (invoice scans) were included; the files on this server stay as they are.");
+    else if (files.length) notes.push(`${files.length} stored file(s) (invoice scans) will be written back.`);
+    if (files.some((f) => !f.key.startsWith(tenantId + "/"))) problems.push("The backup contains files of another pharmacy.");
     const summary: RestoreSummary = { backupAt: createdAt, tables, backupFigures: await figures(db, schema, tenantId), liveFigures: await figures(db, "public", tenantId), problems, notes };
     return { schema, summary };
   } catch (e) {
@@ -149,14 +169,25 @@ export async function dropSchema(schema: string) {
   await db.$executeRawUnsafe(`DROP SCHEMA IF EXISTS ${q(schema)} CASCADE`).catch(() => {});
 }
 
+/** Writes the backup's stored files back. Files are named by content hash, so this is safe to repeat. */
+export async function restoreFiles(data: RestoreData) {
+  for (const f of data.files ?? []) if (f.key.startsWith(data.tenant.id + "/")) await restoreFile(f.key, Buffer.from(f.data, "base64"), f.contentType);
+}
+
 /** Replaces the pharmacy's live rows with the test copy, in one transaction. */
-export async function swapIn(ctx: Ctx, schema: string, tenant: RestoreData["tenant"], detail: string) {
+export async function swapIn(ctx: Pick<Ctx, "tenantId" | "userName"> & { userId: string | null }, schema: string, tenant: RestoreData["tenant"], detail: string) {
   const L = await layout();
   await db.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`SET LOCAL medoro.restore = 'on'`);
     for (const t of L.clear) await tx.$executeRawUnsafe(`DELETE FROM public.${q(t.name)} WHERE ${scope("public", t)}`, ctx.tenantId);
     for (const t of [...L.tables].reverse()) await tx.$executeRawUnsafe(`DELETE FROM public.${q(t.name)} WHERE ${scope("public", t)}`, ctx.tenantId);
     for (const t of L.tables) await tx.$executeRawUnsafe(`INSERT INTO public.${q(t.name)} SELECT * FROM ${q(schema)}.${q(t.name)}`);
+    // Restored rows keep their ids; move id sequences past them (on a new server they start at 1).
+    for (const s of await tx.$queryRaw<{ t: string; c: string; seq: string }[]>`SELECT table_name t, column_name c, pg_get_serial_sequence(format('public.%I', table_name), column_name) seq FROM information_schema.columns WHERE table_schema = 'public' AND column_default LIKE 'nextval(%'`) {
+      if (!s.seq || !L.tables.some((x) => x.name === s.t)) continue;
+      const [v] = await tx.$queryRawUnsafe<{ hi: bigint | null; last: bigint }[]>(`SELECT (SELECT max(${q(s.c)}) FROM public.${q(s.t)}) hi, (SELECT last_value FROM ${s.seq}) last`);
+      if (v.hi !== null && v.hi > v.last) await tx.$executeRawUnsafe(`SELECT setval('${s.seq.replace(/'/g, "''")}', ${v.hi})`);
+    }
     const live = await tx.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
     const keepBackup = (live.settings as { backup?: unknown }).backup;
     await tx.tenant.update({ where: { id: ctx.tenantId }, data: { name: tenant.name, legalName: tenant.legalName, gstin: tenant.gstin, phone: tenant.phone, settings: { ...((tenant.settings as object) ?? {}), ...(keepBackup ? { backup: keepBackup } : {}) } as object } });
