@@ -7,7 +7,7 @@ import { big } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
 import { discountCap } from "@/domain/identity/permissions";
 import { fefoOrder, isSellable } from "@/domain/inventory/fefo";
-import { commitSale, OFFLINE_MAX_DAYS, withinOfflineWindow } from "./service";
+import { commitSale, OFFLINE_MAX_DAYS, reservedForDevices, withinOfflineWindow, type DeviceQuota } from "./service";
 import type { SaleInput } from "./contracts";
 import { opSchema, type OfflineOpInput, type OfflineSnapshot, type SyncResult } from "./offline-types";
 
@@ -21,7 +21,6 @@ export { opSchema, type OfflineOpInput, type OfflineSnapshot, type SyncResult };
  */
 
 const branchIdsOf = (ctx: Ctx) => ctx.branches.map((b) => b.id);
-type DeviceQuota = { at?: string; batches?: Record<string, number>; users?: string[] };
 type Dev = { id: string; branchId: string; quota: unknown };
 
 async function deviceFor(ctx: Ctx, deviceId: string) {
@@ -103,7 +102,7 @@ export async function syncOps(ctx: Ctx, deviceId: string, raw: unknown[]): Promi
     if (!seen) {
       await db.offlineOp.create({ data: { id: op.id, tenantId: ctx.tenantId, deviceId: dev.id, kind: "sale", payload: op as object, baseVersion: op.baseVersion, status: "pending", createdAt: new Date(op.createdAt) } });
     }
-    out.push(await post(ctx, op, () => cashierCtx(ctx, dev, op)));
+    out.push(await post(ctx, op, dev.id, () => cashierCtx(ctx, dev, op)));
   }
   await db.device.update({ where: { id: dev.id }, data: { lastSeen: new Date() } });
   return out;
@@ -131,11 +130,11 @@ async function cashierCtx(ctx: Ctx, dev: Dev, op: OfflineOpInput): Promise<Ctx> 
   return { ...ctx, userId: u.id, userName: u.name, userEmail: u.email ?? u.phone ?? "", realRole: u.role.name, role: u.role.name, perms, readOnly: false };
 }
 
-async function post(ctx: Ctx, op: OfflineOpInput, who: () => Promise<Ctx>, lines = op.sale.lines, opts: { at?: Date; note?: string } = { at: new Date(op.createdAt) }): Promise<SyncResult> {
+async function post(ctx: Ctx, op: OfflineOpInput, deviceId: string | undefined, who: () => Promise<Ctx>, lines = op.sale.lines, opts: { at?: Date; note?: string } = { at: new Date(op.createdAt) }): Promise<SyncResult> {
   try {
     const as = await who();
     const by = as.userId !== ctx.userId ? `sent by ${ctx.userName}` : "";
-    const r = await commitSale(as, toSale(op, lines), { at: opts.at, note: [opts.note, by].filter(Boolean).join(" · ") || undefined });
+    const r = await commitSale(as, toSale(op, lines), { at: opts.at, note: [opts.note, by].filter(Boolean).join(" · ") || undefined, deviceId });
     const late = opts.at ? null : `Billed ${dayMonth(new Date(op.createdAt), true)} ${hhmm(new Date(op.createdAt))}; posted today, past the ${OFFLINE_MAX_DAYS}-day offline window.`;
     const diff = r.total !== op.sale.totalPaise ? `Posted at ${r.total / 100} (device showed ${op.sale.totalPaise / 100}).` : null;
     const note = [diff, late].filter(Boolean).join(" ") || null;
@@ -175,7 +174,11 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
   // Same medicines and quantities, re-allocated across the batches that are sellable now.
   const day = todayISO(late ? undefined : billed);
   const meds = [...new Set(op.sale.lines.map((l) => l.medicineId))];
-  const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds } } });
+  const [all, reserved] = await Promise.all([
+    db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: meds } } }),
+    reservedForDevices(db, ctx.tenantId, ctx.branchId, dev?.id),
+  ]);
+  const batches = all.map((b) => ({ ...b, qtyAvailable: Math.max(0, b.qtyAvailable - (reserved.get(b.id) ?? 0)) }));
   const lines: SaleInput["lines"] = [];
   for (const m of meds) {
     let need = op.sale.lines.filter((l) => l.medicineId === m).reduce((a, l) => a + l.qty, 0);
@@ -186,7 +189,7 @@ export async function resolveOp(ctx: Ctx, opId: string, action: "repost" | "clos
     }
     if (need > 0) throw new UserError("Not enough sellable stock now to post this bill. Receive stock first, or close it with a note.");
   }
-  const r = await post(ctx, op, async () => who, lines, late ? { note: `billed offline ${billed.toISOString()}, settled by ${ctx.userName}` } : { at: billed });
+  const r = await post(ctx, op, dev?.id, async () => who, lines, late ? { note: `billed offline ${billed.toISOString()}, settled by ${ctx.userName}` } : { at: billed });
   if (r.status === "conflict") throw new UserError(r.message ?? "Couldn’t post this bill.");
   return { status: "posted" as const, invoiceNo: r.invoiceNo };
 }
