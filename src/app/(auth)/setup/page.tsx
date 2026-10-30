@@ -2,13 +2,16 @@ import { redirect } from "next/navigation";
 import { isSetupDone } from "@/domain/identity/service";
 import { readSession } from "@/server/auth";
 import { setupGate, setupUnlocked } from "@/server/setup-gate";
+import { setupDrive } from "@/server/setup-drive";
+import { driveAppConfigured } from "@/domain/system/gdrive";
+import { Start } from "./start";
 import { Unlock } from "./unlock";
 import { Wizard } from "./wizard";
 
 export const metadata = { title: "Set up your pharmacy" };
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ restore?: string }> }) {
   if (await isSetupDone()) {
     // Right after setup the owner is signed in but hasn't enrolled MFA yet; keep the
     // wizard mounted so its final step (invite codes) stays on screen.
@@ -16,5 +19,8 @@ export default async function Page() {
     if (!s || s.mfaPassed || s.user.mfaEnabled) redirect("/signin");
   }
   else if (!(await setupUnlocked())) return <Unlock disabled={setupGate() === "disabled"} />;
-  return <Wizard deployment={(process.env.DEPLOYMENT_MODE as "cloud" | "onprem" | "lan" | "single") ?? "lan"} />;
+  const deployment = (process.env.DEPLOYMENT_MODE as "cloud" | "onprem" | "lan" | "single") ?? "lan";
+  if (await isSetupDone()) return <Wizard deployment={deployment} />;
+  const restore = (await searchParams).restore === "1";
+  return <Start deployment={deployment} driveApp={driveAppConfigured()} driveAccount={(await setupDrive())?.account ?? null} restore={restore} />;
 }

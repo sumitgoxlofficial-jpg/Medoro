@@ -11,6 +11,7 @@ import { checkTotp, newTotpSecret, openSecret } from "@/server/totp";
 import { UserError } from "@/server/action";
 import { createPharmacy, isSetupDone, nextEmployeeNo } from "@/domain/identity/service";
 import { setupUnlocked, unlockSetup } from "@/server/setup-gate";
+import { adoptSetupDrive } from "@/server/setup-drive";
 import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
 
@@ -44,6 +45,7 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
     if (!(await setupUnlocked())) return fail("Enter the setup token first.");
     const r = await createPharmacy(input);
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
+    await adoptSetupDrive(owner.tenantId).catch((e) => console.error("[setup] Google Drive not kept:", e));
     await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
