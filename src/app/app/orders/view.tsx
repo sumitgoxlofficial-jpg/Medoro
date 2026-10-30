@@ -12,6 +12,7 @@ import { Segmented } from "@/components/ui/segmented";
 import { useActionToast, useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
+import { isH1 } from "@/lib/rx";
 import { mapsLink, ORDER_PAY, ORDER_SOURCES, PAY_LABEL, SOURCE_LABEL, STATUS_LABEL, type OrderPay, type OrderStatus } from "@/domain/orders/contracts";
 import type { OrderView, recentSettlements, riderCash, riders } from "@/domain/orders/service";
 import type { NotifyEvent } from "@/domain/orders/notify";
@@ -190,7 +191,7 @@ function NewOrder({ open, onClose, customers, canCredit }: { open: boolean; onCl
   const act = useActionToast();
   const toast = useToast();
   const [pending, start] = useTransition();
-  const blank = { source: "phone" as (typeof ORDER_SOURCES)[number], customerId: null as string | null, name: "", phone: "", address: "", slotDate: todayISO(), slot: SLOTS[1], notes: "", payMode: "cod" as OrderPay, payRef: "", discountPct: "0", prescriber: "", waConsent: false };
+  const blank = { source: "phone" as (typeof ORDER_SOURCES)[number], customerId: null as string | null, name: "", phone: "", address: "", slotDate: todayISO(), slot: SLOTS[1], notes: "", payMode: "cod" as OrderPay, payRef: "", discountPct: "0", prescriber: "", prescriberReg: "", waConsent: false };
   const [f, setF] = useState(blank);
   const [items, setItems] = useState<{ med: Med; qty: number }[]>([]);
   const [q, setQ] = useState(""), [hits, setHits] = useState<Med[]>([]);
@@ -202,6 +203,7 @@ function NewOrder({ open, onClose, customers, canCredit }: { open: boolean; onCl
     return t.length < 2 ? [] : customers.filter((c) => c.name.toLowerCase().includes(t) || (c.phone ?? "").includes(t)).slice(0, 6);
   }, [cq, customers]);
   const needRx = items.some((i) => i.med.schedule);
+  const needH1 = items.some((i) => isH1(i.med.schedule));
   const est = items.reduce((a, i) => a + i.med.mrp * i.qty, 0) * (1 - (parseFloat(f.discountPct) || 0) / 100);
   const close = () => { setF(blank); setItems([]); setQ(""); setRx(null); setCq(""); onClose(); };
   const set = <K extends keyof typeof blank>(k: K, v: (typeof blank)[K]) => setF((x) => ({ ...x, [k]: v }));
@@ -266,6 +268,7 @@ function NewOrder({ open, onClose, customers, canCredit }: { open: boolean; onCl
       <div className="grid grid-cols-2 gap-3 max-[560px]:grid-cols-1">
         <Field label={needRx ? "Prescriber (required for Rx items)" : "Prescriber"}><Input value={f.prescriber} onChange={(e) => set("prescriber", e.target.value)} /></Field>
         <Field label="Prescription photo or PDF"><input type="file" accept="image/*,application/pdf" capture="environment" onChange={(e) => setRx(e.target.files?.[0] ?? null)} className="text-[13px]" /></Field>
+        {needH1 ? <Field label="Prescriber reg. no. (H1 register)"><Input value={f.prescriberReg} onChange={(e) => set("prescriberReg", e.target.value)} /></Field> : null}
       </div>
       <div className="grid grid-cols-2 gap-3 max-[560px]:grid-cols-1">
         <Field label="Discount %"><Input type="number" min={0} value={f.discountPct} onChange={(e) => set("discountPct", e.target.value)} /></Field>

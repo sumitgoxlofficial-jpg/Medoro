@@ -10,6 +10,7 @@ import { hashCode, sameHash } from "@/server/otp";
 import { putObject, getObject, ALLOWED } from "@/server/storage";
 import { addDays, dateOnly, fiscalYear, isoOf, startOfTodayIST, todayISO } from "@/lib/dates";
 import { big, cartTotals, inr } from "@/lib/money";
+import { isH1 } from "@/lib/rx";
 import { allocateFefo, fefoOrder } from "@/domain/inventory/fefo";
 import { sellableByMedicine } from "@/domain/inventory/queries";
 import { commitSale, reservedForDevices } from "@/domain/sales/service";
@@ -116,6 +117,8 @@ export async function createOrder(ctx: Ctx, raw: OrderInput) {
   if (meds.length !== qty.size) throw new UserError("An item is no longer in the catalogue. Remove it and search again.");
   const rx = meds.filter((m) => m.schedule);
   if (rx.length && !i.prescriber) throw new UserError(`Enter the prescriber’s name: ${rx.map((m) => m.name).join(", ")} ${rx.length > 1 ? "are" : "is"} Schedule ${rx[0].schedule}.`);
+  const h1 = meds.filter((m) => isH1(m.schedule));
+  if (h1.length && !i.prescriberReg) throw new UserError(`Enter the prescriber’s registration no.: ${h1.map((m) => m.name).join(", ")} ${h1.length > 1 ? "go" : "goes"} in the Schedule H1 register.`);
   const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: { in: [...qty.keys()] } } });
   const est = cartTotals(meds.map((m) => ({ mrpPaise: big(fefoOrder(batches, m.id)[0]?.mrpPaise ?? m.mrpPaise), qty: qty.get(m.id)!, gstRate: m.gstRate })), i.discountPct);
 
@@ -134,7 +137,7 @@ export async function createOrder(ctx: Ctx, raw: OrderInput) {
       data: {
         tenantId: ctx.tenantId, branchId: ctx.branchId, no, source: i.source, customerId: customer.id, name: i.name, phone: i.phone, address: i.address,
         slotDate: i.slotDate ? dateOnly(i.slotDate) : null, slot: i.slot || null, notes: i.notes || null, payMode: i.payMode, payRef: i.payRef || null,
-        discountPct: new Prisma.Decimal(i.discountPct), prescriber: i.prescriber || null, waConsent: i.waConsent, estimatePaise: BigInt(est.total), createdBy: ctx.userId,
+        discountPct: new Prisma.Decimal(i.discountPct), prescriber: i.prescriber || null, prescriberReg: h1.length ? i.prescriberReg || null : null, waConsent: i.waConsent, estimatePaise: BigInt(est.total), createdBy: ctx.userId,
         items: { create: [...qty].map(([medicineId, q]) => ({ medicineId, qty: q })) },
       },
     });
@@ -190,7 +193,7 @@ export async function packOrder(ctx: Ctx, id: string) {
     });
     billed = await commitSale(ctx, {
       idempotencyKey: key, lines, customerId: o.customerId, discountPct: Number(o.discountPct),
-      pay: { mode: saleModeFor(o.payMode as OrderPay), ...(o.payRef ? { ref: o.payRef } : {}) }, ...(o.prescriber ? { prescriber: o.prescriber } : {}),
+      pay: { mode: saleModeFor(o.payMode as OrderPay), ...(o.payRef ? { ref: o.payRef } : {}) }, ...(o.prescriber ? { prescriber: o.prescriber } : {}), ...(o.prescriberReg ? { prescriberReg: o.prescriberReg, patientName: o.name } : {}),
     }, { cod: true, note: `order ${o.no}` });
   }
   const sale = billed;

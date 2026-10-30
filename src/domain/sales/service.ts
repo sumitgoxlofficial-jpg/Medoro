@@ -6,6 +6,7 @@ import { authorize, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq } from "@/server/sequence";
 import { invoiceNo as makeInvoiceNo, validSeries } from "@/lib/docno";
+import { isH1 } from "@/lib/rx";
 import { daysTo, fiscalYear, todayISO } from "@/lib/dates";
 import { big, cartTotals, inr, inr0 } from "@/lib/money";
 import { discountCap } from "@/domain/identity/permissions";
@@ -116,6 +117,13 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   if (input.doctorId && !doctor) throw new UserError("Doctor not found. Pick the doctor again.");
   const prescriber = input.prescriber?.trim() || (doctor ? `Dr ${doctor.name}${doctor.regNo ? ` (Reg ${doctor.regNo})` : ""}` : "");
   if (rx && !prescriber) throw new UserError("Enter the prescriber’s name for Schedule H/H1 items.");
+  const customer = input.customerId ? await tx.customer.findFirst({ where: { id: input.customerId, tenantId: ctx.tenantId, erasedAt: null } }) : null;
+  if (input.customerId && !customer) throw new UserError("Customer not found.");
+  // Schedule H1, X and NDPS sales go in the register with patient, prescriber and registration number.
+  const h1 = input.lines.some((l) => isH1(byId.get(l.batchId)!.medicine.schedule));
+  const patientName = input.patientName?.trim() || (h1 ? customer?.name ?? "" : "");
+  const prescriberReg = input.prescriberReg?.trim() || doctor?.regNo?.trim() || "";
+  if (h1 && (!patientName || !prescriberReg)) throw new UserError(`Schedule H1, X and NDPS items need the ${[!patientName && "patient’s name", !prescriberReg && "prescriber’s registration no."].filter(Boolean).join(" and ")} for the register.`);
 
   // A loose unit sells at MRP ÷ pack size rounded down, so a full strip sold loose never exceeds the printed MRP.
   const lines = input.lines.map((l) => {
@@ -125,9 +133,6 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const t = cartTotals(lines.map(({ mrp, qty, b, cost }) => ({ mrpPaise: mrp, qty, gstRate: b.medicine.gstRate, costPaise: cost })), input.discountPct);
   if (t.total <= 0) throw new UserError("The bill total must be more than zero.");
   const approval = input.discountPct > cap ? await consumeApproval(tx, ctx, input.approval!, input.lines, input.discountPct, t.total) : null;
-
-  const customer = input.customerId ? await tx.customer.findFirst({ where: { id: input.customerId, tenantId: ctx.tenantId, erasedAt: null } }) : null;
-  if (input.customerId && !customer) throw new UserError("Customer not found.");
 
   const pay = { cash: 0, upi: 0, card: 0, credit: 0, cod: 0 };
   const m = input.pay.mode;
@@ -160,7 +165,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   const sale = await tx.sale.create({
     data: {
       tenantId: ctx.tenantId, branchId: ctx.branchId, invoiceNo, idempotencyKey: input.idempotencyKey, customerId: customer?.id ?? null,
-      prescriber: prescriber || null, rxNo: input.rxNo?.trim() || null, prescriberReg: input.prescriberReg?.trim() || doctor?.regNo || null, patientName: input.patientName?.trim() || null, doctorId: doctor?.id ?? null,
+      prescriber: prescriber || null, rxNo: input.rxNo?.trim() || null, prescriberReg: prescriberReg || null, patientName: patientName || null, doctorId: doctor?.id ?? null,
       subtotalPaise: BigInt(t.mrpTotal), discountPaise: BigInt(t.discount), discountPct: new Prisma.Decimal(input.discountPct), taxablePaise: BigInt(t.taxable),
       cgstPaise: BigInt(g.cgst), sgstPaise: BigInt(g.sgst), igstPaise: BigInt(g.igst), placeOfSupply: g.pos, customerGstin: g.gstin, roundOffPaise: BigInt(t.roundOff), totalPaise: BigInt(t.total), costPaise: BigInt(t.cost),
       payMode: m, shiftId: shift?.id ?? null, userId: ctx.userId, ...(at ? { at } : {}),

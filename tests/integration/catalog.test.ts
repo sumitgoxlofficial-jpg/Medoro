@@ -233,12 +233,12 @@ describe("doctor master and referrals", () => {
     expect(doc).toMatchObject({ name: "Asha Mehta", regNo: "MMC 2011/04/1234", phone: "9822011111" });
     await expect(createDoctor(cashier, { name: "Someone", regNo: "MMC 2011/04/1234" })).rejects.toThrow(/already on file/);
 
-    const s1 = await commitSale(cashier, sale([{ medicineId: azi, batchId: a1, qty: 1 }], { doctorId: doc.id }));
+    const s1 = await commitSale(cashier, sale([{ medicineId: azi, batchId: a1, qty: 1 }], { doctorId: doc.id, patientName: "Ravi Joshi" }));
     const row = await db.sale.findUniqueOrThrow({ where: { id: s1.saleId } });
     expect(row).toMatchObject({ doctorId: doc.id, prescriber: "Dr Asha Mehta (Reg MMC 2011/04/1234)" });
     expect((await invoiceData(cashier, s1.saleId))!.doctor).toMatchObject({ regNo: "MMC 2011/04/1234" });
     await commitSale(cashier, sale([{ medicineId: dolo, batchId: d1, qty: 2 }], { doctorId: doc.id }));
-    await commitSale(cashier, sale([{ medicineId: azi, batchId: a1, qty: 1 }], { prescriber: "Dr. R. Kale" }));
+    await commitSale(cashier, sale([{ medicineId: azi, batchId: a1, qty: 1 }], { prescriber: "Dr. R. Kale", prescriberReg: "MMC-7781", patientName: "Ravi Joshi" }));
     await expect(commitSale(cashier, sale([{ medicineId: azi, batchId: a1, qty: 1 }], { doctorId: randomUUID() }))).rejects.toThrow(/Doctor not found/);
     await processReturn(owner, { saleId: s1.saleId, lines: [{ itemId: (await db.saleItem.findFirstOrThrow({ where: { saleId: s1.saleId } })).id, qty: 1 }], condition: "sealed", refundMode: "Cash", reason: "Changed prescription" });
 

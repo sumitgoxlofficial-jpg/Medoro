@@ -1382,6 +1382,7 @@ model DeliveryOrder {
   payRef         String?
   discountPct    Decimal             @default(0)
   prescriber     String?
+  prescriberReg  String? // Schedule H1, X and NDPS items: prescriber's registration number
   rxPath         String?
   rxMime         String?
   waConsent      Boolean             @default(false)

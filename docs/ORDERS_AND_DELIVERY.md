@@ -8,7 +8,7 @@ Owners get a phone-sized summary of the day and can have the numbers emailed to 
 
 | Status | What happens | Who |
 |---|---|---|
-| New | Order saved: customer (found by mobile or created), items with quantity, delivery address, date and slot, notes, payment (cash on delivery, prepaid UPI with reference, or customer credit), optional discount, prescriber and prescription photo/PDF. Stock in hand is shown per item. Schedule H/H1/X items need the prescriber's name | Counter staff |
+| New | Order saved: customer (found by mobile or created), items with quantity, delivery address, date and slot, notes, payment (cash on delivery, prepaid UPI with reference, or customer credit), optional discount, prescriber and prescription photo/PDF. Stock in hand is shown per item. Schedule H/H1/X items need the prescriber's name; H1, X and NDPS items also the prescriber's registration number (the order name is the patient) | Counter staff |
 | Confirmed | Customer is told (see notifications). Items short on stock are listed | Counter staff |
 | Packed & billed | The order becomes an invoice through `commitSale`: batches are allocated FEFO (stock held for offline counters is skipped), the Rx rule, discount cap and credit limit are enforced, stock is row-locked and decremented, and the sales voucher is posted. The sale uses the idempotency key `ord_<order id>`, so packing twice can never bill twice | Counter staff |
 | Out for delivery | A delivery person is assigned and a 4-digit delivery code is sent to the customer. The rider can be changed while it is out | Counter staff |

@@ -194,4 +194,19 @@ describe("offline billing", () => {
     const o = await db.offlineOp.findFirstOrThrow({ where: { deviceId: mainDev } });
     await expect(resolveOp(onlySecond, o.id, "close", "Customer refunded")).rejects.toThrow(/not found/);
   });
+
+  it("an offline Schedule H1 bill without patient and prescriber registration becomes a conflict", async () => {
+    const owner = await ctxFor(), ctx = await ctxFor("Cashier");
+    const azi = await createMedicine(owner, { ...base, name: "Azithral 500", generic: "Azithromycin", strength: "500 mg", mrp: "120", schedule: "H1" });
+    const az = (await receiveBatch(owner, { medicineId: azi, batchNo: "AZ1", expiry: addDays(todayISO(), 300), qty: 10, cost: "80", mrp: "120", supplierId: null, invoiceNo: "" })).batchId;
+    const dev = (await db.device.findFirstOrThrow({ where: { name: "Counter 1" } })).id;
+    await snapshot(ctx, dev);
+    const bare = op([{ medicineId: azi, batchId: az, qty: 1 }], { totalPaise: 12000 });
+    const named = op([{ medicineId: azi, batchId: az, qty: 1 }], { totalPaise: 12000 });
+    const full = { ...named, sale: { ...named.sale, prescriber: "Dr. S. Rao", prescriberReg: "MMC-55821", patientName: "Sunita Patil" } };
+    const res = await syncOps(ctx, dev, [{ ...bare, sale: { ...bare.sale, prescriber: "Dr. S. Rao" } }, full]);
+    expect(res[0]).toMatchObject({ status: "conflict", message: expect.stringMatching(/patient’s name and prescriber’s registration no\./) });
+    expect(res[1].status).toBe("posted");
+    expect(await db.sale.findFirstOrThrow({ where: { invoiceNo: res[1].invoiceNo } })).toMatchObject({ patientName: "Sunita Patil", prescriberReg: "MMC-55821" });
+  });
 });

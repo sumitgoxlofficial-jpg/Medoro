@@ -90,7 +90,8 @@ export async function snapshot(ctx: Ctx, deviceId: string): Promise<OfflineSnaps
 const toSale = (op: OfflineOpInput, lines = op.sale.lines): SaleInput => ({
   idempotencyKey: op.id, lines, customerId: null, discountPct: op.sale.discountPct,
   pay: { mode: op.sale.pay.mode, tenderedPaise: op.sale.pay.tenderedPaise, ref: op.sale.pay.ref }, prescriber: op.sale.prescriber, rxNo: op.sale.rxNo, doctorId: op.sale.doctorId ?? null,
-});
+    prescriberReg: op.sale.prescriberReg, patientName: op.sale.patientName,
+  });
 
 /** Posts queued offline bills. Safe to resend: each bill posts once, keyed by its id. */
 export async function syncOps(ctx: Ctx, deviceId: string, raw: unknown[]): Promise<SyncResult[]> {

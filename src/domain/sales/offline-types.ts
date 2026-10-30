@@ -15,6 +15,8 @@ export const opSchema = z.object({
     prescriber: z.string().trim().max(120).optional(),
     rxNo: z.string().trim().max(60).optional(),
     doctorId: z.string().uuid().optional(),
+    prescriberReg: z.string().trim().max(40).optional(),
+    patientName: z.string().trim().max(120).optional(),
     totalPaise: z.number().int().min(0),
   }),
 });

@@ -7,6 +7,7 @@ import { fmtQty, stockValue } from "@/lib/units";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
 import { maskPhone } from "@/lib/mask";
+import { H1_SCHEDULES } from "@/lib/rx";
 import { inputGstByRate, outputGstByRate, trialBalance, type Period } from "./service";
 import { hsnCsv, hsnRows } from "@/domain/gst/common";
 import { gstDocs } from "@/domain/gst/service";
@@ -139,7 +140,6 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
   }
 }
 
-export const H1_SCHEDULES = ["H1", "X", "NDPS"] as const;
 const H1_HEAD = ["Date", "Invoice", "Patient", "Prescriber", "Prescriber reg. no.", "Rx no.", "Medicine", "Schedule", "Batch", "Expiry", "Qty", "Returned", "Billed by"];
 
 /** Schedule H1 register: every sale line of an H1, X or NDPS medicine at a branch, oldest first. */

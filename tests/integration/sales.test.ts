@@ -89,11 +89,16 @@ describe("sale commit", () => {
     await expect(commitSale(cashier, sale([{ medicineId: dolo, batchId: late, qty: 1 }], { discountPct: 6 }))).rejects.toThrow(/above 5%/);
     await commitSale(manager, sale([{ medicineId: dolo, batchId: late, qty: 1 }], { discountPct: 10 }));
     await expect(commitSale(cashier, sale([{ medicineId: azi, batchId: aziB, qty: 1 }]))).rejects.toThrow(/prescriber/);
-    await commitSale(cashier, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { prescriber: "Dr. A. Mehta" }));
+    await expect(commitSale(cashier, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { prescriber: "Dr. A. Mehta" }))).rejects.toThrow(/need the patient’s name and prescriber’s registration no\./);
+    await expect(commitSale(cashier, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { prescriber: "Dr. A. Mehta", patientName: "Asha" }))).rejects.toThrow(/need the prescriber’s registration no\./);
+    const h1 = await commitSale(cashier, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { prescriber: "Dr. A. Mehta", prescriberReg: "MMC-1234", patientName: "Asha" }));
+    expect(await db.sale.findUniqueOrThrow({ where: { id: h1.saleId } })).toMatchObject({ patientName: "Asha", prescriberReg: "MMC-1234" });
     const cust = await createCustomer(manager, { name: "Ramesh", phone: "9822041736", waOptIn: true, creditLimit: "200" });
     await expect(commitSale(cashier, sale([{ medicineId: dolo, batchId: late, qty: 1 }], { customerId: cust, pay: { mode: "credit" } }))).rejects.toThrow(/cannot make credit/);
-    await commitSale(manager, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { customerId: cust, pay: { mode: "credit" }, prescriber: "Dr. X" }));
-    await expect(commitSale(manager, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { customerId: cust, pay: { mode: "credit" }, prescriber: "Dr. X" }))).rejects.toThrow(/credit limit/);
+    // A selected customer is the patient.
+    const credit = await commitSale(manager, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { customerId: cust, pay: { mode: "credit" }, prescriber: "Dr. X", prescriberReg: "KMC-9" }));
+    expect((await db.sale.findUniqueOrThrow({ where: { id: credit.saleId } })).patientName).toBe("Ramesh");
+    await expect(commitSale(manager, sale([{ medicineId: azi, batchId: aziB, qty: 1 }], { customerId: cust, pay: { mode: "credit" }, prescriber: "Dr. X", prescriberReg: "KMC-9" }))).rejects.toThrow(/credit limit/);
     await expect(commitSale(cashier, sale([{ medicineId: dolo, batchId: late, qty: 1 }], { pay: { mode: "split", cashPaise: 99999 } }))).rejects.toThrow(/cash part/);
     const sp = await commitSale(cashier, sale([{ medicineId: dolo, batchId: late, qty: 3 }], { pay: { mode: "split", cashPaise: 5000 } }));
     const pays = await db.payment.findMany({ where: { saleId: sp.saleId } });
@@ -145,6 +150,7 @@ describe("sale commit", () => {
     for (let i = 0; i < 5; i++) await approveDiscount(ctx, { approver: "E-201", secret: "0000", lines, discountPct: 15 }).catch(() => {});
     await expect(approveDiscount(ctx, { approver: "E-201", secret: "4826", lines, discountPct: 15 })).rejects.toThrow(/Too many wrong attempts/);
   });
+
   it("GST document numbers stay within 16 characters up to the 999999th of the year", async () => {
     const ctx = await ctxFor();
     const fy = fiscalYear();

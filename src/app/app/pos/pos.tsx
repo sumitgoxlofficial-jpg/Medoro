@@ -14,6 +14,7 @@ import { getDevice } from "@/lib/offline/store";
 import type { Invoice, SaleMedicine } from "@/domain/sales/service";
 import { addCustomerAction, approveDiscountAction, commitSaleAction, holdAction, invoiceAction, messageStatusAction, recallAction, searchAction, sendInvoiceAction } from "./actions";
 import { baseQty, fmtQty, fmtSold, unitPrice, type SaleUnit } from "@/lib/units";
+import { isH1 } from "@/lib/rx";
 import { SubstitutesPanel } from "./substitutes";
 import { DoctorPicker, type DoctorOpt } from "./doctor-picker";
 
@@ -147,12 +148,16 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const approved = !!approval && approval.sig === approvalSig;
   const cust = customers.find((c) => c.id === cart.cust);
   const needsRx = cart.lines.some((l) => cart.meds[l.medicineId]?.schedule);
+  const needsH1 = cart.lines.some((l) => isH1(cart.meds[l.medicineId]?.schedule));
+  const pickedReg = doctors.find((d) => d.id === cart.doctorId)?.regNo ?? "";
 
   const checkoutError = () => {
     if (!cart.lines.length) return "Cart is empty.";
     if (disc < 0 || disc > maxDisc) return `Discounts above ${maxDisc}% aren’t allowed.`;
     if (disc > discCap && !approved) return `Discount above ${discCap}% needs manager approval.`;
     if (needsRx && !cart.doctor.trim() && !cart.doctorId) return "Enter prescriber name for Schedule H/H1 items.";
+    if (needsH1 && !cust && !cart.patient?.trim()) return "Enter the patient’s name for Schedule H1, X and NDPS items.";
+    if (needsH1 && !cart.docreg?.trim() && !pickedReg) return "Enter the prescriber’s registration no. for Schedule H1, X and NDPS items.";
     if (cart.pay === "cash" && cart.tender && toPaise(cart.tender) < totals.total) return "Cash tendered is less than the total.";
     if (cart.pay === "split" && (!cart.split || toPaise(cart.split) <= 0 || toPaise(cart.split) >= totals.total)) return "Enter a cash part between ₹1 and the total.";
     if (cart.pay === "credit") {
@@ -172,7 +177,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       customerId: cart.cust || null, discountPct: disc,
       pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
       prescriber: cart.doctorId ? undefined : cart.doctor || undefined, rxNo: cart.rxno || undefined, doctorId: cart.doctorId || null,
-      prescriberReg: cart.docreg || undefined, patientName: cart.patient || undefined,
+      prescriberReg: (!pickedReg && cart.docreg) || undefined, patientName: cart.patient || undefined,
     };
     const sig = JSON.stringify(body);
     if (idemRef.current.sig !== null && idemRef.current.sig !== sig) freshKey();
@@ -372,8 +377,8 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
               <div className="text-[12.5px] font-semibold text-bad flex gap-1.5 items-center"><FileText size={14} />Schedule H/H1: prescription required</div>
               <DoctorPicker doctors={doctors} setDoctors={setDoctors} doctorId={cart.doctorId ?? ""} text={cart.doctor} required onChange={(p) => set({ doctorId: p.doctorId, doctor: p.text })} />
               <input value={cart.rxno} onChange={(e) => set({ rxno: e.target.value })} placeholder="Rx / register entry no." aria-label="Prescription number" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
-              {cart.lines.some((l) => ["H1", "X", "NDPS"].includes(cart.meds[l.medicineId]?.schedule ?? "")) ? <>
-                <input value={cart.docreg ?? ""} onChange={(e) => set({ docreg: e.target.value })} placeholder="Prescriber registration no. (H1 register)" aria-label="Prescriber registration number" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />
+              {needsH1 ? <>
+                {pickedReg ? null : <input value={cart.docreg ?? ""} onChange={(e) => set({ docreg: e.target.value })} placeholder="Prescriber registration no. (H1 register)" aria-label="Prescriber registration number" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />}
                 {cust ? null : <input value={cart.patient ?? ""} onChange={(e) => set({ patient: e.target.value })} placeholder="Patient name (H1 register)" aria-label="Patient name" className="border border-[#E5B4AE] rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none" />}
               </> : null}
             </div>

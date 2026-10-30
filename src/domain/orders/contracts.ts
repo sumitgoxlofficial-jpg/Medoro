@@ -44,6 +44,7 @@ export const orderSchema = z.object({
   payRef: z.string().trim().max(60).optional(),
   discountPct: z.number().min(0, "Discount can’t be negative.").max(100).default(0),
   prescriber: z.string().trim().max(120).optional(),
+  prescriberReg: z.string().trim().max(40).optional(),
   waConsent: z.boolean().default(false),
   items: z.array(z.object({ medicineId: z.string().uuid(), qty: z.number().int().min(1, "Quantity must be at least 1.").max(1000) })).min(1, "Add at least one item.").max(100),
 });

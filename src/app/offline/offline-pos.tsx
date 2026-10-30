@@ -9,6 +9,7 @@ import { daysTo, monthYear, todayISO } from "@/lib/dates";
 import type { OfflineSnapshot } from "@/domain/sales/offline-types";
 import { getDevice, getQueue, getSnapshot, nextReceipt, randomId, remaining, saveQueue, syncNow, type Device, type QueuedBill } from "@/lib/offline/store";
 import { baseQty, fmtQty, fmtSold, unitPrice, type SaleUnit } from "@/lib/units";
+import { isH1 } from "@/lib/rx";
 import { searchTokens } from "@/domain/inventory/salts";
 
 type Line = { key: string; medicineId: string; batchId: string; qty: number; unit?: SaleUnit };
@@ -43,6 +44,8 @@ export function OfflinePos() {
   const [doctor, setDoctor] = useState("");
   const [rxno, setRxno] = useState("");
   const [doctorId, setDoctorId] = useState("");
+  const [docreg, setDocreg] = useState("");
+  const [patient, setPatient] = useState("");
   const [msg, setMsg] = useState<{ text: string; tone: "red" | "green" | "amber" } | null>(null);
   const [receipt, setReceipt] = useState<QueuedBill | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -95,6 +98,8 @@ export function OfflinePos() {
   const totals = useMemo(() => cartTotals(lines.map((l) => ({ mrpPaise: priceOf(l), qty: l.qty, gstRate: medById.get(l.medicineId)?.gstRate ?? 0 })), d), [lines, d, priceOf, medById]);
   const packDef = (medicineId: string) => { const m = medById.get(medicineId); return { packSize: m?.packSize ?? 1, packUnit: m?.packUnit ?? "pack", looseUnit: m?.looseUnit ?? "unit" }; };
   const needsRx = lines.some((l) => medById.get(l.medicineId)?.schedule);
+  const needsH1 = lines.some((l) => isH1(medById.get(l.medicineId)?.schedule));
+  const pickedReg = snap?.doctors?.find((x) => x.id === doctorId)?.regNo ?? "";
   const stale = snap ? Date.now() - new Date(snap.takenAt).getTime() > snap.validDays * 86_400_000 : false;
   const pending = queue.filter((b) => b.state === "pending");
   const conflicts = queue.filter((b) => b.state === "conflict");
@@ -105,6 +110,8 @@ export function OfflinePos() {
     if (stale) return say(`This device’s price list is more than ${snap.validDays} days old. Reconnect to refresh it before billing.`);
     if (d < 0 || d > snap.discCap) return say(`Discount above ${snap.discCap}% needs a manager, online.`);
     if (needsRx && !doctor.trim() && !doctorId) return say("Enter the prescriber’s name for Schedule H/H1 items.");
+    if (needsH1 && !patient.trim()) return say("Enter the patient’s name for Schedule H1, X and NDPS items.");
+    if (needsH1 && !docreg.trim() && !pickedReg) return say("Enter the prescriber’s registration no. for Schedule H1, X and NDPS items.");
     if (pay === "cash" && tender && toPaise(tender) < totals.total) return say("Cash tendered is less than the total.");
     if (totals.total <= 0) return say("The bill total must be more than zero.");
     completing.current = true;
@@ -112,13 +119,13 @@ export function OfflinePos() {
       const bill: QueuedBill = {
         id: randomId("off_"), createdAt: new Date().toISOString(), baseVersion: Math.max(0, ...lines.map((l) => batchById.get(l.batchId)?.version ?? 0)),
         receipt: await nextReceipt(dev.deviceId), state: "pending", cashierId: snap.cashierId, cashier: snap.cashier,
-        sale: { lines: lines.map(({ medicineId, batchId, qty, unit }) => ({ medicineId, batchId, qty, ...(unit === "loose" ? { unit } : {}) })), discountPct: d, pay: { mode: pay, tenderedPaise: pay === "cash" && tender ? toPaise(tender) : undefined, ref: pay !== "cash" && ref ? ref : undefined }, prescriber: doctorId ? undefined : doctor.trim() || undefined, rxNo: rxno.trim() || undefined, ...(doctorId ? { doctorId } : {}), totalPaise: totals.total },
+        sale: { lines: lines.map(({ medicineId, batchId, qty, unit }) => ({ medicineId, batchId, qty, ...(unit === "loose" ? { unit } : {}) })), discountPct: d, pay: { mode: pay, tenderedPaise: pay === "cash" && tender ? toPaise(tender) : undefined, ref: pay !== "cash" && ref ? ref : undefined }, prescriber: doctorId ? undefined : doctor.trim() || undefined, rxNo: rxno.trim() || undefined, ...(doctorId ? { doctorId } : {}), ...(needsH1 ? { prescriberReg: docreg.trim() || undefined, patientName: patient.trim() || undefined } : {}), totalPaise: totals.total },
         view: lines.map((l) => ({ name: medById.get(l.medicineId)?.name ?? "", batchNo: batchById.get(l.batchId)?.batchNo ?? "", qty: l.qty, mrpPaise: priceOf(l), unit: fmtSold(l.qty, l.unit, packDef(l.medicineId)) })),
       };
       const next = [...(await getQueue()), bill];
       await saveQueue(next);
       setQueue(next); setReceipt(bill);
-      setLines([]); setDisc("0"); setTender(""); setRef(""); setDoctor(""); setDoctorId(""); setRxno(""); setMsg(null);
+      setLines([]); setDisc("0"); setTender(""); setRef(""); setDoctor(""); setDoctorId(""); setRxno(""); setDocreg(""); setPatient(""); setMsg(null);
     } finally { completing.current = false; }
   };
 
@@ -252,6 +259,10 @@ export function OfflinePos() {
                   {!doctorId ? <input className={inp} value={doctor} onChange={(e) => setDoctor(e.target.value)} placeholder="Prescriber name" /> : null}
                 </label>
                 <label className="flex flex-col gap-1 text-[12.5px] text-muted">Rx no.<input className={inp} value={rxno} onChange={(e) => setRxno(e.target.value)} /></label>
+                {needsH1 ? <>
+                  {!pickedReg ? <label className="flex flex-col gap-1 text-[12.5px] text-muted">Prescriber reg. no.<input className={inp} value={docreg} onChange={(e) => setDocreg(e.target.value)} aria-label="Prescriber registration number" /></label> : null}
+                  <label className="flex flex-col gap-1 text-[12.5px] text-muted">Patient name<input className={inp} value={patient} onChange={(e) => setPatient(e.target.value)} aria-label="Patient name" /></label>
+                </> : null}
               </div>
             ) : null}
             <div className="flex flex-col gap-1 text-[13.5px] border-t border-row pt-3">

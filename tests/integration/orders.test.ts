@@ -230,4 +230,16 @@ describe("orders and home delivery", () => {
     expect((t.settings as { reportMail: { recipients: string[] } }).reportMail.recipients).toEqual(["owner@test.in"]);
     expect(await db.auditEvent.count({ where: { action: "Scheduled report emails unsubscribed" } })).toBe(1);
   });
+
+  it("a Schedule H1 order needs the prescriber's registration no. and bills the H1 register entry", async () => {
+    const owner = await ctxFor(), cashier = await ctxFor("Cashier");
+    const h1 = await createMedicine(owner, { name: "Augmentin 625", generic: "Amoxicillin + Clavulanate", strength: "625 mg", form: "Tablet", manufacturer: "GSK", pack: "10", mrp: "220", gstRate: 12, schedule: "H1", reorderLevel: 0, barcode: "", hsn: "3004", rack: "" });
+    await receiveBatch(owner, { medicineId: h1, batchNo: "AG1", expiry: addDays(todayISO(), 300), qty: 5, cost: "150", mrp: "220", supplierId: null, invoiceNo: "" });
+    const order = { ...base, name: "Meena Kulkarni", phone: "9822011199", payMode: "prepaid" as const, payRef: "UTR1", prescriber: "Dr Rao", items: [{ medicineId: h1, qty: 1 }] };
+    await expect(createOrder(cashier, order)).rejects.toThrow(/registration no\./);
+    const { id } = await createOrder(cashier, { ...order, prescriberReg: "MMC-4411" });
+    await confirmOrder(cashier, id);
+    const sale = await packOrder(cashier, id);
+    expect(await db.sale.findUniqueOrThrow({ where: { id: sale.saleId } })).toMatchObject({ patientName: "Meena Kulkarni", prescriberReg: "MMC-4411", prescriber: "Dr Rao" });
+  });
 });
