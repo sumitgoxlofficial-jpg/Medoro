@@ -6,6 +6,8 @@ import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
 import { inputGstByRate, outputGstByRate, trialBalance, type Period } from "./service";
+import { hsnCsv, hsnRows } from "@/domain/gst/common";
+import { gstDocs } from "@/domain/gst/service";
 
 export const REPORTS = [
   ["sales-register", "Sales register", "Invoices with tax split"],
@@ -18,6 +20,7 @@ export const REPORTS = [
   ["day-book", "Day book", "All vouchers with ledger lines"],
   ["trial-balance", "Trial balance", "Account balances at period end"],
   ["stock-movements", "Stock movements", "Immutable stock ledger"],
+  ["hsn-summary", "HSN summary", "HSN-wise quantity, taxable value and tax (GSTR-1 Table 12)"],
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
 
@@ -58,10 +61,9 @@ async function gstSummary(T: string, p: Period, branchIds: string[]): Promise<Ro
   const [out, inn] = await Promise.all([outputGstByRate(T, p, branchIds), inputGstByRate(T, p, branchIds)]);
   const rates = [...new Set([...out.map((x) => x.rate), ...inn.map((x) => x.rate)])].sort((a, b) => a - b);
   const half = (n: number) => [r2(Math.floor(n / 2)), r2(n - Math.floor(n / 2))];
-  // Retail sales are intra-state, so output IGST is zero; the column keeps the layout GSTR-ready.
   return [["Slab %", "Sales taxable", "Credit notes taxable", "Output taxable (net)", "Output CGST", "Output SGST", "Output IGST", "Purchases taxable", "Debit notes taxable", "Input taxable (net)", "Input CGST", "Input SGST", "Input IGST"],
     ...rates.map((r) => { const o = out.find((x) => x.rate === r), i = inn.find((x) => x.rate === r);
-      return [r, r2(o?.grossTaxable ?? 0), r2(o?.retTaxable ?? 0), r2(o?.taxable ?? 0), ...half(o?.tax ?? 0), r2(0), r2(i?.grossTaxable ?? 0), r2(i?.retTaxable ?? 0), r2(i?.taxable ?? 0), r2(i?.cgst ?? 0), r2(i?.sgst ?? 0), r2(i?.igst ?? 0)]; })];
+      return [r, r2(o?.grossTaxable ?? 0), r2(o?.retTaxable ?? 0), r2(o?.taxable ?? 0), ...half((o?.tax ?? 0) - (o?.igst ?? 0)), r2(o?.igst ?? 0), r2(i?.grossTaxable ?? 0), r2(i?.retTaxable ?? 0), r2(i?.taxable ?? 0), r2(i?.cgst ?? 0), r2(i?.sgst ?? 0), r2(i?.igst ?? 0)]; })];
 }
 
 async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period): Promise<Rows> {
@@ -94,8 +96,8 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
   switch (id) {
     case "sales-register": {
       const s = await db.sale.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, include: { customer: { select: { name: true } } }, orderBy: { at: "asc" } });
-      return [["Invoice", "Date", "Customer", "MRP total", "Discount", "Taxable", "CGST", "SGST", "Round off", "Total", "Mode", "Prescriber"],
-        ...s.map((x) => [x.invoiceNo, ist(x.at), x.customer?.name ?? "Walk-in", r2(big(x.subtotalPaise)), r2(big(x.discountPaise)), r2(big(x.taxablePaise)), r2(big(x.cgstPaise)), r2(big(x.sgstPaise)), r2(big(x.roundOffPaise)), r2(big(x.totalPaise)), x.payMode, x.prescriber])];
+      return [["Invoice", "Date", "Customer", "Customer GSTIN", "Place of supply", "MRP total", "Discount", "Taxable", "CGST", "SGST", "IGST", "Round off", "Total", "Mode", "Prescriber"],
+        ...s.map((x) => [x.invoiceNo, ist(x.at), x.customer?.name ?? "Walk-in", x.customerGstin, x.placeOfSupply, r2(big(x.subtotalPaise)), r2(big(x.discountPaise)), r2(big(x.taxablePaise)), r2(big(x.cgstPaise)), r2(big(x.sgstPaise)), r2(big(x.igstPaise)), r2(big(x.roundOffPaise)), r2(big(x.totalPaise)), x.payMode, x.prescriber])];
     }
     case "stock-valuation": {
       const b = await db.batch.findMany({ where: { tenantId: T, branchId: B, qtyAvailable: { gt: 0 } }, include: { medicine: true }, orderBy: [{ medicine: { name: "asc" } }, { expiryDate: "asc" }] });
@@ -121,6 +123,8 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
       const users = await db.user.findMany({ where: { tenantId: T }, select: { id: true, name: true } });
       return [["Time", "Medicine", "Batch", "Type", "Qty", "Reference", "By"], ...m.map((x) => [ist(x.at), x.batch.medicine.name, x.batch.batchNo, x.type, x.qty, x.note ?? x.refType, users.find((u) => u.id === x.userId)?.name ?? ""])];
     }
+    case "hsn-summary":
+      return hsnCsv(hsnRows((await gstDocs(T, [B], p)).docs));
     default:
       throw new Error(`${id} is a pharmacy report.`);
   }
