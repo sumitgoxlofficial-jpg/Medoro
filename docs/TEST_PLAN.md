@@ -5,7 +5,7 @@ Synthetic data only (`seed/synthetic.json`). Tools: Vitest (unit), Vitest with a
 ## Levels
 - **Unit:** money and GST maths, FEFO allocator, reorder policy, expiry projection, anomaly rules, idempotency helpers, Zod contracts.
 - **Integration:** services against real PostgreSQL inside transactions. Concurrency tests use parallel connections.
-- **E2E:** Playwright against the dockerised stack, with mocked Meta, Google and OCR servers.
+- **E2E:** Playwright (`e2e/`, `playwright.config.ts`) against a production build (`next build` + `next start`) and a freshly migrated PostgreSQL. The `setup` project runs the real first-run wizard once (TOTP computed from the enrolment key) and saves the owner's session; every other spec depends on it and seeds its own data through the UI. Tests run serially on one database. External services (Meta, Google, OCR, LLM) are not configured, so those paths show their "not connected" state. Run with `bash wsl-e2e.sh <worktree> [playwright args]` from the worktree parent, or `pnpm test:e2e` with the environment that script exports.
 - **Security:** authz matrix tests (every route × every role), tenant-isolation fuzzing, ZAP baseline, dependency audit.
 
 ## Mandatory scenarios (brief §22)
