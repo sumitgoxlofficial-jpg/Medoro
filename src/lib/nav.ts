@@ -1,7 +1,7 @@
 import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
-  | "dash" | "pos" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "acc"
+  | "dash" | "pos" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "doc" | "acc"
   | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Engagement" | "System"; abbr: string; sub: string };
@@ -17,6 +17,7 @@ export const NAV: NavDef[] = [
   { id: "intel", href: "/app/intelligence", icon: "ChartLine", perm: "reports", group: "Intelligence", abbr: "Insights", sub: "Forecasts, reorder policy, supplier prices and anomaly review" },
   { id: "pur", href: "/app/purchases", icon: "Truck", perm: "purchase", group: "Business", abbr: "Buy", sub: "Purchase orders, GRNs and invoice scanning" },
   { id: "parties", href: "/app/parties", icon: "Contact", perm: "payments", group: "Business", abbr: "Parties", sub: "Balances, terms and payments" },
+  { id: "doc", href: "/app/doctors", icon: "Stethoscope", perm: "sale", group: "Business", abbr: "Doctors", sub: "Doctor master, prescriptions and sales by referring doctor" },
   { id: "acc", href: "/app/accounts", icon: "Landmark", perm: "reports", group: "Business", abbr: "A/c", sub: "Ledgers, P&L, GST summary and exports" },
   { id: "wa", href: "/app/whatsapp", icon: "MessageCircle", perm: "integrations", group: "Engagement", abbr: "WhatsApp", sub: "Meta WhatsApp Business Cloud API" },
   { id: "crm", href: "/app/messaging", icon: "Megaphone", perm: "integrations", group: "Engagement", abbr: "CRM", sub: "Opt-in reminders, campaigns, loyalty and opt-outs" },
@@ -28,7 +29,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "pos", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy"]);
+export const READY = new Set<ScreenId>(["dash", "pos", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "doc", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy"]);
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
 
