@@ -220,9 +220,12 @@ export async function prune(tenantId: string) {
   }
 }
 
-/** Marks backups that never finished (server stopped or timed out) as failed so they count as a failed attempt. */
+/**
+ * Marks backups that never finished (server stopped or timed out) as failed so they count as a failed attempt.
+ * finishedAt stays empty: the run died at an unknown time, so the retry gap counts from its start, not from now.
+ */
 async function failStale(now: Date) {
-  await db.backupManifest.updateMany({ where: { status: "running", startedAt: { lt: new Date(now.getTime() - STALE_RUNNING_MS) } }, data: { status: "failed", finishedAt: now, error: "Didn’t finish in time (the server stopped or timed out)." } });
+  await db.backupManifest.updateMany({ where: { status: "running", startedAt: { lt: new Date(now.getTime() - STALE_RUNNING_MS) } }, data: { status: "failed", error: "Didn’t finish in time (the server stopped or timed out)." } });
 }
 
 /**
