@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use tauri::menu::{MenuBuilder, MenuEvent, MenuItemBuilder, SubmenuBuilder};
 use tauri::webview::NewWindowResponse;
 use tauri::{AppHandle, Manager, State, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri_plugin_updater::UpdaterExt;
 
 #[cfg(windows)]
 const APP_ORIGIN: &str = "http://tauri.localhost";
@@ -114,16 +115,104 @@ fn watch(window: WebviewWindow) {
     });
 }
 
+fn dialog(app: &AppHandle, title: &str, text: String, choice: Option<(&str, &str)>, then: impl FnOnce(bool) + Send + 'static) {
+    let title = title.to_string();
+    let choice = choice.map(|(yes, no)| (yes.to_string(), no.to_string()));
+    let _ = app.run_on_main_thread(move || {
+        let yes = choice.as_ref().map(|c| c.0.clone());
+        let buttons = match choice {
+            Some((yes, no)) => rfd::MessageButtons::OkCancelCustom(yes, no),
+            None => rfd::MessageButtons::Ok,
+        };
+        let shown = rfd::AsyncMessageDialog::new()
+            .set_level(rfd::MessageLevel::Info)
+            .set_title(title)
+            .set_description(text)
+            .set_buttons(buttons)
+            .show();
+        std::thread::spawn(move || {
+            let r = tauri::async_runtime::block_on(shown);
+            // Linux reports custom buttons as Ok/Cancel.
+            let ok = match r {
+                rfd::MessageDialogResult::Ok | rfd::MessageDialogResult::Yes => true,
+                rfd::MessageDialogResult::Custom(s) => Some(s) == yes,
+                _ => false,
+            };
+            then(ok);
+        });
+    });
+}
+
+fn tell(app: &AppHandle, text: String) {
+    dialog(app, "Medoro", text, None, |_| {});
+}
+
+fn updates_configured(app: &AppHandle) -> bool {
+    app.config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|u| u.get("pubkey"))
+        .and_then(|k| k.as_str())
+        .is_some_and(|k| !k.trim().is_empty() && !k.starts_with("REPLACE"))
+}
+
+async fn check_updates(app: AppHandle, asked: bool) {
+    if !updates_configured(&app) {
+        if asked {
+            tell(&app, "Automatic updates aren’t set up in this build of Medoro.".into());
+        }
+        return;
+    }
+    let found = match app.updater() {
+        Ok(u) => u.check().await,
+        Err(e) => Err(e),
+    };
+    match found {
+        Ok(Some(update)) => {
+            let text = format!(
+                "Medoro {} is available (you have {}). Install it now? Medoro will restart.",
+                update.version, update.current_version
+            );
+            let handle = app.clone();
+            dialog(&app, "Update available", text, Some(("Install and restart", "Later")), move |ok| {
+                if !ok {
+                    return;
+                }
+                tauri::async_runtime::spawn(async move {
+                    match update.download_and_install(|_, _| {}, || {}).await {
+                        Ok(()) => handle.restart(),
+                        Err(e) => tell(&handle, format!("The update couldn’t be installed: {e}")),
+                    }
+                });
+            });
+        }
+        Ok(None) => {
+            if asked {
+                tell(&app, format!("You have the latest version of Medoro ({}).", app.package_info().version));
+            }
+        }
+        Err(e) => {
+            if asked {
+                tell(&app, format!("Couldn’t check for updates: {e}"));
+            }
+        }
+    }
+}
+
 fn on_menu(app: &AppHandle, event: MenuEvent) {
     if event.id() == "change-server" {
         if let Some(w) = app.get_webview_window("main") {
             let _ = w.navigate(start_url("change"));
         }
+    } else if event.id() == "check-updates" {
+        tauri::async_runtime::spawn(check_updates(app.clone(), true));
     }
 }
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Server::default())
         .invoke_handler(tauri::generate_handler![set_server])
         .on_menu_event(on_menu)
@@ -131,8 +220,10 @@ fn main() {
             let change = MenuItemBuilder::with_id("change-server", "Change server…")
                 .accelerator("CmdOrCtrl+Shift+S")
                 .build(app)?;
+            let updates = MenuItemBuilder::with_id("check-updates", "Check for updates…").build(app)?;
             let medoro = SubmenuBuilder::new(app, "Medoro")
                 .item(&change)
+                .item(&updates)
                 .separator()
                 .quit()
                 .build()?;
@@ -172,6 +263,7 @@ fn main() {
                 .on_page_load(|w, _| watch(w))
                 .build()?;
 
+            tauri::async_runtime::spawn(check_updates(app.handle().clone(), false));
             Ok(())
         })
         .run(tauri::generate_context!())
