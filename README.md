@@ -14,6 +14,7 @@ pnpm install
 pnpm prisma migrate deploy        # creates tables + append-only triggers
 pnpm dev                          # http://localhost:3000 → setup wizard on first run
 ```
+With Docker instead: `bash scripts/lan-setup.sh && docker compose --profile https up -d --build` (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
 Tests (unit + integration against a real PostgreSQL; uses `TEST_DATABASE_URL`, default `medoro_test` on localhost):
 ```bash
 pnpm test
@@ -24,7 +25,7 @@ pnpm lint && pnpm typecheck
 | Area | Notes |
 |---|---|
 | Website & legal | Marketing site at `/` (product, AI, data ownership, pricing, FAQ) and `/legal` (about, help, privacy, terms, refunds, cookies, DPDP, grievance). Legal text is a draft for lawyer review |
-| First-run setup | Pharmacy (GSTIN/drug licence checks), owner account, database check, branches & counters, team invite codes, backup recovery kit (key generated in the browser, sealed on the server) |
+| First-run setup | Pharmacy (GSTIN/drug licence checks), owner account, where PostgreSQL runs (this server, shop LAN or hosted, checked against `DATABASE_URL`) with a connection test, branches & counters, team invite codes, backup recovery kit (key generated in the browser, sealed on the server) |
 | Sign-in | Email + password (Argon2id), TOTP two-step verification (required for owners/managers, "trust this PC" for 30 days), lockout after 5 failures. Mobile OTP when `OTP_PROVIDER` is set. Counter staff: pharmacy code + employee ID + PIN + counter |
 | Live multi-device sync | A sale, stock receipt or voucher on one device shows up on every other open screen within about a second (Postgres NOTIFY → one listener per app server → server-sent events → screen refresh, keeping carts and forms). The header pill shows Live / Connecting / Offline |
 | Install & offline billing | Installable app (manifest, icons, service worker) in Chrome/Edge or on Android. A manager turns on offline billing per counter in Sync & offline: the counter keeps the price list and a reserved share of each batch (split between offline counters, one share left for online ones). If the server can't be reached, Medoro opens offline billing: cash/UPI/card bills with provisional receipts, kept on the device. On reconnect they post automatically with their original time and a real invoice number; the server rechecks stock, prices and permissions, and anything that no longer fits becomes a conflict a manager posts from current stock or closes with a note. Needs HTTPS (browsers only run service workers on secure sites or localhost) |
@@ -45,6 +46,8 @@ pnpm lint && pnpm typecheck
 | Sync, subscription, privacy | Devices, offline counters and bills, plan status, full data export, customer erasure, strict mode |
 | Support access | The owner gives Medoro support a single-use link (1, 2 or 4 hours) from Privacy & data. It signs in a dedicated "Medoro support" user that can look but not change or download anything (enforced on the server), shows a banner, is audited, and can be ended at any time |
 | AI assistant | Drawer (Ask AI / Ctrl+J) that answers from registered tools over the same services, with the same permissions; English and Hinglish; refuses clinical questions; drafts POs only after a single-use 5-minute confirmation. Rule-based by default; set `LOCAL_LLM_URL` + `LOCAL_LLM_MODEL` to plan with a local Ollama model |
+| Deployment & operations | `docker compose` stack (PostgreSQL 16, one-shot migrate job, app with healthchecks, optional HTTPS proxy), shop-LAN helper (`scripts/lan-setup.sh`/`.ps1`: local CA + certificate, `.env` with random secrets, URLs), `/api/health`, `/api/ready` (DB, migrations, settings), Prometheus `/api/metrics` behind `METRICS_TOKEN`, JSON logs with redaction, refuses to start with pending migrations. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| Security hardening | Per-request nonce CSP and security headers, Origin checks on server actions and cookie-authenticated API posts, PostgreSQL-backed rate limits (AI, WhatsApp sends, campaigns, exports, reports, documents), version checks on medicine/supplier/customer edits, two-tenant isolation test suite, CodeQL, Dependabot and a CycloneDX SBOM in CI. See [docs/SECURITY.md](docs/SECURITY.md) |
 | Staff console (`/staff`) | For Medoro's own team: sign-up with super admin approval (first admin from `STAFF_BOOTSTRAP_EMAIL`), password + mandatory authenticator, invites and resets, sales pipeline with discount approvals, logged sales with commission locked at the day's rate, payment verification creating customer accounts, encrypted payout bank details, payout runs with TDS, customers with health score and notes, support tickets with SLA, internal notes, escalation and remote-access requests. Staff tables are separate and never touch pharmacy data |
 
 Built into the core: money in integer paise with GST back-calculated from MRP, FEFO batch allocation, a hash-chained audit trail, and database triggers that make stock movements, vouchers, sales and audit rows append-only.

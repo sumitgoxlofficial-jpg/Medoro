@@ -26,7 +26,7 @@
 | Customer cloud | PostgreSQL on the customer's VM or managed DB | Customer owns the cloud account |
 | On-premises | PostgreSQL on a customer server | Same container images |
 | Shop LAN | PostgreSQL on the host PC, Tauri clients | mDNS discovery, TLS with a local CA |
-| Single device | SQLite through Tauri | No sharing; upgrade path to PostgreSQL |
+| Hosted PostgreSQL | Managed PostgreSQL (Supabase, Neon, RDS…) over TLS | App on Vercel or any host; see VERCEL_SUPABASE.md |
 
 ## 3. Domain modules (`src/domain/*`)
 catalogue · inventory (batches, movements, FEFO, counts, transfers, recalls) · sales (carts, invoices, payments, returns, shifts) · purchasing (PO, GRN, supplier invoices, returns) · parties (customers, suppliers, balances) · accounting (vouchers, ledger, GST summary) · comms (WhatsApp, campaigns, consent) · ai (tool registry, confirmations) · intelligence (forecast, reorder, anomalies) · backup · sync (offline queue) · identity (users, roles, sessions, MFA) · tenancy (tenant, branch) · licensing.
@@ -57,7 +57,7 @@ The AI calls tools that wrap the domain services (see AI_ASSISTANT.md). It runs 
 ## 7. Key decisions
 | Decision | Why |
 |---|---|
-| PostgreSQL, not SQLite, for shared mode | Row locks, concurrency, PITR |
+| PostgreSQL only (no SQLite mode) | Row locks, concurrency, PITR |
 | Tauri over Electron | Smaller attack surface, minimal native permissions |
 | pdf-lib for invoices | MIT license; avoids AGPL iText |
 | Integer paise | Exact arithmetic |

@@ -6,7 +6,7 @@ The pharmacy owns its operational data. Medoro's software runs against a databas
 ## Where data lives
 | Data | Location | Who can read it |
 |---|---|---|
-| Invoices, stock, customers, suppliers, ledger, prescriptions | Customer PostgreSQL / SQLite | Authorised pharmacy users |
+| Invoices, stock, customers, suppliers, ledger, prescriptions | Customer-controlled PostgreSQL | Authorised pharmacy users |
 | Backup files | Customer's Google Drive (encrypted before upload) | Only holders of the recovery key |
 | Backup encryption key | Customer's recovery kit (offline) plus the OS keystore on the app host | Owner |
 | WhatsApp access token | Server vault on the customer's app host | The app service only |
