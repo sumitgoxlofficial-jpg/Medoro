@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { grantSupport, revokeSupport } from "@/domain/identity/support";
+import { decideRemoteRequest } from "@/domain/system/licence";
 import { run } from "@/server/action";
 import { eraseCustomer, savePrivacy, type Privacy } from "@/domain/system/privacy";
 
@@ -23,5 +24,10 @@ export async function grantSupportAction(minutes: number, reason: string) {
 export async function revokeSupportAction() {
   const r = await run((c) => revokeSupport(c), "Support access ended. Their session is signed out.");
   if (r.ok) revalidatePath("/app", "layout");
+  return r;
+}
+export async function decideRemoteAction(requestId: string, approve: boolean, minutes: number) {
+  const r = await run(async (c) => decideRemoteRequest(c, requestId, approve, minutes, await origin()), approve ? "Access approved. The link went to Medoro support; it works once and only until the time you chose." : "Request declined. Medoro support has been told.");
+  revalidatePath("/app", "layout");
   return r;
 }

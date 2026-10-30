@@ -24,7 +24,7 @@ export function PrivacyView({ p: initial, customers, wa, drive, licence }: { p: 
   const [pending, start] = useTransition();
   const save = (patch: Partial<Privacy>, msg?: string) => start(async () => { const r = await privacyAction(patch); if (!r.ok) return toast(r.error, "red"); setP(r.data); if (msg) toast(msg, "amber"); });
   const svc = [
-    { svc: "Medoro control plane", gets: licence ? "Account, plan, licence check-ins, device count" : "Nothing (licence server not configured)", never: "Invoices, stock, customers, backups" },
+    { svc: "Medoro control plane", gets: licence ? "Pharmacy name and owner contact (once), plan, app version, branch and counter counts, and the tickets, payment references and support-access answers you send" : "Nothing (licence server not configured)", never: "Invoices, stock, customers, backups" },
     { svc: "Meta WhatsApp Cloud API", gets: wa ? "Recipient number, invoice PDF, template text" : "Nothing (not connected)", never: "Prescriber details, other records" },
     { svc: "Google Drive", gets: drive ? "Encrypted backup files only" : "Nothing (not connected)", never: "Encryption key or readable data" },
     { svc: "External AI provider", gets: p.remoteAi ? "Minimised query context (aggregates, no customer names)" : "Nothing (remote AI is off)", never: "Credentials, keys, full database" },
