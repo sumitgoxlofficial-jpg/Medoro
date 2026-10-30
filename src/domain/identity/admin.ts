@@ -169,7 +169,7 @@ export async function revokeInvite(ctx: Ctx, id: string) {
 
 export async function roleMatrix(ctx: Ctx) {
   const roles = await db.role.findMany({ where: { tenantId: ctx.tenantId, NOT: { name: "Medoro support (read-only)" } } });
-  const order = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant"];
+  const order = ["Owner", "Manager", "Pharmacist", "Cashier", "Accountant", "Delivery"];
   return roles.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name)).map((r) => ({ id: r.id, name: r.name, locked: r.locked, perms: r.permissions }));
 }
 

@@ -38,6 +38,8 @@ pnpm test:e2e                     # starts `next start` itself; add a file or -g
 | App shell | Permission-filtered nav with live badges, branch switcher, EN/हिंदी, "View as" role preview (narrows only), sessions & revoke |
 | Dashboard | KPIs, 14-day sales, collections, insights, low stock, expiring batches, branch performance, backup status, activity |
 | Billing (POS) | FEFO batches, Rx prescriber rule, discount caps, split payments, credit limits, held carts, idempotent commit, thermal/A4 invoices, WhatsApp send |
+| Orders & home delivery | Phone, WhatsApp and counter orders with stock shown per item, prescription photo, address, date/slot and payment (cash on delivery, prepaid UPI, credit). New → confirmed → packed (billed through the POS commit with FEFO batches) → out for delivery → delivered, or cancelled/returned (bill voided or credit-noted, stock back). Delivery role with a phone screen (call, navigate, delivery code or receiver's name, cash/UPI collected), rider cash handover into the drawer, customer updates on WhatsApp templates or SMS. See [docs/ORDERS_AND_DELIVERY.md](docs/ORDERS_AND_DELIVERY.md) |
+| Owner view & report emails | Phone-sized `/app/owner`: today vs yesterday by branch, cash per open drawer, cash with riders, low stock, expiring, approvals waiting, backup health, alerts, quick actions; PWA shortcut. Daily or weekly report emails (sales summary, GST, low stock, expiring, dues) with CSV attachments, per-recipient unsubscribe links, audited |
 | Returns & shift | Returns against invoices (restock or damaged), credit notes, refund modes, shift open/close with cash difference posted |
 | Data import | Medicines with opening stock, suppliers and customers from Excel (.xlsx) or CSV. Every row is checked first with a reason for each problem; nothing is saved until all rows pass; re-running a file skips what's already there |
 | Inventory | Batches, receive stock (opening stock posts to Inventory against Opening balance equity), per-batch actions (stock adjustment +/− with reason, write-off, return to supplier, transfer request, quarantine/release), a Transfers tab to approve/receive/reject/cancel inter-branch transfers, movement ledger, stock count, recalls with one-click supplier return, expiry prevention |
@@ -73,7 +75,7 @@ Built into the core: money in integer paise with GST back-calculated from MRP, F
 | `tests/integration` | Service tests against PostgreSQL |
 | `e2e/` | Playwright end-to-end specs (setup wizard first, then one spec per area) |
 | `design/` | The original clickable prototype, assets and handoff notes (reference only) |
-| `docs/` | Architecture, security, privacy, data ownership, AI, WhatsApp, testing, deployment, backup |
+| `docs/` | Architecture, security, privacy, data ownership, AI, WhatsApp, orders & delivery, testing, deployment, backup |
 
 ## Not claimed
 Medoro does not claim GST, drug-law or DPDP compliance, or any official government integration. Have qualified professionals review it before launch.

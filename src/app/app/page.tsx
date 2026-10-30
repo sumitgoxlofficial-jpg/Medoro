@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { can, requireCtx } from "@/server/context";
 import { dashboard, type Range } from "@/domain/reports/dashboard";
 import { dashboardFor } from "@/domain/reports/dashboard-access";
@@ -10,6 +11,7 @@ export const metadata = { title: "Dashboard" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const ctx = await requireCtx();
+  if (can(ctx, "delivery") && !can(ctx, "sale") && !can(ctx, "reports")) redirect("/app/deliveries");
   const { range: r } = await searchParams;
   const range: Range = r === "7d" || r === "30d" ? r : "today";
   const data = dashboardFor(await dashboard(ctx.tenantId, ctx.branchId, range, ctx.branches.map((b) => b.id)), ctx.perms);

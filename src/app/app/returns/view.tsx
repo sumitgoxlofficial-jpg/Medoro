@@ -119,7 +119,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
         {o ? (
           <>
             <div className="text-[12.5px] text-muted">Opened {dayMonth(new Date(o.openedAt))} {hhmm(new Date(o.openedAt))}</div>
-            {[["Opening float", o.open], ["Cash sales", o.cash], ["Cash refunds", -o.refunds], ["Cash expenses", -o.expenses]].map(([k, v]) => (
+            {[["Opening float", o.open], ["Cash sales", o.cash], ...(o.cod ? [["Delivery cash handed over", o.cod] as const] : []), ["Cash refunds", -o.refunds], ["Cash expenses", -o.expenses]].map(([k, v]) => (
               <div key={k as string} className="flex justify-between text-[13.5px]"><span className="text-muted">{k}</span><span className="tnum">{inr(v as number)}</span></div>
             ))}
             <div className="flex justify-between text-[14px] font-semibold border-t border-[#E3E6E9] pt-2"><span>Expected in drawer</span><span className="tnum">{inr(o.expected)}</span></div>

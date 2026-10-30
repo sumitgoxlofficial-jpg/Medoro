@@ -17,6 +17,7 @@ export const ACC = {
   salesReturns: "Sales returns",
   stockLoss: "Stock loss",
   cashDiff: "Cash short/excess",
+  codClearing: "Cash with delivery staff",
   opening: "Opening balance equity",
 } as const;
 

@@ -15,7 +15,7 @@ describe("first-run setup", () => {
     const t = await db.tenant.findFirstOrThrow();
     expect(await db.branch.count({ where: { tenantId: t.id } })).toBe(2);
     expect(await db.counter.count({ where: { tenantId: t.id } })).toBe(3);
-    expect(await db.role.count({ where: { tenantId: t.id } })).toBe(5);
+    expect(await db.role.count({ where: { tenantId: t.id } })).toBe(6);
     const owner = await db.user.findFirstOrThrow({ where: { tenantId: t.id }, include: { role: true } });
     expect(owner.role.name).toBe("Owner");
     expect(owner.mfaRequired).toBe(true);

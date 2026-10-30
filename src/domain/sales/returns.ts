@@ -56,7 +56,7 @@ export async function returnableLines(ctx: Ctx, saleId: string) {
 }
 
 /** Issues a credit note: refunds the net paid (after discount), reverses GST, restocks sealed goods. */
-export async function processReturn(ctx: Ctx, raw: ReturnInput) {
+export async function processReturn(ctx: Ctx, raw: ReturnInput, opts: { codUncollected?: boolean } = {}) {
   authorize(ctx, "refund");
   const i = returnSchema.parse(raw);
   const wanted = i.lines.filter((l) => l.qty > 0);
@@ -69,8 +69,10 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput) {
     if (sale.voided) throw new UserError(`${sale.invoiceNo} was voided; nothing is left to return.`);
     if (sale.branchId !== ctx.branchId) throw new UserError("Process returns at the branch that made the sale.");
     if (i.refundMode === "Adjust customer credit" && !sale.customerId) throw new UserError("Walk-in sales can’t be refunded to customer credit.");
-    // Credit sales are always settled against the customer's balance.
-    const mode = sale.payMode === "credit" ? "Adjust customer credit" : i.refundMode;
+    // Credit sales are always settled against the customer's balance; an undelivered cash-on-delivery
+    // order (from Orders) comes off what the delivery staff owe.
+    const cod = sale.payMode === "cod" && !!opts.codUncollected;
+    const mode = sale.payMode === "credit" ? "Adjust customer credit" : cod ? "COD not collected" : i.refundMode;
 
     let refund = 0, taxable = 0, tax = 0;
     const taken = new Map<string, number>();
@@ -97,7 +99,7 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput) {
     const cn = `CN-${fy}-${pad(await nextSeq(tx, ctx.tenantId, "CN:" + fy))}`;
     const shift = await lockOpenShift(tx, ctx);
     const half = Math.floor(tax / 2);
-    const credit: Line = mode === "Cash" ? { account: ACC.cash, cr: refund } : mode === "UPI refund" ? { account: ACC.bank, cr: refund } : { account: ACC.debtors, cr: refund, partyType: "customer", partyId: sale.customerId! };
+    const credit: Line = cod ? { account: ACC.codClearing, cr: refund } : mode === "Cash" ? { account: ACC.cash, cr: refund } : mode === "UPI refund" ? { account: ACC.bank, cr: refund } : { account: ACC.debtors, cr: refund, partyType: "customer", partyId: sale.customerId! };
     const ret = await tx.salesReturn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, creditNoteNo: cn, saleId: sale.id, reason: i.reason, condition: i.condition, refundMode: mode, amountPaise: BigInt(refund), userId: ctx.userId, shiftId: shift?.id ?? null, lines: out } });
     await postVoucher(tx, {
       tenantId: ctx.tenantId, branchId: ctx.branchId, type: "credit_note", userId: ctx.userId, refType: "sales_return", refId: ret.id, no: cn,
@@ -144,16 +146,18 @@ export async function todaysCreditNotes(ctx: Ctx) {
 
 // ───────────── Shifts ─────────────
 
-async function expected(shift: { id: string; openingPaise: bigint; openedAt: Date; openedBy: string; branchId: string; tenantId: string }, q: Tx = db) {
-  const [cashSales, refunds, voids, expenses] = await Promise.all([
+/** Cash a shift's drawer should hold: float + cash sales + rider COD handovers − cash refunds − cash expenses. */
+export async function expected(shift: { id: string; openingPaise: bigint; openedAt: Date; openedBy: string; branchId: string; tenantId: string }, q: Tx = db) {
+  const [cashSales, refunds, voids, expenses, cod] = await Promise.all([
     q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(p."amountPaise") s FROM "Payment" p JOIN "Sale" x ON x.id = p."saleId" WHERE x."shiftId" = ${shift.id} AND p.mode = 'cash'`,
     q.salesReturn.aggregate({ where: { shiftId: shift.id, refundMode: "Cash" }, _sum: { amountPaise: true } }),
     q.saleVoid.aggregate({ where: { shiftId: shift.id }, _sum: { cashRefundPaise: true } }),
     q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(l."creditPaise") s FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId"
       WHERE v."tenantId" = ${shift.tenantId} AND v."branchId" = ${shift.branchId} AND v."refType" = 'expense' AND v."postedBy" = ${shift.openedBy} AND v."postedAt" >= ${shift.openedAt} AND l.account = ${ACC.cash}`,
+    q.riderSettlement.aggregate({ where: { shiftId: shift.id }, _sum: { countedPaise: true } }),
   ]);
-  const open = big(shift.openingPaise), cash = Number(cashSales[0]?.s ?? 0), ref = big(refunds._sum.amountPaise) + big(voids._sum.cashRefundPaise), exp = Number(expenses[0]?.s ?? 0);
-  return { open, cash, refunds: ref, expenses: exp, expected: open + cash - ref - exp };
+  const open = big(shift.openingPaise), cash = Number(cashSales[0]?.s ?? 0), codIn = big(cod._sum.countedPaise), ref = big(refunds._sum.amountPaise) + big(voids._sum.cashRefundPaise), exp = Number(expenses[0]?.s ?? 0);
+  return { open, cash, cod: codIn, refunds: ref, expenses: exp, expected: open + cash + codIn - ref - exp };
 }
 
 export async function currentShift(ctx: Ctx) {

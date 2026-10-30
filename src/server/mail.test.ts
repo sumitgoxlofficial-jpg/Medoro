@@ -42,6 +42,19 @@ describe("email providers", () => {
     expect(JSON.parse(String(calls[1].init.body))).toEqual({ from: FROM, to: "owner@test.in", subject: "Code 123456", text: "Use 123456" });
   });
 
+  it("sends attachments base64-encoded in each provider's format", async () => {
+    const calls = stubFetch();
+    const att = { ...msg, attachments: [{ filename: "sales.csv", content: "a,b\n1,2", contentType: "text/csv" }] };
+    const b64 = Buffer.from("a,b\n1,2").toString("base64");
+    await sendMail(att, { MAIL_PROVIDER: "resend", RESEND_API_KEY: "re_123", MAIL_FROM: FROM });
+    await sendMail(att, { MAIL_PROVIDER: "sendgrid", SENDGRID_API_KEY: "SG.x", MAIL_FROM: FROM });
+    await sendMail(att, { MAIL_PROVIDER: "http", MAIL_HTTP_URL: "https://relay.example/mail", MAIL_FROM: FROM });
+    const bodies = calls.map((c) => JSON.parse(String(c.init.body)));
+    expect(bodies[0].attachments).toEqual([{ filename: "sales.csv", content: b64, content_type: "text/csv" }]);
+    expect(bodies[1].attachments).toEqual([{ content: b64, filename: "sales.csv", type: "text/csv", disposition: "attachment" }]);
+    expect(bodies[2].attachments).toEqual([{ filename: "sales.csv", contentType: "text/csv", content: b64 }]);
+  });
+
   it("turns a provider failure into a plain message, logging only provider and status", async () => {
     stubFetch(() => new Response('{"message":"bad key"}', { status: 401 }));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
