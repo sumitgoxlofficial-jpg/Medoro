@@ -2,13 +2,14 @@
 import { useEffect, useState, useTransition } from "react";
 import { Printer, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { REFUND_MODES } from "@/domain/sales/contracts";
 import type { currentShift, recentInvoices, returnableLines, todaysCreditNotes } from "@/domain/sales/returns";
-import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction, voidAction } from "./actions";
+import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction, sendCreditNoteAction, voidAction } from "./actions";
 
 type Inv = Awaited<ReturnType<typeof recentInvoices>>[number];
 type Lines = NonNullable<Awaited<ReturnType<typeof returnableLines>>>;
@@ -26,7 +27,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
   const [pending, start] = useTransition();
   const [opening, setOpening] = useState(""), [counted, setCounted] = useState("");
   const [voidReason, setVoidReason] = useState("");
-  const [issued, setIssued] = useState<{ id: string; creditNote: string; amount: number; mode: string } | null>(null);
+  const [issued, setIssued] = useState<{ id: string; creditNote: string; amount: number; mode: string; money?: number; pointsBack?: number; pointsTaken?: number; phone?: string | null } | null>(null);
 
   useEffect(() => { setInvoices(initial); }, [initial]);
   useEffect(() => { if (!q.trim()) { setInvoices(initial); return; } const h = setTimeout(() => findInvoicesAction(q).then(setInvoices), 250); return () => clearTimeout(h); }, [q, initial]);
@@ -141,15 +142,32 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
         )}
         <div className="text-[12px] text-faint">Any difference is posted to Cash short/excess and shows in the audit trail.</div>
       </div>
-      <Modal open={!!issued} onClose={() => setIssued(null)} title={issued ? `Credit note ${issued.creditNote} issued` : ""} sub={issued ? `Refund ${inr(issued.amount)} · ${issued.mode}` : ""}
+      <Modal open={!!issued} onClose={() => setIssued(null)} title={issued ? `Credit note ${issued.creditNote} issued` : ""} sub={issued ? `Refund ${inr(issued.amount)} · ${issued.mode}${issued.money !== undefined && issued.money < issued.amount ? ` (${inr(issued.money)} paid, ${issued.pointsBack} points given back)` : ""}${issued.pointsTaken ? ` · ${issued.pointsTaken} earned points taken back` : ""}` : ""}
         footer={<Button variant="primary" onClick={() => setIssued(null)} autoFocus>Done</Button>}>
         {issued ? (
-          <div className="flex gap-2">
-            <Button className="flex-1 h-10" onClick={() => printCreditNote(issued.id, "thermal", toast)}><Printer size={16} />Thermal 80mm</Button>
-            <Button className="flex-1 h-10" onClick={() => printCreditNote(issued.id, "a4", toast)}><FileDown size={16} />A4 / PDF</Button>
-          </div>
+          <>
+            <div className="flex gap-2">
+              <Button className="flex-1 h-10" onClick={() => printCreditNote(issued.id, "thermal", toast)}><Printer size={16} />Thermal 80mm</Button>
+              <Button className="flex-1 h-10" onClick={() => printCreditNote(issued.id, "a4", toast)}><FileDown size={16} />A4 / PDF</Button>
+            </div>
+            <SendCreditNote id={issued.id} phone={issued.phone ?? ""} />
+          </>
         ) : null}
       </Modal>
+    </div>
+  );
+}
+
+function SendCreditNote({ id, phone: initial }: { id: string; phone: string }) {
+  const toast = useToast();
+  const [phone, setPhone] = useState(initial), [ok, setOk] = useState(false), [sent, setSent] = useState(false);
+  const [pending, start] = useTransition();
+  return (
+    <div className="flex flex-col gap-2 border border-[#CFE6D8] bg-[#F6FBF8] rounded-[10px] p-3 mt-1">
+      <div className="text-[13.5px] font-semibold">Send on WhatsApp</div>
+      <input value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d ]/g, "")); setOk(false); }} disabled={sent} placeholder="Customer mobile (10 digits)" aria-label="WhatsApp number for credit note" className={inp} />
+      <Checkbox checked={ok} disabled={sent} onChange={(e) => setOk(e.target.checked)} label="I read the number back to the customer and they consent" />
+      <Button disabled={!ok || pending || sent} onClick={() => start(async () => { const r = await sendCreditNoteAction(id, phone, ok); if (!r.ok) return toast(r.error, "red"); setSent(true); toast("Credit note sent on WhatsApp.", "green"); })}>{sent ? "Sent" : pending ? "Sending…" : "Send credit note"}</Button>
     </div>
   );
 }

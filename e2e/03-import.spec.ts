@@ -35,7 +35,8 @@ test("import medicines with opening stock; a failing file shows per-row reasons 
   const csv = readFileSync(path.join(__dirname, "fixtures", "medicines.csv"), "utf8").replaceAll("{{RUN}}", run);
   await page.getByRole("button", { name: "Import", exact: true }).first().click();
   dlg = await chooseImportFile(page, { name: "medicines.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
-  await expect(dlg.getByText("columns found: 17 of 17")).toBeVisible();
+  // The template also has composition and pack-unit columns (catalog); this fixture leaves them out.
+  await expect(dlg.getByText("columns found: 17 of 22")).toBeVisible();
   await expect(rowOf(dlg, `Imp Calpol ${run}`).first()).toBeVisible();
   await dlg.getByRole("button", { name: "Import 4 rows" }).click();
   await expect(dlg.getByText("Import finished")).toBeVisible();
@@ -46,7 +47,7 @@ test("import medicines with opening stock; a failing file shows per-row reasons 
   await page.getByLabel("Search inventory").fill(`Imp Calpol ${run}`);
   const row = rowOf(page, `Imp Calpol ${run}`);
   await expect(row).toBeVisible();
-  await expect(row.locator("td").nth(2)).toHaveText("65");
+  await expect(row.locator("td").nth(3)).toHaveText("65"); // Medicine, Manufacturer, Rack, Sellable
   await row.click();
   const drawer = page.getByRole("dialog", { name: `Imp Calpol ${run}` });
   await expect(drawer.getByText(`CP${run}A`, { exact: true })).toBeVisible();

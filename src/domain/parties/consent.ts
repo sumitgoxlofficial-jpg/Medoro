@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import type { Tx } from "@/server/db";
+import type { DbOrTx, Tx } from "@/server/db";
 import type { Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { isStrict } from "@/domain/system/strict";
@@ -32,6 +32,24 @@ export function hasConsent(c: ConsentCustomer | null | undefined, purpose: Purpo
 export function consentWhere(purpose: Purpose, channel: Channel) {
   const base = { erasedAt: null, phone: { not: null }, [CONSENT_FIELD[purpose][channel]]: true };
   return purpose === "marketing" && channel === "whatsapp" ? { ...base, NOT: { waOptIn: false, optInMethod: { startsWith: "Opted out" } } } : base;
+}
+
+/**
+ * A STOP reply withdraws every consent on that channel, transactional and marketing, for the number, with one
+ * ConsentRecord per consent withdrawn (method "reply"). `tenantId` null: every pharmacy on this server (they share
+ * one SMS sender). Returns the customers that had a consent to withdraw.
+ */
+export async function withdrawByReply(q: DbOrTx, o: { tenantId: string | null; phone: string; channel: Channel; word: string }) {
+  const field = (purpose: Purpose) => CONSENT_FIELD[purpose][o.channel];
+  const hits = await q.customer.findMany({ where: { ...(o.tenantId ? { tenantId: o.tenantId } : {}), phone: o.phone, OR: PURPOSES.map((p) => ({ [field(p)]: true })) } });
+  const how = `Opted out by replying ${o.word} ${o.channel === "sms" ? "by SMS" : "on WhatsApp"}`, now = new Date();
+  for (const c of hits) {
+    await q.customer.update({ where: { id: c.id }, data: o.channel === "sms" ? { smsOptIn: false, marketingSms: false, smsOptInAt: now, smsOptInMethod: how } : { waOptIn: false, marketingWa: false, optInAt: now, optInMethod: how } });
+    for (const purpose of PURPOSES) {
+      if (c[field(purpose)]) await q.consentRecord.create({ data: { tenantId: c.tenantId, customerId: c.id, purpose, channel: o.channel, granted: false, method: "reply", source: o.channel } });
+    }
+  }
+  return hits;
 }
 
 /** Optional consent fields on customer forms. `waOptIn` keeps its place in the customer schema. */

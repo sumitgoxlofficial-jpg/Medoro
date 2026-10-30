@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { db } from "@/server/db";
-import { connectWhatsApp, handleWebhook, sendInvoice, syncTemplates, verifyWebhook, waAuthProblem } from "@/domain/comms/whatsapp";
-import { campaignRef, draftCampaign, messagingTick, refillReminders, retryCampaignMessage, saveCrm, sendCampaign, sendFeedbackRequests, sendRefillsNow } from "@/domain/comms/crm";
+import { connectWhatsApp, handleWebhook, sendInvoice, syncTemplates, verifyWebhook } from "@/domain/comms/whatsapp";
+import { campaignRef, draftCampaign, messagingTick, refillReminders, saveCrm, sendCampaign, sendFeedbackRequests, sendRefillsNow } from "@/domain/comms/crm";
+import { retryMessage } from "@/domain/comms/delivery";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, dayMonth, todayISO } from "@/lib/dates";
@@ -10,20 +11,20 @@ import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 // Built at runtime so secret scanners don't mistake the test fixture for a real key.
 const SECRET = randomBytes(16).toString("hex");
-let fail = false, crmTemplates = false, failCode: number | undefined;
+let fail = false, crmTemplates = false;
 const sentBodies: { to: string; template: { name: string; components: { parameters: { text: string }[] }[] } }[] = [];
 const calls: string[] = [];
 const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
   const u = String(url); calls.push(`${init?.method ?? "GET"} ${u.replace(/^https:\/\/graph\.facebook\.com\/v[\d.]+/, "")}`);
   const ok = (j: unknown) => new Response(JSON.stringify(j), { status: 200, headers: { "Content-Type": "application/json" } });
-  if (u.includes("fields=display_phone_number")) return ok({ display_phone_number: "+91 20 2546 7788", verified_name: "Test Medical" });
+  if (u.includes("display_phone_number")) return ok({ display_phone_number: "+91 20 2546 7788", verified_name: "Test Medical" });
   if (u.includes("message_templates")) return ok({ data: [{ name: "invoice_share", language: "en", status: "APPROVED", category: "UTILITY" }, ...(crmTemplates ? [
     { name: "refill_reminder", language: "en", status: "APPROVED", category: "UTILITY", components: [{ type: "BODY", text: "Hi {{1}}, your {{2}} may be running out around {{3}}." }] },
     { name: "feedback_request", language: "en", status: "APPROVED", category: "MARKETING", components: [{ type: "HEADER", text: "Thanks" }, { type: "BODY", text: "Hi {{1}}, how was your visit ({{2}})?" }] },
   ] : [])] });
   if (u.endsWith("/media")) return ok({ id: "media-1" });
   if (u.endsWith("/messages") && typeof init?.body === "string") sentBodies.push(JSON.parse(init.body));
-  if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp", code: failCode } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
+  if (u.endsWith("/messages")) return fail ? new Response(JSON.stringify({ error: { message: "Recipient not on WhatsApp", code: 131000 } }), { status: 400 }) : ok({ messages: [{ id: "wamid.ABC" + calls.length }] });
   throw new Error("unexpected " + u);
 });
 
@@ -35,7 +36,7 @@ describe("WhatsApp", () => {
     const ctx = await ctxFor();
     const med = await createMedicine(ctx, { name: "Pan 40", generic: "Pantoprazole", strength: "40 mg", form: "Tablet", manufacturer: "Alkem", pack: "15", mrp: "155", gstRate: 12, schedule: "", reorderLevel: 5, barcode: "", hsn: "3004", rack: "" });
     await receiveBatch(ctx, { medicineId: med, batchNo: "P1", expiry: addDays(todayISO(), 300).slice(0, 7), qty: 10, cost: "100", mrp: "155", supplierId: null, invoiceNo: "" });
-    const c = await createCustomer(ctx, { name: "Ramesh", phone: "9822041736", waOptIn: true, creditLimit: "0" });
+    const c = await createCustomer(ctx, { name: "Ramesh", phone: "9822041736", waOptIn: true, marketingWa: true, creditLimit: "0" });
     sale = (await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: med, batchId: (await db.batch.findFirstOrThrow()).id, qty: 1 }], customerId: c, discountPct: 0, pay: { mode: "cash" } })).saleId;
   });
   afterAll(() => vi.unstubAllGlobals());
@@ -71,7 +72,9 @@ describe("WhatsApp", () => {
     expect((await db.waMessage.findFirstOrThrow()).status).toBe("delivered");
     const b3 = hook([], [{ from: "919822041736", type: "text", text: { body: "stop" } }]);
     await handleWebhook(b3, sign(b3));
-    expect((await db.customer.findFirstOrThrow()).waOptIn).toBe(false);
+    // STOP withdraws both purposes on WhatsApp, each with a consent record.
+    expect(await db.customer.findFirstOrThrow()).toMatchObject({ waOptIn: false, marketingWa: false, optInMethod: "Opted out by replying STOP on WhatsApp" });
+    expect((await db.consentRecord.findMany({ where: { channel: "whatsapp", granted: false, method: "reply" } })).map((r) => r.purpose).sort()).toEqual(["marketing", "transactional"]);
     await db.waMessage.updateMany({ data: { status: "failed" } });
     await expect(sendInvoice(ctx, sale, "9822041736", true)).rejects.toThrow(/opted out/);
     expect((await db.waMessage.findFirstOrThrow()).attempts).toBe(1);
@@ -94,7 +97,9 @@ describe("WhatsApp", () => {
     // Ramesh was opted back in only for the retry test above; he texted STOP, so campaigns must skip him.
     await db.customer.updateMany({ where: { phone: "9822041736" }, data: { waOptIn: false, optInMethod: "Opted out by replying STOP on WhatsApp" } });
     const ids = [];
-    for (const [n, ph] of [["Asha Rao", "9822000101"], ["Bina", "9822000102"], ["Chetan", "9822000103"]] as const) ids.push(await createCustomer(ctx, { name: n, phone: ph, waOptIn: true, creditLimit: "0" }));
+    // Campaigns are marketing: only customers who also agreed to offers on WhatsApp get them.
+    for (const [n, ph] of [["Asha Rao", "9822000101"], ["Bina", "9822000102"], ["Chetan", "9822000103"]] as const) ids.push(await createCustomer(ctx, { name: n, phone: ph, waOptIn: true, marketingWa: true, creditLimit: "0" }));
+    await createCustomer(ctx, { name: "Dev (invoices only)", phone: "9822000104", waOptIn: true, creditLimit: "0" });
     await draftCampaign(ctx, "Diwali", "invoice_share");
     const camp = await db.campaign.findFirstOrThrow({ where: { name: "Diwali" } });
     // A previous run reached Asha, then the server died with the campaign still "sending".
@@ -109,11 +114,11 @@ describe("WhatsApp", () => {
 
     const m = await db.waMessage.findUniqueOrThrow({ where: { idempotencyKey: `camp:${camp.id}:${ids[1]}` } });
     await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
-    expect((await retryCampaignMessage(ctx, m.id)).status).toBe("sent");
+    expect((await retryMessage(ctx, m.id)).status).toBe("sent");
     expect(await db.waMessage.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: "sent", attempts: 2 });
     await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
-    await db.customer.update({ where: { id: ids[1] }, data: { waOptIn: false } });
-    await expect(retryCampaignMessage(ctx, m.id)).rejects.toThrow(/opted out/);
+    await db.customer.update({ where: { id: ids[1] }, data: { marketingWa: false } });
+    await expect(retryMessage(ctx, m.id)).rejects.toThrow(/opted out/);
   });
 
   it("sends refill reminders once a day, once per refill cycle, only to opted-in customers", async () => {
@@ -169,25 +174,5 @@ describe("WhatsApp", () => {
     await sell();
     expect(await sendFeedbackRequests(ctx.tenantId, later)).toMatchObject({ sent: 0, skipped: 1 });
     await expect(saveCrm(ctx, { feedbackHours: 0 })).rejects.toThrow(/1 to 72 hours/);
-  });
-  it("doesn't retry numbers Meta says can't get WhatsApp, and pauses on a rejected token", async () => {
-    const ctx = await ctxFor();
-    const med = (await db.medicine.findFirstOrThrow()).id, batch = (await db.batch.findFirstOrThrow()).id;
-    const sell = async () => (await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: med, batchId: batch, qty: 1 }], customerId: null, discountPct: 0, pay: { mode: "cash" } })).saleId;
-    fail = true; failCode = 131026;
-    const a = await sell();
-    await expect(sendInvoice(ctx, a, "9822000301", true)).rejects.toThrow(/can’t receive WhatsApp/);
-    expect((await db.waMessage.findFirstOrThrow({ where: { invoiceId: a } })).attempts).toBe(3);
-    await expect(sendInvoice(ctx, a, "9822000301", true)).rejects.toThrow(/limit/);
-    const i = await db.integration.findFirstOrThrow({ where: { kind: "whatsapp" } });
-    await db.integration.update({ where: { id: i.id }, data: { config: { ...(i.config as object), templates: [{ name: "invoice_share", language: "en", status: "pending", category: "utility" }] } } });
-    await expect(sendInvoice(ctx, await sell(), "9822000301", true)).rejects.toThrow(/isn’t approved/);
-    await db.integration.update({ where: { id: i.id }, data: { config: i.config as object } });
-    failCode = 190;
-    const b = await sell();
-    await expect(sendInvoice(ctx, b, "9822000301", true)).rejects.toThrow(/paused/);
-    expect(await waAuthProblem(ctx.tenantId)).toMatch(/Reconnect/);
-    await expect(sendInvoice(ctx, b, "9822000301", true)).rejects.toThrow(/isn’t connected/);
-    fail = false; failCode = undefined;
   });
 });

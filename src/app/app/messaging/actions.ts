@@ -2,10 +2,15 @@
 import { revalidatePath } from "next/cache";
 import { run } from "@/server/action";
 import { enforce, userKey } from "@/server/ratelimit";
-import { draftCampaign, saveCrm, sendCampaign, sendRefillsNow, type CrmSettings } from "@/domain/comms/crm";
+import { draftCampaign, saveCrm, saveSmsSettings, sendCampaign, sendPaymentRemindersNow, sendRefillsNow, type CrmSettings } from "@/domain/comms/crm";
+import { saveLoyaltySettings, type LoyaltySettings } from "@/domain/sales/loyalty";
+import type { SmsType } from "@/server/sms";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 export async function crmAction(p: Partial<CrmSettings>) { return fresh(await run((c) => saveCrm(c, p))); }
-export async function draftAction(name: string, tpl: string) { return fresh(await run((c) => draftCampaign(c, name, tpl), "Campaign saved as draft. Only opted-in customers will receive it.")); }
+export async function draftAction(name: string, tpl: string, message?: string) { return fresh(await run((c) => draftCampaign(c, name, tpl, message), "Saved as draft. Only customers who consented will receive it.")); }
 export async function sendAction(id: string) { return fresh(await run(async (c) => { await enforce("campaign", userKey(c)); return sendCampaign(c, id); })); }
 export async function sendRefillsAction() { return fresh(await run(async (c) => { await enforce("campaign", userKey(c)); return sendRefillsNow(c); })); }
+export async function sendPaymentsAction(ids?: string[]) { return fresh(await run(async (c) => { await enforce(ids?.length ? "waSend" : "campaign", userKey(c)); return sendPaymentRemindersNow(c, ids); })); }
+export async function smsAction(p: { enabled?: boolean; templates?: Partial<Record<SmsType, string>> }) { return fresh(await run((c) => saveSmsSettings(c, p), "SMS settings saved.")); }
+export async function loyaltyAction(p: Partial<LoyaltySettings>) { return fresh(await run((c) => saveLoyaltySettings(c, p), "Loyalty settings saved.")); }

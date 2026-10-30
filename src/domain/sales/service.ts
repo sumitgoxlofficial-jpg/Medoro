@@ -22,6 +22,7 @@ import { saleSchema, customerSchema, type SaleInput, type CustomerInput } from "
 import { consumeApproval, maxDiscount } from "./approval";
 import { baseQty, canSellLoose, fmtQty, fmtSold, unitCost, unitPrice } from "@/lib/units";
 import { branchRacks, rankSubstitutes, searchCatalog } from "@/domain/inventory/catalog";
+import { checkRedemption, pointsBalances, recordSalePoints, salePoints } from "./loyalty";
 
 export const OFFLINE_MAX_DAYS = 7;
 export const withinOfflineWindow = (at: Date, now = Date.now()) =>
@@ -135,23 +136,27 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
   if (t.total <= 0) throw new UserError("The bill total must be more than zero.");
   const approval = input.discountPct > cap ? await consumeApproval(tx, ctx, input.approval!, input.lines, input.discountPct, t.total) : null;
 
-  const pay = { cash: 0, upi: 0, card: 0, credit: 0, cod: 0 };
+  const redeem = input.redeemPoints ? { points: input.redeemPoints, value: (await checkRedemption(tx, ctx, customer?.id ?? null, input.redeemPoints, t.total)).value } : null;
+  // What's left to pay after points.
+  const due = t.total - (redeem?.value ?? 0);
+
+  const pay = { cash: 0, upi: 0, card: 0, credit: 0, cod: 0, loyalty: redeem?.value ?? 0 };
   const m = input.pay.mode;
   if (m === "split") {
     const cash = input.pay.cashPaise ?? -1;
-    if (cash <= 0 || cash >= t.total) throw new UserError("Enter a cash part between ₹1 and the bill total.");
-    pay.cash = cash; pay.upi = t.total - cash;
+    if (cash <= 0 || cash >= due) throw new UserError("Enter a cash part between ₹1 and the amount to pay.");
+    pay.cash = cash; pay.upi = due - cash;
   } else if (m === "credit") {
     if (!can(ctx, "credit")) throw new UserError("Your role cannot make credit sales.");
     if (!customer) throw new UserError("Select a customer for a credit sale.");
     // Serialise credit sales per customer so two counters can't both fit under the limit.
     await tx.$queryRaw`SELECT id FROM "Customer" WHERE id = ${customer.id} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
-    const due = await customerBalance(tx, ctx.tenantId, customer.id);
-    if (due + t.total > big(customer.creditLimitPaise)) throw new UserError(`Exceeds ${customer.name}’s credit limit (${inr0(big(customer.creditLimitPaise))}, ${inr0(due)} already due).`);
-    pay.credit = t.total;
+    const bal = await customerBalance(tx, ctx.tenantId, customer.id);
+    if (bal + due > big(customer.creditLimitPaise)) throw new UserError(`Exceeds ${customer.name}’s credit limit (${inr0(big(customer.creditLimitPaise))}, ${inr0(bal)} already due).`);
+    pay.credit = due;
   } else {
-    if (m === "cash" && input.pay.tenderedPaise && input.pay.tenderedPaise < t.total) throw new UserError("Cash tendered is less than the total.");
-    pay[m] = t.total;
+    if (m === "cash" && input.pay.tenderedPaise && input.pay.tenderedPaise < due) throw new UserError("Cash tendered is less than the total.");
+    pay[m] = due;
   }
 
   const branch = await tx.branch.findUniqueOrThrow({ where: { id: ctx.branchId } });
@@ -171,10 +176,11 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
       cgstPaise: BigInt(g.cgst), sgstPaise: BigInt(g.sgst), igstPaise: BigInt(g.igst), placeOfSupply: g.pos, customerGstin: g.gstin, roundOffPaise: BigInt(t.roundOff), totalPaise: BigInt(t.total), costPaise: BigInt(t.cost),
       payMode: m, shiftId: shift?.id ?? null, userId: ctx.userId, ...(at ? { at } : {}),
       items: { create: lines.map(({ b, qty, mrp, cost, loose, ps }, i) => ({ batchId: b.id, medicineId: b.medicineId, qty, mrpPaise: BigInt(mrp), discountPaise: BigInt(t.lines[i].discount), taxablePaise: BigInt(t.lines[i].taxable), gstRate: b.medicine.gstRate, costPaise: BigInt(cost), loose, packSize: ps })) },
-      payments: { create: (Object.entries(pay) as [keyof typeof pay, number][]).filter(([, a]) => a > 0).map(([mode, a]) => ({ mode, amountPaise: BigInt(a), ref: mode === "cash" ? null : input.pay.ref || null })) },
+      payments: { create: (Object.entries(pay) as [keyof typeof pay, number][]).filter(([, a]) => a > 0).map(([mode, a]) => ({ mode, amountPaise: BigInt(a), ref: mode === "cash" || mode === "loyalty" ? null : input.pay.ref || null })) },
     },
   });
   if (approval) await tx.discountApproval.update({ where: { id: approval.id }, data: { saleId: sale.id } });
+  const earned = customer ? await recordSalePoints(tx, ctx, { id: sale.id, invoiceNo, customerId: customer.id, at: sale.at }, due, redeem ?? undefined) : 0;
   for (const [id, q] of need) {
     const r = await tx.batch.updateMany({ where: { id, qtyAvailable: { gte: q } }, data: { qtyAvailable: { decrement: q }, version: { increment: 1 } } });
     if (!r.count) throw new UserError("Stock changed on another device. Review the cart.");
@@ -197,13 +203,14 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
     // Billed at packing, collected at the door: held against the delivery staff until handed over.
     { account: ACC.codClearing, dr: pay.cod },
     ...(pay.credit ? [{ account: ACC.debtors, dr: pay.credit, partyType: "customer" as const, partyId: customer!.id }] : []),
+    ...(pay.loyalty ? [{ account: ACC.loyalty, dr: pay.loyalty }] : []),
     { account: ACC.sales, cr: t.taxable }, { account: ACC.cgst, cr: g.cgst }, { account: ACC.sgst, cr: g.sgst }, { account: ACC.igst, cr: g.igst },
     t.roundOff >= 0 ? { account: ACC.roundOff, cr: t.roundOff } : { account: ACC.roundOff, dr: -t.roundOff },
   ];
   await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "sales", narration: `Sale ${invoiceNo}${customer ? " · " + customer.name : ""}`, userId: ctx.userId, refType: "sale", refId: sale.id, date: at, lines: vl });
   await writeAudit(tx, {
     tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Sale committed", entity: "sale", entityId: sale.id,
-    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${input.discountPct ? ` · discount ${input.discountPct}%${approval ? ` approved by ${approval.by}` : ""}` : ""}${rx ? " · Rx" : ""}${doctor ? ` · Dr ${doctor.name}` : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
+    detail: `${invoiceNo} · ${inr(t.total)} · ${m.toUpperCase()}${redeem ? ` · ${redeem.points} points redeemed (${inr(redeem.value)})` : ""}${earned ? ` · ${earned} points earned` : ""}${input.discountPct ? ` · discount ${input.discountPct}%${approval ? ` approved by ${approval.by}` : ""}` : ""}${rx ? " · Rx" : ""}${doctor ? ` · Dr ${doctor.name}` : ""}${at ? " · billed offline" : ""}${note ? " · " + note : ""}`,
   });
   return { saleId: sale.id, invoiceNo, total: t.total, replayed: false };
 }
@@ -212,12 +219,13 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
 export async function invoiceData(ctx: Ctx, saleId: string) {
   const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, payments: true, customer: true, voided: true, doctor: true } });
   if (!s) return null;
-  const [branch, tenant, meds, batches, user] = await Promise.all([
+  const [branch, tenant, meds, batches, user, points] = await Promise.all([
     db.branch.findUniqueOrThrow({ where: { id: s.branchId } }),
     db.tenant.findUniqueOrThrow({ where: { id: s.tenantId } }),
     db.medicine.findMany({ where: { id: { in: s.items.map((i) => i.medicineId) } } }),
     db.batch.findMany({ where: { id: { in: s.items.map((i) => i.batchId) } } }),
     db.user.findUnique({ where: { id: s.userId }, select: { name: true } }),
+    salePoints(s.tenantId, s.id, s.customerId),
   ]);
   return {
     id: s.id, invoiceNo: s.invoiceNo, at: s.at.toISOString(), payMode: s.payMode, prescriber: s.prescriber, rxNo: s.rxNo, prescriberReg: s.prescriberReg, patientName: s.patientName, cashier: user?.name ?? "",
@@ -231,6 +239,7 @@ export async function invoiceData(ctx: Ctx, saleId: string) {
     }),
     totals: { mrp: big(s.subtotalPaise), discount: big(s.discountPaise), taxable: big(s.taxablePaise), cgst: big(s.cgstPaise), sgst: big(s.sgstPaise), igst: big(s.igstPaise), roundOff: big(s.roundOffPaise), total: big(s.totalPaise) },
     payments: s.payments.map((p) => ({ mode: p.mode, amount: big(p.amountPaise), ref: p.ref })),
+    points,
     idempotencyKey: s.idempotencyKey,
     voided: s.voided ? { at: s.voided.at.toISOString(), reason: s.voided.reason } : null,
   };
@@ -278,10 +287,10 @@ export async function substitutesForSale(ctx: Ctx, medicineId: string, sort: "pr
 export async function posCustomers(ctx: Ctx) {
   const cs = await db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" }, take: 500 });
   const { customerBalances } = await import("@/domain/parties/balances");
-  const bal = await customerBalances(db, ctx.tenantId);
+  const [bal, pts] = await Promise.all([customerBalances(db, ctx.tenantId), pointsBalances(db, ctx.tenantId)]);
   const br = await db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, include: { tenant: { select: { gstin: true } } } });
   const mask = await phoneMasker(ctx);
-  return cs.map((c) => ({ id: c.id, name: c.name, phone: mask(c.phone), optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0, gstin: c.gstin, igst: saleTaxSplit(br.gstin ?? br.tenant.gstin, c, 0).inter }));
+  return cs.map((c) => ({ id: c.id, name: c.name, phone: mask(c.phone), optIn: c.waOptIn, limit: big(c.creditLimitPaise), due: bal.get(c.id) ?? 0, points: pts.get(c.id) ?? 0, gstin: c.gstin, igst: saleTaxSplit(br.gstin ?? br.tenant.gstin, c, 0).inter }));
 }
 
 export async function createCustomer(ctx: Ctx, raw: CustomerInput & ConsentInput) {
@@ -289,9 +298,10 @@ export async function createCustomer(ctx: Ctx, raw: CustomerInput & ConsentInput
   const i = customerSchema.parse(raw);
   if (i.creditLimit > 0 && !can(ctx, "credit")) throw new UserError("Your role cannot set a credit limit.");
   if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
+  if (i.smsOptIn && !i.phone) throw new UserError("SMS consent needs a mobile number.");
   return db.$transaction(async (tx) => {
     if (i.phone && (await tx.customer.findFirst({ where: { tenantId: ctx.tenantId, phone: i.phone } }))) throw new UserError("A customer with this mobile number already exists.");
-    const c = await tx.customer.create({ data: { tenantId: ctx.tenantId, name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Counter, recorded by ${ctx.userName}` : null, creditLimitPaise: BigInt(i.creditLimit), gstin: i.gstin || null, stateCode: i.stateCode || null, address: i.address || null, pincode: i.pincode || null } });
+    const c = await tx.customer.create({ data: { tenantId: ctx.tenantId, name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Counter, recorded by ${ctx.userName}` : null, creditLimitPaise: BigInt(i.creditLimit), ...(i.smsOptIn ? { smsOptInAt: new Date(), smsOptInMethod: `Counter, recorded by ${ctx.userName}` } : {}), gstin: i.gstin || null, stateCode: i.stateCode || null, address: i.address || null, pincode: i.pincode || null } });
     const consents = await applyConsents(tx, ctx, c, null, raw, "pos");
     await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Customer added", entity: "customer", entityId: c.id, detail: `${c.name}${c.gstin ? " · GSTIN " + c.gstin : ""}${consents.length ? " · consent " + consents.join(", ") : ""}` });
     return c.id;

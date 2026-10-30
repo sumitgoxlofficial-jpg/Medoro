@@ -35,6 +35,13 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/owner.json" },
     },
+    // Website screenshots (e2e/screenshots.capture.ts), only with CAPTURE=1.
+    ...(process.env.CAPTURE ? [{
+      name: "capture",
+      testMatch: /\.capture\.ts$/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/owner.json" },
+    }] : []),
   ],
   webServer: process.env.E2E_BASE_URL ? undefined : {
     command: `node node_modules/next/dist/bin/next start -p ${PORT}`,

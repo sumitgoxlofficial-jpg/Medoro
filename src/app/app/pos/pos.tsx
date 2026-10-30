@@ -19,11 +19,11 @@ import { isMasked } from "@/lib/mask";
 import { SubstitutesPanel } from "./substitutes";
 import { DoctorPicker, type DoctorOpt } from "./doctor-picker";
 
-type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number; gstin?: string | null; igst?: boolean };
+type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number; gstin?: string | null; igst?: boolean; points?: number };
 // qty is in `unit`: whole packs, or loose units for medicines sold loose. Batches hold stock units.
 type Line = { key: string; medicineId: string; batchId: string; qty: number; unit?: SaleUnit };
 type Pay = "cash" | "upi" | "card" | "split" | "credit";
-type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string; docreg?: string; patient?: string; doctorId?: string };
+type Cart = { lines: Line[]; meds: Record<string, SaleMedicine>; cust: string; disc: string; pay: Pay; tender: string; split: string; ref: string; doctor: string; rxno: string; docreg?: string; patient?: string; doctorId?: string; redeem?: string };
 type Dict = { search: string; cart: string; customer: string; payment: string; total: string; complete: string; hold: string };
 
 const empty = (): Cart => ({ lines: [], meds: {}, cust: "", disc: "0", pay: "cash", tender: "", split: "", ref: "", doctor: "", rxno: "", doctorId: "" });
@@ -34,8 +34,9 @@ const newKey = () => "k_" + crypto.randomUUID().replace(/-/g, "");
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const inp = "border border-input rounded-lg px-[11px] py-[9px] text-[14px] outline-none bg-white focus:border-teal w-full";
 
-export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, canCredit, discCap, maxDisc, role, storageKey, waConnected, doctors: initialDoctors = [] }: {
+export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, canCredit, discCap, maxDisc, role, storageKey, waConnected, doctors: initialDoctors = [], loyalty }: {
   dict: Dict; customers: Customer[]; held: { id: string; label: string }[]; canCredit: boolean; discCap: number; maxDisc: number; role: string; storageKey: string; waConnected: boolean; doctors?: DoctorOpt[];
+  loyalty?: { pointValuePaise: number; minRedeem: number } | null;
 }) {
   const toast = useToast();
   const sp = useSearchParams();
@@ -151,6 +152,10 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
   const needsRx = cart.lines.some((l) => cart.meds[l.medicineId]?.schedule);
   const needsH1 = cart.lines.some((l) => isH1(cart.meds[l.medicineId]?.schedule));
   const pickedReg = doctors.find((d) => d.id === cart.doctorId)?.regNo ?? "";
+  // Loyalty points redeemed as part payment; the rest is paid by the chosen mode.
+  const redeemPts = loyalty && cust ? Math.max(0, parseInt(cart.redeem ?? "", 10) || 0) : 0;
+  const redeemValue = loyalty ? redeemPts * loyalty.pointValuePaise : 0;
+  const toPay = totals.total - redeemValue;
 
   const checkoutError = () => {
     if (!cart.lines.length) return "Cart is empty.";
@@ -159,11 +164,16 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
     if (needsRx && !cart.doctor.trim() && !cart.doctorId) return "Enter prescriber name for Schedule H/H1 items.";
     if (needsH1 && !cust && !cart.patient?.trim()) return "Enter the patient’s name for Schedule H1, X and NDPS items.";
     if (needsH1 && !cart.docreg?.trim() && !pickedReg) return "Enter the prescriber’s registration no. for Schedule H1, X and NDPS items.";
-    if (cart.pay === "cash" && cart.tender && toPaise(cart.tender) < totals.total) return "Cash tendered is less than the total.";
-    if (cart.pay === "split" && (!cart.split || toPaise(cart.split) <= 0 || toPaise(cart.split) >= totals.total)) return "Enter a cash part between ₹1 and the total.";
+    if (redeemPts && loyalty) {
+      if (redeemPts < loyalty.minRedeem) return `Redeem at least ${loyalty.minRedeem} points.`;
+      if (redeemPts > (cust?.points ?? 0)) return `Only ${cust?.points ?? 0} points available.`;
+      if (toPay < 0) return "Points are worth more than the bill.";
+    }
+    if (cart.pay === "cash" && cart.tender && toPaise(cart.tender) < toPay) return "Cash tendered is less than the total.";
+    if (cart.pay === "split" && (!cart.split || toPaise(cart.split) <= 0 || toPaise(cart.split) >= toPay)) return "Enter a cash part between ₹1 and the total.";
     if (cart.pay === "credit") {
       if (!cust) return "Select a customer for a credit sale.";
-      if (cust.due + totals.total > cust.limit) return `Exceeds ${cust.name}'s credit limit (${inr0(cust.limit)}).`;
+      if (cust.due + toPay > cust.limit) return `Exceeds ${cust.name}'s credit limit (${inr0(cust.limit)}).`;
     }
     return null;
   };
@@ -178,7 +188,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       customerId: cart.cust || null, discountPct: disc,
       pay: { mode: cart.pay, cashPaise: cart.pay === "split" ? toPaise(cart.split) : undefined, tenderedPaise: cart.pay === "cash" && cart.tender ? toPaise(cart.tender) : undefined, ref: cart.ref || undefined },
       prescriber: cart.doctorId ? undefined : cart.doctor || undefined, rxNo: cart.rxno || undefined, doctorId: cart.doctorId || null,
-      prescriberReg: (!pickedReg && cart.docreg) || undefined, patientName: cart.patient || undefined,
+      prescriberReg: (!pickedReg && cart.docreg) || undefined, patientName: cart.patient || undefined, redeemPoints: redeemPts || undefined,
     };
     const sig = JSON.stringify(body);
     if (idemRef.current.sig !== null && idemRef.current.sig !== sig) freshKey();
@@ -211,7 +221,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
       setBusy(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, sale, cart, disc, totals, cust, needsRx, approval, approved]);
+  }, [busy, sale, cart, disc, totals, cust, needsRx, approval, approved, redeemPts, toPay]);
 
   const hold = useCallback(() => {
     if (!cart.lines.length) return;
@@ -372,7 +382,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             <option value="">Walk-in customer (no details stored)</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${isMasked(c.phone) ? c.phone : `${c.phone.slice(0, 5)} ${c.phone.slice(5)}`}` : ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}</option>)}
           </select>
-          {cust ? <div className="text-[12.5px] text-muted">Outstanding {inr0(cust.due)} · limit {inr0(cust.limit)} · WhatsApp {cust.optIn ? "opted in" : "not opted in"}{cust.gstin ? ` · B2B tax invoice${cust.igst ? ", inter-state (IGST)" : ""}` : ""}</div> : null}
+          {cust ? <div className="text-[12.5px] text-muted">Outstanding {inr0(cust.due)} · limit {inr0(cust.limit)} · WhatsApp {cust.optIn ? "opted in" : "not opted in"}{cust.gstin ? ` · B2B tax invoice${cust.igst ? ", inter-state (IGST)" : ""}` : ""}{loyalty ? ` · ${cust.points ?? 0} points` : ""}</div> : null}
           {needsRx ? (
             <div className="flex flex-col gap-1.5 p-2.5 bg-bad-bg rounded-lg mt-1">
               <div className="text-[12.5px] font-semibold text-bad flex gap-1.5 items-center"><FileText size={14} />Schedule H/H1: prescription required</div>
@@ -411,14 +421,21 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
                 style={cart.pay === id ? { background: "#0B5E5B", color: "#fff", borderColor: "#0B5E5B" } : { background: "#fff", color: "#1F2328", borderColor: "#CDD2D7" }}>{label}</button>
             ))}
           </div>
-          {cart.pay === "cash" ? <div className="flex flex-col gap-[5px]"><input value={cart.tender} onChange={(e) => set({ tender: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash tendered (₹)" aria-label="Cash tendered" className={inp} inputMode="decimal" /><span className="text-[12.5px] text-ok">{tender > totals.total ? `Change to return: ${inr(tender - totals.total)}` : "Leave blank for exact cash"}</span></div> : null}
+          {loyalty && cust && (cust.points ?? 0) > 0 ? (
+            <div className="flex flex-col gap-1 p-2.5 bg-[#F0F7F6] rounded-lg">
+              <div className="flex items-center justify-between gap-2 text-[12.5px]"><span className="text-muted">{cust.points} points · worth {inr((cust.points ?? 0) * loyalty.pointValuePaise)}</span>
+                {(cust.points ?? 0) >= loyalty.minRedeem ? <button onClick={() => set({ redeem: String(Math.min(cust.points ?? 0, Math.floor(totals.total / loyalty.pointValuePaise))) })} className="text-teal font-semibold cursor-pointer">Use max</button> : <span className="text-faint">min {loyalty.minRedeem} to redeem</span>}</div>
+              {(cust.points ?? 0) >= loyalty.minRedeem ? <div className="flex items-center gap-2"><input value={cart.redeem ?? ""} onChange={(e) => set({ redeem: e.target.value.replace(/\D/g, "") })} placeholder="Points to redeem" aria-label="Points to redeem" className={inp + " py-1.5"} inputMode="numeric" />{redeemValue ? <span className="tnum whitespace-nowrap text-ok font-semibold">−{inr(redeemValue)}</span> : null}</div> : null}
+            </div>
+          ) : null}
+          {cart.pay === "cash" ? <div className="flex flex-col gap-[5px]"><input value={cart.tender} onChange={(e) => set({ tender: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash tendered (₹)" aria-label="Cash tendered" className={inp} inputMode="decimal" /><span className="text-[12.5px] text-ok">{tender > toPay ? `Change to return: ${inr(tender - toPay)}` : "Leave blank for exact cash"}</span></div> : null}
           {cart.pay === "upi" ? <div className="flex flex-col gap-[5px]"><div className="text-[12.5px] text-muted">Confirm the credit in your bank app, then enter the UTR.</div><input value={cart.ref} onChange={(e) => set({ ref: e.target.value })} placeholder="UPI UTR / reference (optional)" className={inp} /></div> : null}
           {cart.pay === "card" ? <input value={cart.ref} onChange={(e) => set({ ref: e.target.value })} placeholder="Card terminal approval code" className={inp} /> : null}
-          {cart.pay === "split" ? <div className="flex flex-col gap-[5px]"><input value={cart.split} onChange={(e) => set({ split: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash part (₹)" aria-label="Cash part" className={inp} inputMode="decimal" /><span className="text-[12.5px] text-blue">Balance on UPI: {inr(Math.max(0, totals.total - splitCash))}</span></div> : null}
-          {cart.pay === "credit" ? <div className="text-[12.5px] text-warn bg-warn-bg px-2.5 py-2 rounded-[7px]">{cust ? `After this sale: ${inr0(cust.due + totals.total)} of ${inr0(cust.limit)} limit` : "Select a customer to sell on credit"}</div> : null}
+          {cart.pay === "split" ? <div className="flex flex-col gap-[5px]"><input value={cart.split} onChange={(e) => set({ split: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash part (₹)" aria-label="Cash part" className={inp} inputMode="decimal" />          <span className="text-[12.5px] text-blue">Balance on UPI: {inr(Math.max(0, toPay - splitCash))}</span></div> : null}
+                    {cart.pay === "credit" ? <div className="text-[12.5px] text-warn bg-warn-bg px-2.5 py-2 rounded-[7px]">{cust ? `After this sale: ${inr0(cust.due + toPay)} of ${inr0(cust.limit)} limit` : "Select a customer to sell on credit"}</div> : null}
           <button onClick={complete} disabled={busy} className="text-white rounded-[10px] p-3.5 text-[15.5px] font-bold cursor-pointer flex justify-center gap-2 items-center disabled:cursor-wait"
             style={{ background: cart.lines.length && !busy ? "#0B5E5B" : "#8DB5B1" }}>
-            {busy ? "Committing sale…" : `${t.complete} · ${inr(totals.total)}`}<span className="font-mono text-[11px] opacity-80 border border-white/50 rounded px-1">F9</span>
+                      {busy ? "Committing sale…" : `${t.complete} · ${inr(toPay)}`}<span className="font-mono text-[11px] opacity-80 border border-white/50 rounded px-1">F9</span>
           </button>
           {netDown ? (
             <div className="text-[12.5px] text-warn bg-warn-bg px-2.5 py-2 rounded-[7px]">
@@ -454,7 +471,7 @@ const WA_STEPS = ["queued", "sent", "delivered", "read"] as const;
 function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConnected: boolean; onNew: () => void }) {
   const toast = useToast();
   const [phone, setPhone] = useState(""), [verified, setVerified] = useState(false);
-  const [msg, setMsg] = useState<{ status: string; attempts: number; error: string | null } | null>(null);
+  const [msg, setMsg] = useState<{ status: string; attempts: number; error: string | null; to?: string; retryable?: boolean } | null>(null);
   const [sending, setSending] = useState(false);
   useEffect(() => {
     setPhone(sale?.customer?.phone ?? ""); setVerified(false); setMsg(null);
@@ -483,7 +500,9 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
   const when = new Date(s.at);
   const failed = msg?.status === "failed";
   const idx = msg ? WA_STEPS.indexOf(msg.status as (typeof WA_STEPS)[number]) : -1;
-  const canSend = verified && !sending && (!msg || (failed && msg.attempts < 3));
+  // A permanent failure (e.g. not on WhatsApp) can only be tried again with a corrected number.
+  const fixable = failed && (msg?.retryable !== false || phone.replace(/\D/g, "").slice(-10) !== msg?.to);
+  const canSend = verified && !sending && (!msg || (fixable && msg.attempts < 3));
   const send = async () => {
     setSending(true);
     const r = await sendInvoiceAction(s.id, phone, verified);
@@ -517,7 +536,7 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
                 <input value={phone} disabled={!!msg && !failed} onChange={(e) => { setPhone(e.target.value.replace(/[^\d ]/g, "")); setVerified(false); }} placeholder="Customer mobile (10 digits)" aria-label="WhatsApp number" className={inp + " text-[15px] tnum"} />
                 <Checkbox checked={verified} disabled={!!msg && !failed} onChange={(e) => setVerified(e.target.checked)} label="I read the number back to the customer and they consent" />
                 <button disabled={!canSend} onClick={send} className="text-white rounded-lg py-2.5 text-[14px] font-semibold cursor-pointer disabled:cursor-not-allowed" style={{ background: canSend ? "#1E7F4F" : "#A9CDB9" }}>
-                  {sending ? "Sending…" : !msg ? "Send invoice PDF" : failed ? (msg.attempts >= 3 ? "Retry limit reached" : "Retry send") : `Sent · ${msg.status}`}
+                  {sending ? "Sending…" : !msg ? "Send invoice on WhatsApp" : failed ? (msg.attempts >= 3 ? "Retry limit reached" : fixable ? "Retry send" : "Correct the number to retry") : `Sent · ${msg.status}`}
                 </button>
                 <div className="flex gap-1 items-center">
                   {WA_STEPS.map((k, i) => (
@@ -527,7 +546,7 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
                     </div>
                   ))}
                 </div>
-                {failed ? <div className="text-[12.5px] text-bad flex gap-1.5 items-center"><CircleAlert size={14} />Failed: {msg.error ?? "unknown"}. Fix the number and retry (max 3).</div> : null}
+                {failed ? <div className="text-[12.5px] text-bad flex gap-1.5 items-center"><CircleAlert size={14} />Failed: {msg.error ?? "unknown"}. {msg.retryable === false ? "Check the number with the customer." : "Fix the number and retry (max 3)."}</div> : null}
               </>
             ) : (
               <div className="text-[12.5px] text-muted flex gap-1.5"><CircleAlert size={14} className="mt-0.5 flex-none" />WhatsApp Business isn’t connected yet. An owner can connect it under WhatsApp.</div>
@@ -549,6 +568,7 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
             </div>
             <div className="border-t border-dashed border-fainter pt-1.5 flex justify-between text-[14px] font-semibold"><span>TOTAL</span><span>{inr(s.totals.total)}</span></div>
             <div className="text-center text-muted border-t border-dashed border-fainter pt-1.5">Paid by {payLabel} · Thank you</div>
+            {s.points ? <div className="text-center text-muted">Points{s.points.redeemed ? ` redeemed ${s.points.redeemed} ·` : ""} earned {s.points.earned} · balance {s.points.balance}</div> : null}
           </div>
         </div>
       </div>

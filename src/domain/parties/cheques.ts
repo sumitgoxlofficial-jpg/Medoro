@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeView, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, dateOnly, daysTo, isoOf, istMidnight, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
@@ -129,7 +129,7 @@ export async function bounceCheque(ctx: Ctx, id: string, raw: z.input<typeof bou
 }
 
 export async function listCheques(ctx: Ctx, opts: { open?: boolean } = {}) {
-  authorizeAny(ctx, "payments", "reports");
+  authorizeView(ctx, "payments", "reports");
   const rows = await db.cheque.findMany({
     where: { tenantId: ctx.tenantId, ...(opts.open ? { status: { in: ["pending", "deposited"] } } : { OR: [{ status: { in: ["pending", "deposited"] } }, { createdAt: { gte: new Date(Date.now() - 180 * 86400_000) } }] }) },
     orderBy: [{ chequeDate: "asc" }, { createdAt: "asc" }], take: 500,

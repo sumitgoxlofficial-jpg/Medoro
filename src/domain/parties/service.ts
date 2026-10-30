@@ -15,6 +15,7 @@ import { allocateToBills, customerBalance, customerBalances, supplierBalances } 
 import { applyConsents, consentHistory, type ConsentInput } from "./consent";
 import { paymentSchema, supplierSchema, type PaymentInput, type SupplierInput } from "./contracts";
 import { chequeLabel, recordCheque } from "./cheques";
+import { pointsBalances } from "@/domain/sales/loyalty";
 
 export async function listSuppliers(ctx: Ctx) {
   const [rows, bal, bills, perf] = await Promise.all([
@@ -35,17 +36,18 @@ export async function listSuppliers(ctx: Ctx) {
 }
 
 export async function listCustomers(ctx: Ctx) {
-  const [rows, bal, last, mask] = await Promise.all([
+  const [rows, bal, last, mask, pts] = await Promise.all([
     db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" } }),
     customerBalances(db, ctx.tenantId),
     db.sale.groupBy({ by: ["customerId"], where: { tenantId: ctx.tenantId, customerId: { not: null } }, _max: { at: true } }),
     phoneMasker(ctx),
+    pointsBalances(db, ctx.tenantId),
   ]);
   return rows.map((c) => ({
     id: c.id, name: c.name, phone: mask(c.phone), optIn: c.waOptIn, smsOptIn: c.smsOptIn, marketingWa: c.marketingWa, marketingSms: c.marketingSms,
-    optInAt: c.optInAt?.toISOString() ?? null, limit: big(c.creditLimitPaise),
+    waInvalid: c.waInvalidReason ?? (c.waInvalidAt ? "Not on WhatsApp" : null), optInAt: c.optInAt?.toISOString() ?? null, limit: big(c.creditLimitPaise),
     gstin: c.gstin, stateCode: c.stateCode ?? "", address: c.address ?? "", pincode: c.pincode ?? "",
-    due: bal.get(c.id) ?? 0, lastVisit: last.find((l) => l.customerId === c.id)?._max.at?.toISOString() ?? null, version: c.version,
+    due: bal.get(c.id) ?? 0, points: pts.get(c.id) ?? 0, lastVisit: last.find((l) => l.customerId === c.id)?._max.at?.toISOString() ?? null, version: c.version,
   }));
 }
 
@@ -97,9 +99,14 @@ export async function saveCustomerIn(tx: Tx, ctx: Ctx, id: string | null, raw: C
   if (id && !before) throw new UserError("Customer not found.");
   if (big(before?.creditLimitPaise) !== i.creditLimit && !can(ctx, "credit")) throw new UserError("Your role cannot change credit limits.");
   if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
+  if (i.smsOptIn && !i.phone) throw new UserError("SMS consent needs a mobile number.");
   const consentChanged = !before || before.waOptIn !== i.waOptIn;
   const consent = consentChanged ? { optInAt: i.waOptIn ? new Date() : null, optInMethod: i.waOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
-  const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), gstin: i.gstin || null, stateCode: i.stateCode || null, address: i.address || null, pincode: i.pincode || null, ...consent };
+  const smsChanged = !before ? i.smsOptIn : before.smsOptIn !== i.smsOptIn;
+  const smsConsent = smsChanged ? { smsOptInAt: new Date(), smsOptInMethod: i.smsOptIn ? `Recorded by ${ctx.userName}` : `Opted out, recorded by ${ctx.userName}` } : {};
+  // A new number, or WhatsApp consent recorded again, clears an earlier "not on WhatsApp" report.
+  const recheck = before?.waInvalidAt && ((i.phone || null) !== before.phone || (i.waOptIn && !before.waOptIn)) ? { waInvalidAt: null, waInvalidReason: null } : {};
+  const data = { name: i.name, phone: i.phone || null, waOptIn: i.waOptIn, creditLimitPaise: BigInt(i.creditLimit), gstin: i.gstin || null, stateCode: i.stateCode || null, address: i.address || null, pincode: i.pincode || null, ...consent, ...smsConsent, ...recheck };
   let saved;
   if (id) {
     const r = await tx.customer.updateMany({ where: { id, tenantId: ctx.tenantId, erasedAt: null, ...(version === undefined ? {} : { version }) }, data: { ...data, version: { increment: 1 } } });

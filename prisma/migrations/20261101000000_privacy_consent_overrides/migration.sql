@@ -4,8 +4,9 @@ ALTER TABLE "User" ADD COLUMN     "permGrants" TEXT[] DEFAULT ARRAY[]::TEXT[],
 ADD COLUMN     "permRevokes" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- AlterTable
--- Consent by purpose and channel: waOptIn stays the transactional WhatsApp consent.
-ALTER TABLE "Customer" ADD COLUMN     "smsOptIn" BOOLEAN NOT NULL DEFAULT false,
+-- Consent by purpose and channel: waOptIn stays the transactional WhatsApp consent. smsOptIn (transactional SMS) may
+-- already exist from the WhatsApp/SMS delivery migration (20261031180000_wa_delivery_loyalty).
+ALTER TABLE "Customer" ADD COLUMN IF NOT EXISTS "smsOptIn" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "marketingWa" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "marketingSms" BOOLEAN NOT NULL DEFAULT false;
 

@@ -17,7 +17,7 @@ import { GST_STATES } from "@/domain/accounting/gst";
 import type { listCustomers, listSuppliers } from "@/domain/parties/service";
 import { METHODS, METHOD_LABEL, PURPOSE_LABEL, type Method } from "@/domain/parties/consent-labels";
 import type { consentHistory } from "@/domain/parties/consent";
-import { consentsAction, paySupplierAction, receiveAction, saveCustomerAction, saveSupplierAction } from "./actions";
+import { consentsAction, paySupplierAction, pointsAction, receiveAction, remindAction, saveCustomerAction, saveSupplierAction } from "./actions";
 
 type Sup = Awaited<ReturnType<typeof listSuppliers>>[number];
 type Cus = Awaited<ReturnType<typeof listCustomers>>[number];
@@ -26,13 +26,21 @@ const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b 
 const td = "px-3.5 py-2.5 border-b border-row";
 const tableWrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto";
 
-export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canEditSup }: { tab: "sup" | "cus"; suppliers: Sup[]; customers: Cus[]; canPay: boolean; canCredit: boolean; canEditSup: boolean }) {
+export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canEditSup, canMessage }: { tab: "sup" | "cus"; suppliers: Sup[]; customers: Cus[]; canPay: boolean; canCredit: boolean; canEditSup: boolean; canMessage: boolean }) {
   const router = useRouter();
   const [supEdit, setSupEdit] = useState<Sup | null | "new">(null);
   const [cusEdit, setCusEdit] = useState<Cus | null | "new">(null);
   const [pay, setPay] = useState<{ kind: "sup" | "cus"; id: string; name: string; bal: number } | null>(null);
   const [q, setQ] = useState("");
   const [importing, setImporting] = useState(false);
+  const [points, setPoints] = useState<Cus | null>(null);
+  const [reminding, startRemind] = useTransition();
+  const toast = useToast();
+  const remind = (c: Cus) => startRemind(async () => {
+    const r = await remindAction(c.id);
+    if (!r.ok) return toast(r.error, "red");
+    toast(r.data.sent ? `Payment reminder sent to ${c.name}.` : r.data.failed ? "The reminder failed; see the WhatsApp delivery log." : `${c.name} has no WhatsApp or SMS consent, or was reminded today.`, r.data.sent ? "green" : "amber");
+  });
   const match = (s: string | null | undefined) => !q || (s ?? "").toLowerCase().includes(q.toLowerCase());
 
   return (
@@ -84,18 +92,20 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
           <div className={tableWrap}>
             {customers.length ? (
               <table className="w-full border-collapse min-w-[820px] text-[14px]">
-                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>Consent</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
+                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>Consent</th><th className={th + " text-right"}>Points</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
                 <tbody>
                   {customers.filter((c) => match(c.name) || match(c.phone) || match(c.gstin)).map((c) => (
                     <tr key={c.id}>
                       <td className={td}><div className="font-semibold">{c.name}{c.gstin ? <> <Badge tone="gray">B2B</Badge></> : null}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}{c.gstin ? <span className="font-mono"> · {c.gstin}</span> : null}</div></td>
-                      <td className={td}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
+                      <td className={td}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.waInvalid ? <Badge tone="red" title={c.waInvalid}>Not on WhatsApp</Badge> : null}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
+                      <td className={td + " text-right tnum"}><button onClick={() => setPoints(c)} className={c.points ? "text-teal font-semibold cursor-pointer" : "text-fainter cursor-pointer"} aria-label={`Points of ${c.name}`}>{c.points}</button></td>
                       <td className={td + " text-right tnum"}>{c.limit ? inr0(c.limit) : "No credit"}</td>
                       <td className={td + " text-right font-semibold tnum"} style={{ color: c.due > 0 ? "#B3261E" : "#5B636B" }}>{inr0(c.due)}</td>
                       <td className={td + " text-muted"}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
                           {canPay ? <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/customer/${c.id}`)}><FileText size={13} />Statement</Button> : null}
+                          {canMessage && c.due > 0 && (c.optIn || c.smsOptIn) ? <Button size="sm" variant="ghost" disabled={reminding} onClick={() => remind(c)}>Remind</Button> : null}
                           {canPay && c.due > 0 ? <Button size="sm" onClick={() => setPay({ kind: "cus", id: c.id, name: c.name, bal: c.due })}>Receive payment</Button> : null}
                           <Button size="sm" variant="ghost" aria-label={`Edit ${c.name}`} onClick={() => setCusEdit(c)}><Pencil size={13} /></Button>
                         </div>
@@ -113,6 +123,7 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
       <SupplierModal edit={supEdit} canPay={canPay} onClose={() => setSupEdit(null)} />
       <CustomerModal edit={cusEdit} canCredit={canCredit} canPay={canPay} onClose={() => setCusEdit(null)} />
       <PayModal pay={pay} onClose={() => setPay(null)} />
+      <PointsModal customer={points} onClose={() => setPoints(null)} />
       <ImportDialog key={tab} kind={tab === "sup" ? "suppliers" : "customers"} open={importing} onClose={() => setImporting(false)} />
     </div>
   );
@@ -207,6 +218,7 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
           ))}
         </div>
       ) : null}
+      {edit && edit !== "new" && edit.waInvalid ? <div className="text-[12.5px] text-bad">WhatsApp reported: {edit.waInvalid}. Correct the number (or record WhatsApp consent again) to try WhatsApp again.</div> : null}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
     </Modal>
   );
@@ -243,6 +255,32 @@ function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; na
       {method !== "Cash" ? <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder={method === "Cheque" ? "Note (optional)" : "UTR / reference (optional)"} /> : null}
       <div className="text-[12px] text-faint">{method === "Cheque" ? `Posts a ${pay.kind === "sup" ? "payment" : "receipt"} voucher to ${pay.kind === "sup" ? "Cheques issued" : "Cheques in hand"}; the bank moves when you mark the cheque cleared under Cheques. Post-dated cheques are fine.` : <>Posts a {pay.kind === "sup" ? "payment voucher (PV)" : "receipt voucher (RV)"}. Posted vouchers can only be reversed, not edited.</>}</div>
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+    </Modal>
+  );
+}
+
+const KIND: Record<string, string> = { earn: "Earned", redeem: "Redeemed", reverse: "Taken back (return)", restore: "Given back (return)", expire: "Expired" };
+
+function PointsModal({ customer, onClose }: { customer: Cus | null; onClose: () => void }) {
+  const [data, setData] = useState<Awaited<ReturnType<typeof pointsAction>> | null>(null);
+  useEffect(() => { setData(null); if (customer) pointsAction(customer.id).then(setData, () => setData(null)); }, [customer]);
+  if (!customer) return null;
+  return (
+    <Modal open onClose={onClose} title={`Loyalty points · ${customer.name}`} sub={data ? <>Balance <strong>{data.balance}</strong> points (worth {inr(data.value)})</> : "Loading…"} width={560}
+      footer={<Button onClick={onClose}>Close</Button>}>
+      {data?.rows.length ? (
+        <table className="w-full border-collapse text-[13.5px]">
+          <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Entry</th><th className={th}>Bill / note</th><th className={th + " text-right"}>Points</th></tr></thead>
+          <tbody>{data.rows.map((r) => (
+            <tr key={r.id}>
+              <td className={td}>{dayMonth(new Date(r.at))}</td>
+              <td className={td}>{KIND[r.kind] ?? r.kind}{r.expiresAt && r.points > 0 ? <div className="text-[11.5px] text-faint">expires {dayMonth(new Date(r.expiresAt), true)}</div> : null}</td>
+              <td className={td + " font-mono text-[12px]"}>{r.note ?? "—"}{r.value ? <span className="text-faint"> · {inr(r.value)}</span> : null}</td>
+              <td className={td + " text-right tnum font-semibold"} style={{ color: r.points < 0 ? "#B3261E" : "#1E7F4F" }}>{r.points > 0 ? "+" : ""}{r.points}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      ) : <div className="text-[13px] text-fainter">{data ? "No points yet. Points are earned on bills when loyalty is turned on under Customer messaging." : ""}</div>}
     </Modal>
   );
 }

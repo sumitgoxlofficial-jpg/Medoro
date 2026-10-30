@@ -22,8 +22,8 @@ test("PO → place → GRN against PO with totals check → supplier payment", a
   dlg = page.getByRole("dialog");
   await dlg.getByLabel("Supplier").selectOption({ label: supplier });
   await dlg.getByLabel("Medicine").selectOption({ label: `${med} 10/5 mg` });
-  await dlg.getByLabel("Quantity").fill("20");
-  await dlg.getByLabel("Rate").fill("150");
+  await dlg.getByLabel("Quantity", { exact: true }).fill("20");
+  await dlg.getByLabel("PTR", { exact: true }).fill("150"); // the rate is the PTR (price to retailer)
   await expect(dlg.getByText("₹3,000.00")).toBeVisible();
   await dlg.getByRole("button", { name: "Save draft" }).click();
   await expectToast(page, /PO-.* saved as a draft/);
@@ -41,7 +41,7 @@ test("PO → place → GRN against PO with totals check → supplier payment", a
   await page.getByLabel("Batch").fill(batch);
   await page.getByLabel("Expiry").fill("2031-09");
   await expect(page.getByLabel("Qty", { exact: true })).toHaveValue("20");
-  await expect(page.getByLabel("Rate")).toHaveValue("150.00");
+  await expect(page.getByLabel("PTR", { exact: true })).toHaveValue("150.00");
   const approve = page.getByRole("button", { name: "Approve & post GRN" });
   await expect(page.getByText("Enter the printed total")).toBeVisible();
   await expect(approve).toBeDisabled();

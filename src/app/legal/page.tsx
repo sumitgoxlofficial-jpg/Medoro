@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
-  ArrowLeft, ArrowRight, BadgeHelp, Building2, Check, Cookie, FileText, HardDriveUpload, LifeBuoy, Mail, MessageCircle, Phone,
+  ArrowRight, BadgeHelp, Building2, Check, Cookie, FileText, HardDriveUpload, LifeBuoy, Mail, MessageCircle, Phone,
   ReceiptIndianRupee, Shield, TriangleAlert, UserCheck,
 } from "lucide-react";
-import { WA, Wordmark } from "@/components/site/chrome";
+import { SiteFooter, WA } from "@/components/site/chrome";
+import { PageHeader } from "@/components/site/page-header";
 import { Toc } from "./toc";
 
 export const metadata: Metadata = { title: "Company, help and legal · Medoro", description: "About Medoro, contact, help, backup and recovery, privacy policy, terms, refunds, cookies, DPDP rights and grievance officer." };
@@ -43,47 +43,36 @@ export default function Legal() {
   const c = company();
   const SECTIONS = sections(c);
   return (
-    <div className="site-root bg-white text-ink-strong leading-[1.6] min-h-dvh text-[16px]">
-      <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-[#EEF0F2]">
-        <div className="max-w-[1200px] mx-auto h-[72px] px-6 flex items-center gap-5 max-[640px]:px-4 max-[640px]:gap-3">
-          <Link href="/" className="no-underline"><Wordmark size={22} /></Link>
-          <Link href="/" className="ml-auto flex gap-1.5 items-center text-[14px] font-semibold text-ink-2 hover:text-ink-strong"><ArrowLeft size={15} /><span className="max-[400px]:hidden">Back to home</span></Link>
-          <Link href="/start" className="flex items-center bg-teal text-white h-10 px-[18px] rounded-full text-[14px] font-semibold whitespace-nowrap hover:bg-teal-hover hover:text-white">Get started</Link>
-        </div>
-      </header>
+    <div className="site-root bg-white min-h-dvh">
+      <PageHeader />
 
-      <div className="max-w-[1200px] mx-auto px-6 pt-12 pb-24 grid gap-14 items-start grid-cols-1 min-[900px]:grid-cols-[220px_minmax(0,1fr)] max-[640px]:px-4">
+      <div className="max-w-[1200px] mx-auto px-6 pt-[clamp(40px,6vw,72px)] pb-24 grid gap-14 items-start grid-cols-1 min-[900px]:grid-cols-[240px_minmax(0,1fr)] max-[640px]:px-4">
         <Toc items={SECTIONS.map((s) => ({ id: s.id, title: s.title }))} />
-        <main className="flex flex-col gap-14 min-w-0 max-w-[760px]">
+        <main id="main" className="flex flex-col gap-14 min-w-0 max-w-[760px]">
           <div className="flex flex-col gap-2.5">
-            <h1 className="m-0 font-bold text-[clamp(32px,4.4vw,48px)] leading-[1.1] tracking-[-.03em]">Company, help and legal</h1>
-            <p className="m-0 text-[16px] text-[#4B535B]">Last updated 27 October 2026.</p>
+            <h1 className="site-display m-0 text-[clamp(40px,5vw,64px)]">Company, help and legal</h1>
+            <p className="m-0 text-[16px] text-[var(--s-muted)]">Last updated 27 October 2026.</p>
             <div role="note" className="flex gap-2.5 items-start bg-[#FDF2E1] border border-[#F3D9A8] rounded-[10px] px-3.5 py-3 text-[14px] text-[#6B4A0E]">
               <TriangleAlert size={16} className="mt-[3px] flex-none" /><span>Draft text. Have a qualified lawyer review it before launch.{c.configured ? "" : " Company and grievance officer details are still to be confirmed."}</span>
             </div>
           </div>
           {SECTIONS.map((s) => (
-            <section key={s.id} id={s.id} className="flex flex-col gap-3.5 border-t border-[#EEF0F2] pt-8 scroll-mt-24">
-              <span className="flex gap-2.5 items-center text-[13px] font-semibold text-teal tracking-[.06em] uppercase"><s.icon size={16} />{s.kicker}</span>
-              <h2 className="m-0 font-bold text-[28px] tracking-[-.02em] leading-[1.2]">{s.title}</h2>
-              <p className="m-0 text-[16px] text-ink-2 text-pretty">{s.intro}</p>
+            <section key={s.id} id={s.id} className="flex flex-col gap-4 border-t border-[var(--s-line)] pt-10 scroll-mt-24">
+              <span className="flex gap-2 items-center text-[14px] font-semibold text-[var(--s-brand)]"><s.icon size={16} aria-hidden />{s.kicker}</span>
+              <h2 className="site-display m-0 text-[clamp(28px,3vw,36px)]">{s.title}</h2>
+              <p className="m-0 text-[17px] leading-[1.6] text-[var(--s-ink-2)] text-pretty">{s.intro}</p>
               <ul className="m-0 p-0 list-none flex flex-col gap-2.5">
-                {s.points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[15px] text-ink-2"><Check size={15} className="text-[#18794E] mt-1 flex-none" /><span>{p}</span></li>)}
+                {s.points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-1 flex-none" /><span>{p}</span></li>)}
               </ul>
               {s.cta ? (() => { const [label, href, Icon] = s.cta; return (
-                <a href={href} className="self-start flex gap-2 items-center h-[42px] px-[18px] border border-input rounded-full text-[14.5px] font-semibold text-ink-strong hover:border-teal hover:text-teal"><Icon size={15} />{label}</a>
+                <a href={href} className="self-start flex gap-2 items-center h-11 px-4 border border-[#C9D1CF] rounded-lg text-[15px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><Icon size={16} aria-hidden />{label}</a>
               ); })() : null}
             </section>
           ))}
         </main>
       </div>
 
-      <footer className="border-t border-[#EEF0F2] bg-[#FBFBFC]">
-        <div className="max-w-[1200px] mx-auto p-6 flex justify-between gap-3 flex-wrap text-[13px] text-faint">
-          <span>© 2026 Medoro. All rights reserved.</span>
-          <Link href="/" className="text-[#4B535B]">medoro.in</Link>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

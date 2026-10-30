@@ -31,7 +31,8 @@ test.describe("POS", () => {
 
     await page.getByRole("button", { name: /^Complete sale/ }).click();
     await expectToast(page, "Enter prescriber name for Schedule H/H1 items.");
-    await page.getByLabel("Prescriber name").fill("Dr. S. Deshmukh");
+    // The prescriber is a doctor picker; a typed name still works.
+    await page.getByLabel("Prescriber", { exact: true }).fill("Dr. S. Deshmukh");
     await page.getByLabel("Prescription number").fill("RX-4471");
 
     await page.getByLabel("Discount percent").fill("25");

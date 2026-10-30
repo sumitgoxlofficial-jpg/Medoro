@@ -10,6 +10,8 @@ import { big, inr, shareOf } from "@/lib/money";
 import { fmtSold } from "@/lib/units";
 import { postVoucher, type Line } from "@/domain/accounting/post";
 import { ACC } from "@/domain/accounting/accounts";
+import { randomUUID } from "node:crypto";
+import { adjustPointsForReturn } from "./loyalty";
 
 import { returnSchema, type ReturnInput } from "./contracts";
 export type { ReturnInput };
@@ -108,15 +110,21 @@ export async function processReturn(ctx: Ctx, raw: ReturnInput, opts: { codUncol
     const cn = gstDocNo("CN-", fy, await nextSeq(tx, ctx.tenantId, "CN:" + fy), 4);
     const shift = await lockOpenShift(tx, ctx);
     const half = Math.floor(tax / 2);
-    const credit: Line = cod ? { account: ACC.codClearing, cr: refund } : mode === "Cash" ? { account: ACC.cash, cr: refund } : mode === "UPI refund" ? { account: ACC.bank, cr: refund } : { account: ACC.debtors, cr: refund, partyType: "customer", partyId: sale.customerId! };
-    const ret = await tx.salesReturn.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, creditNoteNo: cn, saleId: sale.id, reason: i.reason, condition: i.condition, refundMode: mode, amountPaise: BigInt(refund), userId: ctx.userId, shiftId: shift?.id ?? null, lines: out } });
+    // Points redeemed on the bill come back as points for their share of the return, not as money.
+    const retId = randomUUID();
+    const prior = await tx.salesReturn.aggregate({ where: { saleId: sale.id }, _sum: { amountPaise: true } });
+    const base = sale.items.reduce((a, it) => a + big(it.mrpPaise) * it.qty - big(it.discountPaise), 0);
+    const pts = await adjustPointsForReturn(tx, ctx, sale, retId, `Return ${cn}`, big(prior._sum.amountPaise) + refund, base);
+    const money = refund - Math.min(refund, pts.restoredValue);
+    const credit: Line = cod ? { account: ACC.codClearing, cr: money } : mode === "Cash" ? { account: ACC.cash, cr: money } : mode === "UPI refund" ? { account: ACC.bank, cr: money } : { account: ACC.debtors, cr: money, partyType: "customer", partyId: sale.customerId! };
+    const ret = await tx.salesReturn.create({ data: { id: retId, tenantId: ctx.tenantId, branchId: ctx.branchId, creditNoteNo: cn, saleId: sale.id, reason: i.reason, condition: i.condition, refundMode: mode, amountPaise: BigInt(refund), userId: ctx.userId, shiftId: shift?.id ?? null, lines: out } });
     await postVoucher(tx, {
       tenantId: ctx.tenantId, branchId: ctx.branchId, type: "credit_note", userId: ctx.userId, refType: "sales_return", refId: ret.id, no: cn,
       narration: `${cn} · return against ${sale.invoiceNo} · ${i.reason}`,
-      lines: [{ account: ACC.salesReturns, dr: taxable }, ...(big(sale.igstPaise) > 0 ? [{ account: ACC.igst, dr: tax }] : [{ account: ACC.cgst, dr: half }, { account: ACC.sgst, dr: tax - half }]), credit],
+      lines: [{ account: ACC.salesReturns, dr: taxable }, ...(big(sale.igstPaise) > 0 ? [{ account: ACC.igst, dr: tax }] : [{ account: ACC.cgst, dr: half }, { account: ACC.sgst, dr: tax - half }]), credit, ...(refund > money ? [{ account: ACC.loyalty, cr: refund - money }] : [])],
     });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Refund processed ${cn}`, entity: "sales_return", entityId: ret.id, detail: `${sale.invoiceNo} · ${inr(refund)} · ${mode} · ${i.condition}` });
-    return { id: ret.id, creditNote: cn, amount: refund, mode };
+    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: `Refund processed ${cn}`, entity: "sales_return", entityId: ret.id, detail: `${sale.invoiceNo} · ${inr(refund)} · ${mode}${refund > money ? ` (${inr(refund - money)} as ${pts.restored} points)` : ""}${pts.reversed ? ` · ${pts.reversed} points taken back` : ""} · ${i.condition}` });
+    return { id: ret.id, creditNote: cn, amount: refund, mode, money, pointsBack: pts.restored, pointsTaken: pts.reversed, phone: sale.customer?.phone ?? null };
   });
 }
 
@@ -157,15 +165,17 @@ export async function todaysCreditNotes(ctx: Ctx) {
 
 /** Cash a shift's drawer should hold: float + cash sales + rider COD handovers − cash refunds − cash expenses. */
 export async function expected(shift: { id: string; openingPaise: bigint; openedAt: Date; openedBy: string; branchId: string; tenantId: string }, q: Tx = db) {
-  const [cashSales, refunds, voids, expenses, cod] = await Promise.all([
+  const [cashSales, refunds, voids, expenses, cod, inPoints] = await Promise.all([
     q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(p."amountPaise") s FROM "Payment" p JOIN "Sale" x ON x.id = p."saleId" WHERE x."shiftId" = ${shift.id} AND p.mode = 'cash'`,
     q.salesReturn.aggregate({ where: { shiftId: shift.id, refundMode: "Cash" }, _sum: { amountPaise: true } }),
     q.saleVoid.aggregate({ where: { shiftId: shift.id }, _sum: { cashRefundPaise: true } }),
     q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(l."creditPaise") s FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId"
       WHERE v."tenantId" = ${shift.tenantId} AND v."branchId" = ${shift.branchId} AND v."refType" = 'expense' AND v."postedBy" = ${shift.openedBy} AND v."postedAt" >= ${shift.openedAt} AND l.account = ${ACC.cash}`,
     q.riderSettlement.aggregate({ where: { shiftId: shift.id }, _sum: { countedPaise: true } }),
+    // Part of a cash refund given back as loyalty points never left the drawer.
+    q.$queryRaw<{ s: bigint | null }[]>`SELECT SUM(l."valuePaise") s FROM "LoyaltyLedger" l JOIN "SalesReturn" r ON r.id = l."returnId" WHERE r."shiftId" = ${shift.id} AND r."refundMode" = 'Cash' AND l.kind = 'restore'`,
   ]);
-  const open = big(shift.openingPaise), cash = Number(cashSales[0]?.s ?? 0), codIn = big(cod._sum.countedPaise), ref = big(refunds._sum.amountPaise) + big(voids._sum.cashRefundPaise), exp = Number(expenses[0]?.s ?? 0);
+  const open = big(shift.openingPaise), cash = Number(cashSales[0]?.s ?? 0), codIn = big(cod._sum.countedPaise), ref = big(refunds._sum.amountPaise) - Number(inPoints[0]?.s ?? 0) + big(voids._sum.cashRefundPaise), exp = Number(expenses[0]?.s ?? 0);
   return { open, cash, cod: codIn, refunds: ref, expenses: exp, expected: open + cash + codIn - ref - exp };
 }
 
