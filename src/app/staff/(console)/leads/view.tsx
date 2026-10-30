@@ -6,7 +6,7 @@ import { LEAD_SOURCES, LOST_REASONS, PRODUCTS, STAGES, product, rupees } from "@
 import { createLead, decideDiscount, logLeadCall, loseLead, moveLead, requestDiscount } from "../../actions";
 import { btn, btnPrimary, fieldCls, fmtDay, lbl, panel, useRun } from "../ui";
 
-type Lead = { id: string; code: string; name: string; owner: string; phone: string; city: string; source: string; product: string; stage: string; nextOn: string | null; lostReason: string | null; discountPct: number | null; discountStatus: string | null; last: string | null; staff: string; valuePaise: number };
+type Lead = { id: string; code: string; name: string; owner: string; phone: string; email: string; city: string; source: string; product: string; stage: string; nextOn: string | null; lostReason: string | null; discountPct: number | null; discountStatus: string | null; last: string | null; staff: string; valuePaise: number };
 
 export function LeadsView({ admin, referral, leads, today, target, monthRevenue }: { admin: boolean; referral: string | null; leads: Lead[]; today: string; target: number; monthRevenue: number }) {
   const toast = useToast();
@@ -70,7 +70,7 @@ export function LeadsView({ admin, referral, leads, today, target, monthRevenue 
                   return (
                     <div key={l.id} className="bg-white border border-[#E6E8EB] rounded-[10px] px-3 py-2.5 flex flex-col gap-1.5">
                       <div className="flex gap-1.5 items-start"><strong className="text-[13.5px] flex-1">{l.name}</strong><span className="text-[11.5px] font-semibold text-teal whitespace-nowrap">{rupees(l.valuePaise)}/mo</span></div>
-                      <span className="text-[12px] text-muted">{l.owner} · {l.city} · {l.source}{admin ? ` · ${l.staff}` : ""}</span>
+                      <span className="text-[12px] text-muted">{l.owner} · {l.city} · {l.source}{l.email ? ` · ${l.email}` : ""}{admin ? ` · ${l.staff || "Unassigned"}` : ""}</span>
                       <span className="text-[12px] text-ink-2">{product(l.product).name}</span>
                       <span className="text-[12px] flex gap-1 items-center" style={{ color: overdue ? "#C0362C" : "#5B636B" }}><Calendar size={12} />{l.nextOn ? `Follow up ${l.nextOn < today ? "overdue · " : ""}${fmtDay(l.nextOn)}` : l.stage === "won" ? "Customer" : "Closed"}</span>
                       {l.discountStatus ? <span className="text-[11.5px] font-semibold" style={{ color: l.discountStatus === "approved" ? "#18794E" : l.discountStatus === "rejected" ? "#C0362C" : "#94570A" }}>{l.discountPct}% discount {l.discountStatus}</span> : null}

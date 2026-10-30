@@ -154,7 +154,7 @@ export async function pipeline(s: Staff) {
   ]);
   const name = new Map(staff.map((u) => [u.id, u.name]));
   return leads.map((l) => ({
-    id: l.id, code: l.code, name: l.name, owner: l.owner, phone: l.phone, city: l.city, source: l.source, product: l.product, stage: l.stage,
+    id: l.id, code: l.code, name: l.name, owner: l.owner, phone: l.phone, email: l.email, city: l.city, source: l.source, product: l.product, stage: l.stage,
     nextOn: l.nextOn ? isoOf(l.nextOn) : null, lostReason: l.lostReason, discountPct: l.discountPct, discountStatus: l.discountStatus,
     last: l.logs[0]?.text ?? null, staff: name.get(l.staffId) ?? "", valuePaise: Math.round(product(l.product).m * 100 * (l.discountStatus === "approved" ? (100 - (l.discountPct ?? 0)) / 100 : 1)),
   }));
@@ -228,7 +228,7 @@ export async function salesList(s: Staff) {
     db.staffUser.findMany({ select: { id: true, name: true } }),
   ]);
   const name = new Map(staff.map((u) => [u.id, u.name]));
-  return rows.map((x) => ({ id: x.id, date: isoOf(x.date), pharmacy: x.pharmacy, product: x.product, cycle: x.cycle, type: x.type, staff: name.get(x.staffId) ?? "", staffId: x.staffId, status: x.status, amount: x.amountPaise, commission: x.commissionPaise, rate: Number(x.ratePct) }));
+  return rows.map((x) => ({ id: x.id, date: isoOf(x.date), payRef: x.payRef, pharmacy: x.pharmacy, product: x.product, cycle: x.cycle, type: x.type, staff: name.get(x.staffId) ?? "", staffId: x.staffId, status: x.status, amount: x.amountPaise, commission: x.commissionPaise, rate: Number(x.ratePct) }));
 }
 
 // ── Bank details for commission payouts. Encrypted at rest; only the last 4 digits are ever shown.
@@ -267,7 +267,8 @@ export async function myBank(s: Staff) {
 /** Records the payout for verified sales whose salesperson has a verified bank account. Money moves through the bank, outside Medoro. */
 export async function runPayout(s: Staff) {
   allow(s, "super_admin");
-  const ver = await db.cpSale.findMany({ where: { status: "verified" } });
+  // Payments a pharmacy reported from its app without a salesperson carry no commission.
+  const ver = await db.cpSale.findMany({ where: { status: "verified", staffId: { not: "" } } });
   if (!ver.length) throw new UserError("Nothing verified to pay out yet.");
   const banks = await db.staffBank.findMany({ where: { staffId: { in: [...new Set(ver.map((x) => x.staffId))] } }, include: { staff: { select: { name: true } } } });
   const ok = new Set(banks.filter((b) => b.status === "verified").map((b) => b.staffId));
@@ -281,7 +282,7 @@ export async function runPayout(s: Staff) {
 
 export async function payouts(s: Staff) {
   const [rows, staff, banks] = await Promise.all([
-    db.cpSale.findMany({ where: { ...(s.role === "sales" ? { staffId: s.id } : {}), status: { not: "rejected" } }, orderBy: { date: "desc" } }),
+    db.cpSale.findMany({ where: { ...(s.role === "sales" ? { staffId: s.id } : { staffId: { not: "" } }), status: { not: "rejected" } }, orderBy: { date: "desc" } }),
     db.staffUser.findMany({ select: { id: true, name: true } }),
     db.staffBank.findMany(),
   ]);

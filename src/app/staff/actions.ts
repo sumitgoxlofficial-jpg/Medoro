@@ -8,6 +8,7 @@ import { destroyStaffSession, getStaff, staffAudit, staffRun } from "@/staff/aut
 import * as people from "@/staff/people";
 import * as sales from "@/staff/sales";
 import * as support from "@/staff/support";
+import * as licence from "@/staff/licence";
 
 async function origin() {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
@@ -65,9 +66,15 @@ export const addTrialCustomer = async (input: Parameters<typeof support.addTrial
 export const setCustomerStatus = async (id: string, status: string) => done(await staffRun((s) => support.setCustomerStatus(s, id, status), "Status updated."));
 export const addNote = async (customerId: string, text: string, call = false) => done(await staffRun((s) => support.addNote(s, customerId, text, call), call ? "Call logged." : "Note added."));
 export const requestRemote = async (customerId: string, ticketId?: string) =>
-  done(await staffRun((s) => support.requestRemote(s, customerId, ticketId), "Request recorded. Ask the owner to open Privacy & data → Medoro support access in their app and send you the link. It is read-only and time-limited."));
+  done(await staffRun((s) => support.requestRemote(s, customerId, ticketId), "Request sent. The owner sees it in Privacy & data after their app’s next check-in (hourly, or when they open Help or Privacy). If they approve, the read-only link appears here."));
 export const createTicket = async (input: Parameters<typeof support.createTicket>[1]) => done(await staffRun((s) => support.createTicket(s, input)));
 export const replyTicket = async (id: string, text: string, internal: boolean, resolve: boolean) =>
   done(await staffRun((s) => support.replyTicket(s, id, text, internal, resolve), resolve ? "Ticket resolved." : internal ? "Internal note saved. The customer can’t see it." : "Reply saved on the ticket."));
 export const updateTicket = async (id: string, patch: { status?: string; priority?: string; assigneeId?: string | null }) => done(await staffRun((s) => support.updateTicket(s, id, patch)));
 export const escalateTicket = async (id: string) => done(await staffRun((s) => support.escalateTicket(s, id)));
+
+// ── Licence and billing
+export const issueLicenceKey = async (customerId: string) => done(await staffRun((s) => licence.issueLicenceKey(s, customerId)));
+export const extendTrial = async (customerId: string, days: number) => done(await staffRun((s) => licence.extendTrial(s, customerId, days)));
+export const decideBillingRequest = async (id: string, approve: boolean) =>
+  done(await staffRun((s) => licence.decideBillingRequest(s, id, approve), approve ? "Approved. The pharmacy gets it with its next licence check-in." : "Request declined."));
