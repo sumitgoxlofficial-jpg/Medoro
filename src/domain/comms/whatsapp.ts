@@ -84,6 +84,11 @@ export async function sendInvoice(ctx: Ctx, saleId: string, rawPhone: string, co
   if (!w) throw new UserError("WhatsApp Business isn’t connected. An owner can connect it under WhatsApp.");
   const phone = normPhone(rawPhone);
   if (!MOBILE_RE.test(phone)) throw new UserError("Enter a valid 10-digit Indian mobile number.");
+  const [optedOut, optedIn] = await Promise.all([
+    db.customer.count({ where: { tenantId: ctx.tenantId, phone, waOptIn: false, optInMethod: { startsWith: "Opted out" } } }),
+    db.customer.count({ where: { tenantId: ctx.tenantId, phone, waOptIn: true } }),
+  ]);
+  if (optedOut && !optedIn) throw new UserError("This customer opted out of WhatsApp messages. Record their consent again on the customer before sending.");
   if (!consent) throw new UserError("Confirm the number with the customer and get their consent first.");
   const inv = await invoiceData(ctx, saleId);
   if (!inv) throw new UserError("Invoice not found.");

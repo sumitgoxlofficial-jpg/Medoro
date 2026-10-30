@@ -91,4 +91,21 @@ describe("offline billing", () => {
     await expect(snapshot(mgr, dev)).rejects.toThrow(/turned off/);
     await expect(syncOps(mgr, randomUUID(), [])).rejects.toThrow(/turned off/);
   });
+
+  it("only shows and settles devices and bills in the user's branches", async () => {
+    const main = await ctxFor("Manager");
+    const second = await ctxFor("Manager", "Second");
+    const onlySecond = { ...second, branches: second.branches.filter((b) => b.id === second.branchId) };
+    const own = await enableDevice(second, "Second counter");
+    expect((await offlineOverview(main)).devices.map((d) => d.name)).toContain("Second counter");
+    const scoped = await offlineOverview(onlySecond);
+    expect(scoped.devices.map((d) => d.name)).toEqual(["Second counter"]);
+    expect(scoped.ops).toEqual([]);
+    const cashier = await offlineOverview(await ctxFor("Cashier", "Second"));
+    expect(cashier.devices.map((d) => d.id)).toEqual([own.deviceId]);
+    const mainDev = (await db.device.findFirstOrThrow({ where: { name: "Counter 1" } })).id;
+    await expect(disableDevice(onlySecond, mainDev)).rejects.toThrow(/not found/);
+    const o = await db.offlineOp.findFirstOrThrow({ where: { deviceId: mainDev } });
+    await expect(resolveOp(onlySecond, o.id, "close", "Customer refunded")).rejects.toThrow(/not found/);
+  });
 });

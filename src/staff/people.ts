@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { checkLock, clearFailures, clientInfo, hashPassword, recordFailure, verifyPassword } from "@/server/auth";
+import { checkLock, clearFailures, clientInfo, hashPassword, lockKeys, recordFailure, verifyPassword } from "@/server/auth";
 import { checkTotp, newTotpSecret, openSecret, totpQr } from "@/server/totp";
 import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
@@ -46,7 +46,7 @@ export async function signIn(rawEmail: string, pw: string) {
   const e = String(rawEmail ?? "").trim().toLowerCase();
   if (!isStaffEmail(e)) throw new UserError(`Use your @${staffDomain()} work email.`);
   const { ip } = await clientInfo();
-  const keys = ["staff:" + e, "staffip:" + (ip ?? "local")];
+  const keys = lockKeys("staff:" + e, ip);
   const mins = await checkLock(keys);
   if (mins) throw new UserError(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
   const u = await db.staffUser.findUnique({ where: { email: e } });

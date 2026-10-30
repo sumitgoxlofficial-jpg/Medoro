@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { inrShort } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { ROLE_OPTIONS } from "@/domain/identity/contracts";
-import type { auditTrail, listBranches, listTeam, listTransfers, roleMatrix } from "@/domain/identity/admin";
+import type { auditTrail, listBranches, listTeam, listTransfers, MemberPatch, roleMatrix } from "@/domain/identity/admin";
 import type { Perm } from "@/domain/identity/permissions";
 import { branchAction, counterAction, inviteAction, memberAction, permAction, resetAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
 
@@ -201,16 +201,24 @@ function InviteModal({ open, onClose, branches, onDone, tenantCode }: { open: bo
 
 function MemberModal({ user, branches, onClose }: { user: Team["users"][number] | null; branches: Br[]; onClose: () => void }) {
   const toast = useToast();
-  const [role, setRole] = useState(""), [bids, setBids] = useState<string[]>([]);
+  const [role, setRole] = useState(""), [bids, setBids] = useState<string[]>([]), [secret, setSecret] = useState("");
   const [pending, start] = useTransition();
   const [lastId, setLastId] = useState<string | null>(null);
-  if (user && user.id !== lastId) { setLastId(user.id); setRole(user.role); setBids(user.branchIds); }
+  if (user && user.id !== lastId) { setLastId(user.id); setRole(user.role); setBids(user.branchIds); setSecret(""); }
   if (!user) return null;
-  const save = (patch: { role?: string; branchIds?: string[]; active?: boolean }) => start(async () => { const r = await memberAction(user.id, patch); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok) onClose(); });
+  // Moving between Manager (email + password) and a counter role (employee ID + PIN) needs the new credential.
+  const needs = (role === "Manager") !== (user.role === "Manager") ? (role === "Manager" ? "password" : "pin") : null;
+  const save = (patch: MemberPatch) => start(async () => { const r = await memberAction(user.id, patch); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok) onClose(); });
   return (
     <Modal open onClose={onClose} title={user.name} sub={`${user.employeeNo ?? ""} ${user.contact}`} width={460}
-      footer={<><Button variant={user.active ? "danger-outline" : "outline"} className="mr-auto" disabled={pending} onClick={() => { if (confirm(user.active ? `Deactivate ${user.name}? They’ll be signed out and can’t sign in.` : `Reactivate ${user.name}?`)) save({ active: !user.active }); }}>{user.active ? "Deactivate" : "Reactivate"}</Button><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={pending} onClick={() => save({ role, branchIds: bids })}>Save</Button></>}>
-      <Field label="Role"><Select value={role} onChange={(e) => setRole(e.target.value)}>{ROLE_OPTIONS.map((r) => <option key={r}>{r}</option>)}</Select></Field>
+      footer={<><Button variant={user.active ? "danger-outline" : "outline"} className="mr-auto" disabled={pending} onClick={() => { if (confirm(user.active ? `Deactivate ${user.name}? They’ll be signed out and can’t sign in.` : `Reactivate ${user.name}?`)) save({ active: !user.active }); }}>{user.active ? "Deactivate" : "Reactivate"}</Button><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={pending} onClick={() => save({ role, branchIds: bids, ...(needs === "password" ? { password: secret } : needs === "pin" ? { pin: secret } : {}) })}>Save</Button></>}>
+      <Field label="Role"><Select value={role} onChange={(e) => { setRole(e.target.value); setSecret(""); }}>{ROLE_OPTIONS.map((r) => <option key={r}>{r}</option>)}</Select></Field>
+      {needs === "password" ? (
+        <Field label="New password (min 10 characters)"><Input type="password" autoComplete="new-password" value={secret} onChange={(e) => setSecret(e.target.value)} /></Field>
+      ) : needs === "pin" ? (
+        <Field label="New 4-digit PIN"><Input inputMode="numeric" autoComplete="off" maxLength={4} value={secret} onChange={(e) => setSecret(e.target.value.replace(/\D/g, ""))} /></Field>
+      ) : null}
+      {needs ? <div className="text-[12px] text-faint">{needs === "password" ? "Managers sign in with their email, this password and an authenticator app. Share it with them privately." : `${role}s sign in at the counter with employee ID ${user.employeeNo ?? "(assigned on save)"} and this PIN. Share it with them privately.`}</div> : null}
       <div className="flex flex-col gap-1.5 text-[12.5px] text-muted font-medium">Branches
         <label className="flex gap-2 text-[13.5px] text-ink font-normal"><input type="checkbox" className="accent-teal" checked={!bids.length} onChange={(e) => setBids(e.target.checked ? [] : [branches[0].id])} />All branches</label>
         {bids.length ? branches.map((b) => <label key={b.id} className="flex gap-2 text-[13.5px] text-ink font-normal pl-5"><input type="checkbox" className="accent-teal" checked={bids.includes(b.id)} onChange={(e) => setBids(e.target.checked ? [...bids, b.id] : bids.filter((x) => x !== b.id).length ? bids.filter((x) => x !== b.id) : bids)} />{b.name}</label>) : null}

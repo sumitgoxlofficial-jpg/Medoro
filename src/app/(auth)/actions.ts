@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import {
-  checkLock, clearFailures, clientInfo, createSession, destroySession, hashPassword, isTrustedDevice,
+  checkLock, clearFailures, clientInfo, createSession, destroySession, hashPassword, isTrustedDevice, lockKeys,
   markMfaPassed, readSession, recordFailure, setTrustedDevice, verifyPassword,
 } from "@/server/auth";
 import { otpEnabled, sendOtp, verifyOtp } from "@/server/otp";
@@ -70,7 +70,7 @@ export async function passwordSignIn(email: string, password: string): Promise<R
   if (!/^\S+@\S+\.\S+$/.test(e)) return fail("Enter a valid email.");
   if (password.length < 10) return fail("Password must be at least 10 characters.");
   const { ip } = await clientInfo();
-  const keys = ["acct:" + e, "ip:" + (ip ?? "?")];
+  const keys = lockKeys("acct:" + e, ip);
   const mins = await checkLock(keys);
   if (mins) return fail(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
   const user = await db.user.findFirst({ where: { email: e, active: true } });
@@ -166,14 +166,14 @@ export async function employeeSignIn(input: { code: string; employeeNo: string; 
   if (code.length < 4) return fail("Enter your pharmacy code. Your manager can find it in Users.");
   if (!/^\d{4}$/.test(input.pin)) return fail("Enter your 4-digit PIN.");
   const { ip } = await clientInfo();
-  const keys = ["emp:" + code + ":" + no, "ip:" + (ip ?? "?")];
+  const keys = lockKeys("emp:" + code + ":" + no, ip);
   const mins = await checkLock(keys);
   if (mins) return fail(`This ID is locked for ${mins} more minute${mins > 1 ? "s" : ""}.`);
   const t = await db.tenant.findUnique({ where: { code } });
   const user = t ? await db.user.findFirst({ where: { tenantId: t.id, employeeNo: no, active: true }, include: { role: true } }) : null;
   if (!user || !(await verifyPassword(user.pinHash, input.pin))) {
     const left = await recordFailure(keys);
-    return fail(!user && t ? "Employee ID not found for this pharmacy." : left ? `Wrong PIN. ${left} attempt${left > 1 ? "s" : ""} left.` : "5 wrong PINs. This ID is locked for 15 minutes.");
+    return fail(left ? `Employee ID or PIN is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many wrong attempts. This ID is locked for 15 minutes.");
   }
   const counter = await db.counter.findFirst({ where: { id: input.counterId, tenantId: user.tenantId, active: true } });
   if (!counter) return fail("Choose your counter.");
@@ -181,7 +181,7 @@ export async function employeeSignIn(input: { code: string; employeeNo: string; 
   if (user.mfaRequired) return fail("Owners and managers sign in with email and password.");
   await clearFailures(keys);
   const next = await finishSignIn(user, `Employee PIN · ${counter.name}`, { counterId: counter.id, device: counter.name });
-  return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/acc" : "/app") : next };
+  return { ok: true, data: next === "/app" ? (user.role.name === "Accountant" ? "/app/accounts" : "/app") : next };
 }
 
 export async function findInvite(code: string, inviteCode: string): Promise<R<{ role: string; branch: string; pharmacy: string; name: string | null; kind: "phone" | "email" }>> {
