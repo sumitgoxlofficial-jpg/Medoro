@@ -35,9 +35,12 @@ pnpm lint && pnpm typecheck
 | Returns & shift | Returns against invoices (restock or damaged), credit notes, refund modes, shift open/close with cash difference posted |
 | Data import | Medicines with opening stock, suppliers and customers from Excel (.xlsx) or CSV. Every row is checked first with a reason for each problem; nothing is saved until all rows pass; re-running a file skips what's already there |
 | Inventory | Batches, receive stock (opening stock posts to Inventory against Opening balance equity), per-batch actions (stock adjustment +/− with reason, write-off, return to supplier, transfer request, quarantine/release), a Transfers tab to approve/receive/reject/cancel inter-branch transfers, movement ledger, stock count, recalls with one-click supplier return, expiry prevention |
-| Stock intelligence | Reorder forecast and draft POs, seasonal planner (after 12 months of sales), supplier price comparison, slow stock, anomaly review |
-| Purchases | POs (place, cancel or close short with a reason), supplier invoice review with a queue of uploaded invoices to open or discard (manual entry; remote OCR optional), GRN with totals check, IGST for out-of-state suppliers |
-| Suppliers & customers | Balances, payments, ledger statements for any date range (screen, print, CSV), delivery accuracy from POs vs GRNs, credit limits |
+| Stock intelligence | Reorder forecast and draft POs, seasonal planner (after 12 months of sales), supplier price comparison on landed cost (after schemes and discounts), margins on landed cost by item, category and supplier plus margin on stock in hand, slow stock, anomaly review |
+| Purchases | POs (place, cancel or close short with a reason), supplier invoice review with a queue of uploaded invoices to open or discard (manual entry; remote OCR optional), GRN with totals check, IGST for out-of-state suppliers. PO and GRN lines carry PTR, PTS, MRP, free-goods schemes ("10+2") and scheme / trade / cash discount %; landed cost per unit spreads free goods; GST base (after discounts, before cash discount, or on PTR) and input-credit vs composition are pharmacy settings. Distributor e-bill import (CSV, Excel, pipe/tab text) with header detection, a column mapper saved per supplier, and matching by barcode, learned supplier codes/names, then name + pack. See [docs/PURCHASING.md](docs/PURCHASING.md) |
+| Claims to suppliers | Expiry, near-expiry, breakage and wrong-item claims: stock leaves at once into Supplier claims receivable; acknowledged → credit note received (partial credits, shortfall written off with a reason) or rejected; aging per supplier; near-expiry suggestions inside each supplier's return window |
+| Suppliers & customers | Balances, payments, ledger statements for any date range (screen, print, CSV), delivery accuracy from POs vs GRNs, credit limits, expiry-return window per supplier |
+| Cheques | Cheque receipts and payments (post-dated allowed) through Cheques in hand / Cheques issued clearing accounts; deposit, clear, bounce (party balance restored, charges booked, supplier bills reopened); due-cheques dashboard card and badge; audited |
+| Bank reconciliation | CSV/Excel bank statement import with column detection or a saved mapping, duplicate-safe re-imports, auto-match by amount, date ±3 days and cheque/UTR reference, manual match/unmatch, unreconciled report (CSV) and statement vs book balance |
 | Accounting & reports | P&L, day book, account ledger with running balance, trial balance, expenses, reversals (never edits), GST summary with CGST/SGST/IGST, ten CSV reports for your CA |
 | WhatsApp & messaging | Your own Meta Cloud API credentials, invoice template sends with delivery status, signed webhook, STOP opt-outs, refill reminders and consent-gated campaigns |
 | Backup & restore | Encrypted backups (AES-256-GCM, recovery-kit key), verification, Google Drive upload, daily schedule with retries. Full restore: loads into a test copy first, shows backup vs live, takes a safety backup, then swaps in one transaction after the owner types the pharmacy code |
@@ -62,7 +65,7 @@ Built into the core: money in integer paise with GST back-calculated from MRP, F
 | `prisma/` | Schema and migrations |
 | `tests/integration` | Service tests against PostgreSQL |
 | `design/` | The original clickable prototype, assets and handoff notes (reference only) |
-| `docs/` | Architecture, security, privacy, data ownership, AI, WhatsApp, testing, deployment, backup |
+| `docs/` | Architecture, security, privacy, data ownership, AI, WhatsApp, testing, deployment, backup, purchasing & money (pricing, e-bills, claims, cheques, bank) |
 
 ## Not claimed
 Medoro does not claim GST, drug-law or DPDP compliance, or any official government integration. Have qualified professionals review it before launch.
