@@ -15,5 +15,19 @@ export function checkEnv(env: NodeJS.ProcessEnv = process.env): string[] {
   for (const k of Object.keys(env)) {
     if (k.startsWith("NEXT_PUBLIC_") && /SECRET|KEY|TOKEN|PASSWORD/.test(k) && k !== "NEXT_PUBLIC_SW") problems.push(`${k} looks like a secret but NEXT_PUBLIC_ variables are sent to browsers. Rename it.`);
   }
+  // Sign-in providers: each one is optional, but a half-configured one would fail at the moment someone needs it.
+  const needAll = (what: string, ...ks: string[]) => { const miss = ks.filter((k) => !env[k]); if (miss.length) problems.push(`${what} needs ${miss.join(", ")}.`); };
+  const otp = (env.OTP_PROVIDER ?? "").trim().toLowerCase();
+  if (otp === "console") problems.push("OTP_PROVIDER=console prints sign-in codes to the log; use msg91, twilio or http in production.");
+  else if (otp === "msg91") needAll("OTP_PROVIDER=msg91", "OTP_API_KEY", "OTP_TEMPLATE_ID");
+  else if (otp === "twilio") needAll("OTP_PROVIDER=twilio", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM");
+  else if (otp === "http") needAll("OTP_PROVIDER=http", "OTP_HTTP_URL");
+  else if (otp) problems.push(`OTP_PROVIDER "${otp}" is not one of msg91, twilio, http.`);
+  const mail = (env.MAIL_PROVIDER ?? "").trim().toLowerCase();
+  if (mail === "console") problems.push("MAIL_PROVIDER=console prints emails (with reset codes) to the log; use resend, sendgrid or http in production.");
+  else if (mail === "resend") needAll("MAIL_PROVIDER=resend", "RESEND_API_KEY", "MAIL_FROM");
+  else if (mail === "sendgrid") needAll("MAIL_PROVIDER=sendgrid", "SENDGRID_API_KEY", "MAIL_FROM");
+  else if (mail === "http" || mail === "smtp-http") needAll(`MAIL_PROVIDER=${mail}`, "MAIL_HTTP_URL", "MAIL_FROM");
+  else if (mail) problems.push(`MAIL_PROVIDER "${mail}" is not one of resend, sendgrid, http.`);
   return problems;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientIp, lockKeys, maxFails } from "./auth";
+import { clientIp, idleLimitMs, lockKeys, maxFails } from "./auth";
 
 const h = (o: Record<string, string>) => new Headers(o);
 
@@ -25,5 +25,14 @@ describe("lockKeys", () => {
     expect(lockKeys("emp:SHOP:E-101", null)).toEqual(["emp:SHOP:E-101"]);
     expect(maxFails("emp:SHOP:E-101")).toBe(5);
     expect(maxFails("ip:1.2.3.4")).toBeGreaterThan(20);
+  });
+});
+
+describe("idleLimitMs", () => {
+  it("ends owner and manager sessions after SESSION_IDLE_MINUTES (2 h by default); counters keep the shift", () => {
+    expect(idleLimitMs("Owner", {})).toBe(120 * 60_000);
+    expect(idleLimitMs("Manager", { SESSION_IDLE_MINUTES: "30" })).toBe(30 * 60_000);
+    expect(idleLimitMs("Manager", { SESSION_IDLE_MINUTES: "nonsense" })).toBe(120 * 60_000);
+    expect(idleLimitMs("Cashier", { SESSION_IDLE_MINUTES: "30" })).toBe(12 * 3600_000);
   });
 });

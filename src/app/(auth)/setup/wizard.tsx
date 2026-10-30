@@ -171,7 +171,7 @@ export function Wizard({ deployment }: { deployment: Dep }) {
               <input className={inp} value={owner.password} onChange={setO("password")} placeholder="Password (10+ characters) *" aria-label="Password" type="password" autoComplete="new-password" />
               <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder="Confirm password *" aria-label="Confirm password" type="password" autoComplete="new-password" />
             </div>
-            <div className="text-[12.5px] text-faint">After setup you’ll scan a QR code with an authenticator app. Two-step verification is required for owners and managers.</div>
+            <div className="text-[12.5px] text-faint">After setup you’ll scan a QR code with an authenticator app and save 10 recovery codes. Two-step verification is required for owners and managers. You can connect Google sign-in later from Profile; your password stays as the way back in.</div>
           </>
         ) : null}
 

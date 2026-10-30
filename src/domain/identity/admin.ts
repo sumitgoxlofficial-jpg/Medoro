@@ -69,6 +69,22 @@ export async function issueReset(ctx: Ctx, userId: string) {
   });
 }
 
+/** Clears another user's authenticator: they set up a new one at their next sign-in. */
+export async function resetTwoStep(ctx: Ctx, userId: string) {
+  authorize(ctx, "users");
+  return db.$transaction(async (tx) => {
+    const u = await tx.user.findFirst({ where: { id: userId, tenantId: ctx.tenantId, isSupport: false }, include: { role: true } });
+    if (!u) throw new UserError("User not found.");
+    if (u.id === ctx.userId) throw new UserError("You can’t reset your own two-step verification here. At sign-in, use a recovery code or “Lost your authenticator?”.");
+    if (u.role.name === "Owner") throw new UserError("Only the owner can reset the owner’s two-step verification, with a recovery code or an email/SMS code at sign-in.");
+    if (!u.mfaEnabled && !u.mfaSecret) throw new UserError(`${u.name} hasn’t set up two-step verification.`);
+    await tx.user.update({ where: { id: u.id }, data: { mfaSecret: null, mfaEnabled: false, tokenVersion: { increment: 1 } } });
+    await tx.recoveryCode.deleteMany({ where: { userId: u.id } });
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Two-step verification reset", entity: "user", entityId: u.id, detail: `${u.name} · sets up a new authenticator at next sign-in · signed out everywhere` });
+    return u.name;
+  });
+}
+
 /** Managers sign in with email + password; every other role uses employee ID + PIN at the counter. */
 const usesPassword = (role: string) => role === "Manager";
 

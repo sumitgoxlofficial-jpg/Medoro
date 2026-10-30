@@ -13,7 +13,7 @@ import { dayMonth, hhmm } from "@/lib/dates";
 import { ROLE_OPTIONS } from "@/domain/identity/contracts";
 import type { auditTrail, listBranches, listTeam, listTransfers, MemberPatch, roleMatrix } from "@/domain/identity/admin";
 import type { Perm } from "@/domain/identity/permissions";
-import { branchAction, counterAction, inviteAction, memberAction, permAction, resetAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
+import { branchAction, counterAction, inviteAction, memberAction, permAction, resetAction, resetTwoStepAction, revokeInviteAction, transferAction, verifyAction } from "./actions";
 
 type Team = Awaited<ReturnType<typeof listTeam>>;
 type Br = Awaited<ReturnType<typeof listBranches>>[number];
@@ -76,6 +76,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                         <div className="flex gap-1.5 justify-end">
                           <Button size="sm" variant="ghost" aria-label={`Edit ${u.name}`} onClick={() => setEdit(u)}><Pencil size={13} /></Button>
                           <Button size="sm" disabled={pending} onClick={() => { if (confirm(`Issue a ${u.role === "Manager" ? "password" : "PIN"} reset for ${u.name}? They’ll be signed out everywhere.`)) start(async () => { const r = await resetAction(u.id); if (!r.ok) return toast(r.error, "red"); setCode({ ...r.data, reset: true }); }); }}><KeyRound size={13} />Reset</Button>
+                          {u.mfa ? <Button size="sm" disabled={pending} title="Reset two-step verification" onClick={() => { if (confirm(`Reset two-step verification for ${u.name}? Their authenticator and recovery codes stop working, they’re signed out everywhere, and they set up a new authenticator at their next sign-in.`)) start(async () => { const r = await resetTwoStepAction(u.id); toast(r.ok ? `${r.data} will set up a new authenticator at next sign-in.` : r.error, r.ok ? "green" : "red"); }); }}><ShieldCheck size={13} />Reset 2-step</Button> : null}
                         </div>
                       ) : null}
                     </td>

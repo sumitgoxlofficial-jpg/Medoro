@@ -99,29 +99,34 @@ model Role {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  tenantId     String
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  name         String
-  email        String?
-  phone        String?
-  passwordHash String?
-  employeeNo   String? // E-101; used with pharmacy code + PIN at counters
-  pinHash      String?
-  mfaSecret    String?
-  mfaRequired  Boolean   @default(false)
-  mfaEnabled   Boolean   @default(false)
-  tokenVersion Int       @default(0)
-  active       Boolean   @default(true)
-  roleId       String
-  role         Role      @relation(fields: [roleId], references: [id])
-  branchIds    String[] // empty = all branches
-  lastLoginAt  DateTime?
-  failedLogins Int       @default(0)
-  lockedUntil  DateTime?
-  isSupport    Boolean   @default(false) // the read-only "Medoro support" login an owner can grant
-  sessions     Session[]
-  createdAt    DateTime  @default(now())
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  name            String
+  email           String?
+  phone           String?
+  passwordHash    String?
+  employeeNo      String? // E-101; used with pharmacy code + PIN at counters
+  pinHash         String?
+  mfaSecret       String?
+  mfaRequired     Boolean        @default(false)
+  mfaEnabled      Boolean        @default(false)
+  tokenVersion    Int            @default(0)
+  active          Boolean        @default(true)
+  roleId          String
+  role            Role           @relation(fields: [roleId], references: [id])
+  branchIds       String[] // empty = all branches
+  lastLoginAt     DateTime?
+  failedLogins    Int            @default(0)
+  lockedUntil     DateTime?
+  isSupport       Boolean        @default(false) // the read-only "Medoro support" login an owner can grant
+  googleSub       String?        @unique // linked "Sign in with Google" account (OIDC subject)
+  googleEmail     String?
+  passwordResetAt DateTime? // last forgot-password reset; holds back an OTP-only MFA reset for 24 h
+  sessions        Session[]
+  recoveryCodes   RecoveryCode[]
+  authCodes       AuthCode[]
+  createdAt       DateTime       @default(now())
 
   @@unique([tenantId, email])
   @@unique([tenantId, phone])
@@ -159,6 +164,34 @@ model LoginAttempt {
   failures    Int       @default(0)
   lockedUntil DateTime?
   updatedAt   DateTime  @updatedAt
+}
+
+// One-time MFA recovery codes, stored as hashes. Shown once at enrolment or regeneration.
+model RecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Single-use codes sent by email or SMS for password reset and lost-authenticator recovery.
+model AuthCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String // reset, mfa-reset
+  channel   String // email, sms
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, purpose])
 }
 
 model Session {
