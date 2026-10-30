@@ -5,7 +5,7 @@ import { addDays, dateOnly, daysTo, isoOf, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
 import { sellableByMedicine, velocity } from "@/domain/inventory/queries";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
-import type { Period } from "./service";
+import { inputGstByRate, outputGstByRate, type Period } from "./service";
 
 export const REPORTS = [
   ["sales-register", "Sales register", "Invoices with tax split"],
@@ -20,11 +20,71 @@ export const REPORTS = [
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
 
+/** Reports built from pharmacy-level balances and ledgers; the rest are per branch. */
+export const PHARMACY_REPORTS: readonly ReportId[] = ["supplier-dues", "customer-dues", "day-book"];
+/** "branch": the current branch. "all": every branch the user can access. */
+export type ReportScope = "branch" | "all";
+export const scopeOf = (v: string | null | undefined): ReportScope => (v === "all" ? "all" : "branch");
+
+/** Branches a report covers; null = the whole pharmacy. */
+function reportBranches(ctx: Ctx, id: ReportId, scope: ReportScope) {
+  if (PHARMACY_REPORTS.includes(id)) return null;
+  return scope === "all" ? ctx.branches : ctx.branches.filter((b) => b.id === ctx.branchId);
+}
+
+/** File-name tag: the branch code, or "all" for pharmacy-wide or all-branch exports. */
+export function reportScopeTag(ctx: Ctx, id: ReportId, scope: ReportScope) {
+  const b = reportBranches(ctx, id, scope);
+  return !b || b.length > 1 ? "all" : (b[0]?.code ?? ctx.branchCode).toLowerCase();
+}
+
 const r2 = (p: number) => (p / 100).toFixed(2);
 const ist = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 16).replace("T", " ");
 
-export async function reportRows(ctx: Ctx, id: ReportId, p: Period): Promise<(string | number | null)[][]> {
-  const T = ctx.tenantId, B = ctx.branchId;
+type Rows = (string | number | null)[][];
+
+export async function reportRows(ctx: Ctx, id: ReportId, p: Period, scope: ReportScope = "branch"): Promise<Rows> {
+  const branches = reportBranches(ctx, id, scope);
+  if (!branches) return pharmacyRows(ctx, id, p);
+  if (id === "gst-summary") return gstSummary(ctx.tenantId, p, branches.map((b) => b.id));
+  if (branches.length === 1) return branchRows(ctx, id, p, branches[0].id);
+  // Several branches: one block per branch with a leading Branch column.
+  const parts = await Promise.all(branches.map(async (b) => ({ b, rows: await branchRows(ctx, id, p, b.id) })));
+  return [["Branch", ...(parts[0]?.rows[0] ?? [])], ...parts.flatMap(({ b, rows }) => rows.slice(1).map((r) => [b.name, ...r]))];
+}
+
+async function gstSummary(T: string, p: Period, branchIds: string[]): Promise<Rows> {
+  const [out, inn] = await Promise.all([outputGstByRate(T, p, branchIds), inputGstByRate(T, p, branchIds)]);
+  const rates = [...new Set([...out.map((x) => x.rate), ...inn.map((x) => x.rate)])].sort((a, b) => a - b);
+  const half = (n: number) => [r2(Math.floor(n / 2)), r2(n - Math.floor(n / 2))];
+  return [["Slab %", "Sales taxable", "Credit notes taxable", "Output taxable (net)", "Output CGST", "Output SGST", "Input taxable", "Input CGST", "Input SGST"],
+    ...rates.map((r) => { const o = out.find((x) => x.rate === r), i = inn.find((x) => x.rate === r);
+      return [r, r2(o?.grossTaxable ?? 0), r2(o?.retTaxable ?? 0), r2(o?.taxable ?? 0), ...half(o?.tax ?? 0), r2(i?.taxable ?? 0), ...half(i?.tax ?? 0)]; })];
+}
+
+async function pharmacyRows(ctx: Ctx, id: ReportId, p: Period): Promise<Rows> {
+  const T = ctx.tenantId;
+  switch (id) {
+    case "supplier-dues": {
+      const [sup, bal, bills] = await Promise.all([db.supplier.findMany({ where: { tenantId: T }, orderBy: { name: "asc" } }), supplierBalances(db, T), db.supplierBill.findMany({ where: { tenantId: T }, orderBy: { dueDate: "asc" } })]);
+      return [["Supplier", "GSTIN", "Balance", "Next due date", "Next due amount"],
+        ...sup.map((x) => { const o = bills.find((b) => b.supplierId === x.id && b.paidPaise < b.amountPaise); return [x.name, x.gstin, r2(bal.get(x.id) ?? 0), o ? isoOf(o.dueDate) : "", o ? r2(big(o.amountPaise) - big(o.paidPaise)) : ""]; })];
+    }
+    case "customer-dues": {
+      const [c, bal] = await Promise.all([db.customer.findMany({ where: { tenantId: T, erasedAt: null }, orderBy: { name: "asc" } }), customerBalances(db, T)]);
+      return [["Customer", "Phone", "Outstanding", "Credit limit"], ...c.filter((x) => (bal.get(x.id) ?? 0) !== 0 || big(x.creditLimitPaise) > 0).map((x) => [x.name, x.phone, r2(bal.get(x.id) ?? 0), r2(big(x.creditLimitPaise))])];
+    }
+    case "day-book": {
+      const v = await db.voucher.findMany({ where: { tenantId: T, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "asc" }, { no: "asc" }] });
+      return [["Voucher", "Date", "Type", "Narration", "Account", "Debit", "Credit"], ...v.flatMap((x) => x.lines.map((l) => [x.no, ist(x.date), x.type, x.narration, l.account, r2(big(l.debitPaise)), r2(big(l.creditPaise))]))];
+    }
+    default:
+      throw new Error(`${id} is a branch report.`);
+  }
+}
+
+async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise<Rows> {
+  const T = ctx.tenantId;
   switch (id) {
     case "sales-register": {
       const s = await db.sale.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, include: { customer: { select: { name: true } } }, orderBy: { at: "asc" } });
@@ -50,31 +110,12 @@ export async function reportRows(ctx: Ctx, id: ReportId, p: Period): Promise<(st
       return [["Medicine", "Strength", "Sellable", "Reorder level", "Sales/day (28d)", "Days cover"],
         ...m.filter((x) => (s.get(x.id) ?? 0) < x.reorderLevel).map((x) => { const st = s.get(x.id) ?? 0, vel = v.get(x.id) ?? 0; return [x.name, x.strength, st, x.reorderLevel, vel.toFixed(2), vel ? Math.floor(st / vel) : ""]; })];
     }
-    case "supplier-dues": {
-      const [sup, bal, bills] = await Promise.all([db.supplier.findMany({ where: { tenantId: T }, orderBy: { name: "asc" } }), supplierBalances(db, T), db.supplierBill.findMany({ where: { tenantId: T }, orderBy: { dueDate: "asc" } })]);
-      return [["Supplier", "GSTIN", "Balance", "Next due date", "Next due amount"],
-        ...sup.map((x) => { const o = bills.find((b) => b.supplierId === x.id && b.paidPaise < b.amountPaise); return [x.name, x.gstin, r2(bal.get(x.id) ?? 0), o ? isoOf(o.dueDate) : "", o ? r2(big(o.amountPaise) - big(o.paidPaise)) : ""]; })];
-    }
-    case "customer-dues": {
-      const [c, bal] = await Promise.all([db.customer.findMany({ where: { tenantId: T, erasedAt: null }, orderBy: { name: "asc" } }), customerBalances(db, T)]);
-      return [["Customer", "Phone", "Outstanding", "Credit limit"], ...c.filter((x) => (bal.get(x.id) ?? 0) !== 0 || big(x.creditLimitPaise) > 0).map((x) => [x.name, x.phone, r2(bal.get(x.id) ?? 0), r2(big(x.creditLimitPaise))])];
-    }
-    case "gst-summary": {
-      const out = await db.$queryRaw<{ rate: number; taxable: bigint; tax: bigint }[]>`SELECT si."gstRate" rate, SUM(si."taxablePaise") taxable, SUM(si."mrpPaise"*si.qty - si."discountPaise" - si."taxablePaise") tax FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" WHERE s."tenantId" = ${T} AND s.at >= ${p.from} AND s.at < ${p.to} GROUP BY 1 ORDER BY 1`;
-      const inn = await db.$queryRaw<{ rate: number; taxable: bigint }[]>`SELECT gi."gstRate" rate, SUM(gi."ratePaise"*gi.qty) taxable FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId" WHERE g."tenantId" = ${T} AND g."invoiceDate" >= ${p.fromDay}::date AND g."invoiceDate" < ${p.toDay}::date GROUP BY 1 ORDER BY 1`;
-      const rates = [...new Set([...out.map((x) => x.rate), ...inn.map((x) => x.rate)])].sort((a, b) => a - b);
-      return [["Slab %", "Output taxable", "Output CGST", "Output SGST", "Input taxable", "Input CGST", "Input SGST"],
-        ...rates.map((r) => { const o = out.find((x) => x.rate === r), i = inn.find((x) => x.rate === r); const ot = Number(o?.tax ?? 0), it = Math.round((Number(i?.taxable ?? 0) * r) / 100);
-          return [r, r2(Number(o?.taxable ?? 0)), r2(Math.floor(ot / 2)), r2(ot - Math.floor(ot / 2)), r2(Number(i?.taxable ?? 0)), r2(Math.floor(it / 2)), r2(it - Math.floor(it / 2))]; })];
-    }
-    case "day-book": {
-      const v = await db.voucher.findMany({ where: { tenantId: T, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "asc" }, { no: "asc" }] });
-      return [["Voucher", "Date", "Type", "Narration", "Account", "Debit", "Credit"], ...v.flatMap((x) => x.lines.map((l) => [x.no, ist(x.date), x.type, x.narration, l.account, r2(big(l.debitPaise)), r2(big(l.creditPaise))]))];
-    }
     case "stock-movements": {
       const m = await db.stockMovement.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, include: { batch: { include: { medicine: { select: { name: true } } } } }, orderBy: { at: "asc" } });
       const users = await db.user.findMany({ where: { tenantId: T }, select: { id: true, name: true } });
       return [["Time", "Medicine", "Batch", "Type", "Qty", "Reference", "By"], ...m.map((x) => [ist(x.at), x.batch.medicine.name, x.batch.batchNo, x.type, x.qty, x.note ?? x.refType, users.find((u) => u.id === x.userId)?.name ?? ""])];
     }
+    default:
+      throw new Error(`${id} is a pharmacy report.`);
   }
 }

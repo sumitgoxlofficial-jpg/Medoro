@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeView, can, type Ctx } from "@/server/context";
@@ -34,18 +35,49 @@ async function accountTotals(tenantId: string, from: Date | null, to: Date) {
   return new Map(rows.map((r) => [r.account, { dr: Number(r.dr), cr: Number(r.cr) }]));
 }
 
+type GstRow = { rate: number; taxable: bigint; tax: bigint };
+const inBranches = (col: Prisma.Sql, branchIds: string[] | null) => (branchIds ? Prisma.sql`AND ${col} = ANY(${branchIds}::text[])` : Prisma.empty);
+
+/**
+ * Output GST by slab for the period, net of credit notes (sales returns) issued in it, split the same way the
+ * credit-note voucher splits them. `branchIds` null = the whole pharmacy.
+ */
+export async function outputGstByRate(tenantId: string, p: Period, branchIds: string[] | null) {
+  const [sold, returned] = await Promise.all([
+    db.$queryRaw<GstRow[]>`
+      SELECT si."gstRate" rate, SUM(si."taxablePaise")::bigint taxable, SUM(si."mrpPaise" * si.qty - si."discountPaise" - si."taxablePaise")::bigint tax
+      FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId"
+      WHERE s."tenantId" = ${tenantId} AND s.at >= ${p.from} AND s.at < ${p.to} ${inBranches(Prisma.sql`s."branchId"`, branchIds)} GROUP BY 1`,
+    db.$queryRaw<GstRow[]>`
+      SELECT x.rate, SUM(x.taxable)::bigint taxable, SUM(x.amount - x.taxable)::bigint tax FROM (
+        SELECT si."gstRate" rate, (l->>'amount')::bigint amount, ROUND(si."taxablePaise"::numeric * (l->>'qty')::int / si.qty) taxable
+        FROM "SalesReturn" r CROSS JOIN LATERAL jsonb_array_elements(r.lines) l JOIN "SaleItem" si ON si.id = l->>'itemId'
+        WHERE r."tenantId" = ${tenantId} AND r.at >= ${p.from} AND r.at < ${p.to} ${inBranches(Prisma.sql`r."branchId"`, branchIds)}) x GROUP BY 1`,
+  ]);
+  const rates = [...new Set([...sold, ...returned].map((r) => r.rate))].sort((a, b) => a - b);
+  return rates.map((rate) => {
+    const s = sold.find((r) => r.rate === rate), r = returned.find((x) => x.rate === rate);
+    const grossTaxable = Number(s?.taxable ?? 0), grossTax = Number(s?.tax ?? 0), retTaxable = Number(r?.taxable ?? 0), retTax = Number(r?.tax ?? 0);
+    return { rate, grossTaxable, grossTax, retTaxable, retTax, taxable: grossTaxable - retTaxable, tax: grossTax - retTax };
+  });
+}
+
+/** Input taxable value by slab from purchase invoices dated in the period. */
+export async function inputGstByRate(tenantId: string, p: Period, branchIds: string[] | null) {
+  const rows = await db.$queryRaw<{ rate: number; taxable: bigint }[]>`
+    SELECT gi."gstRate" rate, SUM(gi."ratePaise" * gi.qty)::bigint taxable FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId"
+    WHERE g."tenantId" = ${tenantId} AND g."invoiceDate" >= ${p.fromDay}::date AND g."invoiceDate" < ${p.toDay}::date ${inBranches(Prisma.sql`g."branchId"`, branchIds)} GROUP BY 1 ORDER BY 1`;
+  return rows.map((r) => { const taxable = Number(r.taxable); return { rate: r.rate, taxable, tax: Math.round((taxable * r.rate) / 100) }; });
+}
+
 export async function accountsOverview(ctx: Ctx, p: Period) {
   authorizeView(ctx, "reports");
   const [tot, all, cogsRows, gstOut, gstIn] = await Promise.all([
     accountTotals(ctx.tenantId, p.from, p.to),
     accountTotals(ctx.tenantId, null, new Date()),
     db.$queryRaw<{ c: bigint | null }[]>`SELECT SUM(si."costPaise" * (si.qty - si."returnedQty")) c FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" WHERE s."tenantId" = ${ctx.tenantId} AND s.at >= ${p.from} AND s.at < ${p.to}`,
-    db.$queryRaw<{ rate: number; taxable: bigint; tax: bigint }[]>`
-      SELECT si."gstRate" rate, SUM(si."taxablePaise") taxable, SUM(si."mrpPaise" * si.qty - si."discountPaise" - si."taxablePaise") tax
-      FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" WHERE s."tenantId" = ${ctx.tenantId} AND s.at >= ${p.from} AND s.at < ${p.to} GROUP BY 1 ORDER BY 1`,
-    db.$queryRaw<{ rate: number; taxable: bigint }[]>`
-      SELECT gi."gstRate" rate, SUM(gi."ratePaise" * gi.qty) taxable FROM "GrnItem" gi JOIN "Grn" g ON g.id = gi."grnId"
-      WHERE g."tenantId" = ${ctx.tenantId} AND g."invoiceDate" >= ${p.fromDay}::date AND g."invoiceDate" < ${p.toDay}::date GROUP BY 1 ORDER BY 1`,
+    outputGstByRate(ctx.tenantId, p, null),
+    inputGstByRate(ctx.tenantId, p, null),
   ]);
   const cr = (a: string) => (tot.get(a)?.cr ?? 0) - (tot.get(a)?.dr ?? 0);
   const dr = (a: string) => -cr(a);
@@ -58,8 +90,7 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
   const retTax = dr(ACC.cgst) + dr(ACC.sgst); // output tax reversed by credit notes is posted as debits
   const gst = rates.map((r) => {
     const o = gstOut.find((g) => g.rate === r), i = gstIn.find((g) => g.rate === r);
-    const out = Number(o?.tax ?? 0), inTaxable = Number(i?.taxable ?? 0), inTax = Math.round((inTaxable * r) / 100);
-    return { rate: r, outTaxable: Number(o?.taxable ?? 0), outTax: out, inTaxable, inTax };
+    return { rate: r, outTaxable: o?.taxable ?? 0, outTax: o?.tax ?? 0, inTaxable: i?.taxable ?? 0, inTax: i?.tax ?? 0 };
   });
   return {
     period: p,
@@ -69,9 +100,12 @@ export async function accountsOverview(ctx: Ctx, p: Period) {
   };
 }
 
-export async function dayBook(ctx: Ctx, p: Period, take = 100) {
+export const DAY_BOOK_PAGE = 100;
+
+/** Newest first, a page at a time; pass the last voucher id shown as `after` for the next page. */
+export async function dayBook(ctx: Ctx, p: Period, after?: string, take = DAY_BOOK_PAGE) {
   if (!can(ctx, "reports") && !can(ctx, "payments")) authorizeView(ctx, "reports");
-  const vs = await db.voucher.findMany({ where: { tenantId: ctx.tenantId, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "desc" }, { no: "desc" }], take });
+  const vs = await db.voucher.findMany({ where: { tenantId: ctx.tenantId, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "desc" }, { no: "desc" }, { id: "desc" }], take, ...(after ? { cursor: { id: after }, skip: 1 } : {}) });
   const reversed = new Set((await db.voucher.findMany({ where: { tenantId: ctx.tenantId, reversesId: { in: vs.map((v) => v.id) } }, select: { reversesId: true } })).map((r) => r.reversesId));
   return vs.map((v) => ({
     id: v.id, no: v.no, date: v.date.toISOString(), type: v.type, narration: v.narration,
