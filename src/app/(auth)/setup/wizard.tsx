@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { GSTIN_RE, MOBILE_RE, ROLE_OPTIONS, inviteContact, normPhone } from "@/domain/identity/contracts";
 import { setupAction, testDatabase } from "../actions";
+import { downloadRecoveryKit } from "@/components/recovery-kit";
 
 const LABELS = ["Pharmacy", "Your account", "Database", "Branches", "Team", "Backups", "Done"];
 const inp = "border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none bg-white focus:border-teal focus:ring-2 focus:ring-teal/15 w-full";
@@ -60,18 +61,7 @@ export function Wizard({ deployment }: { deployment: Dep }) {
     const key = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
     const fp = Array.from(digest.slice(0, 4), (b) => b.toString(16).padStart(2, "0").toUpperCase()).join(":");
-    const text = [
-      "MEDORO BACKUP RECOVERY KIT", "==========================", "",
-      `Pharmacy: ${ph.name}`, `Pharmacy code: ${ph.code}`, `Created: ${new Date().toLocaleString("en-IN")}`, "",
-      "Backup decryption key:", key, "", `Key fingerprint: ${fp}`, "",
-      "Keep this printed and offline (a locker or safe). Anyone with this key and your backup",
-      "files can read your data. Without it, encrypted backups cannot be restored.",
-      "Medoro does not keep a copy of this key.",
-    ].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-    a.download = `medoro-recovery-kit-${ph.code || "pharmacy"}.txt`;
-    document.body.appendChild(a); a.click(); a.remove();
+    downloadRecoveryKit({ pharmacy: ph.name, code: ph.code, key, fingerprint: fp });
     setKit({ key, fp });
   };
 
