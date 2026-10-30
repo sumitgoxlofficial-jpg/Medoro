@@ -34,6 +34,12 @@ describe("data import", () => {
     const dupInFile = xlsx([["Brand name", "Generic", "Strength", "Form", "Manufacturer", "MRP", "GST", "Batch", "Expiry", "Qty", "Cost"],
       ["Okacet", "Cetirizine", "10 mg", "Tablet", "Cipla", "21", "12", "OK1", `05/${next}`, 5, 14], ["Okacet", "Cetirizine", "10 mg", "Tablet", "Cipla", "21", "12", "OK1", `05/${next}`, 5, 14]]);
     expect((await previewImport(ctx, "medicines", "d.xlsx", dupInFile)).rows[1].errors[0]).toMatch(/appears twice/);
+    const dupBarcode = csv([["Brand name", "Generic", "Strength", "Form", "Manufacturer", "MRP", "GST", "Barcode"],
+      ["Cetzine", "Cetirizine", "10 mg", "Tablet", "GSK", "20", "12", "8901000000017"], ["Zyrtec", "Cetirizine", "10 mg", "Tablet", "UCB", "25", "12", "8901000000017"]]);
+    const pb = await previewImport(ctx, "medicines", "b.csv", dupBarcode);
+    expect(pb.rows[1].errors.join(" ")).toMatch(/also on row 2/);
+    await expect(runImport(ctx, "medicines", "b.csv", dupBarcode)).rejects.toThrow(/problems/);
+    expect(await db.medicine.count({ where: { name: "Cetzine" } })).toBe(0);
   });
 
   it("bad rows block the whole import with a reason per row", async () => {
@@ -71,5 +77,11 @@ describe("data import", () => {
     const c = await db.customer.findFirstOrThrow({ where: { phone: "9890112345" } });
     expect(c).toMatchObject({ waOptIn: true, creditLimitPaise: 200000n });
     expect(await db.auditEvent.count({ where: { action: "Data imported" } })).toBe(3);
+
+    const walkIns = csv([["Customer name", "Mobile"], ["Sunita  Patil", ""], ["sunita patil.", ""], ["Anil", ""]]);
+    expect((await previewImport(owner, "customers", "w.csv", walkIns)).rows.map((r) => r.action)).toEqual(["create", "skip", "create"]);
+    expect(await runImport(owner, "customers", "w.csv", walkIns)).toMatchObject({ created: 2, skipped: 1 });
+    expect(await previewImport(owner, "customers", "w.csv", walkIns)).toMatchObject({ ok: 0, skip: 3 });
+    expect(await db.customer.count({ where: { phone: null } })).toBe(2);
   });
 });

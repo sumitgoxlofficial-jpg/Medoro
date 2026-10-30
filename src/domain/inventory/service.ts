@@ -1,5 +1,5 @@
 import "server-only";
-import { db } from "@/server/db";
+import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
@@ -29,12 +29,13 @@ export async function listInventory(ctx: Ctx, q: string, filter: InvFilter) {
     const sellable = m.batches.filter((b) => isSellable(b, today)).reduce((a, b) => a + b.qtyAvailable, 0);
     const blocked = m.batches.filter((b) => !isSellable(b, today)).length;
     const near = m.batches.filter((b) => daysTo(b.expiryDate, today) > 0).sort((a, b) => +a.expiryDate - +b.expiryDate)[0];
+    const soonest = m.batches.length ? Math.min(...m.batches.map((b) => daysTo(b.expiryDate, today))) : null;
     return {
       id: m.id, name: m.name, meta: `${m.generic} · ${m.strength} · ${m.form}`, manufacturer: m.manufacturer, sellable, reorder: m.reorderLevel,
       batches: m.batches.length, blocked, nearExpiry: near ? near.expiryDate.toISOString().slice(0, 10) : null, nearDays: near ? daysTo(near.expiryDate, today) : null,
-      mrp: big(m.mrpPaise), gst: m.gstRate, schedule: m.schedule,
+      mrp: big(m.mrpPaise), gst: m.gstRate, schedule: m.schedule, soonest,
     };
-  }).filter((r) => filter === "low" ? r.sellable < r.reorder : filter === "exp" ? r.nearDays != null && r.nearDays <= 90 : true);
+  }).filter((r) => filter === "low" ? r.sellable < r.reorder : filter === "exp" ? r.soonest != null && r.soonest <= 90 : true);
   return { rows, total };
 }
 
@@ -66,22 +67,24 @@ export async function medicineDetail(ctx: Ctx, id: string) {
 }
 
 export async function createMedicine(ctx: Ctx, raw: MedicineInput) {
+  return db.$transaction((tx) => createMedicineIn(tx, ctx, raw));
+}
+
+export async function createMedicineIn(tx: Tx, ctx: Ctx, raw: MedicineInput) {
   authorizeAny(ctx, "adjust", "purchase");
   const i = medicineSchema.parse(raw);
-  return db.$transaction(async (tx) => {
-    if (i.barcode && (await tx.medicine.findFirst({ where: { tenantId: ctx.tenantId, barcode: i.barcode } }))) throw new UserError(`Barcode ${i.barcode} is already used by another medicine.`);
-    const dup = await tx.medicine.findFirst({ where: { tenantId: ctx.tenantId, active: true, name: { equals: i.name, mode: "insensitive" }, strength: { equals: i.strength, mode: "insensitive" } } });
-    if (dup) throw new UserError(`${dup.name} ${dup.strength} already exists.`);
-    const m = await tx.medicine.create({
-      data: {
-        tenantId: ctx.tenantId, name: i.name, generic: i.generic, strength: i.strength, form: i.form, manufacturer: i.manufacturer,
-        pack: i.pack || "1 unit", unitsPerPack: parseInt(i.pack) || 1, mrpPaise: BigInt(i.mrp), gstRate: i.gstRate, schedule: i.schedule || null,
-        reorderLevel: i.reorderLevel, barcode: i.barcode || null, hsn: i.hsn, rack: i.rack || null,
-      },
-    });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Medicine created", entity: "medicine", entityId: m.id, detail: `${m.name} · ${m.generic} ${m.strength}` });
-    return m.id;
+  if (i.barcode && (await tx.medicine.findFirst({ where: { tenantId: ctx.tenantId, barcode: i.barcode } }))) throw new UserError(`Barcode ${i.barcode} is already used by another medicine.`);
+  const dup = await tx.medicine.findFirst({ where: { tenantId: ctx.tenantId, active: true, name: { equals: i.name, mode: "insensitive" }, strength: { equals: i.strength, mode: "insensitive" } } });
+  if (dup) throw new UserError(`${dup.name} ${dup.strength} already exists.`);
+  const m = await tx.medicine.create({
+    data: {
+      tenantId: ctx.tenantId, name: i.name, generic: i.generic, strength: i.strength, form: i.form, manufacturer: i.manufacturer,
+      pack: i.pack || "1 unit", unitsPerPack: parseInt(i.pack) || 1, mrpPaise: BigInt(i.mrp), gstRate: i.gstRate, schedule: i.schedule || null,
+      reorderLevel: i.reorderLevel, barcode: i.barcode || null, hsn: i.hsn, rack: i.rack || null,
+    },
   });
+  await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Medicine created", entity: "medicine", entityId: m.id, detail: `${m.name} · ${m.generic} ${m.strength}` });
+  return m.id;
 }
 
 export async function updateMedicine(ctx: Ctx, id: string, version: number, raw: MedicineInput) {
@@ -113,29 +116,31 @@ export async function updateMedicine(ctx: Ctx, id: string, version: number, raw:
 
 /** Receives a batch. With a supplier it posts a one-line GRN (payable, input GST, supplier bill). Cost is per pack excluding GST. */
 export async function receiveBatch(ctx: Ctx, raw: ReceiveInput) {
+  return db.$transaction((tx) => receiveBatchIn(tx, ctx, raw));
+}
+
+export async function receiveBatchIn(tx: Tx, ctx: Ctx, raw: ReceiveInput) {
   authorizeAny(ctx, "adjust", "purchase");
   const i = receiveSchema.parse(raw);
   if (daysTo(i.expiry) <= 0) throw new UserError("Expiry must be in the future. Expired stock can’t be received as sellable.");
   if (i.cost > i.mrp) throw new UserError("Cost is above MRP. Check the invoice.");
   if (i.supplierId && !i.invoiceNo) throw new UserError("Enter the supplier invoice number.");
-  return db.$transaction(async (tx) => {
-    const m = await tx.medicine.findFirst({ where: { id: i.medicineId, tenantId: ctx.tenantId, active: true } });
-    if (!m) throw new UserError("Medicine not found.");
-    const exists = await tx.batch.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
-    if (exists) throw new UserError(`Batch ${i.batchNo} already exists for ${m.name}. Use a stock adjustment to correct its quantity.`);
-    if (i.supplierId) {
-      const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
-        lines: [{ medicineId: m.id, batchNo: i.batchNo, expiry: i.expiry, qty: i.qty, freeQty: 0, rate: i.cost / 100, mrp: i.mrp / 100, poItemId: null }] });
-      const b = await tx.batch.findFirstOrThrow({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
-      return { batchId: b.id, grnNo: r.grnNo };
-    }
-    const b = await tx.batch.create({
-      data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo, expiryDate: dateOnly(i.expiry), qtyAvailable: i.qty, costPaise: BigInt(i.cost), mrpPaise: BigInt(i.mrp) },
-    });
-    await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: i.qty, type: "opening", refType: "opening", refId: b.id, userId: ctx.userId, note: "Opening stock" } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Opening stock entered", entity: "batch", entityId: b.id, detail: `${m.name} · ${i.batchNo} × ${i.qty}` });
-    return { batchId: b.id, grnNo: null as string | null };
+  const m = await tx.medicine.findFirst({ where: { id: i.medicineId, tenantId: ctx.tenantId, active: true } });
+  if (!m) throw new UserError("Medicine not found.");
+  const exists = await tx.batch.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
+  if (exists) throw new UserError(`Batch ${i.batchNo} already exists for ${m.name}. Use a stock adjustment to correct its quantity.`);
+  if (i.supplierId) {
+    const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
+      lines: [{ medicineId: m.id, batchNo: i.batchNo, expiry: i.expiry, qty: i.qty, freeQty: 0, rate: i.cost / 100, mrp: i.mrp / 100, poItemId: null }] });
+    const b = await tx.batch.findFirstOrThrow({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
+    return { batchId: b.id, grnNo: r.grnNo };
+  }
+  const b = await tx.batch.create({
+    data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo, expiryDate: dateOnly(i.expiry), qtyAvailable: i.qty, costPaise: BigInt(i.cost), mrpPaise: BigInt(i.mrp) },
   });
+  await tx.stockMovement.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, batchId: b.id, qty: i.qty, type: "opening", refType: "opening", refId: b.id, userId: ctx.userId, note: "Opening stock" } });
+  await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Opening stock entered", entity: "batch", entityId: b.id, detail: `${m.name} · ${i.batchNo} × ${i.qty}` });
+  return { batchId: b.id, grnNo: null as string | null };
 }
 
 /** Quarantine blocks a batch from sale; release makes it sellable again. Logged as a zero-qty movement. */

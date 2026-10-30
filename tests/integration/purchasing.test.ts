@@ -30,6 +30,10 @@ describe("purchasing", () => {
     await setPoStatus(ctx, po.id, "place");
     // 100 × 24 = 2400 + 12% = 2688
     await expect(postGrnTx(ctx, { ...grn, statedTotal: "2700", lines: [line(dolo, "DL1", 100, "24", "33.60", items[0].id)] })).rejects.toThrow(/don’t match/);
+    await expect(postGrnTx(ctx, { ...grn, statedTotal: null, lines: [line(dolo, "DL1", 101, "24", "33.60", items[0].id)] })).rejects.toThrow(/ordered 100/);
+    await expect(postGrnTx(ctx, { ...grn, statedTotal: null, lines: [line(pan, "PN1", 5, "110", "155", items[0].id)] })).rejects.toThrow(/doesn’t match an item/);
+    await expect(postGrnTx(ctx, { ...grn, poId: null, statedTotal: null, lines: [line(dolo, "DL1", 5, "24", "33.60", items[0].id)] })).rejects.toThrow(/purchase order/);
+    await expect(postGrnTx(await ctxFor("Manager", "Second"), { ...grn, statedTotal: null, lines: [line(dolo, "DL1", 5, "24", "33.60", items[0].id)] })).rejects.toThrow(/another branch/);
     await postGrnTx(ctx, { ...grn, statedTotal: "2688", lines: [line(dolo, "DL1", 100, "24", "33.60", items[0].id)] });
     expect((await listOrders(ctx))[0].status).toBe("partially_received");
     await expect(postGrnTx(ctx, { ...grn, statedTotal: "2688", lines: [line(dolo, "DL1", 100, "24", "33.60", items[0].id)] })).rejects.toThrow(/already posted/);
@@ -44,6 +48,12 @@ describe("purchasing", () => {
       lines: [{ medicineId: dolo, batchNo: "DL1", expiry: exp, qty: 10, freeQty: 2, rate: "24", mrp: "33.60", poItemId: null }] });
     const b = await db.batch.findFirstOrThrow({ where: { batchNo: "DL1" } });
     expect(b.qtyAvailable).toBe(112);
+    expect(b.costPaise).toBe(2357n); // (100 × 24.00 + 12 × 20.00) / 112
+    const sup2 = await saveSupplier(ctx, null, { name: "Kalyan Distributors", creditDays: "15" });
+    await postGrnTx(ctx, { supplierId: sup2, invoiceNo: "KD/1", invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
+      lines: [{ medicineId: dolo, batchNo: "DL1", expiry: exp, qty: 8, freeQty: 0, rate: "30", mrp: "33.60", poItemId: null }] });
+    const b2 = await db.batch.findUniqueOrThrow({ where: { id: b.id } });
+    expect([b2.qtyAvailable, b2.costPaise, b2.supplierId]).toEqual([120, 2400n, sup2]); // (112 × 23.57 + 8 × 30) / 120 = 23.999
     await postGrnTx(ctx, { supplierId: sup, invoiceNo: "MMA/4", invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
       lines: [{ medicineId: pan, batchNo: "PNF", expiry: exp, qty: 10, freeQty: 2, rate: "120", mrp: "155", poItemId: null }] });
     expect((await db.batch.findFirstOrThrow({ where: { batchNo: "PNF" } })).costPaise).toBe(10000n); // 1200 / 12 units

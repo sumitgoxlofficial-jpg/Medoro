@@ -317,6 +317,7 @@ model Recall {
   sourceRef   String
   publishedAt DateTime @db.Date
   product     String
+  medicineId  String? // null on notices recorded before recalls were tied to a medicine
   batchNos    String[]
   reason      String
   status      String // open, quarantined, returned, resolved

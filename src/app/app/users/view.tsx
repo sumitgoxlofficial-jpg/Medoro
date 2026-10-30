@@ -18,7 +18,7 @@ import { branchAction, counterAction, inviteAction, memberAction, permAction, re
 type Team = Awaited<ReturnType<typeof listTeam>>;
 type Br = Awaited<ReturnType<typeof listBranches>>[number];
 const ROLE_TONE: Record<string, Tone> = { Owner: "teal", Manager: "blue", Pharmacist: "green", Cashier: "gray", Accountant: "amber" };
-const TR: Record<string, [string, Tone]> = { pending: ["Pending approval", "amber"], in_transit: ["In transit", "blue"], received: ["Received", "green"], rejected: ["Rejected", "gray"] };
+const TR: Record<string, [string, Tone]> = { pending: ["Pending approval", "amber"], in_transit: ["In transit", "blue"], received: ["Received", "green"], rejected: ["Rejected", "gray"], cancelled: ["Cancelled", "gray"] };
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
@@ -149,6 +149,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
                   <span className="flex gap-1.5 justify-end">
                     {canAdjust && x.status === "pending" && myBranches.includes(x.fromId) ? <><Button size="sm" variant="primary" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "approve")))}>Approve</Button><Button size="sm" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "reject")))}>Reject</Button></> : null}
                     {canAdjust && x.status === "in_transit" && myBranches.includes(x.toId) ? <Button size="sm" variant="primary" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "receive")))}>Mark received</Button> : null}
+                    {canAdjust && x.status === "in_transit" && myBranches.includes(x.fromId) ? <Button size="sm" disabled={pending} onClick={() => start(async () => res(await transferAction(x.id, "cancel")))}>Cancel</Button> : null}
                   </span>
                 </div>
               );
