@@ -6,7 +6,6 @@ import { setupDrive } from "@/server/setup-drive";
 import { driveAppConfigured } from "@/domain/system/gdrive";
 import { Start } from "./start";
 import { Unlock } from "./unlock";
-import { Wizard } from "./wizard";
 
 export const metadata = { title: "Set up your pharmacy" };
 export const dynamic = "force-dynamic";
@@ -20,7 +19,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   }
   else if (!(await setupUnlocked())) return <Unlock disabled={setupGate() === "disabled"} />;
   const deployment = (process.env.DEPLOYMENT_MODE as "cloud" | "onprem" | "lan" | "single") ?? "lan";
-  if (await isSetupDone()) return <Wizard deployment={deployment} />;
-  const restore = (await searchParams).restore === "1";
+  // Same component tree before and after setup: the refresh after setupAction must not remount the
+  // wizard, or its final step (invite codes, shown once) is lost and it starts again at step 1.
+  const restore = !(await isSetupDone()) && (await searchParams).restore === "1";
   return <Start deployment={deployment} driveApp={driveAppConfigured()} driveAccount={(await setupDrive())?.account ?? null} restore={restore} />;
 }
