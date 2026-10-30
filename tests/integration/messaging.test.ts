@@ -201,9 +201,12 @@ describe("WhatsApp onboarding, delivery worker and reminders", () => {
     const headers = (tok: string) => new Headers({ authorization: `Bearer ${tok}` });
     expect(await handleInboundSms(JSON.stringify({ from: "+919822000308", text: "stop" }), headers("wrong"))).toBeNull();
     expect(await handleInboundSms(JSON.stringify({ from: "+919822000308", text: "STOP please" }), headers(process.env.SMS_INBOUND_TOKEN!))).toBe(1);
-    expect(await db.customer.findUniqueOrThrow({ where: { id: h } })).toMatchObject({ smsOptIn: false, smsOptInMethod: "Opted out by replying STOP by SMS" });
+    expect(await db.customer.findUniqueOrThrow({ where: { id: h } })).toMatchObject({ smsOptIn: false, marketingSms: false, smsOptInMethod: "Opted out by replying STOP by SMS" });
+    expect(await db.consentRecord.findFirstOrThrow({ where: { customerId: h, channel: "sms", granted: false } })).toMatchObject({ purpose: "transactional", method: "reply", source: "sms" });
 
-    // Store update: WhatsApp customers get the template with the text as variable 2; Hari opted out of SMS.
+    // Store update: customers who agreed to offers on WhatsApp get the template with the text as variable 2; invoice-only
+    // customers don't, and Hari opted out of SMS.
+    const jaya = await createCustomer(ctx, { name: "Jaya", phone: "9822000310", waOptIn: true, marketingWa: true, creditLimit: "0" });
     await draftCampaign(ctx, "Diwali hours", "store_update", "Open 9 to 2 on Diwali.\nHappy Diwali!");
     const camp = await db.campaign.findFirstOrThrow({ where: { name: "Diwali hours" } });
     expect(camp.message).toBe("Open 9 to 2 on Diwali. Happy Diwali!");
@@ -213,6 +216,7 @@ describe("WhatsApp onboarding, delivery worker and reminders", () => {
     expect(lastBody().template).toMatchObject({ name: "store_update", components: [{ parameters: [{}, { text: "Open 9 to 2 on Diwali. Happy Diwali!" }] }] });
     expect(calls.filter((c) => c.url === "https://sms.example/send").length).toBe(smsBefore);
     expect(await db.waMessage.count({ where: { invoiceId: "campaign:" + camp.id, customerId: h } })).toBe(0);
+    expect((await db.waMessage.findMany({ where: { invoiceId: "campaign:" + camp.id } })).map((m) => m.customerId)).toEqual([jaya]);
   });
 
   it("applies failures reported later by webhook: retry temporary ones, flag invalid numbers", async () => {

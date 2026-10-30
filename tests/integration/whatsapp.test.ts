@@ -36,7 +36,7 @@ describe("WhatsApp", () => {
     const ctx = await ctxFor();
     const med = await createMedicine(ctx, { name: "Pan 40", generic: "Pantoprazole", strength: "40 mg", form: "Tablet", manufacturer: "Alkem", pack: "15", mrp: "155", gstRate: 12, schedule: "", reorderLevel: 5, barcode: "", hsn: "3004", rack: "" });
     await receiveBatch(ctx, { medicineId: med, batchNo: "P1", expiry: addDays(todayISO(), 300).slice(0, 7), qty: 10, cost: "100", mrp: "155", supplierId: null, invoiceNo: "" });
-    const c = await createCustomer(ctx, { name: "Ramesh", phone: "9822041736", waOptIn: true, creditLimit: "0" });
+    const c = await createCustomer(ctx, { name: "Ramesh", phone: "9822041736", waOptIn: true, marketingWa: true, creditLimit: "0" });
     sale = (await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId: med, batchId: (await db.batch.findFirstOrThrow()).id, qty: 1 }], customerId: c, discountPct: 0, pay: { mode: "cash" } })).saleId;
   });
   afterAll(() => vi.unstubAllGlobals());
@@ -72,7 +72,9 @@ describe("WhatsApp", () => {
     expect((await db.waMessage.findFirstOrThrow()).status).toBe("delivered");
     const b3 = hook([], [{ from: "919822041736", type: "text", text: { body: "stop" } }]);
     await handleWebhook(b3, sign(b3));
-    expect((await db.customer.findFirstOrThrow()).waOptIn).toBe(false);
+    // STOP withdraws both purposes on WhatsApp, each with a consent record.
+    expect(await db.customer.findFirstOrThrow()).toMatchObject({ waOptIn: false, marketingWa: false, optInMethod: "Opted out by replying STOP on WhatsApp" });
+    expect((await db.consentRecord.findMany({ where: { channel: "whatsapp", granted: false, method: "reply" } })).map((r) => r.purpose).sort()).toEqual(["marketing", "transactional"]);
     await db.waMessage.updateMany({ data: { status: "failed" } });
     await expect(sendInvoice(ctx, sale, "9822041736", true)).rejects.toThrow(/opted out/);
     expect((await db.waMessage.findFirstOrThrow()).attempts).toBe(1);
@@ -95,7 +97,9 @@ describe("WhatsApp", () => {
     // Ramesh was opted back in only for the retry test above; he texted STOP, so campaigns must skip him.
     await db.customer.updateMany({ where: { phone: "9822041736" }, data: { waOptIn: false, optInMethod: "Opted out by replying STOP on WhatsApp" } });
     const ids = [];
-    for (const [n, ph] of [["Asha Rao", "9822000101"], ["Bina", "9822000102"], ["Chetan", "9822000103"]] as const) ids.push(await createCustomer(ctx, { name: n, phone: ph, waOptIn: true, creditLimit: "0" }));
+    // Campaigns are marketing: only customers who also agreed to offers on WhatsApp get them.
+    for (const [n, ph] of [["Asha Rao", "9822000101"], ["Bina", "9822000102"], ["Chetan", "9822000103"]] as const) ids.push(await createCustomer(ctx, { name: n, phone: ph, waOptIn: true, marketingWa: true, creditLimit: "0" }));
+    await createCustomer(ctx, { name: "Dev (invoices only)", phone: "9822000104", waOptIn: true, creditLimit: "0" });
     await draftCampaign(ctx, "Diwali", "invoice_share");
     const camp = await db.campaign.findFirstOrThrow({ where: { name: "Diwali" } });
     // A previous run reached Asha, then the server died with the campaign still "sending".
@@ -113,7 +117,7 @@ describe("WhatsApp", () => {
     expect((await retryMessage(ctx, m.id)).status).toBe("sent");
     expect(await db.waMessage.findUniqueOrThrow({ where: { id: m.id } })).toMatchObject({ status: "sent", attempts: 2 });
     await db.waMessage.update({ where: { id: m.id }, data: { status: "failed" } });
-    await db.customer.update({ where: { id: ids[1] }, data: { waOptIn: false } });
+    await db.customer.update({ where: { id: ids[1] }, data: { marketingWa: false } });
     await expect(retryMessage(ctx, m.id)).rejects.toThrow(/opted out/);
   });
 

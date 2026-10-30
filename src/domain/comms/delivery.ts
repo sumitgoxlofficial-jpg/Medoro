@@ -7,6 +7,7 @@ import { unseal } from "@/server/vault";
 import type { Ctx } from "@/server/context";
 import { sendSms, smsAvailable, smsNeedsTemplate, SmsError, type SmsType } from "@/server/sms";
 import { invoiceData } from "@/domain/sales/service";
+import { hasConsent } from "@/domain/parties/consent";
 import { invoicePdf } from "@/domain/sales/pdf";
 import { graph, GraphError, type FailKind } from "./graph";
 
@@ -215,7 +216,8 @@ const stillConsents = async (m: WaMessage) => {
   if (m.channel === "whatsapp" && (await db.customer.count({ where: { tenantId: m.tenantId, phone: m.recipient, waInvalidAt: { not: null } } }))) return false;
   if (!m.customerId) return true;
   const c = await db.customer.findFirst({ where: { id: m.customerId, tenantId: m.tenantId, erasedAt: null, phone: m.recipient } });
-  return !!c && (m.channel === "sms" ? c.smsOptIn : c.waOptIn && !c.waInvalidAt);
+  const purpose = m.invoiceId.startsWith("campaign:") ? "marketing" : "transactional";
+  return !!c && (m.channel === "sms" ? hasConsent(c, purpose, "sms") : hasConsent(c, purpose, "whatsapp") && !c.waInvalidAt);
 };
 
 /** One more attempt at a failed message, on request. */

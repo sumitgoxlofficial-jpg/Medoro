@@ -7,6 +7,7 @@ import { authorize, requireSubscription, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { seal } from "@/server/vault";
 import { STOP_WORDS } from "@/server/sms";
+import { withdrawByReply } from "@/domain/parties/consent";
 import { invoiceData } from "@/domain/sales/service";
 import { creditNoteData } from "@/domain/sales/returns";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
@@ -164,6 +165,7 @@ type DocSend = { key: string; ref: string; label: string; phone: string; consent
  * temporary failure can be tried again up to 3 attempts, a permanent one only after the number is changed.
  */
 async function sendDocument(ctx: Ctx, d: DocSend) {
+  requireSubscription(ctx);
   const w = await waAccount(ctx.tenantId);
   if (!w) throw new UserError("WhatsApp Business isn’t connected. An owner can connect it under WhatsApp.");
   if (w.cfg.disconnected) throw new UserError("WhatsApp is disconnected (Meta rejected the access token). An owner needs to reconnect it under WhatsApp.");
@@ -297,8 +299,8 @@ export async function handleWebhook(raw: string, signature: string | null) {
       const text = (msg.text?.body ?? "").trim().toUpperCase();
       if (STOP_WORDS.includes(text)) {
         const phone = msg.from.replace(/^91/, "");
-        const r = await db.customer.updateMany({ where: { tenantId: i.tenantId, phone, waOptIn: true }, data: { waOptIn: false, optInMethod: `Opted out by replying ${text} on WhatsApp`, optInAt: new Date() } });
-        if (r.count) await writeAudit(db, { tenantId: i.tenantId, action: "WhatsApp opt-out", entity: "customer", detail: `${phone.slice(0, 5)}••••• replied ${text}` });
+        const r = await withdrawByReply(db, { tenantId: i.tenantId, phone, channel: "whatsapp", word: text });
+        if (r.length) await writeAudit(db, { tenantId: i.tenantId, action: "WhatsApp opt-out", entity: "customer", detail: `${phone.slice(0, 5)}••••• replied ${text}` });
       }
     }
   }

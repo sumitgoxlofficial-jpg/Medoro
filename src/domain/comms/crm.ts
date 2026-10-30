@@ -10,6 +10,7 @@ import { addDays, dayMonth, isoOf, todayISO } from "@/lib/dates";
 import { istClock } from "@/domain/system/schedule";
 import { customerBalances } from "@/domain/parties/balances";
 import { loyaltySettings, salePoints } from "@/domain/sales/loyalty";
+import { consentWhere, hasConsent, type Purpose } from "@/domain/parties/consent";
 import { activeAccount, approvedTemplate, dispatch, queueMessage, smsReady, smsSettings, waAccount, type Payload, type SmsSettings, type WaTemplate } from "./delivery";
 
 export type CrmSettings = {
@@ -73,11 +74,13 @@ export async function smsStatus(tenantId: string) {
 const firstName = (n: string) => n.split(" ")[0];
 
 /**
- * Which channel reaches each customer for one kind of message: WhatsApp when they opted in (and the number
- * isn't flagged as not on WhatsApp) and the template is approved; else SMS when they gave SMS consent and SMS
- * is set up for this type. A connected WhatsApp with the template missing is an error the owner must fix.
+ * Which channel reaches each customer for one kind of message: WhatsApp when they consented to this purpose there
+ * (and the number isn't flagged as not on WhatsApp) and the template is approved; else SMS when they consented to
+ * this purpose by SMS and SMS is set up for this type. Campaigns and store updates are marketing; refill, feedback,
+ * payment and points messages are transactional (see domain/parties/consent). A connected WhatsApp with the
+ * template missing is an error the owner must fix.
  */
-async function router(tenantId: string, template: string | null, smsType: SmsType | null) {
+async function router(tenantId: string, template: string | null, smsType: SmsType | null, purpose: Purpose = smsType === "campaign" ? "marketing" : "transactional") {
   const [w, s, t] = await Promise.all([activeAccount(tenantId), smsSettings(tenantId), db.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true } })]);
   const tpl: WaTemplate | null = w && template ? await approvedTemplate(w, template) : null;
   const sms = !!smsType && smsReady(s, smsType);
@@ -88,10 +91,10 @@ async function router(tenantId: string, template: string | null, smsType: SmsTyp
   return {
     wa: !!tpl, sms,
     /** Prisma filter for customers this router can reach. */
-    audience: { OR: [...(tpl ? [{ waOptIn: true, waInvalidAt: null }] : []), ...(sms ? [{ smsOptIn: true }] : [])] } satisfies Prisma.CustomerWhereInput,
-    payload(c: Pick<Customer, "waOptIn" | "waInvalidAt" | "smsOptIn">, vars: string[]): Payload | null {
-      if (tpl && c.waOptIn && !c.waInvalidAt) return { ch: "wa", template: tpl.name, vars, n: 1 };
-      if (sms && c.smsOptIn) return { ch: "sms", type: smsType!, vars, text: smsText(smsType!, vars, t.name) };
+    audience: { OR: [...(tpl ? [{ ...consentWhere(purpose, "whatsapp"), waInvalidAt: null }] : []), ...(sms ? [consentWhere(purpose, "sms")] : [])] } satisfies Prisma.CustomerWhereInput,
+    payload(c: Pick<Customer, "phone" | "erasedAt" | "optInMethod" | "waOptIn" | "waInvalidAt" | "smsOptIn" | "marketingWa" | "marketingSms">, vars: string[]): Payload | null {
+      if (tpl && hasConsent(c, purpose, "whatsapp") && !c.waInvalidAt) return { ch: "wa", template: tpl.name, vars, n: 1 };
+      if (sms && hasConsent(c, purpose, "sms")) return { ch: "sms", type: smsType!, vars, text: smsText(smsType!, vars, t.name) };
       return null;
     },
   };
@@ -150,7 +153,7 @@ export async function draftCampaign(ctx: Ctx, name: string, template: string, me
   // WhatsApp variables can't contain line breaks, tabs or long runs of spaces.
   const text = message?.replace(/\s+/g, " ").trim() || null;
   if (text && text.length > 300) throw new UserError("Keep the update under 300 characters.");
-  const r = await router(ctx.tenantId, template, "campaign");
+  const r = await router(ctx.tenantId, template, "campaign", "marketing");
   const audience = await db.customer.count({ where: { tenantId: ctx.tenantId, erasedAt: null, phone: { not: null }, ...r.audience } });
   const c = await db.campaign.create({ data: { tenantId: ctx.tenantId, name: name.trim(), template, message: text, audience, status: "draft" } });
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: text ? "Store update drafted" : "Campaign drafted", entity: "campaign", entityId: c.id, detail: `${c.name} · ${template} · ${audience} opted in` });
@@ -173,7 +176,7 @@ export async function sendCampaign(ctx: Ctx, id: string) {
   requireSubscription(ctx);
   const c = await db.campaign.findFirst({ where: { id, tenantId: ctx.tenantId } });
   if (!c || !["draft", "sending", "failed"].includes(c.status)) throw new UserError("This campaign was already sent.");
-  const route = await router(ctx.tenantId, c.template, "campaign");
+  const route = await router(ctx.tenantId, c.template, "campaign", "marketing");
   if (c.status !== "sending") {
     const r = await db.campaign.updateMany({ where: { id, status: c.status }, data: { status: "sending" } });
     if (!r.count) throw new UserError("Already sending.");
