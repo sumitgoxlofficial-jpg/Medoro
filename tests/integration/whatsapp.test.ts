@@ -66,6 +66,10 @@ describe("WhatsApp", () => {
     const b3 = hook([], [{ from: "919822041736", type: "text", text: { body: "stop" } }]);
     await handleWebhook(b3, sign(b3));
     expect((await db.customer.findFirstOrThrow()).waOptIn).toBe(false);
+    await db.waMessage.updateMany({ data: { status: "failed" } });
+    await expect(sendInvoice(ctx, sale, "9822041736", true)).rejects.toThrow(/opted out/);
+    expect((await db.waMessage.findFirstOrThrow()).attempts).toBe(1);
+    await db.customer.updateMany({ data: { waOptIn: true, optInMethod: "Recorded by Owner" } });
   });
 
   it("failed sends retry at most 3 times", async () => {
