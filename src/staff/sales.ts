@@ -39,7 +39,7 @@ export async function saveRates(s: Staff, raw: Record<string, { first: string | 
   await staffAudit(s, "Commission rates saved", PRODUCT_IDS.map((id) => `${id} ${rates[id].first}/${rates[id].renew}`).join(", "));
 }
 
-async function rateFor(staffId: string, productId: string, type: "new" | "renewal") {
+export async function rateFor(staffId: string, productId: string, type: "new" | "renewal") {
   const [rates, u] = await Promise.all([getRates(), db.staffUser.findUnique({ where: { id: staffId }, select: { bonusPct: true } })]);
   const r = rates[productId as ProductId] ?? { first: 0, renew: 0 };
   return (type === "new" ? r.first : r.renew) + Number(u?.bonusPct ?? 0);
@@ -196,12 +196,16 @@ export async function verifySale(s: Staff, id: string, decision: "verify" | "rej
     if (!sale || sale.status !== "pending") throw new UserError("Only pending sales can be verified.");
     if (decision === "reject") {
       await tx.cpSale.update({ where: { id }, data: { status: "rejected", verifiedBy: s.name, verifiedAt: new Date() } });
+      await tx.cpBillingEvent.updateMany({ where: { saleId: id, kind: "payment_claim", status: "open" }, data: { status: "rejected", decidedAt: new Date(), decidedBy: s.name } });
       return null;
     }
     const today = todayISO();
     const p = product(sale.product);
-    const renews = "once" in p && p.once ? null : dateOnly(sale.cycle === "y" ? addDays(today, 365) : addDays(today, 30));
+    const once = "once" in p && p.once;
     let c = await tx.cpCustomer.findUnique({ where: { phone: sale.phone } });
+    // A renewal paid early (or during the trial) starts when the current period ends.
+    const from = c?.renewsOn && isoOf(c.renewsOn) > today ? isoOf(c.renewsOn) : today;
+    const renews = once ? null : dateOnly(addDays(from, sale.cycle === "y" ? 365 : 30));
     if (!c) {
       if ("addon" in p || "once" in p) throw new UserError("This pharmacy isn’t a customer yet. Verify its plan sale first.");
       const n = await nextSeq(tx, CP, "CUST");
@@ -210,6 +214,10 @@ export async function verifySale(s: Staff, id: string, decision: "verify" | "rej
       await tx.cpCustomer.update({ where: { id: c.id }, data: "addon" in p ? { addons: c.addons.includes(sale.product) ? c.addons : [...c.addons, sale.product], status: "active" } : { product: sale.product, cycle: sale.cycle, status: "active", renewsOn: renews } });
     }
     await tx.cpSale.update({ where: { id }, data: { status: "verified", verifiedBy: s.name, verifiedAt: new Date(), customerId: c.id } });
+    const n = await nextSeq(tx, CP, "INVOICE");
+    const period = once ? "" : "addon" in p ? (sale.cycle === "y" ? " · 1 year" : " · 1 month") : ` · ${sale.cycle === "y" ? "1 year" : "1 month"}, paid until ${day(isoOf(renews!))}`;
+    await tx.cpBillingEvent.create({ data: { customerId: c.id, kind: "invoice", status: "done", number: `MED-${today.slice(0, 4)}-${String(n).padStart(5, "0")}`, amountPaise: sale.amountPaise, gstPaise: Math.round((sale.amountPaise * 18) / 100), reference: sale.payRef, detail: p.name + period, saleId: sale.id, byName: s.name } });
+    await tx.cpBillingEvent.updateMany({ where: { saleId: id, kind: "payment_claim", status: "open" }, data: { status: "done", decidedAt: new Date(), decidedBy: s.name } });
     return c.code;
   }).then(async (code) => { await staffAudit(s, decision === "verify" ? "Sale verified" : "Sale rejected", id + (code ? ` · ${code}` : "")); return code; });
 }

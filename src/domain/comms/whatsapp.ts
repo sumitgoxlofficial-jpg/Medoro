@@ -3,7 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, type Ctx } from "@/server/context";
+import { authorize, requireSubscription, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { seal, unseal } from "@/server/vault";
 import { invoiceData } from "@/domain/sales/service";
@@ -80,6 +80,7 @@ export async function waStatus(tenantId: string) {
  */
 export async function sendInvoice(ctx: Ctx, saleId: string, rawPhone: string, consent: boolean, auto = false) {
   if (!ctx.perms.includes("sale")) authorize(ctx, "sale");
+  requireSubscription(ctx);
   const w = await integration(ctx.tenantId);
   if (!w) throw new UserError("WhatsApp Business isn’t connected. An owner can connect it under WhatsApp.");
   const phone = normPhone(rawPhone);

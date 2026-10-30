@@ -12,6 +12,7 @@ export function checkEnv(env: NodeJS.ProcessEnv = process.env): string[] {
     if (!!env.SUPABASE_URL !== !!env.SUPABASE_SECRET_KEY) problems.push("Set both SUPABASE_URL and SUPABASE_SECRET_KEY for bucket storage, or neither (files are then kept in the database).");
     if ((env.CRON_SECRET ?? "").length < 16) problems.push("CRON_SECRET must be at least 16 characters (daily backups).");
   }
+  if (env.LICENSE_SERVER_URL && !env.LICENSE_PUBLIC_KEY) problems.push("LICENSE_PUBLIC_KEY is not set, so licences from LICENSE_SERVER_URL can't be verified.");
   for (const k of Object.keys(env)) {
     if (k.startsWith("NEXT_PUBLIC_") && /SECRET|KEY|TOKEN|PASSWORD/.test(k) && k !== "NEXT_PUBLIC_SW") problems.push(`${k} looks like a secret but NEXT_PUBLIC_ variables are sent to browsers. Rename it.`);
   }
