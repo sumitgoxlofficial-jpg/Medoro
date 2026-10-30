@@ -24,6 +24,18 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   const po = i.poId ? await tx.purchaseOrder.findFirst({ where: { id: i.poId, tenantId: ctx.tenantId }, include: { items: true } }) : null;
   if (i.poId && (!po || po.supplierId !== supplier.id)) throw new UserError("That purchase order isn’t from this supplier.");
   if (po && (po.status === "cancelled" || po.status === "received" || po.status === "draft")) throw new UserError(`PO ${po.no} is ${po.status}; it can’t be received against.`);
+  if (po && po.branchId !== ctx.branchId) throw new UserError(`PO ${po.no} belongs to another branch. Switch to that branch to receive it.`);
+  const poRef = i.lines.filter((l) => l.poItemId);
+  if (poRef.length && !po) throw new UserError("Choose the purchase order these lines belong to.");
+  const prior = po ? await tx.grnItem.groupBy({ by: ["poItemId"], where: { poItemId: { in: po.items.map((x) => x.id) } }, _sum: { qty: true } }) : [];
+  const onGrn = new Map<string, number>();
+  for (const l of poRef) {
+    const it = po!.items.find((x) => x.id === l.poItemId);
+    if (!it || it.medicineId !== l.medicineId) throw new UserError(`Line ${i.lines.indexOf(l) + 1}: it doesn’t match an item on PO ${po!.no}.`);
+    onGrn.set(it.id, (onGrn.get(it.id) ?? 0) + l.qty);
+    const already = prior.find((g) => g.poItemId === it.id)?._sum.qty ?? 0;
+    if (already + onGrn.get(it.id)! > it.qty) throw new UserError(`Line ${i.lines.indexOf(l) + 1}: PO ${po!.no} ordered ${it.qty}, ${already} already received. Enter extra units as free quantity or as a line without the PO item.`);
+  }
 
   const meds = await tx.medicine.findMany({ where: { tenantId: ctx.tenantId, id: { in: i.lines.map((l) => l.medicineId) } } });
   const seen = new Set<string>();
@@ -49,11 +61,16 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   for (const l of lines) {
     const units = l.qty + l.freeQty;
     const unitCost = Math.round((l.rate * l.qty) / units); // free goods lower the effective cost
-    const existing = await tx.batch.findFirst({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: l.m.id, batchNo: l.batchNo } });
+    const found = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "Batch" WHERE "tenantId" = ${ctx.tenantId} AND "branchId" = ${ctx.branchId} AND "medicineId" = ${l.m.id} AND "batchNo" = ${l.batchNo} FOR UPDATE`;
+    const existing = found.length ? await tx.batch.findUniqueOrThrow({ where: { id: found[0].id } }) : null;
     let batchId: string;
     if (existing) {
       if (isoOf(existing.expiryDate) !== l.expiry || big(existing.mrpPaise) !== l.mrp) throw new UserError(`${l.m.name} batch ${l.batchNo} already exists with a different expiry or MRP. Check the batch number.`);
-      await tx.batch.update({ where: { id: existing.id }, data: { qtyAvailable: { increment: units }, version: { increment: 1 } } });
+      // One row per batch number (unique key), so a top-up blends cost by weighted average and the batch's
+      // supplier becomes the latest one; each receipt's own supplier and rate stay on its GRN.
+      const onHand = Math.max(existing.qtyAvailable, 0);
+      const cost = onHand ? Math.round((onHand * big(existing.costPaise) + units * unitCost) / (onHand + units)) : unitCost;
+      await tx.batch.update({ where: { id: existing.id }, data: { qtyAvailable: { increment: units }, costPaise: BigInt(cost), supplierId: supplier.id, grnId: grn.id, version: { increment: 1 } } });
       batchId = existing.id;
     } else {
       batchId = (await tx.batch.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: l.m.id, batchNo: l.batchNo, expiryDate: dateOnly(l.expiry), qtyAvailable: units, costPaise: BigInt(unitCost), mrpPaise: BigInt(l.mrp), supplierId: supplier.id, grnId: grn.id } })).id;
