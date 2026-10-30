@@ -15,7 +15,7 @@ import { stateName, stateOf } from "@/domain/accounting/gst";
 import { periodOf, type Period } from "@/domain/accounting/service";
 import { allocateHalves } from "./tax";
 import { CANCEL_REASONS, transportSchema, type TransportInput } from "./contracts";
-import { fpOf, hsnCsv, hsnRows, uqcFor, type GstDoc, type GstLine } from "./common";
+import { fpOf, hsnCsv, hsnRows, uqcFor, uqcForLoose, type GstDoc, type GstLine } from "./common";
 import { buildGstr1, gstr1Csv } from "./gstr1";
 import { buildGstr3b, gstr3bRows, type Itc } from "./gstr3b";
 import { defaultTallyMap, ledgerOf, tallyMastersXml, tallyVouchersXml, TALLY_GROUPS, type TallyMap, type TallyParty } from "./tally";
@@ -404,7 +404,7 @@ export async function generateIrn(ctx: Ctx, saleId: string) {
     buyer: { gstin: s.customerGstin, legalName: s.customer.name, address: ba.address, place: ba.place, pin, stateCode: buyerState, phone: s.customer.phone, pos: s.placeOfSupply ?? buyerState },
     items: s.items.map((i, k) => {
       const m = meds.get(i.medicineId)!, b = batches.get(i.batchId);
-      return { name: `${m.name} ${m.strength}`.trim(), hsn: (m.hsn || "3004").replace(/\D/g, ""), qty: i.qty, unit: uqcFor(m.form), batch: b?.batchNo, expiry: b ? istDate(b.expiryDate) : undefined, rate: i.gstRate,
+      return { name: `${m.name} ${m.strength}`.trim(), hsn: (m.hsn || "3004").replace(/\D/g, ""), qty: i.qty, unit: i.loose ? uqcForLoose(m.form, m.looseUnit) : uqcFor(m.form), batch: b?.batchNo, expiry: b ? istDate(b.expiryDate) : undefined, rate: i.gstRate,
         gross: taxableFromInclusive(big(i.mrpPaise) * i.qty, i.gstRate), taxable: big(i.taxablePaise), igst: inter ? taxes[k] : 0, cgst: inter ? 0 : halves[k], sgst: inter ? 0 : taxes[k] - halves[k] };
     }),
   });

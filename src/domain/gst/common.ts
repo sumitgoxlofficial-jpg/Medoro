@@ -44,6 +44,13 @@ export function uqcFor(form: string): string {
   return "NOS";
 }
 
+/** Unit quantity code for a loose unit (one tablet, one ml…), for lines sold loose. */
+export function uqcForLoose(form: string, looseUnit = ""): string {
+  if (/^ml$|millilit/i.test(looseUnit.trim())) return "MLT";
+  if (/tablet|capsule|strip/i.test(form) || /^(tab|tablet|cap|capsule)s?$/i.test(looseUnit.trim())) return "TBS";
+  return "NOS";
+}
+
 const HSN_DESC: Record<string, string> = {
   "3002": "VACCINES, BLOOD FRACTIONS",
   "3003": "MEDICAMENTS NOT IN DOSES",

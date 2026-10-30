@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
-import { createMedicine } from "@/domain/inventory/service";
+import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale } from "@/domain/sales/service";
 import { postGrnTx } from "@/domain/purchasing/service";
 import { listSuppliers, paySupplier, saveSupplier } from "@/domain/parties/service";
@@ -113,5 +113,14 @@ describe("accounting", () => {
     const after = (await dashboard(ctx.tenantId, ctx.branchId, "today", [ctx.branchId])).kpi;
     expect(after.expenses).toBe(before.expenses);
     expect(after.expenseCount).toBe(before.expenseCount);
+  });
+
+  it("values unsold expiring stock per pack for medicines kept in loose units", async () => {
+    const ctx = await ctxFor("Owner", "Second");
+    const m = await createMedicine(ctx, { name: "Dolo 650", generic: "Paracetamol", strength: "650 mg", form: "Tablet", manufacturer: "Micro Labs", pack: "15", mrp: "30", gstRate: 12, schedule: "", reorderLevel: 0, barcode: "", hsn: "3004", rack: "", packSize: 15, allowLoose: true });
+    await receiveBatch(ctx, { medicineId: m, batchNo: "DL1", expiry: addDays(todayISO(), 30), qty: 4, cost: "20", mrp: "30", supplierId: null, invoiceNo: "" });
+    const d = await dashboard(ctx.tenantId, ctx.branchId, "today", [ctx.branchId]);
+    // 4 strips of 15 at ₹20 a strip, none sold: ₹80, not 60 units × ₹20.
+    expect(d.insights[0].body).toMatch(/about ₹80 \(cost\) would go unsold/);
   });
 });

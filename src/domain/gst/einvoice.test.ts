@@ -5,6 +5,7 @@ import { generateKeyPairSync, privateDecrypt, constants, randomBytes } from "nod
 import { aesDecrypt, aesEncrypt, buildEwbByIrnPayload, buildIrnPayload, buildTransferEwbPayload, clearEinvSessions, EInvoiceClient, EinvError, einvConfig, type EinvConfig } from "./einvoice";
 import { defaultTallyMap, tallyMastersXml, tallyVouchersXml } from "./tally";
 import { IRN_DOC, SELLER_PARTY, TALLY_VOUCHERS } from "./fixtures/einvoice";
+import { uqcFor, uqcForLoose } from "./common";
 
 const fixture = (f: string) => readFileSync(path.join(__dirname, "fixtures", f), "utf8").replace(/\r\n/g, "\n");
 
@@ -156,5 +157,17 @@ describe("e-invoice client (mocked IRP)", () => {
     const t = buildTransferEwbPayload({ no: "TR-2", date: "2026-10-30", from: SELLER_PARTY, to: SELLER_PARTY, goods: [], transport: { distanceKm: 5, mode: "1", vehicleNo: "MH12AB1234" } });
     expect((await new EInvoiceClient(cfg(), http).generateEwb(t)).EwbNo).toBe("341000000002");
     expect(decoded).toEqual(t);
+  });
+});
+
+describe("unit codes", () => {
+  it("report loose lines per tablet or ml, packs per pack", () => {
+    expect(uqcFor("Tablet")).toBe("PAC");
+    expect(uqcForLoose("Tablet", "tablet")).toBe("TBS");
+    expect(uqcForLoose("Capsule", "capsule")).toBe("TBS");
+    expect(uqcForLoose("Syrup", "ml")).toBe("MLT");
+    expect(uqcForLoose("Injection", "vial")).toBe("NOS");
+    const p = buildIrnPayload({ ...IRN_DOC, items: [{ ...IRN_DOC.items[0], qty: 5, unit: uqcForLoose("Tablet", "tablet") }] });
+    expect(p.ItemList[0]).toMatchObject({ Qty: 5, Unit: "TBS", UnitPrice: Math.round(IRN_DOC.items[0].gross / 100 / 5 * 1000) / 1000 });
   });
 });

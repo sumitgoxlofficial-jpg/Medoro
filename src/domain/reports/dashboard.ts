@@ -85,7 +85,8 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
   if (ex60.length) {
     const exposure = ex60.reduce((a, e) => a + e.value, 0);
     let loss = 0;
-    for (const e of ex60) { const b = batches.find((x) => x.id === e.id)!; const v = vel.get(b.medicineId) ?? 0; loss += Math.max(0, e.qty - Math.floor(v * e.days)) * big(b.costPaise); }
+    // Stock is in units and the sell rate in packs a day; cost is per pack.
+    for (const e of ex60) { const b = batches.find((x) => x.id === e.id)!; const ps = b.medicine.packSize; const v = vel.get(b.medicineId) ?? 0; loss += stockValue(big(b.costPaise), Math.max(0, e.qty - Math.floor(v * ps * e.days)), ps); }
     insights.push({ title: `${fmtInr(exposure)} of stock expires within 60 days`, body: `${ex60.length} batch${ex60.length > 1 ? "es" : ""} at risk. At current sell rates, about ${fmtInr(loss)} (cost) would go unsold.`, basis: "Batch expiry dates, 28-day average sales", href: "/app/expiry", cta: "Review batches" });
   }
   const runout = meds.map((m) => ({ m, s: sellable.get(m.id) ?? 0, v: vel.get(m.id) ?? 0 })).filter((x) => x.v >= 0.5 && x.s / x.v < 14).sort((a, b) => a.s / a.v - b.s / b.v)[0];
