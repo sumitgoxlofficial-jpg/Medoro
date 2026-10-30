@@ -34,6 +34,9 @@ Synthetic data only (`seed/synthetic.json`). Tools: Vitest (unit), Vitest with a
 | 21 | Expiry & reorder recs | Unit | Synthetic velocity → expected projected loss and suggestion |
 | 22 | Subscription lifecycle | Int | trial→active→grace→read-only; offline licence 30-day window |
 | 23 | Keyboard & responsive | E2E | F2/F4/F9 flow; 1440, 1024 and 390 px screenshots; axe has no serious issues |
+| 24 | Loose sale & pack sizes | Unit + Int | Tab price = MRP ÷ pack rounded down (≤ MRP per strip); strip + tab lines from one batch; stock, ledger and returns in stock units; pack-size change rescales with a `unit` movement; offline loose bill posts (`src/lib/units.test.ts`, `tests/integration/catalog.test.ts`) |
+| 25 | Salts, substitutes, search | Unit + Int | Order-independent composition key matches the SQL back-fill; brand/salt/typo search; substitutes in stock first; sample import is idempotent |
+| 26 | Doctors & labels | Unit + Int | Doctor-linked Rx sale keeps prescriber text; sales-by-doctor totals net of returns; Code 128/EAN-13 known encodings; internal `29…` EAN scans at the POS |
 
 ## Release gates
 - No open critical or high security, financial-integrity or data-loss defects.
