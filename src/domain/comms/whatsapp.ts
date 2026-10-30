@@ -92,6 +92,7 @@ export async function sendInvoice(ctx: Ctx, saleId: string, rawPhone: string, co
   if (!consent) throw new UserError("Confirm the number with the customer and get their consent first.");
   const inv = await invoiceData(ctx, saleId);
   if (!inv) throw new UserError("Invoice not found.");
+  if (inv.voided) throw new UserError(`${inv.invoiceNo} was voided; it can’t be sent.`);
   const prev = await db.waMessage.findFirst({ where: { tenantId: ctx.tenantId, invoiceId: saleId }, orderBy: { createdAt: "desc" } });
   if (prev && prev.status !== "failed") throw new UserError(`Already sent to ${prev.recipient} (${prev.status}).`);
   const attempts = (prev?.attempts ?? 0) + 1;

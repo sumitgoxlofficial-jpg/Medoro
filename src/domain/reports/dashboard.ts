@@ -10,7 +10,7 @@ const DAY = 86400_000;
 
 async function salesIn(tenantId: string, branchId: string, from: Date, to: Date) {
   const r = await db.sale.aggregate({
-    where: { tenantId, branchId, at: { gte: from, lt: to } },
+    where: { tenantId, branchId, at: { gte: from, lt: to }, voided: { is: null } },
     _sum: { totalPaise: true, taxablePaise: true, costPaise: true }, _count: true,
   });
   const ret = await db.salesReturn.aggregate({ where: { tenantId, branchId, at: { gte: from, lt: to } }, _sum: { amountPaise: true } });
@@ -40,7 +40,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
     db.$queryRaw<{ id: string; bal: bigint }[]>`SELECT "partyId" AS id, SUM("debitPaise" - "creditPaise") AS bal FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${tenantId} AND l.account = ${ACC.debtors} GROUP BY "partyId"`,
     db.$queryRaw<{ bal: bigint }[]>`SELECT COALESCE(SUM("creditPaise" - "debitPaise"), 0) AS bal FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${tenantId} AND l.account = ${ACC.creditors}`,
     db.supplierBill.findMany({ where: { tenantId, dueDate: { lte: dateOnly(addDays(todayISO(), 7)) } } }),
-    db.$queryRaw<{ mode: string; amt: bigint }[]>`SELECT p.mode::text AS mode, SUM(p."amountPaise") AS amt FROM "Payment" p JOIN "Sale" s ON s.id = p."saleId" WHERE s."tenantId" = ${tenantId} AND s."branchId" = ${branchId} AND s.at >= ${from} GROUP BY p.mode`,
+    db.$queryRaw<{ mode: string; amt: bigint }[]>`SELECT p.mode::text AS mode, SUM(p."amountPaise") AS amt FROM "Payment" p JOIN "Sale" s ON s.id = p."saleId" WHERE s."tenantId" = ${tenantId} AND s."branchId" = ${branchId} AND s.at >= ${from} AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id) GROUP BY p.mode`,
   ]);
   // Reversals are dated when posted (like the P&L), so they net off in the period they were made.
   const reversedIds = reversals.map((r) => r.reversesId).filter((x): x is string => !!x);
@@ -57,7 +57,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
   const histFrom = new Date(today0.getTime() - 13 * DAY);
   const hist = await db.$queryRaw<{ d: string; t: bigint }[]>`
     SELECT to_char((at AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD') AS d, SUM("totalPaise") AS t
-    FROM "Sale" WHERE "tenantId" = ${tenantId} AND "branchId" = ${branchId} AND at >= ${histFrom} GROUP BY 1`;
+    FROM "Sale" s WHERE "tenantId" = ${tenantId} AND "branchId" = ${branchId} AND at >= ${histFrom} AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id) GROUP BY 1`;
   const hmap = new Map(hist.map((h) => [h.d, Number(h.t)]));
   const history = Array.from({ length: 14 }, (_, i) => { const d = addDays(todayISO(), i - 13); return { date: d, total: hmap.get(d) ?? 0 }; });
 
@@ -91,7 +91,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
 
   // Branch performance (period)
   const brs = await db.branch.findMany({ where: { tenantId, active: true, id: { in: branchIds } }, orderBy: { createdAt: "asc" } });
-  const perf = await db.sale.groupBy({ by: ["branchId"], where: { tenantId, branchId: { in: branchIds }, at: { gte: from } }, _sum: { totalPaise: true }, _count: true });
+  const perf = await db.sale.groupBy({ by: ["branchId"], where: { tenantId, branchId: { in: branchIds }, at: { gte: from }, voided: { is: null } }, _sum: { totalPaise: true }, _count: true });
   const branchPerf = brs.map((b) => { const p = perf.find((x) => x.branchId === b.id); return { name: b.name, total: big(p?._sum.totalPaise), bills: p?._count ?? 0 }; });
 
   const [lastBackup, activity] = await Promise.all([

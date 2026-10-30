@@ -32,8 +32,8 @@ const T: Tool[] = [
       const from = period === "today" ? t0 : period === "yesterday" ? new Date(t0.getTime() - 86400_000) : period === "week" ? new Date(t0.getTime() - 6 * 86400_000) : new Date(Date.UTC(+todayISO().slice(0, 4), +todayISO().slice(5, 7) - 1, 1) - 330 * 60_000);
       const to = period === "yesterday" ? t0 : new Date();
       const [agg, pays] = await Promise.all([
-        db.sale.aggregate({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: from, lt: to } }, _sum: { totalPaise: true }, _count: true }),
-        db.$queryRaw<{ mode: string; a: bigint }[]>`SELECT p.mode::text mode, SUM(p."amountPaise") a FROM "Payment" p JOIN "Sale" s ON s.id = p."saleId" WHERE s."tenantId" = ${ctx.tenantId} AND s."branchId" = ${ctx.branchId} AND s.at >= ${from} AND s.at < ${to} GROUP BY 1`,
+        db.sale.aggregate({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: from, lt: to }, voided: { is: null } }, _sum: { totalPaise: true }, _count: true }),
+        db.$queryRaw<{ mode: string; a: bigint }[]>`SELECT p.mode::text mode, SUM(p."amountPaise") a FROM "Payment" p JOIN "Sale" s ON s.id = p."saleId" WHERE s."tenantId" = ${ctx.tenantId} AND s."branchId" = ${ctx.branchId} AND s.at >= ${from} AND s.at < ${to} AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id) GROUP BY 1`,
       ]);
       const label = { today: "Today so far", yesterday: "Yesterday", week: "Last 7 days", month: "This month" }[period];
       return { text: `${label}: ${inr0(big(agg._sum.totalPaise))} across ${agg._count} bill${agg._count === 1 ? "" : "s"}.`, rows: ["cash", "upi", "card", "credit"].map((m) => ({ a: m === "upi" ? "UPI" : m[0].toUpperCase() + m.slice(1), b: "", c: inr0(Number(pays.find((p) => p.mode === m)?.a ?? 0)) })), basis: `Committed invoices incl. GST, ${ctx.branchName}` };

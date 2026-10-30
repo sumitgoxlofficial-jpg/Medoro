@@ -15,6 +15,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const { format } = await searchParams;
   const s = await invoiceData(ctx, id);
   if (!s) notFound();
+  const voidNote = s.voided ? `VOID · cancelled ${fmtDate(s.voided.at)} · ${s.voided.reason}` : null;
   const payLabel = s.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amount)}${p.ref ? ` (${p.ref})` : ""}`).join(" + ");
 
   if (format === "thermal") {
@@ -26,7 +27,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
         <div className="c">{s.pharmacy.gstin ? `GSTIN ${s.pharmacy.gstin}` : ""}</div>
         {s.pharmacy.dl ? <div className="c">DL {s.pharmacy.dl}</div> : null}
         <div className="hr" />
-        <div className="c"><strong>TAX INVOICE</strong></div>
+        <div className="c"><strong>{s.voided ? "TAX INVOICE · VOID" : "TAX INVOICE"}</strong></div>
+        {voidNote ? <div className="c" style={{ border: "1px solid #000", padding: 3, margin: "3px 0" }}>{voidNote}<br />Not valid for payment; fully refunded.</div> : null}
         <div className="r"><span>{s.invoiceNo}</span></div>
         <div className="r"><span>{fmtDate(s.at)}</span><span>{s.cashier}</span></div>
         <div>{s.customer?.name ?? "Walk-in customer"}</div>
@@ -64,11 +66,12 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           {s.pharmacy.pharmacist ? <div>Registered pharmacist: {s.pharmacy.pharmacist}</div> : null}
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>TAX INVOICE</div>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>{s.voided ? "TAX INVOICE · VOID" : "TAX INVOICE"}</div>
           <div style={{ fontFamily: "'IBM Plex Mono',monospace" }}>{s.invoiceNo}</div>
           <div>{fmtDate(s.at)}</div>
         </div>
       </div>
+      {voidNote ? <div style={{ border: "2px solid #B3261E", color: "#B3261E", padding: "6px 8px", marginBottom: 10, fontWeight: 600 }}>{voidNote}. This invoice was cancelled and fully refunded; it is not valid for payment or input credit.</div> : null}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 10 }}>
         <div><strong>Bill to:</strong> {s.customer?.name ?? "Walk-in customer"}{s.customer?.phone ? ` · ${s.customer.phone}` : ""}</div>
         {s.prescriber ? <div><strong>Prescriber:</strong> {s.prescriber}{s.rxNo ? ` · Rx ${s.rxNo}` : ""}</div> : null}

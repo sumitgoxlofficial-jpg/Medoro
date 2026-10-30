@@ -185,7 +185,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
 
 /** Everything needed to print or show an invoice. */
 export async function invoiceData(ctx: Ctx, saleId: string) {
-  const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, payments: true, customer: true } });
+  const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, payments: true, customer: true, voided: true } });
   if (!s) return null;
   const [branch, tenant, meds, batches, user] = await Promise.all([
     db.branch.findUniqueOrThrow({ where: { id: s.branchId } }),
@@ -205,6 +205,7 @@ export async function invoiceData(ctx: Ctx, saleId: string) {
     totals: { mrp: big(s.subtotalPaise), discount: big(s.discountPaise), taxable: big(s.taxablePaise), cgst: big(s.cgstPaise), sgst: big(s.sgstPaise), roundOff: big(s.roundOffPaise), total: big(s.totalPaise) },
     payments: s.payments.map((p) => ({ mode: p.mode, amount: big(p.amountPaise), ref: p.ref })),
     idempotencyKey: s.idempotencyKey,
+    voided: s.voided ? { at: s.voided.at.toISOString(), reason: s.voided.reason } : null,
   };
 }
 export type Invoice = NonNullable<Awaited<ReturnType<typeof invoiceData>>>;
