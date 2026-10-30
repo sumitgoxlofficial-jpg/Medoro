@@ -202,6 +202,7 @@ model Session {
   device       String?
   counterId    String?
   mfaPassed    Boolean   @default(false)
+  firstFactor  String? // password, google, otp or pin: what this sign-in proved before MFA
   ip           String?
   userAgent    String?
   createdAt    DateTime  @default(now())

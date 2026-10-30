@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { readSession } from "@/server/auth";
 import { openSecret, totpQr } from "@/server/totp";
-import { mfaResetChannel } from "@/domain/identity/recovery";
+import { mfaResetOption } from "@/domain/identity/recovery";
 import { ensureMfaSecret } from "../../actions";
 import { MfaForm } from "./mfa-form";
 
@@ -19,5 +19,5 @@ export default async function Page() {
     const b32 = openSecret(u.mfaSecret);
     enrol = { qr: await totpQr(b32, u.email ?? u.phone ?? u.name), secret: b32.match(/.{1,4}/g)!.join(" ") };
   }
-  return <MfaForm enrol={enrol} name={u.name} reset={u.mfaEnabled ? mfaResetChannel(u) : null} />;
+  return <MfaForm enrol={enrol} name={u.name} reset={u.mfaEnabled ? await mfaResetOption(s!) : null} />;
 }

@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { createHash } from "node:crypto";
 import { Secret, TOTP } from "otpauth";
 import { db } from "@/server/db";
-import { createSession, hashPassword, readSession, SESSION_COOKIE } from "@/server/auth";
+import { createSession, hashPassword, isTrustedDevice, readSession, SESSION_COOKIE, setTrustedDevice } from "@/server/auth";
 import { getCtx, type Ctx } from "@/server/context";
 import { openSecret } from "@/server/totp";
 import { resetJwksCache } from "@/server/google-oidc";
@@ -121,22 +121,38 @@ describe("account recovery, providers and Google sign-in", () => {
 
     await expect(changePassword(ctx, "not-my-password", "brand-new-password")).rejects.toThrow("Your current password is incorrect. 4 attempts left.");
     await expect(changePassword(ctx, PW, "short")).rejects.toThrow(/10 characters/);
+    await setTrustedDevice(ctx.userId, (await db.user.findUniqueOrThrow({ where: { id: ctx.userId } })).tokenVersion);
+    const tv = (await db.user.findUniqueOrThrow({ where: { id: ctx.userId } })).tokenVersion;
+    expect(await isTrustedDevice(ctx.userId, tv)).toBe(true);
     await changePassword(ctx, PW, "brand-new-password");
+    const after = await db.user.findUniqueOrThrow({ where: { id: ctx.userId } });
+    expect(after.tokenVersion).toBe(tv + 1);
+    expect(await isTrustedDevice(ctx.userId, after.tokenVersion)).toBe(false);
     expect(await db.session.count({ where: { userId: ctx.userId, revokedAt: null } })).toBe(1);
     expect((await getCtx())?.sessionId).toBe(ctx.sessionId);
-    jar.clear();
+    // The trusted-PC cookie is still in the jar but no longer skips the authenticator.
+    jar.delete(SESSION_COOKIE);
     expect((await passwordSignIn(EMAIL, PW)).ok).toBe(false);
-    expect((await passwordSignIn(EMAIL, "brand-new-password")).ok).toBe(true);
+    expect(await passwordSignIn(EMAIL, "brand-new-password")).toEqual({ ok: true, data: "/signin/mfa" });
     await restoreOwner();
 
     const t = await db.tenant.findFirstOrThrow();
     const role = await db.role.findFirstOrThrow({ where: { tenantId: t.id, name: "Cashier" } });
     const cashier = await db.user.create({ data: { tenantId: t.id, name: "Cash Person", phone: "9850000099", employeeNo: "E-150", pinHash: await hashPassword("3971"), roleId: role.id, branchIds: [] } });
-    const cctx = { ...(await ctxFor("Cashier")), userId: cashier.id, userName: cashier.name, sessionId: "counter" };
+    const counter = await db.counter.findFirstOrThrow({ where: { tenantId: t.id } });
+    jar.clear();
+    await createSession(cashier.id, 0, { mfaPassed: true, counterId: counter.id, firstFactor: "pin" });
+    const otherShift = (await readSession())!.id;
+    jar.clear();
+    await createSession(cashier.id, 0, { mfaPassed: true, counterId: counter.id, firstFactor: "pin" });
+    const cctx = (await getCtx())!;
     await expect(changePassword(cctx, "x", "brand-new-password")).rejects.toThrow(/PIN instead/);
     await expect(changePin(cctx, "1111", "4826")).rejects.toThrow(/current PIN is incorrect/);
     await expect(changePin(cctx, "3971", "1234")).rejects.toThrow(/too easy/);
     await changePin(cctx, "3971", "4826");
+    expect((await db.user.findUniqueOrThrow({ where: { id: cashier.id } })).tokenVersion).toBe(1);
+    expect((await getCtx())?.sessionId).toBe(cctx.sessionId);
+    expect((await db.session.findUniqueOrThrow({ where: { id: otherShift } })).revokedAt).not.toBeNull();
     expect(await audits("PIN changed")).toBe(1);
     expect(await audits("Password changed")).toBe(1);
   });
@@ -351,5 +367,57 @@ describe("account recovery, providers and Google sign-in", () => {
     const s = (await readSession())!;
     await db.session.update({ where: { id: s.id }, data: { lastSeenAt: new Date(Date.now() - 5 * 3600_000) } });
     expect((await readSession())?.id).toBe(s.id);
+  });
+  it("the email/SMS two-step reset needs a password first factor; Google or mobile-OTP sign-ins can't use it and hold it for 24 h", async () => {
+    const owner = await db.user.findFirstOrThrow({ where: { email: EMAIL } });
+    expect(owner).toMatchObject({ googleSub: "g-owner", mfaEnabled: true });
+    const viaGoogle = async () => {
+      jar.clear();
+      const s = new URL((await googleStart(new Request(`${APP}/api/auth/google/start`))).headers.get("location")!).searchParams;
+      idClaims = google.claims({ aud: CLIENT, nonce: s.get("nonce"), sub: "g-owner", email: EMAIL });
+      expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/signin/mfa`);
+    };
+    const mailsAndSms = () => sent.filter((s) => !s.url.includes("oauth2.googleapis.com")).length;
+    const refused = { ok: false, error: expect.stringMatching(/needs a sign-in with your password/) };
+
+    // A password session asks for a code; a Google session can't spend it.
+    await db.session.updateMany({ where: { userId: owner.id, firstFactor: { in: ["google", "otp"] } }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });
+    jar.clear();
+    await passwordSignIn(EMAIL, PW);
+    expect((await readSession(true))?.firstFactor).toBe("password");
+    expect(await sendMfaResetCode()).toEqual({ ok: true, data: "o***@test.in" });
+    const code = lastCode();
+
+    await viaGoogle();
+    expect((await readSession(true))).toMatchObject({ firstFactor: "google", mfaPassed: false });
+    const before = mailsAndSms();
+    expect(await sendMfaResetCode()).toEqual(refused);
+    expect(await resetMfaWithCode(code)).toEqual(refused);
+    expect(mailsAndSms()).toBe(before);
+
+    // Mobile-OTP sign-in, with SMS the only channel left: still refused, nothing sent.
+    vi.stubEnv("MAIL_PROVIDER", "");
+    jar.clear();
+    expect(await requestSignInOtp(PHONE)).toEqual({ ok: true });
+    expect(await otpSignIn(PHONE, lastCode())).toEqual({ ok: true, data: "/signin/mfa" });
+    expect((await readSession(true))?.firstFactor).toBe("otp");
+    const sms = mailsAndSms();
+    expect(await sendMfaResetCode()).toEqual(refused);
+    expect(await resetMfaWithCode(code)).toEqual(refused);
+    expect(mailsAndSms()).toBe(sms);
+    expect(await db.user.findUniqueOrThrow({ where: { id: owner.id } })).toMatchObject({ mfaEnabled: true });
+    expect(await db.recoveryCode.count({ where: { userId: owner.id, usedAt: null } })).toBe(10);
+
+    // Those sign-ins hold the reset back for 24 h even for a password session…
+    vi.stubEnv("MAIL_PROVIDER", "resend");
+    jar.clear();
+    await passwordSignIn(EMAIL, PW);
+    expect(await sendMfaResetCode()).toMatchObject({ ok: false, error: expect.stringMatching(/signed in to this account with Google or a mobile code recently/) });
+    expect(await resetMfaWithCode(code)).toMatchObject({ ok: false, error: expect.stringMatching(/paused/) });
+    // …and once they are older, the password session's reset works.
+    await db.session.updateMany({ where: { userId: owner.id, firstFactor: { in: ["google", "otp"] } }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });
+    expect(await sendMfaResetCode()).toEqual({ ok: true, data: "o***@test.in" });
+    expect(await resetMfaWithCode(lastCode())).toEqual({ ok: true, data: null });
+    expect(await db.user.findUniqueOrThrow({ where: { id: owner.id } })).toMatchObject({ mfaEnabled: false, mfaSecret: null });
   });
 });

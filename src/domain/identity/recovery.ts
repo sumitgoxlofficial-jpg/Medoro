@@ -141,37 +141,55 @@ export async function completePasswordReset(input: { contact: string; code: stri
 
 // ───────────── Lost authenticator (at the MFA step, after the password) ─────────────
 
-export function mfaResetChannel(u: { email: string | null; phone: string | null }) {
-  if (u.email && mailEnabled()) return { channel: "email" as const, to: maskEmail(u.email) };
-  if (u.phone && otpEnabled()) return { channel: "sms" as const, to: maskPhone(u.phone) };
-  return null;
+type ResetUser = { id: string; email: string | null; phone: string | null; passwordResetAt: Date | null };
+export type ResetOption = { ok: true; channel: "email" | "sms"; to: string } | { ok: false; reason: string };
+
+const holdFmt = (d: Date) => d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
+const USE_CODES = "Use a recovery code, or ask the owner (or a manager who manages users) to reset your two-step verification.";
+
+/**
+ * Whether this MFA-pending session may reset two-step by an email/SMS code, and where the code goes.
+ * Only a session whose first factor was the account password qualifies: Google and mobile-OTP sign-ins already
+ * rest on the inbox or phone the code would go to, so allowing it there would make MFA one factor.
+ * A forgot-password reset, or a Google / mobile-OTP sign-in, in the last 24 hours holds the option back, so
+ * whoever took over an inbox or SIM can't remove the authenticator straight away; recovery codes still work.
+ */
+export async function mfaResetOption(s: { firstFactor: string | null; user: ResetUser }): Promise<ResetOption> {
+  const u = s.user;
+  if (s.firstFactor !== "password") return { ok: false, reason: `Resetting by email or SMS needs a sign-in with your password. ${USE_CODES}` };
+  const since = new Date(Date.now() - MFA_RESET_HOLD_H * 3600_000);
+  const marks = [u.passwordResetAt && u.passwordResetAt > since ? u.passwordResetAt : null];
+  const other = await db.session.findFirst({ where: { userId: u.id, firstFactor: { in: ["google", "otp"] }, createdAt: { gt: since } }, orderBy: { createdAt: "desc" } });
+  marks.push(other?.createdAt ?? null);
+  const latest = marks.filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0];
+  if (latest) {
+    const until = new Date(latest.getTime() + MFA_RESET_HOLD_H * 3600_000);
+    const why = other && latest === other.createdAt ? "someone signed in to this account with Google or a mobile code recently" : "your password was reset recently";
+    return { ok: false, reason: `For your safety this option is paused because ${why}. It opens at ${holdFmt(until)}. ${USE_CODES}` };
+  }
+  // The first factor is the password, so neither channel was used to sign in; email first, then SMS.
+  if (u.email && mailEnabled()) return { ok: true, channel: "email", to: maskEmail(u.email) };
+  if (u.phone && otpEnabled()) return { ok: true, channel: "sms", to: maskPhone(u.phone) };
+  return { ok: false, reason: `Email and SMS aren’t set up on this server. ${USE_CODES}` };
 }
 
-// A forgot-password reset proves only the email or phone. Holding back an OTP-only MFA reset for a day means
-// someone who takes over that inbox can't also remove the authenticator straight away; recovery codes still work.
-function holdUntil(u: { passwordResetAt: Date | null }) {
-  const until = u.passwordResetAt ? u.passwordResetAt.getTime() + MFA_RESET_HOLD_H * 3600_000 : 0;
-  return until > Date.now() ? new Date(until) : null;
-}
-
-type PendingSession = { id: string; user: CodeUser & { mfaEnabled: boolean; passwordResetAt: Date | null; tokenVersion: number } };
+type PendingSession = { id: string; firstFactor: string | null; user: CodeUser & ResetUser & { mfaEnabled: boolean; tokenVersion: number } };
 
 export async function requestMfaReset(s: PendingSession) {
   const u = s.user;
   if (!u.mfaEnabled) throw new UserError("Two-step verification isn’t set up yet. Scan the QR code to set it up.");
-  const hold = holdUntil(u);
-  if (hold) throw new UserError(`Your password was reset recently, so this option opens at ${hold.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })}. Use a recovery code, or ask the owner to reset it.`);
-  const ch = mfaResetChannel(u);
-  if (!ch) throw new UserError("Email and SMS aren’t set up on this server. Use a recovery code, or ask the owner to reset it.");
+  const opt = await mfaResetOption(s);
+  if (!opt.ok) throw new UserError(opt.reason);
   await throttleSend("mfa:" + u.id);
-  await issueCode(u, "mfa-reset", ch.channel);
-  return ch.to;
+  await issueCode(u, "mfa-reset", opt.channel);
+  return opt.to;
 }
 
 /** Clears the authenticator so the user enrols a new one now. Ends every other session. */
 export async function confirmMfaReset(s: PendingSession, code: string) {
   const u = s.user;
-  if (holdUntil(u)) throw new UserError("Use a recovery code instead.");
+  const opt = await mfaResetOption(s);
+  if (!opt.ok) throw new UserError(opt.reason);
   const keys = ["mfa:" + u.id];
   const mins = await checkLock(keys);
   if (mins) throw new UserError(`Too many attempts. Try again in ${mins} minutes.`);
