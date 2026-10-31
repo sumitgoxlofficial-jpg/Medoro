@@ -23,7 +23,7 @@ export function StartForm() {
       <div role="status" className="border border-[var(--s-line)] rounded-xl p-8 flex flex-col gap-3 bg-white shadow-[0_24px_48px_-28px_rgba(14,22,20,.3)] max-[640px]:p-6">
         <CircleCheck size={32} aria-hidden className="text-[var(--s-brand)]" />
         <h2 className="site-display m-0 text-[30px]">Thanks, {f.name.trim().split(" ")[0]}!</h2>
-        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">We’ll message you on WhatsApp at <strong>{f.phone}</strong> with the download link and next steps. Your 14-day trial starts when you create your pharmacy in Medoro.</p>
+        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">We’ll message you on WhatsApp at <strong>{f.phone}</strong> with the download link and next steps. Your 7-day trial starts when you create your pharmacy in Medoro.</p>
       </div>
     );
   }

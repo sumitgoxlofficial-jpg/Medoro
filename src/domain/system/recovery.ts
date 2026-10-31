@@ -1,4 +1,5 @@
 import "server-only";
+import { TRIAL_DAYS } from "./subscription";
 import { createHash } from "node:crypto";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
@@ -160,7 +161,7 @@ export async function freshRestore(file: Buffer, kit: string, confirmCode: strin
   }
   await dropSchema(schema);
   const branches = (data.tables.Branch ?? []).length;
-  await db.subscriptionMeta.create({ data: { tenantId, plan: branches > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + 14 * 86400_000) } });
+  await db.subscriptionMeta.create({ data: { tenantId, plan: branches > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + TRIAL_DAYS * 86400_000) } });
   const m = await keepCopy(tenantId, file, key, header, data, driveFileId, key);
   await db.restoreRun.create({ data: { tenantId, manifestId: m.id, schemaName: schema, status: "applied", summary: summary as object, createdBy: "Setup", appliedAt: new Date(), appliedBy: "Setup" } });
   let mfaReset = 0;

@@ -10,7 +10,7 @@ import { PRODUCTS } from "@/staff/constants";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
 const TITLE = "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores";
-const DESC = "Billing with FEFO batches, expiry control, purchases, GST and accounts, WhatsApp invoices and offline billing for Indian medical stores and small chains. Runs on infrastructure you control. 14-day free trial.";
+const DESC = "Billing with FEFO batches, expiry control, purchases, GST and accounts, WhatsApp invoices and offline billing for Indian medical stores and small chains. Runs on infrastructure you control. 7-day free trial.";
 
 export const metadata: Metadata = {
   title: { absolute: TITLE },
@@ -81,7 +81,7 @@ const FAQ: { title: string; items: [string, string][] }[] = [
     ["Does the AI give medical advice?", "No. It answers business questions about sales, stock, expiry and dues. It refuses dosage or treatment questions and refers them to the pharmacist."]] },
   { title: "Switching and pricing", items: [
     ["Can I move my data from my current software?", "Yes. Export medicines, batches, suppliers and customers to Excel or CSV from your current software and import them into Medoro. Every row is checked and nothing is imported until the file is clean. Assisted migration is available as a one-time service."],
-    ["How long is the free trial?", "14 days, no card needed. After that there are 7 days of grace, then Medoro turns read-only until you pay: your data stays where it is, and viewing, exports and backups keep working. Pay by UPI or bank transfer and tap “I’ve paid” on the Subscription page."],
+    ["How long is the free trial?", "7 days, no card needed. After that there are 7 days of grace, then Medoro turns read-only until you pay: your data stays where it is, and viewing, exports and backups keep working. Pay online by UPI, card or netbanking from the Subscription page. Plans never renew on their own."],
     ["How do I cancel?", "In the app, open Subscription and choose Cancel subscription, any time. The plan stays active until the end of the paid period, then the software goes read-only. Your data stays on your server and can always be exported."]] },
 ];
 
@@ -302,7 +302,7 @@ export default function Home() {
           <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
             <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
               <span className={eyebrow}>Pricing</span>
-              <h2 id="pricing-title" className={h2}>Plain prices in rupees. 14 days free.</h2>
+              <h2 id="pricing-title" className={h2}>Plain prices in rupees. 7 days free.</h2>
             </div>
             <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>Prices include 18% GST. Pay by UPI or bank transfer. Cancel any time and your data stays where it is.</p>
           </div>
@@ -340,10 +340,10 @@ export default function Home() {
           <div data-reveal className="rounded-2xl bg-[var(--s-brand)] text-white px-[clamp(24px,6vw,72px)] py-[clamp(48px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end">
             <div className="col-span-12 min-[1000px]:col-span-8 flex flex-col gap-4">
               <h2 id="cta-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">Set up your counter this afternoon.</h2>
-              <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">Start the 14-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.</p>
+              <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.</p>
             </div>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:items-end">
-              <Link href="/start" className="site-link-arrow inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 14-day free trial<ArrowRight size={17} aria-hidden /></Link>
+              <Link href="/start" className="site-link-arrow inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 7-day free trial<ArrowRight size={17} aria-hidden /></Link>
               <a href={WA_DEMO} className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />Get a demo on WhatsApp</a>
             </div>
           </div>

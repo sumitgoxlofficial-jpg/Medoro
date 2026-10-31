@@ -19,7 +19,7 @@ import { rateFor } from "./sales";
  */
 
 const CP = "_cp";
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 7;
 
 export class LicenceApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -70,7 +70,7 @@ export async function register(raw: unknown, ip: string | null) {
   if (await db.cpCustomer.findUnique({ where: { phone: i.phone } })) {
     throw new LicenceApiError(409, "This mobile already has a Medoro account. Ask Medoro support for your licence key and enter it under Plan.");
   }
-  // The trial runs 14 days from setup, and never longer than 14 days from now.
+  // The trial runs TRIAL_DAYS from setup, and never longer than TRIAL_DAYS from now.
   const setup = isoOf(new Date(Math.min(Date.parse(i.setupAt), Date.now())));
   const ends = [addDays(setup, TRIAL_DAYS), addDays(todayISO(), TRIAL_DAYS)].sort()[0];
   const cred = newCredentials();

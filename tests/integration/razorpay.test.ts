@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import { accessFor } from "@/domain/system/access";
-import { applyPaid, checkoutSignatureOk, confirmCheckout, createOrder, extendPeriod, handleWebhook, planPrice, quote, webhookSignatureOk } from "@/domain/system/razorpay";
+import { applyPaid, billingState, checkoutSignatureOk, confirmCheckout, createOrder, extendPeriod, handleWebhook, markFailed, planPrice, quote, resumeSubscription, webhookSignatureOk } from "@/domain/system/razorpay";
 import { createCoupon, setCouponActive } from "@/staff/coupons";
 import type { Staff } from "@/staff/auth";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
@@ -19,6 +19,8 @@ function fakeRazorpay(payments: Record<string, { order_id: string; amount: numbe
     calls.push({ url, method: init.method ?? "GET", body });
     const json = (j: unknown, status = 200) => new Response(JSON.stringify(j), { status, headers: { "Content-Type": "application/json" } });
     if (url.endsWith("/orders")) return json({ id: `order_${++n}`, amount: body.amount, currency: "INR" });
+    const rf = url.match(/\/payments\/([^/]+)\/refund$/);
+    if (rf) return json({ id: `rfnd_${rf[1]}`, amount: body.amount, status: "processed" });
     const m = url.match(/\/payments\/([^/]+)(\/capture)?$/);
     if (m && payments[m[1]]) {
       if (m[2]) payments[m[1]].status = "captured";
@@ -71,7 +73,7 @@ describe("Razorpay subscription payments", () => {
 
     payments.pay_1 = { order_id: "order_1", amount: 249_900, status: "authorized" };
     await expect(confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: "bad" })).rejects.toThrow(/couldn’t be verified/);
-    expect(await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") })).toEqual({ applied: true });
+    expect(await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") })).toEqual({ applied: true, duplicate: false });
     expect(calls.some((c) => c.url.endsWith("/payments/pay_1/capture") && c.method === "POST")).toBe(true);
 
     const m = await db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: ctx.tenantId } });
@@ -180,3 +182,101 @@ describe("subscription coupons", () => {
     expect((await db.coupon.findUniqueOrThrow({ where: { code: "FREEYEAR" } })).uses).toBe(1);
   });
 });
+
+describe("real-life payment rules", () => {
+  const admin: Staff = { id: "s1", empNo: "M-1", name: "Admin", email: "a@medoro.in", role: "super_admin", referralCode: null, sessionId: "x" };
+  const pay = (payments: Record<string, { order_id: string; amount: number; status: string }>, id: string, order: string, amount: number) => { payments[id] = { order_id: order, amount, status: "captured" }; };
+  const meta = async () => db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: (await ctxFor()).tenantId } });
+
+  it("a paid plan can't be paid again until its last 30 days", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    fakeRazorpay(payments);
+    await createOrder(ctx, { plan: "starter", cycle: "y" });
+    pay(payments, "pay_1", "order_1", 999_000);
+    await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
+    expect((await billingState(ctx.tenantId)).renewOpen).toBe(false);
+    await expect(createOrder(ctx, { plan: "pro", cycle: "m" })).rejects.toThrow(/You can renew from/);
+    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { renewsAt: new Date(Date.now() + 20 * 86400_000) } });
+    expect((await billingState(ctx.tenantId)).renewOpen).toBe(true);
+    expect(await createOrder(ctx, { plan: "pro", cycle: "m" })).toMatchObject({ orderId: "order_2" });
+  });
+
+  it("a second tap reuses the open order instead of starting another", async () => {
+    const ctx = await ctxFor();
+    const calls = fakeRazorpay();
+    const a = await createOrder(ctx, { plan: "pro", cycle: "m" });
+    const b = await createOrder(ctx, { plan: "pro", cycle: "m" });
+    expect(a.free === false && b.free === false && a.orderId === b.orderId).toBe(true);
+    expect(calls.filter((c) => c.url.endsWith("/orders"))).toHaveLength(1);
+    expect(await db.onlinePayment.count()).toBe(1);
+  });
+
+  it("paying twice within minutes refunds the second payment automatically", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    const calls = fakeRazorpay(payments);
+    await createOrder(ctx, { plan: "pro", cycle: "m" });      // tab 1
+    await createOrder(ctx, { plan: "starter", cycle: "m" });  // tab 2, before tab 1 is paid
+    pay(payments, "pay_a", "order_1", 249_900);
+    pay(payments, "pay_b", "order_2", 99_900);
+    expect(await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_a", signature: sig("order_1|pay_a") })).toEqual({ applied: true, duplicate: false });
+    const once = (await meta()).renewsAt;
+    expect(await confirmCheckout(ctx, { orderId: "order_2", paymentId: "pay_b", signature: sig("order_2|pay_b") })).toEqual({ applied: false, duplicate: true });
+    expect(calls.some((c) => c.url.endsWith("/payments/pay_b/refund") && (c.body as { amount: number }).amount === 99_900)).toBe(true);
+    expect(await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_2" } })).toMatchObject({ status: "duplicate", refundId: "rfnd_pay_b" });
+    expect((await meta()).renewsAt).toEqual(once);
+    expect(await meta()).toMatchObject({ plan: "Professional" });
+  });
+
+  it("a failed attempt is recorded and the order can still be paid", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    fakeRazorpay(payments);
+    await createOrder(ctx, { plan: "pro", cycle: "m" });
+    await markFailed(ctx, { orderId: "order_1", reason: "Payment failed: UPI request timed out" });
+    expect(await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_1" } })).toMatchObject({ status: "failed", note: "Payment failed: UPI request timed out" });
+    const failed = JSON.stringify({ event: "payment.failed", payload: { payment: { entity: { id: "pay_x", order_id: "order_1", amount: 249_900, status: "failed", error_description: "Bank declined" } } } });
+    expect(await handleWebhook(failed, sig(failed, HOOK))).toEqual({ status: 200, note: "failed recorded" });
+    pay(payments, "pay_ok", "order_1", 249_900);
+    expect(await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_ok", signature: sig("order_1|pay_ok") })).toEqual({ applied: true, duplicate: false });
+    expect(await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_1" } })).toMatchObject({ status: "paid", note: null });
+  });
+
+  it("a cancelled plan can be undone while its paid period lasts", async () => {
+    const ctx = await ctxFor();
+    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { status: "cancelled", renewsAt: new Date(Date.now() + 20 * 86400_000) } });
+    expect((await billingState(ctx.tenantId)).renewOpen).toBe(true);
+    await resumeSubscription(ctx);
+    expect((await meta()).status).toBe("active");
+  });
+
+  it("a duplicate refund is what was actually paid after the coupon, not the list price", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    const calls = fakeRazorpay(payments);
+    await createCoupon(admin, { code: "THIRDOFF", percentOff: 33 });
+    await createOrder(ctx, { plan: "multi", cycle: "m", coupon: "THIRDOFF" });   // tab 1: ₹4,499 list → ₹3,014.33
+    await createOrder(ctx, { plan: "pro", cycle: "m", coupon: "THIRDOFF" });     // tab 2
+    const paid2 = (await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_2" } })).amountPaise;
+    expect(paid2).toBe(249_900 - Math.round(249_900 * 0.33));
+    pay(payments, "pay_1", "order_1", (await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_1" } })).amountPaise);
+    pay(payments, "pay_2", "order_2", paid2);
+    await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
+    expect(await confirmCheckout(ctx, { orderId: "order_2", paymentId: "pay_2", signature: sig("order_2|pay_2") })).toEqual({ applied: false, duplicate: true });
+    expect((calls.find((c) => c.url.endsWith("/payments/pay_2/refund"))!.body as { amount: number }).amount).toBe(paid2);
+  });
+
+  it("a paid plan has no cancellation or refund, and never renews by itself", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    const calls = fakeRazorpay(payments);
+    await createOrder(ctx, { plan: "pro", cycle: "m" });
+    pay(payments, "pay_1", "order_1", 249_900);
+    await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
+    expect(await billingState(ctx.tenantId)).not.toHaveProperty("refund");
+    expect(calls.some((c) => c.url.includes("/refund"))).toBe(false);
+    expect((await meta()).status).toBe("active");
+  });
+});
+

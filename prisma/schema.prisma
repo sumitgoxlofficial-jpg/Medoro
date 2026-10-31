@@ -983,11 +983,16 @@ model OnlinePayment {
   cycle         String // m (month) or y (year)
   amountPaise   Int // total charged, including GST
   gstPaise      Int
-  status        String    @default("created") // created, paid
+  status        String    @default("created") // created, paid, failed, refunded, duplicate (paid twice; refunded automatically)
   periodFrom    DateTime?
   periodTo      DateTime?
   couponCode    String?
   discountPaise Int       @default(0) // coupon discount, off the GST-inclusive list price
+  note          String? // why a payment failed, or was refunded
+  prevStatus    String? // the plan's status and paid-until before this payment, to undo it on a refund
+  prevRenewsAt  DateTime?
+  refundId      String?
+  refundedAt    DateTime?
   createdBy     String
   createdAt     DateTime  @default(now())
   paidAt        DateTime?
@@ -1007,7 +1012,9 @@ model CpOnlinePayment {
   gstPaise      Int
   couponCode    String?
   discountPaise Int       @default(0)
-  status        String    @default("created") // created, paid
+  status        String    @default("created") // created, paid, failed, duplicate (refunded)
+  note          String?
+  refundId      String?
   saleId        String?
   createdAt     DateTime  @default(now())
   paidAt        DateTime?

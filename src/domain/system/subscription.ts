@@ -1,6 +1,6 @@
 import { addDays, daysTo, istDate, todayISO } from "@/lib/dates";
 
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 7;
 export const GRACE_DAYS = 7;
 
 export type SubscriptionInput = {

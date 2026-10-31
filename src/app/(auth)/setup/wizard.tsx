@@ -257,7 +257,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
             </div>
             <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={kitAck} onChange={(e) => setKitAck(e.target.checked)} />I&apos;ve stored the recovery kit offline. Without it, backups can&apos;t be restored.</label>
             {signup ? (
-              <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>I agree to the <a href="/legal" target="_blank" className="text-teal underline">Terms and Privacy Policy</a>.</span></label>
+              <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>I agree to the <a href="/legal#terms" target="_blank" className="text-teal underline">Terms</a>, <a href="/legal#privacy" target="_blank" className="text-teal underline">Privacy policy</a> and <a href="/legal#refund" target="_blank" className="text-teal underline">Cancellation & refund policy</a>.</span></label>
             ) : null}
           </>
         ) : null}
