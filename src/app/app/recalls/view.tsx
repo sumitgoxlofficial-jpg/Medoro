@@ -10,7 +10,8 @@ import { addRecallAction, quarantineRecallAction, recallStatusAction, returnReca
 
 type R = Awaited<ReturnType<typeof listRecalls>>[number];
 const ST: Record<string, [string, Tone]> = { open: ["Open", "red"], investigating: ["Investigating", "amber"], supplier_return: ["Supplier return raised", "amber"], resolved: ["Resolved", "green"] };
-const inp = "border border-input rounded-lg px-3 py-2 text-[13.5px] outline-none bg-white focus:border-teal";
+const inp = "w-full min-w-0 border border-input rounded-lg px-3 py-2 text-[13.5px] font-normal text-ink outline-none bg-white focus:border-teal";
+const lbl = "flex flex-col gap-1 text-[12px] text-muted font-medium";
 
 export function RecallsView({ recalls, canAdjust, canPurchase, branchName, canRecord, today, medicines }: { recalls: R[]; canAdjust: boolean; canPurchase: boolean; branchName: string; canRecord: boolean; today: string; medicines: { id: string; label: string }[] }) {
   const toast = useToast();
@@ -26,7 +27,7 @@ export function RecallsView({ recalls, canAdjust, canPurchase, branchName, canRe
     });
   };
   return (
-    <div className="flex flex-col gap-3.5 max-w-[1100px]">
+    <div className="flex flex-col gap-3.5 max-w-[1400px]">
       <div className="text-[13px] text-ink-2 bg-teal-soft border border-teal-line rounded-[10px] px-3.5 py-2.5">Record only notices from verified sources (CDSCO, state drug controller, manufacturer). Medoro never generates recall notices. It matches the medicine and batch numbers in the notice against stock in every branch.</div>
       {recalls.length ? recalls.map((r) => {
         const [label, tone] = ST[r.status] ?? [r.status, "gray"];
@@ -62,13 +63,23 @@ export function RecallsView({ recalls, canAdjust, canPurchase, branchName, canRe
       {canRecord ? (
         <div className="bg-white border border-line rounded-xl px-4 py-3.5 flex flex-col gap-2.5">
           <div className="font-semibold text-[14.5px]">Record a verified notice</div>
-          <div className="grid gap-2 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-            <input className={inp} list="recall-meds" value={f.product} onChange={(e) => setF({ ...f, product: e.target.value, medicineId: medicines.find((m) => m.label === e.target.value)?.id ?? "" })} placeholder="Medicine & strength (from catalogue) *" aria-label="Medicine" />
+          <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-[2fr_1.5fr_1.5fr_160px]">
+            <label className={lbl}>Medicine *
+              <input className={inp} list="recall-meds" value={f.product} onChange={(e) => setF({ ...f, product: e.target.value, medicineId: medicines.find((m) => m.label === e.target.value)?.id ?? "" })} placeholder="From catalogue" aria-label="Medicine" />
+            </label>
             <datalist id="recall-meds">{medicines.map((m) => <option key={m.id} value={m.label} />)}</datalist>
-            <input className={inp + " font-mono"} value={f.batches} onChange={(e) => setF({ ...f, batches: e.target.value.toUpperCase() })} placeholder="Affected batches, comma separated *" aria-label="Batches" />
-            <input className={inp} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} placeholder="Source & reference no. *" aria-label="Source" />
-            <input className={inp} type="date" max={today} value={f.publishedAt} onChange={(e) => setF({ ...f, publishedAt: e.target.value })} aria-label="Published on" />
-            <input className={inp} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="Reason as stated in notice" aria-label="Reason" />
+            <label className={lbl}>Batches (comma separated) *
+              <input className={inp} value={f.batches} onChange={(e) => setF({ ...f, batches: e.target.value.toUpperCase() })} placeholder="e.g. AB123, AB124" aria-label="Batches" />
+            </label>
+            <label className={lbl}>Source &amp; reference no. *
+              <input className={inp} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} placeholder="e.g. CDSCO alert no." aria-label="Source" />
+            </label>
+            <label className={lbl}>Published on *
+              <input className={inp} type="date" max={today} value={f.publishedAt} onChange={(e) => setF({ ...f, publishedAt: e.target.value })} aria-label="Published on" />
+            </label>
+            <label className={lbl + " col-span-full"}>Reason
+              <input className={inp} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="As stated in the notice" aria-label="Reason" />
+            </label>
           </div>
           <Button variant="primary" className="self-start" disabled={pending} onClick={() => start(async () => { const x = await addRecallAction({ medicineId: f.medicineId, batches: f.batches, source: f.source, publishedAt: f.publishedAt, reason: f.reason }); if (!x.ok) return toast(x.error, "red"); toast(`${x.data} recorded and matched against stock.`, "green"); setF(blank); })}>Record & match stock</Button>
         </div>

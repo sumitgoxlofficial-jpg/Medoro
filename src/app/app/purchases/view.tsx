@@ -70,11 +70,11 @@ function Orders({ orders, catalogue, suppliers, grns, rules, canRules }: { order
   };
   return (
     <>
-      <div className="flex justify-end gap-2">{canRules ? <PricingRulesButton rules={rules} /> : null}<Button variant="primary" onClick={() => setCreating(true)} disabled={!suppliers.length || !catalogue.length} title={!suppliers.length ? "Add a supplier first" : !catalogue.length ? "Add medicines first" : ""}><Plus size={16} />New purchase order</Button></div>
-      <div className={wrap + " overflow-auto"}>
+      <div className="flex justify-end gap-2 flex-wrap">{canRules ? <PricingRulesButton rules={rules} /> : null}<Button variant="primary" className="max-sm:flex-1" onClick={() => setCreating(true)} disabled={!suppliers.length || !catalogue.length} title={!suppliers.length ? "Add a supplier first" : !catalogue.length ? "Add medicines first" : ""}><Plus size={16} />New purchase order</Button></div>
+      <div className={wrap + " overflow-auto tbl-scroll"}>
         {orders.length ? (
-          <table className="w-full border-collapse min-w-[820px] text-[14px]">
-            <thead><tr className="bg-subtle"><th className={th} /><th className={th}>PO</th><th className={th}>Supplier</th><th className={th}>Date</th><th className={th + " text-right"}>Items</th><th className={th + " text-right"}>Value</th><th className={th}>Status</th><th className={th} /></tr></thead>
+          <table className="w-full border-collapse min-w-[820px] max-sm:min-w-[520px] text-[14px]">
+            <thead><tr className="bg-subtle"><th className={th + " max-sm:hidden"} /><th className={th}>PO</th><th className={th}>Supplier</th><th className={th + " max-sm:hidden"}>Date</th><th className={th + " text-right max-sm:hidden"}>Items</th><th className={th + " text-right"}>Value</th><th className={th}>Status</th><th className={th} /></tr></thead>
             <tbody>
               {orders.map((o) => {
                 const [label, tone] = STATUS[o.status];
@@ -82,9 +82,9 @@ function Orders({ orders, catalogue, suppliers, grns, rules, canRules }: { order
                 return (
                   <FragmentRow key={o.id}>
                     <tr className="cursor-pointer hover:bg-[#FAFCFC]" onClick={() => setOpen(isOpen ? null : o.id)}>
-                      <td className={td + " w-6 text-faint"}>{isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</td>
-                      <td className={td + " font-mono text-[13px]"}>{o.no}</td><td className={td}>{o.supplier}</td><td className={td + " text-muted"}>{dayMonth(new Date(o.date), true)}</td>
-                      <td className={td + " text-right tnum"}>{o.items.length}</td><td className={td + " text-right tnum font-semibold"}>{inr0(o.total)}</td>
+                      <td className={td + " w-6 text-faint max-sm:hidden"}>{isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</td>
+                      <td className={td + " font-mono text-[13px]"}>{o.no}</td><td className={td}>{o.supplier}</td><td className={td + " text-muted max-sm:hidden"}>{dayMonth(new Date(o.date), true)}</td>
+                      <td className={td + " text-right tnum max-sm:hidden"}>{o.items.length}</td><td className={td + " text-right tnum font-semibold"}>{inr0(o.total)}</td>
                       <td className={td}><Badge tone={tone}>{label}</Badge>{o.source && o.source !== "manual" ? <span className="ml-1.5 text-[11.5px] text-faint">from {o.source}</span> : null}</td>
                       <td className={td + " text-right whitespace-nowrap"} onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-1.5 justify-end">
@@ -120,9 +120,9 @@ function Orders({ orders, catalogue, suppliers, grns, rules, canRules }: { order
         <div className={wrap + " px-4 py-3"}>
           <div className="font-semibold text-[14.5px] mb-1.5">Recent GRNs</div>
           {grns.map((g) => (
-            <div key={g.id} className="grid grid-cols-[150px_minmax(0,1fr)_auto_auto] gap-3 py-1.5 border-b border-row last:border-0 text-[13px] items-baseline">
-              <span className="font-mono text-[12px]">{g.no}</span><span className="truncate">{g.supplier} <span className="text-muted">· Inv {g.invoiceNo} · {g.lines} line(s)</span></span>
-              <span className="text-muted">{dayMonth(new Date(g.date))}</span><strong className="tnum">{inr0(g.total)}</strong>
+            <div key={g.id} className="grid grid-cols-[150px_minmax(0,1fr)_auto_auto] max-sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-3 max-sm:gap-y-0.5 py-1.5 border-b border-row last:border-0 text-[13px] items-baseline">
+              <span className="font-mono text-[12px]">{g.no}</span><span className="truncate max-sm:col-span-full max-sm:order-last">{g.supplier} <span className="text-muted">· Inv {g.invoiceNo} · {g.lines} line{g.lines === 1 ? "" : "s"}</span></span>
+              <span className="text-muted whitespace-nowrap">{dayMonth(new Date(g.date), true)}</span><strong className="tnum">{inr0(g.total)}</strong>
             </div>
           ))}
         </div>
@@ -279,7 +279,7 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today, rules }:
       confidence: l.medicineId ? l.confidence : undefined, hint: l.problems.join(" · ") || undefined,
     })));
     setEbill(false);
-    toast(`${d.lines.length} line(s) loaded from the e-bill. Enter the printed total and check flagged lines.`, "blue");
+    toast(`${d.lines.length} line${d.lines.length === 1 ? "" : "s"} loaded from the e-bill. Enter the printed total and check flagged lines.`, "blue");
   };
 
   if (done) return (

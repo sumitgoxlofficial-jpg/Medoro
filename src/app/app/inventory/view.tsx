@@ -25,7 +25,7 @@ type List = Awaited<ReturnType<typeof listInventory>>;
 type Detail = NonNullable<Awaited<ReturnType<typeof medicineDetail>>>;
 type Transfers = Awaited<ReturnType<typeof listBranchTransfers>>;
 
-const FILTERS: [InvFilter, string][] = [["all", "All"], ["low", "Low stock"], ["rx", "Schedule H/H1"], ["exp", "Expiring ≤ 90 d"]];
+const FILTERS: [InvFilter, string][] = [["all", "All"], ["low", "Low stock"], ["rx", "Schedule H/H1"], ["exp", "Expiring in 90 days"]];
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
 
@@ -65,14 +65,14 @@ export function InventoryView({ list, detail, q, filter, rack, racks, openAdd, t
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       {tabs}
       <div className="flex gap-2.5 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[240px] max-w-[420px]">
+        <div className="relative flex-1 min-w-[240px] max-w-[420px] max-sm:min-w-0 max-sm:max-w-none max-sm:basis-full">
           <Search size={16} className="absolute left-[11px] top-1/2 -translate-y-1/2 text-fainter" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search brand, salt, manufacturer or barcode" aria-label="Search inventory"
             className="w-full border border-input rounded-lg py-[9px] pr-[11px] pl-[34px] text-[14px] outline-none bg-white focus:border-teal" />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:w-full">
           {FILTERS.map(([id, label]) => (
-            <button key={id} onClick={() => nav({ filter: id === "all" ? null : id })} className="rounded-full px-3 py-1.5 text-[13px] font-medium cursor-pointer border"
+            <button key={id} onClick={() => nav({ filter: id === "all" ? null : id })} className="flex-none rounded-full px-3 py-1.5 text-[13px] font-medium cursor-pointer border whitespace-nowrap"
               style={filter === id ? { background: "#0B5E5B", color: "#fff", borderColor: "#0B5E5B" } : { background: "#fff", color: "#3D454D", borderColor: "#CDD2D7" }}>{label}</button>
           ))}
         </div>
@@ -82,7 +82,7 @@ export function InventoryView({ list, detail, q, filter, rack, racks, openAdd, t
             {racks.map((r) => <option key={r} value={r}>Rack {r}</option>)}
           </select>
         ) : null}
-        <div className="ml-auto flex gap-2.5 items-center flex-wrap">
+        <div className="ml-auto flex gap-2.5 items-center flex-wrap max-sm:ml-0 max-sm:w-full">
           <span className="text-[12.5px] text-muted">{list.rows.length} of {list.total} medicines</span>
           {canEdit && list.rows.length ? <Button onClick={() => setLabels({ medicineIds: list.rows.slice(0, 200).map((r) => r.id), batchIds: [], title: `${Math.min(list.rows.length, 200)} medicines in this list` })}><Printer size={15} />Labels</Button> : null}
           {canEdit ? <Button onClick={() => setSalts(true)}><FlaskConical size={15} />Salts</Button> : null}
@@ -91,26 +91,26 @@ export function InventoryView({ list, detail, q, filter, rack, racks, openAdd, t
         </div>
       </div>
 
-      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto">
+      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
         {list.rows.length ? (
-          <table className="w-full border-collapse min-w-[860px] text-[14px]">
+          <table className="w-full border-collapse min-w-[860px] max-sm:min-w-0 text-[14px]">
             <thead><tr className="bg-subtle">
-              <th className={th}>Medicine</th><th className={th}>Manufacturer</th><th className={th}>Rack</th><th className={th + " text-right"}>Sellable</th><th className={th + " text-right"}>Reorder</th>
-              <th className={th}>Batches</th><th className={th}>Nearest expiry</th><th className={th + " text-right"}>MRP</th><th className={th}>GST</th><th className={th}>Sch.</th>
+              <th className={th}>Medicine</th><th className={th + " max-sm:hidden"}>Manufacturer</th><th className={th + " max-sm:hidden"}>Rack</th><th className={th + " text-right"}>Sellable</th><th className={th + " text-right max-sm:hidden"}>Reorder</th>
+              <th className={th + " text-right max-sm:hidden"}>Batches</th><th className={th}>Nearest expiry</th><th className={th + " text-right"}>MRP</th><th className={th + " text-right max-sm:hidden"}>GST</th><th className={th + " max-sm:hidden"}>Sch.</th>
             </tr></thead>
             <tbody>
               {list.rows.map((r) => (
                 <tr key={r.id} onClick={() => nav({ sel: r.id })} className="cursor-pointer hover:bg-[#FAFCFC]" style={{ background: detail?.medicine.id === r.id ? "#F0F7F6" : undefined }}>
                   <td className={td}><div className="font-semibold">{r.name}</div><div className="text-[12px] text-muted">{r.meta}</div></td>
-                  <td className={td + " text-ink-2"}>{r.manufacturer}</td>
-                  <td className={td + " text-[13px] font-mono"}>{r.rack ?? "—"}</td>
+                  <td className={td + " text-ink-2 max-sm:hidden"}>{r.manufacturer}</td>
+                  <td className={td + " max-sm:hidden"}>{r.rack ?? "—"}</td>
                   <td className={td + " text-right font-semibold tnum"} style={{ color: r.low ? "#B3261E" : "#1F2328" }}>{r.sellableText}</td>
-                  <td className={td + " text-right text-muted tnum"}>{r.reorder}</td>
-                  <td className={td + " text-[13px]"}>{r.batches}{r.blocked ? <span className="text-warn"> (blocked: {r.blocked})</span> : null}</td>
-                  <td className={td + " text-[13px]"} style={{ color: r.nearDays == null ? undefined : r.nearDays <= 30 ? "#B3261E" : r.nearDays <= 90 ? "#94570A" : "#1F2328" }}>{r.nearExpiry ? monthYear(r.nearExpiry) : "—"}</td>
+                  <td className={td + " text-right text-muted tnum max-sm:hidden"}>{r.reorder}</td>
+                  <td className={td + " text-right tnum max-sm:hidden"}>{r.batches}{r.blocked ? <span className="text-warn"> (blocked: {r.blocked})</span> : null}</td>
+                  <td className={td} style={{ color: r.nearDays == null ? undefined : r.nearDays <= 30 ? "#B3261E" : r.nearDays <= 90 ? "#94570A" : "#1F2328" }}>{r.nearExpiry ? monthYear(r.nearExpiry) : "—"}</td>
                   <td className={td + " text-right tnum"}>{inr(r.mrp)}</td>
-                  <td className={td + " text-[13px]"}>{r.gst}%</td>
-                  <td className={td + " text-[13px]"}>{r.schedule ?? "—"}</td>
+                  <td className={td + " text-right tnum max-sm:hidden"}>{r.gst}%</td>
+                  <td className={td + " max-sm:hidden"}>{r.schedule ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -325,6 +325,7 @@ function SaltsDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
   );
 }
 
+const STATUS_LABEL: Record<string, string> = { quarantine: "Quarantined", damaged: "Damaged", recalled: "Recalled" };
 const ACTIONS = { adjust: "Stock adjustment (+/−)", writeoff: "Write off", return: "Return to supplier (debit note)", claim: "Expiry / breakage claim on supplier", transfer: "Transfer to another branch", quarantine: "Quarantine", release: "Release from quarantine" } as const;
 type ActionId = keyof typeof ACTIONS;
 
@@ -371,7 +372,7 @@ function BatchActions({ batch: b, medicine: m, branches, canAdjust, canPurchase,
     onClose();
   });
   return (
-    <Modal open onClose={onClose} width={480} title={`${m.name} · ${b.batchNo}`} sub={<>{b.qtyText} in stock · cost {inr(b.cost)}{m.packSize > 1 ? `/${m.packUnit}` : ""} · exp {monthYear(b.expiry)}{b.status !== "ok" ? ` · ${b.status}` : ""}</>}
+    <Modal open onClose={onClose} width={480} title={`${m.name} · ${b.batchNo}`} sub={<>{b.qtyText} in stock · cost {inr(b.cost)}{m.packSize > 1 ? `/${m.packUnit}` : ""} · exp {monthYear(b.expiry)}{b.status !== "ok" ? ` · ${STATUS_LABEL[b.status] ?? b.status}` : ""}</>}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant={f.action === "writeoff" ? "danger" : "primary"} onClick={submit} disabled={pending || !avail.length}>{pending ? "Saving…" : ACTIONS[f.action]}</Button></>}>
       {avail.length ? <>
         <Field label="Action"><Select value={f.action} onChange={(e) => setF({ ...f, action: e.target.value as ActionId })}>{avail.map((a) => <option key={a} value={a}>{ACTIONS[a]}</option>)}</Select></Field>

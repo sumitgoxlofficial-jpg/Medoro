@@ -16,6 +16,7 @@ type D = Awaited<ReturnType<typeof expiryRows>>;
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row align-top";
 
+const STATUS_LABEL: Record<string, string> = { quarantine: "Quarantined", damaged: "Damaged", recalled: "Recalled" };
 export function ExpiryView({ w, data, recovered, canAdjust, canPurchase }: { w: number; data: D; recovered: number; canAdjust: boolean; canPurchase: boolean }) {
   const router = useRouter();
   const toast = useToast();
@@ -32,23 +33,23 @@ export function ExpiryView({ w, data, recovered, canAdjust, canPurchase }: { w: 
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-[13px] text-muted">Window</span>
         <Segmented value={String(w)} onChange={(v) => router.replace(`/app/expiry?w=${v}`)} className="bg-white border border-line" options={[30, 60, 90, 180].map((x) => ({ value: String(x), label: `${x} days` }))} />
-        <span className="text-[12px] text-faint">Projections assume FEFO and the 28-day average sales rate. Expired stock is always blocked at POS.</span>
+        <span className="text-[12px] text-faint basis-full">Projections assume FEFO and the 28-day average sales rate. Expired stock is always blocked at POS.</span>
       </div>
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         {kpis.map(([k, v]) => <div key={k} className="bg-white border border-line rounded-xl px-4 py-3 flex flex-col gap-1"><span className="text-[12.5px] text-muted">{k}</span><span className="text-[22px] font-semibold tnum">{v}</span></div>)}
       </div>
-      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto">
+      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
         {rows.length ? (
           <table className="w-full border-collapse min-w-[1050px] text-[13.5px]">
             <thead><tr className="bg-subtle"><th className={th}>Batch</th><th className={th}>Expiry</th><th className={th + " text-right"}>Qty</th><th className={th + " text-right"}>At cost</th><th className={th}>Sell-through projection</th><th className={th + " text-right"}>Projected loss</th><th className={th}>Recommendation</th><th className={th} /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td className={td}><div className="font-semibold">{r.medicine}</div><div className="text-[12px] font-mono text-muted">{r.batchNo}{r.status !== "ok" ? ` · ${r.status}` : ""}</div></td>
+                  <td className={td}><div className="font-semibold">{r.medicine}</div><div className="text-[12px] text-muted"><span className="font-mono">{r.batchNo}</span>{r.status !== "ok" ? ` · ${STATUS_LABEL[r.status] ?? r.status}` : ""}</div></td>
                   <td className={td}><div className="flex flex-col"><span>{monthYear(r.expiry)}</span><Badge tone={r.days <= 30 ? "red" : r.days <= 60 ? "amber" : "gray"} className="self-start mt-0.5">{r.days} days</Badge></div></td>
                   <td className={td + " text-right tnum"}>{r.qtyText}</td>
                   <td className={td + " text-right tnum"}>{inr0(r.exposure)}</td>
-                  <td className={td}><div>{r.unsold ? `${r.sold} sell, ${r.unsold} left at expiry` : "All sell before expiry"}</div><div className="text-[12px] text-faint">{r.velocity ? `${r.velocity.toFixed(1)}/day × ${r.days} d` : "No sales in 28 days"}</div></td>
+                  <td className={td}><div>{r.unsold ? `${r.sold} sell, ${r.unsold} left at expiry` : "All sell before expiry"}</div><div className="text-[12px] text-faint">{r.velocity ? `${r.velocity < 0.1 ? "<0.1" : r.velocity.toFixed(1)}/day × ${r.days} d` : "No sales in 28 days"}</div></td>
                   <td className={td + " text-right tnum font-semibold"} style={{ color: r.loss ? "#B3261E" : "#1E7F4F" }}>{inr0(r.loss)}</td>
                   <td className={td + " text-[13px] max-w-[260px]"}>{r.rec.text}</td>
                   <td className={td + " whitespace-nowrap"}>

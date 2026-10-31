@@ -19,7 +19,7 @@ export function PricingRulesButton({ rules }: { rules: PricingRules }) {
   const save = () => start(async () => { if (toastR(await savePricingRulesAction(r))) setOpen(false); });
   return (
     <>
-      <Button onClick={() => { setR(rules); setOpen(true); }}><Settings2 size={15} />Pricing rules</Button>
+      <Button className="max-sm:flex-1" onClick={() => { setR(rules); setOpen(true); }}><Settings2 size={15} />Pricing rules</Button>
       <Modal open={open} onClose={() => setOpen(false)} title="Purchase pricing rules" sub="How GRNs work out GST and landed cost" width={560}
         footer={<><Button onClick={() => setOpen(false)}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save rules</Button></>}>
         <div className="flex flex-col gap-2">
