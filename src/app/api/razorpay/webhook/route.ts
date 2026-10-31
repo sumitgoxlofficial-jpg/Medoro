@@ -1,4 +1,5 @@
 import { handleWebhook } from "@/domain/system/razorpay";
+import { cpWebhook } from "@/staff/online-pay";
 import { log } from "@/server/log";
 
 export const dynamic = "force-dynamic";
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const raw = await req.text();
   try {
-    const r = await handleWebhook(raw, req.headers.get("x-razorpay-signature"));
+    const r = await handleWebhook(raw, req.headers.get("x-razorpay-signature"), cpWebhook);
     if (r.status !== 200) log.warn("Razorpay webhook refused.", { note: r.note });
     return new Response(r.note, { status: r.status, headers: { "Cache-Control": "no-store" } });
   } catch (e) {

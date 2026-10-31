@@ -3,10 +3,11 @@ export type HeaderOpts = { nonce: string; https: boolean; path: string; dev?: bo
 /** Paths a Medoro page may embed in an iframe (the scanned-invoice preview). Everything else refuses framing. */
 const FRAMEABLE = /^\/api\/documents\//;
 /**
- * Pages of the signed-in app, where the Subscription page opens Razorpay Checkout (a script that frames Razorpay and
+ * Pages of the signed-in app, where the Subscription page opens Razorpay Checkout, and /pay (desktop and self-hosted
+ * installations paying Medoro) (a script that frames Razorpay and
  * may open bank popups). All of /app, because client-side navigation keeps the policy of the page first loaded.
  */
-const CHECKOUT = /^\/app(\/|$)/;
+const CHECKOUT = /^\/(app|pay)(\/|$)/;
 const RZP = "https://checkout.razorpay.com https://api.razorpay.com";
 
 export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): string {

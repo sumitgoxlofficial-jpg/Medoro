@@ -6,7 +6,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, dateOnly, isoOf } from "@/lib/dates";
-import { LICENCE_HEADER, SIGNATURE_HEADER, parseLicenceKey, requestSignature, verifyDoc, type LicenceDoc, type SignedDoc } from "@/lib/licence";
+import { LICENCE_HEADER, SIGNATURE_HEADER, parseLicenceKey, payLinkBody, requestSignature, verifyDoc, type LicenceDoc, type SignedDoc } from "@/lib/licence";
 import { grantSupport } from "@/domain/identity/support";
 import { accessFor, licenceServer } from "./access";
 
@@ -270,6 +270,13 @@ export async function decideRemoteRequest(ctx: Ctx, requestId: string, approve: 
 }
 
 /** Everything the Plan screen shows. */
+/** The link that opens Medoro's pay page for this installation (signed with its instance token, valid 2 hours). */
+export async function payOnlineLink(tenantId: string) {
+  const server = licenceServer(), cred = await credentials(tenantId);
+  if (!server || !cred) throw new UserError("This installation isn’t connected to Medoro yet. Press Check now first.");
+  return `${server}/pay?${new URLSearchParams({ l: cred.licenceId, s: requestSignature(cred.token, payLinkBody(cred.licenceId)) })}`;
+}
+
 export async function planView(tenantId: string) {
   const [m, access, outbox] = await Promise.all([
     db.subscriptionMeta.findUnique({ where: { tenantId } }),

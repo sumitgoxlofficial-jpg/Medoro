@@ -14,6 +14,7 @@ import { discountOf, normCode, usableCoupon } from "./coupons";
  * The browser's success callback and Razorpay's webhook both confirm the same order; whichever is first wins.
  */
 const API = "https://api.razorpay.com/v1";
+export type RzpPayment = { id: string; order_id: string; amount: number; currency: string; status: string };
 const cfg = () => ({
   keyId: process.env.RAZORPAY_KEY_ID?.trim() ?? "",
   secret: process.env.RAZORPAY_KEY_SECRET?.trim() ?? "",
@@ -68,6 +69,25 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
   return j;
 }
 
+/** A Razorpay order for `amount` paise (GST included). */
+export async function rzpOrder(amount: number, receipt: string, notes: Record<string, string>) {
+  const order = await api<{ id: string; amount: number }>("/orders", { method: "POST", body: { amount, currency: "INR", receipt: receipt.slice(0, 40), notes } });
+  if (order.amount !== amount) throw new UserError("Razorpay returned a different amount. Nothing was charged.");
+  return order.id;
+}
+
+/** Checkout's success callback, checked: the signature, then the payment itself (captured if only authorised). Returns the payment id. */
+export async function rzpConfirm(orderId: string, paymentId: string, signature: string, amount: number) {
+  if (!checkoutSignatureOk(orderId, paymentId, signature)) throw new UserError("The payment couldn’t be verified. If money was taken, it is confirmed automatically within a few minutes.");
+  let pay = await api<RzpPayment>(`/payments/${encodeURIComponent(paymentId)}`);
+  if (pay.order_id !== orderId || pay.amount !== amount) throw new UserError("This payment doesn’t match the order.");
+  if (pay.status === "authorized") pay = await api<RzpPayment>(`/payments/${encodeURIComponent(paymentId)}/capture`, { method: "POST", body: { amount, currency: "INR" } });
+  if (pay.status !== "captured") throw new UserError("Razorpay hasn’t completed this payment yet. It is confirmed automatically once it does.");
+  return pay.id;
+}
+
+export const rzpKeyId = () => cfg().keyId;
+
 /** Starts a payment: a Razorpay order for the chosen plan, and what the browser needs to open Checkout. */
 export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
   if (!razorpayEnabled()) throw new UserError("Online payments aren’t set up on this server.");
@@ -86,14 +106,10 @@ export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
     db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { code: true, name: true } }),
     db.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { name: true, email: true, phone: true } }),
   ]);
-  const order = await api<{ id: string; amount: number }>("/orders", {
-    method: "POST",
-    body: { amount: price.total, currency: "INR", receipt: `${tenant.code}-${randomBytes(4).toString("hex")}`.slice(0, 40), notes: { tenantId: ctx.tenantId, pharmacy: tenant.code, plan, cycle, ...(coupon ? { coupon } : {}) } },
-  });
-  if (order.amount !== price.total) throw new UserError("Razorpay returned a different amount. Nothing was charged.");
-  await db.onlinePayment.create({ data: { ...base, orderId: order.id } });
+  const orderId = await rzpOrder(price.total, `${tenant.code}-${randomBytes(4).toString("hex")}`, { tenantId: ctx.tenantId, pharmacy: tenant.code, plan, cycle, ...(coupon ? { coupon } : {}) });
+  await db.onlinePayment.create({ data: { ...base, orderId } });
   return {
-    free: false as const, keyId: cfg().keyId, orderId: order.id, amount: price.total, currency: "INR",
+    free: false as const, keyId: cfg().keyId, orderId, amount: price.total, currency: "INR",
     name: "Medoro", description: `${price.name} · ${cycle === "y" ? "1 year" : "1 month"}${coupon ? ` · coupon ${coupon}` : ""}`,
     prefill: { name: user.name, email: user.email ?? "", contact: user.phone ?? "" }, notes: { pharmacy: `${tenant.name} (${tenant.code})` },
   };
@@ -121,30 +137,27 @@ export async function applyPaid(orderId: string, paymentId: string, by: string) 
   });
 }
 
-type RzpPayment = { id: string; order_id: string; amount: number; currency: string; status: string };
-
 /** The browser's Checkout success callback: verify the signature, make sure the money is captured, then apply. */
 export async function confirmCheckout(ctx: Ctx, i: { orderId: string; paymentId: string; signature: string }) {
   const p = await db.onlinePayment.findUnique({ where: { orderId: String(i.orderId ?? "") } });
   if (!p || p.tenantId !== ctx.tenantId) throw new UserError("Payment not found.");
   if (p.status === "paid") return { applied: false };
-  if (!checkoutSignatureOk(p.orderId, i.paymentId, i.signature)) throw new UserError("The payment couldn’t be verified. If money was taken, it is confirmed automatically within a few minutes.");
-  let pay = await api<RzpPayment>(`/payments/${encodeURIComponent(i.paymentId)}`);
-  if (pay.order_id !== p.orderId || pay.amount !== p.amountPaise) throw new UserError("This payment doesn’t match the order.");
-  if (pay.status === "authorized") pay = await api<RzpPayment>(`/payments/${encodeURIComponent(i.paymentId)}/capture`, { method: "POST", body: { amount: p.amountPaise, currency: "INR" } });
-  if (pay.status !== "captured") throw new UserError("Razorpay hasn’t completed this payment yet. It is confirmed automatically once it does.");
-  return { applied: await applyPaid(p.orderId, pay.id, ctx.userName) };
+  const paymentId = await rzpConfirm(p.orderId, i.paymentId, i.signature, p.amountPaise);
+  return { applied: await applyPaid(p.orderId, paymentId, ctx.userName) };
 }
 
-/** Razorpay webhook (payment.captured / order.paid): confirms orders whose browser window closed early. */
-export async function handleWebhook(body: string, signature: string | null): Promise<{ status: number; note: string }> {
+/**
+ * Razorpay webhook (payment.captured / order.paid): confirms orders whose browser window closed early. Orders that aren't
+ * a hosted pharmacy's go to `other` (licence-server payments from self-hosted and desktop installations).
+ */
+export async function handleWebhook(body: string, signature: string | null, other?: (pay: RzpPayment) => Promise<string | null>): Promise<{ status: number; note: string }> {
   if (!webhookSignatureOk(body, signature)) return { status: 401, note: "bad signature" };
   const e = JSON.parse(body) as { event?: string; payload?: { payment?: { entity?: RzpPayment } } };
   if (e.event !== "payment.captured" && e.event !== "order.paid") return { status: 200, note: "ignored" };
   const pay = e.payload?.payment?.entity;
   if (!pay?.order_id || pay.status !== "captured") return { status: 200, note: "not captured" };
   const p = await db.onlinePayment.findUnique({ where: { orderId: pay.order_id } });
-  if (!p) return { status: 200, note: "unknown order" };
+  if (!p) return { status: 200, note: (other && (await other(pay))) || "unknown order" };
   if (pay.amount !== p.amountPaise) return { status: 200, note: "amount mismatch" };
   return { status: 200, note: (await applyPaid(p.orderId, pay.id, "Razorpay")) ? "applied" : "already applied" };
 }

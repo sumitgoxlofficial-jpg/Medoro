@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { run, UserError } from "@/server/action";
 import { authorize } from "@/server/context";
-import { checkIn, claimPayment, connectLicenceKey, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
+import { checkIn, claimPayment, connectLicenceKey, payOnlineLink, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
 import type { z } from "zod";
 import { confirmCheckout, createOrder, quote, type orderSchema } from "@/domain/system/razorpay";
 
@@ -50,4 +50,9 @@ export async function payOnlineAction(input: z.input<typeof orderSchema>) {
 /** Razorpay Checkout's success callback. */
 export async function confirmOnlineAction(i: { orderId: string; paymentId: string; signature: string }) {
   return fresh(await run(async (c) => { authorize(c, "users"); return confirmCheckout(c, i); }, "Payment received. Your plan is active."));
+}
+
+/** Self-hosted and desktop installations: the signed link to Medoro's pay page. */
+export async function payLinkAction() {
+  return run(async (c) => { authorize(c, "users"); return payOnlineLink(c.tenantId); });
 }

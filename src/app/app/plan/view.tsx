@@ -7,24 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { openCheckout } from "@/components/razorpay";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
-import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, paidAction, payOnlineAction } from "./actions";
+import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, paidAction, payLinkAction, payOnlineAction } from "./actions";
 
 type Online = { enabled: boolean; payments: { id: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; paidAt: string; periodTo: string }[] };
-type RzpResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-type RzpCheckout = { open: () => void; on: (e: string, fn: (r: { error?: { description?: string } }) => void) => void };
-declare global { interface Window { Razorpay?: new (o: Record<string, unknown>) => RzpCheckout } }
 
-/** Loads Razorpay Checkout once, on demand. */
-const loadCheckout = () => new Promise<void>((resolve, reject) => {
-  if (window.Razorpay) return resolve();
-  const s = document.createElement("script");
-  s.src = "https://checkout.razorpay.com/v1/checkout.js";
-  s.onload = () => resolve();
-  s.onerror = () => reject(new Error("Couldn’t load Razorpay. Check your internet connection and try again."));
-  document.body.appendChild(s);
-});
 
 type V = Awaited<ReturnType<typeof planView>>;
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
@@ -73,6 +62,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const hasAi = v.addons.includes("ai");
   const manual = (!!pay.upi || !!pay.bank) && (connected || !online.enabled);
   const [paying, setPaying] = useState(false);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [coupon, setCoupon] = useState<{ code: string; percentOff: number } | null>(null);
   const [couponErr, setCouponErr] = useState("");
@@ -95,15 +85,9 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
       const r = await payOnlineAction({ plan: product, cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
       if (!r.ok) return toast(r.error, "red");
       if (r.data.free) { toast(r.message ?? "Your plan is active.", "green"); return router.refresh(); }
-      await loadCheckout();
-      const o = r.data;
-      const rzp = new window.Razorpay!({
-        key: o.keyId, order_id: o.orderId, amount: o.amount, currency: o.currency, name: o.name, description: o.description,
-        prefill: o.prefill, notes: o.notes, theme: { color: "#0B5E5B" },
-        handler: (resp: RzpResponse) => act(() => confirmOnlineAction({ orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature })),
-      });
-      rzp.on("payment.failed", (e) => toast(e.error?.description ? `Payment failed: ${e.error.description}` : "Payment failed. No money was taken; try again.", "red"));
-      rzp.open();
+      await openCheckout(r.data,
+        (resp) => act(() => confirmOnlineAction({ orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature })),
+        (msg) => toast(msg, "red"));
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn’t start the payment.", "red");
     } finally { setPaying(false); }
@@ -148,7 +132,21 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}.</span>
             </>
           ) : null}
-          {online.enabled && !manual ? null : !pay.upi && !pay.bank ? (
+          {connected && !online.enabled ? (
+            <div className="flex flex-col gap-1.5">
+              <Button variant="primary" className="self-start" disabled={busy} onClick={() => start(async () => {
+                const r = await payLinkAction();
+                if (!r.ok) return toast(r.error, "red");
+                setPayUrl(r.data);
+                // The desktop app opens this in the system browser; a browser may block it, so the link below stays.
+                window.open(r.data, "_blank", "noopener");
+              })}>Pay online</Button>
+              {payUrl ? <a href={payUrl} target="_blank" rel="noopener" className="text-[13px] text-teal underline self-start">Payment page didn’t open? Open it here</a> : null}
+              <span className="text-[12.5px] text-faint">Opens Medoro’s payment page in your browser: UPI, cards, netbanking or wallets through Razorpay, with coupon codes. Your plan updates here after payment (press Check now to see it straight away).</span>
+              {pay.upi || pay.bank ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">Or pay by UPI or bank transfer and report it:</div> : null}
+            </div>
+          ) : null}
+          {online.enabled && !manual ? null : connected && !online.enabled && !pay.upi && !pay.bank ? null : !pay.upi && !pay.bank ? (
             <div className="text-[13px] text-ink-2">Payment details aren’t configured on this server. Contact Medoro billing for UPI or bank details{connected ? ", then report the payment below" : ""}.</div>
           ) : (
             <>
@@ -172,7 +170,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               </div>
             </>
           )}
-          {connected ? (paid ? (
+          {connected && (pay.upi || pay.bank) ? (paid ? (
             <form onSubmit={(e) => { e.preventDefault(); act(() => paidAction({ product, cycle: cycle as "m" | "y", ...paid }), () => setPaid(null)); }} className="flex flex-col gap-2 bg-page border border-line rounded-lg p-3">
               <strong className="text-[13.5px]">Report your payment</strong>
               <div className="grid grid-cols-2 gap-2">

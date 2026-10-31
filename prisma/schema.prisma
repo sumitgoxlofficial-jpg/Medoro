@@ -995,6 +995,26 @@ model OnlinePayment {
   @@index([tenantId, createdAt])
 }
 
+/// Online payments to Medoro (the licence server) from self-hosted and desktop installations, one row per Razorpay order.
+model CpOnlinePayment {
+  id            String    @id @default(uuid())
+  customerId    String
+  orderId       String    @unique
+  paymentId     String?   @unique
+  plan          String // starter, pro, multi
+  cycle         String // m, y
+  amountPaise   Int // charged, GST included
+  gstPaise      Int
+  couponCode    String?
+  discountPaise Int       @default(0)
+  status        String    @default("created") // created, paid
+  saleId        String?
+  createdAt     DateTime  @default(now())
+  paidAt        DateTime?
+
+  @@index([customerId, createdAt])
+}
+
 /// Subscription coupon codes, made in the staff console and entered by pharmacies before paying online.
 model Coupon {
   id         String    @id @default(uuid())
