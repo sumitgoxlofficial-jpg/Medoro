@@ -25,7 +25,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     <>
       <PageHead title={t(ctx.lang).doc} sub="Doctor master for prescriptions, and sales by referring doctor" />
       <DoctorsView tab={tab} doctors={doctors} q={sp.q ?? ""} report={report} branches={ctx.branches.map((b) => ({ id: b.id, name: b.name }))}
-        canReport={canReport} canEdit={can(ctx, "adjust") || can(ctx, "users") || canReport} />
+        canReport={canReport} canEdit={can(ctx, "adjust") || can(ctx, "users") || canReport} canAdd={can(ctx, "sale")} />
     </>
   );
 }

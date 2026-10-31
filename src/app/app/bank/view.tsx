@@ -7,6 +7,7 @@ import { Field, Select } from "@/components/ui/field";
 import { useActionToast, useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
 import { downloadCsv } from "@/lib/csv";
+import { dateOnly, dayMonth } from "@/lib/dates";
 import { BANK_FIELDS, type BankField, type BankMapping } from "@/domain/accounting/bank-types";
 import type { bankReconciliation } from "@/domain/accounting/bank";
 import { importStatementAction, matchAction, unmatchAction } from "./actions";
@@ -15,6 +16,7 @@ type Data = Awaited<ReturnType<typeof bankReconciliation>>;
 const th = "text-left text-[12px] font-medium text-muted px-3 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3 py-2 border-b border-row";
 const wrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
+const day = (iso: string) => dayMonth(dateOnly(iso), true);
 const amt = (p: number) => <span className="tnum" style={{ color: p < 0 ? "#B3261E" : "#1E7F4F" }}>{p < 0 ? "−" : "+"}{inr(Math.abs(p))}</span>;
 
 export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
@@ -46,10 +48,10 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
         <div className="text-[13.5px]">Matched lines <strong className="tnum">{data.matched}</strong></div>
         <div className="text-[13.5px]">Statement lines to match <strong className="tnum">{data.statement.length}</strong></div>
         <div className="text-[13.5px]">Book entries not on a statement <strong className="tnum">{data.books.length}</strong></div>
-        {data.balance ? <div className="text-[13.5px]">On {data.balance.date}: bank <strong className="tnum">{inr(data.balance.bank)}</strong> · books <strong className="tnum">{inr(data.balance.books)}</strong> {data.balance.bank === data.balance.books ? <Badge tone="green">Agrees</Badge> : <Badge tone="amber">Differs by {inr(data.balance.bank - data.balance.books)}</Badge>}</div> : null}
-        <div className="ml-auto flex gap-2">
-          <Button onClick={exportCsv}><Download size={15} />Unreconciled (CSV)</Button>
-          {canAct ? <label className="inline-flex items-center gap-2 h-[34px] px-3 rounded-lg bg-teal text-white text-[13px] font-semibold cursor-pointer"><FileUp size={15} />{pending ? "Importing…" : "Import statement"}
+        {data.balance ? <div className="text-[13.5px]">On {day(data.balance.date)}: bank <strong className="tnum">{inr(data.balance.bank)}</strong> · books <strong className="tnum">{inr(data.balance.books)}</strong> {data.balance.bank === data.balance.books ? <Badge tone="green">Agrees</Badge> : <Badge tone="amber">Differs by {inr(data.balance.bank - data.balance.books)}</Badge>}</div> : null}
+        <div className="ml-auto flex flex-wrap gap-2 max-sm:ml-0 max-sm:w-full">
+          <Button onClick={exportCsv} className="max-sm:flex-1"><Download size={15} />Export unmatched (CSV)</Button>
+          {canAct ? <label className="inline-flex items-center justify-center gap-2 whitespace-nowrap max-sm:flex-1 h-[34px] max-md:h-10 px-3 rounded-lg bg-teal text-white text-[13px] font-semibold cursor-pointer"><FileUp size={15} />{pending ? "Importing…" : "Import statement"}
             <input type="file" className="hidden" accept=".csv,.xlsx,.txt" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); upload(f); } e.target.value = ""; }} /></label> : null}
         </div>
       </div>
@@ -74,44 +76,44 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
         </div>
       ) : null}
 
-      <div className={wrap + " overflow-auto"}>
+      <div className={wrap + " overflow-auto tbl-scroll"}>
         <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">Statement lines not matched</div>
         {data.statement.length ? (
           <table className="w-full border-collapse text-[13px] min-w-[980px]">
             <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Narration</th><th className={th}>Ref</th><th className={th + " text-right"}>Amount</th><th className={th}>Match to a book entry</th></tr></thead>
             <tbody>{data.statement.map((s) => (
               <tr key={s.id}>
-                <td className={td + " whitespace-nowrap"}>{s.date}</td><td className={td + " max-w-[360px] truncate"} title={s.description}>{s.description}</td><td className={td + " font-mono text-[12px]"}>{s.ref}</td><td className={td + " text-right"}>{amt(s.amount)}</td>
+                <td className={td + " whitespace-nowrap"}>{day(s.date)}</td><td className={td + " max-w-[360px] truncate"} title={s.description}>{s.description}</td><td className={td + " font-mono text-[12px]"}>{s.ref}</td><td className={td + " text-right"}>{amt(s.amount)}</td>
                 <td className={td}>{s.candidates.length ? (
                   <div className="flex gap-1.5">
                     <select className="border border-input rounded-md px-2 py-1 text-[12.5px] bg-white min-w-0 flex-1" value={picks[s.id] ?? s.candidates[0].id} onChange={(e) => setPicks({ ...picks, [s.id]: e.target.value })} aria-label="Book entry">
-                      {s.candidates.map((c) => <option key={c.id} value={c.id}>{c.date} · {c.no} · {c.narration.slice(0, 50)}</option>)}
+                      {s.candidates.map((c) => <option key={c.id} value={c.id}>{day(c.date)} · {c.no} · {c.narration.slice(0, 50)}</option>)}
                     </select>
                     {canAct ? <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await matchAction(s.id, picks[s.id] ?? s.candidates[0].id)); })}><Link2 size={13} />Match</Button> : null}
                   </div>
-                ) : <span className="text-[12.5px] text-faint">No book entry with this amount within 15 days. Post the missing entry (e.g. bank charges, interest), then match.</span>}</td>
+                ) : <span className="text-[12.5px] text-faint">No entry in your books with this amount within 15 days of this date. Record the missing entry (for example bank charges or interest), then match it here.</span>}</td>
               </tr>
             ))}</tbody>
           </table>
-        ) : <div className="px-4 pb-3 text-[13px] text-fainter">Nothing to match. Import a statement to start.</div>}
+        ) : <div className="px-4 pb-3 text-[13px] text-faint">Nothing to match. Import a statement to start.</div>}
       </div>
 
-      <div className={wrap + " overflow-auto"}>
-        <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">Book entries not yet on a statement <span className="text-[12px] font-normal text-faint">cheques in transit, deposits not credited</span></div>
+      <div className={wrap + " overflow-auto tbl-scroll"}>
+        <div className="px-4 pt-3 pb-1"><div className="font-semibold text-[14.5px]">Book entries not yet on a statement</div><div className="text-[12px] text-faint">Such as cheques not yet cleared or deposits the bank hasn’t credited yet</div></div>
         {data.books.length ? (
           <table className="w-full border-collapse text-[13px] min-w-[760px]">
             <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Voucher</th><th className={th}>Narration</th><th className={th + " text-right"}>Amount</th></tr></thead>
-            <tbody>{data.books.map((b) => <tr key={b.id}><td className={td}>{b.date}</td><td className={td + " font-mono text-[12px]"}>{b.no}</td><td className={td}>{b.narration}</td><td className={td + " text-right"}>{amt(b.amount)}</td></tr>)}</tbody>
+            <tbody>{data.books.map((b) => <tr key={b.id}><td className={td + " whitespace-nowrap"}>{day(b.date)}</td><td className={td + " font-mono text-[12px]"}>{b.no}</td><td className={td}>{b.narration}</td><td className={td + " text-right"}>{amt(b.amount)}</td></tr>)}</tbody>
           </table>
-        ) : <div className="px-4 pb-3 text-[13px] text-fainter">Every Bank account entry since your first statement is matched.</div>}
+        ) : <div className="px-4 pb-3 text-[13px] text-faint">Every bank entry in your books since your first statement is matched.</div>}
       </div>
       {data.recent.length ? (
-        <div className={wrap + " overflow-auto"}>
+        <div className={wrap + " overflow-auto tbl-scroll"}>
           <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">Recently matched</div>
           <table className="w-full border-collapse text-[13px] min-w-[760px]">
-            <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Narration</th><th className={th + " text-right"}>Amount</th><th className={th}>Voucher</th><th className={th}>How</th>{canAct ? <th className={th} /> : null}</tr></thead>
+            <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Narration</th><th className={th + " text-right"}>Amount</th><th className={th + " max-sm:hidden"}>Voucher</th><th className={th + " max-sm:hidden"}>How</th>{canAct ? <th className={th} /> : null}</tr></thead>
             <tbody>{data.recent.map((r) => (
-              <tr key={r.id}><td className={td}>{r.date}</td><td className={td + " max-w-[360px] truncate"}>{r.description}</td><td className={td + " text-right"}>{amt(r.amount)}</td><td className={td + " font-mono text-[12px]"}>{r.voucherNo}</td><td className={td}><Badge tone={r.matchedBy === "auto" ? "teal" : "gray"}>{r.matchedBy === "auto" ? "Automatic" : "Manual"}</Badge></td>
+              <tr key={r.id}><td className={td + " whitespace-nowrap"}>{day(r.date)}</td><td className={td + " max-w-[360px] truncate"}>{r.description}</td><td className={td + " text-right"}>{amt(r.amount)}</td><td className={td + " font-mono text-[12px] max-sm:hidden"}>{r.voucherNo}</td><td className={td + " max-sm:hidden"}><Badge tone={r.matchedBy === "auto" ? "teal" : "gray"}>{r.matchedBy === "auto" ? "Automatic" : "Manual"}</Badge></td>
                 {canAct ? <td className={td + " text-right"}><Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { toastR(await unmatchAction(r.id)); })}><Unlink size={13} />Unmatch</Button></td> : null}</tr>
             ))}</tbody>
           </table>

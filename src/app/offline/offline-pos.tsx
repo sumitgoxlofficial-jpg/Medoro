@@ -16,6 +16,7 @@ type Line = { key: string; medicineId: string; batchId: string; qty: number; uni
 type Pay = "cash" | "upi" | "card";
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const inp = "border border-input rounded-lg px-[11px] py-[9px] text-[14px] outline-none bg-white focus:border-teal w-full";
+const btnLink = "inline-flex items-center justify-center h-11 px-4 text-[15px] font-semibold rounded-lg no-underline transition-colors";
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 function useOnline() {
@@ -174,11 +175,11 @@ export function OfflinePos() {
   if (!dev || !snap) {
     return (
       <div className="min-h-screen bg-page">{header}
-        <div className={cn(card, "max-w-[560px] mx-auto mt-10 p-6 flex flex-col gap-3")}>
-          <div className="flex items-center gap-2 font-semibold text-[17px]"><CloudOff size={20} className="text-muted" />{online ? "Offline billing isn’t set up here" : "You’re offline"}</div>
-          <p className="m-0 text-[14px] text-ink-2">{dev ? "This device hasn’t downloaded its price list yet. Connect to the internet and press Refresh." : "Medoro needs the connection to your pharmacy’s server. If billing must keep going when the internet drops, a manager can turn on offline billing for this counter in Sync & offline."}</p>
+        <div className={cn(card, "max-w-[560px] mx-4 sm:mx-auto mt-10 p-6 flex flex-col gap-3")}>
+          <div className="flex items-center gap-2 font-semibold text-[17px]">{online ? <Cloud size={20} className="text-teal" /> : <CloudOff size={20} className="text-muted" />}{online ? "You’re back online" : "You’re offline"}</div>
+          <p className="m-0 text-[14px] text-ink-2">{dev ? (online ? "This device hasn’t downloaded its price list yet. Press Refresh above to get it, or open Medoro to bill online." : "This device hasn’t downloaded its price list yet. Connect to the internet and press Refresh.") : online ? "Open Medoro to keep billing. If billing must keep going when the internet drops, a manager can turn on offline billing for this counter in Sync & offline." : "Medoro needs the connection to your pharmacy’s server. If billing must keep going when the internet drops, a manager can turn on offline billing for this counter in Sync & offline."}</p>
           <p className="m-0 text-[13px] text-muted">Your work is safe: completed bills are already on the server, and a cart you were building is kept on this device.</p>
-          <div><a href="/app" className="inline-flex"><Button variant="primary">Try again</Button></a></div>
+          <div><a href="/app" className={cn(btnLink, "bg-teal text-white border border-teal hover:bg-teal-hover hover:text-white shadow-card")}>{online ? "Open Medoro" : "Try again"}</a></div>
         </div>
       </div>
     );

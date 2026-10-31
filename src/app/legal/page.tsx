@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import {
-  ArrowRight, BadgeHelp, Building2, Check, Cookie, FileText, HardDriveUpload, LifeBuoy, Mail, MessageCircle, Phone,
-  ReceiptIndianRupee, Shield, TriangleAlert, UserCheck,
+  ArrowRight, BadgeHelp, Building2, Cookie, FileText, HardDriveUpload, LifeBuoy, Mail, MessageCircle, Phone,
+  ReceiptIndianRupee, Shield, UserCheck,
 } from "lucide-react";
 import { SiteFooter, WA } from "@/components/site/chrome";
 import { PageHeader } from "@/components/site/page-header";
@@ -27,7 +27,7 @@ function company() {
 }
 
 const sections = (c: ReturnType<typeof company>): Sec[] => [
-  { id: "about", icon: Building2, kicker: "Company", title: "About Medoro", intro: "Medoro builds pharmacy software for Indian medical stores and pharmacy chains: billing, batch inventory, expiry control, purchases, accounts and an AI manager, all running on a database the pharmacy controls.", points: [`${c.name}, ${c.address}`, "Built for MRP-inclusive GST, FEFO batches and Schedule H and H1 registers", "We never hold your pharmacy’s operational records"] },
+  { id: "about", icon: Building2, kicker: "Company", title: "About Medoro", intro: "Medoro builds pharmacy software for Indian medical stores and pharmacy chains: billing, batch inventory, expiry control, purchases, accounts and an AI assistant, all running on a database the pharmacy controls.", points: [`${c.name}, ${c.address}`, "Built for MRP-inclusive GST, FEFO batches and Schedule H and H1 registers", "We never hold your pharmacy’s operational records"] },
   { id: "contact", icon: Phone, kicker: "Company", title: "Contact us", intro: "Sales, setup help and support, Monday to Saturday, 9 am to 9 pm IST.", points: ["WhatsApp: +91 62077 74673", "Email: hello@medoro.in · support@medoro.in", `Address: ${c.address}`], cta: ["WhatsApp us", WA, MessageCircle] },
   { id: "help", icon: LifeBuoy, kicker: "Resources", title: "Help & setup", intro: "Most pharmacies are billing within an afternoon.", points: ["1. Start the free trial and create the owner account with two-step sign-in", "2. Choose where your database lives: a shop PC, your server or your cloud", "3. Import medicines and opening stock from Excel or CSV", "4. Connect a thermal printer and barcode scanner, then add staff and roles", "5. Connect WhatsApp Business and Google Drive backups when you are ready"], cta: ["Start free trial", "/start", ArrowRight] },
   { id: "backup", icon: HardDriveUpload, kicker: "Resources", title: "Backup & recovery", intro: "Backups are encrypted on your own server before they upload to your own Google Drive. They open only with your backup key: the printed recovery kit, and a sealed copy your server keeps so it can back up and restore on its own. Medoro never receives the key.", points: ["Daily automatic backup, plus manual backups any time", "Every backup is checked with integrity hashes", "Restores go to a test copy first, and you confirm before it goes live", "On a new server, the recovery kit restores a backup file or one from your Google Drive", "Keep your printed recovery kit in two safe places. If your server is lost, backups cannot be opened without it"] },
@@ -76,9 +76,6 @@ export default function Legal() {
           <div className="flex flex-col gap-2.5">
             <h1 className="site-display m-0 text-[clamp(40px,5vw,64px)]">Company, help and legal</h1>
             <p className="m-0 text-[16px] text-[var(--s-muted)]">Last updated 27 October 2026.</p>
-            <div role="note" className="flex gap-2.5 items-start bg-[#FDF2E1] border border-[#F3D9A8] rounded-[10px] px-3.5 py-3 text-[14px] text-[#6B4A0E]">
-              <TriangleAlert size={16} className="mt-[3px] flex-none" /><span>Draft text. Have a qualified lawyer review it before launch.{c.configured ? "" : " Company and grievance officer details are still to be confirmed."}</span>
-            </div>
           </div>
           {SECTIONS.map((s) => (
             <section key={s.id} id={s.id} className="flex flex-col gap-4 border-t border-[var(--s-line)] pt-10 scroll-mt-24">
@@ -86,7 +83,9 @@ export default function Legal() {
               <h2 className="site-display m-0 text-[clamp(28px,3vw,36px)]">{s.title}</h2>
               <p className="m-0 text-[17px] leading-[1.6] text-[var(--s-ink-2)] text-pretty">{s.intro}</p>
               <ul className="m-0 p-0 list-none flex flex-col gap-2.5">
-                {s.points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-1 flex-none" /><span>{p}</span></li>)}
+                {s.points.map((p) => (
+                  <li key={p} className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink-2)]">{/^\d+\.\s/.test(p) ? null : <span aria-hidden className="size-1.5 rounded-full bg-[var(--s-muted)] mt-2.5 flex-none" />}<span>{p}</span></li>
+                ))}
               </ul>
               {s.cta ? (() => { const [label, href, Icon] = s.cta; return (
                 <a href={href} className="self-start flex gap-2 items-center h-11 px-4 border border-[#C9D1CF] rounded-lg text-[15px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><Icon size={16} aria-hidden />{label}</a>

@@ -8,7 +8,7 @@ import { Empty } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useActionToast } from "@/components/ui/toast";
-import { inr } from "@/lib/money";
+import { inr, inr0 } from "@/lib/money";
 import { dayMonth } from "@/lib/dates";
 import { CHEQUE_STATUS } from "@/domain/parties/cheque-types";
 import type { listCheques } from "@/domain/parties/cheques";
@@ -18,6 +18,7 @@ type Cheque = Awaited<ReturnType<typeof listCheques>>[number];
 const TONE: Record<Cheque["status"], Tone> = { pending: "amber", deposited: "blue", cleared: "green", bounced: "red" };
 const th = "text-left text-[12px] font-medium text-muted px-3 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3 py-2.5 border-b border-row";
+const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 
 export function ChequesView({ cheques, canAct, today }: { cheques: Cheque[]; canAct: boolean; today: string }) {
   const [tab, setTab] = useState<"open" | "received" | "issued" | "all">("open");
@@ -25,10 +26,10 @@ export function ChequesView({ cheques, canAct, today }: { cheques: Cheque[]; can
   const sum = (d: Cheque["direction"]) => cheques.filter((c) => c.direction === d && (c.status === "pending" || c.status === "deposited")).reduce((a, c) => a + c.amount, 0);
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
-      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
-        <Stat label="Cheques in hand (not cleared)" value={inr(sum("received"))} />
-        <Stat label="Issued, not yet cleared" value={inr(sum("issued"))} />
-        <Stat label="Due within 3 days" value={String(cheques.filter((c) => (c.status === "pending" || c.status === "deposited") && c.days <= 3).length)} />
+      <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))] max-sm:grid-cols-2 max-sm:gap-2">
+        <Stat label="Cheques in hand (not cleared)" value={inr0(sum("received"))} />
+        <Stat label="Issued, not yet cleared" value={inr0(sum("issued"))} />
+        <Stat label="Due within 3 days" value={String(cheques.filter((c) => (c.status === "pending" || c.status === "deposited") && c.days <= 3).length)} className="max-sm:col-span-2" />
       </div>
       <Segmented value={tab} onChange={setTab} className="self-start bg-[#EEF0F2]" options={[{ value: "open", label: "Open" }, { value: "received", label: "Received" }, { value: "issued", label: "Issued" }, { value: "all", label: "All (180 days)" }]} />
       <ChequeTable rows={rows} canAct={canAct} today={today} />
@@ -36,8 +37,8 @@ export function ChequesView({ cheques, canAct, today }: { cheques: Cheque[]; can
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return <div className="bg-white border border-line rounded-xl px-4 py-3"><div className="text-[12.5px] text-muted">{label}</div><div className="text-[20px] font-semibold tnum">{value}</div></div>;
+function Stat({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return <div className={"bg-white border border-line rounded-xl px-4 py-3 max-sm:px-3 " + className}><div className="text-[12.5px] text-muted">{label}</div><div className="text-[20px] font-semibold tnum">{value}</div></div>;
 }
 
 export function ChequeTable({ rows, canAct, today, compact = false }: { rows: Cheque[]; canAct: boolean; today: string; compact?: boolean }) {
@@ -49,16 +50,16 @@ export function ChequeTable({ rows, canAct, today, compact = false }: { rows: Ch
     if (on === null) return;
     start(async () => { toastR(await clearChequeAction(c.id, on.trim())); });
   };
-  if (!rows.length) return <div className="bg-white border border-line rounded-xl"><Empty icon={Banknote} title="No cheques here" body="Record a cheque when you receive a customer payment or pay a supplier under Suppliers & customers (method: Cheque)." /></div>;
+  if (!rows.length) return <div className="bg-white border border-line rounded-xl"><Empty icon={Banknote} title="No cheques here" body="To record a cheque, take a customer payment or pay a supplier under Suppliers & customers and choose Cheque as the payment method." /></div>;
   return (
-    <div className="bg-white border border-line rounded-xl overflow-auto">
+    <div className="bg-white border border-line rounded-xl overflow-auto tbl-scroll">
       <table className="w-full border-collapse text-[13.5px] min-w-[860px]">
-        <thead><tr className="bg-subtle"><th className={th}>Cheque date</th><th className={th}>Party</th><th className={th}>Cheque</th><th className={th + " text-right"}>Amount</th><th className={th}>Status</th>{canAct ? <th className={th} /> : null}</tr></thead>
+        <thead><tr className="bg-subtle"><th className={th}>Cheque date</th><th className={th}>Party</th><th className={th + " max-sm:hidden"}>Cheque</th><th className={th + " text-right"}>Amount</th><th className={th}>Status</th>{canAct ? <th className={th} /> : null}</tr></thead>
         <tbody>{rows.map((c) => (
           <tr key={c.id}>
-            <td className={td}>{dayMonth(new Date(c.date + "T00:00:00+05:30"), true)}<div className="text-[11.5px]" style={{ color: c.days > 0 ? "#2459C9" : c.status === "pending" && c.direction === "received" ? "#94570A" : "#8A929A" }}>{c.days > 0 ? `post-dated · in ${c.days} d` : c.days === 0 ? "today" : `${-c.days} d ago`}</div></td>
+            <td className={td}>{dayMonth(new Date(c.date + "T00:00:00+05:30"), true)}<div className="text-[11.5px]" style={{ color: c.days > 0 ? "#2459C9" : c.status === "pending" && c.direction === "received" ? "#94570A" : "#8A929A" }}>{c.days > 0 ? `post-dated · in ${days(c.days)}` : c.days === 0 ? "today" : `${days(-c.days)} ago`}</div></td>
             <td className={td}>{c.party}<div className="text-[11.5px] text-faint">{c.direction === "received" ? "from customer" : "to supplier"}</div></td>
-            <td className={td}><span className="font-mono text-[12.5px]">{c.no}</span> · {c.bank}{c.note ? <div className="text-[11.5px] text-faint">{c.note}</div> : null}</td>
+            <td className={td + " max-sm:hidden"}><span className="font-mono text-[12.5px]">{c.no}</span> · {c.bank}{c.note ? <div className="text-[11.5px] text-faint">{c.note}</div> : null}</td>
             <td className={td + " text-right tnum font-semibold"} style={{ color: c.direction === "issued" ? "#B3261E" : undefined }}>{c.direction === "issued" ? "−" : ""}{inr(c.amount)}</td>
             <td className={td}><Badge tone={TONE[c.status]}>{CHEQUE_STATUS[c.status]}</Badge>{c.bounceReason ? <div className="text-[11.5px] text-faint">{c.bounceReason}{c.charge ? ` · charge ${inr(c.charge)}` : ""}</div> : null}</td>
             {canAct ? <td className={td + " text-right whitespace-nowrap"}>

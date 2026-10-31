@@ -25,7 +25,7 @@ export function periodOf(key: string | undefined): Period {
   else if (k === "fy") { const fy = m >= 4 ? y : y - 1; from = start(fy, 4); to = now; }
   else if (/^\d{4}-\d{2}$/.test(k)) { const [a, b] = k.split("-").map(Number); from = start(a, b); to = new Date(Math.min(start(b === 12 ? a + 1 : a, b === 12 ? 1 : b + 1).getTime(), now.getTime())); }
   else { k = "month"; from = start(y, m); to = now; }
-  return { from, to, key: k, label: `${fmt(from)} – ${fmt(new Date(to.getTime() - 1))}`, fromDay: istDate(from), toDay: addDays(istDate(new Date(to.getTime() - 1)), 1) };
+  return { from, to, key: k, label: fmt(from) === fmt(new Date(to.getTime() - 1)) ? fmt(from) : `${fmt(from)} – ${fmt(new Date(to.getTime() - 1))}`, fromDay: istDate(from), toDay: addDays(istDate(new Date(to.getTime() - 1)), 1) };
 }
 
 async function accountTotals(tenantId: string, from: Date | null, to: Date) {

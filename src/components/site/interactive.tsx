@@ -16,15 +16,15 @@ const HERO = {
     h1: ["Bill faster.", "Waste less stock.", "Close GST on time."],
     sub: "Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.",
     cta: "Start 7-day free trial", demo: "Get a demo on WhatsApp",
-    note: "No card needed. Pay by UPI or bank transfer only if you continue.",
+    note: "No card needed. Pay by UPI, card or netbanking only if you continue.",
     alt: "Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days",
   },
   hi: {
     eyebrow: "भारतीय मेडिकल स्टोर के लिए फ़ार्मेसी सॉफ़्टवेयर",
     h1: ["तेज़ बिलिंग", "कम एक्सपायरी नुकसान", "GST समय पर"],
     sub: "Medoro मेडिकल स्टोर और छोटी फ़ार्मेसी चेन के लिए बिलिंग, बैच स्टॉक, खरीद, GST और हिसाब-किताब संभालता है। यह आपके अपने कंप्यूटर पर चलता है, और इंटरनेट बंद होने पर भी बिलिंग चलती रहती है।",
-    cta: "14 दिन का मुफ़्त ट्रायल", demo: "WhatsApp पर डेमो लें",
-    note: "कार्ड की ज़रूरत नहीं। आगे जारी रखें तभी UPI या बैंक ट्रांसफ़र से भुगतान करें।",
+    cta: "7 दिन का मुफ़्त ट्रायल", demo: "WhatsApp पर डेमो लें",
+    note: "कार्ड की ज़रूरत नहीं। आगे जारी रखें तभी UPI, कार्ड या नेटबैंकिंग से भुगतान करें।",
     alt: "हिंदी में Medoro डैशबोर्ड: आज की बिक्री, मार्जिन, बकाया, 14 दिन की बिक्री और 90 दिन में एक्सपायर होने वाले बैच",
   },
 };
@@ -165,7 +165,7 @@ export function FeatureTabs() {
   };
   return (
     <div className="grid grid-cols-12 gap-x-6 gap-y-6">
-      <div role="tablist" aria-label="Medoro features" aria-orientation="vertical" onKeyDown={onKey}
+      <div role="tablist" aria-label="Medoro features" onKeyDown={onKey}
         className="col-span-12 min-[1000px]:col-span-4 flex min-[1000px]:flex-col gap-1 overflow-x-auto min-[1000px]:overflow-visible -mx-4 px-4 min-[1000px]:mx-0 min-[1000px]:px-0 pb-1 [scrollbar-width:none] min-[1000px]:sticky min-[1000px]:top-24 self-start">
         {FEATURES.map((f, i) => {
           const on = i === active;
@@ -191,7 +191,7 @@ export function FeatureTabs() {
               {f.points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)] border-t border-[var(--s-line)] pt-3"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{p}</li>)}
             </ul>
             <BrowserFrame label={`${f.label} · Medoro`}>
-              <Image src={f.img[0]} alt={f.img[1]} width={1600} height={1145} sizes="(min-width: 1248px) 768px, (min-width: 1000px) 62vw, calc(100vw - 32px)" className="block w-full h-auto" />
+              <Image src={f.img[0]} alt={f.img[1]} width={1600} height={1144} sizes="(min-width: 1248px) 768px, (min-width: 1000px) 62vw, calc(100vw - 32px)" className="block w-full h-auto aspect-[1600/1144] bg-[var(--s-soft)]" />
             </BrowserFrame>
           </div>
         ))}

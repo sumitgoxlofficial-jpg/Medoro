@@ -4,7 +4,7 @@ import { getStaff, readStaffSession, staffDomain } from "@/staff/auth";
 import { inviteInfo } from "@/staff/people";
 import { StaffLogin } from "./form";
 
-export const metadata: Metadata = { title: "Medoro employee login" };
+export const metadata: Metadata = { title: "Medoro team sign in" };
 export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ invite?: string }> }) {

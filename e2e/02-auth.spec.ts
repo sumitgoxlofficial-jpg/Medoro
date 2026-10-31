@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { addEmployee, anonContext, createStaff, db, employeeLogin, enterTotp, joinWithInvite, ownerPasswordStep, state, uid } from "./helpers";
+import { addEmployee, anonContext, choosePasswordSignIn, createStaff, db, employeeLogin, enterTotp, joinWithInvite, ownerPasswordStep, state, uid } from "./helpers";
 import { startMailSink } from "./mail-sink";
 
 /** Spec 2 · sign-in: owner email + password + TOTP, lockout, trusted PC; counter staff with PIN. */
@@ -8,7 +8,7 @@ test.describe("sign-in", () => {
 
   test("Google sign-in is hidden when it isn't configured", async ({ page }) => {
     await page.goto("/signin");
-    await expect(page.getByRole("button", { name: "Email & password" })).toBeVisible();
+    await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByText("Continue with Google")).toHaveCount(0);
     const r = await page.request.get("/api/auth/google/start", { maxRedirects: 0 });
     expect(r.status()).toBe(302);
@@ -99,7 +99,7 @@ test.describe("counter staff", () => {
       await joinWithInvite(p, { code: state().tenantCode, invite, contact: email, name: "Sunil Manager", pin: oldPw });
 
       await p.goto("/signin");
-      await p.getByRole("button", { name: "Email & password" }).click();
+      await choosePasswordSignIn(p);
       await p.getByRole("button", { name: "Forgot password?" }).click();
       await expect(p.getByText("Reset your password")).toBeVisible();
       await p.getByLabel("Email", { exact: true }).fill(email);

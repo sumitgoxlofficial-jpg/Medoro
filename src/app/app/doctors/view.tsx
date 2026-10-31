@@ -20,8 +20,8 @@ const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b 
 const td = "px-3.5 py-2.5 border-b border-row";
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 
-export function DoctorsView({ tab, doctors, q, report, branches, canReport, canEdit }: {
-  tab: "master" | "report"; doctors: DoctorRow[]; q: string; report: Report | null; branches: { id: string; name: string }[]; canReport: boolean; canEdit: boolean;
+export function DoctorsView({ tab, doctors, q, report, branches, canReport, canEdit, canAdd = canEdit }: {
+  tab: "master" | "report"; doctors: DoctorRow[]; q: string; report: Report | null; branches: { id: string; name: string }[]; canReport: boolean; canEdit: boolean; canAdd?: boolean;
 }) {
   const router = useRouter(), path = usePathname(), sp = useSearchParams();
   const nav = (patch: Record<string, string | null>) => {
@@ -32,12 +32,12 @@ export function DoctorsView({ tab, doctors, q, report, branches, canReport, canE
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       {canReport ? <Segmented value={tab} onChange={(v) => nav({ tab: v === "report" ? "report" : null })} className="self-start bg-[#EEF0F2]" options={[{ value: "master", label: "Doctors" }, { value: "report", label: "Sales by doctor" }]} /> : null}
-      {tab === "report" && report ? <ReportView report={report} branches={branches} nav={nav} /> : <Master doctors={doctors} q={q} nav={nav} canEdit={canEdit} />}
+      {tab === "report" && report ? <ReportView report={report} branches={branches} nav={nav} /> : <Master doctors={doctors} q={q} nav={nav} canEdit={canEdit} canAdd={canAdd} />}
     </div>
   );
 }
 
-function Master({ doctors, q, nav, canEdit }: { doctors: DoctorRow[]; q: string; nav: (p: Record<string, string | null>) => void; canEdit: boolean }) {
+function Master({ doctors, q, nav, canEdit, canAdd }: { doctors: DoctorRow[]; q: string; nav: (p: Record<string, string | null>) => void; canEdit: boolean; canAdd: boolean }) {
   const [query, setQuery] = useState(q);
   const [edit, setEdit] = useState<DoctorRow | "new" | null>(null);
   useEffect(() => {
@@ -48,32 +48,33 @@ function Master({ doctors, q, nav, canEdit }: { doctors: DoctorRow[]; q: string;
   return (
     <>
       <div className="flex gap-2.5 items-center flex-wrap">
-        <div className="relative flex-1 min-w-[240px] max-w-[420px]">
+        <div className="relative flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[240px] max-w-[420px]">
           <Search size={16} className="absolute left-[11px] top-1/2 -translate-y-1/2 text-fainter" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, registration no., clinic or phone" aria-label="Search doctors"
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search doctors" title="Search by name, registration no., clinic or phone" aria-label="Search doctors by name, registration no., clinic or phone"
             className="w-full border border-input rounded-lg py-[9px] pr-[11px] pl-[34px] text-[14px] outline-none bg-white focus:border-teal" />
         </div>
         <span className="text-[12.5px] text-muted ml-auto">{doctors.length} doctor{doctors.length === 1 ? "" : "s"}</span>
-        <Button variant="primary" onClick={() => setEdit("new")}><Plus size={16} />Add doctor</Button>
+        {canAdd ? <Button variant="primary" onClick={() => setEdit("new")}><Plus size={16} />Add doctor</Button> : null}
       </div>
-      <div className={card + " overflow-auto"}>
+      <div className={card + " overflow-auto tbl-scroll"}>
         {doctors.length ? (
-          <table className="w-full border-collapse min-w-[760px] text-[14px]">
-            <thead><tr className="bg-subtle"><th className={th}>Doctor</th><th className={th}>Registration no.</th><th className={th}>Clinic</th><th className={th}>Phone</th><th className={th}>Status</th><th className={th} /></tr></thead>
+          <table className="w-full border-collapse min-w-[760px] max-sm:min-w-[480px] text-[14px]">
+            <thead><tr className="bg-subtle"><th className={th}>Doctor</th><th className={th}>Registration no.</th><th className={th + " max-sm:hidden"}>Clinic</th><th className={th + " max-sm:hidden"}>Phone</th><th className={th}>Status</th><th className={th} /></tr></thead>
             <tbody>
               {doctors.map((d) => (
                 <tr key={d.id}>
                   <td className={td}><div className="font-semibold">Dr {d.name}</div><div className="text-[12px] text-muted">{d.qualification ?? ""}</div></td>
                   <td className={td + " font-mono text-[13px]"}>{d.regNo ?? "—"}</td>
-                  <td className={td + " text-[13px]"}>{d.clinic ?? "—"}{d.address ? <div className="text-[12px] text-muted truncate max-w-[260px]">{d.address}</div> : null}</td>
-                  <td className={td + " text-[13px] tnum"}>{d.phone ?? "—"}</td>
+                  <td className={td + " text-[13px] max-sm:hidden"}>{d.clinic ?? "—"}{d.address ? <div className="text-[12px] text-muted truncate max-w-[260px]">{d.address}</div> : null}</td>
+                  <td className={td + " text-[13px] tnum max-sm:hidden"}>{d.phone ?? "—"}</td>
                   <td className={td}><Badge tone={d.active ? "green" : "gray"}>{d.active ? "Active" : "Inactive"}</Badge></td>
                   <td className={td + " text-right"}>{canEdit ? <Button size="sm" onClick={() => setEdit(d)}><Pencil size={13} />Edit</Button> : null}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        ) : <Empty icon={Stethoscope} title={q ? "No doctors match" : "No doctors yet"} body="Add the doctors whose prescriptions you fill. At the counter, pick them as the prescriber; their registration number prints on the bill and sales roll up under Sales by doctor." />}
+        ) : <Empty icon={Stethoscope} title={q ? "No doctors match" : "No doctors yet"} body="Add the doctors whose prescriptions you fill. At the counter, pick them as the prescriber; their registration number prints on the bill and sales roll up under Sales by doctor."
+          action={canAdd && !q ? <Button variant="primary" onClick={() => setEdit("new")}><Plus size={16} />Add doctor</Button> : null} />}
       </div>
       {edit ? <DoctorModal doctor={edit === "new" ? null : edit} canEdit={canEdit} onClose={() => setEdit(null)} /> : null}
     </>
@@ -127,7 +128,7 @@ function ReportView({ report: r, branches, nav }: { report: Report; branches: { 
         <Button onClick={() => nav({ from, to })}>Apply</Button>
         <Button className="ml-auto" disabled={!r.rows.length} onClick={() => downloadCsv(`sales-by-doctor-${r.fromDay}-${r.toDay}`, doctorSalesCsv(r, branchName))}><FileDown size={15} />CSV</Button>
       </div>
-      <div className={card + " overflow-auto"}>
+      <div className={card + " overflow-auto tbl-scroll"}>
         {r.rows.length ? (
           <table className="w-full border-collapse min-w-[860px] text-[14px]">
             <thead><tr className="bg-subtle"><th className={th}>Doctor</th><th className={th}>Reg. no.</th><th className={th + " text-right"}>Bills</th><th className={th + " text-right"}>Rx bills</th><th className={th + " text-right"}>Gross</th><th className={th + " text-right"}>Returns</th><th className={th + " text-right"}>Net</th><th className={th}>Last bill</th></tr></thead>

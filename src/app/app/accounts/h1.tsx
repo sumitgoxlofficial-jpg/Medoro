@@ -13,11 +13,11 @@ export function H1RegisterView({ rows, periodKey, branchName }: { rows: Awaited<
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       <div className="flex gap-2 items-center flex-wrap">
-        {PERIODS.map(([k, label]) => <Link key={k} href={`/app/accounts?view=h1&period=${k}`} className={"rounded-full px-3 py-1.5 text-[13px] border no-underline " + (periodKey === k ? "bg-teal text-white border-teal" : "bg-white text-ink-2 border-input")}>{label}</Link>)}
+        <div className="inline-flex max-w-full overflow-x-auto [scrollbar-width:none] gap-px bg-chip p-0.5 rounded-lg">{PERIODS.map(([k, label]) => <Link key={k} href={`/app/accounts?view=h1&period=${k}`} aria-current={periodKey === k ? "page" : undefined} className={"flex-none whitespace-nowrap inline-flex items-center rounded-md h-7 max-md:h-9 px-3 text-[12.5px] font-medium no-underline " + (periodKey === k ? "bg-white text-ink shadow-[0_1px_2px_rgba(0,0,0,.1)]" : "text-muted hover:text-ink")}>{label}</Link>)}</div>
         <a href={`/api/reports/h1-register?period=${periodKey}`} className="ml-auto flex items-center gap-1 border border-input rounded-md px-2.5 py-1.5 text-[13px] text-ink hover:border-teal no-underline"><Download size={14} />CSV</a>
       </div>
       {missing ? <div role="note" className="bg-[#FDF2E1] border border-[#F3D9A8] rounded-[10px] px-3.5 py-2.5 text-[13px] text-[#6B4A0E]">{missing} line(s) lack the patient name, prescriber or registration number. Enter them on the bill at the counter for H1 medicines.</div> : null}
-      <div className={card + " overflow-auto"}>
+      <div className={card + " overflow-auto tbl-scroll"}>
         {rows.length ? (
           <table className="w-full border-collapse min-w-[1100px] text-[13px]">
             <thead><tr className="bg-subtle">{["Date", "Invoice", "Patient", "Prescriber", "Reg. no.", "Rx no.", "Medicine", "Sch.", "Batch", "Expiry", "Qty", "Billed by"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
