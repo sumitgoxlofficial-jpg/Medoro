@@ -6,6 +6,8 @@ import { UserError } from "@/server/action";
 import { ForbiddenError } from "@/domain/identity/permissions";
 import { getPrivacy } from "@/domain/system/privacy";
 import { resolveProvider, type AiMode, type Provider } from "./llm";
+import { licenceServer } from "@/domain/system/access";
+import { aiAddonActive, razorpayEnabled } from "@/domain/system/razorpay";
 
 /** Pharmacy-level assistant settings, stored under Tenant.settings.ai. */
 export type AiSettings = { enabled: boolean; remoteNames: boolean };
@@ -40,8 +42,13 @@ export type AiStatus = { enabled: boolean; globalOff: boolean; mode: AiMode; not
 
 /** What the drawer shows and which model plans questions for this pharmacy right now. */
 export async function aiStatus(ctx: Ctx): Promise<AiStatus & { provider: Provider | null }> {
-  const [s, p] = await Promise.all([getAiSettings(ctx.tenantId), getPrivacy(ctx.tenantId)]);
-  const r = resolveProvider(process.env, p);
+  const [s, p, meta] = await Promise.all([getAiSettings(ctx.tenantId), getPrivacy(ctx.tenantId), db.subscriptionMeta.findUnique({ where: { tenantId: ctx.tenantId }, select: { addons: true, aiUntil: true } })]);
+  let r = resolveProvider(process.env, p);
+  // Where Medoro bills the pharmacy (licence server or online payments), the model needs the AI add-on. Without it the
+  // assistant still answers everyday questions (sales, stock, expiry, reports, backups) from the built-in rules.
+  if (r.provider && (licenceServer() || razorpayEnabled()) && !aiAddonActive(meta)) {
+    r = { provider: null, mode: "rules", note: "The AI add-on isn’t active, so answers come from the built-in rules (sales, stock, expiry, reports, backups). Add it under Subscription for the smart assistant." };
+  }
   return { enabled: aiGloballyEnabled() && s.enabled, globalOff: !aiGloballyEnabled(), mode: r.mode, note: r.note, provider: r.provider, canManage: canManageAi(ctx), remoteNames: s.remoteNames };
 }
 

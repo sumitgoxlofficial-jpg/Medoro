@@ -32,8 +32,14 @@ const cfg = () => ({
 });
 export const razorpayEnabled = () => { const c = cfg(); return !!(c.keyId && c.secret); };
 
-export const PAY_PLANS = ["starter", "pro", "multi"] as const;
-export const orderSchema = z.object({ plan: z.enum(PAY_PLANS), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default("") });
+/** What can be bought online: the three plans, and the AI Pharmacy Manager add-on ("ai") on top of any of them. */
+export const PAY_PLANS = ["starter", "pro", "multi", "ai"] as const;
+export const orderSchema = z.object({ plan: z.enum(PAY_PLANS), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default(""), aiConsent: z.boolean().optional() });
+const isAi = (plan: string) => plan === "ai";
+
+/** Whether the AI add-on is on: bought online and still paid for, or included by the licence (no end date). */
+export const aiAddonActive = (meta: { addons: string[]; aiUntil: Date | null } | null, now = new Date()) =>
+  !!meta && meta.addons.includes("ai") && (!meta.aiUntil || meta.aiUntil > now);
 
 /** Price including 18% GST, in paise: list price, coupon discount, what is charged and the GST in it. Yearly is 10 months. */
 export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", off: number | { percentOff: number; payPaise?: number | null } = 0) {
@@ -116,10 +122,21 @@ const day = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: 
 /** Starts a payment: a Razorpay order for the chosen plan, and what the browser needs to open Checkout. */
 export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
   if (!razorpayEnabled()) throw new UserError("Online payments aren’t set up on this server.");
-  const { plan, cycle } = orderSchema.parse(raw);
+  const { plan, cycle, aiConsent } = orderSchema.parse(raw);
   const meta = await db.subscriptionMeta.findUnique({ where: { tenantId: ctx.tenantId } });
-  const r = renewal(meta);
-  if (!r.open) throw new UserError(`Your plan is paid until ${day(meta!.renewsAt!)}. You can renew from ${day(r.opensOn!)}, ${RENEW_WINDOW_DAYS} days before it ends.`);
+  if (isAi(plan)) {
+    // The add-on rides on a plan, and sends business questions to an outside AI provider, which needs the owner's consent.
+    if (!meta || meta.status === "cancelled" || (meta.renewsAt && meta.renewsAt < new Date())) throw new UserError("Your plan has ended. Renew it first, then add the AI add-on.");
+    const r = renewal(meta.aiUntil && meta.aiUntil > new Date() ? { status: "active", renewsAt: meta.aiUntil } : null);
+    if (!r.open) throw new UserError(`The AI add-on is paid until ${day(meta.aiUntil!)}. You can renew it from ${day(r.opensOn!)}.`);
+    if (aiConsent !== true) throw new UserError("Tick the box to allow sending business questions to the AI provider.");
+    // Loaded here: privacy → context → access → this module would otherwise be a cycle.
+    const { savePrivacy } = await import("./privacy");
+    await savePrivacy(ctx, { remoteAi: true });
+  } else {
+    const r = renewal(meta);
+    if (!r.open) throw new UserError(`Your plan is paid until ${day(meta!.renewsAt!)}. You can renew from ${day(r.opensOn!)}, ${RENEW_WINDOW_DAYS} days before it ends.`);
+  }
   const price = await quote(raw);
   const coupon = price.coupon?.code ?? null;
   const base = { tenantId: ctx.tenantId, plan, cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount, createdBy: ctx.userName };
@@ -159,13 +176,22 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
     const p = await tx.onlinePayment.findUniqueOrThrow({ where: { orderId } });
     // Serialise this pharmacy's payments, so two arriving together can't both extend the plan.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"pay:" + p.tenantId}))`;
-    const recent = await tx.onlinePayment.findFirst({ where: { tenantId: p.tenantId, status: "paid", paidAt: { gt: new Date(Date.now() - DUPLICATE_MS) }, NOT: { id: p.id } } });
+    // Duplicates are the same kind of purchase (a plan, or the AI add-on) paid twice within minutes.
+    const recent = await tx.onlinePayment.findFirst({ where: { tenantId: p.tenantId, status: "paid", paidAt: { gt: new Date(Date.now() - DUPLICATE_MS) }, NOT: { id: p.id }, ...(isAi(p.plan) ? { plan: "ai" } : { plan: { not: "ai" } }) } });
     if (recent) {
       await tx.onlinePayment.update({ where: { orderId }, data: { status: "duplicate", paymentId, paidAt: new Date(), note: `Paid twice: the plan was already paid ${Math.round((Date.now() - recent.paidAt!.getTime()) / 60_000)} min earlier. Refunding.` } });
       await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "Duplicate payment", entity: "subscription", entityId: p.id, detail: `₹${(p.amountPaise / 100).toLocaleString("en-IN")} · Razorpay ${paymentId} · refunded automatically` });
       return "duplicate";
     }
     const meta = await tx.subscriptionMeta.findUnique({ where: { tenantId: p.tenantId } });
+    if (isAi(p.plan)) {
+      const { from, to } = extendPeriod(meta?.aiUntil ?? null, p.cycle as "m" | "y");
+      await tx.onlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), periodFrom: from, periodTo: to, note: null } });
+      if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
+      await tx.subscriptionMeta.update({ where: { tenantId: p.tenantId }, data: { aiUntil: to, addons: meta!.addons.includes("ai") ? meta!.addons : [...meta!.addons, "ai"] } });
+      await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "AI add-on paid", entity: "subscription", entityId: p.id, detail: `${p.cycle === "y" ? "1 year" : "1 month"} · ₹${(p.amountPaise / 100).toLocaleString("en-IN")}${p.couponCode ? ` (coupon ${p.couponCode})` : ""} · ${p.provider === "coupon" ? "no payment needed" : `Razorpay ${paymentId}`} · until ${to.toISOString().slice(0, 10)}` });
+      return "applied";
+    }
     // A trial or plan that is still running keeps its remaining days; a cancelled plan restarts today.
     const { from, to } = extendPeriod(meta && meta.status !== "cancelled" ? meta.renewsAt : null, p.cycle as "m" | "y");
     const name = PRODUCTS.find((x) => x.id === p.plan)!.name;
@@ -241,7 +267,12 @@ export async function handleWebhook(body: string, signature: string | null, othe
 export async function billingState(tenantId: string, now = new Date()) {
   const meta = await db.subscriptionMeta.findUnique({ where: { tenantId } });
   const r = renewal(meta, now);
-  return { status: meta?.status ?? null, renewsAt: meta?.renewsAt?.toISOString() ?? null, renewOpen: r.open, renewOpensOn: r.opensOn?.toISOString() ?? null };
+  const aiOn = aiAddonActive(meta, now);
+  const aiR = renewal(meta?.aiUntil && meta.aiUntil > now ? { status: "active", renewsAt: meta.aiUntil } : null, now);
+  return {
+    status: meta?.status ?? null, renewsAt: meta?.renewsAt?.toISOString() ?? null, renewOpen: r.open, renewOpensOn: r.opensOn?.toISOString() ?? null,
+    ai: { active: aiOn, until: meta?.aiUntil?.toISOString() ?? null, renewOpen: aiR.open, renewOpensOn: aiR.opensOn?.toISOString() ?? null },
+  };
 }
 
 /** Undo a cancellation while the paid period is still running. */
