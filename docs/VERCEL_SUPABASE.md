@@ -16,6 +16,7 @@ server-side sessions); Supabase Auth and `supabase-js` are not used, so no Supab
 | Daily backups | In-process timer at the pharmacy's chosen time, failed runs retried (max 3/day, 30 min apart) | Vercel Cron, 21:30 UTC (03:00 IST), `GET /api/cron/tick` with `CRON_SECRET`; once a day on Hobby, so the chosen time and same-day retries don't apply |
 | Live updates | LISTEN/NOTIFY + SSE | Same over `DIRECT_URL`; functions end after 300 s and browsers reconnect automatically |
 | First-run setup | Open on first visit | Locked until the visitor enters `SETUP_TOKEN` |
+| New pharmacies | One per installation (setup wizard) | Also open to everyone at `/signup` when `PUBLIC_SIGNUP=1`: rate-limited per IP, pharmacy code and owner email/mobile must be unused |
 | Upload size | 10 MB | 4 MB (Vercel request limit) |
 
 ## Environment variables (Vercel → Project → Settings → Environment Variables)
@@ -35,6 +36,7 @@ Set these for **Production**. Mark secrets as *Sensitive*. Never prefix a secret
 | `APP_URL` | `https://<project>.vercel.app` now, `https://medoro.in` later | No |
 | `DEPLOYMENT_MODE` | `cloud` | No |
 | `STRICT_CUSTOMER_MODE` | `true` | No |
+| `PUBLIC_SIGNUP` | `1` to let pharmacies create their own account at `/signup` (each gets its own pharmacy, owner and 14-day trial; data stays separated per pharmacy). Leave unset for a single-pharmacy server | No |
 | `STAFF_EMAIL_DOMAIN`, `STAFF_BOOTSTRAP_EMAIL` | Only if the staff console should be live. Sign up with the bootstrap email right after deploying | No |
 
 Generate random values locally, for example `openssl rand -base64 48`.

@@ -24,3 +24,11 @@ export function deploymentMismatch(choice: Deployment, url: string | undefined):
   if (choice !== "hosted" && kind === "managed") return "This server’s database (DATABASE_URL) is a hosted PostgreSQL service. Choose “Hosted PostgreSQL”.";
   return null;
 }
+
+/** The deployment recorded for a self sign-up: the server's own, consistent with its database. */
+export function signupDeployment(mode: string | undefined, url: string | undefined): Deployment {
+  const kind = databaseKind(url);
+  if (kind === "managed") return "hosted";
+  const m = DEPLOYMENTS.find((d) => d === mode);
+  return m && m !== "hosted" ? m : "cloud";
+}

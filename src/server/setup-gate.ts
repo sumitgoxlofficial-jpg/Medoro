@@ -34,3 +34,11 @@ export async function unlockSetup(given: string) {
   (await cookies()).set(COOKIE, digest(given.trim()).toString("hex"), { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 2 * 3600 });
   return true;
 }
+
+/**
+ * Self-service sign-up: on a hosted multi-pharmacy server (Medoro's own), anyone can create their
+ * own pharmacy at /signup. Off unless PUBLIC_SIGNUP=1, so a pharmacy's own server stays single-tenant.
+ */
+export function signupOpen() {
+  return process.env.PUBLIC_SIGNUP === "1";
+}

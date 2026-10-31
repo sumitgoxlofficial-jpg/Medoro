@@ -15,6 +15,7 @@ export const RULES = {
   document: { limit: 300, windowSec: 10 * 60, what: "document downloads" },
   otpSend: { limit: 5, windowSec: 15 * 60, what: "sign-in codes requested" },
   forgot: { limit: 5, windowSec: 60 * 60, what: "password reset requests" },
+  signup: { limit: 5, windowSec: 60 * 60, what: "new pharmacy sign-ups from this network" },
 } as const satisfies Record<string, Rule>;
 export type Bucket = keyof typeof RULES;
 
