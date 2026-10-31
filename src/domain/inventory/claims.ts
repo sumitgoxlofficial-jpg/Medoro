@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeView, type Ctx } from "@/server/context";
@@ -17,7 +18,7 @@ import { CLAIM_REASONS, CLAIM_STATUS, type ClaimReason } from "./claim-types";
 export { CLAIM_REASONS, CLAIM_STATUS, type ClaimReason };
 
 const raiseSchema = z.object({
-  batchId: z.string().uuid(),
+  batchId: zId(),
   qty: z.coerce.number().int().min(1, "Enter a quantity."),
   reason: z.enum(Object.keys(CLAIM_REASONS) as [ClaimReason, ...ClaimReason[]], { message: "Choose why the stock goes back." }),
   note: z.string().trim().max(200).default(""),

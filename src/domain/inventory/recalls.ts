@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, type Ctx } from "@/server/context";
@@ -10,7 +11,7 @@ import { returnToSupplierIn } from "./adjust";
 
 export const RECALL_STATUS = ["open", "investigating", "supplier_return", "resolved"] as const;
 export const recallSchema = z.object({
-  medicineId: z.string().uuid({ message: "Choose the medicine from your catalogue." }), batches: z.string().trim().min(1, "Enter the affected batch numbers."),
+  medicineId: zId("Choose the medicine from your catalogue."), batches: z.string().trim().min(1, "Enter the affected batch numbers."),
   source: z.string().trim().min(3, "Enter where the notice came from."), publishedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the publication date."),
   reason: z.string().trim().max(200).default(""),
 });

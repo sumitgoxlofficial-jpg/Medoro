@@ -181,3 +181,19 @@ describe("sale commit", () => {
     await saveMaxDiscount(owner, 50);
   });
 });
+
+describe("records with non-UUID ids (imported or demo data)", () => {
+  it("sells a medicine whose ids are like demo-med-16", async () => {
+    const ctx = await ctxFor();
+    const m = await db.medicine.findFirstOrThrow({ where: { name: "Dolo 650" } });
+    const b = await db.batch.findFirstOrThrow({ where: { medicineId: m.id, batchNo: "LATE" } });
+    const { id: _m, ...med } = m; void _m;
+    const { id: _b, ...bat } = b; void _b;
+    await db.medicine.create({ data: { ...med, id: "demo-med-16", name: "Combiflam (demo)", barcode: null } as never });
+    await db.batch.create({ data: { ...bat, id: "demo-bat-16-1", medicineId: "demo-med-16", batchNo: "DM16A" } as never });
+    const r = await commitSale(ctx, { idempotencyKey: "k_demo_" + Date.now(), lines: [{ medicineId: "demo-med-16", batchId: "demo-bat-16-1", qty: 2 }], customerId: null, discountPct: 0, pay: { mode: "cash" as const } });
+    expect(r).toBeTruthy();
+    expect(await db.saleItem.count({ where: { medicineId: "demo-med-16" } })).toBe(1);
+  });
+});
+

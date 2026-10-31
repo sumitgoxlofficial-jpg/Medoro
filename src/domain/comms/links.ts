@@ -1,3 +1,4 @@
+import { ID_RE } from "@/lib/id";
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
@@ -17,7 +18,7 @@ export function invoiceLink(saleId: string, now = Date.now()) {
 export function checkInvoiceLink(token: string, now = Date.now()): string | null {
   const [id, e, sig] = token.split(".");
   const exp = Number(e);
-  if (!id || !sig || !Number.isInteger(exp) || exp * 1000 < now || !/^[0-9a-f-]{36}$/.test(id)) return null;
+  if (!id || !sig || !Number.isInteger(exp) || exp * 1000 < now || !ID_RE.test(id)) return null;
   const want = sign(id, exp);
   return sig.length === want.length && timingSafeEqual(Buffer.from(sig), Buffer.from(want)) ? id : null;
 }

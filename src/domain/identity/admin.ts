@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { hashPassword } from "@/server/auth";
@@ -33,7 +34,7 @@ export const inviteSchema = z.object({
   name: z.string().trim().min(2, "Enter the employee’s full name.").max(120),
   contact: z.string().trim().min(3, "Enter a mobile number or email."),
   role: z.enum(ROLE_OPTIONS),
-  branchId: z.string().uuid().nullable(),
+  branchId: zId().nullable(),
 });
 
 export async function inviteEmployee(ctx: Ctx, raw: z.input<typeof inviteSchema>) {

@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { UserError } from "@/server/action";
 import { db } from "@/server/db";
 import { can, type Ctx } from "@/server/context";
@@ -332,7 +333,7 @@ const T: Tool[] = [
   },
   {
     name: "request_stock_adjustment", kind: "write", perms: ["adjust", "aiAct"], label: ["Adjust stock", "स्टॉक समायोजित करें"], description: "Correct the quantity of one batch at the current branch up (positive delta) or down (negative delta). A reason is required.",
-    input: z.object({ batchNo: z.string().trim().min(1).max(40), medicine: z.string().trim().max(60).optional(), delta: z.number().int().min(-100000).max(100000).refine((v) => v !== 0, "Enter the units to add or remove."), reason: z.string().trim().max(200).default(""), batchId: z.string().uuid().optional(), expectedQty: z.number().int().optional() }),
+    input: z.object({ batchNo: z.string().trim().min(1).max(40), medicine: z.string().trim().max(60).optional(), delta: z.number().int().min(-100000).max(100000).refine((v) => v !== 0, "Enter the units to add or remove."), reason: z.string().trim().max(200).default(""), batchId: zId().optional(), expectedQty: z.number().int().optional() }),
     params: { batchNo: { type: "string" }, medicine: { type: "string", description: "medicine name, if the batch number is ambiguous" }, delta: { type: "integer", description: "units to add (positive) or remove (negative)" }, reason: { type: "string" } },
     preview: async (ctx, i: AdjustIn, o) => {
       if (i.reason.length < 3) throw new UserError(H(o, "Give a reason for the adjustment, for example “… reason damaged strip”.", "समायोजन का कारण बताएँ, जैसे “… कारण पत्ता टूटा”।"));
@@ -365,7 +366,7 @@ const T: Tool[] = [
     input: z.object({
       invoice: z.string().trim().min(1).max(40), medicine: z.string().trim().max(60).optional(), qty: z.number().int().positive().max(10000).optional(),
       refundMode: z.enum(REFUND_MODES).optional(), condition: z.enum(["sealed", "damaged"]).optional(), reason: z.string().trim().max(200).default(""),
-      saleId: z.string().uuid().optional(), lines: z.array(z.object({ itemId: z.string().uuid(), qty: z.number().int().positive(), left: z.number().int() })).max(100).optional(),
+      saleId: zId().optional(), lines: z.array(z.object({ itemId: zId(), qty: z.number().int().positive(), left: z.number().int() })).max(100).optional(),
     }),
     params: { invoice: { type: "string", description: "invoice number, or its last digits" }, medicine: { type: "string" }, qty: { type: "integer" }, refundMode: { type: "string", enum: [...REFUND_MODES] }, condition: { type: "string", enum: ["sealed", "damaged"] }, reason: { type: "string" } },
     preview: async (ctx, i: RefundIn, o) => {

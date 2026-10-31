@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, can, type Ctx } from "@/server/context";
@@ -248,7 +249,7 @@ export async function cancelTransfer(ctx: Ctx, id: string) {
 
 // ───────────── Stock count ─────────────
 
-export const countSchema = z.object({ lines: z.array(z.object({ batchId: z.string().uuid(), counted: z.number().int().min(0) })).min(1, "Enter counted quantities first."), note: z.string().max(200).default("") });
+export const countSchema = z.object({ lines: z.array(z.object({ batchId: zId(), counted: z.number().int().min(0) })).min(1, "Enter counted quantities first."), note: z.string().max(200).default("") });
 
 /**
  * Posts a physical count. Each adjustment is counted − the batch's quantity at posting time (read under
