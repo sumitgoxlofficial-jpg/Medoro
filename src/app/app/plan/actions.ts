@@ -4,7 +4,7 @@ import { run, UserError } from "@/server/action";
 import { authorize } from "@/server/context";
 import { checkIn, claimPayment, connectLicenceKey, payOnlineLink, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
 import type { z } from "zod";
-import { cancelSubscription, confirmCheckout, createOrder, markFailed, quote, resumeSubscription, type orderSchema } from "@/domain/system/razorpay";
+import { confirmCheckout, createOrder, markFailed, quote, resumeSubscription, type orderSchema } from "@/domain/system/razorpay";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 const note = (sent: boolean, ok: string) => (sent ? ok : "Saved. It goes to Medoro with the next licence check-in (Medoro can’t be reached right now).");
@@ -58,12 +58,7 @@ export async function failedOnlineAction(i: { orderId: string; reason: string })
   return fresh(await run(async (c) => { authorize(c, "users"); await markFailed(c, i); }));
 }
 
-/** Hosted pharmacies: cancel (optionally with a refund of the latest payment), or undo a cancellation. */
-export async function cancelOnlineAction(i: { refund: boolean; reason: string }) {
-  const r = await run(async (c) => { authorize(c, "users"); return cancelSubscription(c, i); });
-  return fresh(r.ok ? { ...r, message: r.data.refunded ? `Cancelled. ₹${(r.data.refunded / 100).toLocaleString("en-IN")} is being refunded to you (Razorpay usually takes 5–7 working days).` : "Cancelled. You keep full access until the paid period ends." } : r);
-}
-
+/** Hosted pharmacies: undo a cancellation made by Medoro support while the paid period lasts. */
 export async function resumeOnlineAction() {
   return fresh(await run(async (c) => { authorize(c, "users"); await resumeSubscription(c); }, "Cancellation undone. Your plan continues."));
 }

@@ -10,12 +10,12 @@ import { useToast } from "@/components/ui/toast";
 import { openCheckout } from "@/components/razorpay";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
-import { addonAction, cancelAction, cancelOnlineAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
+import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
 
 type Online = {
   enabled: boolean;
   payments: { id: string; status: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; at: string; periodTo: string | null; note: string | null; refunded: boolean }[];
-  billing: { status: string | null; renewsAt: string | null; renewOpen: boolean; renewOpensOn: string | null; refund: { amountPaise: number; until: string } | null };
+  billing: { status: string | null; renewsAt: string | null; renewOpen: boolean; renewOpensOn: string | null };
 };
 const PAY_STATUS: Record<string, [string, Tone]> = { paid: ["Paid", "green"], refunded: ["Refunded", "gray"], duplicate: ["Paid twice · refunded", "amber"], failed: ["Failed", "red"] };
 
@@ -137,7 +137,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
                 <span className="text-[13.5px]">Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
               ) : <span className="text-[13.5px]">Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>}
               <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? "Opening…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
-              <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}.</span>
+              <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}. No auto-renewal; cancel any time. By paying you accept the <a href="/legal#terms" target="_blank" className="underline">Terms</a> and <a href="/legal#refund" target="_blank" className="underline">Cancellation & refund policy</a>.</span>
             </>
           ) : null}
           {connected && !online.enabled ? (
@@ -201,29 +201,16 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? "Remove add-on" : "Add AI add-on"}</Button> : null}
         </div>
 
-        {online.enabled && !connected && (online.billing.status === "active" || online.billing.status === "cancelled") ? (
+        {online.enabled && !connected && online.billing.status === "cancelled" ? (
           <div className={card}>
-            <div className="font-semibold text-[15px]">Cancel subscription</div>
-            {online.billing.status === "cancelled" ? (
-              <>
-                <div className="text-[13px] text-ink-2">Cancelled. {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <>You keep full access until <strong>{day(online.billing.renewsAt)}</strong>; then Medoro becomes read-only. Your records, exports and backups stay available.</> : "Pay again any time to continue."}</div>
-                {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <Button className="self-start" disabled={busy} onClick={() => act(() => resumeOnlineAction())}>Undo cancellation</Button> : null}
-              </>
-            ) : cancel === null ? (
-              <>
-                <div className="text-[13px] text-ink-2">Nothing renews automatically, so you’re never charged again unless you pay. Cancelling ends the plan when the paid period ends.{online.billing.refund ? <> Changed your mind about your last payment? Within 7 days of paying you can cancel and get it back in full (until {day(online.billing.refund.until)}).</> : null}</div>
-                <Button variant="danger-outline" className="self-start" onClick={() => setCancel("")}>Cancel subscription…</Button>
-              </>
-            ) : (
-              <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-2">
-                <Field label="Why are you cancelling? (optional)"><Textarea value={cancel} onChange={(e) => setCancel(e.target.value)} maxLength={300} /></Field>
-                <div className="flex gap-2 flex-wrap">
-                  <Button onClick={() => setCancel(null)}>Keep my plan</Button>
-                  {online.billing.refund ? <Button variant="danger" disabled={busy} onClick={() => { if (confirm(`Cancel now and refund ${inr(online.billing.refund!.amountPaise)}? The plan goes back to where it was before that payment.`)) act(() => cancelOnlineAction({ refund: true, reason: cancel }), () => setCancel(null)); }}>Cancel and refund {inr(online.billing.refund.amountPaise)}</Button> : null}
-                  <Button variant={online.billing.refund ? "danger-outline" : "danger"} disabled={busy} onClick={() => act(() => cancelOnlineAction({ refund: false, reason: cancel }), () => setCancel(null))}>Cancel at the end of the paid period</Button>
-                </div>
-              </form>
-            )}
+            <div className="font-semibold text-[15px]">Subscription cancelled</div>
+            <div className="text-[13px] text-ink-2">{online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <>Access continues until <strong>{day(online.billing.renewsAt)}</strong>.</> : "Pay again any time to continue."} Your records, exports and backups stay available.</div>
+            {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <Button className="self-start" disabled={busy} onClick={() => act(() => resumeOnlineAction())}>Undo cancellation</Button> : null}
+          </div>
+        ) : online.enabled && !connected && online.billing.status === "active" ? (
+          <div className={card}>
+            <div className="font-semibold text-[15px]">No auto-renewal</div>
+            <div className="text-[13px] text-ink-2">Plans never renew or charge on their own, so there’s nothing to cancel: your plan ends on {online.billing.renewsAt ? day(online.billing.renewsAt) : "its end date"} unless you pay again. Payments aren’t refundable (the free trial is for trying Medoro first), except if you paid twice or money was taken for a failed payment. <a href="/legal#refund" target="_blank" className="text-teal underline">Cancellation & refund policy</a></div>
           </div>
         ) : null}
 
@@ -253,7 +240,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               <div className="text-[13.5px] text-ink-2">Checks in with Medoro at <span className="font-mono">{v.server}</span>. Check-ins send only your pharmacy’s name and owner contact (once, to start the licence), app version, branch and counter counts, and the requests you make on this page or under Help.</div>
               <div className="text-[12.5px] text-muted flex flex-col gap-0.5">
                 {v.customerCode ? <span>Customer {v.customerCode}{v.licenceId ? ` · licence ${v.licenceId.slice(0, 8)}…` : ""}</span> : null}
-                <span>{v.issuedAt ? `Licence signed ${when(v.issuedAt)}` : "No signed licence yet: the 14-day trial from setup applies."}{v.checkedAt ? ` · last check ${when(v.checkedAt)}` : ""}</span>
+                <span>{v.issuedAt ? `Licence signed ${when(v.issuedAt)}` : "No signed licence yet: the 7-day trial from setup applies."}{v.checkedAt ? ` · last check ${when(v.checkedAt)}` : ""}</span>
                 {!v.verifying ? <span className="text-bad">LICENSE_PUBLIC_KEY is not set, so licences can’t be verified.</span> : null}
                 {v.checkError ? <span className="text-[#94570A]">{v.checkError}</span> : null}
               </div>

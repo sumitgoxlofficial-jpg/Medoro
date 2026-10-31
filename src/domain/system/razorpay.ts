@@ -15,11 +15,11 @@ import { couponLabel, discountOf, normCode, usableCoupon } from "./coupons";
  *
  * Real-life rules: a plan that is paid for can be renewed only in its last RENEW_WINDOW_DAYS; an open order is reused
  * rather than starting a second one; a second payment that lands within minutes of the first (two tabs, a double tap)
- * is refunded automatically; failed attempts are recorded; and the owner can cancel, with a full refund of the latest
- * payment within REFUND_DAYS of paying.
+ * is refunded automatically, for the amount actually paid; and failed attempts are recorded. There are no
+ * change-of-mind refunds or cancellations after paying (the free trial is the try-before-you-buy, and nothing renews on
+ * its own); see the Cancellation & refund policy at /legal#refund.
  */
 export const RENEW_WINDOW_DAYS = 30;
-export const REFUND_DAYS = 7;
 const DUPLICATE_MS = 15 * 60_000;
 const REUSE_ORDER_MS = 30 * 60_000;
 const DAY = 86_400_000;
@@ -237,44 +237,11 @@ export async function handleWebhook(body: string, signature: string | null, othe
   return { status: 200, note: r === "applied" ? "applied" : r === "duplicate" ? "duplicate refunded" : "already applied" };
 }
 
-/** What the Subscription page needs: whether paying is open, and the refund the owner could get by cancelling. */
+/** What the Subscription page needs: whether paying is open yet. */
 export async function billingState(tenantId: string, now = new Date()) {
-  const [meta, last] = await Promise.all([
-    db.subscriptionMeta.findUnique({ where: { tenantId } }),
-    db.onlinePayment.findFirst({ where: { tenantId, status: "paid" }, orderBy: { paidAt: "desc" } }),
-  ]);
+  const meta = await db.subscriptionMeta.findUnique({ where: { tenantId } });
   const r = renewal(meta, now);
-  const refundUntil = last && last.provider === "razorpay" && last.amountPaise > 0 ? new Date(last.paidAt!.getTime() + REFUND_DAYS * DAY) : null;
-  return {
-    status: meta?.status ?? null, renewsAt: meta?.renewsAt?.toISOString() ?? null,
-    renewOpen: r.open, renewOpensOn: r.opensOn?.toISOString() ?? null,
-    refund: refundUntil && refundUntil > now && meta?.status !== "cancelled" ? { amountPaise: last!.amountPaise, until: refundUntil.toISOString() } : null,
-  };
-}
-
-/** Cancel: the plan runs to the end of the paid period, then Medoro is read-only (no grace). With `refund`, within
- * REFUND_DAYS of the latest payment, that payment is refunded in full and the plan goes back to where it was before it. */
-export async function cancelSubscription(ctx: Ctx, i: { refund: boolean; reason: string }) {
-  const meta = await db.subscriptionMeta.findUnique({ where: { tenantId: ctx.tenantId } });
-  if (!meta || meta.status === "cancelled") throw new UserError("The subscription is already cancelled.");
-  const reason = String(i.reason ?? "").trim().slice(0, 300);
-  if (!i.refund) {
-    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { status: "cancelled" } });
-    await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Subscription cancelled", entity: "subscription", detail: `Access until ${meta.renewsAt ? meta.renewsAt.toISOString().slice(0, 10) : "now"}${reason ? ` · ${reason}` : ""}` });
-    return { refunded: 0 };
-  }
-  const state = await billingState(ctx.tenantId);
-  if (!state.refund) throw new UserError(`Refunds are available within ${REFUND_DAYS} days of paying. You can still cancel; you keep access until the paid period ends.`);
-  const last = (await db.onlinePayment.findFirst({ where: { tenantId: ctx.tenantId, status: "paid" }, orderBy: { paidAt: "desc" } }))!;
-  const refundId = await rzpRefund(last.paymentId!, last.amountPaise, { reason: "cancelled within refund window", order: last.orderId });
-  await db.$transaction(async (tx) => {
-    await tx.onlinePayment.update({ where: { id: last.id }, data: { status: "refunded", refundId, refundedAt: new Date(), note: `Cancelled and refunded${reason ? `: ${reason}` : ""}` } });
-    // Back to how the plan was before this payment; a plan that had already run out ends now.
-    const back = last.prevRenewsAt && last.prevRenewsAt > new Date() ? last.prevRenewsAt : new Date();
-    await tx.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { status: last.prevStatus === "trial" && back > new Date() ? "trial" : "cancelled", renewsAt: back } });
-    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Subscription cancelled and refunded", entity: "subscription", entityId: last.id, detail: `₹${(last.amountPaise / 100).toLocaleString("en-IN")} refunded · Razorpay ${refundId}${reason ? ` · ${reason}` : ""}` });
-  });
-  return { refunded: last.amountPaise };
+  return { status: meta?.status ?? null, renewsAt: meta?.renewsAt?.toISOString() ?? null, renewOpen: r.open, renewOpensOn: r.opensOn?.toISOString() ?? null };
 }
 
 /** Undo a cancellation while the paid period is still running. */

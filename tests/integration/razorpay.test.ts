@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import { accessFor } from "@/domain/system/access";
-import { applyPaid, billingState, cancelSubscription, checkoutSignatureOk, confirmCheckout, createOrder, extendPeriod, handleWebhook, markFailed, planPrice, quote, resumeSubscription, webhookSignatureOk } from "@/domain/system/razorpay";
+import { applyPaid, billingState, checkoutSignatureOk, confirmCheckout, createOrder, extendPeriod, handleWebhook, markFailed, planPrice, quote, resumeSubscription, webhookSignatureOk } from "@/domain/system/razorpay";
 import { createCoupon, setCouponActive } from "@/staff/coupons";
 import type { Staff } from "@/staff/auth";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
@@ -184,6 +184,7 @@ describe("subscription coupons", () => {
 });
 
 describe("real-life payment rules", () => {
+  const admin: Staff = { id: "s1", empNo: "M-1", name: "Admin", email: "a@medoro.in", role: "super_admin", referralCode: null, sessionId: "x" };
   const pay = (payments: Record<string, { order_id: string; amount: number; status: string }>, id: string, order: string, amount: number) => { payments[id] = { order_id: order, amount, status: "captured" }; };
   const meta = async () => db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: (await ctxFor()).tenantId } });
 
@@ -242,48 +243,40 @@ describe("real-life payment rules", () => {
     expect(await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_1" } })).toMatchObject({ status: "paid", note: null });
   });
 
-  it("cancel keeps access to the end, and can be undone", async () => {
+  it("a cancelled plan can be undone while its paid period lasts", async () => {
     const ctx = await ctxFor();
-    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
-    fakeRazorpay(payments);
-    await createOrder(ctx, { plan: "pro", cycle: "m" });
-    pay(payments, "pay_1", "order_1", 249_900);
-    await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
-    const paidUntil = (await meta()).renewsAt;
-    expect(await cancelSubscription(ctx, { refund: false, reason: "closing shop" })).toEqual({ refunded: 0 });
-    expect(await meta()).toMatchObject({ status: "cancelled", renewsAt: paidUntil });
+    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { status: "cancelled", renewsAt: new Date(Date.now() + 20 * 86400_000) } });
     expect((await billingState(ctx.tenantId)).renewOpen).toBe(true);
     await resumeSubscription(ctx);
-    expect(await meta()).toMatchObject({ status: "active", renewsAt: paidUntil });
+    expect((await meta()).status).toBe("active");
   });
 
-  it("cancel with refund within 7 days gives the money back and restores the trial", async () => {
+  it("a duplicate refund is what was actually paid after the coupon, not the list price", async () => {
     const ctx = await ctxFor();
     const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
     const calls = fakeRazorpay(payments);
-    const trialEnd = (await meta()).renewsAt;
-    await createOrder(ctx, { plan: "pro", cycle: "y" });
-    pay(payments, "pay_1", "order_1", 2_499_000);
+    await createCoupon(admin, { code: "THIRDOFF", percentOff: 33 });
+    await createOrder(ctx, { plan: "multi", cycle: "m", coupon: "THIRDOFF" });   // tab 1: ₹4,499 list → ₹3,014.33
+    await createOrder(ctx, { plan: "pro", cycle: "m", coupon: "THIRDOFF" });     // tab 2
+    const paid2 = (await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_2" } })).amountPaise;
+    expect(paid2).toBe(249_900 - Math.round(249_900 * 0.33));
+    pay(payments, "pay_1", "order_1", (await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_1" } })).amountPaise);
+    pay(payments, "pay_2", "order_2", paid2);
     await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
-    expect((await billingState(ctx.tenantId)).refund).toMatchObject({ amountPaise: 2_499_000 });
-    expect(await cancelSubscription(ctx, { refund: true, reason: "" })).toEqual({ refunded: 2_499_000 });
-    expect(calls.some((c) => c.url.endsWith("/payments/pay_1/refund"))).toBe(true);
-    expect(await meta()).toMatchObject({ status: "trial", renewsAt: trialEnd });
-    expect(await db.onlinePayment.findUniqueOrThrow({ where: { orderId: "order_1" } })).toMatchObject({ status: "refunded", refundId: "rfnd_pay_1" });
+    expect(await confirmCheckout(ctx, { orderId: "order_2", paymentId: "pay_2", signature: sig("order_2|pay_2") })).toEqual({ applied: false, duplicate: true });
+    expect((calls.find((c) => c.url.endsWith("/payments/pay_2/refund"))!.body as { amount: number }).amount).toBe(paid2);
   });
 
-  it("no refund after 7 days, but cancelling still works", async () => {
+  it("a paid plan has no cancellation or refund, and never renews by itself", async () => {
     const ctx = await ctxFor();
     const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
-    fakeRazorpay(payments);
+    const calls = fakeRazorpay(payments);
     await createOrder(ctx, { plan: "pro", cycle: "m" });
     pay(payments, "pay_1", "order_1", 249_900);
     await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
-    await db.onlinePayment.update({ where: { orderId: "order_1" }, data: { paidAt: new Date(Date.now() - 8 * 86400_000) } });
-    expect((await billingState(ctx.tenantId)).refund).toBeNull();
-    await expect(cancelSubscription(ctx, { refund: true, reason: "" })).rejects.toThrow(/within 7 days/);
-    await cancelSubscription(ctx, { refund: false, reason: "" });
-    expect((await meta()).status).toBe("cancelled");
+    expect(await billingState(ctx.tenantId)).not.toHaveProperty("refund");
+    expect(calls.some((c) => c.url.includes("/refund"))).toBe(false);
+    expect((await meta()).status).toBe("active");
   });
 });
 

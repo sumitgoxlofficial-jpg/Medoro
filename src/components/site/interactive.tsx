@@ -15,7 +15,7 @@ const HERO = {
     eyebrow: "Pharmacy software for Indian medical stores",
     h1: ["Bill faster.", "Waste less stock.", "Close GST on time."],
     sub: "Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.",
-    cta: "Start 14-day free trial", demo: "Get a demo on WhatsApp",
+    cta: "Start 7-day free trial", demo: "Get a demo on WhatsApp",
     note: "No card needed. Pay by UPI or bank transfer only if you continue.",
     alt: "Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days",
   },

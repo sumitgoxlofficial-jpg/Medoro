@@ -72,7 +72,7 @@ export function PayForm({ link, info }: { link: { l: string; s: string }; info: 
           </form>
           <span className="text-[13.5px]">{coupon ? <>Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted">{rs(list)}</span> </> : "Amount "}<strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
           <Button variant="primary" size="lg" disabled={busy} onClick={pay}>{busy ? "Please wait…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
-          <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. A renewal paid early starts when your current period ends.</span>
+          <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. A renewal paid early starts when your current period ends. No auto-renewal. By paying you accept the <a href="/legal#terms" target="_blank" className="underline">Terms</a> and <a href="/legal#refund" target="_blank" className="underline">Cancellation & refund policy</a>.</span>
         </>
       )}
       {err ? <p role="alert" className="m-0 text-[13px] text-bad">{err}</p> : null}

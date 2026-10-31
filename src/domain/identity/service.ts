@@ -9,6 +9,7 @@ import { UserError } from "@/server/action";
 import { DEFAULT_GRANTS, ROLE_NAMES } from "./permissions";
 import { inviteContact, setupSchema, type SetupInput } from "./contracts";
 import { deploymentMismatch } from "./deployment";
+import { TRIAL_DAYS } from "@/domain/system/subscription";
 
 export const isSetupDone = async () => (await db.tenant.count()) > 0;
 
@@ -114,7 +115,7 @@ async function create(raw: SetupInput, { signup = false }: { signup?: boolean })
       });
       created.push({ contact: inv.contact, role: inv.roleName, code: inv.code });
     }
-    await tx.subscriptionMeta.create({ data: { tenantId: tenant.id, plan: input.branches.length > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + 14 * 86400_000) } });
+    await tx.subscriptionMeta.create({ data: { tenantId: tenant.id, plan: input.branches.length > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + TRIAL_DAYS * 86400_000) } });
     await writeAudit(tx, { tenantId: tenant.id, userId: owner.id, userName: owner.name, action: "Pharmacy set up", entity: "tenant", entityId: tenant.id, detail: `${branches.length} branch(es) · ${created.length} invite(s) · ${input.deployment}${signup ? " · self sign-up" : ""}` });
     return { tenantCode: tenant.code, ownerId: owner.id, invites: created };
   });

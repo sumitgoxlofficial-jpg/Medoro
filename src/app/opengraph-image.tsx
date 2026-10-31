@@ -31,7 +31,7 @@ export default async function OpengraphImage() {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", fontSize: 26, color: "#36403E" }}>
           <span>Pharmacy software for Indian medical stores</span>
-          <span style={{ fontFamily: "Plex Mono, Plex Mono Ext", color: "#0E1614" }}>14 days free · from ₹999/mo</span>
+          <span style={{ fontFamily: "Plex Mono, Plex Mono Ext", color: "#0E1614" }}>7 days free · from ₹999/mo</span>
         </div>
       </div>
     ),

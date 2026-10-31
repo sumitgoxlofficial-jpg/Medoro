@@ -9,7 +9,7 @@ const FOOT: { t: string; links: [string, string][] }[] = [
   { t: "Product", links: [["Billing & POS", "/#product"], ["Inventory & expiry", "/#product"], ["GST & accounts", "/#product"], ["WhatsApp & refills", "/#product"], ["Offline & branches", "/#product"], ["Pricing", "/#pricing"]] },
   { t: "Company", links: [["About Medoro", "/legal#about"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Contact", "/legal#contact"]] },
   { t: "Sign in", links: [["Owner sign in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro team login", "/staff/login"], ["Start free trial", "/start"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"]] },
-  { t: "Legal", links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Refund policy", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
+  { t: "Legal", links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
 
 export function SiteFooter() {
