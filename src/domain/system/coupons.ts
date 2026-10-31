@@ -9,12 +9,14 @@ export const normCode = (s: string) => String(s ?? "").toUpperCase().replace(/\s
 
 export const couponSchema = z.object({
   code: z.string().transform(normCode).pipe(z.string().regex(/^[A-Z0-9-]{3,20}$/, "Code: 3 to 20 letters, numbers or dashes, like LAUNCH20.")),
-  percentOff: z.coerce.number().int("Whole percent only.").min(1, "At least 1% off.").max(100, "At most 100% off."),
+  percentOff: z.coerce.number().int("Whole percent only.").min(0).max(100, "At most 100% off.").default(0),
+  /** A fixed price instead of a percentage, in rupees (GST included), e.g. 1 for a ₹1 test payment. */
+  payRupees: z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().min(1, "A fixed price must be at least ₹1 (Razorpay’s minimum).").max(100000).nullable()).default(null),
   plans: z.array(z.enum(COUPON_PLANS)).default([]),
   maxUses: z.preprocess((v) => (v === "" || v == null ? null : v), z.coerce.number().int().min(1, "Uses must be 1 or more.").nullable()).default(null),
   expiresOn: z.preprocess((v) => (v === "" ? null : v), z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()).default(null),
   note: z.string().trim().max(200).optional().default(""),
-});
+}).refine((c) => c.payRupees !== null || c.percentOff >= 1, { message: "Give a percent off (1 to 100) or a fixed price.", path: ["percentOff"] });
 
 /** Last moment of an IST calendar day. */
 export const endOfIstDay = (iso: string) => new Date(new Date(iso + "T23:59:59.999+05:30").getTime());
@@ -29,5 +31,10 @@ export async function usableCoupon(code: string, plan: string, now = new Date())
   return c;
 }
 
-/** Discount in paise for a GST-inclusive total. */
-export const discountOf = (total: number, percentOff: number) => Math.round((total * percentOff) / 100);
+/** Discount in paise for a GST-inclusive total: a fixed price (never above the list price) or a percentage. */
+export const discountOf = (total: number, c: { percentOff: number; payPaise?: number | null }) =>
+  c.payPaise != null ? Math.max(0, total - c.payPaise) : Math.round((total * c.percentOff) / 100);
+
+/** How a coupon reads to the pharmacy: "20% off" or "pay ₹1". */
+export const couponLabel = (c: { percentOff: number; payPaise?: number | null }) =>
+  c.payPaise != null ? `pay ₹${(c.payPaise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : `${c.percentOff}% off`;

@@ -16,12 +16,12 @@ export async function createCoupon(s: Staff, raw: z.input<typeof couponSchema>) 
   allow(s, "super_admin");
   const i = couponSchema.parse(raw);
   try {
-    await db.coupon.create({ data: { code: i.code, percentOff: i.percentOff, plans: i.plans, maxUses: i.maxUses, expiresAt: i.expiresOn ? endOfIstDay(i.expiresOn) : null, note: i.note || null, createdBy: s.name } });
+    await db.coupon.create({ data: { code: i.code, percentOff: i.payRupees !== null ? 0 : i.percentOff, payPaise: i.payRupees !== null ? Math.round(i.payRupees * 100) : null, plans: i.plans, maxUses: i.maxUses, expiresAt: i.expiresOn ? endOfIstDay(i.expiresOn) : null, note: i.note || null, createdBy: s.name } });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") throw new UserError(`${i.code} already exists.`);
     throw e;
   }
-  await staffAudit(s, "Coupon created", `${i.code} · ${i.percentOff}% off${i.plans.length ? ` · ${i.plans.join(", ")}` : ""}${i.maxUses ? ` · ${i.maxUses} uses` : ""}${i.expiresOn ? ` · until ${i.expiresOn}` : ""}`);
+  await staffAudit(s, "Coupon created", `${i.code} · ${i.payRupees !== null ? `pay ₹${i.payRupees}` : `${i.percentOff}% off`}${i.plans.length ? ` · ${i.plans.join(", ")}` : ""}${i.maxUses ? ` · ${i.maxUses} uses` : ""}${i.expiresOn ? ` · until ${i.expiresOn}` : ""}`);
   return i.code;
 }
 

@@ -16,17 +16,17 @@ const day = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-
 export function PayForm({ link, info }: { link: { l: string; s: string }; info: Info }) {
   const [plan, setPlan] = useState<PlanId>((PLANS.find((p) => p.id === info.plan)?.id ?? "pro") as PlanId);
   const [cycle, setCycle] = useState<"m" | "y">(info.cycle === "y" ? "y" : "m");
-  const [code, setCode] = useState(""), [coupon, setCoupon] = useState<{ code: string; percentOff: number } | null>(null);
+  const [code, setCode] = useState(""), [coupon, setCoupon] = useState<{ code: string; label: string; total: number } | null>(null);
   const [err, setErr] = useState(""), [done, setDone] = useState(false);
   const [busy, start] = useTransition();
   const list = (PLANS.find((p) => p.id === plan)!.m) * (cycle === "y" ? 10 : 1);
-  const due = coupon ? list - Math.round(list * 100 * coupon.percentOff / 100) / 100 : list;
+  const due = coupon ? coupon.total / 100 : list;
 
   const apply = () => start(async () => {
     setErr("");
     const r = await payQuoteAction(link, { plan, cycle, coupon: code });
     if (!r.ok) { setCoupon(null); return setErr(r.error); }
-    setCoupon(r.data.coupon);
+    setCoupon(r.data.coupon ? { code: r.data.coupon.code, label: r.data.coupon.label, total: r.data.total } : null);
   });
   const pay = () => start(async () => {
     setErr("");
@@ -66,7 +66,7 @@ export function PayForm({ link, info }: { link: { l: string; s: string }; info: 
             <Field label="Coupon code (optional)" className="flex-1"><Input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setCoupon(null); }} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
             {coupon ? <Button onClick={() => { setCoupon(null); setCode(""); }}>Remove</Button> : <Button type="submit" disabled={busy || !code.trim()}>Apply</Button>}
           </form>
-          <span className="text-[13.5px]">{coupon ? <>Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.percentOff}% off. <span className="line-through text-muted">{rs(list)}</span> </> : "Amount "}<strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
+          <span className="text-[13.5px]">{coupon ? <>Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted">{rs(list)}</span> </> : "Amount "}<strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
           <Button variant="primary" size="lg" disabled={busy} onClick={pay}>{busy ? "Please wait…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
           <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. A renewal paid early starts when your current period ends.</span>
         </>

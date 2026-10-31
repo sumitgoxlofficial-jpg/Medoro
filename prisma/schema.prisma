@@ -1019,7 +1019,8 @@ model CpOnlinePayment {
 model Coupon {
   id         String    @id @default(uuid())
   code       String    @unique // upper case, e.g. LAUNCH20
-  percentOff Int // 1 to 100
+  percentOff Int // 1 to 100; 0 when payPaise sets a fixed price
+  payPaise   Int? // fixed price to pay, GST included (e.g. 100 = ₹1 for testing); overrides percentOff
   plans      String[]  @default([]) // product ids it applies to; empty = every plan
   maxUses    Int? // null = unlimited
   uses       Int       @default(0) // paid orders that used it
