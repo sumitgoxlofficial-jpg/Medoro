@@ -2,13 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
-import { BadgeIndianRupee, Building2, Kanban, LayoutDashboard, LifeBuoy, Lock, LogOut, Percent, Users, Wallet } from "lucide-react";
+import { BadgeIndianRupee, Building2, Kanban, LayoutDashboard, LifeBuoy, Lock, LogOut, Percent, Ticket, Users, Wallet } from "lucide-react";
 import { ToastProvider } from "@/components/ui/toast";
 import { ROLE_LABEL, type StaffRoleId } from "@/staff/constants";
 import { staffSignOut } from "../actions";
 import { NAV, type View } from "./nav";
 
-const ICON: Record<View, typeof Users> = { overview: LayoutDashboard, employees: Users, commission: Percent, leads: Kanban, sales: BadgeIndianRupee, payouts: Wallet, customers: Building2, tickets: LifeBuoy };
+const ICON: Record<View, typeof Users> = { overview: LayoutDashboard, employees: Users, commission: Percent, leads: Kanban, sales: BadgeIndianRupee, payouts: Wallet, customers: Building2, tickets: LifeBuoy, coupons: Ticket };
 
 export function ConsoleShell({ me, badges, children }: { me: { name: string; role: StaffRoleId; empNo: string }; badges: Record<string, number>; children: React.ReactNode }) {
   const path = usePathname();

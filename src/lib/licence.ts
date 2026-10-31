@@ -59,6 +59,9 @@ export const LICENCE_HEADER = "x-medoro-licence";
 export const SIGNATURE_HEADER = "x-medoro-signature";
 const MAX_SKEW_MS = 10 * 60_000;
 
+/** What a pay link signs: the installation's own licence id (see /pay and src/staff/online-pay.ts). */
+export const payLinkBody = (licenceId: string) => `pay:${licenceId}`;
+
 export const requestSignature = (token: string, body: string, at = Date.now()) => `${at}.${createHmac("sha256", token).update(`${at}.${body}`).digest("hex")}`;
 
 export function checkRequestSignature(token: string, body: string, header: string | null, now = Date.now()) {

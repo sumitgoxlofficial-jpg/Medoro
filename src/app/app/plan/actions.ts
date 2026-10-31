@@ -2,8 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { run, UserError } from "@/server/action";
 import { authorize } from "@/server/context";
-import { checkIn, claimPayment, connectLicenceKey, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
+import { checkIn, claimPayment, connectLicenceKey, payOnlineLink, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
 import type { z } from "zod";
+import { confirmCheckout, createOrder, quote, type orderSchema } from "@/domain/system/razorpay";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 const note = (sent: boolean, ok: string) => (sent ? ok : "Saved. It goes to Medoro with the next licence check-in (Medoro can’t be reached right now).");
@@ -33,4 +34,25 @@ export async function cancelAction(reason: string) {
 export async function paidAction(input: z.input<typeof paymentSchema>) {
   const r = await run((c) => claimPayment(c, input));
   return fresh(r.ok ? { ...r, message: note(r.data.sent, "Thanks! Medoro checks the payment (usually within a working day); your plan and invoice update automatically.") } : r);
+}
+
+/** The price with a coupon code applied, shown before paying. */
+export async function couponAction(input: z.input<typeof orderSchema>) {
+  return run(async (c) => { authorize(c, "users"); return quote(input); });
+}
+
+/** Starts a Razorpay Checkout payment for a plan (a 100% coupon activates it straight away). */
+export async function payOnlineAction(input: z.input<typeof orderSchema>) {
+  const r = await run(async (c) => { authorize(c, "users"); return createOrder(c, input); });
+  return r.ok && r.data.free ? fresh({ ...r, message: "Coupon applied. Your plan is active." }) : r;
+}
+
+/** Razorpay Checkout's success callback. */
+export async function confirmOnlineAction(i: { orderId: string; paymentId: string; signature: string }) {
+  return fresh(await run(async (c) => { authorize(c, "users"); return confirmCheckout(c, i); }, "Payment received. Your plan is active."));
+}
+
+/** Self-hosted and desktop installations: the signed link to Medoro's pay page. */
+export async function payLinkAction() {
+  return run(async (c) => { authorize(c, "users"); return payOnlineLink(c.tenantId); });
 }

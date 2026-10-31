@@ -7,15 +7,21 @@ import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { openCheckout } from "@/components/razorpay";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
-import { addonAction, cancelAction, checkNowAction, connectKeyAction, paidAction } from "./actions";
+import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, paidAction, payLinkAction, payOnlineAction } from "./actions";
+
+type Online = { enabled: boolean; payments: { id: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; paidAt: string; periodTo: string }[] };
+
 
 type V = Awaited<ReturnType<typeof planView>>;
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
 const day = (iso: string) => new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const inr = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+/** Rupees with paise shown as two digits when there are any: ₹1,999.20, ₹2,499. */
+const rs = (r: number) => "₹" + r.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(r) ? 0 : 2, maximumFractionDigits: 2 });
 const today = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 const PLANS = PRODUCTS.filter((p) => !("once" in p));
 /** List price including GST, in rupees. Yearly is 10 months. */
@@ -34,7 +40,7 @@ function phaseOf(v: V): [string, Tone, string] {
   }
 }
 
-export function PlanView({ v, usage, pay, reference }: { v: V; usage: { branches: number; counters: number; users: number }; pay: { upi: string | null; payee: string; bank: string | null }; reference: string }) {
+export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { branches: number; counters: number; users: number }; pay: { upi: string | null; payee: string; bank: string | null }; reference: string; online: Online }) {
   const toast = useToast();
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -54,6 +60,38 @@ export function PlanView({ v, usage, pay, reference }: { v: V; usage: { branches
   const pendingAddon = v.requests.find((r) => r.kind.startsWith("addon_") && ["queued", "open"].includes(r.status));
   const pendingCancel = v.requests.find((r) => r.kind === "cancel" && ["queued", "open"].includes(r.status));
   const hasAi = v.addons.includes("ai");
+  const manual = (!!pay.upi || !!pay.bank) && (connected || !online.enabled);
+  const [paying, setPaying] = useState(false);
+  const [payUrl, setPayUrl] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; percentOff: number } | null>(null);
+  const [couponErr, setCouponErr] = useState("");
+  // Same rounding as the server (GST-inclusive list price minus the percentage); the server re-checks before charging.
+  const due = coupon ? amount - Math.round((amount * 100 * coupon.percentOff) / 100) / 100 : amount;
+  const applyCoupon = () => {
+    if (product === "ai" || !code.trim()) return;
+    setCouponErr("");
+    start(async () => {
+      const r = await couponAction({ plan: product, cycle: cycle as "m" | "y", coupon: code });
+      if (!r.ok) { setCoupon(null); return setCouponErr(r.error); }
+      setCoupon(r.data.coupon);
+    });
+  };
+
+  const payOnline = async () => {
+    if (product === "ai") return;
+    setPaying(true);
+    try {
+      const r = await payOnlineAction({ plan: product, cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
+      if (!r.ok) return toast(r.error, "red");
+      if (r.data.free) { toast(r.message ?? "Your plan is active.", "green"); return router.refresh(); }
+      await openCheckout(r.data,
+        (resp) => act(() => confirmOnlineAction({ orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature })),
+        (msg) => toast(msg, "red"));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn’t start the payment.", "red");
+    } finally { setPaying(false); }
+  };
 
   const act = <T,>(fn: () => Promise<{ ok: true; data: T; message?: string } | { ok: false; error: string }>, after?: () => void) => start(async () => {
     const r = await fn();
@@ -76,14 +114,48 @@ export function PlanView({ v, usage, pay, reference }: { v: V; usage: { branches
 
         <div className={card}>
           <div className="font-semibold text-[15px]">Renew or pay</div>
-          {!pay.upi && !pay.bank ? (
+          {online.enabled ? (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Plan"><Select value={product} onChange={(e) => { setProduct(e.target.value as typeof product); setCoupon(null); }}>{PLANS.filter((p) => !("addon" in p)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+                <Field label="Billing"><Select value={cycle} onChange={(e) => { setCycle(e.target.value); setCoupon(null); }}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
+              </div>
+              <form onSubmit={(e) => { e.preventDefault(); applyCoupon(); }} className="flex gap-2 items-end">
+                <Field label="Coupon code (optional)" className="flex-1"><Input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setCoupon(null); setCouponErr(""); }} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
+                {coupon ? <Button onClick={() => { setCoupon(null); setCode(""); }}>Remove</Button> : <Button type="submit" disabled={busy || !code.trim()}>Apply</Button>}
+              </form>
+              {couponErr ? <span role="alert" className="text-[12.5px] text-bad -mt-1">{couponErr}</span> : null}
+              {coupon ? (
+                <span className="text-[13.5px]">Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.percentOff}% off. <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
+              ) : <span className="text-[13.5px]">Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>}
+              <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? "Opening…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
+              <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}.</span>
+            </>
+          ) : null}
+          {connected && !online.enabled ? (
+            <div className="flex flex-col gap-1.5">
+              <Button variant="primary" className="self-start" disabled={busy} onClick={() => start(async () => {
+                const r = await payLinkAction();
+                if (!r.ok) return toast(r.error, "red");
+                setPayUrl(r.data);
+                // The desktop app opens this in the system browser; a browser may block it, so the link below stays.
+                window.open(r.data, "_blank", "noopener");
+              })}>Pay online</Button>
+              {payUrl ? <a href={payUrl} target="_blank" rel="noopener" className="text-[13px] text-teal underline self-start">Payment page didn’t open? Open it here</a> : null}
+              <span className="text-[12.5px] text-faint">Opens Medoro’s payment page in your browser: UPI, cards, netbanking or wallets through Razorpay, with coupon codes. Your plan updates here after payment (press Check now to see it straight away).</span>
+              {pay.upi || pay.bank ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">Or pay by UPI or bank transfer and report it:</div> : null}
+            </div>
+          ) : null}
+          {online.enabled && !manual ? null : connected && !online.enabled && !pay.upi && !pay.bank ? null : !pay.upi && !pay.bank ? (
             <div className="text-[13px] text-ink-2">Payment details aren’t configured on this server. Contact Medoro billing for UPI or bank details{connected ? ", then report the payment below" : ""}.</div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Plan"><Select value={product} onChange={(e) => setProduct(e.target.value as typeof product)}>{PLANS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
-                <Field label="Billing"><Select value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
-              </div>
+              {online.enabled ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">Or pay by UPI or bank transfer and report it:</div> : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Plan"><Select value={product} onChange={(e) => setProduct(e.target.value as typeof product)}>{PLANS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+                  <Field label="Billing"><Select value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
+                </div>
+              )}
               <div className="flex gap-3 items-start flex-wrap">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {qr ? <img src={qr} alt="UPI QR code" width={168} height={168} className="rounded-lg border border-line" /> : null}
@@ -98,7 +170,7 @@ export function PlanView({ v, usage, pay, reference }: { v: V; usage: { branches
               </div>
             </>
           )}
-          {connected ? (paid ? (
+          {connected && (pay.upi || pay.bank) ? (paid ? (
             <form onSubmit={(e) => { e.preventDefault(); act(() => paidAction({ product, cycle: cycle as "m" | "y", ...paid }), () => setPaid(null)); }} className="flex flex-col gap-2 bg-page border border-line rounded-lg p-3">
               <strong className="text-[13.5px]">Report your payment</strong>
               <div className="grid grid-cols-2 gap-2">
@@ -157,14 +229,28 @@ export function PlanView({ v, usage, pay, reference }: { v: V; usage: { branches
               </form>
             </>
           ) : (
-            <div className="text-[13.5px] text-ink-2">This installation isn’t connected to Medoro’s licence server (<span className="font-mono">LICENSE_SERVER_URL</span> is not set), so it runs without a licence and nothing is limited.</div>
+            online.enabled
+              ? <div className="text-[13.5px] text-ink-2">Your subscription is managed on this server: pay online above and your plan updates straight away.</div>
+              : <div className="text-[13.5px] text-ink-2">This installation isn’t connected to Medoro’s licence server (<span className="font-mono">LICENSE_SERVER_URL</span> is not set), so it runs without a licence and nothing is limited.</div>
           )}
           <div className="text-[12.5px] text-faint">If Medoro can’t be reached, the last signed licence keeps applying. After a trial or paid period ends there are {v.access.graceEndsOn && v.access.endsOn ? Math.round((Date.parse(v.access.graceEndsOn) - Date.parse(v.access.endsOn)) / 86400_000) : 7} days of grace, then the app is read-only until you renew. Your records, exports and backups always stay available.</div>
         </div>
 
         <div className={card}>
           <div className="font-semibold text-[15px]">Medoro invoices</div>
-          {v.invoices.length ? (
+          {online.payments.length ? (
+            <table className="w-full text-[13px] border-collapse">
+              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">Paid</th><th className="py-1 font-medium">For</th><th className="py-1 font-medium text-right">Amount</th></tr></thead>
+              <tbody>{online.payments.map((p) => (
+                <tr key={p.id} className="border-t border-row align-top">
+                  <td className="py-1.5">{day(p.paidAt)}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
+                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? "1 year" : "1 month"}{p.coupon ? <div className="text-[12px] text-muted">Coupon {p.coupon}</div> : null}<div className="text-[12px] text-muted">Paid until {day(p.periodTo)}</div></td>
+                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">incl. GST {inr(p.gstPaise)}</div></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          ) : null}
+          {online.payments.length && !v.invoices.length ? null : v.invoices.length ? (
             <table className="w-full text-[13px] border-collapse">
               <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">Invoice</th><th className="py-1 font-medium">For</th><th className="py-1 font-medium text-right">Amount</th></tr></thead>
               <tbody>{v.invoices.map((i) => (
@@ -175,7 +261,7 @@ export function PlanView({ v, usage, pay, reference }: { v: V; usage: { branches
                 </tr>
               ))}</tbody>
             </table>
-          ) : <div className="text-[13px] text-fainter">{connected ? "No invoices yet. They appear here once Medoro confirms a payment." : "Invoices come with the licence. Not connected."}</div>}
+          ) : <div className="text-[13px] text-fainter">{connected || online.enabled ? "No payments yet. They appear here once a payment goes through." : "Invoices come with the licence. Not connected."}</div>}
         </div>
 
         {v.requests.length || v.billing.length ? (

@@ -9,6 +9,7 @@ import * as people from "@/staff/people";
 import * as sales from "@/staff/sales";
 import * as support from "@/staff/support";
 import * as licence from "@/staff/licence";
+import * as coupons from "@/staff/coupons";
 
 async function origin() {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
@@ -78,3 +79,7 @@ export const issueLicenceKey = async (customerId: string) => done(await staffRun
 export const extendTrial = async (customerId: string, days: number) => done(await staffRun((s) => licence.extendTrial(s, customerId, days)));
 export const decideBillingRequest = async (id: string, approve: boolean) =>
   done(await staffRun((s) => licence.decideBillingRequest(s, id, approve), approve ? "Approved. The pharmacy gets it with its next licence check-in." : "Request declined."));
+
+// ── Coupons (super admin)
+export const createCoupon = async (input: Parameters<typeof coupons.createCoupon>[1]) => done(await staffRun((s) => coupons.createCoupon(s, input), "Coupon created. Pharmacies can enter it on their Subscription page."));
+export const setCouponActive = async (id: string, active: boolean) => done(await staffRun((s) => coupons.setCouponActive(s, id, active), active ? "Coupon switched on." : "Coupon switched off. It can’t be used any more."));
