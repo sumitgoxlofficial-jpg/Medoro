@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { MessageCircle } from "lucide-react";
 import { db } from "@/server/db";
-import { setupGate } from "@/server/setup-gate";
+import { setupGate, signupOpen } from "@/server/setup-gate";
 import { WA_DEMO } from "@/components/site/chrome";
 import { PageHeader } from "@/components/site/page-header";
 import { StartForm } from "./form";
@@ -17,8 +17,16 @@ const STEPS = [
   "Bill free for 14 days. Then pay by UPI or bank transfer from the Subscription page to continue.",
 ];
 
+const SIGNUP_STEPS = [
+  "Create your pharmacy account here. It takes about five minutes.",
+  "Open Medoro in Chrome on the shop PC, or install the desktop app. Your team joins with invite codes.",
+  "Bill free for 14 days. Then pay by UPI or bank transfer from the Subscription page to continue.",
+];
+
 export default async function Start() {
-  const canSetup = setupGate() !== "disabled" && (await db.tenant.count()) === 0;
+  const signup = signupOpen();
+  const canSetup = !signup && setupGate() !== "disabled" && (await db.tenant.count()) === 0;
+  const steps = signup ? SIGNUP_STEPS : STEPS;
   return (
     <div className="site-root bg-white min-h-dvh">
       <PageHeader cta={false} />
@@ -26,9 +34,10 @@ export default async function Start() {
         <div className="col-span-12 min-[960px]:col-span-6 flex flex-col gap-6">
           <span className="text-[14px] font-semibold text-[var(--s-brand)]">14-day free trial · No card needed</span>
           <h1 className="site-display m-0 text-[clamp(40px,5vw,64px)]">Start your Medoro trial.</h1>
-          <p className="m-0 text-[18px] leading-[1.6] text-[var(--s-ink-2)] max-w-[540px]">Tell us about your pharmacy. Someone from Medoro messages you on WhatsApp to help set up your counter, import your stock and answer questions.</p>
+          <p className="m-0 text-[18px] leading-[1.6] text-[var(--s-ink-2)] max-w-[540px]">{signup ? "Create your account and start billing today. Want help setting up? Leave your details and someone from Medoro messages you on WhatsApp." : "Tell us about your pharmacy. Someone from Medoro messages you on WhatsApp to help set up your counter, import your stock and answer questions."}</p>
+          {signup ? <Link href="/signup" className="self-start inline-flex items-center h-12 px-6 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold no-underline hover:opacity-90">Create your account →</Link> : null}
           <ol className="m-0 p-0 list-none flex flex-col max-w-[560px]">
-            {STEPS.map((s, i) => (
+            {steps.map((s, i) => (
               <li key={s} className="grid grid-cols-[44px_minmax(0,1fr)] gap-x-3 py-4 border-t border-[var(--s-line)] last:border-b text-[16px] text-[var(--s-ink-2)]">
                 <span className="site-num text-[14px] text-[var(--s-brand)] pt-0.5">{String(i + 1).padStart(2, "0")}</span><span>{s}</span>
               </li>

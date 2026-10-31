@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import {
-  checkLock, clearFailures, clientInfo, createSession, destroySession, hashPassword, lockKeys,
+  checkLock, clearFailures, clientInfo, clientIp, createSession, destroySession, hashPassword, lockKeys,
   markMfaPassed, readSession, recordFailure, setTrustedDevice, verifyPassword,
 } from "@/server/auth";
 import { otpEnabled, sendOtp, throttleSend, verifyOtp } from "@/server/otp";
@@ -13,7 +13,10 @@ import { UserError } from "@/server/action";
 import { createPharmacy, isSetupDone, nextEmployeeNo } from "@/domain/identity/service";
 import { confirmMfaReset, completePasswordReset, issueRecoveryCodes, looksLikeRecoveryCode, redeemRecoveryCode, requestMfaReset, requestPasswordReset } from "@/domain/identity/recovery";
 import { confirmPendingLink } from "@/domain/identity/google";
-import { setupUnlocked, unlockSetup } from "@/server/setup-gate";
+import { setupUnlocked, signupOpen, unlockSetup } from "@/server/setup-gate";
+import { enforce } from "@/server/ratelimit";
+import { signupDeployment } from "@/domain/identity/deployment";
+import { headers } from "next/headers";
 import { adoptSetupDrive } from "@/server/setup-drive";
 import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
@@ -39,6 +42,21 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
     await adoptSetupDrive(owner.tenantId).catch((e) => console.error("[setup] Google Drive not kept:", e));
     await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup", firstFactor: "password" });
+    return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
+  } catch (e) { return fail(errMsg(e)); }
+}
+
+// ───────────── Self-service sign-up (hosted, multi-pharmacy) ─────────────
+
+export async function signupAction(input: Omit<SetupInput, "deployment"> & { agree: boolean }): Promise<R<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string }>> {
+  try {
+    if (!signupOpen()) return fail("Sign-up is not open on this server.");
+    if (input.agree !== true) return fail("Accept the Terms and Privacy Policy to continue.");
+    await enforce("signup", clientIp(await headers()) ?? "unknown");
+    const { pharmacy, owner: o, branches, invites, backupKey, kitAck } = input;
+    const r = await createPharmacy({ pharmacy, owner: o, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
+    const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
+    await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Sign-up", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
 }

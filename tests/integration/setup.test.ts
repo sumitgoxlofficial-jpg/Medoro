@@ -38,6 +38,37 @@ describe("first-run setup", () => {
   });
 });
 
+describe("self-service sign-up (hosted, multi-pharmacy)", () => {
+  const other = { name: "Second Medical", code: "SECOND-PUNE", gstin: "", dl: "MH-9999", pharmacist: "", address: "Pune", lang: "en" as const };
+  const otherOwner = { name: "Second Owner", email: "second@test.in", phone: "9822000099", password: "long-enough-pw" };
+
+  it("adds further pharmacies, each with its own owner, roles and trial", async () => {
+    await resetDb();
+    await makePharmacy();
+    const r = await makePharmacy({ pharmacy: other, owner: otherOwner, invites: [] }, { signup: true });
+    expect(r.tenantCode).toBe("SECOND-PUNE");
+    expect(await db.tenant.count()).toBe(2);
+    const t = await db.tenant.findUniqueOrThrow({ where: { code: "SECOND-PUNE" } });
+    expect(await db.role.count({ where: { tenantId: t.id } })).toBe(6);
+    expect(await db.subscriptionMeta.count({ where: { tenantId: t.id, status: "trial" } })).toBe(1);
+    const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId }, include: { role: true } });
+    expect(owner.tenantId).toBe(t.id);
+    expect(owner.role.name).toBe("Owner");
+    expect(owner.role.tenantId).toBe(t.id);
+  });
+
+  it("refuses a taken pharmacy code, email or mobile number", async () => {
+    await expect(makePharmacy({ pharmacy: { ...other, code: "TEST-PUNE" }, owner: { ...otherOwner, email: "x@test.in", phone: "9822000098" }, invites: [] }, { signup: true })).rejects.toThrow(/code is taken/);
+    await expect(makePharmacy({ pharmacy: { ...other, code: "THIRD" }, owner: { ...otherOwner, email: "OWNER@test.in", phone: "9822000098" }, invites: [] }, { signup: true })).rejects.toThrow(/email already exists/);
+    await expect(makePharmacy({ pharmacy: { ...other, code: "THIRD" }, owner: { ...otherOwner, email: "x@test.in", phone: "+91 98220 00001" }, invites: [] }, { signup: true })).rejects.toThrow(/mobile number already exists/);
+    expect(await db.tenant.count()).toBe(2);
+  });
+
+  it("still refuses a second pharmacy through first-run setup", async () => {
+    await expect(makePharmacy({ pharmacy: { ...other, code: "FOURTH" }, owner: { ...otherOwner, email: "y@test.in", phone: "9822000097" }, invites: [] })).rejects.toThrow(/already set up/);
+  });
+});
+
 describe("audit trail", () => {
   it("is hash-chained and append-only", async () => {
     await resetDb();

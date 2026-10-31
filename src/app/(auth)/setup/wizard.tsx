@@ -6,7 +6,7 @@ import { cn } from "@/components/ui/cn";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { GSTIN_RE, MOBILE_RE, ROLE_OPTIONS, inviteContact, normPhone } from "@/domain/identity/contracts";
-import { setupAction, testDatabase } from "../actions";
+import { setupAction, signupAction, testDatabase } from "../actions";
 import { useSetupDrive } from "./drive-connect";
 import { downloadRecoveryKit } from "@/components/recovery-kit";
 
@@ -26,7 +26,8 @@ const suggestCode = (name: string, addr: string) => {
   return w ? (city ? `${w}-${city}` : w) : "";
 };
 
-export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void }) {
+/** `signup` is self-service sign-up on a hosted server: no database step (the server's own is used) and terms to accept. */
+export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean }) {
   const router = useRouter();
   const drive = useSetupDrive(driveAccount);
   const toast = useToast();
@@ -45,6 +46,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   const [inv, setInv] = useState({ contact: "", role: "Cashier" as (typeof ROLE_OPTIONS)[number], branch: "" });
   const [kit, setKit] = useState<{ key: string; fp: string } | null>(null);
   const [kitAck, setKitAck] = useState(false);
+  const [agree, setAgree] = useState(false);
   const [result, setResult] = useState<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string } | null>(null);
 
   const setP = (k: keyof typeof ph) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -86,16 +88,18 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
     if (step === 4 && !branches.length) return e("Add at least one branch.");
     if (step === 6) {
       if (!kit || !kitAck) return e("Download the recovery kit and confirm you stored it.");
+      if (signup && !agree) return e("Accept the Terms and Privacy Policy to continue.");
       return start(async () => {
-        const r = await setupAction({
+        const common = {
           pharmacy: ph, owner: { name: owner.name, email: owner.email, phone: owner.phone, password: owner.password },
-          deployment: host, branches, invites: invites.map((i) => ({ ...i, branch: i.branch || branches[0]?.name })), backupKey: kit.key, kitAck: true,
-        });
+          branches, invites: invites.map((i) => ({ ...i, branch: i.branch || branches[0]?.name })), backupKey: kit.key, kitAck: true as const,
+        };
+        const r = signup ? await signupAction({ ...common, agree: true }) : await setupAction({ ...common, deployment: host });
         if (!r.ok) return setErr(r.error);
         setResult(r.data!); setStep(7);
       });
     }
-    setStep(step + 1);
+    setStep(signup && step === 2 ? 4 : step + 1);
   };
 
   const test = () => {
@@ -123,10 +127,10 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
         <button type="button" onClick={onRestore} className="self-start text-[13.5px] text-teal cursor-pointer bg-transparent border-0 p-0">Moving to a new server or recovering from a backup? Restore from a backup instead →</button>
       ) : null}
       <div className="flex gap-1.5 flex-wrap">
-        {LABELS.map((l, i) => (
+        {LABELS.map((l, i) => ({ l, n: i + 1 })).filter((x) => !(signup && x.n === 3)).map(({ l, n }, i) => (
           <div key={l} className="flex-1 min-w-[96px] flex flex-col gap-1.5">
-            <div className="h-1 rounded-sm" style={{ background: i + 1 <= step ? "#0B5E5B" : "#DCE0E3" }} />
-            <span className="text-[12.5px]" style={{ color: i + 1 === step ? "#1F2328" : "#6B737B", fontWeight: i + 1 === step ? 600 : 400 }}>{i + 1}. {l}</span>
+            <div className="h-1 rounded-sm" style={{ background: n <= step ? "#0B5E5B" : "#DCE0E3" }} />
+            <span className="text-[12.5px]" style={{ color: n === step ? "#1F2328" : "#6B737B", fontWeight: n === step ? 600 : 400 }}>{i + 1}. {l}</span>
           </div>
         ))}
       </div>
@@ -241,17 +245,20 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <HardDriveUpload size={20} className="text-teal" />
               <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive <span className="font-normal text-muted">(optional)</span></strong>
-                <span className="text-[12.5px] text-muted">{!driveApp ? "Google sign-in isn’t configured on this server; you can connect later in Backup & restore." : drive.account ? <>Connected as {drive.account}. Daily backups go to Medoro/{ph.name || "your pharmacy"} in this Drive, encrypted on your server first.</> : "Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore."}</span>
+                <span className="text-[12.5px] text-muted">{signup ? "Connect your Google Drive after sign-up, in Backup & restore." : !driveApp ? "Google sign-in isn’t configured on this server; you can connect later in Backup & restore." : drive.account ? <>Connected as {drive.account}. Daily backups go to Medoro/{ph.name || "your pharmacy"} in this Drive, encrypted on your server first.</> : "Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore."}</span>
                 {drive.msg ? <span className="text-[12.5px] text-bad">{drive.msg}</span> : null}</div>
               {driveApp ? (drive.account ? <Button onClick={() => void drive.forget()}>Remove</Button> : <Button onClick={drive.connect}>Connect</Button>) : null}
             </div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <KeyRound size={20} className="text-teal" />
               <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Encryption recovery kit</strong>
-                <span className="text-[12.5px] text-muted">{kit ? <>Downloaded · key fingerprint <span className="font-mono">{kit.fp}</span></> : "Contains your backup decryption key: the only way to open backups on a new server. Your server keeps a sealed copy to run backups; Medoro never receives it."}</span></div>
+                <span className="text-[12.5px] text-muted">{kit ? <>Downloaded · key fingerprint <span className="font-mono">{kit.fp}</span></> : (signup ? "Contains your backup decryption key: the only way to open your backups elsewhere. Medoro keeps a sealed copy only to run your backups." : "Contains your backup decryption key: the only way to open backups on a new server. Your server keeps a sealed copy to run backups; Medoro never receives it.")}</span></div>
               <Button variant="primary" onClick={makeKit}>{kit ? "Download again" : "Download & print"}</Button>
             </div>
             <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={kitAck} onChange={(e) => setKitAck(e.target.checked)} />I&apos;ve stored the recovery kit offline. Without it, backups can&apos;t be restored.</label>
+            {signup ? (
+              <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>I agree to the <a href="/legal" target="_blank" className="text-teal underline">Terms and Privacy Policy</a>.</span></label>
+            ) : null}
           </>
         ) : null}
 
@@ -260,7 +267,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
             <CircleCheck size={44} className="text-ok" />
             <div className="text-[22px] font-semibold">{ph.name} is ready</div>
             <div className="text-[13.5px] text-muted max-w-[560px]">
-              {HOSTS.find((h) => h[0] === host)![2]} · {branches.length} branch(es) · {result.invites.length} invite(s) · {drive.account ? "Google Drive connected" : "Google Drive not connected"}. Strict customer-controlled mode is on. Pharmacy code <span className="font-mono text-ink">{result.tenantCode}</span>.
+              {signup ? "Medoro cloud" : HOSTS.find((h) => h[0] === host)![2]} · {branches.length} branch(es) · {result.invites.length} invite(s) · {drive.account ? "Google Drive connected" : "Google Drive not connected"}. Strict customer-controlled mode is on. Pharmacy code <span className="font-mono text-ink">{result.tenantCode}</span>.
             </div>
             {result.invites.length ? (
               <div className="w-full max-w-[560px] border border-line rounded-[10px] text-left">
@@ -280,8 +287,8 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
         {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
         {step < 7 ? (
           <div className="flex justify-between gap-2.5 pt-1">
-            <Button onClick={() => { setErr(""); setStep(Math.max(1, step - 1)); }} disabled={step === 1 || pending}>Back</Button>
-            <Button variant="primary" onClick={next} disabled={pending}>{pending && step === 6 ? "Creating…" : step === 6 ? "Finish setup" : "Continue"}</Button>
+            <Button onClick={() => { setErr(""); setStep(Math.max(1, signup && step === 4 ? 2 : step - 1)); }} disabled={step === 1 || pending}>Back</Button>
+            <Button variant="primary" onClick={next} disabled={pending}>{pending && step === 6 ? "Creating…" : step === 6 ? (signup ? "Create my pharmacy" : "Finish setup") : "Continue"}</Button>
           </div>
         ) : null}
       </div>

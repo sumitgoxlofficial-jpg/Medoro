@@ -10,7 +10,7 @@ export async function resetDb() {
 
 export const KEY = "A".repeat(43);
 
-export async function makePharmacy(over: Partial<Parameters<typeof createPharmacy>[0]> = {}) {
+export async function makePharmacy(over: Partial<Parameters<typeof createPharmacy>[0]> = {}, opts?: Parameters<typeof createPharmacy>[1]) {
   return createPharmacy({
     pharmacy: { name: "Test Medical Store", code: "TEST-PUNE", gstin: "27AAKFS3192P1Z6", dl: "MH-1234", pharmacist: "", address: "Pune", lang: "en" },
     owner: { name: "Owner Person", email: "owner@test.in", phone: "9822000001", password: "long-enough-pw" },
@@ -19,7 +19,7 @@ export async function makePharmacy(over: Partial<Parameters<typeof createPharmac
     invites: [{ contact: "9850000002", role: "Cashier" }],
     backupKey: KEY, kitAck: true,
     ...over,
-  });
+  }, opts);
 }
 
 import type { Ctx } from "@/server/context";

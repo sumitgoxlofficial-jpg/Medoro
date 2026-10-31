@@ -1,5 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { hashPassword } from "@/server/auth";
@@ -35,8 +36,21 @@ export async function nextEmployeeNo(tx: Tx, tenantId: string) {
   return "E-" + (max + 1);
 }
 
-/** First-run setup. Creates the pharmacy, branches, counters, roles, owner and invites in one transaction. */
-export async function createPharmacy(raw: SetupInput) {
+/**
+ * Creates the pharmacy, branches, counters, roles, owner and invites in one transaction.
+ * First-run setup allows only one pharmacy per installation; `signup` (self-service sign-up on a
+ * hosted multi-pharmacy server) allows more, as long as the code and the owner's sign-in are free.
+ */
+export async function createPharmacy(raw: SetupInput, opts: { signup?: boolean } = {}) {
+  try {
+    return await create(raw, opts);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") throw new UserError("That pharmacy code is taken. Choose another.");
+    throw e;
+  }
+}
+
+async function create(raw: SetupInput, { signup = false }: { signup?: boolean }) {
   const input = setupSchema.parse(raw);
   const mismatch = deploymentMismatch(input.deployment, process.env.DATABASE_URL);
   if (mismatch) throw new UserError(mismatch);
@@ -49,11 +63,17 @@ export async function createPharmacy(raw: SetupInput) {
   const key = Buffer.from(input.backupKey, "base64url");
 
   return db.$transaction(async (tx) => {
-    // Serialise first-run setup: only one pharmacy per installation.
+    // Serialise pharmacy creation: first-run setup allows one pharmacy per installation.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('medoro:setup'))`;
-    if ((await tx.tenant.count()) > 0) throw new UserError("This installation is already set up. Sign in instead.");
-
     const p = input.pharmacy;
+    if (!signup && (await tx.tenant.count()) > 0) throw new UserError("This installation is already set up. Sign in instead.");
+    if (signup) {
+      // Owners sign in by email or mobile across all pharmacies, so these must not belong to anyone else.
+      if (await tx.tenant.findUnique({ where: { code: p.code }, select: { id: true } })) throw new UserError("That pharmacy code is taken. Choose another.");
+      const taken = await tx.user.findFirst({ where: { OR: [{ email: input.owner.email }, { phone: input.owner.phone }] }, select: { email: true } });
+      if (taken) throw new UserError(taken.email === input.owner.email ? "An account with this email already exists. Sign in instead." : "An account with this mobile number already exists. Sign in instead.");
+    }
+
     const tenant = await tx.tenant.create({
       data: {
         code: p.code, name: p.name, gstin: p.gstin || null, phone: input.owner.phone,
@@ -95,7 +115,7 @@ export async function createPharmacy(raw: SetupInput) {
       created.push({ contact: inv.contact, role: inv.roleName, code: inv.code });
     }
     await tx.subscriptionMeta.create({ data: { tenantId: tenant.id, plan: input.branches.length > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + 14 * 86400_000) } });
-    await writeAudit(tx, { tenantId: tenant.id, userId: owner.id, userName: owner.name, action: "Pharmacy set up", entity: "tenant", entityId: tenant.id, detail: `${branches.length} branch(es) · ${created.length} invite(s) · ${input.deployment}` });
+    await writeAudit(tx, { tenantId: tenant.id, userId: owner.id, userName: owner.name, action: "Pharmacy set up", entity: "tenant", entityId: tenant.id, detail: `${branches.length} branch(es) · ${created.length} invite(s) · ${input.deployment}${signup ? " · self sign-up" : ""}` });
     return { tenantCode: tenant.code, ownerId: owner.id, invites: created };
   });
 }
