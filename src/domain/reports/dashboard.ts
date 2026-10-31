@@ -60,7 +60,12 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
   const hist = await db.$queryRaw<{ d: string; t: bigint }[]>`
     SELECT to_char((at + interval '330 minutes')::date, 'YYYY-MM-DD') AS d, SUM("totalPaise") AS t
     FROM "Sale" s WHERE "tenantId" = ${tenantId} AND "branchId" = ${branchId} AND at >= ${histFrom} AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id) GROUP BY 1`;
+  // Net of returns, like the Sales KPI.
+  const histRet = await db.$queryRaw<{ d: string; t: bigint }[]>`
+    SELECT to_char((at + interval '330 minutes')::date, 'YYYY-MM-DD') AS d, SUM("amountPaise") AS t
+    FROM "SalesReturn" WHERE "tenantId" = ${tenantId} AND "branchId" = ${branchId} AND at >= ${histFrom} GROUP BY 1`;
   const hmap = new Map(hist.map((h) => [h.d, Number(h.t)]));
+  for (const r of histRet) hmap.set(r.d, (hmap.get(r.d) ?? 0) - Number(r.t));
   const history = Array.from({ length: 14 }, (_, i) => { const d = addDays(todayISO(), i - 13); return { date: d, total: hmap.get(d) ?? 0 }; });
 
   // Stock

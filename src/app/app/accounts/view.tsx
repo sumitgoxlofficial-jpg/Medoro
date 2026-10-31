@@ -9,7 +9,7 @@ import { Empty } from "@/components/ui/card";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { inr0 } from "@/lib/money";
+import { inr, inr0 } from "@/lib/money";
 import { voucherLabel } from "./ledger";
 import { dayMonth } from "@/lib/dates";
 import type { accountsOverview, dayBook } from "@/domain/accounting/service";
@@ -88,7 +88,7 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
                 <tr key={v.id} style={{ opacity: v.reversed ? 0.55 : 1 }}>
                   <td className={td + " whitespace-nowrap"}><div className="font-mono text-[12.5px]">{v.no}</div><div className="text-[12px] text-faint">{dayMonth(new Date(v.date))} · {voucherLabel(v.type)}</div></td>
                   <td className={td}>{v.narration}</td><td className={td + " text-ink-2"}>{v.dr}</td><td className={td + " text-ink-2"}>{v.cr}</td>
-                  <td className={td + " text-right tnum font-semibold whitespace-nowrap"}>{inr0(v.amount)}</td>
+                  <td className={td + " text-right tnum font-semibold whitespace-nowrap"}>{inr(v.amount)}</td>
                   <td className={td + " text-right whitespace-nowrap"}>
                     {v.reversed ? <Badge tone="gray">Reversed</Badge> : v.isReversal ? <Badge tone="blue">Reversal</Badge> : canPay && v.canReverse ? (
                       <Button size="sm" onClick={() => { const r = prompt(`Reason for reversing ${v.no}:`); if (r) start(async () => { const x = await reverseAction(v.id, r); toast(x.ok ? `${v.no} reversed by ${x.data}. Original kept for audit.` : x.error, x.ok ? "blue" : "red"); }); }}>Reverse</Button>
