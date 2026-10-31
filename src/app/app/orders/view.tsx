@@ -74,7 +74,7 @@ export function OrdersView({ tab, q, orders, counts, riders, cash, settlements, 
           );
         })
       ) : (
-        <Card><Empty icon={Bike} title={q ? "No orders match" : tab === "open" ? "No open orders" : "Nothing delivered, returned or cancelled in 30 days"} body="Take orders by phone or WhatsApp with New order. They are billed when packed and tracked to the door." /></Card>
+        <Card><Empty icon={Bike} title={q ? "No orders match" : tab === "open" ? "No open orders" : "Nothing delivered, returned or cancelled in 30 days"} body={q ? "Try another order number, name or phone." : tab === "open" ? "Click New order to take a phone or WhatsApp order. It's billed when packed and tracked to the door." : "Delivered, returned and cancelled orders from the last 30 days appear here."} /></Card>
       )}
       <NewOrder open={creating} onClose={() => setCreating(false)} customers={customers} canCredit={canCredit} />
       {templates ? <Templates open={editing} onClose={() => setEditing(false)} initial={templates} /> : null}

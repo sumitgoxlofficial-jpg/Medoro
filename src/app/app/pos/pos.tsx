@@ -285,8 +285,8 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
           <div className="flex-1 relative">
             <Search size={18} className="absolute left-[13px] top-1/2 -translate-y-1/2 text-fainter" />
             <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onSearchKey} placeholder={t.search} autoFocus aria-label="Search medicine"
-              className="w-full border-[1.5px] border-teal rounded-[10px] py-[13px] pr-14 pl-[42px] text-[16px] outline-none bg-white" />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[11.5px] text-fainter border border-[#E3E6E9] rounded px-[5px]">F2</span>
+              className="w-full border-[1.5px] border-teal rounded-[10px] py-[13px] pr-14 max-md:pr-3 pl-[42px] text-[16px] outline-none bg-white" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[11.5px] text-fainter border border-[#E3E6E9] rounded px-[5px] max-md:hidden">F2</span>
             {results && results.length ? (
               <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white border border-input rounded-[10px] shadow-[0_12px_32px_rgba(0,0,0,.12)] z-20 overflow-hidden">
                 {results.map((m, i) => {
@@ -371,7 +371,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             );
           })}
         </div>
-        <div className="text-[12px] text-faint flex gap-3.5 flex-wrap"><span>F2 search</span><span>↑↓ Enter add</span><span>F4 hold</span><span>F6 substitutes</span><span>F7 loose/pack</span><span>F9 complete</span><span>Prices are MRP inclusive of GST</span></div>
+        <div className="text-[12px] text-faint flex gap-3.5 flex-wrap"><span className="max-md:hidden">F2 search</span><span className="max-md:hidden">↑↓ Enter add</span><span className="max-md:hidden">F4 hold</span><span className="max-md:hidden">F6 substitutes</span><span className="max-md:hidden">F7 loose/pack</span><span className="max-md:hidden">F9 complete</span><span>Prices are MRP inclusive of GST</span></div>
       </div>
 
       <div className="flex flex-col gap-3 sticky top-0">
@@ -379,7 +379,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
           <div className="flex items-center justify-between"><label className="text-[12.5px] text-muted font-medium" htmlFor="pos-cust">{t.customer}</label>
             <button onClick={() => setNewCust(true)} className="text-teal text-[12.5px] font-semibold flex items-center gap-1 cursor-pointer"><UserPlus size={13} />New</button></div>
           <select id="pos-cust" value={cart.cust} onChange={(e) => set({ cust: e.target.value })} className={inp}>
-            <option value="">Walk-in customer (no details stored)</option>
+            <option value="">Walk-in customer</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${isMasked(c.phone) ? c.phone : `${c.phone.slice(0, 5)} ${c.phone.slice(5)}`}` : ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}</option>)}
           </select>
           {cust ? <div className="text-[12.5px] text-muted">Outstanding {inr0(cust.due)} · limit {inr0(cust.limit)} · WhatsApp {cust.optIn ? "opted in" : "not opted in"}{cust.gstin ? ` · B2B tax invoice${cust.igst ? ", inter-state (IGST)" : ""}` : ""}{loyalty ? ` · ${cust.points ?? 0} points` : ""}</div> : null}
@@ -400,9 +400,9 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
 
         <div className={card + " px-4 py-3.5 flex flex-col gap-[7px] text-[13.5px]"}>
           <Row k="MRP total" v={inr(totals.mrpTotal)} />
-          <div className="flex justify-between items-center gap-2">
-            <span className="text-muted">Discount % <span className="text-[11.5px]">(max {discCap}% for {role})</span></span>
-            <div className="flex items-center gap-2"><input value={cart.disc} onChange={(e) => set({ disc: e.target.value.replace(/[^\d.]/g, "") })} aria-label="Discount percent" className="w-[54px] border border-input rounded-md px-1.5 py-1 text-right text-[13.5px]" /><span className="tnum min-w-[70px] text-right">{inr(-totals.discount)}</span></div>
+          <div className="flex flex-wrap justify-between items-center gap-x-2 gap-y-1">
+            <span className="text-muted flex flex-col leading-tight">Discount % <span className="text-[11.5px]">(max {discCap}% for {role})</span></span>
+            <div className="flex items-center gap-2 ml-auto"><input value={cart.disc} onChange={(e) => set({ disc: e.target.value.replace(/[^\d.]/g, "") })} aria-label="Discount percent" inputMode="decimal" className="w-[64px] border border-input rounded-md px-1.5 py-1 max-md:py-2 text-right text-[13.5px]" /><span className="tnum min-w-[70px] text-right">{inr(-totals.discount)}</span></div>
           </div>
           {disc > discCap ? (
             disc > maxDisc ? <div className="text-[12.5px] text-bad">Discounts above {maxDisc}% aren’t allowed.</div>
@@ -428,14 +428,14 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
               {(cust.points ?? 0) >= loyalty.minRedeem ? <div className="flex items-center gap-2"><input value={cart.redeem ?? ""} onChange={(e) => set({ redeem: e.target.value.replace(/\D/g, "") })} placeholder="Points to redeem" aria-label="Points to redeem" className={inp + " py-1.5"} inputMode="numeric" />{redeemValue ? <span className="tnum whitespace-nowrap text-ok font-semibold">−{inr(redeemValue)}</span> : null}</div> : null}
             </div>
           ) : null}
-          {cart.pay === "cash" ? <div className="flex flex-col gap-[5px]"><input value={cart.tender} onChange={(e) => set({ tender: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash tendered (₹)" aria-label="Cash tendered" className={inp} inputMode="decimal" /><span className="text-[12.5px] text-ok">{tender > toPay ? `Change to return: ${inr(tender - toPay)}` : "Leave blank for exact cash"}</span></div> : null}
+          {cart.pay === "cash" ? <div className="flex flex-col gap-[5px]"><input value={cart.tender} onChange={(e) => set({ tender: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash tendered (₹)" aria-label="Cash tendered" className={inp} inputMode="decimal" />{tender > toPay ? <span className="text-[12.5px] text-ok">Change to return: {inr(tender - toPay)}</span> : <span className="text-[12.5px] text-faint">Leave blank for exact cash</span>}</div> : null}
           {cart.pay === "upi" ? <div className="flex flex-col gap-[5px]"><div className="text-[12.5px] text-muted">Confirm the credit in your bank app, then enter the UTR.</div><input value={cart.ref} onChange={(e) => set({ ref: e.target.value })} placeholder="UPI UTR / reference (optional)" className={inp} /></div> : null}
           {cart.pay === "card" ? <input value={cart.ref} onChange={(e) => set({ ref: e.target.value })} placeholder="Card terminal approval code" className={inp} /> : null}
           {cart.pay === "split" ? <div className="flex flex-col gap-[5px]"><input value={cart.split} onChange={(e) => set({ split: e.target.value.replace(/[^\d.]/g, "") })} placeholder="Cash part (₹)" aria-label="Cash part" className={inp} inputMode="decimal" />          <span className="text-[12.5px] text-blue">Balance on UPI: {inr(Math.max(0, toPay - splitCash))}</span></div> : null}
                     {cart.pay === "credit" ? <div className="text-[12.5px] text-warn bg-warn-bg px-2.5 py-2 rounded-[7px]">{cust ? `After this sale: ${inr0(cust.due + toPay)} of ${inr0(cust.limit)} limit` : "Select a customer to sell on credit"}</div> : null}
           <button onClick={complete} disabled={busy} className="text-white rounded-[10px] p-3.5 text-[15.5px] font-bold cursor-pointer flex justify-center gap-2 items-center disabled:cursor-wait"
             style={{ background: cart.lines.length && !busy ? "#0B5E5B" : "#8DB5B1" }}>
-                      {busy ? "Committing sale…" : `${t.complete} · ${inr(toPay)}`}<span className="font-mono text-[11px] opacity-80 border border-white/50 rounded px-1">F9</span>
+                      {busy ? "Committing sale…" : `${t.complete} · ${inr(toPay)}`}<span className="font-mono text-[11px] opacity-80 border border-white/50 rounded px-1 max-md:hidden">F9</span>
           </button>
           {netDown ? (
             <div className="text-[12.5px] text-warn bg-warn-bg px-2.5 py-2 rounded-[7px]">
@@ -443,7 +443,7 @@ export function Pos({ dict: t, customers: initialCustomers, held: initialHeld, c
             </div>
           ) : null}
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={hold}>{t.hold} (F4)</Button>
+            <Button className="flex-1" onClick={hold}>{t.hold}<span className="max-md:hidden">(F4)</span></Button>
             <Button className="flex-1 text-bad" onClick={() => { if (cart.lines.length && !confirm("Clear this cart?")) return; setCart(empty()); freshKey(); }}>Clear</Button>
           </div>
         </div>

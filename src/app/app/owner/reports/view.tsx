@@ -45,7 +45,7 @@ export function ReportMailForm({ initial, canEdit }: { initial: View; canEdit: b
           <div className="flex flex-col gap-1.5">{MAIL_REPORTS.map(([id, label]) => <Checkbox key={id} disabled={!canEdit} checked={reports.includes(id)} onChange={(e) => setReports((x) => e.target.checked ? [...x, id] : x.filter((y) => y !== id))} label={label} />)}</div>
         </Field>
         <Field label="Send to" hint="Up to 10 email addresses, one per line. Each email has its own unsubscribe link.">
-          <Textarea value={recipients} disabled={!canEdit} onChange={(e) => setRecipients(e.target.value)} placeholder="owner@example.in&#10;ca@example.in" />
+          <Textarea value={recipients} disabled={!canEdit} onChange={(e) => setRecipients(e.target.value)} placeholder={"owner@example.in\nca@example.in"} />
         </Field>
         {canEdit ? <div className="flex gap-2"><Button variant="primary" disabled={pending} onClick={save}>Save</Button><Button disabled={pending || !initial.recipients.length} onClick={now} title="Sends the current saved settings now"><Send size={14} />Send now</Button></div> : <div className="text-[12.5px] text-faint">Only the owner (Manage users permission) can change this.</div>}
       </Card>

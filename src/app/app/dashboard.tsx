@@ -17,6 +17,7 @@ import { dashboardAccess } from "@/domain/reports/dashboard-access";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col";
 const rangeLabel = { today: "today", "7d": "last 7 days", "30d": "last 30 days" };
+const BATCH_STATUS: Record<string, string> = { quarantine: "Quarantined", damaged: "Damaged", recalled: "Recalled" };
 
 function Go({ screen, href, children, className }: { screen: ScreenId; href: string; children: React.ReactNode; className?: string }) {
   if (href.startsWith("#ai:")) return <button onClick={() => askAi(href.slice(4))} className={(className ?? "text-teal text-[13px] font-semibold") + " cursor-pointer"}>{children}</button>;
@@ -57,7 +58,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
   const { fin, pay, activity: showActivity } = dashboardAccess(perms);
   const kpis = [
     { label: data.range === "today" ? t.sales : `Sales, ${rangeLabel[data.range]}`, value: inr0(k.sales), Icon: IndianRupee, ibg: "#E1F1EF", ifg: "#0B5E5B", d: salesDelta, sub: `${salesDelta ? "vs previous · " : ""}${k.bills} bill${k.bills === 1 ? "" : "s"}` },
-    { label: t.margin, value: k.margin == null ? "—" : k.margin.toFixed(1) + "%", Icon: Percent, ibg: "#EAF0FC", ifg: "#2459C9", d: marginDelta, sub: marginDelta ? "vs 7-day average" : "No sales yet" },
+    { label: t.margin, value: k.margin == null ? "—" : k.margin.toFixed(1) + "%", Icon: Percent, ibg: "#EAF0FC", ifg: "#2459C9", d: marginDelta, sub: marginDelta ? "vs 7-day average" : k.margin == null ? "No sales yet" : "On sales so far" },
     { label: t.purch, value: inr0(k.purchases), Icon: Truck, ibg: "#F1EEFB", ifg: "#5B45B0", d: null, sub: `${k.grnCount} GRN${k.grnCount === 1 ? "" : "s"} posted` },
     { label: t.expn, value: inr0(k.expenses), Icon: Receipt, ibg: "#F2F4F5", ifg: "#4B535B", d: null, sub: `${k.expenseCount} payment voucher${k.expenseCount === 1 ? "" : "s"}` },
     { label: t.cdue, value: inr0(k.receivable), Icon: Users, ibg: "#FDF2E1", ifg: "#94570A", d: null, sub: `${k.onCredit} customer${k.onCredit === 1 ? "" : "s"} on credit` },
@@ -82,7 +83,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
             <div className="text-[24px] font-semibold tracking-[-.02em] leading-[1.1] tnum text-ink-strong">{x.value}</div>
             <div className="flex items-center gap-1.5 min-h-5 flex-wrap">
               {x.d ? <span className="inline-flex items-center gap-[3px] h-5 px-1.5 rounded-[5px] text-[11.5px] font-semibold tnum" style={{ background: x.d.bg, color: x.d.fg }}><x.d.Icon size={12} />{x.d.text}</span> : null}
-              <span className="text-[12px] truncate" style={{ color: x.subRed ? "#C0362C" : "#6B737B" }}>{x.sub}</span>
+              <span className="text-[12px] line-clamp-2 min-w-0" style={{ color: x.subRed ? "#C0362C" : "#6B737B" }}>{x.sub}</span>
             </div>
           </div>
         ))}
@@ -91,12 +92,12 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))]">
         <div className={card + " gap-3.5"}>
           <div className="flex justify-between items-baseline gap-2"><div className="font-semibold text-[15px]">Sales, last 14 days</div><div className="text-[12.5px] text-faint whitespace-nowrap">Incl. GST</div></div>
-          <div className="flex items-end gap-1.5 h-[170px]">
+          <div className="flex items-end gap-1.5 max-sm:gap-1 h-[170px]">
             {data.history.map((h, i) => (
               <div key={h.date} title={`${h.date} · ${inr0(h.total)}`} className="flex-1 flex flex-col items-center gap-1 justify-end h-full">
-                <div className="text-[11px] font-semibold text-teal whitespace-nowrap">{i === 13 && h.total ? inr0(h.total) : ""}</div>
+                <div className={"text-[11px] max-sm:text-[10px] font-semibold text-teal whitespace-nowrap" + (i === 13 ? " max-sm:self-end" : "")}>{i === 13 && h.total ? inr0(h.total) : ""}</div>
                 <div className="w-full max-w-7 rounded-t" style={{ height: Math.max(h.total ? 4 : 2, Math.round((h.total / mx) * 140)), background: i === 13 ? "#0B5E5B" : h.total ? "#B5D9D4" : "#EEF0F2" }} />
-                <div className="text-[11px] text-fainter">{Number(h.date.slice(8))}</div>
+                <div className={"text-[11px] max-sm:text-[10px] text-fainter" + (i % 2 && i !== 13 ? " max-sm:invisible" : "")}>{Number(h.date.slice(8))}</div>
               </div>
             ))}
           </div>
@@ -142,7 +143,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
             const [bg, fg] = e.days <= 30 ? ["#FBEAE8", "#B3261E"] : e.days <= 60 ? ["#FDF2E1", "#94570A"] : ["#EEF0F2", "#4B535B"];
             return (
               <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2.5 items-center py-[7px] border-b border-row">
-                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qtyText}{e.qtyText === String(e.qty) ? " units" : ""}{e.status !== "ok" ? ` · ${e.status}` : ""}</span></div>
+                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qtyText}{e.qtyText === String(e.qty) ? " units" : ""}{e.status !== "ok" ? ` · ${BATCH_STATUS[e.status] ?? e.status}` : ""}</span></div>
                 <span className="text-[13px] tnum">{inr0(e.value)}</span>
                 <span className="px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap" style={{ background: bg, color: fg }}>{e.days} days</span>
               </div>
@@ -153,7 +154,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
           <div className="font-semibold text-[15px]">{t.branchPerf}</div>
           {data.branchPerf.map((b) => (
             <div key={b.name} className="flex flex-col gap-[5px]">
-              <div className="flex justify-between text-[13.5px]"><span className="font-medium">{b.name}</span><span className="tnum"><strong>{inr0(b.total)}</strong> <span className="text-muted">· {b.bills} bills</span></span></div>
+              <div className="flex justify-between text-[13.5px]"><span className="font-medium">{b.name}</span><span className="tnum"><strong>{inr0(b.total)}</strong> <span className="text-muted">· {b.bills} bill{b.bills === 1 ? "" : "s"}</span></span></div>
               <div className="h-2 bg-line-soft rounded overflow-hidden"><div className="h-full bg-blue rounded" style={{ width: Math.round((b.total / bm) * 100) + "%" }} /></div>
             </div>
           ))}
