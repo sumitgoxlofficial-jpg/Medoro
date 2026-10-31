@@ -402,7 +402,8 @@ export async function myDeliveries(ctx: Ctx) {
 export async function riderCash(ctx: Ctx) {
   authorizeView(ctx, "sale");
   const rows = await db.deliveryOrder.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, status: "delivered", collectedMode: "cash", settlementId: null }, orderBy: { deliveredAt: "asc" } });
-  const users = await db.user.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(rows.map((r) => r.riderId!))] } }, select: { id: true, name: true } });
+  // Orders delivered without a rider on record (e.g. imported data) have no one to hand cash over, so they're left out.
+  const users = await db.user.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(rows.map((r) => r.riderId).filter((x): x is string => !!x))] } }, select: { id: true, name: true } });
   return users.map((u) => {
     const mine = rows.filter((r) => r.riderId === u.id);
     return { riderId: u.id, name: u.name, total: mine.reduce((a, r) => a + big(r.collectedPaise), 0), orders: mine.map((r) => ({ id: r.id, no: r.no, invoiceNo: r.invoiceNo, name: r.name, amount: big(r.collectedPaise), deliveredAt: r.deliveredAt?.toISOString() ?? null })) };
@@ -443,7 +444,7 @@ export async function settleRider(ctx: Ctx, riderId: string, countedRupees: stri
 export async function recentSettlements(ctx: Ctx) {
   authorizeView(ctx, "sale");
   const rows = await db.riderSettlement.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: new Date(dateOnly(addDays(todayISO(), -14)).getTime()) } }, orderBy: { at: "desc" }, take: 50 });
-  const users = await db.user.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(rows.flatMap((r) => [r.riderId, r.userId]))] } }, select: { id: true, name: true } });
+  const users = await db.user.findMany({ where: { tenantId: ctx.tenantId, id: { in: [...new Set(rows.flatMap((r) => [r.riderId, r.userId]).filter((x): x is string => !!x))] } }, select: { id: true, name: true } });
   const nm = (id: string) => users.find((u) => u.id === id)?.name ?? "";
   return rows.map((r) => ({ id: r.id, no: r.no, rider: nm(r.riderId), by: nm(r.userId), orders: r.orderIds.length, expected: big(r.expectedPaise), counted: big(r.countedPaise), note: r.note, at: r.at.toISOString() }));
 }
