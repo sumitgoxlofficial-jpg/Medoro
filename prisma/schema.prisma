@@ -972,6 +972,27 @@ model AiConfirmation {
 
 // The pharmacy's copy of its Medoro licence. Fields below `licenceToken` come from the last licence
 // document the licence server signed (see src/domain/system/licence.ts).
+/// Subscription payments taken online on a hosted server (Razorpay Checkout), one row per order.
+model OnlinePayment {
+  id          String    @id @default(uuid())
+  tenantId    String
+  provider    String    @default("razorpay")
+  orderId     String    @unique
+  paymentId   String?   @unique
+  plan        String // product id: starter, pro, multi
+  cycle       String // m (month) or y (year)
+  amountPaise Int // total charged, including GST
+  gstPaise    Int
+  status      String    @default("created") // created, paid
+  periodFrom  DateTime?
+  periodTo    DateTime?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  paidAt      DateTime?
+
+  @@index([tenantId, createdAt])
+}
+
 model SubscriptionMeta {
   tenantId      String    @id
   plan          String

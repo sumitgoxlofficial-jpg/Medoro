@@ -4,6 +4,7 @@ import { run, UserError } from "@/server/action";
 import { authorize } from "@/server/context";
 import { checkIn, claimPayment, connectLicenceKey, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
 import type { z } from "zod";
+import { confirmCheckout, createOrder, type orderSchema } from "@/domain/system/razorpay";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 const note = (sent: boolean, ok: string) => (sent ? ok : "Saved. It goes to Medoro with the next licence check-in (Medoro can’t be reached right now).");
@@ -33,4 +34,14 @@ export async function cancelAction(reason: string) {
 export async function paidAction(input: z.input<typeof paymentSchema>) {
   const r = await run((c) => claimPayment(c, input));
   return fresh(r.ok ? { ...r, message: note(r.data.sent, "Thanks! Medoro checks the payment (usually within a working day); your plan and invoice update automatically.") } : r);
+}
+
+/** Starts a Razorpay Checkout payment for a plan. */
+export async function payOnlineAction(input: z.input<typeof orderSchema>) {
+  return run(async (c) => { authorize(c, "users"); return createOrder(c, input); });
+}
+
+/** Razorpay Checkout's success callback. */
+export async function confirmOnlineAction(i: { orderId: string; paymentId: string; signature: string }) {
+  return fresh(await run(async (c) => { authorize(c, "users"); return confirmCheckout(c, i); }, "Payment received. Your plan is active."));
 }

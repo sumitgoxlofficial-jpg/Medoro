@@ -23,4 +23,14 @@ describe("security headers", () => {
     expect(h["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
     expect(h).toMatchObject({ "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin", "X-Frame-Options": "DENY" });
   });
+
+  it("allows Razorpay Checkout inside the signed-in app only", () => {
+    const app = securityHeaders({ nonce: "n", https: true, path: "/app/plan" });
+    expect(app["Content-Security-Policy"]).toContain("frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com");
+    expect(app["Cross-Origin-Opener-Policy"]).toBe("same-origin-allow-popups");
+    const site = securityHeaders({ nonce: "n", https: true, path: "/signin" });
+    expect(site["Content-Security-Policy"]).not.toContain("razorpay");
+    expect(site["Cross-Origin-Opener-Policy"]).toBe("same-origin");
+    expect(contentSecurityPolicy({ nonce: "n", https: false, path: "/application" })).not.toContain("razorpay");
+  });
 });
