@@ -5,7 +5,8 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
-import { PRODUCTS, amountPaise } from "@/staff/constants";
+import { PRODUCTS } from "@/staff/constants";
+import { discountOf, normCode, usableCoupon } from "./coupons";
 
 /**
  * Subscription payments on a hosted server (Medoro's own), with Razorpay Checkout: the owner picks a plan,
@@ -21,13 +22,22 @@ const cfg = () => ({
 export const razorpayEnabled = () => { const c = cfg(); return !!(c.keyId && c.secret); };
 
 export const PAY_PLANS = ["starter", "pro", "multi"] as const;
-export const orderSchema = z.object({ plan: z.enum(PAY_PLANS), cycle: z.enum(["m", "y"]) });
+export const orderSchema = z.object({ plan: z.enum(PAY_PLANS), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default("") });
 
-/** List price including 18% GST, in paise, and the GST in it. Yearly is 10 months. */
-export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y") {
+/** Price including 18% GST, in paise: list price, coupon discount, what is charged and the GST in it. Yearly is 10 months. */
+export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", percentOff = 0) {
   const p = PRODUCTS.find((x) => x.id === plan)!;
-  const total = (cycle === "y" ? p.m * 10 : p.m) * 100;
-  return { name: p.name, total, gst: total - amountPaise(plan, cycle) };
+  const list = (cycle === "y" ? p.m * 10 : p.m) * 100;
+  const discount = discountOf(list, percentOff);
+  const total = list - discount;
+  return { name: p.name, list, discount, total, gst: total - Math.round(total / 1.18) };
+}
+
+/** The price with a coupon applied, for the Subscription page to show before paying. */
+export async function quote(raw: z.input<typeof orderSchema>) {
+  const { plan, cycle, coupon } = orderSchema.parse(raw);
+  const c = coupon ? await usableCoupon(coupon, plan) : null;
+  return { ...planPrice(plan, cycle, c?.percentOff ?? 0), coupon: c ? { code: c.code, percentOff: c.percentOff } : null };
 }
 
 /** The new paid-until: one month or year after today, or after the current period if it runs later. */
@@ -62,20 +72,29 @@ async function api<T>(path: string, init: { method?: string; body?: unknown } = 
 export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
   if (!razorpayEnabled()) throw new UserError("Online payments aren’t set up on this server.");
   const { plan, cycle } = orderSchema.parse(raw);
-  const price = planPrice(plan, cycle);
+  const price = await quote(raw);
+  const coupon = price.coupon?.code ?? null;
+  const base = { tenantId: ctx.tenantId, plan, cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount, createdBy: ctx.userName };
+  if (price.total === 0) {
+    // A 100% coupon: nothing to charge, so the plan starts without Razorpay.
+    const orderId = `free_${randomBytes(12).toString("hex")}`;
+    await db.onlinePayment.create({ data: { ...base, provider: "coupon", orderId } });
+    await applyPaid(orderId, orderId, ctx.userName);
+    return { free: true as const };
+  }
   const [tenant, user] = await Promise.all([
     db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { code: true, name: true } }),
     db.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { name: true, email: true, phone: true } }),
   ]);
   const order = await api<{ id: string; amount: number }>("/orders", {
     method: "POST",
-    body: { amount: price.total, currency: "INR", receipt: `${tenant.code}-${randomBytes(4).toString("hex")}`.slice(0, 40), notes: { tenantId: ctx.tenantId, pharmacy: tenant.code, plan, cycle } },
+    body: { amount: price.total, currency: "INR", receipt: `${tenant.code}-${randomBytes(4).toString("hex")}`.slice(0, 40), notes: { tenantId: ctx.tenantId, pharmacy: tenant.code, plan, cycle, ...(coupon ? { coupon } : {}) } },
   });
   if (order.amount !== price.total) throw new UserError("Razorpay returned a different amount. Nothing was charged.");
-  await db.onlinePayment.create({ data: { tenantId: ctx.tenantId, orderId: order.id, plan, cycle, amountPaise: price.total, gstPaise: price.gst, createdBy: ctx.userName } });
+  await db.onlinePayment.create({ data: { ...base, orderId: order.id } });
   return {
-    keyId: cfg().keyId, orderId: order.id, amount: price.total, currency: "INR",
-    name: "Medoro", description: `${price.name} · ${cycle === "y" ? "1 year" : "1 month"}`,
+    free: false as const, keyId: cfg().keyId, orderId: order.id, amount: price.total, currency: "INR",
+    name: "Medoro", description: `${price.name} · ${cycle === "y" ? "1 year" : "1 month"}${coupon ? ` · coupon ${coupon}` : ""}`,
     prefill: { name: user.name, email: user.email ?? "", contact: user.phone ?? "" }, notes: { pharmacy: `${tenant.name} (${tenant.code})` },
   };
 }
@@ -91,12 +110,13 @@ export async function applyPaid(orderId: string, paymentId: string, by: string) 
     const { from, to } = extendPeriod(meta && meta.status !== "cancelled" ? meta.renewsAt : null, p.cycle as "m" | "y");
     const name = PRODUCTS.find((x) => x.id === p.plan)!.name;
     await tx.onlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), periodFrom: from, periodTo: to } });
+    if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
     await tx.subscriptionMeta.upsert({
       where: { tenantId: p.tenantId },
       create: { tenantId: p.tenantId, plan: name, addons: [], status: "active", renewsAt: to },
       update: { plan: name, status: "active", renewsAt: to, graceUntil: null },
     });
-    await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "Subscription paid", entity: "subscription", entityId: p.id, detail: `${name} · ${p.cycle === "y" ? "1 year" : "1 month"} · ₹${(p.amountPaise / 100).toLocaleString("en-IN")} · Razorpay ${paymentId} · paid until ${to.toISOString().slice(0, 10)}` });
+    await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "Subscription paid", entity: "subscription", entityId: p.id, detail: `${name} · ${p.cycle === "y" ? "1 year" : "1 month"} · ₹${(p.amountPaise / 100).toLocaleString("en-IN")}${p.couponCode ? ` (coupon ${p.couponCode})` : ""} · ${p.provider === "coupon" ? "no payment needed" : `Razorpay ${paymentId}`} · paid until ${to.toISOString().slice(0, 10)}` });
     return true;
   });
 }
@@ -131,5 +151,5 @@ export async function handleWebhook(body: string, signature: string | null): Pro
 
 export async function onlinePayments(tenantId: string) {
   const rows = await db.onlinePayment.findMany({ where: { tenantId, status: "paid" }, orderBy: { paidAt: "desc" }, take: 24 });
-  return rows.map((r) => ({ id: r.id, plan: PRODUCTS.find((x) => x.id === r.plan)?.name ?? r.plan, cycle: r.cycle, amountPaise: r.amountPaise, gstPaise: r.gstPaise, paymentId: r.paymentId, paidAt: r.paidAt!.toISOString(), periodTo: r.periodTo!.toISOString() }));
+  return rows.map((r) => ({ id: r.id, plan: PRODUCTS.find((x) => x.id === r.plan)?.name ?? r.plan, cycle: r.cycle, amountPaise: r.amountPaise, gstPaise: r.gstPaise, coupon: r.couponCode, paymentId: r.provider === "coupon" ? null : r.paymentId, paidAt: r.paidAt!.toISOString(), periodTo: r.periodTo!.toISOString() }));
 }

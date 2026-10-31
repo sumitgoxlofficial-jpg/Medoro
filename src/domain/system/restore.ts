@@ -16,11 +16,11 @@ import { readDocument, restoreFile } from "@/server/storage";
 
 export const BACKUP_FORMAT = "medoro-backup-v2";
 /** Tenant tables kept as they are on this server. FileObject only indexes storage; file contents travel as `files`. */
-const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "LicenceOutbox", "RestoreRun", "FileObject"]);
+const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "OnlinePayment", "LicenceOutbox", "RestoreRun", "FileObject"]);
 /** Tenant rows that are cleared, not restored: everyone signs in again after a restore, and pending reset codes die. */
 const CLEAR = new Set(["Session", "AiConfirmation", "AuthCode", "DiscountApproval"]);
 /** Tables that don't belong to any pharmacy. */
-const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest", "CpBillingEvent"]);
+const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest", "CpBillingEvent", "Coupon"]);
 
 type Layout = {
   /** Restored tables in insert order (parents first). Child tables have `via`: the FK column and its tenant-owned parent. */

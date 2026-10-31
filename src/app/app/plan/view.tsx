@@ -9,9 +9,9 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
-import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, paidAction, payOnlineAction } from "./actions";
+import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, paidAction, payOnlineAction } from "./actions";
 
-type Online = { enabled: boolean; payments: { id: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; paymentId: string | null; paidAt: string; periodTo: string }[] };
+type Online = { enabled: boolean; payments: { id: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; paidAt: string; periodTo: string }[] };
 type RzpResponse = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
 type RzpCheckout = { open: () => void; on: (e: string, fn: (r: { error?: { description?: string } }) => void) => void };
 declare global { interface Window { Razorpay?: new (o: Record<string, unknown>) => RzpCheckout } }
@@ -31,6 +31,8 @@ const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,2
 const day = (iso: string) => new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const inr = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+/** Rupees with paise shown as two digits when there are any: ₹1,999.20, ₹2,499. */
+const rs = (r: number) => "₹" + r.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(r) ? 0 : 2, maximumFractionDigits: 2 });
 const today = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
 const PLANS = PRODUCTS.filter((p) => !("once" in p));
 /** List price including GST, in rupees. Yearly is 10 months. */
@@ -71,13 +73,28 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const hasAi = v.addons.includes("ai");
   const manual = (!!pay.upi || !!pay.bank) && (connected || !online.enabled);
   const [paying, setPaying] = useState(false);
+  const [code, setCode] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; percentOff: number } | null>(null);
+  const [couponErr, setCouponErr] = useState("");
+  // Same rounding as the server (GST-inclusive list price minus the percentage); the server re-checks before charging.
+  const due = coupon ? amount - Math.round((amount * 100 * coupon.percentOff) / 100) / 100 : amount;
+  const applyCoupon = () => {
+    if (product === "ai" || !code.trim()) return;
+    setCouponErr("");
+    start(async () => {
+      const r = await couponAction({ plan: product, cycle: cycle as "m" | "y", coupon: code });
+      if (!r.ok) { setCoupon(null); return setCouponErr(r.error); }
+      setCoupon(r.data.coupon);
+    });
+  };
 
   const payOnline = async () => {
     if (product === "ai") return;
     setPaying(true);
     try {
-      const r = await payOnlineAction({ plan: product, cycle: cycle as "m" | "y" });
+      const r = await payOnlineAction({ plan: product, cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
       if (!r.ok) return toast(r.error, "red");
+      if (r.data.free) { toast(r.message ?? "Your plan is active.", "green"); return router.refresh(); }
       await loadCheckout();
       const o = r.data;
       const rzp = new window.Razorpay!({
@@ -116,11 +133,18 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           {online.enabled ? (
             <>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Plan"><Select value={product} onChange={(e) => setProduct(e.target.value as typeof product)}>{PLANS.filter((p) => !("addon" in p)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
-                <Field label="Billing"><Select value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
+                <Field label="Plan"><Select value={product} onChange={(e) => { setProduct(e.target.value as typeof product); setCoupon(null); }}>{PLANS.filter((p) => !("addon" in p)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+                <Field label="Billing"><Select value={cycle} onChange={(e) => { setCycle(e.target.value); setCoupon(null); }}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
               </div>
-              <span className="text-[13.5px]">Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
-              <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? "Opening…" : `Pay ₹${amount.toLocaleString("en-IN")} now`}</Button>
+              <form onSubmit={(e) => { e.preventDefault(); applyCoupon(); }} className="flex gap-2 items-end">
+                <Field label="Coupon code (optional)" className="flex-1"><Input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setCoupon(null); setCouponErr(""); }} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
+                {coupon ? <Button onClick={() => { setCoupon(null); setCode(""); }}>Remove</Button> : <Button type="submit" disabled={busy || !code.trim()}>Apply</Button>}
+              </form>
+              {couponErr ? <span role="alert" className="text-[12.5px] text-bad -mt-1">{couponErr}</span> : null}
+              {coupon ? (
+                <span className="text-[13.5px]">Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.percentOff}% off. <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
+              ) : <span className="text-[13.5px]">Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>}
+              <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? "Opening…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
               <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}.</span>
             </>
           ) : null}
@@ -222,7 +246,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               <tbody>{online.payments.map((p) => (
                 <tr key={p.id} className="border-t border-row align-top">
                   <td className="py-1.5">{day(p.paidAt)}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
-                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? "1 year" : "1 month"}<div className="text-[12px] text-muted">Paid until {day(p.periodTo)}</div></td>
+                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? "1 year" : "1 month"}{p.coupon ? <div className="text-[12px] text-muted">Coupon {p.coupon}</div> : null}<div className="text-[12px] text-muted">Paid until {day(p.periodTo)}</div></td>
                   <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">incl. GST {inr(p.gstPaise)}</div></td>
                 </tr>
               ))}</tbody>
