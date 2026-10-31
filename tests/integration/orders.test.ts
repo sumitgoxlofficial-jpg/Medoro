@@ -99,6 +99,12 @@ describe("orders and home delivery", () => {
 
     const mgr = await ctxFor("Manager");
     await openShift(mgr, "1000");
+    // An imported order delivered for cash with no rider on record must not break the handover list.
+    const orphan = await db.deliveryOrder.findFirstOrThrow({ where: { id } });
+    const { id: _o, ...rest } = orphan; void _o;
+    await db.deliveryOrder.create({ data: { ...rest, id: "demo-ord-1", no: rest.no + "-D", riderId: null, settlementId: null, saleId: null } as never });
+    expect((await riderCash(mgr)).map((r) => r.riderId)).toEqual([rider.userId]);
+    await db.deliveryOrder.delete({ where: { id: "demo-ord-1" } });
     const owed = await riderCash(mgr);
     expect(owed).toEqual([expect.objectContaining({ riderId: rider.userId, total: sale.total, orders: [expect.objectContaining({ id })] })]);
     const short = (sale.total - 1000) / 100;
