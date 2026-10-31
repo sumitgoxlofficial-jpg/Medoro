@@ -156,6 +156,19 @@ describe("subscription coupons", () => {
     await expect(quote({ plan: "starter", cycle: "m", coupon: "ONCE" })).rejects.toThrow(/used up/);
   });
 
+  it("a fixed-price coupon charges exactly that, on any plan", async () => {
+    const ctx = await ctxFor();
+    const calls = fakeRazorpay();
+    await expect(createCoupon(admin, { code: "NOTHING" })).rejects.toThrow(/percent off .* or a fixed price/);
+    await expect(createCoupon(admin, { code: "HALFRUPEE", payRupees: 0.5 })).rejects.toThrow(/at least ₹1/);
+    await createCoupon(admin, { code: "SUMIT99", payRupees: 1, maxUses: 20, note: "₹1 test payments" });
+    expect(await db.coupon.findUniqueOrThrow({ where: { code: "SUMIT99" } })).toMatchObject({ percentOff: 0, payPaise: 100 });
+    expect(await quote({ plan: "multi", cycle: "y", coupon: "sumit99" })).toMatchObject({ list: 4_499_000, discount: 4_498_900, total: 100, coupon: { code: "SUMIT99", label: "pay ₹1" } });
+    const o = await createOrder(ctx, { plan: "pro", cycle: "m", coupon: "SUMIT99" });
+    expect(o).toMatchObject({ free: false, amount: 100 });
+    expect(calls[0].body).toMatchObject({ amount: 100, notes: { coupon: "SUMIT99" } });
+  });
+
   it("activates the plan without Razorpay for a 100% coupon", async () => {
     const ctx = await ctxFor();
     const calls = fakeRazorpay();

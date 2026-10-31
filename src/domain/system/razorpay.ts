@@ -6,7 +6,7 @@ import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
 import { PRODUCTS } from "@/staff/constants";
-import { discountOf, normCode, usableCoupon } from "./coupons";
+import { couponLabel, discountOf, normCode, usableCoupon } from "./coupons";
 
 /**
  * Subscription payments on a hosted server (Medoro's own), with Razorpay Checkout: the owner picks a plan,
@@ -26,10 +26,10 @@ export const PAY_PLANS = ["starter", "pro", "multi"] as const;
 export const orderSchema = z.object({ plan: z.enum(PAY_PLANS), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default("") });
 
 /** Price including 18% GST, in paise: list price, coupon discount, what is charged and the GST in it. Yearly is 10 months. */
-export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", percentOff = 0) {
+export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", off: number | { percentOff: number; payPaise?: number | null } = 0) {
   const p = PRODUCTS.find((x) => x.id === plan)!;
   const list = (cycle === "y" ? p.m * 10 : p.m) * 100;
-  const discount = discountOf(list, percentOff);
+  const discount = discountOf(list, typeof off === "number" ? { percentOff: off } : off);
   const total = list - discount;
   return { name: p.name, list, discount, total, gst: total - Math.round(total / 1.18) };
 }
@@ -38,7 +38,7 @@ export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", pe
 export async function quote(raw: z.input<typeof orderSchema>) {
   const { plan, cycle, coupon } = orderSchema.parse(raw);
   const c = coupon ? await usableCoupon(coupon, plan) : null;
-  return { ...planPrice(plan, cycle, c?.percentOff ?? 0), coupon: c ? { code: c.code, percentOff: c.percentOff } : null };
+  return { ...planPrice(plan, cycle, c ?? 0), coupon: c ? { code: c.code, percentOff: c.percentOff, payPaise: c.payPaise, label: couponLabel(c) } : null };
 }
 
 /** The new paid-until: one month or year after today, or after the current period if it runs later. */

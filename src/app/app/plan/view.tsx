@@ -64,17 +64,17 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const [paying, setPaying] = useState(false);
   const [payUrl, setPayUrl] = useState<string | null>(null);
   const [code, setCode] = useState("");
-  const [coupon, setCoupon] = useState<{ code: string; percentOff: number } | null>(null);
+  const [coupon, setCoupon] = useState<{ code: string; label: string; total: number } | null>(null);
   const [couponErr, setCouponErr] = useState("");
-  // Same rounding as the server (GST-inclusive list price minus the percentage); the server re-checks before charging.
-  const due = coupon ? amount - Math.round((amount * 100 * coupon.percentOff) / 100) / 100 : amount;
+  // The server's price for the plan with the coupon; it is checked again before charging.
+  const due = coupon ? coupon.total / 100 : amount;
   const applyCoupon = () => {
     if (product === "ai" || !code.trim()) return;
     setCouponErr("");
     start(async () => {
       const r = await couponAction({ plan: product, cycle: cycle as "m" | "y", coupon: code });
       if (!r.ok) { setCoupon(null); return setCouponErr(r.error); }
-      setCoupon(r.data.coupon);
+      setCoupon(r.data.coupon ? { code: r.data.coupon.code, label: r.data.coupon.label, total: r.data.total } : null);
     });
   };
 
@@ -126,7 +126,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               </form>
               {couponErr ? <span role="alert" className="text-[12.5px] text-bad -mt-1">{couponErr}</span> : null}
               {coupon ? (
-                <span className="text-[13.5px]">Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.percentOff}% off. <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
+                <span className="text-[13.5px]">Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
               ) : <span className="text-[13.5px]">Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>}
               <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? "Opening…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
               <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}.</span>
