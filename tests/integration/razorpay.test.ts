@@ -280,3 +280,51 @@ describe("real-life payment rules", () => {
   });
 });
 
+
+describe("AI Pharmacy Manager add-on", () => {
+  const P = (payments: Record<string, { order_id: string; amount: number; status: string }>, id: string, order: string, amount: number) => { payments[id] = { order_id: order, amount, status: "captured" }; };
+
+  it("needs consent, then turns the smart assistant on until the paid date, without touching the plan", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    fakeRazorpay(payments);
+    vi.stubEnv("AI_MODE", "remote"); vi.stubEnv("REMOTE_AI_URL", "https://api.anthropic.com/v1"); vi.stubEnv("REMOTE_AI_MODEL", "claude-sonnet-5-5");
+    const { aiStatus } = await import("@/domain/ai/settings");
+    expect(await aiStatus(ctx)).toMatchObject({ mode: "rules" });
+
+    const before = await db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: ctx.tenantId } });
+    await expect(createOrder(ctx, { plan: "ai", cycle: "m" })).rejects.toThrow(/Tick the box/);
+    expect(await createOrder(ctx, { plan: "ai", cycle: "m", aiConsent: true })).toMatchObject({ amount: 49_900 });
+    const privacy = (await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } })).settings as { privacy: { remoteAi: boolean; strict: boolean } };
+    expect(privacy.privacy).toMatchObject({ remoteAi: true, strict: false });
+    const st = await aiStatus(ctx);
+    expect(st.mode).toBe("rules");
+    expect(st.note).toMatch(/AI add-on isn’t active/);
+
+    P(payments, "pay_ai", "order_1", 49_900);
+    expect(await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_ai", signature: sig("order_1|pay_ai") })).toEqual({ applied: true, duplicate: false });
+    const after = await db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: ctx.tenantId } });
+    expect(after.addons).toContain("ai");
+    expect(after.aiUntil!.getTime()).toBeGreaterThan(Date.now() + 27 * 86400_000);
+    expect(after).toMatchObject({ plan: before.plan, status: before.status, renewsAt: before.renewsAt });
+    expect(await aiStatus(ctx)).toMatchObject({ mode: "remote" });
+    expect((await billingState(ctx.tenantId)).ai).toMatchObject({ active: true, renewOpen: false });
+    await expect(createOrder(ctx, { plan: "ai", cycle: "m", aiConsent: true })).rejects.toThrow(/AI add-on is paid until/);
+
+    // When it runs out, back to the rules.
+    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { aiUntil: new Date(Date.now() - 1000) } });
+    expect(await aiStatus(ctx)).toMatchObject({ mode: "rules" });
+  });
+
+  it("buying the plan and the add-on minutes apart is not a duplicate", async () => {
+    const ctx = await ctxFor();
+    const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
+    fakeRazorpay(payments);
+    await createOrder(ctx, { plan: "pro", cycle: "m" });
+    await createOrder(ctx, { plan: "ai", cycle: "y", aiConsent: true });
+    P(payments, "pay_p", "order_1", 249_900);
+    P(payments, "pay_a", "order_2", 499_000);
+    expect(await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_p", signature: sig("order_1|pay_p") })).toEqual({ applied: true, duplicate: false });
+    expect(await confirmCheckout(ctx, { orderId: "order_2", paymentId: "pay_a", signature: sig("order_2|pay_a") })).toEqual({ applied: true, duplicate: false });
+  });
+});

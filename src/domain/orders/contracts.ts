@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
 
 export const ORDER_SOURCES = ["phone", "whatsapp", "walk_in"] as const;
@@ -33,7 +34,7 @@ const phone = z.string().transform(normPhone).refine((p) => MOBILE_RE.test(p), "
 
 export const orderSchema = z.object({
   source: z.enum(ORDER_SOURCES),
-  customerId: z.string().uuid().nullable().optional(),
+  customerId: zId().nullable().optional(),
   name: z.string().trim().min(2, "Enter the customer’s name.").max(120),
   phone,
   address: z.string().trim().min(8, "Enter the full delivery address.").max(500),
@@ -46,7 +47,7 @@ export const orderSchema = z.object({
   prescriber: z.string().trim().max(120).optional(),
   prescriberReg: z.string().trim().max(40).optional(),
   waConsent: z.boolean().default(false),
-  items: z.array(z.object({ medicineId: z.string().uuid(), qty: z.number().int().min(1, "Quantity must be at least 1.").max(1000) })).min(1, "Add at least one item.").max(100),
+  items: z.array(z.object({ medicineId: zId(), qty: z.number().int().min(1, "Quantity must be at least 1.").max(1000) })).min(1, "Add at least one item.").max(100),
 });
 export type OrderInput = z.input<typeof orderSchema>;
 

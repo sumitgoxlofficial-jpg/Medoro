@@ -1044,6 +1044,7 @@ model SubscriptionMeta {
   addons        String[]
   status        String // trial, active, grace, cancelled (as issued)
   renewsAt      DateTime? // trial end or paid-until
+  aiUntil       DateTime? // AI Pharmacy Manager add-on paid until (hosted servers that take payments themselves)
   graceUntil    DateTime?
   licenceToken  String? // sealed instance token used to sign check-ins
   licenceId     String?

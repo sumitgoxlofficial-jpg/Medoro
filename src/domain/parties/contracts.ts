@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { GSTIN_RE } from "@/domain/identity/contracts";
 import { GST_STATES } from "@/domain/accounting/gst";
 
@@ -21,7 +22,7 @@ export const PAY_METHODS = ["Cash", "UPI", "Bank transfer (NEFT)", "Cheque"] as 
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 export const paymentSchema = z.object({
-  partyId: z.string().uuid(),
+  partyId: zId(),
   amount: paise("Enter an amount.").refine((p) => p > 0, "Enter an amount."),
   method: z.enum(PAY_METHODS),
   ref: z.string().trim().max(60).default(""),

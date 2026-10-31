@@ -1,3 +1,4 @@
+import { ID_RE } from "@/lib/id";
 import { requireCtx } from "@/server/context";
 import { labelRows } from "@/domain/inventory/catalog";
 import { barcodeSvg } from "@/lib/barcode";
@@ -7,7 +8,7 @@ import { AutoPrint } from "../invoice/[id]/auto-print";
 
 export const metadata = { title: "Labels" };
 
-const ids = (s?: string) => (s ?? "").split(",").filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 500);
+const ids = (s?: string) => (s ?? "").split(",").filter((x) => ID_RE.test(x)).slice(0, 500);
 
 // 50 × 25 mm thermal roll, one label per page; or an A4 sheet of 3 × 10 labels (63.5 × 25.4 mm).
 const CSS = {

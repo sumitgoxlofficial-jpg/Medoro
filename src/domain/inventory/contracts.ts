@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zId } from "@/lib/id";
 
 export const FORMS = ["Tablet", "Capsule", "Syrup", "Suspension", "Injection", "Gel", "Cream", "Ointment", "Drops", "Sachet", "Powder", "Inhaler", "Device", "Other"] as const;
 export const GST_RATES = [0, 5, 12, 18, 28] as const;
@@ -32,7 +33,7 @@ export const medicineSchema = z.object({
 export type MedicineInput = z.input<typeof medicineSchema>;
 
 export const receiveSchema = z.object({
-  medicineId: z.string().uuid(),
+  medicineId: zId(),
   batchNo: z.string().trim().toUpperCase().min(1, "Batch number is required.").max(30).regex(/^[A-Z0-9/-]+$/, "Batch number: letters, digits, / and - only."),
   // Packs print expiry as MM/YYYY, meaning the end of that month.
   expiry: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/, "Enter the expiry month.").transform(endOfMonthIfMonth),
@@ -40,7 +41,7 @@ export const receiveSchema = z.object({
   unit: z.enum(["pack", "case"]).default("pack"),
   cost: rupees("Enter purchase cost per pack."),
   mrp: rupees("Enter MRP per pack."),
-  supplierId: z.string().uuid().nullable().default(null),
+  supplierId: zId().nullable().default(null),
   invoiceNo: z.string().trim().max(40).default(""),
 });
 export type ReceiveInput = z.input<typeof receiveSchema>;

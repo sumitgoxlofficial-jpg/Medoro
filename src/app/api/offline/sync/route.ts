@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { syncOps } from "@/domain/sales/offline";
 import { rejectCrossSite } from "@/server/csrf";
 import { counted } from "@/server/metrics";
 import { api } from "../json";
 
 export const dynamic = "force-dynamic";
-const body = z.object({ deviceId: z.string().uuid(), ops: z.array(z.unknown()).max(200) });
+const body = z.object({ deviceId: zId(), ops: z.array(z.unknown()).max(200) });
 
 /** Posts bills made offline. Resending is safe: each bill posts once. */
 export const POST = counted("offline_sync", async (req: Request) => {

@@ -15,7 +15,7 @@ import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connect
 type Online = {
   enabled: boolean;
   payments: { id: string; status: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; at: string; periodTo: string | null; note: string | null; refunded: boolean }[];
-  billing: { status: string | null; renewsAt: string | null; renewOpen: boolean; renewOpensOn: string | null };
+  billing: { status: string | null; renewsAt: string | null; renewOpen: boolean; renewOpensOn: string | null; ai: { active: boolean; until: string | null; renewOpen: boolean; renewOpensOn: string | null } };
 };
 const PAY_STATUS: Record<string, [string, Tone]> = { paid: ["Paid", "green"], refunded: ["Refunded", "gray"], duplicate: ["Paid twice · refunded", "amber"], failed: ["Failed", "red"] };
 
@@ -84,11 +84,15 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
     });
   };
 
-  const payOnline = async () => {
-    if (product === "ai") return;
+  const [aiCycle, setAiCycle] = useState<"m" | "y">("m");
+  const [aiConsent, setAiConsent] = useState(false);
+  const [aiCode, setAiCode] = useState("");
+  const aiPrice = PRODUCTS.find((p) => p.id === "ai")!.m;
+  const payOnline = async (what?: { plan: "ai"; cycle: "m" | "y" }) => {
+    if (!what && product === "ai") return;
     setPaying(true);
     try {
-      const r = await payOnlineAction({ plan: product, cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
+      const r = await payOnlineAction(what ? { plan: "ai", cycle: what.cycle, coupon: aiCode.trim(), aiConsent } : { plan: product as "starter" | "pro" | "multi", cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
       if (!r.ok) return toast(r.error, "red");
       if (r.data.free) { toast(r.message ?? "Your plan is active.", "green"); return router.refresh(); }
       await openCheckout(r.data,
@@ -195,8 +199,24 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
         </div>
 
         <div className={card}>
-          <div className="font-semibold text-[15px]">AI Pharmacy Manager add-on</div>
-          <div className="text-[13px] text-ink-2">{hasAi ? "Included in your plan." : `₹${PRODUCTS.find((p) => p.id === "ai")!.m}/month on top of your plan (incl. GST).`}</div>
+          <div className="flex items-center gap-2"><span className="font-semibold text-[15px]">AI Pharmacy Manager add-on</span>{online.enabled && !connected ? <Badge tone={online.billing.ai.active ? "green" : "gray"} className="ml-auto">{online.billing.ai.active ? "Active" : "Not added"}</Badge> : null}</div>
+          {online.enabled && !connected ? (
+            <>
+              <div className="text-[13px] text-ink-2">{online.billing.ai.active && online.billing.ai.until
+                ? <>Smart assistant is on until <strong>{day(online.billing.ai.until)}</strong>: ask anything about sales, stock, expiry and dues in English, Hindi or Hinglish.</>
+                : <>Without it, Ask AI answers everyday questions from built-in rules (sales, stock, expiry, reports, backups). With it, a smart assistant understands any question in English, Hindi or Hinglish and can draft purchase orders. ₹{aiPrice}/month or ₹{(aiPrice * 10).toLocaleString("en-IN")}/year (incl. GST), on top of your plan.</>}</div>
+              {online.billing.ai.active && !online.billing.ai.renewOpen && online.billing.ai.renewOpensOn ? (
+                <div className="text-[12.5px] text-muted">Renewal opens on {day(online.billing.ai.renewOpensOn)}. Nothing renews automatically.</div>
+              ) : (
+                <>
+                  <Field label="Billing"><Select value={aiCycle} onChange={(e) => setAiCycle(e.target.value as "m" | "y")}><option value="m">Monthly · ₹{aiPrice}</option><option value="y">Yearly · ₹{(aiPrice * 10).toLocaleString("en-IN")} (2 months free)</option></Select></Field>
+                  <Field label="Coupon code (optional)"><Input value={aiCode} onChange={(e) => setAiCode(e.target.value.toUpperCase())} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
+                  <label className="flex gap-2 text-[12.5px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={aiConsent} onChange={(e) => setAiConsent(e.target.checked)} /><span>I allow Medoro to send business questions and the figures needed to answer them to its AI provider (Anthropic). Customer names and phone numbers are hidden first; data isn’t used to train AI. This can be switched off any time under Privacy & data.</span></label>
+                  <Button variant="primary" className="self-start" disabled={busy || paying || !aiConsent} onClick={() => void payOnline({ plan: "ai", cycle: aiCycle })}>{paying ? "Opening…" : aiCode.trim() ? `${online.billing.ai.active ? "Renew" : "Add"} with coupon ${aiCode.trim()}` : `${online.billing.ai.active ? "Renew" : "Add"} for ₹${(aiCycle === "y" ? aiPrice * 10 : aiPrice).toLocaleString("en-IN")}`}</Button>
+                </>
+              )}
+            </>
+          ) : <div className="text-[13px] text-ink-2">{hasAi ? "Included in your plan." : `₹${aiPrice}/month on top of your plan (incl. GST).`}</div>}
           {pendingAddon ? <div className="text-[12.5px] text-muted">{KIND[pendingAddon.kind]} · {STATUS[pendingAddon.status][0].toLowerCase()} since {when(pendingAddon.at)}</div> : null}
           {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? "Remove add-on" : "Add AI add-on"}</Button> : null}
         </div>

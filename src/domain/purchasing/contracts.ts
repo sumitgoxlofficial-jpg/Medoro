@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { endOfMonthIfMonth } from "@/domain/inventory/contracts";
 import { DEFAULT_RULES, parseScheme, purchaseTotals, type PricingRules } from "./pricing";
 
@@ -14,14 +15,14 @@ export const pricingFields = {
 const int = (msg: string, min = 1) => z.union([z.string(), z.number()]).transform((v) => parseInt(String(v === "" ? 0 : v), 10)).refine((n) => Number.isInteger(n) && n >= min, msg);
 
 export const grnLineSchema = z.object({
-  medicineId: z.string().uuid({ message: "Match each line to a medicine in your catalogue." }),
+  medicineId: zId("Match each line to a medicine in your catalogue."),
   batchNo: z.string().trim().toUpperCase().min(1, "Batch number is required.").max(30).regex(/^[A-Z0-9/-]+$/, "Batch number: letters, digits, / and - only."),
   expiry: z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/, "Expiry is missing.").transform(endOfMonthIfMonth),
   qty: int("Quantity must be at least 1."),
   freeQty: int("Free quantity can’t be negative.", 0).default(0),
   rate: money("Enter the rate."), // PTR per pack, excluding GST
   mrp: money("Enter the MRP."),
-  poItemId: z.string().uuid().nullable().default(null),
+  poItemId: zId().nullable().default(null),
   /** Index of the OCR-extracted line this came from, and whether the user checked it against the invoice. */
   ocrIndex: z.number().int().min(0).max(999).nullable().default(null),
   verified: z.boolean().default(false),
@@ -35,20 +36,20 @@ export const grnLineSchema = z.object({
 export const LOW_CONFIDENCE = 0.8;
 
 export const grnSchema = z.object({
-  supplierId: z.string().uuid({ message: "Choose the supplier." }),
+  supplierId: zId("Choose the supplier."),
   invoiceNo: z.string().trim().min(1, "Enter the supplier invoice number.").max(40),
   invoiceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the invoice date."),
   statedTotal: z.union([z.string(), z.number()]).transform((v) => (v === "" || v == null ? null : Math.round(parseFloat(String(v)) * 100))).refine((v) => v == null || (Number.isFinite(v) && v > 0), "Enter the total printed on the invoice as an amount.").nullable().default(null),
-  poId: z.string().uuid().nullable().default(null),
-  scanDocId: z.string().uuid().nullable().default(null),
+  poId: zId().nullable().default(null),
+  scanDocId: zId().nullable().default(null),
   lines: z.array(grnLineSchema).min(1, "Add at least one line."),
 });
 export type GrnInput = z.input<typeof grnSchema>;
 
 export const poSchema = z.object({
-  supplierId: z.string().uuid({ message: "Choose the supplier." }),
+  supplierId: zId("Choose the supplier."),
   lines: z.array(z.object({
-    medicineId: z.string().uuid(), qty: int("Quantity must be at least 1."), rate: money("Enter the rate."),
+    medicineId: zId(), qty: int("Quantity must be at least 1."), rate: money("Enter the rate."),
     freeQty: int("Free quantity can’t be negative.", 0).default(0), mrp: optMoney("MRP must be above zero."), ...pricingFields,
   })).min(1, "Add at least one item."),
   source: z.enum(["manual", "intel", "ai", "seasonal"]).default("manual"),

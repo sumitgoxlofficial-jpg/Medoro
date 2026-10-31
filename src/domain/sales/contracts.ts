@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zId } from "@/lib/id";
 import { GST_STATES, validGstin } from "@/domain/accounting/gst";
 
 export const PAY_MODES = ["cash", "upi", "card", "split", "credit"] as const;
@@ -6,8 +7,8 @@ export const PAY_MODES = ["cash", "upi", "card", "split", "credit"] as const;
 export const saleSchema = z.object({
   idempotencyKey: z.string().min(16).max(64).regex(/^[A-Za-z0-9_-]+$/),
   // qty is in `unit`: whole packs, or loose units (tabs) for medicines sold loose.
-  lines: z.array(z.object({ medicineId: z.string().uuid(), batchId: z.string().uuid(), qty: z.number().int().min(1).max(10000), unit: z.enum(["pack", "loose"]).optional() })).min(1, "Cart is empty.").max(200),
-  customerId: z.string().uuid().nullable(),
+  lines: z.array(z.object({ medicineId: zId(), batchId: zId(), qty: z.number().int().min(1).max(10000), unit: z.enum(["pack", "loose"]).optional() })).min(1, "Cart is empty.").max(200),
+  customerId: zId().nullable(),
   discountPct: z.number().min(0, "Discount can’t be negative.").max(100),
   pay: z.object({
     // "cod" is only accepted for orders billed at packing (see domain/orders).
@@ -22,7 +23,7 @@ export const saleSchema = z.object({
   approval: z.string().max(100).optional(),
   prescriberReg: z.string().trim().max(40).optional(),
   patientName: z.string().trim().max(120).optional(),
-  doctorId: z.string().uuid().nullable().optional(),
+  doctorId: zId().nullable().optional(),
   // Loyalty points the customer redeems as part payment (see loyalty.ts).
   redeemPoints: z.number().int().min(0).max(10_000_000).optional(),
 });
@@ -43,8 +44,8 @@ export type CustomerInput = z.input<typeof customerSchema>;
 
 export const REFUND_MODES = ["Cash", "UPI refund", "Adjust customer credit"] as const;
 export const returnSchema = z.object({
-  saleId: z.string().uuid(),
-  lines: z.array(z.object({ itemId: z.string().uuid(), qty: z.number().int().min(0) })),
+  saleId: zId(),
+  lines: z.array(z.object({ itemId: zId(), qty: z.number().int().min(0) })),
   condition: z.enum(["sealed", "damaged"]),
   refundMode: z.enum(REFUND_MODES),
   reason: z.string().trim().min(3, "Enter the reason for the return.").max(200),
