@@ -78,7 +78,8 @@ test.describe("inventory", () => {
   test("near-expiry batches show on the expiry page; a stock count posts the variance", async ({ page }) => {
     const run = uid(), name = `Inv Expiro ${run}`, near = `NE${run}`, far = `FA${run}`;
     await importMedicines(page, [
-      { name, mrp: 60, batch: near, expiry: monthsAhead(2).slash, qty: 12, cost: 40 },
+      // Expires at the end of next month: 29-61 days away, inside the 90-day window on any day of the month.
+      { name, mrp: 60, batch: near, expiry: monthsAhead(1).slash, qty: 12, cost: 40 },
       { name, mrp: 60, batch: far, expiry: monthsAhead(24).slash, qty: 30, cost: 40 },
     ]);
 
@@ -106,7 +107,7 @@ test.describe("inventory", () => {
     answerDialogs(page, "3");
 
     // Main holds a near-expiry batch that doesn't sell there; Kothrud sells the same medicine.
-    await importMedicines(page, [{ name, mrp: 80, batch: mainBatch, expiry: monthsAhead(2).slash, qty: 10, cost: 50 }]);
+    await importMedicines(page, [{ name, mrp: 80, batch: mainBatch, expiry: monthsAhead(1).slash, qty: 10, cost: 50 }]);
     await switchBranch(page, kothrud);
     await importMedicines(page, [{ name, mrp: 80, batch: kotBatch, expiry: monthsAhead(20).slash, qty: 5, cost: 50 }]);
     await quickSale(page, name);

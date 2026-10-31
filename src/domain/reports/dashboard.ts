@@ -58,7 +58,7 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
   // 14-day history (always daily, ending today)
   const histFrom = new Date(today0.getTime() - 13 * DAY);
   const hist = await db.$queryRaw<{ d: string; t: bigint }[]>`
-    SELECT to_char((at AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD') AS d, SUM("totalPaise") AS t
+    SELECT to_char((at + interval '330 minutes')::date, 'YYYY-MM-DD') AS d, SUM("totalPaise") AS t
     FROM "Sale" s WHERE "tenantId" = ${tenantId} AND "branchId" = ${branchId} AND at >= ${histFrom} AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id) GROUP BY 1`;
   const hmap = new Map(hist.map((h) => [h.d, Number(h.t)]));
   const history = Array.from({ length: 14 }, (_, i) => { const d = addDays(todayISO(), i - 13); return { date: d, total: hmap.get(d) ?? 0 }; });
@@ -94,8 +94,15 @@ export async function dashboard(tenantId: string, branchId: string, range: Range
 
   // Branch performance (period)
   const brs = await db.branch.findMany({ where: { tenantId, active: true, id: { in: branchIds } }, orderBy: { createdAt: "asc" } });
-  const perf = await db.sale.groupBy({ by: ["branchId"], where: { tenantId, branchId: { in: branchIds }, at: { gte: from }, voided: { is: null } }, _sum: { totalPaise: true }, _count: true });
-  const branchPerf = brs.map((b) => { const p = perf.find((x) => x.branchId === b.id); return { name: b.name, total: big(p?._sum.totalPaise), bills: p?._count ?? 0 }; });
+  const [perf, perfRet] = await Promise.all([
+    db.sale.groupBy({ by: ["branchId"], where: { tenantId, branchId: { in: branchIds }, at: { gte: from }, voided: { is: null } }, _sum: { totalPaise: true }, _count: true }),
+    db.salesReturn.groupBy({ by: ["branchId"], where: { tenantId, branchId: { in: branchIds }, at: { gte: from } }, _sum: { amountPaise: true } }),
+  ]);
+  // Net of returns, like the Sales KPI, so the two agree.
+  const branchPerf = brs.map((b) => {
+    const p = perf.find((x) => x.branchId === b.id), r = perfRet.find((x) => x.branchId === b.id);
+    return { name: b.name, total: big(p?._sum.totalPaise) - big(r?._sum.amountPaise), bills: p?._count ?? 0 };
+  });
 
   const [lastBackup, activity] = await Promise.all([
     db.backupManifest.findFirst({ where: { tenantId, status: "verified" }, orderBy: { startedAt: "desc" } }),

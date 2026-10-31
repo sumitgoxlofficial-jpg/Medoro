@@ -114,7 +114,7 @@ async function refillDue(tenantId: string) {
     SELECT s."customerId", si."medicineId", array_agg(s.at ORDER BY s.at) ats FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" JOIN "Customer" c ON c.id = s."customerId"
     WHERE s."tenantId" = ${tenantId} AND (c."waOptIn" OR c."smsOptIn") AND c."erasedAt" IS NULL AND s.at >= ${new Date(Date.now() - 365 * 86400_000)}
       AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id)
-    GROUP BY 1, 2 HAVING COUNT(DISTINCT date_trunc('day', s.at)) >= 2`;
+    GROUP BY 1, 2 HAVING COUNT(DISTINCT (s.at + interval '330 minutes')::date) >= 2`;
   const [cs, ms] = await Promise.all([
     db.customer.findMany({ where: { id: { in: rows.map((r) => r.customerId) } }, select: { id: true, name: true, phone: true } }),
     db.medicine.findMany({ where: { id: { in: rows.map((r) => r.medicineId) } }, select: { id: true, name: true } }),

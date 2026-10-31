@@ -13,8 +13,8 @@ const V: Record<Variant, string> = {
   soft: "bg-teal-tint text-teal border border-teal-line hover:bg-[#d3ebe8]",
 };
 const S: Record<Size, string> = {
-  sm: "h-7 px-2.5 text-[12.5px] rounded-md gap-1.5",
-  md: "h-[34px] px-3 text-[13px] rounded-lg gap-1.5",
+  sm: "h-7 max-md:h-9 px-2.5 text-[12.5px] rounded-md gap-1.5",
+  md: "h-[34px] max-md:h-10 px-3 text-[13px] rounded-lg gap-1.5",
   lg: "h-11 px-4 text-[15px] rounded-lg gap-2",
 };
 
