@@ -69,7 +69,7 @@ describe("paying Medoro online from a self-hosted or desktop installation", () =
     expect(calls[0].body).toMatchObject({ notes: { kind: "licence", customer: "T-1001", plan: "multi", cycle: "y" } });
     payments.pay_1 = { order_id: "order_1", amount: 4_499_000, status: "captured" };
     await expect(cpConfirm(link.l, link.s, { orderId: "order_1", paymentId: "pay_1", signature: "bad" })).rejects.toThrow(/couldn’t be verified/);
-    expect(await cpConfirm(link.l, link.s, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") })).toEqual({ applied: true });
+    expect(await cpConfirm(link.l, link.s, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") })).toEqual({ applied: true, duplicate: false });
 
     const c = await db.cpCustomer.findUniqueOrThrow({ where: { id: customerId } });
     expect(c).toMatchObject({ product: "multi", cycle: "y", status: "active" });

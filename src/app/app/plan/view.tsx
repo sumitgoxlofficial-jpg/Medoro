@@ -10,14 +10,20 @@ import { useToast } from "@/components/ui/toast";
 import { openCheckout } from "@/components/razorpay";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
-import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, paidAction, payLinkAction, payOnlineAction } from "./actions";
+import { addonAction, cancelAction, cancelOnlineAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
 
-type Online = { enabled: boolean; payments: { id: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; paidAt: string; periodTo: string }[] };
+type Online = {
+  enabled: boolean;
+  payments: { id: string; status: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; at: string; periodTo: string | null; note: string | null; refunded: boolean }[];
+  billing: { status: string | null; renewsAt: string | null; renewOpen: boolean; renewOpensOn: string | null; refund: { amountPaise: number; until: string } | null };
+};
+const PAY_STATUS: Record<string, [string, Tone]> = { paid: ["Paid", "green"], refunded: ["Refunded", "gray"], duplicate: ["Paid twice · refunded", "amber"], failed: ["Failed", "red"] };
 
 
 type V = Awaited<ReturnType<typeof planView>>;
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
-const day = (iso: string) => new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+// Calendar dates (YYYY-MM-DD) as they are; timestamps as their India date, like the rest of the app.
+const day = (iso: string) => iso.length === 10 ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const inr = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 /** Rupees with paise shown as two digits when there are any: ₹1,999.20, ₹2,499. */
@@ -87,7 +93,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
       if (r.data.free) { toast(r.message ?? "Your plan is active.", "green"); return router.refresh(); }
       await openCheckout(r.data,
         (resp) => act(() => confirmOnlineAction({ orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature })),
-        (msg) => toast(msg, "red"));
+        (msg) => { toast(msg, "red"); void failedOnlineAction({ orderId: r.data.free ? "" : r.data.orderId, reason: msg }).then(() => router.refresh()); });
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn’t start the payment.", "red");
     } finally { setPaying(false); }
@@ -113,8 +119,10 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
         </div>
 
         <div className={card}>
-          <div className="font-semibold text-[15px]">Renew or pay</div>
-          {online.enabled ? (
+          <div className="font-semibold text-[15px]">{online.enabled && v.access.phase === "trial" ? "Choose a plan" : "Renew or pay"}</div>
+          {online.enabled && !online.billing.renewOpen ? (
+            <div className="text-[13.5px] text-ink-2">You’re all set: <strong>{v.plan}</strong> is paid until <strong>{day(online.billing.renewsAt!)}</strong>. Renewal opens on {day(online.billing.renewOpensOn!)}, 30 days before it ends, so you can’t pay twice by mistake. Nothing renews automatically.</div>
+          ) : online.enabled ? (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Plan"><Select value={product} onChange={(e) => { setProduct(e.target.value as typeof product); setCoupon(null); }}>{PLANS.filter((p) => !("addon" in p)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
@@ -193,6 +201,32 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? "Remove add-on" : "Add AI add-on"}</Button> : null}
         </div>
 
+        {online.enabled && !connected && (online.billing.status === "active" || online.billing.status === "cancelled") ? (
+          <div className={card}>
+            <div className="font-semibold text-[15px]">Cancel subscription</div>
+            {online.billing.status === "cancelled" ? (
+              <>
+                <div className="text-[13px] text-ink-2">Cancelled. {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <>You keep full access until <strong>{day(online.billing.renewsAt)}</strong>; then Medoro becomes read-only. Your records, exports and backups stay available.</> : "Pay again any time to continue."}</div>
+                {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <Button className="self-start" disabled={busy} onClick={() => act(() => resumeOnlineAction())}>Undo cancellation</Button> : null}
+              </>
+            ) : cancel === null ? (
+              <>
+                <div className="text-[13px] text-ink-2">Nothing renews automatically, so you’re never charged again unless you pay. Cancelling ends the plan when the paid period ends.{online.billing.refund ? <> Changed your mind about your last payment? Within 7 days of paying you can cancel and get it back in full (until {day(online.billing.refund.until)}).</> : null}</div>
+                <Button variant="danger-outline" className="self-start" onClick={() => setCancel("")}>Cancel subscription…</Button>
+              </>
+            ) : (
+              <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-2">
+                <Field label="Why are you cancelling? (optional)"><Textarea value={cancel} onChange={(e) => setCancel(e.target.value)} maxLength={300} /></Field>
+                <div className="flex gap-2 flex-wrap">
+                  <Button onClick={() => setCancel(null)}>Keep my plan</Button>
+                  {online.billing.refund ? <Button variant="danger" disabled={busy} onClick={() => { if (confirm(`Cancel now and refund ${inr(online.billing.refund!.amountPaise)}? The plan goes back to where it was before that payment.`)) act(() => cancelOnlineAction({ refund: true, reason: cancel }), () => setCancel(null)); }}>Cancel and refund {inr(online.billing.refund.amountPaise)}</Button> : null}
+                  <Button variant={online.billing.refund ? "danger-outline" : "danger"} disabled={busy} onClick={() => act(() => cancelOnlineAction({ refund: false, reason: cancel }), () => setCancel(null))}>Cancel at the end of the paid period</Button>
+                </div>
+              </form>
+            )}
+          </div>
+        ) : null}
+
         {connected && v.access.phase !== "unlicensed" ? (
           <div className={card}>
             <div className="font-semibold text-[15px]">Cancel subscription</div>
@@ -240,12 +274,14 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           <div className="font-semibold text-[15px]">Medoro invoices</div>
           {online.payments.length ? (
             <table className="w-full text-[13px] border-collapse">
-              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">Paid</th><th className="py-1 font-medium">For</th><th className="py-1 font-medium text-right">Amount</th></tr></thead>
+              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">Date</th><th className="py-1 font-medium">For</th><th className="py-1 font-medium text-right">Amount</th></tr></thead>
               <tbody>{online.payments.map((p) => (
                 <tr key={p.id} className="border-t border-row align-top">
-                  <td className="py-1.5">{day(p.paidAt)}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
-                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? "1 year" : "1 month"}{p.coupon ? <div className="text-[12px] text-muted">Coupon {p.coupon}</div> : null}<div className="text-[12px] text-muted">Paid until {day(p.periodTo)}</div></td>
-                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">incl. GST {inr(p.gstPaise)}</div></td>
+                  <td className="py-1.5">{day(p.at)}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
+                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? "1 year" : "1 month"}{p.coupon ? <div className="text-[12px] text-muted">Coupon {p.coupon}</div> : null}
+                    {p.status === "paid" && p.periodTo ? <div className="text-[12px] text-muted">Paid until {day(p.periodTo)}</div> : null}
+                    {p.note ? <div className="text-[12px] text-muted">{p.note}</div> : null}</td>
+                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">incl. GST {inr(p.gstPaise)}</div><Badge tone={PAY_STATUS[p.status]?.[1] ?? "gray"} className="mt-1">{PAY_STATUS[p.status]?.[0] ?? p.status}</Badge></td>
                 </tr>
               ))}</tbody>
             </table>

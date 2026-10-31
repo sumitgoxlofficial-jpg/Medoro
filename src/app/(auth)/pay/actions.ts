@@ -2,7 +2,7 @@
 import { ZodError } from "zod";
 import { UserError, type ActionResult } from "@/server/action";
 import { log } from "@/server/log";
-import { cpConfirm, cpQuote, cpStart } from "@/staff/online-pay";
+import { cpConfirm, cpFailed, cpQuote, cpStart } from "@/staff/online-pay";
 
 type Link = { l: string; s: string };
 type Pick = { plan: "starter" | "pro" | "multi"; cycle: "m" | "y"; coupon?: string };
@@ -20,3 +20,4 @@ async function open<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
 export const payQuoteAction = async (k: Link, i: Pick) => open(() => cpQuote(k.l, k.s, i));
 export const payStartAction = async (k: Link, i: Pick) => open(() => cpStart(k.l, k.s, i));
 export const payConfirmAction = async (k: Link, i: { orderId: string; paymentId: string; signature: string }) => open(() => cpConfirm(k.l, k.s, i));
+export const payFailedAction = async (k: Link, i: { orderId: string; reason: string }) => open(() => cpFailed(k.l, k.s, i));

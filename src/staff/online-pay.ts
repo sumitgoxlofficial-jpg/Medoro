@@ -8,7 +8,7 @@ import { UserError } from "@/server/action";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { payLinkBody, requestSignature } from "@/lib/licence";
 import { normCode } from "@/domain/system/coupons";
-import { quote, razorpayEnabled, rzpConfirm, rzpKeyId, rzpOrder, type RzpPayment } from "@/domain/system/razorpay";
+import { RENEW_WINDOW_DAYS, quote, razorpayEnabled, renewal, rzpConfirm, rzpKeyId, rzpOrder, rzpRefund, type RzpPayment } from "@/domain/system/razorpay";
 import { product } from "./constants";
 import { rateFor } from "./sales";
 
@@ -36,7 +36,8 @@ export async function payCustomer(l: string, s: string, now = Date.now()) {
 
 export async function payPage(l: string, s: string) {
   const c = await payCustomer(l, s);
-  return { enabled: razorpayEnabled(), name: c.name, code: c.code, plan: c.product, cycle: c.cycle, status: c.status, renewsOn: c.renewsOn ? isoOf(c.renewsOn) : null };
+  const win = renewal(c.renewsOn ? { status: c.status, renewsAt: new Date(isoOf(c.renewsOn) + "T23:59:59+05:30") } : null);
+  return { enabled: razorpayEnabled(), name: c.name, code: c.code, plan: c.product, cycle: c.cycle, status: c.status, renewsOn: c.renewsOn ? isoOf(c.renewsOn) : null, renewOpen: win.open, renewOpensOn: win.opensOn ? win.opensOn.toISOString().slice(0, 10) : null };
 }
 
 const pick = z.object({ plan: z.enum(["starter", "pro", "multi"]), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default("") });
@@ -51,17 +52,23 @@ export async function cpStart(l: string, s: string, raw: z.input<typeof pick>) {
   const c = await payCustomer(l, s);
   if (!razorpayEnabled()) throw new UserError("Online payments aren’t switched on yet. Pay by UPI or bank transfer from Subscription in your app.");
   const i = pick.parse(raw);
+  // Same rule as hosted pharmacies: a paid plan renews only in its last RENEW_WINDOW_DAYS days.
+  const ends = c.renewsOn ? new Date(isoOf(c.renewsOn) + "T23:59:59+05:30") : null;
+  const win = renewal(ends ? { status: c.status, renewsAt: ends } : null);
+  if (!win.open) throw new UserError(`Your plan is paid until ${isoOf(c.renewsOn!)}. You can renew from ${win.opensOn!.toISOString().slice(0, 10)}, ${RENEW_WINDOW_DAYS} days before it ends.`);
   const price = await quote(i);
   const coupon = price.coupon?.code ?? null;
   const base = { customerId: c.id, plan: i.plan, cycle: i.cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount };
   if (price.total === 0) {
     const orderId = `free_${randomBytes(12).toString("hex")}`;
     await db.cpOnlinePayment.create({ data: { ...base, orderId } });
-    await applyCpPaid(orderId, orderId);
+    await settleCp(orderId, orderId);
     return { free: true as const };
   }
-  const orderId = await rzpOrder(price.total, `${c.code}-${randomBytes(4).toString("hex")}`, { kind: "licence", customer: c.code, plan: i.plan, cycle: i.cycle, ...(coupon ? { coupon } : {}) });
-  await db.cpOnlinePayment.create({ data: { ...base, orderId } });
+  // A second tap or tab gets the same open order.
+  const open = await db.cpOnlinePayment.findFirst({ where: { customerId: c.id, status: "created", plan: i.plan, cycle: i.cycle, amountPaise: price.total, couponCode: coupon, createdAt: { gt: new Date(Date.now() - 30 * 60_000) }, NOT: { orderId: { startsWith: "free_" } } }, orderBy: { createdAt: "desc" } });
+  const orderId = open?.orderId ?? await rzpOrder(price.total, `${c.code}-${randomBytes(4).toString("hex")}`, { kind: "licence", customer: c.code, plan: i.plan, cycle: i.cycle, ...(coupon ? { coupon } : {}) });
+  if (!open) await db.cpOnlinePayment.create({ data: { ...base, orderId } });
   return {
     free: false as const, keyId: rzpKeyId(), orderId, amount: price.total, currency: "INR", name: "Medoro",
     description: `${price.name} · ${i.cycle === "y" ? "1 year" : "1 month"}${coupon ? ` · coupon ${coupon}` : ""}`,
@@ -73,20 +80,50 @@ export async function cpConfirm(l: string, s: string, i: { orderId: string; paym
   const c = await payCustomer(l, s);
   const p = await db.cpOnlinePayment.findUnique({ where: { orderId: String(i.orderId ?? "") } });
   if (!p || p.customerId !== c.id) throw new UserError("Payment not found.");
-  if (p.status === "paid") return { applied: false };
+  if (p.status === "paid") return { applied: false, duplicate: false };
   const paymentId = await rzpConfirm(p.orderId, i.paymentId, i.signature, p.amountPaise);
-  return { applied: await applyCpPaid(p.orderId, paymentId) };
+  const r = await settleCp(p.orderId, paymentId);
+  return { applied: r === "applied", duplicate: r === "duplicate" };
+}
+
+/** Checkout reported a failed attempt; the order stays open for another try. */
+export async function cpFailed(l: string, s: string, i: { orderId: string; reason: string }) {
+  const c = await payCustomer(l, s);
+  await db.cpOnlinePayment.updateMany({ where: { orderId: String(i.orderId ?? ""), customerId: c.id, status: "created" }, data: { status: "failed", note: String(i.reason ?? "").slice(0, 300) || "Payment failed." } });
+}
+
+/** Applies a captured payment and refunds it straight away if it was a duplicate. */
+async function settleCp(orderId: string, paymentId: string) {
+  const r = await applyCpPaid(orderId, paymentId);
+  if (r === "duplicate") {
+    const p = await db.cpOnlinePayment.findUniqueOrThrow({ where: { orderId } });
+    if (!p.amountPaise || orderId.startsWith("free_")) return r;
+    try {
+      const refundId = await rzpRefund(paymentId, p.amountPaise, { reason: "duplicate payment", order: orderId });
+      await db.cpOnlinePayment.update({ where: { orderId }, data: { refundId } });
+    } catch (e) {
+      await db.cpOnlinePayment.update({ where: { orderId }, data: { note: `Paid twice. The automatic refund failed (${e instanceof Error ? e.message : "error"}); refund it from Razorpay.` } });
+    }
+  }
+  return r;
 }
 
 /**
  * Marks the order paid, once: a verified renewal sale (with the sales person's commission), the customer's plan and
  * paid-until date (after the current period if it hasn't ended), Medoro's invoice, and the coupon's use.
  */
-export async function applyCpPaid(orderId: string, paymentId: string) {
+export async function applyCpPaid(orderId: string, paymentId: string): Promise<false | "applied" | "duplicate"> {
   return db.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "CpOnlinePayment" WHERE "orderId" = ${orderId} AND "status" = 'created' FOR UPDATE`;
+    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "CpOnlinePayment" WHERE "orderId" = ${orderId} AND "status" IN ('created', 'failed') FOR UPDATE`;
     if (!rows.length) return false;
     const p = await tx.cpOnlinePayment.findUniqueOrThrow({ where: { orderId } });
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"cppay:" + p.customerId}))`;
+    // A second payment minutes after the first (two tabs, a double tap) is refunded, not added on.
+    const recent = await tx.cpOnlinePayment.findFirst({ where: { customerId: p.customerId, status: "paid", paidAt: { gt: new Date(Date.now() - 15 * 60_000) }, NOT: { id: p.id } } });
+    if (recent) {
+      await tx.cpOnlinePayment.update({ where: { orderId }, data: { status: "duplicate", paymentId, paidAt: new Date(), note: "Paid twice within minutes. Refunding." } });
+      return "duplicate";
+    }
     const c = await tx.cpCustomer.findUniqueOrThrow({ where: { id: p.customerId } });
     const today = todayISO();
     const from = c.renewsOn && isoOf(c.renewsOn) > today && c.status !== "cancelled" ? isoOf(c.renewsOn) : today;
@@ -106,14 +143,20 @@ export async function applyCpPaid(orderId: string, paymentId: string) {
     });
     await tx.cpOnlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), saleId: sale.id } });
     if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
-    return true;
+    return "applied";
   });
 }
 
 /** Razorpay's webhook for a licence-server order, or null when the order isn't one. */
-export async function cpWebhook(pay: RzpPayment): Promise<string | null> {
+export async function cpWebhook(pay: RzpPayment & { error_description?: string }, event = "payment.captured"): Promise<string | null> {
   const p = await db.cpOnlinePayment.findUnique({ where: { orderId: pay.order_id } });
   if (!p) return null;
+  if (event === "payment.failed") {
+    await db.cpOnlinePayment.updateMany({ where: { orderId: p.orderId, status: "created" }, data: { status: "failed", note: pay.error_description?.slice(0, 300) || "Payment failed." } });
+    return "failed recorded";
+  }
+  if (pay.status !== "captured") return "not captured";
   if (pay.amount !== p.amountPaise) return "amount mismatch";
-  return (await applyCpPaid(p.orderId, pay.id)) ? "applied" : "already applied";
+  const r = await settleCp(p.orderId, pay.id);
+  return r === "applied" ? "applied" : r === "duplicate" ? "duplicate refunded" : "already applied";
 }
