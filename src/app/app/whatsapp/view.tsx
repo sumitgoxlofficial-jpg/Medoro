@@ -98,14 +98,14 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
       ) : null}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <div className={card}>
-          <div className="flex items-center gap-2"><MessageCircle size={20} className="text-ok" /><div className="font-semibold text-[15px]">WhatsApp Business Cloud API</div><Badge tone={live ? "green" : paused ? "red" : "gray"} className="ml-auto">{live ? "Connected" : paused ? "Reconnect needed" : "Not connected"}</Badge></div>
+          <div className="flex items-start gap-2"><MessageCircle size={20} className="text-ok shrink-0 mt-0.5" /><div className="font-semibold text-[15px] min-w-0 flex-1 leading-snug">WhatsApp Business Cloud API</div><Badge tone={live ? "green" : paused ? "red" : "gray"} className="shrink-0">{live ? "Connected" : paused ? "Reconnect needed" : "Not connected"}</Badge></div>
           {st.connected && !form ? (
             <>
               <div className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
                 <span className="text-muted">Display number</span><span>{st.cfg.displayPhone}{st.cfg.verifiedName ? ` · ${st.cfg.verifiedName}` : ""}</span>
-                <span className="text-muted">WABA ID</span><span className="font-mono text-[12.5px]">{st.cfg.wabaId}</span>
+                <span className="text-muted">WhatsApp Business Account ID</span><span className="font-mono text-[12.5px]">{st.cfg.wabaId}</span>
                 <span className="text-muted">Phone number ID</span><span className="font-mono text-[12.5px]">{st.cfg.phoneNumberId}</span>
-                <span className="text-muted">Access token</span><span>Sealed on this server{st.rotatedAt ? ` · set ${dayMonth(new Date(st.rotatedAt), true)}` : ""}{st.cfg.via === "embedded" ? " · from Embedded Signup" : ""} · never sent to browsers</span>
+                <span className="text-muted">Access token</span><span>Encrypted on your server{st.rotatedAt ? ` · set ${dayMonth(new Date(st.rotatedAt), true)}` : ""}{st.cfg.via === "embedded" ? " · from Embedded Signup" : ""} · never sent to browsers</span>
                 <span className="text-muted">Webhook</span><span className="flex flex-col gap-1"><span className="flex items-center gap-1.5"><span className="font-mono text-[12px] break-all">{webhook}</span><button onClick={() => copy(webhook)} aria-label="Copy URL" className="text-faint cursor-pointer"><Copy size={13} /></button></span>
                   <span className="flex items-center gap-1.5 text-[12.5px]">Verify token <span className="font-mono">{st.cfg.verifyToken}</span><button onClick={() => copy(st.cfg.verifyToken)} aria-label="Copy token" className="text-faint cursor-pointer"><Copy size={13} /></button></span>
                   <Badge tone={st.cfg.webhookVerified ? "green" : "amber"} className="self-start">{st.cfg.webhookVerified ? "Verified by Meta" : "Not verified yet"}</Badge></span>
@@ -120,13 +120,13 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
             </>
           ) : (
             <>
-              <div className="text-[13px] text-muted">You need a verified Meta Business account, a WhatsApp Business API phone number, a system-user access token and your Meta app secret. Medoro checks them with Meta before saving them sealed on this server.</div>
+              <div className="text-[13px] text-muted">You need a verified Meta Business account, a WhatsApp Business API phone number, a system-user access token and your Meta app secret. Medoro checks them with Meta before saving them encrypted on your server.</div>
               <div className="grid grid-cols-2 gap-2.5 max-sm:grid-cols-1">
-                <Field label="WABA ID"><Input value={f.wabaId} onChange={(e) => setF({ ...f, wabaId: e.target.value })} className="font-mono" /></Field>
-                <Field label="Phone number ID"><Input value={f.phoneNumberId} onChange={(e) => setF({ ...f, phoneNumberId: e.target.value })} className="font-mono" /></Field>
+                <Field label="WhatsApp Business Account ID"><Input value={f.wabaId} onChange={(e) => setF({ ...f, wabaId: e.target.value })} className="font-mono text-[13px]" /></Field>
+                <Field label="Phone number ID"><Input value={f.phoneNumberId} onChange={(e) => setF({ ...f, phoneNumberId: e.target.value })} className="font-mono text-[13px]" /></Field>
                 <Field label="Access token" className="col-span-full"><Input type="password" value={f.token} onChange={(e) => setF({ ...f, token: e.target.value })} autoComplete="off" /></Field>
                 <Field label="App secret"><Input type="password" value={f.appSecret} onChange={(e) => setF({ ...f, appSecret: e.target.value })} autoComplete="off" /></Field>
-                <Field label="Invoice template" hint="Approved template with a document header and 3 body variables: name, invoice no, amount."><Input value={f.invoiceTemplate} onChange={(e) => setF({ ...f, invoiceTemplate: e.target.value })} className="font-mono" /></Field>
+                <Field label="Invoice template" hint="Approved template with a document header and 3 body variables: name, invoice no, amount."><Input value={f.invoiceTemplate} onChange={(e) => setF({ ...f, invoiceTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
               </div>
               <div className="flex gap-2">
                 <Button variant="primary" disabled={pending} onClick={() => start(async () => { const r = await connectAction(f); res(r); if (r.ok) { setForm(false); setF({ ...f, token: "", appSecret: "" }); } })}>{st.connected ? "Save new token" : "Verify & connect"}</Button>
@@ -137,20 +137,20 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
         </div>
         <div className={card}>
           <div className="font-semibold text-[15px]">Invoice delivery</div>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={s.auto} disabled={!st.connected || pending} onChange={(e) => save({ auto: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Auto-send after sale</span><span className="text-[12.5px] text-muted">Only for customers with recorded WhatsApp consent whose number isn’t flagged. Others still need the cashier to confirm the number.</span></span></label>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={s.pdf} disabled={pending} onChange={(e) => save({ pdf: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Attach the invoice PDF</span><span className="text-[12.5px] text-muted">{s.pdf ? <>The PDF is uploaded to WhatsApp and sent as the document header of <span className="font-mono">{st.connected ? st.cfg.invoiceTemplate : "invoice_share"}</span>.</> : <>Text-only template; its 4th variable is a link to the PDF on this server that works for 7 days.</>}</span></span></label>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.auto} disabled={!st.connected || pending} onChange={(e) => save({ auto: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Auto-send after sale</span><span className="text-[12.5px] text-muted">Only for customers with recorded WhatsApp consent whose number isn’t flagged. Others still need the cashier to confirm the number.</span></span></label>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.pdf} disabled={pending} onChange={(e) => save({ pdf: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Attach the invoice PDF</span><span className="text-[12.5px] text-muted">{s.pdf ? <>The PDF is uploaded to WhatsApp and sent with your invoice template{st.connected && st.cfg.invoiceTemplate ? <> (<span className="font-mono text-[12px]">{st.cfg.invoiceTemplate}</span>)</> : null}.</> : <>Text-only template; its 4th variable is a link to the PDF on this server that works for 7 days.</>}</span></span></label>
           {!s.pdf ? (
-            <div className="flex gap-2 items-end pl-7">
-              <Field label="Text-only invoice template" hint="Body: name, invoice no., amount, link."><Input value={names.textTemplate} onChange={(e) => setNames({ ...names, textTemplate: e.target.value })} className="font-mono" /></Field>
-              <Button size="sm" disabled={pending || names.textTemplate === s.textTemplate} onClick={() => save({ textTemplate: names.textTemplate })}>Save</Button>
+            <div className="flex gap-2 items-start pl-7">
+              <Field label="Text-only invoice template" hint="Body: name, invoice no., amount, link." className="flex-1 min-w-0"><Input value={names.textTemplate} onChange={(e) => setNames({ ...names, textTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
+              <Button className="mt-[26px]" disabled={pending || names.textTemplate === s.textTemplate} onClick={() => save({ textTemplate: names.textTemplate })}>Save</Button>
             </div>
           ) : null}
           {st.connected ? (invoiceTemplate.ok
             ? <div className="text-[12.5px] text-ok">Template <span className="font-mono">{invoiceTemplate.name}</span> is approved{s.auto ? "; auto-send is active" : ""}.</div>
             : <div role="alert" className="text-[12.5px] text-bad flex gap-1.5"><CircleAlert size={14} className="mt-0.5 flex-none" /><span>{invoiceTemplate.error}{s.auto ? " Auto-send is paused until it’s approved." : " Invoices can’t be sent until then."}</span></div>) : null}
-          <div className="flex gap-2 items-end">
-            <Field label="Credit note template" hint="Sent from Returns. Body: name, credit note no., amount, invoice no."><Input value={names.creditNoteTemplate} onChange={(e) => setNames({ ...names, creditNoteTemplate: e.target.value })} className="font-mono" /></Field>
-            <Button size="sm" disabled={pending || names.creditNoteTemplate === s.creditNoteTemplate} onClick={() => save({ creditNoteTemplate: names.creditNoteTemplate })}>Save</Button>
+          <div className="flex gap-2 items-start">
+            <Field label="Credit note template" hint="Sent from Returns. Body: name, credit note no., amount, invoice no." className="flex-1 min-w-0"><Input value={names.creditNoteTemplate} onChange={(e) => setNames({ ...names, creditNoteTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
+            <Button className="mt-[26px]" disabled={pending || names.creditNoteTemplate === s.creditNoteTemplate} onClick={() => save({ creditNoteTemplate: names.creditNoteTemplate })}>Save</Button>
           </div>
           <div className="flex items-center justify-between pt-1"><div className="text-[12.5px] text-muted font-medium">Message templates</div>{st.connected ? <Button size="sm" disabled={pending} onClick={() => start(async () => { const r = await templatesAction(); toast(r.ok ? `${r.data} templates synced from Meta.` : r.error, r.ok ? "green" : "red"); })}><RefreshCw size={13} />Sync</Button> : null}</div>
           {st.connected && st.cfg.templates.length ? st.cfg.templates.map((t) => (
@@ -161,7 +161,7 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
         {[["Sent today", log.counts.sent], ["Delivered", log.counts.delivered], ["Read", log.counts.read], ["Failed", log.counts.failed]].map(([k, v]) => <div key={k} className="bg-white border border-line rounded-xl px-4 py-3 flex flex-col"><span className="text-[12.5px] text-muted">{k}</span><span className="text-[22px] font-semibold tnum">{v}</span></div>)}
       </div>
-      <div className="bg-white border border-line rounded-xl overflow-auto">
+      <div className="bg-white border border-line rounded-xl overflow-auto tbl-scroll">
         <div className="font-semibold text-[15px] px-4 pt-3.5 pb-2">Delivery log</div>
         {log.rows.length ? (
           <table className="w-full border-collapse min-w-[860px] text-[13.5px]">

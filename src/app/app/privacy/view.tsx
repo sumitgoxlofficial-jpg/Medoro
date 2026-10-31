@@ -14,7 +14,7 @@ const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,2
 function Toggle({ checked, onChange, title, body, disabled }: { checked: boolean; onChange: (v: boolean) => void; title: string; body: string; disabled?: boolean }) {
   return (
     <label className="flex gap-3 cursor-pointer items-start">
-      <input type="checkbox" className="accent-teal size-4 mt-1" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className="flex flex-col"><span className="text-[14px] font-medium">{title}</span><span className="text-[12.5px] text-muted">{body}</span></span>
     </label>
   );
@@ -48,13 +48,13 @@ export function PrivacyView({ p: initial, customers, wa, drive, licence, ai: aiI
           <div className="font-semibold text-[15px]">Data controls</div>
           <Toggle checked={p.strict} onChange={(v) => save({ strict: v })} title="Strict customer-controlled mode" body="Transactions, analytics, reports and AI all stay on your server. Nothing operational is copied to Medoro." />
           {p.strict ? <ul className="m-0 pl-9 text-[12.5px] text-muted list-disc">{strictRules.map((r) => <li key={r}>{r}</li>)}</ul> : null}
-          <Toggle checked={ai.enabled && !ai.globalOff} disabled={ai.globalOff || pending} onChange={(v) => saveAi({ enabled: v })} title="AI assistant" body={ai.globalOff ? "Switched off on this server (AI_ENABLED=0)." : `Ask AI drawer for every user. Off hides it and refuses all AI requests; billing never depends on it. Now: ${aiInitial.mode === "remote" ? "remote model" : aiInitial.mode === "local" ? "local model" : "rules on your server, no model"}${aiInitial.note ? ` (${aiInitial.note})` : ""}.`} />
-          <Toggle checked={p.remoteAi} onChange={(v) => save({ remoteAi: v }, v ? "Remote AI on. Strict mode is relaxed." : undefined)} title="Allow remote AI provider" body={aiInitial.remoteHost ? `Lets the assistant use the configured remote model (${aiInitial.remoteHost}) when AI_MODE=remote. Strict mode must be off.` : "No remote provider is configured on this server (REMOTE_AI_URL), so the assistant stays local either way."} />
+          <Toggle checked={ai.enabled && !ai.globalOff} disabled={ai.globalOff || pending} onChange={(v) => saveAi({ enabled: v })} title="AI assistant" body={ai.globalOff ? "Switched off by your server administrator." : `Shows the Ask AI panel to all users. Off hides it and refuses all AI requests; billing never depends on it. Currently: ${aiInitial.mode === "remote" ? "remote AI model" : aiInitial.mode === "local" ? "AI model on your server" : "built-in rules, no AI model"}${aiInitial.note ? ` (${aiInitial.note})` : ""}.`} />
+          <Toggle checked={p.remoteAi} onChange={(v) => save({ remoteAi: v }, v ? "Remote AI on. Strict mode is relaxed." : undefined)} title="Allow remote AI provider" body={aiInitial.remoteHost ? `Lets the assistant use the remote AI model set up on this server (${aiInitial.remoteHost}). Strict mode must be off.` : "No remote AI provider is set up on this server, so the assistant stays on your server."} />
           <Toggle checked={ai.remoteNames} disabled={!p.remoteAi || pending} onChange={(v) => saveAi({ remoteNames: v })} title="Share customer names with the remote AI" body="Off: customer names, phone numbers and emails are replaced with placeholders before anything is sent, and put back in the answer on your server." />
           <Toggle checked={p.telemetry} onChange={(v) => save({ telemetry: v })} title="Anonymous usage telemetry" body={`Once a day: app version and rounded counts (branches, users, medicines, bills in the last day). No names, numbers or amounts. ${sendNote(telemetryUrl, "telemetry")}`} />
           <Toggle checked={p.crash} onChange={(v) => save({ crash: v })} title="Crash reports" body={`Error type and code location when a page fails, with names, numbers, emails, IDs and tokens removed on this server first. ${sendNote(crashUrl, "crash report")}`} />
-          <label className="flex items-center gap-2 text-[13.5px]">Anonymise customers inactive for
-            <select value={p.retentionYears} onChange={(e) => save({ retentionYears: Number(e.target.value) })} className="border border-input rounded-md px-2 py-1 bg-white">{[3, 5, 8, 10].map((y) => <option key={y} value={y}>{y} years</option>)}</select>
+          <label className="flex flex-wrap items-center gap-2 text-[13.5px]">Anonymise customers inactive for
+            <select value={p.retentionYears} onChange={(e) => save({ retentionYears: Number(e.target.value) })} className="h-10 border border-input rounded-lg px-2.5 bg-white">{[3, 5, 8, 10].map((y) => <option key={y} value={y}>{y} years</option>)}</select>
           </label>
           <div className="text-[12px] text-faint">Invoices, accounts, stock records and the audit trail are never deleted, whatever you choose here: keep them at least 8 years. Check retention periods with your CA and the drug licensing authority.</div>
         </div>
@@ -65,7 +65,7 @@ export function PrivacyView({ p: initial, customers, wa, drive, licence, ai: aiI
             <a href={exportHref("csv")} className="flex items-center gap-1.5 border border-input rounded-lg px-3 py-2 text-[13.5px] text-ink no-underline hover:border-teal"><Download size={15} />Export as CSV (ZIP, one file per table)</a>
           </div>
           {p.strict ? <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason, to include customer mobile numbers (optional)" aria-label="Reason for including customer mobile numbers" className="border border-input rounded-lg px-2.5 py-2 text-[13px] bg-white" /> : null}
-          <div className="text-[12px] text-faint">Every table your pharmacy owns. Passwords, PINs and integration secrets are left out.{p.strict ? " In strict mode customer mobile numbers are masked unless you give a reason; the reason is kept in the audit trail." : ""} For a database-level copy, use pg_dump (see Data ownership in the docs).</div>
+          <div className="text-[12px] text-faint">Every table your pharmacy owns. Passwords, PINs and integration secrets are left out.{p.strict ? " In strict mode customer mobile numbers are masked unless you give a reason; the reason is kept in the audit trail." : ""} For a full database copy, ask your IT person (see Data ownership in the help guide).</div>
           <div className="flex gap-2 flex-wrap pt-2 border-t border-line-soft">
             <select value={erase} onChange={(e) => setErase(e.target.value)} aria-label="Customer to erase" className="border border-input rounded-lg px-2.5 py-2 text-[13.5px] bg-white flex-1 min-w-[200px]">
               <option value="">Customer erasure request…</option>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

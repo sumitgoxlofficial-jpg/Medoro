@@ -13,7 +13,7 @@ export default async function Page() {
   if (!ctx.readOnly && inbox.unread) await markSupportSeen(ctx.tenantId);
   return (
     <>
-      <PageHead title={t(ctx.lang).help} sub="Ask Medoro support. Replies from the team appear here." />
+      <PageHead title={t(ctx.lang).help} sub={inbox.connected ? "Ask Medoro support. Replies from the team appear here." : "Get help from Medoro support on WhatsApp."} />
       <HelpView inbox={inbox} canWrite={!ctx.readOnly} />
     </>
   );

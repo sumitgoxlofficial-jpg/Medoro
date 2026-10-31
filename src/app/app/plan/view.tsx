@@ -8,6 +8,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { openCheckout } from "@/components/razorpay";
+import { WA } from "@/components/site/chrome";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
 import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
@@ -117,8 +118,8 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           <div className="flex items-center gap-2"><span className="text-[12.5px] text-muted font-medium">Current plan</span><Badge tone={tone} className="ml-auto">{label}</Badge></div>
           <div className="text-[22px] font-semibold">{v.plan ?? "—"}{hasAi ? " + AI add-on" : ""}</div>
           <div className="text-[13px] text-muted">{line}</div>
-          {[["Branches", String(usage.branches)], ["Counters", String(usage.counters)], ["Active users", String(usage.users)], ["WhatsApp invoices", "Included (your own Meta account)"], ["Backups", "Included (your own Google Drive)"]].map(([k, val]) => (
-            <div key={k} className="flex justify-between text-[13.5px] py-1 border-b border-row last:border-0"><span className="text-ink-2">{k}</span><span className="tnum">{val}</span></div>
+          {[["Branches", String(usage.branches)], ["Counters", String(usage.counters)], ["Active users", String(usage.users)], ["WhatsApp invoices", "Included (your own Meta account)"], ["Backups", "Included"]].map(([k, val]) => (
+            <div key={k} className="flex justify-between gap-4 text-[13.5px] py-1 border-b border-row last:border-0"><span className="text-ink-2 shrink-0">{k}</span><span className="tnum text-right">{val}</span></div>
           ))}
         </div>
 
@@ -159,7 +160,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
             </div>
           ) : null}
           {online.enabled && !manual ? null : connected && !online.enabled && !pay.upi && !pay.bank ? null : !pay.upi && !pay.bank ? (
-            <div className="text-[13px] text-ink-2">Payment details aren’t configured on this server. Contact Medoro billing for UPI or bank details{connected ? ", then report the payment below" : ""}.</div>
+            <div className="text-[13px] text-ink-2">Payment details aren’t set up on this server. <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-semibold underline">Message Medoro on WhatsApp</a> for UPI or bank details{connected ? ", then report the payment below" : ""}.</div>
           ) : (
             <>
               {online.enabled ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">Or pay by UPI or bank transfer and report it:</div> : (
@@ -261,7 +262,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               <div className="text-[12.5px] text-muted flex flex-col gap-0.5">
                 {v.customerCode ? <span>Customer {v.customerCode}{v.licenceId ? ` · licence ${v.licenceId.slice(0, 8)}…` : ""}</span> : null}
                 <span>{v.issuedAt ? `Licence signed ${when(v.issuedAt)}` : "No signed licence yet: the 7-day trial from setup applies."}{v.checkedAt ? ` · last check ${when(v.checkedAt)}` : ""}</span>
-                {!v.verifying ? <span className="text-bad">LICENSE_PUBLIC_KEY is not set, so licences can’t be verified.</span> : null}
+                {!v.verifying ? <div><span className="text-bad">This server can’t check licences yet. Ask whoever set up your Medoro server to finish the licence setup.</span><details><summary className="cursor-pointer text-[12px] text-faint">Technical details</summary><span className="text-[12px] text-muted">LICENSE_PUBLIC_KEY is not set.</span></details></div> : null}
                 {v.checkError ? <span className="text-[#94570A]">{v.checkError}</span> : null}
               </div>
               <form onSubmit={(e) => { e.preventDefault(); act(() => connectKeyAction(key), () => setKey("")); }} className="flex gap-2 items-end">
@@ -272,7 +273,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           ) : (
             online.enabled
               ? <div className="text-[13.5px] text-ink-2">Your subscription is managed on this server: pay online above and your plan updates straight away.</div>
-              : <div className="text-[13.5px] text-ink-2">This installation isn’t connected to Medoro’s licence server (<span className="font-mono">LICENSE_SERVER_URL</span> is not set), so it runs without a licence and nothing is limited.</div>
+              : <div className="text-[13.5px] text-ink-2">This installation isn’t connected to Medoro’s licence server, so it runs without a licence and nothing is limited.</div>
           )}
           <div className="text-[12.5px] text-faint">If Medoro can’t be reached, the last signed licence keeps applying. After a trial or paid period ends there are {v.access.graceEndsOn && v.access.endsOn ? Math.round((Date.parse(v.access.graceEndsOn) - Date.parse(v.access.endsOn)) / 86400_000) : 7} days of grace, then the app is read-only until you renew. Your records, exports and backups always stay available.</div>
         </div>
@@ -304,7 +305,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
                 </tr>
               ))}</tbody>
             </table>
-          ) : <div className="text-[13px] text-fainter">{connected || online.enabled ? "No payments yet. They appear here once a payment goes through." : "Invoices come with the licence. Not connected."}</div>}
+          ) : <div className="text-[13px] text-fainter">{connected || online.enabled ? "No payments yet. They appear here once a payment goes through." : "Medoro invoices appear here once this installation is connected to a Medoro licence."}</div>}
         </div>
 
         {v.requests.length || v.billing.length ? (

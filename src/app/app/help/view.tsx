@@ -37,7 +37,7 @@ export function HelpView({ inbox, canWrite }: { inbox: Inbox; canWrite: boolean 
       <div className="flex flex-col gap-4">
         <div className={card}>
           <div className="flex items-center gap-2 font-semibold text-[15px]"><LifeBuoy size={17} className="text-teal" />Support inbox</div>
-          {!inbox.tickets.length && !inbox.pending.length ? <div className="text-[13px] text-fainter">No tickets yet. Write to Medoro support with the form on this page.</div> : null}
+          {!inbox.tickets.length && !inbox.pending.length ? <div className="text-[13px] text-faint">{inbox.connected ? (canWrite ? "No tickets yet. Write to Medoro support with the form on this page." : "No tickets yet.") : "Support tickets can’t be sent from this installation yet. Use WhatsApp support instead."}</div> : null}
           {inbox.pending.filter((p) => p.kind === "ticket").map((p) => (
             <div key={p.id} className="border border-line rounded-lg px-3 py-2 text-[13.5px] flex gap-2 items-center">
               <span className="flex-1">{p.payload.subject}<span className="text-muted"> · {when(p.at)}</span></span><Badge tone="gray">Waiting to send</Badge>
@@ -89,8 +89,8 @@ export function HelpView({ inbox, canWrite }: { inbox: Inbox; canWrite: boolean 
         <div className={card}>
           <div className="font-semibold text-[15px]">Other ways to reach us</div>
           {!inbox.connected ? <div className="text-[13px] text-ink-2">This installation isn’t connected to Medoro’s licence server, so tickets can’t be sent from here.</div> : null}
-          <a href={WA} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[13.5px] font-semibold text-teal"><MessageCircle size={15} />WhatsApp Medoro support</a>
-          <a href="/legal#help" target="_blank" className="text-[13.5px] text-teal">Help & setup guide</a>
+          <a href={WA} target="_blank" rel="noreferrer" className="self-start min-h-10 inline-flex items-center gap-2 text-[13.5px] font-semibold text-teal"><MessageCircle size={15} />WhatsApp Medoro support</a>
+          <a href="/legal#help" target="_blank" className="self-start min-h-10 inline-flex items-center text-[13.5px] text-teal">Help & setup guide</a>
         </div>
       </div>
     </div>
