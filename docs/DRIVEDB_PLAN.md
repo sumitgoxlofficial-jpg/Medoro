@@ -354,7 +354,8 @@ working with me; they overlap a little.
 - Slice 2: **deleting Medoro's copy** (`deleteMedoroCopy`): owner only, after the move, confirmed with the pharmacy
   code, and only if Drive's manifest shows a full copy saved after the move (Medoro reads only the plain manifest).
   Deletes every business table and stored file (scans, server-held backups); keeps the account, sign-in, staff,
-  branches, devices, integrations, subscription and the audit log. State becomes `purged`: no undo after this.
+  branches, devices, integrations and subscription. The audit log is deleted too (owner's decision: its entries name
+  customers and bills); one entry recording the deletion is written afterwards. State becomes `purged`: no undo.
   The Drive mode card has the button; the expenses total joined the checks.
 - Left for phase 7: moving a pharmacy whose Drive already holds pilot data (needs merging the pilot's device bills).
 

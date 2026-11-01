@@ -189,7 +189,9 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     // The account stays: sign-in, staff, branches, and the record of what happened.
     expect(await db.user.count({ where: { tenantId: t } })).toBeGreaterThan(0);
     expect(await db.branch.count({ where: { tenantId: t } })).toBeGreaterThan(0);
+    // The audit log goes too (it names customers and bills); only the record of the deletion itself remains.
     expect(await db.auditEvent.count({ where: { tenantId: t, action: "Medoro’s copy deleted" } })).toBe(1);
+    expect(await db.auditEvent.count({ where: { tenantId: t, action: { not: "Medoro’s copy deleted" } } })).toBe(0);
     expect(await moveStatus(ctx)).toMatchObject({ state: "purged", canUndo: false });
     await expect(undoMove(ctx)).rejects.toThrow();
     await expect(startMove(ctx)).rejects.toThrow(/already moved/);
