@@ -103,7 +103,16 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           <div className="font-semibold text-[15px]">Schedule & retention</div>
           <label className="flex items-center justify-between gap-3 text-[13.5px]">Daily at<input type="time" value={s.schedule} onChange={(e) => setS({ ...s, schedule: e.target.value })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white" /></label>
           <label className="flex items-center justify-between gap-3 text-[13.5px]">Keep backups for<select value={s.retention} onChange={(e) => setS({ ...s, retention: Number(e.target.value) })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white">{[[7, "7 days"], [30, "30 days"], [90, "90 days"], [365, "1 year"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-          <label className="flex items-center justify-between gap-3 text-[13.5px]" title="Invoice scans and other uploaded documents">Uploaded files<select value={s.files} onChange={(e) => setS({ ...s, files: e.target.value as "server" | "gdrive" })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!connected && settings.files !== "gdrive"}>In Google Drive</option></select></label>
+          <label className="flex items-center justify-between gap-3 text-[13.5px]" title="Invoice scans and other uploaded documents">Uploaded files<select value={s.files} onChange={(e) => {
+            const v = e.target.value as "server" | "gdrive";
+            // Choosing Drive before it's connected takes the owner straight to Google's connect screen.
+            if (v === "gdrive" && !connected && settings.files !== "gdrive") {
+              if (driveApp) { toast("Connect your Google Drive first. Opening Google…", "blue"); window.location.href = "/api/integrations/google/start"; }
+              else toast("Google Drive isn’t set up on this server yet.", "red");
+              return;
+            }
+            setS({ ...s, files: v });
+          }} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!driveApp && !connected && settings.files !== "gdrive"}>{connected || settings.files === "gdrive" ? "In Google Drive" : "In Google Drive (connect)"}</option></select></label>
           {s.files === "gdrive" ? <div className="text-[12px] text-faint -mt-1">New uploads go to {folder}/files. If Drive can’t be reached they’re kept on this server. Every backup includes the files.</div> : null}
           <div className="flex gap-2">
             {s.schedule !== settings.schedule || s.retention !== settings.retention || s.files !== settings.files ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention, s.files); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
