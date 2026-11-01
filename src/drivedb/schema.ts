@@ -49,6 +49,30 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "saleId", "mode", "amountPaise", "ref"],
   },
+  supplier: {
+    kind: "mutable",
+    columns: ["id", "name", "phone", "gstin", "dl", "address", ...MUTABLE],
+  },
+  purchase: {
+    kind: "append",
+    columns: ["id", "branchId", "supplierId", "billNo", "billDate", "taxablePaise", "taxPaise", "totalPaise", "userId", "at"],
+  },
+  purchaseItem: {
+    kind: "append",
+    columns: ["id", "purchaseId", "batchId", "medicineId", "packs", "freePacks", "costPaise", "mrpPaise", "gstRate", "taxablePaise", "taxPaise"],
+  },
+  salesReturn: {
+    kind: "append",
+    columns: ["id", "saleId", "branchId", "deviceId", "creditNoteNo", "reason", "condition", "refundMode", "amountPaise", "taxablePaise", "userId", "at"],
+  },
+  salesReturnItem: {
+    kind: "append",
+    columns: ["id", "returnId", "saleItemId", "batchId", "qty", "amountPaise", "taxablePaise", "restocked"],
+  },
+  customerReceipt: {
+    kind: "append",
+    columns: ["id", "customerId", "amountPaise", "mode", "ref", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -142,6 +166,42 @@ export const MIGRATIONS: readonly string[] = [
   CREATE TRIGGER movement_no_update BEFORE UPDATE ON stockMovement BEGIN SELECT RAISE(ABORT, 'Stock movements cannot be changed'); END;
   CREATE TRIGGER movement_no_delete BEFORE DELETE ON stockMovement BEGIN SELECT RAISE(ABORT, 'Stock movements cannot be deleted'); END;
   `,
+  // 2: suppliers and purchase bills, sales returns (credit notes), payments received from credit customers.
+  `
+  CREATE TABLE supplier (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, phone TEXT, gstin TEXT, dl TEXT, address TEXT, updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE TABLE purchase (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, supplierId TEXT NOT NULL REFERENCES supplier(id), billNo TEXT NOT NULL, billDate TEXT NOT NULL,
+    taxablePaise INTEGER NOT NULL, taxPaise INTEGER NOT NULL, totalPaise INTEGER NOT NULL, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX purchase_bill ON purchase(supplierId, billNo);
+  CREATE TABLE purchaseItem (
+    id TEXT PRIMARY KEY, purchaseId TEXT NOT NULL REFERENCES purchase(id), batchId TEXT NOT NULL REFERENCES batch(id), medicineId TEXT NOT NULL,
+    packs INTEGER NOT NULL, freePacks INTEGER NOT NULL DEFAULT 0, costPaise INTEGER NOT NULL, mrpPaise INTEGER NOT NULL, gstRate INTEGER NOT NULL,
+    taxablePaise INTEGER NOT NULL, taxPaise INTEGER NOT NULL
+  );
+  CREATE INDEX purchaseItem_purchase ON purchaseItem(purchaseId);
+  CREATE TABLE salesReturn (
+    id TEXT PRIMARY KEY, saleId TEXT NOT NULL REFERENCES sale(id), branchId TEXT NOT NULL, deviceId TEXT NOT NULL, creditNoteNo TEXT NOT NULL UNIQUE,
+    reason TEXT NOT NULL, condition TEXT NOT NULL CHECK (condition IN ('sealed', 'opened', 'damaged')),
+    refundMode TEXT NOT NULL CHECK (refundMode IN ('cash', 'upi', 'credit')), amountPaise INTEGER NOT NULL, taxablePaise INTEGER NOT NULL,
+    userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX salesReturn_sale ON salesReturn(saleId);
+  CREATE TABLE salesReturnItem (
+    id TEXT PRIMARY KEY, returnId TEXT NOT NULL REFERENCES salesReturn(id), saleItemId TEXT NOT NULL REFERENCES saleItem(id), batchId TEXT NOT NULL,
+    qty INTEGER NOT NULL, amountPaise INTEGER NOT NULL, taxablePaise INTEGER NOT NULL, restocked INTEGER NOT NULL
+  );
+  CREATE INDEX salesReturnItem_item ON salesReturnItem(saleItemId);
+  CREATE TABLE customerReceipt (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL REFERENCES customer(id), amountPaise INTEGER NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('cash', 'upi', 'card')), ref TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX customerReceipt_customer ON customerReceipt(customerId);
+  ` + ["purchase", "purchaseItem", "salesReturn", "salesReturnItem", "customerReceipt"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -11,6 +11,7 @@ import { baseQty, canSellLoose, unitCost, unitPrice, type SaleUnit } from "@/lib
 import { addDays, fiscalYear, istMidnight, todayISO } from "@/lib/dates";
 import { gstDocNo, validSeries } from "@/lib/docno";
 import { isH1 } from "@/lib/rx";
+import { customerBalance } from "./trade";
 
 /** A mistake the person at the counter can fix (shown as-is). */
 export class CounterError extends DriveDBError {}
@@ -182,8 +183,7 @@ export function createSale(db: DriveDB, input: SaleInput, today = todayISO()): S
       pays.push({ mode: "cash", amountPaise: cash }, { mode: "upi", amountPaise: t.total - cash });
     } else if (s.pay.mode === "credit") {
       if (!customer) throw new CounterError("Select a customer for a credit sale.");
-      const due = Number(db.engine.all<{ n: number }>(
-        "SELECT COALESCE(SUM(p.amountPaise), 0) AS n FROM payment p JOIN sale s ON s.id = p.saleId WHERE s.customerId = ? AND p.mode = 'credit'", [customer.id])[0].n);
+      const due = customerBalance(db, customer.id);
       if (due + t.total > customer.creditLimitPaise) throw new CounterError(`Exceeds ${customer.name}’s credit limit.`);
       pays.push({ mode: "credit", amountPaise: t.total });
     } else {

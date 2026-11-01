@@ -210,8 +210,11 @@ working with me; they overlap a little.
   - Runs in the browser in a worker on OPFS (`device.worker.ts`, `device.ts`) and in Node for tests.
   - Preview on App → Backup → "Test this device": "Try billing on this device" (sample data).
   - Tests: `src/drivedb/drivedb.test.ts` (17) and `e2e/17-device-db.spec.ts`.
-  - Next in Phase 1: customers and returns on device, purchases (GRN) entry, the counter screen
-    reading from the device database behind the "Drive mode" switch.
+  - Second slice (`src/drivedb/trade.ts`, migration 2): customers (search by phone/name, credit balance,
+    payments received), suppliers and purchase bills (paid + free packs into stock, GST, no duplicate
+    bill numbers), sales returns as credit notes (share paid after discount, restock only sealed and
+    unexpired goods, never more than sold, per-counter credit note series). Tests: `trade.test.ts`.
+  - Next in Phase 1: the counter screen reading from the device database behind the "Drive mode" switch.
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
