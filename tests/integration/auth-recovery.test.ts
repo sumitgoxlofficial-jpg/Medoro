@@ -20,7 +20,7 @@ import { openSecret } from "@/server/totp";
 import { resetJwksCache } from "@/server/google-oidc";
 import {
   checkInviteContact, completeInvite, ensureMfaSecret, forgotPassword, otpSignIn, passwordSignIn, requestSignInOtp, resetMfaWithCode,
-  resetPassword, sendMfaResetCode, verifyMfa,
+  resetPassword, sendMfaResetCode, signupAction, verifyMfa,
 } from "@/app/(auth)/actions";
 import { changePassword, changePin, disconnectGoogle, profileSecurity, regenerateRecoveryCodes } from "@/domain/identity/account";
 import { issueReset, resetTwoStep } from "@/domain/identity/admin";
@@ -252,7 +252,7 @@ describe("account recovery, providers and Google sign-in", () => {
     await signIn("mgr@test.in", "manager-new-password");
   });
 
-  it("Google: PKCE + state + nonce; first sign-in links only after the password; then signs in through MFA", async () => {
+  it("Google: PKCE + state + nonce; a verified email links to its account and signs straight in", async () => {
     const start = await googleStart(new Request(`${APP}/api/auth/google/start`));
     expect(start.status).toBe(302);
     const loc = new URL(start.headers.get("location")!);
@@ -264,22 +264,22 @@ describe("account recovery, providers and Google sign-in", () => {
 
     idClaims = google.claims({ aud: CLIENT, nonce: q.nonce, sub: "g-owner", email: EMAIL });
     const cb = await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${q.state}&code=code-1`));
-    expect(cb.headers.get("location")).toBe(`${APP}/signin?google=link`);
+    // Google verified the email, which matches exactly one owner account: linked and signed in, no password or code.
+    expect(cb.headers.get("location")).toBe(`${APP}/app`);
     const tok = new URLSearchParams(sent.find((s) => s.url.includes("oauth2.googleapis.com/token"))!.body);
     expect(createHash("sha256").update(tok.get("code_verifier")!).digest("base64url")).toBe(q.code_challenge);
     expect(tok.get("redirect_uri")).toBe(`${APP}/api/auth/google/callback`);
-    expect(jar.has(SESSION_COOKIE)).toBe(false);
-    expect((await db.user.findFirstOrThrow({ where: { email: EMAIL } })).googleSub).toBeNull();
+    expect(jar.has(SESSION_COOKIE)).toBe(true);
+    expect(await db.user.findFirstOrThrow({ where: { email: EMAIL } })).toMatchObject({ googleSub: "g-owner", googleEmail: EMAIL });
+    expect(await audits("Google sign-in connected")).toBe(1);
 
     // The callback is single use: replaying it fails on state.
     const replay = await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${q.state}&code=code-1`));
     expect(replay.headers.get("location")).toBe(`${APP}/signin?google=state`);
 
-    expect((await passwordSignIn(EMAIL, "wrong-password-x")).ok).toBe(false);
-    expect((await db.user.findFirstOrThrow({ where: { email: EMAIL } })).googleSub).toBeNull();
+    // Password sign-in still asks for the authenticator code.
+    jar.clear();
     expect(await passwordSignIn(EMAIL, PW)).toEqual({ ok: true, data: "/signin/mfa" });
-    expect(await db.user.findFirstOrThrow({ where: { email: EMAIL } })).toMatchObject({ googleSub: "g-owner", googleEmail: EMAIL });
-    expect(await audits("Google sign-in connected")).toBe(1);
 
     const google2 = async (claims: Record<string, unknown>, state?: string) => {
       jar.clear();
@@ -299,6 +299,24 @@ describe("account recovery, providers and Google sign-in", () => {
     expect(await google2({ sub: "g-owner", email: EMAIL, email_verified: false })).toBe(`${APP}/signin?google=error`);
     expect(await google2({ sub: "g-stranger", email: "stranger@gmail.com" })).toBe(`${APP}/signin?google=nouser`);
     expect(jar.has(SESSION_COOKIE)).toBe(false);
+
+    // With self sign-up open, a new person goes on to create their pharmacy with that Google account: no password,
+    // linked to Google, and signed straight in.
+    vi.stubEnv("PUBLIC_SIGNUP", "1");
+    expect(await google2({ sub: "g-new", email: "new.owner@gmail.com", name: "New Owner" })).toBe(`${APP}/signup?google=1`);
+    expect(jar.has(SESSION_COOKIE)).toBe(false);
+    const created = await signupAction({
+      pharmacy: { name: "New Owner Medicals", code: "NEW-OWNER", gstin: "", dl: "MH-9999", pharmacist: "", address: "Pune", lang: "en" },
+      owner: { name: "New Owner", email: "new.owner@gmail.com", phone: "9822000077", password: "" },
+      branches: [{ name: "Main branch", counters: 1 }], invites: [], backupKey: "B".repeat(43), kitAck: true, agree: true,
+    });
+    expect(created).toMatchObject({ ok: true, data: { tenantCode: "NEW-OWNER" } });
+    expect(await db.user.findFirstOrThrow({ where: { email: "new.owner@gmail.com" } })).toMatchObject({ googleSub: "g-new", googleEmail: "new.owner@gmail.com" });
+    expect(await readSession(true)).toMatchObject({ firstFactor: "google", mfaPassed: true });
+    expect((await getCtx())?.userName).toBe("New Owner");
+    // Next time, Google signs them straight in.
+    expect(await google2({ sub: "g-new", email: "new.owner@gmail.com" })).toBe(`${APP}/app`);
+    vi.stubEnv("PUBLIC_SIGNUP", "");
 
     await db.loginAttempt.create({ data: { key: "acct:" + EMAIL, lockedUntil: new Date(Date.now() + 600_000) } });
     expect(await google2({ sub: "g-owner", email: EMAIL })).toBe(`${APP}/signin?google=locked`);

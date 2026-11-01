@@ -27,7 +27,7 @@ const suggestCode = (name: string, addr: string) => {
 };
 
 /** `signup` is self-service sign-up on a hosted server: no database step (the server's own is used) and terms to accept. */
-export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean }) {
+export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false, google = null }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean; google?: { name: string; email: string } | null }) {
   const router = useRouter();
   const drive = useSetupDrive(driveAccount);
   const toast = useToast();
@@ -37,7 +37,8 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
 
   const [ph, setPh] = useState({ name: "", code: "", gstin: "", dl: "", pharmacist: "", address: "", lang: "en" as "en" | "hi" | "hinglish" });
   const [codeTouched, setCodeTouched] = useState(false);
-  const [owner, setOwner] = useState({ name: "", email: "", phone: "", password: "", password2: "" });
+  // Signing up with Google: the owner is that Google account, so no password is needed to get in.
+  const [owner, setOwner] = useState({ name: google?.name ?? "", email: google?.email ?? "", phone: "", password: "", password2: "" });
   const [host, setHost] = useState<Dep>(deployment);
   const [db, setDb] = useState<{ state: "idle" | "testing" | "ok" | "fail"; msg: string }>({ state: "idle", msg: "Not tested" });
   const [branches, setBranches] = useState([{ name: "Main branch", counters: 1 }]);
@@ -81,8 +82,8 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
       if (owner.name.trim().length < 2) return e("Enter your full name.");
       if (!/^\S+@\S+\.\S+$/.test(owner.email)) return e("Enter a valid email.");
       if (!MOBILE_RE.test(normPhone(owner.phone))) return e("Enter a valid 10-digit Indian mobile number.");
-      if (owner.password.length < 10) return e("Password must be at least 10 characters.");
-      if (owner.password !== owner.password2) return e("Passwords do not match.");
+      if (!google && owner.password.length < 10) return e("Password must be at least 10 characters.");
+      if (!google && owner.password !== owner.password2) return e("Passwords do not match.");
     }
     if (step === 3 && db.state !== "ok") return e("Test the database connection before continuing.");
     if (step === 4 && !branches.length) return e("Add at least one branch.");
@@ -164,13 +165,19 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
             <div className="text-[13.5px] text-muted -mt-2">There are no default logins. This account owns the pharmacy and can add everyone else.</div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5">
               <input className={inp} value={owner.name} onChange={setO("name")} placeholder="Full name *" aria-label="Full name" autoComplete="name" autoFocus />
-              <input className={inp} value={owner.email} onChange={setO("email")} placeholder="Email *" aria-label="Email" type="email" autoComplete="email" />
+              <input className={inp + (google ? " bg-page text-muted" : "")} value={owner.email} onChange={setO("email")} readOnly={!!google} placeholder="Email *" aria-label="Email" type="email" autoComplete="email" />
               <input className={inp} value={owner.phone} onChange={setO("phone")} placeholder="Mobile number *" aria-label="Mobile number" inputMode="tel" autoComplete="tel" />
-              <div />
-              <input className={inp} value={owner.password} onChange={setO("password")} placeholder="Password (10+ characters) *" aria-label="Password" type="password" autoComplete="new-password" />
-              <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder="Confirm password *" aria-label="Confirm password" type="password" autoComplete="new-password" />
+              {google ? null : (
+                <>
+                  <div />
+                  <input className={inp} value={owner.password} onChange={setO("password")} placeholder="Password (10+ characters) *" aria-label="Password" type="password" autoComplete="new-password" />
+                  <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder="Confirm password *" aria-label="Confirm password" type="password" autoComplete="new-password" />
+                </>
+              )}
             </div>
-            <div className="text-[12.5px] text-faint">After setup you’ll scan a QR code with an authenticator app and save 10 recovery codes. Two-step verification is required for owners and managers. You can connect Google sign-in later from Profile; your password stays as the way back in.</div>
+            <div className="text-[12.5px] text-faint">{google
+              ? `You’ll sign in with Google (${google.email}). No password needed. You can set one later from Profile.`
+              : "After setup you’ll scan a QR code with an authenticator app and save 10 recovery codes. Two-step verification is required for owners and managers. You can connect Google sign-in later from Profile; your password stays as the way back in."}</div>
           </>
         ) : null}
 
@@ -280,7 +287,9 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
                 ))}
               </div>
             ) : null}
-            <Button variant="primary" size="lg" onClick={() => router.replace("/signin/mfa")}>Set up two-step verification</Button>
+            {google
+              ? <Button variant="primary" size="lg" onClick={() => router.replace("/app")}>Open Medoro</Button>
+              : <Button variant="primary" size="lg" onClick={() => router.replace("/signin/mfa")}>Set up two-step verification</Button>}
           </div>
         ) : null}
 

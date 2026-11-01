@@ -15,7 +15,8 @@ type View = "signin" | "employee" | "join" | "forgot";
 type Recovery = { email: boolean; sms: boolean };
 
 const GOOGLE_NOTICE: Record<string, string> = {
-  nouser: "No Medoro account is connected to that Google account. Sign in with your password, then connect Google from Profile.",
+  nouser: "No Medoro account uses that Google email. Sign in with your password and connect Google from Profile, or start a free trial.",
+  taken: "That Google account is already connected to another Medoro user.",
   inactive: "This account is deactivated. Ask the pharmacy owner.",
   locked: "Too many sign-in attempts on this account. Try again in 15 minutes.",
   state: "Google sign-in timed out or was opened in another browser. Try again.",

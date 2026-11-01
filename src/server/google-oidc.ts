@@ -13,7 +13,7 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
-const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink";
+const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup";
 const FLOW_PATH = "/api/auth/google";
 const SKEW_S = 60;
 
@@ -126,3 +126,15 @@ export async function readPendingLink() {
   return v && v.exp > Date.now() ? v : null;
 }
 export async function clearPendingLink() { (await cookies()).set(LINK_COOKIE, "", cookieOpts("/", 0)); }
+
+// A new person who tapped "Continue with Google" without an account: their verified Google identity waits here
+// (sealed, 30 minutes) while they create their pharmacy, so the new owner is linked to Google and signed straight in.
+type PendingSignup = { sub: string; email: string; name: string | null; exp: number };
+export async function setPendingSignup(v: Omit<PendingSignup, "exp">) {
+  (await cookies()).set(SIGNUP_COOKIE, sealJson({ ...v, exp: Date.now() + 1_800_000 }), cookieOpts("/", 1800));
+}
+export async function readPendingSignup() {
+  const v = openJson<PendingSignup>((await cookies()).get(SIGNUP_COOKIE)?.value);
+  return v && v.exp > Date.now() ? v : null;
+}
+export async function clearPendingSignup() { (await cookies()).set(SIGNUP_COOKIE, "", cookieOpts("/", 0)); }
