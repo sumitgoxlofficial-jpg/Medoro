@@ -18,7 +18,9 @@ import { enforce } from "@/server/ratelimit";
 import { signupDeployment } from "@/domain/identity/deployment";
 import { headers } from "next/headers";
 import { randomBytes } from "node:crypto";
-import { clearPendingSignup, readPendingSignup } from "@/server/google-oidc";
+import { clearPendingSignup, clearVerifiedEmail, readPendingSignup, readVerifiedEmail } from "@/server/google-oidc";
+import { sendSignupCode, verifySignupCode } from "@/domain/identity/signup-email";
+import { mailEnabled } from "@/server/mail";
 import { adoptSetupDrive } from "@/server/setup-drive";
 import { MOBILE_RE, inviteContact, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
@@ -64,6 +66,9 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
     // A random one is set so the account still has a password (it can be changed from Profile or Forgot password).
     const g = await readPendingSignup();
     const viaGoogle = !!g && g.email === o.email.trim().toLowerCase();
+    // Signing up with email: the address must have been confirmed with a code (when this server can send email).
+    const verified = await readVerifiedEmail();
+    if (!viaGoogle && mailEnabled() && verified !== o.email.trim().toLowerCase()) return fail("Confirm your email with the code we send first. Go back and choose “Sign up with email”.");
     const ownerIn = viaGoogle && !o.password ? { ...o, password: randomBytes(24).toString("base64url") } : o;
     const r = await createPharmacy({ pharmacy, owner: ownerIn, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
     if (ref) {
@@ -76,10 +81,20 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
       await writeAudit(db, { tenantId: linked.tenantId, userId: linked.id, userName: linked.name, action: "Google sign-in connected", entity: "user", entityId: linked.id, detail: `${g.email} · signed up with Google` });
       await clearPendingSignup();
     }
+    if (verified) await clearVerifiedEmail();
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
     await createSession(owner.id, owner.tokenVersion, viaGoogle ? { mfaPassed: true, device: "Sign-up", firstFactor: "google" } : { mfaPassed: false, device: "Sign-up", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
+}
+
+/** Sign-up with email, step 1: send a 6-digit code to the address. */
+export async function sendSignupEmailCode(email: string): Promise<R> {
+  try { if (!signupOpen()) return fail("Sign-up is not open on this server."); await sendSignupCode(email); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
+}
+/** Step 2: the code matches; the pharmacy form opens with this email. */
+export async function verifySignupEmailCode(email: string, code: string): Promise<R> {
+  try { await verifySignupCode(email, code); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
 }
 
 /** Checks the live database this server is configured with. */

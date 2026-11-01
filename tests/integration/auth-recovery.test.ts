@@ -20,7 +20,7 @@ import { openSecret } from "@/server/totp";
 import { resetJwksCache } from "@/server/google-oidc";
 import {
   checkInviteContact, completeInvite, ensureMfaSecret, forgotPassword, passwordSignIn, resetMfaWithCode,
-  resetPassword, sendMfaResetCode, signupAction, verifyMfa,
+  resetPassword, sendMfaResetCode, sendSignupEmailCode, signupAction, verifyMfa, verifySignupEmailCode,
 } from "@/app/(auth)/actions";
 import { changePassword, changePin, disconnectGoogle, profileSecurity, regenerateRecoveryCodes } from "@/domain/identity/account";
 import { issueReset, resetTwoStep } from "@/domain/identity/admin";
@@ -316,6 +316,24 @@ describe("account recovery, providers and Google sign-in", () => {
     expect((await getCtx())?.userName).toBe("New Owner");
     // Next time, Google signs them straight in.
     expect(await google2({ sub: "g-new", email: "new.owner@gmail.com" })).toBe(`${APP}/app`);
+
+    // Sign-up with email: the address is confirmed with a code before the pharmacy can be created.
+    jar.clear();
+    const form = (email: string, code: string) => ({
+      pharmacy: { name: "Email Owner Medicals", code, gstin: "", dl: "MH-9998", pharmacist: "", address: "Bokaro", lang: "en" },
+      owner: { name: "Email Owner", email, phone: "9822000078", password: "email-owner-pw-1" },
+      branches: [{ name: "Main branch", counters: 1 }], invites: [], backupKey: "C".repeat(43), kitAck: true, agree: true,
+    });
+    expect(await signupAction(form("mail.owner@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: false, error: expect.stringMatching(/Confirm your email/) });
+    expect(await sendSignupEmailCode(EMAIL)).toMatchObject({ ok: false, error: expect.stringMatching(/already exists/) });
+    expect(await sendSignupEmailCode("mail.owner@gmail.com")).toEqual({ ok: true });
+    expect(JSON.parse(sent.at(-1)!.body)).toMatchObject({ to: ["mail.owner@gmail.com"], subject: expect.stringMatching(/sign-up code/) });
+    expect(await verifySignupEmailCode("mail.owner@gmail.com", other(lastCode()))).toMatchObject({ ok: false });
+    expect(await verifySignupEmailCode("mail.owner@gmail.com", lastCode())).toEqual({ ok: true });
+    // The confirmed address only: another email on the form is refused.
+    expect(await signupAction(form("someone.else@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: false, error: expect.stringMatching(/Confirm your email/) });
+    expect(await signupAction(form("mail.owner@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: true, data: { tenantCode: "MAIL-OWNER" } });
+    expect(await readSession(true)).toMatchObject({ firstFactor: "password", mfaPassed: false });
     vi.stubEnv("PUBLIC_SIGNUP", "");
 
     await db.loginAttempt.create({ data: { key: "acct:" + EMAIL, lockedUntil: new Date(Date.now() + 600_000) } });

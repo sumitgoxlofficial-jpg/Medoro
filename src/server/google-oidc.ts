@@ -13,7 +13,7 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
-const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup", PARTNER_COOKIE = "medoro_gpartner";
+const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup", PARTNER_COOKIE = "medoro_gpartner", EMAIL_COOKIE = "medoro_everify";
 const FLOW_PATH = "/api/auth/google";
 const SKEW_S = 60;
 
@@ -149,3 +149,14 @@ export async function readPendingPartner() {
   return v && v.exp > Date.now() ? v : null;
 }
 export async function clearPendingPartner() { (await cookies()).set(PARTNER_COOKIE, "", cookieOpts("/", 0)); }
+
+// Sign-up with email: the address is proven with a code first (sealed, 30 minutes), like Google proves it.
+type VerifiedEmail = { email: string; exp: number };
+export async function setVerifiedEmail(email: string) {
+  (await cookies()).set(EMAIL_COOKIE, sealJson({ email, exp: Date.now() + 1_800_000 }), cookieOpts("/", 1800));
+}
+export async function readVerifiedEmail() {
+  const v = openJson<VerifiedEmail>((await cookies()).get(EMAIL_COOKIE)?.value);
+  return v && v.exp > Date.now() ? v.email : null;
+}
+export async function clearVerifiedEmail() { (await cookies()).set(EMAIL_COOKIE, "", cookieOpts("/", 0)); }

@@ -27,7 +27,7 @@ const suggestCode = (name: string, addr: string) => {
 };
 
 /** `signup` is self-service sign-up on a hosted server: no database step (the server's own is used) and terms to accept. */
-export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false, google = null, referral = "" }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean; google?: { name: string; email: string } | null; referral?: string }) {
+export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false, google = null, referral = "", verifiedEmail = "" }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean; google?: { name: string; email: string } | null; referral?: string; verifiedEmail?: string }) {
   const router = useRouter();
   const drive = useSetupDrive(driveAccount);
   const toast = useToast();
@@ -38,7 +38,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   const [ph, setPh] = useState({ name: "", code: "", gstin: "", dl: "", pharmacist: "", address: "", lang: "en" as "en" | "hi" | "hinglish" });
   const [codeTouched, setCodeTouched] = useState(false);
   // Signing up with Google: the owner is that Google account, so no password is needed to get in.
-  const [owner, setOwner] = useState({ name: google?.name ?? "", email: google?.email ?? "", phone: "", password: "", password2: "" });
+  const [owner, setOwner] = useState({ name: google?.name ?? "", email: google?.email ?? verifiedEmail, phone: "", password: "", password2: "" });
   const [host, setHost] = useState<Dep>(deployment);
   const [db, setDb] = useState<{ state: "idle" | "testing" | "ok" | "fail"; msg: string }>({ state: "idle", msg: "Not tested" });
   const [branches, setBranches] = useState([{ name: "Main branch", counters: 1 }]);
@@ -172,7 +172,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
             <div className="text-[13.5px] text-muted -mt-2">There are no default logins. This account owns the pharmacy and can add everyone else.</div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5">
               <input className={inp} value={owner.name} onChange={setO("name")} placeholder="Full name *" aria-label="Full name" autoComplete="name" autoFocus />
-              <input className={inp + (google ? " bg-page text-muted" : "")} value={owner.email} onChange={setO("email")} readOnly={!!google} placeholder="Email *" aria-label="Email" type="email" autoComplete="email" />
+              <input className={inp + (google || verifiedEmail ? " bg-page text-muted" : "")} value={owner.email} onChange={setO("email")} readOnly={!!google || !!verifiedEmail} placeholder="Email *" aria-label="Email" type="email" autoComplete="email" />
               <input className={inp} value={owner.phone} onChange={setO("phone")} placeholder="Mobile number *" aria-label="Mobile number" inputMode="tel" autoComplete="tel" />
               {google ? null : (
                 <>

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { readSession } from "@/server/auth";
 import { signupOpen } from "@/server/setup-gate";
-import { googleLoginConfigured, readPendingSignup } from "@/server/google-oidc";
+import { googleLoginConfigured, readPendingSignup, readVerifiedEmail } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
+import { EmailStep } from "./email-step";
 import { cookies } from "next/headers";
 import { Wizard } from "../setup/wizard";
 
@@ -21,6 +23,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   const choose = !google && googleLoginConfigured() && sp.with !== "email";
   // A referral code from a partner's link (?ref= here, or the cookie /trial set) is filled in for them.
   const referral = (sp.ref ?? (await cookies()).get("medoro_ref")?.value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
+  // Sign-up with email: the address is confirmed with a code before the pharmacy form opens.
+  const verifiedEmail = google ? null : await readVerifiedEmail();
+  const needCode = !choose && !google && !verifiedEmail && mailEnabled();
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <div className="text-center flex flex-col gap-1.5 max-w-[560px]">
@@ -36,10 +41,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
           <div className="flex items-center gap-3 text-[12px] text-faint"><span className="flex-1 h-px bg-line" />or<span className="flex-1 h-px bg-line" /></div>
           <Link href={referral ? `/signup?with=email&ref=${referral}` : "/signup?with=email"} className="text-center text-[14px] font-semibold text-teal min-h-10 inline-flex items-center justify-center">Sign up with email instead</Link>
         </div>
+      ) : needCode ? (
+        <EmailStep back={googleLoginConfigured() ? (referral ? `/signup?ref=${referral}` : "/signup") : null} />
       ) : (
         <>
+          {verifiedEmail ? <div className="text-[13.5px] text-ink-2 bg-white border border-line rounded-lg px-4 py-2.5">Email confirmed: <strong>{verifiedEmail}</strong>. Now add your pharmacy details.</div> : null}
           {google ? <div className="text-[13.5px] text-ink-2 bg-white border border-line rounded-lg px-4 py-2.5">Signed in with Google as <strong>{google.email}</strong>. Now add your pharmacy details.</div> : null}
-          <Wizard deployment="cloud" signup google={google} referral={referral} />
+          <Wizard deployment="cloud" signup google={google} referral={referral} verifiedEmail={verifiedEmail ?? ""} />
         </>
       )}
     </div>

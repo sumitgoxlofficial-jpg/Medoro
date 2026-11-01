@@ -116,7 +116,7 @@ export async function sendOtp(phone: string, purpose: "signin" | "invite"): Prom
   catch (e) { await db.otpCode.deleteMany({ where: { phone } }); throw e; }
 }
 
-export async function verifyOtp(phone: string, code: string, purpose: "signin" | "invite"): Promise<{ ok: true } | { ok: false; left: number }> {
+export async function verifyOtp(phone: string, code: string, purpose: "signin" | "invite" | "signup"): Promise<{ ok: true } | { ok: false; left: number }> {
   const r = await db.otpCode.findUnique({ where: { phone } });
   if (!r || r.purpose !== purpose || r.expiresAt < new Date() || r.attempts >= 5) return { ok: false, left: 0 };
   if (/^\d{6}$/.test(code) && sameHash(r.codeHash, hashCode(phone, code))) {
