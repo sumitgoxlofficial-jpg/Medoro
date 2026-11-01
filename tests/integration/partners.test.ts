@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { db } from "@/server/db";
 import { getStaff, type Staff } from "@/staff/auth";
 import { completeGooglePartner, partnerFromGoogle, setEmployeeStatus, signIn, signup } from "@/staff/people";
-import { leaderboard, partnerLeaderboard, partnerOverview, payWithRazorpay, payoutWebhook, periodStarts, recordBankTransfer, shortName } from "@/staff/partners";
+import { leaderboard, partnerLeaderboard, partnerOverview, payWithRazorpay, payoutBankDetails, payoutWebhook, periodStarts, recordBankTransfer, shortName } from "@/staff/partners";
 import { referredPharmacies, referrer, salesList, saveBank } from "@/staff/sales";
 import { confirmCheckout, createOrder } from "@/domain/system/razorpay";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
@@ -19,7 +19,7 @@ import { ctxFor, makePharmacy, resetDb } from "./helpers";
 const SECRET = "test_secret_123";
 const sig = (s: string) => createHmac("sha256", SECRET).update(s).digest("hex");
 const asStaff = async (email: string): Promise<Staff> => {
-  const u = await db.staffUser.findFirstOrThrow({ where: { email } });
+  const u = await db.staffUser.findFirstOrThrow({ where: { email }, orderBy: { createdAt: "asc" } });
   return { id: u.id, empNo: u.empNo, name: u.name, email: u.email, role: u.role, referralCode: u.referralCode, sessionId: "test" };
 };
 function fakeRazorpay(payments: Record<string, { order_id: string; amount: number; status: string }>) {
@@ -218,5 +218,13 @@ describe("reference partners", () => {
     // Partner-only emails get a pointer on the team tab, and vice versa.
     await expect(signIn("ravi.mr@gmail.com", "ravi password 1", "team")).rejects.toThrow(/Use the Reference partner tab/);
     await expect(signIn("neha@medoro.in", "neha password 1", "partner")).rejects.toThrow(/no partner profile yet/);
+  });
+
+  it("shows the admin a verified partner's full bank details for a manual transfer, and logs it", async () => {
+    const admin = await asStaff("aarti@medoro.in"), ravi = await asStaff("ravi.mr@gmail.com"), meena = await asStaff("meena@yahoo.in");
+    await expect(payoutBankDetails(ravi, ravi.id)).rejects.toThrow();
+    await expect(payoutBankDetails(admin, meena.id)).rejects.toThrow(/Verify/); // bank still pending
+    expect(await payoutBankDetails(admin, ravi.id)).toMatchObject({ holder: "Ravi Kulkarni", account: "50100012345678", ifsc: "HDFC0001234" });
+    expect(await db.staffAudit.count({ where: { action: "Payout bank details viewed", detail: { contains: "Ravi Kulkarni" } } })).toBe(1);
   });
 });

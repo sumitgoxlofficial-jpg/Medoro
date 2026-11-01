@@ -1,8 +1,9 @@
 "use client";
-import { useMemo, useState } from "react";
-import { RefreshCw, Search, Send } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Copy, RefreshCw, Search, Send } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 import { rupees, TDS_PCT } from "@/staff/constants";
-import { payPartnerRazorpay, recordPartnerTransfer, refreshPartnerPayout, setEmployeeStatus, verifyBank } from "../../actions";
+import { partnerBankDetails, payPartnerRazorpay, recordPartnerTransfer, refreshPartnerPayout, setEmployeeStatus, verifyBank } from "../../actions";
 import { Leaderboard, type Boards } from "../leaderboard";
 import { Empty, Kpi, Panel, Pill, btn, btnPrimary, fieldCls, fmtDay, fmtTime, td, th, useRun } from "../ui";
 
@@ -20,6 +21,17 @@ export function PartnersView({ rows, boards, history, razorpay, month }: { rows:
   const [q, setQ] = useState("");
   const [pay, setPay] = useState<Row | null>(null);
   const [utr, setUtr] = useState("");
+  const toast = useToast();
+  // Full bank details for paying by bank transfer or UPI; loaded (and audited) when the pay dialog opens.
+  const [acct, setAcct] = useState<{ holder: string; account: string; ifsc: string; bank: string } | { error: string } | null>(null);
+  useEffect(() => {
+    setAcct(null);
+    if (!pay) return;
+    let live = true;
+    partnerBankDetails(pay.id).then((r) => { if (live) setAcct(r.ok ? r.data : { error: r.error }); });
+    return () => { live = false; };
+  }, [pay]);
+  const copy = (v: string, what: string) => { navigator.clipboard?.writeText(v); toast(`${what} copied`, "green"); };
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return s ? rows.filter((r) => [r.name, r.email, r.phone, r.area, r.code ?? "", r.empNo].some((v) => v.toLowerCase().includes(s))) : rows;
@@ -90,9 +102,20 @@ export function PartnersView({ rows, boards, history, razorpay, month }: { rows:
             </div>
             {razorpay ? (
               <button disabled={busy} className={btnPrimary + " justify-center"} onClick={() => run(() => payPartnerRazorpay(pay.id), (d) => { setPay(null); return d.status === "paid" ? `Paid ${rupees(d.net)} to ${pay.name}.` : `${rupees(d.net)} sent with Razorpay. It shows as paid once the bank confirms.`; })}><Send size={14} />Pay {rupees(pay.readyNetPaise)} with Razorpay</button>
-            ) : <div className="text-[12.5px] text-[#94570A] bg-[#FDF2E1] rounded-lg px-3 py-2">Razorpay payouts aren’t set up yet (RazorpayX account number missing). Pay from your bank and record it below.</div>}
-            <div className="flex flex-col gap-1.5 border-t border-[#EEF0F2] pt-3">
-              <span className="text-[12.5px] text-muted">Paid from your bank or UPI instead? Enter its reference (UTR).</span>
+            ) : null}
+            <div className={`flex flex-col gap-2 ${razorpay ? "border-t border-[#EEF0F2] pt-3" : ""}`}>
+              <span className="text-[13px] font-semibold">{razorpay ? "Or pay from your bank or UPI app" : "1. Send the money from your bank or UPI app"}</span>
+              <span className="text-[12.5px] text-muted">Use IMPS/NEFT, or “Pay to bank account” in PhonePe, Google Pay or Paytm.</span>
+              {acct && "account" in acct ? (
+                <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1.5 items-center text-[13.5px] bg-[#F7F8F9] border border-[#EEF0F2] rounded-lg px-3 py-2.5">
+                  <span className="text-muted">Name</span><span className="font-semibold truncate">{acct.holder}</span><span />
+                  <span className="text-muted">Account</span><span className="font-mono tnum">{acct.account}</span><button type="button" className={btn} onClick={() => copy(acct.account, "Account number")}><Copy size={13} />Copy</button>
+                  <span className="text-muted">IFSC</span><span className="font-mono">{acct.ifsc}</span><button type="button" className={btn} onClick={() => copy(acct.ifsc, "IFSC")}><Copy size={13} />Copy</button>
+                  <span className="text-muted">Bank</span><span className="truncate">{acct.bank}</span><span />
+                  <span className="text-muted">Amount</span><span className="font-bold text-teal tnum">{rupees(pay.readyNetPaise)}</span><button type="button" className={btn} onClick={() => copy((pay.readyNetPaise / 100).toFixed(2), "Amount")}><Copy size={13} />Copy</button>
+                </div>
+              ) : <div className="text-[12.5px] text-muted bg-[#F7F8F9] rounded-lg px-3 py-2.5">{acct && "error" in acct ? acct.error : "Loading bank details…"}</div>}
+              <span className="text-[13px] font-semibold mt-1">{razorpay ? "Then enter its reference" : "2. Enter the UTR / UPI reference to mark it paid"}</span>
               <div className="flex gap-2"><input className={fieldCls} value={utr} onChange={(e) => setUtr(e.target.value)} placeholder="UTR / reference" />
                 <button disabled={busy || utr.trim().length < 6} className={btn} onClick={() => run(() => recordPartnerTransfer(pay.id, utr), (d) => { setPay(null); return `Recorded ${rupees(d.net)} paid to ${pay.name}.`; })}>Record</button></div>
             </div>
