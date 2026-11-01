@@ -32,7 +32,7 @@ const STATE: Record<TxnState, [string, Tone]> = {
 };
 const SOURCE_TONE: Record<SourceLabel, Tone> = { available: "green", sandbox: "blue", partner_required: "amber", unsupported: "gray" };
 const StateBadge = ({ s }: { s: TxnState }) => <Badge tone={STATE[s][1]}>{STATE[s][0]}</Badge>;
-const amt = (t: { direction: string; amountPaise: number }) => <span className={`tabular-nums ${t.direction === "credit" ? "text-ok" : ""}`}>{t.direction === "credit" ? "+" : "−"}{inr(t.amountPaise)}</span>;
+const amt = (t: { direction: string; amountPaise: number }) => <span className={`tabular-nums whitespace-nowrap ${t.direction === "credit" ? "text-ok" : ""}`}>{t.direction === "credit" ? "+" : "−"}{inr(t.amountPaise)}</span>;
 const table = "w-full text-sm [&_th]:text-left [&_th]:font-medium [&_th]:text-muted [&_th]:py-1.5 [&_th]:pr-3 [&_td]:py-1.5 [&_td]:pr-3 [&_tr]:border-b [&_tr]:border-line align-top";
 
 /**
@@ -197,9 +197,9 @@ function Transactions({ who, refresh, onChange }: { who: Who; refresh: number; o
   useEffect(() => { const t = setTimeout(() => { void dev.call("finTransactions", { q: q || undefined, state: state || undefined, limit: 500 }).then(setRows); }, 150); return () => clearTimeout(t); }, [dev, q, state, refresh]);
   return (
     <div className={card}>
-      <div className="flex gap-2 flex-wrap">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search narration, UTR, payer, UPI ID or amount" aria-label="Search transactions" className={`${input} flex-1 min-w-[240px]`} />
-        <select value={state} onChange={(e) => setState(e.target.value)} className={`${input} w-auto`} aria-label="Status">{STATE_FILTER.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+      <div className="grid gap-2 sm:grid-cols-[1fr_220px_auto]">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search narration, UTR, payer, UPI ID or amount" aria-label="Search transactions" className={input} />
+        <select value={state} onChange={(e) => setState(e.target.value)} className={input} aria-label="Status">{STATE_FILTER.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <Button onClick={() => downloadCsv(`bank-transactions-${todayISO()}`, [["Transaction ID", "Date", "Time", "Amount (₹)", "Credit/Debit", "Bank", "Payment source", "UTR/RRN", "Narration", "Invoice / matched to", "Status"], ...rows.map((t) => [t.id.slice(-10), t.date, t.time ?? "", (t.amountPaise / 100).toFixed(2), t.direction, t.accountLabel, `${CHANNEL_LABEL[t.channel as Channel]} · ${t.source}`, t.utr ?? "", t.description, t.links.map((l) => l.label).join("; "), STATE[t.state][0]])])}><Download size={15} /> CSV</Button>
       </div>
       <div className="overflow-x-auto">
@@ -210,11 +210,11 @@ function Transactions({ who, refresh, onChange }: { who: Who; refresh: number; o
               <tr key={t.id} className="cursor-pointer hover:bg-chip" onClick={() => setOpen(t.id)}>
                 <td className="font-mono text-[12px]">{t.id.slice(-10)}</td>
                 <td className="whitespace-nowrap">{t.date}{t.time ? <span className="text-muted"> {t.time.slice(0, 5)}</span> : null}</td>
-                <td>{amt(t)}</td><td className="whitespace-nowrap">{t.accountLabel}</td>
+                <td>{amt(t)}</td><td>{t.accountLabel}</td>
                 <td className="whitespace-nowrap">{CHANNEL_LABEL[t.channel as Channel]}<span className="text-muted text-[12px] block">{t.source}</span></td>
                 <td className="font-mono text-[12px]">{t.utr ?? "—"}</td>
-                <td className="max-w-[300px]"><span className="block truncate" title={t.description}>{t.description}</span>{(t.counterpartyName || t.counterpartyVpa) && <span className="text-[12px] text-muted">{[t.counterpartyName, t.counterpartyVpa].filter(Boolean).join(" · ")}</span>}</td>
-                <td>{t.links.map((l) => <span key={l.allocationId} className="block whitespace-nowrap">{l.label}</span>)}</td>
+                <td className="max-w-[200px] min-w-[150px]"><span className="block truncate" title={t.description}>{t.description}</span>{(t.counterpartyName || t.counterpartyVpa) && <span className="text-[12px] text-muted">{[t.counterpartyName, t.counterpartyVpa].filter(Boolean).join(" · ")}</span>}</td>
+                <td className="min-w-[140px]">{t.links.map((l) => <span key={l.allocationId} className="block">{l.label}</span>)}</td>
                 <td><StateBadge s={t.state} /></td>
               </tr>
             ))}

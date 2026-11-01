@@ -49,7 +49,7 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await expect(page.getByText("Bank statement upload (any bank)").locator("..")).toContainText("Available");
   await expect(page.getByText("PhonePe Business").locator("..")).toContainText("Partner onboarding required");
   await expect(page.getByText("BharatPe", { exact: true }).locator("..")).toContainText("Not yet supported");
-  await expect(page.getByRole("button", { name: /^Connect/ })).toHaveCount(0);
+  for (const card of ["Bank connections", "Payment providers"]) await expect(page.getByText(card, { exact: true }).locator("..").getByRole("button")).toHaveCount(0);
   await page.getByLabel("Shop UPI ID").fill("sanjeevani@okhdfcbank");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Saved on this device.")).toBeVisible();
@@ -76,7 +76,7 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   ].join("\n");
   await page.getByLabel("Statement file").setInputFiles({ name: "hdfc.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
   await expect(page.getByText(/2 credit\(s\), 0 debit\(s\)/)).toBeVisible();
-  await expect(page.getByRole("cell", { name: "430512345678" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "430512345678", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Import 2 transaction(s)" }).click();
   await expect(page.getByText(/2 new · 0 already imported or the same payment · 0 possible duplicate\(s\) to review · 1 matched automatically/)).toBeVisible();
 
