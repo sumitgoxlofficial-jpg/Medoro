@@ -28,7 +28,7 @@ export function DriveModeCard({ on, move }: { on: boolean; move: Move }) {
     start(async () => { const r = await undoMoveAction(); toast(r.ok ? r.message ?? "Done." : r.error, r.ok ? "green" : "red"); });
   };
   const purge = () => {
-    const code = prompt("Delete Medoro’s copy of this pharmacy’s data for good?\n\nBills, stock, customers, suppliers, accounts and stored files are deleted from Medoro’s server. Your data stays in your Google Drive, and the move can’t be undone after this.\n\nType your pharmacy code to confirm:");
+    const code = prompt("Delete Medoro’s copy of this pharmacy’s data for good?\n\nBills, stock, customers, suppliers, accounts, stored files and the activity log are deleted from Medoro’s server. Your data stays in your Google Drive, and the move can’t be undone after this.\n\nType your pharmacy code to confirm:");
     if (!code) return;
     start(async () => { const r = await deleteMedoroCopyAction(code); toast(r.ok ? r.message ?? "Done." : r.error, r.ok ? "green" : "red"); });
   };

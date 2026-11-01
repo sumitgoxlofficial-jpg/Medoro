@@ -91,8 +91,11 @@ export async function undoMove(ctx: Ctx) {
 
 // ---------- deleting Medoro's copy ----------
 
-/** What stays on Medoro's server after the copy is deleted: the account, sign-in, staff, branches, devices and the audit log. */
-const KEEP_ON_DELETE = new Set(["AuditEvent", "Branch", "Counter", "Device", "DriveDevice", "Invite", "Role", "User", "RecoveryCode", "SupportGrant"]);
+/**
+ * What stays on Medoro's server after the copy is deleted: the account, sign-in, staff, branches and devices. The audit
+ * log goes too (its entries name customers and bills); one entry recording the deletion itself is written afterwards.
+ */
+const KEEP_ON_DELETE = new Set(["Branch", "Counter", "Device", "DriveDevice", "Invite", "Role", "User", "RecoveryCode", "SupportGrant"]);
 const q = (id: string) => `"${id.replace(/"/g, '""')}"`;
 
 /** When the device last saved a full copy to Drive (Medoro reads only the plain manifest, never the data). */
