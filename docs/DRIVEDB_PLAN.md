@@ -199,6 +199,19 @@ working with me; they overlap a little.
 - Unit tests that run the same domain rules on SQLite as on Postgres.
 - **Done when:** a test pharmacy can bill and see stock entirely from local SQLite, with every write
   producing a change record.
+- **Progress (first slice, built):**
+  - `src/drivedb/` — `engine.ts` (SQLite wrapper, nested transactions), `schema.ts` (tables + append-only
+    migrations; bills and stock movements blocked from edit/delete by triggers), `hlc.ts` (device clock),
+    `client.ts` (the SDK: `from().select/eq/neq/gt/gte/lt/lte/like/ilike/in/is/order/limit/range`,
+    `insert/update/upsert/delete` with soft delete, change log in the same transaction, per-counter
+    sequences), `pharmacy.ts` (add medicine, receive stock, search, stock levels, billing with FEFO,
+    loose units, GST, Schedule H/H1, discount ceiling, split and credit payments, per-counter GST
+    invoice series, day totals).
+  - Runs in the browser in a worker on OPFS (`device.worker.ts`, `device.ts`) and in Node for tests.
+  - Preview on App → Backup → "Test this device": "Try billing on this device" (sample data).
+  - Tests: `src/drivedb/drivedb.test.ts` (17) and `e2e/17-device-db.spec.ts`.
+  - Next in Phase 1: customers and returns on device, purchases (GRN) entry, the counter screen
+    reading from the device database behind the "Drive mode" switch.
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
