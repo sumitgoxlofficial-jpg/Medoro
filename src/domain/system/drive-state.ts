@@ -7,6 +7,14 @@ export const dataInDrive = (settings: unknown) => {
   return s.driveOnly === true || !!s.driveMove;
 };
 
+/**
+ * On Medoro's own hosted server (self sign-up open), every pharmacy must keep its records in its own Google Drive:
+ * Medoro stores no bills, stock or customers. A pharmacy still on Medoro's copy must move it (read-only until then).
+ * A pharmacy's own self-hosted server is its own database, so this doesn't apply there. Server-side only.
+ */
+export const driveRequired = () => process.env.PUBLIC_SIGNUP === "1";
+export const mustMove = (settings: unknown) => driveRequired() && !dataInDrive(settings);
+
 /** Warn when the pharmacy's Google Drive is this full: counters can't save copies to a full Drive. */
 export const QUOTA_WARN = 0.9;
 export type Quota = { usage: number; limit: number | null; at: string };

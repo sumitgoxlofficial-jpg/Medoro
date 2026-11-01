@@ -15,6 +15,7 @@ import { MANIFEST, SNAPSHOT } from "./drivedb-relay";
 import { deleteObject } from "@/server/storage";
 import { log } from "@/server/log";
 import { counterSettings, deviceMedicine, driveModeOn, ownerOnly } from "./drive-mode";
+import { driveRequired } from "./drive-state";
 
 /**
  * Phase 7: moving a pharmacy's data out of Medoro into its own Google Drive.
@@ -24,7 +25,7 @@ import { counterSettings, deviceMedicine, driveModeOn, ownerOnly } from "./drive
  * 3. The device loads it into its own database, checks the counts and totals against `summary`, and saves
  *    it to Drive, encrypted with keys only the pharmacy holds.
  * 4. completeMove: recorded as moved. Medoro's copy stays read-only for 7 days, when the move can still be undone.
- *    Deleting Medoro's copy is a separate step the owner confirms.
+ *    Deleting Medoro's copy is a step the owner confirms; on Medoro's hosted server it also happens on its own after 7 days.
  */
 export type MoveState = { state: "moving" | "moved" | "purged"; startedAt: string; by: string; movedAt?: string; device?: string; checks?: number; purgedAt?: string; purgedBy?: string };
 export const UNDO_DAYS = 7;
@@ -124,8 +125,31 @@ export async function deleteMedoroCopy(ctx: Ctx, input: { code: string }) {
   if (String(input.code ?? "").trim().toUpperCase() !== t.code.toUpperCase()) throw new UserError("Type the pharmacy code exactly to confirm.");
   const saved = await driveCopySavedAt(ctx.tenantId);
   if (!saved || Date.parse(saved) < Date.parse(st.movedAt!)) throw new UserError("Google Drive has no full copy saved since the move. On Billing (device), press “Save full copy now”, then try again.");
+  return purgeCopy(ctx.tenantId, { userId: ctx.userId, userName: ctx.userName }, saved);
+}
 
-  const tenantId = ctx.tenantId;
+/**
+ * Where Drive is required (Medoro's hosted server), Medoro's copy is deleted on its own once the 7 days to undo the
+ * move are over, so no pharmacy's records stay on Medoro's server. Only when Drive holds a full copy saved after
+ * the move; otherwise the owner is reminded on the counter and it's tried again the next day.
+ */
+export async function autoDeleteMovedCopies(now = new Date()) {
+  if (!driveRequired()) return 0;
+  let done = 0;
+  for (const t of await db.tenant.findMany({ select: { id: true, settings: true } })) {
+    const move = ((t.settings ?? {}) as { driveMove?: MoveState }).driveMove;
+    if (move?.state !== "moved" || !move.movedAt || now.getTime() < Date.parse(move.movedAt) + UNDO_DAYS * 86400_000) continue;
+    try {
+      const saved = await driveCopySavedAt(t.id);
+      if (!saved || Date.parse(saved) < Date.parse(move.movedAt)) { log.warn("Medoro’s copy not deleted yet: no full Drive copy since the move.", { tenantId: t.id }); continue; }
+      await purgeCopy(t.id, { userId: null, userName: "Medoro (automatic)" }, saved);
+      done++;
+    } catch (e) { log.error("Couldn’t delete Medoro’s copy after the move to Drive.", { err: e, tenantId: t.id }); }
+  }
+  return done;
+}
+
+async function purgeCopy(tenantId: string, by: { userId: string | null; userName: string }, saved: string) {
   const [files, docs, backups] = await Promise.all([
     db.fileObject.findMany({ where: { tenantId }, select: { key: true } }),
     db.scanDocument.findMany({ where: { tenantId, storagePath: { not: null } }, select: { storagePath: true } }),
@@ -145,8 +169,8 @@ export async function deleteMedoroCopy(ctx: Ctx, input: { code: string }) {
     rows += await tx.backupManifest.deleteMany({ where: { tenantId, localPath: { not: null } } }).then((r) => r.count);
     const cur = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { settings: true } });
     const settings = (cur.settings ?? {}) as Record<string, Prisma.InputJsonValue> & { driveMove: MoveState };
-    await tx.tenant.update({ where: { id: tenantId }, data: { settings: { ...settings, driveMove: { ...settings.driveMove, state: "purged", purgedAt: new Date().toISOString(), purgedBy: ctx.userName } } } });
-    await writeAudit(tx, { tenantId, userId: ctx.userId, userName: ctx.userName, action: "Medoro’s copy deleted", entity: "tenant", entityId: tenantId,
+    await tx.tenant.update({ where: { id: tenantId }, data: { settings: { ...settings, driveMove: { ...settings.driveMove, state: "purged", purgedAt: new Date().toISOString(), purgedBy: by.userName } } } });
+    await writeAudit(tx, { tenantId, userId: by.userId, userName: by.userName, action: "Medoro’s copy deleted", entity: "tenant", entityId: tenantId,
       detail: `${rows} records deleted after the move to Google Drive (Drive copy saved ${saved}). The account, staff, branches and devices stay.` });
   }, { timeout: 120_000 });
   // Stored files last, once the records are gone. Best effort: a missing file is fine.

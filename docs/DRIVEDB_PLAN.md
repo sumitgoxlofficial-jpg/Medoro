@@ -438,6 +438,11 @@ In this order, each shippable alone:
 - Update privacy policy, data-ownership page, help pages ("your data is in your Drive").
 - Monitoring: sync errors, Drive quota/token failures, devices not synced for 3+ days (alert owner).
 - **Done when:** Supabase only holds the "stays on server" tables for Drive-mode pharmacies.
+- **Drive is compulsory on Medoro's hosted server** (`PUBLIC_SIGNUP=1`, see `driveRequired()` in
+  `src/domain/system/drive-state.ts`): every sign-up is a Drive pharmacy (no storage choice); a pharmacy still on
+  Medoro's copy is read-only (`ctx.mustMove`) and is sent to Billing (device) to move; Medoro's copy is deleted
+  automatically 7 days after a move (`autoDeleteMovedCopies`, cron) once Drive holds a copy saved after it; old
+  Medoro backups can't be restored onto the hosted server. A pharmacy's own self-hosted server is unaffected.
 
 **Total: about 4–5 months** of steady work. Phases 0–3 (about 2 months) give a working single-counter
 Drive-mode pharmacy you can start selling.
