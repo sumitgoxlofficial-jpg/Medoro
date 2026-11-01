@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { getStaff, readStaffSession, staffDomain } from "@/staff/auth";
 import { inviteInfo } from "@/staff/people";
 import { googleLoginConfigured, readPendingPartner } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
 import { StaffLogin } from "./form";
 
 export const metadata: Metadata = { title: "Partner & team sign in" };
@@ -31,5 +32,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   return <StaffLogin domain={staffDomain()} invite={invite ? { token: invite, info: inv } : null} pending={pending ? { email: pending.staff.email, enrolled: pending.staff.totpEnabled } : null}
     joinPartner={join === "partner"} google={googleLoginConfigured()} googleNew={g ? { email: g.email, name: g.name ?? "" } : null}
     notice={google === "new" && !g ? GOOGLE_MSG.error : google ? GOOGLE_MSG[google] ?? "" : ""}
-    as={as} setupOpen={!(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }))} />;
+    as={as} emailCodes={mailEnabled()} setupOpen={!(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }))} />;
 }

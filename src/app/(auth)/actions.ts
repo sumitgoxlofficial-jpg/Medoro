@@ -18,9 +18,11 @@ import { enforce } from "@/server/ratelimit";
 import { signupDeployment } from "@/domain/identity/deployment";
 import { headers } from "next/headers";
 import { randomBytes } from "node:crypto";
-import { clearPendingSignup, readPendingSignup } from "@/server/google-oidc";
+import { clearPendingSignup, clearVerifiedEmail, readPendingSignup, readVerifiedEmail } from "@/server/google-oidc";
+import { sendSignupCode, verifySignupCode } from "@/domain/identity/signup-email";
+import { mailEnabled } from "@/server/mail";
 import { adoptSetupDrive } from "@/server/setup-drive";
-import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
+import { MOBILE_RE, inviteContact, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
 
 type R<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -64,6 +66,9 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
     // A random one is set so the account still has a password (it can be changed from Profile or Forgot password).
     const g = await readPendingSignup();
     const viaGoogle = !!g && g.email === o.email.trim().toLowerCase();
+    // Signing up with email: the address must have been confirmed with a code (when this server can send email).
+    const verified = await readVerifiedEmail();
+    if (!viaGoogle && mailEnabled() && verified !== o.email.trim().toLowerCase()) return fail("Confirm your email with the code we send first. Go back and choose “Sign up with email”.");
     const ownerIn = viaGoogle && !o.password ? { ...o, password: randomBytes(24).toString("base64url") } : o;
     const r = await createPharmacy({ pharmacy, owner: ownerIn, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
     if (ref) {
@@ -76,10 +81,20 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
       await writeAudit(db, { tenantId: linked.tenantId, userId: linked.id, userName: linked.name, action: "Google sign-in connected", entity: "user", entityId: linked.id, detail: `${g.email} · signed up with Google` });
       await clearPendingSignup();
     }
+    if (verified) await clearVerifiedEmail();
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
     await createSession(owner.id, owner.tokenVersion, viaGoogle ? { mfaPassed: true, device: "Sign-up", firstFactor: "google" } : { mfaPassed: false, device: "Sign-up", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
+}
+
+/** Sign-up with email, step 1: send a 6-digit code to the address. */
+export async function sendSignupEmailCode(email: string): Promise<R> {
+  try { if (!signupOpen()) return fail("Sign-up is not open on this server."); await sendSignupCode(email); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
+}
+/** Step 2: the code matches; the pharmacy form opens with this email. */
+export async function verifySignupEmailCode(email: string, code: string): Promise<R> {
+  try { await verifySignupCode(email, code); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
 }
 
 /** Checks the live database this server is configured with. */
@@ -119,34 +134,6 @@ export async function passwordSignIn(email: string, password: string): Promise<R
   await clearFailures(keys);
   await confirmPendingLink(user.id);
   return { ok: true, data: await finishSignIn(user, "password", "Email and password") };
-}
-
-export async function requestSignInOtp(phone: string): Promise<R> {
-  if (!otpEnabled()) return fail("Mobile OTP is not set up on this server. Use email and password.");
-  const p = normPhone(phone);
-  if (!MOBILE_RE.test(p)) return fail("Enter a valid 10-digit Indian mobile number.");
-  const mins = await checkLock(["acct:" + p]);
-  if (mins) return fail(`Too many attempts. Try again in ${mins} minutes.`);
-  try {
-    await throttleSend(p);
-    const user = await db.user.findFirst({ where: { phone: p, active: true } });
-    // Same response whether or not the number exists, so the form can't be used to find accounts.
-    if (user) await sendOtp(p, "signin");
-  } catch (e) { return fail(errMsg(e)); }
-  return { ok: true };
-}
-
-export async function otpSignIn(phone: string, code: string): Promise<R<string>> {
-  const p = normPhone(phone);
-  const r = await verifyOtp(p, code, "signin");
-  if (!r.ok) {
-    await recordFailure(["acct:" + p]);
-    return fail(r.left ? `Incorrect OTP. ${r.left} attempts left.` : "That code has expired. Send a new OTP.");
-  }
-  const user = await db.user.findFirst({ where: { phone: p, active: true } });
-  if (!user) return fail("No account uses this number.");
-  await clearFailures(["acct:" + p]);
-  return { ok: true, data: await finishSignIn(user, "otp", "Mobile OTP") };
 }
 
 // ───────────── MFA ─────────────
@@ -327,4 +314,3 @@ export async function completeInvite(input: { code: string; inviteCode: string; 
   } catch (e) { return fail(errMsg(e)); }
 }
 
-export async function otpAvailable() { return otpEnabled(); }

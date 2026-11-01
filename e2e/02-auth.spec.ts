@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { addEmployee, anonContext, choosePasswordSignIn, createStaff, db, employeeLogin, enterTotp, joinWithInvite, ownerPasswordStep, state, uid } from "./helpers";
+import { addEmployee, anonContext, createStaff, db, employeeLogin, enterTotp, joinWithInvite, ownerPasswordStep, state, uid } from "./helpers";
 import { startMailSink } from "./mail-sink";
 
 /** Spec 2 · sign-in: owner email + password + TOTP, lockout, trusted PC; counter staff with PIN. */
@@ -99,7 +99,6 @@ test.describe("counter staff", () => {
       await joinWithInvite(p, { code: state().tenantCode, invite, contact: email, name: "Sunil Manager", pin: oldPw });
 
       await p.goto("/signin");
-      await choosePasswordSignIn(p);
       await p.getByRole("button", { name: "Forgot password?" }).click();
       await expect(p.getByText("Reset your password")).toBeVisible();
       await p.getByLabel("Email", { exact: true }).fill(email);

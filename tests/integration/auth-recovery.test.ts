@@ -19,8 +19,8 @@ import { getCtx, type Ctx } from "@/server/context";
 import { openSecret } from "@/server/totp";
 import { resetJwksCache } from "@/server/google-oidc";
 import {
-  checkInviteContact, completeInvite, ensureMfaSecret, forgotPassword, otpSignIn, passwordSignIn, requestSignInOtp, resetMfaWithCode,
-  resetPassword, sendMfaResetCode, signupAction, verifyMfa,
+  checkInviteContact, completeInvite, ensureMfaSecret, forgotPassword, passwordSignIn, resetMfaWithCode,
+  resetPassword, sendMfaResetCode, sendSignupEmailCode, signupAction, verifyMfa, verifySignupEmailCode,
 } from "@/app/(auth)/actions";
 import { changePassword, changePin, disconnectGoogle, profileSecurity, regenerateRecoveryCodes } from "@/domain/identity/account";
 import { issueReset, resetTwoStep } from "@/domain/identity/admin";
@@ -316,6 +316,24 @@ describe("account recovery, providers and Google sign-in", () => {
     expect((await getCtx())?.userName).toBe("New Owner");
     // Next time, Google signs them straight in.
     expect(await google2({ sub: "g-new", email: "new.owner@gmail.com" })).toBe(`${APP}/app`);
+
+    // Sign-up with email: the address is confirmed with a code before the pharmacy can be created.
+    jar.clear();
+    const form = (email: string, code: string): Parameters<typeof signupAction>[0] => ({
+      pharmacy: { name: "Email Owner Medicals", code, gstin: "", dl: "MH-9998", pharmacist: "", address: "Bokaro", lang: "en" },
+      owner: { name: "Email Owner", email, phone: "9822000078", password: "email-owner-pw-1" },
+      branches: [{ name: "Main branch", counters: 1 }], invites: [], backupKey: "C".repeat(43), kitAck: true, agree: true,
+    });
+    expect(await signupAction(form("mail.owner@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: false, error: expect.stringMatching(/Confirm your email/) });
+    expect(await sendSignupEmailCode(EMAIL)).toMatchObject({ ok: false, error: expect.stringMatching(/already exists/) });
+    expect(await sendSignupEmailCode("mail.owner@gmail.com")).toEqual({ ok: true });
+    expect(JSON.parse(sent.at(-1)!.body)).toMatchObject({ to: ["mail.owner@gmail.com"], subject: expect.stringMatching(/sign-up code/) });
+    expect(await verifySignupEmailCode("mail.owner@gmail.com", other(lastCode()))).toMatchObject({ ok: false });
+    expect(await verifySignupEmailCode("mail.owner@gmail.com", lastCode())).toEqual({ ok: true });
+    // The confirmed address only: another email on the form is refused.
+    expect(await signupAction(form("someone.else@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: false, error: expect.stringMatching(/Confirm your email/) });
+    expect(await signupAction(form("mail.owner@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: true, data: { tenantCode: "MAIL-OWNER" } });
+    expect(await readSession(true)).toMatchObject({ firstFactor: "password", mfaPassed: false });
     vi.stubEnv("PUBLIC_SIGNUP", "");
 
     await db.loginAttempt.create({ data: { key: "acct:" + EMAIL, lockedUntil: new Date(Date.now() + 600_000) } });
@@ -347,21 +365,7 @@ describe("account recovery, providers and Google sign-in", () => {
     expect((await googleStart(new Request(`${APP}/api/auth/google/start`))).headers.get("location")).toBe(`${APP}/signin?google=off`);
   });
 
-  it("mobile OTP sign-in via Twilio and invite OTP via the http webhook; a failed send is a clear error", async () => {
-    vi.stubEnv("OTP_PROVIDER", "twilio"); vi.stubEnv("TWILIO_ACCOUNT_SID", "AC1"); vi.stubEnv("TWILIO_AUTH_TOKEN", "tt"); vi.stubEnv("TWILIO_FROM", "+15005550006");
-    expect(await requestSignInOtp("9822999999")).toEqual({ ok: true });
-    expect(sent).toHaveLength(0);
-    expect(await requestSignInOtp("098220 00001")).toEqual({ ok: true });
-    expect(sent[0].url).toBe("https://api.twilio.com/2010-04-01/Accounts/AC1/Messages.json");
-    expect(new URLSearchParams(sent[0].body).get("To")).toBe("+91" + PHONE);
-    expect((await otpSignIn(PHONE, other(lastCode()))).ok).toBe(false);
-    expect(await otpSignIn(PHONE, lastCode())).toEqual({ ok: true, data: "/signin/mfa" });
-
-    fail = true;
-    expect(await requestSignInOtp(PHONE)).toEqual({ ok: false, error: "Couldn’t send the code, try again." });
-    expect(await db.otpCode.count({ where: { phone: PHONE } })).toBe(0);
-    fail = false;
-
+  it("invite OTP via the http webhook", async () => {
     vi.stubEnv("OTP_PROVIDER", "http"); vi.stubEnv("OTP_HTTP_URL", "https://sms.example/hook"); vi.stubEnv("OTP_HTTP_TOKEN", "hook-token");
     const t = await db.tenant.findFirstOrThrow();
     const inv = await db.invite.findFirstOrThrow({ where: { contact: "9850000002", usedAt: null } });
@@ -397,7 +401,6 @@ describe("account recovery, providers and Google sign-in", () => {
       expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/app`); // Google needs no second code
     };
     const mailsAndSms = () => sent.filter((s) => !s.url.includes("oauth2.googleapis.com")).length;
-    const refused = { ok: false, error: expect.stringMatching(/needs a sign-in with your password/) };
 
     // A password session asks for a code; a Google session can't spend it.
     await db.session.updateMany({ where: { userId: owner.id, firstFactor: { in: ["google", "otp"] } }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });
@@ -415,16 +418,6 @@ describe("account recovery, providers and Google sign-in", () => {
     expect((await resetMfaWithCode(code)).ok).toBe(false);
     expect(mailsAndSms()).toBe(before);
 
-    // Mobile-OTP sign-in, with SMS the only channel left: still refused, nothing sent.
-    vi.stubEnv("MAIL_PROVIDER", "");
-    jar.clear();
-    expect(await requestSignInOtp(PHONE)).toEqual({ ok: true });
-    expect(await otpSignIn(PHONE, lastCode())).toEqual({ ok: true, data: "/signin/mfa" });
-    expect((await readSession(true))?.firstFactor).toBe("otp");
-    const sms = mailsAndSms();
-    expect(await sendMfaResetCode()).toEqual(refused);
-    expect(await resetMfaWithCode(code)).toEqual(refused);
-    expect(mailsAndSms()).toBe(sms);
     expect(await db.user.findUniqueOrThrow({ where: { id: owner.id } })).toMatchObject({ mfaEnabled: true });
     expect(await db.recoveryCode.count({ where: { userId: owner.id, usedAt: null } })).toBe(10);
 
@@ -432,7 +425,7 @@ describe("account recovery, providers and Google sign-in", () => {
     vi.stubEnv("MAIL_PROVIDER", "resend");
     jar.clear();
     await passwordSignIn(EMAIL, PW);
-    expect(await sendMfaResetCode()).toMatchObject({ ok: false, error: expect.stringMatching(/signed in to this account with Google or a mobile code recently/) });
+    expect(await sendMfaResetCode()).toMatchObject({ ok: false, error: expect.stringMatching(/signed in to this account with Google recently/) });
     expect(await resetMfaWithCode(code)).toMatchObject({ ok: false, error: expect.stringMatching(/paused/) });
     // …and once they are older, the password session's reset works.
     await db.session.updateMany({ where: { userId: owner.id, firstFactor: { in: ["google", "otp"] } }, data: { createdAt: new Date(Date.now() - 25 * 3600_000) } });

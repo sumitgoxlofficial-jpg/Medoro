@@ -93,15 +93,8 @@ export const money = (rupees: number) => "₹" + rupees.toLocaleString("en-IN", 
 /** A context with nobody signed in (browser.newContext() in a test inherits the project's owner session). */
 export const anonContext = (browser: Browser) => browser.newContext({ storageState: { cookies: [], origins: [] } });
 
-/** The "Mobile OTP / Email & password" switch only shows when an SMS provider is configured. */
-export async function choosePasswordSignIn(page: Page) {
-  const tab = page.getByRole("button", { name: "Email & password" });
-  if (await tab.count()) await tab.click();
-}
-
 export async function ownerPasswordStep(page: Page, email: string, password: string) {
   await page.goto("/signin");
-  await choosePasswordSignIn(page);
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

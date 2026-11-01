@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { db } from "@/server/db";
 import { getStaff, type Staff } from "@/staff/auth";
 import { completeGooglePartner, partnerFromGoogle, setEmployeeStatus, signIn, signup } from "@/staff/people";
+import { sendSignupCode, verifySignupCode } from "@/domain/identity/signup-email";
 import { leaderboard, partnerLeaderboard, partnerOverview, payWithRazorpay, payoutBankDetails, payoutWebhook, periodStarts, recordBankTransfer, shortName } from "@/staff/partners";
 import { referredPharmacies, referrer, salesList, saveBank } from "@/staff/sales";
 import { confirmCheckout, createOrder } from "@/domain/system/razorpay";
@@ -226,5 +227,23 @@ describe("reference partners", () => {
     await expect(payoutBankDetails(admin, meena.id)).rejects.toThrow(/Verify/); // bank still pending
     expect(await payoutBankDetails(admin, ravi.id)).toMatchObject({ holder: "Ravi Kulkarni", account: "50100012345678", ifsc: "HDFC0001234" });
     expect(await db.staffAudit.count({ where: { action: "Payout bank details viewed", detail: { contains: "Ravi Kulkarni" } } })).toBe(1);
+  });
+
+  it("a partner joining with email confirms it with a code first (when email is set up)", async () => {
+    jar.clear();
+    vi.stubEnv("MAIL_PROVIDER", "resend"); vi.stubEnv("RESEND_API_KEY", "re_test"); vi.stubEnv("MAIL_FROM", "Medoro <no-reply@medoro.in>");
+    const mails: { to: string[]; text: string }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => { mails.push(JSON.parse(String(init.body))); return new Response(JSON.stringify({ id: "m1" }), { status: 200, headers: { "Content-Type": "application/json" } }); }));
+    const join = { name: "Kiran Das", email: "kiran.mr@gmail.com", phone: "9822010090", role: "partner" as const, password: "kiran password 1" };
+    await expect(signup(join)).rejects.toThrow(/Confirm your email/);
+    await expect(sendSignupCode("ravi.mr@gmail.com", "partner")).rejects.toThrow(/already have a partner profile/);
+    await sendSignupCode("kiran.mr@gmail.com", "partner");
+    expect(mails.at(-1)).toMatchObject({ to: ["kiran.mr@gmail.com"] });
+    const code = /\n {4}(\d{6})\n/.exec(mails.at(-1)!.text)![1];
+    await expect(verifySignupCode("kiran.mr@gmail.com", code === "000000" ? "111111" : "000000")).rejects.toThrow(/didn’t match/);
+    await verifySignupCode("kiran.mr@gmail.com", code);
+    await expect(signup({ ...join, email: "other.mr@gmail.com" })).rejects.toThrow(/Confirm your email/);
+    expect(await signup(join)).toMatchObject({ active: true, role: "partner" });
+    expect(await signIn("kiran.mr@gmail.com", "kiran password 1", "partner")).toMatchObject({ next: "done" });
   });
 });

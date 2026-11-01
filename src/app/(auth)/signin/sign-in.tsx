@@ -2,12 +2,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IdCard, UserPlus, Check, KeyRound } from "lucide-react";
-import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/components/ui/cn";
 import { WA } from "@/components/site/brand";
 import { AuthButton, AuthCard, AuthError, AuthLabel, Steps, authInput, authMono } from "@/components/auth-ui";
 import {
-  checkInviteContact, completeInvite, countersFor, employeeSignIn, findInvite, forgotPassword, otpSignIn, passwordSignIn, requestSignInOtp, resetPassword,
+  checkInviteContact, completeInvite, countersFor, employeeSignIn, findInvite, forgotPassword, passwordSignIn, resetPassword,
 } from "../actions";
 
 type View = "signin" | "employee" | "join" | "forgot";
@@ -24,39 +23,26 @@ const GOOGLE_NOTICE: Record<string, string> = {
   off: "Google sign-in isn’t set up on this server.",
 };
 
-export function SignIn({ otp, google, recovery, notice, linkEmail, initialView }: { otp: boolean; google: boolean; recovery: Recovery; notice: string | null; linkEmail: string | null; initialView: View }) {
+export function SignIn({ google, recovery, notice, linkEmail, initialView }: { google: boolean; recovery: Recovery; notice: string | null; linkEmail: string | null; initialView: View }) {
   const [view, setView] = useState<View>(initialView);
   const [prefill, setPrefill] = useState<{ code: string; emp: string } | null>(null);
   if (view === "employee") return <Employee onOwner={() => setView("signin")} onJoin={() => setView("join")} prefill={prefill} />;
   if (view === "join") return <Join onDone={(code, emp) => { setPrefill({ code, emp }); setView("employee"); }} onBack={() => setView("employee")} />;
   if (view === "forgot") return <Forgot recovery={recovery} onBack={() => setView("signin")} />;
-  return <Owner otp={otp} google={google} notice={notice} linkEmail={linkEmail} onEmployee={() => setView("employee")} onForgot={() => setView("forgot")} />;
+  return <Owner google={google} notice={notice} linkEmail={linkEmail} onEmployee={() => setView("employee")} onForgot={() => setView("forgot")} />;
 }
 
-function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: boolean; google: boolean; notice: string | null; linkEmail: string | null; onEmployee: () => void; onForgot: () => void }) {
+function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: boolean; notice: string | null; linkEmail: string | null; onEmployee: () => void; onForgot: () => void }) {
   const router = useRouter();
-  const [method, setMethod] = useState<"otp" | "pwd">(otp && !linkEmail ? "otp" : "pwd");
-  const useOtp = otp && method === "otp";
-  const [phone, setPhone] = useState(""), [code, setCode] = useState(""), [sent, setSent] = useState(false);
   const [email, setEmail] = useState(linkEmail ?? ""), [pwd, setPwd] = useState("");
   const [err, setErr] = useState(""), [pending, start] = useTransition();
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
     start(async () => {
-      if (!useOtp) {
-        const r = await passwordSignIn(email, pwd);
-        if (!r.ok) return setErr(r.error);
-        router.replace(r.data!);
-      } else if (!sent) {
-        const r = await requestSignInOtp(phone);
-        if (!r.ok) return setErr(r.error);
-        setSent(true);
-      } else {
-        const r = await otpSignIn(phone, code);
-        if (!r.ok) return setErr(r.error);
-        router.replace(r.data!);
-      }
+      const r = await passwordSignIn(email, pwd);
+      if (!r.ok) return setErr(r.error);
+      router.replace(r.data!);
     });
   };
 
@@ -66,25 +52,12 @@ function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: 
         <div className="text-[22px] font-semibold">Sign in</div>
         {linkEmail ? <div role="status" className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">Google confirmed <strong>{linkEmail}</strong>. Enter your Medoro password once to connect Google sign-in to this account.</div>
           : notice && GOOGLE_NOTICE[notice] ? <div role="status" className="text-[13px] bg-chip rounded-lg p-3">{GOOGLE_NOTICE[notice]}</div> : null}
-        {otp ? (
-          <Segmented value={method} onChange={(v) => { setMethod(v); setErr(""); }} className="self-start"
-            options={[{ value: "otp", label: "Mobile OTP" }, { value: "pwd", label: "Email & password" }]} />
-        ) : null}
-        {useOtp ? (
-          <>
-            <AuthLabel label="Mobile number"><input className={authInput} value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ""))} placeholder="98220 41736" inputMode="tel" autoComplete="tel" disabled={sent} /></AuthLabel>
-            {sent ? <AuthLabel label="6-digit OTP"><input className={cn(authInput, "font-mono text-[18px] tracking-[.3em]")} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus /></AuthLabel> : null}
-          </>
-        ) : (
-          <>
-            <AuthLabel label="Email"><input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@pharmacy.in" autoComplete="username" autoFocus={!linkEmail} /></AuthLabel>
-            <AuthLabel label="Password"><input className={authInput} type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" autoFocus={!!linkEmail} /></AuthLabel>
-            <button type="button" onClick={onForgot} className="self-end -mt-1.5 min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Forgot password?</button>
-          </>
-        )}
+        <AuthLabel label="Email"><input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@pharmacy.in" autoComplete="username" autoFocus={!linkEmail} /></AuthLabel>
+        <AuthLabel label="Password"><input className={authInput} type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" autoFocus={!!linkEmail} /></AuthLabel>
+        <button type="button" onClick={onForgot} className="self-end -mt-1.5 min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Forgot password?</button>
         <AuthError>{err}</AuthError>
         <AuthButton type="submit" disabled={pending}>
-          {pending ? "Please wait…" : useOtp ? (sent ? "Verify OTP" : "Send OTP") : "Sign in"}
+          {pending ? "Please wait…" : "Sign in"}
         </AuthButton>
       </form>
       {google ? (

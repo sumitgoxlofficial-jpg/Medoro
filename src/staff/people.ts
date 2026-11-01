@@ -7,7 +7,8 @@ import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
 import { allow, createStaffSession, isEmail, isStaffEmail, newToken, readStaffSession, staffAudit, staffDomain, tokenHash, type Staff } from "./auth";
 import { MOBILE_RE, digits, type StaffRoleId } from "./constants";
-import { clearPendingPartner, readPendingPartner, setPendingPartner, type GoogleClaims } from "@/server/google-oidc";
+import { clearPendingPartner, clearVerifiedEmail, readPendingPartner, readVerifiedEmail, setPendingPartner, type GoogleClaims } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
 
 const CP = "_cp"; // sequence namespace for the control plane
 const INVITE_DAYS = 7;
@@ -41,6 +42,8 @@ export async function signup(raw: z.input<typeof signupSchema>) {
   const kind = kindOf(i.role);
   if (await byEmail(i.email, kind)) throw new UserError(kind === "partner" ? "You already have a partner profile with this email. Sign in on the Reference partner tab." : "A team profile with this email already exists. Sign in, or ask a super admin.");
   // The first super admin comes from the Medoro team set-up, never from the partner form.
+  // A partner who joins with email proves the address with a code first (when this server can send email).
+  if (kind === "partner" && mailEnabled() && (await readVerifiedEmail()) !== i.email) throw new UserError("Confirm your email with the code we send first.");
   const bootstrap = kind === "team" && (process.env.STAFF_BOOTSTRAP_EMAIL ?? "").trim().toLowerCase() === i.email && !(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }));
   const { empNo, n } = await newEmployeeNo();
   const role: StaffRoleId = bootstrap ? "super_admin" : i.role;
@@ -48,6 +51,7 @@ export async function signup(raw: z.input<typeof signupSchema>) {
   const u = await db.staffUser.create({
     data: { empNo, name: i.name, email: i.email, kind, phone: i.phone, team: i.team, role, status: active ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: earns(role) ? referral(i.name, n) : null },
   });
+  if (kind === "partner") await clearVerifiedEmail();
   await staffAudit({ id: u.id, name: u.name }, bootstrap ? "First super admin created" : role === "partner" ? "Reference partner joined" : "Profile submitted", `${empNo} · ${role}`);
   return { bootstrap, role, active };
 }
