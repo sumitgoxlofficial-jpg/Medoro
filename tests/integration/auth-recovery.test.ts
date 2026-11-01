@@ -287,10 +287,11 @@ describe("account recovery, providers and Google sign-in", () => {
       idClaims = google.claims({ aud: CLIENT, nonce: s.get("nonce"), ...claims });
       return (await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${state ?? s.get("state")}&code=c`))).headers.get("location");
     };
-    expect(await google2({ sub: "g-owner", email: EMAIL })).toBe(`${APP}/signin/mfa`);
-    expect((await readSession(true))?.mfaPassed).toBe(false);
-    expect((await verifyMfa(await totpFor(EMAIL), false)).ok).toBe(true);
+    // Google already verified the person, so there's no second code: straight into the app.
+    expect(await google2({ sub: "g-owner", email: EMAIL })).toBe(`${APP}/app`);
+    expect((await readSession(true))?.mfaPassed).toBe(true);
     expect((await getCtx())?.userName).toBe("Owner Person");
+    expect(await audits("Signed in")).toBeGreaterThan(0);
 
     expect(await google2({ sub: "g-owner", email: EMAIL }, "forged-state")).toBe(`${APP}/signin?google=state`);
     expect(jar.has(SESSION_COOKIE)).toBe(false);
@@ -375,7 +376,7 @@ describe("account recovery, providers and Google sign-in", () => {
       jar.clear();
       const s = new URL((await googleStart(new Request(`${APP}/api/auth/google/start`))).headers.get("location")!).searchParams;
       idClaims = google.claims({ aud: CLIENT, nonce: s.get("nonce"), sub: "g-owner", email: EMAIL });
-      expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/signin/mfa`);
+      expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/app`); // Google needs no second code
     };
     const mailsAndSms = () => sent.filter((s) => !s.url.includes("oauth2.googleapis.com")).length;
     const refused = { ok: false, error: expect.stringMatching(/needs a sign-in with your password/) };
@@ -389,10 +390,11 @@ describe("account recovery, providers and Google sign-in", () => {
     const code = lastCode();
 
     await viaGoogle();
-    expect((await readSession(true))).toMatchObject({ firstFactor: "google", mfaPassed: false });
+    expect((await readSession(true))).toMatchObject({ firstFactor: "google", mfaPassed: true });
     const before = mailsAndSms();
-    expect(await sendMfaResetCode()).toEqual(refused);
-    expect(await resetMfaWithCode(code)).toEqual(refused);
+    // A Google session is already fully signed in, so it has no pending code to reset.
+    expect((await sendMfaResetCode()).ok).toBe(false);
+    expect((await resetMfaWithCode(code)).ok).toBe(false);
     expect(mailsAndSms()).toBe(before);
 
     // Mobile-OTP sign-in, with SMS the only channel left: still refused, nothing sent.
