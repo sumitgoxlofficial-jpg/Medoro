@@ -3,6 +3,7 @@ import { requireCtx, can } from "@/server/context";
 import { driveModeOn } from "@/domain/system/drive-mode";
 import { discountCap } from "@/domain/identity/permissions";
 import { maxDiscount } from "@/domain/sales/approval";
+import { deviceDriveEnabled } from "@/domain/system/gdrive";
 import { PageHead } from "@/components/page-head";
 import { DevicePos } from "./device-pos";
 
@@ -17,7 +18,7 @@ export default async function Page() {
   return (
     <>
       <PageHead title="Billing on this device" sub="Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive. F2 search · F9 complete" />
-      <DevicePos userId={ctx.userId} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} />
+      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} />
     </>
   );
 }

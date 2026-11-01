@@ -47,6 +47,8 @@ export default defineConfig({
   ],
   webServer: process.env.E2E_BASE_URL ? undefined : {
     command: `node node_modules/next/dist/bin/next start -p ${PORT}`,
+    // Devices talk to a fake Google Drive provided by e2e/fake-drive.ts instead of Google (see gdrive.ts).
+    env: { E2E_FAKE_DRIVE: "1" },
     url: `${baseURL}/legal`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

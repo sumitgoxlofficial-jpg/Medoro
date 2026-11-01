@@ -163,3 +163,10 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
   .site-root .will-reveal { opacity: 1; transform: none; }
   .site-keys li[data-step] { opacity: 1 !important; }
 }
+
+/* Device bills (Drive mode): print only the receipt, sized for an 80 mm thermal printer or A4. */
+@media print {
+  body.printing-receipt * { visibility: hidden !important; }
+  body.printing-receipt .receipt-print, body.printing-receipt .receipt-print * { visibility: visible !important; }
+  body.printing-receipt .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; padding: 0; margin: 0; box-shadow: none; border: 0; }
+}

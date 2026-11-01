@@ -24,7 +24,7 @@ export type DriveConfig = {
   account?: string; scope?: string;
   /** "Medoro Backups" folder used by earlier versions. */
   folderId?: string;
-  folders?: { root?: string; pharmacy?: string; backups?: string; files?: string };
+  folders?: { root?: string; pharmacy?: string; backups?: string; files?: string; drivedb?: string };
   /** Set when Google refused the stored token (revoked, expired or password changed). */
   lostAt?: string; lostReason?: string;
 };
@@ -208,7 +208,7 @@ async function findOrCreateFolder(a: DriveAuth, name: string, parent?: string) {
 export const pharmacyFolderName = (t: { name: string; code: string }) => `${t.name.replace(/[/\\]/g, "-")} (${t.code})`;
 
 /** Medoro/<pharmacy>/<kind>, created on first use; ids are cached in the integration's config. */
-async function folderFor(tenantId: string, a: DriveAuth, kind: "backups" | "files") {
+async function folderFor(tenantId: string, a: DriveAuth, kind: "backups" | "files" | "drivedb") {
   const cfg = ((await integration(tenantId))?.config ?? {}) as DriveConfig;
   if (cfg.folders?.[kind]) return cfg.folders[kind];
   const t = await db.tenant.findUniqueOrThrow({ where: { id: tenantId } });
@@ -302,4 +302,23 @@ export async function driveDisconnect(tenantId: string) {
  */
 export async function deviceDriveToken(tenantId: string) {
   return accessToken(tenantDrive(tenantId));
+}
+
+/**
+ * Browser tests only: E2E_FAKE_DRIVE=1 makes devices talk to a fake Google Drive the test provides.
+ * Never honoured on Vercel.
+ */
+const fakeDrive = () => process.env.E2E_FAKE_DRIVE === "1" && !process.env.VERCEL;
+
+/** Can devices of this pharmacy keep DriveDB in Google Drive? */
+export async function deviceDriveEnabled(tenantId: string) {
+  return fakeDrive() || driveConfigured(tenantId);
+}
+
+/** The device's Drive pass for DriveDB: a short-lived token and the Medoro/<pharmacy>/DriveDB folder id. */
+export async function deviceDriveAccess(tenantId: string) {
+  if (fakeDrive()) return { token: "e2e-fake", folderId: "e2e-folder", expiresAt: Date.now() + 50 * 60_000 };
+  const a = tenantDrive(tenantId);
+  const folderId = await folderFor(tenantId, a, "drivedb");
+  return { token: await accessToken(a), folderId, expiresAt: Date.now() + 50 * 60_000 };
 }

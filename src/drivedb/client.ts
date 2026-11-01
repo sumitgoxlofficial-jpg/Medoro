@@ -67,6 +67,32 @@ export class DriveDB {
 
   markPushed(uptoSeq: number) { this.engine.run("UPDATE changeLog SET pushed = 1 WHERE pushed = 0 AND seq <= ?", [uptoSeq]); }
 
+  /**
+   * Applies a change recorded elsewhere (another device, or a log after a snapshot). Not logged again.
+   * Inserts are idempotent; edits apply only if newer than the row's last change (latest clock wins).
+   */
+  applyRemote(c: Pick<Change, "clock" | "tbl" | "rowId" | "op" | "data">) {
+    if (!isTable(c.tbl)) throw new DriveDBError(`Unknown table ${c.tbl} in a change`);
+    const spec = TABLES[c.tbl];
+    const cols = Object.keys(c.data);
+    if (cols.some((k) => !(spec.columns as readonly string[]).includes(k))) throw new DriveDBError(`A change for ${c.tbl} has an unknown column`);
+    this.clock.observe(c.clock);
+    this.engine.tx(() => {
+      if (c.op === "insert") {
+        this.engine.run(`INSERT OR IGNORE INTO ${c.tbl} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`, cols.map((k) => c.data[k]));
+        return;
+      }
+      if (spec.kind !== "mutable") throw new DriveDBError(`${c.tbl} records can't be changed`);
+      const row = this.engine.all<{ updatedAt: string }>(`SELECT updatedAt FROM ${c.tbl} WHERE id = ?`, [c.rowId])[0];
+      if (!row || String(row.updatedAt) >= c.clock) return;
+      const set = cols.filter((k) => k !== "updatedAt" && k !== "id");
+      this.engine.run(`UPDATE ${c.tbl} SET ${[...set.map((k) => `${k} = ?`), "updatedAt = ?"].join(", ")} WHERE id = ?`, [...set.map((k) => c.data[k]), c.clock, c.rowId]);
+    });
+  }
+
+  /** Forgets uploaded change records up to a clock stamp (they are in a Drive snapshot by then). */
+  pruneChanges(uptoClock: string) { this.engine.run("DELETE FROM changeLog WHERE pushed = 1 AND clock <= ?", [uptoClock]); }
+
   /** A local setting of this device (not synced). */
   getMeta(key: string): string | null {
     return this.engine.all<{ value: string }>("SELECT value FROM meta WHERE key = ?", [`cfg:${key}`])[0]?.value ?? null;

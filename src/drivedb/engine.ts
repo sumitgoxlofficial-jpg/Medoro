@@ -11,6 +11,8 @@ export interface SqlEngine {
   /** Runs `fn` atomically. Nested calls use savepoints, so an inner failure rolls back only its own work. */
   tx<T>(fn: () => T): T;
   close(): void;
+  /** The whole database as one file (for snapshots). */
+  exportBytes(): Uint8Array;
 }
 
 /** The parts of a sqlite-wasm `oo1.DB` we use. */
@@ -19,7 +21,8 @@ export type WasmDb = {
   close(): void;
 };
 
-export function wasmEngine(db: WasmDb): SqlEngine {
+/** `exportDb` is sqlite3.capi.sqlite3_js_db_export, bound by the caller (it needs the loaded module). */
+export function wasmEngine(db: WasmDb, exportDb?: (db: WasmDb) => Uint8Array): SqlEngine {
   let depth = 0;
   const run = (sql: string, params: SqlValue[] = []) => { db.exec({ sql, bind: params.length ? params : undefined }); };
   return {
@@ -42,5 +45,9 @@ export function wasmEngine(db: WasmDb): SqlEngine {
       }
     },
     close: () => db.close(),
+    exportBytes: () => {
+      if (!exportDb) throw new Error("This database can’t be exported.");
+      return exportDb(db);
+    },
   };
 }
