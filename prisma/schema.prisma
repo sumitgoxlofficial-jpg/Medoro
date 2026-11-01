@@ -1103,7 +1103,8 @@ model StaffUser {
   id              String         @id @default(uuid())
   empNo           String         @unique
   name            String
-  email           String         @unique
+  email           String
+  kind            String         @default("team") // team (Medoro employees) or partner: one email can have one of each
   phone           String
   role            StaffRole
   team            String         @default("")
@@ -1121,6 +1122,8 @@ model StaffUser {
   createdAt       DateTime       @default(now())
   sessions        StaffSession[]
   bank            StaffBank?
+
+  @@unique([email, kind])
 }
 
 model StaffSession {

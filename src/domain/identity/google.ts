@@ -26,7 +26,10 @@ export async function googleSignIn(c: GoogleClaims) {
     if (await checkLock(["acct:" + (u.email ?? u.id)])) return "/signin?google=locked";
     return finishSignIn(u, "google", "Google");
   }
-  const matches = await db.user.findMany({ where: { email: c.email, active: true, isSupport: false, passwordHash: { not: null }, googleSub: null }, take: 2, select: { id: true } });
+  // One email can have accounts in more than one pharmacy: Google opens the owner account when there is exactly one.
+  const all = await db.user.findMany({ where: { email: c.email, active: true, isSupport: false, passwordHash: { not: null }, googleSub: null }, take: 10, select: { id: true, role: { select: { name: true } } } });
+  const owners = all.filter((m) => m.role.name === "Owner");
+  const matches = all.length === 1 ? all : owners.length === 1 ? owners : all.slice(0, 2);
   if (matches.length === 1) {
     if ((await link(matches[0].id, c, "verified Google email")) === "taken") return "/signin?google=taken";
     const user = await db.user.findUniqueOrThrow({ where: { id: matches[0].id } });

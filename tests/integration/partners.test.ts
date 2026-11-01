@@ -19,7 +19,7 @@ import { ctxFor, makePharmacy, resetDb } from "./helpers";
 const SECRET = "test_secret_123";
 const sig = (s: string) => createHmac("sha256", SECRET).update(s).digest("hex");
 const asStaff = async (email: string): Promise<Staff> => {
-  const u = await db.staffUser.findUniqueOrThrow({ where: { email } });
+  const u = await db.staffUser.findFirstOrThrow({ where: { email } });
   return { id: u.id, empNo: u.empNo, name: u.name, email: u.email, role: u.role, referralCode: u.referralCode, sessionId: "test" };
 };
 function fakeRazorpay(payments: Record<string, { order_id: string; amount: number; status: string }>) {
@@ -47,13 +47,13 @@ describe("reference partners", () => {
     // Sales and care still need a work email; partners don't.
     await expect(signup({ name: "Ravi MR", email: "ravi.mr@gmail.com", phone: "9822010050", role: "sales", password: "ravi password 1" })).rejects.toThrow(/Choose Reference partner/);
     expect(await signup({ name: "Ravi Kulkarni", email: "ravi.mr@gmail.com", phone: "9822010050", role: "partner", password: "ravi password 1" })).toMatchObject({ bootstrap: false, active: true });
-    const ravi = await db.staffUser.findUniqueOrThrow({ where: { email: "ravi.mr@gmail.com" } });
+    const ravi = await db.staffUser.findFirstOrThrow({ where: { email: "ravi.mr@gmail.com" } });
     expect(ravi).toMatchObject({ role: "partner", status: "active", team: "" });
     expect(ravi.referralCode).toMatch(/^[A-Z0-9-]{4,}$/);
     // Sales profiles still wait for a super admin.
     await signup({ name: "Neha Sales", email: "neha@medoro.in", phone: "9822010051", role: "sales", password: "neha password 1" });
     await expect(signIn("neha@medoro.in", "neha password 1")).rejects.toThrow(/approval/);
-    expect(await signIn("ravi.mr@gmail.com", "ravi password 1")).toMatchObject({ next: "done" });
+    expect(await signIn("ravi.mr@gmail.com", "ravi password 1", "partner")).toMatchObject({ next: "done" });
     expect(await getStaff()).toMatchObject({ role: "partner", email: "ravi.mr@gmail.com" });
     expect(await referrer(ravi.referralCode!.toLowerCase())).toMatchObject({ id: ravi.id });
   });
@@ -92,7 +92,7 @@ describe("reference partners", () => {
 
   it("partners see only their own earnings and can add a bank account", async () => {
     await signup({ name: "Meena Joshi", email: "meena@yahoo.in", phone: "9822010060", role: "partner", password: "meena password 1" });
-    const meena = await db.staffUser.findUniqueOrThrow({ where: { email: "meena@yahoo.in" } });
+    const meena = await db.staffUser.findFirstOrThrow({ where: { email: "meena@yahoo.in" } });
     expect(await salesList(await asStaff("meena@yahoo.in"))).toEqual([]);
     expect(await referredPharmacies(await asStaff("meena@yahoo.in"))).toEqual([]);
     expect((await salesList(await asStaff("aarti@medoro.in"))).length).toBe(2); // admin sees all
@@ -107,7 +107,7 @@ describe("reference partners", () => {
     expect(await completeGooglePartner({ name: "Sunil Patil", phone: "98220 10070", team: "MR at Lupin, Nashik" })).toMatchObject({ next: "done", code: expect.stringMatching(/^SUNIL\d+$/) });
     expect(await getStaff()).toMatchObject({ role: "partner", email: "sunil.mr@gmail.com" });
     await expect(completeGooglePartner({ name: "Again", phone: "9822010071", team: "" })).rejects.toThrow(/expired/); // single use
-    await expect(signIn("sunil.mr@gmail.com", "whatever password")).rejects.toThrow(/signs in with Google/);
+    await expect(signIn("sunil.mr@gmail.com", "whatever password", "partner")).rejects.toThrow(/signs in with Google/);
 
     jar.clear();
     expect(await partnerFromGoogle({ sub: "g-111", email: "sunil.mr@gmail.com", name: "Sunil Patil" })).toBe("/staff/login?google=ok");
@@ -117,9 +117,11 @@ describe("reference partners", () => {
     expect(await partnerFromGoogle({ sub: "g-222", email: "ravi.mr@gmail.com", name: "Ravi" })).toBe("/staff/login?google=ok");
     expect(await partnerFromGoogle({ sub: "g-999", email: "ravi.mr@gmail.com", name: "Ravi" })).toBe("/staff/login?google=mismatch");
     jar.clear();
-    expect(await partnerFromGoogle({ sub: "g-333", email: "aarti@medoro.in", name: "Aarti" })).toBe("/staff/login?google=team");
+    // Google never opens a Medoro team profile: the same email gets its own, separate partner profile.
+    expect(await partnerFromGoogle({ sub: "g-333", email: "aarti@medoro.in", name: "Aarti" })).toBe("/staff/login?join=partner&google=new");
     expect(await getStaff()).toBeNull();
-    const sunil = await db.staffUser.findUniqueOrThrow({ where: { email: "sunil.mr@gmail.com" } });
+    jar.clear();
+    const sunil = await db.staffUser.findFirstOrThrow({ where: { email: "sunil.mr@gmail.com" } });
     await setEmployeeStatus(await asStaff("aarti@medoro.in"), sunil.id, "deactivate");
     expect(await partnerFromGoogle({ sub: "g-111", email: "sunil.mr@gmail.com", name: "Sunil" })).toBe("/staff/login?google=deactivated");
     await setEmployeeStatus(await asStaff("aarti@medoro.in"), sunil.id, "reactivate");
@@ -191,5 +193,30 @@ describe("reference partners", () => {
     const r = await recordBankTransfer(admin, ravi.id, "UPI-998877");
     expect(await db.staffPayout.findUniqueOrThrow({ where: { ref: r.ref } })).toMatchObject({ status: "paid", method: "manual", utr: "UPI-998877" });
     expect((await salesList(ravi)).find((x) => x.id === sale.id)!.status).toBe("paid");
+  });
+
+  it("one email can be a Medoro team member and a reference partner; each sign-in opens only its own panel", async () => {
+    jar.clear();
+    // Aarti (super admin) also joins as a partner with the same email.
+    expect(await signup({ name: "Aarti Menon", email: "aarti@medoro.in", phone: "9822010001", role: "partner", password: "aarti partner pw1" })).toMatchObject({ active: true, bootstrap: false, role: "partner" });
+    await expect(signup({ name: "Aarti Menon", email: "aarti@medoro.in", phone: "9822010001", role: "partner", password: "aarti partner pw1" })).rejects.toThrow(/already have a partner profile/);
+    const rows = await db.staffUser.findMany({ where: { email: "aarti@medoro.in" }, orderBy: { createdAt: "asc" } });
+    expect(rows.map((r) => [r.kind, r.role])).toEqual([["team", "super_admin"], ["partner", "partner"]]);
+
+    // Partner tab with the partner password: the partner dashboard, no authenticator.
+    expect(await signIn("aarti@medoro.in", "aarti partner pw1", "partner")).toMatchObject({ next: "done" });
+    expect(await getStaff()).toMatchObject({ role: "partner", id: rows[1].id });
+    // Team tab: the admin profile, which still needs its authenticator. The partner password doesn't open it.
+    jar.clear();
+    await expect(signIn("aarti@medoro.in", "aarti partner pw1", "team")).rejects.toThrow(/incorrect/);
+    expect(await signIn("aarti@medoro.in", "correct horse battery", "team")).toMatchObject({ next: "enroll" });
+    expect(await getStaff()).toBeNull(); // not until the authenticator code
+    // Google opens only the partner profile.
+    jar.clear();
+    expect(await partnerFromGoogle({ sub: "g-aarti", email: "aarti@medoro.in", name: "Aarti" })).toBe("/staff/login?google=ok");
+    expect(await getStaff()).toMatchObject({ role: "partner", id: rows[1].id });
+    // Partner-only emails get a pointer on the team tab, and vice versa.
+    await expect(signIn("ravi.mr@gmail.com", "ravi password 1", "team")).rejects.toThrow(/Use the Reference partner tab/);
+    await expect(signIn("neha@medoro.in", "neha password 1", "partner")).rejects.toThrow(/no partner profile yet/);
   });
 });

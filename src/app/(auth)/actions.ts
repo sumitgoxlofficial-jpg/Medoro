@@ -106,8 +106,13 @@ export async function passwordSignIn(email: string, password: string): Promise<R
   const keys = lockKeys("acct:" + e, ip);
   const mins = await checkLock(keys);
   if (mins) return fail(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
-  const user = await db.user.findFirst({ where: { email: e, active: true }, orderBy: { createdAt: "asc" } });
-  if (!user || !(await verifyPassword(user.passwordHash, password))) {
+  // One email can belong to more than one pharmacy account (an owner here, a manager there). Open the one whose
+  // password this is; if several share it, the owner account.
+  const users = await db.user.findMany({ where: { email: e, active: true, isSupport: false, passwordHash: { not: null } }, include: { role: { select: { name: true } } }, orderBy: { createdAt: "asc" }, take: 5 });
+  const ok: typeof users = [];
+  for (const u of users) if (await verifyPassword(u.passwordHash, password)) ok.push(u);
+  const user = ok.find((u) => u.role.name === "Owner") ?? ok[0];
+  if (!user) {
     const left = await recordFailure(keys);
     return fail(left ? `Email or password is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many attempts. Sign-in is locked for 15 minutes.");
   }

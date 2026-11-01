@@ -15,6 +15,10 @@ const INVITE_DAYS = 7;
 const anyEmail = () => z.string().trim().toLowerCase().refine(isEmail, "Enter a valid email.");
 /** Who earns commission and gets a referral code. */
 const earns = (role: StaffRoleId) => role === "sales" || role === "partner";
+/** Medoro's own team and reference partners are separate profiles: one email can have one of each, each opening its own panel. */
+export type StaffKind = "team" | "partner";
+export const kindOf = (role: StaffRoleId): StaffKind => (role === "partner" ? "partner" : "team");
+const byEmail = (email: string, kind: StaffKind) => db.staffUser.findUnique({ where: { email_kind: { email, kind } } });
 const phone = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile.");
 const password = z.string().min(12, "Password must be at least 12 characters.").max(200);
 
@@ -34,13 +38,15 @@ export const signupSchema = z.object({
 
 export async function signup(raw: z.input<typeof signupSchema>) {
   const i = signupSchema.parse(raw);
-  if (await db.staffUser.findUnique({ where: { email: i.email } })) throw new UserError("A profile with this email already exists. Sign in, or ask a super admin.");
-  const bootstrap = (process.env.STAFF_BOOTSTRAP_EMAIL ?? "").trim().toLowerCase() === i.email && !(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }));
+  const kind = kindOf(i.role);
+  if (await byEmail(i.email, kind)) throw new UserError(kind === "partner" ? "You already have a partner profile with this email. Sign in on the Reference partner tab." : "A team profile with this email already exists. Sign in, or ask a super admin.");
+  // The first super admin comes from the Medoro team set-up, never from the partner form.
+  const bootstrap = kind === "team" && (process.env.STAFF_BOOTSTRAP_EMAIL ?? "").trim().toLowerCase() === i.email && !(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }));
   const { empNo, n } = await newEmployeeNo();
   const role: StaffRoleId = bootstrap ? "super_admin" : i.role;
   const active = bootstrap || role === "partner";
   const u = await db.staffUser.create({
-    data: { empNo, name: i.name, email: i.email, phone: i.phone, team: i.team, role, status: active ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: earns(role) ? referral(i.name, n) : null },
+    data: { empNo, name: i.name, email: i.email, kind, phone: i.phone, team: i.team, role, status: active ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: earns(role) ? referral(i.name, n) : null },
   });
   await staffAudit({ id: u.id, name: u.name }, bootstrap ? "First super admin created" : role === "partner" ? "Reference partner joined" : "Profile submitted", `${empNo} · ${role}`);
   return { bootstrap, role, active };
@@ -50,13 +56,13 @@ export async function signup(raw: z.input<typeof signupSchema>) {
 
 /** After Google: signs an existing partner in, or holds the identity while a new partner adds their details. Returns where to go. */
 export async function partnerFromGoogle(c: GoogleClaims): Promise<string> {
-  const u = (await db.staffUser.findUnique({ where: { googleSub: c.sub } })) ?? (await db.staffUser.findUnique({ where: { email: c.email } }));
+  // Only the partner profile: a Medoro team profile with the same email is separate and never opened by Google.
+  const bySub = await db.staffUser.findUnique({ where: { googleSub: c.sub } });
+  const u = bySub?.kind === "partner" ? bySub : await byEmail(c.email, "partner");
   if (!u) {
     await setPendingPartner({ sub: c.sub, email: c.email, name: c.name });
     return "/staff/login?join=partner&google=new";
   }
-  // Medoro's own team signs in with a password and an authenticator, never Google alone.
-  if (u.role !== "partner") return "/staff/login?google=team";
   if (u.googleSub && u.googleSub !== c.sub) return "/staff/login?google=mismatch";
   if (u.status === "deactivated") return "/staff/login?google=deactivated";
   await db.staffUser.update({ where: { id: u.id }, data: { googleSub: c.sub, ...(u.status !== "active" ? { status: "active" } : {}) } });
@@ -72,13 +78,13 @@ export async function completeGooglePartner(raw: z.input<typeof googlePartnerSch
   const g = await readPendingPartner();
   if (!g) throw new UserError("Your Google sign-in expired. Tap “Continue with Google” again.");
   const i = googlePartnerSchema.parse(raw);
-  if (await db.staffUser.findFirst({ where: { OR: [{ email: g.email }, { googleSub: g.sub }] } })) {
+  if (await db.staffUser.findFirst({ where: { OR: [{ email: g.email, kind: "partner" }, { googleSub: g.sub }] } })) {
     await clearPendingPartner();
     throw new UserError("A profile with this Google account already exists. Tap “Continue with Google” to sign in.");
   }
   const { empNo, n } = await newEmployeeNo();
   const u = await db.staffUser.create({
-    data: { empNo, name: i.name, email: g.email, phone: i.phone, team: i.team, role: "partner", status: "active", googleSub: g.sub, passwordHash: null, referralCode: referral(i.name, n) },
+    data: { empNo, name: i.name, email: g.email, kind: "partner", phone: i.phone, team: i.team, role: "partner", status: "active", googleSub: g.sub, passwordHash: null, referralCode: referral(i.name, n) },
   });
   await clearPendingPartner();
   await staffAudit({ id: u.id, name: u.name }, "Reference partner joined", `${empNo} · Google`);
@@ -86,16 +92,19 @@ export async function completeGooglePartner(raw: z.input<typeof googlePartnerSch
   return { next: "done" as const, code: u.referralCode };
 }
 
-// ── Sign-in: password, then an authenticator code (enrolled on first sign-in).
-export async function signIn(rawEmail: string, pw: string) {
+// ── Sign-in: password, then an authenticator code (enrolled on first sign-in). `as` picks which profile opens.
+export async function signIn(rawEmail: string, pw: string, as: StaffKind = "team") {
   const e = String(rawEmail ?? "").trim().toLowerCase();
   if (!isEmail(e)) throw new UserError("Enter your email.");
   const { ip } = await clientInfo();
-  const keys = lockKeys("staff:" + e, ip);
+  const keys = lockKeys(`staff:${as}:${e}`, ip);
   const mins = await checkLock(keys);
   if (mins) throw new UserError(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
-  const u = await db.staffUser.findUnique({ where: { email: e } });
-  if (u && u.role === "partner" && u.googleSub && !u.passwordHash) throw new UserError("This profile signs in with Google. Tap “Continue with Google”.");
+  const u = await byEmail(e, as);
+  if (!u && (await byEmail(e, as === "team" ? "partner" : "team"))) {
+    throw new UserError(as === "team" ? "This email has a reference partner profile, not a Medoro team profile. Use the Reference partner tab." : "This email has no partner profile yet. Join free below, or use the Medoro team tab.");
+  }
+  if (u && u.kind === "partner" && u.googleSub && !u.passwordHash) throw new UserError("This profile signs in with Google. Tap “Continue with Google”.");
   if (!u || !(await verifyPassword(u.passwordHash, String(pw ?? "")))) {
     const left = await recordFailure(keys);
     await staffAudit({ id: u?.id ?? null, name: e }, "Sign-in failed", "wrong email or password");
@@ -169,10 +178,10 @@ export const employeeSchema = z.object({
 export async function createEmployee(s: Staff, raw: z.input<typeof employeeSchema>, origin: string) {
   allow(s, "super_admin");
   const i = employeeSchema.parse(raw);
-  if (await db.staffUser.findUnique({ where: { email: i.email } })) throw new UserError("Someone already uses this email.");
+  if (await byEmail(i.email, kindOf(i.role))) throw new UserError("Someone already uses this email.");
   const { empNo, n } = await newEmployeeNo();
   const t = newToken();
-  await db.staffUser.create({ data: { empNo, ...i, status: "invited", inviteTokenHash: t.hash, inviteExpiresAt: new Date(Date.now() + INVITE_DAYS * 86400_000), referralCode: earns(i.role) ? referral(i.name, n) : null, approvedBy: s.name } });
+  await db.staffUser.create({ data: { empNo, ...i, kind: kindOf(i.role), status: "invited", inviteTokenHash: t.hash, inviteExpiresAt: new Date(Date.now() + INVITE_DAYS * 86400_000), referralCode: earns(i.role) ? referral(i.name, n) : null, approvedBy: s.name } });
   await staffAudit(s, "Employee created", `${empNo} · ${i.email} · ${i.role}`);
   return { empNo, link: `${origin}/staff/login?invite=${t.token}` };
 }

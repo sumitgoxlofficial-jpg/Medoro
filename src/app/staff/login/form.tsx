@@ -10,11 +10,14 @@ type Step = "signin" | "signup" | "signupDone" | "enroll" | "totp" | "invite" | 
 const input = "border border-input rounded-lg px-3 py-[11px] text-[15px] text-ink outline-none focus:border-teal bg-white w-full";
 const label = "flex flex-col gap-[5px] text-[13px] text-muted";
 
-export function StaffLogin({ domain, invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false }: {
+export function StaffLogin({ domain, invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, as = "partner", setupOpen = false }: {
   domain: string; invite: { token: string; info: { name: string; email: string } | null } | null; pending: { email: string; enrolled: boolean } | null;
   joinPartner?: boolean; google?: boolean; googleNew?: { email: string; name: string } | null; notice?: string; handoff?: boolean;
+  as?: "partner" | "team"; setupOpen?: boolean;
 }) {
   const router = useRouter();
+  // Which profile this sign-in opens: the reference partner dashboard, or the Medoro team console. Same email can have both.
+  const [mode, setMode] = useState<"partner" | "team">(pending ? "team" : as);
   const [step, setStep] = useState<Step>(googleNew ? "gpartner" : invite ? "invite" : pending ? (pending.enrolled ? "totp" : "enroll") : joinPartner ? "signup" : "signin");
   const [email, setEmail] = useState(pending?.email ?? "");
   const [pwd, setPwd] = useState("");
@@ -23,7 +26,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
   const [err, setErr] = useState(notice);
   const [gp, setGp] = useState({ name: googleNew?.name ?? "", phone: "", team: "" });
   const [busy, start] = useTransition();
-  const [su, setSu] = useState({ name: "", email: "", phone: "", team: "", password: "", role: "partner" as const });
+  const [su, setSu] = useState({ name: "", email: "", phone: "", team: "", password: "", role: "partner" as "partner" | "sales" });
   const [doneText, setDoneText] = useState("");
 
   // Signed in with Google: the session cookie is SameSite=Strict, so continue with a same-site navigation.
@@ -35,7 +38,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
   const primary = () => start(async () => {
     setErr("");
     if (step === "signin") {
-      const r = await staffSignIn(email, pwd);
+      const r = await staffSignIn(email, pwd, mode);
       if (!r.ok) return setErr(r.error);
       setPwd("");
       if (r.data.next === "done") { router.replace("/staff"); router.refresh(); return; }
@@ -49,7 +52,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
       if (!r.ok) return setErr(r.error);
       if (r.data.active && r.data.role === "partner") {
         // Partners don't wait for approval: sign straight in.
-        const a = await staffSignIn(su.email, su.password);
+        const a = await staffSignIn(su.email, su.password, "partner");
         if (a.ok && a.data.next === "done") { router.replace("/staff"); router.refresh(); return; }
       }
       setDoneText(r.data.bootstrap ? "You’re the first super admin. Sign in to set up your authenticator." : "You’re in. Sign in to get your referral code and see your earnings.");
@@ -67,7 +70,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
     }
   });
 
-  const label1 = { signin: "Continue", signup: "Create partner account", gpartner: "Create partner account", signupDone: "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
+  const label1 = { signin: "Continue", signup: mode === "team" ? "Create admin profile" : "Create partner account", gpartner: "Create partner account", signupDone: "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
   const gBtn = (text: string) => google ? (
     <a href="/api/auth/google/start?intent=partner" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink"><GoogleG />{text}</a>
   ) : null;
@@ -84,10 +87,19 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
           <form onSubmit={(e) => { e.preventDefault(); primary(); }} className="bg-white border border-line rounded-[14px] p-7 flex flex-col gap-3.5 shadow-[0_1px_2px_rgba(16,24,40,.04)] max-[400px]:p-5">
             <div className="flex gap-3 items-center">
               <span className="size-10 rounded-[10px] bg-[#0E1A1F] text-[#5FD3BC] flex items-center justify-center flex-none"><BadgeCheck size={20} /></span>
-              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">Sales & partner sign in</h1><span className="text-[13px] text-muted">Medoro sales, customer care and reference partners</span></div>
+              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">{mode === "team" ? "Medoro team sign in" : "Reference partner sign in"}</h1><span className="text-[13px] text-muted">{mode === "team" ? "Sales, customer care and admins" : "MRs, distributors and consultants"}</span></div>
             </div>
 
             {handoff ? <div className="text-[14px] text-muted py-2">Signing you in…</div> : null}
+
+            {!handoff && (step === "signin" || step === "signup") ? (
+              <div role="tablist" aria-label="Sign in as" className="grid grid-cols-2 gap-1 bg-[#EEF0F2] p-1 rounded-[10px]">
+                {([["partner", "Reference partner"], ["team", "Medoro team"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => { setMode(k); setStep("signin"); setErr(""); }}
+                    className={`h-9 rounded-lg text-[13.5px] font-semibold cursor-pointer ${mode === k ? "bg-white shadow-[0_1px_2px_rgba(0,0,0,.1)] text-ink" : "text-muted"}`}>{l}</button>
+                ))}
+              </div>
+            ) : null}
 
             {step === "gpartner" && googleNew ? (
               <>
@@ -102,15 +114,25 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
 
             {step === "signin" && !handoff ? (
               <>
-                {gBtn("Partners: continue with Google")}
-                {google ? <div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or with email<span className="h-px flex-1 bg-line" /></div> : null}
-                <label className={label}>Email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder={domain === "*" ? "you@example.com" : `name@${domain} or your partner email`} autoComplete="username" inputMode="email" /></label>
+                {mode === "partner" ? gBtn("Continue with Google") : null}
+                {mode === "partner" && google ? <div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or with email<span className="h-px flex-1 bg-line" /></div> : null}
+                <label className={label}>Email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder={mode === "team" && domain !== "*" ? `name@${domain}` : "you@gmail.com"} autoComplete="username" inputMode="email" /></label>
                 <label className={label}>Password<input className={input} type="password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} autoComplete="current-password" /></label>
                 <div className="flex justify-end -mt-1.5 text-[13px]"><button type="button" onClick={() => setErr("Password resets go through a super admin. Ask them to reset your sign-in; you’ll get a new link.")} className="min-h-10 inline-flex items-center text-teal cursor-pointer">Forgot password?</button></div>
               </>
             ) : null}
 
-            {step === "signup" ? (
+            {step === "signup" && mode === "team" ? (
+              <>
+                <span className="text-[14px] font-semibold">Set up the Medoro admin profile</span>
+                <span className="text-[13px] text-muted">Only for the first super admin, with the email set as the admin email on the server. Everyone else on the team gets an invite from the admin.</span>
+                {([["name", "Full name", "text", "name"], ["email", "Admin email", "email", "email"], ["phone", "Mobile", "tel", "tel"], ["password", "Create a password (12+ characters)", "password", "new-password"]] as const).map(([k, l, t, ac]) => (
+                  <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} /></label>
+                ))}
+              </>
+            ) : null}
+
+            {step === "signup" && mode === "partner" ? (
               <>
                 <span className="text-[14px] font-semibold">Become a reference partner</span>
                 <span className="text-[13px] text-muted">For MRs, distributors and consultants. Refer pharmacies to Medoro and earn commission on every plan they buy. Your account is ready straight away.</span>
@@ -158,9 +180,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
             {!handoff && (step !== "invite" || invite?.info) ? (
               <button type="submit" disabled={busy} className="bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer flex gap-2 items-center justify-center disabled:opacity-60">{busy ? "Please wait…" : label1}</button>
             ) : null}
-            {step === "signin" && !handoff ? <button type="button" onClick={() => { setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
+            {step === "signin" && !handoff && mode === "partner" ? <button type="button" onClick={() => { setSu((x) => ({ ...x, role: "partner" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
+            {step === "signin" && !handoff && mode === "team" && setupOpen ? <button type="button" onClick={() => { setSu((x) => ({ ...x, role: "sales" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />First time? Set up the admin profile</button> : null}
+            {step === "signin" && !handoff && mode === "team" && !setupOpen ? <div className="text-[12.5px] text-muted text-center">New to the team? Ask your admin for an invite link.</div> : null}
             {step === "signup" ? <button type="button" onClick={() => { setStep("signin"); setErr(""); }} className="self-center min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Back to sign in</button> : null}
-            <div className="text-[11.5px] text-faint text-center">Medoro team members also use an authenticator app · every sign-in is audited</div>
+            <div className="text-[11.5px] text-faint text-center">{mode === "team" ? "Team sign-in also needs your authenticator app" : "Partners see only their own referrals and earnings"} · every sign-in is audited</div>
           </form>
 
           <div className="flex gap-2.5 items-start bg-white border border-[#E6E8EB] rounded-xl px-4 py-3.5 text-[13px] text-ink-2">
