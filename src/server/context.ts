@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEFAULT_GRANTS, effectivePerms, ForbiddenError, type Perm, type RoleName, ROLE_NAMES } from "@/domain/identity/permissions";
 import { accessFor } from "@/domain/system/access";
-import { dataInDrive } from "@/domain/system/drive-state";
+import { dataInDrive, mustMove } from "@/domain/system/drive-state";
 import { db } from "./db";
 import { readSession } from "./auth";
 
@@ -35,6 +35,8 @@ export type Ctx = {
   locked?: boolean;
   /** The pharmacy moved its data to Google Drive (or is moving it): Medoro's copy is read-only. */
   moved?: boolean;
+  /** Still on Medoro's copy on Medoro's hosted server: read-only until the owner moves the data to Google Drive. */
+  mustMove?: boolean;
 };
 
 export class ReadOnlyError extends Error {
@@ -52,6 +54,11 @@ export class MovedToDriveError extends Error {
   constructor() { super("This pharmacy’s data now lives in its Google Drive, so Medoro’s copy is read-only. Bill and make changes on the Billing (device) screen."); }
 }
 
+export class MustMoveToDriveError extends Error {
+  status = 409;
+  constructor() { super("Medoro now keeps every pharmacy’s data in its own Google Drive. Until the owner moves it (Billing (device) → Move to Google Drive), Medoro’s copy is read-only."); }
+}
+
 /** Permissions that change business records. Users, integrations, reports and backups stay usable when the subscription lapses. */
 const BUSINESS_PERMS = new Set<string>(["sale", "disc", "credit", "refund", "adjust", "purchase", "payments", "aiAct"]);
 
@@ -59,6 +66,7 @@ const BUSINESS_PERMS = new Set<string>(["sale", "disc", "credit", "refund", "adj
 export function requireSubscription(ctx: Ctx) {
   if (ctx.locked) throw new SubscriptionLockedError();
   if (ctx.moved) throw new MovedToDriveError();
+  if (ctx.mustMove) throw new MustMoveToDriveError();
 }
 
 /** Loads the signed-in user's context for this request, or null. */
@@ -92,6 +100,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     readOnly: u.isSupport,
     locked: (await accessFor(u.tenantId)).readOnly,
     moved: dataInDrive(u.tenant.settings),
+    mustMove: mustMove(u.tenant.settings),
   };
 });
 

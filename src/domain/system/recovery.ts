@@ -1,6 +1,7 @@
 import "server-only";
 import { signupOpen } from "@/server/setup-gate";
 import { TRIAL_DAYS } from "./subscription";
+import { driveRequired } from "./drive-state";
 import { createHash } from "node:crypto";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
@@ -131,6 +132,7 @@ function openForSetup(file: Buffer, kit: string) {
 
 /** What's in the backup, so the owner can check it's the right one before restoring. Nothing is written. */
 export async function previewFreshRestore(file: Buffer, kit: string) {
+  noServerRestore();
   await assertFresh();
   const { key, header, data } = openForSetup(file, kit);
   const n = (t: string) => (data.tables[t] ?? []).length;
@@ -140,6 +142,11 @@ export async function previewFreshRestore(file: Buffer, kit: string) {
   };
 }
 
+/** On Medoro's hosted server no pharmacy's records are kept, so an old Medoro backup can't be restored onto it. */
+function noServerRestore() {
+  if (driveRequired()) throw new UserError("Medoro now keeps every pharmacy’s data in its own Google Drive, not on Medoro’s server, so a Medoro backup can’t be restored here. Sign in, or create a new account, and set up your counter with Google Drive.");
+}
+
 /**
  * Restores a backup onto an empty database: the pharmacy is recreated from the backup through the same test
  * copy → check → swap steps, the recovery-kit key becomes this server's backup key, and everyone signs in with
@@ -147,6 +154,7 @@ export async function previewFreshRestore(file: Buffer, kit: string) {
  * those people set up their authenticator again at sign-in.
  */
 export async function freshRestore(file: Buffer, kit: string, confirmCode: string, drive?: { refreshToken: string; account: string } | null, driveFileId: string | null = null) {
+  noServerRestore();
   await assertFresh();
   const { key, header, data } = openForSetup(file, kit);
   const tenantId = data.tenant.id, at = header.createdAt ?? data.exportedAt;

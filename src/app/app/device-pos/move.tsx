@@ -27,7 +27,7 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   const unwrap = <T,>(r: { ok: true; data: T } | { ok: false; error: string }): T => { if (!r.ok) throw new Error(r.error); return r.data; };
 
   const go = async () => {
-    if (!confirm("Move all of this pharmacy’s data from Medoro into your Google Drive?\n\nWhile it moves, Medoro’s copy is read-only: bill on this device. You can undo the move for 7 days.")) return;
+    if (!confirm("Move all of this pharmacy’s data from Medoro into your Google Drive?\n\nWhile it moves, Medoro’s copy is read-only: bill on this device. You can undo the move for 7 days. After that, Medoro’s copy is deleted.")) return;
     try {
       unwrap(await startMoveAction());
       setStep({ kind: "copying", what: "medicines, stock and customers", done: 0 });
@@ -77,7 +77,7 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
     return (
       <div className="flex flex-col gap-3">
         <div className={card}><div className="flex items-center gap-2 font-semibold text-[15px]"><CheckCircle2 size={18} className="text-teal" />Moved and checked</div>
-          <div className="text-sm text-muted">All {step.checks} checks matched and the data is saved in your Google Drive, encrypted. Medoro’s copy stays read-only; you can undo the move for 7 days.</div></div>
+          <div className="text-sm text-muted">All {step.checks} checks matched and the data is saved in your Google Drive, encrypted. Medoro’s copy stays read-only; you can undo the move for 7 days, then it is deleted.</div></div>
         <RecoveryCodeCard code={step.code} onDone={() => ready(step.cfg)} />
       </div>
     );
@@ -87,7 +87,7 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   return (
     <div className={card} data-testid="move-card">
       <div className="flex items-center gap-2 font-semibold"><CloudUpload size={18} className="text-teal" />Move all my data from Medoro</div>
-      <div className="text-sm text-muted">Copies every medicine, batch, customer, supplier, bill, credit note and purchase onto this device, checks that the counts and totals match Medoro’s exactly, then saves it to your Google Drive, encrypted with a key only you hold. After that, Medoro keeps no working copy: its copy stays read-only for 7 days (you can undo the move then), and is deleted only when you confirm.</div>
+      <div className="text-sm text-muted">Copies every medicine, batch, customer, supplier, bill, credit note and purchase onto this device, checks that the counts and totals match Medoro’s exactly, then saves it to your Google Drive, encrypted with a key only you hold. After that, Medoro keeps no working copy: its copy stays read-only for 7 days (you can undo the move then), and is then deleted, or sooner when you confirm.</div>
       {step.kind === "idle" && <Button variant="primary" className="self-start" onClick={go}>Move all my data</Button>}
       {step.kind === "copying" && <div className="text-sm" role="status">Copying {step.what}… {step.done ? step.done.toLocaleString("en-IN") : ""}</div>}
       {step.kind === "checking" && <div className="text-sm" role="status">Checking counts and totals against Medoro…</div>}

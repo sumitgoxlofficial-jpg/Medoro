@@ -15,7 +15,7 @@ import { DriveGate } from "./drive-gate";
 import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, einvoiceStatusAction, payLinkAction, payStatusAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
-export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, driveResult = null }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; driveResult?: string | null }) {
+export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null }) {
   const conn = useDriveConnect(drive);
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
@@ -27,10 +27,10 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
   }, []);
   const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null };
   return (
-    <DriveGate fresh={fresh} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
+    <DriveGate fresh={fresh || mustMove} move={mustMove} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
     <DeviceApp
       who={who}
-      empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} />}
+      empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} mustMove={mustMove} />}
       side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
       settingsExtra={owner && drive ? <><DevicesPanel /><PaymentsPanel onChange={setPaying} /></> : null}
     />
@@ -38,8 +38,11 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
   );
 }
 
-/** `fresh`: the pharmacy started with its data in Drive, so there is nothing on Medoro to copy or move. */
-function Setup({ owner, userId, drive, access, ready, fresh }: { owner: boolean; userId: string; drive: boolean; access: { status: string; role: string } | null; ready: (c: Cfg) => void; fresh: boolean }) {
+/**
+ * `fresh`: the pharmacy started with its data in Drive, so there is nothing on Medoro to copy or move.
+ * `mustMove`: its data is still on Medoro's copy where Drive is required, so the owner's only way forward is the move.
+ */
+function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner: boolean; userId: string; drive: boolean; access: { status: string; role: string } | null; ready: (c: Cfg) => void; fresh: boolean; mustMove: boolean }) {
   const toast = useToast();
   const dev = deviceDb();
   const [busy, setBusy] = useState(false);
@@ -82,9 +85,10 @@ function Setup({ owner, userId, drive, access, ready, fresh }: { owner: boolean;
   return (
     <div className="flex flex-col gap-3">
     {canMove && <MoveFromMedoro userId={userId} ready={ready} />}
-    <div className={card}>
-      <div className="font-semibold">{canMove ? "Or just try it out" : "Set up this device"}</div>
-      {owner ? (
+    {mustMove && owner && !canMove && !saved && <div className={card}><div className="text-sm text-muted">{drive ? "Checking Google Drive…" : "Connect Google Drive first, then move your pharmacy’s data into it."}</div></div>}
+    {!(mustMove && owner && !saved) && <div className={card}>
+      {!(mustMove && owner) && <div className="font-semibold">{canMove ? "Or just try it out" : "Set up this device"}</div>}
+      {owner && mustMove ? null : owner ? (
         <>
           {fresh ? (
             <>
@@ -98,6 +102,8 @@ function Setup({ owner, userId, drive, access, ready, fresh }: { owner: boolean;
             </>
           )}
         </>
+      ) : mustMove && !saved ? (
+        <div className="text-sm text-muted">Medoro now keeps every pharmacy’s data in its own Google Drive. The owner needs to move this pharmacy’s data on their counter first; this page then sets itself up from Google Drive.</div>
       ) : staffWaiting ? (
         <div className="text-sm text-muted">This counter has asked to join. Ask the owner to approve it on their counter under <b>Counter → Devices</b>; this page then sets itself up from Google Drive.</div>
       ) : access?.status === "removed" ? (
@@ -113,7 +119,7 @@ function Setup({ owner, userId, drive, access, ready, fresh }: { owner: boolean;
           <Button variant={owner ? "outline" : "primary"} className="self-start" onClick={restore} disabled={busy}>{busy ? "Restoring…" : owner ? "Restore from Google Drive" : "Set up from Google Drive"}</Button>
         </div>
       )}
-    </div>
+    </div>}
     </div>
   );
 }

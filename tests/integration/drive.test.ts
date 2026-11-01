@@ -245,24 +245,16 @@ describe("Google Drive: connect, back up, store files, prune and recover", () =>
     expect(g.files.get(row.driveFileId!)!.bytes.equals(png)).toBe(true);
   });
 
-  it("hosted sign-up: a pharmacy that deleted its account comes back from its Drive backup, like WhatsApp", async () => {
+  it("hosted server: an old Medoro backup can't be restored onto it (records live in each pharmacy's Google Drive)", async () => {
     const ctx = await connect();
     const b = await runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
     const file = (await backupFile(ctx, b.id))!.bytes;
-    // Another pharmacy on the same hosted server.
-    await db.tenant.create({ data: { code: "OTHER-PH", name: "Other Pharmacy", settings: {} } });
     vi.stubEnv("PUBLIC_SIGNUP", "1");
     try {
-      await expect(previewFreshRestore(file, KEY)).resolves.toMatchObject({ code: "TEST-PUNE" });
-      await expect(freshRestore(file, KEY, "TEST-PUNE")).rejects.toThrow(/already has an account/);
       expect(await purgeTenant(ctx.tenantId)).toBe(true);
-      expect(await db.tenant.count({ where: { id: ctx.tenantId } })).toBe(0);
-      const done = await freshRestore(file, KEY, "TEST-PUNE");
-      expect(done).toMatchObject({ code: "TEST-PUNE", pharmacy: "Test Medical Store" });
-      expect(await db.tenant.findUniqueOrThrow({ where: { code: "TEST-PUNE" } })).toMatchObject({ id: ctx.tenantId });
-      expect(await db.branch.count({ where: { tenantId: ctx.tenantId } })).toBe(2);
-      expect(await db.user.count({ where: { tenantId: ctx.tenantId, email: "owner@test.in" } })).toBe(1);
-      expect(await db.tenant.count({ where: { code: "OTHER-PH" } })).toBe(1); // the other pharmacy is untouched
+      await expect(previewFreshRestore(file, KEY)).rejects.toThrow(/own Google Drive/);
+      await expect(freshRestore(file, KEY, "TEST-PUNE")).rejects.toThrow(/own Google Drive/);
+      expect(await db.tenant.count({ where: { code: "TEST-PUNE" } })).toBe(0);
     } finally { vi.stubEnv("PUBLIC_SIGNUP", ""); }
   });
 

@@ -23,6 +23,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   if (can(ctx, "delivery") && !can(ctx, "sale") && !can(ctx, "reports")) redirect("/app/deliveries");
   // Records live on the counters (Drive mode): Medoro's dashboard would be empty, so open the counter.
   if (ctx.moved && can(ctx, "sale") && (await driveOnlyOrPurged(ctx.tenantId))) redirect("/app/device-pos");
+  // Still on Medoro's copy where Drive is required: the owner moves it from the counter.
+  if (ctx.mustMove && can(ctx, "sale")) redirect("/app/device-pos");
   const { range: r } = await searchParams;
   const range: Range = r === "7d" || r === "30d" ? r : "today";
   const data = dashboardFor(await dashboard(ctx.tenantId, ctx.branchId, range, ctx.branches.map((b) => b.id)), ctx.perms);

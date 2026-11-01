@@ -11,6 +11,8 @@ import { accessFor } from "@/domain/system/access";
 import { subscriptionBanner } from "@/domain/system/subscription";
 import { remoteRequests, supportInbox } from "@/domain/system/licence";
 import { effectivePerms } from "@/domain/identity/permissions";
+import { driveRequired } from "@/domain/system/drive-state";
+import { UNDO_DAYS } from "@/domain/system/drive-move";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +39,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const move = (tenant.settings as { driveMove?: { state: string; movedAt?: string } }).driveMove;
   if (!move && (tenant.settings as { driveOnly?: boolean }).driveOnly) alerts.unshift("Your pharmacy’s data lives in your Google Drive. Bill, buy and manage stock on Billing (device).");
   if (move) alerts.unshift(move.state !== "moving"
-    ? `Your pharmacy’s data now lives in your Google Drive (moved ${new Date(move.movedAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}). Medoro’s copy is read-only: bill on Billing (device).`
+    ? `Your pharmacy’s data now lives in your Google Drive (moved ${new Date(move.movedAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}). Medoro’s copy is read-only${move.state === "moved" && driveRequired() ? ` and is deleted on ${new Date(Date.parse(move.movedAt!) + UNDO_DAYS * 86400_000).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}` : ""}: bill on Billing (device).`
     : "Your data is moving to Google Drive. Medoro’s copy is read-only until the move finishes or is cancelled.");
+  if (ctx.mustMove) alerts.unshift(owner
+    ? "Medoro now keeps every pharmacy’s data in its own Google Drive. Move yours on Billing (device): until then Medoro’s copy is read-only."
+    : "Medoro now keeps every pharmacy’s data in its own Google Drive. Until the owner moves it on Billing (device), Medoro’s copy is read-only.");
   const del = (tenant.settings as { deletion?: { scheduledFor?: string } }).deletion?.scheduledFor;
   const deletionOn = del ? new Date(del).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : null;
   const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;

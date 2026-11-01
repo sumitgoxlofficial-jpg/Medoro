@@ -15,7 +15,7 @@ type Access = { status: "approved" | "pending" | "removed"; role: "owner" | "sta
  * A counter that is already set up is never blocked, even if Drive is disconnected later: it keeps billing and syncs
  * when Drive is back.
  */
-export function DriveGate({ fresh, drive, owner, access, driveResult, children }: { fresh: boolean; drive: boolean; owner: boolean; access: Access; driveResult: string | null; children: React.ReactNode }) {
+export function DriveGate({ fresh, move = false, drive, owner, access, driveResult, children }: { fresh: boolean; move?: boolean; drive: boolean; owner: boolean; access: Access; driveResult: string | null; children: React.ReactNode }) {
   const dev = deviceDb();
   const [state, setState] = useState<"checking" | "pass" | "connect" | "storage" | "waiting">(fresh ? "checking" : "pass");
   const [code, setCode] = useState<string | null>(null);
@@ -30,6 +30,7 @@ export function DriveGate({ fresh, drive, owner, access, driveResult, children }
         await dev.call("open", deviceId());
         if (await dev.call("config")) { if (!stop) setState("pass"); return; } // already set up: never blocked
         if (!drive) { if (!stop) setState("connect"); return; }
+        if (move) { if (!stop) setState("pass"); return; } // moving from Medoro: the move itself sets up Drive storage
         if (!access) return; // registering this device with Drive mode
         if (access.status !== "approved") { if (!stop) setState("waiting"); return; }
         const st = await dev.call("driveStatus");
@@ -37,7 +38,7 @@ export function DriveGate({ fresh, drive, owner, access, driveResult, children }
       } catch (e) { if (!stop) setErr(errText(e)); }
     })();
     return () => { stop = true; };
-  }, [fresh, drive, access, owner, dev, state]);
+  }, [fresh, move, drive, access, owner, dev, state]);
 
   if (state === "pass" && !code) return <>{children}</>;
   if (code) return <RecoveryCodeCard code={code} onDone={() => { setCode(null); setState("pass"); }} />;
@@ -55,7 +56,7 @@ export function DriveGate({ fresh, drive, owner, access, driveResult, children }
       {state === "connect" && (owner ? (
         <>
           <div className="flex items-center gap-2 font-semibold text-[16px]"><CloudOff size={20} className="text-teal" />Step 1 of 2: connect your Google Drive</div>
-          <div className="text-sm text-muted">Your pharmacy keeps its records in your own Google Drive, so connect it before the first bill. Medoro can see only the files it creates there, and everything is encrypted with a key only you hold.</div>
+          <div className="text-sm text-muted">{move ? "Medoro now keeps every pharmacy’s data in its own Google Drive, not on Medoro’s server. Connect yours, then move your data into it (step 2)." : "Your pharmacy keeps its records in your own Google Drive, so connect it before the first bill."} Medoro can see only the files it creates there, and everything is encrypted with a key only you hold.</div>
           {failed && <div className="text-sm text-bad">{failed}</div>}
           <a href="/api/integrations/google/start?back=device" className="self-start bg-teal text-white rounded-lg px-4 py-2.5 text-sm font-semibold no-underline hover:bg-teal-hover hover:text-white">Connect Google Drive</a>
         </>
