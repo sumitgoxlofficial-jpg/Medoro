@@ -22,7 +22,7 @@ async function signup(page: Page, p: { name: string; email: string; phone: strin
 
 async function signIn(page: Page, email: string) {
   await page.goto("/staff/login");
-  await page.getByLabel("Work email").fill(email);
+  await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Continue" }).click();
 }
@@ -40,7 +40,7 @@ test("bootstrap super admin signs up, approves a sales profile and creates a lea
   await page.getByLabel("Mobile").fill("9822000001");
   await page.getByLabel(/Create a password/).fill(PASSWORD);
   await page.getByRole("button", { name: "Submit for approval" }).click();
-  await expect(page.getByText("Use your @medoro.in work email.")).toBeVisible();
+  await expect(page.getByText(/Medoro team profiles use an @medoro\.in work email/)).toBeVisible();
 
   // First super admin from STAFF_BOOTSTRAP_EMAIL
   await signup(page, { name: "Founder Admin", email: BOOTSTRAP, phone: "9822000002" });

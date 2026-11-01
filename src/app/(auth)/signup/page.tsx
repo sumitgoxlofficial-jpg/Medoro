@@ -3,20 +3,24 @@ import { notFound, redirect } from "next/navigation";
 import { readSession } from "@/server/auth";
 import { signupOpen } from "@/server/setup-gate";
 import { googleLoginConfigured, readPendingSignup } from "@/server/google-oidc";
+import { cookies } from "next/headers";
 import { Wizard } from "../setup/wizard";
 
 export const metadata = { title: "Create your pharmacy account" };
 export const dynamic = "force-dynamic";
 
 /** Self-service sign-up on a hosted multi-pharmacy server. Only when PUBLIC_SIGNUP=1. */
-export default async function Page({ searchParams }: { searchParams: Promise<{ with?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ with?: string; ref?: string }> }) {
   if (!signupOpen()) notFound();
   if (await readSession()) redirect("/app");
   // Arrived from "Continue with Google" with no account yet: the owner account uses that Google identity.
   const g = await readPendingSignup();
   const google = g ? { name: g.name ?? "", email: g.email } : null;
   // Google first: the pharmacy form opens after Google (name and email filled in), or when they choose email instead.
-  const choose = !google && googleLoginConfigured() && (await searchParams).with !== "email";
+  const sp = await searchParams;
+  const choose = !google && googleLoginConfigured() && sp.with !== "email";
+  // A referral code from a partner's link (?ref= here, or the cookie /trial set) is filled in for them.
+  const referral = (sp.ref ?? (await cookies()).get("medoro_ref")?.value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <div className="text-center flex flex-col gap-1.5 max-w-[560px]">
@@ -30,12 +34,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
           </a>
           <div className="text-[13px] text-muted text-center">Your name and email come from Google, so there’s no password to remember. Next you add your pharmacy details.</div>
           <div className="flex items-center gap-3 text-[12px] text-faint"><span className="flex-1 h-px bg-line" />or<span className="flex-1 h-px bg-line" /></div>
-          <Link href="/signup?with=email" className="text-center text-[14px] font-semibold text-teal min-h-10 inline-flex items-center justify-center">Sign up with email instead</Link>
+          <Link href={referral ? `/signup?with=email&ref=${referral}` : "/signup?with=email"} className="text-center text-[14px] font-semibold text-teal min-h-10 inline-flex items-center justify-center">Sign up with email instead</Link>
         </div>
       ) : (
         <>
           {google ? <div className="text-[13.5px] text-ink-2 bg-white border border-line rounded-lg px-4 py-2.5">Signed in with Google as <strong>{google.email}</strong>. Now add your pharmacy details.</div> : null}
-          <Wizard deployment="cloud" signup google={google} />
+          <Wizard deployment="cloud" signup google={google} referral={referral} />
         </>
       )}
     </div>

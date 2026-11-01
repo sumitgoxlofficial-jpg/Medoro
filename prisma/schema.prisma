@@ -1089,6 +1089,7 @@ enum StaffRole {
   super_admin
   sales
   care
+  partner // reference partner: an outside MR or consultant who refers pharmacies for commission
 }
 
 enum StaffStatus {

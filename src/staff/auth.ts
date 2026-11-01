@@ -15,15 +15,27 @@ const SESSION_HOURS = 10;
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export const staffDomain = () => (process.env.STAFF_EMAIL_DOMAIN || "medoro.in").toLowerCase();
-export const isStaffEmail = (e: string) => new RegExp(`^[^@\\s]+@${staffDomain().replace(/\./g, "\\.")}$`, "i").test(e);
+/**
+ * Medoro's own team signs in with work email (STAFF_EMAIL_DOMAIN, default medoro.in; "*" allows any email, every new
+ * profile still waits for a super admin). The first super admin (STAFF_BOOTSTRAP_EMAIL) may use any address.
+ */
+const bootstrapEmail = () => (process.env.STAFF_BOOTSTRAP_EMAIL ?? "").trim().toLowerCase();
+export const isStaffEmail = (e: string) => {
+  const v = String(e ?? "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return false;
+  if (staffDomain() === "*" || (bootstrapEmail() && v === bootstrapEmail())) return true;
+  return v.endsWith("@" + staffDomain());
+};
+/** Reference partners are outside the company: any valid email. */
+export const isEmail = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e ?? "").trim());
 
 export type Staff = { id: string; empNo: string; name: string; email: string; role: StaffRoleId; referralCode: string | null; sessionId: string };
 
-export async function createStaffSession(staffId: string, tokenVersion: number) {
+export async function createStaffSession(staffId: string, tokenVersion: number, opts: { mfaPassed?: boolean } = {}) {
   const token = randomBytes(32).toString("base64url");
   const { ip, userAgent } = await clientInfo();
   const expiresAt = new Date(Date.now() + SESSION_HOURS * 3600_000);
-  await db.staffSession.create({ data: { id: sha(token), staffId, tokenVersion, expiresAt, ip, userAgent } });
+  await db.staffSession.create({ data: { id: sha(token), staffId, tokenVersion, expiresAt, ip, userAgent, mfaPassed: opts.mfaPassed ?? false } });
   (await cookies()).set(STAFF_COOKIE, token, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/staff", expires: expiresAt });
 }
 
