@@ -27,7 +27,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   ]);
   return (
     <>
-      <PageHead title={t(ctx.lang).bak} sub="Encrypted backups on your server and your Google Drive" />
+      <PageHead title={t(ctx.lang).bak} sub="Encrypted backups and files in your own Google Drive, like WhatsApp. Medoro keeps no copy once Drive has it." />
       <BackupView
         history={hist.map((h) => ({ id: h.id, at: h.startedAt.toISOString(), kind: h.kind, size: big(h.sizeBytes), sha: h.sha256, status: h.status, error: h.error, drive: !!h.driveFileId, local: !!h.localPath }))}
         drive={drive} folder={`Medoro/${pharmacyFolderName(tenant)}`}

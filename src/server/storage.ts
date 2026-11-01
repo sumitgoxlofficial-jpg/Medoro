@@ -86,7 +86,8 @@ export async function deleteObject(key: string) {
 export type FileStore = "server" | "gdrive";
 export async function fileStore(tenantId: string): Promise<FileStore> {
   const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } });
-  return (t?.settings as { backup?: { files?: FileStore } } | undefined)?.backup?.files === "gdrive" ? "gdrive" : "server";
+  // Google Drive unless the pharmacy chose this server: their files belong in their own Drive.
+  return (t?.settings as { backup?: { files?: FileStore } } | undefined)?.backup?.files === "server" ? "server" : "gdrive";
 }
 
 /** Saves an uploaded document where the pharmacy chose. If Drive is chosen but unreachable, it's kept on the server. */
@@ -105,6 +106,22 @@ export async function saveDocument(tenantId: string, bytes: Buffer, mime: keyof 
   }
   await putObject(rel, bytes, mime);
   return { sha256, rel, store: "server" as const };
+}
+
+/**
+ * Moves uploaded files this server still holds (added while Drive was unreachable) into the pharmacy's Drive,
+ * then drops the server copy. Only when the pharmacy keeps files in Drive.
+ */
+export async function moveFilesToDrive(tenantId: string, limit = 50) {
+  if ((await fileStore(tenantId)) !== "gdrive" || !(await driveConfigured(tenantId))) return 0;
+  const rows = await db.fileObject.findMany({ where: { tenantId, driveFileId: null, bytes: { not: null }, key: { contains: "/scans/" } }, take: limit });
+  let moved = 0;
+  for (const r of rows) {
+    const driveFileId = await driveUpload(tenantId, "files", r.key.split("/").pop()!, Buffer.from(r.bytes!), { mimeType: r.contentType, appProperties: { medoroKind: "file", medoroTenant: tenantId } });
+    await db.fileObject.update({ where: { key: r.key }, data: { driveFileId, bytes: null } });
+    moved++;
+  }
+  return moved;
 }
 
 export async function readDocument(rel: string) {
