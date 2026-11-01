@@ -6,6 +6,7 @@ import { authorize, type Ctx } from "@/server/context";
 import { big } from "@/lib/money";
 import { isoOf } from "@/lib/dates";
 import { maxDiscount } from "@/domain/sales/approval";
+import { loyaltySettings } from "@/domain/sales/loyalty";
 
 /**
  * "Drive mode" (DriveDB pilot): the pharmacy bills on each device's own database instead of the server.
@@ -38,12 +39,13 @@ export async function setDriveMode(ctx: Ctx, on: boolean) {
 export async function deviceSeed(ctx: Ctx) {
   ownerOnly(ctx, "copy the catalogue to a device");
   if (!(await driveModeOn(ctx.tenantId))) throw new UserError("Turn on Drive mode first.");
-  const [meds, batches, customers, branch, maxDiscountPct] = await Promise.all([
+  const [meds, batches, customers, branch, maxDiscountPct, loyalty] = await Promise.all([
     db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } } }),
     db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null } }),
     db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, select: { id: true, code: true, name: true, address: true, gstin: true, drugLicence: true, tenant: { select: { name: true, legalName: true, gstin: true, phone: true } } } }),
     maxDiscount(ctx.tenantId),
+    loyaltySettings(ctx.tenantId),
   ]);
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Catalogue copied to a device", entity: "tenant", entityId: ctx.tenantId, detail: `${meds.length} medicines, ${batches.length} batches, ${customers.length} customers (${branch.name})` });
   // What a printed bill needs, kept on the device so it can print with no network.
@@ -52,7 +54,8 @@ export async function deviceSeed(ctx: Ctx) {
     dl: branch.drugLicence ?? "", address: branch.address ?? "", phone: branch.tenant.phone ?? "",
   };
   return {
-    branch: { id: branch.id, code: branch.code, name: branch.name }, pharmacy, maxDiscountPct, userId: ctx.userId, userName: ctx.userName,
+    branch: { id: branch.id, code: branch.code, name: branch.name }, pharmacy, maxDiscountPct,
+    loyalty: { enabled: loyalty.enabled, earnPer100: loyalty.earnPer100, pointValuePaise: loyalty.pointValuePaise, minRedeem: loyalty.minRedeem }, userId: ctx.userId, userName: ctx.userName,
     medicines: meds.map((m) => ({
       id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, manufacturer: m.manufacturer, barcode: m.barcode, hsn: m.hsn,
       gstRate: m.gstRate, mrpPaise: big(m.mrpPaise), schedule: m.schedule, packSize: m.packSize, packUnit: m.packUnit, looseUnit: m.looseUnit,

@@ -3,7 +3,7 @@
  * holds the device's counter settings. Ids are kept from the server so the later move to Drive lines up.
  */
 import { DriveDB } from "./client";
-import { CounterError } from "./pharmacy";
+import { CounterError, loyaltyOf, type Loyalty } from "./pharmacy";
 import { validSeries } from "@/lib/docno";
 
 export type Pharmacy = { name: string; tradeName: string; gstin: string; dl: string; address: string; phone: string };
@@ -11,13 +11,14 @@ export type Seed = {
   branch: { id: string; code: string; name: string };
   pharmacy?: Pharmacy;
   userName?: string;
+  loyalty?: { enabled: boolean; earnPer100: number; pointValuePaise: number; minRedeem: number };
   maxDiscountPct: number;
   medicines: Record<string, string | number | boolean | null>[];
   batches: { id: string; medicineId: string; batchNo: string; expiryDate: string; costPaise: number; mrpPaise: number; status: string; qty: number }[];
   customers: { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number }[];
 };
 
-export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean };
+export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty };
 
 /** A counter series for this device: "D" + 4 letters/digits from its id, e.g. DK3F9 (fits the GST 16-character limit). */
 export const seriesFor = (device: string) => ("D" + device.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(-4)).padEnd(5, "0");
@@ -39,6 +40,7 @@ export function importSeed(db: DriveDB, seed: Seed, userId: string): CounterConf
     db.setMeta("series", series);
     db.setMeta("maxDiscountPct", String(seed.maxDiscountPct));
     if (seed.pharmacy) db.setMeta("pharmacy", JSON.stringify(seed.pharmacy));
+    if (seed.loyalty) db.setMeta("loyalty", JSON.stringify(seed.loyalty));
     db.setMeta("userId", userId);
     db.setMeta("userName", seed.userName ?? "Owner");
   });
@@ -52,7 +54,7 @@ export function counterConfig(db: DriveDB): CounterConfig | null {
   const ph = db.getMeta("pharmacy");
   return {
     branchId, series, branchName: db.getMeta("branchName") ?? "", maxDiscountPct: Number(db.getMeta("maxDiscountPct") ?? 100),
-    pharmacy: ph ? (JSON.parse(ph) as Pharmacy) : null, userId: db.getMeta("userId"), userName: db.getMeta("userName") ?? "", pinSet: !!db.getMeta("pinHash"),
+    pharmacy: ph ? (JSON.parse(ph) as Pharmacy) : null, userId: db.getMeta("userId"), userName: db.getMeta("userName") ?? "", pinSet: !!db.getMeta("pinHash"), loyalty: loyaltyOf(db),
   };
 }
 

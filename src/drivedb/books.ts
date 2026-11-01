@@ -85,7 +85,7 @@ export function cashBook(db: DriveDB, branchId: string, iso = todayISO()) {
   const rows = db.engine.all<{ at: string; what: string; amount: number }>(
     `SELECT s.at, 'Bill ' || s.invoiceNo AS what, p.amountPaise AS amount FROM payment p JOIN sale s ON s.id = p.saleId WHERE p.mode = 'cash' AND s.branchId = ?1 AND s.at >= ?2 AND s.at < ?3
      UNION ALL SELECT r.at, 'Received from ' || c.name, r.amountPaise FROM customerReceipt r JOIN customer c ON c.id = r.customerId WHERE r.mode = 'cash' AND r.at >= ?2 AND r.at < ?3
-     UNION ALL SELECT at, 'Refund ' || creditNoteNo, -amountPaise FROM salesReturn WHERE refundMode = 'cash' AND branchId = ?1 AND at >= ?2 AND at < ?3
+     UNION ALL SELECT at, 'Refund ' || creditNoteNo, -(amountPaise - pointsValuePaise) FROM salesReturn WHERE refundMode = 'cash' AND branchId = ?1 AND at >= ?2 AND at < ?3
      UNION ALL SELECT x.at, 'Paid ' || s.name, -x.amountPaise FROM supplierPayment x JOIN supplier s ON s.id = x.supplierId WHERE x.mode = 'cash' AND x.at >= ?2 AND x.at < ?3
      UNION ALL SELECT at, category || COALESCE(' · ' || note, ''), -amountPaise FROM expense WHERE mode = 'cash' AND branchId = ?1 AND at >= ?2 AND at < ?3
      ORDER BY 1`, [branchId, from, to]).map((r) => ({ ...r, amount: n(r.amount) }));

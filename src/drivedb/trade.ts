@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { DriveDB } from "./client";
-import { CounterError, receiveStock, type Medicine } from "./pharmacy";
+import { CounterError, loyaltyOf, receiveStock, type Medicine } from "./pharmacy";
 import { shareOf } from "@/lib/money";
 import { daysTo, fiscalYear, todayISO } from "@/lib/dates";
 import { gstDocNo, validSeries } from "@/lib/docno";
@@ -48,7 +48,7 @@ export function customerBalance(db: DriveDB, customerId: string): number {
     `SELECT
        (SELECT COALESCE(SUM(p.amountPaise), 0) FROM payment p JOIN sale s ON s.id = p.saleId WHERE s.customerId = ?1 AND p.mode = 'credit') AS credit,
        (SELECT COALESCE(SUM(amountPaise), 0) FROM customerReceipt WHERE customerId = ?1) AS paid,
-       (SELECT COALESCE(SUM(r.amountPaise), 0) FROM salesReturn r JOIN sale s ON s.id = r.saleId WHERE s.customerId = ?1 AND r.refundMode = 'credit') AS returned`,
+       (SELECT COALESCE(SUM(r.amountPaise - r.pointsValuePaise), 0) FROM salesReturn r JOIN sale s ON s.id = r.saleId WHERE s.customerId = ?1 AND r.refundMode = 'credit') AS returned`,
     [customerId])[0];
   return one(r.credit) - one(r.paid) - one(r.returned);
 }
@@ -188,14 +188,26 @@ export function createReturn(db: DriveDB, input: z.input<typeof returnInput>, to
       lines.push({ returnId, saleItemId: it.id, batchId: it.batchId, qty: w.qty, amountPaise: amt, taxablePaise: tb, restocked: restock ? 1 : 0 });
       if (restock) movements.push({ branchId: sale.branchId, batchId: it.batchId, qty: units, type: "return", refType: "sales_return", refId: returnId, userId: r.userId, at, note: "Sales return, restocked" });
     }
+    // Loyalty: the share paid with points comes back as points, not money; points earned on it are taken back.
+    const total = Number(db.engine.all<{ t: number }>("SELECT totalPaise AS t FROM sale WHERE id = ?", [sale.id])[0].t);
+    const led = db.engine.all<{ kind: string; points: number }>("SELECT kind, SUM(points) AS points FROM loyaltyLedger WHERE refId = ? GROUP BY kind", [sale.id]);
+    const redeemed = -Number(led.find((x) => x.kind === "redeem")?.points ?? 0), earned = Number(led.find((x) => x.kind === "earn")?.points ?? 0);
+    const pv = loyaltyOf(db).pointValuePaise;
+    const pointsBack = total > 0 ? Math.round((redeemed * amount) / total) : 0;
+    const pointsValue = Math.min(amount, pointsBack * pv);
+    const earnedBack = total > 0 ? Math.floor((earned * amount) / total) : 0;
     const fy = fiscalYear(today);
     const creditNoteNo = gstDocNo(`CN${r.series}`, fy, db.nextSeq(`CN:${r.series}:${fy}`), 4);
     db.from("salesReturn").insert({
       id: returnId, saleId: sale.id, branchId: sale.branchId, deviceId: db.device, creditNoteNo, reason: r.reason, condition: r.condition,
-      refundMode: r.refundMode, amountPaise: amount, taxablePaise: taxable, userId: r.userId, at,
+      refundMode: r.refundMode, amountPaise: amount, taxablePaise: taxable, userId: r.userId, at, pointsValuePaise: pointsValue,
     });
+    if (sale.customerId && (pointsBack || earnedBack)) {
+      if (pointsBack) db.from("loyaltyLedger").insert({ customerId: sale.customerId, points: pointsBack, kind: "return", refId: returnId, at });
+      if (earnedBack) db.from("loyaltyLedger").insert({ customerId: sale.customerId, points: -earnedBack, kind: "return", refId: returnId, at });
+    }
     db.from("salesReturnItem").insert(lines);
     if (movements.length) db.from("stockMovement").insert(movements);
-    return { returnId, creditNoteNo, amountPaise: amount, restocked: lines.filter((l) => l.restocked).length };
+    return { returnId, creditNoteNo, amountPaise: amount, refundPaise: amount - pointsValue, pointsBack, restocked: lines.filter((l) => l.restocked).length };
   });
 }
