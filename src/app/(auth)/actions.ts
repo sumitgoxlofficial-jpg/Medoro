@@ -20,7 +20,7 @@ import { headers } from "next/headers";
 import { randomBytes } from "node:crypto";
 import { clearPendingSignup, readPendingSignup } from "@/server/google-oidc";
 import { adoptSetupDrive } from "@/server/setup-drive";
-import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
+import { MOBILE_RE, inviteContact, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
 
 type R<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -119,34 +119,6 @@ export async function passwordSignIn(email: string, password: string): Promise<R
   await clearFailures(keys);
   await confirmPendingLink(user.id);
   return { ok: true, data: await finishSignIn(user, "password", "Email and password") };
-}
-
-export async function requestSignInOtp(phone: string): Promise<R> {
-  if (!otpEnabled()) return fail("Mobile OTP is not set up on this server. Use email and password.");
-  const p = normPhone(phone);
-  if (!MOBILE_RE.test(p)) return fail("Enter a valid 10-digit Indian mobile number.");
-  const mins = await checkLock(["acct:" + p]);
-  if (mins) return fail(`Too many attempts. Try again in ${mins} minutes.`);
-  try {
-    await throttleSend(p);
-    const user = await db.user.findFirst({ where: { phone: p, active: true } });
-    // Same response whether or not the number exists, so the form can't be used to find accounts.
-    if (user) await sendOtp(p, "signin");
-  } catch (e) { return fail(errMsg(e)); }
-  return { ok: true };
-}
-
-export async function otpSignIn(phone: string, code: string): Promise<R<string>> {
-  const p = normPhone(phone);
-  const r = await verifyOtp(p, code, "signin");
-  if (!r.ok) {
-    await recordFailure(["acct:" + p]);
-    return fail(r.left ? `Incorrect OTP. ${r.left} attempts left.` : "That code has expired. Send a new OTP.");
-  }
-  const user = await db.user.findFirst({ where: { phone: p, active: true } });
-  if (!user) return fail("No account uses this number.");
-  await clearFailures(["acct:" + p]);
-  return { ok: true, data: await finishSignIn(user, "otp", "Mobile OTP") };
 }
 
 // ───────────── MFA ─────────────
@@ -327,4 +299,3 @@ export async function completeInvite(input: { code: string; inviteCode: string; 
   } catch (e) { return fail(errMsg(e)); }
 }
 
-export async function otpAvailable() { return otpEnabled(); }

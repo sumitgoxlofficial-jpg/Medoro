@@ -164,7 +164,7 @@ export async function mfaResetOption(s: { firstFactor: string | null; user: Rese
   const latest = marks.filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0];
   if (latest) {
     const until = new Date(latest.getTime() + MFA_RESET_HOLD_H * 3600_000);
-    const why = other && latest === other.createdAt ? "someone signed in to this account with Google or a mobile code recently" : "your password was reset recently";
+    const why = other && latest === other.createdAt ? "someone signed in to this account with Google recently" : "your password was reset recently";
     return { ok: false, reason: `For your safety this option is paused because ${why}. It opens at ${holdFmt(until)}. ${USE_CODES}` };
   }
   // The first factor is the password, so neither channel was used to sign in; email first, then SMS.
