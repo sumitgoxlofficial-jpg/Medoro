@@ -224,7 +224,7 @@ export async function verifySale(s: Staff, id: string, decision: "verify" | "rej
 
 export async function salesList(s: Staff) {
   const [rows, staff] = await Promise.all([
-    db.cpSale.findMany({ where: s.role === "sales" ? { staffId: s.id } : {}, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
+    db.cpSale.findMany({ where: s.role !== "super_admin" ? { staffId: s.id } : {}, orderBy: [{ date: "desc" }, { createdAt: "desc" }] }),
     db.staffUser.findMany({ select: { id: true, name: true } }),
   ]);
   const name = new Map(staff.map((u) => [u.id, u.name]));
@@ -243,7 +243,7 @@ export const bankSchema = z.object({
 }).refine((b) => b.account === b.account2, { message: "Account numbers do not match.", path: ["account2"] });
 
 export async function saveBank(s: Staff, raw: z.input<typeof bankSchema>) {
-  allow(s, "sales");
+  allow(s, "sales", "partner");
   const b = bankSchema.parse(raw);
   const data = { holder: b.holder, accountSealed: seal(b.account).toString("base64"), last4: b.account.slice(-4), ifsc: b.ifsc, bank: IFSC_BANKS[b.ifsc.slice(0, 4)] ?? "Bank " + b.ifsc.slice(0, 4), type: b.type, panSealed: seal(b.pan).toString("base64"), panMasked: b.pan.slice(0, 2) + "•••••" + b.pan.slice(-3), status: "pending", addedAt: new Date(), verifiedAt: null, verifiedBy: null };
   await db.staffBank.upsert({ where: { staffId: s.id }, create: { staffId: s.id, ...data }, update: data });
@@ -282,7 +282,7 @@ export async function runPayout(s: Staff) {
 
 export async function payouts(s: Staff) {
   const [rows, staff, banks] = await Promise.all([
-    db.cpSale.findMany({ where: { ...(s.role === "sales" ? { staffId: s.id } : { staffId: { not: "" } }), status: { not: "rejected" } }, orderBy: { date: "desc" } }),
+    db.cpSale.findMany({ where: { ...(s.role !== "super_admin" ? { staffId: s.id } : { staffId: { not: "" } }), status: { not: "rejected" } }, orderBy: { date: "desc" } }),
     db.staffUser.findMany({ select: { id: true, name: true } }),
     db.staffBank.findMany(),
   ]);
@@ -304,4 +304,39 @@ export async function payouts(s: Staff) {
 export async function pendingBanks() {
   const b = await db.staffBank.findMany({ where: { status: "pending" }, include: { staff: { select: { name: true, empNo: true } } } });
   return b.map((x) => ({ staffId: x.staffId, name: x.staff.name, empNo: x.staff.empNo, label: `${x.bank} •••• ${x.last4}`, holder: x.holder, ifsc: x.ifsc, panMasked: x.panMasked, addedAt: isoOf(x.addedAt) }));
+}
+
+// ── Reference partners and sales people get credited automatically when a pharmacy they referred pays online.
+
+/** The active sales person or reference partner behind a referral code, or null. */
+export async function referrer(code: string) {
+  const c = String(code ?? "").trim().toUpperCase();
+  if (!c) return null;
+  return db.staffUser.findFirst({ where: { referralCode: c, status: "active", role: { in: ["sales", "partner"] } }, select: { id: true, name: true, referralCode: true } });
+}
+
+/**
+ * Records the commission for a paid online subscription of a pharmacy that signed up with a referral code.
+ * Called inside the payment transaction; the Razorpay payment id keeps it to one sale per payment.
+ */
+export async function creditReferralTx(tx: Tx, i: { staffId: string; pharmacy: string; phone: string; product: string; cycle: string; firstPayment: boolean; amountBeforeGstPaise: number; paymentId: string }) {
+  if (i.amountBeforeGstPaise <= 0) return null;
+  if (await tx.cpSale.findFirst({ where: { payRef: i.paymentId, staffId: i.staffId }, select: { id: true } })) return null;
+  const u = await tx.staffUser.findUnique({ where: { id: i.staffId }, select: { status: true } });
+  if (!u || u.status !== "active") return null;
+  const type = i.firstPayment ? "new" : "renewal";
+  const rate = await rateFor(i.staffId, i.product, type);
+  return tx.cpSale.create({ data: {
+    date: dateOnly(todayISO()), pharmacy: i.pharmacy, phone: i.phone, city: "", product: i.product, cycle: i.cycle, type, staffId: i.staffId,
+    status: "verified", amountPaise: i.amountBeforeGstPaise, ratePct: rate, commissionPaise: Math.round((i.amountBeforeGstPaise * rate) / 100),
+    verifiedBy: "Razorpay", verifiedAt: new Date(), payRef: i.paymentId,
+  } });
+}
+
+/** Pharmacies that signed up with this person's referral code, newest first. */
+export async function referredPharmacies(s: Staff) {
+  const rows = await db.$queryRaw<{ id: string; name: string; createdAt: Date; status: string | null; plan: string | null; renewsAt: Date | null }[]>`
+    SELECT t.id, t.name, t."createdAt", m.status, m.plan, m."renewsAt" FROM "Tenant" t LEFT JOIN "SubscriptionMeta" m ON m."tenantId" = t.id
+    WHERE t.settings->'referral'->>'staffId' = ${s.id} ORDER BY t."createdAt" DESC LIMIT 500`;
+  return rows.map((r) => ({ id: r.id, name: r.name, joined: isoOf(r.createdAt), status: r.status ?? "trial", plan: r.plan ?? "", renewsOn: r.renewsAt ? isoOf(r.renewsAt) : null }));
 }

@@ -27,7 +27,7 @@ const suggestCode = (name: string, addr: string) => {
 };
 
 /** `signup` is self-service sign-up on a hosted server: no database step (the server's own is used) and terms to accept. */
-export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false, google = null }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean; google?: { name: string; email: string } | null }) {
+export function Wizard({ deployment, driveApp = false, driveAccount = null, onRestore, signup = false, google = null, referral = "" }: { deployment: Dep; driveApp?: boolean; driveAccount?: string | null; onRestore?: () => void; signup?: boolean; google?: { name: string; email: string } | null; referral?: string }) {
   const router = useRouter();
   const drive = useSetupDrive(driveAccount);
   const toast = useToast();
@@ -48,6 +48,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   const [kit, setKit] = useState<{ key: string; fp: string } | null>(null);
   const [kitAck, setKitAck] = useState(false);
   const [agree, setAgree] = useState(false);
+  const [ref, setRef] = useState(referral);
   const [result, setResult] = useState<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string } | null>(null);
 
   const setP = (k: keyof typeof ph) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -95,7 +96,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
           pharmacy: ph, owner: { name: owner.name, email: owner.email, phone: owner.phone, password: owner.password },
           branches, invites: invites.map((i) => ({ ...i, branch: i.branch || branches[0]?.name })), backupKey: kit.key, kitAck: true as const,
         };
-        const r = signup ? await signupAction({ ...common, agree: true }) : await setupAction({ ...common, deployment: host });
+        const r = signup ? await signupAction({ ...common, agree: true, referral: ref.trim() }) : await setupAction({ ...common, deployment: host });
         if (!r.ok) return setErr(r.error);
         setResult(r.data!); setStep(7);
       });
@@ -151,6 +152,12 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
               <input className={cn(inp, "font-mono w-[180px]")} value={ph.code} onChange={setP("code")} placeholder="SANJ-PUNE" aria-label="Pharmacy code" />
               <span className="text-[12.5px] text-faint">Staff type this at the counter with their employee ID and PIN.</span>
             </div>
+            {signup ? (
+              <div className="flex gap-2.5 items-center text-[13.5px] flex-wrap"><span>Referral code</span>
+                <input className={inp + " font-mono w-[180px] uppercase"} value={ref} onChange={(e) => setRef(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} placeholder="Optional" aria-label="Referral code" />
+                <span className="text-[12.5px] text-faint">{ref ? "From the Medoro partner or sales person who referred you." : "Did a Medoro partner or sales person refer you? Enter their code."}</span>
+              </div>
+            ) : null}
             <div className="flex gap-2.5 items-center text-[13.5px]">Interface language
               <select value={ph.lang} onChange={setP("lang")} className="border border-input rounded-lg px-2.5 py-2 text-[13.5px] bg-white">
                 <option value="en">English</option><option value="hi">हिंदी</option><option value="hinglish">English + Hinglish AI</option>

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { db } from "@/server/db";
+import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
@@ -190,6 +190,7 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
       if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
       await tx.subscriptionMeta.update({ where: { tenantId: p.tenantId }, data: { aiUntil: to, addons: meta!.addons.includes("ai") ? meta!.addons : [...meta!.addons, "ai"] } });
       await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "AI add-on paid", entity: "subscription", entityId: p.id, detail: `${p.cycle === "y" ? "1 year" : "1 month"} · ₹${(p.amountPaise / 100).toLocaleString("en-IN")}${p.couponCode ? ` (coupon ${p.couponCode})` : ""} · ${p.provider === "coupon" ? "no payment needed" : `Razorpay ${paymentId}`} · until ${to.toISOString().slice(0, 10)}` });
+      await creditReferral(tx, p, paymentId);
       return "applied";
     }
     // A trial or plan that is still running keeps its remaining days; a cancelled plan restarts today.
@@ -203,8 +204,20 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
       update: { plan: name, status: "active", renewsAt: to, graceUntil: null },
     });
     await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "Subscription paid", entity: "subscription", entityId: p.id, detail: `${name} · ${p.cycle === "y" ? "1 year" : "1 month"} · ₹${(p.amountPaise / 100).toLocaleString("en-IN")}${p.couponCode ? ` (coupon ${p.couponCode})` : ""} · ${p.provider === "coupon" ? "no payment needed" : `Razorpay ${paymentId}`} · paid until ${to.toISOString().slice(0, 10)}` });
+    await creditReferral(tx, p, paymentId);
     return "applied";
   });
+}
+
+/** A pharmacy that signed up with a referral code: the sales person or reference partner earns commission on what it pays. */
+async function creditReferral(tx: Tx, p: { id: string; tenantId: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; provider: string }, paymentId: string) {
+  if (p.provider === "coupon" || p.amountPaise <= 0) return;
+  const t = await tx.tenant.findUnique({ where: { id: p.tenantId }, select: { name: true, phone: true, settings: true } });
+  const ref = (t?.settings as { referral?: { staffId?: string } } | null)?.referral;
+  if (!t || !ref?.staffId) return;
+  const earlier = await tx.onlinePayment.count({ where: { tenantId: p.tenantId, status: "paid", amountPaise: { gt: 0 }, NOT: { id: p.id }, ...(isAi(p.plan) ? { plan: "ai" } : { plan: { not: "ai" } }) } });
+  const { creditReferralTx } = await import("@/staff/sales");
+  await creditReferralTx(tx, { staffId: ref.staffId, pharmacy: t.name, phone: t.phone ?? "", product: p.plan, cycle: p.cycle, firstPayment: earlier === 0, amountBeforeGstPaise: p.amountPaise - p.gstPaise, paymentId });
 }
 
 /** Applies a captured payment and refunds it straight away if it was a duplicate. */

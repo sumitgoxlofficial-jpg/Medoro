@@ -5,13 +5,15 @@ import { checkLock, clearFailures, clientInfo, hashPassword, lockKeys, recordFai
 import { checkTotp, newTotpSecret, openSecret, totpQr } from "@/server/totp";
 import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
-import { allow, createStaffSession, isStaffEmail, newToken, readStaffSession, staffAudit, staffDomain, tokenHash, type Staff } from "./auth";
+import { allow, createStaffSession, isEmail, isStaffEmail, newToken, readStaffSession, staffAudit, staffDomain, tokenHash, type Staff } from "./auth";
 import { MOBILE_RE, digits, type StaffRoleId } from "./constants";
 
 const CP = "_cp"; // sequence namespace for the control plane
 const INVITE_DAYS = 7;
 
-const email = () => z.string().trim().toLowerCase().refine(isStaffEmail, `Use your @${staffDomain()} work email.`);
+const anyEmail = () => z.string().trim().toLowerCase().refine(isEmail, "Enter a valid email.");
+/** Who earns commission and gets a referral code. */
+const earns = (role: StaffRoleId) => role === "sales" || role === "partner";
 const phone = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile.");
 const password = z.string().min(12, "Password must be at least 12 characters.").max(200);
 
@@ -24,9 +26,9 @@ const referral = (name: string, n: number) => name.trim().split(/\s+/)[0].toUppe
 // ── Self sign-up: waits for a super admin. The very first super admin comes from STAFF_BOOTSTRAP_EMAIL.
 export const signupSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(80),
-  email: email(), phone, team: z.string().trim().max(60).default(""),
-  role: z.enum(["sales", "care"]), password,
-});
+  email: anyEmail(), phone, team: z.string().trim().max(60).default(""),
+  role: z.enum(["sales", "care", "partner"]), password,
+}).refine((i) => i.role === "partner" || isStaffEmail(i.email), { message: `Medoro team profiles use an @${staffDomain()} work email. Joining as an MR or consultant? Choose Reference partner.`, path: ["email"] });
 
 export async function signup(raw: z.input<typeof signupSchema>) {
   const i = signupSchema.parse(raw);
@@ -35,7 +37,7 @@ export async function signup(raw: z.input<typeof signupSchema>) {
   const { empNo, n } = await newEmployeeNo();
   const role: StaffRoleId = bootstrap ? "super_admin" : i.role;
   const u = await db.staffUser.create({
-    data: { empNo, name: i.name, email: i.email, phone: i.phone, team: i.team, role, status: bootstrap ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: role === "sales" ? referral(i.name, n) : null },
+    data: { empNo, name: i.name, email: i.email, phone: i.phone, team: i.team, role, status: bootstrap ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: earns(role) ? referral(i.name, n) : null },
   });
   await staffAudit({ id: u.id, name: u.name }, bootstrap ? "First super admin created" : "Profile submitted", `${empNo} · ${role}`);
   return { bootstrap, role };
@@ -44,7 +46,7 @@ export async function signup(raw: z.input<typeof signupSchema>) {
 // ── Sign-in: password, then an authenticator code (enrolled on first sign-in).
 export async function signIn(rawEmail: string, pw: string) {
   const e = String(rawEmail ?? "").trim().toLowerCase();
-  if (!isStaffEmail(e)) throw new UserError(`Use your @${staffDomain()} work email.`);
+  if (!isEmail(e)) throw new UserError("Enter your email.");
   const { ip } = await clientInfo();
   const keys = lockKeys("staff:" + e, ip);
   const mins = await checkLock(keys);
@@ -55,9 +57,17 @@ export async function signIn(rawEmail: string, pw: string) {
     await staffAudit({ id: u?.id ?? null, name: e }, "Sign-in failed", "wrong email or password");
     throw new UserError(left ? `Email or password is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many attempts. Try again in 15 minutes.");
   }
-  if (u.status === "pending") throw new UserError("Your profile is waiting for super admin approval.");
-  if (u.status !== "active") throw new UserError("This profile is deactivated. Ask a super admin.");
+  if (u.role !== "partner" && !isStaffEmail(e)) throw new UserError(`Use your @${staffDomain()} work email.`);
+  if (u.status === "pending") throw new UserError("Your profile is waiting for approval. You’ll be able to sign in once Medoro approves it.");
+  if (u.status !== "active") throw new UserError("This profile is deactivated. Contact Medoro.");
   await clearFailures(keys);
+  // Reference partners see only their own referrals and earnings, so a password is enough; payouts go to a bank
+  // account Medoro verifies. Medoro's own team also sets up an authenticator app.
+  if (u.role === "partner") {
+    await createStaffSession(u.id, u.tokenVersion, { mfaPassed: true });
+    await staffAudit({ id: u.id, name: u.name }, "Signed in", "password (reference partner)");
+    return { next: "done" as const, who: u.email };
+  }
   await createStaffSession(u.id, u.tokenVersion);
   return { next: u.totpEnabled ? ("totp" as const) : ("enroll" as const), who: u.email };
 }
@@ -108,9 +118,9 @@ export async function acceptInvite(token: string, pw: string) {
 }
 
 export const employeeSchema = z.object({
-  name: z.string().trim().min(2, "Enter the full name.").max(80), email: email(), phone,
-  role: z.enum(["super_admin", "sales", "care"]), team: z.string().trim().max(60).default(""),
-});
+  name: z.string().trim().min(2, "Enter the full name.").max(80), email: anyEmail(), phone,
+  role: z.enum(["super_admin", "sales", "care", "partner"]), team: z.string().trim().max(60).default(""),
+}).refine((i) => i.role === "partner" || isStaffEmail(i.email), { message: `Medoro team members use an @${staffDomain()} work email.`, path: ["email"] });
 
 export async function createEmployee(s: Staff, raw: z.input<typeof employeeSchema>, origin: string) {
   allow(s, "super_admin");
@@ -118,7 +128,7 @@ export async function createEmployee(s: Staff, raw: z.input<typeof employeeSchem
   if (await db.staffUser.findUnique({ where: { email: i.email } })) throw new UserError("Someone already uses this email.");
   const { empNo, n } = await newEmployeeNo();
   const t = newToken();
-  await db.staffUser.create({ data: { empNo, ...i, status: "invited", inviteTokenHash: t.hash, inviteExpiresAt: new Date(Date.now() + INVITE_DAYS * 86400_000), referralCode: i.role === "sales" ? referral(i.name, n) : null, approvedBy: s.name } });
+  await db.staffUser.create({ data: { empNo, ...i, status: "invited", inviteTokenHash: t.hash, inviteExpiresAt: new Date(Date.now() + INVITE_DAYS * 86400_000), referralCode: earns(i.role) ? referral(i.name, n) : null, approvedBy: s.name } });
   await staffAudit(s, "Employee created", `${empNo} · ${i.email} · ${i.role}`);
   return { empNo, link: `${origin}/staff/login?invite=${t.token}` };
 }

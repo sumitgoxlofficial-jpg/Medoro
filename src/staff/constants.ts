@@ -32,7 +32,7 @@ export type StageId = (typeof STAGES)[number]["id"];
 export const LEAD_SOURCES = ["Field visit", "Referral", "Website trial", "Distributor", "Pharmacy association", "Inbound call"] as const;
 export const LOST_REASONS = ["Price", "Using other software", "Not ready yet", "No response", "Closed the shop"] as const;
 
-export const ROLE_LABEL = { super_admin: "Super admin", sales: "Sales", care: "Customer care" } as const;
+export const ROLE_LABEL = { super_admin: "Super admin", sales: "Sales", care: "Customer care", partner: "Reference partner" } as const;
 export type StaffRoleId = keyof typeof ROLE_LABEL;
 
 export const CUSTOMER_STATUS = { trial: "Trial", active: "Active", grace: "Grace period", cancelled: "Cancelled" } as const;

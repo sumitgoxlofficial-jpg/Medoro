@@ -32,7 +32,7 @@ describe("staff console", () => {
     await expect(signup({ name: "Aarti Menon", email: "aarti@gmail.com", phone: "9822010001", role: "sales", password: "correct horse battery" })).rejects.toThrow(/@medoro.in/);
     expect(await signup({ name: "Aarti Menon", email: "aarti@medoro.in", phone: "9822010001", role: "sales", password: "correct horse battery" })).toMatchObject({ bootstrap: true, role: "super_admin" });
     expect(await signup({ name: "Karan Shah", email: "karan.s@medoro.in", phone: "9822010014", role: "sales", password: "karan password 1" })).toMatchObject({ bootstrap: false });
-    await expect(signIn("karan.s@medoro.in", "karan password 1")).rejects.toThrow(/waiting for super admin approval/);
+    await expect(signIn("karan.s@medoro.in", "karan password 1")).rejects.toThrow(/waiting for approval/);
     await expect(signIn("aarti@medoro.in", "wrong password!!")).rejects.toThrow(/4 attempts left/);
 
     expect(await signIn("aarti@medoro.in", "correct horse battery")).toMatchObject({ next: "enroll" });

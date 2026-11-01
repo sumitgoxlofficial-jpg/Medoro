@@ -6,7 +6,7 @@ import { createEmployee, resetEmployeeSignIn, setEmployeeStatus } from "../../ac
 import { Panel, Pill, btn, btnPrimary, fieldCls, lbl, td, th, useRun } from "../ui";
 
 type Row = { id: string; empNo: string; name: string; email: string; phone: string; role: StaffRoleId; team: string; status: string; referralCode: string | null; totpEnabled: boolean };
-const ROLE_C: Record<StaffRoleId, [string, string]> = { super_admin: ["#0E1A1F", "#fff"], sales: ["#E1F1EF", "#0B5E5B"], care: ["#EAF0FC", "#2459C9"] };
+const ROLE_C: Record<StaffRoleId, [string, string]> = { super_admin: ["#0E1A1F", "#fff"], sales: ["#E1F1EF", "#0B5E5B"], care: ["#EAF0FC", "#2459C9"], partner: ["#FDF2E1", "#94570A"] };
 const ST: Record<string, [string, string]> = { active: ["Active", "#18794E"], invited: ["Invited", "#2459C9"], pending: ["Pending approval", "#94570A"], deactivated: ["Deactivated", "#8A929A"] };
 
 export function EmployeesView({ meId, rows }: { meId: string; rows: Row[] }) {

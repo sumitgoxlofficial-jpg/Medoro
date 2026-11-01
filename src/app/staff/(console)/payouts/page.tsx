@@ -4,7 +4,7 @@ import { myBank, payouts, pendingBanks } from "@/staff/sales";
 import { PayoutsView } from "./view";
 
 export default async function Page() {
-  const s = await requireStaff(["super_admin", "sales"]);
+  const s = await requireStaff(["super_admin", "sales", "partner"]);
   const admin = s.role === "super_admin";
   const [rows, bank, banks, verified] = await Promise.all([
     payouts(s), admin ? null : myBank(s), admin ? pendingBanks() : [],

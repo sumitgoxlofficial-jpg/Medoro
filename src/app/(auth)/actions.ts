@@ -50,11 +50,15 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
 
 // ───────────── Self-service sign-up (hosted, multi-pharmacy) ─────────────
 
-export async function signupAction(input: Omit<SetupInput, "deployment"> & { agree: boolean }): Promise<R<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string }>> {
+export async function signupAction(input: Omit<SetupInput, "deployment"> & { agree: boolean; referral?: string }): Promise<R<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string }>> {
   try {
     if (!signupOpen()) return fail("Sign-up is not open on this server.");
     if (input.agree !== true) return fail("Accept the Terms and Privacy Policy to continue.");
     await enforce("signup", clientIp(await headers()) ?? "unknown");
+    // Referred by a Medoro sales person or reference partner: they earn commission on what this pharmacy pays.
+    const { referrer } = await import("@/staff/sales");
+    const ref = input.referral?.trim() ? await referrer(input.referral) : null;
+    if (input.referral?.trim() && !ref) return fail("That referral code isn’t valid. Check it with the person who referred you, or leave it empty.");
     const { pharmacy, owner: o, branches, invites, backupKey, kitAck } = input;
     // Signing up after "Continue with Google": the owner is that verified Google account and needs no password to get in.
     // A random one is set so the account still has a password (it can be changed from Profile or Forgot password).
@@ -62,6 +66,11 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
     const viaGoogle = !!g && g.email === o.email.trim().toLowerCase();
     const ownerIn = viaGoogle && !o.password ? { ...o, password: randomBytes(24).toString("base64url") } : o;
     const r = await createPharmacy({ pharmacy, owner: ownerIn, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
+    if (ref) {
+      const t = await db.tenant.findUniqueOrThrow({ where: { code: r.tenantCode } });
+      await db.tenant.update({ where: { id: t.id }, data: { settings: { ...((t.settings as object) ?? {}), referral: { code: ref.referralCode, staffId: ref.id, at: new Date().toISOString() } } as object } });
+      await writeAudit(db, { tenantId: t.id, userName: "Sign-up", action: "Referred by a Medoro partner", entity: "tenant", entityId: t.id, detail: `code ${ref.referralCode} · ${ref.name}` });
+    }
     if (viaGoogle) {
       const linked = await db.user.update({ where: { id: r.ownerId }, data: { googleSub: g.sub, googleEmail: g.email } });
       await writeAudit(db, { tenantId: linked.tenantId, userId: linked.id, userName: linked.name, action: "Google sign-in connected", entity: "user", entityId: linked.id, detail: `${g.email} · signed up with Google` });
