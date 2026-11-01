@@ -120,8 +120,8 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 @supports (animation-timeline: view()) {
   .site-root [data-reveal] { animation: site-reveal linear both; animation-timeline: view(); animation-range: entry calc(var(--d, 0) * 6%) entry calc(70% + var(--d, 0) * 6%); }
   /* Hero product shot: starts tilted back, settles flat as it scrolls into full view. */
-  @keyframes site-tilt { from { transform: perspective(1800px) rotateX(16deg) scale(.93); } to { transform: perspective(1800px) rotateX(0) scale(1); } }
-  .site-root .site-tilt { transform-origin: 50% 100%; animation: site-tilt linear both; animation-timeline: view(); animation-range: entry 10% cover 50%; }
+  @keyframes site-tilt { from { transform: perspective(1800px) rotateX(7deg) scale(.97); } to { transform: perspective(1800px) rotateX(0) scale(1); } }
+  .site-root .site-tilt { transform-origin: 50% 100%; animation: site-tilt linear both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
   @keyframes site-drift { from { transform: translateY(70px); } to { transform: translateY(-30px); } }
   .site-root .site-drift { animation: site-drift linear both; animation-timeline: view(); animation-range: entry 0% exit 20%; }
 }

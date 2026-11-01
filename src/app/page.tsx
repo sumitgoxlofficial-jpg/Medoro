@@ -182,7 +182,7 @@ export default function Home() {
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>The product</span>
             <h2 id="product-title" className={h2}>One system for the counter, the godown and your CA.</h2>
-            <p className={lead}>Real screens from a Pune pharmacy’s day, not mock-ups. Pick an area to see how it works.</p>
+            <p className={lead}>Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.</p>
           </div>
           <FeatureTabs />
         </section>

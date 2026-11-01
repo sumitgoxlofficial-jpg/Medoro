@@ -36,8 +36,8 @@ export function Hero() {
   const seg = (on: boolean) => `h-9 max-[640px]:h-11 px-3.5 rounded-md text-[14px] font-medium cursor-pointer transition-colors ${on ? "bg-white text-[var(--s-ink)] shadow-[0_1px_2px_rgba(14,22,20,.12)]" : "text-[var(--s-muted)] hover:text-[var(--s-ink)]"}`;
   return (
     <section aria-labelledby="hero-title" className="relative">
-      <div lang={lang === "hi" ? "hi" : "en"} className="max-w-[1200px] mx-auto px-6 pt-[clamp(40px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end max-[640px]:px-4">
-        <div className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-6">
+      <div lang={lang === "hi" ? "hi" : "en"} className="max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4.5vw,56px)] grid grid-cols-12 gap-x-6 gap-y-7 items-end max-[640px]:px-4">
+        <div className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
           <div className="site-up flex items-center gap-4 flex-wrap">
             <span className="text-[14px] font-medium text-[var(--s-brand)]">{c.eyebrow}</span>
             <div role="group" aria-label="Language" className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
@@ -45,7 +45,7 @@ export function Hero() {
               <button type="button" lang="hi" aria-pressed={lang === "hi"} onClick={() => pick("hi")} className={seg(lang === "hi")}>हिंदी</button>
             </div>
           </div>
-          <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(44px,6.6vw,84px)] [--d:1]">
+          <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(42px,6vw,76px)] [--d:1]">
             {c.h1.map((l, i) => <span key={l} className={`block ${i === 1 ? "text-[var(--s-brand)]" : ""}`}>{l}</span>)}
           </h1>
         </div>
@@ -59,7 +59,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="relative mt-[clamp(40px,6vw,72px)]">
+      <div className="relative mt-[clamp(28px,3.5vw,44px)]">
         <div aria-hidden className="absolute inset-x-0 bottom-0 top-[38%] bg-[var(--s-soft)] border-t border-[var(--s-line)]" />
         <div className="relative max-w-[1200px] mx-auto px-6 pb-[clamp(48px,7vw,96px)] max-[640px]:px-4">
           <div className="site-up [--d:3] relative">

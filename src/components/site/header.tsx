@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Wordmark } from "./brand";
 
-export const NAV: [string, string][] = [["Product", "/#product"], ["Switching", "/#switching"], ["Security", "/#security"], ["Pricing", "/#pricing"], ["FAQ", "/#faq"]];
+export const NAV: [string, string][] = [["Product", "/#product"], ["Switching", "/#switching"], ["Security", "/#security"], ["Pricing", "/#pricing"], ["FAQ", "/#faq"], ["Become a partner", "/partners"]];
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
