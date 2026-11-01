@@ -378,6 +378,10 @@ working with me; they overlap a little.
   **No path back onto the server**: importing or applying a Medoro backup is refused for a Drive pharmacy (the
   WhatsApp/SMS webhooks only touch existing customer rows, so they add nothing). The Backup page explains that
   server backups are off and Drive must stay connected.
+- **Drive set-up is mandatory for Drive pharmacies** (`device-pos/drive-gate.tsx`): a new counter of a pharmacy that
+  signed up with Drive storage can't bill until (1) Google Drive is connected (the connect flow comes back to the
+  counter, `?back=device`) and (2) Drive storage is set up (keys and recovery code). A counter already set up is never
+  blocked, even if Drive is disconnected later. Test: `e2e/27-drive-gate.spec.ts`.
 - Left: retiring the server backup code once no pharmacy keeps its data on Medoro's server (not yet: server mode
   is still offered at sign-up).
 

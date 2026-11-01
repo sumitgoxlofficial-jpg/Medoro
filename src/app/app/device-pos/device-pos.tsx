@@ -11,10 +11,11 @@ import { deviceSeedAction } from "../lab/actions";
 import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
 import { PaymentsPanel } from "./payments-panel";
+import { DriveGate } from "./drive-gate";
 import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, einvoiceStatusAction, payLinkAction, payStatusAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
-export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean }) {
+export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, driveResult = null }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; driveResult?: string | null }) {
   const conn = useDriveConnect(drive);
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
@@ -26,12 +27,14 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
   }, []);
   const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null };
   return (
+    <DriveGate fresh={fresh} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
     <DeviceApp
       who={who}
       empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} />}
       side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
       settingsExtra={owner && drive ? <><DevicesPanel /><PaymentsPanel onChange={setPaying} /></> : null}
     />
+    </DriveGate>
   );
 }
 
