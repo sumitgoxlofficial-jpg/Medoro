@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   const [mode, state, verifier] = (c.get("medoro_gstate")?.value ?? "").split(".");
   c.delete({ name: "medoro_gstate", path: "/api/integrations/google" });
   const setup = mode === "setup";
-  const back = (q: string) => setup ? popup(q, req.headers.get("x-nonce")) : Response.redirect(new URL(`/app/backup?drive=${q}`, url.origin), 302);
+  const back = (q: string) => setup ? popup(q, req.headers.get("x-nonce")) : Response.redirect(new URL(`${mode === "device" ? "/app/device-pos" : "/app/backup"}?drive=${q}`, url.origin), 302);
   if (!state || !verifier || !same(state, url.searchParams.get("state") ?? "")) return back("state");
   const code = url.searchParams.get("code");
   if (!code) return back("denied");
