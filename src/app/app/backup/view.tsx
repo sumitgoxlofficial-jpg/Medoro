@@ -113,10 +113,10 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
             }
             setS({ ...s, files: v });
           }} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!driveApp && !connected && settings.files !== "gdrive"}>{connected || settings.files === "gdrive" ? "In Google Drive" : "In Google Drive (connect)"}</option></select></label>
-          {s.files === "gdrive" ? <div className="text-[12px] text-faint -mt-1">New uploads go to {folder}/files. If Drive can’t be reached they’re kept on this server. Every backup includes the files.</div> : null}
+          {s.files === "gdrive" ? <div className="text-[12px] text-faint -mt-1">New uploads go straight to {folder}/files. If Drive can’t be reached they wait on the server and move to Drive with the next backup.</div> : null}
           <div className="flex gap-2">
             {s.schedule !== settings.schedule || s.retention !== settings.retention || s.files !== settings.files ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention, s.files); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
-            <Button variant="primary" disabled={running} onClick={async () => { setRunning(true); const r = await backupNowAction(); setRunning(false); toast(r.ok ? `Backup verified · ${(r.data.size / 1048576).toFixed(2)} MB${r.data.drive ? " · uploaded to Drive" : " · kept on this server"}${r.data.note ? ". " + r.data.note : ""}` : r.error, r.ok ? (r.data.note ? "amber" : "green") : "red"); }}>{running ? "Backing up…" : "Back up now"}</Button>
+            <Button variant="primary" disabled={running} onClick={async () => { setRunning(true); const r = await backupNowAction(); setRunning(false); toast(r.ok ? `Backup verified · ${(r.data.size / 1048576).toFixed(2)} MB${r.data.drive ? " · saved in your Google Drive" : " · kept on this server until Drive is connected"}${r.data.note ? ". " + r.data.note : ""}` : r.error, r.ok ? (r.data.note ? "amber" : "green") : "red"); }}>{running ? "Backing up…" : "Back up now"}</Button>
           </div>
           <div className="text-[12px] text-faint">{hostCron ? "On this hosting the scheduled backup runs once a day at about 03:00 India time, whatever time is set here. If it fails, use Back up now." : "Times are India time. A failed scheduled backup is retried up to 2 more times that day, at least 30 minutes apart."}</div>
         </div>
@@ -138,7 +138,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
                     <td className="px-3.5 py-2.5 border-b border-row font-mono text-[12px]">{h.sha ? `${h.sha.slice(0, 6)}…${h.sha.slice(-4)}` : "—"}</td>
                     <td className="px-3.5 py-2.5 border-b border-row"><Badge tone={tone}>{label}{h.drive ? " · Drive" : ""}</Badge>{h.error ? <div className="text-[12px] text-bad mt-0.5 max-w-[320px]">{h.error}</div> : null}</td>
                     <td className="px-3.5 py-2.5 border-b border-row text-right whitespace-nowrap">
-                      {h.local && (h.status === "verified" || h.status === "partial") ? (
+                      {(h.local || h.drive) && (h.status === "verified" || h.status === "partial") ? (
                         <div className="flex gap-1.5 justify-end">
                           <Button size="sm" onClick={() => { setRestore({ h }); start(async () => { const r = await restoreAction(h.id); setRestore(r.ok ? { h, result: `${r.data.sales} invoices, ${r.data.batches} batches and ${r.data.vouchers} vouchers decrypted and match the manifest.` } : { h, error: r.error }); }); }}>Test restore</Button>
                           {canRestore ? <Button size="sm" disabled={!!preparing} onClick={() => prepare(h)}>{preparing === h.id ? "Preparing test copy…" : "Restore…"}</Button> : null}

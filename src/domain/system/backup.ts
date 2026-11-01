@@ -7,9 +7,9 @@ import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { fingerprint, reseal, unseal } from "@/server/vault";
-import { deleteObject, getObject, putObject, type FileStore } from "@/server/storage";
+import { deleteObject, getObject, moveFilesToDrive, putObject, type FileStore } from "@/server/storage";
 import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, restoreFiles, swapIn, type RestoreSummary } from "./restore";
-import { driveConfigured, driveDelete, driveUpload, listDriveBackups, tenantDrive } from "./gdrive";
+import { driveConfigured, driveDelete, driveDownload, driveUpload, listDriveBackups, tenantDrive } from "./gdrive";
 import { backupDecision, istClock, STALE_RUNNING_MS } from "./schedule";
 
 const MAGIC = Buffer.from("MEDORO-BACKUP-1\n");
@@ -91,9 +91,21 @@ export async function runBackup(tenantId: string, kind: "manual" | "scheduled" |
       const appProperties = { medoroKind: "backup", medoroTenant: tenantId, medoroCode: data.tenant.code, medoroPharmacy: data.tenant.name.slice(0, 60), medoroCreatedAt: m.startedAt.toISOString() };
       try { driveFileId = await driveUpload(tenantId, "backups", name, file, { appProperties }); } catch (e) { note = `Saved on server; Drive upload failed: ${e instanceof Error ? e.message : "unknown error"}`; }
     }
+    // Like WhatsApp: once the copy in the pharmacy's own Drive reads back intact, this server keeps nothing.
+    // Without Drive (or if Drive fails) the server copy stays, so there is always one backup.
+    let localPath: string | null = rel;
+    if (driveFileId) {
+      try {
+        const fromDrive = await driveDownload(tenantDrive(tenantId), driveFileId);
+        if (createHash("sha256").update(fromDrive).digest("hex") === sha256) { await deleteObject(rel); localPath = null; }
+        else note = "Saved on server; the Drive copy didn’t match when read back.";
+      } catch (e) { note = `Saved on server; couldn’t read the Drive copy back: ${e instanceof Error ? e.message : "unknown error"}`; }
+    }
     if (missingFiles.length) note = `${note ? note + " " : ""}${missingFiles.length} stored file(s) couldn’t be read (Google Drive unreachable?) and aren’t in this backup.`;
-    await db.backupManifest.update({ where: { id: m.id }, data: { finishedAt: new Date(), sizeBytes: BigInt(file.length), sha256, driveFileId, status: note ? "partial" : "verified", error: note, rowCounts, localPath: rel } });
-    await writeAudit(db, { tenantId, userId: user?.id ?? null, userName: user?.name ?? "Scheduler", action: "Backup completed", entity: "backup", entityId: m.id, detail: `${kind} · ${(file.length / 1048576).toFixed(1)} MB · ${driveFileId ? "Drive + server" : "server only"}` });
+    await db.backupManifest.update({ where: { id: m.id }, data: { finishedAt: new Date(), sizeBytes: BigInt(file.length), sha256, driveFileId, status: note ? "partial" : "verified", error: note, rowCounts, localPath } });
+    await writeAudit(db, { tenantId, userId: user?.id ?? null, userName: user?.name ?? "Scheduler", action: "Backup completed", entity: "backup", entityId: m.id, detail: `${kind} · ${(file.length / 1048576).toFixed(1)} MB · ${localPath ? (driveFileId ? "Drive + server" : "server only") : "Google Drive only"}` });
+    // Uploaded files still held here (Drive was unreachable when they were added) move to Drive too.
+    if (driveFileId) await moveFilesToDrive(tenantId).catch(() => {});
     await prune(tenantId);
     return { id: m.id, size: file.length, drive: !!driveFileId, note };
   } catch (e) {
@@ -124,11 +136,23 @@ export async function backupNow(ctx: Ctx) {
   return runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
 }
 
+/** The backup file: from this server if it holds one, otherwise from the pharmacy's Google Drive. */
+async function loadBackupFile(tenantId: string, m: { localPath: string | null; driveFileId: string | null }) {
+  if (m.localPath) {
+    const local = await getObject(m.localPath).catch(() => null);
+    if (local) return local;
+  }
+  if (m.driveFileId && (await driveConfigured(tenantId))) {
+    try { return await driveDownload(tenantDrive(tenantId), m.driveFileId); }
+    catch (e) { throw new UserError(`This backup is in Google Drive, which couldn’t be reached: ${e instanceof Error ? e.message : "unknown error"}`); }
+  }
+  return null;
+}
+
 export async function openBackup(ctx: Ctx, id: string) {
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
-  const rel = m?.localPath;
-  if (!m || !rel) throw new UserError("Backup file not found on this server.");
-  const file = await getObject(rel).catch(() => null);
+  if (!m || (!m.localPath && !m.driveFileId)) throw new UserError("Backup file not found.");
+  const file = await loadBackupFile(ctx.tenantId, m);
   if (!file) throw new UserError("The backup file has been removed by retention or moved.");
   if (createHash("sha256").update(file).digest("hex") !== m.sha256) throw new UserError("Checksum mismatch: the file has changed since it was written.");
   return { m, ...decryptBackup(file, await masterKey(ctx.tenantId)) };
@@ -207,9 +231,8 @@ export async function cleanupRestores() {
 export async function testRestore(ctx: Ctx, id: string) {
   authorize(ctx, "integrations");
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
-  const rel = m?.localPath;
-  if (!m || !rel) throw new UserError("Backup file not found on this server.");
-  const file = await getObject(rel).catch(() => null);
+  if (!m || (!m.localPath && !m.driveFileId)) throw new UserError("Backup file not found.");
+  const file = await loadBackupFile(ctx.tenantId, m);
   if (!file) throw new UserError("The backup file has been removed by retention or moved.");
   if (createHash("sha256").update(file).digest("hex") !== m.sha256) throw new UserError("Checksum mismatch: the file has changed since it was written.");
   const { data } = decryptBackup(file, await masterKey(ctx.tenantId));
@@ -225,16 +248,16 @@ export async function testRestore(ctx: Ctx, id: string) {
 export async function backupFile(ctx: Ctx, id: string) {
   authorize(ctx, "integrations");
   const m = await db.backupManifest.findFirst({ where: { id, tenantId: ctx.tenantId } });
-  if (!m?.localPath) return null;
-  const bytes = await getObject(m.localPath).catch(() => null);
-  return bytes ? { bytes, name: m.localPath.split(/[\\/]/).pop()! } : null;
+  if (!m || (!m.localPath && !m.driveFileId)) return null;
+  const bytes = await loadBackupFile(ctx.tenantId, m);
+  return bytes ? { bytes, name: m.localPath?.split(/[\\/]/).pop() ?? `${m.startedAt.toISOString().replace(/[:.]/g, "-")}.mdrbak` } : null;
 }
 
 type BackupSettings = { schedule: string; retention: number; files: FileStore };
 export async function backupSettings(tenantId: string): Promise<BackupSettings> {
   const t = await db.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const b = (t.settings as { backup?: Partial<BackupSettings> }).backup ?? {};
-  return { schedule: b.schedule ?? "02:30", retention: b.retention ?? 30, files: b.files === "gdrive" ? "gdrive" : "server" };
+  return { schedule: b.schedule ?? "02:30", retention: b.retention ?? 30, files: b.files === "server" ? "server" : "gdrive" };
 }
 
 export async function saveBackupSettings(ctx: Ctx, input: { schedule: string; retention: number; files?: FileStore }) {

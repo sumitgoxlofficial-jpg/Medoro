@@ -219,18 +219,29 @@ describe("Google Drive: connect, back up, store files, prune and recover", () =>
     const old = new Date(Date.now() - 10 * 86400_000);
     for (const id of [r1.id, r2.id]) await db.backupManifest.update({ where: { id }, data: { startedAt: id === r1.id ? new Date(old.getTime() - 60_000) : old } });
     const m1 = await db.backupManifest.findUniqueOrThrow({ where: { id: r1.id } }), m2 = await db.backupManifest.findUniqueOrThrow({ where: { id: r2.id } });
+    // Like WhatsApp: once Drive has a verified copy, this server keeps none.
+    expect([m1.localPath, m2.localPath]).toEqual([null, null]);
+    expect(await db.fileObject.count({ where: { tenantId: ctx.tenantId, key: { contains: "/backups/" } } })).toBe(0);
     g.files.get(m1.driveFileId!)!.createdTime = new Date(old.getTime() - 60_000).toISOString();
     g.files.get(m2.driveFileId!)!.createdTime = old.toISOString();
     const stray = g.add({ name: "other-server.mdrbak", parents: [folder(g, "backups")!.id], mimeType: "application/octet-stream", bytes: Buffer.from("x"), appProperties: { medoroKind: "backup", medoroTenant: ctx.tenantId }, createdTime: new Date(old.getTime() - 86400_000).toISOString() });
     await prune(ctx.tenantId);
     expect((await db.backupManifest.findUniqueOrThrow({ where: { id: r1.id } })).status).toBe("expired");
-    expect(await getObject(m1.localPath!)).toBeNull();
     expect(g.files.has(m1.driveFileId!)).toBe(false);
     expect(g.files.has(stray)).toBe(false);
-    // r2 is the newest successful backup: kept on the server and in Drive although it's past retention.
+    // r2 is the newest successful backup: kept in Drive although it's past retention.
     expect((await db.backupManifest.findUniqueOrThrow({ where: { id: r2.id } })).status).toBe("verified");
-    expect(await getObject(m2.localPath!)).not.toBeNull();
     expect(g.files.has(m2.driveFileId!)).toBe(true);
+  });
+
+  it("files kept on the server while Drive was down move to Drive with the next backup", async () => {
+    const ctx = await connect();
+    const key = `${ctx.tenantId}/scans/${"a".repeat(64)}.png`, png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 9, 9]);
+    await db.fileObject.create({ data: { key, tenantId: ctx.tenantId, contentType: "image/png", bytes: new Uint8Array(png) } });
+    await runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
+    const row = await db.fileObject.findUniqueOrThrow({ where: { key } });
+    expect(row.bytes).toBeNull();
+    expect(g.files.get(row.driveFileId!)!.bytes.equals(png)).toBe(true);
   });
 
   it("restores a backup picked in Drive with the recovery kit, through the test copy", async () => {
