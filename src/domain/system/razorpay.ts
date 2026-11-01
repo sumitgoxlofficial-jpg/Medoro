@@ -261,6 +261,10 @@ export async function handleWebhook(body: string, signature: string | null, othe
   if (!webhookSignatureOk(body, signature)) return { status: 401, note: "bad signature" };
   const e = JSON.parse(body) as { event?: string; payload?: { payment?: { entity?: RzpPayment & { error_description?: string } } } };
   const event = e.event ?? "";
+  if (event.startsWith("payout.")) {
+    const { payoutWebhook } = await import("@/staff/partners");
+    return { status: 200, note: await payoutWebhook(event, (e.payload as { payout?: { entity?: Parameters<typeof payoutWebhook>[1] } } | undefined)?.payout?.entity) };
+  }
   if (!["payment.captured", "order.paid", "payment.failed"].includes(event)) return { status: 200, note: "ignored" };
   const pay = e.payload?.payment?.entity;
   if (!pay?.order_id) return { status: 200, note: "no order" };

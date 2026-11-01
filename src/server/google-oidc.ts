@@ -6,14 +6,14 @@ import { seal, unseal } from "./vault";
 // "Sign in with Google": OpenID Connect authorization code flow with PKCE (S256), state and nonce.
 // Uses the same OAuth client as Google Drive backups, with its own redirect URI.
 type Env = Record<string, string | undefined>;
-export type GoogleIntent = "signin" | "link";
+export type GoogleIntent = "signin" | "link" | "partner";
 export type GoogleClaims = { sub: string; email: string; name: string | null };
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
-const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup";
+const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup", PARTNER_COOKIE = "medoro_gpartner";
 const FLOW_PATH = "/api/auth/google";
 const SKEW_S = 60;
 
@@ -138,3 +138,14 @@ export async function readPendingSignup() {
   return v && v.exp > Date.now() ? v : null;
 }
 export async function clearPendingSignup() { (await cookies()).set(SIGNUP_COOKIE, "", cookieOpts("/", 0)); }
+
+// A new reference partner who continued with Google: their verified identity waits here (sealed, 30 minutes)
+// while they add their mobile number and area.
+export async function setPendingPartner(v: Omit<PendingSignup, "exp">) {
+  (await cookies()).set(PARTNER_COOKIE, sealJson({ ...v, exp: Date.now() + 1_800_000 }), cookieOpts("/", 1800));
+}
+export async function readPendingPartner() {
+  const v = openJson<PendingSignup>((await cookies()).get(PARTNER_COOKIE)?.value);
+  return v && v.exp > Date.now() ? v : null;
+}
+export async function clearPendingPartner() { (await cookies()).set(PARTNER_COOKIE, "", cookieOpts("/", 0)); }

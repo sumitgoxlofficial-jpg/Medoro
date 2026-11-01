@@ -10,7 +10,8 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 
 import { db } from "@/server/db";
 import { getStaff, type Staff } from "@/staff/auth";
-import { setEmployeeStatus, signIn, signup } from "@/staff/people";
+import { completeGooglePartner, partnerFromGoogle, setEmployeeStatus, signIn, signup } from "@/staff/people";
+import { leaderboard, partnerLeaderboard, partnerOverview, payWithRazorpay, payoutWebhook, periodStarts, recordBankTransfer, shortName } from "@/staff/partners";
 import { referredPharmacies, referrer, salesList, saveBank } from "@/staff/sales";
 import { confirmCheckout, createOrder } from "@/domain/system/razorpay";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
@@ -42,17 +43,16 @@ describe("reference partners", () => {
   beforeEach(() => { jar.clear(); vi.stubEnv("RAZORPAY_KEY_ID", "rzp_test_abc"); vi.stubEnv("RAZORPAY_KEY_SECRET", SECRET); });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-  it("an MR joins with any email, waits for approval, then signs in with a password only", async () => {
+  it("an MR joins with any email and is active straight away; signs in with a password only", async () => {
     // Sales and care still need a work email; partners don't.
     await expect(signup({ name: "Ravi MR", email: "ravi.mr@gmail.com", phone: "9822010050", role: "sales", password: "ravi password 1" })).rejects.toThrow(/Choose Reference partner/);
-    expect(await signup({ name: "Ravi Kulkarni", email: "ravi.mr@gmail.com", phone: "9822010050", role: "partner", password: "ravi password 1" })).toMatchObject({ bootstrap: false });
+    expect(await signup({ name: "Ravi Kulkarni", email: "ravi.mr@gmail.com", phone: "9822010050", role: "partner", password: "ravi password 1" })).toMatchObject({ bootstrap: false, active: true });
     const ravi = await db.staffUser.findUniqueOrThrow({ where: { email: "ravi.mr@gmail.com" } });
-    expect(ravi).toMatchObject({ role: "partner", status: "pending" });
+    expect(ravi).toMatchObject({ role: "partner", status: "active", team: "" });
     expect(ravi.referralCode).toMatch(/^[A-Z0-9-]{4,}$/);
-    await expect(signIn("ravi.mr@gmail.com", "ravi password 1")).rejects.toThrow(/approval/);
-    expect(await referrer(ravi.referralCode!)).toBeNull(); // not active yet
-
-    await setEmployeeStatus(await asStaff("aarti@medoro.in"), ravi.id, "approve");
+    // Sales profiles still wait for a super admin.
+    await signup({ name: "Neha Sales", email: "neha@medoro.in", phone: "9822010051", role: "sales", password: "neha password 1" });
+    await expect(signIn("neha@medoro.in", "neha password 1")).rejects.toThrow(/approval/);
     expect(await signIn("ravi.mr@gmail.com", "ravi password 1")).toMatchObject({ next: "done" });
     expect(await getStaff()).toMatchObject({ role: "partner", email: "ravi.mr@gmail.com" });
     expect(await referrer(ravi.referralCode!.toLowerCase())).toMatchObject({ id: ravi.id });
@@ -93,11 +93,103 @@ describe("reference partners", () => {
   it("partners see only their own earnings and can add a bank account", async () => {
     await signup({ name: "Meena Joshi", email: "meena@yahoo.in", phone: "9822010060", role: "partner", password: "meena password 1" });
     const meena = await db.staffUser.findUniqueOrThrow({ where: { email: "meena@yahoo.in" } });
-    await setEmployeeStatus(await asStaff("aarti@medoro.in"), meena.id, "approve");
     expect(await salesList(await asStaff("meena@yahoo.in"))).toEqual([]);
     expect(await referredPharmacies(await asStaff("meena@yahoo.in"))).toEqual([]);
     expect((await salesList(await asStaff("aarti@medoro.in"))).length).toBe(2); // admin sees all
     await saveBank(await asStaff("meena@yahoo.in"), { holder: "Meena Joshi", account: "123456789012", account2: "123456789012", ifsc: "HDFC0001234", type: "Savings", pan: "ABCDE1234F", consent: true });
     expect((await db.staffBank.findUniqueOrThrow({ where: { staffId: meena.id } })).status).toBe("pending");
+  });
+
+  it("partners join and sign in with Google, without a password or approval; the team can't use Google", async () => {
+    expect(await partnerFromGoogle({ sub: "g-111", email: "sunil.mr@gmail.com", name: "Sunil Patil" })).toBe("/staff/login?join=partner&google=new");
+    expect(await getStaff()).toBeNull();
+    await expect(completeGooglePartner({ name: "Sunil Patil", phone: "123", team: "" })).rejects.toThrow(/10-digit/);
+    expect(await completeGooglePartner({ name: "Sunil Patil", phone: "98220 10070", team: "MR at Lupin, Nashik" })).toMatchObject({ next: "done", code: expect.stringMatching(/^SUNIL\d+$/) });
+    expect(await getStaff()).toMatchObject({ role: "partner", email: "sunil.mr@gmail.com" });
+    await expect(completeGooglePartner({ name: "Again", phone: "9822010071", team: "" })).rejects.toThrow(/expired/); // single use
+    await expect(signIn("sunil.mr@gmail.com", "whatever password")).rejects.toThrow(/signs in with Google/);
+
+    jar.clear();
+    expect(await partnerFromGoogle({ sub: "g-111", email: "sunil.mr@gmail.com", name: "Sunil Patil" })).toBe("/staff/login?google=ok");
+    expect(await getStaff()).toMatchObject({ email: "sunil.mr@gmail.com" });
+    // An existing password partner links Google on first use; a different Google account for the same email is refused.
+    jar.clear();
+    expect(await partnerFromGoogle({ sub: "g-222", email: "ravi.mr@gmail.com", name: "Ravi" })).toBe("/staff/login?google=ok");
+    expect(await partnerFromGoogle({ sub: "g-999", email: "ravi.mr@gmail.com", name: "Ravi" })).toBe("/staff/login?google=mismatch");
+    jar.clear();
+    expect(await partnerFromGoogle({ sub: "g-333", email: "aarti@medoro.in", name: "Aarti" })).toBe("/staff/login?google=team");
+    expect(await getStaff()).toBeNull();
+    const sunil = await db.staffUser.findUniqueOrThrow({ where: { email: "sunil.mr@gmail.com" } });
+    await setEmployeeStatus(await asStaff("aarti@medoro.in"), sunil.id, "deactivate");
+    expect(await partnerFromGoogle({ sub: "g-111", email: "sunil.mr@gmail.com", name: "Sunil" })).toBe("/staff/login?google=deactivated");
+    await setEmployeeStatus(await asStaff("aarti@medoro.in"), sunil.id, "reactivate");
+  });
+
+  it("ranks partners today, this week and this month; partners see short names and no one else's earnings", async () => {
+    expect(periodStarts("2026-11-05")).toEqual({ today: "2026-11-05", week: "2026-11-02", month: "2026-11-01" });
+    expect(periodStarts("2026-11-01")).toEqual({ today: "2026-11-01", week: "2026-10-26", month: "2026-11-01" });
+    expect(shortName("Ravi Kulkarni")).toBe("Ravi K."); expect(shortName("Meena")).toBe("Meena");
+    const b = await leaderboard();
+    expect(b.month[0]).toMatchObject({ name: "Ravi Kulkarni", sales: 2, signups: 1 });
+    expect(b.month[0].earnedPaise).toBeGreaterThan(0);
+    const mine = await partnerLeaderboard(await asStaff("meena@yahoo.in"));
+    expect(mine.month.top[0]).toEqual({ rank: 1, me: false, name: "Ravi K.", area: "", sales: 2, signups: 1 });
+    expect(mine.month.myRank).toBeNull();
+    expect((await partnerLeaderboard(await asStaff("ravi.mr@gmail.com"))).today).toMatchObject({ myRank: 1, top: [{ name: "You", me: true }] });
+  });
+
+  it("super admin pays a partner with RazorpayX; the webhook confirms it; failures return the commission", async () => {
+    const admin = await asStaff("aarti@medoro.in"), ravi = await asStaff("ravi.mr@gmail.com");
+    vi.stubEnv("RAZORPAYX_ACCOUNT_NUMBER", "2323230000000001");
+    let row = (await partnerOverview(admin)).find((r) => r.id === ravi.id)!;
+    expect(row).toMatchObject({ signups: 1, paying: 1, paidPaise: 0 });
+    expect(row.readyPaise).toBeGreaterThan(0);
+    await expect(payWithRazorpay(ravi, ravi.id)).rejects.toThrow();
+    await expect(payWithRazorpay(admin, ravi.id)).rejects.toThrow(/Verify this person’s bank/);
+    await saveBank(ravi, { holder: "Ravi Kulkarni", account: "50100012345678", account2: "50100012345678", ifsc: "HDFC0001234", type: "Savings", pan: "ABCPK1234F", consent: true });
+    await db.staffBank.update({ where: { staffId: ravi.id }, data: { status: "verified" } });
+
+    const calls: { url: string; body: Record<string, unknown>; idem: string | null }[] = [];
+    let fail = true;
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body ?? "{}"));
+      calls.push({ url, body, idem: new Headers(init.headers).get("X-Payout-Idempotency") });
+      const json = (j: unknown, status = 200) => new Response(JSON.stringify(j), { status, headers: { "Content-Type": "application/json" } });
+      if (url.endsWith("/contacts")) return json({ id: "cont_1" });
+      if (url.endsWith("/fund_accounts")) return json({ id: "fa_1" });
+      if (url.endsWith("/payouts")) return fail ? json({ error: { description: "Insufficient balance" } }, 400) : json({ id: "pout_1", status: "processing", utr: null });
+      return json({}, 404);
+    }));
+    await expect(payWithRazorpay(admin, ravi.id)).rejects.toThrow(/Insufficient balance/);
+    expect((await partnerOverview(admin)).find((r) => r.id === ravi.id)!.readyPaise).toBe(row.readyPaise); // back to ready
+    expect(calls.find((c) => c.url.endsWith("/fund_accounts"))!.body).toMatchObject({ contact_id: "cont_1", bank_account: { ifsc: "HDFC0001234", account_number: "50100012345678" } });
+
+    fail = false; calls.length = 0;
+    const r = await payWithRazorpay(admin, ravi.id);
+    expect(r).toMatchObject({ status: "processing", net: row.readyNetPaise });
+    expect(calls.map((c) => c.url.split("/v1")[1])).toEqual(["/payouts"]); // fund account reused
+    expect(calls[0].body).toMatchObject({ account_number: "2323230000000001", fund_account_id: "fa_1", amount: row.readyNetPaise, currency: "INR", purpose: "payout" });
+    expect(calls[0].idem).toBe(r.ref);
+    row = (await partnerOverview(admin)).find((x) => x.id === ravi.id)!;
+    expect(row).toMatchObject({ readyPaise: 0 });
+    expect((await salesList(ravi)).every((x) => x.status === "processing")).toBe(true);
+    await expect(payWithRazorpay(admin, ravi.id)).rejects.toThrow(/Nothing ready/);
+
+    expect(await payoutWebhook("payout.processed", { id: "pout_1", status: "processed", utr: "UTR123456" })).toBe("payout paid");
+    expect((await salesList(ravi)).every((x) => x.status === "paid")).toBe(true);
+    expect(await db.staffPayout.findUniqueOrThrow({ where: { rzpPayoutId: "pout_1" } })).toMatchObject({ status: "paid", utr: "UTR123456", method: "razorpay" });
+    expect(await payoutWebhook("payout.reversed", { id: "pout_1", status: "reversed" })).toBe("payout failed"); // already settled: no change
+    expect((await salesList(ravi)).every((x) => x.status === "paid")).toBe(true);
+  });
+
+  it("records a bank transfer when Razorpay payouts aren't used", async () => {
+    const admin = await asStaff("aarti@medoro.in"), ravi = await asStaff("ravi.mr@gmail.com");
+    const sale = (await salesList(ravi))[0];
+    await db.cpSale.update({ where: { id: sale.id }, data: { status: "verified", payoutRef: null } });
+    await expect(recordBankTransfer(admin, ravi.id, "123")).rejects.toThrow(/UTR/);
+    await expect(payWithRazorpay(admin, ravi.id)).rejects.toThrow(/aren’t set up/);
+    const r = await recordBankTransfer(admin, ravi.id, "UPI-998877");
+    expect(await db.staffPayout.findUniqueOrThrow({ where: { ref: r.ref } })).toMatchObject({ status: "paid", method: "manual", utr: "UPI-998877" });
+    expect((await salesList(ravi)).find((x) => x.id === sale.id)!.status).toBe("paid");
   });
 });

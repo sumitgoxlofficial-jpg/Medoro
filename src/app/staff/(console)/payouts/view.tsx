@@ -7,7 +7,7 @@ import { Empty, Panel, Pill, btn, btnPrimary, fieldCls, fmtDay, lbl, panel, td, 
 
 type Bank = { holder: string; last4: string; ifsc: string; bank: string; type: string; panMasked: string; status: string; addedAt: string; verifiedAt: string | null };
 type Row = { key: string; month: string; staff: string; n: number; gross: number; tds: number; net: number; status: string; bank: { label: string; verified: boolean } | null };
-const ST: Record<string, [string, string]> = { paid: ["Paid", "#18794E"], scheduled: ["Ready for next payout", "#2459C9"], awaiting: ["Awaiting verification", "#94570A"] };
+const ST: Record<string, [string, string]> = { paid: ["Paid", "#18794E"], scheduled: ["Ready for next payout", "#2459C9"], processing: ["Payout on the way", "#2459C9"], awaiting: ["Awaiting verification", "#94570A"] };
 
 export function PayoutsView({ admin, name, rows, bank, pendingBanks, run: r }: { admin: boolean; name: string; rows: Row[]; bank: Bank | null; pendingBanks: { staffId: string; name: string; empNo: string; label: string; holder: string; ifsc: string; panMasked: string; addedAt: string }[]; run: { total: number; people: number } }) {
   const { run, busy } = useRun();

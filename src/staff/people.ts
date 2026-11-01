@@ -7,6 +7,7 @@ import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
 import { allow, createStaffSession, isEmail, isStaffEmail, newToken, readStaffSession, staffAudit, staffDomain, tokenHash, type Staff } from "./auth";
 import { MOBILE_RE, digits, type StaffRoleId } from "./constants";
+import { clearPendingPartner, readPendingPartner, setPendingPartner, type GoogleClaims } from "@/server/google-oidc";
 
 const CP = "_cp"; // sequence namespace for the control plane
 const INVITE_DAYS = 7;
@@ -23,7 +24,8 @@ async function newEmployeeNo() {
 }
 const referral = (name: string, n: number) => name.trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10) + n;
 
-// ── Self sign-up: waits for a super admin. The very first super admin comes from STAFF_BOOTSTRAP_EMAIL.
+// ── Self sign-up. Reference partners are active straight away; sales and care wait for a super admin.
+// The very first super admin comes from STAFF_BOOTSTRAP_EMAIL.
 export const signupSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(80),
   email: anyEmail(), phone, team: z.string().trim().max(60).default(""),
@@ -36,11 +38,52 @@ export async function signup(raw: z.input<typeof signupSchema>) {
   const bootstrap = (process.env.STAFF_BOOTSTRAP_EMAIL ?? "").trim().toLowerCase() === i.email && !(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }));
   const { empNo, n } = await newEmployeeNo();
   const role: StaffRoleId = bootstrap ? "super_admin" : i.role;
+  const active = bootstrap || role === "partner";
   const u = await db.staffUser.create({
-    data: { empNo, name: i.name, email: i.email, phone: i.phone, team: i.team, role, status: bootstrap ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: earns(role) ? referral(i.name, n) : null },
+    data: { empNo, name: i.name, email: i.email, phone: i.phone, team: i.team, role, status: active ? "active" : "pending", passwordHash: await hashPassword(i.password), referralCode: earns(role) ? referral(i.name, n) : null },
   });
-  await staffAudit({ id: u.id, name: u.name }, bootstrap ? "First super admin created" : "Profile submitted", `${empNo} · ${role}`);
-  return { bootstrap, role };
+  await staffAudit({ id: u.id, name: u.name }, bootstrap ? "First super admin created" : role === "partner" ? "Reference partner joined" : "Profile submitted", `${empNo} · ${role}`);
+  return { bootstrap, role, active };
+}
+
+// ── Reference partners with Google: no password, no approval. Google has verified the email.
+
+/** After Google: signs an existing partner in, or holds the identity while a new partner adds their details. Returns where to go. */
+export async function partnerFromGoogle(c: GoogleClaims): Promise<string> {
+  const u = (await db.staffUser.findUnique({ where: { googleSub: c.sub } })) ?? (await db.staffUser.findUnique({ where: { email: c.email } }));
+  if (!u) {
+    await setPendingPartner({ sub: c.sub, email: c.email, name: c.name });
+    return "/staff/login?join=partner&google=new";
+  }
+  // Medoro's own team signs in with a password and an authenticator, never Google alone.
+  if (u.role !== "partner") return "/staff/login?google=team";
+  if (u.googleSub && u.googleSub !== c.sub) return "/staff/login?google=mismatch";
+  if (u.status === "deactivated") return "/staff/login?google=deactivated";
+  await db.staffUser.update({ where: { id: u.id }, data: { googleSub: c.sub, ...(u.status !== "active" ? { status: "active" } : {}) } });
+  await createStaffSession(u.id, u.tokenVersion, { mfaPassed: true });
+  await staffAudit({ id: u.id, name: u.name }, "Signed in", "Google (reference partner)");
+  return "/staff/login?google=ok";
+}
+
+export const googlePartnerSchema = z.object({ name: z.string().trim().min(2, "Enter your full name.").max(80), phone, team: z.string().trim().max(60).default("") });
+
+/** Creates the partner profile for the Google identity held after `partnerFromGoogle`, and signs them in. */
+export async function completeGooglePartner(raw: z.input<typeof googlePartnerSchema>) {
+  const g = await readPendingPartner();
+  if (!g) throw new UserError("Your Google sign-in expired. Tap “Continue with Google” again.");
+  const i = googlePartnerSchema.parse(raw);
+  if (await db.staffUser.findFirst({ where: { OR: [{ email: g.email }, { googleSub: g.sub }] } })) {
+    await clearPendingPartner();
+    throw new UserError("A profile with this Google account already exists. Tap “Continue with Google” to sign in.");
+  }
+  const { empNo, n } = await newEmployeeNo();
+  const u = await db.staffUser.create({
+    data: { empNo, name: i.name, email: g.email, phone: i.phone, team: i.team, role: "partner", status: "active", googleSub: g.sub, passwordHash: null, referralCode: referral(i.name, n) },
+  });
+  await clearPendingPartner();
+  await staffAudit({ id: u.id, name: u.name }, "Reference partner joined", `${empNo} · Google`);
+  await createStaffSession(u.id, u.tokenVersion, { mfaPassed: true });
+  return { next: "done" as const, code: u.referralCode };
 }
 
 // ── Sign-in: password, then an authenticator code (enrolled on first sign-in).
@@ -52,6 +95,7 @@ export async function signIn(rawEmail: string, pw: string) {
   const mins = await checkLock(keys);
   if (mins) throw new UserError(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
   const u = await db.staffUser.findUnique({ where: { email: e } });
+  if (u && u.role === "partner" && u.googleSub && !u.passwordHash) throw new UserError("This profile signs in with Google. Tap “Continue with Google”.");
   if (!u || !(await verifyPassword(u.passwordHash, String(pw ?? "")))) {
     const left = await recordFailure(keys);
     await staffAudit({ id: u?.id ?? null, name: e }, "Sign-in failed", "wrong email or password");

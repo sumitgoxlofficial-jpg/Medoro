@@ -36,7 +36,7 @@ export const ROLE_LABEL = { super_admin: "Super admin", sales: "Sales", care: "C
 export type StaffRoleId = keyof typeof ROLE_LABEL;
 
 export const CUSTOMER_STATUS = { trial: "Trial", active: "Active", grace: "Grace period", cancelled: "Cancelled" } as const;
-export const SALE_STATUS = { pending: "Pending", verified: "Verified", paid: "Paid out", rejected: "Rejected" } as const;
+export const SALE_STATUS = { pending: "Pending", verified: "Verified", processing: "Payout on the way", paid: "Paid out", rejected: "Rejected" } as const;
 export const TICKET_STATUS = { open: "Open", waiting: "Waiting on customer", resolved: "Resolved" } as const;
 export const PRIORITY = { high: "High", medium: "Medium", low: "Low" } as const;
 /** First-response targets in minutes. */

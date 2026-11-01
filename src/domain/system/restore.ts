@@ -20,7 +20,7 @@ const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "Onli
 /** Tenant rows that are cleared, not restored: everyone signs in again after a restore, and pending reset codes die. */
 const CLEAR = new Set(["Session", "AiConfirmation", "AuthCode", "DiscountApproval"]);
 /** Tables that don't belong to any pharmacy. */
-const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest", "CpBillingEvent", "Coupon", "CpOnlinePayment"]);
+const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffPayout", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest", "CpBillingEvent", "Coupon", "CpOnlinePayment"]);
 
 type Layout = {
   /** Restored tables in insert order (parents first). Child tables have `via`: the FK column and its tenant-owned parent. */

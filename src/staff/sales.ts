@@ -245,7 +245,7 @@ export const bankSchema = z.object({
 export async function saveBank(s: Staff, raw: z.input<typeof bankSchema>) {
   allow(s, "sales", "partner");
   const b = bankSchema.parse(raw);
-  const data = { holder: b.holder, accountSealed: seal(b.account).toString("base64"), last4: b.account.slice(-4), ifsc: b.ifsc, bank: IFSC_BANKS[b.ifsc.slice(0, 4)] ?? "Bank " + b.ifsc.slice(0, 4), type: b.type, panSealed: seal(b.pan).toString("base64"), panMasked: b.pan.slice(0, 2) + "•••••" + b.pan.slice(-3), status: "pending", addedAt: new Date(), verifiedAt: null, verifiedBy: null };
+  const data = { holder: b.holder, accountSealed: seal(b.account).toString("base64"), last4: b.account.slice(-4), ifsc: b.ifsc, bank: IFSC_BANKS[b.ifsc.slice(0, 4)] ?? "Bank " + b.ifsc.slice(0, 4), type: b.type, panSealed: seal(b.pan).toString("base64"), panMasked: b.pan.slice(0, 2) + "•••••" + b.pan.slice(-3), status: "pending", addedAt: new Date(), verifiedAt: null, verifiedBy: null, rzpFundAccountId: null };
   await db.staffBank.upsert({ where: { staffId: s.id }, create: { staffId: s.id, ...data }, update: data });
   await staffAudit(s, "Payout bank account saved", `${data.bank} •••• ${data.last4}`);
 }
@@ -295,7 +295,7 @@ export async function payouts(s: Staff) {
     const bank = banks.find((b) => b.staffId === sid);
     return {
       key: k, month, staffId: sid, staff: name.get(sid) ?? sid, n: xs.length, gross, tds, net: gross - tds,
-      status: xs.every((x) => x.status === "paid") ? "paid" : xs.some((x) => x.status === "verified") ? "scheduled" : "awaiting",
+      status: xs.every((x) => x.status === "paid") ? "paid" : xs.some((x) => x.status === "verified") ? "scheduled" : xs.some((x) => x.status === "processing") ? "processing" : "awaiting",
       bank: bank ? { label: `${bank.bank.split(" ")[0]} •••• ${bank.last4}`, verified: bank.status === "verified" } : null,
     };
   });

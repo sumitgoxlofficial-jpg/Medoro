@@ -21,7 +21,7 @@ export default async function Partners() {
   const proYear = amountPaise("pro", "y");
   const example = { pharmacies: 10, first: Math.round((proYear * pro.first) / 100) * 10, renew: Math.round((proYear * pro.renew) / 100) * 10 };
   const steps = [
-    { icon: Handshake, t: "Join free", d: "Create your partner profile in two minutes. Medoro approves it, usually within a day." },
+    { icon: Handshake, t: "Join free", d: "Sign up with your Google account in one minute. Your referral code and dashboard are ready straight away." },
     { icon: Link2, t: "Share your code", d: "You get a personal referral code and link. Share it with pharmacies you visit, on WhatsApp or in person." },
     { icon: Store, t: "Pharmacy starts a free trial", d: "They sign up with your code or link and use Medoro free for 7 days. No card needed." },
     { icon: BadgeIndianRupee, t: "You earn when they pay", d: "Commission on their first payment and on every renewal after that, for as long as they stay with Medoro." },
@@ -30,7 +30,7 @@ export default async function Partners() {
     ["Who can become a reference partner?", "Medical representatives (MRs), pharma distributors, wholesalers, pharmacy consultants and anyone who works with medical stores. You don’t need to be a Medoro employee, and it doesn’t affect your current job."],
     ["Does it cost anything to join?", "No. Joining is free and there’s no target. You earn only when a pharmacy you referred pays for Medoro."],
     ["How does Medoro know a pharmacy came from me?", "The pharmacy signs up with your referral code, or through your link, which fills the code in automatically. It’s linked to you from that moment and shows in your dashboard."],
-    ["When do I get paid?", `Earnings are recorded automatically when a referred pharmacy pays online. They’re paid to your bank account once a month, after ${TDS_PCT}% TDS as required by law. Add your bank account and PAN in your dashboard.`],
+    ["When do I get paid?", `Earnings are recorded automatically when a referred pharmacy pays online. Medoro pays them to your bank account through Razorpay, after ${TDS_PCT}% TDS as required by law. Add your bank account and PAN in your dashboard.`],
     ["Do I earn on renewals too?", "Yes. You earn the first-payment rate when a pharmacy first pays, and the renewal rate every time they renew, monthly or yearly."],
     ["What if a pharmacy gets a refund?", "If a payment is refunded, the commission on it is cancelled. Medoro refunds only in rare cases, such as a payment made twice by mistake."],
     ["Can the rates change?", "Medoro can update rates for future payments. Earnings already recorded are never reduced. The current rates are always shown on this page."],
@@ -102,7 +102,7 @@ export default async function Partners() {
         <section className="bg-[var(--s-soft)] border-y border-[var(--s-line)]">
           <div className="max-w-[1200px] mx-auto px-6 py-16 grid gap-6 grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] max-[640px]:px-4">
             {[
-              { icon: BarChart3, t: "Your own partner dashboard", d: "Sign in any time to see the pharmacies you referred, who is on trial and who is paying, what you earned this month and in total." },
+              { icon: BarChart3, t: "Your own partner dashboard", d: "See the pharmacies you referred, who is paying, what you earned this month and in total, and where you rank among top partners today, this week and this month." },
               { icon: Wallet, t: "Monthly payouts to your bank", d: `Add your bank account and PAN once. Earnings are paid monthly by bank transfer, after ${TDS_PCT}% TDS.` },
               { icon: ShieldCheck, t: "Pharmacies trust it", d: "Medoro keeps each pharmacy’s data private, works offline, prints GST bills and backs up to their own Google Drive. Easy to recommend." },
             ].map((x) => (
@@ -143,7 +143,7 @@ export default async function Partners() {
           <div className="bg-[var(--s-brand)] text-white rounded-2xl p-[clamp(24px,4vw,48px)] flex flex-col gap-4 min-[960px]:flex-row min-[960px]:items-center min-[960px]:justify-between">
             <div className="flex flex-col gap-2">
               <h2 className="m-0 text-[clamp(24px,3vw,34px)] font-semibold text-white">Start earning with Medoro</h2>
-              <span className="text-[16px] text-white/85">Free to join. Your referral code is ready as soon as you’re approved.</span>
+              <span className="text-[16px] text-white/85">Free to join with Google. Your referral code is ready in a minute.</span>
             </div>
             <div className="flex gap-3 flex-wrap">
               <Link href="/staff/login?join=partner" className="inline-flex items-center h-12 px-6 rounded-lg bg-white text-[var(--s-brand)] text-[16px] font-semibold no-underline hover:text-[var(--s-brand)]">Become a reference partner</Link>

@@ -1112,6 +1112,7 @@ model StaffUser {
   totpSecret      String? // sealed
   totpEnabled     Boolean        @default(false)
   referralCode    String?        @unique
+  googleSub       String?        @unique // reference partners can sign in with Google
   bonusPct        Decimal        @default(0) @db.Decimal(5, 2)
   inviteTokenHash String?        @unique
   inviteExpiresAt DateTime?
@@ -1137,20 +1138,44 @@ model StaffSession {
 }
 
 model StaffBank {
-  staffId       String    @id
-  staff         StaffUser @relation(fields: [staffId], references: [id])
-  holder        String
-  accountSealed String
-  last4         String
-  ifsc          String
-  bank          String
-  type          String
-  panSealed     String
-  panMasked     String
-  status        String // pending, verified
-  addedAt       DateTime  @default(now())
-  verifiedAt    DateTime?
-  verifiedBy    String?
+  staffId          String    @id
+  staff            StaffUser @relation(fields: [staffId], references: [id])
+  holder           String
+  accountSealed    String
+  last4            String
+  ifsc             String
+  bank             String
+  type             String
+  panSealed        String
+  panMasked        String
+  status           String // pending, verified
+  addedAt          DateTime  @default(now())
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  rzpFundAccountId String? // RazorpayX fund account for this bank account; cleared when it changes
+}
+
+/**
+ * A payment of commission to a sales person or reference partner, by RazorpayX payout or a recorded bank transfer.
+ */
+model StaffPayout {
+  id          String   @id @default(uuid())
+  ref         String   @unique
+  staffId     String
+  grossPaise  Int
+  tdsPaise    Int
+  netPaise    Int
+  saleIds     String[]
+  method      String // razorpay, manual
+  rzpPayoutId String?  @unique
+  status      String // processing, paid, failed
+  utr         String?
+  failure     String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([staffId, createdAt])
 }
 
 model StaffAudit {
