@@ -22,7 +22,7 @@ it("migration 5 matches the SDK's tables", () => {
   for (const t of ["loyaltyLedger", "deliveryOrder", "deliveryOrderItem", "salesReturn"] as const) {
     expect(db.engine.all<{ name: string }>(`PRAGMA table_info(${t})`).map((r) => r.name).sort()).toEqual([...TABLES[t].columns].sort());
   }
-  expect(SCHEMA_VERSION).toBe(5);
+  expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(5);
 });
 
 describe("stock corrections", () => {
@@ -99,4 +99,9 @@ describe("delivery orders", () => {
     cancelOrder(db, o2.id);
     expect(() => packOrder(db, { orderId: o2.id, userId: U, series: "C1" })).toThrow(/already cancelled/);
   });
+});
+
+it("migration 6 adds inter-state tax to bills", () => {
+  expect(db.engine.all<{ name: string }>("PRAGMA table_info(sale)").map((r) => r.name).sort()).toEqual([...TABLES.sale.columns].sort());
+  expect(SCHEMA_VERSION).toBe(6);
 });

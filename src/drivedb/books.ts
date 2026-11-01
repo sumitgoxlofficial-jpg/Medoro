@@ -100,7 +100,7 @@ export function salesByDay(db: DriveDB, branchId: string, fromIso: string, toIso
   const days = new Map<string, { date: string; bills: number; salesPaise: number; taxPaise: number; discountPaise: number; costPaise: number; returnsPaise: number }>();
   const day = (d: string) => days.get(d) ?? days.set(d, { date: d, bills: 0, salesPaise: 0, taxPaise: 0, discountPaise: 0, costPaise: 0, returnsPaise: 0 }).get(d)!;
   for (const s of db.engine.all<{ at: string; total: number; tax: number; disc: number; cost: number }>(
-    "SELECT at, totalPaise AS total, cgstPaise + sgstPaise AS tax, discountPaise AS disc, costPaise AS cost FROM sale WHERE branchId = ? AND at >= ? AND at < ?", [branchId, from, to])) {
+    "SELECT at, totalPaise AS total, cgstPaise + sgstPaise + igstPaise AS tax, discountPaise AS disc, costPaise AS cost FROM sale WHERE branchId = ? AND at >= ? AND at < ?", [branchId, from, to])) {
     const d = day(istDate(new Date(s.at)));
     d.bills++; d.salesPaise += n(s.total); d.taxPaise += n(s.tax); d.discountPaise += n(s.disc); d.costPaise += n(s.cost);
   }
@@ -142,29 +142,31 @@ export function gstDocs(db: DriveDB, month: string, gstin: string): GstDoc[] {
     const m = meds.get(medicineId);
     return { hsn: (m?.hsn || "3004").replace(/\D/g, "") || "3004", desc: "", uqc: uqcFor(m?.form ?? ""), qty, rate, taxable, igst: 0, cgst: 0, sgst: 0, tax };
   };
-  const split = (lines: (GstLine & { tax: number })[], cgstTotal: number): GstLine[] => {
+  const split = (lines: (GstLine & { tax: number })[], cgstTotal: number, inter = false): GstLine[] => {
+    if (inter) return lines.map(({ tax, ...l }) => ({ ...l, igst: tax }));
     const halves = allocateHalves(lines.map((l) => l.tax), cgstTotal);
     return lines.map(({ tax, ...l }, i) => ({ ...l, cgst: halves[i], sgst: tax - halves[i] }));
   };
   type It = { id: string; medicineId: string; qty: number; loose: number; packSize: number; mrpPaise: number; discountPaise: number; taxablePaise: number; gstRate: number };
   const itemsOf = (saleId: string) => db.engine.all<It>("SELECT id, medicineId, qty, loose, packSize, mrpPaise, discountPaise, taxablePaise, gstRate FROM saleItem WHERE saleId = ? ORDER BY rowid", [saleId]);
   const docs: GstDoc[] = [];
-  for (const s of db.engine.all<{ id: string; invoiceNo: string; at: string; totalPaise: number; cgstPaise: number; ctin: string | null; branchId: string }>(
-    "SELECT s.id, s.invoiceNo, s.at, s.totalPaise, s.cgstPaise, c.gstin AS ctin, s.branchId FROM sale s LEFT JOIN customer c ON c.id = s.customerId WHERE s.at >= ? AND s.at < ? ORDER BY s.at, s.invoiceNo", [from, to])) {
+  for (const s of db.engine.all<{ id: string; invoiceNo: string; at: string; totalPaise: number; cgstPaise: number; igstPaise: number; pos: string | null; ctin: string | null; branchId: string }>(
+    "SELECT s.id, s.invoiceNo, s.at, s.totalPaise, s.cgstPaise, s.igstPaise, s.placeOfSupply AS pos, c.gstin AS ctin, s.branchId FROM sale s LEFT JOIN customer c ON c.id = s.customerId WHERE s.at >= ? AND s.at < ? ORDER BY s.at, s.invoiceNo", [from, to])) {
     const raw = itemsOf(s.id).map((i) => lineOf(i.medicineId, i.gstRate, packQty(i.loose, i.packSize, i.qty), n(i.taxablePaise), n(i.mrpPaise) * i.qty - n(i.discountPaise) - n(i.taxablePaise)));
-    docs.push({ kind: "inv", no: s.invoiceNo, date: istDate(new Date(s.at)), value: n(s.totalPaise), pos: home, ctin: s.ctin || null, inter: false, branchId: s.branchId, lines: split(raw, n(s.cgstPaise)) });
+    const inter = n(s.igstPaise) > 0;
+    docs.push({ kind: "inv", no: s.invoiceNo, date: istDate(new Date(s.at)), value: n(s.totalPaise), pos: (inter && s.pos) || home, ctin: s.ctin || null, inter, branchId: s.branchId, lines: split(raw, n(s.cgstPaise), inter) });
   }
   for (const r of db.engine.all<{ id: string; creditNoteNo: string; at: string; amountPaise: number; saleId: string; branchId: string }>(
     "SELECT id, creditNoteNo, at, amountPaise, saleId, branchId FROM salesReturn WHERE at >= ? AND at < ? ORDER BY at, creditNoteNo", [from, to])) {
-    const s = db.engine.all<{ invoiceNo: string; at: string; totalPaise: number; ctin: string | null }>("SELECT s.invoiceNo, s.at, s.totalPaise, c.gstin AS ctin FROM sale s LEFT JOIN customer c ON c.id = s.customerId WHERE s.id = ?", [r.saleId])[0];
+    const s = db.engine.all<{ invoiceNo: string; at: string; totalPaise: number; igstPaise: number; pos: string | null; ctin: string | null }>("SELECT s.invoiceNo, s.at, s.totalPaise, s.igstPaise, s.placeOfSupply AS pos, c.gstin AS ctin FROM sale s LEFT JOIN customer c ON c.id = s.customerId WHERE s.id = ?", [r.saleId])[0];
     const items = new Map(itemsOf(r.saleId).map((i) => [i.id, i]));
     const raw = db.engine.all<{ saleItemId: string; qty: number; amountPaise: number; taxablePaise: number }>("SELECT saleItemId, qty, amountPaise, taxablePaise FROM salesReturnItem WHERE returnId = ?", [r.id]).map((l) => {
       const it = items.get(l.saleItemId)!;
       return lineOf(it.medicineId, it.gstRate, packQty(it.loose, it.packSize, l.qty), n(l.taxablePaise), n(l.amountPaise) - n(l.taxablePaise));
     });
-    const tax = raw.reduce((a, l) => a + l.tax, 0);
-    docs.push({ kind: "cn", no: r.creditNoteNo, date: istDate(new Date(r.at)), value: n(r.amountPaise), pos: home, ctin: s?.ctin || null, inter: false, branchId: r.branchId,
-      lines: split(raw, Math.floor(tax / 2)), orig: { no: s?.invoiceNo ?? "", date: s ? istDate(new Date(s.at)) : "", value: n(s?.totalPaise), inter: false, ctin: s?.ctin || null } });
+    const tax = raw.reduce((a, l) => a + l.tax, 0), inter = n(s?.igstPaise) > 0;
+    docs.push({ kind: "cn", no: r.creditNoteNo, date: istDate(new Date(r.at)), value: n(r.amountPaise), pos: (inter && s?.pos) || home, ctin: s?.ctin || null, inter, branchId: r.branchId,
+      lines: split(raw, Math.floor(tax / 2), inter), orig: { no: s?.invoiceNo ?? "", date: s ? istDate(new Date(s.at)) : "", value: n(s?.totalPaise), inter, ctin: s?.ctin || null } });
   }
   return docs;
 }

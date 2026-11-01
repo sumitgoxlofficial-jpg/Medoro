@@ -3,12 +3,16 @@ import { useState, useTransition } from "react";
 import { HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { setDriveModeAction } from "./actions";
+import { setDriveModeAction, undoMoveAction } from "./actions";
+import { dayMonth, hhmm } from "@/lib/dates";
+
+type Move = { state: "moving" | "moved"; movedAt?: string; undoUntil: string | null; canUndo: boolean } | null;
+const when = (iso: string) => `${dayMonth(new Date(iso))} ${hhmm(new Date(iso))}`;
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 
 /** Owner's switch for the Drive mode pilot. */
-export function DriveModeCard({ on }: { on: boolean }) {
+export function DriveModeCard({ on, move }: { on: boolean; move: Move }) {
   const toast = useToast();
   const [value, setValue] = useState(on);
   const [pending, start] = useTransition();
@@ -19,6 +23,23 @@ export function DriveModeCard({ on }: { on: boolean }) {
       if (r.ok) { setValue(r.data); toast(r.message ?? "Saved.", "green"); } else toast(r.error, "red");
     });
   };
+  const undo = () => {
+    if (!confirm(move?.state === "moving" ? "Cancel the move? Medoro’s copy goes back to normal." : "Undo the move? Medoro’s copy is used again. Bills made on devices since the move are NOT in it; they stay in your Google Drive.")) return;
+    start(async () => { const r = await undoMoveAction(); toast(r.ok ? r.message ?? "Done." : r.error, r.ok ? "green" : "red"); });
+  };
+  if (move) {
+    return (
+      <div className={card} data-testid="move-status">
+        <div className="flex items-center gap-2 font-semibold text-[15px]"><HardDrive size={18} className="text-teal" />{move.state === "moved" ? "Your data lives in your Google Drive" : "Moving your data to Google Drive"}</div>
+        <div className="text-sm text-muted">
+          {move.state === "moved"
+            ? <>Moved on {when(move.movedAt!)}. Bill on <a href="/app/device-pos" className="text-teal">Billing (device)</a>. Medoro’s copy is read-only{move.canUndo && move.undoUntil ? <> and the move can be undone until {when(move.undoUntil)}</> : ""}.</>
+            : <>Medoro’s copy is read-only while the owner’s device copies and checks everything. Finish it on <a href="/app/device-pos" className="text-teal">Billing (device)</a>, or cancel it here.</>}
+        </div>
+        {move.canUndo && <Button variant="danger-outline" className="self-start" onClick={undo} disabled={pending}>{move.state === "moving" ? "Cancel the move" : "Undo the move"}</Button>}
+      </div>
+    );
+  }
   return (
     <div className={card}>
       <div className="flex items-center gap-2 font-semibold text-[15px]"><HardDrive size={18} className="text-teal" />Drive mode (pilot)</div>

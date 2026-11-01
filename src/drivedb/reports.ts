@@ -45,7 +45,7 @@ export function listBills(db: DriveDB, iso: string, text = "", limit = 200) {
 export function dayReport(db: DriveDB, branchId: string, iso = todayISO()) {
   const [from, to] = dayRange(iso);
   const sales = db.engine.all<{ bills: number; total: number; tax: number; discount: number }>(
-    "SELECT COUNT(*) AS bills, COALESCE(SUM(totalPaise), 0) AS total, COALESCE(SUM(cgstPaise + sgstPaise), 0) AS tax, COALESCE(SUM(discountPaise), 0) AS discount FROM sale WHERE branchId = ? AND at >= ? AND at < ?",
+    "SELECT COUNT(*) AS bills, COALESCE(SUM(totalPaise), 0) AS total, COALESCE(SUM(cgstPaise + sgstPaise + igstPaise), 0) AS tax, COALESCE(SUM(discountPaise), 0) AS discount FROM sale WHERE branchId = ? AND at >= ? AND at < ?",
     [branchId, from, to])[0];
   const pay = Object.fromEntries(db.engine.all<{ mode: string; amount: number }>(
     "SELECT p.mode, SUM(p.amountPaise) AS amount FROM payment p JOIN sale s ON s.id = p.saleId WHERE s.branchId = ? AND s.at >= ? AND s.at < ? GROUP BY p.mode",

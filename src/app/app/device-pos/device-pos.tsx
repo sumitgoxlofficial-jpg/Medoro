@@ -9,6 +9,7 @@ import { DeviceApp } from "@/components/device/device-app";
 import { card, input, errText, type Cfg, type Who } from "@/components/device/ui";
 import { deviceSeedAction } from "../lab/actions";
 import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
+import { FinishMove, MoveFromMedoro } from "./move";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean }) {
@@ -18,7 +19,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive }
     <DeviceApp
       who={who}
       empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} />}
-      side={drive ? <DrivePanel access={conn.access} error={conn.error} /> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
+      side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
       settingsExtra={owner && drive ? <DevicesPanel /> : null}
     />
   );
@@ -29,10 +30,11 @@ function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId
   const dev = deviceDb();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const [vault, setVault] = useState<boolean | null>(null);
   const [code, setCode] = useState("");
   useEffect(() => {
     if (!drive || access?.status !== "approved") return;
-    dev.call("driveStatus").then((s) => setSaved(s.snapshotAt ?? s.lastSnapshot), () => setSaved(null));
+    dev.call("driveStatus").then((s) => { setSaved(s.snapshotAt ?? s.lastSnapshot); setVault(s.vault); }, () => setSaved(null));
   }, [drive, access?.status, dev]);
 
   const load = async () => {
@@ -59,9 +61,15 @@ function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId
   };
 
   const staffWaiting = !owner && drive && access?.status === "pending";
+  // Once offered, the move stays on screen through its own steps (it creates the Drive copy as it finishes).
+  const [moveOffered, setMoveOffered] = useState(false);
+  const canMove = moveOffered || (owner && drive && access?.status === "approved" && access.role === "owner" && vault === false);
+  useEffect(() => { if (canMove) setMoveOffered(true); }, [canMove]);
   return (
+    <div className="flex flex-col gap-3">
+    {canMove && <MoveFromMedoro userId={userId} ready={ready} />}
     <div className={card}>
-      <div className="font-semibold">Set up this device</div>
+      <div className="font-semibold">{canMove ? "Or just try it out" : "Set up this device"}</div>
       {owner ? (
         <>
           <div className="text-sm text-muted">This device has no catalogue yet. Load this branch’s medicines, stock and customers from Medoro once; after that, billing here works without the server.</div>
@@ -82,6 +90,7 @@ function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId
           <Button variant={owner ? "outline" : "primary"} className="self-start" onClick={restore} disabled={busy}>{busy ? "Restoring…" : owner ? "Restore from Google Drive" : "Set up from Google Drive"}</Button>
         </div>
       )}
+    </div>
     </div>
   );
 }
