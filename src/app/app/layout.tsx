@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { maybeBackup } from "@/domain/system/backup";
 import { requireCtx } from "@/server/context";
 import { db } from "@/server/db";
 import { Shell } from "@/components/shell/shell";
@@ -20,6 +22,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.session.count({ where: { user: { tenantId: ctx.tenantId }, revokedAt: null, lastSeenAt: { gt: new Date(Date.now() - 5 * 60_000) } } }),
   ]);
   if (!user || !tenant) redirect("/signin");
+  // Backups every few hours (if chosen) run after the page is sent, while the pharmacy is using Medoro.
+  if (!ctx.readOnly) after(() => maybeBackup(ctx.tenantId).catch(() => {}));
   const { badges, alerts } = await badgesAndAlerts(ctx.tenantId, ctx.branchId, ctx.perms);
   const supportEnd = await activeGrantEnd(ctx.tenantId);
   const ai = await aiStatus(ctx);

@@ -5,6 +5,9 @@ import { signupOpen } from "@/server/setup-gate";
 import { googleLoginConfigured, readPendingSignup, readVerifiedEmail } from "@/server/google-oidc";
 import { mailEnabled } from "@/server/mail";
 import { EmailStep } from "./email-step";
+import { RestoreFromDrive } from "./restore-drive";
+import { driveAppConfigured } from "@/domain/system/gdrive";
+import { setupDrive } from "@/server/setup-drive";
 import { cookies } from "next/headers";
 import { Wizard } from "../setup/wizard";
 
@@ -12,7 +15,7 @@ export const metadata = { title: "Create your pharmacy account" };
 export const dynamic = "force-dynamic";
 
 /** Self-service sign-up on a hosted multi-pharmacy server. Only when PUBLIC_SIGNUP=1. */
-export default async function Page({ searchParams }: { searchParams: Promise<{ with?: string; ref?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ with?: string; ref?: string; restore?: string }> }) {
   if (!signupOpen()) notFound();
   if (await readSession()) redirect("/app");
   // Arrived from "Continue with Google" with no account yet: the owner account uses that Google identity.
@@ -26,6 +29,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   // Sign-up with email: the address is confirmed with a code before the pharmacy form opens.
   const verifiedEmail = google ? null : await readVerifiedEmail();
   const needCode = !choose && !google && !verifiedEmail && mailEnabled();
+  // A returning pharmacy brings its data back from its Google Drive backup, like WhatsApp.
+  if (sp.restore === "1") return (
+    <div className="flex flex-col items-center gap-4 w-full">
+      <div className="text-center flex flex-col gap-1.5 max-w-[560px]">
+        <h1 className="m-0 text-[24px] font-bold">Restore your pharmacy</h1>
+        <p className="m-0 text-[14px] text-muted">From your backup in Google Drive. Already have an account? <Link href="/signin" className="text-teal font-semibold">Sign in</Link></p>
+      </div>
+      <RestoreFromDrive driveApp={driveAppConfigured()} driveAccount={(await setupDrive())?.account ?? null} />
+    </div>
+  );
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <div className="text-center flex flex-col gap-1.5 max-w-[560px]">
@@ -40,6 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
           <div className="text-[13px] text-muted text-center">Your name and email come from Google, so there’s no password to remember. Next you add your pharmacy details.</div>
           <div className="flex items-center gap-3 text-[12px] text-faint"><span className="flex-1 h-px bg-line" />or<span className="flex-1 h-px bg-line" /></div>
           <Link href={referral ? `/signup?with=email&ref=${referral}` : "/signup?with=email"} className="text-center text-[14px] font-semibold text-teal min-h-10 inline-flex items-center justify-center">Sign up with email instead</Link>
+          <Link href="/signup?restore=1" className="text-center text-[13px] text-muted min-h-10 inline-flex items-center justify-center">Used Medoro before? <span className="text-teal font-semibold ml-1">Restore from Google Drive</span></Link>
         </div>
       ) : needCode ? (
         <EmailStep back={googleLoginConfigured() ? (referral ? `/signup?ref=${referral}` : "/signup") : null} />

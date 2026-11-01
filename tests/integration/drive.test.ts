@@ -13,6 +13,7 @@ import { freshRestore, importBackup, parseKit, previewFreshRestore, reenterKit }
 import { backupHealth, badgesAndAlerts } from "@/domain/reports/alerts";
 import { recoveryKitHtml } from "@/components/recovery-kit";
 import { ctxFor, KEY, makePharmacy, resetDb } from "./helpers";
+import { purgeTenant } from "@/domain/system/deletion";
 
 type DFile = { id: string; name: string; parents: string[]; mimeType: string; appProperties?: Record<string, string>; bytes: Buffer; createdTime: string };
 type Call = { method: string; url: string; auth?: string; body?: string };
@@ -242,6 +243,27 @@ describe("Google Drive: connect, back up, store files, prune and recover", () =>
     const row = await db.fileObject.findUniqueOrThrow({ where: { key } });
     expect(row.bytes).toBeNull();
     expect(g.files.get(row.driveFileId!)!.bytes.equals(png)).toBe(true);
+  });
+
+  it("hosted sign-up: a pharmacy that deleted its account comes back from its Drive backup, like WhatsApp", async () => {
+    const ctx = await connect();
+    const b = await runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
+    const file = (await backupFile(ctx, b.id))!.bytes;
+    // Another pharmacy on the same hosted server.
+    await db.tenant.create({ data: { code: "OTHER-PH", name: "Other Pharmacy", settings: {} } });
+    vi.stubEnv("PUBLIC_SIGNUP", "1");
+    try {
+      await expect(previewFreshRestore(file, KEY)).resolves.toMatchObject({ code: "TEST-PUNE" });
+      await expect(freshRestore(file, KEY, "TEST-PUNE")).rejects.toThrow(/already has an account/);
+      expect(await purgeTenant(ctx.tenantId)).toBe(true);
+      expect(await db.tenant.count({ where: { id: ctx.tenantId } })).toBe(0);
+      const done = await freshRestore(file, KEY, "TEST-PUNE");
+      expect(done).toMatchObject({ code: "TEST-PUNE", pharmacy: "Test Medical Store" });
+      expect(await db.tenant.findUniqueOrThrow({ where: { code: "TEST-PUNE" } })).toMatchObject({ id: ctx.tenantId });
+      expect(await db.branch.count({ where: { tenantId: ctx.tenantId } })).toBe(2);
+      expect(await db.user.count({ where: { tenantId: ctx.tenantId, email: "owner@test.in" } })).toBe(1);
+      expect(await db.tenant.count({ where: { code: "OTHER-PH" } })).toBe(1); // the other pharmacy is untouched
+    } finally { vi.stubEnv("PUBLIC_SIGNUP", ""); }
   });
 
   it("restores a backup picked in Drive with the recovery kit, through the test copy", async () => {

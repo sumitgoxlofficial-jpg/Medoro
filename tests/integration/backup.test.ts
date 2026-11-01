@@ -5,7 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { db } from "@/server/db";
 import { putObject } from "@/server/storage";
-import { backupFile, decryptBackup, runBackup, saveBackupSettings, scheduledTick, testRestore } from "@/domain/system/backup";
+import { backupFile, backupSettings, decryptBackup, maybeBackup, runBackup, saveBackupSettings, scheduledTick, testRestore } from "@/domain/system/backup";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 describe("encrypted backups", () => {
@@ -55,5 +55,24 @@ describe("encrypted backups", () => {
       const mail = info.mock.calls.map((c) => String(c[0])).find((s) => s.startsWith("[mail] to owner@test.in"));
       expect(mail).toMatch(/backup failed/);
     } finally { delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SECRET_KEY; delete process.env.MAIL_PROVIDER; info.mockRestore(); }
+  });
+
+  it("backs up every few hours while the pharmacy uses Medoro, when chosen", async () => {
+    const ctx = await ctxFor();
+    await db.backupManifest.deleteMany({ where: { tenantId: ctx.tenantId } });
+    expect(await maybeBackup(ctx.tenantId)).toBeNull(); // once a day (default): nothing extra
+    await saveBackupSettings(ctx, { schedule: "02:30", retention: 30, files: "server", every: 6 });
+    expect((await backupSettings(ctx.tenantId)).every).toBe(6);
+    await expect(saveBackupSettings(ctx, { schedule: "02:30", retention: 30, files: "server", every: 5 })).rejects.toThrow(/Invalid/);
+    const first = await maybeBackup(ctx.tenantId);
+    expect(first).toMatchObject({ size: expect.any(Number) });
+    expect(await maybeBackup(ctx.tenantId)).toBeNull(); // just backed up
+    await db.backupManifest.update({ where: { id: first!.id }, data: { startedAt: new Date(Date.now() - 7 * 3600_000) } });
+    expect(await maybeBackup(ctx.tenantId)).toMatchObject({ size: expect.any(Number) });
+    expect(await db.backupManifest.count({ where: { tenantId: ctx.tenantId, status: "verified" } })).toBe(2);
+    // A backup already running blocks another.
+    await db.backupManifest.updateMany({ where: { tenantId: ctx.tenantId }, data: { startedAt: new Date(Date.now() - 7 * 3600_000) } });
+    await db.backupManifest.create({ data: { tenantId: ctx.tenantId, kind: "manual", schemaVersion: "x", status: "running" } });
+    expect(await maybeBackup(ctx.tenantId)).toBeNull();
   });
 });

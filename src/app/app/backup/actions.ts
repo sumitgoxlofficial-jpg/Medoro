@@ -12,7 +12,7 @@ import type { FileStore } from "@/server/storage";
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 export async function backupNowAction() { return fresh(await run(async (c) => backupNow(c))); }
 export async function restoreAction(id: string) { return fresh(await run(async (c) => testRestore(c, id))); }
-export async function settingsAction(schedule: string, retention: number, files: FileStore) { return fresh(await run((c) => saveBackupSettings(c, { schedule, retention, files }), "Settings saved.")); }
+export async function settingsAction(schedule: string, retention: number, files: FileStore, every: number) { return fresh(await run((c) => saveBackupSettings(c, { schedule, retention, files, every }), "Settings saved.")); }
 export async function disconnectAction() {
   return fresh(await run(async (c) => {
     authorize(c, "integrations");

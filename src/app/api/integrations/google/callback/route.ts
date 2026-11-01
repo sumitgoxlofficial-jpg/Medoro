@@ -3,8 +3,7 @@ import { cookies } from "next/headers";
 import { getCtx } from "@/server/context";
 import { writeAudit } from "@/server/audit";
 import { db } from "@/server/db";
-import { isSetupDone } from "@/domain/identity/service";
-import { setupUnlocked } from "@/server/setup-gate";
+import { restoreAllowed } from "@/app/(auth)/setup/setup-step";
 import { holdSetupDrive } from "@/server/setup-drive";
 import { DriveScopeMissing, exchangeCode, saveDriveToken } from "@/domain/system/gdrive";
 
@@ -13,7 +12,7 @@ const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(
 /** The setup wizard opens consent in a popup and hears back over a BroadcastChannel (Google's pages cut window.opener).
  * The inline script carries the CSP nonce that middleware puts on the request (`x-nonce`). */
 const popup = (q: string, nonce: string | null) => new Response(
-  `<!doctype html><meta charset="utf-8"><title>Google Drive</title><body style="font:15px system-ui;padding:24px">${q === "ok" ? "Google Drive connected." : "Google Drive wasn’t connected."} You can close this window and go back to <a href="/setup">setup</a>.<script${nonce && /^[A-Za-z0-9+/=]+$/.test(nonce) ? ` nonce="${nonce}"` : ""}>try{new BroadcastChannel("medoro-drive").postMessage(${JSON.stringify(q)})}catch(e){}setTimeout(function(){window.close()},300)</script>`,
+  `<!doctype html><meta charset="utf-8"><title>Google Drive</title><body style="font:15px system-ui;padding:24px">${q === "ok" ? "Google Drive connected." : "Google Drive wasn’t connected."} You can close this window and go back to Medoro.<script${nonce && /^[A-Za-z0-9+/=]+$/.test(nonce) ? ` nonce="${nonce}"` : ""}>try{new BroadcastChannel("medoro-drive").postMessage(${JSON.stringify(q)})}catch(e){}setTimeout(function(){window.close()},300)</script>`,
   { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
 );
 
@@ -29,7 +28,7 @@ export async function GET(req: Request) {
   if (!code) return back("denied");
   try {
     if (setup) {
-      if ((await isSetupDone()) || !(await setupUnlocked())) return back("forbidden");
+      if (!(await restoreAllowed())) return back("forbidden");
       const t = await exchangeCode(code, verifier);
       await holdSetupDrive(t.refreshToken, t.email);
       return back("ok");
