@@ -35,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (asks.length) { badges.privacy = [asks.length, "amber"]; alerts.unshift("Medoro support asked for access to your data. Approve or decline under Privacy & data."); }
   const banner = subscriptionBanner(access);
   const move = (tenant.settings as { driveMove?: { state: string; movedAt?: string } }).driveMove;
+  if (!move && (tenant.settings as { driveOnly?: boolean }).driveOnly) alerts.unshift("Your pharmacy’s data lives in your Google Drive. Bill, buy and manage stock on Billing (device).");
   if (move) alerts.unshift(move.state !== "moving"
     ? `Your pharmacy’s data now lives in your Google Drive (moved ${new Date(move.movedAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}). Medoro’s copy is read-only: bill on Billing (device).`
     : "Your data is moving to Google Drive. Medoro’s copy is read-only until the move finishes or is cancelled.");

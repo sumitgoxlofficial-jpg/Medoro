@@ -46,6 +46,12 @@ export function relayStore(device: string, base = "/api/drivedb", f: typeof fetc
   };
 }
 
+/** Tells Medoro whether this device's last sync worked (for the owner's alerts). Never throws. */
+export async function reportHealth(device: string, error: string | null, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
+  const q = new URLSearchParams({ op: "health", device, ok: error ? "0" : "1", ...(error ? { error: error.slice(0, 300) } : {}) });
+  await f(`${base}?${q}`, { method: "POST", credentials: "same-origin" }).catch(() => undefined);
+}
+
 /** Registers this device with the relay (its public key). Returns approved / pending / removed. */
 export async function registerDevice(device: string, name: string, publicJwk: JsonWebKey, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
   const r = await f(`${base}?op=register&device=${encodeURIComponent(device)}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: device, name, publicKey: { kty: publicJwk.kty, n: publicJwk.n, e: publicJwk.e, alg: publicJwk.alg } }) });

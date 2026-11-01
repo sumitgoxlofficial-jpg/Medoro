@@ -1,4 +1,5 @@
 import "server-only";
+import { dataInDrive } from "./drive-state";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { db } from "@/server/db";
@@ -70,6 +71,8 @@ export const counts = (d: Record<string, unknown>): Record<string, number> => ({
 const len = (d: Record<string, unknown>, v2: string, v1: string) => (((d.tables as Record<string, unknown[]>)?.[v2] ?? d[v1]) as unknown[] | undefined)?.length ?? 0;
 
 /** Takes a backup now. Used by "Back up now" and the daily scheduler (which passes the "running" manifest it claimed). */
+const inDrive = async (tenantId: string) => dataInDrive((await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }))?.settings);
+
 export async function runBackup(tenantId: string, kind: "manual" | "scheduled" | "retry", user?: { id: string; name: string }, claimed?: { id: string; startedAt: Date }) {
   const m = claimed ?? await db.backupManifest.create({ data: { tenantId, kind, schemaVersion: SCHEMA, status: "running" } });
   try {
@@ -131,6 +134,7 @@ async function alertOwners(tenantId: string, error: string) {
 
 export async function backupNow(ctx: Ctx) {
   authorize(ctx, "integrations");
+  if (await inDrive(ctx.tenantId)) throw new UserError("Your pharmacy’s data lives in your Google Drive, so Medoro has nothing to back up. Your counters save full copies to Drive.");
   const running = await db.backupManifest.findFirst({ where: { tenantId: ctx.tenantId, status: "running", startedAt: { gt: new Date(Date.now() - 15 * 60_000) } } });
   if (running) throw new UserError("A backup is already running.");
   return runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
@@ -279,6 +283,7 @@ export async function saveBackupSettings(ctx: Ctx, input: { schedule: string; re
  * the clock. One runs at a time per pharmacy (advisory lock + a "running" manifest).
  */
 export async function maybeBackup(tenantId: string, now = new Date()) {
+  if (await inDrive(tenantId)) return null;
   const s = await backupSettings(tenantId);
   if (s.every === 24) return null;
   const last = await db.backupManifest.findFirst({ where: { tenantId, OR: [{ status: { in: ["verified", "partial"] } }, { status: "running", startedAt: { gt: new Date(now.getTime() - STALE_RUNNING_MS) } }] }, orderBy: { startedAt: "desc" }, select: { startedAt: true } });
@@ -335,7 +340,8 @@ export async function scheduledTick(now = new Date(), opts: { daily?: boolean } 
   await cleanupRestores().catch(() => {});
   await failStale(now).catch(() => {});
   const { hhmm, dayStart } = istClock(now);
-  for (const t of await db.tenant.findMany({ select: { id: true } })) {
+  for (const t of await db.tenant.findMany({ select: { id: true, settings: true } })) {
+    if (dataInDrive(t.settings)) continue; // the counters keep the copies, in the pharmacy's own Drive
     const s = await backupSettings(t.id);
     if (!opts.daily && hhmm < s.schedule) continue;
     const claimed = await db.$transaction(async (tx) => {

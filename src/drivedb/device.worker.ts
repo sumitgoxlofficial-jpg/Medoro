@@ -15,7 +15,7 @@ import * as sync from "./sync";
 import * as move from "./migrate-in";
 import type { MoveBase, MovePart } from "@/domain/system/drive-move";
 import type { DriveStore } from "./drive";
-import { relayStore, registerDevice, RelayRefusedError } from "./relay";
+import { relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -106,7 +106,18 @@ async function syncNow(forceSnapshot = false) {
     if (e instanceof RelayRefusedError && /removed/i.test(e.message)) { access = { ...(access ?? { role: "staff" }), status: "removed" }; ring = null; }
     state.lastError = e instanceof Error ? e.message : String(e);
   } finally { state.busy = false; }
+  void report();
   return state;
+}
+
+/** Sends the sync result to Medoro when it changes, and a "still fine" at most every 10 minutes. */
+let reported: { error: string | null; at: number } | null = null;
+async function report() {
+  if (access?.status !== "approved") return;
+  const error = state.lastError;
+  if (reported && reported.error === error && (error || Date.now() - reported.at < 10 * 60_000)) return;
+  reported = { error, at: Date.now() };
+  await reportHealth(deviceName, error);
 }
 setInterval(() => { void syncNow(); }, 5_000);
 

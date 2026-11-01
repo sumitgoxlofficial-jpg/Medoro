@@ -326,6 +326,22 @@ working with me; they overlap a little.
   The Drive mode card has the button; the expenses total joined the checks.
 - Left for phase 7: moving a pharmacy whose Drive already holds pilot data (needs merging the pilot's device bills).
 
+### Phase 8 progress (slice 1 built: Drive sign-up, sync monitoring, privacy pages)
+- **Sign-up** asks where the pharmacy's records live: "In my own Google Drive (recommended)" or Medoro's server.
+  Drive sets `driveMode` and `driveOnly`: Medoro keeps only the account (`dataInDrive` makes `Ctx.moved` true, so
+  every business change on the server is refused), `/app` opens Billing (device), and the device setup offers
+  "Start my pharmacy on this device" (nothing to copy or move).
+- **Server backups retired** for Drive pharmacies (signed up that way or moved): no scheduled, on-visit or manual
+  backups (there is nothing to back up; counters save full copies to Drive). The bell stops asking for backups.
+- **Monitoring**: devices report each sync's result (`op=health`: worked, or the error text) to `DriveDevice`
+  (`lastSyncAt`, `lastError`, migration `20261108000000_drivedb_sync_health`). The owner's bell lists counters that
+  haven't saved to Drive for 3+ days, sync errors from the past day, and lost Drive access. The Devices list shows
+  each device's last sync and error.
+- **Privacy**: the privacy policy, backup and help sections of /legal, and the in-app Privacy & data page say
+  where records live in Drive mode and what Medoro keeps.
+- Left: Drive storage quota warnings (Google returns them as upload errors, which now reach the bell as sync
+  errors), emailing the owner about stale counters, and retiring the server backup code once no pharmacy uses it.
+
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
 - Token broker endpoint on the server; data key + recovery kit wrapping + device keys.

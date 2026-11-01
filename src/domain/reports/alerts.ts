@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { addDays, dateOnly, todayISO } from "@/lib/dates";
 import { sellableByMedicine } from "@/domain/inventory/queries";
 import { driveState } from "@/domain/system/gdrive";
+import { dataInDrive } from "@/domain/system/drive-state";
 import type { ScreenId } from "@/lib/nav";
 
 const OVERDUE_MS = 26 * 3600_000;
@@ -11,11 +12,13 @@ const OVERDUE_MS = 26 * 3600_000;
 export async function backupHealth(tenantId: string, now = new Date()) {
   const real = { tenantId, kind: { not: "imported" } };
   const [tenant, lastOk, last, drive] = await Promise.all([
-    db.tenant.findUnique({ where: { id: tenantId }, select: { createdAt: true } }),
+    db.tenant.findUnique({ where: { id: tenantId }, select: { createdAt: true, settings: true } }),
     db.backupManifest.findFirst({ where: { ...real, status: { in: ["verified", "partial"] } }, orderBy: { startedAt: "desc" } }),
     db.backupManifest.findFirst({ where: { ...real, status: { not: "running" } }, orderBy: { startedAt: "desc" } }),
     driveState(tenantId),
   ]);
+  // Data in Drive: Medoro keeps no copy to back up; what matters is that every counter keeps saving to Drive.
+  if (dataInDrive(tenant?.settings)) return [...(drive.status === "lost" ? ["Google Drive access was lost, so your counters can’t save to it. Reconnect it in Backup & restore."] : []), ...(await driveSyncHealth(tenantId, now))];
   const problems: string[] = [];
   if (last?.status === "failed") problems.push(`Last backup failed: ${last.error ?? "unknown error"}`);
   else if (last?.status === "partial" && last.error) problems.push(`Last backup is incomplete: ${last.error}`);
@@ -23,6 +26,27 @@ export async function backupHealth(tenantId: string, now = new Date()) {
   if (since && now.getTime() - since.getTime() > OVERDUE_MS) problems.push(lastOk ? `No successful backup for ${Math.floor((now.getTime() - since.getTime()) / 3600_000)} hours` : "No successful backup yet");
   if (drive.status === "lost") problems.push("Google Drive access was lost. Reconnect it in Backup & restore.");
   return problems;
+}
+
+const STALE_SYNC_MS = 3 * 86400_000, RECENT_ERROR_MS = 24 * 3600_000;
+
+/**
+ * Drive mode counters that need the owner: one that hasn't saved to Google Drive for 3 days or more (its bills are
+ * only on that device), and one whose last sync failed in the past day.
+ */
+export async function driveSyncHealth(tenantId: string, now = new Date()) {
+  const devices = await db.driveDevice.findMany({ where: { tenantId, status: "approved" }, orderBy: { createdAt: "asc" } });
+  const out: string[] = [];
+  for (const d of devices) {
+    const name = d.name.split(" · ")[0] + (d.name.includes(" · ") ? ` (${d.name.split(" · ").slice(1).join(" · ")})` : "");
+    if (d.lastError && d.lastErrorAt && now.getTime() - d.lastErrorAt.getTime() < RECENT_ERROR_MS) out.push(`${name} couldn’t sync with Google Drive: ${d.lastError}`);
+    const since = d.lastSyncAt ?? d.decidedAt ?? d.createdAt;
+    if (now.getTime() - since.getTime() >= STALE_SYNC_MS) {
+      const days = Math.floor((now.getTime() - since.getTime()) / 86400_000);
+      out.push(d.lastSyncAt ? `${name} hasn’t saved to Google Drive for ${days} days. Open Billing (device) on it while online, or its bills are only on that device.` : `${name} has never saved to Google Drive. Open Billing (device) on it while online.`);
+    }
+  }
+  return out;
 }
 
 /** Sidebar badges and the bell's alert list, from live data. Backup alerts go to those who manage backups. */

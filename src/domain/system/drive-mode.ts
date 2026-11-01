@@ -7,6 +7,8 @@ import { big } from "@/lib/money";
 import { isoOf } from "@/lib/dates";
 import { maxDiscount } from "@/domain/sales/approval";
 import { loyaltySettings } from "@/domain/sales/loyalty";
+import { dataInDrive } from "./drive-state";
+export { dataInDrive };
 import type { Medicine } from "@prisma/client";
 
 /**
@@ -27,7 +29,7 @@ export async function setDriveMode(ctx: Ctx, on: boolean) {
   ownerOnly(ctx, "turn Drive mode on or off");
   await db.$transaction(async (tx) => {
     const t = await tx.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { settings: true } });
-    if (!on && (t.settings as { driveMove?: unknown }).driveMove) throw new UserError("Your data lives in Google Drive now. Undo the move first to go back to Medoro’s copy.");
+    if (!on && dataInDrive(t.settings)) throw new UserError((t.settings as { driveMove?: unknown }).driveMove ? "Your data lives in Google Drive now. Undo the move first to go back to Medoro’s copy." : "This pharmacy keeps its data in Google Drive, so Drive mode stays on.");
     await tx.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), driveMode: on } } });
     await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: on ? "Drive mode turned on" : "Drive mode turned off", entity: "tenant", entityId: ctx.tenantId });
   });
