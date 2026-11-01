@@ -114,7 +114,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
       {tab === "reports" && <ReportsGst cfg={cfg} />}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}
-      <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => setReceipt(null)} />
+      <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => setReceipt(null)} who={who} />
     </div>
   );
 }

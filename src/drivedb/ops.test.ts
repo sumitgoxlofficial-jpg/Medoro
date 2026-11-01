@@ -103,5 +103,10 @@ describe("delivery orders", () => {
 
 it("migration 6 adds inter-state tax to bills", () => {
   expect(db.engine.all<{ name: string }>("PRAGMA table_info(sale)").map((r) => r.name).sort()).toEqual([...TABLES.sale.columns].sort());
-  expect(SCHEMA_VERSION).toBe(6);
+  expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(6);
+});
+
+it("migration 7 adds e-invoices and buyers' addresses", () => {
+  for (const t of ["customer", "einvoice"] as const) expect(db.engine.all<{ name: string }>(`PRAGMA table_info(${t})`).map((r) => r.name).sort()).toEqual([...TABLES[t].columns].sort());
+  expect(SCHEMA_VERSION).toBe(7);
 });

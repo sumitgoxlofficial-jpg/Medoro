@@ -25,7 +25,7 @@ export function beginMove(db: DriveDB, base: MoveBase) {
     db.setMeta(IN_PROGRESS, "1");
     if (base.medicines.length) db.from("medicine").insert(base.medicines);
     if (base.batches.length) db.from("batch").insert(base.batches);
-    if (base.customers.length) db.from("customer").insert(base.customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone, gstin: c.gstin, creditLimitPaise: c.creditLimitPaise })));
+    if (base.customers.length) db.from("customer").insert(base.customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone, gstin: c.gstin, creditLimitPaise: c.creditLimitPaise, address: c.address, pincode: c.pincode })));
     const erased = base.customers.filter((c) => c.erased).map((c) => c.id);
     if (erased.length) db.from("customer").in("id", erased).delete();
     if (base.suppliers.length) db.from("supplier").insert(base.suppliers);

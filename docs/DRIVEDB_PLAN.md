@@ -317,8 +317,16 @@ working with me; they overlap a little.
   step to the model and stores nothing (no question, rows or answer; only the per-user rate limit counts). For a
   remote model the counter replaces customer names, phones and emails with placeholders before sending, unless the
   owner allows names. Tests: `assistant.test.ts`, `tests/integration/ai-gateway.test.ts`, `e2e/26-device-ask.spec.ts`.
-- Left for phase 6: the e-invoice (IRN) gateway, and sending bills through the WhatsApp Business API (counters
-  already share bills and reminders on WhatsApp with no server, via wa.me).
+- Slice 3: **e-invoices from the counter** (`src/drivedb/einvoice.ts`, device migration 7: `einvoice` table and
+  customers' billing `address`/`pincode`). The counter builds the e-invoice from its own bill with the server's rules
+  and figures; the gateway (`counterIrn`, `counterCancelIrn` in `src/domain/gst/service.ts`) checks it is for this
+  pharmacy's GSTIN, passes it to the IRP and returns the IRN, acknowledgement and signed QR without storing anything;
+  the counter saves them with the bill and prints them (IRN, Ack, QR) on the receipt. Cancelling follows the server's
+  rule: within 24 hours and only after the whole bill is returned. Moved pharmacies bring customers' addresses.
+  Tests: `tests/integration/counter-einvoice.test.ts`.
+- Left for phase 6: sending bills through the WhatsApp Business API from the counter. It needs the bill as a PDF
+  (the approved invoice template carries it as the document header): the counter would make the PDF and send it
+  through the gateway, which uploads it to Meta and forgets it. Until then counters share bills on WhatsApp via wa.me.
 
 ### Phase 7 progress (slice 1 built: the move, checks, read-only copy, undo)
 - Server `src/domain/system/drive-move.ts`: `startMove` freezes Medoro's copy (`tenant.settings.driveMove`;

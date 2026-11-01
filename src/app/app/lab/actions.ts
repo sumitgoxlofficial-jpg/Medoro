@@ -10,6 +10,8 @@ import { connectCustomerPay, createPayLink, disconnectCustomerPay, payStatus, ty
 import type { z } from "zod";
 import { gatewayStatus, gatewayStep, type stepInput } from "@/domain/ai/gateway";
 import type { ChatMsg, ToolSpec } from "@/domain/ai/llm";
+import { counterCancelIrn, counterIrn, einvoiceState, type counterCancelSchema } from "@/domain/gst/service";
+import type { EinvDoc } from "@/domain/gst/einvoice";
 import { completeMove, deleteMedoroCopy, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
@@ -90,3 +92,9 @@ export async function payLinkAction(input: z.input<typeof linkInput>) { return r
 export async function aiGatewayStatusAction() { return run((c) => gatewayStatus(c)); }
 /** One step of a counter's conversation with the model: the counter runs the lookups on its own data. */
 export async function aiStepAction(input: { messages: ChatMsg[]; tools: ToolSpec[] }) { return run((c) => gatewayStep(c, input as z.input<typeof stepInput>)); }
+
+// ---------- Phase 6: e-invoices for counter bills (nothing stored on Medoro) ----------
+
+export async function einvoiceStatusAction() { return run(async (c) => (await einvoiceState(c.tenantId)).enabled); }
+export async function counterIrnAction(doc: EinvDoc) { return run((c) => counterIrn(c, doc)); }
+export async function counterCancelIrnAction(input: z.input<typeof counterCancelSchema>) { return run((c) => counterCancelIrn(c, input)); }

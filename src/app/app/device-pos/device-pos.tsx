@@ -11,18 +11,20 @@ import { deviceSeedAction } from "../lab/actions";
 import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
 import { PaymentsPanel } from "./payments-panel";
-import { aiGatewayStatusAction, aiStepAction, payLinkAction, payStatusAction } from "../lab/actions";
+import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, einvoiceStatusAction, payLinkAction, payStatusAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean }) {
   const conn = useDriveConnect(drive);
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
+  const [einv, setEinv] = useState(false);
   useEffect(() => {
     void payStatusAction().then((r) => setPaying(r.ok && r.data.connected), () => {});
+    void einvoiceStatusAction().then((r) => setEinv(r.ok && r.data), () => {});
     void aiGatewayStatusAction().then((r) => setAi(r.ok && r.data.enabled && r.data.model ? { remote: r.data.model === "remote", remoteNames: r.data.remoteNames } : null), () => {});
   }, []);
-  const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null };
+  const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null };
   return (
     <DeviceApp
       who={who}

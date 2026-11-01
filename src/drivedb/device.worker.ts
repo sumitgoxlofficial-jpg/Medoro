@@ -18,6 +18,7 @@ import type { DriveStore } from "./drive";
 import { relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
 import * as inbox from "./inbox";
 import * as assistant from "./assistant";
+import * as einv from "./einvoice";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -199,6 +200,11 @@ const handlers = {
   listOrders: (branchId: string, showDone?: boolean) => ops.listOrders(need(), branchId, showDone),
   transferStock: (input: Parameters<typeof ops.transferStock>[1]) => ops.transferStock(need(), input),
   activityLog: (opts?: { limit?: number; text?: string }) => reports.activityLog(need(), opts),
+  einvoiceDoc: (saleId: string) => einv.einvoiceDoc(need(), saleId, seed.counterConfig(need())?.pharmacy ?? null),
+  recordIrn: (saleId: string, r: einv.IrnReply, userId: string) => einv.recordIrn(need(), saleId, r, userId),
+  einvoiceCancelCheck: (saleId: string) => einv.cancelCheck(need(), saleId),
+  recordIrnCancel: (saleId: string, reason: string, userId: string) => einv.recordIrnCancel(need(), saleId, reason, userId),
+  setBillingAddress: (customerId: string, address: string, pincode: string) => einv.setBillingAddress(need(), customerId, address, pincode),
   askRules: (scope: assistant.AskScope, text: string) => assistant.askRules(need(), scope, text),
   aiTool: (scope: assistant.AskScope, name: string, input: unknown, hi: boolean) => assistant.runTool(need(), scope, name, input, hi),
   aiNames: () => assistant.customerNames(need()),
