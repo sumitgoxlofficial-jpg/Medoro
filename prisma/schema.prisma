@@ -1603,3 +1603,16 @@ model DriveDevice {
   @@unique([tenantId, deviceId])
   @@index([tenantId, status])
 }
+
+/// Drive mode: a customer's online payment waiting for a counter, sealed for one device (only it can open it).
+model PaymentInbox {
+  id        String   @id @default(uuid())
+  tenantId  String
+  deviceId  String
+  paymentId String
+  sealed    String // JSON {k, iv, ct}: AES-GCM payload, its key wrapped with the device's RSA-OAEP public key
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, deviceId, paymentId])
+  @@index([tenantId, paymentId])
+}

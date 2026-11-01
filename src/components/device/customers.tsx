@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, IndianRupee, MessageCircle } from "lucide-react";
+import { Plus, IndianRupee, MessageCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
@@ -20,7 +20,20 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
   const [rows, setRows] = useState<C[]>([]);
   const [adding, setAdding] = useState(false);
   const [pay, setPay] = useState<C | null>(null);
+  const [linking, setLinking] = useState<string | null>(null);
   const load = useCallback(() => dev.call("customerList", q).then(setRows), [dev, q]);
+  /** A payment link for what the customer owes, sent on WhatsApp (or copied when there's no mobile number). */
+  const payLink = async (c: C) => {
+    if (!who.payLink) return;
+    setLinking(c.id);
+    try {
+      const r = await who.payLink({ customerId: c.id, customerName: c.name, phone: c.phone, amountPaise: c.balancePaise, label: `Dues at ${pharmacy?.tradeName || pharmacy?.name || "the pharmacy"}` });
+      if (!r.ok) { toast(r.error, "red"); return; }
+      const wa = waLink(c.phone, dueText(c.name, c.balancePaise, pharmacy, r.data.url));
+      if (wa) window.open(wa, "_blank", "noopener");
+      else { await navigator.clipboard.writeText(r.data.url).catch(() => {}); toast(`Payment link copied: ${r.data.url}`, "green"); }
+    } finally { setLinking(null); }
+  };
   useEffect(() => { const t = setTimeout(load, 120); return () => clearTimeout(t); }, [load, refresh]);
   return (
     <div className={card}>
@@ -35,6 +48,7 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
             <span className="flex items-center gap-2">
               {c.balancePaise ? <span className="text-bad tabular-nums">owes {inr(c.balancePaise)}</span> : <span className="text-muted">nothing due</span>}
               {c.balancePaise > 0 && waLink(c.phone, "") && <Button size="sm" onClick={() => window.open(waLink(c.phone, dueText(c.name, c.balancePaise, pharmacy))!, "_blank", "noopener")} aria-label={`Remind ${c.name}`}><MessageCircle size={14} /> Remind</Button>}
+              {c.balancePaise >= 100 && who.payLink && <Button size="sm" onClick={() => payLink(c)} disabled={linking === c.id} aria-label={`Payment link for ${c.name}`}><Link2 size={14} /> {linking === c.id ? "Making link…" : "Pay link"}</Button>}
               {c.balancePaise > 0 && <Button size="sm" onClick={() => setPay(c)} aria-label={`Receive from ${c.name}`}><IndianRupee size={14} /> Receive</Button>}
             </span>
           </li>

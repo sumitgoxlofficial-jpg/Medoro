@@ -30,11 +30,12 @@ export function billText(d: SaleDetail, pharmacy: Pharmacy | null): string {
   ].filter(Boolean).join("\n");
 }
 
-/** A polite reminder of money due. */
-export function dueText(name: string, duePaise: number, pharmacy: Pharmacy | null): string {
+/** A polite reminder of money due, with a payment link when there is one. */
+export function dueText(name: string, duePaise: number, pharmacy: Pharmacy | null, payUrl?: string): string {
   return [
     `Namaste ${name},`,
     `This is a reminder from ${pharmacy?.tradeName || pharmacy?.name || "your pharmacy"}: ${rs(duePaise)} is pending on your account.`,
-    "You can pay at the counter or by UPI. Please ignore if already paid. Thank you.",
+    payUrl ? `Pay online by UPI or card: ${payUrl}` : "You can pay at the counter or by UPI.",
+    "Please ignore if already paid. Thank you.",
   ].join("\n");
 }

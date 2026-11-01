@@ -144,6 +144,6 @@ export function activityLog(db: DriveDB, opts: { limit?: number; text?: string }
   return rows.map((r) => {
     const label = KIND_LABEL[r.kind];
     const what = label ? `${label}: ${r.what.slice(r.what.indexOf("|") + 1)}` : r.what;
-    return { at: r.at, who: names.get(r.userId) ?? (r.userId ? "Staff" : ""), kind: r.kind, what, amountPaise: r.amount == null ? null : Number(r.amount) };
+    return { at: r.at, who: names.get(r.userId) ?? (r.userId === "online" ? "Online payment" : r.userId ? "Staff" : ""), kind: r.kind, what, amountPaise: r.amount == null ? null : Number(r.amount) };
   }).filter((r) => !q || r.what.toLowerCase().includes(q) || r.who.toLowerCase().includes(q));
 }

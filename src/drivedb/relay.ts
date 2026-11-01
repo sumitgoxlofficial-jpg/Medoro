@@ -46,6 +46,20 @@ export function relayStore(device: string, base = "/api/drivedb", f: typeof fetc
   };
 }
 
+/** Online payments waiting for this device (sealed so only it can open them), and acknowledging recorded ones. */
+export function relayInbox(device: string, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
+  const call = async (op: string, extra: Record<string, string> = {}) => {
+    const r = await f(`${base}?${new URLSearchParams({ op, device, ...extra })}`, { method: "POST", credentials: "same-origin" });
+    const j = (await r.json().catch(() => ({}))) as { payments?: { paymentId: string; sealed: string }[]; error?: string };
+    if (!r.ok) throw r.status === 403 || r.status === 401 ? new RelayRefusedError(j.error ?? `Relay error ${r.status}`) : new Error(j.error ?? `Relay error ${r.status}`);
+    return j;
+  };
+  return {
+    list: async () => (await call("inbox")).payments ?? [],
+    ack: async (ids: string[]) => { if (ids.length) await call("inbox-ack", { ids: ids.join(",") }); },
+  };
+}
+
 /** Tells Medoro whether this device's last sync worked (for the owner's alerts). Never throws. */
 export async function reportHealth(device: string, error: string | null, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
   const q = new URLSearchParams({ op: "health", device, ok: error ? "0" : "1", ...(error ? { error: error.slice(0, 300) } : {}) });

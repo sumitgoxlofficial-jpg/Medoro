@@ -6,6 +6,8 @@ import { driveConfigured, deviceDriveToken } from "@/domain/system/gdrive";
 import { decideDevice, listDevices } from "@/domain/system/drivedb-relay";
 import { deviceSeed, setDriveMode } from "@/domain/system/drive-mode";
 import { revalidatePath } from "next/cache";
+import { connectCustomerPay, createPayLink, disconnectCustomerPay, payStatus, type connectInput, type linkInput } from "@/domain/system/customer-pay";
+import type { z } from "zod";
 import { completeMove, deleteMedoroCopy, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
@@ -72,3 +74,11 @@ export async function deleteMedoroCopyAction(code: string) {
   revalidatePath("/app", "layout");
   return r;
 }
+
+// ---------- Phase 6: customer payments into the pharmacy's own Razorpay ----------
+
+export async function payStatusAction() { return run((c) => payStatus(c)); }
+export async function connectCustomerPayAction(input: z.input<typeof connectInput>) { return run((c) => connectCustomerPay(c, input), "Online payments are connected."); }
+export async function disconnectCustomerPayAction() { return run((c) => disconnectCustomerPay(c), "Online payments are disconnected."); }
+/** A UPI/card payment link for a customer's dues; the counter shares it on WhatsApp. */
+export async function payLinkAction(input: z.input<typeof linkInput>) { return run((c) => createPayLink(c, input)); }
