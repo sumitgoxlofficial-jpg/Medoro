@@ -10,7 +10,10 @@ import * as trade from "./trade";
 import * as seed from "./seed";
 import * as reports from "./reports";
 import * as sync from "./sync";
-import { googleStore, DriveAuthError, type DriveStore } from "./drive";
+import type { DriveStore } from "./drive";
+import { relayStore, registerDevice, RelayRefusedError } from "./relay";
+import type { DeviceKeys, Keyring } from "./keyring";
+import { WrongKeyError } from "./crypto";
 
 type Pool = { OpfsSAHPoolDb: new (file: string) => WasmDb; wipeFiles(): Promise<void>; importDb(name: string, bytes: Uint8Array): Promise<number> | number };
 type Sqlite = { capi: { sqlite3_js_db_export(db: WasmDb): Uint8Array }; installOpfsSAHPoolVfs(o: { name: string }): Promise<Pool> };
@@ -21,13 +24,16 @@ let db: DriveDB | null = null;
 let pool: Pool | null = null;
 let sqlite: Sqlite | null = null;
 let deviceName = "";
+/** Resolves once a database is open (Drive calls wait for it, so they know this device's id). */
+let markOpen: () => void = () => {};
+const opened = new Promise<void>((r) => { markOpen = r; });
 
 const openFile = () => DriveDB.open(wasmEngine(new pool!.OpfsSAHPoolDb(FILE), (d) => sqlite!.capi.sqlite3_js_db_export(d)), { device: deviceName });
 
 async function open(device: string, which: keyof typeof FILES = "pharmacy") {
   if (!Object.prototype.hasOwnProperty.call(FILES, which)) throw new Error("Unknown database.");
   if (db && FILE === FILES[which]) return { device: db.device };
-  if (db) { db.engine.close(); db = null; dataKey = null; }
+  if (db) { db.engine.close(); db = null; ring = null; }
   FILE = FILES[which];
   // The SQLite build is copied to /drivedb/sqlite at build time (scripts/copy-sqlite.mjs); load it as-is.
   const url = "/drivedb/sqlite/index.mjs";
@@ -36,15 +42,16 @@ async function open(device: string, which: keyof typeof FILES = "pharmacy") {
   pool ??= await sqlite.installOpfsSAHPoolVfs({ name: "medoro-device" });
   deviceName = device;
   db = openFile();
+  markOpen();
   return { device: db.device };
 }
 
-// ---------- Google Drive (phase 2) ----------
+// ---------- Google Drive, through Medoro's relay (phases 2 and 4) ----------
 
-/** This device's own key, kept in the browser's IndexedDB (it can't be read out, only used). */
+/** This device's key pair, kept in the browser's IndexedDB (the private key can't be read out, only used). */
 const keys: sync.KeyStore = {
-  get: () => idb<CryptoKey | null>("readonly", (s) => s.get("device")).then((k) => k ?? null),
-  set: (k) => idb("readwrite", (s) => s.put(k, "device")).then(() => undefined),
+  get: () => idb<DeviceKeys | null>("readonly", (s) => s.get("device-v2")).then((k) => k ?? null),
+  set: (k) => idb("readwrite", (s) => s.put(k, "device-v2")).then(() => undefined),
 };
 function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -59,34 +66,54 @@ function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest)
   });
 }
 
-let access: { token: string; folderId: string; expiresAt: number } | null = null;
-let dataKey: Uint8Array | null = null;
-const state = { lastPush: null as string | null, lastSnapshot: null as string | null, lastError: null as string | null, busy: false };
-const store = (): DriveStore => {
-  if (!access) throw new Error("Google Drive isn’t connected on this device yet.");
-  return googleStore(() => ({ token: access!.token, folderId: access!.folderId }));
-};
+type Access = { status: "approved" | "pending" | "removed"; role: "owner" | "staff" };
+let access: Access | null = null;
+let ring: Keyring | null = null;
+const state = { lastPush: null as string | null, lastPull: null as string | null, lastSnapshot: null as string | null, lastError: null as string | null, needsRestore: false, busy: false };
+const store = (): DriveStore => relayStore(deviceName);
 const SNAPSHOT_EVERY = 6 * 3600_000;
 
+/** Upload this device's changes, apply everyone else's, and (owner devices) save a full copy now and then. */
 async function syncNow(forceSnapshot = false) {
-  if (!db || !dataKey || !access || state.busy || access.expiresAt < Date.now()) return state;
+  if (!db || !ring || access?.status !== "approved" || state.busy) return state;
   state.busy = true;
   try {
     const last = db.getMeta("lastSnapshot");
-    if (forceSnapshot || !last || Date.now() - Date.parse(last) > SNAPSHOT_EVERY) {
-      const m = await sync.writeSnapshot(db, store(), dataKey, () => need().engine.exportBytes());
+    if (ring.rk && (forceSnapshot || !last || Date.now() - Date.parse(last) > SNAPSHOT_EVERY)) {
+      const m = await sync.writeSnapshot(db, store(), ring, () => need().engine.exportBytes());
       state.lastSnapshot = m.snapshotAt;
     } else {
-      while (await sync.pushChanges(db, store(), dataKey)) { /* until empty */ }
+      while (await sync.pushChanges(db, store(), ring)) { /* until empty */ }
+      try { await sync.pullChanges(db, store(), ring); }
+      catch (e) {
+        // A newer key (a device was removed): re-read the keys once and try again.
+        if (!(e instanceof WrongKeyError)) throw e;
+        const fresh = await sync.refreshKeys(store(), keys, deviceName);
+        if (!fresh) throw new RelayRefusedError("This device no longer has the pharmacy’s key. Ask the owner to approve it again.");
+        ring = fresh;
+        await sync.pullChanges(db, store(), ring);
+      }
+      state.lastPull = new Date().toISOString();
     }
     state.lastPush = new Date().toISOString();
-    state.lastError = null;
+    state.lastError = null; state.needsRestore = false;
   } catch (e) {
-    state.lastError = e instanceof DriveAuthError ? e.message : `Couldn’t save to Google Drive: ${e instanceof Error ? e.message : String(e)}`;
+    if (e instanceof sync.NeedsRestoreError) state.needsRestore = true;
+    if (e instanceof RelayRefusedError && /removed/i.test(e.message)) { access = { ...(access ?? { role: "staff" }), status: "removed" }; ring = null; }
+    state.lastError = e instanceof Error ? e.message : String(e);
   } finally { state.busy = false; }
   return state;
 }
-setInterval(() => { void syncNow(); }, 10_000);
+setInterval(() => { void syncNow(); }, 5_000);
+
+/** Registers this device (its public key) with the relay and opens the keys if it can. */
+async function connect(name: string) {
+  await opened;
+  const mine = await sync.deviceKeys(keys);
+  access = await registerDevice(deviceName, name, mine.publicJwk);
+  if (access.status === "approved" && !ring) ring = await sync.refreshKeys(store(), keys, deviceName).catch(() => null);
+  return access;
+}
 
 const need = () => { if (!db) throw new Error("The device database isn’t open."); return db; };
 
@@ -116,37 +143,60 @@ const handlers = {
   supplierList: () => reports.supplierList(need()),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
-  setDriveAccess: (a: { token: string; folderId: string; expiresAt: number }) => { access = a; return true; },
+  /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */
+  connect,
   driveStatus: async () => {
-    const st = await sync.driveStatus(store());
-    return { ...st, unlocked: !!dataKey, pending: db ? db.pendingChanges(100000).length : 0, lastSnapshot: state.lastSnapshot ?? db?.getMeta("lastSnapshot") ?? st.snapshotAt, lastPush: state.lastPush, lastError: state.lastError };
+    const st = access?.status === "approved" ? await sync.driveStatus(store()) : { vault: false, snapshotAt: null, snapshotBytes: 0 };
+    return {
+      ...st, access, unlocked: !!ring, owner: !!ring?.rk, pending: db ? db.pendingChanges(100000).length : 0,
+      lastSnapshot: state.lastSnapshot ?? db?.getMeta("lastSnapshot") ?? st.snapshotAt, lastPush: state.lastPush, lastPull: state.lastPull,
+      lastError: state.lastError, needsRestore: state.needsRestore,
+    };
   },
-  /** First-time setup. Returns the recovery code to show the owner once. */
+  /** First-time setup (owner's device). Returns the recovery code to show once. */
   createVault: async () => {
     const r = await sync.createVault(store(), keys, need().device);
-    dataKey = r.dataKey;
+    ring = r.ring;
     await syncNow(true);
     return r.recoveryCode;
   },
-  unlock: async (recoveryCode?: string) => { dataKey = await sync.unlock(store(), keys, deviceName, recoveryCode || undefined); void syncNow(); return true; },
+  unlock: async (recoveryCode?: string) => { ring = await sync.unlock(store(), keys, deviceName, recoveryCode || undefined); void syncNow(); return true; },
   syncNow: (snapshot?: boolean) => syncNow(!!snapshot),
-  /** Rebuilds this device's database from Drive (empty device, or after a wipe). */
+  /** Owner's device gives a waiting device the keys (then the server marks it approved). */
+  approveDevice: async (deviceId: string, publicJwk: JsonWebKey, role: "owner" | "staff", name: string) => {
+    if (!ring?.rk) throw new Error("Unlock Drive storage on this device first.");
+    await sync.approveDevice(store(), ring, deviceId, publicJwk, role, name);
+    return true;
+  },
+  /** Owner's device removes a device: new changes use a new key it never gets. */
+  revokeDevice: async (deviceId: string) => {
+    if (!ring?.rk) throw new Error("Unlock Drive storage on this device first.");
+    while (db && (await sync.pushChanges(db, store(), ring))) { /* old key for old changes */ }
+    ring = await sync.revokeDevice(store(), ring, deviceId);
+    return true;
+  },
+  /** Rebuilds this device's database from Drive (new device, after a wipe, or when it fell too far behind). */
   restore: async (recoveryCode?: string) => {
     const s = store();
-    dataKey = await sync.unlock(s, keys, deviceName, recoveryCode || undefined);
-    if (need().from("medicine").withDeleted().count() > 0) throw new Error("This device already has data. Reset it before restoring.");
-    const r = await sync.restoreFromDrive(s, dataKey, deviceName, async (bytes) => {
+    ring = await sync.unlock(s, keys, deviceName, recoveryCode || undefined);
+    const hasData = need().from("medicine").withDeleted().count() > 0;
+    if (hasData && !state.needsRestore) throw new Error("This device already has data. Reset it before restoring.");
+    if (hasData) while (await sync.pushChanges(need(), s, ring)) { /* keep this device's unsent bills */ }
+    const keepPin = need().getMeta("pinHash");
+    const r = await sync.restoreFromDrive(s, ring, deviceName, async (bytes) => {
       need().engine.close(); db = null;
       await pool!.importDb(FILE, bytes);
       db = openFile();
       return db;
     });
+    if (keepPin) need().setMeta("pinHash", keepPin);
+    state.needsRestore = false; state.lastError = null;
     return { snapshotAt: r.snapshotAt, applied: r.applied };
   },
   /** Deletes this device's database file (demo reset). */
   /** Deletes the open database file (demo reset) and starts it empty. */
   wipe: async () => {
-    need().engine.close(); db = null; dataKey = null;
+    need().engine.close(); db = null; ring = null;
     (pool as unknown as { unlink(f: string): boolean }).unlink(FILE);
     db = openFile();
     return true;

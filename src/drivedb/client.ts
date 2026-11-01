@@ -84,10 +84,20 @@ export class DriveDB {
       }
       if (spec.kind !== "mutable") throw new DriveDBError(`${c.tbl} records can't be changed`);
       const row = this.engine.all<{ updatedAt: string }>(`SELECT updatedAt FROM ${c.tbl} WHERE id = ?`, [c.rowId])[0];
-      if (!row || String(row.updatedAt) >= c.clock) return;
-      const set = cols.filter((k) => k !== "updatedAt" && k !== "id");
-      this.engine.run(`UPDATE ${c.tbl} SET ${[...set.map((k) => `${k} = ?`), "updatedAt = ?"].join(", ")} WHERE id = ?`, [...set.map((k) => c.data[k]), c.clock, c.rowId]);
+      if (!row) return;
+      // Field by field: a field takes this value only if this change is newer than its last change.
+      const clocks = new Map(this.engine.all<{ col: string; clock: string }>("SELECT col, clock FROM fieldClock WHERE tbl = ? AND rowId = ?", [c.tbl, c.rowId]).map((r) => [r.col, String(r.clock)]));
+      const set = cols.filter((k) => k !== "updatedAt" && k !== "id" && c.clock > (clocks.get(k) ?? ""));
+      if (!set.length) return;
+      const newer = c.clock > String(row.updatedAt) ? c.clock : String(row.updatedAt);
+      this.engine.run(`UPDATE ${c.tbl} SET ${[...set.map((k) => `${k} = ?`), "updatedAt = ?"].join(", ")} WHERE id = ?`, [...set.map((k) => c.data[k]), newer, c.rowId]);
+      this.markFields(c.tbl, c.rowId, set, c.clock);
     });
+  }
+
+  /** @internal Remembers when these fields of a row last changed. */
+  markFields(tbl: TableName, rowId: string, cols: string[], clock: string) {
+    for (const col of cols) this.engine.run("INSERT INTO fieldClock (tbl, rowId, col, clock) VALUES (?, ?, ?, ?) ON CONFLICT(tbl, rowId, col) DO UPDATE SET clock = excluded.clock WHERE excluded.clock > fieldClock.clock", [tbl, rowId, col, clock]);
   }
 
   /** Forgets uploaded change records up to a clock stamp (they are in a Drive snapshot by then). */
@@ -235,6 +245,7 @@ export class Query<T extends Row> {
         const stamp = this.db.stamp();
         this.db.record(stamp, this.table, id, "update", p);
         this.db.engine.run(`UPDATE ${this.table} SET ${keys.map((k) => `${k} = ?`).join(", ")}, updatedAt = ? WHERE id = ?`, [...keys.map((k) => p[k]), stamp, id]);
+        this.db.markFields(this.table, id, keys, stamp);
       }
       return ids;
     });
@@ -250,6 +261,7 @@ export class Query<T extends Row> {
         const stamp = this.db.stamp();
         this.db.record(stamp, this.table, id, "delete", { deletedAt: at });
         this.db.engine.run(`UPDATE ${this.table} SET deletedAt = ?, updatedAt = ? WHERE id = ?`, [at, stamp, id]);
+        this.db.markFields(this.table, id, ["deletedAt"], stamp);
       }
       return ids;
     });

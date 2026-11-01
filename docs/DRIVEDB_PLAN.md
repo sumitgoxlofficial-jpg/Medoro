@@ -251,6 +251,28 @@ working with me; they overlap a little.
   credit bill, part payment, return, day-end totals, PIN, billing with the browser offline).
 - Still to do in phase 3: the "keep my data in my Google Drive" choice at sign-up (after the pilot week).
 
+### Phase 4 progress (built)
+- **Sync between counters** (`src/drivedb/sync.ts`): each device uploads its own change files and applies every
+  other device's, merged across devices in clock order; a cursor per device; the full copy records how far into
+  each device's changes it reaches; change files are kept 7 days, and a counter behind deleted files is told to
+  "catch up" (restore, keeping its unsent bills). Restored devices carry on their own invoice numbers.
+- **Field-by-field merging** (migration 3, `fieldClock`): two counters editing different fields of the same
+  medicine both win; the same field: the later clock wins everywhere. Stock stays movement-based.
+- **Keys** (`src/drivedb/keyring.ts`): recovery code → pharmacy key → versioned data keys; owner devices hold the
+  pharmacy key, staff devices only data keys; each device has an RSA-OAEP pair (private key not exportable).
+  Removing a device starts a new data key it never gets.
+- **Relay** (`src/domain/system/drivedb-relay.ts`, `/api/drivedb`): every device (owner too) reaches Drive through
+  Medoro, which uses the pharmacy's Drive access and stores nothing; files by name inside the drivedb folder only;
+  each device writes and deletes only its own change files; only owner devices write keys, index and full copy;
+  3 MB pieces (Vercel limit) with sealed upload tokens. The owner's Google token no longer goes to browsers.
+- **Devices** (`DriveDevice` table: public key and status only): owner devices join at once; staff devices ask and
+  wait; the owner approves (their device gives it the keys) or removes it (new key) under Counter → Devices.
+  A staff device then sets itself up from Drive without the recovery code. Sync every 5 seconds; "Sync now".
+- Tests: `sync.test.ts` (3 counters, one offline, same stock and all bills; field merge; approve/remove; 7-day
+  tidy-up; numbering after restore), `drivedb-relay.test.ts` (rules), `e2e/21-multi-counter.spec.ts` (owner +
+  staff browsers). Browser tests use an in-memory Drive on the test server (`E2E_FAKE_DRIVE`, refused on Vercel).
+- Not done yet: instant push between counters (now ~5 s polling), a "stock went below zero" task for the owner.
+
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
 - Token broker endpoint on the server; data key + recovery kit wrapping + device keys.

@@ -22,11 +22,13 @@ export const READY_KEY = "medoro-drivedb-ready";
  * The whole Drive mode counter, on the device's own database. Online (signed in) it gets `who` from the
  * server; offline (/device) it uses the device's saved user and asks for the counter PIN.
  */
-export function DeviceApp({ who: online, empty, side }: {
+export function DeviceApp({ who: online, empty, side, settingsExtra }: {
   who?: Who;
   /** Shown when this device has no pharmacy yet (online only: load catalogue / restore from Drive). */
   empty?: (ready: (cfg: Cfg) => void) => React.ReactNode;
   side?: React.ReactNode;
+  /** Extra owner settings under Counter (e.g. Drive mode devices). */
+  settingsExtra?: React.ReactNode;
 }) {
   const toast = useToast();
   const dev = useRef(deviceDb()).current;
@@ -98,7 +100,7 @@ export function DeviceApp({ who: online, empty, side }: {
       {tab === "stock" && <Stock cfg={cfg} owner={who.owner} refresh={tick} />}
       {tab === "purchases" && <Purchases cfg={cfg} who={who} onSaved={bump} />}
       {tab === "customers" && <Customers who={who} refresh={tick} />}
-      {tab === "settings" && online?.owner && <CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />}
+      {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}
       <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => setReceipt(null)} />
     </div>
   );
