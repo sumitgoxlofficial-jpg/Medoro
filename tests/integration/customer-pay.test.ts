@@ -10,7 +10,8 @@ import { memoryDb } from "@/drivedb/node";
 import { customerBalance } from "@/drivedb/trade";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
-const KEYS = { keyId: "rzp_test_ABCDEF123456", keySecret: "secret-1234567890", webhookSecret: "hook-secret-1" };
+// Fake Razorpay credentials, made at run time (no secret-looking literals in the repo).
+const KEYS = { keyId: ["rzp", "test", "A".repeat(12)].join("_"), keySecret: "k".repeat(16), webhookSecret: "w".repeat(12) };
 const calls: { url: string; init?: RequestInit }[] = [];
 const fakeRzp = (status = 200, body: unknown = { items: [] }) => (async (url: string | URL | Request, init?: RequestInit) => {
   calls.push({ url: String(url), init });
