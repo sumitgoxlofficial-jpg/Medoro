@@ -28,6 +28,7 @@ export type ShellProps = {
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
   badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; ai: AiShell; supportUntil: string | null;
   subscription: { tone: "amber" | "red"; text: string; renew: boolean } | null;
+  deletionOn?: string | null;
   children: React.ReactNode;
 };
 
@@ -202,6 +203,12 @@ function ShellInner(p: ShellProps) {
           <div role="status" className="flex-none bg-[#0E1A1F] text-white text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap">
             <ShieldCheck size={15} className="text-[#5FD3BC]" /><strong>Medoro support · read-only</strong>
             <span className="text-[#B8C7CC]">Access granted by the pharmacy until {p.supportUntil}. Changes and downloads are blocked; everything you open is audited.</span>
+          </div>
+        ) : null}
+        {p.deletionOn ? (
+          <div role="alert" className="flex-none text-[13px] px-5 py-2 flex items-center gap-2 flex-wrap bg-[#FBEAE8] text-[#8C1D18]">
+            <strong>This pharmacy will be permanently deleted on {p.deletionOn}.</strong>
+            {p.perms.includes("users") ? <Link href="/app/privacy#delete-account" className="font-semibold text-teal underline">Cancel deletion</Link> : <span>Ask the owner if this is a mistake.</span>}
           </div>
         ) : null}
         {p.subscription ? (

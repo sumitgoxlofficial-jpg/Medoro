@@ -12,6 +12,8 @@ import { GrievanceCard, RetentionCard } from "./privacy-cards";
 import { supportStatus } from "@/domain/identity/support";
 import { checkIn, remoteRequests } from "@/domain/system/licence";
 import { aiStatus } from "@/domain/ai/settings";
+import { DELETE_WAIT_DAYS, deletionPlan } from "@/domain/system/deletion";
+import { DeleteAccountCard } from "./delete-card";
 
 export const metadata = { title: "Privacy & data" };
 
@@ -22,9 +24,9 @@ export default async function Page() {
   const [p, customers, integrations, grants, asks, grievance, tenant, retention] = await Promise.all([
     getPrivacy(ctx.tenantId), db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.integration.findMany({ where: { tenantId: ctx.tenantId }, select: { kind: true, connectedAt: true } }),
-    supportStatus(ctx), remoteRequests(ctx.tenantId), getGrievance(ctx.tenantId), db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { phone: true } }), retentionPreview(ctx.tenantId),
+    supportStatus(ctx), remoteRequests(ctx.tenantId), getGrievance(ctx.tenantId), db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { phone: true, code: true } }), retentionPreview(ctx.tenantId),
   ]);
-  const ai = await aiStatus(ctx);
+  const [ai, plan] = await Promise.all([aiStatus(ctx), deletionPlan(ctx.tenantId)]);
   const remoteHost = (() => { try { return process.env.REMOTE_AI_URL ? new URL(process.env.REMOTE_AI_URL).host : null; } catch { return null; } })();
   const on = (k: string) => integrations.some((i) => i.kind === k && i.connectedAt);
   return (
@@ -38,6 +40,7 @@ export default async function Page() {
           <GrievanceCard initial={grievance} pharmacyPhone={tenant.phone} />
         </div>
         <SupportCard grants={grants} requests={asks} />
+        <div id="delete-account"><DeleteAccountCard code={tenant.code} plan={plan} isOwner={ctx.realRole === "Owner" && ctx.role === "Owner" && !ctx.readOnly} waitDays={DELETE_WAIT_DAYS} /></div>
       </div>
     </>
   );
