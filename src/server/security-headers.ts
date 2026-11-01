@@ -9,8 +9,16 @@ const FRAMEABLE = /^\/api\/documents\//;
  */
 const CHECKOUT = /^\/(app|pay)(\/|$)/;
 const RZP = "https://checkout.razorpay.com https://api.razorpay.com";
+/**
+ * The DriveDB device database worker and its SQLite build. A worker gets its own policy from its script's response:
+ * it may compile the SQLite WebAssembly and talk to Google Drive directly, so pharmacy data never passes through us.
+ */
+const DRIVEDB = /^\/drivedb\//;
 
 export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): string {
+  if (DRIVEDB.test(path)) {
+    return ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'", "connect-src 'self' https://www.googleapis.com", "worker-src 'self'", "base-uri 'none'", "frame-ancestors 'none'"].join("; ");
+  }
   const frameable = FRAMEABLE.test(path), checkout = CHECKOUT.test(path);
   const d: [string, string][] = [
     ["default-src", "'self'"],

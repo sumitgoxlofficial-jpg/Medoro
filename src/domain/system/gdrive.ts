@@ -295,3 +295,11 @@ export async function driveDisconnect(tenantId: string) {
   tokens.delete(tenantId);
   return revoked;
 }
+
+/**
+ * A short-lived (about an hour) Drive access token for the owner's own device, so the device can read and write its
+ * DriveDB files directly and pharmacy data never passes through Medoro. Owner only; the refresh token stays here.
+ */
+export async function deviceDriveToken(tenantId: string) {
+  return accessToken(tenantDrive(tenantId));
+}

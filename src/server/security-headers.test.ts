@@ -33,4 +33,15 @@ describe("security headers", () => {
     expect(site["Cross-Origin-Opener-Policy"]).toBe("same-origin");
     expect(contentSecurityPolicy({ nonce: "n", https: false, path: "/application" })).not.toContain("razorpay");
   });
+
+  it("lets only the DriveDB worker run WebAssembly and reach Google Drive", () => {
+    const w = contentSecurityPolicy({ nonce: "n", https: true, path: "/drivedb/bench-worker.mjs" });
+    expect(w).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(w).toContain("connect-src 'self' https://www.googleapis.com");
+    for (const path of ["/app", "/app/lab", "/"]) {
+      const p = contentSecurityPolicy({ nonce: "n", https: true, path });
+      expect(p).not.toContain("wasm-unsafe-eval");
+      expect(p).not.toContain("googleapis");
+    }
+  });
 });

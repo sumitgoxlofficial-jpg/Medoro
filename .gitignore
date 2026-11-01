@@ -12,3 +12,4 @@ playwright-report/
 storage/
 e2e/.auth/
 certs/
+public/drivedb/sqlite/
