@@ -274,3 +274,20 @@ export function outFile(info: TestInfo, name: string, data: string | Buffer) {
   writeFileSync(p, data);
   return p;
 }
+
+/** Drive mode tests: empty the test server's fake Google Drive folder and forget Drive mode devices. */
+export async function resetFakeDrive(page: Page) {
+  const r = await page.evaluate(async () => (await fetch("/api/drivedb?op=e2e-reset", { method: "POST" })).status);
+  expect(r).toBe(200);
+}
+
+/** Turns Drive mode on from the device test page (leaves it on if a stopped run left it on). */
+export async function driveModeOn(page: Page) {
+  await page.goto("/app/lab");
+  await expect(page.getByRole("button", { name: /Turn (on|off) Drive mode/ })).toBeVisible();
+  if (await page.getByRole("button", { name: "Turn on Drive mode" }).isVisible()) {
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Turn on Drive mode" }).click();
+    await expect(page.getByRole("button", { name: "Turn off Drive mode" })).toBeVisible();
+  }
+}

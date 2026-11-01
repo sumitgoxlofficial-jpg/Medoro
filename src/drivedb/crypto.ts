@@ -1,9 +1,6 @@
 /**
- * DriveDB encryption. One random data key per pharmacy encrypts the snapshot and change logs (AES-256-GCM).
- * The data key is only ever stored wrapped (encrypted):
- *   - with the owner's Drive recovery code (made on the device, shown once, never sent to Medoro), and
- *   - with each approved device's own key, which is created on the device and can't be exported.
- * So Google sees only ciphertext, Medoro's server never has a key, and the pharmacy's devices can open it.
+ * DriveDB encryption basics: random keys, the Drive recovery code, and a simple sealed-file format.
+ * How the keys are kept and shared between devices is in keyring.ts.
  */
 
 const MAGIC = new TextEncoder().encode("MDB1");
@@ -73,26 +70,4 @@ export function decodeCode(code: string): Uint8Array {
   return out;
 }
 
-// ---------- wrapping the data key ----------
-
 export type Wrap = { iv: string; ct: string };
-const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
-const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-
-async function wrapWith(key: CryptoKey, dataKey: Uint8Array, label: string): Promise<Wrap> {
-  const iv = rand(12);
-  const ct = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv, additionalData: bytesOf(label) }, key, buf(dataKey)));
-  return { iv: b64(iv), ct: b64(ct) };
-}
-async function unwrapWith(key: CryptoKey, w: Wrap, label: string): Promise<Uint8Array> {
-  try { return new Uint8Array(await subtle().decrypt({ name: "AES-GCM", iv: buf(unb64(w.iv)), additionalData: bytesOf(label) }, key, buf(unb64(w.ct)))); }
-  catch { throw new WrongKeyError(label === "recovery" ? "That recovery code doesn’t open this pharmacy’s data." : "This device’s key no longer opens the data."); }
-}
-
-export const wrapForRecovery = async (dataKey: Uint8Array, code: string) => wrapWith(await aesKey(decodeCode(code)), dataKey, "recovery");
-export const unwrapWithRecovery = async (w: Wrap, code: string) => unwrapWith(await aesKey(decodeCode(code)), w, "recovery");
-
-/** A device's own key: AES-GCM, not extractable, kept in the browser's key store (IndexedDB) on that device. */
-export const newDeviceKey = () => subtle().generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
-export const wrapForDevice = (key: CryptoKey, dataKey: Uint8Array, device: string) => wrapWith(key, dataKey, `device:${device}`);
-export const unwrapForDevice = (key: CryptoKey, w: Wrap, device: string) => unwrapWith(key, w, `device:${device}`);

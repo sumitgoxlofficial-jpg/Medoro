@@ -202,6 +202,10 @@ export const MIGRATIONS: readonly string[] = [
   ` + ["purchase", "purchaseItem", "salesReturn", "salesReturnItem", "customerReceipt"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // 3: when each field of an editable row last changed, so edits from different counters merge field by field.
+  `
+  CREATE TABLE fieldClock (tbl TEXT NOT NULL, rowId TEXT NOT NULL, col TEXT NOT NULL, clock TEXT NOT NULL, PRIMARY KEY (tbl, rowId, col)) WITHOUT ROWID;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

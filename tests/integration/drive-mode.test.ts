@@ -57,17 +57,15 @@ it("device series fit the GST invoice number rules", () => {
 });
 
 it("the browser-test fake Drive is never honoured on Vercel", async () => {
-  const { deviceDriveEnabled, deviceDriveAccess } = await import("@/domain/system/gdrive");
+  const { deviceDriveEnabled } = await import("@/domain/system/gdrive");
   const ctx = await ctxFor();
   const before = { fake: process.env.E2E_FAKE_DRIVE, vercel: process.env.VERCEL };
   try {
     process.env.E2E_FAKE_DRIVE = "1";
     process.env.VERCEL = "1";
     expect(await deviceDriveEnabled(ctx.tenantId)).toBe(false);
-    await expect(deviceDriveAccess(ctx.tenantId)).rejects.toThrow();
     delete process.env.VERCEL;
     expect(await deviceDriveEnabled(ctx.tenantId)).toBe(true);
-    expect((await deviceDriveAccess(ctx.tenantId)).token).toBe("e2e-fake");
   } finally {
     if (before.fake === undefined) delete process.env.E2E_FAKE_DRIVE; else process.env.E2E_FAKE_DRIVE = before.fake;
     if (before.vercel === undefined) delete process.env.VERCEL; else process.env.VERCEL = before.vercel;

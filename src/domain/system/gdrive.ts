@@ -315,10 +315,103 @@ export async function deviceDriveEnabled(tenantId: string) {
   return fakeDrive() || driveConfigured(tenantId);
 }
 
-/** The device's Drive pass for DriveDB: a short-lived token and the Medoro/<pharmacy>/DriveDB folder id. */
-export async function deviceDriveAccess(tenantId: string) {
-  if (fakeDrive()) return { token: "e2e-fake", folderId: "e2e-folder", expiresAt: Date.now() + 50 * 60_000 };
+
+// ---------- DriveDB relay: the pharmacy's drivedb folder, used on behalf of its devices ----------
+
+export type RelayFile = { id: string; name: string; size: number };
+export type RelayStore = {
+  list(prefix: string): Promise<RelayFile[]>;
+  /** Bytes [offset, offset+length) of a file and its total size. */
+  read(id: string, offset: number, length: number): Promise<{ bytes: Buffer; size: number }>;
+  /** Creates the file, or replaces the one with this name. */
+  write(name: string, bytes: Buffer): Promise<string>;
+  /** Starts a large upload (create or replace by name); returns Google's upload session address. */
+  startUpload(name: string, size: number): Promise<string>;
+  /** Sends one chunk; returns the file id when the last chunk is in. */
+  uploadChunk(session: string, offset: number, bytes: Buffer, total: number): Promise<string | null>;
+  remove(id: string): Promise<void>;
+};
+
+/** Browser tests only: empties the pharmacy's fake drivedb folder. Refused unless the fake Drive is on. */
+export function resetFakeDrive(tenantId: string) {
+  if (!fakeDrive()) throw new UserError("Not available.");
+  fakeFolders.delete(tenantId);
+}
+
+/** Browser tests: one in-memory drivedb folder per pharmacy (only with E2E_FAKE_DRIVE, never on Vercel). */
+const fakeFolders = new Map<string, Map<string, { name: string; bytes: Buffer }>>();
+const fakeUploads = new Map<string, { tenantId: string; name: string; parts: Buffer[] }>();
+function fakeRelay(tenantId: string): RelayStore {
+  const files = fakeFolders.get(tenantId) ?? new Map();
+  fakeFolders.set(tenantId, files);
+  const byName = (name: string) => [...files.entries()].find(([, f]) => f.name === name)?.[0];
+  let n = files.size;
+  const put = (name: string, bytes: Buffer) => { const id = byName(name) ?? `fake-${tenantId.slice(0, 6)}-${++n}-${Date.now()}`; files.set(id, { name, bytes }); return id; };
+  return {
+    list: async (prefix) => [...files.entries()].filter(([, f]) => f.name.startsWith(prefix)).map(([id, f]) => ({ id, name: f.name, size: f.bytes.length })),
+    read: async (id, offset, length) => { const f = files.get(id); if (!f) throw new DriveHttpError("File not found", 404); return { bytes: f.bytes.subarray(offset, offset + length), size: f.bytes.length }; },
+    write: async (name, bytes) => put(name, bytes),
+    startUpload: async (name) => { const s = `fake-session-${randomBytes(8).toString("hex")}`; fakeUploads.set(s, { tenantId, name, parts: [] }); return s; },
+    uploadChunk: async (session, _offset, bytes, total) => {
+      const u = fakeUploads.get(session); if (!u) throw new DriveHttpError("Upload session not found", 404);
+      u.parts.push(bytes);
+      const all = Buffer.concat(u.parts);
+      if (all.length < total) return null;
+      fakeUploads.delete(session);
+      return put(u.name, all);
+    },
+    remove: async (id) => { files.delete(id); },
+  };
+}
+
+/** The pharmacy's Medoro/<pharmacy>/drivedb folder, accessed with its Drive token on the server. */
+export function relayStore(tenantId: string): RelayStore {
+  if (fakeDrive()) return fakeRelay(tenantId);
   const a = tenantDrive(tenantId);
-  const folderId = await folderFor(tenantId, a, "drivedb");
-  return { token: await accessToken(a), folderId, expiresAt: Date.now() + 50 * 60_000 };
+  const folder = () => folderFor(tenantId, a, "drivedb");
+  const find = async (name: string) => (await listIn(`name = '${esc(name)}'`))[0];
+  const listIn = async (q: string) => {
+    const out: RelayFile[] = [];
+    let page: string | undefined;
+    do {
+      const p = new URLSearchParams({ q: `'${esc(await folder())}' in parents and trashed = false and ${q}`, fields: "nextPageToken,files(id,name,size)", pageSize: "1000", spaces: "drive", ...(page ? { pageToken: page } : {}) });
+      const j = (await (await api(a, `${API}?${p}`, "Couldn’t list the DriveDB folder")).json()) as { files?: { id: string; name: string; size?: string }[]; nextPageToken?: string };
+      out.push(...(j.files ?? []).map((f) => ({ id: f.id, name: f.name, size: Number(f.size ?? 0) })));
+      page = j.nextPageToken;
+    } while (page);
+    return out;
+  };
+  return {
+    list: async (prefix) => (await listIn(`name contains '${esc(prefix)}'`)).filter((f) => f.name.startsWith(prefix)),
+    async read(id, offset, length) {
+      const r = await api(a, `${API}/${encodeURIComponent(id)}?alt=media`, "Couldn’t read from Drive", { headers: { Range: `bytes=${offset}-${offset + length - 1}` } });
+      const size = Number(/\/(\d+)$/.exec(r.headers.get("content-range") ?? "")?.[1] ?? r.headers.get("content-length") ?? 0);
+      return { bytes: Buffer.from(await r.arrayBuffer()), size };
+    },
+    async write(name, bytes) {
+      const existing = await find(name);
+      if (existing) {
+        const r = await api(a, `${UPLOAD}/${encodeURIComponent(existing.id)}?uploadType=media&fields=id`, "Couldn’t save to Drive", { method: "PATCH", headers: { "Content-Type": "application/octet-stream" }, body: new Uint8Array(bytes) });
+        return ((await r.json()) as { id: string }).id;
+      }
+      return withToken(a, async (token) => uploadToDrive(token, await folder(), name, bytes));
+    },
+    async startUpload(name, size) {
+      const existing = await find(name);
+      const url = existing ? `${UPLOAD}/${encodeURIComponent(existing.id)}?uploadType=resumable&fields=id` : `${UPLOAD}?uploadType=resumable&fields=id`;
+      const meta = existing ? {} : { name, parents: [await folder()], mimeType: "application/octet-stream" };
+      const r = await api(a, url, "Couldn’t start the Drive upload", { method: existing ? "PATCH" : "POST", headers: { "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": "application/octet-stream", "X-Upload-Content-Length": String(size) }, body: JSON.stringify(meta) });
+      const session = r.headers.get("location");
+      if (!session) throw new Error("Couldn’t start the Drive upload: no session address.");
+      return session;
+    },
+    async uploadChunk(session, offset, bytes, total) {
+      if (!session.startsWith("https://www.googleapis.com/upload/")) throw new Error("Not a Google Drive upload session.");
+      const r = await fetch(session, { method: "PUT", redirect: "manual", headers: { "Content-Range": `bytes ${offset}-${offset + bytes.length - 1}/${total}` }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(120_000) });
+      if (r.status === 200 || r.status === 201) return ((await r.json()) as { id: string }).id;
+      if (r.status === 308) return null;
+      throw await driveError(r, "Upload failed");
+    },
+    remove: async (id) => { await api(a, `${API}/${encodeURIComponent(id)}`, "Couldn’t delete from Drive", { method: "DELETE" }); },
+  };
 }

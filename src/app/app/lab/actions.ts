@@ -2,8 +2,8 @@
 import { run, UserError } from "@/server/action";
 import { writeAudit } from "@/server/audit";
 import { db } from "@/server/db";
-import { driveConfigured, deviceDriveToken, deviceDriveAccess, deviceDriveEnabled } from "@/domain/system/gdrive";
-import { driveModeOn } from "@/domain/system/drive-mode";
+import { driveConfigured, deviceDriveToken } from "@/domain/system/gdrive";
+import { decideDevice, listDevices } from "@/domain/system/drivedb-relay";
 import { deviceSeed, setDriveMode } from "@/domain/system/drive-mode";
 import { revalidatePath } from "next/cache";
 
@@ -28,15 +28,10 @@ export async function setDriveModeAction(on: boolean) {
 /** This branch's catalogue, stock and customers for a device database. Owner only; recorded in the audit log. */
 export async function deviceSeedAction() { return run((c) => deviceSeed(c)); }
 
-/**
- * DriveDB phase 2: a short-lived pass for this device to read and write the pharmacy's DriveDB folder in Google
- * Drive directly. Owner only in the pilot (staff devices come with phase 4). Data never passes through Medoro.
- */
-export async function driveAccessAction() {
-  return run(async (c) => {
-    if (c.realRole !== "Owner" || c.role !== "Owner") throw new UserError("Only the owner’s device can connect to Google Drive in the pilot.");
-    if (!(await driveModeOn(c.tenantId))) throw new UserError("Turn on Drive mode first.");
-    if (!(await deviceDriveEnabled(c.tenantId))) throw new UserError("Connect Google Drive on the Backup page first.");
-    return deviceDriveAccess(c.tenantId);
-  });
+/** Drive mode devices of this pharmacy (owner). */
+export async function driveDevicesAction() { return run((c) => listDevices(c)); }
+
+/** Owner: approve a device (after this device gave it the keys) or remove one (after this device changed keys). */
+export async function decideDriveDeviceAction(deviceId: string, approve: boolean) {
+  return run((c) => decideDevice(c, deviceId, approve), approve ? "Device approved." : "Device removed.");
 }

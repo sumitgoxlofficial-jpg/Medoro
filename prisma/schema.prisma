@@ -1581,3 +1581,22 @@ model LoyaltyLedger {
   @@index([tenantId, customerId])
   @@index([saleId])
 }
+
+/// DriveDB (Drive mode): a device allowed to sync this pharmacy's encrypted data through Medoro's relay.
+/// Only its public key and status live here; the data and keys are in the owner's Google Drive.
+model DriveDevice {
+  id        String    @id @default(uuid())
+  tenantId  String
+  deviceId  String
+  userId    String
+  name      String
+  role      String // owner | staff
+  status    String    @default("pending") // pending | approved | removed
+  publicKey Json
+  createdAt DateTime  @default(now())
+  decidedAt DateTime?
+  lastSeen  DateTime?
+
+  @@unique([tenantId, deviceId])
+  @@index([tenantId, status])
+}
