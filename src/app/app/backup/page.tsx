@@ -28,6 +28,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   return (
     <>
       <PageHead title={t(ctx.lang).bak} sub="Encrypted backups and files in your own Google Drive, like WhatsApp. Medoro keeps no copy once Drive has it." />
+      {ctx.moved ? (
+        <div role="status" className="mb-3 rounded-xl border border-line bg-white px-4 py-3 text-[13.5px]" data-testid="drive-backups-note">
+          <strong className="font-semibold">Your pharmacy’s records live in your Google Drive.</strong> Each counter saves full encrypted copies there, so Medoro’s server backups are off. Keep Google Drive connected here: the counters save through it. A new or reset counter restores from Drive with your Drive recovery code.
+        </div>
+      ) : null}
       <BackupView
         history={hist.map((h) => ({ id: h.id, at: h.startedAt.toISOString(), kind: h.kind, size: big(h.sizeBytes), sha: h.sha256, status: h.status, error: h.error, drive: !!h.driveFileId, local: !!h.localPath }))}
         drive={drive} folder={`Medoro/${pharmacyFolderName(tenant)}`}

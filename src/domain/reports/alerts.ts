@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import { addDays, dateOnly, todayISO } from "@/lib/dates";
 import { sellableByMedicine } from "@/domain/inventory/queries";
 import { driveState } from "@/domain/system/gdrive";
-import { dataInDrive } from "@/domain/system/drive-state";
+import { dataInDrive, quotaProblem, type Quota } from "@/domain/system/drive-state";
 import type { ScreenId } from "@/lib/nav";
 
 const OVERDUE_MS = 26 * 3600_000;
@@ -18,7 +18,10 @@ export async function backupHealth(tenantId: string, now = new Date()) {
     driveState(tenantId),
   ]);
   // Data in Drive: Medoro keeps no copy to back up; what matters is that every counter keeps saving to Drive.
-  if (dataInDrive(tenant?.settings)) return [...(drive.status === "lost" ? ["Google Drive access was lost, so your counters can’t save to it. Reconnect it in Backup & restore."] : []), ...(await driveSyncHealth(tenantId, now))];
+  if (dataInDrive(tenant?.settings)) {
+    const full = quotaProblem((tenant?.settings as { driveHealth?: { quota?: Quota } } | null)?.driveHealth?.quota);
+    return [...(drive.status === "lost" ? ["Google Drive access was lost, so your counters can’t save to it. Reconnect it in Backup & restore."] : []), ...(full ? [full] : []), ...(await driveSyncHealth(tenantId, now))];
+  }
   const problems: string[] = [];
   if (last?.status === "failed") problems.push(`Last backup failed: ${last.error ?? "unknown error"}`);
   else if (last?.status === "partial" && last.error) problems.push(`Last backup is incomplete: ${last.error}`);

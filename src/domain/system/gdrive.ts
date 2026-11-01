@@ -310,6 +310,14 @@ export async function deviceDriveToken(tenantId: string) {
  */
 const fakeDrive = () => process.env.E2E_FAKE_DRIVE === "1" && !process.env.VERCEL;
 
+/** How full the pharmacy's Google Drive is (bytes); limit is null for unlimited plans. Null when Drive isn't connected. */
+export async function driveQuota(tenantId: string): Promise<{ usage: number; limit: number | null } | null> {
+  if (fakeDrive() || !(await driveConfigured(tenantId))) return null;
+  const r = await api(tenantDrive(tenantId), "https://www.googleapis.com/drive/v3/about?fields=storageQuota", "Couldn’t read Drive storage");
+  const q = ((await r.json()) as { storageQuota?: { usage?: string; limit?: string } }).storageQuota ?? {};
+  return { usage: Number(q.usage ?? 0), limit: q.limit ? Number(q.limit) : null };
+}
+
 /** Can devices of this pharmacy keep DriveDB in Google Drive? */
 export async function deviceDriveEnabled(tenantId: string) {
   return fakeDrive() || driveConfigured(tenantId);
