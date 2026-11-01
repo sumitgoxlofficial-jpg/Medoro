@@ -29,7 +29,7 @@ export const TABLES = {
   },
   customer: {
     kind: "mutable",
-    columns: ["id", "name", "phone", "gstin", "creditLimitPaise", ...MUTABLE],
+    columns: ["id", "name", "phone", "gstin", "creditLimitPaise", "address", "pincode", ...MUTABLE],
   },
   stockMovement: {
     kind: "append",
@@ -92,6 +92,10 @@ export const TABLES = {
   deliveryOrderItem: {
     kind: "append",
     columns: ["id", "orderId", "medicineId", "qty", "unit"],
+  },
+  einvoice: {
+    kind: "append",
+    columns: ["id", "saleId", "kind", "irn", "ackNo", "ackDt", "signedQr", "reason", "userId", "at"],
   },
 } as const satisfies Record<string, TableSpec>;
 
@@ -269,6 +273,18 @@ export const MIGRATIONS: readonly string[] = [
   `
   ALTER TABLE sale ADD COLUMN igstPaise INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE sale ADD COLUMN placeOfSupply TEXT;
+  `,
+  // 7: e-invoices (IRN and QR from the GST portal, through Medoro's gateway) and B2B buyers' billing addresses.
+  `
+  ALTER TABLE customer ADD COLUMN address TEXT;
+  ALTER TABLE customer ADD COLUMN pincode TEXT;
+  CREATE TABLE einvoice (
+    id TEXT PRIMARY KEY, saleId TEXT NOT NULL REFERENCES sale(id), kind TEXT NOT NULL CHECK (kind IN ('irn', 'cancel')),
+    irn TEXT NOT NULL, ackNo TEXT, ackDt TEXT, signedQr TEXT, reason TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX einvoice_sale ON einvoice(saleId);
+  CREATE TRIGGER einvoice_no_update BEFORE UPDATE ON einvoice BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+  CREATE TRIGGER einvoice_no_delete BEFORE DELETE ON einvoice BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;
   `,
 ];
 

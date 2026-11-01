@@ -430,7 +430,7 @@ async function moveBase(ctx: Ctx) {
     medicines: meds.map((m) => ({ ...deviceMedicine(m), active: m.active })),
     batches: batches.map((b) => ({ id: b.id, branchId: b.branchId, medicineId: b.medicineId, batchNo: b.batchNo, expiryDate: isoOf(b.expiryDate), costPaise: big(b.costPaise), mrpPaise: big(b.mrpPaise), supplierId: b.supplierId, status: b.status === "damaged" ? "quarantine" : b.status })),
     // Erased customers keep their bills but not their details.
-    customers: customers.map((x) => x.erasedAt ? { id: x.id, name: "Erased customer", phone: null, gstin: null, creditLimitPaise: 0, erased: true } : { id: x.id, name: x.name, phone: x.phone, gstin: x.gstin, creditLimitPaise: big(x.creditLimitPaise), erased: false }),
+    customers: customers.map((x) => x.erasedAt ? { id: x.id, name: "Erased customer", phone: null, gstin: null, creditLimitPaise: 0, address: null, pincode: null, erased: true } : { id: x.id, name: x.name, phone: x.phone, gstin: x.gstin, creditLimitPaise: big(x.creditLimitPaise), address: x.address, pincode: x.pincode, erased: false }),
     suppliers: suppliers.map((s) => ({ id: s.id, name: s.name, phone: s.phone, gstin: s.gstin, dl: null, address: null })),
     opening: { stock: openingStock, receipts: openingDues, supplierPayments: openingPayables },
     summary, warnings,

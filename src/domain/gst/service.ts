@@ -515,3 +515,51 @@ export async function einvoiceQueue(ctx: Ctx, month?: string) {
     transfers: transfers.map((t, i) => ({ id: t.id, no: t.no, at: t.createdAt.toISOString(), item: `${tv[i].b.medicine.name} ${tv[i].b.batchNo} × ${t.qty}`, from: names.get(t.fromBranch) ?? "", to: names.get(t.toBranch) ?? "", value: tv[i].value, status: t.status, ewbRequired: tv[i].value > EWB_THRESHOLD_PAISE, ewbNo: latest(of(t.id), ["ewb"])?.ewbNo ?? null })),
   };
 }
+
+// ───────────── E-invoice gateway for Drive mode counters (phase 6) ─────────────
+// The counter holds the bill and builds the e-invoice; Medoro checks it is for this pharmacy's GSTIN, passes it to
+// the IRP and returns the IRN and signed QR. Nothing is stored on Medoro: the counter keeps them with the bill.
+
+const party = z.object({
+  gstin: z.string().regex(/^\d{2}[A-Z0-9]{13}$/), legalName: z.string().trim().min(1).max(100), tradeName: z.string().max(100).optional(),
+  address: z.string().trim().min(1).max(200), place: z.string().trim().min(1).max(50), pin: z.number().int().min(100000).max(999999),
+  stateCode: z.string().regex(/^\d{2}$/), phone: z.string().max(20).nullish(), email: z.string().max(100).nullish(),
+});
+export const counterEinvSchema = z.object({
+  type: z.literal("INV"), no: z.string().regex(GST_DOC_RE), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), roundOff: z.number().int().min(-100).max(100),
+  seller: party, buyer: party.extend({ pos: z.string().regex(/^\d{2}$/) }),
+  items: z.array(z.object({
+    name: z.string().trim().min(1).max(300), hsn: z.string().regex(/^\d{4,8}$/), qty: z.number().positive(), unit: z.string().max(8), batch: z.string().max(20).optional(), expiry: z.string().max(10).optional(),
+    rate: z.number().min(0).max(28), gross: z.number().int(), taxable: z.number().int(), igst: z.number().int(), cgst: z.number().int(), sgst: z.number().int(),
+  })).min(1).max(1000),
+});
+
+/** May this person e-invoice from a counter? Records live on the counter, so this isn't a change to Medoro's copy. */
+function counterEinvAllowed(ctx: Ctx) {
+  if (ctx.readOnly) throw new UserError("Medoro support access is read-only.");
+  if (ctx.locked) throw new UserError("Subscription expired — renew from Plan to e-invoice.");
+  if (!["sale", "reports"].some((p) => ctx.perms.includes(p))) throw new UserError("Your role can’t e-invoice.");
+}
+
+export async function counterIrn(ctx: Ctx, raw: unknown) {
+  counterEinvAllowed(ctx);
+  const { cfg, api } = await client(ctx);
+  const d = counterEinvSchema.parse(raw);
+  const own = new Set((await db.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { gstin: true, tenant: { select: { gstin: true } } } })).flatMap((b) => [b.gstin, b.tenant.gstin]).filter(Boolean));
+  if (!own.has(d.seller.gstin)) throw new UserError(`GSTIN ${d.seller.gstin} isn’t this pharmacy’s.`);
+  if (d.seller.gstin !== cfg.gstin) throw new UserError(`E-invoicing on this server is for GSTIN ${cfg.gstin}; this counter bills under ${d.seller.gstin}.`);
+  let r;
+  try { r = await api.generateIrn(buildIrnPayload(d)); } catch (e) { if (e instanceof EinvError) throw new UserError(`IRP: ${e.message}`); throw e; }
+  return { irn: r.Irn, ackNo: String(r.AckNo), ackDt: r.AckDt, signedQr: r.SignedQRCode };
+}
+
+export const counterCancelSchema = z.object({ irn: z.string().regex(/^[a-f0-9]{64}$/i), reason: z.enum(["1", "2", "3", "4"]), remark: z.string().trim().min(3).max(100) });
+
+export async function counterCancelIrn(ctx: Ctx, raw: z.input<typeof counterCancelSchema>) {
+  counterEinvAllowed(ctx);
+  if (!ctx.perms.includes("refund") && ctx.role !== "Owner") throw new UserError("Your role can’t cancel e-invoices.");
+  const { api } = await client(ctx);
+  const i = counterCancelSchema.parse(raw);
+  try { await api.cancelIrn(i.irn, i.reason, i.remark); } catch (e) { if (e instanceof EinvError) throw new UserError(`IRP: ${e.message}`); throw e; }
+  return { cancelled: true, reason: `${CANCEL_REASONS[i.reason]} · ${i.remark}` };
+}

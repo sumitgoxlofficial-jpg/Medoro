@@ -65,7 +65,7 @@ export function Bills({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: numb
           {!bills.length && <li className="py-2 text-muted">No bills{q ? " match" : " on this day"}.</li>}
         </ul>
       </div>
-      <ReceiptModal d={open} pharmacy={cfg.pharmacy} onClose={() => setOpen(null)} />
+      <ReceiptModal d={open} pharmacy={cfg.pharmacy} onClose={() => setOpen(null)} who={who} />
       <ReturnModal d={ret} cfg={cfg} who={who} onClose={() => setRet(null)} onDone={() => { setRet(null); void load(); }} />
       {printDay && rep ? <div className="hidden print:block"><div className="receipt-print font-mono text-[12px]"><div className="text-center font-bold">{cfg.pharmacy?.name ?? ""}</div><div className="text-center">Day-end {rep.date} · {cfg.branchName} · {cfg.series}</div><DayEnd rep={rep} cfg={cfg} /></div></div> : null}
     </div>

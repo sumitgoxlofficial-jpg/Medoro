@@ -2,6 +2,7 @@
  * Read-side helpers for the device screens: bill details (for printing and returns), the day-end summary,
  * bill search, stock list, customer and supplier lists, and medicine edits. All on the device database.
  */
+import { einvoiceOf } from "./einvoice";
 import { z } from "zod";
 import { DriveDB } from "./client";
 import { CounterError, stockOf, type Medicine } from "./pharmacy";
@@ -23,7 +24,7 @@ export function saleDetail(db: DriveDB, saleId: string) {
     .map((l) => ({ ...l, returned: returnedQty(db, l.id) }));
   const payments = db.from<{ mode: string; amountPaise: number; ref: string | null }>("payment").eq("saleId", saleId).all();
   const returns = db.from<{ id: string; creditNoteNo: string; amountPaise: number; refundMode: string; at: string }>("salesReturn").eq("saleId", saleId).order("at").all();
-  return { sale, lines, payments, returns };
+  return { sale, lines, payments, returns, einvoice: einvoiceOf(db, saleId) };
 }
 export type SaleDetail = ReturnType<typeof saleDetail>;
 
