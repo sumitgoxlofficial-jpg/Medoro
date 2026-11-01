@@ -182,6 +182,13 @@ working with me; they overlap a little.
 - Upload/download an encrypted 50 MB file to Drive via the existing token; measure time.
 - Decide: browser-only vs. push the desktop app for counters.
 - **Done when:** numbers are written down and we agree it's fast enough on the phones pharmacies use.
+- **Built:** owner-only page **App → Backup → "Test this device"** (`/app/lab`). It runs in a background
+  worker (`public/drivedb/bench-worker.mjs`) using SQLite WebAssembly in OPFS, then uploads/downloads an
+  encrypted snapshot to the owner's Drive using a short-lived token. Medoro's server sees no test data.
+- **First result** (headless Chromium, 4-core Linux, large pharmacy: 50,000 medicines, 1 lakh batches,
+  2 lakh bill lines): search 2 ms, stock of one medicine 3 ms, save a bill 64 ms, day total 1 ms,
+  full stock report 0.46 s, building the sample database 11 s. Still needed: real Android phones,
+  counter PCs, and the Drive upload/download numbers.
 - **Risk:** older phones/browsers without OPFS → fall back to IndexedDB storage (slower) or require
   the desktop app.
 

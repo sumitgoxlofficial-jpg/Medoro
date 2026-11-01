@@ -71,6 +71,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           {drive.status === "connected" ? (
             <>
               <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>{folder}</span><span className="text-muted">Access</span><span>Only files Medoro creates</span></div>
+              {canRestore ? <a href="/app/lab" className="self-start text-[13px] text-teal">Coming soon: keep all data in your Drive. Test this device&nbsp;→</a> : null}
               <Button variant="danger-outline" className="self-start" disabled={pending} onClick={() => start(async () => { const r = await disconnectAction(); toast(r.ok ? r.data : r.error, r.ok ? "green" : "red"); })}>Disconnect & revoke</Button>
             </>
           ) : drive.status === "lost" && driveApp ? (

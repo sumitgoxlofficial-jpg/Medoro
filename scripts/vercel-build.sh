@@ -7,4 +7,5 @@ if [ "${VERCEL_ENV:-}" = "production" ]; then
   if [ -z "${DIRECT_URL:-}" ]; then echo "DIRECT_URL is not set; refusing to deploy without migrating." >&2; exit 1; fi
   DATABASE_URL="$DIRECT_URL" pnpm prisma migrate deploy
 fi
+node scripts/copy-sqlite.mjs
 pnpm next build

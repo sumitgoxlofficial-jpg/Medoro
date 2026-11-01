@@ -18,7 +18,7 @@ RUN if [ -n "$NPM_CONFIG_REGISTRY" ]; then export npm_config_registry="$NPM_CONF
 
 FROM deps AS build
 COPY . .
-RUN pnpm exec prisma generate && NEXT_OUTPUT=standalone pnpm exec next build
+RUN node scripts/copy-sqlite.mjs && pnpm exec prisma generate && NEXT_OUTPUT=standalone pnpm exec next build
 
 # One-shot job: applies pending migrations, then exits. Uses DATABASE_MIGRATOR_URL when set (owner role).
 FROM base AS migrate
