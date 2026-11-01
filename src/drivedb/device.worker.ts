@@ -7,6 +7,7 @@ import { DriveDB } from "./client";
 import { wasmEngine, type WasmDb } from "./engine";
 import * as pharmacy from "./pharmacy";
 import * as trade from "./trade";
+import * as seed from "./seed";
 
 type Pool = { OpfsSAHPoolDb: new (file: string) => WasmDb; wipeFiles(): Promise<void> };
 let db: DriveDB | null = null;
@@ -38,6 +39,9 @@ const handlers = {
   addSupplier: (input: Parameters<typeof trade.addSupplier>[1]) => trade.addSupplier(need(), input),
   recordPurchase: (input: Parameters<typeof trade.recordPurchase>[1]) => trade.recordPurchase(need(), input),
   createReturn: (input: Parameters<typeof trade.createReturn>[1]) => trade.createReturn(need(), input),
+  importSeed: (data: seed.Seed, userId: string) => seed.importSeed(need(), data, userId),
+  config: () => seed.counterConfig(need()),
+  recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Deletes this device's database file (demo reset). */
   wipe: async () => { need().engine.close(); db = null; await pool?.wipeFiles(); return true; },

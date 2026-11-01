@@ -3,6 +3,8 @@ import { run, UserError } from "@/server/action";
 import { writeAudit } from "@/server/audit";
 import { db } from "@/server/db";
 import { driveConfigured, deviceDriveToken } from "@/domain/system/gdrive";
+import { deviceSeed, setDriveMode } from "@/domain/system/drive-mode";
+import { revalidatePath } from "next/cache";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
 export async function speedTestTokenAction() {
@@ -14,3 +16,13 @@ export async function speedTestTokenAction() {
     return token;
   });
 }
+
+/** Drive mode pilot: bill on this device's own database. Owner only. */
+export async function setDriveModeAction(on: boolean) {
+  const r = await run((c) => setDriveMode(c, on), on ? "Drive mode is on." : "Drive mode is off.");
+  revalidatePath("/app", "layout");
+  return r;
+}
+
+/** This branch's catalogue, stock and customers for a device database. Owner only; recorded in the audit log. */
+export async function deviceSeedAction() { return run((c) => deviceSeed(c)); }

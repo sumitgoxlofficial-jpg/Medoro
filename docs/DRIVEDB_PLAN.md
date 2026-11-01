@@ -214,7 +214,13 @@ working with me; they overlap a little.
     payments received), suppliers and purchase bills (paid + free packs into stock, GST, no duplicate
     bill numbers), sales returns as credit notes (share paid after discount, restock only sealed and
     unexpired goods, never more than sold, per-counter credit note series). Tests: `trade.test.ts`.
-  - Next in Phase 1: the counter screen reading from the device database behind the "Drive mode" switch.
+  - Third slice: **Drive mode pilot.** Owner switch on the device test page (audited); a "Billing on this
+    device" screen (`/app/device-pos`: search/scan, packs and loose, customer, Schedule H/H1 fields,
+    discount within the role's cap, cash/UPI/card/credit, F2/F9, recent bills, today's total). The owner
+    loads this branch's catalogue, stock and customers onto the device once (`deviceSeed` → `importSeed`,
+    same ids as the server, audited); each device gets its own invoice series (D + 4 characters).
+    In the pilot, device bills stay on the device (queued for Drive) and the server's stock isn't touched.
+  - **Phase 1 is complete.** Next: Phase 2 (upload the change queue and snapshots to Drive, encryption keys).
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
