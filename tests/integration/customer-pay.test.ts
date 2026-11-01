@@ -52,10 +52,10 @@ describe("customer online payments in Drive mode (phase 6)", () => {
   it("a counter gets a payment link for a customer's dues (Medoro keeps nothing)", async () => {
     const cashier = await ctxFor("Cashier");
     calls.length = 0;
-    const r = await createPayLink({ ...cashier, moved: true }, { customerId: "c1", customerName: "Asha", phone: "98220 00001", amountPaise: 25000, label: "Dues" }, fakeRzp(200, { id: "plink_1", short_url: "https://rzp.io/i/abc" }));
+    const r = await createPayLink({ ...cashier, moved: true }, { customerId: "cust-1", customerName: "Asha", phone: "98220 00001", amountPaise: 25000, label: "Dues" }, fakeRzp(200, { id: "plink_1", short_url: "https://rzp.io/i/abc" }));
     expect(r).toEqual({ url: "https://rzp.io/i/abc", id: "plink_1" });
     const body = JSON.parse(String(calls[0].init!.body));
-    expect(body).toMatchObject({ amount: 25000, currency: "INR", customer: { name: "Asha", contact: "+919822000001" }, notes: { medoro: "1", customer: "c1" } });
+    expect(body).toMatchObject({ amount: 25000, currency: "INR", customer: { name: "Asha", contact: "+919822000001" }, notes: { medoro: "1", customer: "cust-1" } });
     expect(calls[0].init!.headers).toMatchObject({ Authorization: "Basic " + Buffer.from(`${KEYS.keyId}:${KEYS.keySecret}`).toString("base64") });
     expect(await db.paymentInbox.count()).toBe(0);
   });
@@ -64,24 +64,24 @@ describe("customer online payments in Drive mode (phase 6)", () => {
     const owner = await ctxFor();
     const keys = await newDeviceKeys();
     await registerDevice(owner, { deviceId: "OWN1", name: "Counter", publicKey: { kty: "RSA", n: keys.publicJwk.n!, e: keys.publicJwk.e! } });
-    const raw = paid("c1");
+    const raw = paid("cust-1");
     expect(await handlePayWebhook(tenantId, raw, "bad")).toMatchObject({ status: 401 });
     expect(await handlePayWebhook(tenantId, raw, sign(raw, "other-secret"))).toMatchObject({ status: 401 });
     expect(await handlePayWebhook(tenantId, raw, sign(raw))).toMatchObject({ status: 200, note: "queued" });
     expect(await handlePayWebhook(tenantId, raw, sign(raw))).toMatchObject({ status: 200 }); // Razorpay retries: still one entry
     const rows = await db.paymentInbox.findMany({ where: { tenantId } });
     expect(rows).toHaveLength(1);
-    expect(rows[0].sealed).not.toContain("c1"); // only the device can read who paid
+    expect(rows[0].sealed).not.toContain("cust-1"); // only the device can read who paid
 
     // The counter comes online: it picks the payment up through the relay, records it, and acknowledges it.
     const dev = await memoryDb("OWN1");
-    dev.from("customer").insert({ id: "c1", name: "Asha", phone: "9822000001", creditLimitPaise: 100000 });
-    dev.from("customerReceipt").insert({ customerId: "c1", amountPaise: -40000, mode: "cash", ref: "Opening", userId: "u", at: "2026-01-01T00:00:00.000Z" });
+    dev.from("customer").insert({ id: "cust-1", name: "Asha", phone: "9822000001", creditLimitPaise: 100000 });
+    dev.from("customerReceipt").insert({ customerId: "cust-1", amountPaise: -40000, mode: "cash", ref: "Opening", userId: "u", at: "2026-01-01T00:00:00.000Z" });
     const box = (await relay(owner, "OWN1", "inbox", P({}), Buffer.alloc(0))) as { payments: { paymentId: string; sealed: string }[] };
     const opened = await Promise.all(box.payments.map((p) => openForDevice(keys.privateKey, p.sealed)));
-    expect(opened).toEqual([expect.objectContaining({ customerId: "c1", amountPaise: 25000, paymentId: "pay_TESTPAY0001" })]);
+    expect(opened).toEqual([expect.objectContaining({ customerId: "cust-1", amountPaise: 25000, paymentId: "pay_TESTPAY0001" })]);
     const done = applyPayments(dev, opened);
-    expect(customerBalance(dev, "c1")).toBe(15000);
+    expect(customerBalance(dev, "cust-1")).toBe(15000);
     await relay(owner, "OWN1", "inbox-ack", P({ ids: done.join(",") }), Buffer.alloc(0));
     expect(await db.paymentInbox.count({ where: { tenantId } })).toBe(0);
   });
