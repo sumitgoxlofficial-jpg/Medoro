@@ -59,7 +59,7 @@ export function PayForm({ link, info }: { link: { l: string; s: string }; info: 
         <div className="text-muted">{info.status === "trial" ? "Free trial" : info.status === "cancelled" ? "Cancelled" : "Current plan"}{info.renewsOn ? ` · ${info.status === "trial" ? "ends" : "paid until"} ${day(info.renewsOn)}` : ""}</div>
       </div>
       {!info.enabled ? <p className="m-0 text-[13.5px] text-ink-2">Online payments aren’t switched on yet. Pay by UPI or bank transfer from Subscription in your app.</p> : !info.renewOpen ? (
-        <p className="m-0 text-[13.5px] text-ink-2">You’re all set: your plan is paid until <strong>{day(info.renewsOn!)}</strong>. Renewal opens on {day(info.renewOpensOn!)}, 30 days before it ends, so you can’t pay twice by mistake.</p>
+        <p className="m-0 text-[13.5px] text-ink-2">You’re all set: your plan is paid until <strong>{day(info.renewsOn!)}</strong>. Renewal opens on {day(info.renewOpensOn!)}, 7 days before it ends, so you can’t pay twice by mistake.</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2">

@@ -126,7 +126,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
         <div className={card}>
           <div className="font-semibold text-[15px]">{online.enabled && v.access.phase === "trial" ? "Choose a plan" : "Renew or pay"}</div>
           {online.enabled && !online.billing.renewOpen ? (
-            <div className="text-[13.5px] text-ink-2">You’re all set: <strong>{v.plan}</strong> is paid until <strong>{day(online.billing.renewsAt!)}</strong>. Renewal opens on {day(online.billing.renewOpensOn!)}, 30 days before it ends, so you can’t pay twice by mistake. Nothing renews automatically.</div>
+            <div className="text-[13.5px] text-ink-2">You’re all set: <strong>{v.plan}</strong> is paid until <strong>{day(online.billing.renewsAt!)}</strong>. Renewal opens on {day(online.billing.renewOpensOn!)}, 7 days before it ends, so you can’t pay twice by mistake. Nothing renews automatically.</div>
           ) : online.enabled ? (
             <>
               <div className="grid grid-cols-2 gap-2">

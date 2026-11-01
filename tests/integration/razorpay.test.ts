@@ -188,7 +188,7 @@ describe("real-life payment rules", () => {
   const pay = (payments: Record<string, { order_id: string; amount: number; status: string }>, id: string, order: string, amount: number) => { payments[id] = { order_id: order, amount, status: "captured" }; };
   const meta = async () => db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: (await ctxFor()).tenantId } });
 
-  it("a paid plan can't be paid again until its last 30 days", async () => {
+  it("a paid plan can't be paid again until its last 7 days", async () => {
     const ctx = await ctxFor();
     const payments: Record<string, { order_id: string; amount: number; status: string }> = {};
     fakeRazorpay(payments);
@@ -197,7 +197,10 @@ describe("real-life payment rules", () => {
     await confirmCheckout(ctx, { orderId: "order_1", paymentId: "pay_1", signature: sig("order_1|pay_1") });
     expect((await billingState(ctx.tenantId)).renewOpen).toBe(false);
     await expect(createOrder(ctx, { plan: "pro", cycle: "m" })).rejects.toThrow(/You can renew from/);
-    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { renewsAt: new Date(Date.now() + 20 * 86400_000) } });
+    // A 30-day month (paid 1 Nov, ends 1 Dec) must not reopen renewal straight after paying.
+    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { renewsAt: new Date(Date.now() + 28 * 86400_000) } });
+    expect((await billingState(ctx.tenantId)).renewOpen).toBe(false);
+    await db.subscriptionMeta.update({ where: { tenantId: ctx.tenantId }, data: { renewsAt: new Date(Date.now() + 5 * 86400_000) } });
     expect((await billingState(ctx.tenantId)).renewOpen).toBe(true);
     expect(await createOrder(ctx, { plan: "pro", cycle: "m" })).toMatchObject({ orderId: "order_2" });
   });
