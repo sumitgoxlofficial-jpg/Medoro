@@ -10,7 +10,7 @@ import { card, errText, type Cfg } from "@/components/device/ui";
 import { completeMoveAction, moveExportAction, moveStatusAction, startMoveAction, undoMoveAction } from "../lab/actions";
 import { RecoveryCodeCard } from "./drive-panel";
 
-const PARTS = [["sales", "bills"], ["returns", "credit notes"], ["purchases", "purchase bills"], ["movements", "stock movements"], ["loyalty", "loyalty points"]] as const;
+const PARTS = [["sales", "bills"], ["returns", "credit notes"], ["purchases", "purchase bills"], ["movements", "stock movements"], ["loyalty", "loyalty points"], ["money", "payments and expenses"]] as const;
 type Step = { kind: "idle" } | { kind: "copying"; what: string; done: number } | { kind: "checking" } | { kind: "failed"; checks: MoveCheck[]; error?: string; retrySave?: number }
   | { kind: "saving" } | { kind: "code"; code: string; cfg: Cfg; checks: number };
 

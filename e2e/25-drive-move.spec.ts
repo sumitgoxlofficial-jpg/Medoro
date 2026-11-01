@@ -36,6 +36,7 @@ test("move all data from Medoro to Drive, checked, with Medoro read-only and und
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /Turn (on|off) Drive mode/ })).toHaveCount(0);
 
+  await expect(page.getByRole("button", { name: "Delete Medoro’s copy" })).toBeVisible(); // deleting is covered by tests/integration
   await page.getByRole("button", { name: "Undo the move" }).click();
   await expect(page.getByRole("button", { name: "Turn off Drive mode" })).toBeVisible();
   await page.getByRole("button", { name: "Turn off Drive mode" }).click();

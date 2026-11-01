@@ -306,7 +306,8 @@ working with me; they overlap a little.
   without details), suppliers, counter settings, and opening rows dated 2000-01-01 for what the copied history
   doesn't explain: opening stock per batch, customer dues and supplier dues, so the device's balances equal
   Medoro's ledger exactly. Cancelled bills stay behind; cash on delivery and points-only bills come across as cash.
-  Payments received/made and expenses come across as opening balances (warned; download a backup first).
+  Payments received, supplier payments and expenses move entry by entry (reversed entries stay behind); other
+  ledger entries (opening balances, journals, bounced cheques) become one opening balance per party.
 - Device `src/drivedb/migrate-in.ts` (migration 6 adds `sale.igstPaise` and `placeOfSupply` for inter-state bills;
   GST returns, reports and the receipt use them): `beginMove` → `importPart` → `finishMove`, which adds the opening
   rows and runs `verifyMove`: row counts of every table, sales/returns/purchases totals, stock of every batch, every
@@ -318,9 +319,12 @@ working with me; they overlap a little.
   card on the speed-test page shows the state and the Undo button.
 - Tests: `tests/integration/drive-move.test.ts` (real sales, credit, points, returns, purchases, payments moved and
   checked; a broken copy refused; undo window), `e2e/25-drive-move.spec.ts` (moves the whole e2e pharmacy).
-- Left for phase 7: deleting Medoro's copy after the 7 days (owner-confirmed; keeps the account, users,
-  subscription, integrations and devices), moving a pharmacy whose Drive already has pilot data, and moving
-  payment/expense history line by line.
+- Slice 2: **deleting Medoro's copy** (`deleteMedoroCopy`): owner only, after the move, confirmed with the pharmacy
+  code, and only if Drive's manifest shows a full copy saved after the move (Medoro reads only the plain manifest).
+  Deletes every business table and stored file (scans, server-held backups); keeps the account, sign-in, staff,
+  branches, devices, integrations, subscription and the audit log. State becomes `purged`: no undo after this.
+  The Drive mode card has the button; the expenses total joined the checks.
+- Left for phase 7: moving a pharmacy whose Drive already holds pilot data (needs merging the pilot's device bills).
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.

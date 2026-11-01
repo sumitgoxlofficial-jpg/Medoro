@@ -6,7 +6,7 @@ import { driveConfigured, deviceDriveToken } from "@/domain/system/gdrive";
 import { decideDevice, listDevices } from "@/domain/system/drivedb-relay";
 import { deviceSeed, setDriveMode } from "@/domain/system/drive-mode";
 import { revalidatePath } from "next/cache";
-import { completeMove, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
+import { completeMove, deleteMedoroCopy, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
 export async function speedTestTokenAction() {
@@ -62,6 +62,13 @@ export async function completeMoveAction(report: { device: string; checks: numbe
 /** Back to Medoro's copy: during the move or within 7 days. */
 export async function undoMoveAction() {
   const r = await run((c) => undoMove(c), "Medoro’s copy is in use again.");
+  revalidatePath("/app", "layout");
+  return r;
+}
+
+/** Owner, after the move: deletes Medoro's copy for good (confirmed with the pharmacy code). */
+export async function deleteMedoroCopyAction(code: string) {
+  const r = await run((c) => deleteMedoroCopy(c, { code }), "Medoro’s copy is deleted. Your data is only in your Google Drive now.");
   revalidatePath("/app", "layout");
   return r;
 }
