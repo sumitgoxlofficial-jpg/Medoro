@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     if (e instanceof ZodError) return Response.json({ error: e.issues[0]?.message ?? "Invalid input." }, { status: 400, headers: no });
     if (e instanceof UserError) return Response.json({ error: e.message }, { status: 403, headers: no });
     if (e instanceof Error && "status" in e) return Response.json({ error: e.message }, { status: 502, headers: no });
+    // The device closed or reloaded the page mid-sync: nothing went wrong here, it retries on its own.
+    if (req.signal.aborted || (e as { code?: string })?.code === "ECONNRESET" || (e instanceof Error && e.message === "aborted")) return new Response(null, { status: 499 });
     log.error("DriveDB relay failed.", { err: e });
     return Response.json({ error: "Something went wrong." }, { status: 500, headers: no });
   }

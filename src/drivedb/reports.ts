@@ -51,7 +51,7 @@ export function dayReport(db: DriveDB, branchId: string, iso = todayISO()) {
     "SELECT p.mode, SUM(p.amountPaise) AS amount FROM payment p JOIN sale s ON s.id = p.saleId WHERE s.branchId = ? AND s.at >= ? AND s.at < ? GROUP BY p.mode",
     [branchId, from, to]).map((r) => [r.mode, n(r.amount)])) as Record<string, number>;
   const refunds = Object.fromEntries(db.engine.all<{ mode: string; amount: number }>(
-    "SELECT refundMode AS mode, SUM(amountPaise) AS amount FROM salesReturn WHERE branchId = ? AND at >= ? AND at < ? GROUP BY refundMode",
+    "SELECT refundMode AS mode, SUM(amountPaise - pointsValuePaise) AS amount FROM salesReturn WHERE branchId = ? AND at >= ? AND at < ? GROUP BY refundMode",
     [branchId, from, to]).map((r) => [r.mode, n(r.amount)])) as Record<string, number>;
   const received = db.engine.all<{ mode: string; amount: number }>(
     "SELECT mode, SUM(amountPaise) AS amount FROM customerReceipt WHERE at >= ? AND at < ? GROUP BY mode", [from, to]);

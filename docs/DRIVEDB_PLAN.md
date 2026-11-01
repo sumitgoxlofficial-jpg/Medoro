@@ -281,7 +281,13 @@ working with me; they overlap a little.
 - GST from the device: GSTR-1 (offline-tool JSON + CSV), GSTR-3B (JSON + CSV, ITC from purchase bills: CGST/SGST
   same state, IGST other states) and the HSN summary, built with the server's own builders (`src/domain/gst`).
 - Screens: **Accounts** and **Reports & GST** tabs. Tests: `books.test.ts`, `e2e/22-device-books.spec.ts`.
-- Next slices: delivery orders, loyalty and campaigns, recalls and branch transfers, audit log, AI assistant.
+- Slice 2 (built, `src/drivedb/ops.ts`, migration 5): stock corrections with a reason (damaged, expired, lost,
+  sample, found) and physical stock counts, always as movements; quarantine/recall/release batches; loyalty
+  points (earned on what is paid, spent as a tender without changing the bill's GST, given back in proportion on
+  returns as points not cash, settings copied from Medoro); home delivery orders (take → pack & bill → out with a
+  rider → delivered; cash on delivery is a bill on the customer's account settled by the rider's cash).
+  Screens: batch panel on Stock, points on Billing, an **Orders** tab. Tests: `ops.test.ts`, `e2e/23-device-ops`.
+- Next slices: campaigns and WhatsApp messages, branch transfers, audit log, AI assistant.
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.

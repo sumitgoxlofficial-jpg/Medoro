@@ -132,9 +132,13 @@ export const saleInput = z.object({
   prescriber: z.string().trim().max(120).optional(),
   prescriberReg: z.string().trim().max(40).optional(),
   patientName: z.string().trim().max(120).optional(),
+  /** Loyalty points the customer spends as part payment. */
+  redeemPoints: z.number().int().min(0).max(10_000_000).optional(),
+  /** A cash-on-delivery order: billed to the customer's account until the rider collects, outside their credit limit. */
+  codDelivery: z.boolean().optional(),
 });
 export type SaleInput = z.input<typeof saleInput>;
-export type SaleResult = { saleId: string; invoiceNo: string; totalPaise: number; lines: { medicineId: string; batchId: string; batchNo: string; qty: number; unit: SaleUnit }[] };
+export type SaleResult = { saleId: string; invoiceNo: string; totalPaise: number; duePaise: number; pointsEarned: number; lines: { medicineId: string; batchId: string; batchNo: string; qty: number; unit: SaleUnit }[] };
 
 /**
  * Makes a bill on this device: picks batches FEFO, checks stock, expiry, loose sale and prescription rules,
@@ -176,19 +180,35 @@ export function createSale(db: DriveDB, input: SaleInput, today = todayISO()): S
     const t = cartTotals(lines.map((l) => ({ mrpPaise: l.mrp, qty: l.qty, gstRate: l.m.gstRate, costPaise: l.cost })), s.discountPct);
     if (t.total <= 0) throw new CounterError("The bill total must be more than zero.");
 
+    // Loyalty: points spent are a tender; the bill, its taxable value and GST stay as billed.
+    const loyalty = loyaltyOf(db);
+    let redeemValue = 0;
+    if (s.redeemPoints) {
+      if (!loyalty.enabled) throw new CounterError("Loyalty points aren’t switched on.");
+      if (!customer) throw new CounterError("Select the customer to use their points.");
+      if (s.redeemPoints < loyalty.minRedeem) throw new CounterError(`Use at least ${loyalty.minRedeem} points.`);
+      const have = pointsBalance(db, customer.id);
+      if (s.redeemPoints > have) throw new CounterError(`${customer.name} has only ${have} points.`);
+      redeemValue = s.redeemPoints * loyalty.pointValuePaise;
+      if (redeemValue > t.total) throw new CounterError(`Those points are worth more than the bill. Use at most ${Math.floor(t.total / loyalty.pointValuePaise)}.`);
+    }
+    const due = t.total - redeemValue;
+
     const pays: { mode: "cash" | "upi" | "card" | "credit"; amountPaise: number }[] = [];
-    if (s.pay.mode === "split") {
+    if (due === 0) {
+      // Paid fully with points: no money changes hands.
+    } else if (s.pay.mode === "split") {
       const cash = s.pay.cashPaise ?? -1;
-      if (cash <= 0 || cash >= t.total) throw new CounterError("Enter a cash part between ₹1 and the amount to pay.");
-      pays.push({ mode: "cash", amountPaise: cash }, { mode: "upi", amountPaise: t.total - cash });
+      if (cash <= 0 || cash >= due) throw new CounterError("Enter a cash part between ₹1 and the amount to pay.");
+      pays.push({ mode: "cash", amountPaise: cash }, { mode: "upi", amountPaise: due - cash });
     } else if (s.pay.mode === "credit") {
       if (!customer) throw new CounterError("Select a customer for a credit sale.");
-      const due = customerBalance(db, customer.id);
-      if (due + t.total > customer.creditLimitPaise) throw new CounterError(`Exceeds ${customer.name}’s credit limit.`);
-      pays.push({ mode: "credit", amountPaise: t.total });
+      const owed = customerBalance(db, customer.id);
+      if (!s.codDelivery && owed + due > customer.creditLimitPaise) throw new CounterError(`Exceeds ${customer.name}’s credit limit.`);
+      pays.push({ mode: "credit", amountPaise: due });
     } else {
-      if (s.pay.mode === "cash" && s.pay.tenderedPaise && s.pay.tenderedPaise < t.total) throw new CounterError("Cash tendered is less than the total.");
-      pays.push({ mode: s.pay.mode, amountPaise: t.total });
+      if (s.pay.mode === "cash" && s.pay.tenderedPaise && s.pay.tenderedPaise < due) throw new CounterError("Cash tendered is less than the total.");
+      pays.push({ mode: s.pay.mode, amountPaise: due });
     }
 
     const fy = fiscalYear(today);
@@ -207,8 +227,14 @@ export function createSale(db: DriveDB, input: SaleInput, today = todayISO()): S
     db.from("stockMovement").insert(lines.map((l) => ({
       branchId: s.branchId, batchId: l.b.id, qty: -l.base, type: "sale", refType: "sale", refId: sale.id, userId: s.userId, at, note: invoiceNo,
     })));
-    db.from("payment").insert(pays.map((p) => ({ saleId: sale.id, mode: p.mode, amountPaise: p.amountPaise, ref: p.mode === "upi" || p.mode === "card" ? s.pay.ref ?? null : null })));
-    return { saleId: sale.id, invoiceNo, totalPaise: t.total, lines: lines.map((l) => ({ medicineId: l.m.id, batchId: l.b.id, batchNo: l.b.batchNo, qty: l.qty, unit: l.unit })) };
+    if (pays.length) db.from("payment").insert(pays.map((p) => ({ saleId: sale.id, mode: p.mode, amountPaise: p.amountPaise, ref: p.mode === "upi" || p.mode === "card" ? s.pay.ref ?? null : null })));
+    let earned = 0;
+    if (customer && loyalty.enabled) {
+      if (s.redeemPoints) db.from("loyaltyLedger").insert({ customerId: customer.id, points: -s.redeemPoints, kind: "redeem", refId: sale.id, at });
+      earned = Math.max(0, Math.floor((due * loyalty.earnPer100) / 10000));
+      if (earned) db.from("loyaltyLedger").insert({ customerId: customer.id, points: earned, kind: "earn", refId: sale.id, at });
+    }
+    return { saleId: sale.id, invoiceNo, totalPaise: t.total, duePaise: due, pointsEarned: earned, lines: lines.map((l) => ({ medicineId: l.m.id, batchId: l.b.id, batchNo: l.b.batchNo, qty: l.qty, unit: l.unit })) };
   });
 }
 
@@ -220,3 +246,15 @@ export function dayTotals(db: DriveDB, branchId: string, isoDate: string) {
     [branchId, from, to])[0];
   return { bills: Number(r.bills), totalPaise: Number(r.total), taxPaise: Number(r.tax) };
 }
+
+// ---------- loyalty ----------
+
+export type Loyalty = { enabled: boolean; earnPer100: number; pointValuePaise: number; minRedeem: number };
+export const LOYALTY_OFF: Loyalty = { enabled: false, earnPer100: 1, pointValuePaise: 100, minRedeem: 50 };
+/** The pharmacy's loyalty settings, copied to the device with the catalogue. */
+export function loyaltyOf(db: DriveDB): Loyalty {
+  const raw = db.getMeta("loyalty");
+  return raw ? { ...LOYALTY_OFF, ...(JSON.parse(raw) as Partial<Loyalty>) } : LOYALTY_OFF;
+}
+export const pointsBalance = (db: DriveDB, customerId: string) =>
+  Number(db.engine.all<{ n: number }>("SELECT COALESCE(SUM(points), 0) AS n FROM loyaltyLedger WHERE customerId = ?", [customerId])[0].n);

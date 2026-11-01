@@ -10,6 +10,7 @@ import * as trade from "./trade";
 import * as seed from "./seed";
 import * as reports from "./reports";
 import * as books from "./books";
+import * as ops from "./ops";
 import * as sync from "./sync";
 import type { DriveStore } from "./drive";
 import { relayStore, registerDevice, RelayRefusedError } from "./relay";
@@ -126,7 +127,7 @@ const handlers = {
   createSale: (input: pharmacy.SaleInput) => pharmacy.createSale(need(), input),
   dayTotals: (branchId: string, iso: string) => pharmacy.dayTotals(need(), branchId, iso),
   addCustomer: (input: Parameters<typeof trade.addCustomer>[1]) => trade.addCustomer(need(), input),
-  findCustomers: (text: string) => trade.findCustomers(need(), text).map((c) => ({ ...c, balancePaise: trade.customerBalance(need(), c.id) })),
+  findCustomers: (text: string) => trade.findCustomers(need(), text).map((c) => ({ ...c, balancePaise: trade.customerBalance(need(), c.id), points: pharmacy.pointsBalance(need(), c.id) })),
   receivePayment: (input: Parameters<typeof trade.receivePayment>[1]) => trade.receivePayment(need(), input),
   addSupplier: (input: Parameters<typeof trade.addSupplier>[1]) => trade.addSupplier(need(), input),
   recordPurchase: (input: Parameters<typeof trade.recordPurchase>[1]) => trade.recordPurchase(need(), input),
@@ -152,6 +153,16 @@ const handlers = {
   topMedicines: (branchId: string, from: string, to: string) => books.topMedicines(need(), branchId, from, to),
   expiringStock: (branchId: string, days?: number) => books.expiringStock(need(), branchId, days),
   gstReturns: (month: string, gstin: string) => books.gstReturns(need(), month, gstin),
+  batchesFor: (medicineId: string, branchId: string) => ops.batchesFor(need(), medicineId, branchId),
+  adjustStock: (input: Parameters<typeof ops.adjustStock>[1]) => ops.adjustStock(need(), input),
+  recordCount: (input: Parameters<typeof ops.recordCount>[1]) => ops.recordCount(need(), input),
+  setBatchStatus: (batchId: string, status: "ok" | "quarantine" | "recalled") => ops.setBatchStatus(need(), batchId, status),
+  createOrder: (input: Parameters<typeof ops.createOrder>[1]) => ops.createOrder(need(), input),
+  packOrder: (input: Parameters<typeof ops.packOrder>[1]) => ops.packOrder(need(), input),
+  dispatchOrder: (id: string, rider: string) => ops.dispatchOrder(need(), id, rider),
+  deliverOrder: (id: string, userId: string) => ops.deliverOrder(need(), id, userId),
+  cancelOrder: (id: string) => ops.cancelOrder(need(), id),
+  listOrders: (branchId: string, showDone?: boolean) => ops.listOrders(need(), branchId, showDone),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */

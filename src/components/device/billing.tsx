@@ -9,7 +9,7 @@ import { card, input, errText, type Cfg, type Who } from "./ui";
 
 type Med = { id: string; name: string; generic: string; mrpPaise: number; packSize: number; packUnit: string; looseUnit: string; allowLoose: number; schedule: string | null; stock: number };
 type Line = { med: Med; qty: number; unit: "pack" | "loose" };
-type Cust = { id: string; name: string; phone: string | null; balancePaise: number; creditLimitPaise: number };
+type Cust = { id: string; name: string; phone: string | null; balancePaise: number; creditLimitPaise: number; points: number };
 const H1 = ["H1", "X", "NDPS"];
 const price = (l: Line) => (l.unit === "loose" && l.med.packSize > 1 ? Math.floor(l.med.mrpPaise / l.med.packSize) : l.med.mrpPaise);
 const stockText = (m: Med) => (m.packSize > 1 ? `${Math.floor(m.stock / m.packSize)} ${m.packUnit}s${m.stock % m.packSize ? ` + ${m.stock % m.packSize}` : ""}` : `${m.stock}`);
@@ -27,6 +27,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
   const [disc, setDisc] = useState(0);
   const [mode, setMode] = useState<"cash" | "upi" | "card" | "credit">("cash");
   const [rx, setRx] = useState({ prescriber: "", prescriberReg: "", patientName: "" });
+  const [redeem, setRedeem] = useState(0);
   const [busy, setBusy] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const cap = Math.min(who.discCap, cfg.maxDiscountPct);
@@ -49,6 +50,8 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
   const setLine = (i: number, patch: Partial<Line>) => setCart((c) => c.map((l, j) => (j === i ? { ...l, ...patch } : l)).filter((l) => l.qty > 0));
   const subtotal = cart.reduce((n, l) => n + price(l) * l.qty, 0);
   const estTotal = Math.round((subtotal - Math.round((subtotal * disc) / 100)) / 100) * 100;
+  const loyalty = cfg.loyalty;
+  const redeemValue = loyalty.enabled && cust ? Math.min(redeem, cust.points) * loyalty.pointValuePaise : 0;
   const needRx = cart.some((l) => l.med.schedule), needH1 = cart.some((l) => H1.includes(l.med.schedule ?? ""));
 
   const complete = useCallback(async () => {
@@ -60,15 +63,16 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
         branchId: cfg.branchId, series: cfg.series, userId: who.userId, customerId: cust?.id ?? null, discountPct: disc, maxDiscountPct: cap,
         lines: cart.map((l) => ({ medicineId: l.med.id, qty: l.qty, unit: l.unit })), pay: { mode },
         prescriber: rx.prescriber || undefined, prescriberReg: rx.prescriberReg || undefined, patientName: rx.patientName || undefined,
+        redeemPoints: redeemValue ? Math.min(redeem, cust?.points ?? 0) : undefined,
       });
-      toast(`Bill ${r.invoiceNo} · ${inr(r.totalPaise)} saved on this device (${Math.round(performance.now() - t0)} ms).`, "green");
-      setCart([]); setCust(null); setCustQ(""); setDisc(0); setMode("cash"); setRx({ prescriber: "", prescriberReg: "", patientName: "" });
+      toast(`Bill ${r.invoiceNo} · ${inr(r.totalPaise)} saved on this device (${Math.round(performance.now() - t0)} ms)${r.pointsEarned ? ` · ${r.pointsEarned} points earned` : ""}.`, "green");
+      setCart([]); setCust(null); setCustQ(""); setDisc(0); setMode("cash"); setRx({ prescriber: "", prescriberReg: "", patientName: "" }); setRedeem(0);
       void search("");
       onBill(r.saleId);
       searchRef.current?.focus();
     } catch (e) { toast(errText(e) || "The bill wasn’t saved.", "red"); }
     setBusy(false);
-  }, [cart, busy, dev, cfg, who.userId, cust, disc, cap, mode, rx, toast, search, onBill]);
+  }, [cart, busy, dev, cfg, who.userId, cust, disc, cap, mode, rx, redeem, redeemValue, toast, search, onBill]);
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -121,7 +125,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
           {!cart.length && <div className="text-sm text-muted">Search and tap a medicine, or press Enter to add the first match.</div>}
           <div className="border-t border-line pt-3 flex flex-col gap-2 text-sm">
             {cust ? (
-              <div className="flex justify-between"><span>{cust.name}{cust.phone ? ` · ${cust.phone}` : ""}{cust.balancePaise ? <span className="text-muted"> · owes {inr(cust.balancePaise)}</span> : null}</span><button className="text-teal cursor-pointer" onClick={() => { setCust(null); if (mode === "credit") setMode("cash"); }}>Change</button></div>
+              <div className="flex justify-between"><span>{cust.name}{cust.phone ? ` · ${cust.phone}` : ""}{cust.balancePaise ? <span className="text-muted"> · owes {inr(cust.balancePaise)}</span> : null}{loyalty.enabled ? <span className="text-muted"> · {cust.points} pts</span> : null}</span><button className="text-teal cursor-pointer" onClick={() => { setCust(null); setRedeem(0); if (mode === "credit") setMode("cash"); }}>Change</button></div>
             ) : (
               <div className="relative">
                 <input value={custQ} onChange={(e) => setCustQ(e.target.value)} placeholder="Customer mobile or name (optional)" className={input} aria-label="Customer" />
@@ -131,6 +135,11 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
                   </ul>
                 )}
               </div>
+            )}
+            {loyalty.enabled && cust && cust.points > 0 && (
+              <label className="flex items-center justify-between gap-2">Use points <span className="text-muted text-xs">({cust.points} available, 1 = {inr(loyalty.pointValuePaise)}, min {loyalty.minRedeem})</span>
+                <input type="number" min={0} max={cust.points} value={redeem} onChange={(e) => setRedeem(Math.max(0, Math.min(cust.points, Number(e.target.value) || 0)))} className="border border-line rounded-lg px-2 h-8 w-20 text-right" aria-label="Points to use" />
+              </label>
             )}
             {needRx && <input value={rx.prescriber} onChange={(e) => setRx({ ...rx, prescriber: e.target.value })} placeholder="Prescriber (doctor) name" className={input} aria-label="Prescriber" />}
             {needH1 && (
@@ -148,6 +157,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
               ))}
             </div>
             <div className="flex justify-between text-base font-semibold pt-1"><span>Total</span><span className="tabular-nums">{inr(estTotal)}</span></div>
+            {redeemValue > 0 && <div className="flex justify-between text-sm"><span>Paid with points</span><span className="tabular-nums">−{inr(redeemValue)} · to pay {inr(Math.max(0, estTotal - redeemValue))}</span></div>}
             <Button variant="primary" size="lg" onClick={complete} disabled={busy || !cart.length}><Receipt size={18} /> {busy ? "Saving…" : "Complete bill (F9)"}</Button>
           </div>
         </div>

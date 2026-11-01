@@ -11,11 +11,12 @@ import { Purchases } from "./purchases";
 import { Customers } from "./customers";
 import { Accounts } from "./accounts";
 import { ReportsGst } from "./reports-gst";
+import { Orders } from "./orders";
 import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
-const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["customers", "Customers"], ["accounts", "Accounts"], ["reports", "Reports & GST"], ["settings", "Counter"]] as const;
+const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["orders", "Orders"], ["customers", "Customers"], ["accounts", "Accounts"], ["reports", "Reports & GST"], ["settings", "Counter"]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
@@ -99,8 +100,9 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
       </div>
       {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id) => { bump(); try { setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
       {tab === "bills" && <Bills cfg={cfg} who={who} refresh={tick} />}
-      {tab === "stock" && <Stock cfg={cfg} owner={who.owner} refresh={tick} />}
+      {tab === "stock" && <Stock cfg={cfg} owner={who.owner} userId={who.userId} refresh={tick} />}
       {tab === "purchases" && <Purchases cfg={cfg} who={who} onSaved={bump} />}
+      {tab === "orders" && <Orders cfg={cfg} who={who} onBilled={bump} />}
       {tab === "customers" && <Customers who={who} refresh={tick} />}
       {tab === "accounts" && <Accounts cfg={cfg} who={who} refresh={tick} />}
       {tab === "reports" && <ReportsGst cfg={cfg} />}

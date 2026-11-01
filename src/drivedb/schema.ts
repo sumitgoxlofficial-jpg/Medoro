@@ -63,7 +63,7 @@ export const TABLES = {
   },
   salesReturn: {
     kind: "append",
-    columns: ["id", "saleId", "branchId", "deviceId", "creditNoteNo", "reason", "condition", "refundMode", "amountPaise", "taxablePaise", "userId", "at"],
+    columns: ["id", "saleId", "branchId", "deviceId", "creditNoteNo", "reason", "condition", "refundMode", "amountPaise", "taxablePaise", "userId", "at", "pointsValuePaise"],
   },
   salesReturnItem: {
     kind: "append",
@@ -80,6 +80,18 @@ export const TABLES = {
   expense: {
     kind: "append",
     columns: ["id", "branchId", "category", "amountPaise", "mode", "note", "userId", "at"],
+  },
+  loyaltyLedger: {
+    kind: "append",
+    columns: ["id", "customerId", "points", "kind", "refId", "at"],
+  },
+  deliveryOrder: {
+    kind: "mutable",
+    columns: ["id", "branchId", "orderNo", "customerId", "address", "note", "payment", "status", "saleId", "rider", "createdAt", ...MUTABLE],
+  },
+  deliveryOrderItem: {
+    kind: "append",
+    columns: ["id", "orderId", "medicineId", "qty", "unit"],
   },
 } as const satisfies Record<string, TableSpec>;
 
@@ -227,6 +239,30 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX expense_at ON expense(branchId, at);
   ` + ["supplierPayment", "expense"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // 5: loyalty points, and home delivery orders (billed when packed; cash on delivery is collected by the rider).
+  `
+  CREATE TABLE loyaltyLedger (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL REFERENCES customer(id), points INTEGER NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('earn', 'redeem', 'return')), refId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX loyaltyLedger_customer ON loyaltyLedger(customerId);
+  CREATE TABLE deliveryOrder (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, orderNo TEXT NOT NULL UNIQUE, customerId TEXT NOT NULL REFERENCES customer(id),
+    address TEXT NOT NULL, note TEXT, payment TEXT NOT NULL CHECK (payment IN ('cod', 'upi', 'cash')),
+    status TEXT NOT NULL CHECK (status IN ('new', 'packed', 'out', 'delivered', 'cancelled')), saleId TEXT, rider TEXT,
+    createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX deliveryOrder_status ON deliveryOrder(branchId, status);
+  CREATE TABLE deliveryOrderItem (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES deliveryOrder(id), medicineId TEXT NOT NULL, qty INTEGER NOT NULL,
+    unit TEXT NOT NULL CHECK (unit IN ('pack', 'loose'))
+  );
+  CREATE INDEX deliveryOrderItem_order ON deliveryOrderItem(orderId);
+  -- The part of a credit note given back as loyalty points, not money.
+  ALTER TABLE salesReturn ADD COLUMN pointsValuePaise INTEGER NOT NULL DEFAULT 0;
+  ` + ["loyaltyLedger", "deliveryOrderItem"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];
