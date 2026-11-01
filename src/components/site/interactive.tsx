@@ -1,6 +1,5 @@
 "use client";
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, HardDriveUpload, MessageCircle, Minus, Pause, Play, ScanBarcode, Truck, Warehouse,
@@ -53,7 +52,7 @@ export function Hero() {
         <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-6 min-[1000px]:pb-2">
           <p className="site-up m-0 text-[clamp(17px,1.5vw,19px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{c.sub}</p>
           <div className="site-up flex gap-3 flex-wrap [--d:3]">
-            <Link href="/start" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{c.cta}<ArrowRight size={17} aria-hidden /></Link>
+            <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{c.cta}<ArrowRight size={17} aria-hidden /></a>
             <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={17} aria-hidden className="text-[#146C43]" />{c.demo}</a>
           </div>
           <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{c.note}</p>
@@ -262,7 +261,7 @@ export function Pricing() {
                 <div className="flex items-baseline gap-1.5"><span className="site-display text-[48px] leading-none text-[var(--s-ink)]">{inr(yearly ? Math.round((m * 10) / 12) : m)}</span><span className="text-[15px] text-[var(--s-muted)]">/ month</span></div>
                 <span className="text-[14px] text-[var(--s-muted)]">{yearly ? `${inr(m * 10)} billed yearly` : "Billed monthly after the free trial"}</span>
               </div>
-              <Link href="/start" className={`flex items-center justify-center h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"}`}>Start free trial</Link>
+              <a href="/trial" className={`flex items-center justify-center h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"}`}>Start free trial</a>
               <span className="text-[14px] font-medium text-[var(--s-ink)]">{p.cap}</span>
               <ul className="m-0 p-0 list-none flex flex-col gap-2.5 border-t border-[var(--s-line)] pt-5">
                 {p.feats.map((f) => <li key={f} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{f}</li>)}
@@ -276,7 +275,7 @@ export function Pricing() {
           <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]">Add-on for any plan</span>
           <div className="flex items-baseline justify-between gap-3 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">AI assistant</h3><span className="text-[17px] font-semibold">{yearly ? `${inr(Math.round((ai * 10) / 12))} / month, billed yearly` : `${inr(ai)} / month`}</span></div>
           <p className="m-0 text-[15px] text-[#C3D3D0]">Ask in English, Hindi or Hinglish. Seasonal demand planner, invoice scanner and reorder suggestions. Runs on your server by default.</p>
-          <Link href="/start" className="site-link-arrow mt-auto pt-3 self-start inline-flex items-center gap-1.5 text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">Try it during the free trial<ArrowRight size={15} aria-hidden /></Link>
+          <a href="/trial" className="site-link-arrow mt-auto pt-3 self-start inline-flex items-center gap-1.5 text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">Try it during the free trial<ArrowRight size={15} aria-hidden /></a>
         </div>
         <div className="bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-1 max-[640px]:p-5">
           <h3 className="m-0 mb-2 text-[17px] font-semibold">One-time and extras</h3>
