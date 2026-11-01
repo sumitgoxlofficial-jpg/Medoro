@@ -67,6 +67,14 @@ export class DriveDB {
 
   markPushed(uptoSeq: number) { this.engine.run("UPDATE changeLog SET pushed = 1 WHERE pushed = 0 AND seq <= ?", [uptoSeq]); }
 
+  /** A local setting of this device (not synced). */
+  getMeta(key: string): string | null {
+    return this.engine.all<{ value: string }>("SELECT value FROM meta WHERE key = ?", [`cfg:${key}`])[0]?.value ?? null;
+  }
+  setMeta(key: string, value: string) {
+    this.engine.run("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [`cfg:${key}`, value]);
+  }
+
   /** Next number in a per-device counter, e.g. this counter's invoice series for the year. */
   nextSeq(name: string): number {
     return this.engine.tx(() => {
