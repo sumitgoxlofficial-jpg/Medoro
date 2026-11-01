@@ -6,71 +6,28 @@ import { authorize, authorizeView, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, dateOnly, isoOf } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
-import { cleanNumber, headerKey, type Table } from "@/domain/imports/parse";
-import { parseBillDate, readEbillTable } from "@/domain/purchasing/ebill";
+import { bankAmount, bankAutoMapping, bankRows, mappingReady, MAX_STATEMENT_BYTES, previewOf, readStatementTable, type StatementRow } from "@/domain/finance/statement";
+import type { Table } from "@/domain/imports/parse";
 import { ACC } from "./accounts";
 import { BANK_FIELDS, type BankField, type BankMapping } from "./bank-types";
 
-export { BANK_FIELDS, type BankField, type BankMapping };
-
-const SYN: Record<BankField, string[]> = {
-  date: ["date", "txndate", "transactiondate", "trandate", "postdate", "postingdate", "valuedate", "valuedt", "txndt"],
-  description: ["description", "narration", "particulars", "remarks", "details", "transactiondetails", "transactionremarks"],
-  ref: ["ref", "refno", "chqno", "chequeno", "chqrefno", "chequerefno", "referenceno", "refchqno", "utr", "utrno", "instrumentno", "chqrefnumber", "refnochequeno", "chequenorefno", "refnochqno", "chqnorefno"],
-  debit: ["debit", "withdrawal", "withdrawals", "withdrawalamt", "withdrawalamount", "dr", "debitamount", "debitamt", "withdrawalsdr"],
-  credit: ["credit", "deposit", "deposits", "depositamt", "depositamount", "cr", "creditamount", "creditamt", "depositscr"],
-  amount: ["amount", "txnamount", "transactionamount", "amountinr"],
-  balance: ["balance", "closingbalance", "runningbalance", "bal", "availablebalance"],
-};
+export { BANK_FIELDS, type BankField, type BankMapping, bankAmount, bankAutoMapping, bankRows };
+export type BankRow = StatementRow;
 export const MATCH_DAYS = 3;
-
-export function bankAutoMapping(t: Table): BankMapping | null {
-  for (let r = 0; r < Math.min(t.length, 25); r++) {
-    const cols: Partial<Record<BankField, number>> = {};
-    t[r].forEach((c, i) => { const k = headerKey(c); for (const [f, keys] of Object.entries(SYN) as [BankField, string[]][]) if (keys.includes(k) && cols[f] === undefined) cols[f] = i; });
-    // "Value date" next to "Txn date": keep the first date column.
-    if (cols.date !== undefined && (cols.amount !== undefined || (cols.debit !== undefined && cols.credit !== undefined))) return { headerRow: r, cols };
-  }
-  return null;
-}
-const ready = (m: BankMapping | null) => !!m && m.cols.date !== undefined && (m.cols.amount !== undefined || (m.cols.debit !== undefined && m.cols.credit !== undefined));
-
-/** "1,234.50", "1,234.50 Cr", "(500.00)", "-500" → paise (signed). Dr = money out. */
-export function bankAmount(raw: string): number | null {
-  const s = raw.trim();
-  if (!s) return null;
-  const neg = /^\(.*\)$/.test(s) || /\bdr\.?$/i.test(s);
-  const n = Number(cleanNumber(s.replace(/[()]/g, "").replace(/\s*(cr|dr)\.?$/i, "")));
-  if (!Number.isFinite(n)) return null;
-  return Math.round((neg ? -Math.abs(n) : n) * 100);
-}
-
-export type BankRow = { row: number; date: string; description: string; ref: string; amount: number; balance: number | null };
-export function bankRows(t: Table, m: BankMapping): { rows: BankRow[]; skipped: number } {
-  const at = (r: string[], f: BankField) => (m.cols[f] === undefined ? "" : (r[m.cols[f]!] ?? "").trim());
-  const rows: BankRow[] = [];
-  let skipped = 0;
-  for (let i = m.headerRow + 1; i < t.length; i++) {
-    const r = t[i], date = parseBillDate(at(r, "date"));
-    const amount = m.cols.amount !== undefined ? bankAmount(at(r, "amount")) : (bankAmount(at(r, "credit")) ?? 0) - Math.abs(bankAmount(at(r, "debit")) ?? 0);
-    if (!date || !amount) { skipped++; continue; }
-    rows.push({ row: i, date, description: at(r, "description").slice(0, 200), ref: at(r, "ref").slice(0, 40), amount, balance: bankAmount(at(r, "balance")) });
-  }
-  return { rows, skipped };
-}
+const ready = mappingReady;
 
 /** Imports a bank statement (CSV / Excel), skipping rows already imported, then auto-matches. */
 export async function importBankStatement(ctx: Ctx, fileName: string, bytes: Uint8Array, mappingIn?: BankMapping | null) {
   authorize(ctx, "payments");
-  if (bytes.length > 4 * 1024 * 1024) throw new UserError("Statement file is larger than 4 MB.");
+  if (bytes.length > MAX_STATEMENT_BYTES) throw new UserError("Statement file is larger than 4 MB.");
   let t: Table;
-  try { t = readEbillTable(fileName, bytes); } catch (e) { throw new UserError(e instanceof Error ? e.message : "Couldn’t read the file."); }
+  try { t = readStatementTable(fileName, bytes); } catch (e) { throw new UserError(e instanceof Error ? e.message : "Couldn’t read the file."); }
   const tenant = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
   const saved = (tenant.settings as { bankMapping?: BankMapping }).bankMapping ?? null;
   const m = mappingIn ?? (ready(saved) && t[saved!.headerRow] ? saved : bankAutoMapping(t));
-  const preview = t.slice(0, 12).map((r) => r.slice(0, 20).map((c) => c.slice(0, 50)));
+  const preview = previewOf(t);
   if (!m || !ready(m)) return { needsMapping: true as const, preview, mapping: m ?? { headerRow: -1, cols: {} } };
-  const { rows, skipped } = bankRows(t, m);
+  const { rows, skipped, problems } = bankRows(t, m);
   if (!rows.length) throw new UserError("No transactions found with this column mapping.");
   return db.$transaction(async (tx) => {
     const seen = new Map<string, number>();
@@ -85,8 +42,8 @@ export async function importBankStatement(ctx: Ctx, fileName: string, bytes: Uin
     if (fresh.length) await tx.bankLine.createMany({ data: fresh.map(({ r, fp }) => ({ tenantId: ctx.tenantId, statementId: st.id, date: dateOnly(r.date), description: r.description, ref: r.ref || null, amountPaise: BigInt(r.amount), balancePaise: r.balance == null ? null : BigInt(r.balance), row: r.row, fingerprint: fp })) });
     if (mappingIn) await tx.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(tenant.settings as object), bankMapping: mappingIn } } });
     const matched = await autoMatch(tx, ctx);
-    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Bank statement imported", entity: "bank_statement", entityId: st.id, detail: `${fileName} · ${fresh.length} new, ${rows.length - fresh.length} already imported, ${skipped} skipped · ${matched} auto-matched` });
-    return { needsMapping: false as const, imported: fresh.length, duplicates: rows.length - fresh.length, skipped, matched };
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Bank statement imported", entity: "bank_statement", entityId: st.id, detail: `${fileName} · ${fresh.length} new, ${rows.length - fresh.length} already imported, ${skipped} skipped, ${problems.length} unreadable · ${matched} auto-matched` });
+    return { needsMapping: false as const, imported: fresh.length, duplicates: rows.length - fresh.length, skipped, matched, problems: problems.slice(0, 50) };
   }, { timeout: 30000 });
 }
 

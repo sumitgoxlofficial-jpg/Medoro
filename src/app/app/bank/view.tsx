@@ -33,7 +33,8 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
     if (!r.ok) return toast(r.error, "red");
     if (r.data.needsMapping) { setMap({ preview: r.data.preview, mapping: r.data.mapping }); return toast("Tell Medoro which columns hold the date and amounts.", "blue"); }
     setMap(null); setFile(null);
-    toast(`${r.data.imported} new line(s) imported${r.data.duplicates ? `, ${r.data.duplicates} already there` : ""} · ${r.data.matched} matched automatically.`, "green");
+    const bad = r.data.problems ?? [];
+    toast(`${r.data.imported} new line(s) imported${r.data.duplicates ? `, ${r.data.duplicates} already there` : ""} · ${r.data.matched} matched automatically.${bad.length ? ` ${bad.length} row(s) couldn’t be read: ${bad.slice(0, 3).map((p) => `row ${p.row} (${p.reason})`).join("; ")}${bad.length > 3 ? "…" : ""}` : ""}`, bad.length ? "blue" : "green");
   });
   const width = Math.max(0, ...(map?.preview ?? []).map((r) => r.length));
   const exportCsv = () => downloadCsv("bank-unreconciled", [
@@ -52,7 +53,7 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
         <div className="ml-auto flex flex-wrap gap-2 max-sm:ml-0 max-sm:w-full">
           <Button onClick={exportCsv} className="max-sm:flex-1"><Download size={15} />Export unmatched (CSV)</Button>
           {canAct ? <label className="inline-flex items-center justify-center gap-2 whitespace-nowrap max-sm:flex-1 h-[34px] max-md:h-10 px-3 rounded-lg bg-teal text-white text-[13px] font-semibold cursor-pointer"><FileUp size={15} />{pending ? "Importing…" : "Import statement"}
-            <input type="file" className="hidden" accept=".csv,.xlsx,.txt" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); upload(f); } e.target.value = ""; }} /></label> : null}
+            <input type="file" className="hidden" accept=".csv,.xlsx,.xls,.txt" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); upload(f); } e.target.value = ""; }} /></label> : null}
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import { Stock } from "./stock";
 import { Purchases } from "./purchases";
 import { Customers } from "./customers";
 import { Accounts } from "./accounts";
+import { Money } from "./money";
 import { ReportsGst } from "./reports-gst";
 import { Orders } from "./orders";
 import { Activity } from "./activity";
@@ -18,7 +19,7 @@ import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
-const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["orders", "Orders"], ["customers", "Customers"], ["accounts", "Accounts"], ["reports", "Reports & GST"], ["ask", "Ask"], ["activity", "Activity"], ["settings", "Counter"]] as const;
+const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["orders", "Orders"], ["customers", "Customers"], ["accounts", "Accounts"], ["money", "UPI & Bank"], ["reports", "Reports & GST"], ["ask", "Ask"], ["activity", "Activity"], ["settings", "Counter"]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
@@ -111,6 +112,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
       {tab === "customers" && <Customers who={who} refresh={tick} pharmacy={cfg.pharmacy} />}
       {tab === "activity" && online?.owner && <Activity refresh={tick} />}
       {tab === "accounts" && <Accounts cfg={cfg} who={who} refresh={tick} />}
+      {tab === "money" && <Money cfg={cfg} who={who} refresh={tick} />}
       {tab === "reports" && <ReportsGst cfg={cfg} />}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}

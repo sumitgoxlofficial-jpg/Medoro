@@ -126,10 +126,14 @@ dated within three days appear on the dashboard and as a sidebar badge.
 
 ## Bank reconciliation (Bank)
 
-Upload a bank statement (CSV, Excel). Columns are detected (Date / Txn date, Narration, Chq/Ref no, Withdrawal,
+Upload a bank statement (CSV, Excel .xlsx, or the .xls most banks offer, which is an HTML or Excel 2003 XML file;
+old binary .xls and PDF are refused with instructions). Rows that can't be read are listed by row number. Columns are detected (Date / Txn date, Narration, Chq/Ref no, Withdrawal,
 Deposit, or a signed/Dr-Cr Amount, Balance) or mapped once and saved. Re-uploading the same file skips lines already
 imported. Each statement line is matched to a Bank account ledger line with the same amount and direction within ±3
 days: a shared cheque number or UTR wins; otherwise only an unambiguous single candidate is matched. The rest can be
 matched by hand (same-amount entries within 15 days are offered) and unmatched again. The page shows statement lines
 not in the books, book entries not yet on a statement (cheques in transit), the last statement balance against the
 books, and exports the unreconciled items as CSV.
+
+On Drive counters, statements are matched to bills, counter UPI payments and receipts instead; see
+**Billing (device) → UPI & Bank** and [UPI_BANK_CONNECT_PLAN.md](UPI_BANK_CONNECT_PLAN.md).
