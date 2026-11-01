@@ -339,8 +339,14 @@ working with me; they overlap a little.
   each device's last sync and error.
 - **Privacy**: the privacy policy, backup and help sections of /legal, and the in-app Privacy & data page say
   where records live in Drive mode and what Medoro keeps.
-- Left: Drive storage quota warnings (Google returns them as upload errors, which now reach the bell as sync
-  errors), emailing the owner about stale counters, and retiring the server backup code once no pharmacy uses it.
+- Slice 2: **daily Drive health check** (`driveHealthTick`, in the cron tick): reads how full each Drive mode
+  pharmacy's Google Drive is (`driveQuota`, Drive `about.storageQuota`) and emails the owners, at most once a day,
+  when a counter stopped saving to Drive, a sync keeps failing, or Drive is 90%+ full (also on the bell).
+  **No path back onto the server**: importing or applying a Medoro backup is refused for a Drive pharmacy (the
+  WhatsApp/SMS webhooks only touch existing customer rows, so they add nothing). The Backup page explains that
+  server backups are off and Drive must stay connected.
+- Left: retiring the server backup code once no pharmacy keeps its data on Medoro's server (not yet: server mode
+  is still offered at sign-up).
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.

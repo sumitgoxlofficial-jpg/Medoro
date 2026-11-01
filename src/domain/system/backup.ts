@@ -201,6 +201,7 @@ export async function pendingRestore(ctx: Ctx) {
  */
 export async function applyRestore(ctx: Ctx, runId: string, confirmCode: string) {
   authorize(ctx, "users");
+  if (ctx.moved) throw new UserError("This pharmacy’s data lives in its Google Drive, so a Medoro backup can’t be restored here. Restore on the counter from Google Drive instead.");
   const r = await db.restoreRun.findFirst({ where: { id: runId, tenantId: ctx.tenantId, status: "prepared" } });
   if (!r) throw new UserError("This restore was already applied or discarded. Prepare it again.");
   if (r.createdAt < new Date(Date.now() - RESTORE_HOURS * 3600_000)) { await discardRun(r.id, r.schemaName, "discarded"); throw new UserError("The test copy expired after 24 hours. Prepare the restore again."); }

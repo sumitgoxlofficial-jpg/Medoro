@@ -1,10 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import { setDriveMode } from "@/domain/system/drive-mode";
 import { dataInDrive } from "@/domain/system/drive-state";
 import { registerDevice, relay, listDevices } from "@/domain/system/drivedb-relay";
 import { backupNow, maybeBackup, scheduledTick } from "@/domain/system/backup";
 import { backupHealth, driveSyncHealth } from "@/domain/reports/alerts";
+import { driveHealthTick } from "@/domain/system/drive-health";
+import { importBackup } from "@/domain/system/recovery";
+import { applyRestore } from "@/domain/system/backup";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 const key = { kty: "RSA" as const, n: "n".repeat(342), e: "AQAB" };
@@ -54,5 +57,37 @@ describe("Drive mode launch (phase 8)", () => {
     expect(problems).toEqual([expect.stringMatching(/hasn’t saved to Google Drive/)]);
     // Drive mode can't be switched off: there is no copy on Medoro to go back to.
     await expect(setDriveMode(ctx, false)).rejects.toThrow(/stays on/);
+  });
+
+  it("a Medoro backup can't be restored over a pharmacy whose data lives in Drive", async () => {
+    const ctx = { ...(await ctxFor()), moved: true };
+    await expect(importBackup(ctx, { bytes: Buffer.from("x") })).rejects.toThrow(/lives in its Google Drive/);
+    await expect(applyRestore(ctx, "run", "code")).rejects.toThrow(/lives in its Google Drive/);
+  });
+
+  it("once a day: reads how full Drive is and emails the owner about counters and a nearly full Drive", async () => {
+    vi.stubEnv("MAIL_PROVIDER", "console");
+    const mails: string[] = [];
+    const spy = vi.spyOn(console, "info").mockImplementation((m: unknown) => { mails.push(String(m)); });
+    const GB = 1024 ** 3;
+    const quota = vi.fn(async () => ({ usage: 14 * GB, limit: 15 * GB }));
+    const now = new Date();
+    try {
+      await driveHealthTick(now, quota);
+      expect(quota).toHaveBeenCalledTimes(1);
+      const owner = await db.user.findFirstOrThrow({ where: { tenantId, role: { name: "Owner" } } });
+      const sent = mails.filter((m) => m.startsWith(`[mail] to ${owner.email}`));
+      expect(sent).toHaveLength(1);
+      expect(sent[0]).toMatch(/hasn’t saved to Google Drive/);
+      expect(sent[0]).toMatch(/Google Drive is 93% full \(14\.0 of 15\.0 GB\)/);
+      expect(await backupHealth(tenantId, now)).toEqual(expect.arrayContaining([expect.stringMatching(/93% full/)]));
+      // Not again the same day: no second Drive check, no second email.
+      await driveHealthTick(new Date(now.getTime() + 3600_000), quota);
+      expect(quota).toHaveBeenCalledTimes(1);
+      expect(mails.filter((m) => m.startsWith("[mail]"))).toHaveLength(1);
+      // Next day, still a problem: one more email.
+      await driveHealthTick(new Date(now.getTime() + 25 * 3600_000), quota);
+      expect(mails.filter((m) => m.startsWith("[mail]"))).toHaveLength(2);
+    } finally { spy.mockRestore(); vi.unstubAllEnvs(); }
   });
 });

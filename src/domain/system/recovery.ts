@@ -83,6 +83,7 @@ async function keepCopy(tenantId: string, file: Buffer, key: Buffer, header: Ret
  */
 export async function importBackup(ctx: Ctx, src: { bytes: Buffer } | { driveFileId: string }, kit?: string) {
   authorize(ctx, "users");
+  if (ctx.moved) throw new UserError("This pharmacy’s data lives in its Google Drive, so a Medoro backup can’t be restored here. Restore on the counter from Google Drive instead.");
   if ("driveFileId" in src) {
     const known = await db.backupManifest.findFirst({ where: { tenantId: ctx.tenantId, driveFileId: src.driveFileId, status: { in: ["verified", "partial"] }, localPath: { not: null } }, orderBy: { startedAt: "desc" } });
     if (known && !kit?.trim() && (await getObject(known.localPath!).catch(() => null))) return prepareRestore(ctx, known.id);
