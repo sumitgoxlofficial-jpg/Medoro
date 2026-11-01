@@ -3,14 +3,15 @@ import { Copy, MessageCircle } from "lucide-react";
 import { CUSTOMER_STATUS, SALE_STATUS, product, rupees } from "@/staff/constants";
 import { useToast } from "@/components/ui/toast";
 import { Empty, Kpi, Panel, Pill, btn, fmtDay, td, th } from "../ui";
+import { Leaderboard, type Boards } from "../leaderboard";
 
 type Sale = { id: string; date: string; pharmacy: string; product: string; cycle: string; type: string; status: string; amount: number; commission: number; rate: number };
 type Pharmacy = { id: string; name: string; joined: string; status: string; plan: string; renewsOn: string | null };
-const SC: Record<string, [string, string]> = { pending: ["#FDF2E1", "#94570A"], verified: ["#EAF0FC", "#2459C9"], paid: ["#E7F6EE", "#18794E"], rejected: ["#FDECEC", "#C0362C"] };
+const SC: Record<string, [string, string]> = { pending: ["#FDF2E1", "#94570A"], verified: ["#EAF0FC", "#2459C9"], processing: ["#EAF0FC", "#2459C9"], paid: ["#E7F6EE", "#18794E"], rejected: ["#FDECEC", "#C0362C"] };
 const PS: Record<string, [string, string]> = { trial: ["#FDF2E1", "#94570A"], active: ["#E7F6EE", "#18794E"], grace: ["#FDECEC", "#C0362C"], cancelled: ["#F2F4F5", "#6B737B"] };
 
 /** Reference partner dashboard: share link, referred pharmacies and earnings. */
-export function PartnerView({ name, code, link, sales, pharmacies, bank, month }: { name: string; code: string | null; link: string; sales: Sale[]; pharmacies: Pharmacy[]; bank: string | null; month: string }) {
+export function PartnerView({ name, code, link, sales, pharmacies, boards, bank, month }: { name: string; code: string | null; link: string; sales: Sale[]; pharmacies: Pharmacy[]; boards: Boards; bank: string | null; month: string }) {
   const toast = useToast();
   const live = sales.filter((x) => x.status !== "rejected");
   const thisMonth = live.filter((x) => x.date.startsWith(month)).reduce((a, x) => a + x.commission, 0);
@@ -43,6 +44,8 @@ export function PartnerView({ name, code, link, sales, pharmacies, bank, month }
           <div className="text-[12.5px] text-muted">The link opens sign-up with your code already filled in. Pharmacies can also type the code when they create their account.</div>
         </div>
       </Panel>
+
+      <Leaderboard boards={boards} />
 
       <Panel title="Pharmacies you referred" sub="Trial means they haven’t paid yet; you earn once they do.">
         {pharmacies.length ? (

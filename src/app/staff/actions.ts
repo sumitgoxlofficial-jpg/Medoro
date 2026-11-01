@@ -10,6 +10,7 @@ import * as sales from "@/staff/sales";
 import * as support from "@/staff/support";
 import * as licence from "@/staff/licence";
 import * as coupons from "@/staff/coupons";
+import * as partners from "@/staff/partners";
 
 async function origin() {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
@@ -33,6 +34,7 @@ export const staffSignIn = async (email: string, password: string) => open(() =>
 export const staffEnroll = async () => open(() => people.enrollTotp());
 export const staffVerify = async (code: string) => open(() => people.verifyTotp(code));
 export const staffSignup = async (input: Parameters<typeof people.signup>[0]) => open(() => people.signup(input));
+export const staffGooglePartner = async (input: Parameters<typeof people.completeGooglePartner>[0]) => open(() => people.completeGooglePartner(input));
 export const staffAcceptInvite = async (token: string, password: string) => open(() => people.acceptInvite(token, password));
 export async function staffSignOut() {
   const s = await getStaff();
@@ -83,3 +85,8 @@ export const decideBillingRequest = async (id: string, approve: boolean) =>
 // ── Coupons (super admin)
 export const createCoupon = async (input: Parameters<typeof coupons.createCoupon>[1]) => done(await staffRun((s) => coupons.createCoupon(s, input), "Coupon created. Pharmacies can enter it on their Subscription page."));
 export const setCouponActive = async (id: string, active: boolean) => done(await staffRun((s) => coupons.setCouponActive(s, id, active), active ? "Coupon switched on." : "Coupon switched off. It can’t be used any more."));
+
+// ── Reference partners (super admin)
+export const payPartnerRazorpay = async (staffId: string) => done(await staffRun((s) => partners.payWithRazorpay(s, staffId)));
+export const recordPartnerTransfer = async (staffId: string, utr: string) => done(await staffRun((s) => partners.recordBankTransfer(s, staffId, utr)));
+export const refreshPartnerPayout = async (id: string) => done(await staffRun((s) => partners.refreshPayout(s, id)));

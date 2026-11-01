@@ -6,7 +6,7 @@ import { logSale, previewCommission, verifySale } from "../../actions";
 import { Empty, Kpi, Panel, Pill, btn, btnPrimary, fieldCls, fmtDay, lbl, panel, td, th, useRun } from "../ui";
 
 type Row = { id: string; date: string; payRef: string | null; pharmacy: string; product: string; cycle: string; type: string; staff: string; status: string; amount: number; commission: number; rate: number };
-const SC: Record<string, [string, string]> = { pending: ["#FDF2E1", "#94570A"], verified: ["#EAF0FC", "#2459C9"], paid: ["#E7F6EE", "#18794E"], rejected: ["#FDECEC", "#C0362C"] };
+const SC: Record<string, [string, string]> = { pending: ["#FDF2E1", "#94570A"], verified: ["#EAF0FC", "#2459C9"], processing: ["#EAF0FC", "#2459C9"], paid: ["#E7F6EE", "#18794E"], rejected: ["#FDECEC", "#C0362C"] };
 
 export function SalesView({ role, referral, rows, bank, month }: { role: StaffRoleId; referral: string | null; rows: Row[]; bank: string | null; month: string }) {
   const { run, busy } = useRun();
