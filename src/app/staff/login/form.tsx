@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Check, Handshake, Headset, BadgeIndianRupee, Lock, Smartphone, User, UserPlus } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Check, Lock, Smartphone, User, UserPlus } from "lucide-react";
 import { Wordmark } from "@/components/site/chrome";
 import { staffAcceptInvite, staffEnroll, staffGooglePartner, staffSignIn, staffSignup, staffVerify } from "../actions";
 
@@ -23,8 +23,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
   const [err, setErr] = useState(notice);
   const [gp, setGp] = useState({ name: googleNew?.name ?? "", phone: "", team: "" });
   const [busy, start] = useTransition();
-  const [su, setSu] = useState({ name: "", email: "", phone: "", team: "", password: "", role: (joinPartner ? "partner" : "sales") as "sales" | "care" | "partner" });
-  const partner = su.role === "partner";
+  const [su, setSu] = useState({ name: "", email: "", phone: "", team: "", password: "", role: "partner" as const });
   const [doneText, setDoneText] = useState("");
 
   // Signed in with Google: the session cookie is SameSite=Strict, so continue with a same-site navigation.
@@ -53,7 +52,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
         const a = await staffSignIn(su.email, su.password);
         if (a.ok && a.data.next === "done") { router.replace("/staff"); router.refresh(); return; }
       }
-      setDoneText(r.data.bootstrap ? "You’re the first super admin. Sign in to set up your authenticator." : su.role === "partner" ? "Thanks for joining. Medoro reviews your profile, usually within a day. Once approved, sign in here to get your referral code and see your earnings." : su.role === "sales" ? "Your sales profile is waiting for super admin approval. Your referral code appears in the console once approved." : "Your customer care profile is waiting for super admin approval.");
+      setDoneText(r.data.bootstrap ? "You’re the first super admin. Sign in to set up your authenticator." : "You’re in. Sign in to get your referral code and see your earnings.");
       setEmail(su.email); setStep("signupDone");
     } else if (step === "gpartner") {
       const r = await staffGooglePartner(gp);
@@ -68,12 +67,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
     }
   });
 
-  const label1 = { signin: "Continue", signup: partner ? "Create partner account" : "Submit for approval", gpartner: "Create partner account", signupDone: "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
+  const label1 = { signin: "Continue", signup: "Create partner account", gpartner: "Create partner account", signupDone: "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
   const gBtn = (text: string) => google ? (
     <a href="/api/auth/google/start?intent=partner" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink"><GoogleG />{text}</a>
   ) : null;
-  const opt = (on: boolean) => `rounded-lg p-2.5 text-[13px] font-semibold cursor-pointer flex gap-1.5 items-center justify-center ${on ? "border-[1.5px] border-teal bg-teal-tint text-teal" : "border border-input bg-white text-ink"}`;
-
+  
   return (
     <div className="min-h-dvh bg-[#F5F6F7] text-ink flex flex-col leading-[1.45]">
       <header className="h-[68px] flex items-center gap-4 px-[clamp(16px,3vw,32px)] border-b border-[#E6E8EB] bg-white">
@@ -114,18 +112,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
 
             {step === "signup" ? (
               <>
-                <span className="text-[14px] font-semibold">{partner ? "Become a reference partner" : "Create your profile"}</span>
-                <span className="text-[13px] text-muted">{partner ? "For MRs, distributors and consultants. Refer pharmacies to Medoro and earn commission on every plan they buy. Your account is ready straight away." : "A super admin reviews every new profile. Sales profiles get a referral code and earn commission on each product sold."}</span>
-                {partner && google ? <>{gBtn("Continue with Google")}<div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or fill in your details<span className="h-px flex-1 bg-line" /></div></> : null}
-                <div className="flex flex-col gap-1.5"><span className="text-[13px] text-muted">I am joining as</span>
-                  <div className="grid grid-cols-3 gap-1.5 max-[400px]:grid-cols-1">
-                    <button type="button" onClick={() => setSu((x) => ({ ...x, role: "partner" }))} className={opt(su.role === "partner")}><Handshake size={15} />Reference partner</button>
-                    <button type="button" onClick={() => setSu((x) => ({ ...x, role: "sales" }))} className={opt(su.role === "sales")}><BadgeIndianRupee size={15} />Medoro sales</button>
-                    <button type="button" onClick={() => setSu((x) => ({ ...x, role: "care" }))} className={opt(su.role === "care")}><Headset size={15} />Customer care</button>
-                  </div>
-                </div>
-                {([["name", "Full name", "text", "name"], ["email", partner ? "Email" : "Work email", "email", "email"], ["phone", "Mobile", "tel", "tel"], ["team", partner ? "Company / area (e.g. MR at Cipla, Pune)" : "Team / city", "text", "off"], ["password", "Create a password (12+ characters)", "password", "new-password"]] as const).map(([k, l, t, ac]) => (
-                  <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} placeholder={k === "email" ? (partner || domain === "*" ? "you@gmail.com" : `name@${domain}`) : ""} /></label>
+                <span className="text-[14px] font-semibold">Become a reference partner</span>
+                <span className="text-[13px] text-muted">For MRs, distributors and consultants. Refer pharmacies to Medoro and earn commission on every plan they buy. Your account is ready straight away.</span>
+                {google ? <>{gBtn("Continue with Google")}<div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or fill in your details<span className="h-px flex-1 bg-line" /></div></> : null}
+                {([["name", "Full name", "text", "name"], ["email", "Email", "email", "email"], ["phone", "Mobile", "tel", "tel"], ["team", "Company / area (e.g. MR at Cipla, Pune)", "text", "off"], ["password", "Create a password (12+ characters)", "password", "new-password"]] as const).map(([k, l, t, ac]) => (
+                  <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} placeholder={k === "email" ? "you@gmail.com" : ""} /></label>
                 ))}
               </>
             ) : null}
@@ -133,7 +124,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
             {step === "signupDone" || step === "inviteDone" ? (
               <div className="flex flex-col items-center text-center gap-2 py-1.5">
                 <span className="size-12 rounded-full bg-[#E7F6EE] text-[#18794E] flex items-center justify-center"><Check size={24} /></span>
-                <strong className="text-[17px]">{step === "signupDone" ? "Profile submitted" : "Password set"}</strong>
+                <strong className="text-[17px]">{step === "signupDone" ? "Account created" : "Password set"}</strong>
                 <span className="text-[14px] text-muted">{step === "signupDone" ? doneText : "Sign in now. You’ll set up an authenticator app on the next step."}</span>
               </div>
             ) : null}
@@ -167,7 +158,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
             {!handoff && (step !== "invite" || invite?.info) ? (
               <button type="submit" disabled={busy} className="bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer flex gap-2 items-center justify-center disabled:opacity-60">{busy ? "Please wait…" : label1}</button>
             ) : null}
-            {step === "signin" && !handoff ? <button type="button" onClick={() => { setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New here? Create your profile</button> : null}
+            {step === "signin" && !handoff ? <button type="button" onClick={() => { setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
             {step === "signup" ? <button type="button" onClick={() => { setStep("signin"); setErr(""); }} className="self-center min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Back to sign in</button> : null}
             <div className="text-[11.5px] text-faint text-center">Medoro team members also use an authenticator app · every sign-in is audited</div>
           </form>

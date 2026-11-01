@@ -1,49 +1,40 @@
 import { test, expect, type Page } from "@playwright/test";
 import { db, expectToast, totp, uid } from "./helpers";
 
-/** Spec 16 · Medoro staff console: bootstrap super admin (STAFF_BOOTSTRAP_EMAIL), approval of a new profile, a lead. */
+/** Spec 16 · Medoro staff console: bootstrap super admin (STAFF_BOOTSTRAP_EMAIL), a reference partner joins on their own, a lead. */
 const BOOTSTRAP = process.env.STAFF_BOOTSTRAP_EMAIL ?? "founder@medoro.in";
 const PASSWORD = "Staff-console-pass-2026";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-async function signup(page: Page, p: { name: string; email: string; phone: string; role?: "Sales" | "Customer care" }) {
+/** The public join form is for reference partners only; Medoro's own team is invited by a super admin. */
+async function join(page: Page, p: { name: string; email: string; phone: string }) {
   await page.goto("/staff/login");
-  await page.getByRole("button", { name: /Create your profile/ }).click();
+  await page.getByRole("button", { name: /New partner\? Join free/ }).click();
+  await expect(page.getByRole("button", { name: "Medoro sales" })).toHaveCount(0);
   await page.getByLabel("Full name").fill(p.name);
-  await page.getByLabel("Work email").fill(p.email);
+  await page.getByLabel("Email", { exact: true }).fill(p.email);
   await page.getByLabel("Mobile").fill(p.phone);
-  await page.getByLabel("Team / city").fill("Pune West");
+  await page.getByLabel(/Company \/ area/).fill("MR, Pune West");
   await page.getByLabel(/Create a password/).fill(PASSWORD);
-  if (p.role) await page.getByRole("button", { name: p.role }).click();
-  await page.getByRole("button", { name: "Submit for approval" }).click();
-  await expect(page.getByText("Profile submitted")).toBeVisible();
+  await page.getByRole("button", { name: "Create partner account" }).click();
 }
 
 async function signIn(page: Page, email: string) {
   await page.goto("/staff/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Continue" }).click();
 }
 
-test("bootstrap super admin signs up, approves a sales profile and creates a lead", async ({ page, browser }) => {
+test("bootstrap super admin, a partner joins without approval, and a lead", async ({ page, browser }) => {
   test.skip(!!(await db().staffUser.findFirst({ where: { email: BOOTSTRAP } })), "Staff console already bootstrapped in this database");
   // Pharmacy accounts can't use the staff console.
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login/);
 
-  // Wrong domain is refused.
-  await page.getByRole("button", { name: /Create your profile/ }).click();
-  await page.getByLabel("Full name").fill("Outsider");
-  await page.getByLabel("Work email").fill("someone@gmail.com");
-  await page.getByLabel("Mobile").fill("9822000001");
-  await page.getByLabel(/Create a password/).fill(PASSWORD);
-  await page.getByRole("button", { name: "Submit for approval" }).click();
-  await expect(page.getByText(/Medoro team profiles use an @medoro\.in work email/)).toBeVisible();
-
   // First super admin from STAFF_BOOTSTRAP_EMAIL
-  await signup(page, { name: "Founder Admin", email: BOOTSTRAP, phone: "9822000002" });
+  await join(page, { name: "Founder Admin", email: BOOTSTRAP, phone: "9822000002" });
   await expect(page.getByText("You’re the first super admin. Sign in to set up your authenticator.")).toBeVisible();
   await page.getByRole("button", { name: "Back to sign in" }).click();
   await signIn(page, BOOTSTRAP);
@@ -53,27 +44,18 @@ test("bootstrap super admin signs up, approves a sales profile and creates a lea
   await page.getByRole("button", { name: "Verify and finish" }).click();
   await expect(page).toHaveURL(/\/staff(\/overview)?$/);
 
-  // A sales person signs up and waits for approval.
-  const sales = `sales.${uid().toLowerCase()}@medoro.in`;
+  // An MR joins with a Gmail address and lands on their dashboard straight away.
+  const mr = `mr.${uid().toLowerCase()}@gmail.com`;
   const other = await browser.newContext();
   const sp = await other.newPage();
-  await signup(sp, { name: "Priya Sales", email: sales, phone: "9822000003", role: "Sales" });
-  await expect(sp.getByText(/waiting for super admin approval/)).toBeVisible();
-  await sp.getByRole("button", { name: "Back to sign in" }).click();
-  await signIn(sp, sales);
-  await expect(sp.getByText("Your profile is waiting for super admin approval.")).toBeVisible();
-
-  await page.goto("/staff/employees");
-  const row = page.locator("tr").filter({ hasText: sales });
-  await expect(row.getByText("Pending approval")).toBeVisible();
-  await row.getByRole("button", { name: "Approve" }).click();
-  await expectToast(page, "Priya Sales approved.");
-  await expect(row.getByText("Active", { exact: true })).toBeVisible();
-
-  // Now the sales person can sign in (and must enrol an authenticator).
-  await signIn(sp, sales);
-  await expect(sp.getByText("Set up your authenticator")).toBeVisible();
+  await join(sp, { name: "Priya Partner", email: mr, phone: "9822000003" });
+  await expect(sp).toHaveURL(/\/staff(\/sales)?$/);
+  await expect(sp.getByText(/Your referral code/)).toBeVisible();
   await other.close();
+
+  // The admin sees them on the partners page.
+  await page.goto("/staff/partners");
+  await expect(page.locator("tr").filter({ hasText: mr })).toBeVisible();
 
   // The admin creates a lead.
   const lead = `Shivam Medicals ${uid()}`;
