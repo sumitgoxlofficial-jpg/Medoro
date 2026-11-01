@@ -163,6 +163,8 @@ const handlers = {
   deliverOrder: (id: string, userId: string) => ops.deliverOrder(need(), id, userId),
   cancelOrder: (id: string) => ops.cancelOrder(need(), id),
   listOrders: (branchId: string, showDone?: boolean) => ops.listOrders(need(), branchId, showDone),
+  transferStock: (input: Parameters<typeof ops.transferStock>[1]) => ops.transferStock(need(), input),
+  activityLog: (opts?: { limit?: number; text?: string }) => reports.activityLog(need(), opts),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */

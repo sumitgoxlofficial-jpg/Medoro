@@ -1,12 +1,13 @@
 "use client";
 import { useEffect } from "react";
-import { Printer } from "lucide-react";
+import { Printer, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import type { SaleDetail } from "@/drivedb/reports";
 import type { Pharmacy } from "@/drivedb/seed";
+import { billText, waLink } from "@/drivedb/share";
 
 const exp = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 
@@ -59,9 +60,10 @@ export function printReceipt() {
 
 export function ReceiptModal({ d, pharmacy, onClose, autoPrint = false }: { d: SaleDetail | null; pharmacy: Pharmacy | null; onClose: () => void; autoPrint?: boolean }) {
   useEffect(() => { if (d && autoPrint) setTimeout(printReceipt, 50); }, [d, autoPrint]);
+  const wa = d ? waLink(d.sale.customerPhone as string | null, billText(d, pharmacy)) : null;
   return (
     <Modal open={!!d} onClose={onClose} title={d ? `Bill ${String(d.sale.invoiceNo)}` : ""} width={420}
-      footer={<div className="flex gap-2 justify-end"><Button onClick={onClose}>Close</Button><Button variant="primary" onClick={printReceipt}><Printer size={16} /> Print</Button></div>}>
+      footer={<div className="flex gap-2 justify-end"><Button onClick={onClose}>Close</Button>{wa && <Button onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={16} /> WhatsApp</Button>}<Button variant="primary" onClick={printReceipt}><Printer size={16} /> Print</Button></div>}>
       {d ? <div className="border border-line rounded-lg p-3"><ReceiptView d={d} pharmacy={pharmacy} /></div> : null}
     </Modal>
   );

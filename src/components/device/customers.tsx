@@ -1,17 +1,19 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, IndianRupee } from "lucide-react";
+import { Plus, IndianRupee, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { deviceDb } from "@/drivedb/device";
 import { inr } from "@/lib/money";
 import { card, input, label, errText, toPaise, type Who } from "./ui";
+import { dueText, waLink } from "@/drivedb/share";
+import type { Pharmacy } from "@/drivedb/seed";
 
 type C = { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number; balancePaise: number };
 
 /** Customers on this device: add, see what each owes, record money received. */
-export function Customers({ who, refresh }: { who: Who; refresh: number }) {
+export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: number; pharmacy: Pharmacy | null }) {
   const toast = useToast();
   const dev = useRef(deviceDb()).current;
   const [q, setQ] = useState("");
@@ -32,6 +34,7 @@ export function Customers({ who, refresh }: { who: Who; refresh: number }) {
             <span>{c.name} <span className="text-muted">{c.phone ?? ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}{c.creditLimitPaise ? ` · limit ${inr(c.creditLimitPaise)}` : ""}</span></span>
             <span className="flex items-center gap-2">
               {c.balancePaise ? <span className="text-bad tabular-nums">owes {inr(c.balancePaise)}</span> : <span className="text-muted">nothing due</span>}
+              {c.balancePaise > 0 && waLink(c.phone, "") && <Button size="sm" onClick={() => window.open(waLink(c.phone, dueText(c.name, c.balancePaise, pharmacy))!, "_blank", "noopener")} aria-label={`Remind ${c.name}`}><MessageCircle size={14} /> Remind</Button>}
               {c.balancePaise > 0 && <Button size="sm" onClick={() => setPay(c)} aria-label={`Receive from ${c.name}`}><IndianRupee size={14} /> Receive</Button>}
             </span>
           </li>
