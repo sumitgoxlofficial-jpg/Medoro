@@ -58,7 +58,7 @@ export async function registerDevice(ctx: Ctx, input: z.input<typeof registerInp
 export async function listDevices(ctx: Ctx) {
   if (!isOwner(ctx)) throw new UserError("Only the owner can manage Drive mode devices.");
   const rows = await db.driveDevice.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { createdAt: "asc" } });
-  return rows.map((r) => ({ deviceId: r.deviceId, name: r.name, role: r.role, status: r.status, publicKey: r.publicKey as JsonWebKey, createdAt: r.createdAt.toISOString(), lastSeen: r.lastSeen?.toISOString() ?? null }));
+  return rows.map((r) => ({ deviceId: r.deviceId, name: r.name, role: r.role, status: r.status, publicKey: r.publicKey as JsonWebKey, createdAt: r.createdAt.toISOString(), lastSeen: r.lastSeen?.toISOString() ?? null, lastSyncAt: r.lastSyncAt?.toISOString() ?? null, lastError: r.lastError }));
 }
 
 /** Owner: approve (after their device has given it the keys) or remove a device. */
@@ -137,6 +137,12 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
       if (!log || log[1] !== deviceId) throw new UserError("A device can delete only its own change files.");
       const f = await byName();
       if (f) await store.remove(f.id);
+      return { ok: true };
+    }
+    case "health": {
+      // The device's own report after a sync: worked, or the error text. No data, only for the owner's alerts.
+      const ok = p.get("ok") === "1", error = (p.get("error") ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+      await db.driveDevice.update({ where: { id: device.id }, data: ok ? { lastSyncAt: new Date(), lastError: null, lastErrorAt: null } : { lastError: error || "Sync failed", lastErrorAt: new Date() } });
       return { ok: true };
     }
     default:

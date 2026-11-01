@@ -48,6 +48,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   const [kit, setKit] = useState<{ key: string; fp: string } | null>(null);
   const [kitAck, setKitAck] = useState(false);
   const [agree, setAgree] = useState(false);
+  const [storage, setStorage] = useState<"drive" | "server">("drive");
   const [ref, setRef] = useState(referral);
   const [result, setResult] = useState<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string } | null>(null);
 
@@ -96,7 +97,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
           pharmacy: ph, owner: { name: owner.name, email: owner.email, phone: owner.phone, password: owner.password },
           branches, invites: invites.map((i) => ({ ...i, branch: i.branch || branches[0]?.name })), backupKey: kit.key, kitAck: true as const,
         };
-        const r = signup ? await signupAction({ ...common, agree: true, referral: ref.trim() }) : await setupAction({ ...common, deployment: host });
+        const r = signup ? await signupAction({ ...common, agree: true, referral: ref.trim(), driveStorage: storage === "drive" }) : await setupAction({ ...common, deployment: host });
         if (!r.ok) return setErr(r.error);
         setResult(r.data!); setStep(7);
       });
@@ -255,6 +256,15 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
 
         {step === 6 ? (
           <>
+            {signup ? (
+              <fieldset className="flex flex-col gap-2 border border-line rounded-[10px] p-3.5" aria-label="Where your pharmacy’s data lives">
+                <legend className="px-1 text-[14px] font-semibold">Where your pharmacy’s data lives</legend>
+                <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="radio" name="storage" className="accent-teal mt-0.5" checked={storage === "drive"} onChange={() => setStorage("drive")} />
+                  <span><strong>In my own Google Drive</strong> <span className="text-teal">(recommended)</span><br /><span className="text-muted text-[12.5px]">Bills, stock and customers stay on your counters and in your Google Drive, encrypted with a key only you hold, like WhatsApp. Medoro keeps only your account. Billing works without internet.</span></span></label>
+                <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="radio" name="storage" className="accent-teal mt-0.5" checked={storage === "server"} onChange={() => setStorage("server")} />
+                  <span><strong>On Medoro’s server</strong><br /><span className="text-muted text-[12.5px]">Every screen, including AI, campaigns and e-invoicing. You can move to your Drive later.</span></span></label>
+              </fieldset>
+            ) : null}
             <div className="text-[19px] font-semibold">Backups & recovery kit</div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <HardDriveUpload size={20} className="text-teal" />

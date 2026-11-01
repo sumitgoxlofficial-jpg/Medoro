@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
 import { driveModeOn } from "@/domain/system/drive-mode";
+import { db } from "@/server/db";
 import { discountCap } from "@/domain/identity/permissions";
 import { maxDiscount } from "@/domain/sales/approval";
 import { deviceDriveEnabled } from "@/domain/system/gdrive";
@@ -14,11 +15,13 @@ export default async function Page() {
   const ctx = await requireCtx();
   if (!can(ctx, "sale")) redirect("/app");
   if (!(await driveModeOn(ctx.tenantId))) redirect("/app/pos");
+  const settings = ((await db.tenant.findUnique({ where: { id: ctx.tenantId }, select: { settings: true } }))?.settings ?? {}) as { driveOnly?: boolean; driveMove?: unknown };
+  const fresh = settings.driveOnly === true, inDrive = fresh || !!settings.driveMove;
   const cap = Math.min(discountCap(ctx.perms), await maxDiscount(ctx.tenantId));
   return (
     <>
-      <PageHead title="Billing on this device" sub="Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive. F2 search · F9 complete" />
-      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} />
+      <PageHead title="Billing on this device" sub={`${inDrive ? "Your pharmacy’s records live on this device and in your Google Drive, encrypted." : "Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive."} F2 search · F9 complete`} />
+      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} fresh={fresh} />
     </>
   );
 }

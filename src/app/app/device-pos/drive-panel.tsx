@@ -132,7 +132,7 @@ export function RecoveryCodeCard({ code, onDone }: { code: string; onDone: () =>
   );
 }
 
-type Device = { deviceId: string; name: string; role: string; status: string; publicKey: JsonWebKey; createdAt: string; lastSeen: string | null };
+type Device = { deviceId: string; name: string; role: string; status: string; publicKey: JsonWebKey; createdAt: string; lastSeen: string | null; lastSyncAt: string | null; lastError: string | null };
 
 /** Owner: devices that sync this pharmacy. Approving gives a device the keys; removing changes the keys. */
 export function DevicesPanel() {
@@ -170,7 +170,8 @@ export function DevicesPanel() {
       <ul className="text-sm divide-y divide-line">
         {(rows ?? []).map((d) => (
           <li key={d.deviceId} className="py-2 flex justify-between items-center gap-2 flex-wrap">
-            <span>{d.name} <span className="text-muted">· {d.role} · {d.status}{d.lastSeen ? ` · seen ${when(d.lastSeen)}` : ""}</span></span>
+            <span>{d.name} <span className="text-muted">· {d.role} · {d.status}{d.status === "approved" ? ` · last synced ${when(d.lastSyncAt)}` : d.lastSeen ? ` · seen ${when(d.lastSeen)}` : ""}</span>
+              {d.status === "approved" && d.lastError ? <span className="block text-[12.5px] text-bad">Last sync failed: {d.lastError}</span> : null}</span>
             <span className="flex gap-1.5">
               {d.status === "pending" && <Button size="sm" variant="primary" disabled={!!busy} onClick={() => approve(d)} aria-label={`Approve ${d.name}`}><Check size={14} /> Approve</Button>}
               {d.status !== "removed" && d.role !== "owner" && <Button size="sm" variant="danger-outline" disabled={!!busy} onClick={() => remove(d)} aria-label={`Remove ${d.name}`}><X size={14} /> {d.status === "pending" ? "Refuse" : "Remove"}</Button>}

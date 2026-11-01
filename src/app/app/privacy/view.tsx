@@ -20,7 +20,7 @@ function Toggle({ checked, onChange, title, body, disabled }: { checked: boolean
   );
 }
 
-export function PrivacyView({ p: initial, customers, wa, drive, licence, ai: aiInitial, strictRules, telemetryUrl, crashUrl }: { p: Privacy; customers: { id: string; name: string }[]; wa: boolean; drive: boolean; licence: boolean; ai: AiView; strictRules: string[]; telemetryUrl: boolean; crashUrl: boolean }) {
+export function PrivacyView({ p: initial, customers, wa, drive, driveRecords = false, licence, ai: aiInitial, strictRules, telemetryUrl, crashUrl }: { p: Privacy; customers: { id: string; name: string }[]; wa: boolean; drive: boolean; driveRecords?: boolean; licence: boolean; ai: AiView; strictRules: string[]; telemetryUrl: boolean; crashUrl: boolean }) {
   const toast = useToast();
   const [p, setP] = useState(initial);
   const [ai, setAi] = useState(aiInitial);
@@ -35,7 +35,7 @@ export function PrivacyView({ p: initial, customers, wa, drive, licence, ai: aiI
   const svc = [
     { svc: "Medoro control plane", gets: licence ? "Pharmacy name and owner contact (once), plan, app version, branch and counter counts, and the tickets, payment references and support-access answers you send" : "Nothing (licence server not configured)", never: "Invoices, stock, customers, backups" },
     { svc: "Meta WhatsApp Cloud API", gets: wa ? "Recipient number, invoice PDF, template text" : "Nothing (not connected)", never: "Prescriber details, other records" },
-    { svc: "Google Drive", gets: drive ? "Encrypted backup files only" : "Nothing (not connected)", never: "Encryption key or readable data" },
+    { svc: "Google Drive", gets: drive ? (driveRecords ? "Your pharmacy’s records, encrypted on your devices before upload" : "Encrypted backup files only") : "Nothing (not connected)", never: "Encryption key or readable data" },
     { svc: "External AI provider", gets: remoteGets, never: "Credentials, keys, full database, logs of your questions" },
   ];
   return (

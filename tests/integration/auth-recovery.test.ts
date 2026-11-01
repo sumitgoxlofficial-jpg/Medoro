@@ -308,12 +308,15 @@ describe("account recovery, providers and Google sign-in", () => {
     const created = await signupAction({
       pharmacy: { name: "New Owner Medicals", code: "NEW-OWNER", gstin: "", dl: "MH-9999", pharmacist: "", address: "Pune", lang: "en" },
       owner: { name: "New Owner", email: "new.owner@gmail.com", phone: "9822000077", password: "" },
-      branches: [{ name: "Main branch", counters: 1 }], invites: [], backupKey: "B".repeat(43), kitAck: true, agree: true,
+      branches: [{ name: "Main branch", counters: 1 }], invites: [], backupKey: "B".repeat(43), kitAck: true, agree: true, driveStorage: true,
     });
     expect(created).toMatchObject({ ok: true, data: { tenantCode: "NEW-OWNER" } });
     expect(await db.user.findFirstOrThrow({ where: { email: "new.owner@gmail.com" } })).toMatchObject({ googleSub: "g-new", googleEmail: "new.owner@gmail.com" });
     expect(await readSession(true)).toMatchObject({ firstFactor: "google", mfaPassed: true });
     expect((await getCtx())?.userName).toBe("New Owner");
+    // Chose "keep my data in my own Google Drive": Drive mode is on and Medoro's server takes no business records.
+    expect((await db.tenant.findUniqueOrThrow({ where: { code: "NEW-OWNER" } })).settings).toMatchObject({ driveMode: true, driveOnly: true });
+    expect((await getCtx())?.moved).toBe(true);
     // Next time, Google signs them straight in.
     expect(await google2({ sub: "g-new", email: "new.owner@gmail.com" })).toBe(`${APP}/app`);
 
@@ -333,6 +336,7 @@ describe("account recovery, providers and Google sign-in", () => {
     // The confirmed address only: another email on the form is refused.
     expect(await signupAction(form("someone.else@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: false, error: expect.stringMatching(/Confirm your email/) });
     expect(await signupAction(form("mail.owner@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: true, data: { tenantCode: "MAIL-OWNER" } });
+    expect((await db.tenant.findUniqueOrThrow({ where: { code: "MAIL-OWNER" } })).settings).not.toHaveProperty("driveOnly"); // chose Medoro's server
     expect(await readSession(true)).toMatchObject({ firstFactor: "password", mfaPassed: false });
     vi.stubEnv("PUBLIC_SIGNUP", "");
 

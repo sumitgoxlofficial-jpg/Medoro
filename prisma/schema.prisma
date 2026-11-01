@@ -1596,6 +1596,9 @@ model DriveDevice {
   createdAt DateTime  @default(now())
   decidedAt DateTime?
   lastSeen  DateTime?
+  lastSyncAt  DateTime? // last sync with Google Drive that worked
+  lastError   String? // the device's last sync error (text only), cleared by the next good sync
+  lastErrorAt DateTime?
 
   @@unique([tenantId, deviceId])
   @@index([tenantId, status])

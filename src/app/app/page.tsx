@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { db } from "@/server/db";
 import { can, requireCtx } from "@/server/context";
 import { dashboard, type Range } from "@/domain/reports/dashboard";
 import { dashboardFor } from "@/domain/reports/dashboard-access";
@@ -12,9 +13,16 @@ import { DueCheques } from "./cheques/due-widget";
 
 export const metadata = { title: "Dashboard" };
 
+const driveOnlyOrPurged = async (tenantId: string) => {
+  const s = ((await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }))?.settings ?? {}) as { driveOnly?: boolean; driveMove?: { state?: string } };
+  return s.driveOnly === true || s.driveMove?.state === "purged";
+};
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const ctx = await requireCtx();
   if (can(ctx, "delivery") && !can(ctx, "sale") && !can(ctx, "reports")) redirect("/app/deliveries");
+  // Records live on the counters (Drive mode): Medoro's dashboard would be empty, so open the counter.
+  if (ctx.moved && can(ctx, "sale") && (await driveOnlyOrPurged(ctx.tenantId))) redirect("/app/device-pos");
   const { range: r } = await searchParams;
   const range: Range = r === "7d" || r === "30d" ? r : "today";
   const data = dashboardFor(await dashboard(ctx.tenantId, ctx.branchId, range, ctx.branches.map((b) => b.id)), ctx.perms);

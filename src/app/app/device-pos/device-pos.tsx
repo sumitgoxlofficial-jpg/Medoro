@@ -12,20 +12,21 @@ import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
-export function DevicePos({ userId, userName, owner, canCredit, discCap, drive }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean }) {
+export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean }) {
   const conn = useDriveConnect(drive);
   const who: Who = { userId, userName, owner, canCredit, discCap };
   return (
     <DeviceApp
       who={who}
-      empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} />}
+      empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} />}
       side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
       settingsExtra={owner && drive ? <DevicesPanel /> : null}
     />
   );
 }
 
-function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId: string; drive: boolean; access: { status: string; role: string } | null; ready: (c: Cfg) => void }) {
+/** `fresh`: the pharmacy started with its data in Drive, so there is nothing on Medoro to copy or move. */
+function Setup({ owner, userId, drive, access, ready, fresh }: { owner: boolean; userId: string; drive: boolean; access: { status: string; role: string } | null; ready: (c: Cfg) => void; fresh: boolean }) {
   const toast = useToast();
   const dev = deviceDb();
   const [busy, setBusy] = useState(false);
@@ -43,7 +44,7 @@ function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId
     if (!r.ok) { toast(r.error, "red"); setBusy(false); return; }
     try {
       const c = await dev.call("importSeed", r.data, userId);
-      toast(`Loaded ${r.data.medicines.length} medicines and ${r.data.batches.length} batches onto this device.`, "green");
+      toast(fresh ? "This device is ready. Add your medicines under Stock, or receive a supplier bill under Purchases." : `Loaded ${r.data.medicines.length} medicines and ${r.data.batches.length} batches onto this device.`, "green");
       ready(c);
     } catch (e) { toast(errText(e) || "Couldn’t load the catalogue.", "red"); }
     setBusy(false);
@@ -63,7 +64,7 @@ function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId
   const staffWaiting = !owner && drive && access?.status === "pending";
   // Once offered, the move stays on screen through its own steps (it creates the Drive copy as it finishes).
   const [moveOffered, setMoveOffered] = useState(false);
-  const canMove = moveOffered || (owner && drive && access?.status === "approved" && access.role === "owner" && vault === false);
+  const canMove = moveOffered || (!fresh && owner && drive && access?.status === "approved" && access.role === "owner" && vault === false);
   useEffect(() => { if (canMove) setMoveOffered(true); }, [canMove]);
   return (
     <div className="flex flex-col gap-3">
@@ -72,8 +73,17 @@ function Setup({ owner, userId, drive, access, ready }: { owner: boolean; userId
       <div className="font-semibold">{canMove ? "Or just try it out" : "Set up this device"}</div>
       {owner ? (
         <>
-          <div className="text-sm text-muted">This device has no catalogue yet. Load this branch’s medicines, stock and customers from Medoro once; after that, billing here works without the server.</div>
-          <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? "Loading…" : "Load catalogue onto this device"}</Button>
+          {fresh ? (
+            <>
+              <div className="text-sm text-muted">Start your pharmacy on this device. Your medicines, stock, bills and customers are kept here and, once you set up Drive storage, in your Google Drive, encrypted with a key only you hold.{drive ? "" : " Connect Google Drive on the Backup page first, so nothing is kept on this device alone."}</div>
+              <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? "Starting…" : "Start my pharmacy on this device"}</Button>
+            </>
+          ) : (
+            <>
+              <div className="text-sm text-muted">This device has no catalogue yet. Load this branch’s medicines, stock and customers from Medoro once; after that, billing here works without the server.</div>
+              <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? "Loading…" : "Load catalogue onto this device"}</Button>
+            </>
+          )}
         </>
       ) : staffWaiting ? (
         <div className="text-sm text-muted">This counter has asked to join. Ask the owner to approve it on their counter under <b>Counter → Devices</b>; this page then sets itself up from Google Drive.</div>

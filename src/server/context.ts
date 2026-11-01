@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEFAULT_GRANTS, effectivePerms, ForbiddenError, type Perm, type RoleName, ROLE_NAMES } from "@/domain/identity/permissions";
 import { accessFor } from "@/domain/system/access";
+import { dataInDrive } from "@/domain/system/drive-state";
 import { db } from "./db";
 import { readSession } from "./auth";
 
@@ -90,7 +91,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     counterId: s.counterId, counterName: s.counterId ? (await db.counter.findUnique({ where: { id: s.counterId } }))?.name ?? null : null,
     readOnly: u.isSupport,
     locked: (await accessFor(u.tenantId)).readOnly,
-    moved: !!(u.tenant.settings as { driveMove?: unknown } | null)?.driveMove,
+    moved: dataInDrive(u.tenant.settings),
   };
 });
 
