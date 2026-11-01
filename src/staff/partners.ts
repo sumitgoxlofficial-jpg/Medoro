@@ -199,6 +199,15 @@ export async function payWithRazorpay(s: Staff, staffId: string) {
   }
 }
 
+/** Full bank details of a verified account, for a super admin paying by bank transfer or UPI. Every view is audited. */
+export async function payoutBankDetails(s: Staff, staffId: string) {
+  allow(s, "super_admin");
+  const b = await db.staffBank.findUnique({ where: { staffId }, include: { staff: { select: { name: true, empNo: true } } } });
+  if (!b || b.status !== "verified") throw new UserError("Verify this person’s bank account first.");
+  await staffAudit(s, "Payout bank details viewed", `${b.staff.name} · ${b.staff.empNo} · ${b.bank} •••• ${b.last4}`);
+  return { holder: b.holder, account: unseal(Buffer.from(b.accountSealed, "base64")).toString(), ifsc: b.ifsc, bank: b.bank, type: b.type };
+}
+
 /** Records a commission payment made outside Razorpay (bank transfer or UPI), with its reference. */
 export async function recordBankTransfer(s: Staff, staffId: string, utr: string) {
   allow(s, "super_admin");

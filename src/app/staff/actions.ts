@@ -89,4 +89,5 @@ export const setCouponActive = async (id: string, active: boolean) => done(await
 // ── Reference partners (super admin)
 export const payPartnerRazorpay = async (staffId: string) => done(await staffRun((s) => partners.payWithRazorpay(s, staffId)));
 export const recordPartnerTransfer = async (staffId: string, utr: string) => done(await staffRun((s) => partners.recordBankTransfer(s, staffId, utr)));
+export const partnerBankDetails = async (staffId: string) => staffRun((s) => partners.payoutBankDetails(s, staffId));
 export const refreshPartnerPayout = async (id: string) => done(await staffRun((s) => partners.refreshPayout(s, id)));
