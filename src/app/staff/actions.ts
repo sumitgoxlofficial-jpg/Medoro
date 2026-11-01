@@ -30,7 +30,7 @@ async function open<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
 const done = <T,>(r: ActionResult<T>) => { if (r.ok) revalidatePath("/staff", "layout"); return r; };
 
 // ── Sign-in
-export const staffSignIn = async (email: string, password: string) => open(() => people.signIn(email, password));
+export const staffSignIn = async (email: string, password: string, as: people.StaffKind = "team") => open(() => people.signIn(email, password, as));
 export const staffEnroll = async () => open(() => people.enrollTotp());
 export const staffVerify = async (code: string) => open(() => people.verifyTotp(code));
 export const staffSignup = async (input: Parameters<typeof people.signup>[0]) => open(() => people.signup(input));

@@ -20,7 +20,7 @@ import { resetDb } from "./helpers";
 
 const code = (sealed: string) => new TOTP({ secret: Secret.fromBase32(openSecret(sealed)), digits: 6, period: 30 }).generate();
 const asStaff = async (email: string): Promise<Staff> => {
-  const u = await db.staffUser.findUniqueOrThrow({ where: { email } });
+  const u = await db.staffUser.findFirstOrThrow({ where: { email } });
   return { id: u.id, empNo: u.empNo, name: u.name, email: u.email, role: u.role, referralCode: u.referralCode, sessionId: "test" };
 };
 
@@ -39,7 +39,7 @@ describe("staff console", () => {
     expect(await getStaff()).toBeNull(); // MFA not passed yet
     await enrollTotp();
     await expect(verifyTotp("000000")).rejects.toThrow(/didn’t match/);
-    const u = await db.staffUser.findUniqueOrThrow({ where: { email: "aarti@medoro.in" } });
+    const u = await db.staffUser.findFirstOrThrow({ where: { email: "aarti@medoro.in" } });
     await verifyTotp(code(u.totpSecret!));
     expect(await getStaff()).toMatchObject({ role: "super_admin", empNo: "MS-001" });
     expect(await db.staffAudit.count({ where: { action: "Signed in" } })).toBe(1);
@@ -47,7 +47,7 @@ describe("staff console", () => {
 
   it("super admin approves, invites, resets and deactivates; deactivation ends sessions", async () => {
     const admin = await asStaff("aarti@medoro.in");
-    const karan = await db.staffUser.findUniqueOrThrow({ where: { email: "karan.s@medoro.in" } });
+    const karan = await db.staffUser.findFirstOrThrow({ where: { email: "karan.s@medoro.in" } });
     await setEmployeeStatus(admin, karan.id, "approve");
     expect(await signIn("karan.s@medoro.in", "karan password 1")).toMatchObject({ next: "enroll" });
 
@@ -55,11 +55,11 @@ describe("staff console", () => {
     const token = new URL(inv.link).searchParams.get("invite")!;
     await acceptInvite(token, "imran password 1");
     await expect(acceptInvite(token, "imran password 2")).rejects.toThrow(/expired/);
-    expect((await db.staffUser.findUniqueOrThrow({ where: { email: "imran.q@medoro.in" } })).status).toBe("active");
+    expect((await db.staffUser.findFirstOrThrow({ where: { email: "imran.q@medoro.in" } })).status).toBe("active");
 
     jar.clear();
     await signIn("imran.q@medoro.in", "imran password 1"); await enrollTotp();
-    const im = await db.staffUser.findUniqueOrThrow({ where: { email: "imran.q@medoro.in" } });
+    const im = await db.staffUser.findFirstOrThrow({ where: { email: "imran.q@medoro.in" } });
     await verifyTotp(code(im.totpSecret!));
     expect(await getStaff()).toMatchObject({ role: "care" });
     await setEmployeeStatus(admin, im.id, "deactivate");
@@ -121,7 +121,7 @@ describe("staff console", () => {
 
   it("support tickets: SLA, replies, internal notes, escalation; remote access is only a request", async () => {
     const admin = await asStaff("aarti@medoro.in"), karan = await asStaff("karan.s@medoro.in");
-    await db.staffUser.update({ where: { email: "imran.q@medoro.in" }, data: { status: "active" } });
+    await db.staffUser.updateMany({ where: { email: "imran.q@medoro.in" }, data: { status: "active" } });
     const care = await asStaff("imran.q@medoro.in");
     const c = await db.cpCustomer.findFirstOrThrow();
     await expect(createTicket(karan, { customerId: c.id, subject: "Printer cuts", priority: "high", channel: "Phone", category: "Hardware · printer" })).rejects.toThrow(/role/);

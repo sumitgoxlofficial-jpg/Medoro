@@ -20,24 +20,27 @@ async function join(page: Page, p: { name: string; email: string; phone: string 
   await page.getByRole("button", { name: "Create partner account" }).click();
 }
 
-async function signIn(page: Page, email: string) {
-  await page.goto("/staff/login");
-  await page.getByLabel("Email", { exact: true }).fill(email);
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Continue" }).click();
-}
-
 test("bootstrap super admin, a partner joins without approval, and a lead", async ({ page, browser }) => {
   test.skip(!!(await db().staffUser.findFirst({ where: { email: BOOTSTRAP } })), "Staff console already bootstrapped in this database");
   // Pharmacy accounts can't use the staff console.
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login/);
 
-  // First super admin from STAFF_BOOTSTRAP_EMAIL
-  await join(page, { name: "Founder Admin", email: BOOTSTRAP, phone: "9822000002" });
+  // First super admin from STAFF_BOOTSTRAP_EMAIL, on the Medoro team tab.
+  await page.goto("/staff/login");
+  await page.getByRole("tab", { name: "Medoro team" }).click();
+  await page.getByRole("button", { name: /Set up the admin profile/ }).click();
+  await page.getByLabel("Full name").fill("Founder Admin");
+  await page.getByLabel("Admin email").fill(BOOTSTRAP);
+  await page.getByLabel("Mobile").fill("9822000002");
+  await page.getByLabel(/Create a password/).fill(PASSWORD);
+  await page.getByRole("button", { name: "Create admin profile" }).click();
   await expect(page.getByText("You’re the first super admin. Sign in to set up your authenticator.")).toBeVisible();
   await page.getByRole("button", { name: "Back to sign in" }).click();
-  await signIn(page, BOOTSTRAP);
+  await page.getByRole("tab", { name: "Medoro team" }).click();
+  await page.getByLabel("Email", { exact: true }).fill(BOOTSTRAP);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Set up your authenticator")).toBeVisible();
   const secret = (await page.locator("code").innerText()).trim();
   await page.getByLabel("6-digit code from your authenticator").fill(totp(secret));
@@ -52,6 +55,15 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await expect(sp).toHaveURL(/\/staff(\/sales)?$/);
   await expect(sp.getByText(/Your referral code/)).toBeVisible();
   await other.close();
+
+  // The founder's own email also works as a separate partner profile, opening only the partner dashboard.
+  const mine = await browser.newContext();
+  const mp = await mine.newPage();
+  await join(mp, { name: "Founder Admin", email: BOOTSTRAP, phone: "9822000002" });
+  await expect(mp).toHaveURL(/\/staff(\/sales)?$/);
+  await expect(mp.getByText(/Your referral code/)).toBeVisible();
+  await expect(mp.getByRole("link", { name: "Employees" })).toHaveCount(0);
+  await mine.close();
 
   // The admin sees them on the partners page.
   await page.goto("/staff/partners");

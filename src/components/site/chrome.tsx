@@ -34,7 +34,7 @@ export function SiteFooter() {
           ))}
         </div>
         <div className="border-t border-[var(--s-line)] pt-6 flex justify-between gap-x-6 gap-y-3 flex-wrap text-[13.5px] text-[var(--s-muted)]">
-          <span>© 2026 Medoro. Made in Pune for Indian pharmacies.</span>
+          <span>© 2026 Medoro. Made in Bokaro for Indian pharmacies.</span>
           <span className="max-w-[640px]">Medoro is business software. It does not give clinical advice; compliance responsibilities stay with the licensed pharmacist.</span>
         </div>
       </div>
