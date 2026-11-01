@@ -52,7 +52,7 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
 
 // ───────────── Self-service sign-up (hosted, multi-pharmacy) ─────────────
 
-export async function signupAction(input: Omit<SetupInput, "deployment"> & { agree: boolean; referral?: string; driveStorage?: boolean }): Promise<R<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string }>> {
+export async function signupAction(input: Omit<SetupInput, "deployment"> & { agree: boolean; referral?: string }): Promise<R<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string }>> {
   try {
     if (!signupOpen()) return fail("Sign-up is not open on this server.");
     if (input.agree !== true) return fail("Accept the Terms and Privacy Policy to continue.");
@@ -71,11 +71,11 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
     if (!viaGoogle && mailEnabled() && verified !== o.email.trim().toLowerCase()) return fail("Confirm your email with the code we send first. Go back and choose “Sign up with email”.");
     const ownerIn = viaGoogle && !o.password ? { ...o, password: randomBytes(24).toString("base64url") } : o;
     const r = await createPharmacy({ pharmacy, owner: ownerIn, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
-    if (input.driveStorage) {
-      // Records live on the pharmacy's devices and in its own Google Drive; Medoro keeps only the account.
+    {
+      // Every new pharmacy keeps its records on its devices and in its own Google Drive; Medoro keeps only the account.
       const t = await db.tenant.findUniqueOrThrow({ where: { code: r.tenantCode } });
       await db.tenant.update({ where: { id: t.id }, data: { settings: { ...((t.settings as object) ?? {}), driveMode: true, driveOnly: true } as object } });
-      await writeAudit(db, { tenantId: t.id, userName: "Sign-up", action: "Data kept in the pharmacy’s Google Drive", entity: "tenant", entityId: t.id, detail: "Chosen at sign-up: bills and stock live on the counters and in the owner’s Google Drive" });
+      await writeAudit(db, { tenantId: t.id, userName: "Sign-up", action: "Data kept in the pharmacy’s Google Drive", entity: "tenant", entityId: t.id, detail: "Set at sign-up: bills and stock live on the counters and in the owner’s Google Drive" });
     }
     if (ref) {
       const t = await db.tenant.findUniqueOrThrow({ where: { code: r.tenantCode } });

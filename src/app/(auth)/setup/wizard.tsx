@@ -48,7 +48,6 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   const [kit, setKit] = useState<{ key: string; fp: string } | null>(null);
   const [kitAck, setKitAck] = useState(false);
   const [agree, setAgree] = useState(false);
-  const [storage, setStorage] = useState<"drive" | "server">("drive");
   const [ref, setRef] = useState(referral);
   const [result, setResult] = useState<{ invites: { contact: string; role: string; code: string }[]; tenantCode: string } | null>(null);
 
@@ -97,7 +96,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
           pharmacy: ph, owner: { name: owner.name, email: owner.email, phone: owner.phone, password: owner.password },
           branches, invites: invites.map((i) => ({ ...i, branch: i.branch || branches[0]?.name })), backupKey: kit.key, kitAck: true as const,
         };
-        const r = signup ? await signupAction({ ...common, agree: true, referral: ref.trim(), driveStorage: storage === "drive" }) : await setupAction({ ...common, deployment: host });
+        const r = signup ? await signupAction({ ...common, agree: true, referral: ref.trim() }) : await setupAction({ ...common, deployment: host });
         if (!r.ok) return setErr(r.error);
         setResult(r.data!); setStep(7);
       });
@@ -256,20 +255,11 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
 
         {step === 6 ? (
           <>
-            {signup ? (
-              <fieldset className="flex flex-col gap-2 border border-line rounded-[10px] p-3.5" aria-label="Where your pharmacy’s data lives">
-                <legend className="px-1 text-[14px] font-semibold">Where your pharmacy’s data lives</legend>
-                <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="radio" name="storage" className="accent-teal mt-0.5" checked={storage === "drive"} onChange={() => setStorage("drive")} />
-                  <span><strong>In my own Google Drive</strong> <span className="text-teal">(recommended)</span><br /><span className="text-muted text-[12.5px]">Bills, stock and customers stay on your counters and in your Google Drive, encrypted with a key only you hold, like WhatsApp. Medoro keeps only your account. Billing works without internet. Right after sign-up you connect your Google Drive and set up Drive storage (two steps) before the first bill.</span></span></label>
-                <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="radio" name="storage" className="accent-teal mt-0.5" checked={storage === "server"} onChange={() => setStorage("server")} />
-                  <span><strong>On Medoro’s server</strong><br /><span className="text-muted text-[12.5px]">Every screen, including AI, campaigns and e-invoicing. You can move to your Drive later.</span></span></label>
-              </fieldset>
-            ) : null}
             <div className="text-[19px] font-semibold">Backups & recovery kit</div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <HardDriveUpload size={20} className="text-teal" />
-              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive <span className="font-normal text-muted">(optional)</span></strong>
-                <span className="text-[12.5px] text-muted">{signup ? "Connect your Google Drive after sign-up, in Backup & restore." : !driveApp ? "Google sign-in isn’t configured on this server; you can connect later in Backup & restore." : drive.account ? <>Connected as {drive.account}. Daily backups go to Medoro/{ph.name || "your pharmacy"} in this Drive, encrypted on your server first.</> : "Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore."}</span>
+              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive <span className="font-normal text-muted">{signup ? "(required)" : "(optional)"}</span></strong>
+                <span className="text-[12.5px] text-muted">{signup ? "Your pharmacy’s data is kept in your own Google Drive, encrypted with a key only you hold. You connect it right after sign-up, before the first bill." : !driveApp ? "Google sign-in isn’t configured on this server; you can connect later in Backup & restore." : drive.account ? <>Connected as {drive.account}. Daily backups go to Medoro/{ph.name || "your pharmacy"} in this Drive, encrypted on your server first.</> : "Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore."}</span>
                 {drive.msg ? <span className="text-[12.5px] text-bad">{drive.msg}</span> : null}</div>
               {driveApp ? (drive.account ? <Button onClick={() => void drive.forget()}>Remove</Button> : <Button onClick={drive.connect}>Connect</Button>) : null}
             </div>
