@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IdCard, UserPlus, Check, KeyRound } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
@@ -96,7 +95,7 @@ function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: 
       <button onClick={onEmployee} className="flex items-center justify-center gap-2 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink cursor-pointer hover:border-teal hover:text-teal">
         <IdCard size={16} />Pharmacy staff login (PIN)
       </button>
-      <p className="m-0 text-[13px] text-muted text-center">New to Medoro? <Link href="/start" className="text-teal font-semibold">Start a free trial</Link></p>
+      <p className="m-0 text-[13px] text-muted text-center">New to Medoro? <a href="/trial" className="text-teal font-semibold">Start a free trial</a></p>
       <p className="m-0 text-[12px] text-fainter text-center">Trouble signing in? <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-medium">WhatsApp Medoro support</a></p>
     </AuthCard>
   );

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRight, Check, CloudOff, Download, FileCheck, HardDriveUpload, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, Plus,
   ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database,
@@ -259,7 +258,7 @@ export default function Home() {
               ))}
             </ol>
             <div data-reveal className="flex gap-4 flex-wrap items-center">
-              <Link href="/start" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">Start the free trial<ArrowRight size={17} aria-hidden /></Link>
+              <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">Start the free trial<ArrowRight size={17} aria-hidden /></a>
               <span className="text-[15px] text-[var(--s-muted)]">Assisted setup and training: ₹{PRODUCTS.find((p) => p.id === "setup")!.m.toLocaleString("en-IN")} once. Stock migration from ₹2,999.</span>
             </div>
           </div>
@@ -343,7 +342,7 @@ export default function Home() {
               <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.</p>
             </div>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:justify-self-end min-[1000px]:w-[280px]">
-              <Link href="/start" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 7-day free trial<ArrowRight size={17} aria-hidden /></Link>
+              <a href="/trial" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 7-day free trial<ArrowRight size={17} aria-hidden /></a>
               <a href={WA_DEMO} className="w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />Get a demo on WhatsApp</a>
             </div>
           </div>

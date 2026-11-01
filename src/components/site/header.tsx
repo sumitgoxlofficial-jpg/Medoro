@@ -24,8 +24,8 @@ export function SiteHeader() {
           {NAV.map(([l, h]) => <a key={h} href={h} className="px-3 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">{l}</a>)}
         </nav>
         <div className="ml-auto flex gap-2 items-center">
-          <Link href="/signin" className="hidden min-[480px]:flex items-center h-11 px-3.5 text-[15px] font-medium text-[var(--s-ink)] rounded-md hover:bg-[var(--s-soft)] hover:text-[var(--s-ink)]">Sign in</Link>
-          <Link href="/start" className="flex items-center h-11 px-4 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">Start free trial</Link>
+          <Link href="/signin" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]">Log in</Link>
+          <a href="/trial" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><span className="max-[520px]:hidden">Start 7-day free trial</span><span className="min-[521px]:hidden">Free trial</span></a>
           <button type="button" onClick={() => setOpen((x) => !x)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="site-menu"
             className="min-[960px]:hidden size-11 rounded-lg border border-[var(--s-line)] bg-white flex items-center justify-center cursor-pointer text-[var(--s-ink)]">
             {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
@@ -35,7 +35,8 @@ export function SiteHeader() {
       <div id="site-menu" hidden={!open} className="min-[960px]:hidden border-t border-[var(--s-line)] bg-white px-4 pb-4">
         <nav aria-label="Mobile" className="flex flex-col">
           {NAV.map(([l, h]) => <a key={h} href={h} onClick={() => setOpen(false)} className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{l}</a>)}
-          <Link href="/signin" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">Owner sign in</Link>
+          <Link href="/signin" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">Log in</Link>
+          <a href="/trial" className="text-[var(--s-brand)] text-[16px] font-semibold py-3.5 border-b border-[var(--s-line-2)]">Start 7-day free trial</a>
           <Link href="/signin?view=employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5">Pharmacy staff login</Link>
         </nav>
       </div>
