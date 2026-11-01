@@ -19,6 +19,7 @@ import { relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError
 import * as inbox from "./inbox";
 import * as assistant from "./assistant";
 import * as einv from "./einvoice";
+import * as money from "./money";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -209,6 +210,25 @@ const handlers = {
   aiTool: (scope: assistant.AskScope, name: string, input: unknown, hi: boolean) => assistant.runTool(need(), scope, name, input, hi),
   aiNames: () => assistant.customerNames(need()),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
+  // UPI & Bank: statement import, matching, review and reports (src/drivedb/money.ts).
+  finSettings: () => money.finSettings(need()),
+  saveFinSettings: (s: money.FinSettings) => money.saveFinSettings(need(), s),
+  statementPreview: (fileName: string, bytes: Uint8Array, bank: string, mapping?: Parameters<typeof money.statementPreview>[4]) => money.statementPreview(need(), fileName, bytes, bank, mapping),
+  importStatement: (input: Parameters<typeof money.importStatement>[1]) => money.importStatement(need(), input),
+  importHistory: () => money.importHistory(need()),
+  finOverview: () => money.overview(need()),
+  finTransactions: (filter?: Parameters<typeof money.transactions>[1]) => money.transactions(need(), filter),
+  finTransaction: (id: string) => money.transactionDetail(need(), id),
+  finReconciliation: () => money.reconciliation(need()),
+  finApprove: (txnId: string, targetId: string, userId: string) => money.approveSuggestion(need(), txnId, targetId, userId),
+  finApproveUnique: (userId: string) => money.approveAllUnique(need(), userId),
+  finReject: (txnId: string, targetId: string, userId: string) => money.rejectSuggestion(need(), txnId, targetId, userId),
+  finManualMatch: (input: Parameters<typeof money.manualMatch>[1]) => money.manualMatch(need(), input),
+  finUnallocate: (allocationId: string, userId: string) => money.unallocate(need(), allocationId, userId),
+  finResolveDuplicate: (txnId: string, same: boolean, userId: string) => money.resolveDuplicate(need(), txnId, same, userId),
+  finSetIgnored: (txnId: string, ignored: boolean, note: string, userId: string) => money.setIgnored(need(), txnId, ignored, note, userId),
+  finAutoReconcile: (userId: string) => money.autoReconcile(need(), userId),
+  finReports: (from: string, to: string) => money.finReports(need(), from, to),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */
   connect,

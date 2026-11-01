@@ -1,8 +1,38 @@
 # UPI & Bank Connect: plan for approval
 
-**Status:** plan only. Nothing in this document is built yet. It answers the "first inspect, then plan" step of the
-UPI & Bank Connect brief. Implementation starts phase by phase once this plan is approved, and each decision marked
-**Decision** below needs a yes/no.
+**Status:** approved (D1–D9 as recommended). **Phases 1 and 2 are built** (see "Built so far" below). Phases 3–8 wait
+on the partner dependencies in section 7.
+
+### Built so far (phases 1–2)
+
+| Piece | Where |
+|---|---|
+| Shared core: statement reading (CSV, XLSX, and `.xls` that is really HTML or Excel 2003 XML; binary `.xls` and PDF refused with a way forward), dates with times, row problems reported per row, row fingerprints, narration parsing (channel, UTR/RRN, UPI ID, payer name from known bank formats only), duplicate rules, matching rules 1–5, source catalogue with honest labels | `src/domain/finance/` (`statement.ts`, `narration.ts`, `dedupe.ts`, `match.ts`, `providers.ts`), tests in `finance.test.ts`, fixtures in `tests/fixtures/bank/` |
+| Device database migration 8: `finImport`, `finTxn`, `finSource`, `finEvent`, `finAllocation` (all append-only); `customerReceipt` accepts mode `bank` | `src/drivedb/schema.ts` |
+| Statement import, dedupe, auto-matching, suggestions, approve/reject, manual match, undo, duplicate review, set aside, counter-UPI verification and "not in the bank statement" alerts, overview, reports | `src/drivedb/money.ts`, tests in `money.test.ts` |
+| Counter screen **UPI & Bank** (Overview, Import statement, Transactions, Reconcile, Import history, Reports with Excel/CSV/print-to-PDF, Connections with the shop's UPI ID for bill QR codes) | `src/components/device/money.tsx` |
+| Web: **Financial Management** nav group with **UPI & Bank Connect** (`/app/money`), Bank reconciliation and Cheques; server statement import uses the shared reader (adds `.xls`, row errors) | `src/app/app/money/page.tsx`, `src/lib/nav.ts`, `src/domain/accounting/bank.ts` |
+| Excel export without a dependency | `src/lib/xlsx.ts` |
+| End-to-end: credit bill → QR reference → statement upload → automatic match; re-upload adds nothing; counter UPI missing from the bank is flagged | `e2e/28-device-money.spec.ts` |
+
+Where the build differs from the plan, and why:
+- **Suggestions are computed, not stored** (no `transaction_match_suggestions` table): they depend on bills and payments
+  that change all the time, so a stored copy would go stale. Rejections are stored (`finEvent` kind `reject`) and are
+  never suggested again.
+- **No separate `receiptAllocation` table.** A bank match records its bill in `finAllocation`; receipts typed at the
+  counter without a bill pay the customer's oldest bills first. This gives part-paid bills and several payments per
+  bill without changing how the counter takes payments.
+- **Counter UPI matched by amount alone is a suggestion**, approved one by one or with "Approve all one-to-one". Only a
+  UTR typed at the counter confirms a counter payment automatically.
+- **Ids are derived from content** (`st-<fingerprint>`, `al-<txn>-<target>-n`, `bk-…`, `rv-…`) so two counters that
+  import the same statement or make the same automatic match offline end up with one record after sync.
+- **Self-hosted servers** keep the existing bank reconciliation (statement lines matched to the *Bank account*
+  ledger), now with the shared reader. Bill-level matching on a self-hosted server's PostgreSQL is not built yet; the
+  hosted service (every Drive pharmacy) has it on the counter.
+- Settings (shop UPI ID, auto-match for known payers, column mappings per bank) are kept per device, like the counter
+  PIN.
+- A device on an older app version stops syncing when it receives the new tables until it reloads the app, as with
+  earlier device migrations.
 
 **Goal:** Medoro tells a pharmacy which of its bills have really been paid, using the pharmacy's existing bank account
 and existing UPI QR. The pharmacy keeps its bank, its UPI ID and its QR. Money never passes through Medoro, and Medoro

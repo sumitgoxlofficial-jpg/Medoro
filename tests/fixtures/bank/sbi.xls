@@ -1,0 +1,8 @@
+<html><body><table border="1">
+<tr><td colspan="3">Account Number : 00000031234567890</td></tr>
+<tr><th>Txn Date</th><th>Value Date</th><th>Description</th><th>Ref No./Cheque No.</th><th>Debit</th><th>Credit</th><th>Balance</th></tr>
+<tr><td>3 Nov 2026</td><td>3 Nov 2026</td><td>BY TRANSFER-UPI/CR/430611112222/PRIYA SHAH/SBIN/priya@oksbi/Payment</td><td>TRANSFER FROM 9876</td><td>&nbsp;</td><td>1,500.00</td><td>51,500.00</td></tr>
+<tr><td>3 Nov 2026</td><td>3 Nov 2026</td><td>BY TRANSFER-UPI/CR/430633334444/RAVI &amp; CO/SBIN/ravi@okaxis/Payment</td><td></td><td></td><td>99.00</td><td>51,599.00</td></tr>
+<tr><td>4 Nov 2026</td><td>4 Nov 2026</td><td>CASH DEPOSIT SELF</td><td></td><td></td><td>2,000.00</td><td>53,599.00</td></tr>
+<tr><td>bad date</td><td></td><td>???</td><td></td><td></td><td>5.00</td><td></td></tr>
+</table></body></html>

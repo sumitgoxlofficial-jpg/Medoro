@@ -97,6 +97,29 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "saleId", "kind", "irn", "ackNo", "ackDt", "signedQr", "reason", "userId", "at"],
   },
+  // UPI & Bank (migration 8): statement imports, bank transactions, where each came from, review decisions, and
+  // which bill / counter payment / receipt each credit pays.
+  finImport: {
+    kind: "append",
+    columns: ["id", "account", "fileName", "rows", "added", "duplicates", "review", "skipped", "problems", "fromDate", "toDate", "matched", "userId", "at"],
+  },
+  finTxn: {
+    kind: "append",
+    columns: ["id", "account", "direction", "amountPaise", "bookedOn", "bookedTime", "description", "refText", "utr", "channel",
+      "counterpartyName", "counterpartyVpa", "balancePaise", "source", "importId", "verified", "at"],
+  },
+  finSource: {
+    kind: "append",
+    columns: ["id", "txnId", "source", "sourceRef", "importId", "row", "rule", "at"],
+  },
+  finEvent: {
+    kind: "append",
+    columns: ["id", "txnId", "kind", "refId", "note", "userId", "at"],
+  },
+  finAllocation: {
+    kind: "append",
+    columns: ["id", "txnId", "target", "saleId", "paymentId", "receiptId", "customerId", "amountPaise", "kind", "rule", "reversesId", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -286,6 +309,59 @@ export const MIGRATIONS: readonly string[] = [
   CREATE TRIGGER einvoice_no_update BEFORE UPDATE ON einvoice BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
   CREATE TRIGGER einvoice_no_delete BEFORE DELETE ON einvoice BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;
   `,
+  // 8: UPI & Bank. Statement imports and bank transactions (amounts positive, direction separate), the source row of
+  // each (a later file with the same row is skipped), review decisions as events, and allocations of credits to bills,
+  // counter UPI payments and receipts (undo = a negative allocation). Receipts may now be "bank" (NEFT, IMPS, …).
+  `
+  CREATE TABLE finImport (
+    id TEXT PRIMARY KEY, account TEXT NOT NULL, fileName TEXT NOT NULL, rows INTEGER NOT NULL, added INTEGER NOT NULL,
+    duplicates INTEGER NOT NULL, review INTEGER NOT NULL, skipped INTEGER NOT NULL, problems TEXT NOT NULL,
+    fromDate TEXT, toDate TEXT, matched INTEGER NOT NULL, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE TABLE finTxn (
+    id TEXT PRIMARY KEY, account TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('credit', 'debit')),
+    amountPaise INTEGER NOT NULL CHECK (amountPaise > 0), bookedOn TEXT NOT NULL, bookedTime TEXT, description TEXT NOT NULL,
+    refText TEXT, utr TEXT, channel TEXT NOT NULL, counterpartyName TEXT, counterpartyVpa TEXT, balancePaise INTEGER,
+    source TEXT NOT NULL, importId TEXT, verified INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL
+  );
+  CREATE INDEX finTxn_booked ON finTxn(bookedOn);
+  CREATE INDEX finTxn_utr ON finTxn(utr);
+  CREATE INDEX finTxn_match ON finTxn(account, bookedOn, amountPaise, direction);
+  CREATE TABLE finSource (
+    id TEXT PRIMARY KEY, txnId TEXT NOT NULL REFERENCES finTxn(id), source TEXT NOT NULL, sourceRef TEXT NOT NULL,
+    importId TEXT, row INTEGER, rule TEXT NOT NULL CHECK (rule IN ('new', 'utr', 'attributes')), at TEXT NOT NULL
+  );
+  CREATE UNIQUE INDEX finSource_ref ON finSource(source, sourceRef);
+  CREATE INDEX finSource_txn ON finSource(txnId);
+  CREATE TABLE finEvent (
+    id TEXT PRIMARY KEY, txnId TEXT NOT NULL REFERENCES finTxn(id),
+    kind TEXT NOT NULL CHECK (kind IN ('duplicate', 'same_as', 'not_duplicate', 'ignore', 'unignore', 'reject')),
+    refId TEXT, note TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX finEvent_txn ON finEvent(txnId);
+  CREATE TABLE finAllocation (
+    id TEXT PRIMARY KEY, txnId TEXT NOT NULL REFERENCES finTxn(id), target TEXT NOT NULL CHECK (target IN ('bill', 'counter', 'receipt')),
+    saleId TEXT, paymentId TEXT, receiptId TEXT, customerId TEXT, amountPaise INTEGER NOT NULL CHECK (amountPaise <> 0),
+    kind TEXT NOT NULL CHECK (kind IN ('auto', 'approved', 'manual', 'reversal')), rule INTEGER, reversesId TEXT,
+    userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX finAllocation_txn ON finAllocation(txnId);
+  CREATE INDEX finAllocation_sale ON finAllocation(saleId);
+  CREATE INDEX finAllocation_payment ON finAllocation(paymentId);
+  CREATE INDEX finAllocation_receipt ON finAllocation(receiptId);
+
+  -- Receipts by bank transfer. SQLite can't change a CHECK, so the table is rebuilt (same columns, same rows).
+  CREATE TABLE customerReceipt_v8 (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL REFERENCES customer(id), amountPaise INTEGER NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('cash', 'upi', 'card', 'bank')), ref TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  INSERT INTO customerReceipt_v8 (id, customerId, amountPaise, mode, ref, userId, at) SELECT id, customerId, amountPaise, mode, ref, userId, at FROM customerReceipt;
+  DROP TABLE customerReceipt;
+  ALTER TABLE customerReceipt_v8 RENAME TO customerReceipt;
+  CREATE INDEX customerReceipt_customer ON customerReceipt(customerId);
+  ` + ["customerReceipt", "finImport", "finTxn", "finSource", "finEvent", "finAllocation"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
