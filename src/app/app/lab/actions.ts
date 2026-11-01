@@ -8,6 +8,8 @@ import { deviceSeed, setDriveMode } from "@/domain/system/drive-mode";
 import { revalidatePath } from "next/cache";
 import { connectCustomerPay, createPayLink, disconnectCustomerPay, payStatus, type connectInput, type linkInput } from "@/domain/system/customer-pay";
 import type { z } from "zod";
+import { gatewayStatus, gatewayStep, type stepInput } from "@/domain/ai/gateway";
+import type { ChatMsg, ToolSpec } from "@/domain/ai/llm";
 import { completeMove, deleteMedoroCopy, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
@@ -82,3 +84,9 @@ export async function connectCustomerPayAction(input: z.input<typeof connectInpu
 export async function disconnectCustomerPayAction() { return run((c) => disconnectCustomerPay(c), "Online payments are disconnected."); }
 /** A UPI/card payment link for a customer's dues; the counter shares it on WhatsApp. */
 export async function payLinkAction(input: z.input<typeof linkInput>) { return run((c) => createPayLink(c, input)); }
+
+// ---------- Phase 6: the AI gateway for counters (nothing stored) ----------
+
+export async function aiGatewayStatusAction() { return run((c) => gatewayStatus(c)); }
+/** One step of a counter's conversation with the model: the counter runs the lookups on its own data. */
+export async function aiStepAction(input: { messages: ChatMsg[]; tools: ToolSpec[] }) { return run((c) => gatewayStep(c, input as z.input<typeof stepInput>)); }

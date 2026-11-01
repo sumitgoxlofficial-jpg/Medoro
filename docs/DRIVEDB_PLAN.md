@@ -309,8 +309,16 @@ working with me; they overlap a little.
   every counter, so it is never counted twice) and acknowledges it (`op=inbox-ack`): every copy is deleted.
 - Tests: `src/drivedb/inbox.test.ts`, `tests/integration/customer-pay.test.ts` (paid while offline → recorded →
   deleted; bad signatures and foreign links refused).
-- Left for phase 6: the AI assistant gateway, the e-invoice (IRN) gateway, and sending bills through the WhatsApp
-  Business API (counters already share bills and reminders on WhatsApp with no server, via wa.me).
+- Slice 2: the **AI assistant on the counter** (`src/drivedb/assistant.ts`, an **Ask** tab). The counter has its own
+  read-only versions of the server's lookups (same names and inputs: sales, medicines, batches, expiry, low stock,
+  supplier and customer dues, cash in the drawer) and the same rule-based planner, so it answers offline too. With a
+  model set up, the counter runs the conversation and sends one step at a time through the **gateway**
+  (`src/domain/ai/gateway.ts`): Medoro replaces the system prompt with its own, allows only those lookups, passes the
+  step to the model and stores nothing (no question, rows or answer; only the per-user rate limit counts). For a
+  remote model the counter replaces customer names, phones and emails with placeholders before sending, unless the
+  owner allows names. Tests: `assistant.test.ts`, `tests/integration/ai-gateway.test.ts`, `e2e/26-device-ask.spec.ts`.
+- Left for phase 6: the e-invoice (IRN) gateway, and sending bills through the WhatsApp Business API (counters
+  already share bills and reminders on WhatsApp with no server, via wa.me).
 
 ### Phase 7 progress (slice 1 built: the move, checks, read-only copy, undo)
 - Server `src/domain/system/drive-move.ts`: `startMove` freezes Medoro's copy (`tenant.settings.driveMove`;

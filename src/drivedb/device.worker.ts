@@ -17,6 +17,7 @@ import type { MoveBase, MovePart } from "@/domain/system/drive-move";
 import type { DriveStore } from "./drive";
 import { relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
 import * as inbox from "./inbox";
+import * as assistant from "./assistant";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -198,6 +199,9 @@ const handlers = {
   listOrders: (branchId: string, showDone?: boolean) => ops.listOrders(need(), branchId, showDone),
   transferStock: (input: Parameters<typeof ops.transferStock>[1]) => ops.transferStock(need(), input),
   activityLog: (opts?: { limit?: number; text?: string }) => reports.activityLog(need(), opts),
+  askRules: (scope: assistant.AskScope, text: string) => assistant.askRules(need(), scope, text),
+  aiTool: (scope: assistant.AskScope, name: string, input: unknown, hi: boolean) => assistant.runTool(need(), scope, name, input, hi),
+  aiNames: () => assistant.customerNames(need()),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */
