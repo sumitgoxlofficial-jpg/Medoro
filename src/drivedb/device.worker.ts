@@ -9,6 +9,7 @@ import * as pharmacy from "./pharmacy";
 import * as trade from "./trade";
 import * as seed from "./seed";
 import * as reports from "./reports";
+import * as books from "./books";
 import * as sync from "./sync";
 import type { DriveStore } from "./drive";
 import { relayStore, registerDevice, RelayRefusedError } from "./relay";
@@ -141,6 +142,16 @@ const handlers = {
   updateMedicine: (id: string, patch: Parameters<typeof reports.updateMedicine>[2]) => reports.updateMedicine(need(), id, patch),
   customerList: (text?: string) => reports.customerList(need(), text),
   supplierList: () => reports.supplierList(need()),
+  supplierDues: () => books.supplierDues(need()),
+  supplierLedger: (id: string) => books.supplierLedger(need(), id),
+  paySupplier: (input: Parameters<typeof books.paySupplier>[1]) => books.paySupplier(need(), input),
+  addExpense: (input: Parameters<typeof books.addExpense>[1]) => books.addExpense(need(), input),
+  expenses: (branchId: string, from: string, to: string) => books.expenses(need(), branchId, from, to),
+  cashBook: (branchId: string, iso?: string) => books.cashBook(need(), branchId, iso),
+  salesByDay: (branchId: string, from: string, to: string) => books.salesByDay(need(), branchId, from, to),
+  topMedicines: (branchId: string, from: string, to: string) => books.topMedicines(need(), branchId, from, to),
+  expiringStock: (branchId: string, days?: number) => books.expiringStock(need(), branchId, days),
+  gstReturns: (month: string, gstin: string) => books.gstReturns(need(), month, gstin),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */

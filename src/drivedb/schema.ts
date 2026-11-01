@@ -73,6 +73,14 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "customerId", "amountPaise", "mode", "ref", "userId", "at"],
   },
+  supplierPayment: {
+    kind: "append",
+    columns: ["id", "supplierId", "amountPaise", "mode", "ref", "userId", "at"],
+  },
+  expense: {
+    kind: "append",
+    columns: ["id", "branchId", "category", "amountPaise", "mode", "note", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -206,6 +214,21 @@ export const MIGRATIONS: readonly string[] = [
   `
   CREATE TABLE fieldClock (tbl TEXT NOT NULL, rowId TEXT NOT NULL, col TEXT NOT NULL, clock TEXT NOT NULL, PRIMARY KEY (tbl, rowId, col)) WITHOUT ROWID;
   `,
+  // 4: money paid to suppliers, and shop expenses (rent, salaries, electricity…).
+  `
+  CREATE TABLE supplierPayment (
+    id TEXT PRIMARY KEY, supplierId TEXT NOT NULL REFERENCES supplier(id), amountPaise INTEGER NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('cash', 'upi', 'bank', 'cheque')), ref TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX supplierPayment_supplier ON supplierPayment(supplierId);
+  CREATE TABLE expense (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, category TEXT NOT NULL, amountPaise INTEGER NOT NULL,
+    mode TEXT NOT NULL CHECK (mode IN ('cash', 'upi', 'bank', 'cheque')), note TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX expense_at ON expense(branchId, at);
+  ` + ["supplierPayment", "expense"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
