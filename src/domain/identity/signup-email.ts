@@ -11,11 +11,17 @@ const key = (email: string) => "email:" + email;
 export const normEmail = (e: string) => String(e ?? "").trim().toLowerCase();
 const looksLikeEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 200;
 
-export async function sendSignupCode(raw: string) {
+/** Pharmacy owners and reference partners are separate accounts, so each checks its own kind for an existing one. */
+export type SignupKind = "pharmacy" | "partner";
+
+export async function sendSignupCode(raw: string, kind: SignupKind = "pharmacy") {
   const email = normEmail(raw);
   if (!looksLikeEmail(email)) throw new UserError("Enter a valid email.");
   if (!mailEnabled()) throw new UserError("Email isn’t set up on this server. Use “Continue with Google”.");
-  if (await db.user.findFirst({ where: { email }, select: { id: true } })) throw new UserError("An account with this email already exists. Sign in instead.");
+  const taken = kind === "partner"
+    ? await db.staffUser.findUnique({ where: { email_kind: { email, kind: "partner" } }, select: { id: true } })
+    : await db.user.findFirst({ where: { email }, select: { id: true } });
+  if (taken) throw new UserError(kind === "partner" ? "You already have a partner profile with this email. Sign in instead." : "An account with this email already exists. Sign in instead.");
   await throttleSend(key(email));
   const code = newCode();
   const data = { codeHash: hashCode(key(email), code), purpose: "signup", attempts: 0, expiresAt: new Date(Date.now() + MIN * 60_000) };
@@ -24,7 +30,7 @@ export async function sendSignupCode(raw: string) {
     await sendMail({
       to: email,
       subject: `Your Medoro sign-up code: ${code}`,
-      text: `Hi,\n\nUse this code to create your Medoro pharmacy account:\n\n    ${code}\n\nIt expires in ${MIN} minutes. If you didn't ask for it, you can ignore this email.\n\nMedoro`,
+      text: `Hi,\n\nUse this code to create your Medoro ${kind === "partner" ? "reference partner" : "pharmacy"} account:\n\n    ${code}\n\nIt expires in ${MIN} minutes. If you didn't ask for it, you can ignore this email.\n\nMedoro`,
     });
   } catch (e) {
     await db.otpCode.deleteMany({ where: { phone: key(email) } });

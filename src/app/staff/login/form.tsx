@@ -4,16 +4,16 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Check, Lock, Smartphone, User, UserPlus } from "lucide-react";
 import { Wordmark } from "@/components/site/chrome";
-import { staffAcceptInvite, staffEnroll, staffGooglePartner, staffSignIn, staffSignup, staffVerify } from "../actions";
+import { staffAcceptInvite, staffEnroll, staffGooglePartner, staffSendPartnerCode, staffSignIn, staffSignup, staffVerify, staffVerifyPartnerCode } from "../actions";
 
 type Step = "signin" | "signup" | "signupDone" | "enroll" | "totp" | "invite" | "inviteDone" | "gpartner";
 const input = "border border-input rounded-lg px-3 py-[11px] text-[15px] text-ink outline-none focus:border-teal bg-white w-full";
 const label = "flex flex-col gap-[5px] text-[13px] text-muted";
 
-export function StaffLogin({ domain, invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, as = "partner", setupOpen = false }: {
+export function StaffLogin({ domain, invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, as = "partner", setupOpen = false, emailCodes = false }: {
   domain: string; invite: { token: string; info: { name: string; email: string } | null } | null; pending: { email: string; enrolled: boolean } | null;
   joinPartner?: boolean; google?: boolean; googleNew?: { email: string; name: string } | null; notice?: string; handoff?: boolean;
-  as?: "partner" | "team"; setupOpen?: boolean;
+  as?: "partner" | "team"; setupOpen?: boolean; emailCodes?: boolean;
 }) {
   const router = useRouter();
   // Which profile this sign-in opens: the reference partner dashboard, or the Medoro team console. Same email can have both.
@@ -27,6 +27,15 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
   const [gp, setGp] = useState({ name: googleNew?.name ?? "", phone: "", team: "" });
   const [busy, start] = useTransition();
   const [su, setSu] = useState({ name: "", email: "", phone: "", team: "", password: "", role: "partner" as "partner" | "sales" });
+  // Partners who join with email confirm it with a 6-digit code (when this server can send email).
+  const [codeSent, setCodeSent] = useState(false), [ecode, setEcode] = useState("");
+  const needCode = emailCodes && mode === "partner";
+  const sendCode = () => start(async () => {
+    setErr("");
+    const r = await staffSendPartnerCode(su.email);
+    if (!r.ok) return setErr(r.error);
+    setCodeSent(true);
+  });
   const [doneText, setDoneText] = useState("");
 
   // Signed in with Google: the session cookie is SameSite=Strict, so continue with a same-site navigation.
@@ -48,6 +57,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
       if (!r.ok) return setErr(r.error);
       router.replace("/staff"); router.refresh();
     } else if (step === "signup") {
+      if (needCode) {
+        if (!codeSent) return setErr("Tap “Send code” and enter the code we email you.");
+        const v = await staffVerifyPartnerCode(su.email, ecode);
+        if (!v.ok) return setErr(v.error);
+      }
       const r = await staffSignup(su);
       if (!r.ok) return setErr(r.error);
       if (r.data.active && r.data.role === "partner") {
@@ -138,7 +152,23 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
                 <span className="text-[13px] text-muted">For MRs, distributors and consultants. Refer pharmacies to Medoro and earn commission on every plan they buy. Your account is ready straight away.</span>
                 {google ? <>{gBtn("Continue with Google")}<div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or fill in your details<span className="h-px flex-1 bg-line" /></div></> : null}
                 {([["name", "Full name", "text", "name"], ["email", "Email", "email", "email"], ["phone", "Mobile", "tel", "tel"], ["team", "Company / area (e.g. MR at Cipla, Pune)", "text", "off"], ["password", "Create a password (12+ characters)", "password", "new-password"]] as const).map(([k, l, t, ac]) => (
-                  <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} placeholder={k === "email" ? "you@gmail.com" : ""} /></label>
+                  k === "email" && needCode ? (
+                    <div key={k} className="flex flex-col gap-2">
+                      <label className={label}>Email
+                        <div className="flex gap-2">
+                          <input className={input + (codeSent ? " bg-[#F7F8F9] text-muted" : "")} type="email" autoComplete="email" value={su.email} readOnly={codeSent} onChange={(e) => { setSu((x) => ({ ...x, email: e.target.value })); setErr(""); }} placeholder="you@gmail.com" />
+                          <button type="button" disabled={busy || !su.email.includes("@")} onClick={() => (codeSent ? (setCodeSent(false), setEcode("")) : sendCode())} className="flex-none border border-input rounded-lg px-3 text-[13px] font-semibold text-teal cursor-pointer whitespace-nowrap disabled:opacity-50">{codeSent ? "Change" : "Send code"}</button>
+                        </div>
+                      </label>
+                      {codeSent ? (
+                        <label className={label}>6-digit code sent to your email
+                          <input className={input + " font-mono text-[18px] tracking-[.3em]"} value={ecode} onChange={(e) => { setEcode(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }} inputMode="numeric" autoComplete="one-time-code" />
+                        </label>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} placeholder={k === "email" ? "you@gmail.com" : ""} /></label>
+                  )
                 ))}
               </>
             ) : null}
