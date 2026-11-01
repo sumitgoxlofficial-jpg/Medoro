@@ -1,11 +1,11 @@
-import { setupStep } from "@/app/(auth)/setup/setup-step";
+import { restoreStep } from "@/app/(auth)/setup/setup-step";
 import { UserError } from "@/server/action";
 import { dropSetupDrive, setupDrive } from "@/server/setup-drive";
 import { freshRestore, previewFreshRestore } from "@/domain/system/recovery";
 
 /** First-run restore from an uploaded backup file: step "check" previews it, step "restore" restores it. */
 export async function POST(req: Request) {
-  const r = await setupStep(async () => {
+  const r = await restoreStep(async () => {
     const form = await req.formData().catch(() => null);
     const f = form?.get("file");
     if (!(f instanceof File) || !f.size) throw new UserError("Choose the backup file (.mdrbak).");

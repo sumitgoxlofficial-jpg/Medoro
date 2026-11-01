@@ -1,4 +1,5 @@
 import "server-only";
+import { signupOpen } from "@/server/setup-gate";
 import { TRIAL_DAYS } from "./subscription";
 import { createHash } from "node:crypto";
 import { db } from "@/server/db";
@@ -106,8 +107,18 @@ export async function importBackup(ctx: Ctx, src: { bytes: Buffer } | { driveFil
 
 // ───────────── New server: restore instead of setting up ─────────────
 
+/** First-run setup (empty database), or a hosted server with self sign-up where a returning pharmacy restores. */
 async function assertFresh() {
-  if (await db.tenant.count()) throw new UserError("This installation is already set up. Sign in and restore from Backup & restore instead.");
+  if ((await db.tenant.count()) && !signupOpen()) throw new UserError("This installation is already set up. Sign in and restore from Backup & restore instead.");
+}
+
+/** On a server with other pharmacies: the restored pharmacy, its code and its owner's email must all be free. */
+async function assertFreeForRestore(data: { tenant: { id: string; code: string }; tables: Record<string, unknown[]> }) {
+  if (!(await db.tenant.count())) return;
+  if (await db.tenant.findUnique({ where: { id: data.tenant.id }, select: { id: true } })) throw new UserError("This pharmacy already has an account on Medoro. Sign in instead, and restore from Backup & restore if you need older data.");
+  if (await db.tenant.findUnique({ where: { code: data.tenant.code }, select: { id: true } })) throw new UserError(`The pharmacy code ${data.tenant.code} is in use by another pharmacy. Contact Medoro support to restore this backup.`);
+  const emails = ((data.tables.User ?? []) as { email?: string | null }[]).map((u) => u.email?.toLowerCase()).filter((e): e is string => !!e);
+  if (emails.length && (await db.user.findFirst({ where: { email: { in: emails }, role: { name: "Owner" } }, select: { id: true } }))) throw new UserError("An account with this backup’s owner email already exists. Sign in instead.");
 }
 
 function openForSetup(file: Buffer, kit: string) {
@@ -138,12 +149,13 @@ export async function freshRestore(file: Buffer, kit: string, confirmCode: strin
   await assertFresh();
   const { key, header, data } = openForSetup(file, kit);
   const tenantId = data.tenant.id, at = header.createdAt ?? data.exportedAt;
+  await assertFreeForRestore(data as unknown as Parameters<typeof assertFreeForRestore>[0]);
   if (String(confirmCode ?? "").trim().toUpperCase() !== data.tenant.code.toUpperCase()) throw new UserError(`Type the pharmacy code ${data.tenant.code} to confirm.`);
   const { schema, summary } = await prepare(tenantId, data, at);
   if (summary.problems.length) { await dropSchema(schema); throw new UserError(`This backup can’t be restored: ${summary.problems.join(" ")}`); }
   try {
     await db.$transaction(async (tx) => {
-      if (await tx.tenant.count()) throw new UserError("This installation was set up meanwhile.");
+      if (signupOpen() ? await tx.tenant.findFirst({ where: { OR: [{ id: tenantId }, { code: data.tenant.code }] }, select: { id: true } }) : await tx.tenant.count()) throw new UserError("This installation was set up meanwhile.");
       const t = data.tenant;
       await tx.tenant.create({ data: { id: tenantId, code: t.code, name: t.name, legalName: t.legalName, gstin: t.gstin, phone: t.phone, settings: (t.settings ?? {}) as object } });
       await tx.integration.deleteMany({ where: { tenantId } });

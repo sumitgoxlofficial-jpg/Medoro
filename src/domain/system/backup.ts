@@ -253,22 +253,45 @@ export async function backupFile(ctx: Ctx, id: string) {
   return bytes ? { bytes, name: m.localPath?.split(/[\\/]/).pop() ?? `${m.startedAt.toISOString().replace(/[:.]/g, "-")}.mdrbak` } : null;
 }
 
-type BackupSettings = { schedule: string; retention: number; files: FileStore };
+/** `every`: hours between backups. 24 = once a day at `schedule`; 6 or 3 = also through the day while Medoro is in use. */
+export const BACKUP_EVERY = [24, 6, 3] as const;
+type BackupSettings = { schedule: string; retention: number; files: FileStore; every: (typeof BACKUP_EVERY)[number] };
 export async function backupSettings(tenantId: string): Promise<BackupSettings> {
   const t = await db.tenant.findUniqueOrThrow({ where: { id: tenantId } });
   const b = (t.settings as { backup?: Partial<BackupSettings> }).backup ?? {};
-  return { schedule: b.schedule ?? "02:30", retention: b.retention ?? 30, files: b.files === "server" ? "server" : "gdrive" };
+  return { schedule: b.schedule ?? "02:30", retention: b.retention ?? 30, files: b.files === "server" ? "server" : "gdrive", every: BACKUP_EVERY.includes(b.every as 24) ? b.every! : 24 };
 }
 
-export async function saveBackupSettings(ctx: Ctx, input: { schedule: string; retention: number; files?: FileStore }) {
+export async function saveBackupSettings(ctx: Ctx, input: { schedule: string; retention: number; files?: FileStore; every?: number }) {
   authorize(ctx, "integrations");
   const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
   const cur = (t.settings as { backup?: Partial<BackupSettings> }).backup ?? {};
-  const s = { schedule: input.schedule, retention: input.retention, files: input.files ?? cur.files ?? "server" };
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.schedule) || ![7, 30, 90, 365].includes(s.retention) || !["server", "gdrive"].includes(s.files)) throw new UserError("Invalid schedule.");
+  const s = { schedule: input.schedule, retention: input.retention, files: input.files ?? cur.files ?? "server", every: input.every ?? cur.every ?? 24 };
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.schedule) || ![7, 30, 90, 365].includes(s.retention) || !["server", "gdrive"].includes(s.files) || !BACKUP_EVERY.includes(s.every as 24)) throw new UserError("Invalid schedule.");
   if (s.files === "gdrive" && cur.files !== "gdrive" && !(await driveConfigured(ctx.tenantId))) throw new UserError("Connect Google Drive first.");
   await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), backup: { ...cur, ...s } } } });
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Backup schedule changed", entity: "tenant", detail: `daily ${s.schedule} · keep ${s.retention} days · new files ${s.files === "gdrive" ? "in Google Drive" : "on the server"}` });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Backup schedule changed", entity: "tenant", detail: `${s.every === 24 ? "daily" : `every ${s.every} h, and daily`} ${s.schedule} · keep ${s.retention} days · new files ${s.files === "gdrive" ? "in Google Drive" : "on the server"}` });
+}
+
+/**
+ * Backups through the day: when a pharmacy chose "every 6 h" or "every 3 h", a page load in the app starts one
+ * (after the response) once the last good backup is that old. The host's cron only runs once a day, so use is
+ * the clock. One runs at a time per pharmacy (advisory lock + a "running" manifest).
+ */
+export async function maybeBackup(tenantId: string, now = new Date()) {
+  const s = await backupSettings(tenantId);
+  if (s.every === 24) return null;
+  const last = await db.backupManifest.findFirst({ where: { tenantId, OR: [{ status: { in: ["verified", "partial"] } }, { status: "running", startedAt: { gt: new Date(now.getTime() - STALE_RUNNING_MS) } }] }, orderBy: { startedAt: "desc" }, select: { startedAt: true } });
+  if (last && now.getTime() - last.startedAt.getTime() < s.every * 3600_000) return null;
+  const claimed = await db.$transaction(async (tx) => {
+    const [lock] = await tx.$queryRaw<{ ok: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext(${"backup:" + tenantId})) AS ok`;
+    if (!lock?.ok) return null;
+    const busy = await tx.backupManifest.findFirst({ where: { tenantId, status: "running", startedAt: { gt: new Date(now.getTime() - STALE_RUNNING_MS) } }, select: { id: true } });
+    if (busy) return null;
+    return tx.backupManifest.create({ data: { tenantId, kind: "scheduled", schemaVersion: SCHEMA, status: "running" } });
+  }).catch(() => null);
+  if (!claimed) return null;
+  return runBackup(tenantId, "scheduled", undefined, claimed);
 }
 
 /**

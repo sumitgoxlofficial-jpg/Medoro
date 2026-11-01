@@ -19,7 +19,7 @@ type DriveFile = { id: string; name: string; size: number; createdTime: string; 
 
 export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron }: {
   history: H[]; drive: DriveState; folder: string; driveApp: boolean; fingerprint: string | null; keyDate: string | null; keyState: "ok" | "missing" | "unreadable";
-  settings: { schedule: string; retention: number; files: "server" | "gdrive" }; flash: string | null; problems: string[];
+  settings: { schedule: string; retention: number; files: "server" | "gdrive"; every: number }; flash: string | null; problems: string[];
   canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean;
 }) {
   const toast = useToast();
@@ -101,7 +101,8 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
         </div>
         <div className={card}>
           <div className="font-semibold text-[15px]">Schedule & retention</div>
-          <label className="flex items-center justify-between gap-3 text-[13.5px]">Daily at<input type="time" value={s.schedule} onChange={(e) => setS({ ...s, schedule: e.target.value })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white" /></label>
+          <label className="flex items-center justify-between gap-3 text-[13.5px]">Back up<select value={s.every} onChange={(e) => setS({ ...s, every: Number(e.target.value) })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white">{[[24, "Once a day"], [6, "Every 6 hours"], [3, "Every 3 hours"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+          <label className="flex items-center justify-between gap-3 text-[13.5px]">{s.every === 24 ? "Daily at" : "Nightly at"}<input type="time" value={s.schedule} onChange={(e) => setS({ ...s, schedule: e.target.value })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white" /></label>
           <label className="flex items-center justify-between gap-3 text-[13.5px]">Keep backups for<select value={s.retention} onChange={(e) => setS({ ...s, retention: Number(e.target.value) })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white">{[[7, "7 days"], [30, "30 days"], [90, "90 days"], [365, "1 year"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
           <label className="flex items-center justify-between gap-3 text-[13.5px]" title="Invoice scans and other uploaded documents">Uploaded files<select value={s.files} onChange={(e) => {
             const v = e.target.value as "server" | "gdrive";
@@ -115,10 +116,10 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           }} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!driveApp && !connected && settings.files !== "gdrive"}>{connected || settings.files === "gdrive" ? "In Google Drive" : "In Google Drive (connect)"}</option></select></label>
           {s.files === "gdrive" ? <div className="text-[12px] text-faint -mt-1">New uploads go straight to {folder}/files. If Drive can’t be reached they wait on the server and move to Drive with the next backup.</div> : null}
           <div className="flex gap-2">
-            {s.schedule !== settings.schedule || s.retention !== settings.retention || s.files !== settings.files ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention, s.files); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
+            {s.schedule !== settings.schedule || s.retention !== settings.retention || s.files !== settings.files || s.every !== settings.every ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention, s.files, s.every); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
             <Button variant="primary" disabled={running} onClick={async () => { setRunning(true); const r = await backupNowAction(); setRunning(false); toast(r.ok ? `Backup verified · ${(r.data.size / 1048576).toFixed(2)} MB${r.data.drive ? " · saved in your Google Drive" : " · kept on this server until Drive is connected"}${r.data.note ? ". " + r.data.note : ""}` : r.error, r.ok ? (r.data.note ? "amber" : "green") : "red"); }}>{running ? "Backing up…" : "Back up now"}</Button>
           </div>
-          <div className="text-[12px] text-faint">{hostCron ? "On this hosting the scheduled backup runs once a day at about 03:00 India time, whatever time is set here. If it fails, use Back up now." : "Times are India time. A failed scheduled backup is retried up to 2 more times that day, at least 30 minutes apart."}</div>
+          <div className="text-[12px] text-faint">{s.every !== 24 ? `Besides the nightly backup, a new one starts every ${s.every} hours while anyone is using Medoro. ` : ""}{hostCron ? "On this hosting the nightly backup runs at about 03:00 India time, whatever time is set here. If it fails, use Back up now." : "Times are India time. A failed scheduled backup is retried up to 2 more times that day, at least 30 minutes apart."}</div>
         </div>
       </div>
       {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">Snapshot → encrypt → write → verify{connected ? " → upload" : ""}… <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}

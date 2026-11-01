@@ -16,10 +16,10 @@ const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "nume
 const inp = "border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none bg-white focus:border-teal focus:ring-2 focus:ring-teal/15 w-full";
 
 /** New server: restore the pharmacy from a backup file or Google Drive, opened with the recovery kit. */
-export function RestoreSetup({ driveApp, driveAccount, onBack }: { driveApp: boolean; driveAccount: string | null; onBack: () => void }) {
+export function RestoreSetup({ driveApp, driveAccount, onBack, signup = false }: { driveApp: boolean; driveAccount: string | null; onBack: () => void; signup?: boolean }) {
   const router = useRouter();
   const drive = useSetupDrive(driveAccount);
-  const [source, setSource] = useState<"file" | "drive">(driveAccount ? "drive" : "file");
+  const [source, setSource] = useState<"file" | "drive">(driveAccount || (signup && driveApp) ? "drive" : "file");
   const [file, setFile] = useState<File | null>(null);
   const [list, setList] = useState<DriveFile[] | null>(null);
   const [pick, setPick] = useState("");
@@ -63,7 +63,7 @@ export function RestoreSetup({ driveApp, driveAccount, onBack }: { driveApp: boo
   return (
     <div className="w-[min(860px,100%)] bg-white border border-[#E3E6E9] rounded-[14px] px-7 py-[26px] flex flex-col gap-4">
       <div className="text-[19px] font-semibold">Restore from a backup</div>
-      <div className="text-[13.5px] text-muted -mt-2">Moving to a new server, or the old one was lost? Bring your pharmacy back from a Medoro backup (.mdrbak) and the recovery kit you printed at setup. The backup is loaded into a test copy and checked before anything is kept.</div>
+      <div className="text-[13.5px] text-muted -mt-2">{signup ? "Used Medoro before? Like WhatsApp, bring your pharmacy back from its backup in your Google Drive: connect the same Google account, pick the backup, and enter the recovery kit you saved when you created the account. It’s checked in a test copy before anything is kept." : "Moving to a new server, or the old one was lost? Bring your pharmacy back from a Medoro backup (.mdrbak) and the recovery kit you printed at setup. The backup is loaded into a test copy and checked before anything is kept."}</div>
       <div className="flex gap-2">
         {(["file", "drive"] as const).map((s) => (
           <button key={s} type="button" onClick={() => { setSource(s); reset(); }} className="flex items-center gap-2 rounded-[10px] px-3.5 py-2.5 text-[13.5px] cursor-pointer"
@@ -118,7 +118,7 @@ export function RestoreSetup({ driveApp, driveAccount, onBack }: { driveApp: boo
       ) : null}
       {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
       <div className="flex justify-between gap-2.5 pt-1">
-        <Button onClick={onBack} disabled={busy}>Set up a new pharmacy instead</Button>
+        <Button onClick={onBack} disabled={busy}>{signup ? "Create a new account instead" : "Set up a new pharmacy instead"}</Button>
         {preview
           ? <Button variant="primary" onClick={restore} disabled={busy || code.trim().toUpperCase() !== preview.code.toUpperCase()}>{busy ? "Restoring…" : "Restore"}</Button>
           : <Button variant="primary" onClick={check} disabled={busy || !ready}>{busy ? "Decrypting…" : "Check backup"}</Button>}
