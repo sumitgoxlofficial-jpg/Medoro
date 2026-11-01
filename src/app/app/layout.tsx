@@ -30,6 +30,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (support.unread) badges.help = [support.unread, "amber"];
   if (asks.length) { badges.privacy = [asks.length, "amber"]; alerts.unshift("Medoro support asked for access to your data. Approve or decline under Privacy & data."); }
   const banner = subscriptionBanner(access);
+  const del = (tenant.settings as { deletion?: { scheduledFor?: string } }).deletion?.scheduledFor;
+  const deletionOn = del ? new Date(del).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : null;
   const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;
   const deployment = { cloud: "Your cloud", onprem: "On-premises", lan: "Shop LAN", hosted: "Hosted PostgreSQL", single: "Single device" }[((tenant.settings as { deployment?: string }).deployment ?? "lan") as "lan"] ?? "Self-hosted";
   return (
@@ -39,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       branchId={ctx.branchId} branchName={ctx.branchName} branches={ctx.branches} lang={ctx.lang} mfa={user.mfaEnabled}
       deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts} ai={{ enabled: ai.enabled, globalOff: ai.globalOff, mode: ai.mode, canManage: ai.canManage }} supportUntil={ctx.readOnly && supportEnd ? hm(supportEnd) : null}
       subscription={banner ? { ...banner, renew: ctx.perms.includes("users") } : null}
+      deletionOn={deletionOn}
     >
       {children}
     </Shell>
