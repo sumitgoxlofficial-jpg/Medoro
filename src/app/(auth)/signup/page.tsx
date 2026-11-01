@@ -9,24 +9,35 @@ export const metadata = { title: "Create your pharmacy account" };
 export const dynamic = "force-dynamic";
 
 /** Self-service sign-up on a hosted multi-pharmacy server. Only when PUBLIC_SIGNUP=1. */
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ with?: string }> }) {
   if (!signupOpen()) notFound();
   if (await readSession()) redirect("/app");
   // Arrived from "Continue with Google" with no account yet: the owner account uses that Google identity.
   const g = await readPendingSignup();
   const google = g ? { name: g.name ?? "", email: g.email } : null;
+  // Google first: the pharmacy form opens after Google (name and email filled in), or when they choose email instead.
+  const choose = !google && googleLoginConfigured() && (await searchParams).with !== "email";
   return (
     <div className="flex flex-col items-center gap-4 w-full">
       <div className="text-center flex flex-col gap-1.5 max-w-[560px]">
         <h1 className="m-0 text-[24px] font-bold">Create your pharmacy account</h1>
         <p className="m-0 text-[14px] text-muted">7-day free trial, no card needed. Already have an account? <Link href="/signin" className="text-teal font-semibold">Sign in</Link></p>
       </div>
-      {!google && googleLoginConfigured() ? (
-        <a href="/api/auth/google/start" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] px-5 text-[14px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink w-[min(420px,100%)]">
-          <GoogleMark />Continue with Google
-        </a>
-      ) : null}
-      <Wizard deployment="cloud" signup google={google} />
+      {choose ? (
+        <div className="bg-white border border-[#E3E6E9] rounded-[14px] p-7 flex flex-col gap-3.5 w-[min(420px,100%)]">
+          <a href="/api/auth/google/start" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-3 px-5 text-[15px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink">
+            <GoogleMark />Continue with Google
+          </a>
+          <div className="text-[13px] text-muted text-center">Your name and email come from Google, so there’s no password to remember. Next you add your pharmacy details.</div>
+          <div className="flex items-center gap-3 text-[12px] text-faint"><span className="flex-1 h-px bg-line" />or<span className="flex-1 h-px bg-line" /></div>
+          <Link href="/signup?with=email" className="text-center text-[14px] font-semibold text-teal min-h-10 inline-flex items-center justify-center">Sign up with email instead</Link>
+        </div>
+      ) : (
+        <>
+          {google ? <div className="text-[13.5px] text-ink-2 bg-white border border-line rounded-lg px-4 py-2.5">Signed in with Google as <strong>{google.email}</strong>. Now add your pharmacy details.</div> : null}
+          <Wizard deployment="cloud" signup google={google} />
+        </>
+      )}
     </div>
   );
 }
