@@ -195,7 +195,12 @@ async function deviceInfo() {
   if (est?.quota) post("info", { key: "Free browser storage", value: `${(est.quota / 1073741824).toFixed(1)} GB` });
 }
 
+// A dedicated worker only receives messages from the page that created it (same origin), so there is no
+// sender origin to check; we still accept only the expected shape and sane sizes.
+const okSize = (n) => Number.isInteger(n) && n > 0 && n <= 500_000;
 self.onmessage = async ({ data }) => {
+  const s = data?.size;
+  if (!s || !okSize(s.medicines) || !okSize(s.sales) || !okSize(s.lines) || (data.token != null && typeof data.token !== "string")) return;
   const total = now();
   try {
     await deviceInfo();
