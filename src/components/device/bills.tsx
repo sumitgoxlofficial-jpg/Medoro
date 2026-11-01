@@ -86,6 +86,7 @@ function DayEnd({ rep }: { rep: DayReport; cfg: Cfg }) {
         <div className="flex justify-between"><span>Returns</span><span>{rep.returns.count}</span></div>
         {row("Refunded in cash", rep.returns.cash)}{row("Refunded by UPI", rep.returns.upi)}{row("Credited to accounts", rep.returns.credit)}
         {row("Received from credit customers (cash)", rep.receipts.cash)}{rep.receipts.upi ? row("Received from credit customers (UPI)", rep.receipts.upi) : null}
+        {rep.paidOut.suppliers ? row("Paid to suppliers (cash)", rep.paidOut.suppliers) : null}{rep.paidOut.expenses ? row("Expenses (cash)", rep.paidOut.expenses) : null}
         {row("Cash in drawer from today", rep.cashInHandPaise, true)}
         {rep.purchases.count ? row(`Purchases entered (${rep.purchases.count})`, rep.purchases.totalPaise) : null}
       </div>

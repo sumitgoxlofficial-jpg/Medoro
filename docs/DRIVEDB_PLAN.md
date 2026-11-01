@@ -273,6 +273,16 @@ working with me; they overlap a little.
   staff browsers). Browser tests use an in-memory Drive on the test server (`E2E_FAKE_DRIVE`, refused on Vercel).
 - Not done yet: instant push between counters (now ~5 s polling), a "stock went below zero" task for the owner.
 
+### Phase 5 progress (slice 1 built: accounts, reports, GST)
+- `src/drivedb/books.ts` (migration 4: `supplierPayment`, `expense`): supplier dues and ledger, paying suppliers
+  (never more than owed), shop expenses, the day's cash book; day-end cash in drawer now subtracts cash paid to
+  suppliers and cash expenses.
+- Reports: sales by day with gross profit (net of returns), best sellers, stock expiring within 90 days; CSV.
+- GST from the device: GSTR-1 (offline-tool JSON + CSV), GSTR-3B (JSON + CSV, ITC from purchase bills: CGST/SGST
+  same state, IGST other states) and the HSN summary, built with the server's own builders (`src/domain/gst`).
+- Screens: **Accounts** and **Reports & GST** tabs. Tests: `books.test.ts`, `e2e/22-device-books.spec.ts`.
+- Next slices: delivery orders, loyalty and campaigns, recalls and branch transfers, audit log, AI assistant.
+
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
 - Token broker endpoint on the server; data key + recovery kit wrapping + device keys.

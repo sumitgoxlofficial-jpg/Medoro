@@ -5,6 +5,7 @@ import { Clock, parseHlc } from "./hlc";
 import { TABLES, SCHEMA_VERSION } from "./schema";
 import { addMedicine, batchesOf, createSale, dayTotals, receiveStock, searchMedicines, stockOf, CounterError } from "./pharmacy";
 import { cartTotals } from "@/lib/money";
+import { todayISO } from "@/lib/dates";
 
 const B = "branch-main", U = "user-1", TODAY = "2026-11-01";
 let db: DriveDB;
@@ -132,7 +133,8 @@ describe("pharmacy on the device", () => {
     const next = createSale(db, { branchId: B, series: "MAIN1", userId: U, lines: [{ medicineId: m.id, qty: 1 }], pay: { mode: "upi", ref: "UTR1" } }, TODAY);
     expect(next.invoiceNo).toBe("MAIN12627-000002");
     expect(db.from("payment").eq("saleId", next.saleId).first()).toMatchObject({ mode: "upi", ref: "UTR1" });
-    expect(dayTotals(db, B, TODAY)).toMatchObject({ bills: 2, totalPaise: r.totalPaise + next.totalPaise });
+    // Bills carry the real time, so the day's totals are for today in India, whatever date the rules ran for.
+    expect(dayTotals(db, B, todayISO())).toMatchObject({ bills: 2, totalPaise: r.totalPaise + next.totalPaise });
   });
 
   it("writes the bill, its lines, payments and stock movements as change records", () => {

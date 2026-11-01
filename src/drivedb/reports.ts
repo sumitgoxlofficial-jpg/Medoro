@@ -58,14 +58,19 @@ export function dayReport(db: DriveDB, branchId: string, iso = todayISO()) {
   const receipts = Object.fromEntries(received.map((r) => [r.mode, n(r.amount)])) as Record<string, number>;
   const returns = db.engine.all<{ count: number }>("SELECT COUNT(*) AS count FROM salesReturn WHERE branchId = ? AND at >= ? AND at < ?", [branchId, from, to])[0];
   const purchases = db.engine.all<{ count: number; total: number }>("SELECT COUNT(*) AS count, COALESCE(SUM(totalPaise), 0) AS total FROM purchase WHERE branchId = ? AND at >= ? AND at < ?", [branchId, from, to])[0];
+  const cashOut = db.engine.all<{ suppliers: number; expenses: number }>(
+    `SELECT (SELECT COALESCE(SUM(amountPaise), 0) FROM supplierPayment WHERE mode = 'cash' AND at >= ?2 AND at < ?3) AS suppliers,
+            (SELECT COALESCE(SUM(amountPaise), 0) FROM expense WHERE mode = 'cash' AND branchId = ?1 AND at >= ?2 AND at < ?3) AS expenses`, [branchId, from, to])[0];
   const m = (o: Record<string, number>, k: string) => o[k] ?? 0;
   return {
     date: iso, bills: n(sales.bills), totalPaise: n(sales.total), taxPaise: n(sales.tax), discountPaise: n(sales.discount),
     byMode: { cash: m(pay, "cash"), upi: m(pay, "upi"), card: m(pay, "card"), credit: m(pay, "credit") },
     returns: { count: n(returns.count), cash: m(refunds, "cash"), upi: m(refunds, "upi"), credit: m(refunds, "credit") },
     receipts: { cash: m(receipts, "cash"), upi: m(receipts, "upi"), card: m(receipts, "card") },
-    /** Cash that should be in the drawer from today's work: cash bills + cash received from credit customers − cash refunds. */
-    cashInHandPaise: m(pay, "cash") + m(receipts, "cash") - m(refunds, "cash"),
+    /** Cash paid out of the drawer: to suppliers and for expenses. */
+    paidOut: { suppliers: n(cashOut.suppliers), expenses: n(cashOut.expenses) },
+    /** Cash that should be in the drawer from today's work: cash bills + cash received − cash refunds − cash paid out. */
+    cashInHandPaise: m(pay, "cash") + m(receipts, "cash") - m(refunds, "cash") - n(cashOut.suppliers) - n(cashOut.expenses),
     purchases: { count: n(purchases.count), totalPaise: n(purchases.total) },
   };
 }
