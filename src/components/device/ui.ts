@@ -5,8 +5,13 @@ export const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rg
 export const input = "border border-line rounded-lg px-3 h-9 text-sm w-full bg-white";
 export const label = "flex flex-col gap-1 text-[13px] text-muted";
 export type Cfg = CounterConfig;
+export type PayLinkInput = { customerId: string; saleId?: string | null; customerName: string; phone?: string | null; amountPaise: number; label?: string };
 /** Who is billing on this device: the signed-in user online, or the device's saved user offline. */
-export type Who = { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number };
+export type Who = {
+  userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number;
+  /** When the pharmacy takes online payments (signed in, Razorpay connected): makes a payment link through Medoro. */
+  payLink?: (i: PayLinkInput) => Promise<{ ok: true; data: { url: string } } | { ok: false; error: string }>;
+};
 export const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Rupees typed by a person ("32.50") to paise. */
 export const toPaise = (s: string) => Math.round(Number(s.replace(/[^\d.]/g, "")) * 100) || 0;

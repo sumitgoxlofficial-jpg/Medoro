@@ -15,7 +15,8 @@ import * as sync from "./sync";
 import * as move from "./migrate-in";
 import type { MoveBase, MovePart } from "@/domain/system/drive-move";
 import type { DriveStore } from "./drive";
-import { relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
+import { relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
+import * as inbox from "./inbox";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -107,7 +108,25 @@ async function syncNow(forceSnapshot = false) {
     state.lastError = e instanceof Error ? e.message : String(e);
   } finally { state.busy = false; }
   void report();
+  void pickUpPayments();
   return state;
+}
+
+/** Customer payments that arrived while no counter was online: record them as receipts, then Medoro deletes them. */
+let lastPickUp = 0;
+async function pickUpPayments() {
+  if (!db || access?.status !== "approved" || Date.now() - lastPickUp < 30_000) return;
+  lastPickUp = Date.now();
+  try {
+    const box = relayInbox(deviceName);
+    const waiting = await box.list();
+    if (!waiting.length) return;
+    const mine = await keys.get();
+    if (!mine) return;
+    const opened: inbox.InboxPayment[] = [];
+    for (const w of waiting) { try { opened.push(await inbox.openForDevice(mine.privateKey, w.sealed)); } catch { /* sealed for an older key of this device */ } }
+    await box.ack(inbox.applyPayments(db, opened));
+  } catch { /* offline: next time */ }
 }
 
 /** Sends the sync result to Medoro when it changes, and a "still fine" at most every 10 minutes. */

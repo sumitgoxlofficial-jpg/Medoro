@@ -296,6 +296,22 @@ working with me; they overlap a little.
 - Left for phase 5: the AI assistant (needs a small server gateway that receives only the question and the few
   rows needed), bulk WhatsApp campaigns (need the WhatsApp Business API on the server).
 
+### Phase 6 progress (slice 1 built: customer payments by link, with an offline inbox)
+- The owner connects the pharmacy's **own Razorpay account** on the counter (Counter → Online payments; keys checked
+  with Razorpay, then sealed in `Integration` kind `razorpay_pay`) and adds the pharmacy's webhook URL
+  (`/api/razorpay/pay/<tenant id>`, event `payment_link.paid`) in Razorpay.
+- **Pay link**: on Customers, for anyone who owes money, the counter asks Medoro for a Razorpay payment link
+  (`createPayLink`: Medoro forwards to Razorpay and keeps nothing) and opens WhatsApp with the reminder and link.
+- **Offline inbox**: when the customer pays, Razorpay calls Medoro, which checks the pharmacy's webhook secret and
+  seals the payment for each approved device with that device's public key (`src/drivedb/inbox.ts`: AES-GCM with
+  an RSA-OAEP wrapped key) in `PaymentInbox` (migration `20261109000000_payment_inbox`). The first counter online
+  picks it up through the relay (`op=inbox`), records a UPI receipt on the customer's account (same receipt id on
+  every counter, so it is never counted twice) and acknowledges it (`op=inbox-ack`): every copy is deleted.
+- Tests: `src/drivedb/inbox.test.ts`, `tests/integration/customer-pay.test.ts` (paid while offline → recorded →
+  deleted; bad signatures and foreign links refused).
+- Left for phase 6: the AI assistant gateway, the e-invoice (IRN) gateway, and sending bills through the WhatsApp
+  Business API (counters already share bills and reminders on WhatsApp with no server, via wa.me).
+
 ### Phase 7 progress (slice 1 built: the move, checks, read-only copy, undo)
 - Server `src/domain/system/drive-move.ts`: `startMove` freezes Medoro's copy (`tenant.settings.driveMove`;
   `Ctx.moved` refuses every business change with `MovedToDriveError`, and the app shows a notice), `moveExport`

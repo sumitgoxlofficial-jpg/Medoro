@@ -10,17 +10,21 @@ import { card, input, errText, type Cfg, type Who } from "@/components/device/ui
 import { deviceSeedAction } from "../lab/actions";
 import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
+import { PaymentsPanel } from "./payments-panel";
+import { payLinkAction, payStatusAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean }) {
   const conn = useDriveConnect(drive);
-  const who: Who = { userId, userName, owner, canCredit, discCap };
+  const [paying, setPaying] = useState(false);
+  useEffect(() => { void payStatusAction().then((r) => setPaying(r.ok && r.data.connected), () => {}); }, []);
+  const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined };
   return (
     <DeviceApp
       who={who}
       empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} />}
       side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
-      settingsExtra={owner && drive ? <DevicesPanel /> : null}
+      settingsExtra={owner && drive ? <><DevicesPanel /><PaymentsPanel onChange={setPaying} /></> : null}
     />
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { ackInbox, inboxFor } from "./customer-pay";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
@@ -138,6 +139,11 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
       const f = await byName();
       if (f) await store.remove(f.id);
       return { ok: true };
+    }
+    case "inbox": return { payments: await inboxFor(ctx.tenantId, device.deviceId) };
+    case "inbox-ack": {
+      const ids = (p.get("ids") ?? "").split(",").filter(Boolean);
+      return { deleted: await ackInbox(ctx.tenantId, ids) };
     }
     case "health": {
       // The device's own report after a sync: worked, or the error text. No data, only for the owner's alerts.
