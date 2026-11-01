@@ -319,7 +319,7 @@ describe("account recovery, providers and Google sign-in", () => {
 
     // Sign-up with email: the address is confirmed with a code before the pharmacy can be created.
     jar.clear();
-    const form = (email: string, code: string) => ({
+    const form = (email: string, code: string): Parameters<typeof signupAction>[0] => ({
       pharmacy: { name: "Email Owner Medicals", code, gstin: "", dl: "MH-9998", pharmacist: "", address: "Bokaro", lang: "en" },
       owner: { name: "Email Owner", email, phone: "9822000078", password: "email-owner-pw-1" },
       branches: [{ name: "Main branch", counters: 1 }], invites: [], backupKey: "C".repeat(43), kitAck: true, agree: true,
