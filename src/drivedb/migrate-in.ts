@@ -8,7 +8,7 @@ import { seriesFor } from "./seed";
 import { customerBalance } from "./trade";
 import { supplierDues } from "./books";
 import { validSeries } from "@/lib/docno";
-import type { MoveBase, MovePart } from "@/domain/system/drive-move";
+import type { MoneyRow, MoveBase, MovePart } from "@/domain/system/drive-move";
 
 type Row = Record<string, string | number | boolean | null>;
 export type MoveCheck = { name: string; ok: boolean; expected: number; got: number; detail?: string };
@@ -32,7 +32,7 @@ export function beginMove(db: DriveDB, base: MoveBase) {
   });
 }
 
-/** Step 2: one page of a part, as moveExport returned it. Parts must come in order: sales, returns, purchases, movements, loyalty. */
+/** Step 2: one page of a part, as moveExport returned it. Parts must come in order: sales, returns, purchases, movements, loyalty, money. */
 export function importPart(db: DriveDB, part: Exclude<MovePart, "base">, rows: unknown[]) {
   if (!moveInProgress(db)) throw new CounterError("Start the move again.");
   if (!rows.length) return 0;
@@ -62,6 +62,12 @@ export function importPart(db: DriveDB, part: Exclude<MovePart, "base">, rows: u
       }
       case "movements": db.from("stockMovement").insert(rows as Row[]); break;
       case "loyalty": db.from("loyaltyLedger").insert(rows as Row[]); break;
+      case "money": {
+        const list = rows as MoneyRow[];
+        const of = (k: MoneyRow["kind"]) => list.filter((r) => r.kind === k).map((r) => r.row as Row);
+        for (const [kind, table] of [["receipt", "customerReceipt"], ["payment", "supplierPayment"], ["expense", "expense"]] as const) { const r = of(kind); if (r.length) db.from(table).insert(r); }
+        break;
+      }
       default: throw new CounterError("Unknown part.");
     }
   });
@@ -120,6 +126,7 @@ export function verifyMove(db: DriveDB, summary: MoveBase["summary"]): MoveResul
     ["Sales total", summary.totals.salesPaise, "SELECT COALESCE(SUM(totalPaise), 0) AS v FROM sale"],
     ["Returns total", summary.totals.returnsPaise, "SELECT COALESCE(SUM(amountPaise), 0) AS v FROM salesReturn"],
     ["Purchases total", summary.totals.purchasesPaise, "SELECT COALESCE(SUM(totalPaise), 0) AS v FROM purchase"],
+    ["Expenses total", summary.totals.expensesPaise, "SELECT COALESCE(SUM(amountPaise), 0) AS v FROM expense"],
   ];
   for (const [name, expected, sql] of totals) { const got = one(sql); checks.push({ name, ok: got === expected, expected, got }); }
 

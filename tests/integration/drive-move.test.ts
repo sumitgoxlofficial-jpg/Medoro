@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
@@ -9,7 +9,9 @@ import { postGrnTx } from "@/domain/purchasing/service";
 import { paySupplier, receiveFromCustomer, saveCustomer, saveSupplier } from "@/domain/parties/service";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
 import { setDriveMode } from "@/domain/system/drive-mode";
-import { completeMove, MOVE_PARTS, moveExport, moveStatus, startMove, undoMove, type MoveBase } from "@/domain/system/drive-move";
+import { recordExpense, reverseVoucher } from "@/domain/accounting/service";
+import { relayStore } from "@/domain/system/gdrive";
+import { completeMove, deleteMedoroCopy, MOVE_PARTS, moveExport, moveStatus, startMove, undoMove, type MoveBase } from "@/domain/system/drive-move";
 import { memoryDb } from "@/drivedb/node";
 import { beginMove, finishMove, importPart, verifyMove } from "@/drivedb/migrate-in";
 import { counterConfig } from "@/drivedb/seed";
@@ -50,7 +52,14 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     await processReturn(ctx, { saleId: cashSale.saleId, lines: [{ itemId: ki.id, qty: 3 }], condition: "damaged", refundMode: "Cash", reason: "Broken strip" });
     await processReturn(ctx, { saleId: cashSale.saleId, lines: [{ itemId: ki.id, qty: 2 }], condition: "sealed", refundMode: "Cash", reason: "Extra" });
     await receiveFromCustomer(ctx, { partyId: cust, amount: "200", method: "Cash" });
+    // A receipt entered by mistake and reversed: neither side moves.
+    const wrong = await receiveFromCustomer(ctx, { partyId: cust, amount: "100", method: "UPI" });
+    await reverseVoucher(ctx, (await db.voucher.findFirstOrThrow({ where: { no: wrong } })).id, "Entered twice");
+    await recordExpense(ctx, { account: "Rent", amount: "1000", method: "Cash", note: "November" });
+    await recordExpense(ctx, { account: "Electricity", amount: "300", method: "UPI" });
   });
+  const prevFake = process.env.E2E_FAKE_DRIVE;
+  afterAll(() => { if (prevFake === undefined) delete process.env.E2E_FAKE_DRIVE; else process.env.E2E_FAKE_DRIVE = prevFake; });
 
   async function exportAll(ctx: Awaited<ReturnType<typeof ctxFor>>) {
     const base = (await moveExport(ctx, "base")) as MoveBase;
@@ -94,6 +103,12 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     for (const b of await db.batch.findMany({ where: { tenantId: t } })) expect(stockOf(dev, b.medicineId, b.branchId)).toBeGreaterThanOrEqual(0);
     const onHand = (await db.batch.findMany({ where: { tenantId: t, medicineId: med, branchId: ctx.branchId } })).reduce((a, b) => a + b.qtyAvailable, 0);
     expect(stockOf(dev, med, ctx.branchId)).toBe(onHand);
+    // Money received, paid and spent comes across entry by entry (the reversed receipt doesn't).
+    const receipts = dev.engine.all<{ amountPaise: number; mode: string; ref: string }>("SELECT amountPaise, mode, ref FROM customerReceipt WHERE ref NOT LIKE 'Opening%'");
+    expect(receipts.map((r) => [r.amountPaise, r.mode])).toEqual([[20000, "cash"]]);
+    expect(dev.engine.all<{ amountPaise: number; mode: string }>("SELECT amountPaise, mode FROM supplierPayment WHERE ref NOT LIKE 'Opening%'").map((r) => [r.amountPaise, r.mode])).toEqual([[50000, "cash"]]);
+    expect(dev.engine.all<{ category: string; amountPaise: number; mode: string; note: string | null }>("SELECT category, amountPaise, mode, note FROM expense ORDER BY amountPaise DESC"))
+      .toEqual([{ category: "Rent", amountPaise: 100000, mode: "cash", note: "November" }, { category: "Electricity", amountPaise: 30000, mode: "upi", note: null }]);
     // GST returns are built from the moved bills and credit notes.
     const gstin = base.settings.pharmacy.gstin || "27AAPFU0939F1ZV";
     const g = gstReturns(dev, todayISO().slice(0, 7), gstin);
@@ -146,5 +161,38 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...s, driveMove: { ...s.driveMove, movedAt: new Date(Date.now() - 8 * 86400_000).toISOString() } } } });
     expect(await moveStatus(ctx)).toMatchObject({ canUndo: false });
     await expect(undoMove(ctx)).rejects.toThrow(/within 7 days/);
+  });
+
+  it("deletes Medoro's copy only when the owner confirms and Drive holds a copy saved after the move", async () => {
+    process.env.E2E_FAKE_DRIVE = "1"; delete process.env.VERCEL;
+    const ctx = await ctxFor();
+    const t = ctx.tenantId;
+    await db.tenant.update({ where: { id: t }, data: { settings: { ...((await db.tenant.findUniqueOrThrow({ where: { id: t } })).settings as object), driveMove: { state: "moved", startedAt: new Date().toISOString(), by: "Owner", movedAt: new Date(Date.now() - 60_000).toISOString() } } } });
+    const { code } = await db.tenant.findUniqueOrThrow({ where: { id: t } });
+    await expect(deleteMedoroCopy(await ctxFor("Manager"), { code })).rejects.toThrow(/role|owner/);
+    await expect(deleteMedoroCopy(ctx, { code: "WRONG" })).rejects.toThrow(/pharmacy code/);
+    await expect(deleteMedoroCopy(ctx, { code })).rejects.toThrow(/no full copy/);
+    const store = relayStore(t);
+    const manifest = (at: Date) => Buffer.from(JSON.stringify({ v: 2, schema: 6, snapshotAt: at.toISOString(), device: "DMOVE01", bytes: 1, cursors: {}, pruned: {} }));
+    await store.write("pharmacy.db.enc", Buffer.from("sealed"));
+    await store.write("manifest.json", manifest(new Date(Date.now() - 3600_000))); // saved before the move: not enough
+    await expect(deleteMedoroCopy(ctx, { code })).rejects.toThrow(/no full copy/);
+    await store.write("manifest.json", manifest(new Date())); // replaces by name
+
+    const before = await db.sale.count({ where: { tenantId: t } });
+    expect(before).toBeGreaterThan(0);
+    const r = await deleteMedoroCopy(ctx, { code: code.toLowerCase() });
+    expect(r.rows).toBeGreaterThan(before);
+    for (const n of await Promise.all([db.sale.count({ where: { tenantId: t } }), db.batch.count({ where: { tenantId: t } }), db.medicine.count({ where: { tenantId: t } }),
+      db.customer.count({ where: { tenantId: t } }), db.supplier.count({ where: { tenantId: t } }), db.voucher.count({ where: { tenantId: t } }), db.stockMovement.count({ where: { tenantId: t } }),
+      db.loyaltyLedger.count({ where: { tenantId: t } }), db.grn.count({ where: { tenantId: t } }), db.salesReturn.count({ where: { tenantId: t } })])) expect(n).toBe(0);
+    // The account stays: sign-in, staff, branches, and the record of what happened.
+    expect(await db.user.count({ where: { tenantId: t } })).toBeGreaterThan(0);
+    expect(await db.branch.count({ where: { tenantId: t } })).toBeGreaterThan(0);
+    expect(await db.auditEvent.count({ where: { tenantId: t, action: "Medoro’s copy deleted" } })).toBe(1);
+    expect(await moveStatus(ctx)).toMatchObject({ state: "purged", canUndo: false });
+    await expect(undoMove(ctx)).rejects.toThrow();
+    await expect(startMove(ctx)).rejects.toThrow(/already moved/);
+    await expect(deleteMedoroCopy(ctx, { code })).rejects.toThrow(/already deleted/);
   });
 });
