@@ -13,7 +13,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_TAURI_SIGNER_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE2M0NDMkZBMDc5MUI5RTkKUldUcHVaRUgrc0k4cG0vcGFHWVlVTkNTcEtOcHZ0VUo3Nk03YTdvdUtGcGJEQUFpQlhXWVhkZ0MK",
       "endpoints": ["https://github.com/sumitgoxlofficial-jpg/Medoro/releases/latest/download/latest.json"],
       "windows": { "installMode": "passive" }
     }
