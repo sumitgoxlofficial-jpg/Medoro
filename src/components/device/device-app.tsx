@@ -12,11 +12,12 @@ import { Customers } from "./customers";
 import { Accounts } from "./accounts";
 import { ReportsGst } from "./reports-gst";
 import { Orders } from "./orders";
+import { Activity } from "./activity";
 import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
-const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["orders", "Orders"], ["customers", "Customers"], ["accounts", "Accounts"], ["reports", "Reports & GST"], ["settings", "Counter"]] as const;
+const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["orders", "Orders"], ["customers", "Customers"], ["accounts", "Accounts"], ["reports", "Reports & GST"], ["activity", "Activity"], ["settings", "Counter"]] as const;
 type Tab = (typeof TABS)[number][0];
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
@@ -93,7 +94,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
-        {TABS.filter(([k]) => k !== "settings" || online?.owner).map(([k, name]) => (
+        {TABS.filter(([k]) => (k !== "settings" && k !== "activity") || online?.owner).map(([k, name]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{name}</button>
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">Lock</button>}
@@ -103,7 +104,8 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
       {tab === "stock" && <Stock cfg={cfg} owner={who.owner} userId={who.userId} refresh={tick} />}
       {tab === "purchases" && <Purchases cfg={cfg} who={who} onSaved={bump} />}
       {tab === "orders" && <Orders cfg={cfg} who={who} onBilled={bump} />}
-      {tab === "customers" && <Customers who={who} refresh={tick} />}
+      {tab === "customers" && <Customers who={who} refresh={tick} pharmacy={cfg.pharmacy} />}
+      {tab === "activity" && online?.owner && <Activity refresh={tick} />}
       {tab === "accounts" && <Accounts cfg={cfg} who={who} refresh={tick} />}
       {tab === "reports" && <ReportsGst cfg={cfg} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}

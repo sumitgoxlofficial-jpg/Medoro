@@ -12,13 +12,16 @@ export type Seed = {
   pharmacy?: Pharmacy;
   userName?: string;
   loyalty?: { enabled: boolean; earnPer100: number; pointValuePaise: number; minRedeem: number };
+  /** Every branch (for transfers) and every user's name (for the activity log). */
+  branches?: { id: string; name: string; code: string }[];
+  users?: { id: string; name: string }[];
   maxDiscountPct: number;
   medicines: Record<string, string | number | boolean | null>[];
   batches: { id: string; medicineId: string; batchNo: string; expiryDate: string; costPaise: number; mrpPaise: number; status: string; qty: number }[];
   customers: { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number }[];
 };
 
-export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty };
+export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty; branches: { id: string; name: string; code: string }[] };
 
 /** A counter series for this device: "D" + 4 letters/digits from its id, e.g. DK3F9 (fits the GST 16-character limit). */
 export const seriesFor = (device: string) => ("D" + device.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(-4)).padEnd(5, "0");
@@ -41,6 +44,8 @@ export function importSeed(db: DriveDB, seed: Seed, userId: string): CounterConf
     db.setMeta("maxDiscountPct", String(seed.maxDiscountPct));
     if (seed.pharmacy) db.setMeta("pharmacy", JSON.stringify(seed.pharmacy));
     if (seed.loyalty) db.setMeta("loyalty", JSON.stringify(seed.loyalty));
+    if (seed.branches) db.setMeta("branches", JSON.stringify(seed.branches));
+    if (seed.users) db.setMeta("users", JSON.stringify(seed.users));
     db.setMeta("userId", userId);
     db.setMeta("userName", seed.userName ?? "Owner");
   });
@@ -55,6 +60,7 @@ export function counterConfig(db: DriveDB): CounterConfig | null {
   return {
     branchId, series, branchName: db.getMeta("branchName") ?? "", maxDiscountPct: Number(db.getMeta("maxDiscountPct") ?? 100),
     pharmacy: ph ? (JSON.parse(ph) as Pharmacy) : null, userId: db.getMeta("userId"), userName: db.getMeta("userName") ?? "", pinSet: !!db.getMeta("pinHash"), loyalty: loyaltyOf(db),
+    branches: JSON.parse(db.getMeta("branches") ?? "[]"),
   };
 }
 

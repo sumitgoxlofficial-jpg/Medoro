@@ -120,3 +120,30 @@ export function customerList(db: DriveDB, text = "", limit = 100) {
 }
 
 export const supplierList = (db: DriveDB) => db.from<{ id: string; name: string; gstin: string | null; phone: string | null }>("supplier").select("id,name,gstin,phone").order("name").all();
+
+const KIND_LABEL: Record<string, string> = { adjust: "Stock corrected", count: "Stock count", transfer_out: "Sent to another branch", transfer_in: "Received from another branch" };
+
+/**
+ * Who did what, newest first: bills, credit notes, purchases, money received and paid, expenses, stock corrections,
+ * counts, transfers and delivery orders. Names come from the staff list copied with the catalogue.
+ */
+export function activityLog(db: DriveDB, opts: { limit?: number; text?: string } = {}) {
+  const names = new Map((JSON.parse(db.getMeta("users") ?? "[]") as { id: string; name: string }[]).map((u) => [u.id, u.name]));
+  const rows = db.engine.all<{ at: string; userId: string; kind: string; what: string; amount: number | null }>(
+    `SELECT at, userId, 'bill' AS kind, 'Bill ' || invoiceNo || COALESCE(' · ' || (SELECT name FROM customer c WHERE c.id = s.customerId), '') AS what, totalPaise AS amount FROM sale s
+     UNION ALL SELECT at, userId, 'return', 'Credit note ' || creditNoteNo || ' (' || reason || ')', -amountPaise FROM salesReturn
+     UNION ALL SELECT p.at, p.userId, 'purchase', 'Purchase bill ' || p.billNo || ' · ' || s.name, p.totalPaise FROM purchase p JOIN supplier s ON s.id = p.supplierId
+     UNION ALL SELECT r.at, r.userId, 'received', 'Received from ' || c.name || ' (' || r.mode || ')', r.amountPaise FROM customerReceipt r JOIN customer c ON c.id = r.customerId
+     UNION ALL SELECT x.at, x.userId, 'paid', 'Paid ' || s.name || ' (' || x.mode || ')', -x.amountPaise FROM supplierPayment x JOIN supplier s ON s.id = x.supplierId
+     UNION ALL SELECT at, userId, 'expense', category || COALESCE(' · ' || note, ''), -amountPaise FROM expense
+     UNION ALL SELECT m.at, m.userId, m.type, m.type || '|' || m.qty || ' · ' || md.name || ' (batch ' || b.batchNo || ')' || COALESCE(' · ' || m.refType, '') || COALESCE(' · ' || m.note, ''), NULL
+       FROM stockMovement m JOIN batch b ON b.id = m.batchId JOIN medicine md ON md.id = b.medicineId WHERE m.type IN ('adjust', 'count', 'transfer_out', 'transfer_in')
+     UNION ALL SELECT o.createdAt, '', 'order', 'Delivery order ' || o.orderNo || ' · ' || c.name || ' · ' || o.status, NULL FROM deliveryOrder o JOIN customer c ON c.id = o.customerId
+     ORDER BY 1 DESC LIMIT ?`, [Math.max(1, Math.min(1000, opts.limit ?? 200))]);
+  const q = (opts.text ?? "").trim().toLowerCase();
+  return rows.map((r) => {
+    const label = KIND_LABEL[r.kind];
+    const what = label ? `${label}: ${r.what.slice(r.what.indexOf("|") + 1)}` : r.what;
+    return { at: r.at, who: names.get(r.userId) ?? (r.userId ? "Staff" : ""), kind: r.kind, what, amountPaise: r.amount == null ? null : Number(r.amount) };
+  }).filter((r) => !q || r.what.toLowerCase().includes(q) || r.who.toLowerCase().includes(q));
+}

@@ -156,3 +156,36 @@ export function listOrders(db: DriveDB, branchId: string, showDone = false) {
     items: db.engine.all<{ name: string; qty: number; unit: string }>("SELECT m.name, i.qty, i.unit FROM deliveryOrderItem i JOIN medicine m ON m.id = i.medicineId WHERE i.orderId = ?", [r.id]),
   }));
 }
+
+// ---------- branch transfers ----------
+
+export const transferInput = z.object({
+  fromBranchId: z.string().min(1), toBranchId: z.string().min(1), batchId: z.string().min(1), userId: z.string().min(1),
+  /** Stock units. */
+  qty: z.number().int().min(1).max(10_000_000), note: z.string().trim().max(200).optional(),
+});
+
+/**
+ * Moves stock of one batch to another branch: out here, in there (the same batch number and expiry). The other
+ * branch's counters see it after their next sync.
+ */
+export function transferStock(db: DriveDB, input: z.input<typeof transferInput>) {
+  const t = transferInput.parse(input);
+  if (t.fromBranchId === t.toBranchId) throw new CounterError("Pick another branch to send the stock to.");
+  return db.transaction(() => {
+    const b = db.engine.all<{ id: string; medicineId: string; batchNo: string; expiryDate: string; costPaise: number; mrpPaise: number; status: string }>(
+      "SELECT id, medicineId, batchNo, expiryDate, costPaise, mrpPaise, status FROM batch WHERE id = ? AND branchId = ?", [t.batchId, t.fromBranchId])[0];
+    if (!b) throw new CounterError("Batch not found in this branch.");
+    if (b.status !== "ok") throw new CounterError("A blocked batch can’t be transferred. Release it first.");
+    const have = batchesOf(db, b.medicineId, t.fromBranchId).find((x) => x.id === b.id)!.qtyAvailable;
+    if (t.qty > have) throw new CounterError(`Only ${have} in this batch.`);
+    const there = db.from<{ id: string }>("batch").eq("branchId", t.toBranchId).eq("medicineId", b.medicineId).eq("batchNo", b.batchNo).first();
+    const toBatch = there?.id ?? db.from<{ id: string }>("batch").insert({ branchId: t.toBranchId, medicineId: b.medicineId, batchNo: b.batchNo, expiryDate: b.expiryDate, costPaise: b.costPaise, mrpPaise: b.mrpPaise, supplierId: null, status: "ok" })[0].id;
+    const transferId = globalThis.crypto.randomUUID(), at = now();
+    db.from("stockMovement").insert([
+      { branchId: t.fromBranchId, batchId: b.id, qty: -t.qty, type: "transfer_out", refType: "transfer", refId: transferId, userId: t.userId, at, note: t.note ?? null },
+      { branchId: t.toBranchId, batchId: toBatch, qty: t.qty, type: "transfer_in", refType: "transfer", refId: transferId, userId: t.userId, at, note: t.note ?? null },
+    ]);
+    return { transferId, toBatchId: toBatch, left: have - t.qty };
+  });
+}

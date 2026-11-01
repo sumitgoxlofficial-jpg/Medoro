@@ -39,13 +39,15 @@ export async function setDriveMode(ctx: Ctx, on: boolean) {
 export async function deviceSeed(ctx: Ctx) {
   ownerOnly(ctx, "copy the catalogue to a device");
   if (!(await driveModeOn(ctx.tenantId))) throw new UserError("Turn on Drive mode first.");
-  const [meds, batches, customers, branch, maxDiscountPct, loyalty] = await Promise.all([
+  const [meds, batches, customers, branch, maxDiscountPct, loyalty, branches, users] = await Promise.all([
     db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } } }),
     db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null } }),
     db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, select: { id: true, code: true, name: true, address: true, gstin: true, drugLicence: true, tenant: { select: { name: true, legalName: true, gstin: true, phone: true } } } }),
     maxDiscount(ctx.tenantId),
     loyaltySettings(ctx.tenantId),
+    db.branch.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { id: true, name: true, code: true }, orderBy: { createdAt: "asc" } }),
+    db.user.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true, name: true } }),
   ]);
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Catalogue copied to a device", entity: "tenant", entityId: ctx.tenantId, detail: `${meds.length} medicines, ${batches.length} batches, ${customers.length} customers (${branch.name})` });
   // What a printed bill needs, kept on the device so it can print with no network.
@@ -55,6 +57,7 @@ export async function deviceSeed(ctx: Ctx) {
   };
   return {
     branch: { id: branch.id, code: branch.code, name: branch.name }, pharmacy, maxDiscountPct,
+    branches, users,
     loyalty: { enabled: loyalty.enabled, earnPer100: loyalty.earnPer100, pointValuePaise: loyalty.pointValuePaise, minRedeem: loyalty.minRedeem }, userId: ctx.userId, userName: ctx.userName,
     medicines: meds.map((m) => ({
       id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, manufacturer: m.manufacturer, barcode: m.barcode, hsn: m.hsn,

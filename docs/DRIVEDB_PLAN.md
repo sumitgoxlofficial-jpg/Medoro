@@ -287,7 +287,14 @@ working with me; they overlap a little.
   returns as points not cash, settings copied from Medoro); home delivery orders (take → pack & bill → out with a
   rider → delivered; cash on delivery is a bill on the customer's account settled by the rider's cash).
   Screens: batch panel on Stock, points on Billing, an **Orders** tab. Tests: `ops.test.ts`, `e2e/23-device-ops`.
-- Next slices: campaigns and WhatsApp messages, branch transfers, audit log, AI assistant.
+- Slice 3 (built): **branch transfers** (`transferStock`: out here, in there under the same batch; the other
+  branch sees it after sync), **activity log** (`activityLog`: bills, credit notes, purchases, money in/out,
+  expenses, stock corrections, counts, transfers, delivery orders, with staff names copied from Medoro; owner tab),
+  **WhatsApp from the counter** (`share.ts`: wa.me links with a bill summary or a due reminder, no server and no
+  WhatsApp Business setup). The catalogue copy now carries the branch list and staff names.
+  Tests: `slice3.test.ts`, `e2e/24-device-transfer-activity.spec.ts`.
+- Left for phase 5: the AI assistant (needs a small server gateway that receives only the question and the few
+  rows needed), bulk WhatsApp campaigns (need the WhatsApp Business API on the server).
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.

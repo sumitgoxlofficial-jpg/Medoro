@@ -108,6 +108,17 @@ function BatchPanel({ med, cfg, userId, onClose }: { med: Row; cfg: Cfg; userId:
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [adj, setAdj] = useState<Record<string, { qty: string; reason: string }>>({});
   const [count, setCount] = useState<Record<string, string>>({});
+  const others = cfg.branches.filter((b) => b.id !== cfg.branchId);
+  const [move, setMove] = useState<Record<string, { to: string; qty: string }>>({});
+  const doMove = async (b: BatchRow) => {
+    const m = move[b.id] ?? { to: others[0]?.id ?? "", qty: "" };
+    const n = Math.floor(Number(m.qty) || 0);
+    if (!n || !m.to) return;
+    try {
+      const r = await dev.call("transferStock", { fromBranchId: cfg.branchId, toBranchId: m.to, batchId: b.id, qty: n, userId });
+      toast(`Sent ${n} to ${others.find((o) => o.id === m.to)?.name}. ${r.left} left here.`, "green"); setMove({ ...move, [b.id]: { ...m, qty: "" } }); void load();
+    } catch (e) { toast(errText(e), "red"); }
+  };
   const load = useCallback(() => dev.call("batchesFor", med.id, cfg.branchId).then((r) => setRows(r as BatchRow[])), [dev, med.id, cfg.branchId]);
   useEffect(() => { void load(); }, [load]);
   const unit = med.packSize > 1 ? med.looseUnit : med.packUnit;
@@ -136,7 +147,7 @@ function BatchPanel({ med, cfg, userId, onClose }: { med: Row; cfg: Cfg; userId:
     <Modal open onClose={onClose} title={`Batches of ${med.name}`} sub={`Quantities in ${unit}s`} width={760}
       footer={<div className="flex gap-2 justify-between w-full"><Button onClick={doCount} disabled={!Object.values(count).some((v) => v !== "")}>Save stock count</Button><Button onClick={onClose}>Close</Button></div>}>
       <table className="text-sm w-full">
-        <thead><tr className="text-left text-muted text-xs"><th className="font-medium py-1">Batch</th><th className="font-medium">Expiry</th><th className="font-medium text-right">Stock</th><th className="font-medium">Status</th><th className="font-medium">Correct stock</th><th className="font-medium">Counted</th></tr></thead>
+        <thead><tr className="text-left text-muted text-xs"><th className="font-medium py-1">Batch</th><th className="font-medium">Expiry</th><th className="font-medium text-right">Stock</th><th className="font-medium">Status</th><th className="font-medium">Correct stock</th><th className="font-medium">Counted</th>{others.length > 0 && <th className="font-medium">Send to branch</th>}</tr></thead>
         <tbody>
           {rows.map((b) => {
             const a = adj[b.id] ?? { qty: "", reason: "damaged" };
@@ -158,6 +169,15 @@ function BatchPanel({ med, cfg, userId, onClose }: { med: Row; cfg: Cfg; userId:
                   </span>
                 </td>
                 <td><input value={count[b.id] ?? ""} onChange={(e) => setCount({ ...count, [b.id]: e.target.value.replace(/\D/g, "") })} inputMode="numeric" placeholder={String(b.qtyAvailable)} className="border border-line rounded-md h-8 px-2 w-20 text-xs" aria-label={`Counted ${b.batchNo}`} /></td>
+                {others.length > 0 && (
+                  <td>
+                    <span className="flex gap-1">
+                      <select value={(move[b.id] ?? { to: others[0].id }).to} onChange={(e) => setMove({ ...move, [b.id]: { qty: move[b.id]?.qty ?? "", to: e.target.value } })} className="border border-line rounded-md h-8 px-1 text-xs" aria-label={`Send ${b.batchNo} to`}>{others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
+                      <input value={move[b.id]?.qty ?? ""} onChange={(e) => setMove({ ...move, [b.id]: { to: move[b.id]?.to ?? others[0].id, qty: e.target.value.replace(/\D/g, "") } })} inputMode="numeric" placeholder="qty" className="border border-line rounded-md h-8 px-2 w-14 text-xs" aria-label={`Send quantity ${b.batchNo}`} />
+                      <Button size="sm" onClick={() => doMove(b)} disabled={!move[b.id]?.qty}>Send</Button>
+                    </span>
+                  </td>
+                )}
               </tr>
             );
           })}
