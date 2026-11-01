@@ -19,7 +19,7 @@ import { couponLabel, discountOf, normCode, usableCoupon } from "./coupons";
  * change-of-mind refunds or cancellations after paying (the free trial is the try-before-you-buy, and nothing renews on
  * its own); see the Cancellation & refund policy at /legal#refund.
  */
-export const RENEW_WINDOW_DAYS = 30;
+export const RENEW_WINDOW_DAYS = 7;
 const DUPLICATE_MS = 15 * 60_000;
 const REUSE_ORDER_MS = 30 * 60_000;
 const DAY = 86_400_000;
