@@ -115,6 +115,18 @@ describe("accounting", () => {
     expect(after.expenseCount).toBe(before.expenseCount);
   });
 
+  it("charts a morning sale on its own India day, not the day before", async () => {
+    const ctx = await ctxFor();
+    const s = await db.sale.findFirstOrThrow({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId } });
+    // 8:00 am IST today is 2:30 am UTC; read as UTC it used to land on yesterday.
+    const at = new Date(`${todayISO()}T08:00:00+05:30`);
+    await db.$transaction([db.$executeRaw`SET LOCAL session_replication_role = replica`, db.$executeRaw`UPDATE "Sale" SET at = ${at} WHERE id = ${s.id}`]); // sales are append-only
+    const d = await dashboard(ctx.tenantId, ctx.branchId, "today", [ctx.branchId]);
+    const ret = await db.salesReturn.aggregate({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId }, _sum: { amountPaise: true } });
+    expect(d.history.at(-1)).toEqual({ date: todayISO(), total: Number(s.totalPaise) - Number(ret._sum.amountPaise ?? 0) }); // net of returns
+    expect(d.history.at(-2)!.total).toBe(0);
+  });
+
   it("values unsold expiring stock per pack for medicines kept in loose units", async () => {
     const ctx = await ctxFor("Owner", "Second");
     const m = await createMedicine(ctx, { name: "Dolo 650", generic: "Paracetamol", strength: "650 mg", form: "Tablet", manufacturer: "Micro Labs", pack: "15", mrp: "30", gstRate: 12, schedule: "", reorderLevel: 0, barcode: "", hsn: "3004", rack: "", packSize: 15, allowLoose: true });

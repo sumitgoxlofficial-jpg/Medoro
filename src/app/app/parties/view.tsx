@@ -24,7 +24,9 @@ type Cus = Awaited<ReturnType<typeof listCustomers>>[number];
 type ConsentRow = Awaited<ReturnType<typeof consentHistory>>[number];
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
-const tableWrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto";
+const tableWrap = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll";
+const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+const hideSm = " max-sm:hidden";
 
 export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canEditSup, canMessage }: { tab: "sup" | "cus"; suppliers: Sup[]; customers: Cus[]; canPay: boolean; canCredit: boolean; canEditSup: boolean; canMessage: boolean }) {
   const router = useRouter();
@@ -48,31 +50,31 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
       <div className="flex gap-2.5 items-center flex-wrap">
         <Segmented value={tab} onChange={(v) => router.replace(v === "cus" ? "/app/parties?tab=cus" : "/app/parties")} className="bg-[#EEF0F2]"
           options={[{ value: "sup", label: `Suppliers (${suppliers.length})` }, { value: "cus", label: `Customers (${customers.length})` }]} />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or phone" aria-label="Search parties" className="border border-input rounded-lg px-3 py-[7px] text-[13.5px] bg-white outline-none focus:border-teal w-[240px]" />
-        <div className="ml-auto flex gap-2">
-          {tab === "cus" || canEditSup ? <Button onClick={() => setImporting(true)}><Upload size={15} />Import</Button> : null}
-          {tab === "sup" ? (canEditSup ? <Button variant="primary" onClick={() => setSupEdit("new")}><Plus size={16} />Add supplier</Button> : null)
-            : <Button variant="primary" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or phone" aria-label="Search parties" className="border border-input rounded-lg px-3 py-[7px] text-[13.5px] bg-white outline-none focus:border-teal w-[240px] max-sm:w-full" />
+        <div className="ml-auto flex gap-2 max-sm:ml-0 max-sm:w-full">
+          {tab === "cus" || canEditSup ? <Button className="max-sm:flex-1" onClick={() => setImporting(true)}><Upload size={15} />Import</Button> : null}
+          {tab === "sup" ? (canEditSup ? <Button variant="primary" className="max-sm:flex-1" onClick={() => setSupEdit("new")}><Plus size={16} />Add supplier</Button> : null)
+            : <Button variant="primary" className="max-sm:flex-1" onClick={() => setCusEdit("new")}><Plus size={16} />Add customer</Button>}
         </div>
       </div>
 
       {tab === "sup" ? (
         <div className={tableWrap}>
           {suppliers.length ? (
-            <table className="w-full border-collapse min-w-[900px] text-[14px]">
-              <thead><tr className="bg-subtle"><th className={th}>Supplier</th><th className={th}>Credit terms</th><th className={th}>Lead time</th><th className={th}>Delivery accuracy</th><th className={th + " text-right"}>Payable</th><th className={th}>Next due</th><th className={th} /></tr></thead>
+            <table className="w-full border-collapse min-w-[900px] max-sm:min-w-[600px] text-[14px]">
+              <thead><tr className="bg-subtle"><th className={th}>Supplier</th><th className={th + hideSm}>Credit terms</th><th className={th + hideSm}>Lead time</th><th className={th + hideSm}>Delivery accuracy</th><th className={th + " text-right"}>Payable</th><th className={th}>Next due</th><th className={th} /></tr></thead>
               <tbody>
                 {suppliers.filter((s) => match(s.name) || match(s.phone)).map((s) => {
                   const d = s.nextDue?.days;
                   return (
                     <tr key={s.id}>
                       <td className={td}><div className="font-semibold">{s.name}</div><div className="text-[12px] text-muted font-mono">{s.gstin ?? "No GSTIN"}{s.phone ? ` · ${s.phone}` : ""}</div></td>
-                      <td className={td}>{s.creditDays} days</td>
-                      <td className={td}>{s.leadDays} d</td>
-                      <td className={td}>{s.accuracy == null ? <span className="text-fainter" title="Computed from placed purchase orders and their GRNs">No PO history</span>
+                      <td className={td + hideSm}>{days(s.creditDays)}</td>
+                      <td className={td + hideSm}>{days(s.leadDays)}</td>
+                      <td className={td + hideSm}>{s.accuracy == null ? <span className="text-faint" title="Computed from placed purchase orders and their GRNs">No PO history</span>
                         : <div className="flex flex-col"><span className="font-semibold" style={{ color: s.accuracy >= 95 ? "#1E7F4F" : s.accuracy >= 90 ? "#94570A" : "#B3261E" }}>{s.accuracy}% filled</span><span className="text-[12px] text-muted">{s.onTime}% on time · {s.orders} PO{s.orders === 1 ? "" : "s"}</span></div>}</td>
                       <td className={td + " text-right font-semibold tnum"}>{inr0(s.balance)}</td>
-                      <td className={td}>{s.nextDue ? <Badge tone={d! <= 3 ? "red" : d! <= 7 ? "amber" : "gray"}>{dayMonth(new Date(s.nextDue.date + "T00:00:00Z"))} ({d! < 0 ? `${-d!} d overdue` : `${d} d`})</Badge> : <span className="text-fainter">—</span>}</td>
+                      <td className={td}>{s.nextDue ? <Badge tone={d! <= 3 ? "red" : d! <= 7 ? "amber" : "gray"}>{dayMonth(new Date(s.nextDue.date + "T00:00:00Z"))} ({d! < 0 ? `${days(-d!)} overdue` : d === 0 ? "today" : `in ${days(d!)}`})</Badge> : <span className="text-faint">—</span>}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
                           <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/supplier/${s.id}`)}><FileText size={13} />Statement</Button>
@@ -91,17 +93,17 @@ export function PartiesView({ tab, suppliers, customers, canPay, canCredit, canE
         <>
           <div className={tableWrap}>
             {customers.length ? (
-              <table className="w-full border-collapse min-w-[820px] text-[14px]">
-                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th}>Consent</th><th className={th + " text-right"}>Points</th><th className={th + " text-right"}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th}>Last visit</th><th className={th} /></tr></thead>
+              <table className="w-full border-collapse min-w-[820px] max-sm:min-w-[560px] text-[14px]">
+                <thead><tr className="bg-subtle"><th className={th}>Customer</th><th className={th + hideSm}>Consent</th><th className={th + " text-right" + hideSm}>Points</th><th className={th + " text-right" + hideSm}>Credit limit</th><th className={th + " text-right"}>Outstanding</th><th className={th + hideSm}>Last visit</th><th className={th} /></tr></thead>
                 <tbody>
                   {customers.filter((c) => match(c.name) || match(c.phone) || match(c.gstin)).map((c) => (
                     <tr key={c.id}>
                       <td className={td}><div className="font-semibold">{c.name}{c.gstin ? <> <Badge tone="gray">B2B</Badge></> : null}</div><div className="text-[12px] text-muted tnum">{c.phone ? `${c.phone.slice(0, 5)} ${c.phone.slice(5)}` : "No phone"}{c.gstin ? <span className="font-mono"> · {c.gstin}</span> : null}</div></td>
-                      <td className={td}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.waInvalid ? <Badge tone="red" title={c.waInvalid}>Not on WhatsApp</Badge> : null}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
-                      <td className={td + " text-right tnum"}><button onClick={() => setPoints(c)} className={c.points ? "text-teal font-semibold cursor-pointer" : "text-fainter cursor-pointer"} aria-label={`Points of ${c.name}`}>{c.points}</button></td>
-                      <td className={td + " text-right tnum"}>{c.limit ? inr0(c.limit) : "No credit"}</td>
+                      <td className={td + hideSm}><div className="flex gap-1 flex-wrap">{c.optIn || c.smsOptIn ? <Badge tone="green">Invoices{c.optIn ? " · WA" : ""}{c.smsOptIn ? " · SMS" : ""}</Badge> : <Badge tone="gray">No messages</Badge>}{c.waInvalid ? <Badge tone="red" title={c.waInvalid}>Not on WhatsApp</Badge> : null}{c.marketingWa || c.marketingSms ? <Badge tone="blue">Offers{c.marketingWa ? " · WA" : ""}{c.marketingSms ? " · SMS" : ""}</Badge> : null}</div></td>
+                      <td className={td + " text-right tnum" + hideSm}><button onClick={() => setPoints(c)} className={c.points ? "text-teal font-semibold cursor-pointer" : "text-fainter cursor-pointer"} aria-label={`Points of ${c.name}`}>{c.points}</button></td>
+                      <td className={td + " text-right tnum" + hideSm}>{c.limit ? inr0(c.limit) : "No credit"}</td>
                       <td className={td + " text-right font-semibold tnum"} style={{ color: c.due > 0 ? "#B3261E" : "#5B636B" }}>{inr0(c.due)}</td>
-                      <td className={td + " text-muted"}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
+                      <td className={td + " text-muted" + hideSm}>{c.lastVisit ? dayMonth(new Date(c.lastVisit)) : "—"}</td>
                       <td className={td + " text-right whitespace-nowrap"}>
                         <div className="flex gap-1.5 justify-end">
                           {canPay ? <Button size="sm" variant="ghost" onClick={() => router.push(`/app/parties/statement/customer/${c.id}`)}><FileText size={13} />Statement</Button> : null}

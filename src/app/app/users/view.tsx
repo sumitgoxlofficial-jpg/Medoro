@@ -72,31 +72,31 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
           <div className="flex flex-col gap-0.5">
             <span className="text-[12.5px] text-muted">{code.reset ? "Reset code" : "Invite"} for {code.name} · valid 48 hours</span>
             <span className="font-mono text-[22px] font-semibold tracking-wider">{code.code}</span>
-            <span className="text-[12.5px] text-muted">Pharmacy code <span className="font-mono">{code.tenantCode}</span> · they open Sign in → Employee login → “New employee? Create your account”.</span>
+            <span className="text-[12.5px] text-muted">Pharmacy code <span className="font-mono">{code.tenantCode}</span> · they open Sign in → Pharmacy staff login → “New employee? Create your account”.</span>
           </div>
-          <Button className="ml-auto" onClick={() => { navigator.clipboard.writeText(`Medoro: pharmacy code ${code.tenantCode}, ${code.reset ? "reset" : "invite"} code ${code.code}. Open Sign in → Employee login → New employee.`); toast("Copied.", "gray"); }}><Copy size={14} />Copy message</Button>
+          <Button className="ml-auto" onClick={() => { navigator.clipboard.writeText(`Medoro: pharmacy code ${code.tenantCode}, ${code.reset ? "reset" : "invite"} code ${code.code}. Open Sign in → Pharmacy staff login → New employee.`); toast("Copied.", "gray"); }}><Copy size={14} />Copy message</Button>
           <button onClick={() => setCode(null)} aria-label="Dismiss" className="text-faint cursor-pointer"><X size={18} /></button>
         </div>
       ) : null}
 
       {tab === "users" ? (
         <>
-          <div className={card + " overflow-auto"}>
-            <table className="w-full border-collapse min-w-[860px] text-[14px]">
-              <thead><tr className="bg-subtle"><th className={th}>User</th><th className={th}>Role</th><th className={th}>Branch</th><th className={th}>MFA</th><th className={th}>Last active</th><th className={th} /></tr></thead>
+          <div className={card + " overflow-auto tbl-scroll"}>
+            <table className="w-full border-collapse min-w-[860px] max-sm:min-w-[560px] text-[14px]">
+              <thead><tr className="bg-subtle"><th className={th}>User</th><th className={th}>Role</th><th className={th + " max-sm:hidden"}>Branch</th><th className={th}>MFA</th><th className={th + " max-sm:hidden"}>Last active</th><th className={th} /></tr></thead>
               <tbody>
                 {team.users.map((u) => (
                   <tr key={u.id} style={{ opacity: u.active ? 1 : 0.55 }}>
                     <td className={td}><div className="font-semibold">{u.name}{u.isMe ? <span className="text-faint font-normal"> (you)</span> : null}</div><div className="text-[12px] text-muted">{u.employeeNo ? <span className="font-mono">{u.employeeNo} · </span> : null}{u.contact}</div></td>
                     <td className={td}><Badge tone={ROLE_TONE[u.role] ?? "gray"}>{u.role}</Badge>{overrideCount(u) ? <Badge tone="blue" className="ml-1">{overrideCount(u)} custom</Badge> : null}{!u.active ? <Badge tone="red" className="ml-1">Deactivated</Badge> : null}</td>
-                    <td className={td + " text-ink-2"}>{u.branch}</td>
-                    <td className={td} style={{ color: u.mfa ? "#1E7F4F" : u.mfaRequired ? "#B3261E" : "#8A929A" }}>{u.mfa ? "On" : u.mfaRequired ? "Required, not set up" : "Off (PIN)"}</td>
-                    <td className={td + " text-muted"}>{when(u.lastSeen)}</td>
+                    <td className={td + " text-ink-2 max-sm:hidden"}>{u.branch}</td>
+                    <td className={td} style={{ color: u.mfa ? "#1E7F4F" : u.mfaRequired ? "#B3261E" : "#8A929A" }}>{u.mfa ? "On" : u.mfaRequired ? "Required, not set up" : "PIN only"}</td>
+                    <td className={td + " text-muted max-sm:hidden"}>{when(u.lastSeen)}</td>
                     <td className={td + " text-right whitespace-nowrap"}>
                       {!u.isMe && u.role !== "Owner" ? (
                         <div className="flex gap-1.5 justify-end">
-                          <Button size="sm" variant="ghost" aria-label={`Edit ${u.name}`} onClick={() => setEdit(u)}><Pencil size={13} /></Button>
-                          <Button size="sm" variant="ghost" aria-label={`Permissions for ${u.name}`} title="Permissions for this person" onClick={() => setPermUser(u)}><ShieldCheck size={13} /></Button>
+                          <Button size="sm" variant="ghost" aria-label={`Edit ${u.name}`} title="Edit" onClick={() => setEdit(u)}><Pencil size={13} /></Button>
+                          <Button size="sm" variant="ghost" aria-label={`Permissions for ${u.name}`} title="Permissions" onClick={() => setPermUser(u)}><ShieldCheck size={13} /></Button>
                           <Button size="sm" disabled={pending} onClick={() => { if (confirm(`Issue a ${u.role === "Manager" ? "password" : "PIN"} reset for ${u.name}? They’ll be signed out everywhere.`)) start(async () => { const r = await resetAction(u.id); if (!r.ok) return toast(r.error, "red"); setCode({ ...r.data, reset: true }); }); }}><KeyRound size={13} />Reset</Button>
                           {u.mfa ? <Button size="sm" disabled={pending} title="Reset two-step verification" onClick={() => { if (confirm(`Reset two-step verification for ${u.name}? Their authenticator and recovery codes stop working, they’re signed out everywhere, and they set up a new authenticator at their next sign-in.`)) start(async () => { const r = await resetTwoStepAction(u.id); toast(r.ok ? `${r.data} will set up a new authenticator at next sign-in.` : r.error, r.ok ? "green" : "red"); }); }}><ShieldCheck size={13} />Reset 2-step</Button> : null}
                         </div>

@@ -58,7 +58,7 @@ const STEPS: [string, string, string][] = [
 ];
 
 const ENV: [typeof Check, string][] = [[Monitor, "Counters, tablets and phones"], [Server, "Medoro app"], [Database, "Your database"]];
-const OUTSIDE: [typeof Check, string, string][] = [[HardDriveUpload, "Your Google Drive", "Encrypted backup files it cannot read"], [MessageCircle, "WhatsApp", "The customer’s number and invoice PDF, when you send one"], [KeyRound, "Medoro", "Your account, plan and licence check-ins"]];
+const OUTSIDE: [typeof Check, string, string][] = [[HardDriveUpload, "Your Google Drive", "Encrypted backups Google can’t read"], [MessageCircle, "WhatsApp", "The customer’s number and invoice PDF, when you send one"], [KeyRound, "Medoro", "Your account, plan and licence check-ins"]];
 const SEC: [typeof Check, string, string][] = [
   [Users, "Roles and permissions", "Cashiers bill. Managers approve discounts and refunds. Owners see everything."],
   [ShieldCheck, "Two-step sign-in", "Required for owners and managers. Lost devices can be signed out remotely."],
@@ -192,7 +192,7 @@ export default function Home() {
           <h2 id="facts-title" className="sr-only">Medoro in numbers</h2>
           <div className={wrap}>
             <dl className="m-0 -mx-6 max-[640px]:-mx-4 grid grid-cols-2 min-[900px]:grid-cols-4">
-              {([["14", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const).map(([n, pre, suf, d], i) => (
+              {([["7", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const).map(([n, pre, suf, d], i) => (
                 <div key={d} className={`flex flex-col gap-2 py-10 px-6 max-[640px]:px-4 max-[640px]:py-8 border-[var(--s-line)] ${i > 0 ? "min-[900px]:border-l" : ""} ${i % 2 ? "max-[899px]:border-l" : ""} ${i > 1 ? "max-[899px]:border-t" : ""}`}>
                   <dt className="flex items-baseline text-[var(--s-ink)]"><span className="site-display text-[clamp(40px,4.4vw,56px)] leading-none" data-count={n} data-prefix={pre}>{pre}{Number(n).toLocaleString("en-IN")}</span><span className={`text-[17px] font-medium ${suf.startsWith("-") ? "" : "ml-1.5"}`}>{suf}</span></dt>
                   <dd className="m-0 text-[15px] text-[var(--s-muted)]">{d}</dd>
@@ -281,7 +281,7 @@ export default function Home() {
                     {ENV.map(([Icon, l]) => <div key={l} className="rounded-lg bg-white/[.06] border border-white/10 px-3 py-4 flex flex-col items-center gap-2 text-center text-[14px]"><Icon size={22} aria-hidden className="text-[#8FD3C6]" />{l}</div>)}
                   </div>
                 </div>
-                <div aria-hidden className="flex justify-around px-10">{[0, 1, 2].map((i) => <span key={i} className="w-px h-7 bg-[linear-gradient(#2C5A55,transparent)]" />)}</div>
+                <div aria-hidden className="grid grid-cols-3 gap-3 justify-items-center max-[559px]:hidden">{[0, 1, 2].map((i) => <span key={i} className="w-px h-7 bg-[linear-gradient(#2C5A55,transparent)]" />)}</div>
                 <div className="grid gap-3 min-[560px]:grid-cols-3">
                   {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="rounded-lg border border-white/10 p-4 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{l}</span><span className="text-[14px] text-[#9FB5B1]">{d}</span></div>)}
                 </div>
@@ -304,7 +304,7 @@ export default function Home() {
               <span className={eyebrow}>Pricing</span>
               <h2 id="pricing-title" className={h2}>Plain prices in rupees. 7 days free.</h2>
             </div>
-            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>Prices include 18% GST. Pay by UPI or bank transfer. Cancel any time and your data stays where it is.</p>
+            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>Prices include 18% GST. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.</p>
           </div>
           <Pricing />
           <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">Launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.</p>
@@ -342,9 +342,9 @@ export default function Home() {
               <h2 id="cta-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">Set up your counter this afternoon.</h2>
               <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.</p>
             </div>
-            <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:items-end">
-              <Link href="/start" className="site-link-arrow inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 7-day free trial<ArrowRight size={17} aria-hidden /></Link>
-              <a href={WA_DEMO} className="inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />Get a demo on WhatsApp</a>
+            <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:justify-self-end min-[1000px]:w-[280px]">
+              <Link href="/start" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 7-day free trial<ArrowRight size={17} aria-hidden /></Link>
+              <a href={WA_DEMO} className="w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />Get a demo on WhatsApp</a>
             </div>
           </div>
         </section>

@@ -64,6 +64,17 @@
   a { color: var(--color-teal); text-decoration: none; }
   a:hover { color: var(--color-teal-hover); }
   input, select, button, textarea { font-family: inherit; font-size: inherit; }
+  /* Phones: iOS zooms into any field under 16px when it's focused. */
+  @media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }
+}
+/* Wide tables in a scroll box: a soft shadow at the edge that still has columns to scroll to. */
+.tbl-scroll {
+  background:
+    linear-gradient(90deg, #fff 30%, #fff0) 0 0 / 24px 100% no-repeat local,
+    linear-gradient(270deg, #fff 30%, #fff0) 100% 0 / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, #0002, #0000) 0 0 / 10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, #0002, #0000) 100% 0 / 10px 100% no-repeat scroll;
+  background-color: #fff;
 }
 .tnum { font-variant-numeric: tabular-nums; }
 :focus-visible { outline: 2px solid var(--color-teal); outline-offset: 1px; }
@@ -116,6 +127,9 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 }
 .site-root .will-reveal { opacity: 0; transform: translateY(32px); transition: opacity .8s var(--s-ease), transform .8s var(--s-ease); transition-delay: calc(var(--d, 0) * 80ms); }
 .site-root .will-reveal.is-in { opacity: 1; transform: none; }
+@media print {
+  .site-root [data-reveal], .site-root .will-reveal, .site-root .site-up, .site-root .site-tilt, .site-root .site-drift { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
+}
 
 /* Feature panel swap */
 @keyframes site-swap { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }

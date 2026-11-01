@@ -70,7 +70,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           <div className="flex items-center gap-2 font-semibold text-[15px]"><HardDriveUpload size={18} className="text-teal" />Google Drive</div>
           {drive.status === "connected" ? (
             <>
-              <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>{folder}</span><span className="text-muted">OAuth scope</span><span className="font-mono text-[12.5px]">drive.file</span></div>
+              <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>{folder}</span><span className="text-muted">Access</span><span>Only files Medoro creates</span></div>
               <Button variant="danger-outline" className="self-start" disabled={pending} onClick={() => start(async () => { const r = await disconnectAction(); toast(r.ok ? r.data : r.error, r.ok ? "green" : "red"); })}>Disconnect & revoke</Button>
             </>
           ) : drive.status === "lost" && driveApp ? (
@@ -84,16 +84,16 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
               <a href="/api/integrations/google/start" className="self-start bg-teal text-white rounded-lg px-3 py-2 text-[13.5px] font-semibold no-underline hover:bg-teal-hover hover:text-white">Connect Google Drive</a>
             </>
           ) : (
-            <div className="text-[13px] text-muted flex gap-2"><CloudOff size={16} className="flex-none mt-0.5" /><span>Google sign-in isn’t configured on this server. Set <span className="font-mono text-[12px]">GOOGLE_OAUTH_CLIENT_ID</span>, <span className="font-mono text-[12px]">GOOGLE_OAUTH_CLIENT_SECRET</span> and <span className="font-mono text-[12px]">GOOGLE_OAUTH_REDIRECT_URI</span>. Until then backups are kept on this server only.</span></div>
+            <div className="text-[13px] text-muted flex gap-2"><CloudOff size={16} className="flex-none mt-0.5" /><div className="flex flex-col gap-1"><span>Google Drive backup isn’t set up on this server yet. Ask whoever set up your Medoro server to turn on Google sign-in. Until then, backups are kept on this server.</span><details><summary className="cursor-pointer text-[12px] text-faint">Technical details</summary><span className="block mt-1 text-[12px]">Set <span className="font-mono">GOOGLE_OAUTH_CLIENT_ID</span>, <span className="font-mono">GOOGLE_OAUTH_CLIENT_SECRET</span> and <span className="font-mono">GOOGLE_OAUTH_REDIRECT_URI</span> on the server.</span></details></div></div>
           )}
         </div>
         <div className={card}>
           <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />Encryption</div>
-          <div className="text-[13.5px]">AES-256-GCM with a fresh key per backup, encrypted on your server before anything leaves it.</div>
-          <div className="text-[13px] text-muted">Each backup’s key is wrapped by your recovery-kit key. This server keeps a copy of that key sealed with its <span className="font-mono text-[12px]">HOST_KEY</span> so it can back up and restore on its own; it never goes to Drive or Medoro. On a new server, the printed kit opens your backups.{keyDate ? ` Kit created ${dayMonth(new Date(keyDate), true)}.` : ""}{fingerprint ? <> Fingerprint <span className="font-mono">{fingerprint}</span>.</> : " No key found."}</div>
+          <div className="text-[13.5px]">Every backup is encrypted on your server, with its own key, before it’s stored.</div>
+          <div className="text-[13px] text-muted">Each backup’s key is wrapped by your recovery-kit key. This server keeps a copy of that key, locked with this server’s own key, so it can back up and restore on its own; it never goes to Drive or Medoro. On a new server, the printed kit opens your backups.{keyDate ? ` Kit created ${dayMonth(new Date(keyDate), true)}.` : ""}{fingerprint ? <> Fingerprint <span className="font-mono">{fingerprint}</span>.</> : " No key found."}</div>
           {keyState !== "ok" ? (
             <div className="flex flex-col gap-2 bg-bad-bg rounded-lg p-2.5">
-              <span className="text-[13px] text-bad">{keyState === "missing" ? "This server has no backup key." : "This server can’t open its copy of the backup key (its HOST_KEY changed)."} Backups stop until you enter the recovery kit.</span>
+              <span className="text-[13px] text-bad">{keyState === "missing" ? "This server has no backup key." : "This server can’t open its copy of the backup key (the server’s key changed)."} Backups stop until you enter the recovery kit.</span>
               <textarea value={kit} onChange={(e) => setKit(e.target.value)} rows={2} placeholder="Paste the recovery kit or its 43-character key" aria-label="Recovery kit" className="border border-input rounded-md px-2 py-1.5 text-[12.5px] font-mono bg-white" />
               <Button variant="primary" className="self-start" disabled={pending || !kit.trim()} onClick={() => start(async () => { const r = await reenterKitAction(kit); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); if (r.ok) setKit(""); })}>Use this kit</Button>
             </div>
@@ -101,9 +101,9 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
         </div>
         <div className={card}>
           <div className="font-semibold text-[15px]">Schedule & retention</div>
-          <label className="flex items-center justify-between text-[13.5px]">Daily at<input type="time" value={s.schedule} onChange={(e) => setS({ ...s, schedule: e.target.value })} className="border border-input rounded-md px-2 py-1" /></label>
-          <label className="flex items-center justify-between text-[13.5px]">Keep backups for<select value={s.retention} onChange={(e) => setS({ ...s, retention: Number(e.target.value) })} className="border border-input rounded-md px-2 py-1 bg-white">{[[7, "7 days"], [30, "30 days"], [90, "90 days"], [365, "1 year"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-          <label className="flex items-center justify-between text-[13.5px]" title="Invoice scans and other uploaded documents">Uploaded files<select value={s.files} onChange={(e) => setS({ ...s, files: e.target.value as "server" | "gdrive" })} className="border border-input rounded-md px-2 py-1 bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!connected && settings.files !== "gdrive"}>In Google Drive</option></select></label>
+          <label className="flex items-center justify-between gap-3 text-[13.5px]">Daily at<input type="time" value={s.schedule} onChange={(e) => setS({ ...s, schedule: e.target.value })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white" /></label>
+          <label className="flex items-center justify-between gap-3 text-[13.5px]">Keep backups for<select value={s.retention} onChange={(e) => setS({ ...s, retention: Number(e.target.value) })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white">{[[7, "7 days"], [30, "30 days"], [90, "90 days"], [365, "1 year"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+          <label className="flex items-center justify-between gap-3 text-[13.5px]" title="Invoice scans and other uploaded documents">Uploaded files<select value={s.files} onChange={(e) => setS({ ...s, files: e.target.value as "server" | "gdrive" })} className="h-10 min-w-[140px] px-2.5 rounded-lg border border-line bg-white"><option value="server">On this server</option><option value="gdrive" disabled={!connected && settings.files !== "gdrive"}>In Google Drive</option></select></label>
           {s.files === "gdrive" ? <div className="text-[12px] text-faint -mt-1">New uploads go to {folder}/files. If Drive can’t be reached they’re kept on this server. Every backup includes the files.</div> : null}
           <div className="flex gap-2">
             {s.schedule !== settings.schedule || s.retention !== settings.retention || s.files !== settings.files ? <Button disabled={pending} onClick={() => start(async () => { const r = await settingsAction(s.schedule, s.retention, s.files); toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red"); })}>Save</Button> : null}
@@ -113,11 +113,11 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
         </div>
       </div>
       {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">Snapshot → encrypt → write → verify{connected ? " → upload" : ""}… <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}
-      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto">
+      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
         <div className="font-semibold text-[15px] px-4 pt-3.5 pb-2">Backup history</div>
         {history.length ? (
           <table className="w-full border-collapse min-w-[860px] text-[13.5px]">
-            <thead><tr className="bg-subtle">{["Time", "Type", "Size", "SHA-256", "Status", ""].map((x) => <th key={x} className="text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9]">{x}</th>)}</tr></thead>
+            <thead><tr className="bg-subtle">{["Time", "Type", "Size", "Checksum", "Status", ""].map((x) => <th key={x} className="text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9]">{x}</th>)}</tr></thead>
             <tbody>
               {history.map((h) => {
                 const [label, tone] = ST[h.status] ?? [h.status, "gray"];
@@ -146,11 +146,17 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
       </div>
       {canRestore ? (
         <div className={card}>
-          <div className="flex items-center gap-2 font-semibold text-[15px]"><DatabaseBackup size={18} className="text-teal" />Restore a backup file, or one from Google Drive</div>
-          <div className="text-[13px] text-muted">For a backup that isn’t in the history below, e.g. downloaded earlier or made on another server. It opens with this server’s key; if it was made with a different copy of the key, paste the recovery kit. It loads into a test copy first and live data changes only after you confirm.</div>
-          <textarea value={kit} onChange={(e) => setKit(e.target.value)} rows={2} placeholder="Recovery kit or its 43-character key (optional)" aria-label="Recovery kit for restore" className="border border-input rounded-md px-2 py-1.5 text-[12.5px] font-mono max-w-[560px]" />
+          <div className="flex items-center gap-2 font-semibold text-[15px]"><DatabaseBackup size={18} className="text-teal" />{connected ? "Restore a backup file, or one from Google Drive" : "Restore a backup file"}</div>
+          <div className="text-[13px] text-muted">For a backup that isn’t in the history above, e.g. downloaded earlier or made on another server. It opens with this server’s key; if it was made with a different copy of the key, paste the recovery kit. It loads into a test copy first and live data changes only after you confirm.</div>
           <div className="flex gap-2 items-center flex-wrap">
-            <input type="file" accept=".mdrbak,application/octet-stream" aria-label="Backup file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+            <label className="inline-flex items-center justify-center gap-1.5 h-[34px] max-md:h-10 px-3 rounded-lg border border-line bg-white text-ink text-[13px] font-medium shadow-card cursor-pointer hover:bg-page hover:border-input focus-within:outline-2 focus-within:outline-teal">
+              <HardDriveUpload size={15} />Choose backup file…
+              <input type="file" accept=".mdrbak,application/octet-stream" aria-label="Backup file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="sr-only" />
+            </label>
+            <span className={`text-[13px] min-w-0 truncate max-w-[260px] ${file ? "text-ink" : "text-faint"}`}>{file ? file.name : "No file chosen"}</span>
+          </div>
+          <textarea value={kit} onChange={(e) => setKit(e.target.value)} rows={2} placeholder="Recovery kit or its 43-character key (optional)" aria-label="Recovery kit for restore" className="border border-input rounded-md px-2 py-1.5 text-[12.5px] font-mono placeholder:font-sans placeholder:text-[13px] max-w-[560px]" />
+          <div className="flex gap-2 items-center flex-wrap">
             <Button disabled={!file || !!loading} onClick={upload}>{loading === "upload" ? "Decrypting and loading…" : "Load uploaded file"}</Button>
             {connected ? <Button disabled={!!loading} onClick={() => { setLoading("list"); driveBackupsAction().then((r) => { setLoading(null); if (r.ok) setDriveFiles(r.data); else toast(r.error, "red"); }); }}>{loading === "list" ? "Looking in Drive…" : "Show backups in Google Drive"}</Button> : null}
           </div>

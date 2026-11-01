@@ -7,15 +7,15 @@ export { SiteHeader, SiteMotion } from "./header";
 
 const FOOT: { t: string; links: [string, string][] }[] = [
   { t: "Product", links: [["Billing & POS", "/#product"], ["Inventory & expiry", "/#product"], ["GST & accounts", "/#product"], ["WhatsApp & refills", "/#product"], ["Offline & branches", "/#product"], ["Pricing", "/#pricing"]] },
-  { t: "Company", links: [["About Medoro", "/legal#about"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Contact", "/legal#contact"]] },
-  { t: "Sign in", links: [["Owner sign in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro team login", "/staff/login"], ["Start free trial", "/start"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"]] },
+  { t: "Company", links: [["About Medoro", "/legal#about"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
+  { t: "Sign in", links: [["Owner sign in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Start free trial", "/start"]] },
   { t: "Legal", links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-[var(--s-line)] bg-white">
-      <div className="max-w-[1200px] mx-auto px-6 pt-16 pb-8 flex flex-col gap-12 max-[640px]:px-4">
+      <div className="max-w-[1200px] mx-auto px-6 pt-16 pb-8 flex flex-col gap-12 max-[640px]:px-4 max-[640px]:pb-24">
         <div className="grid gap-x-8 gap-y-10 grid-cols-2 min-[720px]:grid-cols-4 min-[1040px]:grid-cols-12">
           <div className="flex flex-col gap-4 col-span-full min-[1040px]:col-span-4">
             <Link href="/" aria-label="Medoro home" className="self-start"><Wordmark size={20} /></Link>

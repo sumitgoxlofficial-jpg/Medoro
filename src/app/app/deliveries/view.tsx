@@ -16,7 +16,7 @@ import { deliveredAction, failedAction } from "./actions";
 
 export function DeliveriesView({ open, done, cashInHand }: { open: OrderView[]; done: OrderView[]; cashInHand: number }) {
   return (
-    <div className="flex flex-col gap-3 max-w-[560px]">
+    <div className="flex flex-col gap-3 max-w-[720px]">
       {cashInHand ? (
         <Card className="p-3.5 flex items-center gap-3 bg-[#FDF2E1] border-[#F3D9AE]">
           <Banknote size={20} className="text-[#94570A]" />

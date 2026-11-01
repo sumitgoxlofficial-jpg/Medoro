@@ -10,6 +10,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { inr, inr0 } from "@/lib/money";
+import { voucherLabel } from "./ledger";
 import { dayMonth } from "@/lib/dates";
 import type { accountsOverview, dayBook } from "@/domain/accounting/service";
 import { dayBookAction, expenseAction, reverseAction } from "./actions";
@@ -44,13 +45,13 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
   const [, start] = useTransition();
   const pl = ov.pl;
   const Row = ({ l, v, b, neg }: { l: string; v: number; b?: boolean; neg?: boolean }) => (
-    <div className={"flex justify-between text-[13.5px] " + (b ? "font-semibold border-t border-line-soft pt-2" : "")}><span className={b ? "" : "text-ink-2"}>{l}</span><span className="tnum" style={{ color: neg && v > 0 ? "#B3261E" : undefined }}>{neg ? inr0(-v) : inr0(v)}</span></div>
+    <div className={"flex justify-between gap-3 text-[13.5px] " + (b ? "font-semibold border-t border-line-soft pt-2" : "")}><span className={"min-w-0 " + (b ? "" : "text-ink-2")}>{l}</span><span className="tnum whitespace-nowrap shrink-0 text-right" style={{ color: (neg ? -v : v) < 0 ? "#B3261E" : undefined }}>{neg ? inr0(-v) : inr0(v)}</span></div>
   );
   return (
     <div className="flex flex-col gap-4 max-w-[1400px]">
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
         <div className={card}>
-          <div className="flex justify-between items-baseline"><div className="font-semibold text-[15px]">Profit & loss</div><span className="text-[12px] text-faint">{ov.period.label}</span></div>
+          <div className="flex justify-between items-baseline"><div className="font-semibold text-[15px]">Profit & loss</div><span className="text-[12px] text-faint whitespace-nowrap">{ov.period.label}</span></div>
           <Row l="Net sales (taxable, after returns)" v={pl.sales} />
           <Row l="Cost of goods sold" v={pl.cogs} neg />
           <Row l={`Gross profit${pl.sales ? ` · ${((pl.gross / pl.sales) * 100).toFixed(1)}%` : ""}`} v={pl.gross} b />
@@ -77,7 +78,7 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
         </div>
       </div>
 
-      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto">
+      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
         <div className="flex items-baseline justify-between px-4 pt-3.5 pb-2 gap-3 flex-wrap"><div className="font-semibold text-[15px]">Day book</div><span className="text-[12px] text-faint">Posted entries are immutable. Use Reverse to correct payments, receipts and expenses.</span></div>
         {book.length ? (<>
           <table className="w-full border-collapse min-w-[900px] text-[13.5px]">
@@ -85,9 +86,9 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
             <tbody>
               {book.map((v) => (
                 <tr key={v.id} style={{ opacity: v.reversed ? 0.55 : 1 }}>
-                  <td className={td + " whitespace-nowrap"}><div className="font-mono text-[12.5px]">{v.no}</div><div className="text-[12px] text-faint">{dayMonth(new Date(v.date))} · {v.type.replace("_", " ")}</div></td>
+                  <td className={td + " whitespace-nowrap"}><div className="font-mono text-[12.5px]">{v.no}</div><div className="text-[12px] text-faint">{dayMonth(new Date(v.date))} · {voucherLabel(v.type)}</div></td>
                   <td className={td}>{v.narration}</td><td className={td + " text-ink-2"}>{v.dr}</td><td className={td + " text-ink-2"}>{v.cr}</td>
-                  <td className={td + " text-right tnum font-semibold"}>{inr(v.amount)}</td>
+                  <td className={td + " text-right tnum font-semibold whitespace-nowrap"}>{inr(v.amount)}</td>
                   <td className={td + " text-right whitespace-nowrap"}>
                     {v.reversed ? <Badge tone="gray">Reversed</Badge> : v.isReversal ? <Badge tone="blue">Reversal</Badge> : canPay && v.canReverse ? (
                       <Button size="sm" onClick={() => { const r = prompt(`Reason for reversing ${v.no}:`); if (r) start(async () => { const x = await reverseAction(v.id, r); toast(x.ok ? `${v.no} reversed by ${x.data}. Original kept for audit.` : x.error, x.ok ? "blue" : "red"); }); }}>Reverse</Button>

@@ -13,7 +13,9 @@ import { GstView } from "./gst";
 import { einvoiceQueue, einvoiceState, gstr1For, gstr3bFor, gstRollup, monthPeriod, registrations, tallyMapping } from "@/domain/gst/service";
 import { gstr1Summary } from "@/domain/gst/gstr1";
 import { gstr3bRows } from "@/domain/gst/gstr3b";
-import { todayISO } from "@/lib/dates";
+import { dateOnly, dayMonth, todayISO } from "@/lib/dates";
+
+const humanDay = (iso: string) => dayMonth(dateOnly(iso), true);
 
 export const metadata = { title: "Accounting & reports" };
 
@@ -44,14 +46,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   }
   if (view === "tb") {
     const tb = await trialBalance(ctx, sp.asof);
-    return <><PageHead title={t(ctx.lang).acc} sub={`Trial balance as on ${tb.asOf} · all branches`} /><AccountsTabs view={view} /><TrialBalanceView tb={tb} /></>;
+    return <><PageHead title={t(ctx.lang).acc} sub={`Trial balance as on ${humanDay(tb.asOf)} · all branches`} /><AccountsTabs view={view} /><TrialBalanceView tb={tb} /></>;
   }
   if (view === "ledger") {
     const accounts = await accountNames(ctx);
     const account = sp.account && accounts.includes(sp.account) ? sp.account : ACC.cash;
     let led;
     try { led = await accountLedger(ctx, account, sp.from, sp.to); } catch (e) { if (!(e instanceof UserError)) throw e; led = await accountLedger(ctx, account); }
-    return <><PageHead title={t(ctx.lang).acc} sub={`${account} · ${led.fromDay} to ${led.toDay} · all branches`} /><AccountsTabs view={view} /><LedgerView led={led} accounts={accounts} /></>;
+    return <><PageHead title={t(ctx.lang).acc} sub={`${account} · ${led.fromDay === led.toDay ? humanDay(led.fromDay) : `${humanDay(led.fromDay)} to ${humanDay(led.toDay)}`} · all branches`} /><AccountsTabs view={view} /><LedgerView led={led} accounts={accounts} /></>;
   }
   const p = periodOf(sp.period);
   const [ov, book] = await Promise.all([accountsOverview(ctx, p), dayBook(ctx, p)]);

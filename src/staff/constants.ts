@@ -47,7 +47,7 @@ export const TICKET_CATEGORIES = ["General", "Billing counter", "Hardware · pri
 export const MACROS = [
   { id: "printer", label: "Printer cuts receipt", t: "Medoro prints receipts through the browser. In the print window choose your thermal printer, set paper size to 80 mm (or your roll width), margins to None, and turn off headers and footers. Then print the next bill from Billing (POS). If it still cuts early, send us a photo of the receipt." },
   { id: "wa", label: "WhatsApp template rejected", t: "Meta rejects templates when the display name differs from your GST name. Fix it in Meta Business Manager and resubmit the template there; once Meta approves it, open WhatsApp in Medoro and press Sync next to Message templates." },
-  { id: "pin", label: "Staff PIN reset", t: "The owner can reset a staff PIN from Users & branches: find the person and press Reset. Medoro shows a one-time reset code; the person uses it at Sign in → Employee login → New employee to set a new PIN." },
+  { id: "pin", label: "Staff PIN reset", t: "The owner can reset a staff PIN from Users & branches: find the person and press Reset. Medoro shows a one-time reset code; the person uses it at Sign in → Pharmacy staff login → New employee to set a new PIN." },
   { id: "pay", label: "How to renew", t: "To renew, open Subscription in Medoro (under System). Pay by UPI or bank transfer with the reference shown there, then tap “I’ve paid” and enter the transaction number. Your data stays safe and nothing is deleted while we check the payment." },
 ] as const;
 

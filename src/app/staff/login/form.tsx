@@ -65,15 +65,14 @@ export function StaffLogin({ domain, invite, pending }: { domain: string; invite
           <form onSubmit={(e) => { e.preventDefault(); primary(); }} className="bg-white border border-line rounded-[14px] p-7 flex flex-col gap-3.5 shadow-[0_1px_2px_rgba(16,24,40,.04)] max-[400px]:p-5">
             <div className="flex gap-3 items-center">
               <span className="size-10 rounded-[10px] bg-[#0E1A1F] text-[#5FD3BC] flex items-center justify-center flex-none"><BadgeCheck size={20} /></span>
-              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">Medoro employee login</h1><span className="text-[13px] text-muted">For the Medoro team: sales and customer care</span></div>
+              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">Medoro team sign in</h1><span className="text-[13px] text-muted">For the Medoro team: sales and customer care</span></div>
             </div>
 
             {step === "signin" ? (
               <>
                 <label className={label}>Work email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder={`name@${domain}`} autoComplete="username" inputMode="email" /></label>
                 <label className={label}>Password<input className={input} type="password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} autoComplete="current-password" /></label>
-                <button type="button" onClick={() => { setStep("signup"); setErr(""); }} className="flex items-center justify-center gap-2 border border-dashed border-teal-border bg-[#F7FBFA] rounded-[10px] p-[11px] text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={16} />New to the Medoro team? Create your profile</button>
-                <div className="flex justify-end text-[12.5px]"><button type="button" onClick={() => setErr("Password resets go through a super admin. Ask them to reset your sign-in; you’ll get a new link.")} className="text-teal cursor-pointer">Forgot password?</button></div>
+                <div className="flex justify-end -mt-1.5 text-[13px]"><button type="button" onClick={() => setErr("Password resets go through a super admin. Ask them to reset your sign-in; you’ll get a new link.")} className="min-h-10 inline-flex items-center text-teal cursor-pointer">Forgot password?</button></div>
               </>
             ) : null}
 
@@ -130,7 +129,8 @@ export function StaffLogin({ domain, invite, pending }: { domain: string; invite
             {step !== "invite" || invite?.info ? (
               <button type="submit" disabled={busy} className="bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer flex gap-2 items-center justify-center disabled:opacity-60">{busy ? "Please wait…" : label1}</button>
             ) : null}
-            {step === "signup" ? <button type="button" onClick={() => { setStep("signin"); setErr(""); }} className="text-[13px] text-teal cursor-pointer">Back to sign in</button> : null}
+            {step === "signin" ? <button type="button" onClick={() => { setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New to the Medoro team? Create your profile</button> : null}
+            {step === "signup" ? <button type="button" onClick={() => { setStep("signin"); setErr(""); }} className="self-center min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Back to sign in</button> : null}
             <div className="text-[11.5px] text-fainter text-center">Rate-limited · an authenticator app is required · every sign-in is audited</div>
           </form>
 
@@ -139,8 +139,8 @@ export function StaffLogin({ domain, invite, pending }: { domain: string; invite
             <span>Staff accounts see accounts, plans and support tickets only. <strong className="font-semibold">They cannot open any pharmacy’s database, invoices or backups.</strong> Access to a customer environment needs that pharmacy owner’s time-limited approval.</span>
           </div>
           <div className="flex justify-center gap-4 flex-wrap text-[13px]">
-            <Link href="/signin" className="whitespace-nowrap">Pharmacy owner sign-in</Link>
-            <Link href="/signin?view=employee" className="whitespace-nowrap">Pharmacy staff login</Link>
+            <Link href="/signin" className="whitespace-nowrap">Pharmacy owner sign in</Link>
+            <Link href="/signin?view=employee" className="whitespace-nowrap">Pharmacy staff sign in</Link>
           </div>
         </div>
       </main>

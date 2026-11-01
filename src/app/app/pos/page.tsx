@@ -21,7 +21,7 @@ export default async function Page() {
   const d = t(ctx.lang);
   return (
     <>
-      <PageHead title={d.pos} sub={`${ctx.counterName ?? "Browser counter"} · ${ctx.branchName} · F2 search · F4 hold · F9 complete`} />
+      <PageHead title={d.pos} sub={<>{ctx.counterName ?? "Browser counter"} · {ctx.branchName}<span className="max-md:hidden"> · F2 search · F4 hold · F9 complete</span></>} />
       <Pos
         dict={{ search: d.search, cart: d.cart, customer: d.customer, payment: d.payment, total: d.total, complete: d.complete, hold: d.hold }}
         customers={customers} held={held.map((h) => ({ id: h.id, label: h.label }))}

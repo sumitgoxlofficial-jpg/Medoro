@@ -10,6 +10,8 @@ import { PageHead } from "@/components/page-head";
 export const metadata = { title: "Owner view" };
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
+const PAY_NAME: Record<string, string> = { cash: "Cash", upi: "UPI", card: "Card", credit: "Credit", cod: "COD", split: "Split" };
+const payName = (m: string) => PAY_NAME[m] ?? m.charAt(0).toUpperCase() + m.slice(1);
 const pct = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : null);
 
 export default async function Page() {
@@ -18,6 +20,7 @@ export default async function Page() {
   const s = await ownerSnapshot(ctx);
   const d = pct(s.total.today, s.total.yesterday);
   const p = s.pending;
+  const allBr = s.branches.length > 1 ? " · all branches" : "";
   const approvals = [
     { n: p.newOrders, label: "new orders to confirm", href: "/app/orders" },
     { n: p.transfers, label: "stock transfers waiting", href: "/app/inventory?tab=transfers" },
@@ -34,8 +37,8 @@ export default async function Page() {
   ].filter((a) => !a.perm || can(ctx, a.perm as "sale"));
 
   return (
-    <div className="max-w-[560px] flex flex-col gap-3">
-      <PageHead title={t(ctx.lang).own} sub={`${s.day} · as of ${s.asOf} · ${ctx.branches.length} branch${ctx.branches.length > 1 ? "es" : ""}`} />
+    <div className="max-w-[560px] flex flex-col gap-3 lg:max-w-[1120px] lg:grid lg:grid-cols-2 lg:items-start">
+      <div className="lg:col-span-2"><PageHead title={t(ctx.lang).own} sub={`${s.day} · as of ${s.asOf} · ${ctx.branches.length} branch${ctx.branches.length > 1 ? "es" : ""}`} /></div>
 
       <section className={card}>
         <div className="text-[12.5px] text-faint">Net sales today</div>
@@ -44,7 +47,7 @@ export default async function Page() {
           {d != null ? <span className={"text-[13px] font-semibold flex items-center " + (d >= 0 ? "text-ok" : "text-bad")}>{d >= 0 ? <ArrowUpRight size={15} /> : <ArrowDownRight size={15} />}{Math.abs(d)}%</span> : null}
         </div>
         <div className="text-[12.5px] text-muted">{s.total.bills} bill{s.total.bills === 1 ? "" : "s"} · yesterday by this time {inr0(s.total.yesterday)}</div>
-        {Object.keys(s.pay).length ? <div className="flex gap-1.5 flex-wrap">{Object.entries(s.pay).map(([m, v]) => <span key={m} className="text-[12px] bg-chip rounded-full px-2 py-0.5">{m === "cod" ? "COD" : m.toUpperCase()} {inr0(v)}</span>)}</div> : null}
+        {Object.keys(s.pay).length ? <div className="flex gap-1.5 flex-wrap">{Object.entries(s.pay).map(([m, v]) => <span key={m} className="text-[12px] bg-chip rounded-full px-2 py-0.5">{payName(m)} {inr0(v)}</span>)}</div> : null}
         {s.branches.length > 1 ? (
           <table className="text-[13px] w-full mt-1">
             <thead><tr className="text-faint text-left"><th className="font-medium">Branch</th><th className="font-medium text-right">Today</th><th className="font-medium text-right">Yesterday</th></tr></thead>
@@ -62,8 +65,8 @@ export default async function Page() {
       </section>
 
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/app/inventory" className={card + " no-underline text-ink"}><Package size={16} className="text-[#94570A]" /><div className="text-[24px] font-semibold tnum leading-none">{s.stock.low}</div><div className="text-[12.5px] text-muted">low on stock</div></Link>
-        <Link href="/app/expiry" className={card + " no-underline text-ink"}><Hourglass size={16} className="text-bad" /><div className="text-[24px] font-semibold tnum leading-none">{s.stock.expiring}</div><div className="text-[12.5px] text-muted">batches expire in 30 days</div></Link>
+        <Link href="/app/inventory" className={card + " no-underline text-ink"}><Package size={16} className="text-[#94570A]" /><div className="text-[24px] font-semibold tnum leading-none">{s.stock.low}</div><div className="text-[12.5px] text-muted">low on stock{allBr}</div></Link>
+        <Link href="/app/expiry" className={card + " no-underline text-ink"}><Hourglass size={16} className="text-bad" /><div className="text-[24px] font-semibold tnum leading-none">{s.stock.expiring}</div><div className="text-[12.5px] text-muted">batches expire in 30 days{allBr}</div></Link>
       </div>
 
       <section className={card}>
@@ -93,7 +96,7 @@ export default async function Page() {
           <Link key={href} href={href} className="bg-white border border-line rounded-xl p-3 flex flex-col items-center gap-1.5 text-[12.5px] font-medium no-underline text-ink-2 hover:border-input"><Icon size={18} className="text-teal" />{label}</Link>
         ))}
       </section>
-      <div className="text-[11.5px] text-faint flex items-center gap-1"><RefreshCw size={11} />Updates live while open. Install Medoro on your phone and use the “Owner view” shortcut.</div>
+      <div className="text-[11.5px] text-faint flex items-center gap-1 lg:col-span-2"><RefreshCw size={11} />Updates live while open. Install Medoro on your phone and use the “Owner view” shortcut.</div>
     </div>
   );
 }

@@ -58,7 +58,7 @@ export function EbillImport({ open, supplierId, supplier, catalogue, onClose, on
   return (
     <Modal open={open} onClose={onClose} title="Import distributor e-bill" sub={<>{supplier} · CSV, Excel (.xlsx) or text export (pipe or tab separated)</>} width={1080}
       footer={<>
-        {draft ? <span className="mr-auto self-center text-[13px] text-muted">{lines.length} line(s){draft.skipped ? ` · ${draft.skipped} row(s) skipped` : ""}{unmatched ? ` · ${unmatched} not matched yet` : ""}</span> : null}
+        {draft ? <span className="mr-auto self-center text-[13px] text-muted">{lines.length} line{lines.length === 1 ? "" : "s"}{draft.skipped ? ` · ${draft.skipped} row${draft.skipped === 1 ? "" : "s"} skipped` : ""}{unmatched ? ` · ${unmatched} not matched yet` : ""}</span> : null}
         <Button onClick={onClose}>Cancel</Button>
         {draft ? <Button variant="primary" disabled={!!unmatched || pending} title={unmatched ? "Pick or create a medicine for every line" : ""}
           onClick={() => onApply({ invoiceNo: draft.invoiceNo, invoiceDate: draft.invoiceDate, lines })}>Use these lines</Button> : null}

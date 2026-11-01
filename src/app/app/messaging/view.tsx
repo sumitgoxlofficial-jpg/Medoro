@@ -65,15 +65,15 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
     <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] max-w-[1300px] items-start">
       <div className="flex flex-col gap-4">
         <div className={card}>
-          <div className="flex items-baseline justify-between"><div className="font-semibold text-[15px]">Programs</div><span className="text-[12.5px] text-muted">{counts.opted} of {counts.all} on WhatsApp{counts.sms ? ` · ${counts.sms} more by SMS` : ""}</span></div>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={p.refill} onChange={(e) => toggle("refill", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Refill reminders</span><span className="text-[12.5px] text-muted">Based only on how often a customer buys an item. Medoro does not infer conditions or target by health. Sent once a day from 10:00, once per refill.</span></span></label>
+          <div className="flex items-baseline justify-between gap-x-3 flex-wrap"><div className="font-semibold text-[15px]">Programs</div><span className="text-[12.5px] text-muted">{counts.opted} of {counts.all} customers opted in on WhatsApp{counts.sms ? ` · ${counts.sms} more by SMS` : ""}</span></div>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={p.refill} onChange={(e) => toggle("refill", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Refill reminders</span><span className="text-[12.5px] text-muted">Based only on how often a customer buys an item. Medoro does not infer conditions or target by health. Sent once a day from 10:00, once per refill.</span></span></label>
           {p.refill ? (
             <div className="flex gap-2 items-center flex-wrap pl-7 text-[12.5px] text-muted">
               Template <select value={p.refillTemplate} onChange={(e) => save({ refillTemplate: e.target.value })} aria-label="Refill template" className={sel}>{tplOptions(p.refillTemplate)}</select>
               <span className="text-faint">{"{{1}}"} name · {"{{2}}"} medicine · {"{{3}}"} due date</span>
             </div>
           ) : null}
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={p.feedback} onChange={(e) => toggle("feedback", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Feedback request</span><span className="text-[12.5px] text-muted">One message after a purchase, at most once a month per customer.</span></span></label>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={p.feedback} onChange={(e) => toggle("feedback", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Feedback request</span><span className="text-[12.5px] text-muted">One message after a purchase, at most once a month per customer.</span></span></label>
           {p.feedback ? (
             <div className="flex gap-2 items-center flex-wrap pl-7 text-[12.5px] text-muted">
               Template <select value={p.feedbackTemplate} onChange={(e) => save({ feedbackTemplate: e.target.value })} aria-label="Feedback template" className={sel}>{tplOptions(p.feedbackTemplate)}</select>
@@ -81,7 +81,7 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
               <span className="text-faint">{"{{1}}"} name · {"{{2}}"} invoice no.</span>
             </div>
           ) : null}
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={p.payment} onChange={(e) => toggle("payment", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Weekly payment reminders</span><span className="text-[12.5px] text-muted">To customers with a credit balance who consented, once a week from 10:00 (never twice within 6 days).</span></span></label>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={p.payment} onChange={(e) => toggle("payment", e.target.checked)} /><span className="flex flex-col"><span className="text-[14px] font-medium">Weekly payment reminders</span><span className="text-[12.5px] text-muted">To customers with a credit balance who consented, once a week from 10:00 (never twice within 6 days).</span></span></label>
           {p.payment ? (
             <div className="flex gap-2 items-center flex-wrap pl-7 text-[12.5px] text-muted">
               Template <select value={p.paymentTemplate} onChange={(e) => save({ paymentTemplate: e.target.value })} aria-label="Payment reminder template" className={sel}>{tplOptions(p.paymentTemplate)}</select>
@@ -94,14 +94,14 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
           <div className={card}>
             <div className="flex items-center justify-between gap-2"><div className="font-semibold text-[15px]">Credit dues</div>{reach ? <Button size="sm" disabled={pending} onClick={remindAll}>Remind all now</Button> : null}</div>
             {dues.slice(0, 12).map((d) => (
-              <div key={d.id} className="flex items-center gap-2 py-1 border-b border-row last:border-0 text-[13.5px]">
-                <strong className="font-semibold flex-1 min-w-0 truncate">{d.name}</strong>
+              <div key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1 border-b border-row last:border-0 text-[13.5px]">
+                <strong className="font-semibold flex-1 min-w-[120px] truncate">{d.name}</strong>
                 <span className="tnum font-semibold text-bad">{inr0(d.due)}</span>
                 <Badge tone={d.wa ? "green" : d.sms ? "blue" : "gray"}>{d.wa ? "WhatsApp" : d.sms ? "SMS" : "No consent"}</Badge>
-                <span className="text-[12px] text-faint w-[92px] text-right">{d.lastReminder ? `reminded ${dayMonth(new Date(d.lastReminder))}` : ""}</span>
+                {d.lastReminder ? <span className="text-[12px] text-faint sm:w-[92px] text-right">reminded {dayMonth(new Date(d.lastReminder))}</span> : null}
               </div>
             ))}
-            <div className="text-[12px] text-faint">One reminder per customer a day. Customers without consent are skipped. Remind one customer from Parties.</div>
+            <div className="text-[12px] text-faint">One reminder per customer a day. Customers without consent are skipped. Remind one customer from Suppliers & customers.</div>
           </div>
         ) : null}
         {p.refill ? (
@@ -142,9 +142,9 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
           <div className="text-[12px] text-faint">Sends only to customers who consented: on WhatsApp through templates approved by Meta, otherwise by SMS if they agreed to it. Customers can reply STOP to opt out at any time.</div>
         </div>
         <div className={card}>
-          <div className="flex items-center justify-between"><div className="font-semibold text-[15px]">SMS</div><Badge tone={smsOn ? "green" : "gray"}>{!sms.available ? "No gateway on server" : sms.enabled ? "On" : "Off"}</Badge></div>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={sm.enabled} disabled={!sms.available || pending} onChange={(e) => { const on = e.target.checked; setSm({ ...sm, enabled: on }); start(async () => { const r = await smsAction({ enabled: on }); if (!r.ok) toast(r.error, "red"); }); }} />
-            <span className="flex flex-col"><span className="text-[14px] font-medium">Send by SMS when a customer has no WhatsApp consent</span><span className="text-[12.5px] text-muted">Only to customers who agreed to SMS, through this server’s SMS gateway. Indian DLT rules apply: every message type needs a DLT-approved template.</span></span></label>
+          <div className="flex items-center justify-between"><div className="font-semibold text-[15px]">SMS</div><Badge tone={smsOn ? "green" : "gray"}>{!sms.available ? "Not set up" : sms.enabled ? "On" : "Off"}</Badge></div>
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={sm.enabled} disabled={!sms.available || pending} onChange={(e) => { const on = e.target.checked; setSm({ ...sm, enabled: on }); start(async () => { const r = await smsAction({ enabled: on }); if (!r.ok) toast(r.error, "red"); }); }} />
+            <span className="flex flex-col"><span className="text-[14px] font-medium">Send by SMS when a customer has no WhatsApp consent</span><span className="text-[12.5px] text-muted">Only to customers who agreed to SMS, through your SMS provider. Indian DLT rules apply: every message type needs a DLT-approved template.</span></span></label>
           {sm.enabled ? (
             <div className="grid grid-cols-[1fr_170px] gap-x-3 gap-y-1.5 items-center pl-7 text-[13px]">
               {(Object.keys(SMS_LABEL) as SmsType[]).map((k) => (
@@ -157,7 +157,7 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
         </div>
         <div className={card}>
           <div className="flex items-center justify-between"><div className="font-semibold text-[15px]">Loyalty points</div><Badge tone={loyalty.enabled ? "green" : "gray"}>{loyalty.enabled ? "On" : "Off"}</Badge></div>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1" checked={ly.enabled} disabled={pending} onChange={(e) => { setLy({ ...ly, enabled: e.target.checked }); saveLoyalty({ enabled: e.target.checked }); }} />
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={ly.enabled} disabled={pending} onChange={(e) => { setLy({ ...ly, enabled: e.target.checked }); saveLoyalty({ enabled: e.target.checked }); }} />
             <span className="flex flex-col"><span className="text-[14px] font-medium">Customers earn points on every bill</span><span className="text-[12.5px] text-muted">Earned on the amount paid and redeemed at Billing as part payment. The invoice and its GST stay as billed; the redeemed value is booked to “Loyalty points redeemed”.</span></span></label>
           {ly.enabled ? (
             <div className="grid grid-cols-[1fr_110px] gap-x-3 gap-y-1.5 items-center pl-7 text-[13px]">
@@ -165,7 +165,7 @@ export function CrmView({ s, reminders, campaigns, outs, counts, templates, conn
               <span className="text-muted">Value of 1 point (₹)</span><input value={ly.pointValue} onChange={(e) => setLy({ ...ly, pointValue: e.target.value })} inputMode="decimal" aria-label="Point value" className="border border-input rounded-md px-2 py-1 text-right" />
               <span className="text-muted">Minimum points to redeem</span><input value={ly.minRedeem} onChange={(e) => setLy({ ...ly, minRedeem: e.target.value })} inputMode="numeric" aria-label="Minimum redemption" className="border border-input rounded-md px-2 py-1 text-right" />
               <span className="text-muted">Expire after months (0 never)</span><input value={ly.expiryMonths} onChange={(e) => setLy({ ...ly, expiryMonths: e.target.value })} inputMode="numeric" aria-label="Expiry months" className="border border-input rounded-md px-2 py-1 text-right" />
-              <label className="col-span-full flex gap-2 items-center cursor-pointer flex-wrap"><input type="checkbox" className="accent-teal size-4" checked={ly.notify} onChange={(e) => setLy({ ...ly, notify: e.target.checked })} />Message customers the points they earn
+              <label className="col-span-full flex gap-2 items-center cursor-pointer flex-wrap"><input type="checkbox" className="accent-teal size-4 flex-none" checked={ly.notify} onChange={(e) => setLy({ ...ly, notify: e.target.checked })} />Message customers the points they earn
                 {ly.notify ? <select value={ly.template} onChange={(e) => setLy({ ...ly, template: e.target.value })} aria-label="Points template" className={sel}>{tplOptions(ly.template)}</select> : null}</label>
               {ly.notify ? <span className="col-span-full text-[12px] text-faint">{"{{1}}"} name · {"{{2}}"} points earned · {"{{3}}"} balance. WhatsApp or SMS, only with consent.</span> : null}
               <Button size="sm" className="col-span-full justify-self-start" disabled={pending} onClick={() => saveLoyalty({ earnPer100: Number(ly.earnPer100), pointValuePaise: Math.round(parseFloat(ly.pointValue) * 100), minRedeem: Number(ly.minRedeem), expiryMonths: Number(ly.expiryMonths), notify: ly.notify, template: ly.template })}>Save loyalty settings</Button>

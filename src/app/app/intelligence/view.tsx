@@ -49,9 +49,9 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
           <div className="text-[13px] text-muted bg-subtle rounded-lg px-3 py-2.5">Needs 12 months of sales history at this branch ({sea.months} so far). Until then, reorders use the 28-day sales rate below.</div>
         ) : seaRows.length ? (
           <>
-            <div className="overflow-auto">
-              <table className="w-full border-collapse min-w-[760px] text-[13.5px]">
-                <thead><tr><th className={th} /><th className={th}>Medicine</th><th className={th}>12-month pattern</th><th className={th + " text-right"}>vs avg</th><th className={th + " text-right"}>Expected</th><th className={th + " text-right"}>Stock then</th><th className={th + " text-right"}>Pre-stock</th></tr></thead>
+            <div className="overflow-auto tbl-scroll">
+              <table className="w-full border-collapse min-w-[760px] max-sm:min-w-0 text-[13.5px]">
+                <thead><tr><th className={th} /><th className={th}>Medicine</th><th className={th + " max-sm:hidden"}>12-month pattern</th><th className={th + " text-right"}>vs avg</th><th className={th + " text-right max-sm:hidden"}>Expected</th><th className={th + " text-right max-sm:hidden"}>Stock then</th><th className={th + " text-right"}>Pre-stock</th></tr></thead>
                 <tbody>
                   {seaRows.map((r) => {
                     const mx = Math.max(...r.bars, 0.01);
@@ -66,9 +66,9 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
                             </select>
                           ) : null}
                         </td>
-                        <td className={td}><div className="flex items-end gap-[2px] h-7">{r.bars.map((b, i) => <div key={i} title={`${MONTHS[i]}: ${Math.round(b * 100)}% of average`} className="w-[7px] rounded-sm" style={{ height: Math.round(4 + (b / mx) * 22), background: i === month ? "#0B5E5B" : i === cur ? "#7FB8B1" : "#D5E7E4" }} />)}</div></td>
+                        <td className={td + " max-sm:hidden"}><div className="flex items-end gap-[2px] h-7">{r.bars.map((b, i) => <div key={i} title={`${MONTHS[i]}: ${Math.round(b * 100)}% of average`} className="w-[7px] rounded-sm" style={{ height: Math.round(4 + (b / mx) * 22), background: i === month ? "#0B5E5B" : i === cur ? "#7FB8B1" : "#D5E7E4" }} />)}</div></td>
                         <td className={td + " text-right tnum text-teal font-semibold"}>+{Math.round(r.lift)}%</td>
-                        <td className={td + " text-right tnum"}>{r.expected}</td><td className={td + " text-right tnum"}>{r.atStart}</td>
+                        <td className={td + " text-right tnum max-sm:hidden"}>{r.expected}</td><td className={td + " text-right tnum max-sm:hidden"}>{r.atStart}</td>
                         <td className={td + " text-right tnum font-semibold"} style={{ color: r.need ? "#0B5E5B" : "#18794E" }}>{r.need ? "+" + r.need : "Covered"}</td>
                       </tr>
                     );
@@ -85,7 +85,7 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
         ) : <div className="text-[13px] text-muted">No items sell noticeably above average in {MONTHS[month]}. Normal reorder rules are enough.</div>}
       </div>
 
-      <div className={card + " overflow-auto"}>
+      <div className={card + " overflow-auto tbl-scroll"}>
         <div className="flex items-center gap-3 flex-wrap px-4 pt-3.5 pb-2.5">
           <div className="font-semibold text-[15px] mr-auto">Demand forecast & reorder policy</div>
           <span className="text-[12.5px] text-muted">Cover</span>
@@ -100,17 +100,17 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
           ) : null}
         </div>
         {fc.length ? (
-          <table className="w-full border-collapse min-w-[980px] text-[13.5px]">
-            <thead><tr className="bg-subtle"><th className={th}>Medicine</th><th className={th + " text-right"}>28-d avg</th><th className={th + " text-right"}>Next 14 d</th><th className={th + " text-right"}>Sellable</th><th className={th + " text-right"}>Cover</th><th className={th + " text-right"}>Reorder pt</th><th className={th + " text-right"}>Suggest</th><th className={th}>Why</th></tr></thead>
+          <table className="w-full border-collapse min-w-[980px] max-sm:min-w-0 text-[13.5px]">
+            <thead><tr className="bg-subtle"><th className={th}>Medicine</th><th className={th + " text-right max-sm:hidden"}>28-d avg</th><th className={th + " text-right max-sm:hidden"}>Next 14 d</th><th className={th + " text-right"}>Sellable</th><th className={th + " text-right"}>Cover</th><th className={th + " text-right max-sm:hidden"}>Reorder pt</th><th className={th + " text-right"}>Suggest</th><th className={th + " max-sm:hidden"}>Why</th></tr></thead>
             <tbody>
               {fc.map((r) => (
                 <tr key={r.id}>
                   <td className={td}><strong className="font-semibold">{r.name}</strong><div className="text-[12px] text-faint">{r.supplier ?? "No supplier yet"}</div></td>
-                  <td className={td + " text-right tnum"}>{r.velocity ? r.velocity.toFixed(1) + "/day" : "—"}</td><td className={td + " text-right tnum"}>{r.f14}</td><td className={td + " text-right tnum"}>{r.stock}</td>
+                  <td className={td + " text-right tnum max-sm:hidden"}>{r.velocity ? (r.velocity < 0.1 ? "<0.1/day" : r.velocity.toFixed(1) + "/day") : "—"}</td><td className={td + " text-right tnum max-sm:hidden"}>{r.f14}</td><td className={td + " text-right tnum"}>{r.stock}</td>
                   <td className={td + " text-right tnum"} style={{ color: r.cover != null && r.cover <= r.lead + policy.safety ? "#B3261E" : r.cover != null && r.cover <= 7 ? "#94570A" : undefined }}>{r.cover != null ? r.cover + " d" : "—"}</td>
-                  <td className={td + " text-right tnum"}>{r.rop}</td>
+                  <td className={td + " text-right tnum max-sm:hidden"}>{r.rop}</td>
                   <td className={td + " text-right tnum font-semibold"} style={{ color: r.suggestion ? "#0B5E5B" : "#8A929A" }}>{r.suggestion ? "+" + r.suggestion : "—"}</td>
-                  <td className={td + " text-[12.5px] text-ink-2 max-w-[360px]"}>{r.why}</td>
+                  <td className={td + " text-[12.5px] text-ink-2 max-w-[360px] max-sm:hidden"}>{r.why}</td>
                 </tr>
               ))}
             </tbody>

@@ -24,6 +24,6 @@ export const GET = counted("reports", async (req: Request, { params }: { params:
   const reason = (q.get("reason") ?? "").trim().slice(0, 120);
   const showPhones = !(await isStrict(ctx)) || (isManager(ctx) && reason.length >= 5);
   const rows = await reportRows(ctx, id as ReportId, p, scope, { showPhones });
-  await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Report exported", entity: "report", entityId: id, detail: `${def[1]} · ${tag === "all" ? "all branches" : ctx.branchName} · ${p.label} · ${rows.length - 1} rows${id === "customer-dues" ? (showPhones ? (reason ? ` · phones included · reason: ${reason}` : "") : " · phones masked") : ""}` });
+  await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Report exported", entity: "report", entityId: id, detail: `${def[1]} · ${tag === "all" ? "all branches" : ctx.branchName} · ${p.label} · ${rows.length - 1} row${rows.length === 2 ? "" : "s"}${id === "customer-dues" ? (showPhones ? (reason ? ` · phones included · reason: ${reason}` : "") : " · phones masked") : ""}` });
   return new Response(toCsv(rows), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${id}-${tag}-${p.key}.csv"`, "Cache-Control": "no-store" } });
 });

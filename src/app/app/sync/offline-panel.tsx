@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
+import { dayMonth, hhmm } from "@/lib/dates";
 import { del, getDevice, put, syncNow, type Device } from "@/lib/offline/store";
 import { disableOfflineAction, enableOfflineAction, resolveOfflineAction } from "./actions";
 
 type Op = { id: string; deviceId: string; status: string; createdAt: string; receivedAt: string; receipt: string; totalPaise: number; items: number; message: string | null; invoiceNo: string | null; resolution: string | null };
 type Props = { devices: { id: string; name: string; branchId: string; lastSeen: string }[]; ops: Op[]; branchId: string; branchName: string; counterName: string | null; canManage: boolean };
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2";
-const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string) => { const d = new Date(iso); return `${dayMonth(d)} · ${hhmm(d)}`; };
 
 export function OfflinePanel({ devices, ops, branchId, branchName, counterName, canManage }: Props) {
   const toast = useToast();
@@ -87,7 +88,7 @@ export function OfflinePanel({ devices, ops, branchId, branchName, counterName, 
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-[12.5px]">{o.invoiceNo ?? o.receipt}</span>
               <span className="text-muted">{devName(o.deviceId)} · billed {when(o.createdAt)} · {o.items} item{o.items === 1 ? "" : "s"}</span>
-              <span className="font-mono ml-auto">{inr(o.totalPaise)}</span>
+              <span className="tnum font-medium ml-auto">{inr(o.totalPaise)}</span>
               <Badge tone={o.status === "conflict" ? "red" : o.status === "pending" ? "amber" : "green"}>{o.status === "posted" ? "Posted" : o.status === "resolved" ? "Closed" : o.status === "conflict" ? "Needs review" : "Pending"}</Badge>
             </div>
             {o.message ? <div className={o.status === "conflict" ? "text-bad text-[13px]" : "text-muted text-[12.5px]"}>{o.message}</div> : null}

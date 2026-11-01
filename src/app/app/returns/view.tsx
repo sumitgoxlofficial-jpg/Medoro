@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { inr } from "@/lib/money";
+import { inr, inr0 } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { REFUND_MODES } from "@/domain/sales/contracts";
 import type { currentShift, recentInvoices, returnableLines, todaysCreditNotes } from "@/domain/sales/returns";
@@ -48,7 +48,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
       <div className={card}>
         <div className="font-semibold text-[15px]">Sales return & refund</div>
         <div className="flex gap-2 flex-wrap">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Invoice no. or customer" aria-label="Find invoice" className={inp + " max-w-[220px]"} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Invoice no. or customer" aria-label="Find invoice" className={inp + " max-w-[220px] max-sm:max-w-none"} />
           <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Invoice" className={inp + " flex-1 min-w-[240px]"}>
             <option value="">{invoices.length ? "Select a committed invoice…" : "No invoices found"}</option>
             {invoices.map((i) => <option key={i.id} value={i.id}>{i.no} · {i.customer} · {inr(i.total)} · {dayMonth(new Date(i.at))} {hhmm(new Date(i.at))}{i.voided ? " · VOID" : ""}</option>)}
@@ -107,8 +107,8 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
           <div className="flex flex-col gap-1 border-t border-line-soft pt-3">
             <div className="text-[12.5px] text-muted font-medium">Credit notes today</div>
             {creditNotes.map((c) => (
-              <div key={c.no} className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 py-1.5 border-b border-row text-[13px] items-baseline">
-                <a href={`/print/credit-note/${c.id}?format=a4`} target="_blank" rel="noreferrer" className="font-mono text-[12px] text-teal underline">{c.no}</a><span className="truncate">{c.customer} <span className="text-muted">· {c.invoice} · {c.reason} · {c.mode}</span></span><strong className="tnum">{inr(c.amount)}</strong>
+              <div key={c.no} className="grid grid-cols-[auto_minmax(0,1fr)_auto] max-sm:grid-cols-[auto_auto] max-sm:justify-between max-sm:gap-y-0.5 gap-3 py-1.5 border-b border-row text-[13px] items-baseline">
+                <a href={`/print/credit-note/${c.id}?format=a4`} target="_blank" rel="noreferrer" className="font-mono text-[12px] text-teal font-medium no-underline hover:underline">{c.no}</a><span className="truncate max-sm:col-span-2 max-sm:order-last">{c.customer} <span className="text-muted">· {c.invoice} · {c.reason} · {c.mode}</span></span><strong className="tnum">{inr(c.amount)}</strong>
               </div>
             ))}
           </div>
@@ -137,7 +137,7 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
             <div className="text-[13px] text-muted">No shift open on this counter. Cash sales are tracked against a shift so the drawer can be reconciled.</div>
             <label className="flex flex-col gap-1 text-[12.5px] text-muted font-medium">Opening float (₹)<input value={opening} onChange={(e) => setOpening(e.target.value.replace(/[^\d.]/g, ""))} placeholder="0.00" inputMode="decimal" className={inp} /></label>
             <Button variant="primary" disabled={pending} onClick={() => start(async () => { const r = await openShiftAction(opening || "0"); if (!r.ok) return toast(r.error, "red"); toast("Shift opened.", "green"); setOpening(""); })}>Open shift</Button>
-            {shift.last ? <div className="text-[12.5px] text-muted">Last shift closed {dayMonth(new Date(shift.last.closedAt))} {hhmm(new Date(shift.last.closedAt))} · expected {inr(shift.last.expected)} · counted {inr(shift.last.counted)}</div> : null}
+            {shift.last ? <div className="text-[12.5px] text-muted">Last shift closed {dayMonth(new Date(shift.last.closedAt))} {hhmm(new Date(shift.last.closedAt))} · expected {inr(shift.last.expected)} · counted {inr(shift.last.counted)}{shift.last.counted !== shift.last.expected ? <span className="font-medium" style={{ color: shift.last.counted < shift.last.expected ? "#B3261E" : "#1E7F4F" }}> · {inr0(Math.abs(shift.last.counted - shift.last.expected))} {shift.last.counted < shift.last.expected ? "short" : "over"}</span> : null}</div> : null}
           </>
         )}
         <div className="text-[12px] text-faint">Any difference is posted to Cash short/excess and shows in the audit trail.</div>

@@ -56,7 +56,9 @@ describe("paying Medoro online from a self-hosted or desktop installation", () =
   it("accepts only the installation's own, recent link", async () => {
     expect((await payCustomer(link.l, link.s)).id).toBe(customerId);
     expect(await payPage(link.l, link.s)).toMatchObject({ enabled: true, code: "T-1001", plan: "pro", status: "trial" });
-    await expect(payCustomer(link.l, link.s.slice(0, -2) + "00")).rejects.toThrow(/expired or isn’t complete/);
+    // Change the last character of the signature (always to something different).
+    const tampered = link.s.slice(0, -1) + (link.s.endsWith("0") ? "1" : "0");
+    await expect(payCustomer(link.l, tampered)).rejects.toThrow(/expired or isn’t complete/);
     await expect(payCustomer(randomUUID(), link.s)).rejects.toThrow(/expired or isn’t complete/);
     await expect(payCustomer(link.l, link.s, Date.now() + 3 * 3600_000)).rejects.toThrow(/expired or isn’t complete/);
   });

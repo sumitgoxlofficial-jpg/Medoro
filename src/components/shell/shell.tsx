@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
   ChevronDown, ChevronRight, Search, Bell, ShieldCheck, Ellipsis, CircleUser, CreditCard, Languages,
-  Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor, Sparkles, KeyRound,
+  Keyboard, LifeBuoy, LogOut, MapPin, UserRoundCog, Monitor, Sparkles, KeyRound, Menu, X,
 } from "lucide-react";
 import { AiDrawer, type AiShell } from "./ai-drawer";
 import { useLive } from "./use-live";
@@ -43,6 +43,10 @@ function ShellInner(p: ShellProps) {
   const toast = useToast();
   const t = DICT[p.lang];
   const [narrow, setNarrow] = useState(false);
+  // Phones: the menu is a drawer opened from the header instead of a column that takes a fifth of the screen.
+  const [phone, setPhone] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const rail = narrow && !phone;
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
@@ -53,13 +57,15 @@ function ShellInner(p: ShellProps) {
   const [, start] = useTransition();
 
   useEffect(() => {
-    const on = () => setNarrow(window.innerWidth < 1180);
+    const on = () => { setNarrow(window.innerWidth < 1180); setPhone(window.innerWidth < 768); };
     on(); window.addEventListener("resize", on);
     if (window.innerWidth >= 1500) setAiOpen(true);
     const ask = () => setAiOpen(true);
     window.addEventListener("medoro:ai", ask);
     return () => { window.removeEventListener("resize", on); window.removeEventListener("medoro:ai", ask); };
   }, []);
+
+  useEffect(() => { setDrawer(false); setMenu(false); }, [path]);
 
   // Result of Profile → Connect Google (the OAuth callback lands on /app?google=…).
   useEffect(() => {
@@ -83,6 +89,7 @@ function ShellInner(p: ShellProps) {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
       if (e.key === "F2" && READY.has("pos") && p.perms.includes("sale")) { e.preventDefault(); router.push("/app/pos?focus=1"); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && showAi) { e.preventDefault(); setAiOpen((x) => !x); }
+      else if (e.key === "Escape" && drawer) setDrawer(false);
       else if (e.key === "Escape" && aiOpen && narrow) setAiOpen(false);
       else if (e.key === "?" && !typing) { e.preventDefault(); showShortcuts(); }
     };
@@ -94,31 +101,33 @@ function ShellInner(p: ShellProps) {
 
   const allowed = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));
   const cur = screenOf(path);
-  const title = cur ? t[cur.id] : "";
+  const title = path.startsWith("/app/owner/reports") ? "Scheduled reports" : cur ? t[cur.id] : "";
   const initials = p.userName.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (narrow ? "76px" : "232px") + " minmax(0,1fr)" + (aiOpen && showAi && !narrow ? " 380px" : "") }}>
-      <aside className="bg-side border-r border-line flex flex-col min-h-0">
+    <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (phone ? "" : rail ? "76px " : "232px ") + "minmax(0,1fr)" + (aiOpen && showAi && !narrow ? " 380px" : "") }}>
+      {phone && drawer ? <div className="fixed inset-0 z-[79] bg-[rgba(16,24,40,.35)]" onClick={() => setDrawer(false)} aria-hidden /> : null}
+      <aside className={cn("bg-side border-r border-line flex flex-col min-h-0", phone && "fixed inset-y-0 left-0 z-[80] w-[272px] max-w-[85vw] shadow-pop transition-transform duration-200", phone && !drawer && "-translate-x-full invisible")} aria-label="Menu">
         <div className="h-14 flex items-center px-2.5 border-b border-line-soft flex-none">
           <div className="flex items-center gap-[9px] w-full p-1.5 rounded-lg">
             <span className="size-7 rounded-[7px] bg-white border border-line flex items-center justify-center flex-none shadow-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/medoro-mark.png" alt="Medoro" className="w-5 h-auto" />
             </span>
-            {!narrow ? (
+            {!rail ? (
               <span className="flex flex-col min-w-0 flex-1 leading-tight">
                 <span className="text-[13.5px] font-semibold text-ink-strong truncate">{p.tenantName}</span>
                 <span className="text-[11.5px] text-faint whitespace-nowrap">{p.branchCount} branch{p.branchCount === 1 ? "" : "es"}</span>
               </span>
             ) : null}
+            {phone ? <button onClick={() => setDrawer(false)} aria-label="Close menu" className="size-10 -mr-1 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:bg-hover"><X size={18} /></button> : null}
           </div>
         </div>
         <nav className="flex flex-col gap-px p-2 flex-1 overflow-y-auto overflow-x-hidden">
           {allowed.map((n, i) => {
             const a = cur?.id === n.id;
-            const head = !narrow && (i === 0 || allowed[i - 1].group !== n.group);
-            const hidden = !narrow && closed[n.group] && !a;
+            const head = !rail && (i === 0 || allowed[i - 1].group !== n.group);
+            const hidden = !rail && closed[n.group] && !a;
             const Icon = NAV_ICONS[n.icon as keyof typeof NAV_ICONS];
             const b = p.badges[n.id];
             return (
@@ -129,21 +138,21 @@ function ShellInner(p: ShellProps) {
                   </button>
                 ) : null}
                 {!hidden ? (
-                  <Link href={n.href} title={t[n.id]} className={cn("relative flex items-center rounded-md min-h-[30px] text-[13px] no-underline",
-                    narrow ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2 py-1.5",
+                  <Link href={n.href} title={t[n.id]} className={cn("relative flex flex-none items-center rounded-md text-[13px]", phone ? "min-h-[40px]" : "min-h-[30px]", "no-underline",
+                    rail ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2 py-1.5",
                     a ? "bg-white text-ink-strong font-semibold shadow-[0_1px_2px_rgba(16,24,40,.08),0_0_0_1px_#E6E8EB]" : "text-ink-2 font-medium hover:bg-hover hover:text-ink-2")}>
                     <Icon size={16} className="flex-none" style={{ color: a ? "#0B5E5B" : "#6B737B" }} />
-                    {!narrow ? <span className="flex-1 truncate">{t[n.id]}</span> : <span className="text-[10px] leading-none whitespace-nowrap">{n.abbr}</span>}
-                    {!narrow && b && b[0] ? <span className="min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold flex items-center justify-center tnum" style={{ background: BADGE[b[1]][0], color: BADGE[b[1]][1] }}>{b[0]}</span> : null}
+                    {!rail ? <span className="flex-1 truncate">{t[n.id]}</span> : <span className="text-[10px] leading-none whitespace-nowrap">{n.abbr}</span>}
+                    {!rail && b && b[0] ? <span className="min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold flex items-center justify-center tnum" style={{ background: BADGE[b[1]][0], color: BADGE[b[1]][1] }}>{b[0]}</span> : null}
                   </Link>
                 ) : null}
               </div>
             );
           })}
         </nav>
-        {!narrow ? (
-          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title="Your live database runs on infrastructure you control. Medoro only holds licence data." className="mx-2 my-1.5 flex items-center gap-2 h-8 px-2.5 border border-line bg-white rounded-[7px] text-[12px] text-ink-2 no-underline hover:border-input hover:text-ink-2">
-            <ShieldCheck size={14} style={{ color: p.strict ? "#18794E" : "#94570A" }} /><span className="truncate">{p.strict ? "Strict mode · data on your server" : "Strict mode off · see Privacy"}</span>
+        {!rail ? (
+          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title={p.strict ? "Strict mode on: your live database runs on infrastructure you control. Medoro only holds licence data." : "Strict mode is off. Open Privacy to see what leaves your server."} className="mx-2 my-1.5 flex items-center gap-2 h-8 px-2.5 border border-line bg-white rounded-[7px] text-[12px] text-ink-2 no-underline hover:border-input hover:text-ink-2">
+            <ShieldCheck size={14} style={{ color: p.strict ? "#18794E" : "#94570A" }} /><span className="truncate">{p.strict ? "Strict mode on · data stays with you" : "Strict mode off · see Privacy"}</span>
           </Link>
         ) : null}
         <div className="relative border-t border-line-soft px-2 py-1.5">
@@ -178,7 +187,7 @@ function ShellInner(p: ShellProps) {
           ) : null}
           <button onClick={() => setMenu((x) => !x)} title="Account menu" className={cn("flex items-center gap-[9px] p-1.5 w-full rounded-lg cursor-pointer text-left hover:bg-hover", menu && "bg-hover")}>
             <Avatar initials={initials} size={28} />
-            {!narrow ? (
+            {!rail ? (
               <>
                 <div className="flex flex-col min-w-0 flex-1 leading-tight"><div className="text-[13px] font-semibold truncate text-ink-strong">{p.userName}</div><div className="text-[11.5px] text-faint">{p.role} · {p.branchName}</div></div>
                 <Ellipsis size={16} className="text-fainter" />
@@ -208,32 +217,37 @@ function ShellInner(p: ShellProps) {
             {offlineReady ? <a href="/offline" className="font-semibold text-teal underline">Open offline billing</a> : null}
           </div>
         ) : null}
-        <header className="flex items-center gap-2.5 h-14 px-5 bg-white border-b border-line flex-none">
-          <div className="flex items-center gap-1.5 text-[13.5px] min-w-0 flex-none">
+        <header className={cn("flex items-center h-14 bg-white border-b border-line flex-none", phone ? "gap-1 px-2" : "gap-2.5 px-5")}>
+          <div className={cn("flex items-center gap-1.5 text-[13.5px] min-w-0", phone ? "flex-1" : "flex-none")}>
             {!narrow ? <><span className="text-faint whitespace-nowrap max-w-[160px] truncate">{p.tenantName.split(" ")[0]}</span><ChevronRight size={14} className="text-[#A3AAB1]" /></> : null}
-            <div className="relative flex items-center">
-              <select value={p.branchId} onChange={(e) => start(() => setBranch(e.target.value))} aria-label="Branch" className="appearance-none border-0 bg-transparent py-1 pl-1.5 pr-5 rounded-md text-[13.5px] text-ink-2 font-medium cursor-pointer outline-none hover:bg-chip">
-                {p.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-              <ChevronDown size={13} className="absolute right-1 text-fainter pointer-events-none" />
-            </div>
-            <ChevronRight size={14} className="text-[#A3AAB1]" />
-            <span className="font-semibold whitespace-nowrap">{title}</span>
+            {phone ? <button onClick={() => setDrawer(true)} aria-label="Open menu" aria-expanded={drawer} className="size-10 -ml-1 rounded-lg flex items-center justify-center text-ink-2 cursor-pointer hover:bg-chip flex-none"><Menu size={20} /></button> : (
+              <>
+                <div className="relative flex items-center">
+                  <select value={p.branchId} onChange={(e) => start(() => setBranch(e.target.value))} aria-label="Branch" className="appearance-none border-0 bg-transparent py-1 pl-1.5 pr-5 rounded-md text-[13.5px] text-ink-2 font-medium cursor-pointer outline-none hover:bg-chip">
+                    {p.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                  <ChevronDown size={13} className="absolute right-1 text-fainter pointer-events-none" />
+                </div>
+                <ChevronRight size={14} className="text-[#A3AAB1]" />
+              </>
+            )}
+            <span className="font-semibold whitespace-nowrap truncate">{title}</span>
           </div>
-          {READY.has("pos") && p.perms.includes("sale") ? (
-            <Link href="/app/pos?focus=1" className="mx-auto flex items-center gap-2 w-[min(380px,32vw)] min-w-[140px] h-[34px] px-2.5 border border-line bg-page rounded-lg text-fainter text-[13px] no-underline hover:border-input hover:bg-white hover:text-fainter">
-              <Search size={15} /><span className="flex-1 truncate">Search medicines, invoices…</span><span className="font-mono text-[11px] border border-[#E3E6E9] bg-white rounded px-[5px] text-faint">F2</span>
+          {READY.has("pos") && p.perms.includes("sale") && phone ? (
+            <Link href="/app/pos?focus=1" aria-label="Search medicines" className="size-10 rounded-lg flex items-center justify-center text-muted no-underline hover:bg-chip hover:text-muted flex-none"><Search size={18} /></Link>
+          ) : READY.has("pos") && p.perms.includes("sale") ? (
+            <Link href="/app/pos?focus=1" className="ml-4 mr-auto flex items-center gap-2 w-[min(380px,32vw)] min-w-[140px] h-[34px] px-2.5 border border-line bg-page rounded-lg text-fainter text-[13px] no-underline hover:border-input hover:bg-white hover:text-fainter">
+              <Search size={15} /><span className="flex-1 truncate">Search medicines…</span><span className="font-mono text-[11px] border border-[#E3E6E9] bg-white rounded px-[5px] text-faint">F2</span>
             </Link>
-          ) : <div className="mx-auto" />}
+          ) : phone ? null : <div className="mx-auto" />}
           <div className="flex items-center gap-1.5 flex-none">
             <div title={live === "live" ? `Live: changes from other devices appear here automatically. ${p.liveDevices} device${p.liveDevices === 1 ? "" : "s"} active in the last 5 minutes.` : live === "offline" ? "This device is offline." : "Connecting to your server for live updates…"}
               className={cn("flex items-center gap-1.5 h-[30px] px-[9px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap", live === "live" ? "text-ok" : live === "offline" ? "text-bad" : "text-[#94570A]")}>
               <span className={cn("size-[7px] rounded-full", live === "live" ? "bg-[#22A06B] shadow-[0_0_0_3px_#DCF2E7] animate-pulse-dot" : live === "offline" ? "bg-[#D64545]" : "bg-[#E0A82E]")} />
               {!narrow ? (live === "live" ? "Live" : live === "offline" ? "Offline" : "Connecting") : null}
             </div>
-            <div className="w-px h-5 bg-line" />
-            <LangToggle lang={p.lang} onChange={(l) => start(() => setLang(l))} />
-            {p.canViewAs ? (
+            {!phone ? <><div className="w-px h-5 bg-line" /><LangToggle lang={p.lang} onChange={(l) => start(() => setLang(l))} /></> : null}
+            {p.canViewAs && !phone ? (
               <div title="Preview the app as another role. Permissions can only narrow." className="relative flex items-center">
                 <UserRoundCog size={14} className="absolute left-[9px] text-faint pointer-events-none" />
                 <select value={p.role} aria-label="View as role" onChange={(e) => { const r = e.target.value; start(async () => { await setViewAs(r); toast(r === p.realRole ? "Back to your own role." : `Now viewing as ${r}. Menus and actions follow that role.`, "blue"); }); }}
@@ -243,10 +257,10 @@ function ShellInner(p: ShellProps) {
                 <ChevronDown size={13} className="absolute right-[7px] text-fainter pointer-events-none" />
               </div>
             ) : null}
-            <button onClick={() => toast(p.alerts.length ? p.alerts.join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title="Notifications" className="relative size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
+            <button onClick={() => toast(p.alerts.length ? p.alerts.join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title="Notifications" className="relative size-10 sm:size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
               <Bell size={17} />{p.alerts.length ? <span className="absolute top-[7px] right-2 size-[7px] rounded-full bg-[#D64545] border-[1.5px] border-white" /> : null}
             </button>
-            {showAi ? <button onClick={() => setAiOpen((x) => !x)} title="Ask AI (Ctrl+J)" aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
+            {showAi ? <button onClick={() => setAiOpen((x) => !x)} title="Ask AI (Ctrl+J)" aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-10 sm:h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
               <Sparkles size={15} />{!narrow ? t.ask : null}
             </button> : null}
           </div>

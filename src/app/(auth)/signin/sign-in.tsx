@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IdCard, UserPlus, Check, KeyRound } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/components/ui/cn";
+import { WA } from "@/components/site/brand";
 import { AuthButton, AuthCard, AuthError, AuthLabel, Steps, authInput, authMono } from "@/components/auth-ui";
 import {
   checkInviteContact, completeInvite, countersFor, employeeSignIn, findInvite, forgotPassword, otpSignIn, passwordSignIn, requestSignInOtp, resetPassword,
@@ -34,6 +36,7 @@ export function SignIn({ otp, google, recovery, notice, linkEmail, initialView }
 function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: boolean; google: boolean; notice: string | null; linkEmail: string | null; onEmployee: () => void; onForgot: () => void }) {
   const router = useRouter();
   const [method, setMethod] = useState<"otp" | "pwd">(otp && !linkEmail ? "otp" : "pwd");
+  const useOtp = otp && method === "otp";
   const [phone, setPhone] = useState(""), [code, setCode] = useState(""), [sent, setSent] = useState(false);
   const [email, setEmail] = useState(linkEmail ?? ""), [pwd, setPwd] = useState("");
   const [err, setErr] = useState(""), [pending, start] = useTransition();
@@ -41,7 +44,7 @@ function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: 
   const submit = (e: React.FormEvent) => {
     e.preventDefault(); setErr("");
     start(async () => {
-      if (method === "pwd") {
+      if (!useOtp) {
         const r = await passwordSignIn(email, pwd);
         if (!r.ok) return setErr(r.error);
         router.replace(r.data!);
@@ -63,27 +66,25 @@ function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: 
         <div className="text-[22px] font-semibold">Sign in</div>
         {linkEmail ? <div role="status" className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">Google confirmed <strong>{linkEmail}</strong>. Enter your Medoro password once to connect Google sign-in to this account.</div>
           : notice && GOOGLE_NOTICE[notice] ? <div role="status" className="text-[13px] bg-chip rounded-lg p-3">{GOOGLE_NOTICE[notice]}</div> : null}
-        <Segmented value={method} onChange={(v) => { setMethod(v); setErr(""); }} className="self-start"
-          options={[{ value: "otp", label: "Mobile OTP" }, { value: "pwd", label: "Email & password" }]} />
-        {method === "otp" ? (
-          otp ? (
-            <>
-              <AuthLabel label="Mobile number"><input className={authInput} value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ""))} placeholder="98220 41736" inputMode="tel" autoComplete="tel" disabled={sent} /></AuthLabel>
-              {sent ? <AuthLabel label="6-digit OTP"><input className={cn(authInput, "font-mono text-[18px] tracking-[.3em]")} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus /></AuthLabel> : null}
-            </>
-          ) : (
-            <div className="text-[13px] text-muted bg-chip rounded-lg p-3">SMS sign-in isn’t set up on this server yet (OTP provider not configured). Use email and password.</div>
-          )
+        {otp ? (
+          <Segmented value={method} onChange={(v) => { setMethod(v); setErr(""); }} className="self-start"
+            options={[{ value: "otp", label: "Mobile OTP" }, { value: "pwd", label: "Email & password" }]} />
+        ) : null}
+        {useOtp ? (
+          <>
+            <AuthLabel label="Mobile number"><input className={authInput} value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ""))} placeholder="98220 41736" inputMode="tel" autoComplete="tel" disabled={sent} /></AuthLabel>
+            {sent ? <AuthLabel label="6-digit OTP"><input className={cn(authInput, "font-mono text-[18px] tracking-[.3em]")} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus /></AuthLabel> : null}
+          </>
         ) : (
           <>
             <AuthLabel label="Email"><input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@pharmacy.in" autoComplete="username" autoFocus={!linkEmail} /></AuthLabel>
             <AuthLabel label="Password"><input className={authInput} type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" autoFocus={!!linkEmail} /></AuthLabel>
-            <button type="button" onClick={onForgot} className="self-end -mt-1.5 text-[12.5px] text-teal cursor-pointer">Forgot password?</button>
+            <button type="button" onClick={onForgot} className="self-end -mt-1.5 min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Forgot password?</button>
           </>
         )}
         <AuthError>{err}</AuthError>
-        <AuthButton type="submit" disabled={pending || (method === "otp" && !otp)}>
-          {pending ? "Please wait…" : method === "otp" ? (sent ? "Verify OTP" : "Send OTP") : "Sign in"}
+        <AuthButton type="submit" disabled={pending}>
+          {pending ? "Please wait…" : useOtp ? (sent ? "Verify OTP" : "Send OTP") : "Sign in"}
         </AuthButton>
       </form>
       {google ? (
@@ -92,9 +93,10 @@ function Owner({ otp, google, notice, linkEmail, onEmployee, onForgot }: { otp: 
         </a>
       ) : null}
       <button onClick={onEmployee} className="flex items-center justify-center gap-2 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink cursor-pointer hover:border-teal hover:text-teal">
-        <IdCard size={16} />Employee login (counter staff)
+        <IdCard size={16} />Pharmacy staff login (PIN)
       </button>
-      <div className="text-[11.5px] text-fainter text-center">Rate-limited sign-in · sessions can be revoked from Users</div>
+      <p className="m-0 text-[13px] text-muted text-center">New to Medoro? <Link href="/start" className="text-teal font-semibold">Start a free trial</Link></p>
+      <p className="m-0 text-[12px] text-fainter text-center">Trouble signing in? <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-medium">WhatsApp Medoro support</a></p>
     </AuthCard>
   );
 }
@@ -126,7 +128,7 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
       <form onSubmit={submit} className="flex flex-col gap-3.5">
         <div className="flex gap-2.5 items-center">
           <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><IdCard size={18} /></span>
-          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">Employee login</span><span className="text-[13px] text-muted">For pharmacists, cashiers and accountants</span></div>
+          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">Pharmacy staff login</span><span className="text-[13px] text-muted">For pharmacists, cashiers and accountants</span></div>
         </div>
         <AuthLabel label="Pharmacy code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus={!prefill} /></AuthLabel>
         <AuthLabel label="Employee ID"><input className={cn(authInput, authMono)} value={emp} onChange={(e) => setEmp(e.target.value.toUpperCase())} placeholder="E-104" /></AuthLabel>
@@ -254,7 +256,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
       </AuthButton>
       {step < 4 ? (
         <div className="flex justify-between gap-2 flex-wrap text-[12.5px]">
-          <button onClick={onBack} className="text-teal cursor-pointer">← Employee login</button>
+          <button onClick={onBack} className="text-teal cursor-pointer">← Pharmacy staff login</button>
           <span className="text-faint">No code? Ask your manager to add you in Users.</span>
         </div>
       ) : null}

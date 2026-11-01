@@ -70,7 +70,7 @@ export async function forecast(ctx: Ctx, policy: { cover: number; safety: number
     const trig = (v > 0 && st <= rop) || st < m.reorderLevel;
     const sug = trig ? Math.max(0, Math.max(target + rop, m.reorderLevel) - st) : 0;
     const cover = v ? Math.floor(st / v) : null;
-    const why = sug ? (st < m.reorderLevel && st > rop ? `Stock ${st} is below the reorder level ${m.reorderLevel}.` : `Stock ${st} is at or below the reorder point ${rop} (${v.toFixed(1)}/day × ${lead + policy.safety} d lead + safety).`) + ` Orders up to ${policy.cover} days of cover.`
+    const why = sug ? (st <= 0 ? `Out of stock (reorder level ${m.reorderLevel}).` : st < m.reorderLevel ? `Stock ${st} is below the reorder level ${m.reorderLevel}.` : `Stock ${st} won’t last the ${lead + policy.safety}-day lead time plus safety stock.`) + ` Orders enough for ${policy.cover} days.`
       : v ? "Above reorder point" : "No sales in the last 28 days";
     return { id: m.id, name: m.name, velocity: v, f14: Math.round(v * 14), stock: st, cover, lead, rop, suggestion: sug, why, supplierId: sp?.id ?? null, supplier: sp?.name ?? null, cost: big(lb?.costPaise) || Math.round(big(m.mrpPaise) * 0.7) };
   }).sort((a, b) => b.suggestion - a.suggestion || a.name.localeCompare(b.name));
@@ -247,7 +247,7 @@ export async function seasonal(ctx: Ctx, targetMonth: number) {
   if (months < 12) return { ready: false as const, months };
   const since = new Date(Date.now() - 730 * 86400_000);
   const rows = await db.$queryRaw<{ medicineId: string; m: number; q: bigint }[]>`
-    SELECT si."medicineId", EXTRACT(MONTH FROM s.at AT TIME ZONE 'Asia/Kolkata')::int m, SUM(si.qty) q FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId"
+    SELECT si."medicineId", EXTRACT(MONTH FROM s.at + interval '330 minutes')::int m, SUM(si.qty) q FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId"
     WHERE s."tenantId" = ${ctx.tenantId} AND s."branchId" = ${ctx.branchId} AND s.at >= ${since} GROUP BY 1, 2`;
   const [meds, stock] = await Promise.all([db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, select: { id: true, name: true } }), sellableByMedicine(ctx.tenantId, ctx.branchId)]);
   const cur = new Date(startOfTodayIST().getTime() + 330 * 60000).getUTCMonth();

@@ -25,6 +25,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
     acceptDownloads: true,
     actionTimeout: 15_000,
+    // Use a browser that's already installed (e.g. a CI image) instead of Playwright's download.
+    ...(process.env.PW_CHROMIUM_PATH ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } } : {}),
     navigationTimeout: 30_000,
   },
   projects: [
