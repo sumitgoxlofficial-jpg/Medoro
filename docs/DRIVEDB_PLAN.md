@@ -235,6 +235,22 @@ working with me; they overlap a little.
 - Tests: crypto/sync/drive unit tests, `e2e/19-drive-restore.spec.ts` (fake Google Drive in the browser test:
   set up, bill, wipe, wrong code refused, restore with the code).
 
+### Phase 3 progress (built)
+- The device counter is one app with tabs (`src/components/device/`): **Billing** (bill opens ready to print,
+  80 mm GST tax invoice with pharmacy name, address, GSTIN, DL, batch and expiry), **Bills & day-end** (day
+  summary by payment mode, refunds, money received from credit customers, cash in drawer, purchases; print
+  day-end; find a bill; reprint; return from a bill as a credit note), **Stock** (stock, low-stock filter,
+  nearest expiry, add and edit medicines), **Purchases** (enter a supplier's bill: batches, expiry, packs, free,
+  rate, MRP), **Customers** (add, what each owes, receive payment), **Counter** (owner: counter PIN).
+- **Works with no internet:** `medoro.in/device` opens without signing in, unlocked with the counter PIN
+  (salted hash on the device, 5 wrong tries = 5 min lock). The service worker keeps that page and the SQLite
+  build; the old offline page links to it on Drive mode counters.
+- The catalogue copy now carries the pharmacy's bill details and the owner's name for offline bills.
+- Reports on the device: `src/drivedb/reports.ts` (bill detail, day-end, bill search, stock list, customers,
+  suppliers, medicine edits). Tests: `reports.test.ts`, `e2e/20-device-counter.spec.ts` (stock in, customer,
+  credit bill, part payment, return, day-end totals, PIN, billing with the browser offline).
+- Still to do in phase 3: the "keep my data in my Google Drive" choice at sign-up (after the pilot week).
+
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
 - Token broker endpoint on the server; data key + recovery kit wrapping + device keys.

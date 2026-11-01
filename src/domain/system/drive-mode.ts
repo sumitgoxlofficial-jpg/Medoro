@@ -42,12 +42,17 @@ export async function deviceSeed(ctx: Ctx) {
     db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
     db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, qtyAvailable: { gt: 0 } } }),
     db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null } }),
-    db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, select: { id: true, code: true, name: true } }),
+    db.branch.findUniqueOrThrow({ where: { id: ctx.branchId }, select: { id: true, code: true, name: true, address: true, gstin: true, drugLicence: true, tenant: { select: { name: true, legalName: true, gstin: true, phone: true } } } }),
     maxDiscount(ctx.tenantId),
   ]);
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Catalogue copied to a device", entity: "tenant", entityId: ctx.tenantId, detail: `${meds.length} medicines, ${batches.length} batches, ${customers.length} customers (${branch.name})` });
+  // What a printed bill needs, kept on the device so it can print with no network.
+  const pharmacy = {
+    name: branch.tenant.legalName || branch.tenant.name, tradeName: branch.tenant.name, gstin: branch.gstin || branch.tenant.gstin || "",
+    dl: branch.drugLicence ?? "", address: branch.address ?? "", phone: branch.tenant.phone ?? "",
+  };
   return {
-    branch, maxDiscountPct, userId: ctx.userId,
+    branch: { id: branch.id, code: branch.code, name: branch.name }, pharmacy, maxDiscountPct, userId: ctx.userId, userName: ctx.userName,
     medicines: meds.map((m) => ({
       id: m.id, name: m.name, generic: m.generic, strength: m.strength, form: m.form, manufacturer: m.manufacturer, barcode: m.barcode, hsn: m.hsn,
       gstRate: m.gstRate, mrpPaise: big(m.mrpPaise), schedule: m.schedule, packSize: m.packSize, packUnit: m.packUnit, looseUnit: m.looseUnit,

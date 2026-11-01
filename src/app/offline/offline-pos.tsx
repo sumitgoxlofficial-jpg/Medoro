@@ -31,6 +31,9 @@ function useOnline() {
 
 /** Billing that works with no network, from this device's snapshot. Bills post when it reconnects. */
 export function OfflinePos() {
+  // Set by the Drive mode counter once this browser holds a pharmacy (see components/device/device-app.tsx).
+  const [driveMode, setDriveMode] = useState(false);
+  useEffect(() => { try { setDriveMode(localStorage.getItem("medoro-drivedb-ready") === "1"); } catch { /* private window */ } }, []);
   const online = useOnline();
   const [ready, setReady] = useState(false);
   const [dev, setDev] = useState<Device | null>(null);
@@ -159,6 +162,8 @@ export function OfflinePos() {
   if (!ready) return <div className="p-8 text-muted">Loading…</div>;
 
   const header = (
+    <>
+    {driveMode ? <a href="/device" className="print:hidden block px-4 py-2 text-[13px] bg-teal-tint text-teal border-b border-teal-line no-underline">This counter uses Drive mode: open the Drive mode counter (works fully offline) →</a> : null}
     <header className="print:hidden flex items-center gap-3 flex-wrap px-4 py-3 bg-white border-b border-line">
       {/* eslint-disable-next-line @next/next/no-img-element -- must load from the offline cache, not the image optimiser */}
       <img src="/medoro-mark.png" alt="" width={28} height={28} />
@@ -170,6 +175,7 @@ export function OfflinePos() {
       {dev ? <Button disabled={!online || syncing} onClick={sync}><RefreshCw size={14} className={syncing ? "animate-spin" : ""} />{pending.length ? `Send ${pending.length} bill${pending.length > 1 ? "s" : ""}` : "Refresh"}</Button> : null}
       <a href="/app" className="text-[13px] text-teal font-medium">Open Medoro</a>
     </header>
+    </>
   );
 
   if (!dev || !snap) {

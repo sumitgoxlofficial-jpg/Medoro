@@ -18,7 +18,7 @@ export default async function Page() {
   return (
     <>
       <PageHead title="Billing on this device" sub="Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive. F2 search · F9 complete" />
-      <DevicePos userId={ctx.userId} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} />
+      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} />
     </>
   );
 }

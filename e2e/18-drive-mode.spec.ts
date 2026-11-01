@@ -24,6 +24,10 @@ test("owner turns on Drive mode and bills on the device", async ({ page }) => {
   await page.getByRole("button", { name }).click();
   await page.getByRole("button", { name: /Complete bill/ }).click();
   await expect(page.getByText(/Bill D\w{4}\d{4}-000001 · .* saved on this device/)).toBeVisible();
+  // The bill opens ready to print; the day's bills are under "Bills & day-end".
+  await expect(page.getByRole("dialog").getByText("TAX INVOICE")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
+  await page.getByRole("tab", { name: "Bills & day-end" }).click();
   await expect(page.getByText(/D\w{4}\d{4}-000001 · Walk-in · 1 item/)).toBeVisible();
 
   // Turn it off again so the rest of the suite runs as normal.

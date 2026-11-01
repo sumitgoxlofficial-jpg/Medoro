@@ -8,6 +8,7 @@ import { wasmEngine, type WasmDb } from "./engine";
 import * as pharmacy from "./pharmacy";
 import * as trade from "./trade";
 import * as seed from "./seed";
+import * as reports from "./reports";
 import * as sync from "./sync";
 import { googleStore, DriveAuthError, type DriveStore } from "./drive";
 
@@ -104,6 +105,15 @@ const handlers = {
   createReturn: (input: Parameters<typeof trade.createReturn>[1]) => trade.createReturn(need(), input),
   importSeed: (data: seed.Seed, userId: string) => seed.importSeed(need(), data, userId),
   config: () => seed.counterConfig(need()),
+  setPin: (pin: string) => seed.setPin(need(), pin),
+  checkPin: (pin: string) => seed.checkPin(need(), pin),
+  saleDetail: (id: string) => reports.saleDetail(need(), id),
+  listBills: (iso: string, text?: string) => reports.listBills(need(), iso, text),
+  dayReport: (branchId: string, iso?: string) => reports.dayReport(need(), branchId, iso),
+  stockList: (branchId: string, text?: string) => reports.stockList(need(), branchId, text),
+  updateMedicine: (id: string, patch: Parameters<typeof reports.updateMedicine>[2]) => reports.updateMedicine(need(), id, patch),
+  customerList: (text?: string) => reports.customerList(need(), text),
+  supplierList: () => reports.supplierList(need()),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   setDriveAccess: (a: { token: string; folderId: string; expiresAt: number }) => { access = a; return true; },

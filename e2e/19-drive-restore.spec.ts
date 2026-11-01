@@ -27,6 +27,7 @@ test("set up Drive storage, then restore everything on a fresh device with the r
     await page.getByRole("button", { name }).click();
     await page.getByRole("button", { name: /Complete bill/ }).click();
     await expect(page.getByText(/saved on this device/).last()).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
   };
   await bill();
 
@@ -57,9 +58,11 @@ test("set up Drive storage, then restore everything on a fresh device with the r
   await pageB.getByLabel("Drive recovery code").fill(code.toLowerCase());
   await pageB.getByRole("button", { name: "Restore from Google Drive" }).click();
   await expect(pageB.getByText(/Restored from Google Drive/)).toBeVisible();
+  await pageB.getByRole("tab", { name: "Bills & day-end" }).click();
   await expect(pageB.getByText(/-000001 · Walk-in/)).toBeVisible();
   await expect(pageB.getByText(/-000002 · Walk-in/)).toBeVisible();
   // This device is approved now and saves to Drive without the code.
+  await pageB.getByRole("tab", { name: "Billing" }).click();
   await expect(pageB.getByText("Last full copy")).toBeVisible();
 
   await pageB.goto("/app/lab");
