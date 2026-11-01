@@ -7,6 +7,7 @@ import { deviceDb, deviceId } from "@/drivedb/device";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
 import { deviceSeedAction } from "../lab/actions";
+import { DrivePanel, useDriveAccess } from "./drive-panel";
 
 type Med = { id: string; name: string; generic: string; mrpPaise: number; packSize: number; packUnit: string; looseUnit: string; allowLoose: number; schedule: string | null; stock: number };
 type Line = { med: Med; qty: number; unit: "pack" | "loose" };
@@ -19,7 +20,7 @@ const H1 = ["H1", "X", "NDPS"];
 const price = (l: Line) => (l.unit === "loose" && l.med.packSize > 1 ? Math.floor(l.med.mrpPaise / l.med.packSize) : l.med.mrpPaise);
 const stockText = (m: Med) => (m.packSize > 1 ? `${Math.floor(m.stock / m.packSize)} ${m.packUnit}s${m.stock % m.packSize ? ` + ${m.stock % m.packSize}` : ""}` : `${m.stock}`);
 
-export function DevicePos({ userId, owner, canCredit, discCap }: { userId: string; owner: boolean; canCredit: boolean; discCap: number }) {
+export function DevicePos({ userId, owner, canCredit, discCap, drive }: { userId: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean }) {
   const toast = useToast();
   const dev = useRef(deviceDb()).current;
   const [state, setState] = useState<"opening" | "empty" | "ready" | "error">("opening");
@@ -39,6 +40,14 @@ export function DevicePos({ userId, owner, canCredit, discCap }: { userId: strin
   const [today, setToday] = useState({ bills: 0, totalPaise: 0 });
   const [pending, setPending] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const driveAccess = useDriveAccess(owner && drive);
+  const [saved, setSaved] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+
+  useEffect(() => {
+    if (state !== "empty" || !driveAccess.ready) return;
+    dev.call("driveStatus").then((s) => setSaved(s.lastSnapshot), () => setSaved(null));
+  }, [state, driveAccess.ready, dev]);
 
   const refreshSide = useCallback(async (c: Config) => {
     const [b, d, n] = await Promise.all([dev.call("recentSales", 15), dev.call("dayTotals", c.branchId, todayISO()), dev.call("counts")]);
@@ -77,6 +86,18 @@ export function DevicePos({ userId, owner, canCredit, discCap }: { userId: strin
       setCfg(c); setState("ready"); await refreshSide(c);
       toast(`Loaded ${r.data.medicines.length} medicines and ${r.data.batches.length} batches onto this device.`, "green");
     } catch (e) { toast(e instanceof Error ? e.message : "Couldn’t load the catalogue.", "red"); }
+    setBusy(false);
+  };
+
+  const restore = async () => {
+    setBusy(true);
+    try {
+      const r = await dev.call("restore", code);
+      const c = await dev.call("config");
+      if (!c) throw new Error("The copy in Drive has no counter settings.");
+      setCfg(c); setState("ready"); await refreshSide(c); setCode("");
+      toast(`Restored from Google Drive (copy of ${dayMonth(new Date(r.snapshotAt))} ${hhmm(new Date(r.snapshotAt))}, ${r.applied} later changes).`, "green");
+    } catch (e) { toast(e instanceof Error ? e.message : "Restore failed.", "red"); }
     setBusy(false);
   };
 
@@ -130,6 +151,14 @@ export function DevicePos({ userId, owner, canCredit, discCap }: { userId: strin
         <div className="text-sm text-muted">This device has no catalogue yet. Load this branch’s medicines, stock and customers from Medoro once; after that, billing here works without the server.</div>
         {owner ? <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? "Loading…" : "Load catalogue onto this device"}</Button>
           : <div className="text-sm">Ask the owner to sign in on this device once and load the catalogue.</div>}
+        {owner && saved && (
+          <div className="border-t border-line pt-3 flex flex-col gap-2">
+            <div className="font-semibold">Or restore from Google Drive</div>
+            <div className="text-sm text-muted">A copy of this pharmacy was saved to your Drive on {dayMonth(new Date(saved))} {hhmm(new Date(saved))}. Restoring brings back every medicine, batch, customer and bill. A device that was set up before opens without the code.</div>
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Drive recovery code (XXXX-XXXX-…)" aria-label="Drive recovery code" className={`${input} font-mono`} />
+            <Button className="self-start" onClick={restore} disabled={busy}>{busy ? "Restoring…" : "Restore from Google Drive"}</Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -214,6 +243,8 @@ export function DevicePos({ userId, owner, canCredit, discCap }: { userId: strin
           <div className="flex justify-between text-base font-semibold pt-1"><span>Total</span><span className="tabular-nums">{inr(estTotal)}</span></div>
           <Button variant="primary" size="lg" onClick={complete} disabled={busy || !cart.length}><Receipt size={18} /> {busy ? "Saving…" : "Complete bill (F9)"}</Button>
         </div>
+        {owner && drive && <DrivePanel ready={driveAccess.ready} error={driveAccess.error} />}
+        {owner && !drive && <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive.</div>}
       </div>
     </div>
   );

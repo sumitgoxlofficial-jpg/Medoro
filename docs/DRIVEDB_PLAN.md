@@ -220,7 +220,20 @@ working with me; they overlap a little.
     loads this branch's catalogue, stock and customers onto the device once (`deviceSeed` → `importSeed`,
     same ids as the server, audited); each device gets its own invoice series (D + 4 characters).
     In the pilot, device bills stay on the device (queued for Drive) and the server's stock isn't touched.
-  - **Phase 1 is complete.** Next: Phase 2 (upload the change queue and snapshots to Drive, encryption keys).
+  - **Phase 1 is complete.**
+
+### Phase 2 progress (built)
+- `src/drivedb/crypto.ts`: data key (AES-256-GCM), purpose-bound sealed files, a 52-character Drive recovery
+  code made on the device (never sent to Medoro), device keys that can't be exported (IndexedDB).
+- `src/drivedb/drive.ts`: the DriveDB folder as a file store (Google Drive API directly from the device with a
+  short-lived token; multipart and resumable uploads, paging). `src/drivedb/sync.ts`: set up, unlock (device
+  key or recovery code), upload change logs every ~10 s, full encrypted copy every 6 h or on demand, tidy old
+  logs, restore = latest copy + later logs (new device gets its own invoice series).
+- Server: `deviceDriveAccess` (token + Medoro/<pharmacy>/drivedb folder), owner only, Drive mode only.
+- Screens: Google Drive panel on "Billing on this device" (set up → save the recovery code; unlock; last upload,
+  last full copy, save now); "Restore from Google Drive" on an empty device.
+- Tests: crypto/sync/drive unit tests, `e2e/19-drive-restore.spec.ts` (fake Google Drive in the browser test:
+  set up, bill, wipe, wrong code refused, restore with the code).
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.

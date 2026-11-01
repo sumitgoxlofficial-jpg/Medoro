@@ -38,7 +38,7 @@ export function DeviceBilling() {
   const openDb = async () => {
     setBusy(true);
     try {
-      await dev.call("open", deviceId());
+      await dev.call("open", deviceId(), "demo");
       if ((await dev.call("counts")).medicines === 0) {
         for (const m of SAMPLE) {
           const med = await dev.call("addMedicine", m);
