@@ -296,6 +296,32 @@ working with me; they overlap a little.
 - Left for phase 5: the AI assistant (needs a small server gateway that receives only the question and the few
   rows needed), bulk WhatsApp campaigns (need the WhatsApp Business API on the server).
 
+### Phase 7 progress (slice 1 built: the move, checks, read-only copy, undo)
+- Server `src/domain/system/drive-move.ts`: `startMove` freezes Medoro's copy (`tenant.settings.driveMove`;
+  `Ctx.moved` refuses every business change with `MovedToDriveError`, and the app shows a notice), `moveExport`
+  hands the owner's device everything in parts that fit a server response (base, then sales, returns, purchases,
+  stock movements, loyalty, page by page), `completeMove` records it, `undoMove` works while moving and for 7 days.
+  Turning Drive mode off is refused while moved.
+- The base part carries the catalogue (inactive medicines too), every batch (all branches), customers (erased ones
+  without details), suppliers, counter settings, and opening rows dated 2000-01-01 for what the copied history
+  doesn't explain: opening stock per batch, customer dues and supplier dues, so the device's balances equal
+  Medoro's ledger exactly. Cancelled bills stay behind; cash on delivery and points-only bills come across as cash.
+  Payments received/made and expenses come across as opening balances (warned; download a backup first).
+- Device `src/drivedb/migrate-in.ts` (migration 6 adds `sale.igstPaise` and `placeOfSupply` for inter-state bills;
+  GST returns, reports and the receipt use them): `beginMove` → `importPart` → `finishMove`, which adds the opening
+  rows and runs `verifyMove`: row counts of every table, sales/returns/purchases totals, stock of every batch, every
+  customer's and supplier's dues and loyalty points. Only if all match does the device become a counter; the load's
+  change history is dropped because the first full copy to Drive carries it.
+- Screen: **Move all my data from Medoro** on the device setup (owner, Drive connected, no Drive data yet):
+  start → copy with progress → check (failed checks are listed; try again or cancel) → new Drive keys and full copy
+  → recorded as moved → recovery code. A "Finish the move" card covers a page closed while saving. The Drive mode
+  card on the speed-test page shows the state and the Undo button.
+- Tests: `tests/integration/drive-move.test.ts` (real sales, credit, points, returns, purchases, payments moved and
+  checked; a broken copy refused; undo window), `e2e/25-drive-move.spec.ts` (moves the whole e2e pharmacy).
+- Left for phase 7: deleting Medoro's copy after the 7 days (owner-confirmed; keeps the account, users,
+  subscription, integrations and devices), moving a pharmacy whose Drive already has pilot data, and moving
+  payment/expense history line by line.
+
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.
 - Token broker endpoint on the server; data key + recovery kit wrapping + device keys.

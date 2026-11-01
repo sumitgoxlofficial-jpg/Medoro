@@ -28,7 +28,9 @@ test("set up Drive storage, then restore everything on a fresh device with the r
   await page.getByLabel(/saved the recovery code/).check();
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByText("Last full copy")).toBeVisible();
-  await bill(); // goes up as a change file within a few seconds
+  await bill(); // goes up as a change file within a few seconds; Sync now sends it at once
+  await page.getByRole("button", { name: "Sync now" }).click();
+  await expect(page.getByText("Up to date with the other counters.")).toBeVisible();
   await expect(page.getByText("Changes waiting").locator("xpath=following-sibling::span[1]")).toHaveText("0", { timeout: 30_000 });
   await ctxA.close();
 

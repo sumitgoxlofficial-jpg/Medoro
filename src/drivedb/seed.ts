@@ -21,7 +21,7 @@ export type Seed = {
   customers: { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number }[];
 };
 
-export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty; branches: { id: string; name: string; code: string }[] };
+export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty; branches: { id: string; name: string; code: string }[]; movedFromMedoro: string | null };
 
 /** A counter series for this device: "D" + 4 letters/digits from its id, e.g. DK3F9 (fits the GST 16-character limit). */
 export const seriesFor = (device: string) => ("D" + device.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(-4)).padEnd(5, "0");
@@ -60,7 +60,7 @@ export function counterConfig(db: DriveDB): CounterConfig | null {
   return {
     branchId, series, branchName: db.getMeta("branchName") ?? "", maxDiscountPct: Number(db.getMeta("maxDiscountPct") ?? 100),
     pharmacy: ph ? (JSON.parse(ph) as Pharmacy) : null, userId: db.getMeta("userId"), userName: db.getMeta("userName") ?? "", pinSet: !!db.getMeta("pinHash"), loyalty: loyaltyOf(db),
-    branches: JSON.parse(db.getMeta("branches") ?? "[]"),
+    branches: JSON.parse(db.getMeta("branches") ?? "[]"), movedFromMedoro: db.getMeta("movedFromMedoro"),
   };
 }
 

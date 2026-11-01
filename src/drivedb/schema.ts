@@ -39,7 +39,7 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "branchId", "deviceId", "invoiceNo", "customerId", "patientName", "prescriber", "prescriberReg",
       "subtotalPaise", "discountPaise", "discountPct", "taxablePaise", "cgstPaise", "sgstPaise", "roundOffPaise", "totalPaise",
-      "costPaise", "payMode", "userId", "at"],
+      "costPaise", "payMode", "userId", "at", "igstPaise", "placeOfSupply"],
   },
   saleItem: {
     kind: "append",
@@ -265,6 +265,11 @@ export const MIGRATIONS: readonly string[] = [
   ` + ["loyaltyLedger", "deliveryOrderItem"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // 6: inter-state bills moved from Medoro (all tax is IGST; place of supply is the buyer's state code).
+  `
+  ALTER TABLE sale ADD COLUMN igstPaise INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE sale ADD COLUMN placeOfSupply TEXT;
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

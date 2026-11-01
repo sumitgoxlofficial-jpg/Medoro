@@ -44,11 +44,14 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
   const [pin, setPin] = useState("");
   const [receipt, setReceipt] = useState<SaleDetail | null>(null);
 
+  // Kept in a ref so a page refresh (a new `who` object) doesn't re-run the first-open check below.
+  const signedIn = useRef(!!online);
+  signedIn.current = !!online;
   const ready = useCallback((c: Cfg) => {
     setCfg(c);
     try { localStorage.setItem(READY_KEY, "1"); } catch { /* private window */ }
-    setState(online || sessionStorage.getItem("medoro-device-unlocked") === "1" ? "ready" : "locked");
-  }, [online]);
+    setState(signedIn.current || sessionStorage.getItem("medoro-device-unlocked") === "1" ? "ready" : "locked");
+  }, []);
 
   useEffect(() => {
     (async () => {

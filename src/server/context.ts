@@ -32,6 +32,8 @@ export type Ctx = {
   readOnly?: boolean;
   /** The subscription has run out (after grace): sales, purchases, stock changes and messaging are refused. */
   locked?: boolean;
+  /** The pharmacy moved its data to Google Drive (or is moving it): Medoro's copy is read-only. */
+  moved?: boolean;
 };
 
 export class ReadOnlyError extends Error {
@@ -44,12 +46,18 @@ export class SubscriptionLockedError extends Error {
   constructor() { super("Subscription expired — renew from Plan. Sales, purchases, stock changes and messages are paused; viewing, exports and backups still work."); }
 }
 
+export class MovedToDriveError extends Error {
+  status = 409;
+  constructor() { super("This pharmacy’s data now lives in its Google Drive, so Medoro’s copy is read-only. Bill and make changes on the Billing (device) screen."); }
+}
+
 /** Permissions that change business records. Users, integrations, reports and backups stay usable when the subscription lapses. */
 const BUSINESS_PERMS = new Set<string>(["sale", "disc", "credit", "refund", "adjust", "purchase", "payments", "aiAct"]);
 
 /** For changes that need a live subscription but aren't covered by a business permission (e.g. sending messages). */
 export function requireSubscription(ctx: Ctx) {
   if (ctx.locked) throw new SubscriptionLockedError();
+  if (ctx.moved) throw new MovedToDriveError();
 }
 
 /** Loads the signed-in user's context for this request, or null. */
@@ -82,6 +90,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     counterId: s.counterId, counterName: s.counterId ? (await db.counter.findUnique({ where: { id: s.counterId } }))?.name ?? null : null,
     readOnly: u.isSupport,
     locked: (await accessFor(u.tenantId)).readOnly,
+    moved: !!(u.tenant.settings as { driveMove?: unknown } | null)?.driveMove,
   };
 });
 

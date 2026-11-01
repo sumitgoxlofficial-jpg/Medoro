@@ -44,7 +44,6 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
   const dev = deviceDb();
   const [st, setSt] = useState<Status | null>(null);
   const [code, setCode] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -69,27 +68,7 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
     try { await fn(); if (ok) toast(ok, "green"); } catch (e) { toast(errText(e), "red"); }
     await load(); setBusy(false);
   };
-  const download = () => {
-    const blob = new Blob([`Medoro Drive recovery code\n\n${code}\n\nKeep this safe. You need it to open your pharmacy's data on a new or reset device.\nMedoro does not have this code and cannot recover it for you.\n`], { type: "text/plain" });
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "medoro-drive-recovery-code.txt" });
-    a.click(); URL.revokeObjectURL(a.href);
-  };
-
-  if (code) {
-    return (
-      <div className={card}>
-        <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />Save your Drive recovery code</div>
-        <div className="text-sm text-muted">This code opens your pharmacy’s data on a new or reset device. <b>Medoro doesn’t have it and can’t recover it.</b> Download it or write it down and keep it safe.</div>
-        <div className="font-mono text-[15px] bg-page border border-line rounded-lg p-3 break-all select-all" data-testid="recovery-code">{code}</div>
-        <div className="flex gap-2 flex-wrap">
-          <Button onClick={download}><Download size={16} /> Download</Button>
-          <Button onClick={() => navigator.clipboard.writeText(code).then(() => toast("Copied.", "green"))}><Copy size={16} /> Copy</Button>
-        </div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} /> I’ve saved the recovery code somewhere safe</label>
-        <Button variant="primary" className="self-start" disabled={!saved} onClick={() => setCode(null)}>Done</Button>
-      </div>
-    );
-  }
+  if (code) return <RecoveryCodeCard code={code} onDone={() => setCode(null)} />;
 
   return (
     <div className={card}>
@@ -125,6 +104,30 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** Shows the Drive recovery code once, with download and copy, until the owner confirms they saved it. */
+export function RecoveryCodeCard({ code, onDone }: { code: string; onDone: () => void }) {
+  const toast = useToast();
+  const [saved, setSaved] = useState(false);
+  const download = () => {
+    const blob = new Blob([`Medoro Drive recovery code\n\n${code}\n\nKeep this safe. You need it to open your pharmacy's data on a new or reset device.\nMedoro does not have this code and cannot recover it for you.\n`], { type: "text/plain" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "medoro-drive-recovery-code.txt" });
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+  return (
+    <div className={card}>
+      <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />Save your Drive recovery code</div>
+      <div className="text-sm text-muted">This code opens your pharmacy’s data on a new or reset device. <b>Medoro doesn’t have it and can’t recover it.</b> Download it or write it down and keep it safe.</div>
+      <div className="font-mono text-[15px] bg-page border border-line rounded-lg p-3 break-all select-all" data-testid="recovery-code">{code}</div>
+      <div className="flex gap-2 flex-wrap">
+        <Button onClick={download}><Download size={16} /> Download</Button>
+        <Button onClick={() => navigator.clipboard.writeText(code).then(() => toast("Copied.", "green"))}><Copy size={16} /> Copy</Button>
+      </div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} /> I’ve saved the recovery code somewhere safe</label>
+      <Button variant="primary" className="self-start" disabled={!saved} onClick={onDone}>Done</Button>
     </div>
   );
 }

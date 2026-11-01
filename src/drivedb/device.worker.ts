@@ -12,6 +12,8 @@ import * as reports from "./reports";
 import * as books from "./books";
 import * as ops from "./ops";
 import * as sync from "./sync";
+import * as move from "./migrate-in";
+import type { MoveBase, MovePart } from "@/domain/system/drive-move";
 import type { DriveStore } from "./drive";
 import { relayStore, registerDevice, RelayRefusedError } from "./relay";
 import type { DeviceKeys, Keyring } from "./keyring";
@@ -117,6 +119,7 @@ async function connect(name: string) {
   return access;
 }
 
+let moving: MoveBase | null = null;
 const need = () => { if (!db) throw new Error("The device database isn’t open."); return db; };
 
 const handlers = {
@@ -217,7 +220,21 @@ const handlers = {
     state.needsRestore = false; state.lastError = null;
     return { snapshotAt: r.snapshotAt, applied: r.applied };
   },
-  /** Deletes this device's database file (demo reset). */
+  /** Phase 7: loads the pharmacy's data from Medoro (an unfinished earlier attempt is cleared first). */
+  moveBegin: async (base: MoveBase) => {
+    if (move.moveInProgress(need())) await handlers.wipe();
+    move.beginMove(need(), base);
+    moving = base;
+    return true;
+  },
+  movePart: (part: Exclude<MovePart, "base">, rows: unknown[]) => move.importPart(need(), part, rows),
+  /** Checks the loaded data against Medoro's totals; when all match, this device becomes a counter. */
+  moveFinish: (userId: string) => {
+    if (!moving) throw new Error("Start the move again.");
+    const r = move.finishMove(need(), moving, userId);
+    if (r.ok) moving = null;
+    return r;
+  },
   /** Deletes the open database file (demo reset) and starts it empty. */
   wipe: async () => {
     need().engine.close(); db = null; ring = null;

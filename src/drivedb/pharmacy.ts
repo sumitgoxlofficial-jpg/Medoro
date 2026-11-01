@@ -242,7 +242,7 @@ export function createSale(db: DriveDB, input: SaleInput, today = todayISO()): S
 export function dayTotals(db: DriveDB, branchId: string, isoDate: string) {
   const from = istMidnight(isoDate).toISOString(), to = istMidnight(addDays(isoDate, 1)).toISOString();
   const r = db.engine.all<{ bills: number; total: number; tax: number }>(
-    "SELECT COUNT(*) AS bills, COALESCE(SUM(totalPaise), 0) AS total, COALESCE(SUM(cgstPaise + sgstPaise), 0) AS tax FROM sale WHERE branchId = ? AND at >= ? AND at < ?",
+    "SELECT COUNT(*) AS bills, COALESCE(SUM(totalPaise), 0) AS total, COALESCE(SUM(cgstPaise + sgstPaise + igstPaise), 0) AS tax FROM sale WHERE branchId = ? AND at >= ? AND at < ?",
     [branchId, from, to])[0];
   return { bills: Number(r.bills), totalPaise: Number(r.total), taxPaise: Number(r.tax) };
 }

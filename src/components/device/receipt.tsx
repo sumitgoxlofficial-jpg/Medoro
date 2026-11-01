@@ -40,8 +40,10 @@ export function ReceiptView({ d, pharmacy }: { d: SaleDetail; pharmacy: Pharmacy
       <div className="flex justify-between"><span>MRP total</span><span>{inr(Number(s.subtotalPaise))}</span></div>
       {Number(s.discountPaise) ? <div className="flex justify-between"><span>Discount</span><span>−{inr(Number(s.discountPaise))}</span></div> : null}
       <div className="flex justify-between"><span>Taxable</span><span>{inr(Number(s.taxablePaise))}</span></div>
-      <div className="flex justify-between"><span>CGST</span><span>{inr(Number(s.cgstPaise))}</span></div>
-      <div className="flex justify-between"><span>SGST</span><span>{inr(Number(s.sgstPaise))}</span></div>
+      {Number(s.igstPaise) ? <div className="flex justify-between"><span>IGST</span><span>{inr(Number(s.igstPaise))}</span></div> : <>
+        <div className="flex justify-between"><span>CGST</span><span>{inr(Number(s.cgstPaise))}</span></div>
+        <div className="flex justify-between"><span>SGST</span><span>{inr(Number(s.sgstPaise))}</span></div>
+      </>}
       {Number(s.roundOffPaise) ? <div className="flex justify-between"><span>Round off</span><span>{inr(Number(s.roundOffPaise))}</span></div> : null}
       <div className="flex justify-between font-bold text-[14px]"><span>TOTAL</span><span>{inr(Number(s.totalPaise))}</span></div>
       <div>Paid: {d.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amountPaise)}`).join(" + ")}</div>
