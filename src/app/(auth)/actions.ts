@@ -17,6 +17,8 @@ import { setupUnlocked, signupOpen, unlockSetup } from "@/server/setup-gate";
 import { enforce } from "@/server/ratelimit";
 import { signupDeployment } from "@/domain/identity/deployment";
 import { headers } from "next/headers";
+import { randomBytes } from "node:crypto";
+import { clearPendingSignup, readPendingSignup } from "@/server/google-oidc";
 import { adoptSetupDrive } from "@/server/setup-drive";
 import { MOBILE_RE, inviteContact, normPhone, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
@@ -54,9 +56,19 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
     if (input.agree !== true) return fail("Accept the Terms and Privacy Policy to continue.");
     await enforce("signup", clientIp(await headers()) ?? "unknown");
     const { pharmacy, owner: o, branches, invites, backupKey, kitAck } = input;
-    const r = await createPharmacy({ pharmacy, owner: o, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
+    // Signing up after "Continue with Google": the owner is that verified Google account and needs no password to get in.
+    // A random one is set so the account still has a password (it can be changed from Profile or Forgot password).
+    const g = await readPendingSignup();
+    const viaGoogle = !!g && g.email === o.email.trim().toLowerCase();
+    const ownerIn = viaGoogle && !o.password ? { ...o, password: randomBytes(24).toString("base64url") } : o;
+    const r = await createPharmacy({ pharmacy, owner: ownerIn, branches, invites, backupKey, kitAck, deployment: signupDeployment(process.env.DEPLOYMENT_MODE, process.env.DATABASE_URL) }, { signup: true });
+    if (viaGoogle) {
+      const linked = await db.user.update({ where: { id: r.ownerId }, data: { googleSub: g.sub, googleEmail: g.email } });
+      await writeAudit(db, { tenantId: linked.tenantId, userId: linked.id, userName: linked.name, action: "Google sign-in connected", entity: "user", entityId: linked.id, detail: `${g.email} · signed up with Google` });
+      await clearPendingSignup();
+    }
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
-    await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Sign-up", firstFactor: "password" });
+    await createSession(owner.id, owner.tokenVersion, viaGoogle ? { mfaPassed: true, device: "Sign-up", firstFactor: "google" } : { mfaPassed: false, device: "Sign-up", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
 }
