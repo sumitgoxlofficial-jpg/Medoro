@@ -39,3 +39,22 @@ export function dueText(name: string, duePaise: number, pharmacy: Pharmacy | nul
     "Please ignore if already paid. Thank you.",
   ].join("\n");
 }
+
+/**
+ * A bill as Medoro's WhatsApp gateway takes it (comms/counter-send.ts): Medoro makes the PDF from this and sends it
+ * through the pharmacy's WhatsApp, keeping nothing. `sendId` is new for every press of Send.
+ */
+export function billForSend(d: SaleDetail, phone: string, sendId: string) {
+  const s = d.sale as Record<string, string | number | null>;
+  const n = (k: string) => Number(s[k] ?? 0);
+  return {
+    sendId, phone, customerName: String(s.customerName ?? ""), customerGstin: (s.customerGstin as string | null) || null,
+    invoiceNo: String(s.invoiceNo), at: new Date(String(s.at)).toISOString(),
+    lines: d.lines.map((l) => ({
+      name: l.name, batchNo: l.batchNo, expiry: l.expiryDate.slice(0, 10), qtyText: `${l.qty} ${l.loose ? l.looseUnit : l.packUnit}`,
+      mrp: l.mrpPaise, discount: l.discountPaise, gstRate: l.gstRate, amount: l.mrpPaise * l.qty,
+    })),
+    totals: { mrp: n("subtotalPaise"), discount: n("discountPaise"), taxable: n("taxablePaise"), cgst: n("cgstPaise"), sgst: n("sgstPaise"), igst: n("igstPaise"), roundOff: n("roundOffPaise"), total: n("totalPaise") },
+    payments: d.payments.map((p) => ({ mode: p.mode })),
+  };
+}

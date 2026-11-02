@@ -8,7 +8,7 @@ import { inr } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import type { SaleDetail } from "@/drivedb/reports";
 import type { Pharmacy } from "@/drivedb/seed";
-import { billText, waLink } from "@/drivedb/share";
+import { billForSend, billText, waLink } from "@/drivedb/share";
 import { deviceDb } from "@/drivedb/device";
 import { useToast } from "@/components/ui/toast";
 import { errText, type Who } from "./ui";
@@ -127,6 +127,18 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
       toast("E-invoice cancelled.", "green");
     } catch (e) { toast(errText(e), "red"); } finally { setBusy(false); }
   };
+  /** Sends the bill's PDF through the pharmacy's WhatsApp (via Medoro, which keeps nothing). */
+  const sendPdf = async () => {
+    if (!who?.whatsapp || !d) return;
+    const phone = (d.sale.customerPhone as string | null) || prompt("Customer’s WhatsApp number (10 digits):")?.trim();
+    if (!phone) return;
+    setBusy(true);
+    try {
+      const r = await who.whatsapp.send(billForSend(d, phone, crypto.randomUUID().replace(/-/g, "")));
+      if (!r.ok) throw new Error(r.error);
+      toast(who.whatsapp.via === "phone" ? "Bill PDF sent from your linked WhatsApp." : "Bill PDF sent on WhatsApp.", "green");
+    } catch (e) { toast(errText(e), "red"); } finally { setBusy(false); }
+  };
   const b2b = !!d?.sale.customerGstin;
   return (
     <Modal open={!!d} onClose={() => { setFresh(null); onClose(); }} title={d ? `Bill ${String(d.sale.invoiceNo)}` : ""} width={420}
@@ -134,7 +146,8 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
         <Button onClick={() => { setFresh(null); onClose(); }}>Close</Button>
         {ein && b2b && !d?.einvoice && <Button onClick={getIrn} disabled={busy}><FileCheck2 size={16} /> {busy ? "Getting IRN…" : "E-invoice"}</Button>}
         {ein && d?.einvoice && !d.einvoice.cancelled && <Button variant="danger-outline" onClick={cancelIrn} disabled={busy}>Cancel e-invoice</Button>}
-        {wa && <Button onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={16} /> WhatsApp</Button>}
+        {wa && <Button onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={16} /> {who?.whatsapp ? "Share text" : "WhatsApp"}</Button>}
+        {who?.whatsapp && <Button onClick={sendPdf} disabled={busy}><MessageCircle size={16} /> {busy ? "Sending…" : "Send PDF on WhatsApp"}</Button>}
         <Button variant="primary" onClick={printReceipt}><Printer size={16} /> Print</Button>
       </div>}>
       {d ? <div className="border border-line rounded-lg p-3"><ReceiptView d={d} pharmacy={pharmacy} /></div> : null}

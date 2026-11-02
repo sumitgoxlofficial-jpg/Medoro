@@ -12,6 +12,7 @@ import { gatewayStatus, gatewayStep, type stepInput } from "@/domain/ai/gateway"
 import type { ChatMsg, ToolSpec } from "@/domain/ai/llm";
 import { counterCancelIrn, counterIrn, einvoiceState, type counterCancelSchema } from "@/domain/gst/service";
 import type { EinvDoc } from "@/domain/gst/einvoice";
+import { counterWhatsAppState, sendCounterBill, type CounterBill } from "@/domain/comms/counter-send";
 import { completeMove, deleteMedoroCopy, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
@@ -98,3 +99,8 @@ export async function aiStepAction(input: { messages: ChatMsg[]; tools: ToolSpec
 export async function einvoiceStatusAction() { return run(async (c) => (await einvoiceState(c.tenantId)).enabled); }
 export async function counterIrnAction(doc: EinvDoc) { return run((c) => counterIrn(c, doc)); }
 export async function counterCancelIrnAction(input: z.input<typeof counterCancelSchema>) { return run((c) => counterCancelIrn(c, input)); }
+
+// ---------- Phase 6: WhatsApp for counter bills (the PDF is made, sent and forgotten) ----------
+
+export async function counterWhatsAppAction() { return run((c) => counterWhatsAppState(c)); }
+export async function sendCounterBillAction(bill: CounterBill) { return run((c) => sendCounterBill(c, bill)); }
