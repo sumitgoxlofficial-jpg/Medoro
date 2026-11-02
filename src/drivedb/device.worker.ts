@@ -84,23 +84,28 @@ const SNAPSHOT_EVERY = 6 * 3600_000;
 
 /** Upload this device's changes, apply everyone else's, and (owner devices) save a full copy now and then. */
 async function syncNow(forceSnapshot = false) {
-  if (!db || !ring || access?.status !== "approved" || state.busy) return state;
-  state.busy = true;
+  if (!db || !ring || access?.status !== "approved") return state;
+  // A sync is running: run once more right after it, so a change announced meanwhile isn't missed.
+  if (state.busy) { again = true; return state; }
+  state.busy = true; lastRun = Date.now();
+  let applied = 0;
   try {
     const last = db.getMeta("lastSnapshot");
     if (ring.rk && (forceSnapshot || !last || Date.now() - Date.parse(last) > SNAPSHOT_EVERY)) {
       const m = await sync.writeSnapshot(db, store(), ring, () => need().engine.exportBytes());
       state.lastSnapshot = m.snapshotAt;
+      applied = -1; // a full copy catches up first; how much it applied isn't counted
+
     } else {
       while (await sync.pushChanges(db, store(), ring)) { /* until empty */ }
-      try { await sync.pullChanges(db, store(), ring); }
+      try { applied = await sync.pullChanges(db, store(), ring); }
       catch (e) {
         // A newer key (a device was removed): re-read the keys once and try again.
         if (!(e instanceof WrongKeyError)) throw e;
         const fresh = await sync.refreshKeys(store(), keys, deviceName);
         if (!fresh) throw new RelayRefusedError("This device no longer has the pharmacy’s key. Ask the owner to approve it again.");
         ring = fresh;
-        await sync.pullChanges(db, store(), ring);
+        applied = await sync.pullChanges(db, store(), ring);
       }
       state.lastPull = new Date().toISOString();
     }
@@ -111,6 +116,9 @@ async function syncNow(forceSnapshot = false) {
     if (e instanceof RelayRefusedError && /removed/i.test(e.message)) { access = { ...(access ?? { role: "staff" }), status: "removed" }; ring = null; }
     state.lastError = e instanceof Error ? e.message : String(e);
   } finally { state.busy = false; }
+  // Other devices' changes arrived: the screens reload their data (device.ts turns this into a window event).
+  if (applied) self.postMessage({ event: "changed", applied });
+  if (again) { again = false; setTimeout(() => { void syncNow(); }, 0); }
   void report();
   void pickUpPayments();
   return state;
@@ -142,7 +150,23 @@ async function report() {
   reported = { error, at: Date.now() };
   await reportHealth(deviceName, error);
 }
-setInterval(() => { void syncNow(); }, 5_000);
+/**
+ * How often to check Drive. With the live feed connected, other counters' uploads arrive as pushes (see
+ * device.ts), so a check every 30 s is only a safety net; without it (offline page, feed down) every 5 s.
+ */
+let liveOn = false, again = false, lastRun = 0;
+const POLL_MS = 5_000, LIVE_POLL_MS = 30_000;
+setInterval(() => { if (!liveOn || Date.now() - lastRun >= LIVE_POLL_MS) void syncNow(); }, POLL_MS);
+
+/** Sends this device's new bills and edits soon after they are saved, instead of on the next check. */
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+function pushSoon() {
+  if (!db || !ring || access?.status !== "approved" || !db.pendingChanges(1).length) return;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
+}
+/** Calls that only read, or run the sync themselves: no push needed after them. */
+const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -194,6 +218,7 @@ const handlers = {
   batchesFor: (medicineId: string, branchId: string) => ops.batchesFor(need(), medicineId, branchId),
   adjustStock: (input: Parameters<typeof ops.adjustStock>[1]) => ops.adjustStock(need(), input),
   recordCount: (input: Parameters<typeof ops.recordCount>[1]) => ops.recordCount(need(), input),
+  negativeStock: (branchId?: string) => ops.negativeStock(need(), branchId),
   setBatchStatus: (batchId: string, status: "ok" | "quarantine" | "recalled") => ops.setBatchStatus(need(), batchId, status),
   createOrder: (input: Parameters<typeof ops.createOrder>[1]) => ops.createOrder(need(), input),
   packOrder: (input: Parameters<typeof ops.packOrder>[1]) => ops.packOrder(need(), input),
@@ -251,6 +276,8 @@ const handlers = {
   },
   unlock: async (recoveryCode?: string) => { ring = await sync.unlock(store(), keys, deviceName, recoveryCode || undefined); void syncNow(); return true; },
   syncNow: (snapshot?: boolean) => syncNow(!!snapshot),
+  /** The page's live feed connected or dropped (see the polling note above). */
+  setLive: (on: boolean) => { liveOn = !!on; return true; },
   /** Owner's device gives a waiting device the keys (then the server marks it approved). */
   approveDevice: async (deviceId: string, publicJwk: JsonWebKey, role: "owner" | "staff", name: string) => {
     if (!ring?.rk) throw new Error("Unlock Drive storage on this device first.");
@@ -313,6 +340,7 @@ self.onmessage = async ({ data }: MessageEvent<{ id: number; op: keyof DeviceHan
   try {
     const result = await (handlers[op] as (...a: unknown[]) => unknown)(...args);
     self.postMessage({ id, ok: true, result });
+    if (!NO_PUSH.has(op)) pushSoon();
   } catch (e) {
     self.postMessage({ id, ok: false, error: e instanceof Error ? e.message : String(e), counter: e instanceof pharmacy.CounterError });
   }

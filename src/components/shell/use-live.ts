@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DRIVEDB_EVENT, LIVE_EVENT } from "@/drivedb/live-events";
 
 export type LiveState = "connecting" | "live" | "offline";
+
 
 /**
  * Subscribes to /api/events and refreshes the current screen shortly after another device
@@ -18,7 +20,12 @@ export function useLive(): LiveState {
     const open = () => {
       es = new EventSource("/api/events");
       es.addEventListener("ready", () => setState("live"));
-      es.addEventListener("change", () => {
+      es.addEventListener("change", (ev) => {
+        // A Drive counter uploaded changes: the counter on this page syncs at once (src/drivedb/device.ts).
+        // Nothing server-rendered changed, so the page itself isn't refreshed.
+        let c: { t?: string; d?: string } = {};
+        try { c = JSON.parse((ev as MessageEvent<string>).data); } catch { /* old server */ }
+        if (c.t === "drivedb") { window.dispatchEvent(new CustomEvent(DRIVEDB_EVENT, { detail: { device: c.d ?? "" } })); return; }
         if (timer.current) clearTimeout(timer.current);
         // Batch bursts (a sale touches several tables) into one refresh, and skip while the tab is hidden.
         timer.current = setTimeout(() => { if (document.visibilityState === "visible") router.refresh(); }, 700);
@@ -40,5 +47,6 @@ export function useLive(): LiveState {
       window.removeEventListener("offline", off); window.removeEventListener("online", on);
     };
   }, [router]);
+  useEffect(() => { window.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: { live: state === "live" } })); }, [state]);
   return state;
 }

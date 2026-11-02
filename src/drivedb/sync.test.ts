@@ -9,6 +9,8 @@ import {
 } from "./sync";
 import { addMedicine, createSale, receiveStock, stockOf } from "./pharmacy";
 import type { DriveDB } from "./client";
+import { negativeStock, recordCount } from "./ops";
+import { batchesOf } from "./pharmacy";
 
 const keyStore = (): KeyStore => { let k: DeviceKeys | null = null; return { get: async () => k, set: async (x) => { k = x; } }; };
 const B = "branch-1", U = "u1", TODAY = "2026-11-01";
@@ -137,6 +139,35 @@ describe("three counters", () => {
     const D = await joinStaff(store, A.ring, "STAFFD");
     expect(stockOf(D.db, A.m.id, B, TODAY)).toBe(100 - 7 - 1 - 2);
     expect(D.db.from("sale").count()).toBe(3);
+  });
+});
+
+describe("stock below zero", () => {
+  it("two counters sell the last units while one is offline: the batch shows below zero with the short bills, and a count clears it", async () => {
+    const store = memoryStore();
+    const owner = await ownerSetup(store);
+    const staff = await joinStaff(store, owner.ring, "STAFF1");
+    expect(negativeStock(owner.db)).toEqual([]);
+    sell(owner.db, owner.m.id, 90); // 10 left
+    await sync(owner.db, store, owner.ring); await sync(staff.db, store, staff.ring);
+    // Both see 10 and sell 8 each; staff is offline, so neither knows about the other's sale.
+    const a = sell(owner.db, owner.m.id, 8), b = sell(staff.db, owner.m.id, 8);
+    expect(negativeStock(owner.db)).toEqual([]);
+    await sync(owner.db, store, owner.ring); await sync(staff.db, store, staff.ring); await sync(owner.db, store, owner.ring);
+    for (const db of [owner.db, staff.db]) {
+      const neg = negativeStock(db, B);
+      expect(neg).toHaveLength(1);
+      expect(neg[0]).toMatchObject({ name: "Dolo 650", batchNo: "A", qty: -6 });
+      // Only the bill that came second in time sold units that weren't there, and only 6 of its 8.
+      expect(neg[0].bills).toEqual([{ invoiceNo: expect.any(String), at: expect.any(String), qty: 6 }]);
+      expect([a.invoiceNo, b.invoiceNo]).toContain(neg[0].bills[0].invoiceNo);
+    }
+    expect(negativeStock(owner.db, "other-branch")).toEqual([]);
+    // The owner counts 2 strips on the shelf (a strip was found): the count corrects the batch, everywhere.
+    const batch = batchesOf(owner.db, owner.m.id, B)[0];
+    recordCount(owner.db, { branchId: B, userId: U, counts: [{ batchId: batch.id, counted: 2 }] });
+    await sync(owner.db, store, owner.ring); await sync(staff.db, store, staff.ring);
+    for (const db of [owner.db, staff.db]) { expect(negativeStock(db)).toEqual([]); expect(stockOf(db, owner.m.id, B, TODAY)).toBe(2); }
   });
 });
 

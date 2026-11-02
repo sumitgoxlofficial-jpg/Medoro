@@ -8,7 +8,7 @@ import { Client } from "pg";
  * browsers connected to /api/events. Works with several app servers because Postgres does the fan-out.
  * LISTEN needs a session connection, so it uses DIRECT_URL when set (a pooler in transaction mode drops it).
  */
-export type Change = { t: string; tenant: string | null; branch: string | null };
+export type Change = { t: string; tenant: string | null; branch: string | null; /** Drive counters: the device that uploaded changes. */ d?: string };
 
 type Hub = { emitter: EventEmitter; client: Client | null; connecting: Promise<void> | null; retry: number };
 const g = globalThis as unknown as { __medoroLive?: Hub };
@@ -47,3 +47,11 @@ export async function subscribe(tenantId: string, fn: (c: Change) => void) {
 }
 
 export const liveConnected = () => !!hub.client;
+
+/**
+ * Tells this pharmacy's other open screens that a Drive counter uploaded new changes, so they sync at once
+ * instead of waiting for their next check. Carries only the device id, never data. Never throws.
+ */
+export async function notifyDriveChange(run: (sql: string, payload: string) => Promise<unknown>, tenantId: string, deviceId: string) {
+  await run("SELECT pg_notify('medoro_change', $1)", JSON.stringify({ t: "drivedb", tenant: tenantId, branch: null, d: deviceId })).catch(() => undefined);
+}

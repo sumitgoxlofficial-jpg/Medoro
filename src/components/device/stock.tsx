@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { deviceDb } from "@/drivedb/device";
 import { inr } from "@/lib/money";
+import type { NegativeBatch } from "@/drivedb/ops";
 import { card, input, label, errText, toPaise, type Cfg } from "./ui";
 
 type Row = { id: string; name: string; generic: string; mrpPaise: number; gstRate: number; packSize: number; packUnit: string; looseUnit: string; reorderLevel: number; rack: string | null; barcode: string | null; schedule: string | null; active: number; stock: number; nextExpiry: string | null; low: boolean };
@@ -19,8 +20,14 @@ export function Stock({ cfg, owner, userId, refresh }: { cfg: Cfg; owner: boolea
   const [rows, setRows] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | "new" | null>(null);
   const [batches, setBatches] = useState<Row | null>(null);
-  const load = useCallback(() => dev.call("stockList", cfg.branchId, q).then((r) => setRows(r as Row[])), [dev, cfg.branchId, q]);
+  const [negative, setNegative] = useState<NegativeBatch[]>([]);
+  const load = useCallback(() => Promise.all([
+    dev.call("stockList", cfg.branchId, q).then((r) => setRows(r as Row[])),
+    dev.call("negativeStock", cfg.branchId).then(setNegative, () => setNegative([])),
+  ]), [dev, cfg.branchId, q]);
   useEffect(() => { const t = setTimeout(load, 120); return () => clearTimeout(t); }, [load, refresh]);
+  /** Opens the batch panel for a medicine from the below-zero list (it may not be among the search results). */
+  const openBatches = (n: NegativeBatch) => setBatches(rows.find((r) => r.id === n.medicineId) ?? ({ id: n.medicineId, name: n.name, packSize: n.packSize, packUnit: n.packUnit, looseUnit: n.looseUnit } as Row));
   const shown = lowOnly ? rows.filter((r) => r.low) : rows;
   return (
     <div className={card}>
@@ -29,6 +36,24 @@ export function Stock({ cfg, owner, userId, refresh }: { cfg: Cfg; owner: boolea
         <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> Low stock only</label>
         {owner && <Button onClick={() => setEdit("new")}><Plus size={16} /> Add medicine</Button>}
       </div>
+      {negative.length > 0 && (
+        <div className="border border-bad/30 bg-bad-bg rounded-lg p-3 flex flex-col gap-2" role="alert">
+          <div className="font-medium text-sm text-bad">Stock below zero: {negative.length} {negative.length === 1 ? "batch" : "batches"}</div>
+          <div className="text-[13px] text-muted">Two counters sold the same stock while one was offline. The bills stand. {owner ? "Count what is on the shelf and save the count: Medoro corrects the batch to it." : "Ask the owner to count these batches."}</div>
+          <table className="text-[13px] w-full">
+            <tbody>
+              {negative.map((n) => (
+                <tr key={n.batchId} className="border-t border-line">
+                  <td className="py-1">{n.name} <span className="text-muted">· batch {n.batchNo} · exp {n.expiryDate}</span></td>
+                  <td className="text-bad tabular-nums whitespace-nowrap">{n.qty} {n.packSize > 1 ? n.looseUnit : n.packUnit}</td>
+                  <td className="text-muted">{n.bills.length ? `Sold short on ${n.bills.map((b) => b.invoiceNo).join(", ")}` : ""}</td>
+                  <td className="text-right">{owner && <Button onClick={() => openBatches(n)}>Count</Button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="overflow-auto">
         <table className="text-sm w-full">
           <thead><tr className="text-left text-muted"><th className="font-medium py-1">Medicine</th><th className="font-medium">Stock</th><th className="font-medium">Next expiry</th><th className="font-medium text-right">MRP</th><th className="font-medium">Rack</th><th /></tr></thead>

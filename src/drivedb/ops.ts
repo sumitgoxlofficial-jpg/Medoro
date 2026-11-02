@@ -13,6 +13,44 @@ import { customerBalance, receivePayment } from "./trade";
 
 const now = () => new Date().toISOString();
 
+// ---------- stock below zero ----------
+
+export type NegativeBatch = {
+  batchId: string; medicineId: string; name: string; batchNo: string; expiryDate: string; branchId: string;
+  /** Stock units now (below zero). */
+  qty: number; packSize: number; packUnit: string; looseUnit: string;
+  /** Bills that sold units this batch didn't have (from the moment it went below zero), newest last. */
+  bills: { invoiceNo: string; at: string; qty: number }[];
+};
+
+/**
+ * Batches whose stock went below zero. On one counter billing can't oversell, but two counters can sell the same
+ * last units while one is offline; when their changes meet, the batch shows less than nothing. The bills stand
+ * (the medicine has left the shop); the owner counts the shelf, and the count's correction brings the batch back
+ * to what is really there, which also clears it from this list. `branchId` limits it to one branch.
+ */
+export function negativeStock(db: DriveDB, branchId?: string): NegativeBatch[] {
+  const rows = db.engine.all<Omit<NegativeBatch, "bills">>(
+    `SELECT b.id AS batchId, b.medicineId, m.name, b.batchNo, b.expiryDate, b.branchId, s.qty, m.packSize, m.packUnit, m.looseUnit
+       FROM (SELECT batchId, SUM(qty) AS qty FROM stockMovement GROUP BY batchId HAVING SUM(qty) < 0) s
+       JOIN batch b ON b.id = s.batchId JOIN medicine m ON m.id = b.medicineId
+      WHERE b.deletedAt IS NULL ${branchId ? "AND b.branchId = ?" : ""}
+      ORDER BY m.name COLLATE NOCASE, b.expiryDate`, branchId ? [branchId] : []);
+  return rows.map((r) => {
+    // Walk the batch's movements in time order; sales after the running stock dropped below zero are the oversold ones.
+    const moves = db.engine.all<{ qty: number; type: string; refId: string; at: string }>("SELECT qty, type, refId, at FROM stockMovement WHERE batchId = ? ORDER BY at, id", [r.batchId]);
+    let run = 0;
+    const short: { refId: string; at: string; qty: number }[] = [];
+    for (const m of moves) {
+      run += Number(m.qty);
+      // The part of this sale the batch didn't have.
+      if (m.type === "sale" && run < 0) short.push({ refId: m.refId, at: m.at, qty: Math.min(-Number(m.qty), -run) });
+    }
+    const inv = (id: string) => db.engine.all<{ invoiceNo: string }>("SELECT invoiceNo FROM sale WHERE id = ?", [id])[0]?.invoiceNo ?? "";
+    return { ...r, qty: Number(r.qty), packSize: Number(r.packSize), bills: short.slice(-5).map((x) => ({ invoiceNo: inv(x.refId), at: x.at, qty: x.qty })) };
+  });
+}
+
 // ---------- stock corrections and counts ----------
 
 export const ADJUST_REASONS = ["damaged", "expired", "lost", "found", "sample", "other"] as const;

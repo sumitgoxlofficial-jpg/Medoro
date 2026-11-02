@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { setDriveMode } from "@/domain/system/drive-mode";
 import { decideDevice, listDevices, registerDevice, relay } from "@/domain/system/drivedb-relay";
+import { subscribe, type Change } from "@/server/live";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 const key = { kty: "RSA" as const, n: "n".repeat(342), e: "AQAB" };
@@ -45,6 +46,20 @@ describe("DriveDB relay", () => {
     await expect(relay(staff, "STF1", "remove", P({ name: LOG("OWN1") }), Buffer.alloc(0))).rejects.toThrow(/only its own/);
     await relay(staff, "STF1", "remove", P({ name: LOG("STF1") }), Buffer.alloc(0));
     await expect(relay(staff, "STF1", "read", P({ name: "../../backups" }), Buffer.alloc(0))).rejects.toThrow(/Bad file name/);
+  });
+
+  it("a new change file tells the pharmacy's open screens at once (device id only, no data); keys and copies don't", async () => {
+    const owner = await ctxFor(), staff = { ...(await ctxFor("Cashier")), userId: "staff-user", userName: "Ravi", realRole: "Cashier" };
+    const seen: Change[] = [], other: Change[] = [];
+    const unsub = await subscribe(owner.tenantId, (c) => { if (c.t === "drivedb") seen.push(c); });
+    const unsubOther = await subscribe("another-pharmacy", (c) => other.push(c));
+    try {
+      await relay(owner, "OWN1", "write", P({ name: "manifest.json" }), Buffer.from("{}"));
+      await relay(staff, "STF1", "write", P({ name: LOG("STF1").replace("0001", "0002") }), Buffer.from("x"));
+      for (let i = 0; i < 50 && !seen.length; i++) await new Promise((r) => setTimeout(r, 20));
+      expect(seen).toEqual([{ t: "drivedb", tenant: owner.tenantId, branch: null, d: "STF1" }]);
+      expect(other).toEqual([]);
+    } finally { unsub(); unsubOther(); }
   });
 
   it("big files go up in pieces with a sealed upload token bound to the pharmacy and device", async () => {
