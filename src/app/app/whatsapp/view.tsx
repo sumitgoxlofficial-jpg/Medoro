@@ -1,13 +1,15 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { MessageCircle, RefreshCw, Copy, CircleAlert } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { MessageCircle, RefreshCw, Copy, CircleAlert, Smartphone, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { dayMonth, hhmm } from "@/lib/dates";
 import type { messageLog, waStatus, WaSettings } from "@/domain/comms/whatsapp";
-import { connectAction, disconnectAction, retryAction, settingsAction, signupAction, templatesAction } from "./actions";
+import type { PhoneLink } from "@/domain/comms/whatsapp";
+import { connectAction, disconnectAction, linkPhoneAction, retryAction, settingsAction, signupAction, templatesAction } from "./actions";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 const ST: Record<string, Tone> = { queued: "gray", sent: "blue", delivered: "teal", read: "green", failed: "red", approved: "green", pending: "amber", rejected: "red", paused: "amber", disabled: "red" };
@@ -32,14 +34,58 @@ function useFacebookSdk(cfg: Signup) {
   return ready;
 }
 
-export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webhook }: {
+/**
+ * "Link WhatsApp" by QR, like WhatsApp Web: asks the server every few seconds for the connector's state, shows the QR
+ * code to scan from WhatsApp › Linked devices on the pharmacy phone, and closes once the phone is linked.
+ */
+function PhoneQr({ onDone, onClose }: { onDone: (number?: string) => void; onClose: () => void }) {
+  const [st, setSt] = useState<PhoneLink | null>(null);
+  useEffect(() => {
+    let stop = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      const r = await linkPhoneAction().catch(() => null);
+      if (stop) return;
+      const next: PhoneLink = r?.ok ? r.data : { state: "offline", text: r && !r.ok ? r.error : "Can’t reach the server. Checking again…" };
+      if (next.state === "ready") return onDone(next.number);
+      setSt(next);
+      if (next.state !== "setup") timer = setTimeout(tick, next.state === "offline" ? 5000 : 2500);
+    };
+    void tick();
+    return () => { stop = true; clearTimeout(timer); };
+  }, [onDone]);
+  return (
+    <div className="flex flex-col gap-3 items-start">
+      {st?.state === "qr" && st.qr ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a data URL from the connector, refreshed every few seconds
+        <img src={st.qr} alt="WhatsApp QR code to scan" width={240} height={240} className="border border-line rounded-lg bg-white p-2" />
+      ) : st?.state === "setup" || st?.state === "offline" ? null : (
+        <div className="w-[240px] h-[240px] border border-line rounded-lg flex items-center justify-center text-faint"><LoaderCircle size={28} className="animate-spin" /></div>
+      )}
+      <ol className="m-0 pl-5 text-[13px] text-muted list-decimal flex flex-col gap-0.5">
+        <li>Open WhatsApp on the pharmacy phone.</li>
+        <li>Tap <strong>⋮</strong> (Android) or <strong>Settings</strong> (iPhone) › <strong>Linked devices</strong> › <strong>Link a device</strong>.</li>
+        <li>Point the phone at this code.</li>
+      </ol>
+      <div className={`text-[12.5px] ${st?.state === "setup" || st?.state === "offline" ? "text-bad" : "text-muted"}`} role="status">{st?.text ?? "Starting WhatsApp…"}</div>
+      <Button onClick={onClose}>Close</Button>
+    </div>
+  );
+}
+
+export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webhook, phoneLink }: {
   st: Awaited<ReturnType<typeof waStatus>>; log: Awaited<ReturnType<typeof messageLog>>; settings: WaSettings;
-  invoiceTemplate: { name: string; ok: boolean; error: string | null }; signup: Signup; webhook: string;
+  invoiceTemplate: { name: string; ok: boolean; error: string | null }; signup: Signup; webhook: string; phoneLink: boolean;
 }) {
   const toast = useToast();
+  const router = useRouter();
   const [pending, start] = useTransition();
-  const [form, setForm] = useState(!st.connected && !signup);
-  const [f, setF] = useState({ wabaId: st.connected ? st.cfg.wabaId : "", phoneNumberId: st.connected ? st.cfg.phoneNumberId : "", token: "", appSecret: "", invoiceTemplate: st.connected ? st.cfg.invoiceTemplate : "invoice_share", templateLang: st.connected ? st.cfg.templateLang : "en" });
+  const phone = st.connected && st.cfg.via === "phone";
+  /** Connected through Meta (Embedded Signup or pasted credentials). */
+  const meta = st.connected && !phone;
+  const [form, setForm] = useState(!st.connected && !signup && !phoneLink);
+  const [qr, setQr] = useState(false);
+  const [f, setF] = useState({ wabaId: meta ? st.cfg.wabaId : "", phoneNumberId: meta ? st.cfg.phoneNumberId : "", token: "", appSecret: "", invoiceTemplate: st.connected ? st.cfg.invoiceTemplate : "invoice_share", templateLang: st.connected ? st.cfg.templateLang : "en" });
   const [s, setS] = useState(settings);
   const [names, setNames] = useState({ textTemplate: settings.textTemplate, creditNoteTemplate: settings.creditNoteTemplate });
   const session = useRef<Session>({});
@@ -84,6 +130,8 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
     }, { config_id: signup.configId, response_type: "code", override_default_response_type: true, extras: { setup: {} } });
   };
   const save = (p: Partial<WaSettings>) => { setS({ ...s, ...p }); start(async () => res(await settingsAction(p))); };
+  const linked = useCallback((number?: string) => { setQr(false); toast(`WhatsApp linked${number ? ` to ${number}` : ""}. Bills and reminders now go out from this phone.`, "green"); router.refresh(); }, [toast, router]);
+  const closeQr = useCallback(() => setQr(false), []);
   const fbButton = (label: string) => signup ? <Button variant="primary" disabled={pending || !sdk} onClick={launch}>{label}</Button> : null;
 
   return (
@@ -91,15 +139,33 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
       {paused ? (
         <div role="alert" className="border border-[#E5B4AE] bg-bad-bg rounded-xl px-4 py-3 flex flex-wrap items-center gap-3 text-[13.5px] text-bad">
           <CircleAlert size={18} />
-          <span className="flex-1 min-w-[240px]"><strong className="font-semibold">Disconnected by Meta</strong> since {dayMonth(new Date(st.cfg.disconnected!.at))} {hhmm(new Date(st.cfg.disconnected!.at))}: {st.cfg.disconnected!.reason}. Invoices and reminders are paused and resume after you reconnect.</span>
-          {fbButton("Reconnect with Facebook")}
-          <Button onClick={() => setForm(true)}>Paste a new token</Button>
+          <span className="flex-1 min-w-[240px]"><strong className="font-semibold">{phone ? "Phone signed out" : "Disconnected by Meta"}</strong> since {dayMonth(new Date(st.cfg.disconnected!.at))} {hhmm(new Date(st.cfg.disconnected!.at))}: {st.cfg.disconnected!.reason}. Invoices and reminders are paused and resume after you {phone ? "link the phone again" : "reconnect"}.</span>
+          {phone ? <Button variant="primary" onClick={() => setQr(true)}>Link again</Button> : <>{fbButton("Reconnect with Facebook")}<Button onClick={() => setForm(true)}>Paste a new token</Button></>}
         </div>
       ) : null}
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <div className={card}>
-          <div className="flex items-start gap-2"><MessageCircle size={20} className="text-ok shrink-0 mt-0.5" /><div className="font-semibold text-[15px] min-w-0 flex-1 leading-snug">WhatsApp Business Cloud API</div><Badge tone={live ? "green" : paused ? "red" : "gray"} className="shrink-0">{live ? "Connected" : paused ? "Reconnect needed" : "Not connected"}</Badge></div>
-          {st.connected && !form ? (
+          <div className="flex items-start gap-2"><Smartphone size={20} className="text-ok shrink-0 mt-0.5" /><div className="font-semibold text-[15px] min-w-0 flex-1 leading-snug">Link your phone (QR code)</div><Badge tone={phone && live ? "green" : phone ? "red" : "gray"} className="shrink-0">{phone && live ? "Linked" : phone ? "Link again" : "Not linked"}</Badge></div>
+          {qr ? <PhoneQr onDone={linked} onClose={closeQr} /> : phone ? (
+            <>
+              <div className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
+                <span className="text-muted">Sending from</span><span>{st.cfg.displayPhone || "the pharmacy phone"}</span>
+                <span className="text-muted">Linked</span><span>{st.rotatedAt ? `${dayMonth(new Date(st.rotatedAt), true)} ${hhmm(new Date(st.rotatedAt))}` : "—"} · scanned from WhatsApp › Linked devices</span>
+              </div>
+              <div className="text-[12.5px] text-muted">Bills (with the PDF), credit notes, reminders and order updates go out from this number as normal WhatsApp messages, a few seconds apart. Keep the phone online at least once every 14 days. Message only customers who agreed to it: WhatsApp can restrict numbers that send to people who haven’t saved them.</div>
+              <div className="flex gap-2 flex-wrap"><Button onClick={() => setQr(true)}>Link again</Button><Button variant="danger-outline" disabled={pending} onClick={() => { if (confirm("Unlink this phone? Medoro stops sending from it until you link again.")) start(async () => res(await disconnectAction())); }}>Unlink</Button></div>
+            </>
+          ) : (
+            <>
+              <div className="text-[13px] text-muted">Send bills and reminders from the pharmacy’s own WhatsApp number, the way WhatsApp Web works: press Link WhatsApp and scan the QR code from the phone. No Meta account or templates needed.{meta ? " Linking replaces the WhatsApp Business connection." : ""}</div>
+              {phoneLink ? <div className="flex gap-2 flex-wrap"><Button variant={meta ? "outline" : "primary"} onClick={() => setQr(true)}><Smartphone size={15} />Link WhatsApp</Button></div>
+                : <div className="text-[12.5px] text-faint">Not set up on this server yet: the server needs the WhatsApp connector (WA_CONNECTOR_URL and WA_CONNECTOR_KEY). See docs/WHATSAPP_INTEGRATION.md.</div>}
+            </>
+          )}
+        </div>
+        <div className={card}>
+          <div className="flex items-start gap-2"><MessageCircle size={20} className="text-ok shrink-0 mt-0.5" /><div className="font-semibold text-[15px] min-w-0 flex-1 leading-snug">WhatsApp Business Cloud API</div><Badge tone={meta && live ? "green" : meta && paused ? "red" : "gray"} className="shrink-0">{meta && live ? "Connected" : meta && paused ? "Reconnect needed" : phone ? "Not in use" : "Not connected"}</Badge></div>
+          {meta && !form ? (
             <>
               <div className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
                 <span className="text-muted">Display number</span><span>{st.cfg.displayPhone}{st.cfg.verifiedName ? ` · ${st.cfg.verifiedName}` : ""}</span>
@@ -115,7 +181,7 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
             </>
           ) : !form ? (
             <>
-              <div className="text-[13px] text-muted">Connect with Meta’s Embedded Signup: log in with Facebook, pick or create your WhatsApp Business account and phone number, and Medoro finishes the setup (token, webhooks, number registration). You need a Meta Business account and a number not already on the WhatsApp app.</div>
+              <div className="text-[13px] text-muted">{phone ? "Instead of the linked phone, you can use the official API. " : ""}Connect with Meta’s Embedded Signup: log in with Facebook, pick or create your WhatsApp Business account and phone number, and Medoro finishes the setup (token, webhooks, number registration). You need a Meta Business account and a number not already on the WhatsApp app.</div>
               <div className="flex gap-2 flex-wrap">{fbButton("Connect with Facebook")}<Button variant="ghost" onClick={() => setForm(true)}>Enter credentials manually</Button></div>
             </>
           ) : (
@@ -129,8 +195,8 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
                 <Field label="Invoice template" hint="Approved template with a document header and 3 body variables: name, invoice no, amount."><Input value={f.invoiceTemplate} onChange={(e) => setF({ ...f, invoiceTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
               </div>
               <div className="flex gap-2">
-                <Button variant="primary" disabled={pending} onClick={() => start(async () => { const r = await connectAction(f); res(r); if (r.ok) { setForm(false); setF({ ...f, token: "", appSecret: "" }); } })}>{st.connected ? "Save new token" : "Verify & connect"}</Button>
-                {st.connected || signup ? <Button onClick={() => setForm(false)}>Cancel</Button> : null}
+                <Button variant="primary" disabled={pending} onClick={() => start(async () => { const r = await connectAction(f); res(r); if (r.ok) { setForm(false); setF({ ...f, token: "", appSecret: "" }); } })}>{meta ? "Save new token" : "Verify & connect"}</Button>
+                {st.connected || signup || phoneLink ? <Button onClick={() => setForm(false)}>Cancel</Button> : null}
               </div>
             </>
           )}
@@ -138,16 +204,17 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
         <div className={card}>
           <div className="font-semibold text-[15px]">Invoice delivery</div>
           <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.auto} disabled={!st.connected || pending} onChange={(e) => save({ auto: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Auto-send after sale</span><span className="text-[12.5px] text-muted">Only for customers with recorded WhatsApp consent whose number isn’t flagged. Others still need the cashier to confirm the number.</span></span></label>
-          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.pdf} disabled={pending} onChange={(e) => save({ pdf: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Attach the invoice PDF</span><span className="text-[12.5px] text-muted">{s.pdf ? <>The PDF is uploaded to WhatsApp and sent with your invoice template{st.connected && st.cfg.invoiceTemplate ? <> (<span className="font-mono text-[12px]">{st.cfg.invoiceTemplate}</span>)</> : null}.</> : <>Text-only template; its 4th variable is a link to the PDF on this server that works for 7 days.</>}</span></span></label>
-          {!s.pdf ? (
+          <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.pdf} disabled={pending} onChange={(e) => save({ pdf: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Attach the invoice PDF</span><span className="text-[12.5px] text-muted">{s.pdf ? phone ? <>The PDF is sent as a document with a short message.</> : <>The PDF is uploaded to WhatsApp and sent with your invoice template{st.connected && st.cfg.invoiceTemplate ? <> (<span className="font-mono text-[12px]">{st.cfg.invoiceTemplate}</span>)</> : null}.</> : <>{phone ? "A text message" : "Text-only template; its 4th variable is"} with a link to the PDF on this server that works for 7 days.</>}</span></span></label>
+          {!s.pdf && !phone ? (
             <div className="flex gap-2 items-start pl-7">
               <Field label="Text-only invoice template" hint="Body: name, invoice no., amount, link." className="flex-1 min-w-0"><Input value={names.textTemplate} onChange={(e) => setNames({ ...names, textTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
               <Button className="mt-[26px]" disabled={pending || names.textTemplate === s.textTemplate} onClick={() => save({ textTemplate: names.textTemplate })}>Save</Button>
             </div>
           ) : null}
-          {st.connected ? (invoiceTemplate.ok
+          {phone ? <div className="text-[12.5px] text-ok">Medoro writes the messages and sends them from your phone{s.auto ? "; auto-send is active" : ""}.</div> : st.connected ? (invoiceTemplate.ok
             ? <div className="text-[12.5px] text-ok">Template <span className="font-mono">{invoiceTemplate.name}</span> is approved{s.auto ? "; auto-send is active" : ""}.</div>
             : <div role="alert" className="text-[12.5px] text-bad flex gap-1.5"><CircleAlert size={14} className="mt-0.5 flex-none" /><span>{invoiceTemplate.error}{s.auto ? " Auto-send is paused until it’s approved." : " Invoices can’t be sent until then."}</span></div>) : null}
+          {phone ? null : <>
           <div className="flex gap-2 items-start">
             <Field label="Credit note template" hint="Sent from Returns. Body: name, credit note no., amount, invoice no." className="flex-1 min-w-0"><Input value={names.creditNoteTemplate} onChange={(e) => setNames({ ...names, creditNoteTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
             <Button className="mt-[26px]" disabled={pending || names.creditNoteTemplate === s.creditNoteTemplate} onClick={() => save({ creditNoteTemplate: names.creditNoteTemplate })}>Save</Button>
@@ -156,6 +223,7 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
           {st.connected && st.cfg.templates.length ? st.cfg.templates.map((t) => (
             <div key={t.name + t.language} className="flex items-center gap-2 text-[13px] py-1 border-b border-row last:border-0"><span className="font-mono">{t.name}</span><span className="text-faint">{t.language} · {t.category}{t.header ? ` · ${t.header.toLowerCase()} header` : ""}</span><Badge tone={ST[t.status] ?? "gray"} className="ml-auto">{t.status}</Badge></div>
           )) : <div className="text-[13px] text-fainter">{st.connected ? "No templates synced yet." : "Connect to see your approved templates."}</div>}
+          </>}
         </div>
       </div>
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">

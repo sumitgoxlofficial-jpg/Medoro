@@ -10,13 +10,16 @@ import { invoiceData } from "@/domain/sales/service";
 import { hasConsent } from "@/domain/parties/consent";
 import { invoicePdf } from "@/domain/sales/pdf";
 import { graph, GraphError, type FailKind } from "./graph";
+import { connectorFailKind, connectorProblem, linkState, phoneResults, sendFromPhone } from "./connector";
+import { phoneKind, phoneText } from "./phone-text";
 
 export type WaTemplate = { name: string; language: string; status: string; category: string; params?: number; header?: string };
 export type WaConfig = {
   wabaId: string; phoneNumberId: string; displayPhone: string; verifiedName?: string; verifyToken: string; webhookVerified: boolean;
   invoiceTemplate: string; invoiceTextTemplate?: string; templateLang: string; templates: WaTemplate[]; templatesAt?: string;
-  via?: "embedded" | "manual"; registerError?: string | null;
-  /** Meta rejected the token: sending is paused until the owner reconnects. */
+  /** phone: the pharmacy's own WhatsApp, linked by QR through the WhatsApp connector (no Meta account; see connector.ts). */
+  via?: "embedded" | "manual" | "phone"; registerError?: string | null;
+  /** Meta rejected the token (or the linked phone was signed out): sending is paused until the owner reconnects. */
   disconnected?: { at: string; reason: string } | null;
 };
 export type Secrets = { token: string; appSecret: string; pin?: string };
@@ -31,6 +34,14 @@ export type Payload =
   | { ch: "sms"; type: SmsType; vars: string[]; text: string };
 
 export const MAX_ATTEMPTS = 3;
+
+/** WhatsApp is the pharmacy's own phone, linked by QR, rather than a Meta Cloud API number. */
+export const isPhone = (cfg: Pick<WaConfig, "via"> | null | undefined) => cfg?.via === "phone";
+
+/** A failed send through the linked phone. Treated like a Meta error for retries, flags and pausing. */
+export class PhoneError extends GraphError {
+  constructor(message: string, kind: FailKind) { super(message, undefined, kind); }
+}
 /** Wait before automatic retry n+1: 1, 4, 16 minutes. */
 export const backoffMs = (attempts: number) => 60_000 * 4 ** Math.max(0, attempts - 1);
 
@@ -61,13 +72,15 @@ export async function markDisconnected(tenantId: string, reason: string) {
   await patchConfig(w.id, { disconnected: { at: new Date().toISOString(), reason: reason.slice(0, 200) } });
   // Pending retries wait for the reconnect instead of using up their attempts.
   await db.waMessage.updateMany({ where: { tenantId, channel: "whatsapp", status: "failed", errorKind: "retry" }, data: { errorKind: "auth", nextAttemptAt: null } });
-  await writeAudit(db, { tenantId, userName: "WhatsApp", action: "WhatsApp disconnected by Meta", entity: "integration", detail: `${reason.slice(0, 160)} · sending paused until an owner reconnects` });
+  await writeAudit(db, { tenantId, userName: "WhatsApp", action: isPhone(w.cfg) ? "WhatsApp phone link lost" : "WhatsApp disconnected by Meta", entity: "integration", detail: `${reason.slice(0, 160)} · sending paused until an owner reconnects` });
 }
 
 type MetaTemplate = { name: string; language: string; status: string; category: string; components?: { type: string; format?: string; text?: string }[] };
 
 /** Fetches the template list from Meta: status, language, body variable count and header type. */
 export async function refreshTemplates(w: WaAccount) {
+  // A linked phone has no Meta templates: Medoro writes the text (phone-text.ts).
+  if (isPhone(w.cfg)) return w.cfg.templates;
   const r = await graph<{ data: MetaTemplate[] }>(`/${w.cfg.wabaId}/message_templates?fields=name,language,status,category,components&limit=200`, w.sec.token).catch(async (e) => {
     if (e instanceof GraphError && e.kind === "auth") await markDisconnected(w.tenantId, e.reason);
     throw e;
@@ -88,7 +101,9 @@ const TEMPLATE_TTL = 6 * 3600_000;
  * The approved template to send, preferring the account's language. The cached list is refreshed when it's
  * older than 6 hours, or once when the template isn't in it. Throws a UserError naming what's missing.
  */
-export async function approvedTemplate(w: WaAccount, name: string, opts: { document?: boolean } = {}) {
+export async function approvedTemplate(w: WaAccount, name: string, opts: { document?: boolean } = {}): Promise<WaTemplate> {
+  // With a linked phone any name works: it only labels the message.
+  if (isPhone(w.cfg)) return w.cfg.templates.find((t) => t.name === name) ?? { name, language: "en", status: "approved", category: "utility" };
   const find = () => {
     const all = w.cfg.templates.filter((t) => t.name === name && t.status === "approved");
     return all.find((t) => t.language === w.cfg.templateLang) ?? all[0];
@@ -109,9 +124,32 @@ async function uploadPdf(w: WaAccount, pdf: Uint8Array, filename: string) {
   return (await graph<{ id: string }>(`/${w.cfg.phoneNumberId}/media`, w.sec.token, { method: "POST", body: form })).id;
 }
 
-async function sendWa(tenantId: string, phone: string, p: Extract<Payload, { ch: "wa" }>) {
+/** Sends from the pharmacy's linked phone: Medoro writes the text, the connector sends it. Returns the connector's message id. */
+async function sendPhone(m: WaMessage, p: Extract<Payload, { ch: "wa" }>) {
+  const t = await db.tenant.findUniqueOrThrow({ where: { id: m.tenantId }, select: { name: true } });
+  let pdf: { bytes: Uint8Array; filename: string } | undefined;
+  if (p.pdfSaleId) {
+    const inv = await invoiceData({ tenantId: m.tenantId } as Ctx, p.pdfSaleId);
+    if (!inv) throw new UserError("Invoice not found.");
+    if (inv.voided) throw new UserError(`${inv.invoiceNo} was voided; it can’t be sent.`);
+    pdf = { bytes: await invoicePdf(inv), filename: `${inv.invoiceNo.replace(/\//g, "-")}.pdf` };
+  }
+  try {
+    return await sendFromPhone({
+      tenantId: m.tenantId, phone: m.recipient, text: phoneText(phoneKind(m.invoiceId), p.vars, t.name, { pdf: !!pdf }), pdf,
+      // One key per attempt: the connector would otherwise answer a retry with the earlier, failed message.
+      key: `${m.id}:${m.attempts}`, marketing: m.invoiceId.startsWith("campaign:"),
+    });
+  } catch (e) {
+    throw new PhoneError(`WhatsApp: ${connectorProblem(e)}`.slice(0, 300), connectorFailKind(e));
+  }
+}
+
+async function sendWa(m: WaMessage, p: Extract<Payload, { ch: "wa" }>) {
+  const { tenantId, recipient: phone } = m;
   const w = await activeAccount(tenantId);
   if (!w) throw new GraphError("WhatsApp is disconnected. Reconnect it under WhatsApp to resume sending.", undefined, "auth");
+  if (isPhone(w.cfg)) return sendPhone(m, p);
   const tpl = await approvedTemplate(w, p.template, { document: !!p.pdfSaleId });
   const components: object[] = [];
   if (p.pdfSaleId) {
@@ -182,14 +220,14 @@ export async function dispatch(m: WaMessage): Promise<{ ok: true } | { ok: false
   const p = m.payload as Payload | null;
   try {
     if (!p) throw new UserError("Nothing recorded to send.");
-    const ref = p.ch === "sms" ? "sms:" + (await sendSmsMsg(m.tenantId, m.recipient, p)) : await sendWa(m.tenantId, m.recipient, p);
+    const ref = p.ch === "sms" ? "sms:" + (await sendSmsMsg(m.tenantId, m.recipient, p)) : await sendWa(m, p);
     await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid: ref, errorCode: null, errorKind: null, nextAttemptAt: null } });
     return { ok: true };
   } catch (e) {
     const kind: FailKind = e instanceof GraphError ? e.kind : e instanceof SmsError ? (e.retry ? "retry" : "permanent") : e instanceof UserError ? "permanent" : "retry";
     const reason = (e instanceof GraphError ? e.reason : e instanceof Error ? e.message : "Send failed").slice(0, 200);
     if (!(e instanceof UserError)) console.error("[delivery]", e);
-    await recordFailure(m, kind, reason, e instanceof GraphError && e.code !== undefined);
+    await recordFailure(m, kind, reason, e instanceof PhoneError || (e instanceof GraphError && e.code !== undefined));
     return { ok: false, error: reason, kind };
   }
 }
@@ -247,6 +285,7 @@ export async function resumeAfterReconnect(tenantId: string) {
  * attempts in all. Pharmacies whose WhatsApp is disconnected are skipped (their queue is paused).
  */
 export async function deliveryTick(now = new Date(), limit = 100) {
+  await phoneTick(now).catch((e) => console.error("[delivery] phone", e));
   const due = await db.waMessage.findMany({ where: { status: "failed", errorKind: "retry", attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now } }, orderBy: { nextAttemptAt: "asc" }, take: limit });
   const paused = new Map<string, boolean>();
   const out = { sent: 0, failed: 0, skipped: 0 };
@@ -267,4 +306,35 @@ export async function deliveryTick(now = new Date(), limit = 100) {
     if ((await dispatch(c)).ok) out.sent++; else out.failed++;
   }
   return out;
+}
+
+const ORDER = ["queued", "sent", "delivered", "read"];
+
+/**
+ * For pharmacies sending from a linked phone: follows the link (pausing sending when the phone was signed out, resuming
+ * when it is back) and copies the connector's delivery results (delivered, read, failed) onto the past 3 days' messages.
+ */
+export async function phoneTick(now = new Date()) {
+  const linked = (await db.integration.findMany({ where: { kind: "whatsapp", connectedAt: { not: null }, encryptedSecret: { not: null } } })).filter((i) => isPhone(i.config as WaConfig));
+  for (const i of linked) {
+    const cfg = i.config as WaConfig;
+    const st = await linkState(i.tenantId).catch(() => null);
+    if (!st) continue;
+    if (st.state === "ready" && cfg.disconnected) {
+      await patchConfig(i.id, { disconnected: null, ...(st.number ? { displayPhone: "+" + st.number } : {}) });
+      await resumeAfterReconnect(i.tenantId);
+      await writeAudit(db, { tenantId: i.tenantId, userName: "WhatsApp", action: "WhatsApp phone link back", entity: "integration", detail: "Sending resumed" });
+    } else if (st.state === "disconnected" && !cfg.disconnected) {
+      await markDisconnected(i.tenantId, st.error || "The phone was signed out of WhatsApp. Link it again by scanning the QR code.");
+    }
+    const msgs = await db.waMessage.findMany({ where: { tenantId: i.tenantId, channel: "whatsapp", status: { in: ["sent", "delivered"] }, wamid: { not: null }, updatedAt: { gte: new Date(now.getTime() - 3 * 86400_000) } }, take: 500 });
+    const res = await phoneResults(i.tenantId, msgs.map((m) => m.wamid!));
+    if (!res) continue;
+    for (const m of msgs) {
+      const r = res[m.wamid!];
+      if (!r) continue;
+      if (r.status === "failed") await recordFailure(m, /not on whatsapp|not registered/i.test(r.error ?? "") ? "invalid" : "retry", (r.error ?? "WhatsApp couldn’t send it from the linked phone").slice(0, 200), false);
+      else if (ORDER.indexOf(r.status) > ORDER.indexOf(m.status)) await db.waMessage.updateMany({ where: { id: m.id, status: m.status }, data: { status: r.status as "delivered" } });
+    }
+  }
 }

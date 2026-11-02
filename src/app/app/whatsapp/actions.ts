@@ -2,13 +2,19 @@
 import { revalidatePath } from "next/cache";
 import { run } from "@/server/action";
 import { enforce, userKey } from "@/server/ratelimit";
-import { completeEmbeddedSignup, connectWhatsApp, disconnectWhatsApp, saveWaSettings, syncTemplates, type connectSchema, type signupSchema, type WaSettings } from "@/domain/comms/whatsapp";
+import { completeEmbeddedSignup, connectWhatsApp, phoneLinkStatus, disconnectWhatsApp, saveWaSettings, syncTemplates, type connectSchema, type signupSchema, type WaSettings } from "@/domain/comms/whatsapp";
 import { retryMessage } from "@/domain/comms/delivery";
 import type { z } from "zod";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 export async function connectAction(i: z.input<typeof connectSchema>) { return fresh(await run(async (c) => { await connectWhatsApp(c, i); }, "WhatsApp connected. Add the webhook in your Meta app to get delivery updates.")); }
 export async function signupAction(i: z.input<typeof signupSchema>) { return fresh(await run(async (c) => (await completeEmbeddedSignup(c, i)).notes)); }
+/** Polled while the "Link your phone" QR is open; refreshes the app once the phone is linked. */
+export async function linkPhoneAction() {
+  const r = await run((c) => phoneLinkStatus(c));
+  if (r.ok && r.data.state === "ready") revalidatePath("/app", "layout");
+  return r;
+}
 export async function disconnectAction() { return fresh(await run((c) => disconnectWhatsApp(c), "Disconnected. The token was deleted from this server.")); }
 export async function templatesAction() { return fresh(await run(async (c) => syncTemplates(c))); }
 export async function settingsAction(p: Partial<WaSettings>) { return fresh(await run((c) => saveWaSettings(c, p), "Saved.")); }

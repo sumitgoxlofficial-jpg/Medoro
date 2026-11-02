@@ -37,8 +37,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
       <PageHead title={d.dash} sub={`${weekdayLong()} · ${ctx.branchName}`} right={<DashActions range={range} data={data} branch={ctx.branchName} canExport={can(ctx, "reports") && !ctx.readOnly} />} />
       {wa?.connected && wa.cfg.disconnected ? (
         <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#E5B4AE] bg-bad-bg px-4 py-3 text-[13.5px] text-bad">
-          <strong className="font-semibold">WhatsApp is disconnected.</strong> Meta rejected the access token ({wa.cfg.disconnected.reason}). Invoices and reminders are paused.
-          <a href="/app/whatsapp" className="ml-auto font-semibold underline">Reconnect</a>
+          <strong className="font-semibold">WhatsApp is disconnected.</strong> {wa.cfg.via === "phone" ? "The linked phone was signed out" : "Meta rejected the access token"} ({wa.cfg.disconnected.reason}). Invoices and reminders are paused.
+          <a href="/app/whatsapp" className="ml-auto font-semibold underline">{wa.cfg.via === "phone" ? "Link again" : "Reconnect"}</a>
         </div>
       ) : null}
       {drive && drive.status !== "connected" ? (

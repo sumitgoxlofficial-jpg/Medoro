@@ -7,6 +7,7 @@ import { unseal } from "@/server/vault";
 import { sendSms, smsEnabled } from "@/server/sms";
 import { inr } from "@/lib/money";
 import type { WaConfig } from "@/domain/comms/whatsapp";
+import { connectorProblem, sendFromPhone } from "@/domain/comms/connector";
 
 export type NotifyEvent = "confirmed" | "out_for_delivery" | "delivered";
 export type OrderSettings = { templates: Record<NotifyEvent, string> };
@@ -39,6 +40,14 @@ async function whatsappSender(tenantId: string, template: string) {
   const i = await db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "whatsapp" } } });
   if (!i?.connectedAt || !i.encryptedSecret) return null;
   const cfg = i.config as WaConfig;
+  // The pharmacy's own phone, linked by QR: the order update's plain text goes out from it.
+  if (cfg.via === "phone") {
+    if (cfg.disconnected) return null;
+    return async (phone: string, _vars: string[], text?: string, key?: string) => {
+      try { return await sendFromPhone({ tenantId, phone, text: text ?? "", key: key ?? `${tenantId}:${phone}:${Date.now()}` }); }
+      catch (e) { throw new Error(connectorProblem(e)); }
+    };
+  }
   const tpl = cfg.templates.find((t) => t.name === template && t.status === "approved");
   if (!tpl) return null;
   const token = (JSON.parse(unseal(i.encryptedSecret).toString()) as { token: string }).token;
@@ -84,7 +93,7 @@ export async function notifyCustomer(o: Order, event: NotifyEvent, extra: Extra 
       const key = `order:${o.id}:${event}:${Date.now().toString(36)}`;
       const m = await db.waMessage.create({ data: { tenantId: o.tenantId, invoiceId: "order:" + o.id, invoiceNo: o.no, recipient: o.phone, idempotencyKey: key, status: "queued", attempts: 1 } });
       try {
-        const wamid = await send(o.phone, vars);
+        const wamid = await send(o.phone, vars, sms, m.id);
         await db.waMessage.update({ where: { id: m.id }, data: { status: "sent", wamid } });
         await log(`${event.replace(/_/g, " ")} · WhatsApp ${s.templates[event]}`);
         return "whatsapp";

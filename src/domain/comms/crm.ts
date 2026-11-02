@@ -88,7 +88,7 @@ async function router(tenantId: string, template: string | null, smsType: SmsTyp
   const sms = !!smsType && smsReady(s, smsType);
   if (!tpl && !sms) {
     const any = await waAccount(tenantId);
-    throw new UserError(any?.cfg.disconnected ? "WhatsApp is disconnected (Meta rejected the access token). Reconnect it under WhatsApp." : "Connect WhatsApp Business first.");
+    throw new UserError(any?.cfg.disconnected ? (any.cfg.via === "phone" ? "WhatsApp is disconnected: the linked phone was signed out. Link it again under WhatsApp." : "WhatsApp is disconnected (Meta rejected the access token). Reconnect it under WhatsApp.") : "Connect WhatsApp first (link your phone or connect WhatsApp Business).");
   }
   return {
     wa: !!tpl, sms,
@@ -156,6 +156,8 @@ export async function draftCampaign(ctx: Ctx, name: string, template: string, me
   const text = message?.replace(/\s+/g, " ").trim() || null;
   if (text && text.length > 300) throw new UserError("Keep the update under 300 characters.");
   const r = await router(ctx.tenantId, template, "campaign", "marketing");
+  const wa = r.wa ? await activeAccount(ctx.tenantId) : null;
+  if (!text && wa?.cfg.via === "phone") throw new UserError("Write the update text. With a linked phone, Medoro sends the text you write (there are no Meta templates).");
   const audience = await db.customer.count({ where: { tenantId: ctx.tenantId, erasedAt: null, phone: { not: null }, ...r.audience } });
   const c = await db.campaign.create({ data: { tenantId: ctx.tenantId, name: name.trim(), template, message: text, audience, status: "draft" } });
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: text ? "Store update drafted" : "Campaign drafted", entity: "campaign", entityId: c.id, detail: `${c.name} · ${template} · ${audience} opted in` });
