@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import "./hi-load";
 import { HI } from "./hi";
 import { hindi, translate } from "./tr";
 

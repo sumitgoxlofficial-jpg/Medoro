@@ -11,20 +11,15 @@
  * Hindi line. Works on the server and in the browser (no React here).
  *
  * The Hindi lines are large, so browsers load them only when Hindi is chosen (LangProvider calls loadHindi());
- * the server always has them.
+ * the server gets them all up front from src/lib/hi-load.ts.
  */
 type Pattern = { re: RegExp; names: string[]; hi: string };
 let patterns: Pattern[] | null = null;
 let HI: Record<string, string> = {};
 let loaded = false;
 let loading: Promise<void> | null = null;
-const setDict = (d: Record<string, string>) => { HI = d; loaded = true; patterns = null; };
-
-// Next.js drops this branch from browser bundles, so the lines aren't sent to people using English.
-if (typeof window === "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  setDict((require("./hi") as typeof import("./hi")).HI);
-}
+/** Sets the Hindi lines (src/lib/hi-load.ts does this on the server). */
+export const setHindi = (d: Record<string, string>) => { HI = d; loaded = true; patterns = null; };
 
 /** Whether the Hindi lines are here (or couldn't be fetched, in which case screens show English). */
 export const hindiLoaded = () => loaded;
@@ -33,7 +28,7 @@ export const hindiLoaded = () => loaded;
 export function loadHindi(): Promise<void> {
   if (loaded) return Promise.resolve();
   // A failed fetch counts as done (English) so the page doesn't keep retrying; the next page load tries again.
-  loading ??= import("./hi").then((m) => setDict(m.HI), () => { loaded = true; });
+  loading ??= import("./hi").then((m) => setHindi(m.HI), () => { loaded = true; });
   return loading;
 }
 

@@ -1,4 +1,5 @@
 import "server-only";
+import "@/lib/hi-load";
 import { cookies } from "next/headers";
 import { tFor, type Lang, type TFn } from "@/lib/tr";
 
