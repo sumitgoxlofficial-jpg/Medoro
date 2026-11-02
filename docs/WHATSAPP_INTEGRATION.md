@@ -1,8 +1,29 @@
 # WhatsApp Business Integration
 
-Uses the **official Meta WhatsApp Business Platform (Cloud API)** only. Unofficial automation is not permitted. Customers without WhatsApp consent can be reached by SMS instead (see [SMS](#sms)).
+Two ways to connect, chosen per pharmacy on the WhatsApp screen:
+- **Link your phone (QR code)**: the pharmacy's own WhatsApp number, linked like WhatsApp Web. No Meta account or templates. See [Linked phone](#linked-phone-qr-code).
+- **Meta WhatsApp Business Platform (Cloud API)**: the official API with approved templates (below).
 
-## Setup (per pharmacy)
+Customers without WhatsApp consent can be reached by SMS instead (see [SMS](#sms)).
+
+## Linked phone (QR code)
+Works the same way as Fitron's "Link WhatsApp": Medoro uses the same **WhatsApp connector** service (`fitron/whatsapp-connector`), which keeps one WhatsApp Web session per business.
+
+**Server setup (once):** deploy the connector on an always-on server with Docker (see its README; one deployment can serve Fitron gyms and Medoro pharmacies together), then set `WA_CONNECTOR_URL` (its https address) and `WA_CONNECTOR_KEY` (its `WA_CONNECTOR_MASTER_KEY`) on the Medoro server and restart. The connector must be reachable from the Medoro server; the browser never talks to it.
+
+**Owner:** WhatsApp › **Link WhatsApp**. A QR code appears; on the pharmacy phone open WhatsApp › Linked devices › Link a device and scan it. Done: the screen shows "Linked" with the number.
+
+How it works:
+- The first time, Medoro creates the pharmacy on the connector (external id `medoro:<tenant id>`) with the master key and keeps the pharmacy's own connector key sealed with `HOST_KEY` (Integration `wa_connector`). Every other call uses that key.
+- The WhatsApp integration is stored with `via: "phone"`, so auto-send, the POS "Send on WhatsApp" button, reminders, campaigns and order updates all use it.
+- There are no Meta templates: Medoro writes each message from the same values a template would get (`src/domain/comms/phone-text.ts`). Invoices go as the PDF document with a short caption (or a 7-day link when "Attach PDF" is off). Store updates need their text.
+- The connector sends from a paced queue (a few seconds apart, with daily caps). The scheduler copies its results onto the delivery log (sent → delivered → read, or failed; "not on WhatsApp" flags the number like Meta's 131026).
+- If the phone is signed out (or WhatsApp drops the session) sending pauses exactly like a revoked Meta token: dashboard banner, bell alert, held messages. When the connector reports the phone connected again (or the owner presses Link again), sending resumes.
+- **Unlink** signs the phone out on the connector. Connecting Meta afterwards also signs the phone out.
+
+Caveats: this is WhatsApp Web, not the official API. WhatsApp can restrict numbers that send to people who haven't saved them, so message only customers who agreed to it (Medoro still checks consent and STOP). The phone must come online at least every 14 days. STOP replies to a linked phone are handled by the connector (it stops sending to that number); record the opt-out on the customer in Medoro too.
+
+## Setup (per pharmacy, Meta Cloud API)
 
 ### Embedded Signup (recommended)
 Owners click **Connect with Facebook** on the WhatsApp screen. Meta's Embedded Signup (v4, JavaScript SDK, `FB.login` with the configuration ID, `response_type: "code"`) lets them log in, pick or create a business portfolio, WhatsApp Business Account (WABA) and phone number. Medoro then, server to server:

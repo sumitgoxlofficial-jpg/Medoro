@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
-import { embeddedSignupConfig, invoiceTemplateState, messageLog, waSettings, waStatus } from "@/domain/comms/whatsapp";
+import { embeddedSignupConfig, invoiceTemplateState, messageLog, phoneLinkAvailable, waSettings, waStatus } from "@/domain/comms/whatsapp";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
 import { WhatsAppView } from "./view";
@@ -14,8 +14,8 @@ export default async function Page() {
   const base = process.env.APP_URL ?? "https://your-server";
   return (
     <>
-      <PageHead title={t(ctx.lang).wa} sub="Meta WhatsApp Business Cloud API, using your own Meta account" />
-      <WhatsAppView st={st} log={log} settings={settings} invoiceTemplate={tpl} signup={embeddedSignupConfig()} webhook={`${base.replace(/\/$/, "")}/api/wa/webhook`} />
+      <PageHead title={t(ctx.lang).wa} sub={st.connected && st.cfg.via === "phone" ? "Sending from your own WhatsApp, linked by QR code" : "Link your own WhatsApp by QR code, or connect the Meta WhatsApp Business Cloud API"} />
+      <WhatsAppView st={st} log={log} settings={settings} invoiceTemplate={tpl} signup={embeddedSignupConfig()} phoneLink={phoneLinkAvailable()} webhook={`${base.replace(/\/$/, "")}/api/wa/webhook`} />
     </>
   );
 }

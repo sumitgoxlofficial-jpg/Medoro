@@ -69,6 +69,7 @@ export async function badgesAndAlerts(tenantId: string, branchId: string, perms:
     db.integration.findUnique({ where: { tenantId_kind: { tenantId, kind: "whatsapp" } }, select: { connectedAt: true, config: true } }),
   ]);
   const waOff = !!wa?.connectedAt && !!(wa.config as { disconnected?: unknown }).disconnected;
+  const waPhone = (wa?.config as { via?: string } | undefined)?.via === "phone";
   const low = meds.filter((m) => (sellable.get(m.id) ?? 0) < m.reorderLevel);
   const dueOpen = due.filter((b) => b.paidPaise < b.amountPaise);
   const badges: Partial<Record<ScreenId, [number, "amber" | "red"]>> = {
@@ -76,7 +77,7 @@ export async function badgesAndAlerts(tenantId: string, branchId: string, perms:
   };
   const alerts: string[] = [];
   if (newOrders) alerts.push(`${newOrders} new order${newOrders > 1 ? "s" : ""} to confirm`);
-  if (waOff) alerts.push("WhatsApp disconnected: Meta rejected the access token. Reconnect under WhatsApp");
+  if (waOff) alerts.push(waPhone ? "WhatsApp disconnected: the linked phone was signed out. Link it again under WhatsApp" : "WhatsApp disconnected: Meta rejected the access token. Reconnect under WhatsApp");
   if (low.length) alerts.push(low.length === 1 ? `${low[0].name} low stock` : `${low.length} medicines low on stock`);
   if (exp30) alerts.push(`${exp30} batch${exp30 > 1 ? "es" : ""} expire in 30 days`);
   if (dueOpen.length) alerts.push(`${dueOpen.length} supplier payment${dueOpen.length > 1 ? "s" : ""} due in 3 days`);

@@ -13,8 +13,10 @@ import { creditNoteData } from "@/domain/sales/returns";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
 import { graph, GRAPH_VERSION, GraphError, reasonFor, webhookKind } from "./graph";
 import { invoiceLink } from "./links";
+import { connectorMissing, connectorProblem, linkState, unlinkPhone } from "./connector";
+import { PHONE_TEMPLATES } from "./phone-text";
 import {
-  activeAccount, approvedTemplate, dispatch, MAX_ATTEMPTS, patchConfig, queueMessage, recordFailure, refreshTemplates, resumeAfterReconnect, retryable, waAccount,
+  activeAccount, approvedTemplate, dispatch, isPhone, MAX_ATTEMPTS, patchConfig, queueMessage, recordFailure, refreshTemplates, resumeAfterReconnect, retryable, waAccount,
   type Payload, type Secrets, type WaConfig,
 } from "./delivery";
 
@@ -38,6 +40,8 @@ type Phone = { id: string; display_phone_number: string; verified_name: string; 
 async function saveConnection(ctx: Ctx, c: { wabaId: string; phone: Phone; sec: Secrets; via: "embedded" | "manual"; invoiceTemplate?: string; templateLang?: string }) {
   const old = await db.integration.findUnique({ where: { tenantId_kind: { tenantId: ctx.tenantId, kind: "whatsapp" } } });
   const prev = (old?.config ?? null) as WaConfig | null;
+  // Moving from a linked phone to Meta: sign the phone out so the two don't both look connected.
+  if (isPhone(prev)) await unlinkPhone(ctx.tenantId);
   const cfg: WaConfig = {
     wabaId: c.wabaId, phoneNumberId: c.phone.id, displayPhone: c.phone.display_phone_number, verifiedName: c.phone.verified_name,
     verifyToken: prev?.verifyToken ?? randomBytes(18).toString("base64url"), webhookVerified: prev?.phoneNumberId === c.phone.id ? prev.webhookVerified : false,
@@ -136,10 +140,57 @@ export async function syncTemplates(ctx: Ctx) {
   return (await refreshTemplates(w)).length;
 }
 
+// ───────────── Link your own phone (QR) ─────────────
+
+export type PhoneLink = { state: "setup" | "offline" | "waiting" | "qr" | "ready"; qr?: string; number?: string; text: string };
+
+/** Whether this server can link a phone at all (WA_CONNECTOR_URL and WA_CONNECTOR_KEY set). */
+export const phoneLinkAvailable = () => !connectorMissing();
+
+/**
+ * Polled by the "Link your phone" dialog: starts a link on the connector, returns the QR code to scan from WhatsApp ›
+ * Linked devices, and once the phone is linked records it as this pharmacy's WhatsApp (replacing a Meta connection).
+ */
+export async function phoneLinkStatus(ctx: Ctx): Promise<PhoneLink> {
+  authorize(ctx, "integrations");
+  const missing = connectorMissing();
+  if (missing) return { state: "setup", text: missing };
+  const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { name: true } });
+  let st;
+  try { st = await linkState(ctx.tenantId, { start: true, name: t.name }); }
+  catch (e) { return { state: "offline", text: connectorProblem(e) }; }
+  if (st.state === "qr" && st.qr) return { state: "qr", qr: st.qr, text: "Scan this code from WhatsApp › Linked devices › Link a device on the pharmacy phone." };
+  if (st.state !== "ready") return { state: "waiting", text: st.error ? `Waiting for WhatsApp: ${st.error}` : st.state === "reconnecting" ? "Reconnecting to WhatsApp…" : "Starting WhatsApp… the QR code appears here in a moment." };
+  const number = st.number ? "+" + st.number : "";
+  const w = await waAccount(ctx.tenantId);
+  if (!(w && isPhone(w.cfg) && !w.cfg.disconnected && w.cfg.displayPhone === number)) await savePhoneLink(ctx, number);
+  return { state: "ready", number, text: `Linked to ${number || "the pharmacy phone"}. Bills and reminders now go out from this number.` };
+}
+
+async function savePhoneLink(ctx: Ctx, number: string) {
+  const old = await db.integration.findUnique({ where: { tenantId_kind: { tenantId: ctx.tenantId, kind: "whatsapp" } } });
+  const prev = (old?.config ?? null) as WaConfig | null;
+  const cfg: WaConfig = {
+    wabaId: "", phoneNumberId: "", displayPhone: number, verifiedName: "Linked phone", verifyToken: prev?.verifyToken ?? randomBytes(18).toString("base64url"), webhookVerified: false,
+    invoiceTemplate: prev?.invoiceTemplate ?? "invoice_share", templateLang: "en", templates: PHONE_TEMPLATES, templatesAt: new Date().toISOString(), via: "phone", disconnected: null, registerError: null,
+  };
+  // No secret to keep here (the connector key is in Integration "wa_connector"); the row just has to read as connected.
+  const sealed = new Uint8Array(seal(JSON.stringify({ token: "", appSecret: "" } satisfies Secrets)));
+  await db.integration.upsert({
+    where: { tenantId_kind: { tenantId: ctx.tenantId, kind: "whatsapp" } },
+    create: { tenantId: ctx.tenantId, kind: "whatsapp", config: cfg, encryptedSecret: sealed, connectedAt: new Date(), rotatedAt: new Date() },
+    update: { config: cfg, encryptedSecret: sealed, connectedAt: new Date(), rotatedAt: new Date() },
+  });
+  await resumeAfterReconnect(ctx.tenantId);
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: prev?.disconnected ? "WhatsApp phone relinked" : "WhatsApp phone linked", entity: "integration", detail: `${number || "phone"} · scanned QR${prev && !isPhone(prev) && old?.connectedAt ? " · replaces the Meta connection" : ""}` });
+}
+
 export async function disconnectWhatsApp(ctx: Ctx) {
   authorize(ctx, "integrations");
+  const w = await waAccount(ctx.tenantId);
+  if (w && isPhone(w.cfg)) await unlinkPhone(ctx.tenantId);
   await db.integration.updateMany({ where: { tenantId: ctx.tenantId, kind: "whatsapp" }, data: { connectedAt: null, encryptedSecret: null } });
-  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "WhatsApp disconnected", entity: "integration", detail: "Token deleted from this server" });
+  await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "WhatsApp disconnected", entity: "integration", detail: w && isPhone(w.cfg) ? "Phone unlinked" : "Token deleted from this server" });
 }
 
 export async function waStatus(tenantId: string) {
@@ -152,6 +203,7 @@ export async function invoiceTemplateState(tenantId: string) {
   const [w, s] = await Promise.all([activeAccount(tenantId), waSettings(tenantId)]);
   const name = s.pdf ? (w?.cfg.invoiceTemplate ?? "invoice_share") : s.textTemplate;
   if (!w) return { name, ok: false, error: "WhatsApp isn’t connected." };
+  if (isPhone(w.cfg)) return { name, ok: true, error: null };
   try { await approvedTemplate(w, name, { document: s.pdf }); return { name, ok: true, error: null }; }
   catch (e) { return { name, ok: false, error: e instanceof Error ? e.message : "Template check failed" }; }
 }
@@ -168,7 +220,7 @@ async function sendDocument(ctx: Ctx, d: DocSend) {
   requireSubscription(ctx);
   const w = await waAccount(ctx.tenantId);
   if (!w) throw new UserError("WhatsApp Business isn’t connected. An owner can connect it under WhatsApp.");
-  if (w.cfg.disconnected) throw new UserError("WhatsApp is disconnected (Meta rejected the access token). An owner needs to reconnect it under WhatsApp.");
+  if (w.cfg.disconnected) throw new UserError(isPhone(w.cfg) ? "WhatsApp is disconnected: the linked phone was signed out. An owner needs to link it again under WhatsApp." : "WhatsApp is disconnected (Meta rejected the access token). An owner needs to reconnect it under WhatsApp.");
   const phone = d.phone;
   const [optedOut, optedIn, invalid] = await Promise.all([
     db.customer.count({ where: { tenantId: ctx.tenantId, phone, waOptIn: false, optInMethod: { startsWith: "Opted out" } } }),
