@@ -10,6 +10,7 @@ import { bankAmount, bankAutoMapping, bankRows, mappingReady, MAX_STATEMENT_BYTE
 import type { Table } from "@/domain/imports/parse";
 import { ACC } from "./accounts";
 import { BANK_FIELDS, type BankField, type BankMapping } from "./bank-types";
+import { autoMatchBills, billProposals, undoBillMatch } from "./bank-bills";
 
 export { BANK_FIELDS, type BankField, type BankMapping, bankAmount, bankAutoMapping, bankRows };
 export type BankRow = StatementRow;
@@ -42,8 +43,10 @@ export async function importBankStatement(ctx: Ctx, fileName: string, bytes: Uin
     if (fresh.length) await tx.bankLine.createMany({ data: fresh.map(({ r, fp }) => ({ tenantId: ctx.tenantId, statementId: st.id, date: dateOnly(r.date), description: r.description, ref: r.ref || null, amountPaise: BigInt(r.amount), balancePaise: r.balance == null ? null : BigInt(r.balance), row: r.row, fingerprint: fp })) });
     if (mappingIn) await tx.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(tenant.settings as object), bankMapping: mappingIn } } });
     const matched = await autoMatch(tx, ctx);
-    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Bank statement imported", entity: "bank_statement", entityId: st.id, detail: `${fileName} · ${fresh.length} new, ${rows.length - fresh.length} already imported, ${skipped} skipped, ${problems.length} unreadable · ${matched} auto-matched` });
-    return { needsMapping: false as const, imported: fresh.length, duplicates: rows.length - fresh.length, skipped, matched, problems: problems.slice(0, 50) };
+    // Credits that aren't a receipt in the books yet: matched to the credit bill they pay when the narration says which.
+    const bills = await autoMatchBills(tx, ctx);
+    await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Bank statement imported", entity: "bank_statement", entityId: st.id, detail: `${fileName} · ${fresh.length} new, ${rows.length - fresh.length} already imported, ${skipped} skipped, ${problems.length} unreadable · ${matched} auto-matched${bills ? `, ${bills} paid bills` : ""}` });
+    return { needsMapping: false as const, imported: fresh.length, duplicates: rows.length - fresh.length, skipped, matched: matched + bills, bills, problems: problems.slice(0, 50) };
   }, { timeout: 30000 });
 }
 
@@ -112,6 +115,8 @@ export async function unmatchBankLine(ctx: Ctx, bankLineId: string) {
   return db.$transaction(async (tx) => {
     const b = await tx.bankLine.findFirst({ where: { id: bankLineId, tenantId: ctx.tenantId } });
     if (!b?.ledgerLineId) throw new UserError("This statement line isn’t matched.");
+    // A bill match posted its own receipt: undoing it reverses that receipt too.
+    if (b.saleId) return undoBillMatch(tx, ctx, b);
     await tx.bankLine.update({ where: { id: b.id }, data: { ledgerLineId: null, matchedBy: null, reconciledAt: null, reconciledBy: null } });
     await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Bank match removed", entity: "bank_line", entityId: b.id, detail: `${isoOf(b.date)} ${inr(big(b.amountPaise))}` });
   });
@@ -123,13 +128,15 @@ export async function unmatchBankLine(ctx: Ctx, bankLineId: string) {
  */
 export async function bankReconciliation(ctx: Ctx) {
   authorizeView(ctx, "payments", "reports");
-  const [open, matched, first, last, recent] = await Promise.all([
+  const [open, matched, first, last, recent, proposals] = await Promise.all([
     db.bankLine.findMany({ where: { tenantId: ctx.tenantId, ledgerLineId: null }, orderBy: { date: "asc" }, take: 500 }),
     db.bankLine.count({ where: { tenantId: ctx.tenantId, ledgerLineId: { not: null } } }),
     db.bankLine.findFirst({ where: { tenantId: ctx.tenantId }, orderBy: { date: "asc" } }),
     db.bankLine.findFirst({ where: { tenantId: ctx.tenantId, balancePaise: { not: null } }, orderBy: [{ date: "desc" }, { statement: { createdAt: "desc" } }, { row: "desc" }] }),
     db.bankLine.findMany({ where: { tenantId: ctx.tenantId, ledgerLineId: { not: null } }, orderBy: { reconciledAt: "desc" }, take: 30 }),
+    billProposals(db, ctx.tenantId),
   ]);
+  const paidBills = new Map((await db.sale.findMany({ where: { id: { in: recent.flatMap((r) => (r.saleId ? [r.saleId] : [])) } }, select: { id: true, invoiceNo: true } })).map((s) => [s.id, s.invoiceNo]));
   const recentVouchers = await db.ledgerLine.findMany({ where: { id: { in: recent.map((r) => r.ledgerLineId!) } }, select: { id: true, voucher: { select: { no: true } } } });
   const since = first ? dateOnly(addDays(isoOf(first.date), -15)) : new Date(0);
   const books = await bankLedgerLines(db, ctx.tenantId, since, new Date(Date.now() + 86400_000));
@@ -142,9 +149,11 @@ export async function bankReconciliation(ctx: Ctx) {
     statement: open.map((b) => ({
       id: b.id, date: isoOf(b.date), description: b.description, ref: b.ref, amount: big(b.amountPaise),
       candidates: books.filter((c) => signed(c) === big(b.amountPaise) && dayGap(istDay(c.date), isoOf(b.date)) <= 15).map(entry),
+      // Credit bills this money may have paid (when no receipt for it is in the books yet).
+      bills: (proposals.get(b.id) ?? []).slice(0, 4).map((p) => ({ saleId: p.targetId, label: p.label, reason: p.reason, rule: p.rule })),
     })),
     books: books.map(entry),
-    recent: recent.map((b) => ({ id: b.id, date: isoOf(b.date), description: b.description, amount: big(b.amountPaise), matchedBy: b.matchedBy, voucherNo: recentVouchers.find((v) => v.id === b.ledgerLineId)?.voucher.no ?? "" })),
+    recent: recent.map((b) => ({ id: b.id, date: isoOf(b.date), description: b.description, amount: big(b.amountPaise), matchedBy: b.matchedBy, bill: b.saleId ? paidBills.get(b.saleId) ?? null : null, voucherNo: recentVouchers.find((v) => v.id === b.ledgerLineId)?.voucher.no ?? "" })),
     balance: last ? { date: isoOf(last.date), bank: big(last.balancePaise), books: Number(book[0]?.bal ?? 0) } : null,
   };
 }

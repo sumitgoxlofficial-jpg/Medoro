@@ -27,8 +27,12 @@ Where the build differs from the plan, and why:
 - **Ids are derived from content** (`st-<fingerprint>`, `al-<txn>-<target>-n`, `bk-…`, `rv-…`) so two counters that
   import the same statement or make the same automatic match offline end up with one record after sync.
 - **Self-hosted servers** keep the existing bank reconciliation (statement lines matched to the *Bank account*
-  ledger), now with the shared reader. Bill-level matching on a self-hosted server's PostgreSQL is not built yet; the
-  hosted service (every Drive pharmacy) has it on the counter.
+  ledger), now with the shared reader. Bill-level matching on a self-hosted server
+  is built too (`src/domain/accounting/bank-bills.ts`): a credit with no receipt in the books is matched to the credit
+  bill it pays with the same rules (reference or invoice number in the narration: automatic; amount: suggestion only),
+  "Paid this bill" posts the receipt into the Bank account and reconciles the line, "Not this one" hides a suggestion,
+  and undoing reverses the receipt. A bill's open amount is the customer's balance spread over their credit bills from
+  the newest back. Test: `tests/integration/bank-bills.test.ts`.
 - Settings (shop UPI ID, auto-match for known payers, column mappings per bank) are kept per device, like the counter
   PIN.
 - A device on an older app version stops syncing when it receives the new tables until it reloads the app, as with

@@ -477,9 +477,13 @@ model BankLine {
   row          Int           @default(0) // position in the imported file, to order same-day lines
   fingerprint  String
   ledgerLineId String?       @unique
-  matchedBy    String? // auto, manual
+  matchedBy    String? // auto, manual; bill / bill-auto when the line paid a credit bill (a receipt was posted for it)
   reconciledAt DateTime?
   reconciledBy String?
+  /// The credit bill this bank credit paid (bill-level matching, accounting/bank-bills.ts)
+  saleId          String?
+  /// Bills a person said this credit isn't for: never suggested again
+  rejectedSaleIds String[] @default([])
 
   @@unique([tenantId, fingerprint])
   @@index([tenantId, date])

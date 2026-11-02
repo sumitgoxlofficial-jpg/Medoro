@@ -10,7 +10,7 @@ import { downloadCsv } from "@/lib/csv";
 import { dateOnly, dayMonth } from "@/lib/dates";
 import { BANK_FIELDS, type BankField, type BankMapping } from "@/domain/accounting/bank-types";
 import type { bankReconciliation } from "@/domain/accounting/bank";
-import { importStatementAction, matchAction, unmatchAction } from "./actions";
+import { billMatchAction, importStatementAction, matchAction, rejectBillAction, unmatchAction } from "./actions";
 
 type Data = Awaited<ReturnType<typeof bankReconciliation>>;
 const th = "text-left text-[12px] font-medium text-muted px-3 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
@@ -92,6 +92,19 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
                     </select>
                     {canAct ? <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await matchAction(s.id, picks[s.id] ?? s.candidates[0].id)); })}><Link2 size={13} />Match</Button> : null}
                   </div>
+                ) : s.bills.length ? (
+                  <div className="flex flex-col gap-1" data-testid="bill-suggestions">
+                    <span className="text-[12px] text-faint">No receipt in your books for this money. It may have paid:</span>
+                    {s.bills.map((b) => (
+                      <div key={b.saleId} className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[12.5px]">{b.label}</span><span className="text-[11.5px] text-faint">· {b.reason}</span>
+                        {canAct ? <>
+                          <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await billMatchAction(s.id, b.saleId)); })}><Link2 size={13} />Paid this bill</Button>
+                          <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { toastR(await rejectBillAction(s.id, b.saleId)); })}>Not this one</Button>
+                        </> : null}
+                      </div>
+                    ))}
+                  </div>
                 ) : <span className="text-[12.5px] text-faint">No entry in your books with this amount within 15 days of this date. Record the missing entry (for example bank charges or interest), then match it here.</span>}</td>
               </tr>
             ))}</tbody>
@@ -114,7 +127,7 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
           <table className="w-full border-collapse text-[13px] min-w-[760px]">
             <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Narration</th><th className={th + " text-right"}>Amount</th><th className={th + " max-sm:hidden"}>Voucher</th><th className={th + " max-sm:hidden"}>How</th>{canAct ? <th className={th} /> : null}</tr></thead>
             <tbody>{data.recent.map((r) => (
-              <tr key={r.id}><td className={td + " whitespace-nowrap"}>{day(r.date)}</td><td className={td + " max-w-[360px] truncate"}>{r.description}</td><td className={td + " text-right"}>{amt(r.amount)}</td><td className={td + " font-mono text-[12px] max-sm:hidden"}>{r.voucherNo}</td><td className={td + " max-sm:hidden"}><Badge tone={r.matchedBy === "auto" ? "teal" : "gray"}>{r.matchedBy === "auto" ? "Automatic" : "Manual"}</Badge></td>
+              <tr key={r.id}><td className={td + " whitespace-nowrap"}>{day(r.date)}</td><td className={td + " max-w-[360px] truncate"}>{r.description}</td><td className={td + " text-right"}>{amt(r.amount)}</td><td className={td + " font-mono text-[12px] max-sm:hidden"}>{r.voucherNo}</td><td className={td + " max-sm:hidden"}><Badge tone={r.matchedBy === "auto" || r.matchedBy === "bill-auto" ? "teal" : "gray"}>{r.matchedBy === "auto" || r.matchedBy === "bill-auto" ? "Automatic" : "Manual"}</Badge>{r.bill ? <span className="ml-1.5 text-[12px] text-muted">paid {r.bill}</span> : null}</td>
                 {canAct ? <td className={td + " text-right"}><Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { toastR(await unmatchAction(r.id)); })}><Unlink size={13} />Unmatch</Button></td> : null}</tr>
             ))}</tbody>
           </table>
