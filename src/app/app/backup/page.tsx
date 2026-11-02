@@ -38,7 +38,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
         drive={drive} folder={`Medoro/${pharmacyFolderName(tenant)}`}
         driveApp={driveAppConfigured()} fingerprint={(key?.config as { fingerprint?: string } | null)?.fingerprint ?? null} keyDate={key?.connectedAt?.toISOString() ?? null} keyState={keyState}
         settings={settings} flash={(await searchParams).drive ?? null} problems={problems}
-        canRestore={can(ctx, "users")} pendingRestore={pending} code={tenant.code} hostCron={!!process.env.VERCEL}
+        canRestore={can(ctx, "users")} pendingRestore={pending} code={tenant.code} hostCron={!!process.env.VERCEL} mustMove={!!ctx.mustMove && can(ctx, "users")}
       />
     </>
   );
