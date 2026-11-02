@@ -75,7 +75,7 @@ function PhoneQr({ onDone, onClose }: { onDone: (number?: string) => void; onClo
 
 export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webhook, phoneLink }: {
   st: Awaited<ReturnType<typeof waStatus>>; log: Awaited<ReturnType<typeof messageLog>>; settings: WaSettings;
-  invoiceTemplate: { name: string; ok: boolean; error: string | null }; signup: Signup; webhook: string; phoneLink: boolean;
+  invoiceTemplate: { name: string; ok: boolean; error: string | null }; signup: Signup; webhook: string; /** Why a phone can't be linked on this server, or null when it can. */ phoneLink: string | null;
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -83,7 +83,7 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
   const phone = st.connected && st.cfg.via === "phone";
   /** Connected through Meta (Embedded Signup or pasted credentials). */
   const meta = st.connected && !phone;
-  const [form, setForm] = useState(!st.connected && !signup && !phoneLink);
+  const [form, setForm] = useState(!st.connected && !signup && !!phoneLink);
   const [qr, setQr] = useState(false);
   const [f, setF] = useState({ wabaId: meta ? st.cfg.wabaId : "", phoneNumberId: meta ? st.cfg.phoneNumberId : "", token: "", appSecret: "", invoiceTemplate: st.connected ? st.cfg.invoiceTemplate : "invoice_share", templateLang: st.connected ? st.cfg.templateLang : "en" });
   const [s, setS] = useState(settings);
@@ -152,14 +152,14 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
                 <span className="text-muted">Sending from</span><span>{st.cfg.displayPhone || "the pharmacy phone"}</span>
                 <span className="text-muted">Linked</span><span>{st.rotatedAt ? `${dayMonth(new Date(st.rotatedAt), true)} ${hhmm(new Date(st.rotatedAt))}` : "—"} · scanned from WhatsApp › Linked devices</span>
               </div>
-              <div className="text-[12.5px] text-muted">Bills (with the PDF), credit notes, reminders and order updates go out from this number as normal WhatsApp messages, a few seconds apart. Keep the phone online at least once every 14 days. Message only customers who agreed to it: WhatsApp can restrict numbers that send to people who haven’t saved them.</div>
+              <div className="text-[12.5px] text-muted">Bills (with the PDF), credit notes, reminders and order updates go out from this number as normal WhatsApp messages, a few seconds apart. Keep this Medoro server running (messages wait and go out when it is back) and the phone online at least once every 14 days. Message only customers who agreed to it: WhatsApp can restrict numbers that send to people who haven’t saved them.</div>
               <div className="flex gap-2 flex-wrap"><Button onClick={() => setQr(true)}>Link again</Button><Button variant="danger-outline" disabled={pending} onClick={() => { if (confirm("Unlink this phone? Medoro stops sending from it until you link again.")) start(async () => res(await disconnectAction())); }}>Unlink</Button></div>
             </>
           ) : (
             <>
               <div className="text-[13px] text-muted">Send bills and reminders from the pharmacy’s own WhatsApp number, the way WhatsApp Web works: press Link WhatsApp and scan the QR code from the phone. No Meta account or templates needed.{meta ? " Linking replaces the WhatsApp Business connection." : ""}</div>
-              {phoneLink ? <div className="flex gap-2 flex-wrap"><Button variant={meta ? "outline" : "primary"} onClick={() => setQr(true)}><Smartphone size={15} />Link WhatsApp</Button></div>
-                : <div className="text-[12.5px] text-faint">Not set up on this server yet: the server needs the WhatsApp connector (WA_CONNECTOR_URL and WA_CONNECTOR_KEY). See docs/WHATSAPP_INTEGRATION.md.</div>}
+              {!phoneLink ? <div className="flex gap-2 flex-wrap"><Button variant={meta ? "outline" : "primary"} onClick={() => setQr(true)}><Smartphone size={15} />Link WhatsApp</Button></div>
+                : <div className="text-[12.5px] text-faint">{phoneLink}</div>}
             </>
           )}
         </div>
@@ -196,7 +196,7 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
               </div>
               <div className="flex gap-2">
                 <Button variant="primary" disabled={pending} onClick={() => start(async () => { const r = await connectAction(f); res(r); if (r.ok) { setForm(false); setF({ ...f, token: "", appSecret: "" }); } })}>{meta ? "Save new token" : "Verify & connect"}</Button>
-                {st.connected || signup || phoneLink ? <Button onClick={() => setForm(false)}>Cancel</Button> : null}
+                {st.connected || signup || !phoneLink ? <Button onClick={() => setForm(false)}>Cancel</Button> : null}
               </div>
             </>
           )}

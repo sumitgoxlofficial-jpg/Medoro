@@ -2,7 +2,13 @@ import "server-only";
 import { db } from "@/server/db";
 import { seal, unseal } from "@/server/vault";
 import type { FailKind } from "./graph";
+import { embeddedLogout, embeddedResults, embeddedSend, embeddedStatus, NOT_LINKED_HERE, resumeEmbeddedWhatsApp } from "./embedded";
 
+// Two ways to hold the pharmacy's WhatsApp link, as in FITRON for Windows:
+//  - built in (embedded.ts): Medoro's own server keeps the link. Used when no connector is set and the server keeps
+//    running (self-hosted, Docker, the pharmacy's own computer). Not on Vercel, where the server stops between requests.
+//  - a connector (below), when WA_CONNECTOR_URL and WA_CONNECTOR_KEY are set.
+//
 // Client for the WhatsApp connector (the same service Fitron uses: fitron/whatsapp-connector). It keeps one WhatsApp Web
 // link per business: the pharmacy scans a QR code from WhatsApp › Linked devices on its own phone, and Medoro then sends
 // bills and reminders from that phone's number. No Meta account is needed.
@@ -16,8 +22,13 @@ const env = (k: string) => process.env[k]?.trim() || "";
 const baseUrl = () => env("WA_CONNECTOR_URL").replace(/\/+$/, "");
 const masterKey = () => env("WA_CONNECTOR_KEY");
 
-/** Why linking a phone can't start on this server, or null when the connector is configured. */
+/** The link is held by Medoro itself (embedded.ts): no connector set, and a server that keeps running. WA_BUILTIN=0 turns it off. */
+export const builtIn = () => !baseUrl() && !masterKey() && !process.env.VERCEL && process.env.WA_BUILTIN !== "0";
+
+/** Why linking a phone can't start on this server, or null when it can (built in, or a connector configured). */
 export function connectorMissing(): string | null {
+  if (builtIn()) return null;
+  if (!baseUrl() && !masterKey() && process.env.VERCEL) return "Linking a phone needs Medoro running on a server that stays on (your own computer or server, like FITRON for Windows). This online server stops between visits, so it can’t keep WhatsApp linked. Alternatively set WA_CONNECTOR_URL and WA_CONNECTOR_KEY to use a WhatsApp connector.";
   if (!baseUrl() || !masterKey()) return "The WhatsApp connector isn’t set up on this server. Set WA_CONNECTOR_URL (its https address) and WA_CONNECTOR_KEY (its master key), then restart Medoro.";
   if (!/^https?:\/\//i.test(baseUrl())) return "WA_CONNECTOR_URL must start with https:// (or http:// on the same machine).";
   return null;
@@ -135,6 +146,10 @@ type StatusData = { status: string; phone: string | null; error: string | null; 
  * asked to connect, so a QR comes up; without it the state is only read.
  */
 export async function linkState(tenantId: string, opts: { start?: boolean; name?: string } = {}): Promise<LinkState> {
+  if (builtIn()) {
+    const e = await embeddedStatus(tenantId, { start: opts.start });
+    return { state: e.state, number: e.number, qr: e.qr, error: e.error, sentToday: e.sentToday, cap: e.cap };
+  }
   const d = await businessCall<StatusData>(tenantId, "/api/v1/whatsapp/status", { method: "GET", timeout: 10_000, name: opts.name });
   const base = { number: d.phone?.replace(/\D/g, "") || undefined, sentToday: d.today?.sent ?? 0, cap: d.limits?.perDay, error: d.error };
   switch (d.status) {
@@ -157,6 +172,7 @@ export async function linkState(tenantId: string, opts: { start?: boolean; name?
 
 /** Signs the phone out on the connector. Errors are ignored: Medoro forgets the link either way. */
 export async function unlinkPhone(tenantId: string) {
+  if (builtIn()) return embeddedLogout(tenantId);
   if (connectorMissing()) return;
   await businessCall(tenantId, "/api/v1/whatsapp/disconnect", { method: "POST", body: { logout: true }, timeout: 10_000 }).catch(() => {});
 }
@@ -169,6 +185,11 @@ export type PhoneSend = { tenantId: string; phone: string; text: string; key: st
  * message id; the final status (sent, delivered, read, failed) is fetched later by phoneResults.
  */
 export async function sendFromPhone(m: PhoneSend): Promise<string> {
+  if (builtIn()) {
+    const id = embeddedSend(m.tenantId, { localId: m.key, to: to(m.phone).replace(/\D/g, ""), body: m.text, pdf: m.pdf });
+    if (!id) throw new ConnectorError("WHATSAPP_NOT_CONNECTED", NOT_LINKED_HERE, 409);
+    return id;
+  }
   const category = m.marketing ? "MARKETING" : "TRANSACTIONAL";
   // Medoro has already checked the customer's consent; the connector keeps its own list and wants an opt-in for marketing.
   if (m.marketing) await businessCall(m.tenantId, "/api/v1/consent/opt-in", { method: "POST", body: { phone: to(m.phone), source: "medoro" } });
@@ -189,6 +210,11 @@ const STATUS: Record<string, "queued" | "sent" | "delivered" | "read" | "failed"
 /** Where the connector's messages stand, by its message id. null when it can't be reached. */
 export async function phoneResults(tenantId: string, ids: string[]): Promise<Record<string, { status: string; error: string | null }> | null> {
   if (!ids.length) return {};
+  if (builtIn()) {
+    const out: Record<string, { status: string; error: string | null }> = {};
+    for (const [k, r] of Object.entries(embeddedResults(tenantId, ids))) out[k] = { status: r.status.toLowerCase(), error: r.error ?? null };
+    return out;
+  }
   if (connectorMissing()) return null;
   const out: Record<string, { status: string; error: string | null }> = {};
   try {
@@ -200,4 +226,9 @@ export async function phoneResults(tenantId: string, ids: string[]): Promise<Rec
   } catch {
     return null;
   }
+}
+
+/** From the scheduler: reconnects pharmacies whose phone is linked on this server (after a restart). */
+export function resumeBuiltIn() {
+  if (builtIn()) resumeEmbeddedWhatsApp();
 }

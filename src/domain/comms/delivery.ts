@@ -10,7 +10,7 @@ import { invoiceData } from "@/domain/sales/service";
 import { hasConsent } from "@/domain/parties/consent";
 import { invoicePdf } from "@/domain/sales/pdf";
 import { graph, GraphError, type FailKind } from "./graph";
-import { connectorFailKind, connectorProblem, linkState, phoneResults, sendFromPhone } from "./connector";
+import { connectorFailKind, connectorProblem, linkState, phoneResults, resumeBuiltIn, sendFromPhone } from "./connector";
 import { phoneKind, phoneText } from "./phone-text";
 
 export type WaTemplate = { name: string; language: string; status: string; category: string; params?: number; header?: string };
@@ -315,6 +315,7 @@ const ORDER = ["queued", "sent", "delivered", "read"];
  * when it is back) and copies the connector's delivery results (delivered, read, failed) onto the past 3 days' messages.
  */
 export async function phoneTick(now = new Date()) {
+  resumeBuiltIn();
   const linked = (await db.integration.findMany({ where: { kind: "whatsapp", connectedAt: { not: null }, encryptedSecret: { not: null } } })).filter((i) => isPhone(i.config as WaConfig));
   for (const i of linked) {
     const cfg = i.config as WaConfig;

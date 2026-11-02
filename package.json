@@ -27,6 +27,7 @@
     "@prisma/client": "6.19.3",
     "@sqlite.org/sqlite-wasm": "3.53.4-build2",
     "@tanstack/react-query": "^5.105.0",
+    "baileys": "7.0.0-rc14",
     "clsx": "^2.1.1",
     "fflate": "0.8.3",
     "lucide-react": "^1.65.0",
