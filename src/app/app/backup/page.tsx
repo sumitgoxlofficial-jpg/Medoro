@@ -31,12 +31,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
       <PageHead title={t(ctx.lang).bak} sub="Encrypted backups and files in your own Google Drive, like WhatsApp. Medoro keeps no copy once Drive has it." />
       {ctx.moved ? (
         <div role="status" className="mb-3 rounded-xl border border-line bg-white px-4 py-3 text-[13.5px]" data-testid="drive-backups-note">
-          <strong className="font-semibold">Your pharmacy’s records live in your Google Drive.</strong> Each counter saves full encrypted copies there, so Medoro’s server backups are off. Keep Google Drive connected here: the counters save through it. A new or reset counter restores from Drive with your Drive recovery code.
+          <strong className="font-semibold">Your pharmacy’s records live in your Google Drive.</strong> Keep Google Drive connected here: the counters save through it.
         </div>
       ) : null}
       <BackupView
         history={hist.map((h) => ({ id: h.id, at: h.startedAt.toISOString(), kind: h.kind, size: big(h.sizeBytes), sha: h.sha256, status: h.status, error: h.error, drive: !!h.driveFileId, local: !!h.localPath }))}
-        drive={drive} folder={ctx.moved ? (reconnect ? `Medoro/${pharmacyFolderName(tenant)} (visible in your Drive)` : "Hidden app data, not shown in your Drive (like WhatsApp backups)") : `Medoro/${pharmacyFolderName(tenant)}`} reconnect={reconnect && ctx.moved}
+        drive={drive} folder={ctx.moved ? (reconnect ? `Medoro/${pharmacyFolderName(tenant)} (visible in your Drive)` : "Hidden app data, not shown in your Drive (like WhatsApp backups)") : `Medoro/${pharmacyFolderName(tenant)}`} reconnect={reconnect && ctx.moved} inDrive={!!ctx.moved}
         driveApp={driveAppConfigured()} fingerprint={(key?.config as { fingerprint?: string } | null)?.fingerprint ?? null} keyDate={key?.connectedAt?.toISOString() ?? null} keyState={keyState}
         settings={settings} flash={(await searchParams).drive ?? null} problems={problems}
         canRestore={can(ctx, "users")} pendingRestore={pending} code={tenant.code} hostCron={!!process.env.VERCEL} mustMove={!!ctx.mustMove && can(ctx, "users")}

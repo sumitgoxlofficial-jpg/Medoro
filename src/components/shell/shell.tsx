@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
   ChevronDown, ChevronRight, Search, Bell, ShieldCheck, Ellipsis, CircleUser, CreditCard, Languages,
@@ -14,7 +14,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { DICT, type Lang } from "@/lib/i18n";
-import { NAV, READY, screenOf, type ScreenId } from "@/lib/nav";
+import { DRIVE_TAB, NAV, READY, driveNav, screenOf, type NavDef, type ScreenId } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
 import {
   changePasswordAction, changePinAction, disconnectGoogleAction, listSessions, regenerateCodesAction, revokeOtherSessions, revokeSession, securityInfo, setBranch, setLang, setViewAs,
@@ -25,6 +25,8 @@ import { signOut } from "@/app/(auth)/actions";
 export type ShellProps = {
   tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
+  /** The pharmacy's records live on its counters (Drive): screens open the matching Billing (device) tab. */
+  driveNav?: boolean;
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
   badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; ai: AiShell; supportUntil: string | null;
   subscription: { tone: "amber" | "red"; text: string; renew: boolean } | null;
@@ -100,8 +102,12 @@ function ShellInner(p: ShellProps) {
 
   const showShortcuts = () => { setMenu(false); toast("F2 search · F4 hold · F9 complete sale · Ctrl+J Ask AI · Esc close · ? shortcuts", "gray"); };
 
-  const allowed = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));
-  const cur = screenOf(path);
+  const search = useSearchParams();
+  const base = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));
+  // Records on the counters (Drive): each screen opens the matching tab of Billing (device).
+  const allowed = p.driveNav ? base.map(driveNav).filter((n): n is NavDef => !!n) : base;
+  const tab = search.get("tab") ?? "bill";
+  const cur = p.driveNav && path === "/app/device-pos" ? allowed.find((n) => DRIVE_TAB[n.id] === tab) : screenOf(path);
   const title = path.startsWith("/app/owner/reports") ? "Scheduled reports" : cur ? t[cur.id] : "";
   const initials = p.userName.split(" ").map((x) => x[0]).slice(0, 2).join("").toUpperCase();
 

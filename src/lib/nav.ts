@@ -38,6 +38,18 @@ export const NAV: NavDef[] = [
 /** Screens that are built. The rest stay hidden from navigation until they land. */
 export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
 
+/**
+ * A pharmacy whose records live on its counters and in its Google Drive: each screen opens the matching tab of
+ * Billing (device), which works on the counter's own data. Screens with no counter tab yet are left out, and screens
+ * that would open the same tab twice keep only the first.
+ */
+export const DRIVE_TAB: Partial<Record<ScreenId, string>> = {
+  dash: "dash", pos: "bill", ord: "orders", ret: "bills", inv: "stock", exp: "reports", pur: "purchases", parties: "customers", acc: "accounts", money: "money",
+};
+/** System screens that work the same for Drive pharmacies (account, devices, plan, privacy, help). */
+const DRIVE_KEEP = new Set<ScreenId>(["bak", "sync", "users", "plan", "privacy", "help"]);
+export const driveNav = (n: NavDef): NavDef | null => DRIVE_TAB[n.id] ? { ...n, href: `/app/device-pos?tab=${DRIVE_TAB[n.id]}` } : DRIVE_KEEP.has(n.id) ? n : null;
+
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
 
 export function screenOf(path: string): NavDef | undefined {

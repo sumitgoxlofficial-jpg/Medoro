@@ -5,13 +5,16 @@ import { db } from "@/server/db";
 import { discountCap } from "@/domain/identity/permissions";
 import { maxDiscount } from "@/domain/sales/approval";
 import { deviceDriveEnabled } from "@/domain/system/gdrive";
-import { PageHead } from "@/components/page-head";
 import { DevicePos } from "./device-pos";
+import { DeviceHead } from "./device-head";
+import { TABS, type Tab } from "@/components/device/tabs";
+
+const TAB_KEYS = new Set<string>(TABS.map(([k]) => k));
 
 export const metadata = { title: "Billing on this device" };
 
 /** Drive mode pilot: billing that runs on this device's own database, not Medoro's server. */
-export default async function Page({ searchParams }: { searchParams: Promise<{ drive?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ drive?: string; tab?: string }> }) {
   const ctx = await requireCtx();
   if (!can(ctx, "sale")) redirect("/app");
   // Where Drive is required, a pharmacy still on Medoro's copy bills here and moves its data from here.
@@ -25,8 +28,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const cap = Math.min(discountCap(ctx.perms), await maxDiscount(ctx.tenantId));
   return (
     <>
-      <PageHead title="Billing on this device" sub={`${ctx.mustMove ? "Medoro now keeps every pharmacy’s data in its own Google Drive. Move yours here to keep billing." : inDrive ? "Your pharmacy’s records live on this device and in your Google Drive, encrypted." : "Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive."} F2 search · F9 complete`} />
-      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} fresh={fresh} mustMove={!!ctx.mustMove} driveResult={(await searchParams).drive ?? null} />
+      <DeviceHead sub={`${ctx.mustMove ? "Medoro now keeps every pharmacy’s data in its own Google Drive. Move yours here to keep billing." : inDrive ? "Your pharmacy’s records live on this device and in your Google Drive, encrypted." : "Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive."} F2 search · F9 complete`} />
+      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} fresh={fresh} mustMove={!!ctx.mustMove} driveResult={(await searchParams).drive ?? null} tab={TAB_KEYS.has((await searchParams).tab ?? "") ? ((await searchParams).tab as Tab) : undefined} />
     </>
   );
 }

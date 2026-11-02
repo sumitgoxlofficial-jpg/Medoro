@@ -15,12 +15,13 @@ import { ReportsGst } from "./reports-gst";
 import { Orders } from "./orders";
 import { Activity } from "./activity";
 import { Assistant } from "./assistant";
+import { Dashboard } from "./dashboard";
 import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
-const TABS = [["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["purchases", "Purchases"], ["orders", "Orders"], ["customers", "Customers"], ["accounts", "Accounts"], ["money", "UPI & Bank"], ["reports", "Reports & GST"], ["ask", "Ask"], ["activity", "Activity"], ["settings", "Counter"]] as const;
-type Tab = (typeof TABS)[number][0];
+import { TABS, type Tab } from "./tabs";
+export type { Tab };
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
 
@@ -28,8 +29,10 @@ export const READY_KEY = "medoro-drivedb-ready";
  * The whole Drive mode counter, on the device's own database. Online (signed in) it gets `who` from the
  * server; offline (/device) it uses the device's saved user and asks for the counter PIN.
  */
-export function DeviceApp({ who: online, empty, side, settingsExtra }: {
+export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab = "bill" }: {
   who?: Who;
+  /** The tab to open on, e.g. "dash" when the sidebar's Dashboard is clicked. */
+  initialTab?: Tab;
   /** Shown when this device has no pharmacy yet (online only: load catalogue / restore from Drive). */
   empty?: (ready: (cfg: Cfg) => void) => React.ReactNode;
   side?: React.ReactNode;
@@ -41,7 +44,13 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
   const [state, setState] = useState<"opening" | "empty" | "locked" | "ready" | "error">("opening");
   const [err, setErr] = useState("");
   const [cfg, setCfg] = useState<Cfg | null>(null);
-  const [tab, setTab] = useState<Tab>("bill");
+  const [tab, setTabState] = useState<Tab>(initialTab);
+  // The sidebar opens a tab with ?tab=…; switching tabs here updates the address so the sidebar follows.
+  useEffect(() => { setTabState(initialTab); }, [initialTab]);
+  const setTab = useCallback((k: Tab) => {
+    setTabState(k);
+    if (online) { try { const u = new URL(window.location.href); u.searchParams.set("tab", k); window.history.replaceState(null, "", u); } catch { /* not in a browser */ } }
+  }, [online]);
   const [tick, setTick] = useState(0);
   const [pin, setPin] = useState("");
   const [receipt, setReceipt] = useState<SaleDetail | null>(null);
@@ -98,12 +107,14 @@ export function DeviceApp({ who: online, empty, side, settingsExtra }: {
   const bump = () => setTick((t) => t + 1);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
+      {/* Signed in, the sidebar opens each screen; the Dashboard then looks like Medoro's own, without the counter's tab row. */}
+      {!(online && tab === "dash") && <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
         {TABS.filter(([k]) => (k !== "settings" && k !== "activity") || online?.owner).map(([k, name]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{name}</button>
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">Lock</button>}
-      </div>
+      </div>}
+      {tab === "dash" && <Dashboard cfg={cfg} owner={who.owner} refresh={tick} go={setTab} />}
       {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id) => { bump(); try { setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
       {tab === "bills" && <Bills cfg={cfg} who={who} refresh={tick} />}
       {tab === "stock" && <Stock cfg={cfg} owner={who.owner} userId={who.userId} refresh={tick} />}
