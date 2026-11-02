@@ -116,4 +116,8 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await expect(page.getByText("Bank-wise collections").locator("..")).toContainText("HDFC Bank ••4321");
   await page.goto("/app/money");
   await expect(page.getByText("Your records live on your counters")).toBeVisible();
+
+  await page.goto("/app/lab");
+  await page.getByRole("button", { name: "Turn off Drive mode" }).click();
+  await expect(page.getByRole("button", { name: "Turn on Drive mode" })).toBeVisible();
 });

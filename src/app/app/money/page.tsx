@@ -4,6 +4,8 @@ import { can, requireCtx } from "@/server/context";
 import { db } from "@/server/db";
 import { driveModeOn } from "@/domain/system/drive-mode";
 import { financeCounts } from "@/domain/reports/alerts";
+import { billMatching } from "@/domain/finance/bills";
+import { BillsView } from "./bills-view";
 import { LABEL_TEXT, SOURCES, type SourceLabel } from "@/domain/finance/providers";
 import { PageHead } from "@/components/page-head";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -22,6 +24,7 @@ export default async function Page() {
   if (!can(ctx, "payments") && !can(ctx, "reports")) redirect("/app");
   const drive = !!ctx.mustMove || !!ctx.moved || (await driveModeOn(ctx.tenantId));
   const counts = drive ? await financeCounts(ctx.tenantId) : null;
+  const bills = drive ? null : await billMatching(ctx);
   const [lines, open, last] = drive ? [0, 0, null] : await Promise.all([
     db.bankLine.count({ where: { tenantId: ctx.tenantId } }),
     db.bankLine.count({ where: { tenantId: ctx.tenantId, ledgerLineId: null } }),
@@ -44,9 +47,10 @@ export default async function Page() {
           <Card className="p-4 flex flex-col gap-2">
             <CardHead title="Bank statements" />
             <div className="text-sm">{lines ? `${lines} statement line(s) imported, ${open} not yet matched to your books.` : "No statements imported yet."}{last ? ` Last upload: ${last.fileName}, ${last.createdAt.toLocaleString("en-IN")}.` : ""}</div>
-            <Link href="/app/bank" className="text-teal text-sm font-medium">Open bank reconciliation</Link>
+            <Link href="/app/bank" className="text-teal text-sm font-medium">Upload a statement or open bank reconciliation</Link>
           </Card>
         )}
+        {bills && <BillsView data={bills} canAct={can(ctx, "payments") && !ctx.readOnly && !ctx.locked} />}
         <div className="grid gap-4 lg:grid-cols-2">
           {(["bank", "provider"] as const).map((kind) => (
             <Card key={kind} className="p-4 flex flex-col gap-2">

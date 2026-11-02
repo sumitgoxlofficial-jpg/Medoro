@@ -34,7 +34,7 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
     if (r.data.needsMapping) { setMap({ preview: r.data.preview, mapping: r.data.mapping }); return toast("Tell Medoro which columns hold the date and amounts.", "blue"); }
     setMap(null); setFile(null);
     const bad = r.data.problems ?? [];
-    toast(`${r.data.imported} new line(s) imported${r.data.duplicates ? `, ${r.data.duplicates} already there` : ""} · ${r.data.matched} matched automatically.${bad.length ? ` ${bad.length} row(s) couldn’t be read: ${bad.slice(0, 3).map((p) => `row ${p.row} (${p.reason})`).join("; ")}${bad.length > 3 ? "…" : ""}` : ""}`, bad.length ? "blue" : "green");
+    toast(`${r.data.imported} new line(s) imported${r.data.duplicates ? `, ${r.data.duplicates} already there` : ""} · ${r.data.matched} matched automatically${r.data.billsMatched ? `, ${r.data.billsMatched} paid credit bills (see UPI & Bank Connect)` : ""}.${bad.length ? ` ${bad.length} row(s) couldn’t be read: ${bad.slice(0, 3).map((p) => `row ${p.row} (${p.reason})`).join("; ")}${bad.length > 3 ? "…" : ""}` : ""}`, bad.length ? "blue" : "green");
   });
   const width = Math.max(0, ...(map?.preview ?? []).map((r) => r.length));
   const exportCsv = () => downloadCsv("bank-unreconciled", [
@@ -47,6 +47,7 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       <div className={wrap + " p-4 flex flex-wrap gap-x-8 gap-y-2 items-center"}>
         <div className="text-[13.5px]">Matched lines <strong className="tnum">{data.matched}</strong></div>
+        {data.partlyPaid ? <div className="text-[13.5px]">Part-paid to bills <strong className="tnum">{data.partlyPaid}</strong> <a href="/app/money" className="text-teal">(UPI &amp; Bank Connect)</a></div> : null}
         <div className="text-[13.5px]">Statement lines to match <strong className="tnum">{data.statement.length}</strong></div>
         <div className="text-[13.5px]">Book entries not on a statement <strong className="tnum">{data.books.length}</strong></div>
         {data.balance ? <div className="text-[13.5px]">On {day(data.balance.date)}: bank <strong className="tnum">{inr(data.balance.bank)}</strong> · books <strong className="tnum">{inr(data.balance.books)}</strong> {data.balance.bank === data.balance.books ? <Badge tone="green">Agrees</Badge> : <Badge tone="amber">Differs by {inr(data.balance.bank - data.balance.books)}</Badge>}</div> : null}

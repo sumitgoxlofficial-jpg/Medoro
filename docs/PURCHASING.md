@@ -135,5 +135,9 @@ matched by hand (same-amount entries within 15 days are offered) and unmatched a
 not in the books, book entries not yet on a statement (cheques in transit), the last statement balance against the
 books, and exports the unreconciled items as CSV.
 
+Statement credits with no book entry can pay credit bills on **UPI & Bank Connect**: each match posts a receipt
+voucher dated on the statement date (undo reverses it). A bill's reference (`MD…`) or the customer's (`MC…`), or the
+invoice number, in the narration matches automatically; the same amount alone is only a suggestion.
+
 On Drive counters, statements are matched to bills, counter UPI payments and receipts instead; see
 **Billing (device) → UPI & Bank** and [UPI_BANK_CONNECT_PLAN.md](UPI_BANK_CONNECT_PLAN.md).

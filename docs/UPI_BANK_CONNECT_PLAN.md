@@ -28,9 +28,19 @@ Where the build differs from the plan, and why:
   UTR typed at the counter confirms a counter payment automatically.
 - **Ids are derived from content** (`st-<fingerprint>`, `al-<txn>-<target>-n`, `bk-…`, `rv-…`) so two counters that
   import the same statement or make the same automatic match offline end up with one record after sync.
-- **Self-hosted servers** keep the existing bank reconciliation (statement lines matched to the *Bank account*
-  ledger), now with the shared reader. Bill-level matching on a self-hosted server's PostgreSQL is not built yet; the
-  hosted service (every Drive pharmacy) has it on the counter.
+- **Self-hosted servers** match bank credits to credit bills too (`src/domain/finance/bills.ts`, migration
+  `20261111000000_bank_bill_allocation`, screen **UPI & Bank Connect**). It differs from the counter because the server
+  keeps double-entry books:
+  - a match posts a receipt voucher (Dr Bank account / Cr Sundry debtors, dated on the statement date) and records the
+    bill in `BankAllocation` (append-only); undo posts a reversal voucher and a negative row;
+  - what is due on each bill comes from the ledger: the customer's outstanding sits on their newest bills, and bills a
+    bank match paid are honoured exactly;
+  - the existing statement-to-book matching runs first; a bill match is never automatic while an unmatched book entry
+    of the same amount lies within 3 days (that receipt may already be recorded), and the suggestion says so;
+  - counter UPI checks stay as they were on the server: UPI sales post to the Bank account, so the existing
+    reconciliation matches them to statement lines;
+  - not on the server yet: "auto-match known payers", and printing the UPI QR on server POS bills (the references are
+    listed on the screen for reminders).
 - Settings (shop UPI ID, auto-match for known payers, column mappings per bank) are shared by all counters through the
   synced `setting` table (device migration 9); the later change of a setting wins. Values a counter kept for itself
   before are read until changed.

@@ -481,8 +481,45 @@ model BankLine {
   reconciledAt DateTime?
   reconciledBy String?
 
+  allocations  BankAllocation[]
+
   @@unique([tenantId, fingerprint])
   @@index([tenantId, date])
+}
+
+/// Self-hosted bill matching: (part of) a bank credit paid a credit bill, through a receipt voucher. Append-only;
+/// undo is a reversal voucher and a negative row pointing at the original (reversesId).
+model BankAllocation {
+  id           String   @id @default(uuid())
+  tenantId     String
+  bankLineId   String
+  bankLine     BankLine @relation(fields: [bankLineId], references: [id])
+  saleId       String
+  customerId   String
+  amountPaise  BigInt
+  voucherId    String
+  ledgerLineId String   @unique // the voucher's Bank account line
+  kind         String // auto, approved, manual, reversal
+  rule         Int?
+  reversesId   String?  @unique
+  userId       String
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, bankLineId])
+  @@index([tenantId, saleId])
+}
+
+/// A bill suggestion a person rejected for a statement line.
+model BankMatchReject {
+  id         String   @id @default(uuid())
+  tenantId   String
+  bankLineId String
+  saleId     String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  @@unique([bankLineId, saleId])
+  @@index([tenantId])
 }
 
 model Recall {
