@@ -18,13 +18,13 @@ export function SiteHeader() {
   }, []);
   return (
     <header className={`sticky top-0 z-40 bg-white/95 supports-[backdrop-filter]:bg-white/85 backdrop-blur border-b transition-colors duration-300 ${scrolled || open ? "border-[var(--s-line)]" : "border-transparent"}`}>
-      <div className="max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[640px]:px-4">
+      <div className="max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[959px]:gap-3 max-[640px]:px-4">
         <Link href="/" aria-label="Medoro home" className="flex-none"><Wordmark size={21} /></Link>
         <nav aria-label="Main" className="hidden min-[960px]:flex gap-1 text-[15px]">
           {NAV.map(([l, h]) => <a key={h} href={h} className="px-3 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">{l}</a>)}
         </nav>
         <div className="ml-auto flex gap-2 items-center">
-          <Link href="/signin" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]">Log in</Link>
+          <Link href="/signin" className="max-[419px]:hidden flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]">Log in</Link>
           <a href="/trial" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><span className="max-[520px]:hidden">Start 7-day free trial</span><span className="min-[521px]:hidden">Free trial</span></a>
           <button type="button" onClick={() => setOpen((x) => !x)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="site-menu"
             className="min-[960px]:hidden size-11 rounded-lg border border-[var(--s-line)] bg-white flex items-center justify-center cursor-pointer text-[var(--s-ink)]">
