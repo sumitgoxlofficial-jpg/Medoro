@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { deviceDb } from "@/drivedb/device";
 import { dayMonth, hhmm } from "@/lib/dates";
-import { DeviceApp } from "@/components/device/device-app";
+import { DeviceApp, type Tab } from "@/components/device/device-app";
 import { card, input, errText, type Cfg, type Who } from "@/components/device/ui";
 import { deviceSeedAction } from "../lab/actions";
 import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
@@ -15,7 +15,7 @@ import { DriveGate } from "./drive-gate";
 import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, einvoiceStatusAction, payLinkAction, payStatusAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
-export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null }) {
+export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
   const conn = useDriveConnect(drive);
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
@@ -30,6 +30,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     <DriveGate fresh={fresh || mustMove} move={mustMove} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
     <DeviceApp
       who={who}
+      initialTab={tab}
       empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} mustMove={mustMove} />}
       side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
       settingsExtra={owner && drive ? <><DevicesPanel /><PaymentsPanel onChange={setPaying} /></> : null}

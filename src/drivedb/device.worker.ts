@@ -20,6 +20,7 @@ import * as inbox from "./inbox";
 import * as assistant from "./assistant";
 import * as einv from "./einvoice";
 import * as money from "./money";
+import * as dash from "./dashboard";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -175,6 +176,7 @@ const handlers = {
   saleDetail: (id: string) => reports.saleDetail(need(), id),
   listBills: (iso: string, text?: string) => reports.listBills(need(), iso, text),
   dayReport: (branchId: string, iso?: string) => reports.dayReport(need(), branchId, iso),
+  dashboard: (branchId: string, range?: dash.DashRange) => dash.dashboard(need(), branchId, range),
   stockList: (branchId: string, text?: string) => reports.stockList(need(), branchId, text),
   updateMedicine: (id: string, patch: Parameters<typeof reports.updateMedicine>[2]) => reports.updateMedicine(need(), id, patch),
   customerList: (text?: string) => reports.customerList(need(), text),

@@ -71,6 +71,8 @@ test("a staff counter joins with approval, both counters stay in step, and remov
   await page.getByRole("button", { name: new RegExp(`Remove .*${staff.name}`) }).click();
   await expect(page.getByText(/removed\./)).toBeVisible();
   await sp.reload();
+  // A reload stays on the tab it was on (it's in the address); the Drive status is on the Billing tab.
+  await sp.getByRole("tab", { name: "Billing" }).click();
   await expect(sp.getByText(/removed this device from Drive mode/).first()).toBeVisible({ timeout: 30_000 });
   await sctx.close();
 

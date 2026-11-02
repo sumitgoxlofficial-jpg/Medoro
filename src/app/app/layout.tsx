@@ -58,6 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       deployment={deployment} strict={strict} liveDevices={live} badges={badges} alerts={alerts} ai={{ enabled: ai.enabled, globalOff: ai.globalOff, mode: ai.mode, canManage: ai.canManage }} supportUntil={ctx.readOnly && supportEnd ? hm(supportEnd) : null}
       subscription={banner ? { ...banner, renew: ctx.perms.includes("users") } : null}
       deletionOn={deletionOn}
+      driveNav={!!ctx.moved && ctx.perms.includes("sale") && !ctx.readOnly}
     >
       {children}
     </Shell>

@@ -22,7 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
   const ctx = await requireCtx();
   if (can(ctx, "delivery") && !can(ctx, "sale") && !can(ctx, "reports")) redirect("/app/deliveries");
   // Records live on the counters (Drive mode): Medoro's dashboard would be empty, so open the counter.
-  if (ctx.moved && can(ctx, "sale") && (await driveOnlyOrPurged(ctx.tenantId))) redirect("/app/device-pos");
+  if (ctx.moved && can(ctx, "sale") && (await driveOnlyOrPurged(ctx.tenantId))) redirect("/app/device-pos?tab=dash");
   // Still on Medoro's copy where Drive is required: the owner moves it from the counter.
   if (ctx.mustMove && can(ctx, "sale")) redirect("/app/device-pos");
   const { range: r } = await searchParams;
