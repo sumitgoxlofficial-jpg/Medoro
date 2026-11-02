@@ -395,8 +395,8 @@ working with me; they overlap a little.
   counter is told to restore from the new copy (its unsent bills are kept). Sync is paused on the moving device
   until the new copy is saved. Shown on the pilot counter itself (a card above Billing) and on an empty owner device,
   where the move is required. Tests: `drive-move.test.ts`, `sync.test.ts`.
-  Known limit: if a counter sells from a pilot batch that was merged into one of Medoro's batches while the move is
-  running, saving the new copy fails on that bill; move when the other counters are idle.
+  A pilot batch merged into one of Medoro's is remembered in the database file (`batchAlias`, carried by every full
+  copy): bills other counters made against it, during the move or before they rebuilt, go to Medoro's batch.
 
 ### Phase 8 progress (slice 1 built: Drive sign-up, sync monitoring, privacy pages)
 - **Sign-up** asks where the pharmacy's records live: "In my own Google Drive (recommended)" or Medoro's server.

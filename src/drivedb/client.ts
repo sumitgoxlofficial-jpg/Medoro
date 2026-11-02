@@ -71,8 +71,16 @@ export class DriveDB {
    * Applies a change recorded elsewhere (another device, or a log after a snapshot). Not logged again.
    * Inserts are idempotent; edits apply only if newer than the row's last change (latest clock wins).
    */
-  applyRemote(c: Pick<Change, "clock" | "tbl" | "rowId" | "op" | "data">) {
+  applyRemote(change: Pick<Change, "clock" | "tbl" | "rowId" | "op" | "data">) {
+    let c = change;
     if (!isTable(c.tbl)) throw new DriveDBError(`Unknown table ${c.tbl} in a change`);
+    // A batch merged into another (see batchAliases): its own row stays out, and records against it go to the other.
+    const alias = this.batchAliases();
+    if (alias.size) {
+      if (c.tbl === "batch" && alias.has(c.rowId)) return;
+      const b = c.data.batchId;
+      if (typeof b === "string" && alias.has(b)) c = { ...c, data: { ...c.data, batchId: alias.get(b)! } };
+    }
     const spec = TABLES[c.tbl];
     const cols = Object.keys(c.data);
     if (cols.some((k) => !(spec.columns as readonly string[]).includes(k))) throw new DriveDBError(`A change for ${c.tbl} has an unknown column`);
@@ -93,6 +101,22 @@ export class DriveDB {
       this.engine.run(`UPDATE ${c.tbl} SET ${[...set.map((k) => `${k} = ?`), "updatedAt = ?"].join(", ")} WHERE id = ?`, [...set.map((k) => c.data[k]), newer, c.rowId]);
       this.markFields(c.tbl, c.rowId, set, c.clock);
     });
+  }
+
+  private aliases: Map<string, string> | null = null;
+  /**
+   * Batches merged into another batch: when a pilot pharmacy moved from Medoro, a batch the pilot created with the
+   * same number as one of Medoro's became Medoro's batch (migrate-in.ts). Counters that still hold bills against the
+   * pilot's batch id upload them later; they are applied to the batch it became. Kept in the database file, so every
+   * full copy, and every counter restored from one, has it.
+   */
+  batchAliases(): Map<string, string> {
+    return (this.aliases ??= new Map(Object.entries(JSON.parse(this.getMeta("batchAlias") ?? "{}") as Record<string, string>)));
+  }
+  addBatchAliases(map: Record<string, string>) {
+    if (!Object.keys(map).length) return;
+    this.setMeta("batchAlias", JSON.stringify({ ...Object.fromEntries(this.batchAliases()), ...map }));
+    this.aliases = null;
   }
 
   /** @internal Remembers when these fields of a row last changed. */

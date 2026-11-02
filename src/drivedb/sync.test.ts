@@ -205,6 +205,17 @@ describe("a pharmacy rebuilt on one device (pilot moved from Medoro)", () => {
     sell(fresh, owner.m.id, 2);
     await sync(fresh, store, staff.ring); await sync(rebuilt, store, ring);
     expect(stockOf(rebuilt, owner.m.id, B, TODAY)).toBe(55);
+    // A pilot batch merged into another (the move's batch alias): a bill a counter made against the old id, uploaded
+    // later, lands on the batch it became, on every counter restored from the copy too.
+    rebuilt.addBatchAliases({ "pilot-batch-A": String(batchRow.id) });
+    const late = { clock: "9999999999999-0000-STAFF9", tbl: "stockMovement" as const, rowId: "late-1", op: "insert" as const,
+      data: { id: "late-1", branchId: B, batchId: "pilot-batch-A", qty: -1, type: "sale", refType: "sale", refId: "s-late", userId: U, at: new Date().toISOString(), note: null } };
+    rebuilt.applyRemote(late);
+    rebuilt.applyRemote({ clock: "9999999999999-0001-STAFF9", tbl: "batch", rowId: "pilot-batch-A", op: "insert", data: { ...batchRow, id: "pilot-batch-A", batchNo: "A" } });
+    expect(stockOf(rebuilt, owner.m.id, B, TODAY)).toBe(54);
+    expect(rebuilt.engine.all("SELECT 1 FROM batch WHERE id = 'pilot-batch-A'")).toHaveLength(0);
+    const copy = memoryDbFrom(rebuilt.engine.exportBytes(), "STAFF3");
+    expect((await copy).batchAliases().get("pilot-batch-A")).toBe(String(batchRow.id));
     // A later full copy keeps the same generation.
     expect((await writeSnapshot(rebuilt, store, ring, () => rebuilt.engine.exportBytes())).generation).toBe(m.generation);
   });

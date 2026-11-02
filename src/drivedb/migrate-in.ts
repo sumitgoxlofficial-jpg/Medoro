@@ -227,6 +227,8 @@ export function mergePilot(db: DriveDB, rows: PilotRows): MoveResult {
         (added[t] ??= []).push(String(raw.id));
       }
     }
+    // Bills other counters made against a merged pilot batch, uploaded later, go to Medoro's batch.
+    db.addBatchAliases(Object.fromEntries(batchMap));
   });
 
   const checks: MoveCheck[] = [];

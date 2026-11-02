@@ -240,6 +240,9 @@ describe("Moving a pharmacy that ran the Drive mode pilot", () => {
     const s2 = (await db.batch.findFirstOrThrow({ where: { batchNo: "S2" } })).id;
     expect(stockOf(dev, med, ctx.branchId)).toBe(94 - 5 + 10 + 4); // Medoro's 94 after its 6 sold, minus the pilot's 5, plus S2 from both
     expect(dev.engine.all<{ v: number }>("SELECT SUM(qty) AS v FROM stockMovement WHERE batchId = ?", [s2])[0].v).toBe(14);
+    // The pilot's own S2 batch is remembered as Medoro's S2, for bills other counters upload later.
+    const pilotS2 = pilot.engine.all<{ id: string }>("SELECT id FROM batch WHERE batchNo = 'S2'")[0].id;
+    expect(dev.batchAliases().get(pilotS2)).toBe(s2);
     expect(stockOf(dev, newMed.id, ctx.branchId)).toBe(6);
     expect(dev.engine.all("SELECT 1 FROM stockMovement WHERE note = 'Copied from Medoro'")).toHaveLength(0);
     expect(dev.from("sale").count()).toBe(4);
