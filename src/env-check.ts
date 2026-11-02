@@ -1,3 +1,14 @@
+/**
+ * Vercel preview deployments: the app's own address is the preview's (links, sign-in origin checks), unless APP_URL
+ * is set for previews. Called once at startup, before the checks below.
+ */
+export function previewDefaults(env: NodeJS.ProcessEnv = process.env) {
+  if (env.VERCEL_ENV === "preview" && !env.APP_URL) {
+    const host = env.VERCEL_BRANCH_URL || env.VERCEL_URL;
+    if (host) env.APP_URL = `https://${host}`;
+  }
+}
+
 // Fails fast in production when required settings are missing or weak. Names only, never values.
 export function checkEnv(env: NodeJS.ProcessEnv = process.env): string[] {
   const problems: string[] = [];
@@ -8,6 +19,7 @@ export function checkEnv(env: NodeJS.ProcessEnv = process.env): string[] {
   else if (env.HOST_KEY === env.SESSION_SECRET) problems.push("HOST_KEY must differ from SESSION_SECRET, so rotating sessions doesn't lock stored secrets.");
   else if (env.HOST_KEY === env.HOST_KEY_PREVIOUS) problems.push("HOST_KEY_PREVIOUS is the old key and must differ from HOST_KEY.");
   if (env.VERCEL) {
+    previewDefaults(env);
     need("APP_URL", "public address used in links and webhooks");
     need("DIRECT_URL", "session-mode database URL for migrations and live updates");
     if (!!env.SUPABASE_URL !== !!env.SUPABASE_SECRET_KEY) problems.push("Set both SUPABASE_URL and SUPABASE_SECRET_KEY for bucket storage, or neither (files are then kept in the database).");
