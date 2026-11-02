@@ -45,6 +45,7 @@ export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret
  */
 export const DRIVE_TAB: Partial<Record<ScreenId, string>> = {
   dash: "dash", pos: "bill", ord: "orders", ret: "bills", inv: "stock", exp: "reports", pur: "purchases", parties: "customers", acc: "accounts", money: "money",
+  recall: "recalls", doc: "doctors", chq: "cheques", intel: "insights",
 };
 /** Screens that stay for Drive pharmacies as they are: WhatsApp and customer messaging, account, devices, plan, privacy, help. */
 const DRIVE_KEEP = new Set<ScreenId>(["wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);

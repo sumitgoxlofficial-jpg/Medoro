@@ -187,7 +187,7 @@ function copiedFromMedoro(t: TableName, r: Row) {
 /** Tables in the order their rows can go in (each after the ones it points to). */
 const MERGE_ORDER: TableName[] = ["medicine", "supplier", "customer", "batch",
   ...(Object.keys(TABLES) as TableName[]).filter((t) => !["medicine", "supplier", "customer", "batch"].includes(t))];
-const BATCH_REFS: Partial<Record<TableName, string>> = { stockMovement: "batchId", saleItem: "batchId", purchaseItem: "batchId", salesReturnItem: "batchId" };
+const BATCH_REFS: Partial<Record<TableName, string>> = { stockMovement: "batchId", saleItem: "batchId", purchaseItem: "batchId", salesReturnItem: "batchId", supplierClaim: "batchId" };
 
 /**
  * Adds the pilot's records (pilotRows) to a device that holds Medoro's checked data, then checks that every pilot record
