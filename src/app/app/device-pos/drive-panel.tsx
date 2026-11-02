@@ -6,11 +6,13 @@ import { useToast } from "@/components/ui/toast";
 import { deviceDb } from "@/drivedb/device";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { decideDriveDeviceAction, driveDevicesAction } from "../lab/actions";
+import { useT } from "@/lib/i18n-client";
+import type { TFn } from "@/lib/tr";
 
 type Access = { status: "approved" | "pending" | "removed"; role: "owner" | "staff" } | null;
 type Status = { vault: boolean; access: Access; unlocked: boolean; owner: boolean; pending: number; lastSnapshot: string | null; lastPush: string | null; lastPull: string | null; lastError: string | null; needsRestore: boolean };
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
-const when = (iso: string | null) => (iso ? `${dayMonth(new Date(iso))} ${hhmm(new Date(iso))}` : "never");
+const when = (t: TFn, iso: string | null) => (iso ? `${dayMonth(new Date(iso))} ${hhmm(new Date(iso))}` : t("never"));
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** A name the owner recognises when approving: the kind of device. */
@@ -46,6 +48,7 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
   const [code, setCode] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   const load = useCallback(async () => {
     try {
@@ -58,10 +61,10 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
   useEffect(() => { if (access?.status !== "approved") return; const t = setInterval(load, 10_000); return () => clearInterval(t); }, [access?.status, load]);
 
   const head = (icon: React.ReactNode) => <div className="flex items-center gap-2 font-semibold text-[15px]">{icon}Google Drive</div>;
-  if (error) return <div className={card}>{head(<CloudOff size={18} className="text-bad" />)}<div className="text-sm text-muted">{error}</div></div>;
-  if (!access || !st) return <div className={card}>{head(<Cloud size={18} className="text-teal" />)}<div className="text-sm text-muted">Connecting…</div></div>;
-  if (access.status === "pending") return <div className={card}>{head(<Clock size={18} className="text-amber-600" />)}<div className="text-sm text-muted">Waiting for the owner to approve this device. They approve it on their counter under <b>Counter → Devices</b>. Bills still save here meanwhile.</div></div>;
-  if (access.status === "removed") return <div className={card}>{head(<CloudOff size={18} className="text-bad" />)}<div className="text-sm text-muted">The owner removed this device from Drive mode. It no longer syncs.</div></div>;
+  if (error) return <div className={card}>{head(<CloudOff size={18} className="text-bad" />)}<div className="text-sm text-muted">{t(error)}</div></div>;
+  if (!access || !st) return <div className={card}>{head(<Cloud size={18} className="text-teal" />)}<div className="text-sm text-muted">{t("Connecting…")}</div></div>;
+  if (access.status === "pending") return <div className={card}>{head(<Clock size={18} className="text-amber-600" />)}<div className="text-sm text-muted">{t("Waiting for the owner to approve this device. They approve it on their counter under")} <b>{t("Counter → Devices")}</b>. {t("Bills still save here meanwhile.")}</div></div>;
+  if (access.status === "removed") return <div className={card}>{head(<CloudOff size={18} className="text-bad" />)}<div className="text-sm text-muted">{t("The owner removed this device from Drive mode. It no longer syncs.")}</div></div>;
 
   const run = async (fn: () => Promise<unknown>, ok?: string) => {
     setBusy(true);
@@ -76,27 +79,27 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
       {!st.vault ? (
         access.role === "owner" ? (
           <>
-            <div className="text-sm text-muted">Keep this pharmacy’s data safe in your own Google Drive, encrypted with a key only you hold. Medoro can’t read it.</div>
-            <Button variant="primary" className="self-start" onClick={() => run(async () => setCode(await dev.call("createVault")))} disabled={busy}>{busy ? "Setting up…" : "Set up Drive storage"}</Button>
+            <div className="text-sm text-muted">{t("Keep this pharmacy’s data safe in your own Google Drive, encrypted with a key only you hold. Medoro can’t read it.")}</div>
+            <Button variant="primary" className="self-start" onClick={() => run(async () => setCode(await dev.call("createVault")))} disabled={busy}>{busy ? t("Setting up…") : t("Set up Drive storage")}</Button>
           </>
-        ) : <div className="text-sm text-muted">The owner hasn’t set up Drive storage yet.</div>
+        ) : <div className="text-sm text-muted">{t("The owner hasn’t set up Drive storage yet.")}</div>
       ) : !st.unlocked ? (
         access.role === "owner" ? (
           <>
-            <div className="text-sm text-muted">Your pharmacy’s data in Drive is locked on this device. Enter the Drive recovery code once to unlock it here.</div>
-            <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="XXXX-XXXX-…" aria-label="Recovery code" className="border border-line rounded-lg px-3 h-9 text-sm font-mono" />
+            <div className="text-sm text-muted">{t("Your pharmacy’s data in Drive is locked on this device. Enter the Drive recovery code once to unlock it here.")}</div>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="XXXX-XXXX-…" aria-label={t("Recovery code")} className="border border-line rounded-lg px-3 h-9 text-sm font-mono" />
             <Button variant="primary" className="self-start" onClick={() => run(async () => { await dev.call("unlock", typed); setTyped(""); }, "Unlocked. This device syncs with Google Drive now.")} disabled={busy || typed.replace(/[\s-]/g, "").length < 52}>Unlock</Button>
           </>
-        ) : <div className="text-sm text-muted">This device doesn’t have the pharmacy’s key yet. Ask the owner to approve it again.</div>
+        ) : <div className="text-sm text-muted">{t("This device doesn’t have the pharmacy’s key yet. Ask the owner to approve it again.")}</div>
       ) : (
         <>
           <div className="text-[13px] grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
-            <span className="text-muted">Changes waiting</span><span>{st.pending}</span>
-            <span className="text-muted">Last upload</span><span>{when(st.lastPush)}</span>
-            <span className="text-muted">Other counters’ changes</span><span>{st.owner && !st.lastPull ? "with each full copy" : when(st.lastPull)}</span>
-            {st.owner && <><span className="text-muted">Last full copy</span><span>{when(st.lastSnapshot)}</span></>}
+            <span className="text-muted">{t("Changes waiting")}</span><span>{st.pending}</span>
+            <span className="text-muted">{t("Last upload")}</span><span>{when(t, st.lastPush)}</span>
+            <span className="text-muted">{t("Other counters’ changes")}</span><span>{st.owner && !st.lastPull ? t("with each full copy") : when(t, st.lastPull)}</span>
+            {st.owner && <><span className="text-muted">{t("Last full copy")}</span><span>{when(t, st.lastSnapshot)}</span></>}
           </div>
-          {st.lastError && <div className="text-[13px] text-bad">{st.lastError}</div>}
+          {st.lastError && <div className="text-[13px] text-bad">{t(st.lastError)}</div>}
           {st.needsRestore && <Button variant="primary" className="self-start" onClick={() => run(() => dev.call("restore"), "This counter is up to date again.")} disabled={busy}>Catch up from Google Drive</Button>}
           <div className="flex gap-2 flex-wrap">
             <Button size="sm" onClick={() => run(() => dev.call("syncNow"), "Up to date with the other counters.")} disabled={busy}>Sync now</Button>
@@ -112,6 +115,7 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
 export function RecoveryCodeCard({ code, onDone }: { code: string; onDone: () => void }) {
   const toast = useToast();
   const [saved, setSaved] = useState(false);
+  const t = useT();
   const download = () => {
     const blob = new Blob([`Medoro Drive recovery code\n\n${code}\n\nKeep this safe. You need it to open your pharmacy's data on a new or reset device.\nMedoro does not have this code and cannot recover it for you.\n`], { type: "text/plain" });
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "medoro-drive-recovery-code.txt" });
@@ -119,14 +123,14 @@ export function RecoveryCodeCard({ code, onDone }: { code: string; onDone: () =>
   };
   return (
     <div className={card}>
-      <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />Save your Drive recovery code</div>
-      <div className="text-sm text-muted">This code opens your pharmacy’s data on a new or reset device. <b>Medoro doesn’t have it and can’t recover it.</b> Download it or write it down and keep it safe.</div>
+      <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />{t("Save your Drive recovery code")}</div>
+      <div className="text-sm text-muted">{t("This code opens your pharmacy’s data on a new or reset device.")} <b>{t("Medoro doesn’t have it and can’t recover it.")}</b> {t("Download it or write it down and keep it safe.")}</div>
       <div className="font-mono text-[15px] bg-page border border-line rounded-lg p-3 break-all select-all" data-testid="recovery-code">{code}</div>
       <div className="flex gap-2 flex-wrap">
-        <Button onClick={download}><Download size={16} /> Download</Button>
-        <Button onClick={() => navigator.clipboard.writeText(code).then(() => toast("Copied.", "green"))}><Copy size={16} /> Copy</Button>
+        <Button onClick={download}><Download size={16} /> {t("Download")}</Button>
+        <Button onClick={() => navigator.clipboard.writeText(code).then(() => toast("Copied.", "green"))}><Copy size={16} /> {t("Copy")}</Button>
       </div>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} /> I’ve saved the recovery code somewhere safe</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} /> {t("I’ve saved the recovery code somewhere safe")}</label>
       <Button variant="primary" className="self-start" disabled={!saved} onClick={onDone}>Done</Button>
     </div>
   );
@@ -140,6 +144,7 @@ export function DevicesPanel() {
   const dev = deviceDb();
   const [rows, setRows] = useState<Device[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const t = useT();
   const load = useCallback(async () => { const r = await driveDevicesAction(); if (r.ok) setRows(r.data); else toast(r.error, "red"); }, [toast]);
   useEffect(() => { void load(); const t = setInterval(load, 20_000); return () => clearInterval(t); }, [load]);
 
@@ -148,37 +153,37 @@ export function DevicesPanel() {
     try {
       await dev.call("approveDevice", d.deviceId, d.publicKey, d.role === "owner" ? "owner" : "staff", d.name);
       const r = await decideDriveDeviceAction(d.deviceId, true);
-      toast(r.ok ? `${d.name} approved. It sets itself up from Google Drive.` : r.error, r.ok ? "green" : "red");
+      toast(r.ok ? t("{name} approved. It sets itself up from Google Drive.", { name: d.name }) : r.error, r.ok ? "green" : "red");
     } catch (e) { toast(errText(e), "red"); }
     setBusy(null); void load();
   };
   const remove = async (d: Device) => {
-    if (!confirm(`Remove ${d.name}? It stops syncing and can’t read anything saved after now.`)) return;
+    if (!confirm(t("Remove {name}? It stops syncing and can’t read anything saved after now.", { name: d.name }))) return;
     setBusy(d.deviceId);
     try {
       if (d.status === "approved") await dev.call("revokeDevice", d.deviceId);
       const r = await decideDriveDeviceAction(d.deviceId, false);
-      toast(r.ok ? `${d.name} removed.` : r.error, r.ok ? "green" : "red");
+      toast(r.ok ? t("{name} removed.", { name: d.name }) : r.error, r.ok ? "green" : "red");
     } catch (e) { toast(errText(e), "red"); }
     setBusy(null); void load();
   };
 
   return (
     <div className={`${card} max-w-lg`}>
-      <div className="flex items-center gap-2 font-semibold"><MonitorSmartphone size={18} className="text-teal" />Devices</div>
-      <div className="text-sm text-muted">Staff sign in on their counter and open Billing on this device; it then waits here for your approval. Approve only devices you recognise.</div>
+      <div className="flex items-center gap-2 font-semibold"><MonitorSmartphone size={18} className="text-teal" />{t("Devices")}</div>
+      <div className="text-sm text-muted">{t("Staff sign in on their counter and open Billing on this device; it then waits here for your approval. Approve only devices you recognise.")}</div>
       <ul className="text-sm divide-y divide-line">
         {(rows ?? []).map((d) => (
           <li key={d.deviceId} className="py-2 flex justify-between items-center gap-2 flex-wrap">
-            <span>{d.name} <span className="text-muted">· {d.role} · {d.status}{d.status === "approved" ? ` · last synced ${when(d.lastSyncAt)}` : d.lastSeen ? ` · seen ${when(d.lastSeen)}` : ""}</span>
-              {d.status === "approved" && d.lastError ? <span className="block text-[12.5px] text-bad">Last sync failed: {d.lastError}</span> : null}</span>
+            <span>{t(d.name)} <span className="text-muted">· {t(d.role)} · {t(d.status)}{d.status === "approved" ? ` · ${t("last synced {when}", { when: when(t, d.lastSyncAt) })}` : d.lastSeen ? ` · ${t("seen {when}", { when: when(t, d.lastSeen) })}` : ""}</span>
+              {d.status === "approved" && d.lastError ? <span className="block text-[12.5px] text-bad">{t("Last sync failed: {error}", { error: t(d.lastError) })}</span> : null}</span>
             <span className="flex gap-1.5">
-              {d.status === "pending" && <Button size="sm" variant="primary" disabled={!!busy} onClick={() => approve(d)} aria-label={`Approve ${d.name}`}><Check size={14} /> Approve</Button>}
-              {d.status !== "removed" && d.role !== "owner" && <Button size="sm" variant="danger-outline" disabled={!!busy} onClick={() => remove(d)} aria-label={`Remove ${d.name}`}><X size={14} /> {d.status === "pending" ? "Refuse" : "Remove"}</Button>}
+              {d.status === "pending" && <Button size="sm" variant="primary" disabled={!!busy} onClick={() => approve(d)} aria-label={t("Approve {name}", { name: d.name })}><Check size={14} /> {t("Approve")}</Button>}
+              {d.status !== "removed" && d.role !== "owner" && <Button size="sm" variant="danger-outline" disabled={!!busy} onClick={() => remove(d)} aria-label={t("Remove {name}", { name: d.name })}><X size={14} /> {d.status === "pending" ? t("Refuse") : t("Remove")}</Button>}
             </span>
           </li>
         ))}
-        {rows && !rows.length && <li className="py-2 text-muted">No devices yet.</li>}
+        {rows && !rows.length && <li className="py-2 text-muted">{t("No devices yet.")}</li>}
       </ul>
     </div>
   );

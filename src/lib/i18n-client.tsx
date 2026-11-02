@@ -3,12 +3,14 @@
  * The chosen language for screens running in the browser. The root layout reads the `medoro_lang` cookie and puts
  * <LangProvider> around every page, so `useT()` and <T> work everywhere (app, counter, sign-in, offline page).
  */
-import { createContext, useContext, useMemo } from "react";
-import { tFor, type Lang, type TFn, type Vars } from "./tr";
+import { createContext, use, useContext, useMemo } from "react";
+import { hindiLoaded, loadHindi, tFor, type Lang, type TFn, type Vars } from "./tr";
 
 const LangCtx = createContext<Lang>("en");
 
 export function LangProvider({ lang, children }: { lang: Lang; children: React.ReactNode }) {
+  // In the browser the Hindi lines arrive as their own file; wait for it so the page never flashes English.
+  if (lang === "hi" && !hindiLoaded()) use(loadHindi());
   return <LangCtx.Provider value={lang}>{children}</LangCtx.Provider>;
 }
 

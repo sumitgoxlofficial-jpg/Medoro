@@ -8,6 +8,7 @@ import { backupHealth } from "@/domain/reports/alerts";
 import { big } from "@/lib/money";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
+import { tFor } from "@/lib/tr";
 import { BackupView } from "./view";
 
 export const metadata = { title: "Backup & restore" };
@@ -31,7 +32,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
       <PageHead title={t(ctx.lang).bak} sub="Encrypted backups and files in your own Google Drive, like WhatsApp. Medoro keeps no copy once Drive has it." />
       {ctx.moved ? (
         <div role="status" className="mb-3 rounded-xl border border-line bg-white px-4 py-3 text-[13.5px]" data-testid="drive-backups-note">
-          <strong className="font-semibold">Your pharmacy’s records live in your Google Drive.</strong> Keep Google Drive connected here: the counters save through it.
+          <strong className="font-semibold">{tFor(ctx.lang)("Your pharmacy’s records live in your Google Drive.")}</strong> {tFor(ctx.lang)("Keep Google Drive connected here: the counters save through it.")}
         </div>
       ) : null}
       <BackupView

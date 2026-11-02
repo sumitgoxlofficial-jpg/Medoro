@@ -6,6 +6,7 @@ import { Sparkles, X, Wrench, ShieldAlert, LoaderCircle, SendHorizontal, HardDri
 import { aiAsk, aiCancel, aiConfirm, aiSettingsAction } from "@/app/app/ai-actions";
 import type { AiReply } from "@/domain/ai/service";
 import type { Lang } from "@/lib/i18n";
+import { useT } from "@/lib/i18n-client";
 
 /** What the shell knows about the assistant for this pharmacy and user. */
 export type AiShell = { enabled: boolean; globalOff: boolean; mode: "rules" | "local" | "remote"; canManage: boolean };
@@ -22,6 +23,7 @@ const SUGGEST = {
 
 export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { open: boolean; floating: boolean; onClose: () => void; lang: Lang; placeholder: string; ai: AiShell }) {
   const router = useRouter();
+  const t = useT();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [switching, setSwitching] = useState(false);
   const [switchErr, setSwitchErr] = useState("");
@@ -40,7 +42,7 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { o
     setQ(""); push({ role: "user", text }); setBusy(true);
     const r = await aiAsk(text).catch(() => ({ ok: false as const, error: "Couldn’t reach your server. Check the connection and try again." }));
     setBusy(false);
-    if (!r.ok) return push({ role: "ai", text: r.error });
+    if (!r.ok) return push({ role: "ai", text: t(r.error) });
     push({ role: "ai", text: r.data.text, reply: r.data, state: r.data.confirm ? "pending" : undefined });
   };
 
@@ -48,19 +50,19 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { o
     const token = m.reply?.confirm?.token;
     if (!token || m.state !== "pending") return;
     patch(m.id, { state: yes ? "done" : "cancelled" });
-    if (!yes) { await aiCancel(token); return push({ role: "ai", text: "Cancelled. Nothing was changed." }); }
+    if (!yes) { await aiCancel(token); return push({ role: "ai", text: t("Cancelled. Nothing was changed.") }); }
     setBusy(true);
     const r = await aiConfirm(token).catch(() => ({ ok: false as const, error: "Couldn’t reach your server. Nothing was changed." }));
     setBusy(false);
-    push(r.ok ? { role: "ai", text: r.data.text, reply: r.data } : { role: "ai", text: r.error });
+    push(r.ok ? { role: "ai", text: r.data.text, reply: r.data } : { role: "ai", text: t(r.error) });
   };
 
   const setEnabled = async (enabled: boolean) => {
-    if (!enabled && !window.confirm("Turn the AI assistant off for everyone in this pharmacy? Billing and other screens are not affected.")) return;
+    if (!enabled && !window.confirm(t("Turn the AI assistant off for everyone in this pharmacy? Billing and other screens are not affected."))) return;
     setSwitching(true); setSwitchErr("");
     const r = await aiSettingsAction({ enabled }).catch(() => ({ ok: false as const, error: "Couldn’t reach your server." }));
     setSwitching(false);
-    if (!r.ok) return setSwitchErr(r.error);
+    if (!r.ok) return setSwitchErr(t(r.error));
     if (!enabled) onClose();
     router.refresh();
   };
@@ -77,20 +79,20 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { o
     <aside aria-label="Medoro AI" hidden={!open} className={(open ? "flex" : "hidden") + " flex-col min-h-0 h-dvh w-[380px] max-w-[100vw] bg-white border-l border-[#E3E6E9] " + (floating ? "fixed right-0 top-0 z-40 shadow-[-12px_0_32px_rgba(0,0,0,.14)]" : "relative")}>
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-[#E3E6E9]">
         <div className="size-[30px] rounded-lg bg-[#E1F1EF] text-teal flex items-center justify-center"><Sparkles size={16} /></div>
-        <div className="flex-1 flex flex-col leading-tight"><div className="font-semibold text-[15px]">Medoro AI</div><div className="text-[12px] text-muted">Read-only by default · asks before acting</div></div>
-        <button onClick={onClose} title="Close (Ctrl+J)" className="p-1.5 rounded-md text-muted cursor-pointer hover:bg-hover"><X size={18} /></button>
+        <div className="flex-1 flex flex-col leading-tight"><div className="font-semibold text-[15px]">Medoro AI</div><div className="text-[12px] text-muted">{t("Read-only by default · asks before acting")}</div></div>
+        <button onClick={onClose} title={t("Close (Ctrl+J)")} className="p-1.5 rounded-md text-muted cursor-pointer hover:bg-hover"><X size={18} /></button>
       </div>
 
       <div ref={list} className="flex-1 overflow-auto p-4 flex flex-col gap-3 bg-[#FAFBFB]">
         {!ai.enabled ? (
           <div className="text-[13px] text-muted bg-white border border-line rounded-xl p-3 flex flex-col gap-2.5">
-            <div>The AI assistant is switched off for this pharmacy. Nobody can ask it questions until an owner or manager turns it back on. Billing and every other screen work as usual.</div>
-            <button onClick={() => setEnabled(true)} disabled={switching} className="self-start flex items-center gap-1.5 bg-teal text-white rounded-[7px] px-3 py-[7px] text-[13px] font-semibold cursor-pointer disabled:opacity-60"><Power size={14} />Turn the assistant on</button>
+            <div>{t("The AI assistant is switched off for this pharmacy. Nobody can ask it questions until an owner or manager turns it back on. Billing and every other screen work as usual.")}</div>
+            <button onClick={() => setEnabled(true)} disabled={switching} className="self-start flex items-center gap-1.5 bg-teal text-white rounded-[7px] px-3 py-[7px] text-[13px] font-semibold cursor-pointer disabled:opacity-60"><Power size={14} />{t("Turn the assistant on")}</button>
             {switchErr ? <div className="text-[12.5px] text-[#B42318]">{switchErr}</div> : null}
           </div>
         ) : !msgs.length ? (
           <div className="text-[13px] text-muted bg-white border border-line rounded-xl p-3">
-            Ask about today’s sales, stock and batches, expiring batches, supplier and customer dues, the cash drawer, reports or backups. Answers come from your own data, with the basis shown. I can also prepare a draft purchase order, an expense, a stock adjustment, a refund or a backup, and nothing changes until you confirm.
+            {t("Ask about today’s sales, stock and batches, expiring batches, supplier and customer dues, the cash drawer, reports or backups. Answers come from your own data, with the basis shown. I can also prepare a draft purchase order, an expense, a stock adjustment, a refund or a backup, and nothing changes until you confirm.")}
           </div>
         ) : null}
         {msgs.map((m) => m.role === "user" ? (
@@ -108,26 +110,26 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { o
                 ))}
               </div>
             ) : null}
-            {m.reply?.basis ? <div className="text-[12px] text-muted">Basis: {m.reply.basis}</div> : null}
+            {m.reply?.basis ? <div className="text-[12px] text-muted">{t("Basis: {basis}", { basis: m.reply.basis })}</div> : null}
             {m.reply?.confirm && m.state === "pending" ? (
               <div className="flex flex-col gap-2 p-2.5 bg-[#FDF2E1] rounded-lg">
-                <div className="text-[12.5px] text-[#94570A] font-semibold flex gap-1.5 items-center"><ShieldAlert size={14} />Needs your confirmation</div>
+                <div className="text-[12.5px] text-[#94570A] font-semibold flex gap-1.5 items-center"><ShieldAlert size={14} />{t("Needs your confirmation")}</div>
                 <div className="flex gap-2">
-                  <button onClick={() => decide(m, true)} disabled={busy} className="bg-teal text-white rounded-[7px] px-3 py-[7px] text-[13px] font-semibold cursor-pointer disabled:opacity-60">{m.reply.confirm.label}</button>
-                  <button onClick={() => decide(m, false)} disabled={busy} className="bg-white text-ink border border-input rounded-[7px] px-3 py-[7px] text-[13px] cursor-pointer">Cancel</button>
+                  <button onClick={() => decide(m, true)} disabled={busy} className="bg-teal text-white rounded-[7px] px-3 py-[7px] text-[13px] font-semibold cursor-pointer disabled:opacity-60">{t(m.reply.confirm.label)}</button>
+                  <button onClick={() => decide(m, false)} disabled={busy} className="bg-white text-ink border border-input rounded-[7px] px-3 py-[7px] text-[13px] cursor-pointer">{t("Cancel")}</button>
                 </div>
               </div>
             ) : null}
             {m.reply?.link ? (
               m.reply.link.href.startsWith("#ai:")
-                ? <button onClick={() => send(m.reply!.link!.href.slice(4))} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold cursor-pointer">{m.reply.link.label}</button>
+                ? <button onClick={() => send(m.reply!.link!.href.slice(4))} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold cursor-pointer">{t(m.reply.link.label)}</button>
                 : m.reply.link.href.startsWith("/api/")
-                  ? <a href={m.reply.link.href} download className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{m.reply.link.label}</a>
-                  : <Link href={m.reply.link.href} onClick={() => floating && onClose()} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{m.reply.link.label}</Link>
+                  ? <a href={m.reply.link.href} download className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{t(m.reply.link.label)}</a>
+                  : <Link href={m.reply.link.href} onClick={() => floating && onClose()} className="self-start bg-white text-teal border border-[#9FCFC9] rounded-[7px] px-[11px] py-1.5 text-[13px] font-semibold no-underline">{t(m.reply.link.label)}</Link>
             ) : null}
           </div>
         ))}
-        {busy ? <div className="self-start text-[13px] text-muted flex gap-1.5 items-center"><LoaderCircle size={14} className="animate-spin" />{ai.mode === "remote" ? "Asking the remote model…" : "Querying local data…"}</div> : null}
+        {busy ? <div className="self-start text-[13px] text-muted flex gap-1.5 items-center"><LoaderCircle size={14} className="animate-spin" />{ai.mode === "remote" ? t("Asking the remote model…") : t("Querying local data…")}</div> : null}
       </div>
 
       {ai.enabled ? (
@@ -136,13 +138,13 @@ export function AiDrawer({ open, floating, onClose, lang, placeholder, ai }: { o
             {SUGGEST[lang].map((s) => <button key={s} onClick={() => send(s)} className="border border-[#E3E6E9] bg-white text-ink-2 rounded-full px-2.5 py-[5px] text-[12.5px] cursor-pointer hover:border-[#9FCFC9] hover:text-teal">{s}</button>)}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); send(q); }} className="flex gap-2 px-4 pt-3 pb-2">
-            <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder={placeholder} aria-label="Ask Medoro AI" className="flex-1 min-w-0 border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-teal" />
-            <button type="submit" title="Send" disabled={busy} className="bg-teal text-white rounded-lg px-3.5 cursor-pointer disabled:opacity-60"><SendHorizontal size={17} /></button>
+            <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder={placeholder} aria-label={t("Ask Medoro AI")} className="flex-1 min-w-0 border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none focus:border-teal" />
+            <button type="submit" title={t("Send")} disabled={busy} className="bg-teal text-white rounded-lg px-3.5 cursor-pointer disabled:opacity-60"><SendHorizontal size={17} /></button>
           </form>
           <div className="px-4 pb-3.5 text-[11.5px] text-faint flex gap-1.5 items-center flex-wrap">
             {ai.mode === "remote" ? <Globe size={13} /> : <HardDrive size={13} />}
-            {ai.mode === "remote" ? "Remote AI provider (owner opted in). Minimised data, no customer names or phones by default." : ai.mode === "local" ? "Local model on your server. Nothing sent to external AI." : "Runs on your server, no AI model needed. Nothing sent to external AI."} Not clinical advice.
-            {ai.canManage ? <button onClick={() => setEnabled(false)} disabled={switching} className="underline cursor-pointer text-faint hover:text-ink">Turn off</button> : null}
+            {ai.mode === "remote" ? t("Remote AI provider (owner opted in). Minimised data, no customer names or phones by default.") : ai.mode === "local" ? t("Local model on your server. Nothing sent to external AI.") : t("Runs on your server, no AI model needed. Nothing sent to external AI.")} {t("Not clinical advice.")}
+            {ai.canManage ? <button onClick={() => setEnabled(false)} disabled={switching} className="underline cursor-pointer text-faint hover:text-ink">{t("Turn off")}</button> : null}
             {switchErr ? <span className="text-[#B42318]">{switchErr}</span> : null}
           </div>
         </>

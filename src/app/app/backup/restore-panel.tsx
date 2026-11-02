@@ -1,19 +1,22 @@
 "use client";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { DatabaseBackup, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { inr0 } from "@/lib/money";
 import type { RestoreSummary } from "@/domain/system/restore";
 import { applyRestoreAction, discardRestoreAction } from "./actions";
+import { useLang, useT } from "@/lib/i18n-client";
+import { localeOf, type Lang } from "@/lib/tr";
 
 export type PendingRestore = { runId: string; manifestId: string; createdBy: string; createdAt: string; summary: RestoreSummary };
 
-const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const whenIn = (lang: Lang) => (iso: string) => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** Step 2 of a restore: compare the test copy with live data, then confirm by typing the pharmacy code. */
 export function RestorePanel({ p, code }: { p: PendingRestore; code: string }) {
   const toast = useToast();
+  const t = useT(), when = whenIn(useLang());
   const [typed, setTyped] = useState("");
   const [showTables, setShowTables] = useState(false);
   const [busy, start] = useTransition();
@@ -35,39 +38,39 @@ export function RestorePanel({ p, code }: { p: PendingRestore; code: string }) {
 
   return (
     <section className="bg-white border-2 border-[#E8C77A] rounded-xl p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-2 font-semibold text-[15px]"><DatabaseBackup size={18} className="text-teal" />Restore ready to review</div>
-      <div className="text-[13.5px] text-ink-2">The backup from <strong>{when(s.backupAt)}</strong> was loaded into a separate test copy on your server and checked. Live data hasn’t changed. Prepared by {p.createdBy}; the test copy is deleted after 24 hours if not used.</div>
+      <div className="flex items-center gap-2 font-semibold text-[15px]"><DatabaseBackup size={18} className="text-teal" />{t("Restore ready to review")}</div>
+      <div className="text-[13.5px] text-ink-2">{t("The backup from {when} was loaded into a separate test copy on your server and checked. Live data hasn’t changed. Prepared by {name}; the test copy is deleted after 24 hours if not used.", { name: p.createdBy }).split("{when}").map((x, i) => i ? <Fragment key={i}><strong>{when(s.backupAt)}</strong>{x}</Fragment> : x)}</div>
       <div className="border border-line rounded-lg overflow-auto">
         <table className="w-full border-collapse text-[13.5px] min-w-[480px]">
-          <thead><tr className="bg-subtle text-muted text-[12px]"><th className="text-left px-3 py-2 font-medium" /><th className="text-left px-3 py-2 font-medium">In the backup</th><th className="text-left px-3 py-2 font-medium">Live now</th></tr></thead>
-          <tbody>{rows.map(([k, x, y]) => <tr key={k} className="border-t border-row"><td className="px-3 py-2 text-muted">{k}</td><td className="px-3 py-2 tnum font-medium">{x}</td><td className="px-3 py-2 tnum">{y}</td></tr>)}</tbody>
+          <thead><tr className="bg-subtle text-muted text-[12px]"><th className="text-left px-3 py-2 font-medium" /><th className="text-left px-3 py-2 font-medium">{t("In the backup")}</th><th className="text-left px-3 py-2 font-medium">{t("Live now")}</th></tr></thead>
+          <tbody>{rows.map(([k, x, y]) => <tr key={k} className="border-t border-row"><td className="px-3 py-2 text-muted">{t(k)}</td><td className="px-3 py-2 tnum font-medium">{x}</td><td className="px-3 py-2 tnum">{y}</td></tr>)}</tbody>
         </table>
       </div>
-      <button className="self-start text-[12.5px] text-teal cursor-pointer" onClick={() => setShowTables((x) => !x)}>{showTables ? "Hide" : "Show"} every table</button>
+      <button className="self-start text-[12.5px] text-teal cursor-pointer" onClick={() => setShowTables((x) => !x)}>{showTables ? t("Hide every table") : t("Show every table")}</button>
       {showTables ? (
         <div className="grid gap-x-4 gap-y-1 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] text-[12.5px]">
-          {s.tables.map((t) => <div key={t.name} className="flex justify-between gap-2 border-b border-row py-1"><span className="text-muted">{t.name}</span><span className="tnum">{t.backup} <span className="text-fainter">/ {t.live} live</span></span></div>)}
+          {s.tables.map((x) => <div key={x.name} className="flex justify-between gap-2 border-b border-row py-1"><span className="text-muted">{x.name}</span><span className="tnum">{x.backup} <span className="text-fainter">{t("/ {n} live", { n: x.live })}</span></span></div>)}
         </div>
       ) : null}
-      {s.notes.length ? <ul className="m-0 pl-4 text-[12.5px] text-muted">{s.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
+      {s.notes.length ? <ul className="m-0 pl-4 text-[12.5px] text-muted">{s.notes.map((n) => <li key={n}>{t(n)}</li>)}</ul> : null}
       {s.problems.length ? (
-        <div className="text-[13px] text-bad bg-bad-bg rounded-lg p-3">This backup can’t be restored: {s.problems.join(" ")}</div>
+        <div className="text-[13px] text-bad bg-bad-bg rounded-lg p-3">{t("This backup can’t be restored: {problems}", { problems: s.problems.map((x) => t(x)).join(" ") })}</div>
       ) : (
         <>
           <div className="flex gap-2.5 items-start bg-[#FDF2E1] rounded-lg p-3 text-[13px] text-[#6B4A0E]">
             <TriangleAlert size={16} className="mt-0.5 flex-none" />
             <div className="flex flex-col gap-1">
-              <span><strong>Everything recorded after {when(s.backupAt)} will be removed</strong>{lost ? `, including ${lost} invoice${lost > 1 ? "s" : ""}` : ""}. Invoices that were already given to customers will no longer be in your records.</span>
-              <span>A safety backup of current data is taken first, so this can be undone. Everyone, including you, is signed out and signs in again. Stored files (invoice scans) in the backup are written back. WhatsApp, Google Drive, the backup key and backup history stay as they are.</span>
+              <span><strong>{t("Everything recorded after {when} will be removed", { when: when(s.backupAt) })}</strong>{lost ? t(lost > 1 ? ", including {n} invoices" : ", including {n} invoice", { n: lost }) : ""}. {t("Invoices that were already given to customers will no longer be in your records.")}</span>
+              <span>{t("A safety backup of current data is taken first, so this can be undone. Everyone, including you, is signed out and signs in again. Stored files (invoice scans) in the backup are written back. WhatsApp, Google Drive, the backup key and backup history stay as they are.")}</span>
             </div>
           </div>
-          <label className="flex flex-col gap-1 text-[13px] text-muted"><span>Type the pharmacy code <strong className="font-mono text-ink">{code}</strong> to confirm</span>
-            <input value={typed} onChange={(e) => setTyped(e.target.value)} className="border border-input rounded-lg px-3 py-2 text-[14px] font-mono uppercase outline-none focus:border-teal max-w-[260px]" aria-label="Pharmacy code" autoComplete="off" />
+          <label className="flex flex-col gap-1 text-[13px] text-muted"><span>{t("Type the pharmacy code {code} to confirm").split("{code}").map((x, i) => i ? <Fragment key={i}><strong className="font-mono text-ink">{code}</strong>{x}</Fragment> : x)}</span>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} className="border border-input rounded-lg px-3 py-2 text-[14px] font-mono uppercase outline-none focus:border-teal max-w-[260px]" aria-label={t("Pharmacy code")} autoComplete="off" />
           </label>
         </>
       )}
       <div className="flex gap-2 flex-wrap">
-        {!s.problems.length ? <Button variant="danger" disabled={busy || typed.trim().toUpperCase() !== code.toUpperCase()} onClick={apply}>{busy ? "Taking safety backup and restoring…" : "Restore this backup"}</Button> : null}
+        {!s.problems.length ? <Button variant="danger" disabled={busy || typed.trim().toUpperCase() !== code.toUpperCase()} onClick={apply}>{busy ? t("Taking safety backup and restoring…") : t("Restore this backup")}</Button> : null}
         <Button disabled={busy} onClick={() => start(async () => { const r = await discardRestoreAction(p.runId); toast(r.ok ? r.message ?? "Discarded." : r.error, r.ok ? "green" : "red"); })}>Discard test copy</Button>
       </div>
     </section>

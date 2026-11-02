@@ -4,6 +4,7 @@ import { Gauge, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { speedTestTokenAction } from "./actions";
+import { useT } from "@/lib/i18n-client";
 
 const SIZES = {
   small: { label: "Small pharmacy", medicines: 10_000, sales: 5_000, lines: 50_000 },
@@ -15,6 +16,7 @@ const fmt = (ms: number) => (ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms}
 
 export function SpeedTest({ drive }: { drive: boolean }) {
   const toast = useToast();
+  const t = useT();
   const [size, setSize] = useState<keyof typeof SIZES>("large");
   const [withDrive, setWithDrive] = useState(drive);
   const [rows, setRows] = useState<Row[]>([]);
@@ -53,25 +55,23 @@ export function SpeedTest({ drive }: { drive: boolean }) {
     <div className="flex flex-col gap-4 max-w-3xl">
       <div className={card}>
         <div className="text-sm text-muted">
-          Builds a sample pharmacy (medicines, batches, past bills) inside this browser, times searches, bills and reports, then
-          uploads an encrypted copy to your Google Drive and downloads it again. Test files are deleted afterwards. Takes about 1–3 minutes;
-          keep this page open. Run it on the phones and computers your counters actually use.
+          {t("Builds a sample pharmacy (medicines, batches, past bills) inside this browser, times searches, bills and reports, then uploads an encrypted copy to your Google Drive and downloads it again. Test files are deleted afterwards. Takes about 1–3 minutes; keep this page open. Run it on the phones and computers your counters actually use.")}
         </div>
         <div className="flex flex-wrap gap-4 items-center text-sm">
           {(Object.keys(SIZES) as (keyof typeof SIZES)[]).map((k) => (
             <label key={k} className="flex items-center gap-1.5">
               <input type="radio" name="size" checked={size === k} onChange={() => setSize(k)} disabled={state === "running"} />
-              {SIZES[k].label} <span className="text-muted">({SIZES[k].medicines.toLocaleString("en-IN")} medicines, {SIZES[k].lines.toLocaleString("en-IN")} bill lines)</span>
+              {t(SIZES[k].label)} <span className="text-muted">{t("({medicines} medicines, {lines} bill lines)", { medicines: SIZES[k].medicines.toLocaleString("en-IN"), lines: SIZES[k].lines.toLocaleString("en-IN") })}</span>
             </label>
           ))}
         </div>
         <label className="flex items-center gap-1.5 text-sm">
           <input type="checkbox" checked={withDrive} onChange={(e) => setWithDrive(e.target.checked)} disabled={!drive || state === "running"} />
-          Include Google Drive upload/download test {!drive && <span className="text-muted">(connect Google Drive on the Backup page first)</span>}
+          {t("Include Google Drive upload/download test")} {!drive && <span className="text-muted">{t("(connect Google Drive on the Backup page first)")}</span>}
         </label>
         <div className="flex gap-2">
-          <Button variant="primary" onClick={startTest} disabled={state === "running"}><Gauge size={16} /> {state === "running" ? "Running…" : "Start test"}</Button>
-          {(state === "done" || state === "error") && <Button onClick={copy}><Copy size={16} /> Copy results</Button>}
+          <Button variant="primary" onClick={startTest} disabled={state === "running"}><Gauge size={16} /> {state === "running" ? t("Running…") : t("Start test")}</Button>
+          {(state === "done" || state === "error") && <Button onClick={copy}><Copy size={16} /> {t("Copy results")}</Button>}
         </div>
       </div>
       {info.length > 0 && (
@@ -84,17 +84,17 @@ export function SpeedTest({ drive }: { drive: boolean }) {
       {rows.length > 0 && (
         <div className={card}>
           <table className="text-sm w-full">
-            <thead><tr className="text-left text-muted"><th className="font-medium pb-1">Step</th><th className="font-medium pb-1 text-right">Time</th><th className="font-medium pb-1 pl-3">Details</th></tr></thead>
+            <thead><tr className="text-left text-muted"><th className="font-medium pb-1">{t("Step")}</th><th className="font-medium pb-1 text-right">{t("Time")}</th><th className="font-medium pb-1 pl-3">{t("Details")}</th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i} className="border-t border-line"><td className="py-1.5">{r.step}</td><td className="py-1.5 text-right tabular-nums whitespace-nowrap">{fmt(r.ms)}</td><td className="py-1.5 pl-3 text-muted">{r.note}</td></tr>
               ))}
             </tbody>
           </table>
-          {state === "running" && <div className="text-sm text-muted">Working… keep this page open.</div>}
+          {state === "running" && <div className="text-sm text-muted">{t("Working… keep this page open.")}</div>}
         </div>
       )}
-      {error && <div role="alert" className="text-sm text-bad">Test stopped: {error}</div>}
+      {error && <div role="alert" className="text-sm text-bad">{t("Test stopped: {error}", { error })}</div>}
     </div>
   );
 }

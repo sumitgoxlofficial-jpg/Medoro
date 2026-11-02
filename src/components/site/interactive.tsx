@@ -1,61 +1,39 @@
 "use client";
 import Image from "next/image";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import {
   ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, HardDriveUpload, MessageCircle, Minus, Pause, Play, ScanBarcode, Truck, Warehouse,
 } from "lucide-react";
 import { PRODUCTS } from "@/staff/constants";
+import { useLang, useT } from "@/lib/i18n-client";
 import { WA_DEMO } from "./brand";
 
-// ───────────── Hero (English / हिंदी) ─────────────
+// ───────────── Hero ─────────────
 
-const HERO = {
-  en: {
-    eyebrow: "Pharmacy software for Indian medical stores",
-    h1: ["Bill faster.", "Waste less stock.", "Close GST on time."],
-    sub: "Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.",
-    cta: "Start 7-day free trial", demo: "Get a demo on WhatsApp",
-    note: "No card needed. Pay by UPI, card or netbanking only if you continue.",
-    alt: "Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days",
-  },
-  hi: {
-    eyebrow: "भारतीय मेडिकल स्टोर के लिए फ़ार्मेसी सॉफ़्टवेयर",
-    h1: ["तेज़ बिलिंग", "कम एक्सपायरी नुकसान", "GST समय पर"],
-    sub: "Medoro मेडिकल स्टोर और छोटी फ़ार्मेसी चेन के लिए बिलिंग, बैच स्टॉक, खरीद, GST और हिसाब-किताब संभालता है। यह आपके अपने कंप्यूटर पर चलता है, और इंटरनेट बंद होने पर भी बिलिंग चलती रहती है।",
-    cta: "7 दिन का मुफ़्त ट्रायल", demo: "WhatsApp पर डेमो लें",
-    note: "कार्ड की ज़रूरत नहीं। आगे जारी रखें तभी UPI, कार्ड या नेटबैंकिंग से भुगतान करें।",
-    alt: "हिंदी में Medoro डैशबोर्ड: आज की बिक्री, मार्जिन, बकाया, 14 दिन की बिक्री और 90 दिन में एक्सपायर होने वाले बैच",
-  },
-};
+// Hindi for these lines (and the Hindi dashboard screenshot) follows the site-wide `medoro_lang` cookie.
+const H1 = ["Bill faster.", "Waste less stock.", "Close GST on time."];
 
 export function Hero() {
-  const [lang, setLang] = useState<"en" | "hi">("en");
-  useEffect(() => { if (localStorage.getItem("medoro-site-lang") === "hi") setLang("hi"); }, []);
-  const pick = (l: "en" | "hi") => { setLang(l); localStorage.setItem("medoro-site-lang", l); };
-  const c = HERO[lang];
-  const seg = (on: boolean) => `h-9 max-[640px]:h-11 px-3.5 rounded-md text-[14px] font-medium cursor-pointer transition-colors ${on ? "bg-white text-[var(--s-ink)] shadow-[0_1px_2px_rgba(14,22,20,.12)]" : "text-[var(--s-muted)] hover:text-[var(--s-ink)]"}`;
+  const t = useT();
+  const lang = useLang();
   return (
     <section aria-labelledby="hero-title" className="relative">
-      <div lang={lang === "hi" ? "hi" : "en"} className="max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4.5vw,56px)] grid grid-cols-12 gap-x-6 gap-y-7 items-end max-[640px]:px-4">
+      <div className="max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4.5vw,56px)] grid grid-cols-12 gap-x-6 gap-y-7 items-end max-[640px]:px-4">
         <div className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
           <div className="site-up flex items-center gap-4 flex-wrap">
-            <span className="text-[14px] font-medium text-[var(--s-brand)]">{c.eyebrow}</span>
-            <div role="group" aria-label="Language" className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
-              <button type="button" lang="en" aria-pressed={lang === "en"} onClick={() => pick("en")} className={seg(lang === "en")}>English</button>
-              <button type="button" lang="hi" aria-pressed={lang === "hi"} onClick={() => pick("hi")} className={seg(lang === "hi")}>हिंदी</button>
-            </div>
+            <span className="text-[14px] font-medium text-[var(--s-brand)]">{t("Pharmacy software for Indian medical stores")}</span>
           </div>
           <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(42px,6vw,76px)] [--d:1]">
-            {c.h1.map((l, i) => <span key={l} className={`block ${i === 1 ? "text-[var(--s-brand)]" : ""}`}>{l}</span>)}
+            {H1.map((l, i) => <span key={l} className={`block ${i === 1 ? "text-[var(--s-brand)]" : ""}`}>{t(l)}</span>)}
           </h1>
         </div>
         <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-6 min-[1000px]:pb-2">
-          <p className="site-up m-0 text-[clamp(17px,1.5vw,19px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{c.sub}</p>
+          <p className="site-up m-0 text-[clamp(17px,1.5vw,19px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{t("Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.")}</p>
           <div className="site-up flex gap-3 flex-wrap [--d:3]">
-            <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{c.cta}<ArrowRight size={17} aria-hidden /></a>
-            <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={17} aria-hidden className="text-[#146C43]" />{c.demo}</a>
+            <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
+            <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={17} aria-hidden className="text-[#146C43]" />{t("Get a demo on WhatsApp")}</a>
           </div>
-          <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{c.note}</p>
+          <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{t("No card needed. Pay by UPI, card or netbanking only if you continue.")}</p>
         </div>
       </div>
 
@@ -64,12 +42,12 @@ export function Hero() {
         <div className="relative max-w-[1200px] mx-auto px-6 pb-[clamp(48px,7vw,96px)] max-[640px]:px-4">
           <div className="site-up [--d:3] relative">
             <div className="site-tilt">
-              <BrowserFrame label="Dashboard · Sanjeevani Pharmacy, FC Road">
-                <Image key={lang} src={lang === "hi" ? "/site/dashboard-hi.webp" : "/site/dashboard.webp"} alt={c.alt} width={2000} height={1250} priority={lang === "en"} sizes="(min-width: 1248px) 1152px, calc(100vw - 32px)" className="block w-full h-auto" />
+              <BrowserFrame label={t("Dashboard · Sanjeevani Pharmacy, FC Road")}>
+                <Image src={lang === "hi" ? "/site/dashboard-hi.webp" : "/site/dashboard.webp"} alt={t("Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days")} width={2000} height={1250} priority sizes="(min-width: 1248px) 1152px, calc(100vw - 32px)" className="block w-full h-auto" />
               </BrowserFrame>
             </div>
             <div className="site-drift absolute -right-2 min-[1248px]:-right-10 -bottom-10 w-[clamp(150px,19vw,236px)] max-[560px]:hidden">
-              <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt="The owner’s view of the same dashboard on a phone" width={600} height={1298} sizes="236px" className="block w-full h-auto" /></div></div>
+              <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt={t("The owner’s view of the same dashboard on a phone")} width={600} height={1298} sizes="236px" className="block w-full h-auto" /></div></div>
             </div>
           </div>
         </div>
@@ -152,6 +130,7 @@ const FEATURES = [
 ] as const;
 
 export function FeatureTabs() {
+  const t = useT();
   const [active, setActive] = useState(0);
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const go = (i: number) => { const n = (i + FEATURES.length) % FEATURES.length; setActive(n); refs.current[n]?.focus(); };
@@ -164,7 +143,7 @@ export function FeatureTabs() {
   };
   return (
     <div className="grid grid-cols-12 gap-x-6 gap-y-6">
-      <div role="tablist" aria-label="Medoro features" onKeyDown={onKey}
+      <div role="tablist" aria-label={t("Medoro features")} onKeyDown={onKey}
         className="col-span-12 min-[1000px]:col-span-4 flex min-[1000px]:flex-col gap-1 overflow-x-auto min-[1000px]:overflow-visible -mx-4 px-4 min-[1000px]:mx-0 min-[1000px]:px-0 pb-1 [scrollbar-width:none] min-[1000px]:sticky min-[1000px]:top-24 self-start">
         {FEATURES.map((f, i) => {
           const on = i === active;
@@ -173,7 +152,7 @@ export function FeatureTabs() {
               className={`group relative flex-none flex items-center gap-3 text-left cursor-pointer rounded-lg transition-colors h-11 px-3.5 min-[1000px]:h-auto min-[1000px]:py-3.5 min-[1000px]:px-4 border min-[1000px]:border-0 ${on ? "bg-[var(--s-brand-tint)] border-[var(--s-brand)] text-[var(--s-ink)]" : "border-[var(--s-line)] text-[var(--s-ink-2)] hover:bg-[var(--s-soft)] hover:text-[var(--s-ink)]"}`}>
               <span aria-hidden className={`hidden min-[1000px]:block absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full transition-colors ${on ? "bg-[var(--s-brand)]" : "bg-transparent"}`} />
               <f.icon size={18} aria-hidden className={on ? "text-[var(--s-brand)]" : "text-[var(--s-muted)]"} />
-              <span className="text-[15px] font-semibold whitespace-nowrap"><span className="min-[1000px]:hidden">{f.tab}</span><span className="hidden min-[1000px]:inline">{f.label}</span></span>
+              <span className="text-[15px] font-semibold whitespace-nowrap"><span className="min-[1000px]:hidden">{t(f.tab)}</span><span className="hidden min-[1000px]:inline">{t(f.label)}</span></span>
               <span aria-hidden className="hidden min-[1000px]:block ml-auto site-num text-[12px] text-[var(--s-muted)]">{String(i + 1).padStart(2, "0")}</span>
             </button>
           );
@@ -183,14 +162,14 @@ export function FeatureTabs() {
         {FEATURES.map((f, i) => (
           <div key={f.id} id={`panel-${f.id}`} role="tabpanel" aria-labelledby={`tab-${f.id}`} hidden={i !== active} tabIndex={0} className={`${i === active ? "site-swap" : ""} flex flex-col gap-6`}>
             <div className="flex flex-col gap-3 max-w-[680px]">
-              <h3 className="site-display m-0 text-[clamp(26px,3vw,36px)] text-[var(--s-ink)]">{f.title}</h3>
-              <p className="m-0 text-[17px] text-[var(--s-ink-2)]">{f.body}</p>
+              <h3 className="site-display m-0 text-[clamp(26px,3vw,36px)] text-[var(--s-ink)]">{t(f.title)}</h3>
+              <p className="m-0 text-[17px] text-[var(--s-ink-2)]">{t(f.body)}</p>
             </div>
             <ul className="m-0 p-0 list-none grid gap-x-6 gap-y-2.5 min-[720px]:grid-cols-3">
-              {f.points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)] border-t border-[var(--s-line)] pt-3"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{p}</li>)}
+              {f.points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)] border-t border-[var(--s-line)] pt-3"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{t(p)}</li>)}
             </ul>
-            <BrowserFrame label={`${f.label} · Medoro`}>
-              <Image src={f.img[0]} alt={f.img[1]} width={1600} height={1144} sizes="(min-width: 1248px) 768px, (min-width: 1000px) 62vw, calc(100vw - 32px)" className="block w-full h-auto aspect-[1600/1144] bg-[var(--s-soft)]" />
+            <BrowserFrame label={`${t(f.label)} · Medoro`}>
+              <Image src={f.img[0]} alt={t(f.img[1])} width={1600} height={1144} sizes="(min-width: 1248px) 768px, (min-width: 1000px) 62vw, calc(100vw - 32px)" className="block w-full h-auto aspect-[1600/1144] bg-[var(--s-soft)]" />
             </BrowserFrame>
           </div>
         ))}
@@ -202,6 +181,7 @@ export function FeatureTabs() {
 // ───────────── Works-with marquee ─────────────
 
 export function Marquee({ items }: { items: string[] }) {
+  const t = useT();
   const [paused, setPaused] = useState(false);
   return (
     <div className="site-marquee-wrap relative flex items-center gap-3" data-paused={paused}>
@@ -212,7 +192,7 @@ export function Marquee({ items }: { items: string[] }) {
           ))}
         </ul>
       </div>
-      <button type="button" onClick={() => setPaused((p) => !p)} aria-label={paused ? "Play the list" : "Pause the list"} className="flex-none size-11 rounded-full border border-[var(--s-line)] bg-white text-[var(--s-ink-2)] flex items-center justify-center cursor-pointer hover:border-[var(--s-ink)] motion-reduce:hidden">
+      <button type="button" onClick={() => setPaused((p) => !p)} aria-label={paused ? t("Play the list") : t("Pause the list")} className="flex-none size-11 rounded-full border border-[var(--s-line)] bg-white text-[var(--s-ink-2)] flex items-center justify-center cursor-pointer hover:border-[var(--s-ink)] motion-reduce:hidden">
         {paused ? <Play size={15} aria-hidden /> : <Pause size={15} aria-hidden />}
       </button>
     </div>
@@ -228,7 +208,8 @@ const PLANS = [
   { id: "pro", name: "Professional", rec: true, for: "Busy stores with staff", cap: "1 branch · 5 counters · 10 users", feats: ["Everything in Starter", "Accounts: day book, P&L, GST summaries", "Customer credit and statements", "Supplier invoice scanner, reviewed first", "Roles, permissions and audit trail", "Billing on the shop network when the internet drops"] },
   { id: "multi", name: "Multi-branch", rec: false, for: "Pharmacy chains", cap: "Up to 5 branches · 15 counters · 25 users", feats: ["Everything in Professional", "Branch stock and approved transfers", "Central purchasing", "Consolidated and branch reports", "Anomaly review for owners", "Priority support, 9 am to 9 pm"] },
 ];
-const EXTRAS: [string, string][] = [["Assisted setup and training", `${inr(price("setup"))} once`], ["Stock and data migration", "from ₹2,999"], ["Extra branch (Multi-branch)", "₹799 / month"], ["Thermal printer and scanner setup", "Included"]];
+// Values are [line, amount]: the line is translated with the amount filled in.
+const EXTRAS: [string, [string, string?]][] = [["Assisted setup and training", ["{amount} once", inr(price("setup"))]], ["Stock and data migration", ["from {amount}", "₹2,999"]], ["Extra branch (Multi-branch)", ["{amount} / month", "₹799"]], ["Thermal printer and scanner setup", ["Included"]]];
 const CMP: [string, ...(boolean | string)[]][] = [
   ["Branches", "1", "1", "Up to 5"], ["Counters / devices", "2", "5", "15"], ["Users", "3", "10", "25"],
   ["GST billing, FEFO, expiry alerts", true, true, true], ["WhatsApp PDF invoices", true, true, true], ["Encrypted Drive backups", true, true, true],
@@ -237,15 +218,16 @@ const CMP: [string, ...(boolean | string)[]][] = [
 ];
 
 export function Pricing() {
+  const t = useT();
   const [yearly, setYearly] = useState(false);
   const [compare, setCompare] = useState(false);
   const seg = (on: boolean) => `h-10 max-[640px]:h-11 px-4 rounded-md text-[15px] font-medium cursor-pointer flex gap-2 items-center transition-colors ${on ? "bg-white text-[var(--s-ink)] shadow-[0_1px_2px_rgba(14,22,20,.12)]" : "text-[var(--s-muted)] hover:text-[var(--s-ink)]"}`;
   const ai = price("ai");
   return (
     <div className="flex flex-col gap-8">
-      <div role="group" aria-label="Billing period" className="self-start inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
-        <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>Monthly</button>
-        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>Yearly<span className="text-[12.5px] font-semibold text-[var(--s-brand)]">2 months free</span></button>
+      <div role="group" aria-label={t("Billing period")} className="self-start inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
+        <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>{t("Monthly")}</button>
+        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className="text-[12.5px] font-semibold text-[var(--s-brand)]">{t("2 months free")}</span></button>
       </div>
       <div className="grid gap-px bg-[var(--s-line)] border border-[var(--s-line)] rounded-xl overflow-hidden min-[900px]:grid-cols-3">
         {PLANS.map((p) => {
@@ -254,17 +236,17 @@ export function Pricing() {
             <div key={p.id} className="relative bg-white p-7 flex flex-col gap-5 max-[640px]:p-5">
               {p.rec ? <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-[var(--s-brand)]" /> : null}
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2.5 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{p.name}</h3>{p.rec ? <span className="text-[12.5px] font-semibold text-[var(--s-brand)] bg-[var(--s-brand-tint)] px-2 py-0.5 rounded">Most stores pick this</span> : null}</div>
-                <span className="text-[15px] text-[var(--s-muted)]">{p.for}</span>
+                <div className="flex items-center gap-2.5 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{p.name}</h3>{p.rec ? <span className="text-[12.5px] font-semibold text-[var(--s-brand)] bg-[var(--s-brand-tint)] px-2 py-0.5 rounded">{t("Most stores pick this")}</span> : null}</div>
+                <span className="text-[15px] text-[var(--s-muted)]">{t(p.for)}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="flex items-baseline gap-1.5"><span className="site-display text-[48px] leading-none text-[var(--s-ink)]">{inr(yearly ? Math.round((m * 10) / 12) : m)}</span><span className="text-[15px] text-[var(--s-muted)]">/ month</span></div>
-                <span className="text-[14px] text-[var(--s-muted)]">{yearly ? `${inr(m * 10)} billed yearly` : "Billed monthly after the free trial"}</span>
+                <div className="flex items-baseline gap-1.5"><span className="site-display text-[48px] leading-none text-[var(--s-ink)]">{inr(yearly ? Math.round((m * 10) / 12) : m)}</span><span className="text-[15px] text-[var(--s-muted)]">{t("/ month")}</span></div>
+                <span className="text-[14px] text-[var(--s-muted)]">{yearly ? t("{amount} billed yearly", { amount: inr(m * 10) }) : t("Billed monthly after the free trial")}</span>
               </div>
-              <a href="/trial" className={`flex items-center justify-center h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"}`}>Start free trial</a>
-              <span className="text-[14px] font-medium text-[var(--s-ink)]">{p.cap}</span>
+              <a href="/trial" className={`flex items-center justify-center h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"}`}>{t("Start free trial")}</a>
+              <span className="text-[14px] font-medium text-[var(--s-ink)]">{t(p.cap)}</span>
               <ul className="m-0 p-0 list-none flex flex-col gap-2.5 border-t border-[var(--s-line)] pt-5">
-                {p.feats.map((f) => <li key={f} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{f}</li>)}
+                {p.feats.map((f) => <li key={f} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{t(f)}</li>)}
               </ul>
             </div>
           );
@@ -272,27 +254,27 @@ export function Pricing() {
       </div>
       <div className="grid gap-4 min-[900px]:grid-cols-2">
         <div className="site-dark bg-[var(--s-dark)] text-white rounded-xl p-7 flex flex-col gap-2.5 max-[640px]:p-5">
-          <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]">Add-on for any plan</span>
-          <div className="flex items-baseline justify-between gap-3 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">AI assistant</h3><span className="text-[17px] font-semibold">{yearly ? `${inr(Math.round((ai * 10) / 12))} / month, billed yearly` : `${inr(ai)} / month`}</span></div>
-          <p className="m-0 text-[15px] text-[#C3D3D0]">Ask in English, Hindi or Hinglish. Seasonal demand planner, invoice scanner and reorder suggestions. Runs on your server by default.</p>
-          <a href="/trial" className="site-link-arrow mt-auto pt-3 self-start inline-flex items-center gap-1.5 text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">Try it during the free trial<ArrowRight size={15} aria-hidden /></a>
+          <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]">{t("Add-on for any plan")}</span>
+          <div className="flex items-baseline justify-between gap-3 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{t("AI assistant")}</h3><span className="text-[17px] font-semibold">{yearly ? t("{amount} / month, billed yearly", { amount: inr(Math.round((ai * 10) / 12)) }) : t("{amount} / month", { amount: inr(ai) })}</span></div>
+          <p className="m-0 text-[15px] text-[#C3D3D0]">{t("Ask in English, Hindi or Hinglish. Seasonal demand planner, invoice scanner and reorder suggestions. Runs on your server by default.")}</p>
+          <a href="/trial" className="site-link-arrow mt-auto pt-3 self-start inline-flex items-center gap-1.5 text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Try it during the free trial")}<ArrowRight size={15} aria-hidden /></a>
         </div>
         <div className="bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-1 max-[640px]:p-5">
-          <h3 className="m-0 mb-2 text-[17px] font-semibold">One-time and extras</h3>
-          {EXTRAS.map(([l, v]) => <div key={l} className="flex justify-between gap-3 text-[15px] border-b border-[var(--s-line-2)] py-2 last:border-b-0"><span className="text-[var(--s-ink-2)]">{l}</span><strong className="font-semibold whitespace-nowrap">{v}</strong></div>)}
+          <h3 className="m-0 mb-2 text-[17px] font-semibold">{t("One-time and extras")}</h3>
+          {EXTRAS.map(([l, v]) => <div key={l} className="flex justify-between gap-3 text-[15px] border-b border-[var(--s-line-2)] py-2 last:border-b-0"><span className="text-[var(--s-ink-2)]">{t(l)}</span><strong className="font-semibold whitespace-nowrap">{t(v[0], { amount: v[1] })}</strong></div>)}
         </div>
       </div>
       <div className="flex flex-col gap-4">
         <button type="button" onClick={() => setCompare((x) => !x)} aria-expanded={compare} aria-controls="plan-compare" className="self-start h-11 px-4 rounded-lg border border-[#C9D1CF] bg-white text-[15px] font-semibold cursor-pointer flex gap-2 items-center text-[var(--s-ink)] hover:border-[var(--s-ink)]">
-          {compare ? "Hide plan comparison" : "Compare all features"}<ChevronDown size={16} aria-hidden className={`transition-transform duration-300 ${compare ? "rotate-180" : ""}`} />
+          {compare ? t("Hide plan comparison") : t("Compare all features")}<ChevronDown size={16} aria-hidden className={`transition-transform duration-300 ${compare ? "rotate-180" : ""}`} />
         </button>
         <div id="plan-compare" hidden={!compare} className="overflow-x-auto border border-[var(--s-line)] rounded-xl">
           <table className="w-full min-w-[640px] border-collapse text-[15px]">
-            <caption className="sr-only">Features by plan</caption>
-            <thead><tr className="bg-[var(--s-soft)]">{["Feature", "Starter", "Professional", "Multi-branch"].map((h, i) => <th key={h} scope="col" className={`text-left px-4 py-3 font-semibold border-b border-[var(--s-line)] ${i === 2 ? "text-[var(--s-brand)]" : ""}`}>{h}</th>)}</tr></thead>
+            <caption className="sr-only">{t("Features by plan")}</caption>
+            <thead><tr className="bg-[var(--s-soft)]">{["Feature", "Starter", "Professional", "Multi-branch"].map((h, i) => <th key={h} scope="col" className={`text-left px-4 py-3 font-semibold border-b border-[var(--s-line)] ${i === 2 ? "text-[var(--s-brand)]" : ""}`}>{i === 0 ? t(h) : h}</th>)}</tr></thead>
             <tbody>{CMP.map(([f, ...v]) => (
-              <tr key={f}><th scope="row" className="text-left font-normal px-4 py-3 border-b border-[var(--s-line-2)] text-[var(--s-ink-2)]">{f}</th>
-                {v.map((c, i) => <td key={i} className="px-4 py-3 border-b border-[var(--s-line-2)]">{c === true ? <><Check size={17} aria-hidden className="text-[var(--s-brand)]" /><span className="sr-only">Included</span></> : c === false ? <><Minus size={17} aria-hidden className="text-[#8A9693]" /><span className="sr-only">Not included</span></> : c}</td>)}
+              <tr key={f}><th scope="row" className="text-left font-normal px-4 py-3 border-b border-[var(--s-line-2)] text-[var(--s-ink-2)]">{t(f)}</th>
+                {v.map((c, i) => <td key={i} className="px-4 py-3 border-b border-[var(--s-line-2)]">{c === true ? <><Check size={17} aria-hidden className="text-[var(--s-brand)]" /><span className="sr-only">{t("Included")}</span></> : c === false ? <><Minus size={17} aria-hidden className="text-[#8A9693]" /><span className="sr-only">{t("Not included")}</span></> : t(c)}</td>)}
               </tr>
             ))}</tbody>
           </table>

@@ -4,9 +4,10 @@ import { readSession } from "@/server/auth";
 import { openSecret, totpQr } from "@/server/totp";
 import { mfaResetOption } from "@/domain/identity/recovery";
 import { ensureMfaSecret } from "../../actions";
+import { getT } from "@/server/lang";
 import { MfaForm } from "./mfa-form";
 
-export const metadata = { title: "Two-step verification" };
+export async function generateMetadata() { return { title: (await getT())("Two-step verification") }; }
 export const dynamic = "force-dynamic";
 
 export default async function Page() {

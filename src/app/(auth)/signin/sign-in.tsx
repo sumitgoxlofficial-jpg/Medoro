@@ -3,6 +3,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IdCard, UserPlus, Check, KeyRound } from "lucide-react";
 import { cn } from "@/components/ui/cn";
+import { useT } from "@/lib/i18n-client";
 import { WA } from "@/components/site/brand";
 import { AuthButton, AuthCard, AuthError, AuthLabel, Steps, authInput, authMono } from "@/components/auth-ui";
 import {
@@ -34,6 +35,7 @@ export function SignIn({ google, recovery, notice, linkEmail, initialView }: { g
 
 function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: boolean; notice: string | null; linkEmail: string | null; onEmployee: () => void; onForgot: () => void }) {
   const router = useRouter();
+  const t = useT();
   const [email, setEmail] = useState(linkEmail ?? ""), [pwd, setPwd] = useState("");
   const [err, setErr] = useState(""), [pending, start] = useTransition();
 
@@ -49,12 +51,12 @@ function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: bo
   return (
     <AuthCard>
       <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <div className="text-[22px] font-semibold">Sign in</div>
-        {linkEmail ? <div role="status" className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">Google confirmed <strong>{linkEmail}</strong>. Enter your Medoro password once to connect Google sign-in to this account.</div>
-          : notice && GOOGLE_NOTICE[notice] ? <div role="status" className="text-[13px] bg-chip rounded-lg p-3">{GOOGLE_NOTICE[notice]}</div> : null}
+        <div className="text-[22px] font-semibold">{t("Sign in")}</div>
+        {linkEmail ? <div role="status" className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">{t("Google confirmed")} <strong>{linkEmail}</strong>. {t("Enter your Medoro password once to connect Google sign-in to this account.")}</div>
+          : notice && GOOGLE_NOTICE[notice] ? <div role="status" className="text-[13px] bg-chip rounded-lg p-3">{t(GOOGLE_NOTICE[notice])}</div> : null}
         <AuthLabel label="Email"><input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@pharmacy.in" autoComplete="username" autoFocus={!linkEmail} /></AuthLabel>
         <AuthLabel label="Password"><input className={authInput} type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" autoFocus={!!linkEmail} /></AuthLabel>
-        <button type="button" onClick={onForgot} className="self-end -mt-1.5 min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Forgot password?</button>
+        <button type="button" onClick={onForgot} className="self-end -mt-1.5 min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">{t("Forgot password?")}</button>
         <AuthError>{err}</AuthError>
         <AuthButton type="submit" disabled={pending}>
           {pending ? "Please wait…" : "Sign in"}
@@ -62,20 +64,21 @@ function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: bo
       </form>
       {google ? (
         <a href="/api/auth/google/start" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink">
-          <GoogleG />Continue with Google
+          <GoogleG />{t("Continue with Google")}
         </a>
       ) : null}
       <button onClick={onEmployee} className="flex items-center justify-center gap-2 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink cursor-pointer hover:border-teal hover:text-teal">
-        <IdCard size={16} />Pharmacy staff login (PIN)
+        <IdCard size={16} />{t("Pharmacy staff login (PIN)")}
       </button>
-      <p className="m-0 text-[13px] text-muted text-center">New to Medoro? <a href="/trial" className="text-teal font-semibold">Start a free trial</a></p>
-      <p className="m-0 text-[12px] text-fainter text-center">Trouble signing in? <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-medium">WhatsApp Medoro support</a></p>
+      <p className="m-0 text-[13px] text-muted text-center">{t("New to Medoro?")} <a href="/trial" className="text-teal font-semibold">{t("Start a free trial")}</a></p>
+      <p className="m-0 text-[12px] text-fainter text-center">{t("Trouble signing in?")} <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-medium">{t("WhatsApp Medoro support")}</a></p>
     </AuthCard>
   );
 }
 
 function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: () => void; prefill: { code: string; emp: string } | null }) {
   const router = useRouter();
+  const t = useT();
   const [code, setCode] = useState(prefill?.code ?? ""), [emp, setEmp] = useState(prefill?.emp ?? ""), [pin, setPin] = useState("");
   const [counters, setCounters] = useState<{ id: string; name: string; branch: string }[]>([]);
   const [counter, setCounter] = useState("");
@@ -83,8 +86,8 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
 
   useEffect(() => {
     if (code.trim().length < 4) { setCounters([]); return; }
-    const t = setTimeout(() => countersFor(code, emp).then((c) => { setCounters(c); setCounter((x) => (c.some((y) => y.id === x) ? x : c[0]?.id ?? "")); }), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => countersFor(code, emp).then((c) => { setCounters(c); setCounter((x) => (c.some((y) => y.id === x) ? x : c[0]?.id ?? "")); }), 350);
+    return () => clearTimeout(timer);
   }, [code, emp]);
 
   const submit = (e: React.FormEvent) => {
@@ -101,13 +104,13 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
       <form onSubmit={submit} className="flex flex-col gap-3.5">
         <div className="flex gap-2.5 items-center">
           <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><IdCard size={18} /></span>
-          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">Pharmacy staff login</span><span className="text-[13px] text-muted">For pharmacists, cashiers and accountants</span></div>
+          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">{t("Pharmacy staff login")}</span><span className="text-[13px] text-muted">{t("For pharmacists, cashiers and accountants")}</span></div>
         </div>
         <AuthLabel label="Pharmacy code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus={!prefill} /></AuthLabel>
         <AuthLabel label="Employee ID"><input className={cn(authInput, authMono)} value={emp} onChange={(e) => setEmp(e.target.value.toUpperCase())} placeholder="E-104" /></AuthLabel>
         <AuthLabel label="4-digit PIN"><input className={cn(authInput, "font-mono tracking-[.3em]")} type="password" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" autoFocus={!!prefill} autoComplete="off" /></AuthLabel>
         <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] text-muted">Counter</span>
+          <span className="text-[13px] text-muted">{t("Counter")}</span>
           {counters.length ? (
             <div className="flex gap-2 flex-wrap">
               {counters.map((c) => {
@@ -120,19 +123,19 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
                 );
               })}
             </div>
-          ) : <span className="text-[12.5px] text-fainter">Enter your pharmacy code to see counters.</span>}
+          ) : <span className="text-[12.5px] text-fainter">{t("Enter your pharmacy code to see counters.")}</span>}
         </div>
         <AuthError>{err}</AuthError>
         <AuthButton type="submit" disabled={pending}>{pending ? "Checking…" : "Start shift"}</AuthButton>
       </form>
       <button onClick={onJoin} className="flex items-center justify-center gap-2 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink cursor-pointer hover:border-teal hover:text-teal">
-        <UserPlus size={16} />New employee? Create your account
+        <UserPlus size={16} />{t("New employee? Create your account")}
       </button>
       <div className="flex justify-between gap-2 flex-wrap text-[12.5px]">
-        <button onClick={onOwner} className="text-teal cursor-pointer">← Owner / manager sign-in</button>
-        <span className="text-faint">Forgot PIN? Ask your manager to reset it.</span>
+        <button onClick={onOwner} className="text-teal cursor-pointer">← {t("Owner / manager sign-in")}</button>
+        <span className="text-faint">{t("Forgot PIN? Ask your manager to reset it.")}</span>
       </div>
-      <div className="text-[11.5px] text-fainter text-center">5 wrong PINs lock the ID for 15 minutes · shift start is logged</div>
+      <div className="text-[11.5px] text-fainter text-center">{t("5 wrong PINs lock the ID for 15 minutes · shift start is logged")}</div>
     </AuthCard>
   );
 }
@@ -145,6 +148,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
   const [name, setName] = useState(""), [pin, setPin] = useState(""), [pin2, setPin2] = useState(""), [agree, setAgree] = useState(false);
   const [done, setDone] = useState<{ employeeNo: string; tenantCode: string; manager: boolean } | null>(null);
   const [err, setErr] = useState(""), [pending, start] = useTransition();
+  const t = useT();
   const manager = info?.role === "Manager";
 
   const next = () => {
@@ -177,7 +181,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
     <AuthCard width={440}>
       <div className="flex gap-2.5 items-center">
         <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><UserPlus size={18} /></span>
-        <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">Create employee account</span><span className="text-[13px] text-muted">Use the invite code your owner or manager sent you</span></div>
+        <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">{t("Create employee account")}</span><span className="text-[13px] text-muted">{t("Use the invite code your owner or manager sent you")}</span></div>
       </div>
       <Steps labels={["Invite", "Verify", manager ? "Password" : "PIN"]} step={Math.min(step, 3)} />
       {step === 1 ? (
@@ -188,7 +192,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
       ) : null}
       {step === 2 && info ? (
         <>
-          <div className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">Invite found: <strong>{info.role}</strong> · {info.branch} · {info.pharmacy}</div>
+          <div className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">{t("Invite found:")} <strong>{t(info.role)}</strong> · {info.branch === "All branches" ? t("All branches") : info.branch} · {info.pharmacy}</div>
           <AuthLabel label={info.kind === "phone" ? "Mobile number on the invite" : "Email on the invite"}>
             <input className={authInput} value={contact} onChange={(e) => setContact(e.target.value)} placeholder={info.kind === "phone" ? "98220 41736" : "you@example.com"} disabled={otpSent} autoFocus />
           </AuthLabel>
@@ -202,24 +206,24 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
             <>
               <AuthLabel label="Create a password (10+ characters)"><input className={authInput} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="new-password" /></AuthLabel>
               <AuthLabel label="Confirm password"><input className={authInput} type="password" value={pin2} onChange={(e) => setPin2(e.target.value)} autoComplete="new-password" /></AuthLabel>
-              <span className="text-[12px] text-faint">Managers sign in with email, password and an authenticator app. You’ll set up the authenticator on first sign-in.</span>
+              <span className="text-[12px] text-faint">{t("Managers sign in with email, password and an authenticator app. You’ll set up the authenticator on first sign-in.")}</span>
             </>
           ) : (
             <>
               <AuthLabel label="Create a 4-digit PIN"><input className={cn(authInput, "font-mono tracking-[.3em]")} type="password" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" /></AuthLabel>
               <AuthLabel label="Confirm PIN"><input className={cn(authInput, "font-mono tracking-[.3em]")} type="password" value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" /></AuthLabel>
-              <span className="text-[12px] text-faint">Avoid easy PINs like 1111 or 1234. Never share your PIN, because every bill is recorded under your name.</span>
+              <span className="text-[12px] text-faint">{t("Avoid easy PINs like 1111 or 1234. Never share your PIN, because every bill is recorded under your name.")}</span>
             </>
           )}
-          <label className="flex gap-2 text-[13px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} />I agree to the staff terms and the pharmacy’s privacy notice.</label>
+          <label className="flex gap-2 text-[13px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} />{t("I agree to the staff terms and the pharmacy’s privacy notice.")}</label>
         </>
       ) : null}
       {step === 4 && done ? (
         <div className="flex flex-col items-center text-center gap-2 py-3">
           <span className="size-11 rounded-full bg-ok-bg text-ok flex items-center justify-center"><Check size={22} /></span>
-          <strong className="text-[17px]">Account ready</strong>
+          <strong className="text-[17px]">{t("Account ready")}</strong>
           <span className="text-[13.5px] text-muted">
-            {done.manager ? <>Sign in with your email and password from the owner / manager sign-in.</> : <>Your employee ID is <strong className="font-mono text-ink">{done.employeeNo}</strong>. Use it with pharmacy code <span className="font-mono">{done.tenantCode}</span> and your PIN.</>}
+            {done.manager ? t("Sign in with your email and password from the owner / manager sign-in.") : <>{t("Your employee ID is")} <strong className="font-mono text-ink">{done.employeeNo}</strong>. {t("Use it with pharmacy code {code} and your PIN.", { code: done.tenantCode })}</>}
           </span>
         </div>
       ) : null}
@@ -229,8 +233,8 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
       </AuthButton>
       {step < 4 ? (
         <div className="flex justify-between gap-2 flex-wrap text-[12.5px]">
-          <button onClick={onBack} className="text-teal cursor-pointer">← Pharmacy staff login</button>
-          <span className="text-faint">No code? Ask your manager to add you in Users.</span>
+          <button onClick={onBack} className="text-teal cursor-pointer">← {t("Pharmacy staff login")}</button>
+          <span className="text-faint">{t("No code? Ask your manager to add you in Users.")}</span>
         </div>
       ) : null}
     </AuthCard>
@@ -241,6 +245,7 @@ function Forgot({ recovery, onBack }: { recovery: Recovery; onBack: () => void }
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [contact, setContact] = useState(""), [code, setCode] = useState(""), [pw, setPw] = useState(""), [pw2, setPw2] = useState("");
   const [err, setErr] = useState(""), [pending, start] = useTransition();
+  const t = useT();
   const label = recovery.email && recovery.sms ? "Email or mobile number" : recovery.email ? "Email" : "Mobile number";
 
   const submit = (e: React.FormEvent) => {
@@ -263,28 +268,28 @@ function Forgot({ recovery, onBack }: { recovery: Recovery; onBack: () => void }
       <form onSubmit={submit} className="flex flex-col gap-3.5">
         <div className="flex gap-2.5 items-center">
           <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><KeyRound size={18} /></span>
-          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">Reset your password</span><span className="text-[13px] text-muted">For owners and managers</span></div>
+          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">{t("Reset your password")}</span><span className="text-[13px] text-muted">{t("For owners and managers")}</span></div>
         </div>
         {!recovery.email && !recovery.sms ? (
-          <div className="text-[13px] text-muted bg-chip rounded-lg p-3">Password reset needs email or SMS, and neither is set up on this server. The person who runs the server can set MAIL_PROVIDER or OTP_PROVIDER (see docs/SECURITY.md). Managers can also ask the owner for a reset code from Users.</div>
+          <div className="text-[13px] text-muted bg-chip rounded-lg p-3">{t("Password reset needs email or SMS, and neither is set up on this server. The person who runs the server can set MAIL_PROVIDER or OTP_PROVIDER (see docs/SECURITY.md). Managers can also ask the owner for a reset code from Users.")}</div>
         ) : step === 1 ? (
           <>
-            <div className="text-[13.5px] text-muted">Enter the {label.toLowerCase()} on your account. We’ll send a 6-digit code that works once, for 15 minutes.</div>
+            <div className="text-[13.5px] text-muted">{t("Enter the {what} on your account. We’ll send a 6-digit code that works once, for 15 minutes.", { what: t(label.toLowerCase()) })}</div>
             <AuthLabel label={label}><input className={authInput} value={contact} onChange={(e) => setContact(e.target.value)} placeholder={recovery.email ? "you@pharmacy.in" : "98220 41736"} autoComplete="username" autoFocus /></AuthLabel>
           </>
         ) : step === 2 ? (
           <>
-            <div className="text-[13.5px] text-muted">If an account uses <strong className="text-ink">{contact.trim()}</strong>, a code is on its way. Codes expire in 15 minutes.</div>
+            <div className="text-[13.5px] text-muted">{t("If an account uses")} <strong className="text-ink">{contact.trim()}</strong>{t(", a code is on its way. Codes expire in 15 minutes.")}</div>
             <AuthLabel label="6-digit code"><input className={cn(authInput, "font-mono text-[18px] tracking-[.3em]")} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus /></AuthLabel>
             <AuthLabel label="New password (10+ characters)"><input className={authInput} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" /></AuthLabel>
             <AuthLabel label="Confirm new password"><input className={authInput} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" /></AuthLabel>
-            <span className="text-[12px] text-faint">Resetting signs you out on every device. Two-step verification still applies when you sign in.</span>
+            <span className="text-[12px] text-faint">{t("Resetting signs you out on every device. Two-step verification still applies when you sign in.")}</span>
           </>
         ) : (
           <div className="flex flex-col items-center text-center gap-2 py-3">
             <span className="size-11 rounded-full bg-ok-bg text-ok flex items-center justify-center"><Check size={22} /></span>
-            <strong className="text-[17px]">Password changed</strong>
-            <span className="text-[13.5px] text-muted">Sign in with your new password.</span>
+            <strong className="text-[17px]">{t("Password changed")}</strong>
+            <span className="text-[13.5px] text-muted">{t("Sign in with your new password.")}</span>
           </div>
         )}
         <AuthError>{err}</AuthError>
@@ -293,8 +298,8 @@ function Forgot({ recovery, onBack }: { recovery: Recovery; onBack: () => void }
       </form>
       {step !== 3 ? (
         <div className="flex justify-between gap-2 flex-wrap text-[12.5px]">
-          <button onClick={onBack} className="text-teal cursor-pointer">← Back to sign-in</button>
-          {step === 2 ? <button onClick={() => { setStep(1); setCode(""); setErr(""); }} className="text-teal cursor-pointer">Send a new code</button> : null}
+          <button onClick={onBack} className="text-teal cursor-pointer">← {t("Back to sign-in")}</button>
+          {step === 2 ? <button onClick={() => { setStep(1); setCode(""); setErr(""); }} className="text-teal cursor-pointer">{t("Send a new code")}</button> : null}
         </div>
       ) : null}
     </AuthCard>

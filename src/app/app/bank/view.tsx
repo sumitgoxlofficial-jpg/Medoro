@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Download, FileUp, Link2, Unlink } from "lucide-react";
+import { useT } from "@/lib/i18n-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, Select } from "@/components/ui/field";
@@ -20,7 +21,7 @@ const day = (iso: string) => dayMonth(dateOnly(iso), true);
 const amt = (p: number) => <span className="tnum" style={{ color: p < 0 ? "#B3261E" : "#1E7F4F" }}>{p < 0 ? "−" : "+"}{inr(Math.abs(p))}</span>;
 
 export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
-  const toast = useToast(), toastR = useActionToast();
+  const toast = useToast(), toastR = useActionToast(), t = useT();
   const [file, setFile] = useState<File | null>(null);
   const [map, setMap] = useState<{ preview: string[][]; mapping: BankMapping } | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -34,7 +35,10 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
     if (r.data.needsMapping) { setMap({ preview: r.data.preview, mapping: r.data.mapping }); return toast("Tell Medoro which columns hold the date and amounts.", "blue"); }
     setMap(null); setFile(null);
     const bad = r.data.problems ?? [];
-    toast(`${r.data.imported} new line(s) imported${r.data.duplicates ? `, ${r.data.duplicates} already there` : ""} · ${r.data.matched} matched automatically.${bad.length ? ` ${bad.length} row(s) couldn’t be read: ${bad.slice(0, 3).map((p) => `row ${p.row} (${p.reason})`).join("; ")}${bad.length > 3 ? "…" : ""}` : ""}`, bad.length ? "blue" : "green");
+    const done = r.data.duplicates ? t("{n} new line(s) imported, {dup} already there · {matched} matched automatically.", { n: r.data.imported, dup: r.data.duplicates, matched: r.data.matched })
+      : t("{n} new line(s) imported · {matched} matched automatically.", { n: r.data.imported, matched: r.data.matched });
+    const rows = bad.slice(0, 3).map((p) => t("row {row} ({reason})", { row: p.row, reason: t(p.reason) })).join("; ") + (bad.length > 3 ? "…" : "");
+    toast(bad.length ? `${done} ${t("{n} row(s) couldn’t be read: {rows}", { n: bad.length, rows })}` : done, bad.length ? "blue" : "green");
   });
   const width = Math.max(0, ...(map?.preview ?? []).map((r) => r.length));
   const exportCsv = () => downloadCsv("bank-unreconciled", [
@@ -46,89 +50,89 @@ export function BankView({ data, canAct }: { data: Data; canAct: boolean }) {
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       <div className={wrap + " p-4 flex flex-wrap gap-x-8 gap-y-2 items-center"}>
-        <div className="text-[13.5px]">Matched lines <strong className="tnum">{data.matched}</strong></div>
-        <div className="text-[13.5px]">Statement lines to match <strong className="tnum">{data.statement.length}</strong></div>
-        <div className="text-[13.5px]">Book entries not on a statement <strong className="tnum">{data.books.length}</strong></div>
-        {data.balance ? <div className="text-[13.5px]">On {day(data.balance.date)}: bank <strong className="tnum">{inr(data.balance.bank)}</strong> · books <strong className="tnum">{inr(data.balance.books)}</strong> {data.balance.bank === data.balance.books ? <Badge tone="green">Agrees</Badge> : <Badge tone="amber">Differs by {inr(data.balance.bank - data.balance.books)}</Badge>}</div> : null}
+        <div className="text-[13.5px]">{t("Matched lines")} <strong className="tnum">{data.matched}</strong></div>
+        <div className="text-[13.5px]">{t("Statement lines to match")} <strong className="tnum">{data.statement.length}</strong></div>
+        <div className="text-[13.5px]">{t("Book entries not on a statement")} <strong className="tnum">{data.books.length}</strong></div>
+        {data.balance ? <div className="text-[13.5px]">{t("On {day}:", { day: day(data.balance.date) })} {t("bank")} <strong className="tnum">{inr(data.balance.bank)}</strong> · {t("books")} <strong className="tnum">{inr(data.balance.books)}</strong> {data.balance.bank === data.balance.books ? <Badge tone="green">Agrees</Badge> : <Badge tone="amber">{t("Differs by {amt}", { amt: inr(data.balance.bank - data.balance.books) })}</Badge>}</div> : null}
         <div className="ml-auto flex flex-wrap gap-2 max-sm:ml-0 max-sm:w-full">
-          <Button onClick={exportCsv} className="max-sm:flex-1"><Download size={15} />Export unmatched (CSV)</Button>
-          {canAct ? <label className="inline-flex items-center justify-center gap-2 whitespace-nowrap max-sm:flex-1 h-[34px] max-md:h-10 px-3 rounded-lg bg-teal text-white text-[13px] font-semibold cursor-pointer"><FileUp size={15} />{pending ? "Importing…" : "Import statement"}
+          <Button onClick={exportCsv} className="max-sm:flex-1"><Download size={15} />{t("Export unmatched (CSV)")}</Button>
+          {canAct ? <label className="inline-flex items-center justify-center gap-2 whitespace-nowrap max-sm:flex-1 h-[34px] max-md:h-10 px-3 rounded-lg bg-teal text-white text-[13px] font-semibold cursor-pointer"><FileUp size={15} />{pending ? t("Importing…") : t("Import statement")}
             <input type="file" className="hidden" accept=".csv,.xlsx,.xls,.txt" disabled={pending} onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); upload(f); } e.target.value = ""; }} /></label> : null}
         </div>
       </div>
 
       {map && file ? (
         <div className={wrap + " p-4 flex flex-col gap-2.5"}>
-          <div className="font-semibold text-[14px]">Columns in {file.name}</div>
+          <div className="font-semibold text-[14px]">{t("Columns in {file}", { file: file.name })}</div>
           <div className="overflow-auto max-h-[200px] border border-line rounded">
             <table className="text-[11.5px] font-mono border-collapse"><tbody>{map.preview.map((r, i) => <tr key={i} style={{ background: i === map.mapping.headerRow ? "#E1F1EF" : undefined }}><td className="px-1.5 text-faint">{i + 1}</td>{r.map((c, j) => <td key={j} className="px-1.5 py-0.5 border-l border-row whitespace-nowrap">{c}</td>)}</tr>)}</tbody></table>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-2">
-            <Field label="Header row"><Select value={map.mapping.headerRow} onChange={(e) => setMap({ ...map, mapping: { ...map.mapping, headerRow: Number(e.target.value) } })}><option value={-1}>No header row</option>{map.preview.map((_, i) => <option key={i} value={i}>Row {i + 1}</option>)}</Select></Field>
+            <Field label="Header row"><Select value={map.mapping.headerRow} onChange={(e) => setMap({ ...map, mapping: { ...map.mapping, headerRow: Number(e.target.value) } })}><option value={-1}>{t("No header row")}</option>{map.preview.map((_, i) => <option key={i} value={i}>{t("Row {n}", { n: i + 1 })}</option>)}</Select></Field>
             {(Object.keys(BANK_FIELDS) as BankField[]).map((f) => (
-              <Field key={f} label={BANK_FIELDS[f]}>
+              <Field key={f} label={t(BANK_FIELDS[f])}>
                 <Select value={map.mapping.cols[f] ?? -1} onChange={(e) => { const v = Number(e.target.value); const cols = { ...map.mapping.cols }; if (v < 0) delete cols[f]; else cols[f] = v; setMap({ ...map, mapping: { ...map.mapping, cols } }); }}>
-                  <option value={-1}>—</option>{Array.from({ length: width }, (_, i) => <option key={i} value={i}>{i + 1}: {(map.mapping.headerRow >= 0 ? map.preview[map.mapping.headerRow]?.[i] : "") || `Column ${i + 1}`}</option>)}
+                  <option value={-1}>—</option>{Array.from({ length: width }, (_, i) => <option key={i} value={i}>{i + 1}: {(map.mapping.headerRow >= 0 ? map.preview[map.mapping.headerRow]?.[i] : "") || t("Column {n}", { n: i + 1 })}</option>)}
                 </Select>
               </Field>
             ))}
           </div>
-          <div className="flex items-center gap-3"><span className="text-[12px] text-faint">Need a date and either one signed amount column or separate withdrawal and deposit columns. The mapping is saved for next time.</span><Button variant="primary" size="sm" className="ml-auto" disabled={pending} onClick={() => upload(file, map.mapping)}>Import with these columns</Button></div>
+          <div className="flex items-center gap-3"><span className="text-[12px] text-faint">{t("Need a date and either one signed amount column or separate withdrawal and deposit columns. The mapping is saved for next time.")}</span><Button variant="primary" size="sm" className="ml-auto" disabled={pending} onClick={() => upload(file, map.mapping)}>Import with these columns</Button></div>
         </div>
       ) : null}
 
       <div className={wrap + " overflow-auto tbl-scroll"}>
-        <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">Statement lines not matched</div>
+        <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">{t("Statement lines not matched")}</div>
         {data.statement.length ? (
           <table className="w-full border-collapse text-[13px] min-w-[980px]">
-            <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Narration</th><th className={th}>Ref</th><th className={th + " text-right"}>Amount</th><th className={th}>Match to a book entry</th></tr></thead>
+            <thead><tr className="bg-subtle"><th className={th}>{t("Date")}</th><th className={th}>{t("Narration")}</th><th className={th}>{t("Ref")}</th><th className={th + " text-right"}>{t("Amount")}</th><th className={th}>{t("Match to a book entry")}</th></tr></thead>
             <tbody>{data.statement.map((s) => (
               <tr key={s.id}>
                 <td className={td + " whitespace-nowrap"}>{day(s.date)}</td><td className={td + " max-w-[360px] truncate"} title={s.description}>{s.description}</td><td className={td + " font-mono text-[12px]"}>{s.ref}</td><td className={td + " text-right"}>{amt(s.amount)}</td>
                 <td className={td}>{s.candidates.length ? (
                   <div className="flex gap-1.5">
-                    <select className="border border-input rounded-md px-2 py-1 text-[12.5px] bg-white min-w-0 flex-1" value={picks[s.id] ?? s.candidates[0].id} onChange={(e) => setPicks({ ...picks, [s.id]: e.target.value })} aria-label="Book entry">
+                    <select className="border border-input rounded-md px-2 py-1 text-[12.5px] bg-white min-w-0 flex-1" value={picks[s.id] ?? s.candidates[0].id} onChange={(e) => setPicks({ ...picks, [s.id]: e.target.value })} aria-label={t("Book entry")}>
                       {s.candidates.map((c) => <option key={c.id} value={c.id}>{day(c.date)} · {c.no} · {c.narration.slice(0, 50)}</option>)}
                     </select>
-                    {canAct ? <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await matchAction(s.id, picks[s.id] ?? s.candidates[0].id)); })}><Link2 size={13} />Match</Button> : null}
+                    {canAct ? <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await matchAction(s.id, picks[s.id] ?? s.candidates[0].id)); })}><Link2 size={13} />{t("Match")}</Button> : null}
                   </div>
                 ) : s.bills.length ? (
                   <div className="flex flex-col gap-1" data-testid="bill-suggestions">
-                    <span className="text-[12px] text-faint">No receipt in your books for this money. It may have paid:</span>
+                    <span className="text-[12px] text-faint">{t("No receipt in your books for this money. It may have paid:")}</span>
                     {s.bills.map((b) => (
                       <div key={b.saleId} className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[12.5px]">{b.label}</span><span className="text-[11.5px] text-faint">· {b.reason}</span>
+                        <span className="text-[12.5px]">{t(b.label)}</span><span className="text-[11.5px] text-faint">· {t(b.reason)}</span>
                         {canAct ? <>
-                          <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await billMatchAction(s.id, b.saleId)); })}><Link2 size={13} />Paid this bill</Button>
+                          <Button size="sm" disabled={pending} onClick={() => start(async () => { toastR(await billMatchAction(s.id, b.saleId)); })}><Link2 size={13} />{t("Paid this bill")}</Button>
                           <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { toastR(await rejectBillAction(s.id, b.saleId)); })}>Not this one</Button>
                         </> : null}
                       </div>
                     ))}
                   </div>
-                ) : <span className="text-[12.5px] text-faint">No entry in your books with this amount within 15 days of this date. Record the missing entry (for example bank charges or interest), then match it here.</span>}</td>
+                ) : <span className="text-[12.5px] text-faint">{t("No entry in your books with this amount within 15 days of this date. Record the missing entry (for example bank charges or interest), then match it here.")}</span>}</td>
               </tr>
             ))}</tbody>
           </table>
-        ) : <div className="px-4 pb-3 text-[13px] text-faint">Nothing to match. Import a statement to start.</div>}
+        ) : <div className="px-4 pb-3 text-[13px] text-faint">{t("Nothing to match. Import a statement to start.")}</div>}
       </div>
 
       <div className={wrap + " overflow-auto tbl-scroll"}>
-        <div className="px-4 pt-3 pb-1"><div className="font-semibold text-[14.5px]">Book entries not yet on a statement</div><div className="text-[12px] text-faint">Such as cheques not yet cleared or deposits the bank hasn’t credited yet</div></div>
+        <div className="px-4 pt-3 pb-1"><div className="font-semibold text-[14.5px]">{t("Book entries not yet on a statement")}</div><div className="text-[12px] text-faint">{t("Such as cheques not yet cleared or deposits the bank hasn’t credited yet")}</div></div>
         {data.books.length ? (
           <table className="w-full border-collapse text-[13px] min-w-[760px]">
-            <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Voucher</th><th className={th}>Narration</th><th className={th + " text-right"}>Amount</th></tr></thead>
+            <thead><tr className="bg-subtle"><th className={th}>{t("Date")}</th><th className={th}>{t("Voucher")}</th><th className={th}>{t("Narration")}</th><th className={th + " text-right"}>{t("Amount")}</th></tr></thead>
             <tbody>{data.books.map((b) => <tr key={b.id}><td className={td + " whitespace-nowrap"}>{day(b.date)}</td><td className={td + " font-mono text-[12px]"}>{b.no}</td><td className={td}>{b.narration}</td><td className={td + " text-right"}>{amt(b.amount)}</td></tr>)}</tbody>
           </table>
-        ) : <div className="px-4 pb-3 text-[13px] text-faint">Every bank entry in your books since your first statement is matched.</div>}
+        ) : <div className="px-4 pb-3 text-[13px] text-faint">{t("Every bank entry in your books since your first statement is matched.")}</div>}
       </div>
       {data.recent.length ? (
         <div className={wrap + " overflow-auto tbl-scroll"}>
-          <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">Recently matched</div>
+          <div className="px-4 pt-3 pb-1 font-semibold text-[14.5px]">{t("Recently matched")}</div>
           <table className="w-full border-collapse text-[13px] min-w-[760px]">
-            <thead><tr className="bg-subtle"><th className={th}>Date</th><th className={th}>Narration</th><th className={th + " text-right"}>Amount</th><th className={th + " max-sm:hidden"}>Voucher</th><th className={th + " max-sm:hidden"}>How</th>{canAct ? <th className={th} /> : null}</tr></thead>
+            <thead><tr className="bg-subtle"><th className={th}>{t("Date")}</th><th className={th}>{t("Narration")}</th><th className={th + " text-right"}>{t("Amount")}</th><th className={th + " max-sm:hidden"}>{t("Voucher")}</th><th className={th + " max-sm:hidden"}>{t("How")}</th>{canAct ? <th className={th} /> : null}</tr></thead>
             <tbody>{data.recent.map((r) => (
-              <tr key={r.id}><td className={td + " whitespace-nowrap"}>{day(r.date)}</td><td className={td + " max-w-[360px] truncate"}>{r.description}</td><td className={td + " text-right"}>{amt(r.amount)}</td><td className={td + " font-mono text-[12px] max-sm:hidden"}>{r.voucherNo}</td><td className={td + " max-sm:hidden"}><Badge tone={r.matchedBy === "auto" || r.matchedBy === "bill-auto" ? "teal" : "gray"}>{r.matchedBy === "auto" || r.matchedBy === "bill-auto" ? "Automatic" : "Manual"}</Badge>{r.bill ? <span className="ml-1.5 text-[12px] text-muted">paid {r.bill}</span> : null}</td>
-                {canAct ? <td className={td + " text-right"}><Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { toastR(await unmatchAction(r.id)); })}><Unlink size={13} />Unmatch</Button></td> : null}</tr>
+              <tr key={r.id}><td className={td + " whitespace-nowrap"}>{day(r.date)}</td><td className={td + " max-w-[360px] truncate"}>{r.description}</td><td className={td + " text-right"}>{amt(r.amount)}</td><td className={td + " font-mono text-[12px] max-sm:hidden"}>{r.voucherNo}</td><td className={td + " max-sm:hidden"}><Badge tone={r.matchedBy === "auto" || r.matchedBy === "bill-auto" ? "teal" : "gray"}>{r.matchedBy === "auto" || r.matchedBy === "bill-auto" ? "Automatic" : "Manual"}</Badge>{r.bill ? <span className="ml-1.5 text-[12px] text-muted">{t("paid {bill}", { bill: r.bill })}</span> : null}</td>
+                {canAct ? <td className={td + " text-right"}><Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => { toastR(await unmatchAction(r.id)); })}><Unlink size={13} />{t("Unmatch")}</Button></td> : null}</tr>
             ))}</tbody>
           </table>
         </div>

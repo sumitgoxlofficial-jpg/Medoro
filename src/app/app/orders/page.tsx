@@ -5,6 +5,7 @@ import { listOrders, orderCounts, recentSettlements, riderCash, riders } from "@
 import { orderSettings } from "@/domain/orders/notify";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
+import { tFor } from "@/lib/tr";
 import { OrdersView } from "./view";
 
 export const metadata = { title: "Orders & delivery" };
@@ -20,7 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   ]);
   return (
     <>
-      <PageHead title={t(ctx.lang).ord} sub={`${ctx.branchName} · phone, WhatsApp and counter orders, billed at packing`} />
+      <PageHead title={t(ctx.lang).ord} sub={`${ctx.branchName} · ${tFor(ctx.lang)("phone, WhatsApp and counter orders, billed at packing")}`} />
       <OrdersView
         tab={tab} q={sp.q ?? ""} orders={orders} counts={counts} riders={team} cash={cash} settlements={settlements}
         customers={customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone, optIn: c.optIn, limit: c.limit }))}

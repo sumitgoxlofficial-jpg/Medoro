@@ -4,12 +4,38 @@
  *   t("Save")                          → "सेव करें"
  *   t("Only {n} in this batch.", { n }) → the Hindi line with {n} filled in
  *   t(`Only ${have} in this batch.`)   → also works: an entry with {…} placeholders matches dynamic text
+ *   t("Open", { ctx: "verb" })         → "Open@verb" when one word needs different Hindi on different screens
  *
  * Text with no Hindi entry is shown in English, so a missing line never breaks a screen. The Hindi lines live in
  * src/lib/hi/*.ts, one file per area; `i18n-coverage.test.ts` fails when a t("…") or <T>…</T> in the code has no
  * Hindi line. Works on the server and in the browser (no React here).
+ *
+ * The Hindi lines are large, so browsers load them only when Hindi is chosen (LangProvider calls loadHindi());
+ * the server always has them.
  */
-import { HI } from "./hi";
+type Pattern = { re: RegExp; names: string[]; hi: string };
+let patterns: Pattern[] | null = null;
+let HI: Record<string, string> = {};
+let loaded = false;
+let loading: Promise<void> | null = null;
+const setDict = (d: Record<string, string>) => { HI = d; loaded = true; patterns = null; };
+
+// Next.js drops this branch from browser bundles, so the lines aren't sent to people using English.
+if (typeof window === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  setDict((require("./hi") as typeof import("./hi")).HI);
+}
+
+/** Whether the Hindi lines are here (or couldn't be fetched, in which case screens show English). */
+export const hindiLoaded = () => loaded;
+
+/** Loads the Hindi lines (once). If they can't be fetched (offline on a new device), screens stay in English. */
+export function loadHindi(): Promise<void> {
+  if (loaded) return Promise.resolve();
+  // A failed fetch counts as done (English) so the page doesn't keep retrying; the next page load tries again.
+  loading ??= import("./hi").then((m) => setDict(m.HI), () => { loaded = true; });
+  return loading;
+}
 
 export type Lang = "en" | "hi";
 export type Vars = Record<string, string | number | null | undefined>;
@@ -17,8 +43,6 @@ export type TFn = (s: string, vars?: Vars) => string;
 
 const fill = (s: string, vars?: Vars) => (vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (vars[k] === undefined || vars[k] === null ? m : String(vars[k]))) : s);
 
-type Pattern = { re: RegExp; names: string[]; hi: string };
-let patterns: Pattern[] | null = null;
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Entries with {placeholders}, longest first so the most specific line wins. */
 function compiled(): Pattern[] {
@@ -38,7 +62,10 @@ function compiled(): Pattern[] {
 
 /** Hindi for one line of English (the line itself when there is none). */
 export function hindi(s: string, vars?: Vars): string {
-  const direct = HI[s] ?? HI[s.trim()];
+  // The same English word can need different Hindi on different screens ("Open" a page vs an "Open" claim):
+  // t("Open", { ctx: "verb" }) looks for "Open@verb" first. English is unchanged.
+  const ctx = vars?.ctx ? HI[`${s}@${vars.ctx}`] : undefined;
+  const direct = ctx ?? HI[s] ?? HI[s.trim()];
   if (direct !== undefined) return fill(direct, vars);
   if (vars) return fill(s, vars);
   if (!s || !/[A-Za-z]/.test(s)) return s;

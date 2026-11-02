@@ -58,6 +58,10 @@ describe("Hindi", () => {
     expect(translate("hi", "Close")).toBe(HI.Close);
     expect(translate("en", "Only {n} left", { n: 3 })).toBe("Only 3 left");
     expect(hindi("A line nobody wrote")).toBe("A line nobody wrote");
+    // One English word, different Hindi per screen; English stays the same.
+    expect(translate("en", "Open", { ctx: "verb" })).toBe("Open");
+    expect(translate("hi", "Open", { ctx: "verb" })).toBe(HI["Open@verb"]);
+    expect(translate("hi", "Open")).toBe(HI.Open);
     const key = Object.keys(HI).find((k) => /^[^{]*\{\w+\}[^{]*$/.test(k));
     if (key) {
       const sample = key.replace(/\{\w+\}/, "42");

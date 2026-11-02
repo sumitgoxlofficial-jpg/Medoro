@@ -3,21 +3,30 @@ import {
   ArrowRight, Check, CloudOff, Download, FileCheck, HardDriveUpload, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, Plus,
   ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
+import { SiteLangCarryOver } from "@/components/site/header";
 import { FeatureTabs, Hero, Marquee, Pricing } from "@/components/site/interactive";
 import { PRODUCTS } from "@/staff/constants";
+import { getLang } from "@/server/lang";
+import { tFor } from "@/lib/tr";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
 const TITLE = "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores";
 const DESC = "Billing with FEFO batches, expiry control, purchases, GST and accounts, WhatsApp invoices and offline billing for Indian medical stores and small chains. Runs on infrastructure you control. 7-day free trial.";
 
-export const metadata: Metadata = {
-  title: { absolute: TITLE },
-  description: DESC,
-  alternates: { canonical: "/" },
-  openGraph: { type: "website", url: "/", siteName: "Medoro", title: TITLE, description: DESC, locale: "en_IN" },
-  twitter: { card: "summary_large_image", title: TITLE, description: DESC },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getLang();
+  const t = tFor(lang);
+  const title = t(TITLE), description = t(DESC);
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: "/" },
+    openGraph: { type: "website", url: "/", siteName: "Medoro", title, description, locale: lang === "hi" ? "hi_IN" : "en_IN" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 const STANDARDS: [typeof Check, string, string][] = [
   [ReceiptIndianRupee, "GST", "MRP-inclusive, CGST, SGST and IGST"],
@@ -36,7 +45,7 @@ const LEAKS: [string, string, string][] = [
   ["Not knowing the numbers when you’re away", "Sales, cash, margin and dues for every branch on your phone, with the expiry and low-stock lists that need your attention.", "/#product"],
 ];
 
-const KEYS: [string, string, string][] = [["F2", "Search", "dolo"], ["Enter", "Add to bill", "Dolo 650 · batch DL24091 · exp 05/2027"], ["F9", "Complete sale", "INV/25-26/0418 · ₹67.20 · UPI"]];
+const KEYS: [string, string, string][] = [["F2", "Search", "dolo"], ["Enter", "Add to bill", "Dolo 650 · batch {batch} · exp {exp}"], ["F9", "Complete sale", "INV/25-26/0418 · ₹67.20 · UPI"]];
 
 const COMPARE: [string, string, string][] = [
   ["Where you can use it", "Usually one PC in the shop", "Every counter, a tablet and your phone"],
@@ -107,12 +116,20 @@ const jsonLd = {
   publisher: { "@type": "Organization", name: "Medoro", url: SITE, email: "hello@medoro.in", areaServed: "IN" },
 };
 
-export default function Home() {
+// The four figures under the product tabs: [number, prefix, suffix, line].
+const FACTS = [["7", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const;
+
+export default async function Home() {
+  const lang = await getLang();
+  const t = tFor(lang);
+  // Visitors who chose हिंदी on the old homepage toggle (kept in the browser) get the site-wide cookie once.
+  const carryOver = !(await cookies()).has("medoro_lang");
   return (
     <div className="site-root bg-white overflow-x-clip">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow">Skip to content</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow">{t("Skip to content")}</a>
       <SiteHeader />
       <SiteMotion />
+      {carryOver ? <SiteLangCarryOver /> : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
       <main id="main">
@@ -120,35 +137,35 @@ export default function Home() {
 
         <section aria-labelledby="standards-title" className="border-b border-[var(--s-line)]">
           <div className={`${wrap} py-14 flex flex-col gap-10`}>
-            <h2 id="standards-title" className="m-0 text-[15px] font-semibold text-[var(--s-ink)]">Built for how Indian pharmacies work</h2>
+            <h2 id="standards-title" className="m-0 text-[15px] font-semibold text-[var(--s-ink)]">{t("Built for how Indian pharmacies work")}</h2>
             <ul className="m-0 p-0 list-none grid gap-x-8 gap-y-6 border-y border-[var(--s-line)] py-7 grid-cols-2 min-[720px]:grid-cols-3 min-[1100px]:grid-cols-6">
-              {STANDARDS.map(([Icon, t, d], i) => (
-                <li key={t} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-1.5">
-                  <span className="flex items-center gap-2 text-[17px] font-semibold text-[var(--s-ink)]"><Icon size={18} aria-hidden className="text-[var(--s-brand)]" />{t}</span>
-                  <span className="text-[15px] text-[var(--s-muted)]">{d}</span>
+              {STANDARDS.map(([Icon, name, d], i) => (
+                <li key={name} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-1.5">
+                  <span className="flex items-center gap-2 text-[17px] font-semibold text-[var(--s-ink)]"><Icon size={18} aria-hidden className="text-[var(--s-brand)]" />{t(name)}</span>
+                  <span className="text-[15px] text-[var(--s-muted)]">{t(d)}</span>
                 </li>
               ))}
             </ul>
             <div className="flex items-center gap-6 max-[720px]:flex-col max-[720px]:items-stretch max-[720px]:gap-3">
-              <span className="text-[14px] text-[var(--s-muted)] whitespace-nowrap">Works with</span>
-              <div className="flex-1 min-w-0"><Marquee items={WORKS_WITH} /></div>
+              <span className="text-[14px] text-[var(--s-muted)] whitespace-nowrap">{t("Works with")}</span>
+              <div className="flex-1 min-w-0"><Marquee items={WORKS_WITH.map((w) => t(w))} /></div>
             </div>
           </div>
         </section>
 
         <section aria-labelledby="leaks-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
           <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
-            <span className={eyebrow}>Why owners switch</span>
-            <h2 id="leaks-title" className={h2}>Where a medical store quietly loses money.</h2>
-            <p className={lead}>Most of it is not theft or bad luck. It is stock nobody noticed, a slow counter on a busy evening, and hours lost to GST every month.</p>
+            <span className={eyebrow}>{t("Why owners switch")}</span>
+            <h2 id="leaks-title" className={h2}>{t("Where a medical store quietly loses money.")}</h2>
+            <p className={lead}>{t("Most of it is not theft or bad luck. It is stock nobody noticed, a slow counter on a busy evening, and hours lost to GST every month.")}</p>
           </div>
           <ol className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 m-0 p-0 list-none flex flex-col">
-            {LEAKS.map(([t, d], i) => (
-              <li key={t} data-reveal className="grid grid-cols-[56px_minmax(0,1fr)] max-[640px]:grid-cols-1 gap-x-4 gap-y-2 py-8 border-t border-[var(--s-line)] last:border-b">
+            {LEAKS.map(([title, d], i) => (
+              <li key={title} data-reveal className="grid grid-cols-[56px_minmax(0,1fr)] max-[640px]:grid-cols-1 gap-x-4 gap-y-2 py-8 border-t border-[var(--s-line)] last:border-b">
                 <span className="site-num text-[15px] text-[var(--s-brand)] pt-1">{String(i + 1).padStart(2, "0")}</span>
                 <div className="flex flex-col gap-2">
-                  <h3 className="m-0 text-[22px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t}</h3>
-                  <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{d}</p>
+                  <h3 className="m-0 text-[22px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t(title)}</h3>
+                  <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t(d)}</p>
                 </div>
               </li>
             ))}
@@ -158,9 +175,9 @@ export default function Home() {
         <section aria-labelledby="keys-title" className="site-dark bg-[var(--s-dark)] text-white">
           <div className={`${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
             <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
-              <span className="text-[14px] font-semibold text-[#8FD3C6]">At the counter</span>
-              <h2 id="keys-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">A bill in three keys.</h2>
-              <p className="m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">Your staff never reach for the mouse. Search, add, finish. Medoro picks the batch that expires first and skips anything expired or quarantined.</p>
+              <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("At the counter")}</span>
+              <h2 id="keys-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("A bill in three keys.")}</h2>
+              <p className="m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">{t("Your staff never reach for the mouse. Search, add, finish. Medoro picks the batch that expires first and skips anything expired or quarantined.")}</p>
             </div>
             <div data-play className="site-keys col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7">
               <ol className="m-0 p-0 list-none flex flex-col gap-3">
@@ -168,8 +185,8 @@ export default function Home() {
                   <li key={k} data-step style={{ ["--step" as string]: i }} className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-5 bg-white/[.04] border border-white/10 rounded-xl px-5 py-4 max-[480px]:grid-cols-1 max-[480px]:gap-2">
                     <kbd data-step style={{ ["--step" as string]: i }} className="site-num justify-self-start inline-flex items-center justify-center min-w-[64px] h-11 px-3 rounded-lg bg-white text-[var(--s-ink)] text-[16px] font-medium border border-[#C9D1CF] shadow-[0_2px_0_#C9D1CF]">{k}</kbd>
                     <span className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[14px] text-[#9FB5B1]">{label}</span>
-                      <span className="site-num text-[16px] text-white break-words">{out}</span>
+                      <span className="text-[14px] text-[#9FB5B1]">{t(label)}</span>
+                      <span className="site-num text-[16px] text-white break-words">{t(out, { batch: "DL24091", exp: "05/2027" })}</span>
                     </span>
                   </li>
                 ))}
@@ -180,21 +197,21 @@ export default function Home() {
 
         <section id="product" aria-labelledby="product-title" className={`${wrap} pt-[clamp(72px,10vw,128px)] pb-[clamp(56px,8vw,96px)] flex flex-col gap-12`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
-            <span className={eyebrow}>The product</span>
-            <h2 id="product-title" className={h2}>One system for the counter, the godown and your CA.</h2>
-            <p className={lead}>Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.</p>
+            <span className={eyebrow}>{t("The product")}</span>
+            <h2 id="product-title" className={h2}>{t("One system for the counter, the godown and your CA.")}</h2>
+            <p className={lead}>{t("Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.")}</p>
           </div>
           <FeatureTabs />
         </section>
 
         <section aria-labelledby="facts-title" className="border-y border-[var(--s-line)] bg-[var(--s-soft)]">
-          <h2 id="facts-title" className="sr-only">Medoro in numbers</h2>
+          <h2 id="facts-title" className="sr-only">{t("Medoro in numbers")}</h2>
           <div className={wrap}>
             <dl className="m-0 -mx-6 max-[640px]:-mx-4 grid grid-cols-2 min-[900px]:grid-cols-4">
-              {([["7", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const).map(([n, pre, suf, d], i) => (
+              {FACTS.map(([n, pre, suf, d], i) => (
                 <div key={d} className={`flex flex-col gap-2 py-10 px-6 max-[640px]:px-4 max-[640px]:py-8 border-[var(--s-line)] ${i > 0 ? "min-[900px]:border-l" : ""} ${i % 2 ? "max-[899px]:border-l" : ""} ${i > 1 ? "max-[899px]:border-t" : ""}`}>
-                  <dt className="flex items-baseline text-[var(--s-ink)]"><span className="site-display text-[clamp(40px,4.4vw,56px)] leading-none" data-count={n} data-prefix={pre}>{pre}{Number(n).toLocaleString("en-IN")}</span><span className={`text-[17px] font-medium ${suf.startsWith("-") ? "" : "ml-1.5"}`}>{suf}</span></dt>
-                  <dd className="m-0 text-[15px] text-[var(--s-muted)]">{d}</dd>
+                  <dt className="flex items-baseline text-[var(--s-ink)]"><span className="site-display text-[clamp(40px,4.4vw,56px)] leading-none" data-count={n} data-prefix={pre}>{pre}{Number(n).toLocaleString("en-IN")}</span><span className={`text-[17px] font-medium ${t(suf).startsWith("-") ? "" : "ml-1.5"}`}>{t(suf)}</span></dt>
+                  <dd className="m-0 text-[15px] text-[var(--s-muted)]">{t(d)}</dd>
                 </div>
               ))}
             </dl>
@@ -203,37 +220,37 @@ export default function Home() {
 
         <section aria-labelledby="compare-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
-            <span className={eyebrow}>Compared</span>
-            <h2 id="compare-title" className={h2}>What changes from the usual desktop billing software.</h2>
-            <p className={lead}>Desktop software has served pharmacies well for years. This is what a store gets on top when billing, stock and accounts are connected.</p>
+            <span className={eyebrow}>{t("Compared")}</span>
+            <h2 id="compare-title" className={h2}>{t("What changes from the usual desktop billing software.")}</h2>
+            <p className={lead}>{t("Desktop software has served pharmacies well for years. This is what a store gets on top when billing, stock and accounts are connected.")}</p>
           </div>
           <div data-reveal className="max-[719px]:hidden">
             <table className="w-full border-collapse text-[16px]">
-              <caption className="sr-only">Typical desktop pharmacy software compared with Medoro</caption>
+              <caption className="sr-only">{t("Typical desktop pharmacy software compared with Medoro")}</caption>
               <thead>
                 <tr className="text-left">
-                  <th scope="col" className="w-[24%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]"><span className="sr-only">Area</span></th>
-                  <th scope="col" className="w-[33%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]">Typical desktop software</th>
+                  <th scope="col" className="w-[24%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]"><span className="sr-only">{t("Area")}</span></th>
+                  <th scope="col" className="w-[33%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]">{t("Typical desktop software")}</th>
                   <th scope="col" className="py-4 font-semibold text-[15px] text-[var(--s-brand)] border-b-2 border-[var(--s-brand)]">Medoro</th>
                 </tr>
               </thead>
               <tbody>
-                {COMPARE.map(([a, t, m]) => (
+                {COMPARE.map(([a, typical, m]) => (
                   <tr key={a} className="align-top">
-                    <th scope="row" className="py-4 pr-6 text-left font-semibold text-[var(--s-ink)] border-b border-[var(--s-line)]">{a}</th>
-                    <td className="py-4 pr-6 text-[var(--s-muted)] border-b border-[var(--s-line)]">{t}</td>
-                    <td className="py-4 text-[var(--s-ink)] border-b border-[var(--s-line)]"><span className="flex gap-2.5 items-start"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" />{m}</span></td>
+                    <th scope="row" className="py-4 pr-6 text-left font-semibold text-[var(--s-ink)] border-b border-[var(--s-line)]">{t(a)}</th>
+                    <td className="py-4 pr-6 text-[var(--s-muted)] border-b border-[var(--s-line)]">{t(typical, { ctx: "site" })}</td>
+                    <td className="py-4 text-[var(--s-ink)] border-b border-[var(--s-line)]"><span className="flex gap-2.5 items-start"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" />{t(m)}</span></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <ul className="min-[720px]:hidden m-0 p-0 list-none flex flex-col border-t-2 border-[var(--s-ink)]">
-            {COMPARE.map(([a, t, m]) => (
+            {COMPARE.map(([a, typical, m]) => (
               <li key={a} className="py-5 border-b border-[var(--s-line)] flex flex-col gap-2">
-                <span className="text-[17px] font-semibold text-[var(--s-ink)]">{a}</span>
-                <span className="text-[15px] text-[var(--s-muted)]"><span className="font-medium">Typical: </span>{t}</span>
-                <span className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink)]"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" /><span><span className="sr-only">Medoro: </span>{m}</span></span>
+                <span className="text-[17px] font-semibold text-[var(--s-ink)]">{t(a)}</span>
+                <span className="text-[15px] text-[var(--s-muted)]"><span className="font-medium">{`${t("Typical:")} `}</span>{t(typical, { ctx: "site" })}</span>
+                <span className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink)]"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" /><span><span className="sr-only">Medoro: </span>{t(m)}</span></span>
               </li>
             ))}
           </ul>
@@ -243,23 +260,23 @@ export default function Home() {
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-14`}>
             <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
               <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
-                <span className={eyebrow}>Switching</span>
-                <h2 id="switching-title" className={h2}>Switch in an afternoon. Bill on Medoro the next morning.</h2>
+                <span className={eyebrow}>{t("Switching")}</span>
+                <h2 id="switching-title" className={h2}>{t("Switch in an afternoon. Bill on Medoro the next morning.")}</h2>
               </div>
-              <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>No re-typing your catalogue. Bring your stock across from Excel, or let us do it with assisted migration.</p>
+              <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("No re-typing your catalogue. Bring your stock across from Excel, or let us do it with assisted migration.")}</p>
             </div>
             <ol className="m-0 p-0 list-none grid gap-x-6 gap-y-10 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-4">
-              {STEPS.map(([when, t, d], i) => (
-                <li key={t} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-3 border-t-2 border-[var(--s-brand)] pt-5">
-                  <span className="site-num text-[13.5px] text-[var(--s-brand)]">{String(i + 1).padStart(2, "0")} · {when}</span>
-                  <h3 className="m-0 text-[21px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t}</h3>
-                  <p className="m-0 text-[16px] text-[var(--s-ink-2)]">{d}</p>
+              {STEPS.map(([when, title, d], i) => (
+                <li key={title} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-3 border-t-2 border-[var(--s-brand)] pt-5">
+                  <span className="site-num text-[13.5px] text-[var(--s-brand)]">{String(i + 1).padStart(2, "0")} · {t(when)}</span>
+                  <h3 className="m-0 text-[21px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t(title)}</h3>
+                  <p className="m-0 text-[16px] text-[var(--s-ink-2)]">{t(d)}</p>
                 </li>
               ))}
             </ol>
             <div data-reveal className="flex gap-4 flex-wrap items-center">
-              <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">Start the free trial<ArrowRight size={17} aria-hidden /></a>
-              <span className="text-[15px] text-[var(--s-muted)]">Assisted setup and training: ₹{PRODUCTS.find((p) => p.id === "setup")!.m.toLocaleString("en-IN")} once. Stock migration from ₹2,999.</span>
+              <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{t("Start the free trial")}<ArrowRight size={17} aria-hidden /></a>
+              <span className="text-[15px] text-[var(--s-muted)]">{t("Assisted setup and training: {amount} once. Stock migration from ₹2,999.", { amount: "₹" + PRODUCTS.find((p) => p.id === "setup")!.m.toLocaleString("en-IN") })}</span>
             </div>
           </div>
         </section>
@@ -268,29 +285,29 @@ export default function Home() {
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-16`}>
             <div className="grid grid-cols-12 gap-x-6 gap-y-12 items-center">
               <div data-reveal className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
-                <span className="text-[14px] font-semibold text-[#8FD3C6]">Security and data ownership</span>
-                <h2 id="security-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">Your data, your Drive.</h2>
-                <p className="m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">Medoro runs on infrastructure you control: a PC in your shop, your own server or your own cloud account. Invoices, stock, customers and prescriptions stay there. Medoro sees your account and licence, nothing more.</p>
-                <a href="#faq" className="site-link-arrow self-start text-[16px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white flex gap-1.5 items-center">What exactly leaves my server?<ArrowRight size={16} aria-hidden /></a>
+                <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("Security and data ownership")}</span>
+                <h2 id="security-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("Your data, your Drive.")}</h2>
+                <p className="m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">{t("Medoro runs on infrastructure you control: a PC in your shop, your own server or your own cloud account. Invoices, stock, customers and prescriptions stay there. Medoro sees your account and licence, nothing more.")}</p>
+                <a href="#faq" className="site-link-arrow self-start text-[16px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white flex gap-1.5 items-center">{t("What exactly leaves my server?")}<ArrowRight size={16} aria-hidden /></a>
               </div>
-              <div data-reveal className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 flex flex-col gap-4" role="img" aria-label="Diagram: counters, the Medoro app and your database run in your environment. Only encrypted backups go to your Google Drive, invoice PDFs to WhatsApp when you send them, and account and licence details to Medoro.">
+              <div data-reveal className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 flex flex-col gap-4" role="img" aria-label={t("Diagram: counters, the Medoro app and your database run in your environment. Only encrypted backups go to your Google Drive, invoice PDFs to WhatsApp when you send them, and account and licence details to Medoro.")}>
                 <div className="rounded-xl border border-[#2C5A55] bg-white/[.03] p-5 flex flex-col gap-4">
-                  <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6] flex gap-2 items-center"><Lock size={14} aria-hidden />Your environment</span>
+                  <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6] flex gap-2 items-center"><Lock size={14} aria-hidden />{t("Your environment")}</span>
                   <div className="grid grid-cols-3 gap-3">
-                    {ENV.map(([Icon, l]) => <div key={l} className="rounded-lg bg-white/[.06] border border-white/10 px-3 py-4 flex flex-col items-center gap-2 text-center text-[14px]"><Icon size={22} aria-hidden className="text-[#8FD3C6]" />{l}</div>)}
+                    {ENV.map(([Icon, l]) => <div key={l} className="rounded-lg bg-white/[.06] border border-white/10 px-3 py-4 flex flex-col items-center gap-2 text-center text-[14px]"><Icon size={22} aria-hidden className="text-[#8FD3C6]" />{t(l)}</div>)}
                   </div>
                 </div>
                 <div aria-hidden className="grid grid-cols-3 gap-3 justify-items-center max-[559px]:hidden">{[0, 1, 2].map((i) => <span key={i} className="w-px h-7 bg-[linear-gradient(#2C5A55,transparent)]" />)}</div>
                 <div className="grid gap-3 min-[560px]:grid-cols-3">
-                  {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="rounded-lg border border-white/10 p-4 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{l}</span><span className="text-[14px] text-[#9FB5B1]">{d}</span></div>)}
+                  {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="rounded-lg border border-white/10 p-4 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{t(l)}</span><span className="text-[14px] text-[#9FB5B1]">{t(d)}</span></div>)}
                 </div>
               </div>
             </div>
             <ul className="m-0 p-0 list-none grid gap-x-10 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
-              {SEC.map(([Icon, t, d], i) => (
-                <li key={t} data-reveal style={{ ["--d" as string]: i % 3 }} className="border-t border-white/15 py-7 flex flex-col gap-2">
-                  <span className="flex gap-2.5 items-center text-[17px] font-semibold"><Icon size={18} aria-hidden className="text-[#8FD3C6]" />{t}</span>
-                  <span className="text-[15.5px] text-[#B5C7C3]">{d}</span>
+              {SEC.map(([Icon, title, d], i) => (
+                <li key={title} data-reveal style={{ ["--d" as string]: i % 3 }} className="border-t border-white/15 py-7 flex flex-col gap-2">
+                  <span className="flex gap-2.5 items-center text-[17px] font-semibold"><Icon size={18} aria-hidden className="text-[#8FD3C6]" />{t(title)}</span>
+                  <span className="text-[15.5px] text-[#B5C7C3]">{t(d)}</span>
                 </li>
               ))}
             </ul>
@@ -300,33 +317,33 @@ export default function Home() {
         <section id="pricing" aria-labelledby="pricing-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
           <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
             <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
-              <span className={eyebrow}>Pricing</span>
-              <h2 id="pricing-title" className={h2}>Plain prices in rupees. 7 days free.</h2>
+              <span className={eyebrow}>{t("Pricing", { ctx: "site" })}</span>
+              <h2 id="pricing-title" className={h2}>{t("Plain prices in rupees. 7 days free.")}</h2>
             </div>
-            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>Prices include 18% GST. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.</p>
+            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("Prices include 18% GST. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.")}</p>
           </div>
           <Pricing />
-          <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">Launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.</p>
+          <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">{t("Launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.")}</p>
         </section>
 
         <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
-              <span className={eyebrow}>FAQ</span>
-              <h2 id="faq-title" className={h2}>Questions owners ask us.</h2>
-              <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">Something else? Message us on WhatsApp and someone who knows pharmacy billing will reply.</p>
-              <a href={WA_DEMO} className="self-start inline-flex items-center gap-2 h-11 px-4 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={16} aria-hidden className="text-[#146C43]" />Ask on WhatsApp</a>
+              <span className={eyebrow}>{t("FAQ")}</span>
+              <h2 id="faq-title" className={h2}>{t("Questions owners ask us.")}</h2>
+              <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t("Something else? Message us on WhatsApp and someone who knows pharmacy billing will reply.")}</p>
+              <a href={WA_DEMO} className="self-start inline-flex items-center gap-2 h-11 px-4 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={16} aria-hidden className="text-[#146C43]" />{t("Ask on WhatsApp")}</a>
             </div>
             <div className="site-faq col-span-12 min-[1000px]:col-span-7 min-[1000px]:col-start-6 flex flex-col gap-10">
               {FAQ.map((g) => (
                 <div key={g.title} className="flex flex-col">
-                  <h3 className="m-0 pb-3 text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-muted)]">{g.title}</h3>
+                  <h3 className="m-0 pb-3 text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-muted)]">{t(g.title)}</h3>
                   {g.items.map(([q, a]) => (
                     <details key={q} name="faq" className="border-t border-[var(--s-line)] last:border-b">
                       <summary className="flex justify-between items-center gap-6 py-5 text-[18px] font-semibold text-[var(--s-ink)] rounded-md">
-                        {q}<Plus size={20} aria-hidden className="site-plus flex-none text-[var(--s-brand)]" />
+                        {t(q)}<Plus size={20} aria-hidden className="site-plus flex-none text-[var(--s-brand)]" />
                       </summary>
-                      <p className="m-0 pb-6 pr-10 text-[16.5px] text-[var(--s-ink-2)]">{a}</p>
+                      <p className="m-0 pb-6 pr-10 text-[16.5px] text-[var(--s-ink-2)]">{t(a)}</p>
                     </details>
                   ))}
                 </div>
@@ -338,12 +355,12 @@ export default function Home() {
         <section aria-labelledby="cta-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
           <div data-reveal className="rounded-2xl bg-[var(--s-brand)] text-white px-[clamp(24px,6vw,72px)] py-[clamp(48px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end">
             <div className="col-span-12 min-[1000px]:col-span-8 flex flex-col gap-4">
-              <h2 id="cta-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">Set up your counter this afternoon.</h2>
-              <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.</p>
+              <h2 id="cta-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("Set up your counter this afternoon.")}</h2>
+              <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">{t("Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.")}</p>
             </div>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:justify-self-end min-[1000px]:w-[280px]">
-              <a href="/trial" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">Start 7-day free trial<ArrowRight size={17} aria-hidden /></a>
-              <a href={WA_DEMO} className="w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />Get a demo on WhatsApp</a>
+              <a href="/trial" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
+              <a href={WA_DEMO} className="w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />{t("Get a demo on WhatsApp")}</a>
             </div>
           </div>
         </section>

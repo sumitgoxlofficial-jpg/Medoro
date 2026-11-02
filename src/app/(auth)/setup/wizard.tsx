@@ -9,6 +9,8 @@ import { GSTIN_RE, MOBILE_RE, ROLE_OPTIONS, inviteContact, normPhone } from "@/d
 import { setupAction, signupAction, testDatabase } from "../actions";
 import { useSetupDrive } from "./drive-connect";
 import { downloadRecoveryKit } from "@/components/recovery-kit";
+import { useLang, useT } from "@/lib/i18n-client";
+import { setLang } from "@/app/app/actions";
 
 const LABELS = ["Pharmacy", "Your account", "Database", "Branches", "Team", "Backups", "Done"];
 const inp = "border border-input rounded-lg px-3 py-2.5 text-[14px] outline-none bg-white focus:border-teal focus:ring-2 focus:ring-teal/15 w-full";
@@ -31,11 +33,12 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   const router = useRouter();
   const drive = useSetupDrive(driveAccount);
   const toast = useToast();
+  const t = useT(), lang = useLang();
   const [step, setStep] = useState(1);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
 
-  const [ph, setPh] = useState({ name: "", code: "", gstin: "", dl: "", pharmacist: "", address: "", lang: "en" as "en" | "hi" | "hinglish" });
+  const [ph, setPh] = useState({ name: "", code: "", gstin: "", dl: "", pharmacist: "", address: "", lang: lang as "en" | "hi" | "hinglish" });
   const [codeTouched, setCodeTouched] = useState(false);
   // Signing up with Google: the owner is that Google account, so no password is needed to get in.
   const [owner, setOwner] = useState({ name: google?.name ?? "", email: google?.email ?? verifiedEmail, phone: "", password: "", password2: "" });
@@ -59,6 +62,12 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
       return n;
     });
     if (k === "code") setCodeTouched(true);
+  };
+  // The pharmacy's default language also switches this screen (the same cookie as the EN / हिंदी switch).
+  const pickLang = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setP("lang")(e);
+    const l = e.target.value === "hi" ? "hi" : "en";
+    if (l !== lang) start(async () => { await setLang(l); router.refresh(); });
   };
   const setO = (k: keyof typeof owner) => (e: React.ChangeEvent<HTMLInputElement>) => setOwner((x) => ({ ...x, [k]: e.target.value }));
 
@@ -126,41 +135,41 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
   return (
     <div className="w-[min(860px,100%)] flex flex-col gap-[18px]">
       {step === 1 && onRestore ? (
-        <button type="button" onClick={onRestore} className="self-start text-[13.5px] text-teal cursor-pointer bg-transparent border-0 p-0">Moving to a new server or recovering from a backup? Restore from a backup instead →</button>
+        <button type="button" onClick={onRestore} className="self-start text-[13.5px] text-teal cursor-pointer bg-transparent border-0 p-0">{t("Moving to a new server or recovering from a backup? Restore from a backup instead →")}</button>
       ) : null}
       <div className="flex gap-1.5 flex-wrap">
         {LABELS.map((l, i) => ({ l, n: i + 1 })).filter((x) => !(signup && x.n === 3)).map(({ l, n }, i) => (
           <div key={l} className="flex-1 min-w-[96px] flex flex-col gap-1.5">
             <div className="h-1 rounded-sm" style={{ background: n <= step ? "#0B5E5B" : "#DCE0E3" }} />
-            <span className="text-[12.5px]" style={{ color: n === step ? "#1F2328" : "#6B737B", fontWeight: n === step ? 600 : 400 }}>{i + 1}. {l}</span>
+            <span className="text-[12.5px]" style={{ color: n === step ? "#1F2328" : "#6B737B", fontWeight: n === step ? 600 : 400 }}>{i + 1}. {t(l)}</span>
           </div>
         ))}
       </div>
       <div className="bg-white border border-[#E3E6E9] rounded-[14px] px-7 py-[26px] flex flex-col gap-4">
         {step === 1 ? (
           <>
-            <div className="text-[19px] font-semibold">Your pharmacy</div>
+            <div className="text-[19px] font-semibold">{t("Your pharmacy")}</div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5">
-              <input className={inp} value={ph.name} onChange={setP("name")} placeholder="Pharmacy name *" aria-label="Pharmacy name" autoFocus />
-              <input className={cn(inp, "font-mono")} value={ph.gstin} onChange={setP("gstin")} placeholder="GSTIN (15 characters)" aria-label="GSTIN" maxLength={15} />
-              <input className={inp} value={ph.dl} onChange={setP("dl")} placeholder="Drug licence no. (20B/21B) *" aria-label="Drug licence number" />
-              <input className={inp} value={ph.pharmacist} onChange={setP("pharmacist")} placeholder="Registered pharmacist & reg. no." aria-label="Registered pharmacist" />
-              <input className={cn(inp, "col-span-full")} value={ph.address} onChange={setP("address")} placeholder="Address, city, PIN" aria-label="Address" />
+              <input className={inp} value={ph.name} onChange={setP("name")} placeholder={t("Pharmacy name *")} aria-label={t("Pharmacy name")} autoFocus />
+              <input className={cn(inp, "font-mono")} value={ph.gstin} onChange={setP("gstin")} placeholder={t("GSTIN (15 characters)")} aria-label="GSTIN" maxLength={15} />
+              <input className={inp} value={ph.dl} onChange={setP("dl")} placeholder={t("Drug licence no. (20B/21B) *")} aria-label={t("Drug licence number")} />
+              <input className={inp} value={ph.pharmacist} onChange={setP("pharmacist")} placeholder={t("Registered pharmacist & reg. no.")} aria-label={t("Registered pharmacist")} />
+              <input className={cn(inp, "col-span-full")} value={ph.address} onChange={setP("address")} placeholder={t("Address, city, PIN")} aria-label={t("Address")} />
             </div>
             <div className="flex gap-2.5 items-center text-[13.5px] flex-wrap">
-              <span>Pharmacy code</span>
-              <input className={cn(inp, "font-mono w-[180px]")} value={ph.code} onChange={setP("code")} placeholder="SANJ-PUNE" aria-label="Pharmacy code" />
-              <span className="text-[12.5px] text-faint">Staff type this at the counter with their employee ID and PIN.</span>
+              <span>{t("Pharmacy code")}</span>
+              <input className={cn(inp, "font-mono w-[180px]")} value={ph.code} onChange={setP("code")} placeholder="SANJ-PUNE" aria-label={t("Pharmacy code")} />
+              <span className="text-[12.5px] text-faint">{t("Staff type this at the counter with their employee ID and PIN.")}</span>
             </div>
             {signup ? (
-              <div className="flex gap-2.5 items-center text-[13.5px] flex-wrap"><span>Referral code</span>
-                <input className={inp + " font-mono w-[180px] uppercase"} value={ref} onChange={(e) => setRef(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} placeholder="Optional" aria-label="Referral code" />
-                <span className="text-[12.5px] text-faint">{ref ? "From the Medoro partner or sales person who referred you." : "Did a Medoro partner or sales person refer you? Enter their code."}</span>
+              <div className="flex gap-2.5 items-center text-[13.5px] flex-wrap"><span>{t("Referral code")}</span>
+                <input className={inp + " font-mono w-[180px] uppercase"} value={ref} onChange={(e) => setRef(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} placeholder={t("Optional")} aria-label={t("Referral code")} />
+                <span className="text-[12.5px] text-faint">{t(ref ? "From the Medoro partner or sales person who referred you." : "Did a Medoro partner or sales person refer you? Enter their code.")}</span>
               </div>
             ) : null}
-            <div className="flex gap-2.5 items-center text-[13.5px]">Interface language
-              <select value={ph.lang} onChange={setP("lang")} className="border border-input rounded-lg px-2.5 py-2 text-[13.5px] bg-white">
-                <option value="en">English</option><option value="hi">हिंदी</option><option value="hinglish">English + Hinglish AI</option>
+            <div className="flex gap-2.5 items-center text-[13.5px]">{t("Interface language")}
+              <select value={ph.lang} onChange={pickLang} className="border border-input rounded-lg px-2.5 py-2 text-[13.5px] bg-white">
+                <option value="en">English</option><option value="hi">हिंदी</option><option value="hinglish">{t("English + Hinglish AI")}</option>
               </select>
             </div>
           </>
@@ -168,66 +177,66 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
 
         {step === 2 ? (
           <>
-            <div className="text-[19px] font-semibold">Your owner account</div>
-            <div className="text-[13.5px] text-muted -mt-2">There are no default logins. This account owns the pharmacy and can add everyone else.</div>
+            <div className="text-[19px] font-semibold">{t("Your owner account")}</div>
+            <div className="text-[13.5px] text-muted -mt-2">{t("There are no default logins. This account owns the pharmacy and can add everyone else.")}</div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5">
-              <input className={inp} value={owner.name} onChange={setO("name")} placeholder="Full name *" aria-label="Full name" autoComplete="name" autoFocus />
-              <input className={inp + (google || verifiedEmail ? " bg-page text-muted" : "")} value={owner.email} onChange={setO("email")} readOnly={!!google || !!verifiedEmail} placeholder="Email *" aria-label="Email" type="email" autoComplete="email" />
-              <input className={inp} value={owner.phone} onChange={setO("phone")} placeholder="Mobile number *" aria-label="Mobile number" inputMode="tel" autoComplete="tel" />
+              <input className={inp} value={owner.name} onChange={setO("name")} placeholder={t("Full name *")} aria-label={t("Full name")} autoComplete="name" autoFocus />
+              <input className={inp + (google || verifiedEmail ? " bg-page text-muted" : "")} value={owner.email} onChange={setO("email")} readOnly={!!google || !!verifiedEmail} placeholder={t("Email *")} aria-label={t("Email")} type="email" autoComplete="email" />
+              <input className={inp} value={owner.phone} onChange={setO("phone")} placeholder={t("Mobile number *")} aria-label={t("Mobile number")} inputMode="tel" autoComplete="tel" />
               {google ? null : (
                 <>
                   <div />
-                  <input className={inp} value={owner.password} onChange={setO("password")} placeholder="Password (10+ characters) *" aria-label="Password" type="password" autoComplete="new-password" />
-                  <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder="Confirm password *" aria-label="Confirm password" type="password" autoComplete="new-password" />
+                  <input className={inp} value={owner.password} onChange={setO("password")} placeholder={t("Password (10+ characters) *")} aria-label={t("Password")} type="password" autoComplete="new-password" />
+                  <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder={t("Confirm password *")} aria-label={t("Confirm password")} type="password" autoComplete="new-password" />
                 </>
               )}
             </div>
             <div className="text-[12.5px] text-faint">{google
-              ? `You’ll sign in with Google (${google.email}). No password needed. You can set one later from Profile.`
-              : "After setup you’ll scan a QR code with an authenticator app and save 10 recovery codes. Two-step verification is required for owners and managers. You can connect Google sign-in later from Profile; your password stays as the way back in."}</div>
+              ? t("You’ll sign in with Google ({email}). No password needed. You can set one later from Profile.", { email: google.email })
+              : t("After setup you’ll scan a QR code with an authenticator app and save 10 recovery codes. Two-step verification is required for owners and managers. You can connect Google sign-in later from Profile; your password stays as the way back in.")}</div>
           </>
         ) : null}
 
         {step === 3 ? (
           <>
-            <div className="text-[19px] font-semibold">Where does your live database run?</div>
-            <div className="text-[13.5px] text-muted -mt-2">You own this database. Medoro connects to it but never hosts your pharmacy records.</div>
+            <div className="text-[19px] font-semibold">{t("Where does your live database run?")}</div>
+            <div className="text-[13.5px] text-muted -mt-2">{t("You own this database. Medoro connects to it but never hosts your pharmacy records.")}</div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-2.5">
               {HOSTS.map(([id, Icon, label, desc]) => (
                 <button key={id} type="button" onClick={() => setHost(id)} className="flex flex-col items-start gap-1.5 text-left rounded-[10px] p-3.5 cursor-pointer"
                   style={{ background: host === id ? "#F0F7F6" : "#fff", border: host === id ? "2px solid #0B5E5B" : "1px solid #E3E6E9" }}>
-                  <Icon size={20} className="text-teal" /><strong className="text-[14px]">{label}</strong><span className="text-[12.5px] text-muted">{desc}</span>
+                  <Icon size={20} className="text-teal" /><strong className="text-[14px]">{t(label)}</strong><span className="text-[12.5px] text-muted">{t(desc)}</span>
                 </button>
               ))}
             </div>
             <div className="bg-subtle border border-line rounded-[10px] p-3.5 flex flex-col gap-2.5">
-              <div className="text-[13px] text-ink-2">This server is connected to the PostgreSQL database in its configuration (<span className="font-mono">DATABASE_URL</span>). Test it before continuing.</div>
+              <div className="text-[13px] text-ink-2">{t("This server is connected to the PostgreSQL database in its configuration")} (<span className="font-mono">DATABASE_URL</span>). {t("Test it before continuing.")}</div>
               <div className="flex gap-3 items-center flex-wrap">
                 <Button onClick={test} disabled={db.state === "testing"}>Test connection</Button>
-                <span className="flex items-center gap-1.5 text-[13px]" style={{ color: dbFg }}><DbIcon size={15} className={db.state === "testing" ? "animate-spin" : ""} />{db.msg}</span>
+                <span className="flex items-center gap-1.5 text-[13px]" style={{ color: dbFg }}><DbIcon size={15} className={db.state === "testing" ? "animate-spin" : ""} />{t(db.msg)}</span>
               </div>
             </div>
-            <div className="text-[12.5px] text-faint">The database is never exposed to browsers; all access goes through the Medoro app service on your server. Use TLS between the app and a remote database.</div>
+            <div className="text-[12.5px] text-faint">{t("The database is never exposed to browsers; all access goes through the Medoro app service on your server. Use TLS between the app and a remote database.")}</div>
           </>
         ) : null}
 
         {step === 4 ? (
           <>
-            <div className="text-[19px] font-semibold">Branches & counters</div>
+            <div className="text-[19px] font-semibold">{t("Branches & counters")}</div>
             {branches.map((b, i) => (
               <div key={i} className="flex items-center gap-2.5 border border-line rounded-[10px] px-3.5 py-2.5 flex-wrap">
                 <Store size={17} className="text-teal" />
-                <input className="flex-1 min-w-[160px] text-[14px] font-semibold outline-none bg-transparent" value={b.name} aria-label="Branch name"
+                <input className="flex-1 min-w-[160px] text-[14px] font-semibold outline-none bg-transparent" value={b.name} aria-label={t("Branch name")}
                   onChange={(e) => setBranches((x) => x.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} />
-                <label className="flex items-center gap-1.5 text-[13px] text-muted">Counters
+                <label className="flex items-center gap-1.5 text-[13px] text-muted">{t("Counters")}
                   <input type="number" min={1} max={20} value={b.counters} className="w-16 border border-input rounded-md px-2 py-1 text-[13.5px]"
                     onChange={(e) => setBranches((x) => x.map((y, j) => (j === i ? { ...y, counters: Math.max(1, Math.min(20, Number(e.target.value) || 1)) } : y)))} />
                 </label>
-                <button type="button" onClick={() => setBranches((x) => x.filter((_, j) => j !== i))} className="text-bad text-[12.5px] flex items-center gap-1 cursor-pointer"><Trash2 size={14} />Remove</button>
+                <button type="button" onClick={() => setBranches((x) => x.filter((_, j) => j !== i))} className="text-bad text-[12.5px] flex items-center gap-1 cursor-pointer"><Trash2 size={14} />{t("Remove")}</button>
               </div>
             ))}
             <div className="flex gap-2">
-              <input className={inp} value={newBranch} onChange={(e) => setNewBranch(e.target.value)} placeholder="Branch name, e.g. Kothrud" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (newBranch.trim()) { setBranches((x) => [...x, { name: newBranch.trim(), counters: 1 }]); setNewBranch(""); } } }} />
+              <input className={inp} value={newBranch} onChange={(e) => setNewBranch(e.target.value)} placeholder={t("Branch name, e.g. Kothrud")} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (newBranch.trim()) { setBranches((x) => [...x, { name: newBranch.trim(), counters: 1 }]); setNewBranch(""); } } }} />
               <Button onClick={() => { if (newBranch.trim()) { setBranches((x) => [...x, { name: newBranch.trim(), counters: 1 }]); setNewBranch(""); } }} className="h-[42px]">Add branch</Button>
             </div>
           </>
@@ -235,43 +244,43 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
 
         {step === 5 ? (
           <>
-            <div className="text-[19px] font-semibold">Invite your team</div>
-            <div className="text-[13.5px] text-muted -mt-2">Each person gets an invite code (valid 48 hours) to create their own account. You can skip this and add people later in Users & branches.</div>
+            <div className="text-[19px] font-semibold">{t("Invite your team")}</div>
+            <div className="text-[13.5px] text-muted -mt-2">{t("Each person gets an invite code (valid 48 hours) to create their own account. You can skip this and add people later in Users & branches.")}</div>
             {invites.map((iv, i) => (
               <div key={i} className="flex items-center gap-3 border-b border-row py-2 text-[13.5px]">
-                <span className="flex-1">{iv.contact}</span><span className="text-muted">{iv.role}</span><span className="text-muted">{iv.branch}</span>
-                <button type="button" onClick={() => setInvites((x) => x.filter((_, j) => j !== i))} className="text-bad cursor-pointer" aria-label="Remove invite"><Trash2 size={14} /></button>
+                <span className="flex-1">{iv.contact}</span><span className="text-muted">{t(iv.role)}</span><span className="text-muted">{iv.branch}</span>
+                <button type="button" onClick={() => setInvites((x) => x.filter((_, j) => j !== i))} className="text-bad cursor-pointer" aria-label={t("Remove invite")}><Trash2 size={14} /></button>
               </div>
             ))}
             <div className="flex gap-2 flex-wrap">
-              <input className={cn(inp, "flex-1 min-w-[200px] w-auto")} value={inv.contact} onChange={(e) => setInv((x) => ({ ...x, contact: e.target.value }))} placeholder="Email or mobile" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addInvite(); } }} />
-              <select value={inv.role} onChange={(e) => setInv((x) => ({ ...x, role: e.target.value as typeof inv.role }))} className="border border-input rounded-lg px-2.5 text-[13.5px] bg-white">{ROLE_OPTIONS.map((r) => <option key={r}>{r}</option>)}</select>
+              <input className={cn(inp, "flex-1 min-w-[200px] w-auto")} value={inv.contact} onChange={(e) => setInv((x) => ({ ...x, contact: e.target.value }))} placeholder={t("Email or mobile")} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addInvite(); } }} />
+              <select value={inv.role} onChange={(e) => setInv((x) => ({ ...x, role: e.target.value as typeof inv.role }))} className="border border-input rounded-lg px-2.5 text-[13.5px] bg-white">{ROLE_OPTIONS.map((r) => <option key={r} value={r}>{t(r)}</option>)}</select>
               {branches.length > 1 ? <select value={inv.branch || branches[0].name} onChange={(e) => setInv((x) => ({ ...x, branch: e.target.value }))} className="border border-input rounded-lg px-2.5 text-[13.5px] bg-white">{branches.map((b) => <option key={b.name}>{b.name}</option>)}</select> : null}
               <Button onClick={addInvite} className="h-[42px]">Add invite</Button>
             </div>
-            <div className="text-[12.5px] text-faint">Roles can be fine-tuned later in Users & branches. Managers need an email invite: they use a password and an authenticator.</div>
+            <div className="text-[12.5px] text-faint">{t("Roles can be fine-tuned later in Users & branches. Managers need an email invite: they use a password and an authenticator.")}</div>
           </>
         ) : null}
 
         {step === 6 ? (
           <>
-            <div className="text-[19px] font-semibold">Backups & recovery kit</div>
+            <div className="text-[19px] font-semibold">{t("Backups & recovery kit")}</div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <HardDriveUpload size={20} className="text-teal" />
-              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive <span className="font-normal text-muted">{signup ? "(required)" : "(optional)"}</span></strong>
-                <span className="text-[12.5px] text-muted">{signup ? "Your pharmacy’s data is kept in your own Google Drive, encrypted with a key only you hold. You connect it right after sign-up, before the first bill." : !driveApp ? "Google sign-in isn’t configured on this server; you can connect later in Backup & restore." : drive.account ? <>Connected as {drive.account}. Daily backups go to Medoro/{ph.name || "your pharmacy"} in this Drive, encrypted on your server first.</> : "Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore."}</span>
-                {drive.msg ? <span className="text-[12.5px] text-bad">{drive.msg}</span> : null}</div>
+              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Google Drive <span className="font-normal text-muted">{t(signup ? "(required)" : "(optional)")}</span></strong>
+                <span className="text-[12.5px] text-muted">{signup ? t("Your pharmacy’s data is kept in your own Google Drive, encrypted with a key only you hold. You connect it right after sign-up, before the first bill.") : !driveApp ? t("Google sign-in isn’t configured on this server; you can connect later in Backup & restore.") : drive.account ? t("Connected as {account}. Daily backups go to Medoro/{folder} in this Drive, encrypted on your server first.", { account: drive.account, folder: ph.name || t("your pharmacy") }) : t("Daily encrypted backups to your own Drive. Medoro can see only the files it creates. You can also connect later in Backup & restore.")}</span>
+                {drive.msg ? <span className="text-[12.5px] text-bad">{t(drive.msg)}</span> : null}</div>
               {driveApp ? (drive.account ? <Button onClick={() => void drive.forget()}>Remove</Button> : <Button onClick={drive.connect}>Connect</Button>) : null}
             </div>
             <div className="flex gap-3 items-center border border-line rounded-[10px] p-3.5 flex-wrap">
               <KeyRound size={20} className="text-teal" />
-              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">Encryption recovery kit</strong>
-                <span className="text-[12.5px] text-muted">{kit ? <>Downloaded · key fingerprint <span className="font-mono">{kit.fp}</span></> : (signup ? "Contains your backup decryption key: the only way to open your backups elsewhere. Medoro keeps a sealed copy only to run your backups." : "Contains your backup decryption key: the only way to open backups on a new server. Your server keeps a sealed copy to run backups; Medoro never receives it.")}</span></div>
+              <div className="flex flex-col flex-1 min-w-[200px]"><strong className="text-[14px]">{t("Encryption recovery kit")}</strong>
+                <span className="text-[12.5px] text-muted">{kit ? <>{t("Downloaded · key fingerprint")} <span className="font-mono">{kit.fp}</span></> : t(signup ? "Contains your backup decryption key: the only way to open your backups elsewhere. Medoro keeps a sealed copy only to run your backups." : "Contains your backup decryption key: the only way to open backups on a new server. Your server keeps a sealed copy to run backups; Medoro never receives it.")}</span></div>
               <Button variant="primary" onClick={makeKit}>{kit ? "Download again" : "Download & print"}</Button>
             </div>
-            <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={kitAck} onChange={(e) => setKitAck(e.target.checked)} />I&apos;ve stored the recovery kit offline. Without it, backups can&apos;t be restored.</label>
+            <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={kitAck} onChange={(e) => setKitAck(e.target.checked)} />{t("I’ve stored the recovery kit offline. Without it, backups can’t be restored.")}</label>
             {signup ? (
-              <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>I agree to the <a href="/legal#terms" target="_blank" className="text-teal underline">Terms</a>, <a href="/legal#privacy" target="_blank" className="text-teal underline">Privacy policy</a> and <a href="/legal#refund" target="_blank" className="text-teal underline">Cancellation & refund policy</a>.</span></label>
+              <label className="flex gap-2 text-[13.5px] cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>{t("I agree to the")} <a href="/legal#terms" target="_blank" className="text-teal underline">{t("Terms")}</a>, <a href="/legal#privacy" target="_blank" className="text-teal underline">{t("Privacy policy")}</a> {t("and")} <a href="/legal#refund" target="_blank" className="text-teal underline">{t("Cancellation & refund policy")}</a>.</span></label>
             ) : null}
           </>
         ) : null}
@@ -279,17 +288,17 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
         {step === 7 && result ? (
           <div className="flex flex-col items-center text-center gap-3 py-4">
             <CircleCheck size={44} className="text-ok" />
-            <div className="text-[22px] font-semibold">{ph.name} is ready</div>
+            <div className="text-[22px] font-semibold">{t("{name} is ready", { name: ph.name })}</div>
             <div className="text-[13.5px] text-muted max-w-[560px]">
-              {signup ? "Medoro cloud" : HOSTS.find((h) => h[0] === host)![2]} · {branches.length} branch(es) · {result.invites.length} invite(s) · {drive.account ? "Google Drive connected" : "Google Drive not connected"}. Strict customer-controlled mode is on. Pharmacy code <span className="font-mono text-ink">{result.tenantCode}</span>.
+              {t(signup ? "Medoro cloud" : HOSTS.find((h) => h[0] === host)![2])} · {t("{n} branch(es)", { n: branches.length })} · {t("{n} invite(s)", { n: result.invites.length })} · {t(drive.account ? "Google Drive connected" : "Google Drive not connected")}. {t("Strict customer-controlled mode is on.")} {t("Pharmacy code")} <span className="font-mono text-ink">{result.tenantCode}</span>.
             </div>
             {result.invites.length ? (
               <div className="w-full max-w-[560px] border border-line rounded-[10px] text-left">
-                <div className="px-3.5 py-2 text-[12.5px] text-muted border-b border-line-soft">Share these invite codes with your team (valid 48 hours). Messages aren’t sent automatically.</div>
+                <div className="px-3.5 py-2 text-[12.5px] text-muted border-b border-line-soft">{t("Share these invite codes with your team (valid 48 hours). Messages aren’t sent automatically.")}</div>
                 {result.invites.map((i) => (
                   <div key={i.code} className="flex items-center gap-3 px-3.5 py-2 text-[13.5px] border-b border-row last:border-0">
-                    <span className="flex-1">{i.contact}</span><span className="text-muted">{i.role}</span><span className="font-mono font-semibold">{i.code}</span>
-                    <button className="text-faint hover:text-teal cursor-pointer" aria-label="Copy" onClick={() => { navigator.clipboard.writeText(`Join ${ph.name} on Medoro: pharmacy code ${result.tenantCode}, invite code ${i.code}`); toast("Invite copied", "green"); }}><Copy size={14} /></button>
+                    <span className="flex-1">{i.contact}</span><span className="text-muted">{t(i.role)}</span><span className="font-mono font-semibold">{i.code}</span>
+                    <button className="text-faint hover:text-teal cursor-pointer" aria-label={t("Copy")} onClick={() => { navigator.clipboard.writeText(t("Join {pharmacy} on Medoro: pharmacy code {code}, invite code {invite}", { pharmacy: ph.name, code: result.tenantCode, invite: i.code })); toast("Invite copied", "green"); }}><Copy size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -300,7 +309,7 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
           </div>
         ) : null}
 
-        {err ? <div role="alert" className="text-[13px] text-bad">{err}</div> : null}
+        {err ? <div role="alert" className="text-[13px] text-bad">{t(err)}</div> : null}
         {step < 7 ? (
           <div className="flex justify-between gap-2.5 pt-1">
             <Button onClick={() => { setErr(""); setStep(Math.max(1, signup && step === 4 ? 2 : step - 1)); }} disabled={step === 1 || pending}>Back</Button>

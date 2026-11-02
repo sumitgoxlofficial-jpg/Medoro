@@ -1,6 +1,7 @@
 import { requireCtx } from "@/server/context";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
+import { tFor } from "@/lib/tr";
 import { checkIn, markSupportSeen, supportInbox } from "@/domain/system/licence";
 import { HelpView } from "./view";
 
@@ -13,7 +14,7 @@ export default async function Page() {
   if (!ctx.readOnly && inbox.unread) await markSupportSeen(ctx.tenantId);
   return (
     <>
-      <PageHead title={t(ctx.lang).help} sub={inbox.connected ? "Ask Medoro support. Replies from the team appear here." : "Get help from Medoro support on WhatsApp."} />
+      <PageHead title={t(ctx.lang).help} sub={inbox.connected ? tFor(ctx.lang)("Ask Medoro support. Replies from the team appear here.") : tFor(ctx.lang)("Get help from Medoro support on WhatsApp.")} />
       <HelpView inbox={inbox} canWrite={!ctx.readOnly} />
     </>
   );

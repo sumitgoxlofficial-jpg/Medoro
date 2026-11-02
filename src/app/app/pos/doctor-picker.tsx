@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/i18n-client";
 import type { DoctorRow } from "@/domain/doctors/service";
 import { quickAddDoctorAction } from "./catalog-actions";
 
@@ -20,6 +21,7 @@ export function DoctorPicker({ doctors, setDoctors, doctorId, text, onChange, re
   doctors: DoctorOpt[]; setDoctors: (d: DoctorOpt[]) => void; doctorId: string; text: string; required: boolean;
   onChange: (p: { doctorId: string; text: string }) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [hl, setHl] = useState(0);
@@ -33,8 +35,8 @@ export function DoctorPicker({ doctors, setDoctors, doctorId, text, onChange, re
     return (
       <div className={`flex items-center gap-2 border ${border} rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white`}>
         <Stethoscope size={14} className="text-teal shrink-0" />
-        <span className="flex-1 min-w-0 truncate">{label(picked)}{picked.regNo ? <span className="text-muted"> · Reg {picked.regNo}</span> : null}</span>
-        <button onClick={() => onChange({ doctorId: "", text: "" })} aria-label="Clear doctor" className="text-fainter hover:text-bad cursor-pointer"><X size={14} /></button>
+        <span className="flex-1 min-w-0 truncate">{label(picked)}{picked.regNo ? <span className="text-muted"> · {t("Reg {no}", { no: picked.regNo })}</span> : null}</span>
+        <button onClick={() => onChange({ doctorId: "", text: "" })} aria-label={t("Clear doctor")} className="text-fainter hover:text-bad cursor-pointer"><X size={14} /></button>
       </div>
     );
   }
@@ -47,20 +49,20 @@ export function DoctorPicker({ doctors, setDoctors, doctorId, text, onChange, re
             else if (e.key === "ArrowUp") { e.preventDefault(); setHl((h) => Math.max(h - 1, 0)); }
             else if (e.key === "Enter" && open && matches[hl]) { e.preventDefault(); choose(matches[hl]); }
           }}
-          placeholder={required ? "Prescriber: pick a doctor or type a name *" : "Referring doctor (optional)"} aria-label="Prescriber"
+          placeholder={t(required ? "Prescriber: pick a doctor or type a name *" : "Referring doctor (optional)")} aria-label={t("Prescriber")}
           className={`flex-1 min-w-0 border ${border} rounded-[7px] px-2.5 py-2 text-[13.5px] bg-white outline-none focus:border-teal`} />
-        <button onClick={() => setAdding(true)} title="Add a doctor" aria-label="Add a doctor" className={`border ${border} rounded-[7px] px-2 bg-white text-teal cursor-pointer`}><UserPlus size={15} /></button>
+        <button onClick={() => setAdding(true)} title={t("Add a doctor")} aria-label={t("Add a doctor")} className={`border ${border} rounded-[7px] px-2 bg-white text-teal cursor-pointer`}><UserPlus size={15} /></button>
       </div>
       {open && matches.length ? (
         <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white border border-input rounded-lg shadow-[0_12px_32px_rgba(0,0,0,.12)] z-30 overflow-hidden">
           {matches.map((d, i) => (
             <button key={d.id} onMouseDown={(e) => { e.preventDefault(); choose(d); }} onMouseEnter={() => setHl(i)} className="w-full text-left px-3 py-2 text-[13px] border-b border-row last:border-0 cursor-pointer" style={{ background: i === hl ? "#F0F7F6" : "#fff" }}>
-              <span className="font-medium">{label(d)}</span><span className="text-muted">{d.regNo ? ` · Reg ${d.regNo}` : ""}{d.clinic ? ` · ${d.clinic}` : ""}</span>
+              <span className="font-medium">{label(d)}</span><span className="text-muted">{d.regNo ? ` · ${t("Reg {no}", { no: d.regNo })}` : ""}{d.clinic ? ` · ${d.clinic}` : ""}</span>
             </button>
           ))}
         </div>
       ) : null}
-      {text.trim() && !doctorId ? <div className="text-[11.5px] text-faint mt-1">Not linked to a doctor: kept as typed. Pick from the list or add the doctor to track referrals.</div> : null}
+      {text.trim() && !doctorId ? <div className="text-[11.5px] text-faint mt-1">{t("Not linked to a doctor: kept as typed. Pick from the list or add the doctor to track referrals.")}</div> : null}
       {adding ? <QuickAdd initial={text.replace(/^dr\.?\s*/i, "")} onClose={() => setAdding(false)} onSaved={(d, all) => { setDoctors(all); choose(d); setAdding(false); }} /> : null}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Banknote } from "lucide-react";
+import { useT } from "@/lib/i18n-client";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -18,18 +19,18 @@ type Cheque = Awaited<ReturnType<typeof listCheques>>[number];
 const TONE: Record<Cheque["status"], Tone> = { pending: "amber", deposited: "blue", cleared: "green", bounced: "red" };
 const th = "text-left text-[12px] font-medium text-muted px-3 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3 py-2.5 border-b border-row";
-const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 
 export function ChequesView({ cheques, canAct, today }: { cheques: Cheque[]; canAct: boolean; today: string }) {
+  const t = useT();
   const [tab, setTab] = useState<"open" | "received" | "issued" | "all">("open");
   const rows = cheques.filter((c) => (tab === "open" ? c.status === "pending" || c.status === "deposited" : tab === "all" ? true : c.direction === tab));
   const sum = (d: Cheque["direction"]) => cheques.filter((c) => c.direction === d && (c.status === "pending" || c.status === "deposited")).reduce((a, c) => a + c.amount, 0);
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))] max-sm:grid-cols-2 max-sm:gap-2">
-        <Stat label="Cheques in hand (not cleared)" value={inr0(sum("received"))} />
-        <Stat label="Issued, not yet cleared" value={inr0(sum("issued"))} />
-        <Stat label="Due within 3 days" value={String(cheques.filter((c) => (c.status === "pending" || c.status === "deposited") && c.days <= 3).length)} className="max-sm:col-span-2" />
+        <Stat label={t("Cheques in hand (not cleared)")} value={inr0(sum("received"))} />
+        <Stat label={t("Issued, not yet cleared")} value={inr0(sum("issued"))} />
+        <Stat label={t("Due within 3 days")} value={String(cheques.filter((c) => (c.status === "pending" || c.status === "deposited") && c.days <= 3).length)} className="max-sm:col-span-2" />
       </div>
       <Segmented value={tab} onChange={setTab} className="self-start bg-[#EEF0F2]" options={[{ value: "open", label: "Open" }, { value: "received", label: "Received" }, { value: "issued", label: "Issued" }, { value: "all", label: "All (180 days)" }]} />
       <ChequeTable rows={rows} canAct={canAct} today={today} />
@@ -42,11 +43,11 @@ function Stat({ label, value, className = "" }: { label: string; value: string; 
 }
 
 export function ChequeTable({ rows, canAct, today, compact = false }: { rows: Cheque[]; canAct: boolean; today: string; compact?: boolean }) {
-  const toastR = useActionToast();
+  const toastR = useActionToast(), t = useT();
   const [pending, start] = useTransition();
   const [bounce, setBounce] = useState<Cheque | null>(null);
   const clear = (c: Cheque) => {
-    const on = prompt(`Cheque ${c.no} cleared on (yyyy-mm-dd):`, today);
+    const on = prompt(t("Cheque {no} cleared on (yyyy-mm-dd):", { no: c.no }), today);
     if (on === null) return;
     start(async () => { toastR(await clearChequeAction(c.id, on.trim())); });
   };
@@ -54,17 +55,17 @@ export function ChequeTable({ rows, canAct, today, compact = false }: { rows: Ch
   return (
     <div className="bg-white border border-line rounded-xl overflow-auto tbl-scroll">
       <table className="w-full border-collapse text-[13.5px] min-w-[860px]">
-        <thead><tr className="bg-subtle"><th className={th}>Cheque date</th><th className={th}>Party</th><th className={th + " max-sm:hidden"}>Cheque</th><th className={th + " text-right"}>Amount</th><th className={th}>Status</th>{canAct ? <th className={th} /> : null}</tr></thead>
+        <thead><tr className="bg-subtle"><th className={th}>{t("Cheque date")}</th><th className={th}>{t("Party")}</th><th className={th + " max-sm:hidden"}>{t("Cheque")}</th><th className={th + " text-right"}>{t("Amount")}</th><th className={th}>{t("Status")}</th>{canAct ? <th className={th} /> : null}</tr></thead>
         <tbody>{rows.map((c) => (
           <tr key={c.id}>
-            <td className={td}>{dayMonth(new Date(c.date + "T00:00:00+05:30"), true)}<div className="text-[11.5px]" style={{ color: c.days > 0 ? "#2459C9" : c.status === "pending" && c.direction === "received" ? "#94570A" : "#8A929A" }}>{c.days > 0 ? `post-dated · in ${days(c.days)}` : c.days === 0 ? "today" : `${days(-c.days)} ago`}</div></td>
-            <td className={td}>{c.party}<div className="text-[11.5px] text-faint">{c.direction === "received" ? "from customer" : "to supplier"}</div></td>
+            <td className={td}>{dayMonth(new Date(c.date + "T00:00:00+05:30"), true)}<div className="text-[11.5px]" style={{ color: c.days > 0 ? "#2459C9" : c.status === "pending" && c.direction === "received" ? "#94570A" : "#8A929A" }}>{c.days > 0 ? (c.days === 1 ? t("post-dated · in 1 day") : t("post-dated · in {n} days", { n: c.days })) : c.days === 0 ? t("today") : c.days === -1 ? t("1 day ago") : t("{n} days ago", { n: -c.days })}</div></td>
+            <td className={td}>{c.party}<div className="text-[11.5px] text-faint">{c.direction === "received" ? t("from customer") : t("to supplier")}</div></td>
             <td className={td + " max-sm:hidden"}><span className="font-mono text-[12.5px]">{c.no}</span> · {c.bank}{c.note ? <div className="text-[11.5px] text-faint">{c.note}</div> : null}</td>
             <td className={td + " text-right tnum font-semibold"} style={{ color: c.direction === "issued" ? "#B3261E" : undefined }}>{c.direction === "issued" ? "−" : ""}{inr(c.amount)}</td>
-            <td className={td}><Badge tone={TONE[c.status]}>{CHEQUE_STATUS[c.status]}</Badge>{c.bounceReason ? <div className="text-[11.5px] text-faint">{c.bounceReason}{c.charge ? ` · charge ${inr(c.charge)}` : ""}</div> : null}</td>
+            <td className={td}><Badge tone={TONE[c.status]}>{t(CHEQUE_STATUS[c.status])}</Badge>{c.bounceReason ? <div className="text-[11.5px] text-faint">{c.bounceReason}{c.charge ? ` · ${t("charge {amt}", { amt: inr(c.charge) })}` : ""}</div> : null}</td>
             {canAct ? <td className={td + " text-right whitespace-nowrap"}>
               <div className="flex gap-1.5 justify-end">
-                {c.direction === "received" && c.status === "pending" ? <Button size="sm" variant="primary" disabled={pending || c.days > 0} title={c.days > 0 ? "Post-dated: deposit on or after the cheque date" : ""} onClick={() => start(async () => { toastR(await depositChequeAction(c.id)); })}>Deposit</Button> : null}
+                {c.direction === "received" && c.status === "pending" ? <Button size="sm" variant="primary" disabled={pending || c.days > 0} title={c.days > 0 ? t("Post-dated: deposit on or after the cheque date") : ""} onClick={() => start(async () => { toastR(await depositChequeAction(c.id)); })}>Deposit</Button> : null}
                 {(c.direction === "received" && c.status === "deposited") || (c.direction === "issued" && c.status === "pending") ? <Button size="sm" variant="primary" disabled={pending} onClick={() => clear(c)}>Cleared</Button> : null}
                 {(c.status === "pending" || c.status === "deposited") && !compact ? <Button size="sm" variant="danger-outline" disabled={pending} onClick={() => setBounce(c)}>Bounced</Button> : null}
               </div>
@@ -78,7 +79,7 @@ export function ChequeTable({ rows, canAct, today, compact = false }: { rows: Ch
 }
 
 function BounceModal({ c, today, onClose }: { c: Cheque | null; today: string; onClose: () => void }) {
-  const toastR = useActionToast();
+  const toastR = useActionToast(), t = useT();
   const [f, setF] = useState({ reason: "", charge: "", bankCharge: "", on: today });
   const [key, setKey] = useState("");
   const [pending, start] = useTransition();
@@ -87,15 +88,15 @@ function BounceModal({ c, today, onClose }: { c: Cheque | null; today: string; o
   const save = () => start(async () => { if (toastR(await bounceChequeAction(c.id, f))) onClose(); });
   const recv = c.direction === "received";
   return (
-    <Modal open onClose={onClose} title={`Cheque ${c.no} bounced`} sub={<>{c.party} · {inr(c.amount)} · {c.bank}</>} width={480}
+    <Modal open onClose={onClose} title={t("Cheque {no} bounced", { no: c.no })} sub={<>{c.party} · {inr(c.amount)} · {c.bank}</>} width={480}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="danger" onClick={save} disabled={pending}>Record bounce</Button></>}>
-      <Field label="Bank’s return reason"><Input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="e.g. funds insufficient, signature differs" autoFocus /></Field>
+      <Field label="Bank’s return reason"><Input value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder={t("e.g. funds insufficient, signature differs")} autoFocus /></Field>
       <div className="grid grid-cols-3 gap-2.5">
         <Field label={recv ? "Charge to customer ₹" : "Supplier’s penalty ₹"}><Input value={f.charge} onChange={(e) => setF({ ...f, charge: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field>
         <Field label="Our bank’s charge ₹"><Input value={f.bankCharge} onChange={(e) => setF({ ...f, bankCharge: e.target.value.replace(/[^\d.]/g, "") })} inputMode="decimal" placeholder="0" /></Field>
         <Field label="Returned on"><Input type="date" max={today} value={f.on} onChange={(e) => setF({ ...f, on: e.target.value })} /></Field>
       </div>
-      <div className="text-[12px] text-faint">{recv ? "The customer owes the amount again (plus any charge you recover from them)." : "You owe the supplier again; bills this cheque paid are reopened. A penalty they levy is added to what you owe."} Your bank’s charge is booked to Bank charges. Nothing is edited: a new journal is posted.</div>
+      <div className="text-[12px] text-faint">{recv ? t("The customer owes the amount again (plus any charge you recover from them).") : t("You owe the supplier again; bills this cheque paid are reopened. A penalty they levy is added to what you owe.")} {t("Your bank’s charge is booked to Bank charges. Nothing is edited: a new journal is posted.")}</div>
     </Modal>
   );
 }

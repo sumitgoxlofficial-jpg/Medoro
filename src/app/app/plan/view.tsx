@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { Copy, RefreshCw } from "lucide-react";
@@ -11,6 +11,8 @@ import { openCheckout } from "@/components/razorpay";
 import { WA } from "@/components/site/chrome";
 import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
+import { useLang, useT } from "@/lib/i18n-client";
+import { localeOf, type Lang, type TFn } from "@/lib/tr";
 import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
 
 type Online = {
@@ -24,8 +26,10 @@ const PAY_STATUS: Record<string, [string, Tone]> = { paid: ["Paid", "green"], re
 type V = Awaited<ReturnType<typeof planView>>;
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
 // Calendar dates (YYYY-MM-DD) as they are; timestamps as their India date, like the rest of the app.
-const day = (iso: string) => iso.length === 10 ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
-const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const dayIn = (lang: Lang) => (iso: string) => iso.length === 10 ? new Date(iso + "T00:00:00").toLocaleDateString(localeOf(lang), { day: "numeric", month: "short", year: "numeric" }) : new Date(iso).toLocaleDateString(localeOf(lang), { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+const whenIn = (lang: Lang) => (iso: string) => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+/** A translated line with React pieces (bold text, links) put in at its {placeholders}. */
+const rich = (line: string, parts: Record<string, React.ReactNode>) => line.split(/\{(\w+)\}/).map((x, i) => (i % 2 ? <Fragment key={i}>{parts[x]}</Fragment> : x));
 const inr = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 /** Rupees with paise shown as two digits when there are any: ₹1,999.20, ₹2,499. */
 const rs = (r: number) => "₹" + r.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(r) ? 0 : 2, maximumFractionDigits: 2 });
@@ -36,19 +40,21 @@ const price = (id: string, cycle: string) => { const p = PLANS.find((x) => x.id 
 const KIND: Record<string, string> = { payment: "Payment reported", addon_add: "Add AI add-on", addon_remove: "Remove AI add-on", cancel: "Cancel plan", trial_extended: "Trial extended", payment_claim: "Payment reported" };
 const STATUS: Record<string, [string, Tone]> = { queued: ["Waiting to send", "gray"], open: ["With Medoro", "blue"], done: ["Done", "green"], rejected: ["Declined", "red"] };
 
-function phaseOf(v: V): [string, Tone, string] {
-  const a = v.access, n = a.daysLeft ?? 0, d = `${n} day${n === 1 ? "" : "s"}`;
+function phaseOf(v: V, t: TFn, day: (iso: string) => string): [string, Tone, string] {
+  const a = v.access, n = a.daysLeft ?? 0, d = t(n === 1 ? "{n} day" : "{n} days", { n });
   switch (a.phase) {
-    case "unlicensed": return ["Self-hosted", "gray", "Not connected to Medoro’s licence server: nothing is limited."];
-    case "trial": return ["Free trial", "blue", a.endsOn ? `${n ? `${d} left` : "Last day"} · ends ${day(a.endsOn)}` : "Trial"];
-    case "active": return [a.cancelled ? "Cancelled" : "Active", a.cancelled ? "amber" : "green", a.endsOn ? `${a.cancelled ? "Access until" : "Paid until"} ${day(a.endsOn)}${!a.cancelled ? ` · ${d} left` : ""}` : "No end date"];
-    case "grace": return ["Grace period", "amber", `${a.trial ? "Trial" : "Plan"} ended ${day(a.endsOn!)} · read-only in ${d}`];
-    default: return ["Expired · read-only", "red", "Sales, purchases, stock changes and messages are paused. Viewing, exports, backups and restore still work."];
+    case "unlicensed": return [t("Self-hosted"), "gray", t("Not connected to Medoro’s licence server: nothing is limited.")];
+    case "trial": return [t("Free trial"), "blue", a.endsOn ? `${n ? t("{days} left", { days: d }) : t("Last day")} · ${t("ends {date}", { date: day(a.endsOn) })}` : t("Trial")];
+    case "active": return [a.cancelled ? t("Cancelled") : t("Active"), a.cancelled ? "amber" : "green", a.endsOn ? `${t(a.cancelled ? "Access until {date}" : "Paid until {date}", { date: day(a.endsOn) })}${!a.cancelled ? ` · ${t("{days} left", { days: d })}` : ""}` : t("No end date")];
+    case "grace": return [t("Grace period"), "amber", t(a.trial ? "Trial ended {date} · read-only in {days}" : "Plan ended {date} · read-only in {days}", { date: day(a.endsOn!), days: d })];
+    default: return [t("Expired · read-only"), "red", t("Sales, purchases, stock changes and messages are paused. Viewing, exports, backups and restore still work.")];
   }
 }
 
 export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { branches: number; counters: number; users: number }; pay: { upi: string | null; payee: string; bank: string | null }; reference: string; online: Online }) {
   const toast = useToast();
+  const t = useT(), lang = useLang();
+  const day = dayIn(lang), when = whenIn(lang);
   const router = useRouter();
   const [busy, start] = useTransition();
   const current = PLANS.find((p) => p.name === v.plan)?.id ?? "pro";
@@ -63,7 +69,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const ref = `${reference}-${product.toUpperCase()}${cycle.toUpperCase()}`;
   const upiUrl = useMemo(() => (pay.upi ? `upi://pay?${new URLSearchParams({ pa: pay.upi, pn: pay.payee, am: amount.toFixed(2), cu: "INR", tn: `Medoro ${ref}` })}` : null), [pay.upi, pay.payee, amount, ref]);
   useEffect(() => { if (upiUrl) QRCode.toDataURL(upiUrl, { margin: 1, width: 168 }).then(setQr).catch(() => setQr(null)); }, [upiUrl]);
-  const [label, tone, line] = phaseOf(v);
+  const [label, tone, line] = phaseOf(v, t, day);
   const pendingAddon = v.requests.find((r) => r.kind.startsWith("addon_") && ["queued", "open"].includes(r.status));
   const pendingCancel = v.requests.find((r) => r.kind === "cancel" && ["queued", "open"].includes(r.status));
   const hasAi = v.addons.includes("ai");
@@ -80,7 +86,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
     setCouponErr("");
     start(async () => {
       const r = await couponAction({ plan: product, cycle: cycle as "m" | "y", coupon: code });
-      if (!r.ok) { setCoupon(null); return setCouponErr(r.error); }
+      if (!r.ok) { setCoupon(null); return setCouponErr(t(r.error)); }
       setCoupon(r.data.coupon ? { code: r.data.coupon.code, label: r.data.coupon.label, total: r.data.total } : null);
     });
   };
@@ -115,23 +121,23 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
     <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] max-w-[1200px] items-start">
       <div className="flex flex-col gap-4">
         <div className={card}>
-          <div className="flex items-center gap-2"><span className="text-[12.5px] text-muted font-medium">Current plan</span><Badge tone={tone} className="ml-auto">{label}</Badge></div>
-          <div className="text-[22px] font-semibold">{v.plan ?? "—"}{hasAi ? " + AI add-on" : ""}</div>
+          <div className="flex items-center gap-2"><span className="text-[12.5px] text-muted font-medium">{t("Current plan")}</span><Badge tone={tone} className="ml-auto">{label}</Badge></div>
+          <div className="text-[22px] font-semibold">{v.plan ?? "—"}{hasAi ? ` + ${t("AI add-on")}` : ""}</div>
           <div className="text-[13px] text-muted">{line}</div>
-          {[["Branches", String(usage.branches)], ["Counters", String(usage.counters)], ["Active users", String(usage.users)], ["WhatsApp invoices", "Included (your own Meta account)"], ["Backups", "Included"]].map(([k, val]) => (
-            <div key={k} className="flex justify-between gap-4 text-[13.5px] py-1 border-b border-row last:border-0"><span className="text-ink-2 shrink-0">{k}</span><span className="tnum text-right">{val}</span></div>
+          {[["Branches", String(usage.branches)], ["Counters", String(usage.counters)], ["Active users", String(usage.users)], ["WhatsApp invoices", t("Included (your own Meta account)")], ["Backups", t("Included")]].map(([k, val]) => (
+            <div key={k} className="flex justify-between gap-4 text-[13.5px] py-1 border-b border-row last:border-0"><span className="text-ink-2 shrink-0">{t(k)}</span><span className="tnum text-right">{val}</span></div>
           ))}
         </div>
 
         <div className={card}>
-          <div className="font-semibold text-[15px]">{online.enabled && v.access.phase === "trial" ? "Choose a plan" : "Renew or pay"}</div>
+          <div className="font-semibold text-[15px]">{online.enabled && v.access.phase === "trial" ? t("Choose a plan") : t("Renew or pay")}</div>
           {online.enabled && !online.billing.renewOpen ? (
-            <div className="text-[13.5px] text-ink-2">You’re all set: <strong>{v.plan}</strong> is paid until <strong>{day(online.billing.renewsAt!)}</strong>. Renewal opens on {day(online.billing.renewOpensOn!)}, 7 days before it ends, so you can’t pay twice by mistake. Nothing renews automatically.</div>
+            <div className="text-[13.5px] text-ink-2">{rich(t("You’re all set: {plan} is paid until {until}. Renewal opens on {opens}, 7 days before it ends, so you can’t pay twice by mistake. Nothing renews automatically."), { plan: <strong>{v.plan}</strong>, until: <strong>{day(online.billing.renewsAt!)}</strong>, opens: day(online.billing.renewOpensOn!) })}</div>
           ) : online.enabled ? (
             <>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Plan"><Select value={product} onChange={(e) => { setProduct(e.target.value as typeof product); setCoupon(null); }}>{PLANS.filter((p) => !("addon" in p)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
-                <Field label="Billing"><Select value={cycle} onChange={(e) => { setCycle(e.target.value); setCoupon(null); }}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
+                <Field label="Billing"><Select value={cycle} onChange={(e) => { setCycle(e.target.value); setCoupon(null); }}><option value="m">{t("Monthly")}</option><option value="y">{t("Yearly (2 months free)")}</option></Select></Field>
               </div>
               <form onSubmit={(e) => { e.preventDefault(); applyCoupon(); }} className="flex gap-2 items-end">
                 <Field label="Coupon code (optional)" className="flex-1"><Input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setCoupon(null); setCouponErr(""); }} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
@@ -139,10 +145,13 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               </form>
               {couponErr ? <span role="alert" className="text-[12.5px] text-bad -mt-1">{couponErr}</span> : null}
               {coupon ? (
-                <span className="text-[13.5px]">Coupon <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
-              ) : <span className="text-[13.5px]">Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>}
-              <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? "Opening…" : due === 0 ? "Activate plan" : `Pay ${rs(due)} now`}</Button>
-              <span className="text-[12.5px] text-faint">UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through{v.access.phase === "trial" || v.access.phase === "active" ? ", after the days you have left" : ""}. No auto-renewal; cancel any time. By paying you accept the <a href="/legal#terms" target="_blank" className="underline">Terms</a> and <a href="/legal#refund" target="_blank" className="underline">Cancellation & refund policy</a>.</span>
+                <span className="text-[13.5px]">{rich(t("Coupon {code}: {label}."), { code: <strong className="font-mono">{coupon.code}</strong>, label: t(coupon.label) })} <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>
+              ) : <span className="text-[13.5px]">{t("Amount")} <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>}
+              <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? t("Opening…") : due === 0 ? t("Activate plan") : t("Pay {amount} now", { amount: rs(due) })}</Button>
+              <span className="text-[12.5px] text-faint">{rich(t(v.access.phase === "trial" || v.access.phase === "active"
+                ? "UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through, after the days you have left. No auto-renewal; cancel any time. By paying you accept the {terms} and {refund}."
+                : "UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through. No auto-renewal; cancel any time. By paying you accept the {terms} and {refund}."),
+                { terms: <a href="/legal#terms" target="_blank" className="underline">{t("Terms")}</a>, refund: <a href="/legal#refund" target="_blank" className="underline">{t("Cancellation & refund policy")}</a> })}</span>
             </>
           ) : null}
           {connected && !online.enabled ? (
@@ -153,39 +162,39 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
                 setPayUrl(r.data);
                 // The desktop app opens this in the system browser; a browser may block it, so the link below stays.
                 window.open(r.data, "_blank", "noopener");
-              })}>Pay online</Button>
-              {payUrl ? <a href={payUrl} target="_blank" rel="noopener" className="text-[13px] text-teal underline self-start">Payment page didn’t open? Open it here</a> : null}
-              <span className="text-[12.5px] text-faint">Opens Medoro’s payment page in your browser: UPI, cards, netbanking or wallets through Razorpay, with coupon codes. Your plan updates here after payment (press Check now to see it straight away).</span>
-              {pay.upi || pay.bank ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">Or pay by UPI or bank transfer and report it:</div> : null}
+              })}>{t("Pay online")}</Button>
+              {payUrl ? <a href={payUrl} target="_blank" rel="noopener" className="text-[13px] text-teal underline self-start">{t("Payment page didn’t open? Open it here")}</a> : null}
+              <span className="text-[12.5px] text-faint">{t("Opens Medoro’s payment page in your browser: UPI, cards, netbanking or wallets through Razorpay, with coupon codes. Your plan updates here after payment (press Check now to see it straight away).")}</span>
+              {pay.upi || pay.bank ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">{t("Or pay by UPI or bank transfer and report it:")}</div> : null}
             </div>
           ) : null}
           {online.enabled && !manual ? null : connected && !online.enabled && !pay.upi && !pay.bank ? null : !pay.upi && !pay.bank ? (
-            <div className="text-[13px] text-ink-2">Payment details aren’t set up on this server. <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-semibold underline">Message Medoro on WhatsApp</a> for UPI or bank details{connected ? ", then report the payment below" : ""}.</div>
+            <div className="text-[13px] text-ink-2">{rich(t(connected ? "Payment details aren’t set up on this server. {wa} for UPI or bank details, then report the payment below." : "Payment details aren’t set up on this server. {wa} for UPI or bank details."), { wa: <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-semibold underline">{t("Message Medoro on WhatsApp")}</a> })}</div>
           ) : (
             <>
-              {online.enabled ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">Or pay by UPI or bank transfer and report it:</div> : (
+              {online.enabled ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">{t("Or pay by UPI or bank transfer and report it:")}</div> : (
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Plan"><Select value={product} onChange={(e) => setProduct(e.target.value as typeof product)}>{PLANS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
-                  <Field label="Billing"><Select value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="m">Monthly</option><option value="y">Yearly (2 months free)</option></Select></Field>
+                  <Field label="Billing"><Select value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="m">{t("Monthly")}</option><option value="y">{t("Yearly (2 months free)")}</option></Select></Field>
                 </div>
               )}
               <div className="flex gap-3 items-start flex-wrap">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {qr ? <img src={qr} alt="UPI QR code" width={168} height={168} className="rounded-lg border border-line" /> : null}
+                {qr ? <img src={qr} alt={t("UPI QR code")} width={168} height={168} className="rounded-lg border border-line" /> : null}
                 <div className="flex flex-col gap-1 text-[13.5px] flex-1 min-w-[200px]">
-                  <span>Amount <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">(incl. 18% GST)</span></span>
-                  {pay.upi ? <span>UPI ID <strong className="font-mono">{pay.upi}</strong> ({pay.payee})</span> : null}
-                  {pay.bank ? <span className="whitespace-pre-line">Bank transfer: {pay.bank}</span> : null}
-                  <span className="flex items-center gap-1.5">Reference <strong className="font-mono">{ref}</strong>
-                    <button type="button" aria-label="Copy reference" className="text-muted hover:text-ink cursor-pointer" onClick={() => { navigator.clipboard?.writeText(ref); toast("Reference copied.", "green"); }}><Copy size={13} /></button></span>
-                  <span className="text-[12.5px] text-faint">Put the reference in the payment note. Scan the QR with any UPI app, or pay by bank transfer.</span>
+                  <span>{t("Amount")} <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>
+                  {pay.upi ? <span>{t("UPI ID")} <strong className="font-mono">{pay.upi}</strong> ({pay.payee})</span> : null}
+                  {pay.bank ? <span className="whitespace-pre-line">{t("Bank transfer: {bank}", { bank: pay.bank })}</span> : null}
+                  <span className="flex items-center gap-1.5">{t("Reference")} <strong className="font-mono">{ref}</strong>
+                    <button type="button" aria-label={t("Copy reference")} className="text-muted hover:text-ink cursor-pointer" onClick={() => { navigator.clipboard?.writeText(ref); toast("Reference copied.", "green"); }}><Copy size={13} /></button></span>
+                  <span className="text-[12.5px] text-faint">{t("Put the reference in the payment note. Scan the QR with any UPI app, or pay by bank transfer.")}</span>
                 </div>
               </div>
             </>
           )}
           {connected && (pay.upi || pay.bank) ? (paid ? (
             <form onSubmit={(e) => { e.preventDefault(); act(() => paidAction({ product, cycle: cycle as "m" | "y", ...paid }), () => setPaid(null)); }} className="flex flex-col gap-2 bg-page border border-line rounded-lg p-3">
-              <strong className="text-[13.5px]">Report your payment</strong>
+              <strong className="text-[13.5px]">{t("Report your payment")}</strong>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="UPI reference (UTR) or bank transaction no."><Input value={paid.reference} onChange={(e) => setPaid({ ...paid, reference: e.target.value })} required /></Field>
                 <Field label="Amount paid (₹)"><Input inputMode="decimal" value={paid.amountRupees} onChange={(e) => setPaid({ ...paid, amountRupees: e.target.value })} required /></Field>
@@ -200,47 +209,47 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
         </div>
 
         <div className={card}>
-          <div className="flex items-center gap-2"><span className="font-semibold text-[15px]">AI Pharmacy Manager add-on</span>{online.enabled && !connected ? <Badge tone={online.billing.ai.active ? "green" : "gray"} className="ml-auto">{online.billing.ai.active ? "Active" : "Not added"}</Badge> : null}</div>
+          <div className="flex items-center gap-2"><span className="font-semibold text-[15px]">{t("AI Pharmacy Manager add-on")}</span>{online.enabled && !connected ? <Badge tone={online.billing.ai.active ? "green" : "gray"} className="ml-auto">{online.billing.ai.active ? t("Active") : t("Not added")}</Badge> : null}</div>
           {online.enabled && !connected ? (
             <>
               <div className="text-[13px] text-ink-2">{online.billing.ai.active && online.billing.ai.until
-                ? <>Smart assistant is on until <strong>{day(online.billing.ai.until)}</strong>: ask anything about sales, stock, expiry and dues in English, Hindi or Hinglish.</>
-                : <>Without it, Ask AI answers everyday questions from built-in rules (sales, stock, expiry, reports, backups). With it, a smart assistant understands any question in English, Hindi or Hinglish and can draft purchase orders. ₹{aiPrice}/month or ₹{(aiPrice * 10).toLocaleString("en-IN")}/year (incl. GST), on top of your plan.</>}</div>
+                ? rich(t("Smart assistant is on until {date}: ask anything about sales, stock, expiry and dues in English, Hindi or Hinglish."), { date: <strong>{day(online.billing.ai.until)}</strong> })
+                : t("Without it, Ask AI answers everyday questions from built-in rules (sales, stock, expiry, reports, backups). With it, a smart assistant understands any question in English, Hindi or Hinglish and can draft purchase orders. ₹{month}/month or ₹{year}/year (incl. GST), on top of your plan.", { month: aiPrice, year: (aiPrice * 10).toLocaleString("en-IN") })}</div>
               {online.billing.ai.active && !online.billing.ai.renewOpen && online.billing.ai.renewOpensOn ? (
-                <div className="text-[12.5px] text-muted">Renewal opens on {day(online.billing.ai.renewOpensOn)}. Nothing renews automatically.</div>
+                <div className="text-[12.5px] text-muted">{t("Renewal opens on {date}. Nothing renews automatically.", { date: day(online.billing.ai.renewOpensOn) })}</div>
               ) : (
                 <>
-                  <Field label="Billing"><Select value={aiCycle} onChange={(e) => setAiCycle(e.target.value as "m" | "y")}><option value="m">Monthly · ₹{aiPrice}</option><option value="y">Yearly · ₹{(aiPrice * 10).toLocaleString("en-IN")} (2 months free)</option></Select></Field>
+                  <Field label="Billing"><Select value={aiCycle} onChange={(e) => setAiCycle(e.target.value as "m" | "y")}><option value="m">{t("Monthly · ₹{price}", { price: aiPrice })}</option><option value="y">{t("Yearly · ₹{price} (2 months free)", { price: (aiPrice * 10).toLocaleString("en-IN") })}</option></Select></Field>
                   <Field label="Coupon code (optional)"><Input value={aiCode} onChange={(e) => setAiCode(e.target.value.toUpperCase())} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
-                  <label className="flex gap-2 text-[12.5px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={aiConsent} onChange={(e) => setAiConsent(e.target.checked)} /><span>I allow Medoro to send business questions and the figures needed to answer them to its AI provider (Anthropic). Customer names and phone numbers are hidden first; data isn’t used to train AI. This can be switched off any time under Privacy & data.</span></label>
-                  <Button variant="primary" className="self-start" disabled={busy || paying || !aiConsent} onClick={() => void payOnline({ plan: "ai", cycle: aiCycle })}>{paying ? "Opening…" : aiCode.trim() ? `${online.billing.ai.active ? "Renew" : "Add"} with coupon ${aiCode.trim()}` : `${online.billing.ai.active ? "Renew" : "Add"} for ₹${(aiCycle === "y" ? aiPrice * 10 : aiPrice).toLocaleString("en-IN")}`}</Button>
+                  <label className="flex gap-2 text-[12.5px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal mt-0.5" checked={aiConsent} onChange={(e) => setAiConsent(e.target.checked)} /><span>{t("I allow Medoro to send business questions and the figures needed to answer them to its AI provider (Anthropic). Customer names and phone numbers are hidden first; data isn’t used to train AI. This can be switched off any time under Privacy & data.")}</span></label>
+                  <Button variant="primary" className="self-start" disabled={busy || paying || !aiConsent} onClick={() => void payOnline({ plan: "ai", cycle: aiCycle })}>{paying ? t("Opening…") : aiCode.trim() ? t(online.billing.ai.active ? "Renew with coupon {code}" : "Add with coupon {code}", { code: aiCode.trim() }) : t(online.billing.ai.active ? "Renew for ₹{price}" : "Add for ₹{price}", { price: (aiCycle === "y" ? aiPrice * 10 : aiPrice).toLocaleString("en-IN") })}</Button>
                 </>
               )}
             </>
-          ) : <div className="text-[13px] text-ink-2">{hasAi ? "Included in your plan." : `₹${aiPrice}/month on top of your plan (incl. GST).`}</div>}
-          {pendingAddon ? <div className="text-[12.5px] text-muted">{KIND[pendingAddon.kind]} · {STATUS[pendingAddon.status][0].toLowerCase()} since {when(pendingAddon.at)}</div> : null}
-          {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? "Remove add-on" : "Add AI add-on"}</Button> : null}
+          ) : <div className="text-[13px] text-ink-2">{hasAi ? t("Included in your plan.") : t("₹{price}/month on top of your plan (incl. GST).", { price: aiPrice })}</div>}
+          {pendingAddon ? <div className="text-[12.5px] text-muted">{t(KIND[pendingAddon.kind])} · {t("{name} since {time}", { name: t(STATUS[pendingAddon.status][0]).toLowerCase(), time: when(pendingAddon.at) })}</div> : null}
+          {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? t("Remove add-on") : t("Add AI add-on")}</Button> : null}
         </div>
 
         {online.enabled && !connected && online.billing.status === "cancelled" ? (
           <div className={card}>
-            <div className="font-semibold text-[15px]">Subscription cancelled</div>
-            <div className="text-[13px] text-ink-2">{online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <>Access continues until <strong>{day(online.billing.renewsAt)}</strong>.</> : "Pay again any time to continue."} Your records, exports and backups stay available.</div>
+            <div className="font-semibold text-[15px]">{t("Subscription cancelled")}</div>
+            <div className="text-[13px] text-ink-2">{online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? rich(t("Access continues until {date}."), { date: <strong>{day(online.billing.renewsAt)}</strong> }) : t("Pay again any time to continue.")} {t("Your records, exports and backups stay available.")}</div>
             {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <Button className="self-start" disabled={busy} onClick={() => act(() => resumeOnlineAction())}>Undo cancellation</Button> : null}
           </div>
         ) : online.enabled && !connected && online.billing.status === "active" ? (
           <div className={card}>
-            <div className="font-semibold text-[15px]">No auto-renewal</div>
-            <div className="text-[13px] text-ink-2">Plans never renew or charge on their own, so there’s nothing to cancel: your plan ends on {online.billing.renewsAt ? day(online.billing.renewsAt) : "its end date"} unless you pay again. Payments aren’t refundable (the free trial is for trying Medoro first), except if you paid twice or money was taken for a failed payment. <a href="/legal#refund" target="_blank" className="text-teal underline">Cancellation & refund policy</a></div>
+            <div className="font-semibold text-[15px]">{t("No auto-renewal")}</div>
+            <div className="text-[13px] text-ink-2">{t("Plans never renew or charge on their own, so there’s nothing to cancel: your plan ends on {date} unless you pay again. Payments aren’t refundable (the free trial is for trying Medoro first), except if you paid twice or money was taken for a failed payment.", { date: online.billing.renewsAt ? day(online.billing.renewsAt) : t("its end date") })} <a href="/legal#refund" target="_blank" className="text-teal underline">{t("Cancellation & refund policy")}</a></div>
           </div>
         ) : null}
 
         {connected && v.access.phase !== "unlicensed" ? (
           <div className={card}>
-            <div className="font-semibold text-[15px]">Cancel subscription</div>
-            <div className="text-[13px] text-ink-2">You keep full access until the paid period ends; then Medoro becomes read-only. Your data stays on your server and exports, backups and restore keep working.</div>
-            {pendingCancel ? <div className="text-[12.5px] text-muted">Cancellation {STATUS[pendingCancel.status][0].toLowerCase()} since {when(pendingCancel.at)}.</div>
-              : v.access.cancelled ? <div className="text-[12.5px] text-muted">Cancelled. Pay again any time to continue.</div>
+            <div className="font-semibold text-[15px]">{t("Cancel subscription")}</div>
+            <div className="text-[13px] text-ink-2">{t("You keep full access until the paid period ends; then Medoro becomes read-only. Your data stays on your server and exports, backups and restore keep working.")}</div>
+            {pendingCancel ? <div className="text-[12.5px] text-muted">{t("Cancellation {status} since {when}.", { status: t(STATUS[pendingCancel.status][0]).toLowerCase(), when: when(pendingCancel.at) })}</div>
+              : v.access.cancelled ? <div className="text-[12.5px] text-muted">{t("Cancelled. Pay again any time to continue.")}</div>
               : cancel === null ? <Button variant="danger-outline" className="self-start" onClick={() => setCancel("")}>Cancel subscription…</Button>
               : (
                 <form onSubmit={(e) => { e.preventDefault(); act(() => cancelAction(cancel), () => setCancel(null)); }} className="flex flex-col gap-2">
@@ -254,16 +263,16 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
 
       <div className="flex flex-col gap-4">
         <div className={card}>
-          <div className="flex items-center"><span className="font-semibold text-[15px]">Licence</span>
-            {connected ? <Button size="sm" className="ml-auto" disabled={busy} onClick={() => act(() => checkNowAction())}><RefreshCw size={13} />Check now</Button> : null}</div>
+          <div className="flex items-center"><span className="font-semibold text-[15px]">{t("Licence")}</span>
+            {connected ? <Button size="sm" className="ml-auto" disabled={busy} onClick={() => act(() => checkNowAction())}><RefreshCw size={13} />{t("Check now")}</Button> : null}</div>
           {connected ? (
             <>
-              <div className="text-[13.5px] text-ink-2">Checks in with Medoro at <span className="font-mono">{v.server}</span>. Check-ins send only your pharmacy’s name and owner contact (once, to start the licence), app version, branch and counter counts, and the requests you make on this page or under Help.</div>
+              <div className="text-[13.5px] text-ink-2">{rich(t("Checks in with Medoro at {server}. Check-ins send only your pharmacy’s name and owner contact (once, to start the licence), app version, branch and counter counts, and the requests you make on this page or under Help."), { server: <span className="font-mono">{v.server}</span> })}</div>
               <div className="text-[12.5px] text-muted flex flex-col gap-0.5">
-                {v.customerCode ? <span>Customer {v.customerCode}{v.licenceId ? ` · licence ${v.licenceId.slice(0, 8)}…` : ""}</span> : null}
-                <span>{v.issuedAt ? `Licence signed ${when(v.issuedAt)}` : "No signed licence yet: the 7-day trial from setup applies."}{v.checkedAt ? ` · last check ${when(v.checkedAt)}` : ""}</span>
-                {!v.verifying ? <div><span className="text-bad">This server can’t check licences yet. Ask whoever set up your Medoro server to finish the licence setup.</span><details><summary className="cursor-pointer text-[12px] text-faint">Technical details</summary><span className="text-[12px] text-muted">LICENSE_PUBLIC_KEY is not set.</span></details></div> : null}
-                {v.checkError ? <span className="text-[#94570A]">{v.checkError}</span> : null}
+                {v.customerCode ? <span>{t("Customer {code}", { code: v.customerCode })}{v.licenceId ? ` · ${t("licence {id}…", { id: v.licenceId.slice(0, 8) })}` : ""}</span> : null}
+                <span>{v.issuedAt ? t("Licence signed {when}", { when: when(v.issuedAt) }) : t("No signed licence yet: the 7-day trial from setup applies.")}{v.checkedAt ? ` · ${t("last check {when}", { when: when(v.checkedAt) })}` : ""}</span>
+                {!v.verifying ? <div><span className="text-bad">{t("This server can’t check licences yet. Ask whoever set up your Medoro server to finish the licence setup.")}</span><details><summary className="cursor-pointer text-[12px] text-faint">{t("Technical details")}</summary><span className="text-[12px] text-muted">LICENSE_PUBLIC_KEY is not set.</span></details></div> : null}
+                {v.checkError ? <span className="text-[#94570A]">{t(v.checkError)}</span> : null}
               </div>
               <form onSubmit={(e) => { e.preventDefault(); act(() => connectKeyAction(key), () => setKey("")); }} className="flex gap-2 items-end">
                 <Field label="Have a licence key from Medoro?" className="flex-1"><Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="MEDORO-…" className="font-mono" /></Field>
@@ -272,53 +281,53 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
             </>
           ) : (
             online.enabled
-              ? <div className="text-[13.5px] text-ink-2">Your subscription is managed on this server: pay online above and your plan updates straight away.</div>
-              : <div className="text-[13.5px] text-ink-2">This installation isn’t connected to Medoro’s licence server, so it runs without a licence and nothing is limited.</div>
+              ? <div className="text-[13.5px] text-ink-2">{t("Your subscription is managed on this server: pay online above and your plan updates straight away.")}</div>
+              : <div className="text-[13.5px] text-ink-2">{t("This installation isn’t connected to Medoro’s licence server, so it runs without a licence and nothing is limited.")}</div>
           )}
-          <div className="text-[12.5px] text-faint">If Medoro can’t be reached, the last signed licence keeps applying. After a trial or paid period ends there are {v.access.graceEndsOn && v.access.endsOn ? Math.round((Date.parse(v.access.graceEndsOn) - Date.parse(v.access.endsOn)) / 86400_000) : 7} days of grace, then the app is read-only until you renew. Your records, exports and backups always stay available.</div>
+          <div className="text-[12.5px] text-faint">{t("If Medoro can’t be reached, the last signed licence keeps applying. After a trial or paid period ends there are {n} days of grace, then the app is read-only until you renew. Your records, exports and backups always stay available.", { n: v.access.graceEndsOn && v.access.endsOn ? Math.round((Date.parse(v.access.graceEndsOn) - Date.parse(v.access.endsOn)) / 86400_000) : 7 })}</div>
         </div>
 
         <div className={card}>
-          <div className="font-semibold text-[15px]">Medoro invoices</div>
+          <div className="font-semibold text-[15px]">{t("Medoro invoices")}</div>
           {online.payments.length ? (
             <table className="w-full text-[13px] border-collapse">
-              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">Date</th><th className="py-1 font-medium">For</th><th className="py-1 font-medium text-right">Amount</th></tr></thead>
+              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">{t("Date")}</th><th className="py-1 font-medium">{t("For")}</th><th className="py-1 font-medium text-right">{t("Amount")}</th></tr></thead>
               <tbody>{online.payments.map((p) => (
                 <tr key={p.id} className="border-t border-row align-top">
                   <td className="py-1.5">{day(p.at)}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
-                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? "1 year" : "1 month"}{p.coupon ? <div className="text-[12px] text-muted">Coupon {p.coupon}</div> : null}
-                    {p.status === "paid" && p.periodTo ? <div className="text-[12px] text-muted">Paid until {day(p.periodTo)}</div> : null}
-                    {p.note ? <div className="text-[12px] text-muted">{p.note}</div> : null}</td>
-                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">incl. GST {inr(p.gstPaise)}</div><Badge tone={PAY_STATUS[p.status]?.[1] ?? "gray"} className="mt-1">{PAY_STATUS[p.status]?.[0] ?? p.status}</Badge></td>
+                  <td className="py-1.5">{p.plan} · {p.cycle === "y" ? t("1 year") : t("1 month")}{p.coupon ? <div className="text-[12px] text-muted">{t("Coupon {code}", { code: p.coupon })}</div> : null}
+                    {p.status === "paid" && p.periodTo ? <div className="text-[12px] text-muted">{t("Paid until {date}", { date: day(p.periodTo) })}</div> : null}
+                    {p.note ? <div className="text-[12px] text-muted">{t(p.note)}</div> : null}</td>
+                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">{t("incl. GST {amount}", { amount: inr(p.gstPaise) })}</div><Badge tone={PAY_STATUS[p.status]?.[1] ?? "gray"} className="mt-1">{t(PAY_STATUS[p.status]?.[0] ?? p.status)}</Badge></td>
                 </tr>
               ))}</tbody>
             </table>
           ) : null}
           {online.payments.length && !v.invoices.length ? null : v.invoices.length ? (
             <table className="w-full text-[13px] border-collapse">
-              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">Invoice</th><th className="py-1 font-medium">For</th><th className="py-1 font-medium text-right">Amount</th></tr></thead>
+              <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">{t("Invoice")}</th><th className="py-1 font-medium">{t("For")}</th><th className="py-1 font-medium text-right">{t("Amount")}</th></tr></thead>
               <tbody>{v.invoices.map((i) => (
                 <tr key={i.number} className="border-t border-row align-top">
                   <td className="py-1.5"><div className="font-mono">{i.number}</div><div className="text-[12px] text-muted">{day(i.date)}</div></td>
-                  <td className="py-1.5">{i.description}{i.reference ? <div className="text-[12px] text-muted">Ref {i.reference}</div> : null}</td>
-                  <td className="py-1.5 text-right tnum">{inr(i.amountPaise + i.gstPaise)}<div className="text-[12px] text-muted">incl. GST {inr(i.gstPaise)}</div></td>
+                  <td className="py-1.5">{i.description}{i.reference ? <div className="text-[12px] text-muted">{t("Ref {ref}", { ref: i.reference })}</div> : null}</td>
+                  <td className="py-1.5 text-right tnum">{inr(i.amountPaise + i.gstPaise)}<div className="text-[12px] text-muted">{t("incl. GST {amount}", { amount: inr(i.gstPaise) })}</div></td>
                 </tr>
               ))}</tbody>
             </table>
-          ) : <div className="text-[13px] text-fainter">{connected || online.enabled ? "No payments yet. They appear here once a payment goes through." : "Medoro invoices appear here once this installation is connected to a Medoro licence."}</div>}
+          ) : <div className="text-[13px] text-fainter">{connected || online.enabled ? t("No payments yet. They appear here once a payment goes through.") : t("Medoro invoices appear here once this installation is connected to a Medoro licence.")}</div>}
         </div>
 
         {v.requests.length || v.billing.length ? (
           <div className={card}>
-            <div className="font-semibold text-[15px]">Requests to Medoro</div>
+            <div className="font-semibold text-[15px]">{t("Requests to Medoro")}</div>
             {v.requests.map((r) => (
               <div key={r.id} className="flex gap-2 items-center text-[13px] py-1 border-t border-row first:border-0">
-                <span className="flex-1 min-w-0">{KIND[r.kind] ?? r.kind}{r.kind === "payment" ? ` · ${String(r.payload.reference ?? "")}` : ""}<span className="text-muted"> · {r.by} · {when(r.at)}</span>{r.error ? <span className="text-bad"> · {r.error}</span> : null}</span>
-                <Badge tone={r.error ? "red" : STATUS[r.status]?.[1] ?? "gray"}>{r.error ? "Not accepted" : STATUS[r.status]?.[0] ?? r.status}</Badge>
+                <span className="flex-1 min-w-0">{t(KIND[r.kind] ?? r.kind)}{r.kind === "payment" ? ` · ${String(r.payload.reference ?? "")}` : ""}<span className="text-muted"> · {r.by} · {when(r.at)}</span>{r.error ? <span className="text-bad"> · {t(r.error)}</span> : null}</span>
+                <Badge tone={r.error ? "red" : STATUS[r.status]?.[1] ?? "gray"}>{r.error ? t("Not accepted") : t(STATUS[r.status]?.[0] ?? r.status)}</Badge>
               </div>
             ))}
             {v.billing.filter((b) => !b.requestId).map((b) => (
-              <div key={b.id} className="flex gap-2 items-center text-[13px] py-1 border-t border-row"><span className="flex-1">{b.detail}<span className="text-muted"> · {when(b.at)}</span></span><Badge tone="green">Done</Badge></div>
+              <div key={b.id} className="flex gap-2 items-center text-[13px] py-1 border-t border-row"><span className="flex-1">{t(b.detail)}<span className="text-muted"> · {when(b.at)}</span></span><Badge tone="green">Done</Badge></div>
             ))}
           </div>
         ) : null}
