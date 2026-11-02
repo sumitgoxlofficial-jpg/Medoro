@@ -47,7 +47,7 @@ if (-not (Test-Path ".env")) {
   @(
     "# Written by scripts/lan-setup.ps1. Keep a copy of HOST_KEY offline: losing it makes stored secrets unreadable.",
     "POSTGRES_PASSWORD=$(RandHex 24)", "SESSION_SECRET=$(RandHex 32)", "HOST_KEY=$(RandHex 32)", "SETUP_TOKEN=$(RandHex 12)",
-    "APP_URL=$origin", "MEDORO_HOST=$HostName", "MEDORO_HTTPS_PORT=$Port", "DEPLOYMENT_MODE=lan", "TRUST_PROXY=1", "TZ=Asia/Kolkata", "LOG_LEVEL=info"
+    "APP_URL=$origin", "MEDORO_HOST=$HostName", "MEDORO_HTTPS_PORT=$Port", "DEPLOYMENT_MODE=lan", "TRUST_PROXY=1", "MEDORO_HTTP_BIND=127.0.0.1", "TZ=Asia/Kolkata", "LOG_LEVEL=info"
   ) | Set-Content -Encoding ascii ".env"
   Write-Host "Wrote .env with new random secrets."
 } else { Write-Host ".env already exists; left unchanged." }

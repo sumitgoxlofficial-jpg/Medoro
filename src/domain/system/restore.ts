@@ -140,6 +140,12 @@ export async function prepare(tenantId: string, data: RestoreData, createdAt: st
           await tx.$executeRawUnsafe(`INSERT INTO ${q(schema)}.${q(t.name)} (${list}) SELECT ${list} FROM json_populate_recordset(NULL::public.${q(t.name)}, $1::json)`, JSON.stringify(rows.slice(i, i + 2000)));
         }
       }
+      // Every row must belong to this pharmacy. A backup is decrypted with a kit its uploader holds, so it could be edited
+      // to carry rows (a user, a role) marked with another pharmacy's id.
+      for (const t of L.tables) {
+        const r = await tx.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM ${q(schema)}.${q(t.name)} WHERE (${scope(schema, t)}) IS NOT TRUE`, tenantId);
+        if (Number(r[0].n)) throw new UserError("This backup contains rows of another pharmacy, so it can’t be restored here. Live data is unchanged.");
+      }
       // Every reference inside the copy must resolve, or the live swap would fail halfway.
       for (const e of L.edges) {
         const r = await tx.$queryRawUnsafe<{ n: bigint }[]>(`SELECT count(*) n FROM ${q(schema)}.${q(e.table)} c WHERE c.${q(e.col)} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${q(schema)}.${q(e.parent)} p WHERE p.id = c.${q(e.col)})`);
@@ -181,7 +187,8 @@ export async function swapIn(ctx: Pick<Ctx, "tenantId" | "userName"> & { userId:
     await tx.$executeRawUnsafe(`SET LOCAL medoro.restore = 'on'`);
     for (const t of L.clear) await tx.$executeRawUnsafe(`DELETE FROM public.${q(t.name)} WHERE ${scope("public", t)}`, ctx.tenantId);
     for (const t of [...L.tables].reverse()) await tx.$executeRawUnsafe(`DELETE FROM public.${q(t.name)} WHERE ${scope("public", t)}`, ctx.tenantId);
-    for (const t of L.tables) await tx.$executeRawUnsafe(`INSERT INTO public.${q(t.name)} SELECT * FROM ${q(schema)}.${q(t.name)}`);
+    // Only this pharmacy's rows, whatever the test copy holds (prepare already refuses others).
+    for (const t of L.tables) await tx.$executeRawUnsafe(`INSERT INTO public.${q(t.name)} SELECT * FROM ${q(schema)}.${q(t.name)} WHERE ${scope(schema, t)}`, ctx.tenantId);
     // Restored rows keep their ids; move id sequences past them (on a new server they start at 1).
     for (const s of await tx.$queryRaw<{ t: string; c: string; seq: string }[]>`SELECT table_name t, column_name c, pg_get_serial_sequence(format('public.%I', table_name), column_name) seq FROM information_schema.columns WHERE table_schema = 'public' AND column_default LIKE 'nextval(%'`) {
       if (!s.seq || !L.tables.some((x) => x.name === s.t)) continue;

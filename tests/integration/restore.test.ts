@@ -8,7 +8,7 @@ import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale } from "@/domain/sales/service";
 import { verifyAudit } from "@/domain/identity/admin";
 import { applyRestore, discardRestore, pendingRestore, prepareRestore, runBackup } from "@/domain/system/backup";
-import { layout } from "@/domain/system/restore";
+import { dropSchema, dumpForBackup, layout, prepare } from "@/domain/system/restore";
 import { addDays, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -29,6 +29,20 @@ describe("restore from backup", () => {
     expect(names.indexOf("Medicine")).toBeLessThan(names.indexOf("Batch"));
     expect(names).not.toContain("Integration");
     expect(names).not.toContain("StaffUser");
+  });
+
+  it("refuses a backup edited to carry another pharmacy's rows, and leaves no test copy behind", async () => {
+    const ctx = await ctxFor();
+    const { data } = await dumpForBackup(ctx.tenantId);
+    const before = await schemas();
+    const roles = data.tables.Role as { id: string; tenantId: string }[];
+    const forged = { ...data, tables: { ...data.tables, Role: [...roles, { ...roles[0], id: randomUUID(), tenantId: randomUUID() }] } };
+    await expect(prepare(ctx.tenantId, forged, new Date().toISOString())).rejects.toThrow(/another pharmacy/);
+    expect(await schemas()).toEqual(before);
+    // The untouched backup still loads.
+    const ok = await prepare(ctx.tenantId, data, new Date().toISOString());
+    expect(ok.summary.problems).toEqual([]);
+    await dropSchema(ok.schema);
   });
 
   it("test copy first, then a confirmed swap that brings back exactly the backed-up data", async () => {

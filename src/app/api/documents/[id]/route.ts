@@ -2,7 +2,7 @@ import { limited, userKey } from "@/server/ratelimit";
 import { counted } from "@/server/metrics";
 import { getCtx } from "@/server/context";
 import { db } from "@/server/db";
-import { readDocument } from "@/server/storage";
+import { readDocument, sniff } from "@/server/storage";
 
 export const GET = counted("documents", async (_: Request, { params }: { params: Promise<{ id: string }> }) => {
   const ctx = await getCtx();
@@ -16,5 +16,8 @@ export const GET = counted("documents", async (_: Request, { params }: { params:
   let bytes: Buffer;
   try { bytes = await readDocument(d.storagePath); }
   catch (e) { return new Response(e instanceof Error && /Google Drive/.test(e.message) ? e.message : "File not found", { status: e instanceof Error && /Google Drive/.test(e.message) ? 502 : 404 }); }
-  return new Response(new Uint8Array(bytes), { headers: { "Content-Type": d.mime ?? "application/octet-stream", "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff", "Content-Disposition": `inline; filename="${d.fileName.replace(/[^\w.-]/g, "_")}"` } });
+  // The type comes from the file's own bytes, not the stored label (a restored backup carries its own labels): only a
+  // PDF or image opens in the browser, anything else downloads.
+  const type = sniff(bytes);
+  return new Response(new Uint8Array(bytes), { headers: { "Content-Type": type ?? "application/octet-stream", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Disposition": `${type ? "inline" : "attachment"}; filename="${d.fileName.replace(/[^\w.-]/g, "_")}"` } });
 });

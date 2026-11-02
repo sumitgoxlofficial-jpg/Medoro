@@ -252,7 +252,7 @@ describe("account recovery, providers and Google sign-in", () => {
     await signIn("mgr@test.in", "manager-new-password");
   });
 
-  it("Google: PKCE + state + nonce; a verified email links to its account and signs straight in", async () => {
+  it("Google: PKCE + state + nonce; a verified email links only after the password, and the authenticator is still asked", async () => {
     const start = await googleStart(new Request(`${APP}/api/auth/google/start`));
     expect(start.status).toBe(302);
     const loc = new URL(start.headers.get("location")!);
@@ -264,22 +264,24 @@ describe("account recovery, providers and Google sign-in", () => {
 
     idClaims = google.claims({ aud: CLIENT, nonce: q.nonce, sub: "g-owner", email: EMAIL });
     const cb = await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${q.state}&code=code-1`));
-    // Google verified the email, which matches exactly one owner account: linked and signed in, no password or code.
-    expect(cb.headers.get("location")).toBe(`${APP}/app`);
+    // Google verified the email, which matches exactly one owner account. Whoever controls an inbox can make a Google
+    // account on it, so the link waits for that account's password: nothing is linked and no session yet.
+    expect(cb.headers.get("location")).toBe(`${APP}/signin?google=link`);
     const tok = new URLSearchParams(sent.find((s) => s.url.includes("oauth2.googleapis.com/token"))!.body);
     expect(createHash("sha256").update(tok.get("code_verifier")!).digest("base64url")).toBe(q.code_challenge);
     expect(tok.get("redirect_uri")).toBe(`${APP}/api/auth/google/callback`);
-    expect(jar.has(SESSION_COOKIE)).toBe(true);
-    expect(await db.user.findFirstOrThrow({ where: { email: EMAIL } })).toMatchObject({ googleSub: "g-owner", googleEmail: EMAIL });
-    expect(await audits("Google sign-in connected")).toBe(1);
+    expect(jar.has(SESSION_COOKIE)).toBe(false);
+    expect(await db.user.findFirstOrThrow({ where: { email: EMAIL } })).toMatchObject({ googleSub: null });
+    expect(await audits("Google sign-in connected")).toBe(0);
 
     // The callback is single use: replaying it fails on state.
     const replay = await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${q.state}&code=code-1`));
     expect(replay.headers.get("location")).toBe(`${APP}/signin?google=state`);
 
-    // Password sign-in still asks for the authenticator code.
-    jar.clear();
+    // The password completes the link, and still asks for the authenticator code.
     expect(await passwordSignIn(EMAIL, PW)).toEqual({ ok: true, data: "/signin/mfa" });
+    expect(await db.user.findFirstOrThrow({ where: { email: EMAIL } })).toMatchObject({ googleSub: "g-owner", googleEmail: EMAIL });
+    expect(await audits("Google sign-in connected")).toBe(1);
 
     const google2 = async (claims: Record<string, unknown>, state?: string) => {
       jar.clear();
@@ -287,11 +289,11 @@ describe("account recovery, providers and Google sign-in", () => {
       idClaims = google.claims({ aud: CLIENT, nonce: s.get("nonce"), ...claims });
       return (await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${state ?? s.get("state")}&code=c`))).headers.get("location");
     };
-    // Google already verified the person, so there's no second code: straight into the app.
-    expect(await google2({ sub: "g-owner", email: EMAIL })).toBe(`${APP}/app`);
-    expect((await readSession(true))?.mfaPassed).toBe(true);
+    // A linked account signs in with Google, and an enrolled authenticator is still asked for.
+    expect(await google2({ sub: "g-owner", email: EMAIL })).toBe(`${APP}/signin/mfa`);
+    expect((await readSession(true))?.mfaPassed).toBe(false);
+    expect(await verifyMfa(await totpFor(EMAIL), false)).toMatchObject({ ok: true });
     expect((await getCtx())?.userName).toBe("Owner Person");
-    expect(await audits("Signed in")).toBeGreaterThan(0);
 
     expect(await google2({ sub: "g-owner", email: EMAIL }, "forged-state")).toBe(`${APP}/signin?google=state`);
     expect(jar.has(SESSION_COOKIE)).toBe(false);
@@ -402,7 +404,7 @@ describe("account recovery, providers and Google sign-in", () => {
       jar.clear();
       const s = new URL((await googleStart(new Request(`${APP}/api/auth/google/start`))).headers.get("location")!).searchParams;
       idClaims = google.claims({ aud: CLIENT, nonce: s.get("nonce"), sub: "g-owner", email: EMAIL });
-      expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/app`); // Google needs no second code
+      expect((await googleCallback(new Request(`${APP}/api/auth/google/callback?state=${s.get("state")}&code=c`))).headers.get("location")).toBe(`${APP}/signin/mfa`); // an enrolled authenticator is still asked
     };
     const mailsAndSms = () => sent.filter((s) => !s.url.includes("oauth2.googleapis.com")).length;
 
@@ -415,9 +417,9 @@ describe("account recovery, providers and Google sign-in", () => {
     const code = lastCode();
 
     await viaGoogle();
-    expect((await readSession(true))).toMatchObject({ firstFactor: "google", mfaPassed: true });
+    expect((await readSession(true))).toMatchObject({ firstFactor: "google", mfaPassed: false });
     const before = mailsAndSms();
-    // A Google session is already fully signed in, so it has no pending code to reset.
+    // A Google first factor can't spend the email/SMS reset: whoever holds the inbox could hold the Google account too.
     expect((await sendMfaResetCode()).ok).toBe(false);
     expect((await resetMfaWithCode(code)).ok).toBe(false);
     expect(mailsAndSms()).toBe(before);

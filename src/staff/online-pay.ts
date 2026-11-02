@@ -7,7 +7,7 @@ import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { payLinkBody, requestSignature } from "@/lib/licence";
-import { normCode } from "@/domain/system/coupons";
+import { claimCoupon } from "@/domain/system/coupons";
 import { RENEW_WINDOW_DAYS, quote, razorpayEnabled, renewal, rzpConfirm, rzpKeyId, rzpOrder, rzpRefund, type RzpPayment } from "@/domain/system/razorpay";
 import { product } from "./constants";
 import { rateFor } from "./sales";
@@ -43,8 +43,8 @@ export async function payPage(l: string, s: string) {
 const pick = z.object({ plan: z.enum(["starter", "pro", "multi"]), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default("") });
 
 export async function cpQuote(l: string, s: string, raw: z.input<typeof pick>) {
-  await payCustomer(l, s);
-  return quote(pick.parse(raw));
+  const c = await payCustomer(l, s);
+  return quote(pick.parse(raw), { customerId: c.id });
 }
 
 /** Starts a payment: a Razorpay order for this installation's customer (a 100% coupon renews straight away). */
@@ -56,7 +56,7 @@ export async function cpStart(l: string, s: string, raw: z.input<typeof pick>) {
   const ends = c.renewsOn ? new Date(isoOf(c.renewsOn) + "T23:59:59+05:30") : null;
   const win = renewal(ends ? { status: c.status, renewsAt: ends } : null);
   if (!win.open) throw new UserError(`Your plan is paid until ${isoOf(c.renewsOn!)}. You can renew from ${win.opensOn!.toISOString().slice(0, 10)}, ${RENEW_WINDOW_DAYS} days before it ends.`);
-  const price = await quote(i);
+  const price = await quote(i, { customerId: c.id });
   const coupon = price.coupon?.code ?? null;
   const base = { customerId: c.id, plan: i.plan, cycle: i.cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount };
   if (price.total === 0) {
@@ -132,6 +132,10 @@ export async function applyCpPaid(orderId: string, paymentId: string): Promise<f
     const staffId = c.salesStaffId ?? "";
     const rate = staffId ? await rateFor(staffId, p.plan, "renewal") : 0;
     const free = p.amountPaise === 0;
+    // Count the coupon's use only while it's under its limit: a free renewal on a used-up coupon is refused, a paid one
+    // keeps its price and says so on the payment.
+    const claimed = !p.couponCode || (await claimCoupon(tx, p.couponCode));
+    if (!claimed && free) throw new UserError("That coupon has been used up.");
     const sale = await tx.cpSale.create({
       data: { date: dateOnly(today), pharmacy: c.name, phone: c.phone, city: c.city, customerId: c.id, product: p.plan, cycle: p.cycle, type: "renewal", staffId, status: "verified", amountPaise: before, ratePct: rate, commissionPaise: Math.round((before * rate) / 100), verifiedBy: free ? "Coupon" : "Razorpay", verifiedAt: new Date(), payRef: free ? `coupon ${p.couponCode}` : paymentId },
     });
@@ -141,8 +145,7 @@ export async function applyCpPaid(orderId: string, paymentId: string): Promise<f
       data: { customerId: c.id, kind: "invoice", status: "done", number: `MED-${today.slice(0, 4)}-${String(n).padStart(5, "0")}`, amountPaise: before, gstPaise: p.gstPaise, reference: free ? null : paymentId, saleId: sale.id, byName: free ? "Coupon" : "Razorpay",
         detail: `${product(p.plan).name} · ${p.cycle === "y" ? "1 year" : "1 month"}, paid until ${renews} · paid online${p.couponCode ? ` · coupon ${p.couponCode}` : ""}` },
     });
-    await tx.cpOnlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), saleId: sale.id } });
-    if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
+    await tx.cpOnlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), saleId: sale.id, ...(claimed ? {} : { note: `Coupon ${p.couponCode} was used past its limit; the payment had already gone through.` }) } });
     return "applied";
   });
 }
