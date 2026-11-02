@@ -26,6 +26,9 @@ in the `/data` volume) and `migrate` (runs `prisma migrate deploy` once and exit
 - `app`: starts only after `migrate` succeeded; port `3000` (`MEDORO_HTTP_PORT`), files in the `appdata`
   volume (`STORAGE_DIR=/data/storage`), healthcheck on `/api/ready`.
 - `https` (profile `https`): Caddy on port 443 with the certificate from `scripts/lan-setup.*`.
+  `lan-setup` also sets `MEDORO_HTTP_BIND=127.0.0.1`, so port 3000 answers only on the server PC and counters come
+  in through Caddy. With `TRUST_PROXY=1` an open port 3000 would let anyone send a forged client address and slip
+  past the per-address sign-in limits. An older `.env` without that line: add it, then `docker compose up -d`.
 
 ```bash
 cp .env.example .env     # or: bash scripts/lan-setup.sh   (writes .env with random secrets + certificates)
@@ -35,7 +38,8 @@ docker compose --profile https up -d --build     # https://medoro.local
 docker compose logs -f app                       # JSON log lines
 ```
 Updating: pull the new source (or image), then `docker compose up -d --build`; `migrate` runs first. Behind
-your own proxy set `TRUST_PROXY=1` and `APP_URL`; if the browser-facing host differs from the `Host` header the
+your own proxy set `TRUST_PROXY=1`, `APP_URL` and `MEDORO_HTTP_BIND=127.0.0.1` (or keep port 3000 unreachable from
+the network); if the browser-facing host differs from the `Host` header the
 app sees, list it in `ALLOWED_ORIGINS` (comma-separated `host[:port]`) for the CSRF checks.
 
 Without Docker: `pnpm install && pnpm prisma migrate deploy && pnpm build && pnpm start` (Node 22), with

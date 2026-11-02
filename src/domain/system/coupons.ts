@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { db } from "@/server/db";
+import { db, type Tx } from "@/server/db";
 import { UserError } from "@/server/action";
 
 /** Subscription coupons: a percentage off the GST-inclusive plan price, made in the staff console. */
@@ -21,14 +21,33 @@ export const couponSchema = z.object({
 /** Last moment of an IST calendar day. */
 export const endOfIstDay = (iso: string) => new Date(new Date(iso + "T23:59:59.999+05:30").getTime());
 
-/** The coupon if `code` can be used for `plan` right now; otherwise a UserError saying why. */
-export async function usableCoupon(code: string, plan: string, now = new Date()) {
+/** Who is paying: a hosted pharmacy or a licence customer. Each can use a coupon once. */
+export type CouponBuyer = { tenantId: string } | { customerId: string };
+
+/** The coupon if `code` can be used for `plan` right now (by `buyer`, when given); otherwise a UserError saying why. */
+export async function usableCoupon(code: string, plan: string, now = new Date(), buyer?: CouponBuyer) {
   const c = await db.coupon.findUnique({ where: { code: normCode(code) } });
   if (!c || !c.active) throw new UserError("That coupon code isn’t valid.");
   if (c.expiresAt && c.expiresAt < now) throw new UserError("That coupon has expired.");
   if (c.maxUses !== null && c.uses >= c.maxUses) throw new UserError("That coupon has been used up.");
-  if (c.plans.length && !c.plans.includes(plan)) throw new UserError("That coupon doesn’t apply to this plan.");
+  // No plans listed means every plan, which never includes add-ons such as AI.
+  if (!(c.plans.length ? c.plans : COUPON_PLANS as readonly string[]).includes(plan)) throw new UserError("That coupon doesn’t apply to this plan.");
+  if (buyer) {
+    const used = "tenantId" in buyer
+      ? await db.onlinePayment.findFirst({ where: { tenantId: buyer.tenantId, couponCode: c.code, status: "paid" }, select: { id: true } })
+      : await db.cpOnlinePayment.findFirst({ where: { customerId: buyer.customerId, couponCode: c.code, status: "paid" }, select: { id: true } });
+    if (used) throw new UserError("You’ve already used this coupon.");
+  }
   return c;
+}
+
+/**
+ * Counts one use, inside the payment's transaction, only while the coupon is under its limit. The check when the price
+ * was quoted can't stop two orders racing for the last use; this can. False when the coupon is used up.
+ */
+export async function claimCoupon(tx: Tx, code: string) {
+  const n = await tx.$executeRaw`UPDATE "Coupon" SET "uses" = "uses" + 1 WHERE "code" = ${normCode(code)} AND ("maxUses" IS NULL OR "uses" < "maxUses")`;
+  return n > 0;
 }
 
 /** Discount in paise for a GST-inclusive total: a fixed price (never above the list price) or a percentage. */

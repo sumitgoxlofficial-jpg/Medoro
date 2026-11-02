@@ -38,7 +38,7 @@ export async function paidAction(input: z.input<typeof paymentSchema>) {
 
 /** The price with a coupon code applied, shown before paying. */
 export async function couponAction(input: z.input<typeof orderSchema>) {
-  return run(async (c) => { authorize(c, "users"); return quote(input); });
+  return run(async (c) => { authorize(c, "users"); return quote(input, { tenantId: c.tenantId }); });
 }
 
 /** Starts a Razorpay Checkout payment for a plan (a 100% coupon activates it straight away). */

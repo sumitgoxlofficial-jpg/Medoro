@@ -4,14 +4,15 @@ import { writeAudit } from "@/server/audit";
 import { checkLock, clientInfo } from "@/server/auth";
 import { finishSignIn } from "@/server/signin";
 import { getCtx } from "@/server/context";
-import { clearPendingLink, readPendingLink, setPendingSignup, type GoogleClaims } from "@/server/google-oidc";
+import { clearPendingLink, readPendingLink, setPendingLink, setPendingSignup, type GoogleClaims } from "@/server/google-oidc";
 import { signupOpen } from "@/server/setup-gate";
 
 /**
  * Maps a verified Google identity to a Medoro account and returns where to send the browser.
  * - An account that already linked this Google subject signs in.
- * - A first Google sign-in whose verified email matches exactly one owner or manager account links to it and signs in
- *   (Google has verified that the person owns that email).
+ * - A first Google sign-in whose verified email matches exactly one owner or manager account is parked: the person
+ *   enters that account's password once to connect Google. A verified email alone isn't enough, since whoever
+ *   controls the inbox could make a Google account on it.
  * - No account with that email: on a server with self sign-up, the person goes on to create their pharmacy with
  *   this Google identity; otherwise they're told no account is connected.
  */
@@ -31,10 +32,8 @@ export async function googleSignIn(c: GoogleClaims) {
   const owners = all.filter((m) => m.role.name === "Owner");
   const matches = all.length === 1 ? all : owners.length === 1 ? owners : all.slice(0, 2);
   if (matches.length === 1) {
-    if ((await link(matches[0].id, c, "verified Google email")) === "taken") return "/signin?google=taken";
-    const user = await db.user.findUniqueOrThrow({ where: { id: matches[0].id } });
-    if (await checkLock(["acct:" + (user.email ?? user.id)])) return "/signin?google=locked";
-    return finishSignIn(user, "google", "Google");
+    await setPendingLink({ userId: matches[0].id, sub: c.sub, email: c.email });
+    return "/signin?google=link";
   }
   if (matches.length === 0 && signupOpen() && !(await db.user.findFirst({ where: { email: c.email }, select: { id: true } }))) {
     await setPendingSignup({ sub: c.sub, email: c.email, name: c.name });

@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { accessFor } from "@/domain/system/access";
 import { applyPaid, billingState, checkoutSignatureOk, confirmCheckout, createOrder, extendPeriod, handleWebhook, markFailed, planPrice, quote, resumeSubscription, webhookSignatureOk } from "@/domain/system/razorpay";
 import { createCoupon, setCouponActive } from "@/staff/coupons";
+import { claimCoupon } from "@/domain/system/coupons";
 import type { Staff } from "@/staff/auth";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -180,6 +181,16 @@ describe("subscription coupons", () => {
     expect(await db.subscriptionMeta.findUniqueOrThrow({ where: { tenantId: ctx.tenantId } })).toMatchObject({ plan: "Multi-branch", status: "active" });
     expect(await db.onlinePayment.findFirstOrThrow({ where: { tenantId: ctx.tenantId } })).toMatchObject({ provider: "coupon", status: "paid", amountPaise: 0, couponCode: "FREEYEAR" });
     expect((await db.coupon.findUniqueOrThrow({ where: { code: "FREEYEAR" } })).uses).toBe(1);
+    // One use per pharmacy, and a coupon with no plans listed never covers the AI add-on.
+    await expect(quote({ plan: "pro", cycle: "m", coupon: "FREEYEAR" }, { tenantId: ctx.tenantId })).rejects.toThrow(/already used/);
+    await expect(quote({ plan: "ai", cycle: "m", coupon: "FREEYEAR" })).rejects.toThrow(/doesn’t apply/);
+  });
+
+  it("counts uses atomically at payment, so orders racing for the last use can't both get it", async () => {
+    await createCoupon(admin, { code: "LAST1", percentOff: 100, maxUses: 1 });
+    const claims = await Promise.all([1, 2, 3].map(() => db.$transaction((tx) => claimCoupon(tx, "last1"))));
+    expect(claims.filter(Boolean)).toHaveLength(1);
+    expect((await db.coupon.findUniqueOrThrow({ where: { code: "LAST1" } })).uses).toBe(1);
   });
 });
 

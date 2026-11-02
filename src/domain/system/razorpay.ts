@@ -6,7 +6,7 @@ import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
 import { PRODUCTS } from "@/staff/constants";
-import { couponLabel, discountOf, normCode, usableCoupon } from "./coupons";
+import { claimCoupon, couponLabel, discountOf, usableCoupon, type CouponBuyer } from "./coupons";
 
 /**
  * Subscription payments on a hosted server (Medoro's own), with Razorpay Checkout: the owner picks a plan,
@@ -51,9 +51,9 @@ export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", of
 }
 
 /** The price with a coupon applied, for the Subscription page to show before paying. */
-export async function quote(raw: z.input<typeof orderSchema>) {
+export async function quote(raw: z.input<typeof orderSchema>, buyer?: CouponBuyer) {
   const { plan, cycle, coupon } = orderSchema.parse(raw);
-  const c = coupon ? await usableCoupon(coupon, plan) : null;
+  const c = coupon ? await usableCoupon(coupon, plan, new Date(), buyer) : null;
   return { ...planPrice(plan, cycle, c ?? 0), coupon: c ? { code: c.code, percentOff: c.percentOff, payPaise: c.payPaise, label: couponLabel(c) } : null };
 }
 
@@ -137,7 +137,7 @@ export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
     const r = renewal(meta);
     if (!r.open) throw new UserError(`Your plan is paid until ${day(meta!.renewsAt!)}. You can renew from ${day(r.opensOn!)}, ${RENEW_WINDOW_DAYS} days before it ends.`);
   }
-  const price = await quote(raw);
+  const price = await quote(raw, { tenantId: ctx.tenantId });
   const coupon = price.coupon?.code ?? null;
   const base = { tenantId: ctx.tenantId, plan, cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount, createdBy: ctx.userName };
   if (price.total === 0) {
@@ -187,7 +187,7 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
     if (isAi(p.plan)) {
       const { from, to } = extendPeriod(meta?.aiUntil ?? null, p.cycle as "m" | "y");
       await tx.onlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), periodFrom: from, periodTo: to, note: null } });
-      if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
+      await useCoupon(tx, p, by);
       await tx.subscriptionMeta.update({ where: { tenantId: p.tenantId }, data: { aiUntil: to, addons: meta!.addons.includes("ai") ? meta!.addons : [...meta!.addons, "ai"] } });
       await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "AI add-on paid", entity: "subscription", entityId: p.id, detail: `${p.cycle === "y" ? "1 year" : "1 month"} · ₹${(p.amountPaise / 100).toLocaleString("en-IN")}${p.couponCode ? ` (coupon ${p.couponCode})` : ""} · ${p.provider === "coupon" ? "no payment needed" : `Razorpay ${paymentId}`} · until ${to.toISOString().slice(0, 10)}` });
       await creditReferral(tx, p, paymentId);
@@ -197,7 +197,7 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
     const { from, to } = extendPeriod(meta && meta.status !== "cancelled" ? meta.renewsAt : null, p.cycle as "m" | "y");
     const name = PRODUCTS.find((x) => x.id === p.plan)!.name;
     await tx.onlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), periodFrom: from, periodTo: to, note: null, prevStatus: meta?.status ?? null, prevRenewsAt: meta?.renewsAt ?? null } });
-    if (p.couponCode) await tx.coupon.updateMany({ where: { code: normCode(p.couponCode) }, data: { uses: { increment: 1 } } });
+    await useCoupon(tx, p, by);
     await tx.subscriptionMeta.upsert({
       where: { tenantId: p.tenantId },
       create: { tenantId: p.tenantId, plan: name, addons: [], status: "active", renewsAt: to },
@@ -207,6 +207,16 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
     await creditReferral(tx, p, paymentId);
     return "applied";
   });
+}
+
+/**
+ * Counts the order's coupon use. A free order whose coupon ran out meanwhile is refused (nothing is granted); a paid
+ * order keeps the price it paid, and the overrun is put on the audit trail.
+ */
+async function useCoupon(tx: Tx, p: { id: string; tenantId: string; couponCode: string | null; provider: string; amountPaise: number }, by: string) {
+  if (!p.couponCode || (await claimCoupon(tx, p.couponCode))) return;
+  if (p.provider === "coupon" || p.amountPaise <= 0) throw new UserError("That coupon has been used up.");
+  await writeAudit(tx, { tenantId: p.tenantId, userName: by, action: "Coupon used past its limit", entity: "subscription", entityId: p.id, detail: `${p.couponCode} · the payment had already gone through, so the price stands` });
 }
 
 /** A pharmacy that signed up with a referral code: the sales person or reference partner earns commission on what it pays. */

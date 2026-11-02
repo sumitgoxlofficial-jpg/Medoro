@@ -8,8 +8,10 @@ type SignInUser = { id: string; tenantId: string; name: string; tokenVersion: nu
 
 /** Opens a session after the first factor. Returns where to go next: the MFA step or the app. */
 export async function finishSignIn(user: SignInUser, factor: FirstFactor, how: string, opts: { counterId?: string; device?: string } = {}) {
-  // Google already verifies the person (with its own 2-step verification), so a Google sign-in needs no second code here.
-  const needMfa = factor !== "google" && (user.mfaEnabled || user.mfaRequired) && !(user.mfaEnabled && (await isTrustedDevice(user.id, user.tokenVersion)));
+  // An enrolled authenticator is asked for after every first factor, Google included. Google sign-in only skips the
+  // "enrol an authenticator" step that mfaRequired otherwise forces, since Google runs its own 2-step verification.
+  const wantsMfa = user.mfaEnabled || (factor !== "google" && user.mfaRequired);
+  const needMfa = wantsMfa && !(user.mfaEnabled && (await isTrustedDevice(user.id, user.tokenVersion)));
   await createSession(user.id, user.tokenVersion, { mfaPassed: !needMfa, firstFactor: factor, ...opts });
   const { ip } = await clientInfo();
   await db.$transaction(async (tx) => {

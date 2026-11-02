@@ -142,7 +142,8 @@ export async function readDocument(rel: string) {
 export async function restoreFile(key: string, bytes: Buffer, contentType: string) {
   const k = safe(key);
   await db.fileObject.deleteMany({ where: { key: k, bytes: null } });
-  await putObject(k, bytes, contentType);
+  // The backup's label isn't trusted: keep it only when the bytes agree.
+  await putObject(k, bytes, sniff(bytes) === contentType ? contentType : "application/octet-stream");
 }
 
 /** Checks magic bytes so a renamed file can't pose as a PDF or image. */
