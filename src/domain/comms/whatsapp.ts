@@ -305,7 +305,7 @@ export async function saleMessage(tenantId: string, saleId: string) {
 /** GET verification: Meta echoes hub.challenge when our verify token matches. */
 export async function verifyWebhook(token: string) {
   const all = await db.integration.findMany({ where: { kind: "whatsapp", connectedAt: { not: null } } });
-  const hit = all.find((i) => (i.config as WaConfig).verifyToken === token);
+  const hit = all.find((i) => !isPhone(i.config as WaConfig) && (i.config as WaConfig).verifyToken === token);
   if (!hit) return false;
   await patchConfig(hit.id, { webhookVerified: true });
   return true;
@@ -327,7 +327,8 @@ export async function handleWebhook(raw: string, signature: string | null) {
   const all = await db.integration.findMany({ where: { kind: "whatsapp", connectedAt: { not: null } } });
   const i = all.find((x) => (pnid ? (x.config as WaConfig).phoneNumberId === pnid : !!entry?.id && (x.config as WaConfig).wabaId === entry.id));
   const w = i ? await waAccount(i.tenantId) : null;
-  if (!i || !w) return 0;
+  // A linked phone has no Meta app secret: an empty HMAC key would let anyone sign a payload, so never accept one.
+  if (!i || !w || isPhone(w.cfg) || !w.sec.appSecret) return 0;
   const want = "sha256=" + createHmac("sha256", w.sec.appSecret).update(raw).digest("hex");
   if (!signature || signature.length !== want.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(want))) throw new Error("Bad signature");
   const order = ["queued", "sent", "delivered", "read"];

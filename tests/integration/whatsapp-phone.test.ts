@@ -137,3 +137,17 @@ describe("WhatsApp from a linked phone (QR)", () => {
     expect((await waStatus(ctx.tenantId)).connected).toBe(false);
   });
 });
+
+describe("Meta webhook with a linked phone", () => {
+  it("never accepts a payload signed with the phone link's empty app secret", async () => {
+    const { createHmac } = await import("node:crypto");
+    const { handleWebhook, verifyWebhook } = await import("@/domain/comms/whatsapp");
+    const i = await db.integration.findFirst({ where: { kind: "whatsapp" } });
+    if (!i) return;
+    await db.integration.update({ where: { id: i.id }, data: { connectedAt: new Date(), config: { ...(i.config as object), via: "phone", phoneNumberId: "", wabaId: "" } } });
+    const body = JSON.stringify({ entry: [{ id: "", changes: [{ value: { metadata: { phone_number_id: "" }, messages: [{ from: "919822041736", type: "text", text: { body: "STOP" } }] } }] }] });
+    const sig = "sha256=" + createHmac("sha256", "").update(body).digest("hex");
+    expect(await handleWebhook(body, sig)).toBe(0);
+    expect(await verifyWebhook((i.config as { verifyToken: string }).verifyToken)).toBe(false);
+  });
+});
