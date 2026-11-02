@@ -39,6 +39,11 @@ describe("device dashboard", () => {
     expect(d.lowStock.map((x) => x.name)).toEqual(["Dolo 650"]); // 15 left, reorder at 30; Pan 40 has no reorder level
     expect(d.expiring.map((x) => x.name)).toEqual(["Dolo 650"]);
     expect(d.expiringCount).toBe(1);
+    expect(d.expiring[0].daysLeft).toBe(40);
+    // 5 strips sold today over a 28-day window: 15 left lasts 84 days.
+    expect(d.lowStock[0]).toMatchObject({ stock: 15, reorder: 30, daysCover: 84 });
+    expect(d.branches).toEqual([{ id: B, name: "This branch", salesPaise: 16000, bills: 2 }]);
+    expect(d.activity.map((r) => r.kind)).toEqual(expect.arrayContaining(["bill", "purchase", "expense"]));
     // Yesterday's range is empty.
     expect(dashboard(db, B, "today", addDays(today, 1)).sales).toEqual({ paise: 0, bills: 0 });
     expect(dashboard(db, B, "7d", addDays(today, 1)).sales.bills).toBe(2);

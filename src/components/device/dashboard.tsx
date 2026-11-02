@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { IndianRupee, Percent, Truck, Receipt, Users, CalendarClock, Hourglass, PackageMinus, Download } from "lucide-react";
+import { IndianRupee, Percent, Truck, Receipt, Users, CalendarClock, Hourglass, PackageMinus, Download, CloudCheck } from "lucide-react";
 import { PageHead } from "@/components/page-head";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
   const [range, setRange] = useState<DashRange>("today");
   const [d, setD] = useState<Dash | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [drive, setDrive] = useState<{ lastSnapshot: string | null; pending: number } | null>(null);
+  useEffect(() => { dev.call("driveStatus").then((x) => setDrive({ lastSnapshot: x.lastSnapshot ?? null, pending: x.pending }), () => setDrive(null)); }, [dev, refresh]);
   useEffect(() => { dev.call("dashboard", cfg.branchId, range).then((x) => { setD(x); setErr(null); }, (e) => setErr(errText(e))); }, [dev, cfg.branchId, range, refresh]);
   const head = (
     <PageHead title="Dashboard" sub={`${weekdayLong()} · ${cfg.branchName}`} right={
@@ -89,15 +91,51 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
           {!d.expiringCount && !d.lowCount && !d.receivables.paise ? <div className="text-[13px] text-muted">Nothing needs attention right now.</div> : null}
         </div>
       </div>
-      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
         <div className={card}>
           <div className="flex items-center justify-between"><div className="font-semibold flex items-center gap-2"><PackageMinus size={16} className="text-teal" />Low stock</div><button onClick={() => go("stock")} className="text-[13px] text-teal font-medium cursor-pointer">View all</button></div>
-          {d.lowStock.length ? <ul className="flex flex-col text-[13.5px]">{d.lowStock.map((m) => <li key={m.id} className="flex justify-between py-1.5 border-b border-row last:border-0"><span>{m.name}</span><span className="text-bad tabular-nums">{m.stock} left</span></li>)}</ul> : <div className="text-[13px] text-faint">Nothing is low.</div>}
+          {d.lowStock.length ? <ul className="flex flex-col gap-3">{d.lowStock.map((m) => (
+            <li key={m.id} className="flex flex-col gap-1">
+              <div className="flex justify-between text-[14px]"><span className="font-medium">{m.name}</span><span className="text-muted tabular-nums">{m.stock} / {m.reorder}</span></div>
+              <div className="h-1.5 rounded-full bg-line-soft overflow-hidden"><div className="h-full bg-amber-600" style={{ width: `${Math.min(100, Math.max(3, (m.stock / Math.max(1, m.reorder)) * 100))}%` }} /></div>
+              <div className="text-[12.5px] text-amber-700">{m.daysCover === null ? "No sales in 28 days" : `${m.daysCover} ${m.daysCover === 1 ? "day" : "days"} cover`}</div>
+            </li>
+          ))}</ul> : <div className="text-[13px] text-faint">Nothing is low.</div>}
         </div>
         <div className={card}>
-          <div className="flex items-center justify-between"><div className="font-semibold flex items-center gap-2"><Hourglass size={16} className="text-teal" />Expiring within 90 days</div><button onClick={() => go("reports")} className="text-[13px] text-teal font-medium cursor-pointer">View all</button></div>
-          {d.expiring.length ? <ul className="flex flex-col text-[13.5px]">{d.expiring.map((e) => <li key={e.name + e.batchNo} className="flex justify-between gap-3 py-1.5 border-b border-row last:border-0"><span className="min-w-0 truncate">{e.name} <span className="text-faint">· {e.batchNo}</span></span><span className={`tabular-nums whitespace-nowrap ${e.expired ? "text-bad" : "text-amber-700"}`}>{e.expired ? "Expired" : dm(e.expiryDate)}</span></li>)}</ul> : <div className="text-[13px] text-faint">Nothing expires in the next 90 days.</div>}
+          <div className="flex items-center justify-between"><div className="font-semibold flex items-center gap-2"><Hourglass size={16} className="text-teal" />Expiring within 90 days</div><button onClick={() => go("reports")} className="text-[13px] text-teal font-medium cursor-pointer">Prevent loss</button></div>
+          {d.expiring.length ? <ul className="flex flex-col">{d.expiring.map((e) => (
+            <li key={e.name + e.batchNo} className="flex items-center justify-between gap-3 py-2 border-b border-row last:border-0">
+              <div className="min-w-0"><div className="text-[14px] font-medium truncate">{e.name}</div><div className="text-[12.5px] text-muted">{e.batchNo} · {e.qty} units</div></div>
+              <div className="flex items-center gap-2 whitespace-nowrap"><span className="text-[13.5px] tabular-nums">{inr(e.valuePaise)}</span>
+                <span className={`text-[12px] font-semibold rounded-full px-2 py-0.5 ${e.expired ? "bg-bad-bg text-bad" : e.daysLeft <= 30 ? "bg-bad-bg text-bad" : e.daysLeft <= 60 ? "bg-amber-50 text-amber-700" : "bg-chip text-muted"}`}>{e.expired ? "Expired" : `${e.daysLeft} days`}</span></div>
+            </li>
+          ))}</ul> : <div className="text-[13px] text-faint">Nothing expires in the next 90 days.</div>}
         </div>
+        <div className={card}>
+          <div className="font-semibold">Branch performance</div>
+          {d.branches.length ? <ul className="flex flex-col gap-3">{(() => { const top = Math.max(1, ...d.branches.map((b) => b.salesPaise)); return d.branches.map((b) => (
+            <li key={b.id} className="flex flex-col gap-1">
+              <div className="flex justify-between text-[14px]"><span className="font-medium">{b.name}</span><span className="tabular-nums"><b>{inr(b.salesPaise)}</b> <span className="text-muted">· {b.bills} {b.bills === 1 ? "bill" : "bills"}</span></span></div>
+              <div className="h-1.5 rounded-full bg-line-soft overflow-hidden"><div className="h-full bg-blue-700" style={{ width: `${Math.max(3, (b.salesPaise / top) * 100)}%` }} /></div>
+            </li>
+          )); })()}</ul> : <div className="text-[13px] text-faint">No bills in this period yet.</div>}
+          <div className="mt-auto border-t border-line pt-3 flex items-center gap-3">
+            <CloudCheck size={20} className={drive?.lastSnapshot ? "text-ok" : "text-faint"} />
+            <div className="flex-1 min-w-0"><div className="text-[13.5px] font-semibold">Last full copy in Google Drive</div><div className="text-[12.5px] text-muted">{drive?.lastSnapshot ? `${new Date(drive.lastSnapshot).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}${drive.pending ? ` · ${drive.pending} changes waiting` : " · up to date"}` : "Not saved to Drive yet"}</div></div>
+            <a href="/app/backup" className="border border-line rounded-lg px-3 h-8 inline-flex items-center text-[13px] text-ink no-underline hover:border-teal">Open</a>
+          </div>
+        </div>
+      </div>
+      <div className={card}>
+        <div className="font-semibold">Recent activity</div>
+        {d.activity.length ? <ul className="flex flex-col">{d.activity.map((r, i) => (
+          <li key={i} className="flex items-baseline gap-4 py-2 border-b border-row last:border-0 text-[13.5px]">
+            <span className="text-muted w-24 flex-none tabular-nums">{new Date(r.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+            <span className="flex-1 min-w-0 truncate">{r.what}{r.amountPaise != null ? <span className="text-muted"> · {inr(Math.abs(r.amountPaise))}</span> : null}</span>
+            <span className="text-muted whitespace-nowrap">{r.who}</span>
+          </li>
+        ))}</ul> : <div className="text-[13px] text-faint">Nothing yet.</div>}
       </div>
     </div>
   );

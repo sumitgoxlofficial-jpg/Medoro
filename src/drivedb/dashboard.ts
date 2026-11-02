@@ -7,7 +7,7 @@ import type { DriveDB } from "./client";
 import { stockOf } from "./pharmacy";
 import { customerBalance } from "./trade";
 import { expiringStock, salesByDay, supplierDues } from "./books";
-import { dayReport } from "./reports";
+import { activityLog, dayReport } from "./reports";
 import { addDays, istMidnight, todayISO } from "@/lib/dates";
 
 export type DashRange = "today" | "7d" | "30d";
@@ -32,11 +32,26 @@ export function dashboard(db: DriveDB, branchId: string, range: DashRange = "tod
     .map((c) => ({ ...c, due: customerBalance(db, c.id) })).filter((c) => c.due > 0);
   const dues = supplierDues(db).filter((s) => s.duePaise > 0);
 
+  // Days of cover: stock left at the average daily sales of the last 28 days.
+  const sold = new Map(db.engine.all<{ id: string; qty: number }>(
+    `SELECT b.medicineId AS id, -SUM(m.qty) AS qty FROM stockMovement m JOIN batch b ON b.id = m.batchId
+      WHERE m.branchId = ? AND m.type = 'sale' AND m.at >= ? GROUP BY b.medicineId`, [branchId, istMidnight(addDays(today, -27)).toISOString()]).map((r) => [r.id, n(r.qty)]));
   const low = db.engine.all<{ id: string; name: string; reorderLevel: number; packSize: number }>(
     "SELECT id, name, reorderLevel, packSize FROM medicine WHERE deletedAt IS NULL AND active = 1 AND reorderLevel > 0 ORDER BY name COLLATE NOCASE")
-    .map((m) => ({ id: m.id, name: m.name, stock: stockOf(db, m.id, branchId, today), reorder: n(m.reorderLevel) * Math.max(1, n(m.packSize)) }))
-    .filter((m) => m.stock <= m.reorder);
-  const expiring = expiringStock(db, branchId, 90, today);
+    .map((m) => {
+      const stock = stockOf(db, m.id, branchId, today), perDay = (sold.get(m.id) ?? 0) / 28;
+      return { id: m.id, name: m.name, stock, reorder: n(m.reorderLevel) * Math.max(1, n(m.packSize)), daysCover: perDay > 0 ? Math.floor(stock / perDay) : null };
+    })
+    .filter((m) => m.stock <= m.reorder)
+    .sort((a, b) => (a.daysCover ?? 1e9) - (b.daysCover ?? 1e9) || a.stock / Math.max(1, a.reorder) - b.stock / Math.max(1, b.reorder));
+  const daysTo = (iso: string) => Math.round((Date.parse(iso) - Date.parse(today)) / 86400_000);
+  const expiring = expiringStock(db, branchId, 90, today).map((e) => ({ ...e, daysLeft: daysTo(e.expiryDate) }));
+
+  // Every branch whose bills reached this counter (the counters of all branches share the pharmacy's Drive).
+  const names = new Map((JSON.parse(db.getMeta("branches") ?? "[]") as { id: string; name: string }[]).map((b) => [b.id, b.name]));
+  const branches = db.engine.all<{ branchId: string; total: number; bills: number }>(
+    "SELECT branchId, COALESCE(SUM(totalPaise), 0) AS total, COUNT(*) AS bills FROM sale WHERE at >= ? AND at < ? GROUP BY branchId ORDER BY total DESC", [lo, hi])
+    .map((b) => ({ id: b.branchId, name: names.get(b.branchId) ?? (b.branchId === branchId ? db.getMeta("branchName") ?? "This branch" : "Other branch"), salesPaise: n(b.total), bills: n(b.bills) }));
   const day = dayReport(db, branchId, today);
 
   const chart = Array.from({ length: 14 }, (_, i) => addDays(today, i - 13)).map((d) => ({ date: d, salesPaise: days.find((x) => x.date === d)?.salesPaise ?? 0 }));
@@ -50,8 +65,10 @@ export function dashboard(db: DriveDB, branchId: string, range: DashRange = "tod
     payables: { paise: dues.reduce((a, s) => a + s.duePaise, 0), suppliers: dues.length },
     chart,
     collections: day.byMode,
-    lowStock: low.slice(0, 8), lowCount: low.length,
-    expiring: expiring.slice(0, 8), expiringCount: expiring.length, expiringValuePaise: expiring.reduce((a, e) => a + e.valuePaise, 0),
+    lowStock: low.slice(0, 6), lowCount: low.length,
+    branches,
+    activity: activityLog(db, { limit: 6 }),
+    expiring: expiring.slice(0, 6), expiringCount: expiring.length, expiringValuePaise: expiring.reduce((a, e) => a + e.valuePaise, 0),
   };
 }
 export type Dashboard = ReturnType<typeof dashboard>;
