@@ -119,5 +119,15 @@ Settings (Customer messaging → Loyalty points): on/off, points per ₹100 paid
 ## Privacy
 The message body excludes prescriber and diagnosis details. Opt-outs ("STOP") on WhatsApp and SMS are honoured automatically and recorded. Consent for WhatsApp and SMS is recorded per customer with who recorded it and when.
 
+## Drive mode counters
+Counters of a Drive mode pharmacy keep their bills and customers on the device, so they send through a gateway that
+keeps nothing (`src/domain/comms/counter-send.ts`):
+- **Bills:** the counter sends the bill's figures; Medoro makes the PDF and sends it from the linked phone or with the
+  approved invoice template. No message row, PDF or number is stored, so delivery status isn't followed.
+- **Store updates:** the counter keeps consent to offers per customer and each recipient's result; Medoro checks the
+  opt-out list and sends each batch from the linked phone or with the approved `store_update` template.
+- **STOP:** a Meta STOP reply for a Drive pharmacy is kept as a keyed hash of the number (`WaOptOut`); a linked phone
+  keeps its own STOP list. Consent given again at the counter after the STOP lifts it.
+
 ## Status
 The Graph API and SMS gateways are mocked in tests (signup, sends, failures, webhooks, retries). No real Meta or DLT credentials have been tested.

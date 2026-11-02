@@ -25,6 +25,11 @@ export type Manifest = {
   cursors: Record<string, string>;
   /** Per device: change files up to this clock were deleted (a device behind this must restore). */
   pruned: Record<string, string>;
+  /**
+   * Set when the pharmacy's data was rebuilt on one device (a pilot pharmacy moved from Medoro): every other device
+   * holds the old data and must restore from this copy. Devices remember the generation they were built from.
+   */
+  generation?: string;
 };
 
 /** Where this device keeps its own key pair (IndexedDB in the browser; memory in tests). */
@@ -124,8 +129,11 @@ export async function pushChanges(db: DriveDB, store: DriveStore, ring: Keyring,
  * Downloads other devices' new change files and applies them in clock order. Returns how many changes were
  * applied. Throws NeedsRestoreError if files this device needed were already deleted.
  */
-export async function pullChanges(db: DriveDB, store: DriveStore, ring: Keyring): Promise<number> {
+export async function pullChanges(db: DriveDB, store: DriveStore, ring: Keyring, opts: { anyGeneration?: boolean } = {}): Promise<number> {
   const manifest = (await readJson<Manifest>(store, MANIFEST))?.value;
+  if (!opts.anyGeneration && manifest?.generation && db.getMeta("generation") !== manifest.generation) {
+    throw new NeedsRestoreError("This pharmacy’s data was rebuilt on another counter (moved from Medoro). Restore this counter from Google Drive; its unsent bills are kept.");
+  }
   const files = (await store.list(LOG)).map((f) => ({ ...f, clock: logClock(f.name), device: logDevice(f.name) }))
     .filter((f) => f.clock && f.device && f.device !== db.device);
   const byDevice = new Map<string, typeof files>();
@@ -157,8 +165,16 @@ export async function pullChanges(db: DriveDB, store: DriveStore, ring: Keyring)
  * Saves a full encrypted copy (owner devices), after catching up with everyone. Then deletes this device's own
  * change files that are in the copy and older than 7 days, and drops uploaded change records locally.
  */
-export async function writeSnapshot(db: DriveDB, store: DriveStore, ring: Keyring, exportDb: () => Uint8Array, now = Date.now()): Promise<Manifest> {
-  await pullChanges(db, store, ring);
+export async function writeSnapshot(db: DriveDB, store: DriveStore, ring: Keyring, exportDb: () => Uint8Array, now = Date.now(),
+  opts: { newGeneration?: boolean; /** Rebuilt: how far into each device's changes the rebuilt data already reaches. */ from?: Record<string, string> } = {}): Promise<Manifest> {
+  if (opts.newGeneration) {
+    // A rebuilt pharmacy holds the old data up to `from`: what counters uploaded after that (bills made while it was
+    // rebuilt) is applied on top. Without `from`, every change file already in Drive counts as included.
+    if (opts.from) {
+      db.transaction(() => { for (const [d, c] of Object.entries(opts.from!)) if (d !== db.device) db.setMeta(cursorKey(d), c); });
+      await pullChanges(db, store, ring, { anyGeneration: true });
+    } else await adoptExistingChanges(db, store);
+  } else await pullChanges(db, store, ring);
   while (await pushChanges(db, store, ring)) { /* send everything first */ }
   const own = db.clock.current;
   db.pruneChanges(own);
@@ -174,12 +190,30 @@ export async function writeSnapshot(db: DriveDB, store: DriveStore, ring: Keyrin
     const c = logClock(f.name);
     if (c && c <= own && now - parseHlc(c).ms > RETAIN_MS) { await store.remove(f.id); if (c > (pruned[db.device] ?? "")) pruned[db.device] = c; }
   }
-  const manifest: Manifest = { v: 2, schema: SCHEMA_VERSION, snapshotAt: new Date(now).toISOString(), device: db.device, bytes: bytes.length, cursors, pruned };
+  const generation = opts.newGeneration ? globalThis.crypto.randomUUID() : old?.value.generation;
+  const manifest: Manifest = { v: 2, schema: SCHEMA_VERSION, snapshotAt: new Date(now).toISOString(), device: db.device, bytes: bytes.length, cursors, pruned, ...(generation ? { generation } : {}) };
+  if (generation) db.setMeta("generation", generation);
   await store.write(MANIFEST, enc(manifest), old?.id);
   db.setMeta("lastSnapshot", manifest.snapshotAt);
   return manifest;
 }
 const seal = (ring: Keyring, bytes: Uint8Array) => sealWith(ring, "snapshot", bytes);
+
+/** How far into each device's changes this database reaches (for a rebuild: see writeSnapshot's `from`). */
+export function changeCursors(db: DriveDB): Record<string, string> {
+  // Meta keys are stored as "cfg:<key>" (client.ts); these are "cfg:pull:<device>".
+  return Object.fromEntries(db.engine.all<{ key: string; value: string }>("SELECT key, value FROM meta WHERE key LIKE 'cfg:pull:%'").map((r) => [r.key.slice("cfg:pull:".length), r.value]));
+}
+
+/** Marks every other device's change files now in Drive as already applied on this device. */
+async function adoptExistingChanges(db: DriveDB, store: DriveStore) {
+  const last = new Map<string, string>();
+  for (const f of await store.list(LOG)) {
+    const c = logClock(f.name), d = logDevice(f.name);
+    if (c && d && d !== db.device && c > (last.get(d) ?? "")) last.set(d, c);
+  }
+  db.transaction(() => { for (const [d, c] of last) db.setMeta(cursorKey(d), c); });
+}
 
 /**
  * Rebuilds the pharmacy on this device from Drive: latest full copy, then every change after what it holds.
@@ -192,6 +226,7 @@ export async function restoreFromDrive(store: DriveStore, ring: Keyring, device:
   const snap = await store.find(SNAPSHOT);
   if (!snap) throw new Error("The saved copy is missing from Drive.");
   const db = await importDb(await openWith(ring, "snapshot", await store.read(snap.id)));
+  if (m.value.generation) db.setMeta("generation", m.value.generation);
   const cursors = m.value.cursors ?? {};
   // The copy holds everyone's changes up to its cursors; carry on from there (including this device's old id).
   db.transaction(() => { for (const [d, c] of Object.entries(cursors)) db.setMeta(cursorKey(d), c); });

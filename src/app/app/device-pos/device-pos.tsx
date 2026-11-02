@@ -30,6 +30,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
   const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null, whatsapp: wa ? { via: wa, send: sendCounterBillAction, campaign: sendCounterCampaignAction } : null };
   return (
     <DriveGate fresh={fresh || mustMove} move={mustMove} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
+    {mustMove && owner && drive && conn.access?.status === "approved" && <PilotDeviceMove userId={userId} />}
     <DeviceApp
       who={who}
       initialTab={tab}
@@ -39,6 +40,16 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     />
     </DriveGate>
   );
+}
+
+/**
+ * A pilot counter (this device already bills from its own data) where Medoro now requires the move: the move reads
+ * the pilot's bills from Drive, copies Medoro's data, adds the pilot's on top, checks both, then reopens.
+ */
+function PilotDeviceMove({ userId }: { userId: string }) {
+  const [has, setHas] = useState(false);
+  useEffect(() => { void deviceDb().call("config").then((c) => setHas(!!c), () => setHas(false)); }, []);
+  return has ? <div className="mb-4"><MoveFromMedoro userId={userId} ready={() => window.location.reload()} /></div> : null;
 }
 
 /**
@@ -83,7 +94,8 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
   const staffWaiting = !owner && drive && access?.status === "pending";
   // Once offered, the move stays on screen through its own steps (it creates the Drive copy as it finishes).
   const [moveOffered, setMoveOffered] = useState(false);
-  const canMove = moveOffered || (!fresh && owner && drive && access?.status === "approved" && access.role === "owner" && vault === false);
+  // Where the move is required, Drive may already hold the pilot's data (vault): the move keeps it and adds it on top.
+  const canMove = moveOffered || (!fresh && owner && drive && access?.status === "approved" && access.role === "owner" && (vault === false || (mustMove && vault === true)));
   useEffect(() => { if (canMove) setMoveOffered(true); }, [canMove]);
   return (
     <div className="flex flex-col gap-3">

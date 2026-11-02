@@ -86,6 +86,8 @@ const SNAPSHOT_EVERY = 6 * 3600_000;
 /** Upload this device's changes, apply everyone else's, and (owner devices) save a full copy now and then. */
 async function syncNow(forceSnapshot = false) {
   if (!db || !ring || access?.status !== "approved") return state;
+  // Mid-move (or moved but not yet saved as a new full copy): Drive still holds the old data, so nothing syncs.
+  if (move.moveInProgress(db) || db.getMeta("pilotMerged") === "1") return state;
   // A sync is running: run once more right after it, so a change announced meanwhile isn't missed.
   if (state.busy) { again = true; return state; }
   state.busy = true; lastRun = Date.now();
@@ -179,6 +181,11 @@ async function connect(name: string) {
 }
 
 let moving: MoveBase | null = null;
+/** A pilot pharmacy's own records, read from Drive before the move, to add on top of Medoro's data. */
+let pilot: move.PilotRows | null = null;
+/** How far into each counter's changes the pilot copy reached: later ones (bills made during the move) are added at the end. */
+let pilotFrom: Record<string, string> | null = null;
+const PILOT_FILE = "/pilot.db";
 const need = () => { if (!db) throw new Error("The device database isn’t open."); return db; };
 
 const handlers = {
@@ -318,10 +325,49 @@ const handlers = {
     state.needsRestore = false; state.lastError = null;
     return { snapshotAt: r.snapshotAt, applied: r.applied };
   },
-  /** Phase 7: loads the pharmacy's data from Medoro (an unfinished earlier attempt is cleared first). */
+  /**
+   * Before a move: when Drive already holds this pharmacy (the Drive mode pilot, or an earlier move that was undone),
+   * reads it all (this device's unsent bills first) so its records are kept. Needs the recovery code on a device that
+   * isn't an owner device yet. Returns what was found.
+   */
+  movePilotPrepare: async (recoveryCode?: string) => {
+    await opened;
+    pilot = null; pilotFrom = null;
+    const s = store();
+    if (!(await sync.vaultExists(s))) return { found: false as const };
+    ring ??= await sync.unlock(s, keys, deviceName, recoveryCode || undefined);
+    if (!ring.rk) throw new Error("Only an owner device can move the pharmacy. Enter the Drive recovery code.");
+    const local = need();
+    if (local.from("medicine").withDeleted().count() > 0 && !move.moveInProgress(local)) while (await sync.pushChanges(local, s, ring)) { /* this device's unsent bills */ }
+    const unlinkPilot = () => { try { (pool as unknown as { unlink(f: string): boolean }).unlink(PILOT_FILE); } catch { /* not there */ } };
+    let copy: DriveDB | null = null;
+    try {
+      await sync.restoreFromDrive(s, ring, deviceName, async (bytes) => {
+        unlinkPilot();
+        await pool!.importDb(PILOT_FILE, bytes);
+        copy = DriveDB.open(wasmEngine(new pool!.OpfsSAHPoolDb(PILOT_FILE), (d) => sqlite!.capi.sqlite3_js_db_export(d)), { device: deviceName });
+        return copy;
+      });
+      pilot = move.pilotRows(copy!);
+      pilotFrom = sync.changeCursors(copy!);
+    } catch (e) {
+      // Keys but no full copy yet: this device's own data is all there is.
+      if (!(e instanceof Error && /No copy of the pharmacy/.test(e.message))) throw e;
+      pilot = local.from("medicine").withDeleted().count() > 0 ? move.pilotRows(local) : {};
+    } finally { (copy as DriveDB | null)?.engine.close(); unlinkPilot(); }
+    const n = (t: keyof move.PilotRows) => pilot?.[t]?.length ?? 0;
+    return { found: true as const, bills: n("sale"), returns: n("salesReturn"), purchases: n("purchase"), receipts: n("customerReceipt"), movements: n("stockMovement") };
+  },
+  /** Phase 7: loads the pharmacy's data from Medoro (an unfinished earlier attempt, or the pilot's data once read, is cleared first). */
   moveBegin: async (base: MoveBase) => {
-    if (move.moveInProgress(need())) await handlers.wipe();
+    const d = need();
+    if (move.moveInProgress(d) || (pilot && d.from("medicine").withDeleted().count() > 0)) {
+      const keep = ring; // the move saves into the same Drive storage
+      await handlers.wipe();
+      ring = keep;
+    }
     move.beginMove(need(), base);
+    if (pilotFrom) need().setMeta("pilotFrom", JSON.stringify(pilotFrom));
     moving = base;
     return true;
   },
@@ -329,9 +375,31 @@ const handlers = {
   /** Checks the loaded data against Medoro's totals; when all match, this device becomes a counter. */
   moveFinish: (userId: string) => {
     if (!moving) throw new Error("Start the move again.");
-    const r = move.finishMove(need(), moving, userId);
+    const r = move.finishMove(need(), moving, userId, pilot ?? undefined);
     if (r.ok) moving = null;
     return r;
+  },
+  /**
+   * Saves the moved data to Drive. New Drive storage: keys first, and the recovery code to show. Existing storage (pilot
+   * or an earlier move): a full copy as a new generation, so every other counter rebuilds from it.
+   */
+  moveSave: async () => {
+    const s = store();
+    if (!(await sync.vaultExists(s))) {
+      const r = await sync.createVault(s, keys, need().device);
+      ring = r.ring;
+      await syncNow(true);
+      if (state.lastError) throw new Error(state.lastError);
+      return { code: r.recoveryCode };
+    }
+    if (!ring?.rk) throw new Error("Unlock Drive storage on this device first.");
+    const from = need().getMeta("pilotFrom");
+    const m = await sync.writeSnapshot(need(), s, ring, () => need().engine.exportBytes(), Date.now(), { newGeneration: true, from: from ? JSON.parse(from) : undefined });
+    need().setMeta("pilotFrom", "");
+    state.lastSnapshot = m.snapshotAt; state.lastError = null; state.needsRestore = false;
+    need().setMeta("pilotMerged", "0");
+    pilot = null;
+    return { code: null };
   },
   /** Deletes the open database file (demo reset) and starts it empty. */
   wipe: async () => {

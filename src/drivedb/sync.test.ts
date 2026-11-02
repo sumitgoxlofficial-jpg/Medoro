@@ -5,7 +5,7 @@ import { decodeCode, encodeCode, WrongKeyError } from "./crypto";
 import { openWith, sealWith, type DeviceKeys } from "./keyring";
 import {
   approveDevice, createVault, deviceKeys, pullChanges, pushChanges, readKeyMeta, restoreFromDrive, revokeDevice, unlock, writeSnapshot,
-  NeedsRestoreError, VaultLockedError, META, MANIFEST, SNAPSHOT, RETAIN_MS, type KeyStore,
+  NeedsRestoreError, VaultLockedError, META, MANIFEST, SNAPSHOT, RETAIN_MS, changeCursors, type KeyStore,
 } from "./sync";
 import { addMedicine, createSale, receiveStock, stockOf } from "./pharmacy";
 import type { DriveDB } from "./client";
@@ -168,6 +168,45 @@ describe("stock below zero", () => {
     recordCount(owner.db, { branchId: B, userId: U, counts: [{ batchId: batch.id, counted: 2 }] });
     await sync(owner.db, store, owner.ring); await sync(staff.db, store, staff.ring);
     for (const db of [owner.db, staff.db]) { expect(negativeStock(db)).toEqual([]); expect(stockOf(db, owner.m.id, B, TODAY)).toBe(2); }
+  });
+});
+
+describe("a pharmacy rebuilt on one device (pilot moved from Medoro)", () => {
+  it("other counters must restore from the new copy, and the old change files are never applied again", async () => {
+    const store = memoryStore();
+    const owner = await ownerSetup(store); // 100 of Dolo in the old data, in a change file and the first copy
+    const staff = await joinStaff(store, owner.ring, "STAFF1");
+    sell(staff.db, owner.m.id, 7);
+    await pushChanges(staff.db, store, staff.ring);
+    // The move reads Drive as it is now (that copy includes the sale of 7)…
+    const { db: read } = await restoreFromDrive(store, owner.ring, "OWNER", (b) => memoryDbFrom(b, "OWNER"));
+    const from = changeCursors(read);
+    // …and the staff counter keeps billing while the move runs: this bill must not be lost.
+    sell(staff.db, owner.m.id, 3);
+    await pushChanges(staff.db, store, staff.ring);
+    // The owner's device is rebuilt with the merged data: same medicine and batch, with 60 in stock (Medoro's figure).
+    const rebuilt = await memoryDb("OWNER2");
+    const batchRow = owner.db.engine.all<Record<string, string | number | null>>("SELECT id, branchId, medicineId, batchNo, expiryDate, costPaise, mrpPaise, supplierId, status FROM batch")[0];
+    rebuilt.from("medicine").insert({ id: owner.m.id, name: "Dolo 650", gstRate: 12, mrpPaise: 3200 });
+    rebuilt.from("batch").insert(batchRow);
+    rebuilt.from("stockMovement").insert({ branchId: B, batchId: String(batchRow.id), qty: 60, type: "opening", refType: "opening", refId: String(batchRow.id), userId: U, at: new Date().toISOString(), note: null });
+    rebuilt.setMeta("branchId", B); rebuilt.setMeta("series", "DWNR2");
+    const ring = await unlock(store, owner.keys, "OWNER");
+    const m = await writeSnapshot(rebuilt, store, ring, () => rebuilt.engine.exportBytes(), Date.now(), { newGeneration: true, from });
+    expect(m.generation).toBeTruthy();
+    // Old files up to what the move read weren't pulled again (else +100 received, −7 sold); the bill of 3 made during
+    // the move was.
+    expect(stockOf(rebuilt, owner.m.id, B, TODAY)).toBe(57);
+    // The staff counter holds the old data: it is told to restore, and then has exactly the new data.
+    await expect(pullChanges(staff.db, store, staff.ring)).rejects.toThrow(NeedsRestoreError);
+    const { db: fresh } = await restoreFromDrive(store, staff.ring, "STAFF1", (b) => memoryDbFrom(b, "STAFF1"));
+    expect(stockOf(fresh, owner.m.id, B, TODAY)).toBe(57);
+    // From then on they sync normally.
+    sell(fresh, owner.m.id, 2);
+    await sync(fresh, store, staff.ring); await sync(rebuilt, store, ring);
+    expect(stockOf(rebuilt, owner.m.id, B, TODAY)).toBe(55);
+    // A later full copy keeps the same generation.
+    expect((await writeSnapshot(rebuilt, store, ring, () => rebuilt.engine.exportBytes())).generation).toBe(m.generation);
   });
 });
 
