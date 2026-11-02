@@ -139,6 +139,10 @@ export const TABLES = {
     kind: "mutable",
     columns: ["id", "kind", "refId", "customerId", "messageId", "status", "error", "sentAt", ...MUTABLE],
   },
+  // @@TABLES doctors (migration 11)
+  // @@TABLES recalls (migration 12)
+  // @@TABLES cheques (migration 13)
+  // @@TABLES purchase tools (migration 14)
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -411,6 +415,14 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX messageLog_ref ON messageLog(kind, refId);
   CREATE INDEX messageLog_open ON messageLog(status, sentAt);
   `,
+  // @@MIGRATION 11 doctors
+  "SELECT 1;",
+  // @@MIGRATION 12 recalls
+  "SELECT 1;",
+  // @@MIGRATION 13 cheques
+  "SELECT 1;",
+  // @@MIGRATION 14 purchase tools
+  "SELECT 1;",
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

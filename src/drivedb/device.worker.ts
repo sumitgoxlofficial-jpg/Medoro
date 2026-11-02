@@ -23,6 +23,7 @@ import * as money from "./money";
 import * as dash from "./dashboard";
 import * as camp from "./campaigns";
 import * as msgs from "./messages";
+// @@IMPORTS (one line per counter feature module)
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -278,6 +279,11 @@ const handlers = {
   finSetIgnored: (txnId: string, ignored: boolean, note: string, userId: string) => money.setIgnored(need(), txnId, ignored, note, userId),
   finAutoReconcile: (userId: string) => money.autoReconcile(need(), userId),
   finReports: (from: string, to: string) => money.finReports(need(), from, to),
+  // @@WORKER doctors
+  // @@WORKER recalls
+  // @@WORKER cheques
+  // @@WORKER purchase tools
+  // @@WORKER intelligence
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */
   connect,
