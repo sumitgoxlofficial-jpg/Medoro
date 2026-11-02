@@ -19,7 +19,7 @@ const fill = (s: string, vars?: Vars) => (vars ? s.replace(/\{(\w+)\}/g, (m, k: 
 
 type Pattern = { re: RegExp; names: string[]; hi: string };
 let patterns: Pattern[] | null = null;
-const esc = (s: string) => s.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Entries with {placeholders}, longest first so the most specific line wins. */
 function compiled(): Pattern[] {
   if (patterns) return patterns;
@@ -27,7 +27,7 @@ function compiled(): Pattern[] {
     const names: string[] = [];
     const re = new RegExp("^" + k.split(/(\{\w+\})/).map((part) => {
       const m = /^\{(\w+)\}$/.exec(part);
-      if (!m) return esc(part).replace(/\{/g, "\\{").replace(/\}/g, "\\}");
+      if (!m) return esc(part);
       names.push(m[1]);
       return "([\\s\\S]+?)";
     }).join("") + "$");
