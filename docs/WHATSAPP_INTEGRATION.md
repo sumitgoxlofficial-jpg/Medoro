@@ -7,7 +7,12 @@ Two ways to connect, chosen per pharmacy on the WhatsApp screen:
 Customers without WhatsApp consent can be reached by SMS instead (see [SMS](#sms)).
 
 ## Linked phone (QR code)
-Works the same way as Fitron's "Link WhatsApp": Medoro uses the same **WhatsApp connector** service (`fitron/whatsapp-connector`), which keeps one WhatsApp Web session per business.
+Works the way FITRON for Windows does it (`fitron-windows-app`, `src/lib/integrations/whatsapp/embedded.ts`): **the link is built into Medoro** (`src/domain/comms/embedded.ts`). The owner presses Link WhatsApp and scans the QR code; Medoro's own server keeps the link with Baileys, encrypted on disk under `WA_DATA_DIR` (default `STORAGE_DIR/whatsapp`, so on Docker it is in the `/data` volume) with a key derived from `HOST_KEY`. Messages wait in an outbox and go out one every 2.5 seconds, up to 300 a day, while the server runs; they are kept across restarts and the scheduler reconnects the phone after a restart. STOP/START replies are remembered and a number that replied STOP isn't messaged.
+
+This needs a server that keeps running: self-hosted Medoro (Docker, a server, the pharmacy's own computer). **On Vercel** the server stops between requests, so the built-in link isn't offered there; set a WhatsApp connector instead (below). With a connector set, it is used instead of the built-in link.
+
+### With a WhatsApp connector (Vercel, or many pharmacies on one server)
+Medoro can also use the **WhatsApp connector** service (`fitron/whatsapp-connector`), which keeps one WhatsApp Web session per business.
 
 **Server setup (once):** deploy the connector on an always-on server with Docker (see its README; one deployment can serve Fitron gyms and Medoro pharmacies together), then set `WA_CONNECTOR_URL` (its https address) and `WA_CONNECTOR_KEY` (its `WA_CONNECTOR_MASTER_KEY`) on the Medoro server and restart. The connector must be reachable from the Medoro server; the browser never talks to it.
 

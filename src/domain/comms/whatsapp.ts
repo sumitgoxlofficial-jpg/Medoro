@@ -144,8 +144,8 @@ export async function syncTemplates(ctx: Ctx) {
 
 export type PhoneLink = { state: "setup" | "offline" | "waiting" | "qr" | "ready"; qr?: string; number?: string; text: string };
 
-/** Whether this server can link a phone at all (WA_CONNECTOR_URL and WA_CONNECTOR_KEY set). */
-export const phoneLinkAvailable = () => !connectorMissing();
+/** Why this server can't link a phone, or null when it can (built into Medoro, or through a WhatsApp connector). */
+export const phoneLinkProblem = () => connectorMissing();
 
 /**
  * Polled by the "Link your phone" dialog: starts a link on the connector, returns the QR code to scan from WhatsApp ›
