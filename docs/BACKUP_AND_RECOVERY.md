@@ -60,8 +60,10 @@ Drive file can't be read during a backup, the backup is marked *Partial* and say
 Daily at the configured time (India time) plus *Back up now*. On self-hosted installs a failed scheduled backup is
 retried up to 2 more times that day, at least 30 minutes apart; a backup still "running" after 30 minutes
 (server stopped or timed out) counts as failed, and the retry gap counts from its start. Several app servers can
-share one database: a PostgreSQL advisory lock makes sure only one of them starts each backup. On Vercel the host
-cron fires once a day (03:00 IST), so the configured time and same-day retries don't apply there.
+share one database: a PostgreSQL advisory lock makes sure only one of them starts each backup. **On Vercel (Medoro's
+online server) there are no server backups at all**: each pharmacy's data is kept in its own Google Drive, where its
+counters save full copies (docs/DRIVEDB_PLAN.md). Back up now, the schedule and restores of server backups are refused
+there.
 
 Retention (7/30/90/365 days) runs after each backup: older backup files are deleted from this server and from
 Drive (including Medoro backups of this pharmacy in Drive that this server has no record of). The newest
@@ -107,7 +109,7 @@ The append-only triggers allow deletes only inside the restore transaction, whic
 6. Sign in with the usual accounts. If this server has a different `HOST_KEY`, authenticator apps are set up again
    at sign-in (their secrets were sealed with the old key). Reconnect WhatsApp.
 
-A restore needs the backup to fit in the request on Vercel (4.5 MB); larger backups restore from Drive there.
+Restores of server backups run on self-hosted servers only (none on Vercel, see above).
 
 ## Drills
 Use *Test restore* (decrypts in memory and compares every table with the manifest) after setup and monthly, and a

@@ -61,5 +61,7 @@ At start-up the app checks these (names only, never values) and refuses to run i
 
 ## Known limits on Vercel
 - Hobby plan is for non-commercial use; a paid SaaS needs Vercel Pro. Hobby cron runs once a day.
-- Very large backups or restores may hit the 300 s function limit.
+- No server backups or restores on Vercel: every pharmacy's data is kept in its own Google Drive (its counters save
+  full copies there), so nothing large runs against the 300 s function limit. A pharmacy still on Medoro's copy is
+  read-only until it moves to Drive (Billing (device)).
 - Preview deployments get no database variables, so they show errors past the website. Give previews a separate Supabase project before testing there.
