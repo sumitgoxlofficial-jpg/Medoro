@@ -1,13 +1,40 @@
-# Medoro DriveDB — phase-by-phase plan
+# Medoro DriveDB — plan and status
 
 **Goal:** each pharmacy's business data lives only in that pharmacy's own Google Drive, like WhatsApp
 chats live on the phone and in the user's Drive. Medoro's server keeps only what it needs to run the
 service (sign-in, subscription, partners), so the Medoro database stays small no matter how many
 pharmacies join.
 
-Status: plan only. Nothing here is built yet. Each phase ends with something that works and can ship
-on its own, behind a per-pharmacy switch ("Drive mode"), so existing pharmacies keep working until
-they are moved.
+## Status (November 2026): built and live
+
+Every phase below (0 to 8) is built; the "progress" notes under each phase in section 3 say what each one
+delivered. In short:
+
+- **New pharmacies keep their data in their own Google Drive.** On Medoro's hosted server (`PUBLIC_SIGNUP=1`) every
+  sign-up is a Drive pharmacy (`driveMode` and `driveOnly` set at sign-up, `src/app/(auth)/actions.ts`). Bills,
+  stock, customers, purchases, accounts and files live on the pharmacy's devices (SQLite) and, encrypted, in the
+  hidden app data area of the owner's Google Drive. Medoro's server refuses every business change for them
+  (`Ctx.moved`) and keeps only the tables in the left column of 2.10.
+- **What Medoro's database still holds for a Drive pharmacy:** the account, sign-in and staff logins, sessions,
+  subscription and payments, the device list (with last sync), encrypted integration tokens, and two short-lived
+  inboxes: a customer's online payment until a counter collects it (`PaymentInbox`, deleted on pickup) and WhatsApp
+  delivered/read ticks (`CounterMsgStatus`, 7 days). The live relay between counters passes encrypted blobs to Drive
+  and stores none of them. None of this grows with a pharmacy's sales, so Medoro's database stays small.
+- **No server backups** for Drive pharmacies; their counters save full copies to Drive. The daily health check
+  emails the owner when a counter stops saving, sync keeps failing, or Drive is 90% full.
+- **Existing pharmacies** still on Medoro's copy are read-only on the hosted server until the owner moves them
+  (Billing (device) → Move to Google Drive). Medoro's copy is deleted 7 days after a checked move.
+- **Self-hosted servers** (Docker / LAN) keep their data in their own PostgreSQL and are not affected.
+
+Still open:
+- The move from Medoro's copy doesn't yet carry doctors, recall notices, supplier claims and terms, or insights
+  settings, and moves cheques as plain receipts (Phase 5 notes). Pharmacies that signed up in Drive mode aren't
+  affected.
+- Speed numbers from real Android phones and counter PCs (Phase 0 notes).
+- Publishing the Google OAuth consent screen (section 6).
+
+The plan as first written follows. Each phase ended with something that worked and could ship on its own, behind a
+per-pharmacy switch ("Drive mode").
 
 ---
 
@@ -525,7 +552,7 @@ Drive-mode pharmacy you can start selling.
 | Risk | What we do |
 |---|---|
 | Owner loses phone **and** recovery kit | Data can't be recovered (by design). Unskippable kit step, monthly reminder, optional second kit holder. |
-| Owner's Drive is full | Warn at 80%; logs keep queueing locally; snapshots compressed. |
+| Owner's Drive is full | Warn at 90% (bell and a daily email); logs keep queueing locally; snapshots compressed. |
 | Owner deletes the Medoro folder in Drive | Device still has the full copy and re-uploads it; warn owner. |
 | Google API limits or outage | Batch uploads; devices keep working offline and catch up. |
 | Support can't see data | Owner-shared temporary key (2.12). |
@@ -534,5 +561,5 @@ Drive-mode pharmacy you can start selling.
 
 ## 6. What you need to do
 - Publish the Google OAuth consent screen (needed for Drive access by all pharmacies).
-- Choose the pilot: your own pharmacy first (Phase 3).
-- Decide Phase 0's outcome with me: browser-only, or desktop app for counters.
+- Run **App → Backup → "Test this device"** on a few real counter phones and PCs and send the results, so the speed
+  numbers in Phase 0 cover the devices pharmacies use.
