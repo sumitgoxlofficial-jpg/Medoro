@@ -1616,3 +1616,14 @@ model PaymentInbox {
   @@unique([tenantId, deviceId, paymentId])
   @@index([tenantId, paymentId])
 }
+
+/// WhatsApp opt-outs of Drive mode pharmacies, whose customers aren't on Medoro's server: a STOP reply (Meta webhook)
+/// is kept as a keyed hash of the number, so a campaign sent from a counter skips it. No number is stored.
+model WaOptOut {
+  id        String   @id @default(uuid())
+  tenantId  String
+  phoneHash String // HMAC-SHA256 of the 10-digit number, keyed from HOST_KEY and the pharmacy (see comms/opt-outs.ts)
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, phoneHash])
+}

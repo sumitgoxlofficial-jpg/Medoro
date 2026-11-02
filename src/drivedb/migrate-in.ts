@@ -28,6 +28,8 @@ export function beginMove(db: DriveDB, base: MoveBase) {
     if (base.customers.length) db.from("customer").insert(base.customers.map((c) => ({ id: c.id, name: c.name, phone: c.phone, gstin: c.gstin, creditLimitPaise: c.creditLimitPaise, address: c.address, pincode: c.pincode })));
     const erased = base.customers.filter((c) => c.erased).map((c) => c.id);
     if (erased.length) db.from("customer").in("id", erased).delete();
+    const offers = base.customers.flatMap((c) => ("offers" in c && c.offers && !c.erased ? [{ customerId: c.id, purpose: "offers", channel: "whatsapp", granted: 1, method: `Moved from Medoro: ${c.offers.method}`.slice(0, 80), userId: "medoro-move", at: c.offers.at }] : []));
+    if (offers.length) db.from("customerConsent").insert(offers);
     if (base.suppliers.length) db.from("supplier").insert(base.suppliers);
   });
 }

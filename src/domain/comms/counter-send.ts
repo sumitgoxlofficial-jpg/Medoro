@@ -3,13 +3,14 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { enforce } from "@/server/ratelimit";
-import type { Ctx } from "@/server/context";
+import { authorize, requireSubscription, type Ctx } from "@/server/context";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
 import { invoicePdf } from "@/domain/sales/pdf";
 import { invoiceGrievance } from "@/domain/system/privacy";
 import { driveModeOn } from "@/domain/system/drive-mode";
 import { activeAccount, isPhone, markDisconnected, sendPhoneText, sendTemplate } from "./delivery";
 import { GraphError } from "./graph";
+import { clearOptOut, optedOut } from "./opt-outs";
 
 /**
  * WhatsApp for Drive mode counters. The bill lives only on the counter, so the counter sends it here; Medoro makes
@@ -71,7 +72,7 @@ export async function sendCounterBill(ctx: Ctx, raw: CounterBill) {
     if (isPhone(w.cfg)) await sendPhoneText(ctx.tenantId, { phone, ref: "counter", vars, key: `counter:${ctx.tenantId}:${b.sendId}`, pdf });
     else await sendTemplate(w, phone, { template: w.cfg.invoiceTemplate || "invoice_share", vars, n: 3, pdf });
   } catch (e) {
-    if (e instanceof UserError) throw e;
+    // GraphError is a UserError too, so it is checked first.
     if (e instanceof GraphError) {
       // Meta revoked the token or the phone was signed out: pause and alert the owner, as for any other send.
       if (e.kind === "auth") await markDisconnected(ctx.tenantId, e.reason);
@@ -80,4 +81,69 @@ export async function sendCounterBill(ctx: Ctx, raw: CounterBill) {
     throw e;
   }
   return { sent: true as const, via: isPhone(w.cfg) ? ("phone" as const) : ("meta" as const) };
+}
+
+// ───────────── Store updates (campaigns) from a counter ─────────────
+
+export const CAMPAIGN_BATCH_MAX = 25;
+export const counterCampaignSchema = z.object({
+  campaignId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  /** The first batch of a campaign counts as a campaign start (5 an hour, as on the server). */
+  first: z.boolean().default(false),
+  message: z.string().transform((s) => s.replace(/\s+/g, " ").trim()).pipe(z.string().min(3, "Write the update.").max(300, "Keep the update under 300 characters.")),
+  recipients: z.array(z.object({
+    id: z.string().min(1).max(64), name: z.string().trim().max(80), phone: z.string().trim().max(20),
+    /** When the customer agreed to offers on WhatsApp (recorded on the counter). */
+    consentAt: z.string().datetime(),
+  })).min(1).max(CAMPAIGN_BATCH_MAX),
+});
+export type CounterCampaignBatch = z.input<typeof counterCampaignSchema>;
+export type RecipientResult = { id: string; status: "sent" | "failed" | "opted_out" | "not_on_whatsapp"; error?: string };
+
+/**
+ * One batch of a store update from a Drive counter. The counter chooses the recipients (customers who agreed to offers
+ * on WhatsApp, recorded on the counter) and keeps the campaign; Medoro checks the opt-out list, sends each message
+ * through the pharmacy's WhatsApp and answers with each recipient's result. Nothing is stored.
+ */
+export async function sendCounterCampaign(ctx: Ctx, raw: CounterCampaignBatch): Promise<{ results: RecipientResult[] }> {
+  if (ctx.readOnly) throw new UserError("Medoro support access is read-only.");
+  requireSubscription(ctx);
+  authorize(ctx, "integrations");
+  if (!(await driveModeOn(ctx.tenantId))) throw new UserError("Send store updates from Customer messaging.");
+  const c = counterCampaignSchema.parse(raw);
+  if (c.first) await enforce("campaign", `${ctx.tenantId}:${ctx.userId}`);
+  await enforce("campaignBatch", ctx.tenantId);
+  const w = await activeAccount(ctx.tenantId);
+  if (!w) throw new UserError("WhatsApp isn’t connected for this pharmacy. Connect it under WhatsApp first.");
+
+  const people = c.recipients.map((r) => ({ ...r, phone: normPhone(r.phone) }));
+  const out = await optedOut(ctx.tenantId, people.filter((p) => MOBILE_RE.test(p.phone)).map((p) => p.phone));
+  const results: RecipientResult[] = [];
+  for (const p of people) {
+    if (!MOBILE_RE.test(p.phone)) { results.push({ id: p.id, status: "failed", error: "Not a valid mobile number" }); continue; }
+    const stopAt = out.get(p.phone);
+    if (stopAt) {
+      // Consent given again at the counter after the STOP is the customer's latest choice.
+      if (Date.parse(p.consentAt) <= stopAt.getTime()) { results.push({ id: p.id, status: "opted_out" }); continue; }
+      await clearOptOut(ctx.tenantId, p.phone);
+    }
+    const vars = [p.name.split(" ")[0] || "Customer", c.message];
+    try {
+      if (isPhone(w.cfg)) await sendPhoneText(ctx.tenantId, { phone: p.phone, ref: `campaign:${c.campaignId}`, vars, key: `camp:${ctx.tenantId}:${c.campaignId}:${p.id}` });
+      else await sendTemplate(w, p.phone, { template: "store_update", vars, n: 2 });
+      results.push({ id: p.id, status: "sent" });
+    } catch (e) {
+      // A plain UserError (e.g. the store_update template isn't approved) fails every recipient the same way: stop and
+      // say so. GraphError extends UserError, so it is told apart first.
+      if (!(e instanceof GraphError)) throw e;
+      if (e.kind === "auth") {
+        // The token or the phone link is gone: stop here; the counter resumes the rest after a reconnect.
+        await markDisconnected(ctx.tenantId, e.reason);
+        results.push({ id: p.id, status: "failed", error: e.reason });
+        break;
+      }
+      results.push({ id: p.id, status: e.kind === "invalid" ? "not_on_whatsapp" : /\bSTOP\b/.test(e.reason) ? "opted_out" : "failed", error: e.reason.slice(0, 160) });
+    }
+  }
+  return { results };
 }

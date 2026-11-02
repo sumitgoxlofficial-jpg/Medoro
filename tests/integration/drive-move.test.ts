@@ -14,6 +14,7 @@ import { relayStore } from "@/domain/system/gdrive";
 import { completeMove, deleteMedoroCopy, MOVE_PARTS, moveExport, moveStatus, startMove, undoMove, type MoveBase } from "@/domain/system/drive-move";
 import { memoryDb } from "@/drivedb/node";
 import { beginMove, finishMove, importPart, verifyMove } from "@/drivedb/migrate-in";
+import { offersConsent } from "@/drivedb/campaigns";
 import { counterConfig } from "@/drivedb/seed";
 import { createSale, stockOf, pointsBalance as devicePoints } from "@/drivedb/pharmacy";
 import { customerBalance } from "@/drivedb/trade";
@@ -84,6 +85,8 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
 
   it("the device loads everything and its counts, totals, stock, dues and points match Medoro's", async () => {
     const ctx = await ctxFor();
+    // The customer agreed to offers on WhatsApp on Medoro: that consent moves with them.
+    await db.customer.update({ where: { id: cust }, data: { waOptIn: true, marketingWa: true, optInMethod: "Recorded by Owner" } });
     const { base, parts } = await exportAll(ctx);
     expect(base.summary.counts).toMatchObject({ sale: 4, salesReturn: 3, purchase: 1, medicine: 1, batch: 2, customer: 1, supplier: 1 });
     const dev = await memoryDb("DMOVE01");
@@ -93,6 +96,7 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     const res = finishMove(dev, base, ctx.userId);
     expect(res.checks.filter((c) => !c.ok)).toEqual([]);
     expect(res.ok).toBe(true);
+    expect(offersConsent(dev, cust)).toMatchObject({ granted: true, method: "Moved from Medoro: Recorded by Owner" });
 
     // Balances equal Medoro's books, not just the summary.
     const t = ctx.tenantId;

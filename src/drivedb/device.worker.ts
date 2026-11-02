@@ -21,6 +21,7 @@ import * as assistant from "./assistant";
 import * as einv from "./einvoice";
 import * as money from "./money";
 import * as dash from "./dashboard";
+import * as camp from "./campaigns";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -166,7 +167,7 @@ function pushSoon() {
   pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
 }
 /** Calls that only read, or run the sync themselves: no push needed after them. */
-const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock"]);
+const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -237,6 +238,14 @@ const handlers = {
   aiTool: (scope: assistant.AskScope, name: string, input: unknown, hi: boolean) => assistant.runTool(need(), scope, name, input, hi),
   aiNames: () => assistant.customerNames(need()),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
+  // Store updates on WhatsApp (src/drivedb/campaigns.ts); sent through Medoro's gateway by the page.
+  setOffersConsent: (input: Parameters<typeof camp.setOffersConsent>[1]) => camp.setOffersConsent(need(), input),
+  offersConsent: (customerId: string) => camp.offersConsent(need(), customerId),
+  campaignAudienceCount: () => camp.campaignAudience(need()).length,
+  createCampaign: (input: Parameters<typeof camp.createCampaign>[1]) => camp.createCampaign(need(), input),
+  campaignPending: (campaignId: string, limit?: number, skip?: string[]) => camp.campaignPending(need(), campaignId, limit, skip),
+  recordCampaignResults: (campaignId: string, results: camp.SendResult[], userId: string) => camp.recordCampaignResults(need(), campaignId, results, userId),
+  listCampaigns: () => camp.listCampaigns(need()),
   // UPI & Bank: statement import, matching, review and reports (src/drivedb/money.ts).
   finSettings: () => money.finSettings(need()),
   saveFinSettings: (s: money.FinSettings) => money.saveFinSettings(need(), s),

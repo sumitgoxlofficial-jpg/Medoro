@@ -8,6 +8,8 @@ import { UserError } from "@/server/action";
 import { seal } from "@/server/vault";
 import { STOP_WORDS } from "@/server/sms";
 import { withdrawByReply } from "@/domain/parties/consent";
+import { driveModeOn } from "@/domain/system/drive-mode";
+import { recordOptOut } from "./opt-outs";
 import { invoiceData } from "@/domain/sales/service";
 import { creditNoteData } from "@/domain/sales/returns";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
@@ -353,6 +355,8 @@ export async function handleWebhook(raw: string, signature: string | null) {
       if (STOP_WORDS.includes(text)) {
         const phone = msg.from.replace(/^91/, "");
         const r = await withdrawByReply(db, { tenantId: i.tenantId, phone, channel: "whatsapp", word: text });
+        // Drive mode: the customer is on the counters, not here. Keep the opt-out (a keyed hash) for counter campaigns.
+        if (await driveModeOn(i.tenantId)) await recordOptOut(i.tenantId, phone);
         if (r.length) await writeAudit(db, { tenantId: i.tenantId, action: "WhatsApp opt-out", entity: "customer", detail: `${phone.slice(0, 5)}••••• replied ${text}` });
       }
     }

@@ -7,6 +7,8 @@ import { retryMessage } from "@/domain/comms/delivery";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, dayMonth, todayISO } from "@/lib/dates";
+import { sendCounterCampaign } from "@/domain/comms/counter-send";
+import { setDriveMode } from "@/domain/system/drive-mode";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 // Built at runtime so secret scanners don't mistake the test fixture for a real key.
@@ -21,6 +23,7 @@ const fakeFetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
   if (u.includes("message_templates")) return ok({ data: [{ name: "invoice_share", language: "en", status: "APPROVED", category: "UTILITY" }, ...(crmTemplates ? [
     { name: "refill_reminder", language: "en", status: "APPROVED", category: "UTILITY", components: [{ type: "BODY", text: "Hi {{1}}, your {{2}} may be running out around {{3}}." }] },
     { name: "feedback_request", language: "en", status: "APPROVED", category: "MARKETING", components: [{ type: "HEADER", text: "Thanks" }, { type: "BODY", text: "Hi {{1}}, how was your visit ({{2}})?" }] },
+    { name: "store_update", language: "en", status: "APPROVED", category: "MARKETING", components: [{ type: "BODY", text: "Hi {{1}}, {{2}}" }] },
   ] : [])] });
   if (u.endsWith("/media")) return ok({ id: "media-1" });
   if (u.endsWith("/messages") && typeof init?.body === "string") sentBodies.push(JSON.parse(init.body));
@@ -174,5 +177,37 @@ describe("WhatsApp", () => {
     await sell();
     expect(await sendFeedbackRequests(ctx.tenantId, later)).toMatchObject({ sent: 0, skipped: 1 });
     await expect(saveCrm(ctx, { feedbackHours: 0 })).rejects.toThrow(/1 to 72 hours/);
+  });
+  it("Drive counters: a store update goes to the counter's list, skips numbers that replied STOP, and keeps nothing", async () => {
+    const owner = await ctxFor(), cashier = await ctxFor("Cashier");
+    crmTemplates = true; fail = false;
+    await syncTemplates(owner);
+    await setDriveMode(owner, true);
+    // An unknown number (the customer is on the counters, not here) replies STOP: kept as a keyed hash only.
+    const hook = (messages: unknown[]) => JSON.stringify({ entry: [{ changes: [{ value: { metadata: { phone_number_id: "112093847561203" }, statuses: [], messages } }] }] });
+    const b = hook([{ from: "919822041799", type: "text", text: { body: "STOP" } }]);
+    await handleWebhook(b, "sha256=" + createHmac("sha256", SECRET).update(b).digest("hex"));
+    const stops = await db.waOptOut.findMany();
+    expect(stops).toHaveLength(1);
+    expect(stops[0].phoneHash).not.toContain("9822041799");
+    const old = new Date(Date.now() - 86400_000).toISOString();
+    const batch = { campaignId: "camp00000001", first: true, message: "We are open  till 11 pm.", recipients: [
+      { id: "cust-a", name: "Asha Rao", phone: "9822041700", consentAt: old },
+      { id: "cust-b", name: "Babu", phone: "9822041799", consentAt: old },
+      { id: "cust-c", name: "Chitra", phone: "12345", consentAt: old },
+    ] };
+    await expect(sendCounterCampaign(cashier, batch)).rejects.toThrow();
+    const rows = await db.waMessage.count();
+    expect((await sendCounterCampaign(owner, batch)).results).toEqual([
+      { id: "cust-a", status: "sent" }, { id: "cust-b", status: "opted_out" }, { id: "cust-c", status: "failed", error: "Not a valid mobile number" },
+    ]);
+    expect(sentBodies.at(-1)).toMatchObject({ to: "919822041700", template: { name: "store_update", components: [{ parameters: [{ text: "Asha" }, { text: "We are open till 11 pm." }] }] } });
+    expect(await db.waMessage.count()).toBe(rows);
+    // Babu agreed again at the counter after his STOP: that later choice counts, and the opt-out is lifted.
+    const again = { ...batch, first: false, recipients: [{ id: "cust-b", name: "Babu", phone: "9822041799", consentAt: new Date(Date.now() + 1000).toISOString() }] };
+    expect((await sendCounterCampaign(owner, again)).results).toEqual([{ id: "cust-b", status: "sent" }]);
+    expect(await db.waOptOut.count()).toBe(0);
+    await setDriveMode(owner, false);
+    await expect(sendCounterCampaign(owner, again)).rejects.toThrow(/Customer messaging/);
   });
 });

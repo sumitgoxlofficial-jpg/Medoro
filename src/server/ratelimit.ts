@@ -9,6 +9,7 @@ export const RULES = {
   ai: { limit: 30, windowSec: 10 * 60, what: "AI questions" },
   waSend: { limit: 60, windowSec: 10 * 60, what: "WhatsApp messages sent by hand" },
   campaign: { limit: 5, windowSec: 60 * 60, what: "campaign starts" },
+  campaignBatch: { limit: 120, windowSec: 60 * 60, what: "campaign batches from counters" },
   fullExport: { limit: 3, windowSec: 60 * 60, what: "full data exports" },
   report: { limit: 60, windowSec: 10 * 60, what: "report downloads" },
   backupDownload: { limit: 10, windowSec: 60 * 60, what: "backup downloads" },
