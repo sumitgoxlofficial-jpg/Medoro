@@ -9,8 +9,11 @@ import { MOBILE_RE, SLA_MIN, TICKET_CATEGORIES, TICKET_CHANNELS, digits } from "
 import { approvedLink, billingEvents } from "./licence";
 
 const CP = "_cp";
-// Sales see the pharmacies they sold to; customer care and super admins see all.
-const custScope = (s: Staff) => (s.role === "sales" ? { salesStaffId: s.id } : {});
+// Sales see the pharmacies they sold to; customer care and super admins see all; anyone else (reference partners) none.
+const custScope = (s: Staff) => {
+  allow(s, "super_admin", "sales", "care");
+  return s.role === "sales" ? { salesStaffId: s.id } : {};
+};
 
 export async function customers(s: Staff) {
   const rows = await db.cpCustomer.findMany({ where: custScope(s), orderBy: { code: "asc" }, include: { tickets: { where: { status: { not: "resolved" } }, select: { priority: true } } } });
@@ -40,7 +43,7 @@ export async function customerDetail(s: Staff, id: string) {
     salesperson: salesperson?.name ?? null, health: health(c.status, hi, c.lastCheckIn), highOpen: hi,
     notes: c.notes.map((n) => ({ id: n.id, text: n.text, by: n.byName, at: n.at.toISOString() })),
     tickets: c.tickets.map((t) => ({ id: t.id, code: t.code, subject: t.subject, status: t.status })),
-    remote: remote ? { status: remote.status, at: remote.requestedAt.toISOString(), ...(s.role !== "sales" ? { access: approvedLink(remote) } : {}) } : null,
+    remote: remote ? { status: remote.status, at: remote.requestedAt.toISOString(), ...(s.role === "super_admin" || s.role === "care" ? { access: approvedLink(remote) } : {}) } : null,
     licensed: !!c.licenceId, graceDays: c.graceDays, billing,
   };
 }

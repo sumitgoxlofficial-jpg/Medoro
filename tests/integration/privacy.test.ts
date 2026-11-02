@@ -22,8 +22,13 @@ describe("privacy", () => {
     await expect(eraseCustomer(ctx, owing)).rejects.toThrow(/outstanding/);
     const clean = await saveCustomer(ctx, null, { name: "Ramesh K", phone: "9822000003", waOptIn: true, creditLimit: "0" });
     const other = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: "s-other", invoiceNo: "INV/2", recipient: "9822000009", idempotencyKey: "wa:s-other", status: "sent" } });
-    const msg = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: "s-1", invoiceNo: "INV/1", recipient: "9822000003", idempotencyKey: "wa:s-1", status: "sent" } });
+    const msg = await db.waMessage.create({ data: { tenantId: ctx.tenantId, invoiceId: "s-1", invoiceNo: "INV/1", recipient: "9822000003", idempotencyKey: "wa:s-1", status: "sent", payload: { name: "Ramesh K" } } });
+    const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, include: { branches: true } });
+    const order = await db.deliveryOrder.create({ data: { tenantId: ctx.tenantId, branchId: t.branches[0].id, no: "ORD/1", source: "phone", customerId: clean, name: "Ramesh K", phone: "9822000003", address: "12 MG Road", notes: "Ring twice", payMode: "cod", createdBy: ctx.userId } });
     await eraseCustomer(ctx, clean);
+    const o = await db.deliveryOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(o).toMatchObject({ phone: "erased", address: "erased", notes: null }); expect(o.name).toMatch(/^Erased customer/);
+    expect((await db.waMessage.findUniqueOrThrow({ where: { id: msg.id } })).payload).toBeNull();
     const c = await db.customer.findUniqueOrThrow({ where: { id: clean } });
     expect(c.name).toMatch(/^Erased customer/); expect(c.phone).toBeNull(); expect(c.waOptIn).toBe(false);
     expect((await db.waMessage.findUniqueOrThrow({ where: { id: msg.id } })).recipient).toBe("erased");

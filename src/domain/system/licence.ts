@@ -9,6 +9,7 @@ import { addDays, dateOnly, isoOf } from "@/lib/dates";
 import { LICENCE_HEADER, SIGNATURE_HEADER, parseLicenceKey, payLinkBody, requestSignature, verifyDoc, type LicenceDoc, type SignedDoc } from "@/lib/licence";
 import { grantSupport } from "@/domain/identity/support";
 import { accessFor, licenceServer } from "./access";
+import { log } from "@/server/log";
 
 /**
  * The pharmacy side of licensing. The installation registers with the licence server (Medoro's staff console,
@@ -119,7 +120,7 @@ export async function checkIn(tenantId: string, opts: { minAgeMs?: number; timeo
     return { ok: true as const };
   } catch (e) {
     const error = e instanceof UserError ? e.message : "Licence check-in failed.";
-    if (!(e instanceof UserError)) console.error("[licence]", e);
+    if (!(e instanceof UserError)) log.error("licence failed", { err: e });
     await db.subscriptionMeta.updateMany({ where: { tenantId }, data: { checkError: error } });
     return { ok: false as const, error };
   }

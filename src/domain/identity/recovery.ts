@@ -83,10 +83,10 @@ async function issueCode(u: CodeUser, purpose: Purpose, channel: Channel) {
 async function consumeCode(userId: string, purpose: Purpose, code: string) {
   const r = await db.authCode.findFirst({ where: { userId, purpose, usedAt: null }, orderBy: { createdAt: "desc" } });
   if (!r || r.expiresAt < new Date() || r.attempts >= 5) return null;
-  if (!/^\d{6}$/.test(code) || !sameHash(r.codeHash, hashCode(scope(purpose, userId), code))) {
-    await db.authCode.update({ where: { id: r.id }, data: { attempts: { increment: 1 } } });
-    return null;
-  }
+  // Take the attempt before comparing, in one statement, so parallel guesses can't get past the limit of 5.
+  const slot = await db.authCode.updateMany({ where: { id: r.id, usedAt: null, attempts: { lt: 5 } }, data: { attempts: { increment: 1 } } });
+  if (!slot.count) return null;
+  if (!/^\d{6}$/.test(code) || !sameHash(r.codeHash, hashCode(scope(purpose, userId), code))) return null;
   const used = await db.authCode.updateMany({ where: { id: r.id, usedAt: null }, data: { usedAt: new Date() } });
   return used.count ? r : null;
 }

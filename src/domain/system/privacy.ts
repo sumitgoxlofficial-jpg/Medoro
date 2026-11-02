@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
@@ -63,14 +64,23 @@ export function grievanceLine(g: Grievance, fallbackPhone?: string | null) {
   return fallbackPhone ? `Questions about your data: call the pharmacy on ${fallbackPhone}` : "Questions about your data: ask at the counter";
 }
 
-/** Clears a customer's personal fields and the numbers on their WhatsApp log. Invoices stay, linked to the anonymised record. */
-export async function anonymiseCustomer(tx: Tx, tenantId: string, c: { id: string; phone: string | null }, label = "Erased customer") {
+/**
+ * Clears a customer's personal fields, the numbers and message text on their WhatsApp log, and the contact details on
+ * their delivery orders. Invoices stay, linked to the anonymised record. A B2B buyer's GSTIN and billing address stay
+ * (tax records); prescriber details and Rx images on orders stay for the Drugs Rules prescription register.
+ */
+export async function anonymiseCustomer(tx: Tx, tenantId: string, c: { id: string; phone: string | null; gstin?: string | null }, label = "Erased customer") {
   const ref = c.id.slice(0, 8).toUpperCase();
-  await tx.customer.update({ where: { id: c.id }, data: { name: `${label} ${ref}`, phone: null, waOptIn: false, smsOptIn: false, marketingWa: false, marketingSms: false, optInAt: null, optInMethod: null, creditLimitPaise: 0n, erasedAt: new Date() } });
+  const b2b = !!c.gstin;
+  await tx.customer.update({ where: { id: c.id }, data: { name: `${label} ${ref}`, phone: null, waOptIn: false, smsOptIn: false, marketingWa: false, marketingSms: false, optInAt: null, optInMethod: null, smsOptInAt: null, smsOptInMethod: null, creditLimitPaise: 0n, erasedAt: new Date(), ...(b2b ? {} : { address: null, pincode: null }) } });
   const sales = await tx.sale.findMany({ where: { tenantId, customerId: c.id }, select: { id: true } });
   await tx.waMessage.updateMany({
     where: { tenantId, OR: [{ invoiceId: { in: sales.map((x) => x.id) } }, ...(c.phone ? [{ recipient: c.phone }] : [])] },
-    data: { recipient: "erased" },
+    data: { recipient: "erased", payload: Prisma.DbNull },
+  });
+  await tx.deliveryOrder.updateMany({
+    where: { tenantId, OR: [{ customerId: c.id }, ...(c.phone ? [{ phone: c.phone }] : [])] },
+    data: { name: `${label} ${ref}`, phone: "erased", address: "erased", notes: null },
   });
   return ref;
 }

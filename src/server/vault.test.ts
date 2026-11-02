@@ -1,8 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { reseal, seal, unseal } from "./vault";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
+import { reseal, seal, unseal, unsealClient } from "./vault";
 
 describe("vault", () => {
   afterEach(() => vi.unstubAllEnvs());
+
+  it("opens browser cookies only with the current key, never the public empty-key fallback", () => {
+    vi.stubEnv("SESSION_SECRET", "s".repeat(40));
+    vi.stubEnv("HOST_KEY", "h".repeat(40));
+    const iv = randomBytes(12), c = createCipheriv("aes-256-gcm", createHash("sha256").update("medoro-host-key:").digest(), iv);
+    const body = Buffer.concat([c.update('{"email":"victim@x.in"}'), c.final()]);
+    const forged = Buffer.concat([iv, c.getAuthTag(), body]);
+    expect(() => unsealClient(forged)).toThrow();
+    expect(unsealClient(seal("ok")).toString()).toBe("ok");
+  });
 
   it("still opens values sealed before HOST_KEY was set (SESSION_SECRET-derived key)", () => {
     vi.stubEnv("SESSION_SECRET", "s".repeat(40));

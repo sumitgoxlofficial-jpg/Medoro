@@ -42,6 +42,15 @@ export function unseal(box: Buffer | Uint8Array): Buffer {
   return out;
 }
 
+/**
+ * For values that travel through the browser (sealed cookies): only the current key opens them. The legacy keys,
+ * including derive(""), which anyone can compute, are for secrets stored in the database, never for client input.
+ */
+export function unsealClient(box: Buffer | Uint8Array): Buffer {
+  if (!current()) throw new Error("No HOST_KEY or SESSION_SECRET set.");
+  return open(Buffer.from(box), hostKey());
+}
+
 /** The same secret sealed with the current HOST_KEY when it was sealed with an older key, otherwise null. */
 export function reseal(box: Buffer | Uint8Array): Buffer | null {
   const { out, legacy } = openAny(box);

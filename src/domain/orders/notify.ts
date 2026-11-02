@@ -8,6 +8,7 @@ import { sendSms, smsEnabled } from "@/server/sms";
 import { inr } from "@/lib/money";
 import type { WaConfig } from "@/domain/comms/whatsapp";
 import { connectorProblem, sendFromPhone } from "@/domain/comms/connector";
+import { log as logger } from "@/server/log";
 
 export type NotifyEvent = "confirmed" | "out_for_delivery" | "delivered";
 export type OrderSettings = { templates: Record<NotifyEvent, string> };
@@ -109,7 +110,7 @@ export async function notifyCustomer(o: Order, event: NotifyEvent, extra: Extra 
     }
     await log(`${event.replace(/_/g, " ")} · not sent${errors.length ? ": " + errors.join("; ") : " (no WhatsApp template or SMS gateway)"}`);
   } catch (e) {
-    console.error("[orders] notify", e);
+    logger.error("orders notify failed", { err: e });
   }
   return "none";
 }

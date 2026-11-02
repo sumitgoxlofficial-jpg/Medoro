@@ -117,12 +117,14 @@ export async function sendOtp(phone: string, purpose: "signin" | "invite"): Prom
 }
 
 export async function verifyOtp(phone: string, code: string, purpose: "signin" | "invite" | "signup"): Promise<{ ok: true } | { ok: false; left: number }> {
+  // Take the attempt before comparing, in one statement, so parallel guesses can't get past the limit of 5.
+  const slot = await db.otpCode.updateMany({ where: { phone, purpose, expiresAt: { gt: new Date() }, attempts: { lt: 5 } }, data: { attempts: { increment: 1 } } });
+  if (!slot.count) return { ok: false, left: 0 };
   const r = await db.otpCode.findUnique({ where: { phone } });
-  if (!r || r.purpose !== purpose || r.expiresAt < new Date() || r.attempts >= 5) return { ok: false, left: 0 };
+  if (!r) return { ok: false, left: 0 };
   if (/^\d{6}$/.test(code) && sameHash(r.codeHash, hashCode(phone, code))) {
     const used = await db.otpCode.deleteMany({ where: { phone, codeHash: r.codeHash } });
     return used.count ? { ok: true } : { ok: false, left: 0 };
   }
-  await db.otpCode.update({ where: { phone }, data: { attempts: { increment: 1 } } });
-  return { ok: false, left: 4 - r.attempts };
+  return { ok: false, left: Math.max(0, 5 - r.attempts) };
 }
