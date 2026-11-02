@@ -17,10 +17,10 @@ const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,2
 const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"], scope: ["Drive access wasn’t ticked on Google’s consent screen. Connect again and allow it.", "red"] };
 type DriveFile = { id: string; name: string; size: number; createdTime: string; known: boolean };
 
-export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron }: {
+export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron, mustMove = false }: {
   history: H[]; drive: DriveState; folder: string; driveApp: boolean; fingerprint: string | null; keyDate: string | null; keyState: "ok" | "missing" | "unreadable";
   settings: { schedule: string; retention: number; files: "server" | "gdrive"; every: number }; flash: string | null; problems: string[];
-  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean;
+  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean; mustMove?: boolean;
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -71,7 +71,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           {drive.status === "connected" ? (
             <>
               <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>{folder}</span><span className="text-muted">Access</span><span>Only files Medoro creates</span></div>
-              {canRestore ? <a href="/app/lab" className="self-start text-[13px] text-teal">Coming soon: keep all data in your Drive. Test this device&nbsp;→</a> : null}
+              {mustMove ? <a href="/app/device-pos" className="self-start bg-teal text-white rounded-lg px-3 py-2 text-[13.5px] font-semibold no-underline hover:bg-teal-hover hover:text-white">Required: move your data into this Drive&nbsp;→</a> : null}
               <Button variant="danger-outline" className="self-start" disabled={pending} onClick={() => start(async () => { const r = await disconnectAction(); toast(r.ok ? r.data : r.error, r.ok ? "green" : "red"); })}>Disconnect & revoke</Button>
             </>
           ) : drive.status === "lost" && driveApp ? (
