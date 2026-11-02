@@ -46,8 +46,8 @@ export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret
 export const DRIVE_TAB: Partial<Record<ScreenId, string>> = {
   dash: "dash", pos: "bill", ord: "orders", ret: "bills", inv: "stock", exp: "reports", pur: "purchases", parties: "customers", acc: "accounts", money: "money",
 };
-/** System screens that work the same for Drive pharmacies (account, devices, plan, privacy, help). */
-const DRIVE_KEEP = new Set<ScreenId>(["bak", "sync", "users", "plan", "privacy", "help"]);
+/** Screens that stay for Drive pharmacies as they are: WhatsApp and customer messaging, account, devices, plan, privacy, help. */
+const DRIVE_KEEP = new Set<ScreenId>(["wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
 export const driveNav = (n: NavDef): NavDef | null => DRIVE_TAB[n.id] ? { ...n, href: `/app/device-pos?tab=${DRIVE_TAB[n.id]}` } : DRIVE_KEEP.has(n.id) ? n : null;
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));
