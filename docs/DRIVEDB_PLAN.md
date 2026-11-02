@@ -187,8 +187,10 @@ working with me; they overlap a little.
   encrypted snapshot to the owner's Drive using a short-lived token. Medoro's server sees no test data.
 - **First result** (headless Chromium, 4-core Linux, large pharmacy: 50,000 medicines, 1 lakh batches,
   2 lakh bill lines): search 2 ms, stock of one medicine 3 ms, save a bill 64 ms, day total 1 ms,
-  full stock report 0.46 s, building the sample database 11 s. Still needed: real Android phones,
-  counter PCs, and the Drive upload/download numbers.
+  full stock report 0.46 s, building the sample database 11 s. Still needed: runs on real Android phones and
+  counter PCs, with the Drive upload/download numbers (the test measures them; it needs a pharmacy's own devices and
+  Drive). Each run lists the browser, CPU cores, memory, free storage and the network connection, and "Copy results"
+  gives a text block to send back.
 - **Risk:** older phones/browsers without OPFS → fall back to IndexedDB storage (slower) or require
   the desktop app.
 
@@ -249,7 +251,8 @@ working with me; they overlap a little.
 - Reports on the device: `src/drivedb/reports.ts` (bill detail, day-end, bill search, stock list, customers,
   suppliers, medicine edits). Tests: `reports.test.ts`, `e2e/20-device-counter.spec.ts` (stock in, customer,
   credit bill, part payment, return, day-end totals, PIN, billing with the browser offline).
-- Still to do in phase 3: the "keep my data in my Google Drive" choice at sign-up (after the pilot week).
+- The "keep my data in my Google Drive" choice at sign-up came in phase 8 (and Drive is now compulsory on Medoro's
+  hosted server).
 
 ### Phase 4 progress (built)
 - **Sync between counters** (`src/drivedb/sync.ts`): each device uploads its own change files and applies every
@@ -271,7 +274,16 @@ working with me; they overlap a little.
 - Tests: `sync.test.ts` (3 counters, one offline, same stock and all bills; field merge; approve/remove; 7-day
   tidy-up; numbering after restore), `drivedb-relay.test.ts` (rules), `e2e/21-multi-counter.spec.ts` (owner +
   staff browsers). Browser tests use an in-memory Drive on the test server (`E2E_FAKE_DRIVE`, refused on Vercel).
-- Not done yet: instant push between counters (now ~5 s polling), a "stock went below zero" task for the owner.
+- **Instant push** (built): when a device uploads a change file, the relay sends a `pg_notify` on the live feed with
+  only the device id (`notifyDriveChange` in `src/server/live.ts`); every other open counter of the pharmacy gets it
+  over `/api/events` (`use-live.ts` → `medoro:drivedb` window event → `device.ts`) and syncs at once, and again 2.5 s
+  later in case Drive's file list lags. A counter uploads its own bills and edits about 0.4 s after saving them. With
+  the live feed connected the 5 s check becomes a 30 s safety net; the offline page and a dropped feed keep 5 s.
+  Counter screens reload when other counters' changes arrive. Test: `drivedb-relay.test.ts`.
+- **Stock below zero** (built): two counters can sell the same last units while one is offline. `ops.negativeStock`
+  lists such batches with the bills that sold short (the part of each sale the batch didn't have). The owner sees it
+  on the counter dashboard (Insights), as a banner with a **Count** button on Stock, and as a red count on the Stock
+  tab; counting the shelf corrects the batch on every counter and clears it. The bills stand. Test: `sync.test.ts`.
 
 ### Phase 5 progress (slice 1 built: accounts, reports, GST)
 - `src/drivedb/books.ts` (migration 4: `supplierPayment`, `expense`): supplier dues and ledger, paying suppliers
@@ -293,8 +305,17 @@ working with me; they overlap a little.
   **WhatsApp from the counter** (`share.ts`: wa.me links with a bill summary or a due reminder, no server and no
   WhatsApp Business setup). The catalogue copy now carries the branch list and staff names.
   Tests: `slice3.test.ts`, `e2e/24-device-transfer-activity.spec.ts`.
-- Left for phase 5: the AI assistant (needs a small server gateway that receives only the question and the few
-  rows needed), bulk WhatsApp campaigns (need the WhatsApp Business API on the server).
+- The AI assistant came in phase 6 (slice 2). **Store updates (bulk WhatsApp)** (built, device migration 9,
+  `src/drivedb/campaigns.ts`): consent to offers on WhatsApp is a history per customer (`customerConsent`: who, when,
+  how; the latest row counts), ticked on each customer under Customers. The owner writes an update in the **Store
+  updates on WhatsApp** panel; the counter sends it in batches of 25 through `sendCounterCampaign`
+  (`src/domain/comms/counter-send.ts`), which checks the opt-out list, sends from the linked phone or with the approved
+  `store_update` template, and answers each recipient's result without storing anything. Results are kept per
+  recipient (`campaign`, `campaignSend`); a stopped send resumes with the people not yet reached. A STOP reply through
+  Meta's webhook for a Drive pharmacy (no customer row on the server) is kept as a keyed hash of the number
+  (`WaOptOut`, `src/domain/comms/opt-outs.ts`); the counter is told and withdraws the consent. Consent given again at
+  the counter after the STOP lifts it. Moving from Medoro brings each customer's consent. Tests: `campaigns.test.ts`,
+  `whatsapp.test.ts`.
 
 ### Phase 6 progress (slice 1 built: customer payments by link, with an offline inbox)
 - The owner connects the pharmacy's **own Razorpay account** on the counter (Counter → Online payments; keys checked
@@ -324,9 +345,16 @@ working with me; they overlap a little.
   the counter saves them with the bill and prints them (IRN, Ack, QR) on the receipt. Cancelling follows the server's
   rule: within 24 hours and only after the whole bill is returned. Moved pharmacies bring customers' addresses.
   Tests: `tests/integration/counter-einvoice.test.ts`.
-- Left for phase 6: sending bills through the WhatsApp Business API from the counter. It needs the bill as a PDF
-  (the approved invoice template carries it as the document header): the counter would make the PDF and send it
-  through the gateway, which uploads it to Meta and forgets it. Until then counters share bills on WhatsApp via wa.me.
+- Slice 4: **bills on WhatsApp from the counter** (`src/domain/comms/counter-send.ts`). The counter sends the bill's
+  figures; Medoro makes the A4 invoice PDF (pharmacy name, GSTIN and address from its own records), sends it from the
+  linked phone or with the approved Meta invoice template (PDF as the document header) and keeps nothing: no message
+  row, no PDF, no number. "Send PDF on WhatsApp" on the counter's receipt when WhatsApp is connected; the wa.me text
+  share stays as a fallback. A revoked token or a signed-out phone pauses sending and alerts the owner.
+  **Delivery status** (device migration 10, `src/drivedb/messages.ts`): the counter keeps each message's id and status
+  and asks Medoro once a minute (`counterMessageStatus`). A linked phone's connector is asked directly (nothing stored);
+  for Meta, whose updates come only to the webhook, Medoro keeps the message id and status alone (`CounterMsgStatus`,
+  no number or text) for 7 days. The receipt shows sent / delivered / read; store updates show delivered and read
+  counts. Tests: `whatsapp-phone.test.ts`, `whatsapp.test.ts`, `messages.test.ts`.
 
 ### Phase 7 progress (slice 1 built: the move, checks, read-only copy, undo)
 - Server `src/domain/system/drive-move.ts`: `startMove` freezes Medoro's copy (`tenant.settings.driveMove`;
@@ -357,7 +385,22 @@ working with me; they overlap a little.
   branches, devices, integrations and subscription. The audit log is deleted too (owner's decision: its entries name
   customers and bills); one entry recording the deletion is written afterwards. State becomes `purged`: no undo.
   The Drive mode card has the button; the expenses total joined the checks.
-- Left for phase 7: moving a pharmacy whose Drive already holds pilot data (needs merging the pilot's device bills).
+- Slice 3: **moving a pharmacy that ran the pilot** (its Drive already holds bills). The move reads the whole pilot
+  from Drive first (this device's unsent bills uploaded before; the recovery code asked for on a device that isn't an
+  owner device yet), then copies Medoro's data and runs the usual checks, then adds the pilot's records on top
+  (`pilotRows`, `mergePilot` in `migrate-in.ts`): bills, credit notes, payments, purchases, stock changes, points,
+  orders, bank matching, consent, and medicines, batches, customers and suppliers added on the pilot. Left out: the
+  pilot's starting stock copied from Medoro (and the openings of an earlier move that was undone), which Medoro's
+  data already holds. A medicine or customer on both keeps Medoro's details; a pilot batch with the same number as
+  one of Medoro's is the same batch. A supplier bill entered on both stops the move with a clear message. Checks:
+  every pilot record is there, stock per batch = Medoro's + the pilot's movements, and sales, returns, purchases,
+  expenses and payments totals add up. The merged data is saved as a **new generation** (`Manifest.generation`):
+  bills other counters uploaded while the move ran are applied on top (`writeSnapshot`'s `from`), and every other
+  counter is told to restore from the new copy (its unsent bills are kept). Sync is paused on the moving device
+  until the new copy is saved. Shown on the pilot counter itself (a card above Billing) and on an empty owner device,
+  where the move is required. Tests: `drive-move.test.ts`, `sync.test.ts`.
+  A pilot batch merged into one of Medoro's is remembered in the database file (`batchAlias`, carried by every full
+  copy): bills other counters made against it, during the move or before they rebuilt, go to Medoro's batch.
 
 ### Phase 8 progress (slice 1 built: Drive sign-up, sync monitoring, privacy pages)
 - **Sign-up** asks where the pharmacy's records live: "In my own Google Drive (recommended)" or Medoro's server.
@@ -382,8 +425,9 @@ working with me; they overlap a little.
   signed up with Drive storage can't bill until (1) Google Drive is connected (the connect flow comes back to the
   counter, `?back=device`) and (2) Drive storage is set up (keys and recovery code). A counter already set up is never
   blocked, even if Drive is disconnected later. Test: `e2e/27-drive-gate.spec.ts`.
-- Left: retiring the server backup code once no pharmacy keeps its data on Medoro's server (not yet: server mode
-  is still offered at sign-up).
+- Server backups stay in the code: they are already off for every Drive pharmacy (so on Medoro's hosted server, where
+  Drive is compulsory, they don't run), but a pharmacy's own self-hosted server keeps its data in its own PostgreSQL
+  and needs them. They can only be removed if self-hosted server mode is dropped, which is a product decision.
 
 ### Phase 2 — Drive storage, encryption, keys (2 weeks)
 - Folder layout, `manifest.json`, `encryption-meta.json`, snapshot write/read, change-log files.

@@ -9,6 +9,10 @@ import type { Ctx } from "@/server/context";
 import { can } from "@/server/context";
 import { driveModeOn } from "./drive-mode";
 import { deviceDriveEnabled, relayStore } from "./gdrive";
+import { notifyDriveChange } from "@/server/live";
+
+/** Other counters sync at once when a device uploads a change file (see use-live.ts and device.ts). */
+const announce = (tenantId: string, deviceId: string) => notifyDriveChange((sql, payload) => db.$executeRawUnsafe(sql, payload), tenantId, deviceId);
 
 /**
  * DriveDB relay: devices of a Drive mode pharmacy read and write their encrypted sync files in the owner's Google
@@ -113,6 +117,7 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
       if (!validName(name) || !mayWrite(device, name)) throw new UserError("This device can’t write that file.");
       if (body.length > CHUNK_MAX) throw new UserError("Too big for one piece; upload it in parts.");
       await store.write(name, body);
+      if (LOG_RE.test(name)) await announce(ctx.tenantId, deviceId);
       return { ok: true };
     }
     case "start": {
@@ -131,6 +136,7 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
       const offset = Number(p.get("offset") ?? -1);
       if (!Number.isInteger(offset) || offset < 0 || offset + body.length > s.size) throw new UserError("Bad offset.");
       const id = await store.uploadChunk(s.session, offset, body, s.size);
+      if (id && LOG_RE.test(s.name)) await announce(ctx.tenantId, deviceId);
       return { done: !!id };
     }
     case "remove": {

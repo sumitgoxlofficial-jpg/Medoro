@@ -115,9 +115,11 @@ export function updateMedicine(db: DriveDB, id: string, patch: z.input<typeof me
 /** Customers A–Z (or matching text) with what each owes. */
 export function customerList(db: DriveDB, text = "", limit = 100) {
   const q = text.trim(), esc = q.replace(/[\\%_]/g, (c) => `\\${c}`);
-  return db.engine.all<{ id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number }>(
-    `SELECT id, name, phone, gstin, creditLimitPaise FROM customer WHERE deletedAt IS NULL ${q ? "AND (phone LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')" : ""} ORDER BY name COLLATE NOCASE LIMIT ${Math.max(1, Math.min(1000, Math.floor(limit)))}`,
-    q ? [`${esc}%`, `%${esc}%`] : []).map((c) => ({ ...c, balancePaise: customerBalance(db, c.id) }));
+  return db.engine.all<{ id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number; offers: number | null }>(
+    `SELECT id, name, phone, gstin, creditLimitPaise,
+            (SELECT granted FROM customerConsent k WHERE k.customerId = customer.id AND k.purpose = 'offers' AND k.channel = 'whatsapp' ORDER BY k.at DESC, k.rowid DESC LIMIT 1) AS offers
+       FROM customer WHERE deletedAt IS NULL ${q ? "AND (phone LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')" : ""} ORDER BY name COLLATE NOCASE LIMIT ${Math.max(1, Math.min(1000, Math.floor(limit)))}`,
+    q ? [`${esc}%`, `%${esc}%`] : []).map((c) => ({ ...c, offers: !!c.offers, balancePaise: customerBalance(db, c.id) }));
 }
 
 export const supplierList = (db: DriveDB) => db.from<{ id: string; name: string; gstin: string | null; phone: string | null }>("supplier").select("id,name,gstin,phone").order("name").all();

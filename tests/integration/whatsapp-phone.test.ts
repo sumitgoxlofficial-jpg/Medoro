@@ -8,6 +8,8 @@ import { phoneKind, phoneText } from "@/domain/comms/phone-text";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, todayISO } from "@/lib/dates";
+import { counterMessageStatus, counterWhatsAppState, sendCounterBill, type CounterBill } from "@/domain/comms/counter-send";
+import { setDriveMode } from "@/domain/system/drive-mode";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 // A stand-in for the WhatsApp connector (fitron/whatsapp-connector): one business, a session that goes from
@@ -104,6 +106,32 @@ describe("WhatsApp from a linked phone (QR)", () => {
     results["msg-1"] = "SENT"; // never backwards
     await deliveryTick();
     expect((await db.waMessage.findFirstOrThrow()).status).toBe("delivered");
+  });
+
+  it("a Drive counter's bill goes out as a PDF from the linked phone, and Medoro keeps nothing", async () => {
+    const owner = await ctxFor(), cashier = await ctxFor("Cashier");
+    const bill: CounterBill = {
+      sendId: "press0000001", phone: "98220 41736", customerName: "Ramesh Patil", invoiceNo: "DAB12-2026-7", at: new Date().toISOString(),
+      lines: [{ name: "Pan 40", batchNo: "P1", expiry: "2027-08-31", qtyText: "1 strip", mrp: 15500, discount: 0, gstRate: 12, amount: 15500 }],
+      totals: { mrp: 15500, discount: 0, taxable: 13839, cgst: 830, sgst: 831, igst: 0, roundOff: 0, total: 15500 }, payments: [{ mode: "cash" }],
+    };
+    await expect(sendCounterBill(cashier, bill)).rejects.toThrow(/sent from Billing/); // only Drive mode pharmacies
+    await setDriveMode(owner, true);
+    expect(await counterWhatsAppState(cashier)).toMatchObject({ connected: true, via: "phone" });
+    await expect(sendCounterBill(cashier, { ...bill, phone: "12345" })).rejects.toThrow(/valid 10-digit/);
+    const rows = await db.waMessage.count(), audits = await db.auditEvent.count();
+    const res = await sendCounterBill(cashier, bill);
+    expect(res).toMatchObject({ sent: true, via: "phone", messageId: expect.stringMatching(/^msg-/) });
+    // Delivery status comes straight from the connector: nothing is stored for it.
+    results[res.messageId!] = "DELIVERED";
+    expect(await counterMessageStatus(cashier, [res.messageId!])).toEqual({ [res.messageId!]: { status: "delivered", error: null } });
+    expect(await db.counterMsgStatus.count()).toBe(0);
+    const m = sent.at(-1)!;
+    expect(m).toMatchObject({ path: "/api/v1/messages/document", to: "+919822041736", file: "DAB12-2026-7.pdf", key: `counter:${cashier.tenantId}:press0000001` });
+    expect(m.text).toBe("Hello Ramesh Patil, thank you for shopping at Test Medical Store. Your invoice DAB12-2026-7 for Rs 155.00 is attached.");
+    expect(await db.waMessage.count()).toBe(rows);
+    expect(await db.auditEvent.count()).toBe(audits);
+    await setDriveMode(owner, false);
   });
 
   it("a store update needs its text; there are no Meta templates", async () => {

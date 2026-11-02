@@ -21,6 +21,8 @@ import * as assistant from "./assistant";
 import * as einv from "./einvoice";
 import * as money from "./money";
 import * as dash from "./dashboard";
+import * as camp from "./campaigns";
+import * as msgs from "./messages";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -84,23 +86,30 @@ const SNAPSHOT_EVERY = 6 * 3600_000;
 
 /** Upload this device's changes, apply everyone else's, and (owner devices) save a full copy now and then. */
 async function syncNow(forceSnapshot = false) {
-  if (!db || !ring || access?.status !== "approved" || state.busy) return state;
-  state.busy = true;
+  if (!db || !ring || access?.status !== "approved") return state;
+  // Mid-move (or moved but not yet saved as a new full copy): Drive still holds the old data, so nothing syncs.
+  if (move.moveInProgress(db) || db.getMeta("pilotMerged") === "1") return state;
+  // A sync is running: run once more right after it, so a change announced meanwhile isn't missed.
+  if (state.busy) { again = true; return state; }
+  state.busy = true; lastRun = Date.now();
+  let applied = 0;
   try {
     const last = db.getMeta("lastSnapshot");
     if (ring.rk && (forceSnapshot || !last || Date.now() - Date.parse(last) > SNAPSHOT_EVERY)) {
       const m = await sync.writeSnapshot(db, store(), ring, () => need().engine.exportBytes());
       state.lastSnapshot = m.snapshotAt;
+      applied = -1; // a full copy catches up first; how much it applied isn't counted
+
     } else {
       while (await sync.pushChanges(db, store(), ring)) { /* until empty */ }
-      try { await sync.pullChanges(db, store(), ring); }
+      try { applied = await sync.pullChanges(db, store(), ring); }
       catch (e) {
         // A newer key (a device was removed): re-read the keys once and try again.
         if (!(e instanceof WrongKeyError)) throw e;
         const fresh = await sync.refreshKeys(store(), keys, deviceName);
         if (!fresh) throw new RelayRefusedError("This device no longer has the pharmacy’s key. Ask the owner to approve it again.");
         ring = fresh;
-        await sync.pullChanges(db, store(), ring);
+        applied = await sync.pullChanges(db, store(), ring);
       }
       state.lastPull = new Date().toISOString();
     }
@@ -111,6 +120,9 @@ async function syncNow(forceSnapshot = false) {
     if (e instanceof RelayRefusedError && /removed/i.test(e.message)) { access = { ...(access ?? { role: "staff" }), status: "removed" }; ring = null; }
     state.lastError = e instanceof Error ? e.message : String(e);
   } finally { state.busy = false; }
+  // Other devices' changes arrived: the screens reload their data (device.ts turns this into a window event).
+  if (applied) self.postMessage({ event: "changed", applied });
+  if (again) { again = false; setTimeout(() => { void syncNow(); }, 0); }
   void report();
   void pickUpPayments();
   return state;
@@ -142,7 +154,23 @@ async function report() {
   reported = { error, at: Date.now() };
   await reportHealth(deviceName, error);
 }
-setInterval(() => { void syncNow(); }, 5_000);
+/**
+ * How often to check Drive. With the live feed connected, other counters' uploads arrive as pushes (see
+ * device.ts), so a check every 30 s is only a safety net; without it (offline page, feed down) every 5 s.
+ */
+let liveOn = false, again = false, lastRun = 0;
+const POLL_MS = 5_000, LIVE_POLL_MS = 30_000;
+setInterval(() => { if (!liveOn || Date.now() - lastRun >= LIVE_POLL_MS) void syncNow(); }, POLL_MS);
+
+/** Sends this device's new bills and edits soon after they are saved, instead of on the next check. */
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+function pushSoon() {
+  if (!db || !ring || access?.status !== "approved" || !db.pendingChanges(1).length) return;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
+}
+/** Calls that only read, or run the sync themselves: no push needed after them. */
+const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -154,6 +182,11 @@ async function connect(name: string) {
 }
 
 let moving: MoveBase | null = null;
+/** A pilot pharmacy's own records, read from Drive before the move, to add on top of Medoro's data. */
+let pilot: move.PilotRows | null = null;
+/** How far into each counter's changes the pilot copy reached: later ones (bills made during the move) are added at the end. */
+let pilotFrom: Record<string, string> | null = null;
+const PILOT_FILE = "/pilot.db";
 const need = () => { if (!db) throw new Error("The device database isn’t open."); return db; };
 
 const handlers = {
@@ -194,6 +227,7 @@ const handlers = {
   batchesFor: (medicineId: string, branchId: string) => ops.batchesFor(need(), medicineId, branchId),
   adjustStock: (input: Parameters<typeof ops.adjustStock>[1]) => ops.adjustStock(need(), input),
   recordCount: (input: Parameters<typeof ops.recordCount>[1]) => ops.recordCount(need(), input),
+  negativeStock: (branchId?: string) => ops.negativeStock(need(), branchId),
   setBatchStatus: (batchId: string, status: "ok" | "quarantine" | "recalled") => ops.setBatchStatus(need(), batchId, status),
   createOrder: (input: Parameters<typeof ops.createOrder>[1]) => ops.createOrder(need(), input),
   packOrder: (input: Parameters<typeof ops.packOrder>[1]) => ops.packOrder(need(), input),
@@ -212,6 +246,19 @@ const handlers = {
   aiTool: (scope: assistant.AskScope, name: string, input: unknown, hi: boolean) => assistant.runTool(need(), scope, name, input, hi),
   aiNames: () => assistant.customerNames(need()),
   recentSales: (limit?: number) => seed.recentSales(need(), limit),
+  // Store updates on WhatsApp (src/drivedb/campaigns.ts); sent through Medoro's gateway by the page.
+  setOffersConsent: (input: Parameters<typeof camp.setOffersConsent>[1]) => camp.setOffersConsent(need(), input),
+  offersConsent: (customerId: string) => camp.offersConsent(need(), customerId),
+  campaignAudienceCount: () => camp.campaignAudience(need()).length,
+  createCampaign: (input: Parameters<typeof camp.createCampaign>[1]) => camp.createCampaign(need(), input),
+  campaignPending: (campaignId: string, limit?: number, skip?: string[]) => camp.campaignPending(need(), campaignId, limit, skip),
+  recordCampaignResults: (campaignId: string, results: camp.SendResult[], userId: string) => camp.recordCampaignResults(need(), campaignId, results, userId),
+  listCampaigns: () => camp.listCampaigns(need()),
+  // WhatsApp delivery status of messages sent from the counters (src/drivedb/messages.ts).
+  logMessage: (m: Parameters<typeof msgs.logMessage>[1]) => msgs.logMessage(need(), m),
+  openMessageIds: () => msgs.openMessageIds(need()),
+  recordMessageStatuses: (report: Parameters<typeof msgs.recordStatuses>[1]) => msgs.recordStatuses(need(), report),
+  billMessages: (saleId: string) => msgs.billMessages(need(), saleId),
   // UPI & Bank: statement import, matching, review and reports (src/drivedb/money.ts).
   finSettings: () => money.finSettings(need()),
   saveFinSettings: (s: money.FinSettings) => money.saveFinSettings(need(), s),
@@ -251,6 +298,8 @@ const handlers = {
   },
   unlock: async (recoveryCode?: string) => { ring = await sync.unlock(store(), keys, deviceName, recoveryCode || undefined); void syncNow(); return true; },
   syncNow: (snapshot?: boolean) => syncNow(!!snapshot),
+  /** The page's live feed connected or dropped (see the polling note above). */
+  setLive: (on: boolean) => { liveOn = !!on; return true; },
   /** Owner's device gives a waiting device the keys (then the server marks it approved). */
   approveDevice: async (deviceId: string, publicJwk: JsonWebKey, role: "owner" | "staff", name: string) => {
     if (!ring?.rk) throw new Error("Unlock Drive storage on this device first.");
@@ -282,10 +331,49 @@ const handlers = {
     state.needsRestore = false; state.lastError = null;
     return { snapshotAt: r.snapshotAt, applied: r.applied };
   },
-  /** Phase 7: loads the pharmacy's data from Medoro (an unfinished earlier attempt is cleared first). */
+  /**
+   * Before a move: when Drive already holds this pharmacy (the Drive mode pilot, or an earlier move that was undone),
+   * reads it all (this device's unsent bills first) so its records are kept. Needs the recovery code on a device that
+   * isn't an owner device yet. Returns what was found.
+   */
+  movePilotPrepare: async (recoveryCode?: string) => {
+    await opened;
+    pilot = null; pilotFrom = null;
+    const s = store();
+    if (!(await sync.vaultExists(s))) return { found: false as const };
+    ring ??= await sync.unlock(s, keys, deviceName, recoveryCode || undefined);
+    if (!ring.rk) throw new Error("Only an owner device can move the pharmacy. Enter the Drive recovery code.");
+    const local = need();
+    if (local.from("medicine").withDeleted().count() > 0 && !move.moveInProgress(local)) while (await sync.pushChanges(local, s, ring)) { /* this device's unsent bills */ }
+    const unlinkPilot = () => { try { (pool as unknown as { unlink(f: string): boolean }).unlink(PILOT_FILE); } catch { /* not there */ } };
+    let copy: DriveDB | null = null;
+    try {
+      await sync.restoreFromDrive(s, ring, deviceName, async (bytes) => {
+        unlinkPilot();
+        await pool!.importDb(PILOT_FILE, bytes);
+        copy = DriveDB.open(wasmEngine(new pool!.OpfsSAHPoolDb(PILOT_FILE), (d) => sqlite!.capi.sqlite3_js_db_export(d)), { device: deviceName });
+        return copy;
+      });
+      pilot = move.pilotRows(copy!);
+      pilotFrom = sync.changeCursors(copy!);
+    } catch (e) {
+      // Keys but no full copy yet: this device's own data is all there is.
+      if (!(e instanceof Error && /No copy of the pharmacy/.test(e.message))) throw e;
+      pilot = local.from("medicine").withDeleted().count() > 0 ? move.pilotRows(local) : {};
+    } finally { (copy as DriveDB | null)?.engine.close(); unlinkPilot(); }
+    const n = (t: keyof move.PilotRows) => pilot?.[t]?.length ?? 0;
+    return { found: true as const, bills: n("sale"), returns: n("salesReturn"), purchases: n("purchase"), receipts: n("customerReceipt"), movements: n("stockMovement") };
+  },
+  /** Phase 7: loads the pharmacy's data from Medoro (an unfinished earlier attempt, or the pilot's data once read, is cleared first). */
   moveBegin: async (base: MoveBase) => {
-    if (move.moveInProgress(need())) await handlers.wipe();
+    const d = need();
+    if (move.moveInProgress(d) || (pilot && d.from("medicine").withDeleted().count() > 0)) {
+      const keep = ring; // the move saves into the same Drive storage
+      await handlers.wipe();
+      ring = keep;
+    }
     move.beginMove(need(), base);
+    if (pilotFrom) need().setMeta("pilotFrom", JSON.stringify(pilotFrom));
     moving = base;
     return true;
   },
@@ -293,9 +381,31 @@ const handlers = {
   /** Checks the loaded data against Medoro's totals; when all match, this device becomes a counter. */
   moveFinish: (userId: string) => {
     if (!moving) throw new Error("Start the move again.");
-    const r = move.finishMove(need(), moving, userId);
+    const r = move.finishMove(need(), moving, userId, pilot ?? undefined);
     if (r.ok) moving = null;
     return r;
+  },
+  /**
+   * Saves the moved data to Drive. New Drive storage: keys first, and the recovery code to show. Existing storage (pilot
+   * or an earlier move): a full copy as a new generation, so every other counter rebuilds from it.
+   */
+  moveSave: async () => {
+    const s = store();
+    if (!(await sync.vaultExists(s))) {
+      const r = await sync.createVault(s, keys, need().device);
+      ring = r.ring;
+      await syncNow(true);
+      if (state.lastError) throw new Error(state.lastError);
+      return { code: r.recoveryCode };
+    }
+    if (!ring?.rk) throw new Error("Unlock Drive storage on this device first.");
+    const from = need().getMeta("pilotFrom");
+    const m = await sync.writeSnapshot(need(), s, ring, () => need().engine.exportBytes(), Date.now(), { newGeneration: true, from: from ? JSON.parse(from) : undefined });
+    need().setMeta("pilotFrom", "");
+    state.lastSnapshot = m.snapshotAt; state.lastError = null; state.needsRestore = false;
+    need().setMeta("pilotMerged", "0");
+    pilot = null;
+    return { code: null };
   },
   /** Deletes the open database file (demo reset) and starts it empty. */
   wipe: async () => {
@@ -313,6 +423,7 @@ self.onmessage = async ({ data }: MessageEvent<{ id: number; op: keyof DeviceHan
   try {
     const result = await (handlers[op] as (...a: unknown[]) => unknown)(...args);
     self.postMessage({ id, ok: true, result });
+    if (!NO_PUSH.has(op)) pushSoon();
   } catch (e) {
     self.postMessage({ id, ok: false, error: e instanceof Error ? e.message : String(e), counter: e instanceof pharmacy.CounterError });
   }

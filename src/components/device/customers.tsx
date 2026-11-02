@@ -9,8 +9,9 @@ import { inr } from "@/lib/money";
 import { card, input, label, errText, toPaise, type Who } from "./ui";
 import { dueText, waLink } from "@/drivedb/share";
 import type { Pharmacy } from "@/drivedb/seed";
+import { StoreUpdates } from "./store-updates";
 
-type C = { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number; balancePaise: number };
+type C = { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number; balancePaise: number; offers: boolean };
 
 /** Customers on this device: add, see what each owes, record money received. */
 export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: number; pharmacy: Pharmacy | null }) {
@@ -35,7 +36,16 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
     } finally { setLinking(null); }
   };
   useEffect(() => { const t = setTimeout(load, 120); return () => clearTimeout(t); }, [load, refresh]);
+  /** Records the customer's yes or no to offers on WhatsApp (with who recorded it, when and how). */
+  const setOffers = async (c: C, granted: boolean) => {
+    try {
+      await dev.call("setOffersConsent", { customerId: c.id, granted, userId: who.userId, method: granted ? "Agreed at the counter" : "Asked to stop at the counter" });
+      void load();
+    } catch (e) { toast(errText(e), "red"); }
+  };
   return (
+    <div className="flex flex-col gap-4">
+    {who.owner && who.whatsapp && <StoreUpdates who={who} refresh={refresh} />}
     <div className={card}>
       <div className="flex gap-2 flex-wrap">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or mobile" aria-label="Search customers" className={`${input} flex-1 min-w-[220px]`} />
@@ -44,7 +54,11 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
       <ul className="text-sm divide-y divide-line">
         {rows.map((c) => (
           <li key={c.id} className="py-2 flex justify-between items-center gap-2 flex-wrap">
-            <span>{c.name} <span className="text-muted">{c.phone ?? ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}{c.creditLimitPaise ? ` · limit ${inr(c.creditLimitPaise)}` : ""}</span></span>
+            <span>{c.name} <span className="text-muted">{c.phone ?? ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}{c.creditLimitPaise ? ` · limit ${inr(c.creditLimitPaise)}` : ""}</span>
+              {c.phone && <label className="ml-2 inline-flex items-center gap-1 text-xs text-muted" title="The customer agreed to receive offers and store updates on WhatsApp. Ask them first; untick if they say no or stop.">
+                <input type="checkbox" checked={c.offers} onChange={(e) => void setOffers(c, e.target.checked)} aria-label={`${c.name} agrees to offers on WhatsApp`} /> Offers on WhatsApp
+              </label>}
+            </span>
             <span className="flex items-center gap-2">
               {c.balancePaise ? <span className="text-bad tabular-nums">owes {inr(c.balancePaise)}</span> : <span className="text-muted">nothing due</span>}
               {c.balancePaise > 0 && waLink(c.phone, "") && <Button size="sm" onClick={() => window.open(waLink(c.phone, dueText(c.name, c.balancePaise, pharmacy))!, "_blank", "noopener")} aria-label={`Remind ${c.name}`}><MessageCircle size={14} /> Remind</Button>}
@@ -58,15 +72,20 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
       {adding && <AddCustomer who={who} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); void load(); }} />}
       {pay && <Receive c={pay} who={who} onClose={() => setPay(null)} onSaved={(left) => { toast(`Received. ${pay.name} now owes ${inr(left)}.`, "green"); setPay(null); void load(); }} />}
     </div>
+    </div>
   );
 }
 
 function AddCustomer({ who, onClose, onSaved }: { who: Who; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
   const dev = deviceDb();
-  const [f, setF] = useState({ name: "", phone: "", gstin: "", limit: "" });
+  const [f, setF] = useState({ name: "", phone: "", gstin: "", limit: "", offers: false });
   const save = async () => {
-    try { await dev.call("addCustomer", { name: f.name, phone: f.phone || null, gstin: f.gstin || null, creditLimitPaise: who.canCredit ? toPaise(f.limit) : 0 }); onSaved(); }
+    try {
+      const c = await dev.call("addCustomer", { name: f.name, phone: f.phone || null, gstin: f.gstin || null, creditLimitPaise: who.canCredit ? toPaise(f.limit) : 0 });
+      if (f.offers && f.phone) await dev.call("setOffersConsent", { customerId: c.id, granted: true, userId: who.userId, method: "Agreed at the counter" });
+      onSaved();
+    }
     catch (e) { toast(errText(e), "red"); }
   };
   return (
@@ -75,6 +94,7 @@ function AddCustomer({ who, onClose, onSaved }: { who: Who; onClose: () => void;
         <label className={label}>Name<input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} className={input} aria-label="Customer name" /></label>
         <label className={label}>Mobile<input value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} inputMode="numeric" className={input} aria-label="Mobile" /></label>
         <label className={label}>GSTIN (businesses)<input value={f.gstin} onChange={(e) => setF({ ...f, gstin: e.target.value })} className={input} aria-label="GSTIN" /></label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.offers} disabled={!f.phone} onChange={(e) => setF({ ...f, offers: e.target.checked })} /> Agrees to offers and store updates on WhatsApp (ask first)</label>
         {who.canCredit && <label className={label}>Credit limit (₹)<input value={f.limit} onChange={(e) => setF({ ...f, limit: e.target.value })} inputMode="decimal" className={input} aria-label="Credit limit" /></label>}
       </div>
     </Modal>

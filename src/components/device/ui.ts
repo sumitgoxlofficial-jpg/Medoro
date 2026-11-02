@@ -10,6 +10,9 @@ export const label = "flex flex-col gap-1 text-[13px] text-muted";
 export type Cfg = CounterConfig;
 export type PayLinkInput = { customerId: string; saleId?: string | null; customerName: string; phone?: string | null; amountPaise: number; label?: string };
 /** Who is billing on this device: the signed-in user online, or the device's saved user offline. */
+import type { billForSend } from "@/drivedb/share";
+import type { SendResult } from "@/drivedb/campaigns";
+export type CampaignBatch = { campaignId: string; first: boolean; message: string; recipients: { id: string; name: string; phone: string; consentAt: string }[] };
 export type Who = {
   userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number;
   /** When the pharmacy takes online payments (signed in, Razorpay connected): makes a payment link through Medoro. */
@@ -18,6 +21,13 @@ export type Who = {
   ai?: { remote: boolean; remoteNames: boolean; step: AiStep } | null;
   /** E-invoicing is set up on Medoro: get or cancel an IRN for a B2B bill through the gateway. */
   einvoice?: EinvActions | null;
+  /** The pharmacy's WhatsApp is connected (signed in): send a bill's PDF through Medoro, which keeps nothing. */
+  whatsapp?: {
+    via: "phone" | "meta";
+    send: (bill: ReturnType<typeof billForSend>) => Promise<{ ok: true; data: { sent: true; messageId: string | null } } | { ok: false; error: string }>;
+    /** One batch of a store update (owner); Medoro answers each recipient's result. */
+    campaign: (batch: CampaignBatch) => Promise<{ ok: true; data: { results: SendResult[] } } | { ok: false; error: string }>;
+  } | null;
 };
 export type EinvActions = {
   irn: (doc: EinvDoc) => Promise<{ ok: true; data: IrnReply } | { ok: false; error: string }>;

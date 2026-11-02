@@ -124,50 +124,61 @@ async function uploadPdf(w: WaAccount, pdf: Uint8Array, filename: string) {
   return (await graph<{ id: string }>(`/${w.cfg.phoneNumberId}/media`, w.sec.token, { method: "POST", body: form })).id;
 }
 
-/** Sends from the pharmacy's linked phone: Medoro writes the text, the connector sends it. Returns the connector's message id. */
-async function sendPhone(m: WaMessage, p: Extract<Payload, { ch: "wa" }>) {
-  const t = await db.tenant.findUniqueOrThrow({ where: { id: m.tenantId }, select: { name: true } });
-  let pdf: { bytes: Uint8Array; filename: string } | undefined;
-  if (p.pdfSaleId) {
-    const inv = await invoiceData({ tenantId: m.tenantId } as Ctx, p.pdfSaleId);
-    if (!inv) throw new UserError("Invoice not found.");
-    if (inv.voided) throw new UserError(`${inv.invoiceNo} was voided; it can’t be sent.`);
-    pdf = { bytes: await invoicePdf(inv), filename: `${inv.invoiceNo.replace(/\//g, "-")}.pdf` };
-  }
+type Pdf = { bytes: Uint8Array; filename: string };
+
+/** The invoice PDF of a sale on Medoro's server, for sending. */
+async function salePdf(tenantId: string, saleId: string): Promise<Pdf> {
+  const inv = await invoiceData({ tenantId } as Ctx, saleId);
+  if (!inv) throw new UserError("Invoice not found.");
+  if (inv.voided) throw new UserError(`${inv.invoiceNo} was voided; it can’t be sent.`);
+  return { bytes: await invoicePdf(inv), filename: `${inv.invoiceNo.replace(/\//g, "-")}.pdf` };
+}
+
+/**
+ * Sends from the pharmacy's linked phone: Medoro writes the text, the connector sends it. `ref` picks the kind of text
+ * (see phoneKind); `key` must differ per attempt. Returns the connector's message id.
+ */
+export async function sendPhoneText(tenantId: string, m: { phone: string; ref: string; vars: string[]; key: string; pdf?: Pdf }) {
+  const t = await db.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { name: true } });
   try {
     return await sendFromPhone({
-      tenantId: m.tenantId, phone: m.recipient, text: phoneText(phoneKind(m.invoiceId), p.vars, t.name, { pdf: !!pdf }), pdf,
-      // One key per attempt: the connector would otherwise answer a retry with the earlier, failed message.
-      key: `${m.id}:${m.attempts}`, marketing: m.invoiceId.startsWith("campaign:"),
+      tenantId, phone: m.phone, text: phoneText(phoneKind(m.ref), m.vars, t.name, { pdf: !!m.pdf }), pdf: m.pdf,
+      key: m.key, marketing: m.ref.startsWith("campaign:"),
     });
   } catch (e) {
     throw new PhoneError(`WhatsApp: ${connectorProblem(e)}`.slice(0, 300), connectorFailKind(e));
   }
 }
 
-async function sendWa(m: WaMessage, p: Extract<Payload, { ch: "wa" }>) {
-  const { tenantId, recipient: phone } = m;
-  const w = await activeAccount(tenantId);
-  if (!w) throw new GraphError("WhatsApp is disconnected. Reconnect it under WhatsApp to resume sending.", undefined, "auth");
-  if (isPhone(w.cfg)) return sendPhone(m, p);
-  const tpl = await approvedTemplate(w, p.template, { document: !!p.pdfSaleId });
+/**
+ * Sends an approved Meta template, with the PDF as its document header when given. `n` is how many body variables to
+ * use when Meta's count isn't known. Returns Meta's message id.
+ */
+export async function sendTemplate(w: WaAccount, phone: string, m: { template: string; vars: string[]; n?: number; pdf?: Pdf }) {
+  const tpl = await approvedTemplate(w, m.template, { document: !!m.pdf });
   const components: object[] = [];
-  if (p.pdfSaleId) {
-    const inv = await invoiceData({ tenantId } as Ctx, p.pdfSaleId);
-    if (!inv) throw new UserError("Invoice not found.");
-    if (inv.voided) throw new UserError(`${inv.invoiceNo} was voided; it can’t be sent.`);
-    const filename = `${inv.invoiceNo.replace(/\//g, "-")}.pdf`;
+  if (m.pdf) {
     // Uploaded to Meta's media store and sent by id, so the PDF is never exposed on a public URL.
-    const id = await uploadPdf(w, await invoicePdf(inv), filename);
-    components.push({ type: "header", parameters: [{ type: "document", document: { id, filename } }] });
+    const id = await uploadPdf(w, m.pdf.bytes, m.pdf.filename);
+    components.push({ type: "header", parameters: [{ type: "document", document: { id, filename: m.pdf.filename } }] });
   }
-  const parameters = p.vars.slice(0, tpl.params ?? p.n ?? 1).map((text) => ({ type: "text", text: text.replace(/\s+/g, " ").trim() || "-" }));
+  const parameters = m.vars.slice(0, tpl.params ?? m.n ?? 1).map((text) => ({ type: "text", text: text.replace(/\s+/g, " ").trim() || "-" }));
   if (parameters.length) components.push({ type: "body", parameters });
   const r = await graph<{ messages: { id: string }[] }>(`/${w.cfg.phoneNumberId}/messages`, w.sec.token, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messaging_product: "whatsapp", to: "91" + phone, type: "template", template: { name: tpl.name, language: { code: tpl.language }, components } }),
   });
   return r.messages[0]?.id ?? null;
+}
+
+async function sendWa(m: WaMessage, p: Extract<Payload, { ch: "wa" }>) {
+  const { tenantId, recipient: phone } = m;
+  const w = await activeAccount(tenantId);
+  if (!w) throw new GraphError("WhatsApp is disconnected. Reconnect it under WhatsApp to resume sending.", undefined, "auth");
+  const pdf = p.pdfSaleId ? await salePdf(tenantId, p.pdfSaleId) : undefined;
+  // One key per attempt: the connector would otherwise answer a retry with the earlier, failed message.
+  if (isPhone(w.cfg)) return sendPhoneText(tenantId, { phone, ref: m.invoiceId, vars: p.vars, key: `${m.id}:${m.attempts}`, pdf });
+  return sendTemplate(w, phone, { template: p.template, vars: p.vars, n: p.n, pdf });
 }
 
 // ───────────── SMS settings ─────────────
@@ -286,6 +297,7 @@ export async function resumeAfterReconnect(tenantId: string) {
  */
 export async function deliveryTick(now = new Date(), limit = 100) {
   await phoneTick(now).catch((e) => console.error("[delivery] phone", e));
+  await db.counterMsgStatus.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } }).catch(() => undefined);
   const due = await db.waMessage.findMany({ where: { status: "failed", errorKind: "retry", attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now } }, orderBy: { nextAttemptAt: "asc" }, take: limit });
   const paused = new Map<string, boolean>();
   const out = { sent: 0, failed: 0, skipped: 0 };

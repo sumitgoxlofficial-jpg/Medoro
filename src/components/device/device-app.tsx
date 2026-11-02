@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { deviceDb, deviceId } from "@/drivedb/device";
+import { DEVICE_CHANGED_EVENT } from "@/drivedb/live-events";
 import { Billing } from "./billing";
 import { Bills } from "./bills";
 import { Stock } from "./stock";
@@ -52,7 +53,20 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
     if (online) { try { const u = new URL(window.location.href); u.searchParams.set("tab", k); window.history.replaceState(null, "", u); } catch { /* not in a browser */ } }
   }, [online]);
   const [tick, setTick] = useState(0);
+  // Bills, stock and payments from other counters arrived: reload the open screen (bursts batched into one).
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const on = () => { if (t) clearTimeout(t); t = setTimeout(() => setTick((n) => n + 1), 300); };
+    window.addEventListener(DEVICE_CHANGED_EVENT, on);
+    return () => { window.removeEventListener(DEVICE_CHANGED_EVENT, on); if (t) clearTimeout(t); };
+  }, []);
   const [pin, setPin] = useState("");
+  // Batches below zero after two counters sold the same stock: a red count on the Stock tab until counted.
+  const [negative, setNegative] = useState(0);
+  useEffect(() => {
+    if (state !== "ready" || !cfg) return;
+    dev.call("negativeStock", cfg.branchId).then((r) => setNegative(r.length), () => setNegative(0));
+  }, [dev, state, cfg, tick, tab]);
   const [receipt, setReceipt] = useState<SaleDetail | null>(null);
 
   // Kept in a ref so a page refresh (a new `who` object) doesn't re-run the first-open check below.
@@ -110,7 +124,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
       {/* Signed in, the sidebar opens each screen; the Dashboard then looks like Medoro's own, without the counter's tab row. */}
       {!(online && tab === "dash") && <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
         {TABS.filter(([k]) => (k !== "settings" && k !== "activity") || online?.owner).map(([k, name]) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{name}</button>
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{name}{k === "stock" && negative > 0 && <span className="ml-1.5 inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-bad text-white text-[11px] font-semibold" title={`${negative} ${negative === 1 ? "batch" : "batches"} below zero`}>{negative}</span>}</button>
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">Lock</button>}
       </div>}

@@ -1616,3 +1616,30 @@ model PaymentInbox {
   @@unique([tenantId, deviceId, paymentId])
   @@index([tenantId, paymentId])
 }
+
+/// WhatsApp opt-outs of Drive mode pharmacies, whose customers aren't on Medoro's server: a STOP reply (Meta webhook)
+/// is kept as a keyed hash of the number, so a campaign sent from a counter skips it. No number is stored.
+model WaOptOut {
+  id        String   @id @default(uuid())
+  tenantId  String
+  phoneHash String // HMAC-SHA256 of the 10-digit number, keyed from HOST_KEY and the pharmacy (see comms/opt-outs.ts)
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, phoneHash])
+}
+
+/// Delivery status of WhatsApp messages a Drive counter sent through the Meta Cloud API, so the counter can show
+/// delivered / read. Only Meta's message id and its status: no phone number, no text, no bill. Kept 7 days.
+/// (Messages from a linked phone need no row: the WhatsApp connector is asked directly.)
+model CounterMsgStatus {
+  id        String   @id @default(uuid())
+  tenantId  String
+  wamid     String
+  status    String // sent | delivered | read | failed
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, wamid])
+  @@index([createdAt])
+}

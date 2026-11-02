@@ -30,8 +30,19 @@ export function pageRows(n: number, first: number, next: number, footer: number)
 const W = 595, H = 842, TOP = 800, BOTTOM = 40, ROW = 14;
 const FOOTER_ROWS = Math.ceil(140 / ROW);
 
+/**
+ * What the PDF shows. A sale on Medoro's server (invoiceData) has all of it; a Drive counter's bill sent through
+ * Medoro (comms/counter-send.ts) is mapped to it.
+ */
+export type PdfInvoice = Pick<Invoice, "invoiceNo" | "at" | "totals"> & {
+  pharmacy: Pick<Invoice["pharmacy"], "name" | "legalName" | "address" | "gstin" | "dl" | "grievance">;
+  customer: { name: string; gstin: string | null } | null;
+  lines: Pick<Invoice["lines"][number], "name" | "batchNo" | "expiry" | "qtyText" | "mrp" | "discount" | "gstRate" | "amount">[];
+  payments: { mode: string }[];
+};
+
 /** A4 GST tax invoice PDF built from the committed sale. Prescriber details are left out for sharing. */
-export async function invoicePdf(inv: Invoice): Promise<Uint8Array> {
+export async function invoicePdf(inv: PdfInvoice): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.setTitle(`Invoice ${inv.invoiceNo}`); doc.setProducer("Medoro");
   const f = await doc.embedFont(StandardFonts.Helvetica), b = await doc.embedFont(StandardFonts.HelveticaBold);

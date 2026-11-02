@@ -13,9 +13,11 @@ import { recordExpense, reverseVoucher } from "@/domain/accounting/service";
 import { relayStore } from "@/domain/system/gdrive";
 import { completeMove, deleteMedoroCopy, MOVE_PARTS, moveExport, moveStatus, startMove, undoMove, type MoveBase } from "@/domain/system/drive-move";
 import { memoryDb } from "@/drivedb/node";
-import { beginMove, finishMove, importPart, verifyMove } from "@/drivedb/migrate-in";
-import { counterConfig } from "@/drivedb/seed";
-import { createSale, stockOf, pointsBalance as devicePoints } from "@/drivedb/pharmacy";
+import { beginMove, finishMove, importPart, pilotRows, verifyMove } from "@/drivedb/migrate-in";
+import { deviceSeed } from "@/domain/system/drive-mode";
+import { offersConsent } from "@/drivedb/campaigns";
+import { counterConfig, importSeed } from "@/drivedb/seed";
+import { addMedicine, createSale, receiveStock, stockOf, pointsBalance as devicePoints } from "@/drivedb/pharmacy";
 import { customerBalance } from "@/drivedb/trade";
 import { supplierDues, gstReturns } from "@/drivedb/books";
 import { addDays, todayISO } from "@/lib/dates";
@@ -84,6 +86,8 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
 
   it("the device loads everything and its counts, totals, stock, dues and points match Medoro's", async () => {
     const ctx = await ctxFor();
+    // The customer agreed to offers on WhatsApp on Medoro: that consent moves with them.
+    await db.customer.update({ where: { id: cust }, data: { waOptIn: true, marketingWa: true, optInMethod: "Recorded by Owner" } });
     const { base, parts } = await exportAll(ctx);
     expect(base.summary.counts).toMatchObject({ sale: 4, salesReturn: 3, purchase: 1, medicine: 1, batch: 2, customer: 1, supplier: 1 });
     const dev = await memoryDb("DMOVE01");
@@ -93,6 +97,7 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     const res = finishMove(dev, base, ctx.userId);
     expect(res.checks.filter((c) => !c.ok)).toEqual([]);
     expect(res.ok).toBe(true);
+    expect(offersConsent(dev, cust)).toMatchObject({ granted: true, method: "Moved from Medoro: Recorded by Owner" });
 
     // Balances equal Medoro's books, not just the summary.
     const t = ctx.tenantId;
@@ -196,5 +201,68 @@ describe("Moving a pharmacy's data to Google Drive (phase 7)", () => {
     await expect(undoMove(ctx)).rejects.toThrow();
     await expect(startMove(ctx)).rejects.toThrow(/already moved/);
     await expect(deleteMedoroCopy(ctx, { code })).rejects.toThrow(/already deleted/);
+  });
+});
+
+describe("Moving a pharmacy that ran the Drive mode pilot", () => {
+  it("adds the pilot's bills, stock changes and new items on top of Medoro's data, without counting the copied stock twice", async () => {
+    await resetDb(); await makePharmacy();
+    const ctx = await ctxFor();
+    await setDriveMode(ctx, true);
+    const med = await createMedicine(ctx, { name: "Pan 40", generic: "Pantoprazole", strength: "40 mg", form: "Tablet", manufacturer: "Alkem", pack: "15", mrp: "155", gstRate: 12, schedule: "", reorderLevel: 5, barcode: "", hsn: "3004", rack: "" });
+    await receiveBatch(ctx, { medicineId: med, batchNo: "P1", expiry: addDays(todayISO(), 300), qty: 100, cost: "100", mrp: "155", supplierId: null, invoiceNo: "" });
+    const p1 = (await db.batch.findFirstOrThrow({ where: { batchNo: "P1" } })).id;
+    const cust = await saveCustomer(ctx, null, { name: "Pawar Clinic", phone: "9823077015", waOptIn: false, creditLimit: "50000", opening: "0" });
+    const serverSale = (qty: number) => commitSale(ctx, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: p1, qty }], customerId: null, discountPct: 0, pay: { mode: "cash" } } as Parameters<typeof commitSale>[1]);
+    await serverSale(5);
+
+    // The pilot counter starts from a copy of Medoro's catalogue and stock (95 of P1), then bills on its own.
+    const pilot = await memoryDb("DPILOT1");
+    const cfg = importSeed(pilot, await deviceSeed(ctx), ctx.userId);
+    const sell = (qty: number, extra: Record<string, unknown> = {}) => createSale(pilot, { branchId: cfg.branchId, series: cfg.series, userId: ctx.userId, lines: [{ medicineId: med, qty }], pay: { mode: "cash" }, ...extra } as Parameters<typeof createSale>[1]);
+    const a = sell(3), b = sell(2, { customerId: cust, pay: { mode: "credit" } });
+    const newMed = addMedicine(pilot, { name: "Pilot Syrup", gstRate: 12, mrpPaise: 9000 });
+    receiveStock(pilot, { branchId: cfg.branchId, medicineId: newMed.id, batchNo: "PS1", expiryDate: addDays(todayISO(), 400), qty: 6, costPaise: 6000, mrpPaise: 9000, userId: ctx.userId });
+    // The same delivery (batch S2) was received on Medoro and on the pilot: it is one batch.
+    receiveStock(pilot, { branchId: cfg.branchId, medicineId: med, batchNo: "S2", expiryDate: addDays(todayISO(), 500), qty: 4, costPaise: 10000, mrpPaise: 15500, userId: ctx.userId });
+    await receiveBatch(ctx, { medicineId: med, batchNo: "S2", expiry: addDays(todayISO(), 500), qty: 10, cost: "100", mrp: "155", supplierId: null, invoiceNo: "" });
+    await serverSale(1); // Medoro kept billing too
+
+    await startMove(ctx);
+    const base = (await moveExport(ctx, "base")) as MoveBase;
+    const dev = await memoryDb("DMOVE09");
+    beginMove(dev, base);
+    for (const part of MOVE_PARTS) { let next: string | null = null; do { const page = (await moveExport(ctx, part, next)) as { rows: unknown[]; next: string | null }; importPart(dev, part, page.rows); next = page.next; } while (next); }
+    const res = finishMove(dev, base, ctx.userId, pilotRows(pilot));
+    expect(res.checks.filter((c) => !c.ok)).toEqual([]);
+    expect(res.ok).toBe(true);
+
+    const s2 = (await db.batch.findFirstOrThrow({ where: { batchNo: "S2" } })).id;
+    expect(stockOf(dev, med, ctx.branchId)).toBe(94 - 5 + 10 + 4); // Medoro's 94 after its 6 sold, minus the pilot's 5, plus S2 from both
+    expect(dev.engine.all<{ v: number }>("SELECT SUM(qty) AS v FROM stockMovement WHERE batchId = ?", [s2])[0].v).toBe(14);
+    // The pilot's own S2 batch is remembered as Medoro's S2, for bills other counters upload later.
+    const pilotS2 = pilot.engine.all<{ id: string }>("SELECT id FROM batch WHERE batchNo = 'S2'")[0].id;
+    expect(dev.batchAliases().get(pilotS2)).toBe(s2);
+    expect(stockOf(dev, newMed.id, ctx.branchId)).toBe(6);
+    expect(dev.engine.all("SELECT 1 FROM stockMovement WHERE note = 'Copied from Medoro'")).toHaveLength(0);
+    expect(dev.from("sale").count()).toBe(4);
+    expect(dev.engine.all<{ invoiceNo: string }>("SELECT invoiceNo FROM sale WHERE invoiceNo LIKE ?", [`${cfg.series}%`]).map((r) => r.invoiceNo).sort()).toEqual([a.invoiceNo, b.invoiceNo].sort());
+    expect(customerBalance(dev, cust)).toBe(2 * 15500);
+    expect(counterConfig(dev)).not.toBeNull();
+    expect(dev.pendingChanges(10)).toHaveLength(0); // the merged data goes to Drive as one new full copy
+
+    // A supplier bill entered on both stops the move with a clear message instead of counting its stock twice.
+    const again = await memoryDb("DMOVE10");
+    beginMove(again, base);
+    for (const part of MOVE_PARTS) { let next: string | null = null; do { const page = (await moveExport(ctx, part, next)) as { rows: unknown[]; next: string | null }; importPart(again, part, page.rows); next = page.next; } while (next); }
+    const rows = pilotRows(pilot);
+    rows.supplier = [{ id: "sup-x", name: "X", phone: null, gstin: null, dl: null, address: null }];
+    rows.purchase = [{ id: "pur-1", branchId: cfg.branchId, supplierId: "sup-x", billNo: "X/1", billDate: todayISO(), taxablePaise: 100, taxPaise: 12, totalPaise: 112, userId: ctx.userId, at: new Date().toISOString() },
+      { id: "pur-2", branchId: cfg.branchId, supplierId: "sup-x", billNo: "X/1", billDate: todayISO(), taxablePaise: 100, taxPaise: 12, totalPaise: 112, userId: ctx.userId, at: new Date().toISOString() }];
+    const bad = finishMove(again, base, ctx.userId, rows);
+    expect(bad.ok).toBe(false);
+    expect(bad.checks.find((c) => c.name === "Pilot records")?.detail).toMatch(/X\/1 was entered both/);
+    expect(counterConfig(again)).toBeNull();
+    await undoMove(ctx);
   });
 });

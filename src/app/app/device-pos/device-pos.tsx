@@ -12,7 +12,7 @@ import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
 import { PaymentsPanel } from "./payments-panel";
 import { DriveGate } from "./drive-gate";
-import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, einvoiceStatusAction, payLinkAction, payStatusAction } from "../lab/actions";
+import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, counterMessageStatusAction, counterWhatsAppAction, einvoiceStatusAction, payLinkAction, payStatusAction, sendCounterBillAction, sendCounterCampaignAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
@@ -20,14 +20,18 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
   const [einv, setEinv] = useState(false);
+  const [wa, setWa] = useState<"phone" | "meta" | null>(null);
   useEffect(() => {
     void payStatusAction().then((r) => setPaying(r.ok && r.data.connected), () => {});
     void einvoiceStatusAction().then((r) => setEinv(r.ok && r.data), () => {});
+    void counterWhatsAppAction().then((r) => setWa(r.ok && r.data.connected ? r.data.via : null), () => {});
     void aiGatewayStatusAction().then((r) => setAi(r.ok && r.data.enabled && r.data.model ? { remote: r.data.model === "remote", remoteNames: r.data.remoteNames } : null), () => {});
   }, []);
-  const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null };
+  useDeliveryStatus(!!wa);
+  const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null, whatsapp: wa ? { via: wa, send: sendCounterBillAction, campaign: sendCounterCampaignAction } : null };
   return (
     <DriveGate fresh={fresh || mustMove} move={mustMove} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
+    {mustMove && owner && drive && conn.access?.status === "approved" && <PilotDeviceMove userId={userId} />}
     <DeviceApp
       who={who}
       initialTab={tab}
@@ -37,6 +41,39 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     />
     </DriveGate>
   );
+}
+
+/**
+ * Asks Medoro once a minute (and when the page opens) where this counter's recent WhatsApp messages stand, and saves
+ * delivered / read on the device. Only message ids go to Medoro.
+ */
+function useDeliveryStatus(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    const dev = deviceDb();
+    let stop = false;
+    const check = async () => {
+      try {
+        const ids = await dev.call("openMessageIds");
+        if (!ids.length || stop) return;
+        const r = await counterMessageStatusAction(ids);
+        if (r.ok && !stop) await dev.call("recordMessageStatuses", r.data);
+      } catch { /* offline or not set up: next time */ }
+    };
+    void check();
+    const t = setInterval(() => { if (document.visibilityState === "visible") void check(); }, 60_000);
+    return () => { stop = true; clearInterval(t); };
+  }, [on]);
+}
+
+/**
+ * A pilot counter (this device already bills from its own data) where Medoro now requires the move: the move reads
+ * the pilot's bills from Drive, copies Medoro's data, adds the pilot's on top, checks both, then reopens.
+ */
+function PilotDeviceMove({ userId }: { userId: string }) {
+  const [has, setHas] = useState(false);
+  useEffect(() => { void deviceDb().call("config").then((c) => setHas(!!c), () => setHas(false)); }, []);
+  return has ? <div className="mb-4"><MoveFromMedoro userId={userId} ready={() => window.location.reload()} /></div> : null;
 }
 
 /**
@@ -81,7 +118,8 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
   const staffWaiting = !owner && drive && access?.status === "pending";
   // Once offered, the move stays on screen through its own steps (it creates the Drive copy as it finishes).
   const [moveOffered, setMoveOffered] = useState(false);
-  const canMove = moveOffered || (!fresh && owner && drive && access?.status === "approved" && access.role === "owner" && vault === false);
+  // Where the move is required, Drive may already hold the pilot's data (vault): the move keeps it and adds it on top.
+  const canMove = moveOffered || (!fresh && owner && drive && access?.status === "approved" && access.role === "owner" && (vault === false || (mustMove && vault === true)));
   useEffect(() => { if (canMove) setMoveOffered(true); }, [canMove]);
   return (
     <div className="flex flex-col gap-3">

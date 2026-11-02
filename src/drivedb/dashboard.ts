@@ -8,6 +8,7 @@ import { stockOf } from "./pharmacy";
 import { customerBalance } from "./trade";
 import { expiringStock, salesByDay, supplierDues } from "./books";
 import { activityLog, dayReport } from "./reports";
+import { negativeStock } from "./ops";
 import { addDays, istMidnight, todayISO } from "@/lib/dates";
 
 export type DashRange = "today" | "7d" | "30d";
@@ -53,6 +54,7 @@ export function dashboard(db: DriveDB, branchId: string, range: DashRange = "tod
     "SELECT branchId, COALESCE(SUM(totalPaise), 0) AS total, COUNT(*) AS bills FROM sale WHERE at >= ? AND at < ? GROUP BY branchId ORDER BY total DESC", [lo, hi])
     .map((b) => ({ id: b.branchId, name: names.get(b.branchId) ?? (b.branchId === branchId ? db.getMeta("branchName") ?? "This branch" : "Other branch"), salesPaise: n(b.total), bills: n(b.bills) }));
   const day = dayReport(db, branchId, today);
+  const negative = negativeStock(db, branchId);
 
   const chart = Array.from({ length: 14 }, (_, i) => addDays(today, i - 13)).map((d) => ({ date: d, salesPaise: days.find((x) => x.date === d)?.salesPaise ?? 0 }));
   return {
@@ -68,6 +70,8 @@ export function dashboard(db: DriveDB, branchId: string, range: DashRange = "tod
     lowStock: low.slice(0, 6), lowCount: low.length,
     branches,
     activity: activityLog(db, { limit: 6 }),
+    /** Batches below zero after two counters sold the same stock (see ops.negativeStock). */
+    negative: negative.slice(0, 6), negativeCount: negative.length,
     expiring: expiring.slice(0, 6), expiringCount: expiring.length, expiringValuePaise: expiring.reduce((a, e) => a + e.valuePaise, 0),
   };
 }

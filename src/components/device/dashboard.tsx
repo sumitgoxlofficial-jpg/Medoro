@@ -85,10 +85,16 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
         </div>
         <div className={card}>
           <div className="font-semibold">Insights</div>
+          {d.negativeCount ? (
+            <button onClick={() => go("stock")} className="flex flex-col gap-0.5 text-left cursor-pointer" aria-label="Stock below zero: count these batches">
+              <div className="font-medium text-[14px] text-bad">{d.negativeCount} {d.negativeCount === 1 ? "batch shows" : "batches show"} stock below zero</div>
+              <div className="text-[13px] text-muted">Two counters sold the same stock while one was offline ({d.negative.slice(0, 3).map((b) => b.name).join(", ")}{d.negativeCount > 3 ? "…" : ""}). Count the shelf under Stock to correct it.</div>
+            </button>
+          ) : null}
           {d.expiringCount ? <div className="flex flex-col gap-0.5"><div className="font-medium text-[14px]">{inr(d.expiringValuePaise)} of stock expires within 90 days</div><div className="text-[13px] text-muted">{d.expiringCount} {d.expiringCount === 1 ? "batch" : "batches"} at risk. Sell these first or return them to the supplier.</div></div> : null}
           {d.lowCount ? <div className="flex flex-col gap-0.5"><div className="font-medium text-[14px]">{d.lowCount} {d.lowCount === 1 ? "medicine is" : "medicines are"} at or below the reorder level</div><div className="text-[13px] text-muted">Order before they run out.</div></div> : null}
           {d.receivables.paise ? <div className="flex flex-col gap-0.5"><div className="font-medium text-[14px]">{inr(d.receivables.paise)} to collect from customers</div><div className="text-[13px] text-muted">Send reminders from Customers.</div></div> : null}
-          {!d.expiringCount && !d.lowCount && !d.receivables.paise ? <div className="text-[13px] text-muted">Nothing needs attention right now.</div> : null}
+          {!d.negativeCount && !d.expiringCount && !d.lowCount && !d.receivables.paise ? <div className="text-[13px] text-muted">Nothing needs attention right now.</div> : null}
         </div>
       </div>
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">

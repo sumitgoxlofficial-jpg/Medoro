@@ -22,7 +22,7 @@ export async function GET(req: Request) {
       const send = (s: string) => { try { controller.enqueue(enc.encode(s)); } catch { cleanup(); } };
       let unsub: () => void = () => {};
       try {
-        unsub = await subscribe(ctx.tenantId, (c) => send(`event: change\ndata: ${JSON.stringify({ t: c.t, branch: c.branch })}\n\n`));
+        unsub = await subscribe(ctx.tenantId, (c) => send(`event: change\ndata: ${JSON.stringify(c.d ? { t: c.t, branch: c.branch, d: c.d } : { t: c.t, branch: c.branch })}\n\n`));
       } catch {
         send("event: down\ndata: {}\n\n");
         controller.close();

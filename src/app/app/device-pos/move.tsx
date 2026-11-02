@@ -23,12 +23,26 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   const dev = deviceDb();
   const [step, setStep] = useState<Step>({ kind: "idle" });
   const [warnings, setWarnings] = useState<string[]>([]);
+  /** Drive already holds this pharmacy (the pilot): its recovery code, when this device can't open it on its own. */
+  const [needCode, setNeedCode] = useState(false);
+  const [code, setCode] = useState("");
+  const [pilotNote, setPilotNote] = useState<string | null>(null);
 
   const unwrap = <T,>(r: { ok: true; data: T } | { ok: false; error: string }): T => { if (!r.ok) throw new Error(r.error); return r.data; };
 
   const go = async () => {
     if (!confirm("Move all of this pharmacy’s data from Medoro into your Google Drive?\n\nWhile it moves, Medoro’s copy is read-only: bill on this device. You can undo the move for 7 days. After that, Medoro’s copy is deleted.")) return;
     try {
+      // Drive mode pilot: bills already in Drive are read first and added on top of Medoro's data.
+      setStep({ kind: "copying", what: "what is already in your Google Drive", done: 0 });
+      let found;
+      try { found = await dev.call("movePilotPrepare", code.trim() || undefined); }
+      catch (e) {
+        if (/recovery code/i.test(errText(e))) { setNeedCode(true); setStep({ kind: "idle" }); toast("Your Google Drive already has this pharmacy’s pilot data. Enter the Drive recovery code to keep it.", "red"); return; }
+        throw e;
+      }
+      setNeedCode(false);
+      if (found.found) setPilotNote(`Your Google Drive already has ${found.bills} ${found.bills === 1 ? "bill" : "bills"}, ${found.returns} credit notes, ${found.purchases} purchase bills and ${found.receipts} payments from the Drive mode pilot. They are added after Medoro’s data and checked again; other counters then rebuild from the new copy.`);
       unwrap(await startMoveAction());
       setStep({ kind: "copying", what: "medicines, stock and customers", done: 0 });
       const base = unwrap(await moveExportAction("base")) as MoveBase;
@@ -54,11 +68,9 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   const save = async (checks: number) => {
     setStep({ kind: "saving" });
     try {
-      const st = await dev.call("driveStatus");
-      const code = st.vault ? null : await dev.call("createVault");
-      let after = await dev.call("driveStatus");
-      if (!after.lastSnapshot || after.lastError) { await dev.call("syncNow", true); after = await dev.call("driveStatus"); }
-      if (after.lastError || !after.lastSnapshot) throw new Error(`Couldn’t save to Google Drive: ${after.lastError ?? "no copy saved"}. Check the connection and try again.`);
+      let code: string | null;
+      try { ({ code } = await dev.call("moveSave")); }
+      catch (e) { throw new Error(`Couldn’t save to Google Drive: ${errText(e)}. Check the connection and try again.`); }
       unwrap(await completeMoveAction({ device: deviceId(), checks }));
       const cfg = await dev.call("config");
       if (!cfg) throw new Error("The device has no counter settings.");
@@ -88,7 +100,9 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
     <div className={card} data-testid="move-card">
       <div className="flex items-center gap-2 font-semibold"><CloudUpload size={18} className="text-teal" />Move all my data from Medoro</div>
       <div className="text-sm text-muted">Copies every medicine, batch, customer, supplier, bill, credit note and purchase onto this device, checks that the counts and totals match Medoro’s exactly, then saves it to your Google Drive, encrypted with a key only you hold. After that, Medoro keeps no working copy: its copy stays read-only for 7 days (you can undo the move then), and is then deleted, or sooner when you confirm.</div>
-      {step.kind === "idle" && <Button variant="primary" className="self-start" onClick={go}>Move all my data</Button>}
+      {needCode && step.kind === "idle" && <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Drive recovery code (XXXX-XXXX-…)" aria-label="Drive recovery code" className="border border-line rounded-lg px-3 h-9 text-sm font-mono" />}
+      {step.kind === "idle" && <Button variant="primary" className="self-start" onClick={go} disabled={needCode && code.trim().length < 20}>Move all my data</Button>}
+      {pilotNote && <div className="text-[13px] text-ink-2" data-testid="pilot-note">{pilotNote}</div>}
       {step.kind === "copying" && <div className="text-sm" role="status">Copying {step.what}… {step.done ? step.done.toLocaleString("en-IN") : ""}</div>}
       {step.kind === "checking" && <div className="text-sm" role="status">Checking counts and totals against Medoro…</div>}
       {step.kind === "saving" && <div className="text-sm" role="status">Saving to your Google Drive…</div>}
@@ -129,8 +143,9 @@ export function FinishMove() {
     setBusy(true);
     try {
       const st = await dev.call("driveStatus");
-      if (!st.lastSnapshot) throw new Error("Set up Drive storage below first, so your data is saved in your Google Drive.");
-      if (st.pending) await dev.call("syncNow", true);
+      if (!st.vault) throw new Error("Set up Drive storage below first, so your data is saved in your Google Drive.");
+      // Saves this device's (moved, and for a pilot pharmacy merged) data as the new full copy in Drive.
+      await dev.call("moveSave");
       const r = await completeMoveAction({ device: deviceId(), checks: 0 });
       if (!r.ok) throw new Error(r.error);
       toast("Your data now lives in your Google Drive.", "green"); setShow(false);

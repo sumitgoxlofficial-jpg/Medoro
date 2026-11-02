@@ -191,6 +191,9 @@ async function deviceInfo() {
   post("info", { key: "Browser", value: navigator.userAgent });
   post("info", { key: "CPU cores", value: String(navigator.hardwareConcurrency ?? "?") });
   if (navigator.deviceMemory) post("info", { key: "Memory", value: `${navigator.deviceMemory} GB (approx.)` });
+  // Drive upload/download times depend mostly on the connection (Chrome and Edge report it; others don't).
+  const c = navigator.connection;
+  if (c) post("info", { key: "Connection", value: [c.type, c.effectiveType && `${c.effectiveType} class`, c.downlink && `~${c.downlink} Mbit/s down`, c.rtt != null && `${c.rtt} ms round trip`].filter(Boolean).join(", ") || "unknown" });
   const est = await navigator.storage?.estimate?.().catch(() => null);
   if (est?.quota) post("info", { key: "Free browser storage", value: `${(est.quota / 1073741824).toFixed(1)} GB` });
 }

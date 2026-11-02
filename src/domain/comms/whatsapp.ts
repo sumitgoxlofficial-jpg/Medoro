@@ -8,6 +8,9 @@ import { UserError } from "@/server/action";
 import { seal } from "@/server/vault";
 import { STOP_WORDS } from "@/server/sms";
 import { withdrawByReply } from "@/domain/parties/consent";
+import { driveModeOn } from "@/domain/system/drive-mode";
+import { recordOptOut } from "./opt-outs";
+import { applyCounterStatus } from "./counter-send";
 import { invoiceData } from "@/domain/sales/service";
 import { creditNoteData } from "@/domain/sales/returns";
 import { MOBILE_RE, normPhone } from "@/domain/identity/contracts";
@@ -337,7 +340,11 @@ export async function handleWebhook(raw: string, signature: string | null) {
     const v = c.value ?? {};
     for (const s of v.statuses ?? []) {
       const m = await db.waMessage.findFirst({ where: { tenantId: i.tenantId, wamid: s.id } });
-      if (!m) continue;
+      if (!m) {
+        // A message a Drive counter sent (no WaMessage row): only its id and status are kept, for the counter.
+        if (await applyCounterStatus(i.tenantId, s.id, s.status, s.status === "failed" ? reasonFor(s.errors?.[0]?.code, s.errors?.[0]?.title) : undefined)) n++;
+        continue;
+      }
       if (s.status === "failed") {
         if (m.status !== "failed") await recordFailure(m, webhookKind(s.errors?.[0]?.code), reasonFor(s.errors?.[0]?.code, s.errors?.[0]?.title));
       } else if (m.status !== "failed" && order.indexOf(s.status) > order.indexOf(m.status)) await db.waMessage.update({ where: { id: m.id }, data: { status: s.status as "sent" } });
@@ -353,6 +360,8 @@ export async function handleWebhook(raw: string, signature: string | null) {
       if (STOP_WORDS.includes(text)) {
         const phone = msg.from.replace(/^91/, "");
         const r = await withdrawByReply(db, { tenantId: i.tenantId, phone, channel: "whatsapp", word: text });
+        // Drive mode: the customer is on the counters, not here. Keep the opt-out (a keyed hash) for counter campaigns.
+        if (await driveModeOn(i.tenantId)) await recordOptOut(i.tenantId, phone);
         if (r.length) await writeAudit(db, { tenantId: i.tenantId, action: "WhatsApp opt-out", entity: "customer", detail: `${phone.slice(0, 5)}••••• replied ${text}` });
       }
     }
