@@ -4,10 +4,12 @@ import type { DriveDB } from "./client";
 import { addMedicine, createSale, receiveStock, CounterError } from "./pharmacy";
 import { addCustomer, customerBalance, receivePayment } from "./trade";
 import {
+  alertCounts, billUpiPay, customerUpiPay, finSettings,
   approveAllUnique, approveSuggestion, counterNotSeen, importHistory, importStatement, manualMatch, openBills, overview, finReports, reconciliation,
   rejectSuggestion, resolveDuplicate, saveFinSettings, setIgnored, statementPreview, transactions, unallocate,
 } from "./money";
-import { medoroRef } from "@/domain/finance/match";
+import { customerRef, medoroRef } from "@/domain/finance/match";
+import { memoryDb as otherCounter } from "./node";
 import { TABLES } from "./schema";
 
 const B = "branch-main", U = "user-1";
@@ -231,4 +233,55 @@ describe("reports", () => {
 it("settings refuse something that isn't a UPI ID", () => {
   expect(() => saveFinSettings(db, { upiId: "not a vpa", payee: "", autoKnownPayers: false })).toThrow(/UPI ID/);
   expect(saveFinSettings(db, { upiId: "shop@okhdfcbank", payee: "Shop", autoKnownPayers: false }).upiId).toBe("shop@okhdfcbank");
+});
+
+describe("paying with a Medoro reference, shared settings, alert counts", () => {
+  it("one payment with the customer's reference pays their bills oldest first, the rest stays unmatched", () => {
+    const c = customer("Hospital", "9822000002");
+    const s1 = creditBill(c.id, 2), s2 = creditBill(c.id, 3), s3 = creditBill(c.id, 4); // ₹200, ₹300, ₹400
+    expect(imp([[`NEFT CR-SBIN0001-CITY HOSPITAL-SBIN426306123456 ${customerRef(c.id)}`, "", "", "1000.00"]])).toMatchObject({ matched: 1 });
+    expect(openBills(db)).toEqual([]);
+    expect(transactions(db)[0]).toMatchObject({ state: "partial", allocatedPaise: 90000 });
+    expect(transactions(db)[0].links.map((l) => l.label.split(" · ")[0])).toEqual([s1.invoiceNo, s2.invoiceNo, s3.invoiceNo]);
+    expect(customerBalance(db, c.id)).toBe(0);
+  });
+
+  it("a bill shows a UPI QR only while something is due and a UPI ID is set", () => {
+    const c = customer("Rahul", "9822000001");
+    const s = creditBill(c.id, 3);
+    expect(billUpiPay(db, s.saleId)).toBeNull(); // no UPI ID yet
+    saveFinSettings(db, { upiId: "shop@okhdfcbank", payee: "Shop", autoKnownPayers: false });
+    expect(billUpiPay(db, s.saleId)).toMatchObject({ vpa: "shop@okhdfcbank", amountPaise: 30000, note: medoroRef(s.invoiceNo) });
+    expect(billUpiPay(db, s.saleId)!.uri).toContain("tn=" + medoroRef(s.invoiceNo));
+    expect(customerUpiPay(db, c.id)).toMatchObject({ amountPaise: 30000, note: customerRef(c.id) });
+    expect(billUpiPay(db, bill(1).saleId)).toBeNull(); // paid in cash
+    receivePayment(db, { customerId: c.id, amountPaise: 30000, mode: "cash", userId: U });
+    expect(billUpiPay(db, s.saleId)).toBeNull();
+  });
+
+  it("settings reach the other counters with sync; the later change wins", async () => {
+    const other = await otherCounter("C2");
+    saveFinSettings(db, { upiId: "shop@okhdfcbank", payee: "Shop", autoKnownPayers: true });
+    for (const ch of db.pendingChanges(100000).filter((c) => c.tbl === "setting")) other.applyRemote(ch);
+    expect(finSettings(other)).toEqual({ upiId: "shop@okhdfcbank", payee: "Shop", autoKnownPayers: true });
+    saveFinSettings(other, { upiId: "shop@ybl", payee: "Shop", autoKnownPayers: true });
+    for (const ch of other.pendingChanges(100000).filter((c) => c.tbl === "setting")) db.applyRemote(ch);
+    expect(finSettings(db).upiId).toBe("shop@ybl");
+  });
+
+  it("settings this counter kept for itself before are still read until changed", () => {
+    db.setMeta("fin:upiId", "old@oksbi");
+    expect(finSettings(db).upiId).toBe("old@oksbi");
+  });
+
+  it("alert counts: nothing before the first statement, then numbers only", () => {
+    expect(alertCounts(db)).toBeNull();
+    bill(2, { pay: { mode: "upi" } });
+    const later = (() => { const t = new Date(Date.now() + 330 * 60_000 + 5 * 86400_000).toISOString().slice(0, 10).split("-"); return `${t[2]}/${t[1]}/${t[0]}`; })();
+    imp([["SOMEONE PAID", "", "", "999.00"]]);
+    imp([["INTEREST", "", "", "1.00"]], "later.csv", later);
+    const c = alertCounts(db)!;
+    expect(c).toMatchObject({ notSeen: 1, review: 0, unmatched: 1 });
+    expect(Object.values(c).every((v) => typeof v === "number" || /^\d{4}-\d{2}-\d{2}$/.test(String(v)))).toBe(true);
+  });
 });

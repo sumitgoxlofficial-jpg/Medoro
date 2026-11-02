@@ -17,6 +17,17 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await page.getByRole("button", { name: "Load catalogue onto this device" }).click();
   await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible();
 
+  // Connections: honest labels, no connect buttons; the shop's own UPI ID for bill QR codes.
+  await page.getByRole("tab", { name: "UPI & Bank" }).click();
+  await page.getByRole("button", { name: "Connections" }).click();
+  await expect(page.getByText("Bank statement upload (any bank)").locator("..")).toContainText("Available");
+  await expect(page.getByText("PhonePe Business").locator("..")).toContainText("Partner onboarding required");
+  await expect(page.getByText("BharatPe", { exact: true }).locator("..")).toContainText("Not yet supported");
+  for (const card of ["Bank connections", "Payment providers"]) await expect(page.getByText(card, { exact: true }).locator("..").getByRole("button")).toHaveCount(0);
+  await page.getByLabel("Shop UPI ID").fill("sanjeevani@okhdfcbank");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Saved for all your counters.")).toBeVisible();
+
   // A credit customer and a ₹300 credit bill.
   await page.getByRole("tab", { name: "Customers" }).click();
   await page.getByRole("button", { name: "Add customer" }).click();
@@ -33,7 +44,18 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await page.getByRole("radio", { name: "CREDIT" }).click();
   await page.getByRole("button", { name: /Complete bill/ }).click();
   await expect(page.getByRole("dialog").getByText("TAX INVOICE")).toBeVisible();
+  // The printed credit bill carries a UPI QR for what is due, paying the shop's own UPI ID with the bill's reference.
+  await expect(page.getByTestId("upi-pay")).toContainText("Due ₹300.00 · Pay by UPI");
+  await expect(page.getByTestId("upi-pay")).toContainText(/sanjeevani@okhdfcbank · Note: MD[A-Z0-9]+/);
+  await expect(page.getByRole("img", { name: "UPI payment QR" })).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
+  // The customer's QR pays all their dues with the customer's reference.
+  await page.getByRole("tab", { name: "Customers" }).click();
+  await page.getByLabel("Search customers").fill(cust);
+  await page.getByRole("button", { name: `UPI QR for ${cust}` }).click();
+  await expect(page.getByRole("dialog")).toContainText(/the note MC[A-Z0-9]{10}/);
+  await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
+  await page.getByRole("tab", { name: "Billing" }).click();
 
   // A ₹200 bill marked UPI at the counter that never reaches the bank.
   await page.getByLabel("Search medicine").fill(name);
@@ -43,18 +65,8 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await expect(page.getByRole("dialog").getByText("TAX INVOICE")).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
 
-  // Connections: honest labels, no connect buttons; the shop's own UPI ID for bill QR codes.
-  await page.getByRole("tab", { name: "UPI & Bank" }).click();
-  await page.getByRole("button", { name: "Connections" }).click();
-  await expect(page.getByText("Bank statement upload (any bank)").locator("..")).toContainText("Available");
-  await expect(page.getByText("PhonePe Business").locator("..")).toContainText("Partner onboarding required");
-  await expect(page.getByText("BharatPe", { exact: true }).locator("..")).toContainText("Not yet supported");
-  for (const card of ["Bank connections", "Payment providers"]) await expect(page.getByText(card, { exact: true }).locator("..").getByRole("button")).toHaveCount(0);
-  await page.getByLabel("Shop UPI ID").fill("sanjeevani@okhdfcbank");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("Saved on this device.")).toBeVisible();
-
   // The open credit bill offers a UPI QR carrying its Medoro reference.
+  await page.getByRole("tab", { name: "UPI & Bank" }).click();
   await page.getByRole("button", { name: "Reconcile" }).click();
   const billRow = page.getByRole("listitem").filter({ hasText: cust });
   await expect(billRow).toContainText("₹300.00");

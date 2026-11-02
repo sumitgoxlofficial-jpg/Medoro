@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { bankAmount, bankAutoMapping, bankRows, readStatementTable, rowFingerprint, statementDate, withOccurrence } from "./statement";
 import { channelOf, parseNarration } from "./narration";
 import { classify, type DedupeHave } from "./dedupe";
-import { medoroRef, propose, upiIntent, type MatchData } from "./match";
+import { customerRef, medoroRef, propose, upiIntent, type MatchData } from "./match";
 import { FORBIDDEN_FIELDS, SOURCES } from "./providers";
 
 const fx = (f: string) => new Uint8Array(readFileSync(path.join(__dirname, "../../../tests/fixtures/bank", f)));
@@ -139,6 +139,13 @@ describe("matching", () => {
   it("two credits pointing at the same bill: neither is automatic", () => {
     const r = propose([credit("t1", 85000, "MDS12526000042"), credit("t2", 85000, "MDS12526000042")], base);
     expect([r.get("t1")![0].auto, r.get("t2")![0].auto]).toEqual([false, false]);
+  });
+  it("customer reference: the oldest open bill of that customer, automatically, even for two payments at once", () => {
+    const two = { ...base, bills: [...base.bills, { saleId: "s0", invoiceNo: "S1/25-26/000041", customerId: "c2", customerName: "Asha", date: "2026-10-01", balancePaise: 10000 }] };
+    const r = propose([credit("t1", 50000, `UPI/x/${customerRef("c2")}`), credit("t2", 5000, `UPI/y/${customerRef("c2")}`)], two);
+    expect(r.get("t1")![0]).toMatchObject({ targetId: "s0", rule: 1, auto: true, amountPaise: 10000, byCustomer: true });
+    expect(r.get("t2")![0]).toMatchObject({ targetId: "s0", auto: true });
+    expect(customerRef("9b2f6c1e-1234-4abc-8def-0123456789ab")).toBe("MC9B2F6C1E12");
   });
   it("a rejected pair is never proposed again", () => {
     expect(propose([credit("t1", 85000)], { ...base, rejected: new Set(["t1|s1"]) }).get("t1")).toEqual([]);

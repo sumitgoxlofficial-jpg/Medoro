@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { DriveDB } from "./client";
+import { getSetting, setSetting } from "./settings";
 import { CounterError } from "./pharmacy";
 import { addDays, istDate, todayISO } from "@/lib/dates";
 import {
@@ -16,7 +17,7 @@ import {
 } from "@/domain/finance/statement";
 import { parseNarration, type Channel } from "@/domain/finance/narration";
 import { classify, type DedupeHave } from "@/domain/finance/dedupe";
-import { COUNTER_WINDOW_DAYS, medoroRef, propose, type CounterUpi, type CreditIn, type LooseReceipt, type MatchData, type OpenBill, type Proposal, type Target } from "@/domain/finance/match";
+import { COUNTER_WINDOW_DAYS, customerRef, medoroRef, propose, upiIntent, type CounterUpi, type CreditIn, type LooseReceipt, type MatchData, type OpenBill, type Proposal, type Target } from "@/domain/finance/match";
 
 const n = (v: unknown) => Number(v ?? 0);
 const now = () => new Date().toISOString();
@@ -32,12 +33,17 @@ const settingsInput = z.object({
   payee: z.string().trim().max(60),
   autoKnownPayers: z.boolean(),
 });
+/** Shared by every counter (they used to be kept per counter: those values are read until changed). */
 export function finSettings(db: DriveDB): FinSettings {
-  return { upiId: db.getMeta("fin:upiId") ?? "", payee: db.getMeta("fin:payee") ?? "", autoKnownPayers: db.getMeta("fin:autoKnown") === "1" };
+  return {
+    upiId: getSetting<string>(db, "fin.upiId", () => db.getMeta("fin:upiId")) ?? "",
+    payee: getSetting<string>(db, "fin.payee", () => db.getMeta("fin:payee")) ?? "",
+    autoKnownPayers: getSetting<boolean>(db, "fin.autoKnown", () => db.getMeta("fin:autoKnown") === "1") ?? false,
+  };
 }
 export function saveFinSettings(db: DriveDB, input: FinSettings) {
   const s = settingsInput.parse(input);
-  db.setMeta("fin:upiId", s.upiId); db.setMeta("fin:payee", s.payee); db.setMeta("fin:autoKnown", s.autoKnownPayers ? "1" : "0");
+  db.transaction(() => { setSetting(db, "fin.upiId", s.upiId); setSetting(db, "fin.payee", s.payee); setSetting(db, "fin.autoKnown", s.autoKnownPayers); });
   return finSettings(db);
 }
 
@@ -52,8 +58,7 @@ const accountInput = z.object({
 export function statementPreview(db: DriveDB, fileName: string, bytes: Uint8Array, bank: string, mappingIn?: BankMapping | null) {
   let t;
   try { t = readStatementTable(fileName, bytes); } catch (e) { throw new CounterError(e instanceof Error ? e.message : "Couldn’t read the file."); }
-  const savedRaw = db.getMeta(`fin:map:${bank}`);
-  const saved = savedRaw ? (JSON.parse(savedRaw) as BankMapping) : null;
+  const saved = getSetting<BankMapping>(db, `fin.map.${bank}`, () => { const raw = db.getMeta(`fin:map:${bank}`); return raw ? (JSON.parse(raw) as BankMapping) : null; });
   // Column names found in the file win (a bank's CSV and Excel layouts differ); the saved mapping covers files
   // without recognisable headings.
   const mapping = mappingIn ?? bankAutoMapping(t) ?? (mappingReady(saved) && t[saved.headerRow] ? saved : null);
@@ -126,7 +131,7 @@ export function importStatement(db: DriveDB, input: { fileName: string; bytes: U
       }
     }
     db.from("finImport").insert({ id: importId, account, fileName: input.fileName.slice(0, 120), rows: rows.length, added, duplicates, review, skipped, problems: JSON.stringify(problems.slice(0, 200)), fromDate, toDate, matched: 0, userId: input.userId, at });
-    if (input.mapping && !bankAutoMapping(t)) db.setMeta(`fin:map:${a.bank}`, JSON.stringify(input.mapping));
+    if (input.mapping && !bankAutoMapping(t)) setSetting(db, `fin.map.${a.bank}`, input.mapping);
     return { importId, rows: rows.length, added, duplicates, review, skipped, problems: problems.slice(0, 200), matched: 0 };
   });
   result.matched = autoReconcile(db, input.userId);
@@ -300,10 +305,11 @@ export function unallocate(db: DriveDB, allocationId: string, userId: string) {
   });
 }
 
-/** Records every automatic proposal that still holds. Returns how many credits were matched. */
+/** Records every automatic proposal that still holds. Returns how many bank credits got (part of) a match. */
 export function autoReconcile(db: DriveDB, userId: string) {
-  let total = 0;
-  for (let pass = 0; pass < 4; pass++) {
+  const matched = new Set<string>();
+  // Several passes: a payment with a customer's reference fills their bills one by one.
+  for (let pass = 0; pass < 25; pass++) {
     const credits = openCredits(db);
     if (!credits.length) break;
     const props = propose(credits.filter((c) => !NOT_PAYMENTS.includes(c.row.channel)), matchData(db));
@@ -311,13 +317,12 @@ export function autoReconcile(db: DriveDB, userId: string) {
     for (const ps of props.values()) {
       const p = ps.find((x) => x.auto);
       if (!p) continue;
-      try { allocate(db, { txnId: p.txnId, target: p.target, targetId: p.targetId, amountPaise: p.amountPaise, kind: "auto", rule: p.rule, userId }); made++; }
+      try { allocate(db, { txnId: p.txnId, target: p.target, targetId: p.targetId, amountPaise: p.amountPaise, kind: "auto", rule: p.rule, userId }); made++; matched.add(p.txnId); }
       catch (e) { if (!(e instanceof CounterError)) throw e; /* the bill or payment changed in this pass: next pass re-checks */ }
     }
-    total += made;
     if (!made) break;
   }
-  return total;
+  return matched.size;
 }
 
 /** Approves one suggestion as proposed (amount included). */
@@ -518,4 +523,41 @@ export function finReports(db: DriveDB, from: string, to: string) {
     reconciliation: rows,
     totals: { credits: credits.length, creditPaise: credits.reduce((a, t) => a + t.amountPaise, 0), debitPaise: rows.filter((t) => t.direction === "debit").reduce((a, t) => a + t.amountPaise, 0), matchedPaise: credits.reduce((a, t) => a + Math.max(0, t.allocatedPaise), 0) },
   };
+}
+
+// ---------- paying by UPI with a Medoro reference ----------
+
+/** What a UPI QR or a reminder needs: the shop's own UPI ID, the amount due and the reference to put in the note. */
+export type UpiPay = { vpa: string; payee: string; amountPaise: number; note: string; uri: string };
+
+const upiPay = (db: DriveDB, amountPaise: number, note: string): UpiPay | null => {
+  const s = finSettings(db);
+  if (!s.upiId || amountPaise < 100) return null;
+  let shop = "";
+  try { const p = JSON.parse(db.getMeta("pharmacy") ?? "null") as { tradeName?: string; name?: string } | null; shop = p?.tradeName || p?.name || ""; } catch { /* not set */ }
+  const payee = s.payee || shop || "Pharmacy";
+  return { vpa: s.upiId, payee, amountPaise, note, uri: upiIntent(s.upiId, payee, amountPaise, note) };
+};
+
+/** A bill's UPI payment details while something is due on it (null when paid, or no UPI ID is set). */
+export function billUpiPay(db: DriveDB, saleId: string): UpiPay | null {
+  const b = openBills(db).find((x) => x.saleId === saleId);
+  return b ? upiPay(db, b.balancePaise, medoroRef(b.invoiceNo)) : null;
+}
+
+/** A customer's dues as one UPI payment: the customer's reference pays their oldest bills first. */
+export function customerUpiPay(db: DriveDB, customerId: string): UpiPay | null {
+  const due = openBills(db).filter((b) => b.customerId === customerId).reduce((a, b) => a + b.balancePaise, 0);
+  return upiPay(db, due, customerRef(customerId));
+}
+
+/**
+ * Counts for the owner's daily email (reported to Medoro's server with the device's sync health). Numbers only:
+ * no amounts, names, invoice numbers or bank details leave the device.
+ */
+export function alertCounts(db: DriveDB) {
+  if (!db.engine.all("SELECT 1 FROM finImport LIMIT 1").length) return null;
+  const o = overview(db);
+  const last = db.engine.all<{ d: string | null }>("SELECT MAX(toDate) AS d FROM finImport")[0]?.d ?? null;
+  return { notSeen: o.counterNotSeen, review: o.review, unmatched: o.unmatched, statementTo: last };
 }

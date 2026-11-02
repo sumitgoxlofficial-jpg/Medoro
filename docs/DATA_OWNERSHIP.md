@@ -10,6 +10,7 @@ The pharmacy owns its operational data. Medoro's software runs against a databas
 | Backup files | Customer's Google Drive (encrypted before upload) | Only holders of the recovery key |
 | Backup encryption key | Customer's recovery kit (offline) plus the OS keystore on the app host | Owner |
 | WhatsApp access token | Server vault on the customer's app host | The app service only |
+| UPI & Bank alert counts from Drive counters: counter UPI payments not in the bank statement, possible duplicates, unmatched credits, and the last statement date (no amounts, names or bank details) | Medoro database (`DriveDevice.finAlerts`), for the owner's daily email | The owner (email), Medoro operations |
 | Account, plan, licence, branch and device counts, support tickets and payment references sent from the app | Medoro control plane | Medoro billing and support |
 | Support attachments | Only what the customer uploads to a ticket | Assigned support staff |
 

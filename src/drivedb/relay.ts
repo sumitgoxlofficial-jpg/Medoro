@@ -61,8 +61,14 @@ export function relayInbox(device: string, base = "/api/drivedb", f: typeof fetc
 }
 
 /** Tells Medoro whether this device's last sync worked (for the owner's alerts). Never throws. */
-export async function reportHealth(device: string, error: string | null, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
-  const q = new URLSearchParams({ op: "health", device, ok: error ? "0" : "1", ...(error ? { error: error.slice(0, 300) } : {}) });
+/** UPI & Bank alert counts sent with the health report: numbers only, for the owner's daily email. */
+export type FinAlertCounts = { notSeen: number; review: number; unmatched: number; statementTo: string | null };
+
+export async function reportHealth(device: string, error: string | null, fin: FinAlertCounts | null = null, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
+  const q = new URLSearchParams({
+    op: "health", device, ok: error ? "0" : "1", ...(error ? { error: error.slice(0, 300) } : {}),
+    ...(fin ? { finNotSeen: String(fin.notSeen), finReview: String(fin.review), finUnmatched: String(fin.unmatched), ...(fin.statementTo ? { finTo: fin.statementTo } : {}) } : {}),
+  });
   await f(`${base}?${q}`, { method: "POST", credentials: "same-origin" }).catch(() => undefined);
 }
 

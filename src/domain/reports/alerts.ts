@@ -52,6 +52,24 @@ export async function driveSyncHealth(tenantId: string, now = new Date()) {
   return out;
 }
 
+/** The latest UPI & Bank counts any approved counter reported in the past 3 days (counters share the same data). */
+export async function financeCounts(tenantId: string, now = new Date()) {
+  const d = await db.driveDevice.findFirst({ where: { tenantId, status: "approved", finAlertsAt: { gte: new Date(now.getTime() - STALE_SYNC_MS) } }, orderBy: { finAlertsAt: "desc" } });
+  return d?.finAlerts ? { ...(d.finAlerts as { notSeen: number; review: number; unmatched: number; statementTo: string | null }), at: d.finAlertsAt! } : null;
+}
+
+/** UPI & Bank items for the owner's daily email, from the counters' counts. */
+export async function financeAlerts(tenantId: string, now = new Date()) {
+  const f = await financeCounts(tenantId, now);
+  if (!f) return [];
+  const out: string[] = [];
+  if (f.notSeen) out.push(`${f.notSeen} UPI payment(s) taken at the counter are not in your bank statement${f.statementTo ? ` (statements up to ${f.statementTo})` : ""}. A “payment successful” screen isn’t proof: check them under Billing (device) → UPI & Bank → Reconcile.`);
+  if (f.review) out.push(`${f.review} bank transaction(s) may be duplicates from overlapping statements. Decide under UPI & Bank → Reconcile.`);
+  // Unmatched credits alone aren't worth a daily email; mentioned when something else already is.
+  if (f.unmatched && out.length) out.push(`${f.unmatched} payment(s) received in the bank aren’t matched to a bill yet.`);
+  return out;
+}
+
 /** Sidebar badges and the bell's alert list, from live data. Backup alerts go to those who manage backups. */
 export async function badgesAndAlerts(tenantId: string, branchId: string, perms: readonly string[] = []) {
   const today = dateOnly(todayISO());

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, IndianRupee, MessageCircle, Link2 } from "lucide-react";
+import { Plus, IndianRupee, MessageCircle, Link2, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
@@ -9,6 +9,8 @@ import { inr } from "@/lib/money";
 import { card, input, label, errText, toPaise, type Who } from "./ui";
 import { dueText, waLink } from "@/drivedb/share";
 import type { Pharmacy } from "@/drivedb/seed";
+import { customerRef, upiIntent } from "@/domain/finance/match";
+import { qrSvg } from "@/lib/qr";
 
 type C = { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number; balancePaise: number };
 
@@ -21,7 +23,12 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
   const [adding, setAdding] = useState(false);
   const [pay, setPay] = useState<C | null>(null);
   const [linking, setLinking] = useState<string | null>(null);
+  const [upi, setUpi] = useState<{ upiId: string; payee: string } | null>(null);
+  const [qr, setQr] = useState<C | null>(null);
   const load = useCallback(() => dev.call("customerList", q).then(setRows), [dev, q]);
+  useEffect(() => { void dev.call("finSettings").then((s) => setUpi(s.upiId ? s : null)).catch(() => setUpi(null)); }, [dev, refresh]);
+  /** Paying the shop's own UPI ID with the customer's reference: the bank credit then pays their oldest bills. */
+  const upiFor = (c: C) => (upi ? { vpa: upi.upiId, note: customerRef(c.id) } : null);
   /** A payment link for what the customer owes, sent on WhatsApp (or copied when there's no mobile number). */
   const payLink = async (c: C) => {
     if (!who.payLink) return;
@@ -47,7 +54,8 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
             <span>{c.name} <span className="text-muted">{c.phone ?? ""}{c.gstin ? ` · GSTIN ${c.gstin}` : ""}{c.creditLimitPaise ? ` · limit ${inr(c.creditLimitPaise)}` : ""}</span></span>
             <span className="flex items-center gap-2">
               {c.balancePaise ? <span className="text-bad tabular-nums">owes {inr(c.balancePaise)}</span> : <span className="text-muted">nothing due</span>}
-              {c.balancePaise > 0 && waLink(c.phone, "") && <Button size="sm" onClick={() => window.open(waLink(c.phone, dueText(c.name, c.balancePaise, pharmacy))!, "_blank", "noopener")} aria-label={`Remind ${c.name}`}><MessageCircle size={14} /> Remind</Button>}
+              {c.balancePaise > 0 && waLink(c.phone, "") && <Button size="sm" onClick={() => window.open(waLink(c.phone, dueText(c.name, c.balancePaise, pharmacy, undefined, upiFor(c)))!, "_blank", "noopener")} aria-label={`Remind ${c.name}`}><MessageCircle size={14} /> Remind</Button>}
+              {c.balancePaise >= 100 && upi && <Button size="sm" onClick={() => setQr(c)} aria-label={`UPI QR for ${c.name}`}><QrCode size={14} /> QR</Button>}
               {c.balancePaise >= 100 && who.payLink && <Button size="sm" onClick={() => payLink(c)} disabled={linking === c.id} aria-label={`Payment link for ${c.name}`}><Link2 size={14} /> {linking === c.id ? "Making link…" : "Pay link"}</Button>}
               {c.balancePaise > 0 && <Button size="sm" onClick={() => setPay(c)} aria-label={`Receive from ${c.name}`}><IndianRupee size={14} /> Receive</Button>}
             </span>
@@ -55,6 +63,14 @@ export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: numbe
         ))}
         {!rows.length && <li className="py-2 text-muted">No customers{q ? " match" : " yet"}.</li>}
       </ul>
+      {qr && upi && (
+        <Modal open onClose={() => setQr(null)} title={`${qr.name} · pay by UPI`} sub={`Owes ${inr(qr.balancePaise)}`} width={360}>
+          <div className="flex flex-col items-center gap-2">
+            <div dangerouslySetInnerHTML={{ __html: qrSvg(upiIntent(upi.upiId, upi.payee || pharmacy?.tradeName || pharmacy?.name || "Pharmacy", qr.balancePaise, customerRef(qr.id)), { size: 240, title: "UPI payment QR" }) }} />
+            <div className="text-[12.5px] text-muted text-center">Pays {upi.upiId} with the note <b>{customerRef(qr.id)}</b>. When it shows up in your bank statement, Medoro pays {qr.name}’s oldest bills first.</div>
+          </div>
+        </Modal>
+      )}
       {adding && <AddCustomer who={who} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); void load(); }} />}
       {pay && <Receive c={pay} who={who} onClose={() => setPay(null)} onSaved={(left) => { toast(`Received. ${pay.name} now owes ${inr(left)}.`, "green"); setPay(null); void load(); }} />}
     </div>

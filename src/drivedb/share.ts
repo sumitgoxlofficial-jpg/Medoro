@@ -4,6 +4,7 @@
  */
 import type { SaleDetail } from "./reports";
 import type { Pharmacy } from "./seed";
+import type { UpiPay } from "./money";
 
 const rs = (p: number) => `₹${(p / 100).toFixed(2)}`;
 
@@ -16,7 +17,11 @@ export function waLink(phone: string | null | undefined, text: string): string |
 }
 
 /** A short bill summary for WhatsApp. */
-export function billText(d: SaleDetail, pharmacy: Pharmacy | null): string {
+/** How to pay by UPI with the reference that lets Medoro match the payment to the bill or account. */
+export const upiLine = (u: Pick<UpiPay, "vpa" | "amountPaise" | "note">) =>
+  `Pay ${rs(u.amountPaise)} by UPI to ${u.vpa}. Please write ${u.note} in the payment note so we can match it to your account.`;
+
+export function billText(d: SaleDetail & { upiPay?: UpiPay | null }, pharmacy: Pharmacy | null): string {
   const s = d.sale as Record<string, string | number | null>;
   const lines = d.lines.map((l) => `• ${l.name} × ${l.qty}${l.loose ? ` ${l.looseUnit}` : ""} = ${rs(l.mrpPaise * l.qty - l.discountPaise)}`);
   return [
@@ -25,17 +30,18 @@ export function billText(d: SaleDetail, pharmacy: Pharmacy | null): string {
     ...lines,
     `Total ${rs(Number(s.totalPaise))} (incl. GST)`,
     ...d.returns.map((r) => `Credit note ${r.creditNoteNo}: −${rs(r.amountPaise)}`),
+    d.upiPay ? upiLine(d.upiPay) : "",
     pharmacy?.phone ? `Questions? Call ${pharmacy.phone}` : "",
     "Thank you. Get well soon.",
   ].filter(Boolean).join("\n");
 }
 
 /** A polite reminder of money due, with a payment link when there is one. */
-export function dueText(name: string, duePaise: number, pharmacy: Pharmacy | null, payUrl?: string): string {
+export function dueText(name: string, duePaise: number, pharmacy: Pharmacy | null, payUrl?: string, upi?: { vpa: string; note: string } | null): string {
   return [
     `Namaste ${name},`,
     `This is a reminder from ${pharmacy?.tradeName || pharmacy?.name || "your pharmacy"}: ${rs(duePaise)} is pending on your account.`,
-    payUrl ? `Pay online by UPI or card: ${payUrl}` : "You can pay at the counter or by UPI.",
+    payUrl ? `Pay online by UPI or card: ${payUrl}` : upi ? upiLine({ ...upi, amountPaise: duePaise }) : "You can pay at the counter or by UPI.",
     "Please ignore if already paid. Thank you.",
   ].join("\n");
 }

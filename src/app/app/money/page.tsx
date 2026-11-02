@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { can, requireCtx } from "@/server/context";
 import { db } from "@/server/db";
 import { driveModeOn } from "@/domain/system/drive-mode";
+import { financeCounts } from "@/domain/reports/alerts";
 import { LABEL_TEXT, SOURCES, type SourceLabel } from "@/domain/finance/providers";
 import { PageHead } from "@/components/page-head";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ export default async function Page() {
   const ctx = await requireCtx();
   if (!can(ctx, "payments") && !can(ctx, "reports")) redirect("/app");
   const drive = !!ctx.mustMove || !!ctx.moved || (await driveModeOn(ctx.tenantId));
+  const counts = drive ? await financeCounts(ctx.tenantId) : null;
   const [lines, open, last] = drive ? [0, 0, null] : await Promise.all([
     db.bankLine.count({ where: { tenantId: ctx.tenantId } }),
     db.bankLine.count({ where: { tenantId: ctx.tenantId, ledgerLineId: null } }),
@@ -33,6 +35,9 @@ export default async function Page() {
           <Card className="p-4 flex flex-col gap-2">
             <CardHead title="Your records live on your counters" />
             <div className="text-sm">Upload statements, review matches and see reports under <b>Billing (device) → UPI &amp; Bank</b>. Statements are read on the counter and kept in your Google Drive; they are not sent to Medoro.</div>
+            {counts ? (
+              <div className="text-sm">Your counters last reported ({counts.at.toLocaleString("en-IN")}): <b className={counts.notSeen ? "text-bad" : ""}>{counts.notSeen} counter UPI payment(s) not in the bank statement</b>, {counts.review} possible duplicate(s), {counts.unmatched} unmatched credit(s){counts.statementTo ? `; statements up to ${counts.statementTo}` : ""}. Only these numbers reach Medoro, for your daily email.</div>
+            ) : null}
             <Link href="/app/device-pos" className="text-teal text-sm font-medium">Open Billing (device)</Link>
           </Card>
         ) : (

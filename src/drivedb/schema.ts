@@ -116,6 +116,11 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "txnId", "kind", "refId", "note", "userId", "at"],
   },
+  /** Pharmacy-wide settings shared by every counter (key → JSON value), e.g. the shop's UPI ID. Migration 9. */
+  setting: {
+    kind: "mutable",
+    columns: ["id", "value", ...MUTABLE],
+  },
   finAllocation: {
     kind: "append",
     columns: ["id", "txnId", "target", "saleId", "paymentId", "receiptId", "customerId", "amountPaise", "kind", "rule", "reversesId", "userId", "at"],
@@ -362,6 +367,10 @@ export const MIGRATIONS: readonly string[] = [
   ` + ["customerReceipt", "finImport", "finTxn", "finSource", "finEvent", "finAllocation"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // 9: settings every counter shares (synced like any edit: the latest change of each key wins).
+  `
+  CREATE TABLE setting (id TEXT PRIMARY KEY, value TEXT NOT NULL, updatedAt TEXT NOT NULL, deletedAt TEXT);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

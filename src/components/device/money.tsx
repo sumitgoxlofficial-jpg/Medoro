@@ -463,7 +463,7 @@ function Connections({ owner }: { owner: boolean }) {
   const dev = useRef(deviceDb()).current;
   const [s, setS] = useState<R<"finSettings"> | null>(null);
   useEffect(() => { void dev.call("finSettings").then(setS); }, [dev]);
-  const save = async () => { if (!s) return; try { setS(await dev.call("saveFinSettings", s)); toast("Saved on this device.", "green"); } catch (e) { toast(errText(e), "red"); } };
+  const save = async () => { if (!s) return; try { setS(await dev.call("saveFinSettings", s)); toast("Saved for all your counters.", "green"); } catch (e) { toast(errText(e), "red"); } };
   const group = (kind: "bank" | "provider", title: string) => (
     <div className={card}>
       <div className="font-semibold">{title}</div>
@@ -484,7 +484,8 @@ function Connections({ owner }: { owner: boolean }) {
       <div className="grid gap-4 lg:grid-cols-2">{group("bank", "Bank connections")}{group("provider", "Payment providers")}</div>
       {owner && s && (
         <div className={`${card} max-w-xl`}>
-          <div className="font-semibold">Payment QR and matching (this device)</div>
+          <div className="font-semibold">Payment QR and matching</div>
+          <div className="text-[12.5px] text-muted">Shared by all your counters (they pick it up at their next sync). The QR goes on printed credit bills, the Customers screen and WhatsApp reminders.</div>
           <label className={label}>Shop’s UPI ID (the one on your QR today)<input value={s.upiId} onChange={(e) => setS({ ...s, upiId: e.target.value.trim() })} placeholder="shopname@okhdfcbank" className={input} aria-label="Shop UPI ID" /></label>
           <label className={label}>Name shown to the payer<input value={s.payee} onChange={(e) => setS({ ...s, payee: e.target.value })} className={input} aria-label="Payee name" /></label>
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={s.autoKnownPayers} onChange={(e) => setS({ ...s, autoKnownPayers: e.target.checked })} className="mt-1" />

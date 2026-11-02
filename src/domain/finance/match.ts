@@ -2,7 +2,8 @@
  * Which bill, counter payment or recorded receipt does a bank credit belong to? Pure rules; the caller loads the
  * data and records the result. Only credits that are not duplicates, settlements, interest or charges come here.
  *
- *  1  narration carries the bill's Medoro payment reference (MD + invoice number, from a Medoro UPI QR) → automatic
+ *  1  narration carries the bill's Medoro payment reference (MD + invoice number, from a Medoro UPI QR) → automatic;
+ *     or the customer's reference (MC + customer code, on a dues reminder or QR) → their oldest open bill, then the next
  *  2  the UTR/RRN was already typed on the counter payment or on a recorded receipt                       → automatic
  *  3  narration carries the exact invoice number of exactly one open bill                                  → automatic
  *  4  exact amount, one candidate both ways in the time window                                             → suggestion;
@@ -23,6 +24,8 @@ export type Target = "bill" | "counter" | "receipt";
 export type Proposal = {
   txnId: string; target: Target; targetId: string; saleId: string | null; customerId: string | null;
   amountPaise: number; rule: 1 | 2 | 3 | 4 | 5; auto: boolean; label: string; reason: string;
+  /** Paid with the customer's reference: several such payments may fill the same customer's bills in turn. */
+  byCustomer?: boolean;
 };
 
 export const BILL_WINDOW_DAYS = 60;
@@ -30,6 +33,8 @@ export const COUNTER_WINDOW_DAYS = 3;
 
 /** The Medoro payment reference of a bill: what a Medoro UPI QR puts in the payment note. */
 export const medoroRef = (invoiceNo: string) => `MD${squash(invoiceNo)}`;
+/** A customer's payment reference, for paying all their dues at once (oldest bill first). */
+export const customerRef = (customerId: string) => `MC${squash(customerId).slice(0, 10)}`;
 /** A UPI payment link/QR for an amount using the pharmacy's own UPI ID (money goes straight to its bank). */
 export function upiIntent(vpa: string, payee: string, amountPaise: number, note: string) {
   return `upi://pay?${new URLSearchParams({ pa: vpa, pn: payee.slice(0, 40), am: (amountPaise / 100).toFixed(2), cu: "INR", tn: note.slice(0, 50) })}`;
@@ -63,6 +68,12 @@ export function propose(credits: CreditIn[], d: MatchData): Map<string, Proposal
     const text = squash(c.description);
     const byRef = billKey.filter(({ key }) => key.length >= 6 && text.includes(`MD${key}`));
     if (byRef.length === 1) { add(billP(c, byRef[0].b, 1, true, "Medoro payment reference in the narration")); strong.add(c.id); continue; }
+    // Customer reference: the oldest open bill now; what is left goes to the next bill on the next pass.
+    const custs = [...new Set(d.bills.filter((b) => text.includes(customerRef(b.customerId))).map((b) => b.customerId))];
+    if (custs.length === 1) {
+      const oldest = d.bills.filter((b) => b.customerId === custs[0]).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))[0];
+      add({ ...billP(c, oldest, 1, true, "Customer’s Medoro payment reference in the narration"), byCustomer: true }); strong.add(c.id); continue;
+    }
     if (c.utr) {
       const cs = d.counter.filter((p) => refHas(p.ref, c.utr!));
       const rs = d.receipts.filter((r) => refHas(r.ref, c.utr!));
@@ -97,7 +108,8 @@ export function propose(credits: CreditIn[], d: MatchData): Map<string, Proposal
 
   // Two credits must never claim the same target automatically in one pass.
   const claimed = new Map<string, number>();
-  for (const ps of out.values()) for (const p of ps) if (p.auto) claimed.set(p.targetId, (claimed.get(p.targetId) ?? 0) + 1);
-  for (const ps of out.values()) for (const p of ps) if (p.auto && claimed.get(p.targetId)! > 1) { p.auto = false; p.reason += " (another payment points to it too)"; }
+  // Customer-reference payments are exempt: the caller records them one at a time and re-checks the balance.
+  for (const ps of out.values()) for (const p of ps) if (p.auto && !p.byCustomer) claimed.set(p.targetId, (claimed.get(p.targetId) ?? 0) + 1);
+  for (const ps of out.values()) for (const p of ps) if (p.auto && !p.byCustomer && claimed.get(p.targetId)! > 1) { p.auto = false; p.reason += " (another payment points to it too)"; }
   return out;
 }

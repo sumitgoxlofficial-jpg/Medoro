@@ -13,6 +13,8 @@ on the partner dependencies in section 7.
 | Counter screen **UPI & Bank** (Overview, Import statement, Transactions, Reconcile, Import history, Reports with Excel/CSV/print-to-PDF, Connections with the shop's UPI ID for bill QR codes) | `src/components/device/money.tsx` |
 | Web: **Financial Management** nav group with **UPI & Bank Connect** (`/app/money`), Bank reconciliation and Cheques; server statement import uses the shared reader (adds `.xls`, row errors) | `src/app/app/money/page.tsx`, `src/lib/nav.ts`, `src/domain/accounting/bank.ts` |
 | Excel export without a dependency | `src/lib/xlsx.ts` |
+| UPI QR with the Medoro reference on printed credit bills and WhatsApp bill texts; a customer-level reference (`MC…`) on the Customers screen QR and WhatsApp dues reminders, which pays that customer's oldest bills first | `src/drivedb/money.ts` (`billUpiPay`, `customerUpiPay`), `src/domain/finance/match.ts` (`customerRef`), `src/components/device/receipt.tsx`, `customers.tsx`, `src/drivedb/share.ts` |
+| Owner's daily email: counter UPI missing from the bank statement and possible duplicates (unmatched credits only alongside those). Counters send **counts only** (three whole numbers and the last statement date) with their sync health report | `alertCounts` in `money.ts`, `src/domain/system/drivedb-relay.ts` (`finCounts`), `src/domain/reports/alerts.ts` (`financeAlerts`), `src/domain/system/drive-health.ts`, migration `20261110000000_drive_device_fin_alerts` |
 | End-to-end: credit bill → QR reference → statement upload → automatic match; re-upload adds nothing; counter UPI missing from the bank is flagged | `e2e/28-device-money.spec.ts` |
 
 Where the build differs from the plan, and why:
@@ -29,8 +31,9 @@ Where the build differs from the plan, and why:
 - **Self-hosted servers** keep the existing bank reconciliation (statement lines matched to the *Bank account*
   ledger), now with the shared reader. Bill-level matching on a self-hosted server's PostgreSQL is not built yet; the
   hosted service (every Drive pharmacy) has it on the counter.
-- Settings (shop UPI ID, auto-match for known payers, column mappings per bank) are kept per device, like the counter
-  PIN.
+- Settings (shop UPI ID, auto-match for known payers, column mappings per bank) are shared by all counters through the
+  synced `setting` table (device migration 9); the later change of a setting wins. Values a counter kept for itself
+  before are read until changed.
 - A device on an older app version stops syncing when it receives the new tables until it reloads the app, as with
   earlier device migrations.
 

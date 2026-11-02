@@ -148,10 +148,21 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
     case "health": {
       // The device's own report after a sync: worked, or the error text. No data, only for the owner's alerts.
       const ok = p.get("ok") === "1", error = (p.get("error") ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
-      await db.driveDevice.update({ where: { id: device.id }, data: ok ? { lastSyncAt: new Date(), lastError: null, lastErrorAt: null } : { lastError: error || "Sync failed", lastErrorAt: new Date() } });
+      await db.driveDevice.update({ where: { id: device.id }, data: {
+        ...(ok ? { lastSyncAt: new Date(), lastError: null, lastErrorAt: null } : { lastError: error || "Sync failed", lastErrorAt: new Date() }),
+        ...finCounts(p),
+      } });
       return { ok: true };
     }
     default:
       throw new UserError("Unknown relay call.");
   }
+}
+
+/** UPI & Bank counts in a health report: small whole numbers and a date, nothing else is kept. */
+export function finCounts(p: URLSearchParams) {
+  if (!p.has("finNotSeen")) return {};
+  const num = (k: string) => { const n = Number(p.get(k)); return Number.isInteger(n) && n >= 0 && n < 1_000_000 ? n : 0; };
+  const to = p.get("finTo") ?? "";
+  return { finAlerts: { notSeen: num("finNotSeen"), review: num("finReview"), unmatched: num("finUnmatched"), statementTo: /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : null }, finAlertsAt: new Date() };
 }

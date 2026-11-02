@@ -1599,6 +1599,8 @@ model DriveDevice {
   lastSyncAt  DateTime? // last sync with Google Drive that worked
   lastError   String? // the device's last sync error (text only), cleared by the next good sync
   lastErrorAt DateTime?
+  finAlerts   Json? // UPI & Bank counts from the device: { notSeen, review, unmatched, statementTo } (numbers and a date only)
+  finAlertsAt DateTime?
 
   @@unique([tenantId, deviceId])
   @@index([tenantId, status])

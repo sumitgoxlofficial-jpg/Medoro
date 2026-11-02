@@ -6,20 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { inr } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
-import type { SaleDetail } from "@/drivedb/reports";
+import type { SaleDetail as BaseDetail } from "@/drivedb/reports";
+import type { UpiPay } from "@/drivedb/money";
 import type { Pharmacy } from "@/drivedb/seed";
 import { billText, waLink } from "@/drivedb/share";
 import { deviceDb } from "@/drivedb/device";
 import { useToast } from "@/components/ui/toast";
 import { errText, type Who } from "./ui";
 
-/** The signed QR from the GST portal, as an image. */
-function IrnQr({ text }: { text: string }) {
+/** A bill as the device returns it, with UPI payment details while something is due on it. */
+type SaleDetail = BaseDetail & { upiPay?: UpiPay | null };
+
+/** A QR code made on this device (the GST portal's signed QR, or a UPI payment QR), as an image. */
+function Qr({ text, alt }: { text: string; alt: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => { void QRCode.toDataURL(text, { errorCorrectionLevel: "M", margin: 1, width: 180 }).then(setSrc, () => setSrc(null)); }, [text]);
   // A data URL made on this device: nothing for next/image to optimise.
   // eslint-disable-next-line @next/next/no-img-element
-  return src ? <img src={src} alt="E-invoice QR code" className="mx-auto my-1" width={140} height={140} /> : null;
+  return src ? <img src={src} alt={alt} className="mx-auto my-1" width={140} height={140} /> : null;
 }
 
 const exp = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
@@ -65,9 +69,16 @@ export function ReceiptView({ d, pharmacy }: { d: SaleDetail; pharmacy: Pharmacy
         <div className="border-t border-dashed border-black mt-1 pt-1 text-[11px] break-all" data-testid="irn">
           <div>IRN {d.einvoice.irn}</div>
           {d.einvoice.ackNo ? <div>Ack {d.einvoice.ackNo}{d.einvoice.ackDt ? ` · ${d.einvoice.ackDt}` : ""}</div> : null}
-          {d.einvoice.signedQr ? <IrnQr text={d.einvoice.signedQr} /> : null}
+          {d.einvoice.signedQr ? <Qr text={d.einvoice.signedQr} alt="E-invoice QR code" /> : null}
         </div>
       ) : d.einvoice?.cancelled ? <div className="text-[11px] mt-1">E-invoice cancelled</div> : null}
+      {d.upiPay ? (
+        <div className="border-t border-dashed border-black mt-1 pt-1 text-center" data-testid="upi-pay">
+          <div className="font-bold">Due {inr(d.upiPay.amountPaise)} · Pay by UPI</div>
+          <Qr text={d.upiPay.uri} alt="UPI payment QR" />
+          <div>{d.upiPay.vpa} · Note: {d.upiPay.note}</div>
+        </div>
+      ) : null}
       <div className="text-center mt-2">Prices include GST. Get well soon.</div>
     </div>
   );

@@ -132,14 +132,19 @@ async function pickUpPayments() {
   } catch { /* offline: next time */ }
 }
 
-/** Sends the sync result to Medoro when it changes, and a "still fine" at most every 10 minutes. */
+/**
+ * Sends the sync result to Medoro when it changes, and a "still fine" at most every 10 minutes, with the UPI & Bank
+ * alert counts for the owner's daily email (numbers only).
+ */
 let reported: { error: string | null; at: number } | null = null;
 async function report() {
   if (access?.status !== "approved") return;
   const error = state.lastError;
   if (reported && reported.error === error && (error || Date.now() - reported.at < 10 * 60_000)) return;
   reported = { error, at: Date.now() };
-  await reportHealth(deviceName, error);
+  let fin: ReturnType<typeof money.alertCounts> = null;
+  try { fin = db ? money.alertCounts(db) : null; } catch { /* counts are optional */ }
+  await reportHealth(deviceName, error, fin);
 }
 setInterval(() => { void syncNow(); }, 5_000);
 
@@ -172,7 +177,7 @@ const handlers = {
   config: () => seed.counterConfig(need()),
   setPin: (pin: string) => seed.setPin(need(), pin),
   checkPin: (pin: string) => seed.checkPin(need(), pin),
-  saleDetail: (id: string) => reports.saleDetail(need(), id),
+  saleDetail: (id: string) => ({ ...reports.saleDetail(need(), id), upiPay: money.billUpiPay(need(), id) }),
   listBills: (iso: string, text?: string) => reports.listBills(need(), iso, text),
   dayReport: (branchId: string, iso?: string) => reports.dayReport(need(), branchId, iso),
   stockList: (branchId: string, text?: string) => reports.stockList(need(), branchId, text),
@@ -229,6 +234,7 @@ const handlers = {
   finSetIgnored: (txnId: string, ignored: boolean, note: string, userId: string) => money.setIgnored(need(), txnId, ignored, note, userId),
   finAutoReconcile: (userId: string) => money.autoReconcile(need(), userId),
   finReports: (from: string, to: string) => money.finReports(need(), from, to),
+  customerUpiPay: (customerId: string) => money.customerUpiPay(need(), customerId),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */
   connect,
