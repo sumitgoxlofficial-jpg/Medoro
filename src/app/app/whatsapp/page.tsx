@@ -14,7 +14,7 @@ export default async function Page() {
   const base = process.env.APP_URL ?? "https://your-server";
   return (
     <>
-      <PageHead title={t(ctx.lang).wa} sub={st.connected && st.cfg.via === "phone" ? "Sending from your own WhatsApp, linked by QR code" : "Link your own WhatsApp by QR code, or connect the Meta WhatsApp Business Cloud API"} />
+      <PageHead title={t(ctx.lang).wa} sub={st.connected && st.cfg.via === "phone" ? "Sending from your own WhatsApp, linked by QR code" : "Link your own WhatsApp by QR code"} />
       <WhatsAppView st={st} log={log} settings={settings} invoiceTemplate={tpl} signup={embeddedSignupConfig()} phoneLink={phoneLinkProblem()} webhook={`${base.replace(/\/$/, "")}/api/wa/webhook`} />
     </>
   );

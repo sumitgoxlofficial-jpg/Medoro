@@ -163,6 +163,8 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
             </>
           )}
         </div>
+        {/* Meta Cloud API: shown only to a pharmacy already connected through Meta (to manage or disconnect it). */}
+        {meta ? (
         <div className={card}>
           <div className="flex items-start gap-2"><MessageCircle size={20} className="text-ok shrink-0 mt-0.5" /><div className="font-semibold text-[15px] min-w-0 flex-1 leading-snug">WhatsApp Business Cloud API</div><Badge tone={meta && live ? "green" : meta && paused ? "red" : "gray"} className="shrink-0">{meta && live ? "Connected" : meta && paused ? "Reconnect needed" : phone ? "Not in use" : "Not connected"}</Badge></div>
           {meta && !form ? (
@@ -201,11 +203,12 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
             </>
           )}
         </div>
+        ) : null}
         <div className={card}>
           <div className="font-semibold text-[15px]">Invoice delivery</div>
           <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.auto} disabled={!st.connected || pending} onChange={(e) => save({ auto: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Auto-send after sale</span><span className="text-[12.5px] text-muted">Only for customers with recorded WhatsApp consent whose number isn’t flagged. Others still need the cashier to confirm the number.</span></span></label>
           <label className="flex gap-3 cursor-pointer items-start"><input type="checkbox" className="accent-teal size-4 mt-1 flex-none" checked={s.pdf} disabled={pending} onChange={(e) => save({ pdf: e.target.checked })} /><span className="flex flex-col"><span className="text-[14px] font-medium">Attach the invoice PDF</span><span className="text-[12.5px] text-muted">{s.pdf ? phone ? <>The PDF is sent as a document with a short message.</> : <>The PDF is uploaded to WhatsApp and sent with your invoice template{st.connected && st.cfg.invoiceTemplate ? <> (<span className="font-mono text-[12px]">{st.cfg.invoiceTemplate}</span>)</> : null}.</> : <>{phone ? "A text message" : "Text-only template; its 4th variable is"} with a link to the PDF on this server that works for 7 days.</>}</span></span></label>
-          {!s.pdf && !phone ? (
+          {!s.pdf && meta ? (
             <div className="flex gap-2 items-start pl-7">
               <Field label="Text-only invoice template" hint="Body: name, invoice no., amount, link." className="flex-1 min-w-0"><Input value={names.textTemplate} onChange={(e) => setNames({ ...names, textTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
               <Button className="mt-[26px]" disabled={pending || names.textTemplate === s.textTemplate} onClick={() => save({ textTemplate: names.textTemplate })}>Save</Button>
@@ -214,7 +217,7 @@ export function WhatsAppView({ st, log, settings, invoiceTemplate, signup, webho
           {phone ? <div className="text-[12.5px] text-ok">Medoro writes the messages and sends them from your phone{s.auto ? "; auto-send is active" : ""}.</div> : st.connected ? (invoiceTemplate.ok
             ? <div className="text-[12.5px] text-ok">Template <span className="font-mono">{invoiceTemplate.name}</span> is approved{s.auto ? "; auto-send is active" : ""}.</div>
             : <div role="alert" className="text-[12.5px] text-bad flex gap-1.5"><CircleAlert size={14} className="mt-0.5 flex-none" /><span>{invoiceTemplate.error}{s.auto ? " Auto-send is paused until it’s approved." : " Invoices can’t be sent until then."}</span></div>) : null}
-          {phone ? null : <>
+          {!meta ? null : <>
           <div className="flex gap-2 items-start">
             <Field label="Credit note template" hint="Sent from Returns. Body: name, credit note no., amount, invoice no." className="flex-1 min-w-0"><Input value={names.creditNoteTemplate} onChange={(e) => setNames({ ...names, creditNoteTemplate: e.target.value })} className="font-mono text-[13px]" /></Field>
             <Button className="mt-[26px]" disabled={pending || names.creditNoteTemplate === s.creditNoteTemplate} onClick={() => save({ creditNoteTemplate: names.creditNoteTemplate })}>Save</Button>
