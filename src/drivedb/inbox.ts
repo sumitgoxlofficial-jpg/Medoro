@@ -14,22 +14,30 @@ const AAD = new TextEncoder().encode("medoro-inbox-v1");
 /** A paid payment link: who paid what, against which customer or bill. */
 export type InboxPayment = { paymentId: string; linkId: string; amountPaise: number; customerId: string; saleId?: string | null; method: string; paidAt: string };
 
-/** Seals a payment for one device: AES-GCM payload, its key wrapped with the device's RSA-OAEP public key. */
-export async function sealForDevice(publicJwk: JsonWebKey, p: InboxPayment): Promise<string> {
+/** Seals any JSON value for one device: AES-GCM payload, its key wrapped with the device's RSA-OAEP public key. */
+export async function sealJsonForDevice(publicJwk: JsonWebKey, value: unknown, aad = AAD): Promise<string> {
   const pub = await subtle().importKey("jwk", { kty: publicJwk.kty, n: publicJwk.n, e: publicJwk.e }, { name: "RSA-OAEP", hash: "SHA-256" }, false, ["encrypt"]);
   const key = globalThis.crypto.getRandomValues(new Uint8Array(32)), iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
   const k = await subtle().importKey("raw", buf(key), "AES-GCM", false, ["encrypt"]);
-  const ct = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv, additionalData: AAD }, k, new TextEncoder().encode(JSON.stringify(p))));
+  const ct = new Uint8Array(await subtle().encrypt({ name: "AES-GCM", iv, additionalData: buf(aad) }, k, new TextEncoder().encode(JSON.stringify(value))));
   return JSON.stringify({ k: b64(new Uint8Array(await subtle().encrypt({ name: "RSA-OAEP" }, pub, buf(key)))), iv: b64(iv), ct: b64(ct) });
 }
 
-/** Opens an entry sealed for this device. Throws if it was sealed for another key. */
-export async function openForDevice(privateKey: CryptoKey, sealed: string): Promise<InboxPayment> {
+/** Opens a value sealed for this device. Throws if it was sealed for another key or another purpose (`aad`). */
+export async function openJsonForDevice<T>(privateKey: CryptoKey, sealed: string, aad = AAD): Promise<T> {
   const s = JSON.parse(sealed) as { k: string; iv: string; ct: string };
   const key = new Uint8Array(await subtle().decrypt({ name: "RSA-OAEP" }, privateKey, buf(unb64(s.k))));
   const k = await subtle().importKey("raw", buf(key), "AES-GCM", false, ["decrypt"]);
-  return JSON.parse(new TextDecoder().decode(await subtle().decrypt({ name: "AES-GCM", iv: buf(unb64(s.iv)), additionalData: AAD }, k, buf(unb64(s.ct))))) as InboxPayment;
+  return JSON.parse(new TextDecoder().decode(await subtle().decrypt({ name: "AES-GCM", iv: buf(unb64(s.iv)), additionalData: buf(aad) }, k, buf(unb64(s.ct))))) as T;
 }
+
+/** Seals a payment for one device. */
+export const sealForDevice = (publicJwk: JsonWebKey, p: InboxPayment) => sealJsonForDevice(publicJwk, p);
+/** Opens a payment sealed for this device. Throws if it was sealed for another key. */
+export const openForDevice = (privateKey: CryptoKey, sealed: string) => openJsonForDevice<InboxPayment>(privateKey, sealed);
+
+/** Purpose label for bank / provider transaction batches (so a payment entry can't be passed off as one). */
+export const FIN_AAD = new TextEncoder().encode("medoro-fin-v1");
 
 /** The receipt id for a payment: the same on every counter, so recording it twice keeps one receipt. */
 export const receiptIdOf = (paymentId: string) => `rzp-${paymentId}`;

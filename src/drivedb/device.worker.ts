@@ -20,6 +20,7 @@ import * as inbox from "./inbox";
 import * as assistant from "./assistant";
 import * as einv from "./einvoice";
 import * as money from "./money";
+import type { FinBatch } from "@/domain/finance/connectors/types";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -120,6 +121,7 @@ let lastPickUp = 0;
 async function pickUpPayments() {
   if (!db || access?.status !== "approved" || Date.now() - lastPickUp < 30_000) return;
   lastPickUp = Date.now();
+  await pickUpBankBatches();
   try {
     const box = relayInbox(deviceName);
     const waiting = await box.list();
@@ -129,6 +131,27 @@ async function pickUpPayments() {
     const opened: inbox.InboxPayment[] = [];
     for (const w of waiting) { try { opened.push(await inbox.openForDevice(mine.privateKey, w.sealed)); } catch { /* sealed for an older key of this device */ } }
     await box.ack(inbox.applyPayments(db, opened));
+  } catch { /* offline: next time */ }
+}
+
+/** Bank / provider transactions a connection fetched for this pharmacy: record them, then Medoro deletes the batch. */
+async function pickUpBankBatches() {
+  if (!db) return;
+  try {
+    const box = relayInbox(deviceName);
+    const waiting = await box.finList();
+    if (!waiting.length) return;
+    const mine = await keys.get();
+    if (!mine) return;
+    const done: string[] = [];
+    for (const w of waiting) {
+      try {
+        const b = await inbox.openJsonForDevice<FinBatch>(mine.privateKey, w.sealed, inbox.FIN_AAD);
+        money.importSynced(db, b, "bank-sync");
+        done.push(w.batchId);
+      } catch { /* sealed for an older key of this device: another counter takes it */ }
+    }
+    await box.finAck(done);
   } catch { /* offline: next time */ }
 }
 

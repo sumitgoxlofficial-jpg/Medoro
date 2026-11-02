@@ -50,13 +50,16 @@ export function relayStore(device: string, base = "/api/drivedb", f: typeof fetc
 export function relayInbox(device: string, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
   const call = async (op: string, extra: Record<string, string> = {}) => {
     const r = await f(`${base}?${new URLSearchParams({ op, device, ...extra })}`, { method: "POST", credentials: "same-origin" });
-    const j = (await r.json().catch(() => ({}))) as { payments?: { paymentId: string; sealed: string }[]; error?: string };
+    const j = (await r.json().catch(() => ({}))) as { payments?: { paymentId: string; sealed: string }[]; batches?: { batchId: string; sealed: string }[]; error?: string };
     if (!r.ok) throw r.status === 403 || r.status === 401 ? new RelayRefusedError(j.error ?? `Relay error ${r.status}`) : new Error(j.error ?? `Relay error ${r.status}`);
     return j;
   };
   return {
     list: async () => (await call("inbox")).payments ?? [],
     ack: async (ids: string[]) => { if (ids.length) await call("inbox-ack", { ids: ids.join(",") }); },
+    /** Bank / provider transaction batches sealed for this device. */
+    finList: async () => (await call("fin-inbox")).batches ?? [],
+    finAck: async (ids: string[]) => { if (ids.length) await call("fin-inbox-ack", { ids: ids.join(",") }); },
   };
 }
 

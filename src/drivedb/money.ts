@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { DriveDB } from "./client";
 import { getSetting, setSetting } from "./settings";
+import type { FinBatch } from "@/domain/finance/connectors/types";
 import { CounterError } from "./pharmacy";
 import { addDays, istDate, todayISO } from "@/lib/dates";
 import {
@@ -560,4 +561,53 @@ export function alertCounts(db: DriveDB) {
   const o = overview(db);
   const last = db.engine.all<{ d: string | null }>("SELECT MAX(toDate) AS d FROM finImport")[0]?.d ?? null;
   return { notSeen: o.counterNotSeen, review: o.review, unmatched: o.unmatched, statementTo: last };
+}
+
+// ---------- transactions from a bank / provider connection ----------
+
+/**
+ * Records a batch a connection fetched (opened from the sealed inbox). Each record is kept once (same connection and
+ * provider id → skipped); the same payment already imported from a statement is merged by UTR, as for statements.
+ * These come straight from the bank or provider, so they are marked verified. Returns counts.
+ */
+export function importSynced(db: DriveDB, b: FinBatch, userId: string) {
+  const source = `conn:${b.connectionId}`;
+  const last4 = (b.accountMasked.match(/\d{4}$/)?.[0] ?? "0000");
+  const account = accountKey(b.connector.replace(/^bank:/, "").toUpperCase().replace(/[^A-Z0-9]/g, ""), last4);
+  const res = db.transaction(() => {
+    const at = now();
+    let added = 0, duplicates = 0;
+    const taken = new Set<string>();
+    const dates = b.records.map((r) => r.date).sort();
+    const have: DedupeHave[] = dates.length ? db.engine.all<DedupeHave & { bookedOn: string }>(
+      `SELECT id, account, direction, amountPaise, bookedOn, utr, description, importId FROM finTxn WHERE bookedOn >= ? AND bookedOn <= ?`,
+      [addDays(dates[0], -1), addDays(dates[dates.length - 1], 1)]).map(({ bookedOn, ...h }) => ({ ...h, date: bookedOn, amountPaise: n(h.amountPaise) })) : [];
+    for (const r of b.records) {
+      if (r.status !== "success" || !Number.isInteger(r.amountPaise) || r.amountPaise <= 0) continue;
+      const ref = r.sourceRef.slice(0, 120);
+      if (db.engine.all("SELECT 1 FROM finSource WHERE source = ? AND sourceRef = ?", [source, ref]).length) { duplicates++; continue; }
+      const nar = parseNarration(r.description, r.utr ?? "");
+      const utr = r.utr ?? nar.utr;
+      const t = { account, direction: r.direction, amountPaise: r.amountPaise, date: r.date, utr, description: r.description };
+      // Only the "provably the same" rules: a provider record never goes to duplicate review on attributes alone.
+      const c = classify(t, have, taken, new Map(), null);
+      const id = `cx-${rowFingerprint(source, { date: r.date, amount: r.amountPaise, description: ref, ref: "", balance: null }, 1)}`;
+      if (c.kind === "same") {
+        taken.add(c.id);
+        db.from("finSource").insert({ id: `src-${id}`, txnId: c.id, source, sourceRef: ref, importId: null, row: null, rule: c.rule === 2 ? "utr" : "attributes", at });
+        duplicates++;
+        continue;
+      }
+      db.from("finTxn").insert({
+        id, account, direction: r.direction, amountPaise: r.amountPaise, bookedOn: r.date, bookedTime: r.time, description: r.description.slice(0, 300), refText: r.bankRef,
+        utr, channel: nar.channel === "other" || nar.channel === "unknown" ? (utr && /^\d{12}$/.test(utr) ? "upi" : nar.channel) : nar.channel,
+        counterpartyName: r.counterpartyName ?? nar.name, counterpartyVpa: r.counterpartyVpa ?? nar.vpa, balancePaise: null, source, importId: null, verified: 1, at,
+      });
+      db.from("finSource").insert({ id: `src-${id}`, txnId: id, source, sourceRef: ref, importId: null, row: null, rule: "new", at });
+      have.push({ ...t, id, importId: null });
+      added++;
+    }
+    return { added, duplicates };
+  });
+  return { ...res, matched: res.added ? autoReconcile(db, userId) : 0 };
 }

@@ -1655,3 +1655,111 @@ model PaymentInbox {
   @@unique([tenantId, deviceId, paymentId])
   @@index([tenantId, paymentId])
 }
+
+// ───────────── UPI & Bank Connect: connections (phases 3–6 framework) ─────────────
+
+/// A bank, Account Aggregator or payment-provider connection. Secrets sealed with HOST_KEY; never sent to a browser.
+model FinConnection {
+  id               String        @id @default(uuid())
+  tenantId         String
+  kind             String // bank | aa | provider
+  connector        String // e.g. "aa:<partner>", "bank:axis", "phonepe"
+  status           String        @default("pending") // pending | active | expired | revoked | error | disconnected
+  displayName      String
+  accountMasked    String        @default("")
+  config           Json          @default("{}")
+  encryptedSecret  Bytes?
+  consentExpiresAt DateTime?
+  syncEveryMin     Int?
+  cursor           Json?
+  lastSyncAt       DateTime?
+  lastErrorCode    String?
+  lastError        String?
+  lastErrorAt      DateTime?
+  createdBy        String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @default(now()) @updatedAt
+  consents         FinConsent[]
+  jobs             FinSyncJob[]
+
+  @@index([tenantId, status])
+}
+
+/// Consent history of a connection (append-only).
+model FinConsent {
+  id           String        @id @default(uuid())
+  tenantId     String
+  connectionId String
+  connection   FinConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  event        String // requested | approved | rejected | paused | revoked | expired | renewed
+  externalId   String?
+  purpose      String?
+  fetchFrom    DateTime?
+  fetchTo      DateTime?
+  expiresAt    DateTime?
+  userId       String?
+  at           DateTime      @default(now())
+
+  @@index([connectionId])
+}
+
+model FinSyncJob {
+  id           String        @id @default(uuid())
+  tenantId     String
+  connectionId String
+  connection   FinConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  trigger      String // initial | schedule | manual | webhook
+  status       String        @default("queued") // queued | running | done | failed
+  runAfter     DateTime      @default(now())
+  attempts     Int           @default(0)
+  lockedUntil  DateTime?
+  lastError    String?
+  createdAt    DateTime      @default(now())
+  finishedAt   DateTime?
+
+  @@index([status, runAfter])
+  @@index([connectionId])
+}
+
+/// One sync run: counts only (append-only).
+model FinSyncLog {
+  id           String   @id @default(uuid())
+  tenantId     String
+  connectionId String
+  trigger      String
+  startedAt    DateTime
+  endedAt      DateTime
+  fetched      Int      @default(0)
+  delivered    Int      @default(0)
+  errors       Int      @default(0)
+  errorCode    String?
+
+  @@index([tenantId, startedAt])
+}
+
+/// A connect / consent redirect in progress: single use, bound to user and pharmacy, short-lived. Id = SHA-256 of the state.
+model FinAuthState {
+  id           String    @id
+  tenantId     String
+  userId       String
+  connectionId String
+  expiresAt    DateTime
+  usedAt       DateTime?
+
+  @@index([expiresAt])
+}
+
+/// Drive mode: fetched transactions waiting for a counter, sealed for one device.
+model FinInbox {
+  id           String   @id @default(uuid())
+  tenantId     String
+  deviceId     String
+  connectionId String
+  batchId      String
+  sealed       String
+  createdAt    DateTime @default(now())
+
+  @@unique([tenantId, deviceId, batchId])
+  @@index([tenantId, batchId])
+  @@index([createdAt])
+}

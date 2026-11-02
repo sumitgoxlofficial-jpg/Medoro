@@ -17,6 +17,35 @@ on the partner dependencies in section 7.
 | Owner's daily email: counter UPI missing from the bank statement and possible duplicates (unmatched credits only alongside those). Counters send **counts only** (three whole numbers and the last statement date) with their sync health report | `alertCounts` in `money.ts`, `src/domain/system/drivedb-relay.ts` (`finCounts`), `src/domain/reports/alerts.ts` (`financeAlerts`), `src/domain/system/drive-health.ts`, migration `20261110000000_drive_device_fin_alerts` |
 | End-to-end: credit bill → QR reference → statement upload → automatic match; re-upload adds nothing; counter UPI missing from the bank is flagged | `e2e/28-device-money.spec.ts` |
 
+### Phases 3–6: framework built, no connector live
+
+Every partner-dependent phase shares one framework, built and tested now. **No real bank, Account Aggregator or
+provider adapter exists**: each is still waiting on the agreements in section 7, and the screens and the API say so.
+
+| Piece | Where |
+|---|---|
+| Tables: `FinConnection` (status, masked account, consent expiry, sealed secret, cursor, last sync / error), `FinConsent` (append-only history), `FinSyncJob`, `FinSyncLog` (counts only, append-only), `FinAuthState` (single-use redirect state), `FinInbox` (sealed batches for Drive counters); RLS on, API roles revoked | migration `20261112000000_financial_connections` |
+| Connector contract (`start`, `callback`, `fetch`, `refreshConsent`, `revoke`, `verifyWebhook`), typed errors (rate limited, auth failed, consent expired/revoked, unavailable), registry with every connector at `adapter: null` | `src/domain/finance/connectors/` |
+| Engine: connect with a single-use state bound to the user (10 minutes), active only after the provider confirms; consent requested / approved / rejected / expired / renewed / revoked; revoke at the provider (recorded even if the provider doesn't answer); job queue with one job per connection, `FOR UPDATE SKIP LOCKED` claims, stale-run recovery, cursor saved only after delivery, backoff 1–2–4–8–16 min then hourly for a day, `Retry-After` honoured, auth/consent errors stop retries, 240 s budget per run; scheduled polling never more often than the provider allows; "Sync now" once per 10 minutes | `src/domain/finance/connections.ts` |
+| Delivery: Drive pharmacies get batches sealed per approved counter (`medoro-fin-v1`), recorded on the counter (verified, deduplicated by provider id and UTR against statements, then matched) and deleted on acknowledgement or after 14 days; self-hosted pharmacies get statement lines, then book and bill matching | `connections.ts`, `src/drivedb/money.ts` (`importSynced`), `src/drivedb/device.worker.ts` |
+| Webhooks: `/api/transactions/webhooks/:provider/:tenant`, checked with that pharmacy's connection secret; refused calls store nothing; unknown or unavailable providers 404 | route + `handleWebhook` |
+| API routes from the brief (section 9), session from the cookie, cross-site check on writes; transaction / reconciliation / report routes answer 409 for Drive pharmacies (their data is on the counters) | `src/app/api/financial-connections/**`, `transactions/**`, `reconciliation/**`, `financial-reports/**`, `src/server/api.ts` |
+| Screens: connected accounts (status, masked account, consent expiry, last sync / error, Sync now, Renew consent, Revoke, Disconnect), sync history, status of every connector; a Connect button only for a live connector | `src/components/fin-connections.tsx` on UPI & Bank Connect and the counter's Connections tab |
+| Alerts in the owner's daily email: consent expired or expiring within 7 days, a connection that stopped syncing | `connectionAlerts` |
+| Cron: schedule, run, clean up (every minute self-hosted; Vercel cron needs Pro for more than daily) | `/api/cron/tick` → `finSyncTick` |
+| Tests with a simulated provider registered only inside the test (it refuses to register elsewhere) | `tests/integration/fin-connections.test.ts`, `e2e/29-server-bill-matching.spec.ts` |
+
+**Adding a real connector** (when an agreement is signed):
+1. Get the provider's API documentation and sandbox credentials (the docs sites were not reachable from the build
+   environment; add their domains to the allowed network list).
+2. Write the adapter in `src/domain/finance/connectors/<provider>.ts` against the contract: map their transaction to
+   `SourceRecord` without inventing fields, throw the typed errors, verify webhook signatures exactly as documented.
+3. Set its entry in `connectors/index.ts` (`adapter`, `capabilities`) and its label in `providers.ts`: "Sandbox only"
+   first (connectable only with `FIN_SANDBOX=1` on a non-production server), "Available" after the provider's
+   production approval.
+4. Add its credentials to `.env.example` and the start-up checks; test against the sandbox, including consent expiry,
+   revocation and webhook signature failures.
+
 Where the build differs from the plan, and why:
 - **Suggestions are computed, not stored** (no `transaction_match_suggestions` table): they depend on bills and payments
   that change all the time, so a stored copy would go stale. Rejections are stored (`finEvent` kind `reject`) and are

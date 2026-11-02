@@ -1,4 +1,5 @@
 import "server-only";
+import { ackFinInbox, finInboxFor } from "@/domain/finance/connections";
 import { ackInbox, inboxFor } from "./customer-pay";
 import { z } from "zod";
 import { db } from "@/server/db";
@@ -141,6 +142,9 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
       return { ok: true };
     }
     case "inbox": return { payments: await inboxFor(ctx.tenantId, device.deviceId) };
+    // Bank / provider transactions fetched by a connection, sealed for this device (src/domain/finance/connections.ts).
+    case "fin-inbox": return { batches: await finInboxFor(ctx.tenantId, device.deviceId) };
+    case "fin-inbox-ack": return { deleted: await ackFinInbox(ctx.tenantId, (p.get("ids") ?? "").split(",").filter(Boolean)) };
     case "inbox-ack": {
       const ids = (p.get("ids") ?? "").split(",").filter(Boolean);
       return { deleted: await ackInbox(ctx.tenantId, ids) };

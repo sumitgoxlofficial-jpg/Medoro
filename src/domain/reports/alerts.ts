@@ -60,14 +60,16 @@ export async function financeCounts(tenantId: string, now = new Date()) {
 
 /** UPI & Bank items for the owner's daily email, from the counters' counts. */
 export async function financeAlerts(tenantId: string, now = new Date()) {
+  const { connectionAlerts } = await import("@/domain/finance/connections");
+  const conn = await connectionAlerts(tenantId, now);
   const f = await financeCounts(tenantId, now);
-  if (!f) return [];
+  if (!f) return conn;
   const out: string[] = [];
   if (f.notSeen) out.push(`${f.notSeen} UPI payment(s) taken at the counter are not in your bank statement${f.statementTo ? ` (statements up to ${f.statementTo})` : ""}. A “payment successful” screen isn’t proof: check them under Billing (device) → UPI & Bank → Reconcile.`);
   if (f.review) out.push(`${f.review} bank transaction(s) may be duplicates from overlapping statements. Decide under UPI & Bank → Reconcile.`);
   // Unmatched credits alone aren't worth a daily email; mentioned when something else already is.
   if (f.unmatched && out.length) out.push(`${f.unmatched} payment(s) received in the bank aren’t matched to a bill yet.`);
-  return out;
+  return [...out, ...conn];
 }
 
 /** Sidebar badges and the bell's alert list, from live data. Backup alerts go to those who manage backups. */

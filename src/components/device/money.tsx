@@ -19,6 +19,7 @@ import { addDays, todayISO } from "@/lib/dates";
 import { downloadCsv } from "@/lib/csv";
 import { downloadXlsx } from "@/lib/xlsx";
 import { card, input, label, errText, toPaise, type Cfg, type Who } from "./ui";
+import { ConnectionsPanel } from "@/components/fin-connections";
 
 type R<K extends keyof DeviceHandlers> = Awaited<ReturnType<DeviceHandlers[K]>>;
 type Txn = R<"finTransactions">[number];
@@ -482,6 +483,7 @@ function Connections({ owner }: { owner: boolean }) {
     <div className="flex flex-col gap-4">
       <div className="text-sm text-muted max-w-3xl">Keep your bank, your UPI ID and your QR code as they are. Payments from Google Pay, PhonePe, Paytm, BHIM or any UPI app reach your bank, so your bank statement shows them all. Direct connections are listed with where they stand; none is switched on until the provider confirms it works for your account.</div>
       <div className="grid gap-4 lg:grid-cols-2">{group("bank", "Bank connections")}{group("provider", "Payment providers")}</div>
+      <ConnectionsPanel canManage={owner} showStatus={false} />
       {owner && s && (
         <div className={`${card} max-w-xl`}>
           <div className="font-semibold">Payment QR and matching</div>

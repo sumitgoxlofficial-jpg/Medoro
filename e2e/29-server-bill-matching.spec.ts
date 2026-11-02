@@ -55,4 +55,17 @@ test("self-hosted: statement credit pays a credit bill through a receipt, and ca
   await expect(page.getByText("Match undone. The receipt is reversed.")).toBeVisible();
   await expect(page.locator("tr").filter({ hasText: invoice })).toContainText("₹90.00");
   await expect(page.getByText(/Bank credits to match to credit bills \([1-9]/)).toBeVisible();
+
+  // Connections: none can be connected in this build, and the API says the same.
+  await expect(page.getByText("No bank or provider is connected.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Connect / })).toHaveCount(0);
+  await expect(page.getByText("PhonePe Business").locator("..")).toContainText("Partner onboarding required");
+  const providers = await (await page.request.get("/api/financial-connections/providers")).json() as { providers: { id: string; connectable: boolean }[] };
+  expect(providers.providers.length).toBeGreaterThan(5);
+  expect(providers.providers.every((p) => !p.connectable)).toBe(true);
+  const start = await page.request.post("/api/financial-connections/bank/start", { data: { connector: "aa" }, headers: { Origin: new URL(page.url()).origin } });
+  expect(start.status()).toBe(400);
+  expect((await start.json()).error).toMatch(/Partner onboarding required/);
+  const hook = await page.request.post(`/api/transactions/webhooks/phonepe/${"0".repeat(8)}-0000-0000-0000-${"0".repeat(12)}`, { data: "{}" });
+  expect(hook.status()).toBe(404);
 });
