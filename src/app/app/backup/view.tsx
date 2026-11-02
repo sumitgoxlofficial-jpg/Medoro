@@ -17,10 +17,10 @@ const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,2
 const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"], scope: ["Not all Drive access was ticked on Google’s screen. Connect again and tick both Google Drive boxes.", "red"] };
 type DriveFile = { id: string; name: string; size: number; createdTime: string; known: boolean };
 
-export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron, mustMove = false, reconnect = false }: {
+export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron, mustMove = false, reconnect = false, inDrive = false }: {
   history: H[]; drive: DriveState; folder: string; driveApp: boolean; fingerprint: string | null; keyDate: string | null; keyState: "ok" | "missing" | "unreadable";
   settings: { schedule: string; retention: number; files: "server" | "gdrive"; every: number }; flash: string | null; problems: string[];
-  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean; mustMove?: boolean; reconnect?: boolean;
+  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean; mustMove?: boolean; reconnect?: boolean; inDrive?: boolean;
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -89,6 +89,18 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
             <div className="text-[13px] text-muted flex gap-2"><CloudOff size={16} className="flex-none mt-0.5" /><div className="flex flex-col gap-1"><span>Google Drive backup isn’t set up on this server yet. Ask whoever set up your Medoro server to turn on Google sign-in. Until then, backups are kept on this server.</span><details><summary className="cursor-pointer text-[12px] text-faint">Technical details</summary><span className="block mt-1 text-[12px]">Set <span className="font-mono">GOOGLE_OAUTH_CLIENT_ID</span>, <span className="font-mono">GOOGLE_OAUTH_CLIENT_SECRET</span> and <span className="font-mono">GOOGLE_OAUTH_REDIRECT_URI</span> on the server.</span></details></div></div>
           )}
         </div>
+        {inDrive ? (
+        <div className={card} data-testid="drive-copies">
+          <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />How your data is kept safe</div>
+          <div className="text-[13.5px]">Every counter saves your bills, stock and customers to your Google Drive by itself, encrypted on the counter with a key only you hold.</div>
+          <ul className="text-[13px] text-muted list-disc pl-5 flex flex-col gap-1">
+            <li>Changes reach Drive within seconds while the counter is online, and a full copy is saved regularly.</li>
+            <li>The files sit in your Drive’s hidden app data area, so they don’t clutter your Drive. They use your Google storage.</li>
+            <li>A new or reset counter restores everything from Drive with your Drive recovery code. Keep that code safe: Medoro can’t open your data without it.</li>
+          </ul>
+          <a href="/app/device-pos" className="self-start text-[13px] text-teal">Open Billing (device) →</a>
+        </div>
+        ) : <>
         <div className={card}>
           <div className="flex items-center gap-2 font-semibold text-[15px]"><KeyRound size={18} className="text-teal" />Encryption</div>
           <div className="text-[13.5px]">Every backup is encrypted on your server, with its own key, before it’s stored.</div>
@@ -123,7 +135,9 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           </div>
           <div className="text-[12px] text-faint">{s.every !== 24 ? `Besides the nightly backup, a new one starts every ${s.every} hours while anyone is using Medoro. ` : ""}{hostCron ? "On this hosting the nightly backup runs at about 03:00 India time, whatever time is set here. If it fails, use Back up now." : "Times are India time. A failed scheduled backup is retried up to 2 more times that day, at least 30 minutes apart."}</div>
         </div>
+        </>}
       </div>
+      {!inDrive && <>
       {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">Snapshot → encrypt → write → verify{connected ? " → upload" : ""}… <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}
       <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
         <div className="font-semibold text-[15px] px-4 pt-3.5 pb-2">Backup history</div>
@@ -156,7 +170,8 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           </table>
         ) : <div className="px-4 pb-4 text-[13px] text-fainter">No backups yet. Take one now, or wait for the daily schedule.</div>}
       </div>
-      {canRestore ? (
+      </>}
+      {canRestore && !inDrive ? (
         <div className={card}>
           <div className="flex items-center gap-2 font-semibold text-[15px]"><DatabaseBackup size={18} className="text-teal" />{connected ? "Restore a backup file, or one from Google Drive" : "Restore a backup file"}</div>
           <div className="text-[13px] text-muted">For a backup that isn’t in the history above, e.g. downloaded earlier or made on another server. It opens with this server’s key; if it was made with a different copy of the key, paste the recovery kit. It loads into a test copy first and live data changes only after you confirm.</div>
