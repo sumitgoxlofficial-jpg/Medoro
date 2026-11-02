@@ -15,6 +15,13 @@ export const dataInDrive = (settings: unknown) => {
 export const driveRequired = () => process.env.PUBLIC_SIGNUP === "1";
 export const mustMove = (settings: unknown) => driveRequired() && !dataInDrive(settings);
 
+/**
+ * No server backups: the pharmacy's records are in its Drive, or this is Medoro's online server (Vercel / hosted),
+ * where data is kept only in each pharmacy's Google Drive. A pharmacy there still on Medoro's copy is read-only until
+ * it moves; after the move its counters save full copies to its Drive. Server-side only.
+ */
+export const serverBackupsOff = (settings: unknown) => dataInDrive(settings) || driveRequired() || !!process.env.VERCEL;
+
 /** Warn when the pharmacy's Google Drive is this full: counters can't save copies to a full Drive. */
 export const QUOTA_WARN = 0.9;
 export type Quota = { usage: number; limit: number | null; at: string };

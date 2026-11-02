@@ -1,5 +1,5 @@
 import "server-only";
-import { dataInDrive } from "./drive-state";
+import { dataInDrive, serverBackupsOff } from "./drive-state";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { db } from "@/server/db";
@@ -71,7 +71,8 @@ export const counts = (d: Record<string, unknown>): Record<string, number> => ({
 const len = (d: Record<string, unknown>, v2: string, v1: string) => (((d.tables as Record<string, unknown[]>)?.[v2] ?? d[v1]) as unknown[] | undefined)?.length ?? 0;
 
 /** Takes a backup now. Used by "Back up now" and the daily scheduler (which passes the "running" manifest it claimed). */
-const inDrive = async (tenantId: string) => dataInDrive((await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }))?.settings);
+const settingsOf = async (tenantId: string) => (await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }))?.settings;
+const inDrive = async (tenantId: string) => serverBackupsOff(await settingsOf(tenantId));
 
 export async function runBackup(tenantId: string, kind: "manual" | "scheduled" | "retry", user?: { id: string; name: string }, claimed?: { id: string; startedAt: Date }) {
   const m = claimed ?? await db.backupManifest.create({ data: { tenantId, kind, schemaVersion: SCHEMA, status: "running" } });
@@ -134,7 +135,9 @@ async function alertOwners(tenantId: string, error: string) {
 
 export async function backupNow(ctx: Ctx) {
   authorize(ctx, "integrations");
-  if (await inDrive(ctx.tenantId)) throw new UserError("Your pharmacy’s data lives in your Google Drive, so Medoro has nothing to back up. Your counters save full copies to Drive.");
+  const st = await settingsOf(ctx.tenantId);
+  if (dataInDrive(st)) throw new UserError("Your pharmacy’s data lives in your Google Drive, so Medoro has nothing to back up. Your counters save full copies to Drive.");
+  if (serverBackupsOff(st)) throw new UserError("Medoro’s online server keeps no backups: your data is kept in your own Google Drive. Move it there under Billing (device); your counters then save full copies to Drive.");
   const running = await db.backupManifest.findFirst({ where: { tenantId: ctx.tenantId, status: "running", startedAt: { gt: new Date(Date.now() - 15 * 60_000) } } });
   if (running) throw new UserError("A backup is already running.");
   return runBackup(ctx.tenantId, "manual", { id: ctx.userId, name: ctx.userName });
@@ -167,6 +170,7 @@ const RESTORE_HOURS = 24;
 /** Step 1 of a restore: load the backup into a test copy and compare it with live data. Live data is untouched. */
 export async function prepareRestore(ctx: Ctx, id: string) {
   authorize(ctx, "users");
+  if (serverBackupsOff(await settingsOf(ctx.tenantId))) throw new UserError(ctx.moved ? "This pharmacy’s data lives in its Google Drive, so a Medoro backup can’t be restored here. Restore on the counter from Google Drive instead." : "Medoro’s online server doesn’t restore server backups: your data is kept in your own Google Drive. Move it there under Billing (device).");
   const { m, header, data } = await openBackup(ctx, id);
   if (!isRestorable(data)) throw new UserError("This backup was made before full restores were supported. It can still be test-restored and downloaded; take a new backup to be able to restore.");
   for (const old of await db.restoreRun.findMany({ where: { tenantId: ctx.tenantId, status: "prepared" } })) await discardRun(old.id, old.schemaName);
@@ -342,7 +346,7 @@ export async function scheduledTick(now = new Date(), opts: { daily?: boolean } 
   await failStale(now).catch(() => {});
   const { hhmm, dayStart } = istClock(now);
   for (const t of await db.tenant.findMany({ select: { id: true, settings: true } })) {
-    if (dataInDrive(t.settings)) continue; // the counters keep the copies, in the pharmacy's own Drive
+    if (serverBackupsOff(t.settings)) continue; // the counters keep the copies, in the pharmacy's own Drive (never on Vercel)
     const s = await backupSettings(t.id);
     if (!opts.daily && hhmm < s.schedule) continue;
     const claimed = await db.$transaction(async (tx) => {

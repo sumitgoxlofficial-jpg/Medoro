@@ -61,5 +61,10 @@ At start-up the app checks these (names only, never values) and refuses to run i
 
 ## Known limits on Vercel
 - Hobby plan is for non-commercial use; a paid SaaS needs Vercel Pro. Hobby cron runs once a day.
-- Very large backups or restores may hit the 300 s function limit.
-- Preview deployments get no database variables, so they show errors past the website. Give previews a separate Supabase project before testing there.
+- No server backups or restores on Vercel: every pharmacy's data is kept in its own Google Drive (its counters save
+  full copies there), so nothing large runs against the 300 s function limit. A pharmacy still on Medoro's copy is
+  read-only until it moves to Drive (Billing (device)).
+- Preview deployments use a separate Supabase project (never production's): set `DATABASE_URL` and `DIRECT_URL` for the
+  **Preview** environment only, plus `PREVIEW_DATABASE=1`, which lets preview builds migrate that database
+  (`scripts/vercel-build.sh`). Without `PREVIEW_DATABASE=1` a preview build touches no database. Previews use their own
+  address (`VERCEL_BRANCH_URL`) as `APP_URL`, and their own `SESSION_SECRET`, `HOST_KEY` and `CRON_SECRET`.

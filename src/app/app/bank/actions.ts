@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { run, UserError } from "@/server/action";
 import { importBankStatement, matchBankLine, unmatchBankLine, type BankMapping } from "@/domain/accounting/bank";
+import { matchBankLineToBill, rejectBillSuggestion } from "@/domain/accounting/bank-bills";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
 export async function importStatementAction(form: FormData) {
@@ -19,3 +20,6 @@ export async function importStatementAction(form: FormData) {
 }
 export async function matchAction(bankLineId: string, ledgerLineId: string) { return fresh(await run((c) => matchBankLine(c, bankLineId, ledgerLineId), "Matched and marked reconciled.")); }
 export async function unmatchAction(bankLineId: string) { return fresh(await run((c) => unmatchBankLine(c, bankLineId), "Match removed.")); }
+/** The bank credit paid this credit bill: posts the receipt and reconciles the line. */
+export async function billMatchAction(bankLineId: string, saleId: string) { return fresh(await run((c) => matchBankLineToBill(c, bankLineId, saleId), "Receipt recorded against the bill and the line reconciled.")); }
+export async function rejectBillAction(bankLineId: string, saleId: string) { return fresh(await run((c) => rejectBillSuggestion(c, bankLineId, saleId), "Won’t be suggested again.")); }

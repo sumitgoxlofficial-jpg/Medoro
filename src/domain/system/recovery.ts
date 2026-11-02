@@ -144,7 +144,7 @@ export async function previewFreshRestore(file: Buffer, kit: string) {
 
 /** On Medoro's hosted server no pharmacy's records are kept, so an old Medoro backup can't be restored onto it. */
 function noServerRestore() {
-  if (driveRequired()) throw new UserError("Medoro now keeps every pharmacy’s data in its own Google Drive, not on Medoro’s server, so a Medoro backup can’t be restored here. Sign in, or create a new account, and set up your counter with Google Drive.");
+  if (driveRequired() || process.env.VERCEL) throw new UserError("Medoro now keeps every pharmacy’s data in its own Google Drive, not on Medoro’s server, so a Medoro backup can’t be restored here. Sign in, or create a new account, and set up your counter with Google Drive.");
 }
 
 /**
