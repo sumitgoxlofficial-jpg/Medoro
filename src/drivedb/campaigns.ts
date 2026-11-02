@@ -34,7 +34,7 @@ export function setOffersConsent(db: DriveDB, input: z.input<typeof consentInput
 /** A customer's current choice about offers on WhatsApp (no record: not agreed). */
 export function offersConsent(db: DriveDB, customerId: string) {
   const r = db.engine.all<{ granted: number; method: string; at: string }>(
-    "SELECT granted, method, at FROM customerConsent WHERE customerId = ? AND purpose = 'offers' AND channel = 'whatsapp' ORDER BY at DESC, id DESC LIMIT 1", [customerId])[0];
+    "SELECT granted, method, at FROM customerConsent WHERE customerId = ? AND purpose = 'offers' AND channel = 'whatsapp' ORDER BY at DESC, rowid DESC LIMIT 1", [customerId])[0];
   return r ? { granted: !!r.granted, method: r.method, at: r.at } : { granted: false, method: null, at: null };
 }
 
@@ -42,7 +42,7 @@ export function offersConsent(db: DriveDB, customerId: string) {
 export function campaignAudience(db: DriveDB) {
   return db.engine.all<{ id: string; name: string; phone: string | null; granted: number; at: string }>(
     `SELECT c.id, c.name, c.phone, k.granted, k.at FROM customer c
-       JOIN customerConsent k ON k.id = (SELECT id FROM customerConsent WHERE customerId = c.id AND purpose = 'offers' AND channel = 'whatsapp' ORDER BY at DESC, id DESC LIMIT 1)
+       JOIN customerConsent k ON k.id = (SELECT id FROM customerConsent WHERE customerId = c.id AND purpose = 'offers' AND channel = 'whatsapp' ORDER BY at DESC, rowid DESC LIMIT 1)
       WHERE c.deletedAt IS NULL AND k.granted = 1 ORDER BY c.id`)
     .flatMap((c) => { const phone = mobile(c.phone); return phone ? [{ id: c.id, name: c.name, phone, consentAt: c.at }] : []; });
 }
@@ -73,7 +73,7 @@ export function campaignPending(db: DriveDB, campaignId: string, limit = 25, ski
 function pendingAll(db: DriveDB, campaignId: string) {
   const done = new Set(db.engine.all<{ customerId: string; status: string }>(
     `SELECT s.customerId, s.status FROM campaignSend s
-      WHERE s.campaignId = ? AND s.id = (SELECT id FROM campaignSend WHERE campaignId = s.campaignId AND customerId = s.customerId ORDER BY at DESC, id DESC LIMIT 1)`, [campaignId])
+      WHERE s.campaignId = ? AND s.id = (SELECT id FROM campaignSend WHERE campaignId = s.campaignId AND customerId = s.customerId ORDER BY at DESC, rowid DESC LIMIT 1)`, [campaignId])
     .filter((r) => FINAL.includes(r.status)).map((r) => r.customerId));
   return campaignAudience(db).filter((c) => !done.has(c.id));
 }
@@ -100,7 +100,7 @@ export function listCampaigns(db: DriveDB, limit = 20) {
     .map((c) => {
       const latest = db.engine.all<{ status: string; n: number }>(
         `SELECT s.status, COUNT(*) AS n FROM campaignSend s
-          WHERE s.campaignId = ? AND s.id = (SELECT id FROM campaignSend WHERE campaignId = s.campaignId AND customerId = s.customerId ORDER BY at DESC, id DESC LIMIT 1)
+          WHERE s.campaignId = ? AND s.id = (SELECT id FROM campaignSend WHERE campaignId = s.campaignId AND customerId = s.customerId ORDER BY at DESC, rowid DESC LIMIT 1)
           GROUP BY s.status`, [c.id]);
       const n = (k: string) => Number(latest.find((x) => x.status === k)?.n ?? 0);
       return { ...c, sent: n("sent"), failed: n("failed"), optedOut: n("opted_out"), notOnWhatsApp: n("not_on_whatsapp"), pending: pendingAll(db, c.id).length };
