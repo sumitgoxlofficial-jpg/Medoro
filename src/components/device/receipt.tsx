@@ -11,6 +11,7 @@ import type { Pharmacy } from "@/drivedb/seed";
 import { billForSend, billText, waLink } from "@/drivedb/share";
 import { deviceDb } from "@/drivedb/device";
 import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/i18n-client";
 import { errText, type Who } from "./ui";
 
 /** The signed QR from the GST portal, as an image. */
@@ -24,7 +25,7 @@ function IrnQr({ text }: { text: string }) {
 
 const exp = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 
-/** A GST tax invoice for a device bill, ready for an 80 mm thermal printer. */
+/** A GST tax invoice for a device bill, ready for an 80 mm thermal printer. Stays in English: it is a legal document. */
 export function ReceiptView({ d, pharmacy }: { d: SaleDetail; pharmacy: Pharmacy | null }) {
   const s = d.sale as Record<string, string | number | null>;
   const at = new Date(String(s.at));
@@ -82,6 +83,7 @@ export function printReceipt() {
 
 export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, who }: { d: SaleDetail | null; pharmacy: Pharmacy | null; onClose: () => void; autoPrint?: boolean; who?: Who }) {
   const toast = useToast();
+  const t = useT();
   const [fresh, setFresh] = useState<SaleDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const d = fresh && given && fresh.sale.id === given.sale.id ? fresh : given;
@@ -100,8 +102,8 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
       try { doc = await dev.call("einvoiceDoc", id); }
       catch (e) {
         if (!/billing address and PIN/.test(errText(e)) || !d.sale.customerId) throw e;
-        const address = prompt(`Billing address of ${d.sale.customerName} (as on their GST registration):`);
-        const pin = address ? prompt("6-digit PIN code:") : null;
+        const address = prompt(t("Billing address of {name} (as on their GST registration):", { name: String(d.sale.customerName) }));
+        const pin = address ? prompt(t("6-digit PIN code:")) : null;
         if (!address || !pin) return;
         await dev.call("setBillingAddress", String(d.sale.customerId), address, pin);
         doc = await dev.call("einvoiceDoc", id);
@@ -117,7 +119,7 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
     if (!ein || !d?.einvoice || !who) return;
     try {
       const irn = await dev.call("einvoiceCancelCheck", id);
-      const remark = prompt("Cancel this e-invoice on the GST portal? Enter a reason (e.g. order cancelled):");
+      const remark = prompt(t("Cancel this e-invoice on the GST portal? Enter a reason (e.g. order cancelled):"));
       if (!remark || remark.trim().length < 3) return;
       setBusy(true);
       const r = await ein.cancel({ irn, reason: "3", remark: remark.trim() });
@@ -130,7 +132,7 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
   /** Sends the bill's PDF through the pharmacy's WhatsApp (via Medoro, which keeps nothing). */
   const sendPdf = async () => {
     if (!who?.whatsapp || !d) return;
-    const phone = (d.sale.customerPhone as string | null) || prompt("Customer’s WhatsApp number (10 digits):")?.trim();
+    const phone = (d.sale.customerPhone as string | null) || prompt(t("Customer’s WhatsApp number (10 digits):"))?.trim();
     if (!phone) return;
     setBusy(true);
     try {
@@ -150,17 +152,17 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
     <Modal open={!!d} onClose={() => { setFresh(null); onClose(); }} title={d ? `Bill ${String(d.sale.invoiceNo)}` : ""} width={420}
       footer={<div className="flex gap-2 justify-end flex-wrap">
         <Button onClick={() => { setFresh(null); onClose(); }}>Close</Button>
-        {ein && b2b && !d?.einvoice && <Button onClick={getIrn} disabled={busy}><FileCheck2 size={16} /> {busy ? "Getting IRN…" : "E-invoice"}</Button>}
+        {ein && b2b && !d?.einvoice && <Button onClick={getIrn} disabled={busy}><FileCheck2 size={16} /> {busy ? t("Getting IRN…") : t("E-invoice")}</Button>}
         {ein && d?.einvoice && !d.einvoice.cancelled && <Button variant="danger-outline" onClick={cancelIrn} disabled={busy}>Cancel e-invoice</Button>}
-        {wa && <Button onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={16} /> {who?.whatsapp ? "Share text" : "WhatsApp"}</Button>}
-        {who?.whatsapp && <Button onClick={sendPdf} disabled={busy}><MessageCircle size={16} /> {busy ? "Sending…" : "Send PDF on WhatsApp"}</Button>}
-        <Button variant="primary" onClick={printReceipt}><Printer size={16} /> Print</Button>
+        {wa && <Button onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={16} /> {who?.whatsapp ? t("Share text") : "WhatsApp"}</Button>}
+        {who?.whatsapp && <Button onClick={sendPdf} disabled={busy}><MessageCircle size={16} /> {busy ? t("Sending…") : t("Send PDF on WhatsApp")}</Button>}
+        <Button variant="primary" onClick={printReceipt}><Printer size={16} /> {t("Print")}</Button>
       </div>}>
       {d ? <div className="border border-line rounded-lg p-3"><ReceiptView d={d} pharmacy={pharmacy} /></div> : null}
       {sent[0] && (
         <div className={`mt-2 text-[13px] ${sent[0].status === "failed" ? "text-bad" : "text-muted"}`} data-testid="wa-status">
-          WhatsApp: {{ sent: "sent", delivered: "delivered", read: "read", failed: "not delivered" }[sent[0].status] ?? sent[0].status}
-          {sent[0].error ? ` (${sent[0].error})` : ""} · {hhmm(new Date(sent[0].sentAt))}{sent.length > 1 ? ` · sent ${sent.length} times` : ""}
+          WhatsApp: {t({ sent: "sent", delivered: "delivered", read: "read", failed: "not delivered" }[sent[0].status] ?? sent[0].status)}
+          {sent[0].error ? ` (${t(sent[0].error)})` : ""} · {hhmm(new Date(sent[0].sentAt))}{sent.length > 1 ? ` · ${t("sent {n} times", { n: sent.length })}` : ""}
         </div>
       )}
     </Modal>

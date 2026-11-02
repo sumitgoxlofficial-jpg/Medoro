@@ -1,3 +1,117 @@
-/** Hindi lines for: server. Key = the English text exactly as written in the code (see src/lib/tr.ts). */
+/**
+ * Hindi for messages built by server and counter code (src/domain, src/server, src/drivedb, src/lib/offline) that can
+ * reach a pharmacy's screen through a toast or an error box. Internal developer errors are left in English.
+ */
 export const hi: Record<string, string> = {
+  // Accounts and reports
+  "Unbalanced voucher ({dr} ≠ {cr})": "वाउचर बराबर नहीं है ({dr} ≠ {cr})",
+  "Voucher amounts must be positive whole paise": "वाउचर की राशि शून्य से ज़्यादा पूरे पैसे में होनी चाहिए",
+  "{id} is a branch report.": "{id} ब्रांच की रिपोर्ट है।",
+  "{id} is a pharmacy report.": "{id} पूरी फ़ार्मेसी की रिपोर्ट है।",
+  "The count is {amount} short. Add a note explaining the difference.": "गिनती में {amount} कम है। अंतर का कारण नोट में लिखें।",
+  "The count is {amount} over. Add a note explaining the difference.": "गिनती में {amount} ज़्यादा है। अंतर का कारण नोट में लिखें।",
+
+  // AI assistant
+  "No AI model is set up, so the counter answers from its built-in rules.": "कोई AI मॉडल सेट नहीं है, इसलिए काउंटर अपने तय नियमों से जवाब देता है।",
+  "Ask a question first.": "पहले सवाल पूछें।",
+  "Type a question.": "सवाल लिखें।",
+  "Model server answered {status}": "मॉडल सर्वर ने {status} जवाब दिया",
+  "You’ve asked {limit} questions in the last minute. Wait a moment and try again.": "आपने पिछले एक मिनट में {limit} सवाल पूछे हैं। थोड़ा रुककर फिर कोशिश करें।",
+  "No such tool.": "ऐसा कोई टूल नहीं है।",
+  "Invalid arguments.": "जानकारी सही नहीं है।",
+  "This confirmation isn’t valid. Ask again.": "यह पुष्टि मान्य नहीं है। फिर से पूछें।",
+  "This action was already confirmed or cancelled.": "यह काम पहले ही पुष्टि या रद्द हो चुका है।",
+  "This confirmation expired after 5 minutes. Ask again to see a fresh preview.": "यह पुष्टि 5 मिनट बाद ख़त्म हो गई। नया प्रीव्यू देखने के लिए फिर से पूछें।",
+  "Your role ({role}) can’t confirm AI actions.": "आपकी भूमिका ({role}) AI के काम की पुष्टि नहीं कर सकती।",
+  "This confirmation was altered. Ask again.": "यह पुष्टि बदली गई है। फिर से पूछें।",
+  "Nothing to order.": "ऑर्डर करने के लिए कुछ नहीं है।",
+  "This batch isn’t at your current branch. Switch branch and ask again.": "यह बैच आपकी मौजूदा ब्रांच में नहीं है। ब्रांच बदलकर फिर से पूछें।",
+  "Invoice not found. Ask again.": "इनवॉइस नहीं मिला। फिर से पूछें।",
+
+  // Billing and stock
+  "Enter the prescriber’s name: {names} is Schedule {s}.": "डॉक्टर का नाम लिखें: {names} शेड्यूल {s} दवा है।",
+  "Enter the prescriber’s name: {names} are Schedule {s}.": "डॉक्टर का नाम लिखें: {names} शेड्यूल {s} दवाइयाँ हैं।",
+  "Enter the prescriber’s registration no.: {names} goes in the Schedule H1 register.": "डॉक्टर का रजिस्ट्रेशन नंबर लिखें: {names} शेड्यूल H1 रजिस्टर में जाती है।",
+  "Enter the prescriber’s registration no.: {names} go in the Schedule H1 register.": "डॉक्टर का रजिस्ट्रेशन नंबर लिखें: {names} शेड्यूल H1 रजिस्टर में जाती हैं।",
+  "{name} has {n} open transfer. Receive or cancel it before changing the pack size.": "{name} का {n} ट्रांसफ़र बाकी है। पैक साइज़ बदलने से पहले उसे रिसीव या रद्द करें।",
+  "{name} has {n} open transfers. Receive or cancel them before changing the pack size.": "{name} के {n} ट्रांसफ़र बाकी हैं। पैक साइज़ बदलने से पहले उन्हें रिसीव या रद्द करें।",
+  "Give a percent off (1 to 100) or a fixed price.": "छूट प्रतिशत (1 से 100) या तय दाम लिखें।",
+  "Your role can’t take payments.": "आपकी भूमिका भुगतान नहीं ले सकती।",
+  "Only the owner can {what}.": "केवल मालिक {what} कर सकते हैं।",
+  "Pick the bank.": "बैंक चुनें।",
+
+  // Imports and files
+  "{n} row has problems. Fix them in the file and upload it again.": "{n} पंक्ति में गड़बड़ी है। फ़ाइल में ठीक करके फिर से अपलोड करें।",
+  "{n} rows have problems. Fix them in the file and upload it again.": "{n} पंक्तियों में गड़बड़ी है। फ़ाइल में ठीक करके फिर से अपलोड करें।",
+  "Missing column: {cols}. Download the template to see the expected headers.": "कॉलम नहीं मिला: {cols}। सही हेडर देखने के लिए टेम्पलेट डाउनलोड करें।",
+  "Missing columns: {cols}. Download the template to see the expected headers.": "कॉलम नहीं मिले: {cols}। सही हेडर देखने के लिए टेम्पलेट डाउनलोड करें।",
+  "The file has no data rows under the header.": "फ़ाइल में हेडर के नीचे कोई डेटा नहीं है।",
+  "File not found": "फ़ाइल नहीं मिली",
+  "Document not found": "दस्तावेज़ नहीं मिला",
+  "not found": "नहीं मिला",
+  "Not available.": "उपलब्ध नहीं है।",
+
+  // Sign-in and security
+  "Your session has ended. Sign in again.": "आपका सेशन ख़त्म हो गया। फिर से साइन इन करें।",
+  "Set up two-step verification first.": "पहले दो-चरण सत्यापन सेट करें।",
+  "Choose a different PIN.": "कोई दूसरा PIN चुनें।",
+  "Choose a password you haven’t used here.": "ऐसा पासवर्ड चुनें जो आपने यहाँ पहले इस्तेमाल न किया हो।",
+  "You sign in with a PIN. Change your PIN instead.": "आप PIN से साइन इन करते हैं। इसकी जगह अपना PIN बदलें।",
+  "You sign in with a password. Change your password instead.": "आप पासवर्ड से साइन इन करते हैं। इसकी जगह अपना पासवर्ड बदलें।",
+  "Too many attempts. Try again in {n} minute.": "बहुत ज़्यादा कोशिशें हुईं। {n} मिनट बाद फिर कोशिश करें।",
+  "Too many attempts. Try again in {n} minutes.": "बहुत ज़्यादा कोशिशें हुईं। {n} मिनट बाद फिर कोशिश करें।",
+  "Too many codes requested. Try again in {n} minute.": "बहुत ज़्यादा कोड माँगे गए। {n} मिनट बाद फिर कोशिश करें।",
+  "Too many codes requested. Try again in {n} minutes.": "बहुत ज़्यादा कोड माँगे गए। {n} मिनट बाद फिर कोशिश करें।",
+  "Too many lookups.": "बहुत ज़्यादा खोजें हुईं। थोड़ी देर बाद कोशिश करें।",
+  "Couldn’t send the email, try again.": "ईमेल नहीं भेजा जा सका, फिर से कोशिश करें।",
+  "Google sign-in isn't configured.": "Google साइन-इन सेट नहीं है।",
+  "Google sign-in isn’t connected.": "Google साइन-इन जुड़ा नहीं है।",
+  "Google email not verified.": "Google ईमेल सत्यापित नहीं है।",
+  "Medoro support access is read-only. Ask the pharmacy owner to make this change.": "Medoro सपोर्ट केवल देख सकता है। यह बदलाव फ़ार्मेसी के मालिक से करवाएँ।",
+  "Strict customer-controlled mode is on, so {what} is off. The owner can change this under Privacy & data.": "सख़्त ग्राहक-नियंत्रित मोड चालू है, इसलिए {what} बंद है। मालिक इसे प्राइवेसी और डेटा में बदल सकते हैं।",
+
+  // WhatsApp and SMS
+  "The connector’s WhatsApp worker isn’t running.": "कनेक्टर का WhatsApp वर्कर नहीं चल रहा है।",
+  "Not a valid mobile number": "सही मोबाइल नंबर नहीं है",
+  "Not a valid 10-digit Indian mobile number.": "सही 10 अंकों का भारतीय मोबाइल नंबर नहीं है।",
+  "WhatsApp is disconnected. Reconnect it under WhatsApp to resume sending.": "WhatsApp डिस्कनेक्ट है। भेजना फिर शुरू करने के लिए WhatsApp में दोबारा जोड़ें।",
+  "WhatsApp template “{name}” isn’t approved in Meta yet. Create or fix it in WhatsApp Manager, then Sync.": "WhatsApp टेम्पलेट “{name}” अभी Meta में मंज़ूर नहीं हुआ है। WhatsApp Manager में बनाएँ या ठीक करें, फिर Sync करें।",
+  "WhatsApp template “{name}” isn’t approved in Meta (not found). Create or fix it in WhatsApp Manager, then Sync.": "WhatsApp टेम्पलेट “{name}” Meta में नहीं मिला। WhatsApp Manager में बनाएँ या ठीक करें, फिर Sync करें।",
+  "WhatsApp: {problem}": "WhatsApp: {problem}",
+  "Meta: {problem}": "Meta: {problem}",
+  "Meta: couldn’t reach Meta ({why})": "Meta: Meta से संपर्क नहीं हो सका ({why})",
+  "SMS messages are turned off under Customer messaging.": "ग्राहक संदेश में SMS बंद हैं।",
+  "SMS gateway unreachable ({why})": "SMS गेटवे से संपर्क नहीं हो सका ({why})",
+  "MSG91 rejected the message: {why}": "MSG91 ने संदेश नहीं लिया: {why}",
+
+  // Payments, GST services
+  "Couldn’t reach Razorpay. Payment links need the internet.": "Razorpay से संपर्क नहीं हो सका। पेमेंट लिंक के लिए इंटरनेट चाहिए।",
+  "Razorpay didn’t make the link: {why}": "Razorpay ने लिंक नहीं बनाया: {why}",
+  "Razorpay: {why}": "Razorpay: {why}",
+  "E-invoice sign-in failed: {why}": "ई-इनवॉइस साइन-इन नहीं हुआ: {why}",
+  "E-way bill failed: {why}": "ई-वे बिल नहीं बना: {why}",
+  "E-way bill sign-in failed: {why}": "ई-वे बिल साइन-इन नहीं हुआ: {why}",
+  "IRP: {why}": "IRP: {why}",
+  "The e-invoice service returned HTTP {status}.": "ई-इनवॉइस सेवा ने HTTP {status} लौटाया।",
+  "Document number {no} must be 1–16 characters (A–Z, 0–9, / and -) and not start with 0, / or -.": "दस्तावेज़ नंबर {no} 1–16 अक्षरों का हो (A–Z, 0–9, / और -) और 0, / या - से शुरू न हो।",
+
+  // Google Drive, backups, counter database
+  "Couldn’t refresh Google access: {why}": "Google एक्सेस रीफ़्रेश नहीं हो सका: {why}",
+  "Google didn’t return a refresh token.": "Google ने रीफ़्रेश टोकन नहीं दिया।",
+  "Couldn’t create the {name} folder: Drive returned no folder id.": "{name} फ़ोल्डर नहीं बन सका: Drive ने फ़ोल्डर id नहीं दिया।",
+  "Couldn’t start the Drive upload: no session address.": "Drive अपलोड शुरू नहीं हो सका।",
+  "Upload failed: Drive didn’t confirm the finished file.": "अपलोड नहीं हुआ: Drive ने पूरी फ़ाइल की पुष्टि नहीं की।",
+  "Upload failed: Drive stopped accepting data.": "अपलोड नहीं हुआ: Drive ने डेटा लेना बंद कर दिया।",
+  "This file is kept in Google Drive, which couldn’t be reached: {why}": "यह फ़ाइल Google Drive में है, जिससे संपर्क नहीं हो सका: {why}",
+  "Too big for one piece; upload it in parts.": "एक बार में बहुत बड़ी है; हिस्सों में अपलोड करें।",
+  "Didn’t finish in time (the server stopped or timed out).": "समय पर पूरा नहीं हुआ (सर्वर रुक गया या समय ख़त्म हो गया)।",
+  "Verification failed: row counts differ after decrypting.": "जाँच नहीं हुई: डिक्रिप्ट करने के बाद पंक्तियों की गिनती अलग है।",
+  "Verification failed: the backup file couldn’t be read back.": "जाँच नहीं हुई: बैकअप फ़ाइल वापस पढ़ी नहीं जा सकी।",
+  "This kit’s key has fingerprint {a}, but this pharmacy’s backups use {b}. Find the kit with that fingerprint.": "इस किट की चाबी का फ़िंगरप्रिंट {a} है, लेकिन इस फ़ार्मेसी के बैकअप {b} इस्तेमाल करते हैं। उस फ़िंगरप्रिंट वाली किट ढूँढें।",
+  "The device database isn’t open.": "इस डिवाइस का डेटाबेस खुला नहीं है।",
+  "This device already has data. Reset it before restoring.": "इस डिवाइस में पहले से डेटा है। रीस्टोर करने से पहले इसे रीसेट करें।",
+  "This device no longer has the pharmacy’s key. Ask the owner to approve it again.": "इस डिवाइस के पास अब फ़ार्मेसी की चाबी नहीं है। मालिक से इसे दोबारा मंज़ूर करवाएँ।",
+  "Only an owner device can move the pharmacy. Enter the Drive recovery code.": "केवल मालिक का डिवाइस फ़ार्मेसी को मूव कर सकता है। Drive रिकवरी कोड डालें।",
+  "This database can’t be exported.": "यह डेटाबेस एक्सपोर्ट नहीं किया जा सकता।",
+  "{table} records can't be changed": "{table} के रिकॉर्ड बदले नहीं जा सकते",
 };

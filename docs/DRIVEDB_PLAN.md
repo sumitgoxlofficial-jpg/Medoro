@@ -317,6 +317,22 @@ working with me; they overlap a little.
   the counter after the STOP lifts it. Moving from Medoro brings each customer's consent. Tests: `campaigns.test.ts`,
   `whatsapp.test.ts`.
 
+- Slice 4 (built, device migrations 11–14): the last web screens with no counter version.
+  **Doctors** (`doctors.ts`, migration 11: `doctor`): doctor master, a doctor picker on Billing for Schedule H/H1
+  bills, sales by referring doctor (bills link by registration no., or by name when only one doctor has it).
+  **Recall notices** (`recalls.ts`, migration 12: `recall`): notices recorded by the owner, matched to this
+  pharmacy's batches in every branch, one-click quarantine/recall (`ops.setBatchStatus`), status per notice.
+  **Cheques** (`cheques.ts`, migration 13: `cheque`, `chequeEvent`; `customerReceipt` accepts mode `cheque`):
+  recording a cheque is the payment; deposit and clear are events; a bounce or cancel adds reversing rows, charges as
+  expenses. **Supplier tools** (`purchase-tools.ts`, migration 14): supplier e-bill import with the server's parser,
+  saved through `recordPurchase` (same file refused by fingerprint); pricing rules and margins; supplier claims that
+  take stock out and credit notes that reduce supplier dues. **Insights** (`insights.ts`, no tables): reorder
+  forecast, central buying, seasonal pre-stock, supplier prices, slow stock, anomalies, margins, and a draft order to
+  print, export or send on WhatsApp. Its settings and reviews are kept per device (not synced).
+  Not yet carried by the Medoro→Drive move: doctors, recall notices, cheques (moved as plain receipts), supplier
+  claims and terms, intelligence settings. Tests: `doctors.test.ts`, `recalls.test.ts`, `cheques.test.ts`,
+  `purchase-tools.test.ts`, `insights.test.ts`.
+
 ### Phase 6 progress (slice 1 built: customer payments by link, with an offline inbox)
 - The owner connects the pharmacy's **own Razorpay account** on the counter (Counter → Online payments; keys checked
   with Razorpay, then sealed in `Integration` kind `razorpay_pay`) and adds the pharmacy's webhook URL

@@ -1,0 +1,371 @@
+/** Hindi lines for: the public website (homepage, site header and footer). Key = the English text exactly as written in the code (see src/lib/tr.ts). */
+export const hi: Record<string, string> = {
+  // Page title and description (search results, link previews)
+  "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores": "Medoro · मेडिकल स्टोर के लिए बिलिंग, बैच स्टॉक और GST सॉफ़्टवेयर",
+  "Billing with FEFO batches, expiry control, purchases, GST and accounts, WhatsApp invoices and offline billing for Indian medical stores and small chains. Runs on infrastructure you control. 7-day free trial.":
+    "FEFO बैच के साथ बिलिंग, एक्सपायरी पर नज़र, खरीद, GST और हिसाब-किताब, WhatsApp पर बिल और बिना इंटरनेट बिलिंग, भारतीय मेडिकल स्टोर और छोटी चेन के लिए। आपके अपने कंप्यूटर या सर्वर पर चलता है। 7 दिन मुफ़्त ट्रायल।",
+
+  // Header, menu, footer
+  "Medoro home": "Medoro होम",
+  Product: "प्रोडक्ट",
+  "Switching": "Medoro पर आना",
+  Security: "सुरक्षा",
+  "Pricing@site": "कीमतें",
+  FAQ: "सवाल-जवाब",
+  "Become a partner": "पार्टनर बनें",
+  "Log in": "लॉग इन",
+  "Start 7-day free trial": "7 दिन का मुफ़्त ट्रायल",
+  "Back to home": "होम पर वापस",
+  "Billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.": "भारतीय मेडिकल स्टोर और छोटी फ़ार्मेसी चेन के लिए बिलिंग, स्टॉक, GST और हिसाब-किताब।",
+  "Monday to Saturday, 9 am to 9 pm IST": "सोमवार से शनिवार, सुबह 9 से रात 9 बजे तक",
+  Company: "कंपनी",
+  Legal: "कानूनी",
+  "Billing & POS": "बिलिंग और POS",
+  "Inventory & expiry": "स्टॉक और एक्सपायरी",
+  "GST & accounts": "GST और हिसाब-किताब",
+  "WhatsApp & refills": "WhatsApp और रीफ़िल",
+  "Offline & branches": "ऑफ़लाइन और ब्रांच",
+  "About Medoro": "Medoro के बारे में",
+  "Switching to Medoro": "Medoro पर कैसे आएँ",
+  "Security & data": "सुरक्षा और डेटा",
+  "Help & setup": "मदद और सेटअप",
+  "Backup & recovery": "बैकअप और रिकवरी",
+  Contact: "संपर्क करें",
+  "Terms of service": "सेवा की शर्तें",
+  "Cancellation & refunds": "कैंसिलेशन और रिफ़ंड",
+  "Cookie policy": "कुकी पॉलिसी",
+  "DPDP rights": "DPDP अधिकार",
+  "© 2026 Medoro. Made in Bokaro for Indian pharmacies.": "© 2026 Medoro. भारतीय फ़ार्मेसी के लिए, बोकारो में बना।",
+  "Medoro is business software. It does not give clinical advice; compliance responsibilities stay with the licensed pharmacist.":
+    "Medoro एक बिज़नेस सॉफ़्टवेयर है। यह दवा या इलाज की सलाह नहीं देता; नियमों के पालन की ज़िम्मेदारी लाइसेंसधारी फ़ार्मासिस्ट की ही रहती है।",
+
+  // Hero
+  "Pharmacy software for Indian medical stores": "भारतीय मेडिकल स्टोर के लिए फ़ार्मेसी सॉफ़्टवेयर",
+  "Bill faster.": "तेज़ बिलिंग",
+  "Waste less stock.": "कम एक्सपायरी नुकसान",
+  "Close GST on time.": "GST समय पर",
+  "Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.":
+    "Medoro मेडिकल स्टोर और छोटी फ़ार्मेसी चेन के लिए बिलिंग, बैच स्टॉक, खरीद, GST और हिसाब-किताब संभालता है। यह आपके अपने कंप्यूटर पर चलता है, और इंटरनेट बंद होने पर भी बिलिंग चलती रहती है।",
+  "Get a demo on WhatsApp": "WhatsApp पर डेमो लें",
+  "No card needed. Pay by UPI, card or netbanking only if you continue.": "कार्ड की ज़रूरत नहीं। आगे जारी रखें तभी UPI, कार्ड या नेटबैंकिंग से भुगतान करें।",
+  "Dashboard · Sanjeevani Pharmacy, FC Road": "डैशबोर्ड · संजीवनी फ़ार्मेसी, FC रोड",
+  "Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days":
+    "हिंदी में Medoro डैशबोर्ड: आज की बिक्री, मार्जिन, बकाया, 14 दिन की बिक्री और 90 दिन में एक्सपायर होने वाले बैच",
+  "The owner’s view of the same dashboard on a phone": "वही डैशबोर्ड, मालिक के फ़ोन पर",
+
+  // Standards strip
+  "Built for how Indian pharmacies work": "भारतीय मेडिकल स्टोर के काम करने के तरीक़े के हिसाब से बना",
+  "MRP-inclusive, CGST, SGST and IGST": "MRP में टैक्स शामिल, CGST, SGST और IGST",
+  "Schedule H & H1": "शेड्यूल H और H1",
+  "Prescriber captured on the bill": "बिल पर डॉक्टर का नाम दर्ज",
+  "Earliest expiry sells first": "जो पहले एक्सपायर हो, वही पहले बिके",
+  "Customer consent on record": "ग्राहक की सहमति रिकॉर्ड में",
+  "Billing on the shop network": "दुकान के नेटवर्क पर बिलिंग",
+  "Full Hindi interface": "पूरा सॉफ़्टवेयर हिंदी में",
+  "Works with": "इनके साथ चलता है",
+  "Excel and CSV": "Excel और CSV",
+  "80 mm thermal printers": "80 mm थर्मल प्रिंटर",
+  "Barcode scanners": "बारकोड स्कैनर",
+  "Chrome on any device": "किसी भी डिवाइस पर Chrome",
+  "Play the list": "सूची चलाएँ",
+  "Pause the list": "सूची रोकें",
+
+  // Where money leaks
+  "Why owners switch": "मालिक Medoro क्यों चुनते हैं",
+  "Where a medical store quietly loses money.": "मेडिकल स्टोर का पैसा चुपचाप कहाँ डूबता है।",
+  "Most of it is not theft or bad luck. It is stock nobody noticed, a slow counter on a busy evening, and hours lost to GST every month.":
+    "ज़्यादातर नुकसान चोरी या क़िस्मत से नहीं होता। वह स्टॉक जिस पर किसी की नज़र नहीं गई, भीड़ वाली शाम में धीमा काउंटर, और हर महीने GST में खपने वाले घंटे।",
+  "Stock that expires on the shelf": "रैक पर पड़े-पड़े एक्सपायर होता स्टॉक",
+  "Batches expiring in the next 90 days are listed with the loss they will cause, early enough to return them to the distributor or move them to a branch that sells them.":
+    "अगले 90 दिन में एक्सपायर होने वाले बैच, उनसे होने वाले नुकसान के साथ, समय रहते सामने आ जाते हैं, ताकि आप उन्हें डिस्ट्रीब्यूटर को लौटा सकें या उस ब्रांच में भेज सकें जहाँ वे बिकते हैं।",
+  "A queue at the counter": "काउंटर पर लंबी लाइन",
+  "Keyboard-first billing with brand, salt and barcode search. The batch is picked for you and prescription details are asked only when the medicine needs them.":
+    "कीबोर्ड से तेज़ बिलिंग, ब्रांड, सॉल्ट या बारकोड से खोज। बैच अपने-आप चुना जाता है, और पर्ची की जानकारी तभी माँगी जाती है जब दवा के लिए ज़रूरी हो।",
+  "Month-end GST and the CA’s calls": "महीने के आख़िर में GST और CA के फ़ोन",
+  "Every bill already carries its taxable value and tax split. Summaries are ready on the 1st, and your CA gets exports in the format they use.":
+    "हर बिल में टैक्सेबल वैल्यू और टैक्स का बँटवारा पहले से होता है। 1 तारीख़ को समरी तैयार, और आपके CA को उसी फ़ॉर्मेट में फ़ाइल मिलती है जो वे इस्तेमाल करते हैं।",
+  "Not knowing the numbers when you’re away": "दुकान से दूर हों तो हिसाब का पता न चलना",
+  "Sales, cash, margin and dues for every branch on your phone, with the expiry and low-stock lists that need your attention.":
+    "हर ब्रांच की बिक्री, कैश, मार्जिन और बकाया आपके फ़ोन पर, साथ में एक्सपायरी और कम स्टॉक की वे सूचियाँ जिन पर आपका ध्यान चाहिए।",
+
+  // Three keys
+  "At the counter": "काउंटर पर",
+  "A bill in three keys.": "तीन बटन में बिल।",
+  "Your staff never reach for the mouse. Search, add, finish. Medoro picks the batch that expires first and skips anything expired or quarantined.":
+    "स्टाफ़ को माउस छूने की ज़रूरत नहीं। खोजें, जोड़ें, पूरा करें। Medoro सबसे पहले एक्सपायर होने वाला बैच चुनता है, और एक्सपायर या रोका गया स्टॉक छोड़ देता है।",
+  "Add to bill": "बिल में जोड़ें",
+  "Dolo 650 · batch {batch} · exp {exp}": "Dolo 650 · बैच {batch} · एक्सपायरी {exp}",
+  "Complete sale": "बिक्री पूरी करें",
+
+  // Product tabs
+  "The product": "प्रोडक्ट",
+  "One system for the counter, the godown and your CA.": "काउंटर, गोदाम और CA, सबके लिए एक ही सिस्टम।",
+  "Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.": "ये असली स्क्रीन हैं, किसी फ़ार्मेसी के रोज़ के काम से, कोई नमूना नहीं। कोई हिस्सा चुनें और देखें कैसे काम करता है।",
+  "Medoro features": "Medoro की सुविधाएँ",
+  "Purchases & GRN": "खरीद और GRN",
+  "GST & Tally": "GST और Tally",
+  "Backups & your data": "बैकअप और आपका डेटा",
+  "Bill a Dolo strip in 3 keystrokes. FEFO picks the batch.": "Dolo की एक पत्ती का बिल 3 बटन में। बैच FEFO से अपने-आप।",
+  "F2 to search by brand, salt or barcode, Enter to add, F9 to finish. The earliest-expiring batch is picked for you, and expired or quarantined stock is blocked on the server, even if someone selects it by hand.":
+    "F2 से ब्रांड, सॉल्ट या बारकोड से खोजें, Enter से जोड़ें, F9 से पूरा करें। सबसे पहले एक्सपायर होने वाला बैच अपने-आप चुना जाता है, और एक्सपायर या रोका गया स्टॉक सर्वर पर ही रुक जाता है, चाहे कोई हाथ से चुन ले।",
+  "Schedule H and H1 items ask for the prescriber before the bill closes": "शेड्यूल H और H1 दवाओं पर बिल पूरा होने से पहले डॉक्टर का नाम माँगा जाता है",
+  "Cash, UPI, card, split and customer credit with limits": "कैश, UPI, कार्ड, बँटा हुआ भुगतान और लिमिट के साथ ग्राहक उधार",
+  "80 mm thermal and A4 invoices, held carts, returns and credit notes": "80 mm थर्मल और A4 बिल, होल्ड किए बिल, वापसी और क्रेडिट नोट",
+  "Billing screen with Dolo 650, Pan-D and Azithral 500 in the cart, batch picked by expiry, prescriber field for the Schedule H1 item and UPI payment":
+    "बिलिंग स्क्रीन: कार्ट में Dolo 650, Pan-D और Azithral 500, एक्सपायरी के हिसाब से चुना बैच, शेड्यूल H1 दवा के लिए डॉक्टर का नाम और UPI भुगतान",
+  "See what expires in 90 days while you can still return it.": "90 दिन में क्या एक्सपायर होगा, यह तब देखें जब लौटाने का समय बचा हो।",
+  "Every batch is tracked with its expiry, rack and cost. The expiry screen projects how much of each batch will not sell in time, values the loss at cost, and suggests what to do: return it to a supplier who accepts near-expiry stock, move it to another branch, or push it to regular customers.":
+    "हर बैच की एक्सपायरी, रैक और लागत दर्ज रहती है। एक्सपायरी स्क्रीन बताती है कि किस बैच का कितना माल समय पर नहीं बिकेगा, लागत पर कितना नुकसान होगा, और क्या करें: एक्सपायरी के पास वाला माल लेने वाले सप्लायर को लौटाएँ, दूसरी ब्रांच में भेजें, या नियमित ग्राहकों को बेचें।",
+  "Windows for 30, 60, 90 and 180 days, with projected loss": "30, 60, 90 और 180 दिन की सूची, अनुमानित नुकसान के साथ",
+  "Low-stock list from reorder levels and 28-day sales": "रीऑर्डर लेवल और 28 दिन की बिक्री से कम स्टॉक की सूची",
+  "Recalls quarantine the matching batches across branches": "रिकॉल होने पर सभी ब्रांच में वही बैच तुरंत रोक दिए जाते हैं",
+  "Expiry prevention, 90-day window: Benadryl Cough, Becosules, Liv 52 and Ascoril LS batches with days left, projected loss at cost and a recommendation for each":
+    "एक्सपायरी से बचाव, 90 दिन: Benadryl Cough, Becosules, Liv 52 और Ascoril LS के बैच, बचे दिन, लागत पर अनुमानित नुकसान और हर बैच के लिए सुझाव",
+  "Purchases that check the distributor’s maths.": "खरीद, जो डिस्ट्रीब्यूटर का हिसाब ख़ुद जाँचे।",
+  "Raise a purchase order, receive it against the distributor’s bill and post the GRN. Import the supplier’s e-bill file or scan the printed invoice. Nothing reaches stock until the lines are complete and your total matches the one printed on the bill.":
+    "परचेज़ ऑर्डर बनाएँ, डिस्ट्रीब्यूटर के बिल से माल मिलाएँ और GRN पोस्ट करें। सप्लायर की ई-बिल फ़ाइल इम्पोर्ट करें या छपा बिल स्कैन करें। जब तक सारी लाइनें पूरी न हों और आपका टोटल बिल पर छपे टोटल से न मिले, कुछ भी स्टॉक में नहीं जुड़ता।",
+  "Supplier e-bill import and invoice scanning, reviewed before posting": "सप्लायर ई-बिल इम्पोर्ट और बिल स्कैनिंग, पोस्ट करने से पहले जाँच",
+  "Batch, expiry, free quantity and rate on every line": "हर लाइन पर बैच, एक्सपायरी, फ़्री माल और रेट",
+  "Supplier dues with due dates and payment vouchers": "सप्लायर का बकाया, देय तारीख़ और पेमेंट वाउचर के साथ",
+  "Receiving a distributor’s invoice against a purchase order: Thyronorm 50 batch and expiry entered, the calculated total matching the printed total, ready to post the GRN":
+    "परचेज़ ऑर्डर पर डिस्ट्रीब्यूटर का बिल लेते हुए: Thyronorm 50 का बैच और एक्सपायरी भरी हुई, गणना किया टोटल छपे टोटल से मिलता हुआ, GRN पोस्ट करने को तैयार",
+  "GSTR-1 and GSTR-3B figures ready on the 1st.": "GSTR-1 और GSTR-3B के आँकड़े 1 तारीख़ को तैयार।",
+  "Prices are MRP-inclusive and every line carries its taxable value with the CGST and SGST split, or IGST for out-of-state parties. Month-end summaries are ready for filing, and your CA gets the data in the format they already use.":
+    "कीमतें MRP में टैक्स समेत होती हैं, और हर लाइन पर टैक्सेबल वैल्यू के साथ CGST-SGST का बँटवारा, या दूसरे राज्य की पार्टी के लिए IGST, दर्ज रहता है। महीने के आख़िर की समरी फ़ाइलिंग के लिए तैयार, और आपके CA को डेटा उसी फ़ॉर्मेट में मिलता है जो वे पहले से इस्तेमाल करते हैं।",
+  "GSTR-1 and GSTR-3B summaries, e-invoice for B2B bills where your turnover requires it": "GSTR-1 और GSTR-3B समरी, और टर्नओवर के हिसाब से ज़रूरी हो तो B2B बिलों का ई-इनवॉइस",
+  "Day book, P&L, trial balance and ledgers; corrections post as reversals": "डे बुक, P&L, ट्रायल बैलेंस और लेजर; सुधार रिवर्सल एंट्री से होते हैं",
+  "Exports for Tally and CSV that opens in Excel": "Tally के लिए एक्सपोर्ट, और Excel में खुलने वाली CSV",
+  "Accounting: profit and loss, cash and bank, GST summary by slab with output and input tax, and the day book":
+    "हिसाब-किताब: नफ़ा-नुकसान, कैश और बैंक, स्लैब के हिसाब से GST समरी (आउटपुट और इनपुट टैक्स), और डे बुक",
+  "The invoice reaches the customer’s phone. The refill reminder too.": "बिल सीधे ग्राहक के फ़ोन पर। दवा दोबारा लेने की याद भी।",
+  "Send the PDF invoice on WhatsApp through the official Business API and see when it is delivered and read. Customers on regular medicines get a reminder when their next refill is due, only if they have opted in.":
+    "ऑफ़िशियल Business API से PDF बिल WhatsApp पर भेजें और देखें कब पहुँचा और कब पढ़ा गया। नियमित दवा लेने वाले ग्राहकों को अगली बार दवा लेने का समय होने पर याद दिलाया जाता है, अगर उन्होंने इसके लिए हाँ कहा हो।",
+  "Delivery status with retries, and the PDF stays on your server": "डिलीवरी स्टेटस और दोबारा कोशिश, PDF आपके ही सर्वर पर रहती है",
+  "Refill reminders from each customer’s purchase interval": "हर ग्राहक के ख़रीदने के अंतराल से रीफ़िल रिमाइंडर",
+  "Loyalty points, feedback requests and recorded opt-outs": "लॉयल्टी पॉइंट, फ़ीडबैक माँगना और मना करने वालों का रिकॉर्ड",
+  "Customer messaging: refill reminders switched on, upcoming reminders for regular customers, and recorded opt-outs":
+    "ग्राहक मैसेजिंग: रीफ़िल रिमाइंडर चालू, नियमित ग्राहकों के आने वाले रिमाइंडर, और मना करने वालों का रिकॉर्ड",
+  "Internet down? The counter keeps billing.": "इंटरनेट बंद? काउंटर पर बिलिंग चालू।",
+  "Run Medoro on a PC in your shop and every counter on the shop network keeps working when the internet drops. Bills made offline sync when the connection is back, with conflicts shown for you to resolve.":
+    "Medoro को दुकान के एक PC पर चलाएँ, और इंटरनेट जाने पर भी दुकान के नेटवर्क पर हर काउंटर चलता रहेगा। ऑफ़लाइन बने बिल इंटरनेट लौटते ही सिंक हो जाते हैं, और कोई टकराव हो तो आपके सामने सुलझाने के लिए आ जाता है।",
+  "Desktop app for Windows, macOS and Linux, or open it in Chrome": "Windows, macOS और Linux के लिए डेस्कटॉप ऐप, या Chrome में खोलें",
+  "Up to 5 branches with approved stock transfers": "5 ब्रांच तक, मंज़ूरी के साथ स्टॉक ट्रांसफ़र",
+  "Branch and consolidated reports, and the owner’s view on your phone": "ब्रांच और सबकी मिली-जुली रिपोर्ट, और मालिक का व्यू आपके फ़ोन पर",
+  "Sync and offline: offline billing switched on for Counter 1, with the offline bills queue": "सिंक और ऑफ़लाइन: काउंटर 1 पर ऑफ़लाइन बिलिंग चालू, ऑफ़लाइन बिलों की कतार के साथ",
+  "Your data, your Drive.": "आपका डेटा, आपकी Drive।",
+  "Backups are encrypted on your own computer and uploaded to your own Google Drive every day. Only your recovery key opens them. Restores go to a test copy first, so you can check before anything is replaced.":
+    "बैकअप आपके अपने कंप्यूटर पर एन्क्रिप्ट होकर रोज़ आपकी अपनी Google Drive में जाता है। इसे सिर्फ़ आपकी रिकवरी की खोल सकती है। रीस्टोर पहले एक टेस्ट कॉपी में होता है, ताकि कुछ बदलने से पहले आप जाँच सकें।",
+  "Daily automatic backup, verified with integrity hashes": "रोज़ अपने-आप बैकअप, इंटेग्रिटी हैश से जाँचा हुआ",
+  "Google Drive access limited to the files Medoro creates": "Google Drive में सिर्फ़ Medoro की बनाई फ़ाइलों तक पहुँच",
+  "Full export any time: your records are never locked in": "कभी भी पूरा एक्सपोर्ट: आपका रिकॉर्ड कभी बंधक नहीं",
+  "Backup and restore: Google Drive connection, AES-256 encryption with the recovery-kit fingerprint, and a verified backup in the history":
+    "बैकअप और रीस्टोर: Google Drive कनेक्शन, रिकवरी किट फ़िंगरप्रिंट के साथ AES-256 एन्क्रिप्शन, और हिस्ट्री में जाँचा हुआ बैकअप",
+  "Ask “Aaj ki total sale kitni hai?” and get the answer from your own data.": "पूछें “आज की टोटल सेल कितनी है?” और जवाब आपके अपने डेटा से पाएँ।",
+  "The assistant answers questions about sales, stock, expiry and dues in English, Hindi or Hinglish. It shows which data it used, can draft a purchase order for you to review, and never orders, pays or changes anything on its own.":
+    "असिस्टेंट बिक्री, स्टॉक, एक्सपायरी और बकाया के सवालों का जवाब हिंदी, अंग्रेज़ी या हिंग्लिश में देता है। वह बताता है कि किस डेटा से जवाब दिया, आपके देखने के लिए परचेज़ ऑर्डर का ड्राफ़्ट बना सकता है, और अपने-आप कभी ऑर्डर, भुगतान या कोई बदलाव नहीं करता।",
+  "Runs on your server by default; outside AI only if you switch it on": "शुरू से आपके सर्वर पर चलता है; बाहरी AI तभी, जब आप चालू करें",
+  "Refuses dosage and treatment questions and refers them to the pharmacist": "दवा की खुराक या इलाज के सवाल नहीं लेता, फ़ार्मासिस्ट से पूछने को कहता है",
+  "Ctrl + J from any screen": "किसी भी स्क्रीन से Ctrl + J",
+  "Medoro AI drawer answering “Aaj ki total sale kitni hai?” with today’s sales split by cash, UPI, card and credit, then a stock lookup for Dolo 650":
+    "Medoro AI “आज की टोटल सेल कितनी है?” का जवाब दे रहा है: आज की बिक्री कैश, UPI, कार्ड और उधार में, फिर Dolo 650 का स्टॉक",
+
+  // Facts
+  "Medoro in numbers": "आँकड़ों में Medoro",
+  "-day free trial": "दिन का मुफ़्त ट्रायल",
+  "No card. Your data stays if you leave.": "कार्ड नहीं चाहिए। छोड़ें तो भी डेटा आपका ही रहता है।",
+  "/ month": "/ महीना",
+  "Starter plan for one store, GST included": "एक स्टोर के लिए Starter प्लान, GST समेत",
+  records: "रिकॉर्ड",
+  "of your pharmacy kept on Medoro’s servers": "आपकी फ़ार्मेसी के, Medoro के सर्वर पर",
+  languages: "भाषाएँ",
+  "English and हिंदी, Hinglish for the assistant": "हिंदी और English, असिस्टेंट हिंग्लिश भी समझता है",
+
+  // Comparison
+  Compared: "तुलना",
+  "What changes from the usual desktop billing software.": "आम डेस्कटॉप बिलिंग सॉफ़्टवेयर से क्या बदलता है।",
+  "Desktop software has served pharmacies well for years. This is what a store gets on top when billing, stock and accounts are connected.":
+    "डेस्कटॉप सॉफ़्टवेयर ने सालों तक फ़ार्मेसी का अच्छा साथ दिया है। जब बिलिंग, स्टॉक और हिसाब-किताब आपस में जुड़े हों, तो स्टोर को इसके ऊपर यह मिलता है।",
+  "Typical desktop pharmacy software compared with Medoro": "आम डेस्कटॉप फ़ार्मेसी सॉफ़्टवेयर और Medoro की तुलना",
+  Area: "विषय",
+  "Typical desktop software": "आम डेस्कटॉप सॉफ़्टवेयर",
+  "Typical:": "आम सॉफ़्टवेयर:",
+  "English@site": "सिर्फ़ अंग्रेज़ी",
+  "Where you can use it": "कहाँ इस्तेमाल कर सकते हैं",
+  "Usually one PC in the shop": "आम तौर पर दुकान का एक PC",
+  "Every counter, a tablet and your phone": "हर काउंटर, टैबलेट और आपका फ़ोन",
+  "A pen drive, if someone remembers": "पेन ड्राइव में, अगर किसी को याद रहे",
+  "Encrypted daily to your own Google Drive, with test restores": "रोज़ एन्क्रिप्ट होकर आपकी अपनी Google Drive में, टेस्ट रीस्टोर के साथ",
+  "A report to print and go through": "एक रिपोर्ट, जिसे छापकर देखना पड़े",
+  "90-day warning with projected loss and a return or transfer suggestion": "90 दिन पहले चेतावनी, अनुमानित नुकसान और लौटाने या ट्रांसफ़र का सुझाव",
+  "Customer invoices": "ग्राहक के बिल",
+  "Printed only": "सिर्फ़ छपे हुए",
+  "Printed, or a PDF on WhatsApp with delivery status": "छपे हुए, या WhatsApp पर PDF, डिलीवरी स्टेटस के साथ",
+  "GST month-end": "महीने के आख़िर का GST",
+  "Exported and reworked in Excel": "एक्सपोर्ट करके Excel में दोबारा काम",
+  "Summaries ready on the 1st, exports for Tally": "1 तारीख़ को समरी तैयार, Tally के लिए एक्सपोर्ट",
+  "Owner away from the shop": "मालिक दुकान से दूर",
+  "Call the shop and ask": "दुकान पर फ़ोन करके पूछें",
+  "Live sales, cash and dues on your phone": "बिक्री, कैश और बकाया, लाइव आपके फ़ोन पर",
+  "English and हिंदी; the assistant understands Hinglish": "हिंदी और English; असिस्टेंट हिंग्लिश भी समझता है",
+  "Your data": "आपका डेटा",
+  "On that PC, in the vendor’s format": "उसी PC पर, कंपनी के अपने फ़ॉर्मेट में",
+  "On infrastructure you control, full export any time": "आपके अपने कंप्यूटर या सर्वर पर, कभी भी पूरा एक्सपोर्ट",
+
+  // Switching
+  "Switch in an afternoon. Bill on Medoro the next morning.": "एक दोपहर में बदलें। अगली सुबह से Medoro पर बिलिंग।",
+  "No re-typing your catalogue. Bring your stock across from Excel, or let us do it with assisted migration.":
+    "सारी दवाएँ दोबारा टाइप करने की ज़रूरत नहीं। Excel से अपना स्टॉक ले आएँ, या यह काम हमारी टीम से करवाएँ।",
+  "Day 1, morning": "पहला दिन, सुबह",
+  "Export from your current software": "अभी के सॉफ़्टवेयर से एक्सपोर्ट करें",
+  "Most pharmacy software can export stock, batches, suppliers and customers to Excel. Send us the file on WhatsApp or keep it for the next step.":
+    "ज़्यादातर फ़ार्मेसी सॉफ़्टवेयर स्टॉक, बैच, सप्लायर और ग्राहक Excel में निकाल सकते हैं। फ़ाइल हमें WhatsApp पर भेजें, या अगले क़दम के लिए रख लें।",
+  "Day 1, afternoon": "पहला दिन, दोपहर",
+  "Import and check": "इम्पोर्ट करें और जाँचें",
+  "Medoro checks every row: expiry, GST rate, MRP against cost. Problems are listed by row and nothing is imported until the file is clean.":
+    "Medoro हर लाइन जाँचता है: एक्सपायरी, GST रेट, लागत के मुक़ाबले MRP। गड़बड़ी लाइन के हिसाब से दिखती है, और फ़ाइल ठीक होने तक कुछ भी इम्पोर्ट नहीं होता।",
+  "Day 1, evening": "पहला दिन, शाम",
+  "Set up the counters": "काउंटर तैयार करें",
+  "Connect the thermal printer and barcode scanner, add your staff with PINs and roles, and do a few test bills.":
+    "थर्मल प्रिंटर और बारकोड स्कैनर जोड़ें, स्टाफ़ को PIN और रोल के साथ जोड़ें, और कुछ टेस्ट बिल बनाएँ।",
+  "Day 2": "दूसरा दिन",
+  "Go live": "काम शुरू",
+  "Bill on Medoro from opening time. Keep the old software for reference as long as you like. We are on WhatsApp from 9 am to 9 pm.":
+    "दुकान खुलते ही Medoro पर बिलिंग करें। पुराना सॉफ़्टवेयर जब तक चाहें देखने के लिए रखें। हम सुबह 9 से रात 9 बजे तक WhatsApp पर हैं।",
+  "Start the free trial": "मुफ़्त ट्रायल शुरू करें",
+  "Assisted setup and training: {amount} once. Stock migration from ₹2,999.": "सेटअप और ट्रेनिंग हमारी टीम से: {amount} एक बार। स्टॉक माइग्रेशन ₹2,999 से।",
+
+  // Security
+  "Security and data ownership": "सुरक्षा और डेटा पर आपका हक़",
+  "Medoro runs on infrastructure you control: a PC in your shop, your own server or your own cloud account. Invoices, stock, customers and prescriptions stay there. Medoro sees your account and licence, nothing more.":
+    "Medoro आपके अपने कंट्रोल वाली जगह पर चलता है: दुकान का PC, आपका अपना सर्वर या आपका अपना क्लाउड अकाउंट। बिल, स्टॉक, ग्राहक और पर्चियाँ वहीं रहती हैं। Medoro को सिर्फ़ आपका अकाउंट और लाइसेंस दिखता है, इससे ज़्यादा कुछ नहीं।",
+  "What exactly leaves my server?": "मेरे सर्वर से बाहर ठीक-ठीक क्या जाता है?",
+  "Diagram: counters, the Medoro app and your database run in your environment. Only encrypted backups go to your Google Drive, invoice PDFs to WhatsApp when you send them, and account and licence details to Medoro.":
+    "चित्र: काउंटर, Medoro ऐप और आपका डेटाबेस आपकी अपनी जगह पर चलते हैं। बाहर सिर्फ़ यह जाता है: एन्क्रिप्टेड बैकअप आपकी Google Drive में, बिल की PDF WhatsApp पर (जब आप भेजें), और अकाउंट व लाइसेंस की जानकारी Medoro को।",
+  "Your environment": "आपकी अपनी जगह",
+  "Counters, tablets and phones": "काउंटर, टैबलेट और फ़ोन",
+  "Your database": "आपका डेटाबेस",
+  "Your Google Drive": "आपकी Google Drive",
+  "Encrypted backups Google can’t read": "एन्क्रिप्टेड बैकअप, जिन्हें Google नहीं पढ़ सकता",
+  "The customer’s number and invoice PDF, when you send one": "ग्राहक का नंबर और बिल की PDF, जब आप भेजें",
+  "Your account, plan and licence check-ins": "आपका अकाउंट, प्लान और लाइसेंस की जाँच",
+  "Roles and permissions": "रोल और अनुमतियाँ",
+  "Cashiers bill. Managers approve discounts and refunds. Owners see everything.": "कैशियर बिल बनाते हैं। मैनेजर छूट और रिफ़ंड मंज़ूर करते हैं। मालिक सब कुछ देखते हैं।",
+  "Two-step sign-in": "दो-स्टेप साइन-इन",
+  "Required for owners and managers. Lost devices can be signed out remotely.": "मालिक और मैनेजर के लिए ज़रूरी। खोया डिवाइस दूर से ही साइन आउट हो सकता है।",
+  "Tamper-evident audit trail": "छेड़छाड़ पकड़ने वाला ऑडिट रिकॉर्ड",
+  "Every void, discount, refund and stock adjustment is logged with who and when.": "हर रद्द बिल, छूट, रिफ़ंड और स्टॉक सुधार दर्ज होता है, किसने और कब, दोनों के साथ।",
+  "Encrypted backups": "एन्क्रिप्टेड बैकअप",
+  "Encrypted before they leave your computer. Only your recovery key opens them.": "आपके कंप्यूटर से निकलने से पहले ही एन्क्रिप्ट। सिर्फ़ आपकी रिकवरी की से खुलते हैं।",
+  "Consent records": "सहमति का रिकॉर्ड",
+  "WhatsApp opt-in and opt-out recorded per customer, with the date and method.": "हर ग्राहक की WhatsApp पर हाँ या ना, तारीख़ और तरीक़े के साथ दर्ज।",
+  "Leave any time": "जब चाहें छोड़ें",
+  "Full JSON export, CSV reports for your CA, and backups only your key opens.": "पूरा JSON एक्सपोर्ट, CA के लिए CSV रिपोर्ट, और बैकअप जो सिर्फ़ आपकी की से खुलें।",
+
+  // Pricing
+  "Plain prices in rupees. 7 days free.": "रुपयों में साफ़ कीमतें। 7 दिन मुफ़्त।",
+  "Prices include 18% GST. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.": "कीमतों में 18% GST शामिल है। UPI, कार्ड या नेटबैंकिंग से भुगतान करें। कभी भी बंद करें, आपका डेटा जहाँ है वहीं रहेगा।",
+  "Launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.":
+    "शुरुआती कीमतें, भारतीय रुपये में, 18% GST समेत। सालाना प्लान का भुगतान पहले होता है। WhatsApp मैसेज पर Meta का कन्वर्सेशन चार्ज लगता है। अपना सर्वर या क्लाउड होस्ट करने का ख़र्च आपका प्रोवाइडर अलग से लेता है।",
+  "Billing period": "भुगतान की अवधि",
+  Yearly: "सालाना",
+  "2 months free": "2 महीने मुफ़्त",
+  "Most stores pick this": "ज़्यादातर स्टोर यही चुनते हैं",
+  "A single medical store": "एक मेडिकल स्टोर",
+  "Busy stores with staff": "स्टाफ़ वाले व्यस्त स्टोर",
+  "Pharmacy chains": "फ़ार्मेसी चेन",
+  "{amount} billed yearly": "{amount} सालाना भुगतान",
+  "Billed monthly after the free trial": "मुफ़्त ट्रायल के बाद हर महीने भुगतान",
+  "1 branch · 2 counters · 3 users": "1 ब्रांच · 2 काउंटर · 3 यूज़र",
+  "1 branch · 5 counters · 10 users": "1 ब्रांच · 5 काउंटर · 10 यूज़र",
+  "Up to 5 branches · 15 counters · 25 users": "5 ब्रांच तक · 15 काउंटर · 25 यूज़र",
+  "GST billing with FEFO batches": "FEFO बैच के साथ GST बिलिंग",
+  "Medicine catalogue and barcode billing": "दवाओं की सूची और बारकोड बिलिंग",
+  "Expiry and low-stock alerts": "एक्सपायरी और कम स्टॉक के अलर्ट",
+  "Purchases, suppliers and dues": "खरीद, सप्लायर और बकाया",
+  "WhatsApp PDF invoices": "WhatsApp पर PDF बिल",
+  "Daily encrypted Google Drive backup": "रोज़ एन्क्रिप्टेड Google Drive बैकअप",
+  "Everything in Starter": "Starter का सब कुछ",
+  "Accounts: day book, P&L, GST summaries": "हिसाब-किताब: डे बुक, P&L, GST समरी",
+  "Customer credit and statements": "ग्राहक उधार और स्टेटमेंट",
+  "Supplier invoice scanner, reviewed first": "सप्लायर बिल स्कैनर, पहले जाँच के साथ",
+  "Roles, permissions and audit trail": "रोल, अनुमतियाँ और ऑडिट रिकॉर्ड",
+  "Billing on the shop network when the internet drops": "इंटरनेट जाने पर भी दुकान के नेटवर्क पर बिलिंग",
+  "Everything in Professional": "Professional का सब कुछ",
+  "Branch stock and approved transfers": "ब्रांच स्टॉक और मंज़ूरी वाले ट्रांसफ़र",
+  "Central purchasing": "एक जगह से खरीद",
+  "Consolidated and branch reports": "सबकी मिली-जुली और ब्रांच-वार रिपोर्ट",
+  "Anomaly review for owners": "मालिक के लिए गड़बड़ी की जाँच",
+  "Priority support, 9 am to 9 pm": "प्राथमिकता वाली मदद, सुबह 9 से रात 9 बजे",
+  "Add-on for any plan": "किसी भी प्लान के साथ जोड़ें",
+  "{amount} / month, billed yearly": "{amount} / महीना, सालाना भुगतान",
+  "{amount} / month": "{amount} / महीना",
+  "Ask in English, Hindi or Hinglish. Seasonal demand planner, invoice scanner and reorder suggestions. Runs on your server by default.":
+    "हिंदी, अंग्रेज़ी या हिंग्लिश में पूछें। मौसम के हिसाब से माँग का अंदाज़ा, बिल स्कैनर और दोबारा ऑर्डर के सुझाव। शुरू से आपके ही सर्वर पर चलता है।",
+  "Try it during the free trial": "मुफ़्त ट्रायल में आज़माएँ",
+  "One-time and extras": "एक बार का ख़र्च और अतिरिक्त",
+  "Assisted setup and training": "सेटअप और ट्रेनिंग, हमारी टीम से",
+  "{amount} once": "{amount} एक बार",
+  "Stock and data migration": "स्टॉक और डेटा माइग्रेशन",
+  "from {amount}": "{amount} से",
+  "Extra branch (Multi-branch)": "अतिरिक्त ब्रांच (Multi-branch)",
+  "Thermal printer and scanner setup": "थर्मल प्रिंटर और स्कैनर सेटअप",
+  "Not included": "शामिल नहीं",
+  "Compare all features": "सारी सुविधाओं की तुलना करें",
+  "Hide plan comparison": "प्लान की तुलना छिपाएँ",
+  "Features by plan": "प्लान के हिसाब से सुविधाएँ",
+  Feature: "सुविधा",
+  "Counters / devices": "काउंटर / डिवाइस",
+  "Up to 5": "5 तक",
+  "GST billing, FEFO, expiry alerts": "GST बिलिंग, FEFO, एक्सपायरी अलर्ट",
+  "Encrypted Drive backups": "एन्क्रिप्टेड Drive बैकअप",
+  "Accounts, P&L, GST summaries": "हिसाब-किताब, P&L, GST समरी",
+  "Invoice scanner": "बिल स्कैनर",
+  "Shop-network billing without internet": "बिना इंटरनेट दुकान के नेटवर्क पर बिलिंग",
+  "Branch transfers, consolidated reports": "ब्रांच ट्रांसफ़र, मिली-जुली रिपोर्ट",
+  "Priority support": "प्राथमिकता वाली मदद",
+
+  // FAQ
+  "Questions owners ask us.": "मालिक हमसे जो पूछते हैं।",
+  "Something else? Message us on WhatsApp and someone who knows pharmacy billing will reply.": "कुछ और पूछना है? हमें WhatsApp पर मैसेज करें, फ़ार्मेसी बिलिंग समझने वाला कोई व्यक्ति जवाब देगा।",
+  "Data and privacy": "डेटा और प्राइवेसी",
+  "Switching and pricing": "Medoro पर आना और कीमतें",
+  "Does Medoro handle GST billing?": "क्या Medoro GST बिलिंग करता है?",
+  "Yes. Prices are MRP-inclusive and Medoro works out the taxable value with the CGST and SGST split, or IGST for out-of-state parties, on every line. Invoices are numbered per branch and financial year. Month-end GST summaries and exports are ready for your CA. Have your CA confirm the setup for your business.":
+    "हाँ। कीमतें MRP में टैक्स समेत होती हैं, और Medoro हर लाइन पर टैक्सेबल वैल्यू के साथ CGST-SGST का बँटवारा, या दूसरे राज्य की पार्टी के लिए IGST, निकालता है। बिल नंबर हर ब्रांच और वित्त वर्ष के हिसाब से चलते हैं। महीने के आख़िर की GST समरी और एक्सपोर्ट आपके CA के लिए तैयार रहते हैं। अपने बिज़नेस के लिए सेटअप एक बार अपने CA से ज़रूर जँचवा लें।",
+  "Can it stop expired medicines from being sold?": "क्या यह एक्सपायर दवा को बिकने से रोक सकता है?",
+  "Yes. Billing picks the earliest-expiring sellable batch automatically. Expired, quarantined and recalled batches are blocked on the server, even if someone tries to add them by hand.":
+    "हाँ। बिलिंग में सबसे पहले एक्सपायर होने वाला बिकने लायक बैच अपने-आप चुना जाता है। एक्सपायर, रोके गए और रिकॉल हुए बैच सर्वर पर ही रुक जाते हैं, चाहे कोई उन्हें हाथ से जोड़ने की कोशिश करे।",
+  "Does it work without internet?": "क्या यह बिना इंटरनेट चलता है?",
+  "Yes, when Medoro runs on a PC in your shop: every counter on the shop network keeps billing while the internet is down, and WhatsApp messages and backups go out when it is back. Installed counters can also bill offline and sync when they reconnect.":
+    "हाँ, जब Medoro दुकान के PC पर चलता है: इंटरनेट बंद होने पर भी दुकान के नेटवर्क पर हर काउंटर बिल बनाता रहता है, और इंटरनेट लौटते ही WhatsApp मैसेज और बैकअप चले जाते हैं। इंस्टॉल किए काउंटर भी ऑफ़लाइन बिल बना सकते हैं और दोबारा जुड़ने पर सिंक हो जाते हैं।",
+  "Do I need to install anything?": "क्या कुछ इंस्टॉल करना पड़ेगा?",
+  "Install the desktop app for Windows, macOS or Linux on the shop PC, or open Medoro in Chrome on any PC, tablet or phone.":
+    "दुकान के PC पर Windows, macOS या Linux का डेस्कटॉप ऐप इंस्टॉल करें, या किसी भी PC, टैबलेट या फ़ोन पर Chrome में Medoro खोलें।",
+  "Can my staff use it in Hindi?": "क्या मेरा स्टाफ़ इसे हिंदी में चला सकता है?",
+  "Yes. Each person can switch the interface between English and हिंदी. The assistant understands English, Hindi and Hinglish.":
+    "हाँ। हर व्यक्ति अपनी स्क्रीन English या हिंदी में बदल सकता है। असिस्टेंट हिंदी, अंग्रेज़ी और हिंग्लिश तीनों समझता है।",
+  "Where is my data stored?": "मेरा डेटा कहाँ रहता है?",
+  "In a database you control: a PC in your shop, your own server or your own cloud account. Medoro’s servers hold only your account, plan, licence and the support tickets you send. You can export everything, any time.":
+    "आपके अपने कंट्रोल वाले डेटाबेस में: दुकान का PC, आपका अपना सर्वर या आपका अपना क्लाउड अकाउंट। Medoro के सर्वर पर सिर्फ़ आपका अकाउंट, प्लान, लाइसेंस और आपके भेजे सपोर्ट टिकट रहते हैं। आप कभी भी सब कुछ एक्सपोर्ट कर सकते हैं।",
+  "What leaves my server?": "मेरे सर्वर से बाहर क्या जाता है?",
+  "Only what you turn on. Medoro’s licence server gets your pharmacy name and owner contact once, then the app version and branch and counter counts at each check-in. WhatsApp gets the customer number and the invoice PDF. Google Drive gets encrypted backup files it cannot read. Outside AI is off unless you switch it on, and the settings show exactly what would be sent.":
+    "सिर्फ़ वही जो आप चालू करें। Medoro के लाइसेंस सर्वर को एक बार आपकी फ़ार्मेसी का नाम और मालिक का संपर्क मिलता है, फिर हर जाँच पर ऐप का वर्ज़न और ब्रांच व काउंटर की गिनती। WhatsApp को ग्राहक का नंबर और बिल की PDF मिलती है। Google Drive को एन्क्रिप्टेड बैकअप फ़ाइलें मिलती हैं, जिन्हें वह पढ़ नहीं सकता। बाहरी AI तब तक बंद रहता है जब तक आप चालू न करें, और सेटिंग में साफ़ दिखता है कि क्या भेजा जाएगा।",
+  "Does the AI give medical advice?": "क्या AI दवा या इलाज की सलाह देता है?",
+  "No. It answers business questions about sales, stock, expiry and dues. It refuses dosage or treatment questions and refers them to the pharmacist.":
+    "नहीं। यह बिक्री, स्टॉक, एक्सपायरी और बकाया जैसे बिज़नेस के सवालों का जवाब देता है। खुराक या इलाज के सवाल नहीं लेता और फ़ार्मासिस्ट से पूछने को कहता है।",
+  "Can I move my data from my current software?": "क्या मैं अपने अभी के सॉफ़्टवेयर से डेटा ला सकता हूँ?",
+  "Yes. Export medicines, batches, suppliers and customers to Excel or CSV from your current software and import them into Medoro. Every row is checked and nothing is imported until the file is clean. Assisted migration is available as a one-time service.":
+    "हाँ। अपने अभी के सॉफ़्टवेयर से दवाएँ, बैच, सप्लायर और ग्राहक Excel या CSV में निकालें और Medoro में इम्पोर्ट करें। हर लाइन जाँची जाती है, और फ़ाइल ठीक होने तक कुछ भी इम्पोर्ट नहीं होता। चाहें तो यह काम एक बार की फ़ीस पर हमारी टीम कर देगी।",
+  "How long is the free trial?": "मुफ़्त ट्रायल कितने दिन का है?",
+  "7 days, no card needed. After that there are 7 days of grace, then Medoro turns read-only until you pay: your data stays where it is, and viewing, exports and backups keep working. Pay online by UPI, card or netbanking from the Subscription page. Plans never renew on their own.":
+    "7 दिन, कार्ड की ज़रूरत नहीं। उसके बाद 7 दिन की छूट मिलती है, फिर भुगतान होने तक Medoro सिर्फ़ देखने के लिए खुलता है: आपका डेटा जहाँ है वहीं रहता है, और देखना, एक्सपोर्ट और बैकअप चलते रहते हैं। सब्सक्रिप्शन पेज से UPI, कार्ड या नेटबैंकिंग से ऑनलाइन भुगतान करें। प्लान कभी अपने-आप रिन्यू नहीं होते।",
+  "How do I cancel?": "बंद कैसे करें?",
+  "In the app, open Subscription and choose Cancel subscription, any time. The plan stays active until the end of the paid period, then the software goes read-only. Your data stays on your server and can always be exported.":
+    "ऐप में सब्सक्रिप्शन खोलें और ‘सब्सक्रिप्शन रद्द करें’ चुनें, कभी भी। भुगतान की गई अवधि ख़त्म होने तक प्लान चालू रहता है, फिर सॉफ़्टवेयर सिर्फ़ देखने के लिए रह जाता है। आपका डेटा आपके सर्वर पर रहता है और हमेशा एक्सपोर्ट किया जा सकता है।",
+
+  // Closing call to action
+  "Set up your counter this afternoon.": "आज दोपहर ही अपना काउंटर तैयार करें।",
+  "Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.":
+    "7 दिन का ट्रायल शुरू करें, Excel से अपना स्टॉक इम्पोर्ट करें, और कल से Medoro पर बिलिंग करें। हर क़दम पर हम WhatsApp पर साथ हैं।",
+  "Skip to content": "सीधे मुख्य हिस्से पर जाएँ",
+};

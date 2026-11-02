@@ -23,6 +23,11 @@ import * as money from "./money";
 import * as dash from "./dashboard";
 import * as camp from "./campaigns";
 import * as msgs from "./messages";
+import * as doctors from "./doctors";
+import * as recalls from "./recalls";
+import * as cheques from "./cheques";
+import * as ptools from "./purchase-tools";
+import * as intel from "./insights";
 // @@IMPORTS (one line per counter feature module)
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
@@ -280,10 +285,55 @@ const handlers = {
   finAutoReconcile: (userId: string) => money.autoReconcile(need(), userId),
   finReports: (from: string, to: string) => money.finReports(need(), from, to),
   // @@WORKER doctors
+  // Doctor master and sales by referring doctor (src/drivedb/doctors.ts).
+  listDoctors: (opts?: { q?: string; all?: boolean }) => doctors.listDoctors(need(), opts),
+  addDoctor: (input: Parameters<typeof doctors.addDoctor>[1]) => doctors.addDoctor(need(), input),
+  updateDoctor: (id: string, input: Parameters<typeof doctors.updateDoctor>[2]) => doctors.updateDoctor(need(), id, input),
+  doctorSales: (from: string, to: string, branchId: string) => doctors.doctorSales(need(), from, to, branchId),
   // @@WORKER recalls
+  // Recall notices matched to stock in every branch (src/drivedb/recalls.ts).
+  listRecalls: () => recalls.listRecalls(need(), seed.counterConfig(need())?.branches ?? []),
+  addRecall: (input: Parameters<typeof recalls.addRecall>[1]) => recalls.addRecall(need(), input),
+  blockRecall: (input: Parameters<typeof recalls.blockRecall>[1]) => recalls.blockRecall(need(), input),
+  setRecallStatus: (id: string, status: recalls.RecallStatus) => recalls.setRecallStatus(need(), id, status),
   // @@WORKER cheques
+  // Cheques received and issued (src/drivedb/cheques.ts).
+  listCheques: (open?: boolean) => cheques.listCheques(need(), { open }),
+  chequeTotals: () => cheques.chequeTotals(need()),
+  chequesDue: (days?: number) => cheques.chequesDue(need(), days),
+  recordCheque: (input: Parameters<typeof cheques.recordCheque>[1]) => cheques.recordCheque(need(), input),
+  depositCheque: (id: string, userId: string) => cheques.depositCheque(need(), id, userId),
+  clearCheque: (id: string, on: string | undefined, userId: string) => cheques.clearCheque(need(), id, on, userId),
+  bounceCheque: (input: Parameters<typeof cheques.bounceCheque>[1]) => cheques.bounceCheque(need(), input),
+  cancelCheque: (input: Parameters<typeof cheques.cancelCheque>[1]) => cheques.cancelCheque(need(), input),
   // @@WORKER purchase tools
+  // Purchase tools: supplier e-bill import, pricing and margins, supplier claims (src/drivedb/purchase-tools.ts).
+  pricingRules: () => ptools.pricingRules(need()),
+  savePricingRules: (input: Parameters<typeof ptools.savePricingRules>[1]) => ptools.savePricingRules(need(), input),
+  marginReport: (opts?: Parameters<typeof ptools.marginReport>[1]) => ptools.marginReport(need(), opts),
+  priceHistory: (medicineId: string) => ptools.priceHistory(need(), medicineId),
+  supplierTermsList: () => ptools.supplierTermsList(need()),
+  saveSupplierTerms: (input: Parameters<typeof ptools.saveSupplierTerms>[1]) => ptools.saveSupplierTerms(need(), input),
+  ebillPreview: (input: Parameters<typeof ptools.ebillPreview>[1]) => ptools.ebillPreview(need(), input),
+  ebillSave: (input: Parameters<typeof ptools.ebillSave>[1]) => ptools.ebillSave(need(), input),
+  ebillHistory: () => ptools.ebillHistory(need()),
+  claimList: () => ptools.listClaims(need()),
+  claimSuggestions: (branchId: string) => ptools.claimSuggestions(need(), branchId),
+  claimBatches: (medicineId: string, branchId: string) => ptools.claimBatches(need(), medicineId, branchId),
+  raiseClaim: (input: Parameters<typeof ptools.raiseClaim>[1]) => ptools.raiseClaim(need(), input),
+  acknowledgeClaim: (input: Parameters<typeof ptools.acknowledgeClaim>[1]) => ptools.acknowledgeClaim(need(), input),
+  creditClaim: (input: Parameters<typeof ptools.creditClaim>[1]) => ptools.creditClaim(need(), input),
   // @@WORKER intelligence
+  // Stock intelligence: forecasts, reorder draft list, prices, anomalies, margins (src/drivedb/insights.ts).
+  intelligence: (branchId: string, branches?: { id: string; name: string }[]) => intel.insights(need(), branchId, { branches }),
+  intelSeasonal: (branchId: string) => intel.seasonal(need(), branchId),
+  intelSaveSettings: (patch: Partial<intel.IntelSettings>) => intel.saveIntelSettings(need(), patch),
+  intelReview: (key: string, label: string, by: string) => intel.markReviewed(need(), key, label, by),
+  intelDraft: () => intel.draftView(need()),
+  intelAddToDraft: (lines: intel.DraftLine[]) => { intel.addToDraft(need(), lines); return intel.draftView(need()); },
+  intelSaveDraft: (lines: intel.DraftLine[]) => { intel.saveDraft(need(), lines); return intel.draftView(need()); },
+  intelSuggestions: (branchId: string) => intel.suggestionLines(need(), branchId),
+  intelLinesFor: (branchId: string, items: { medicineId: string; qty: number }[]) => intel.linesFor(need(), branchId, items),
   counts: () => ({ medicines: need().from("medicine").count(), bills: need().from("sale").count(), pendingChanges: need().pendingChanges(100000).length }),
   /** Joins Drive sync: registers this device and opens its keys. Returns approved / pending / removed. */
   connect,

@@ -24,14 +24,15 @@ const modes = z.enum(["cash", "upi", "bank", "cheque"]);
 
 // ---------- suppliers ----------
 
-/** What each supplier is owed: purchase bills less payments. */
+/** What each supplier is owed: purchase bills less payments and credit notes received against claims. */
 export function supplierDues(db: DriveDB) {
-  return db.engine.all<{ id: string; name: string; gstin: string | null; billed: number; paid: number }>(
+  return db.engine.all<{ id: string; name: string; gstin: string | null; billed: number; paid: number; credited: number }>(
     `SELECT s.id, s.name, s.gstin,
             (SELECT COALESCE(SUM(totalPaise), 0) FROM purchase p WHERE p.supplierId = s.id) AS billed,
-            (SELECT COALESCE(SUM(amountPaise), 0) FROM supplierPayment x WHERE x.supplierId = s.id) AS paid
+            (SELECT COALESCE(SUM(amountPaise), 0) FROM supplierPayment x WHERE x.supplierId = s.id) AS paid,
+            (SELECT COALESCE(SUM(amountPaise), 0) FROM claimEvent c WHERE c.supplierId = s.id AND c.kind = 'credit') AS credited
        FROM supplier s WHERE s.deletedAt IS NULL ORDER BY s.name COLLATE NOCASE`)
-    .map((r) => ({ ...r, billed: n(r.billed), paid: n(r.paid), duePaise: n(r.billed) - n(r.paid) }));
+    .map((r) => ({ ...r, billed: n(r.billed), paid: n(r.paid), credited: n(r.credited), duePaise: n(r.billed) - n(r.paid) - n(r.credited) }));
 }
 
 export const supplierPaymentInput = z.object({ supplierId: z.string().min(1), amountPaise: money, mode: modes, ref: z.string().trim().max(60).optional(), userId: z.string().min(1) });
@@ -48,11 +49,13 @@ export function paySupplier(db: DriveDB, input: z.input<typeof supplierPaymentIn
   });
 }
 
-/** A supplier's bills and payments, oldest first, with the running balance. */
+/** A supplier's bills, payments and claim credit notes, oldest first, with the running balance. */
 export function supplierLedger(db: DriveDB, supplierId: string) {
   const rows = db.engine.all<{ at: string; kind: string; ref: string; amount: number }>(
     `SELECT at, 'bill' AS kind, billNo AS ref, totalPaise AS amount FROM purchase WHERE supplierId = ?1
      UNION ALL SELECT at, 'payment' AS kind, COALESCE(ref, mode) AS ref, -amountPaise AS amount FROM supplierPayment WHERE supplierId = ?1
+     UNION ALL SELECT e.at, 'credit' AS kind, COALESCE(e.ref, '') || ' · ' || c.claimNo AS ref, -e.amountPaise AS amount
+       FROM claimEvent e JOIN supplierClaim c ON c.id = e.claimId WHERE e.supplierId = ?1 AND e.kind = 'credit'
      ORDER BY at`, [supplierId]);
   let bal = 0;
   return rows.map((r) => { bal += n(r.amount); return { ...r, amount: n(r.amount), balancePaise: bal }; });

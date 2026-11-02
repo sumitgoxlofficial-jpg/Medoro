@@ -4,6 +4,7 @@ import { listBranchTransfers } from "@/domain/inventory/adjust";
 import { racksInUse } from "@/domain/inventory/catalog";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
+import { tFor } from "@/lib/tr";
 import { InventoryView } from "./view";
 
 export const metadata = { title: "Inventory" };
@@ -16,7 +17,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const [list, detail, transfers, racks] = await Promise.all([listInventory(ctx, sp.q ?? "", filter, sp.rack ?? ""), sp.sel ? medicineDetail(ctx, sp.sel) : null, listBranchTransfers(ctx), racksInUse(ctx)]);
   return (
     <>
-      <PageHead title={t(ctx.lang).inv} sub={`Catalogue, batches and stock ledger · ${ctx.branchName}`} />
+      <PageHead title={t(ctx.lang).inv} sub={tFor(ctx.lang)("Catalogue, batches and stock ledger · {branch}", { branch: ctx.branchName })} />
       <InventoryView
         list={list} detail={detail} q={sp.q ?? ""} filter={filter} rack={sp.rack ?? ""} racks={racks} openAdd={sp.add === "1"} tab={tab} transfers={transfers}
         canEdit={can(ctx, "adjust") || can(ctx, "purchase")} canAdjust={can(ctx, "adjust")} canPurchase={can(ctx, "purchase")}

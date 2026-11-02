@@ -7,6 +7,8 @@ import { deviceDb, deviceId } from "@/drivedb/device";
 import type { MoveBase } from "@/domain/system/drive-move";
 import type { MoveCheck } from "@/drivedb/migrate-in";
 import { card, errText, type Cfg } from "@/components/device/ui";
+import { useLang, useT } from "@/lib/i18n-client";
+import { localeOf } from "@/lib/tr";
 import { completeMoveAction, moveExportAction, moveStatusAction, startMoveAction, undoMoveAction } from "../lab/actions";
 import { RecoveryCodeCard } from "./drive-panel";
 
@@ -27,11 +29,13 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   const [needCode, setNeedCode] = useState(false);
   const [code, setCode] = useState("");
   const [pilotNote, setPilotNote] = useState<string | null>(null);
+  const t = useT();
+  const lang = useLang();
 
   const unwrap = <T,>(r: { ok: true; data: T } | { ok: false; error: string }): T => { if (!r.ok) throw new Error(r.error); return r.data; };
 
   const go = async () => {
-    if (!confirm("Move all of this pharmacy’s data from Medoro into your Google Drive?\n\nWhile it moves, Medoro’s copy is read-only: bill on this device. You can undo the move for 7 days. After that, Medoro’s copy is deleted.")) return;
+    if (!confirm(`${t("Move all of this pharmacy’s data from Medoro into your Google Drive?")}\n\n${t("While it moves, Medoro’s copy is read-only: bill on this device. You can undo the move for 7 days. After that, Medoro’s copy is deleted.")}`)) return;
     try {
       // Drive mode pilot: bills already in Drive are read first and added on top of Medoro's data.
       setStep({ kind: "copying", what: "what is already in your Google Drive", done: 0 });
@@ -42,7 +46,7 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
         throw e;
       }
       setNeedCode(false);
-      if (found.found) setPilotNote(`Your Google Drive already has ${found.bills} ${found.bills === 1 ? "bill" : "bills"}, ${found.returns} credit notes, ${found.purchases} purchase bills and ${found.receipts} payments from the Drive mode pilot. They are added after Medoro’s data and checked again; other counters then rebuild from the new copy.`);
+      if (found.found) setPilotNote(t(found.bills === 1 ? "Your Google Drive already has 1 bill, {returns} credit notes, {purchases} purchase bills and {receipts} payments from the Drive mode pilot. They are added after Medoro’s data and checked again; other counters then rebuild from the new copy." : "Your Google Drive already has {bills} bills, {returns} credit notes, {purchases} purchase bills and {receipts} payments from the Drive mode pilot. They are added after Medoro’s data and checked again; other counters then rebuild from the new copy.", { bills: found.bills, returns: found.returns, purchases: found.purchases, receipts: found.receipts }));
       unwrap(await startMoveAction());
       setStep({ kind: "copying", what: "medicines, stock and customers", done: 0 });
       const base = unwrap(await moveExportAction("base")) as MoveBase;
@@ -80,7 +84,7 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   };
 
   const cancel = async () => {
-    if (!confirm("Cancel the move? Medoro’s copy goes back to normal and this device is cleared.")) return;
+    if (!confirm(t("Cancel the move? Medoro’s copy goes back to normal and this device is cleared."))) return;
     try { unwrap(await undoMoveAction()); await dev.call("wipe"); setStep({ kind: "idle" }); toast("Move cancelled. Medoro’s copy is in use again.", "green"); }
     catch (e) { toast(errText(e), "red"); }
   };
@@ -88,8 +92,8 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   if (step.kind === "code") {
     return (
       <div className="flex flex-col gap-3">
-        <div className={card}><div className="flex items-center gap-2 font-semibold text-[15px]"><CheckCircle2 size={18} className="text-teal" />Moved and checked</div>
-          <div className="text-sm text-muted">All {step.checks} checks matched and the data is saved in your Google Drive, encrypted. Medoro’s copy stays read-only; you can undo the move for 7 days, then it is deleted.</div></div>
+        <div className={card}><div className="flex items-center gap-2 font-semibold text-[15px]"><CheckCircle2 size={18} className="text-teal" />{t("Moved and checked")}</div>
+          <div className="text-sm text-muted">{t("All {n} checks matched and the data is saved in your Google Drive, encrypted. Medoro’s copy stays read-only; you can undo the move for 7 days, then it is deleted.", { n: step.checks })}</div></div>
         <RecoveryCodeCard code={step.code} onDone={() => ready(step.cfg)} />
       </div>
     );
@@ -98,33 +102,33 @@ export function MoveFromMedoro({ userId, ready }: { userId: string; ready: (c: C
   const busy = step.kind === "copying" || step.kind === "checking" || step.kind === "saving";
   return (
     <div className={card} data-testid="move-card">
-      <div className="flex items-center gap-2 font-semibold"><CloudUpload size={18} className="text-teal" />Move all my data from Medoro</div>
-      <div className="text-sm text-muted">Copies every medicine, batch, customer, supplier, bill, credit note and purchase onto this device, checks that the counts and totals match Medoro’s exactly, then saves it to your Google Drive, encrypted with a key only you hold. After that, Medoro keeps no working copy: its copy stays read-only for 7 days (you can undo the move then), and is then deleted, or sooner when you confirm.</div>
-      {needCode && step.kind === "idle" && <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Drive recovery code (XXXX-XXXX-…)" aria-label="Drive recovery code" className="border border-line rounded-lg px-3 h-9 text-sm font-mono" />}
-      {step.kind === "idle" && <Button variant="primary" className="self-start" onClick={go} disabled={needCode && code.trim().length < 20}>Move all my data</Button>}
+      <div className="flex items-center gap-2 font-semibold"><CloudUpload size={18} className="text-teal" />{t("Move all my data from Medoro")}</div>
+      <div className="text-sm text-muted">{t("Copies every medicine, batch, customer, supplier, bill, credit note and purchase onto this device, checks that the counts and totals match Medoro’s exactly, then saves it to your Google Drive, encrypted with a key only you hold. After that, Medoro keeps no working copy: its copy stays read-only for 7 days (you can undo the move then), and is then deleted, or sooner when you confirm.")}</div>
+      {needCode && step.kind === "idle" && <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("Drive recovery code (XXXX-XXXX-…)")} aria-label={t("Drive recovery code")} className="border border-line rounded-lg px-3 h-9 text-sm font-mono" />}
+      {step.kind === "idle" && <Button variant="primary" className="self-start" onClick={go} disabled={needCode && code.trim().length < 20}>{t("Move all my data")}</Button>}
       {pilotNote && <div className="text-[13px] text-ink-2" data-testid="pilot-note">{pilotNote}</div>}
-      {step.kind === "copying" && <div className="text-sm" role="status">Copying {step.what}… {step.done ? step.done.toLocaleString("en-IN") : ""}</div>}
-      {step.kind === "checking" && <div className="text-sm" role="status">Checking counts and totals against Medoro…</div>}
-      {step.kind === "saving" && <div className="text-sm" role="status">Saving to your Google Drive…</div>}
-      {warnings.length > 0 && <ul className="text-[13px] text-muted list-disc pl-5">{warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+      {step.kind === "copying" && <div className="text-sm" role="status">{t("Copying {what}…", { what: t(step.what) })} {step.done ? step.done.toLocaleString(localeOf(lang)) : ""}</div>}
+      {step.kind === "checking" && <div className="text-sm" role="status">{t("Checking counts and totals against Medoro…")}</div>}
+      {step.kind === "saving" && <div className="text-sm" role="status">{t("Saving to your Google Drive…")}</div>}
+      {warnings.length > 0 && <ul className="text-[13px] text-muted list-disc pl-5">{warnings.map((w) => <li key={w}>{t(w)}</li>)}</ul>}
       {step.kind === "failed" && (
         <>
-          {step.error && <div className="text-sm text-bad">{step.error}</div>}
+          {step.error && <div className="text-sm text-bad">{t(step.error)}</div>}
           {step.checks.length > 0 && (
             <>
-              <div className="text-sm text-bad">The copy on this device doesn’t match Medoro’s, so it wasn’t used. Nothing changed in Medoro.</div>
+              <div className="text-sm text-bad">{t("The copy on this device doesn’t match Medoro’s, so it wasn’t used. Nothing changed in Medoro.")}</div>
               <ul className="text-[13px] flex flex-col gap-0.5">
-                {step.checks.filter((c) => !c.ok).map((c) => <li key={c.name} className="flex gap-1.5 items-start"><XCircle size={14} className="text-bad mt-0.5 shrink-0" />{c.name}: expected {c.expected}, found {c.got}{c.detail ? ` (${c.detail})` : ""}</li>)}
+                {step.checks.filter((c) => !c.ok).map((c) => <li key={c.name} className="flex gap-1.5 items-start"><XCircle size={14} className="text-bad mt-0.5 shrink-0" />{t("{name}: expected {expected}, found {got}", { name: t(c.name), expected: c.expected, got: c.got })}{c.detail ? ` (${t(c.detail)})` : ""}</li>)}
               </ul>
             </>
           )}
           <div className="flex gap-2 flex-wrap">
-            <Button variant="primary" onClick={() => (step.retrySave ? save(step.retrySave) : go())}>Try again</Button>
-            <Button variant="danger-outline" onClick={cancel}>Cancel the move</Button>
+            <Button variant="primary" onClick={() => (step.retrySave ? save(step.retrySave) : go())}>{t("Try again")}</Button>
+            <Button variant="danger-outline" onClick={cancel}>{t("Cancel the move")}</Button>
           </div>
         </>
       )}
-      {busy && <div className="text-[13px] text-muted">Keep this page open.</div>}
+      {busy && <div className="text-[13px] text-muted">{t("Keep this page open.")}</div>}
     </div>
   );
 }
@@ -135,6 +139,7 @@ export function FinishMove() {
   const dev = deviceDb();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const t = useT();
   useEffect(() => {
     void Promise.all([moveStatusAction(), dev.call("config")]).then(([st, cfg]) => setShow(st.ok && st.data?.state === "moving" && !!cfg?.movedFromMedoro), () => {});
   }, [dev]);
@@ -154,9 +159,9 @@ export function FinishMove() {
   };
   return (
     <div className={card}>
-      <div className="flex items-center gap-2 font-semibold text-[15px]"><CloudUpload size={18} className="text-teal" />Finish moving to Google Drive</div>
-      <div className="text-sm text-muted">Your data is on this device and checked. Save it to Google Drive, then finish the move. Until then, Medoro’s copy stays read-only.</div>
-      <Button variant="primary" className="self-start" onClick={finish} disabled={busy}>{busy ? "Finishing…" : "Finish the move"}</Button>
+      <div className="flex items-center gap-2 font-semibold text-[15px]"><CloudUpload size={18} className="text-teal" />{t("Finish moving to Google Drive")}</div>
+      <div className="text-sm text-muted">{t("Your data is on this device and checked. Save it to Google Drive, then finish the move. Until then, Medoro’s copy stays read-only.")}</div>
+      <Button variant="primary" className="self-start" onClick={finish} disabled={busy}>{busy ? t("Finishing…") : t("Finish the move")}</Button>
     </div>
   );
 }

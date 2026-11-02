@@ -14,6 +14,7 @@ import { READY, type ScreenId } from "@/lib/nav";
 import type { Dict } from "@/lib/i18n";
 import type { DashboardData, Range } from "@/domain/reports/dashboard";
 import { dashboardAccess } from "@/domain/reports/dashboard-access";
+import { useT } from "@/lib/i18n-client";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col";
 const rangeLabel = { today: "today", "7d": "last 7 days", "30d": "last 30 days" };
@@ -27,6 +28,7 @@ function Go({ screen, href, children, className }: { screen: ScreenId; href: str
 export function DashActions({ range, data, branch, canExport }: { range: Range; data: DashboardData; branch: string; canExport: boolean }) {
   const router = useRouter();
   const toast = useToast();
+  const t = useT();
   return (
     <div className="flex gap-2 items-center">
       <div className="inline-flex gap-px bg-white border border-line p-0.5 rounded-lg">
@@ -42,12 +44,13 @@ export function DashActions({ range, data, branch, canExport }: { range: Range; 
           ["Receivables (₹)", k.receivable / 100], ["Payables (₹)", k.payable / 100],
         ]);
         toast("CSV exported (generated on this device)", "green");
-      }}><Download size={15} />Export</Button> : null}
+      }}><Download size={15} />{t("Export")}</Button> : null}
     </div>
   );
 }
 
-export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict: Dict; perms: string[] }) {
+export function Dashboard({ data, dict: d, perms }: { data: DashboardData; dict: Dict; perms: string[] }) {
+  const t = useT();
   const k = data.kpi;
   const delta = (v: number, suffix: string, goodUp: boolean) => {
     const up = v >= 0, good = goodUp ? up : !up;
@@ -57,13 +60,13 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
   const marginDelta = k.margin != null && k.margin7 != null ? delta(k.margin - k.margin7, " pts", true) : null;
   const { fin, pay, activity: showActivity } = dashboardAccess(perms);
   const kpis = [
-    { label: data.range === "today" ? t.sales : `Sales, ${rangeLabel[data.range]}`, value: inr0(k.sales), Icon: IndianRupee, ibg: "#E1F1EF", ifg: "#0B5E5B", d: salesDelta, sub: `${salesDelta ? "vs previous · " : ""}${k.bills} bill${k.bills === 1 ? "" : "s"}` },
-    { label: t.margin, value: k.margin == null ? "—" : k.margin.toFixed(1) + "%", Icon: Percent, ibg: "#EAF0FC", ifg: "#2459C9", d: marginDelta, sub: marginDelta ? "vs 7-day average" : k.margin == null ? "No sales yet" : "On sales so far" },
-    { label: t.purch, value: inr0(k.purchases), Icon: Truck, ibg: "#F1EEFB", ifg: "#5B45B0", d: null, sub: `${k.grnCount} GRN${k.grnCount === 1 ? "" : "s"} posted` },
-    { label: t.expn, value: inr0(k.expenses), Icon: Receipt, ibg: "#F2F4F5", ifg: "#4B535B", d: null, sub: `${k.expenseCount} payment voucher${k.expenseCount === 1 ? "" : "s"}` },
-    { label: t.cdue, value: inr0(k.receivable), Icon: Users, ibg: "#FDF2E1", ifg: "#94570A", d: null, sub: `${k.onCredit} customer${k.onCredit === 1 ? "" : "s"} on credit` },
-    { label: t.sdue, value: inr0(k.payable), Icon: CalendarClock, ibg: "#FDECEC", ifg: "#C0362C", d: null, sub: `${inr0(k.dueWeek)} due in 7 days`, subRed: k.dueWeek > 0 },
-  ].filter((x) => x.label === t.cdue ? pay : x.Icon === IndianRupee || fin);
+    { label: data.range === "today" ? d.sales : t("Sales, {range}", { range: t(rangeLabel[data.range]) }), value: inr0(k.sales), Icon: IndianRupee, ibg: "#E1F1EF", ifg: "#0B5E5B", d: salesDelta, sub: t(salesDelta ? (k.bills === 1 ? "vs previous · {n} bill" : "vs previous · {n} bills") : k.bills === 1 ? "{n} bill" : "{n} bills", { n: k.bills }) },
+    { label: d.margin, value: k.margin == null ? "—" : k.margin.toFixed(1) + "%", Icon: Percent, ibg: "#EAF0FC", ifg: "#2459C9", d: marginDelta, sub: marginDelta ? t("vs 7-day average") : k.margin == null ? t("No sales yet") : t("On sales so far") },
+    { label: d.purch, value: inr0(k.purchases), Icon: Truck, ibg: "#F1EEFB", ifg: "#5B45B0", d: null, sub: t(k.grnCount === 1 ? "{n} GRN posted" : "{n} GRNs posted", { n: k.grnCount }) },
+    { label: d.expn, value: inr0(k.expenses), Icon: Receipt, ibg: "#F2F4F5", ifg: "#4B535B", d: null, sub: t(k.expenseCount === 1 ? "{n} payment voucher" : "{n} payment vouchers", { n: k.expenseCount }) },
+    { label: d.cdue, value: inr0(k.receivable), Icon: Users, ibg: "#FDF2E1", ifg: "#94570A", d: null, sub: t(k.onCredit === 1 ? "{n} customer on credit" : "{n} customers on credit", { n: k.onCredit }) },
+    { label: d.sdue, value: inr0(k.payable), Icon: CalendarClock, ibg: "#FDECEC", ifg: "#C0362C", d: null, sub: t("{amount} due in 7 days", { amount: inr0(k.dueWeek) }), subRed: k.dueWeek > 0 },
+  ].filter((x) => x.label === d.cdue ? pay : x.Icon === IndianRupee || fin);
   const mx = Math.max(1, ...data.history.map((h) => h.total));
   const payTotal = data.pay.cash + data.pay.upi + data.pay.card + data.pay.credit;
   const pays = ([["Cash", data.pay.cash, "#0B5E5B"], ["UPI", data.pay.upi, "#2459C9"], ["Card", data.pay.card, "#7FB8B1"], ["Credit", data.pay.credit, "#C9A227"]] as const).filter((x) => x[1] > 0);
@@ -91,7 +94,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
 
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))]">
         <div className={card + " gap-3.5"}>
-          <div className="flex justify-between items-baseline gap-2"><div className="font-semibold text-[15px]">Sales, last 14 days</div><div className="text-[12.5px] text-faint whitespace-nowrap">Incl. GST</div></div>
+          <div className="flex justify-between items-baseline gap-2"><div className="font-semibold text-[15px]">{t("Sales, last 14 days")}</div><div className="text-[12.5px] text-faint whitespace-nowrap">{t("Incl. GST")}</div></div>
           <div className="flex items-end gap-1.5 max-sm:gap-1 h-[170px]">
             {data.history.map((h, i) => (
               <div key={h.date} title={`${h.date} · ${inr0(h.total)}`} className="flex-1 flex flex-col items-center gap-1 justify-end h-full">
@@ -102,77 +105,77 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
             ))}
           </div>
           <div className="flex flex-col gap-2">
-            <div className="text-[12.5px] text-muted font-medium">{t.coll} {rangeLabel[data.range]}</div>
+            <div className="text-[12.5px] text-muted font-medium">{d.coll} {t(rangeLabel[data.range])}</div>
             {payTotal ? (
               <>
                 <div className="flex h-2.5 rounded-[5px] overflow-hidden gap-0.5">{pays.map((p) => <div key={p[0]} style={{ width: (p[1] / payTotal) * 100 + "%", background: p[2] }} />)}</div>
-                <div className="flex flex-wrap gap-4">{pays.map((p) => <div key={p[0]} className="flex items-center gap-1.5 text-[13px]"><span className="size-[9px] rounded-sm" style={{ background: p[2] }} />{p[0]} <strong className="tnum">{inr0(p[1])}</strong></div>)}</div>
+                <div className="flex flex-wrap gap-4">{pays.map((p) => <div key={p[0]} className="flex items-center gap-1.5 text-[13px]"><span className="size-[9px] rounded-sm" style={{ background: p[2] }} />{t(p[0])} <strong className="tnum">{inr0(p[1])}</strong></div>)}</div>
               </>
-            ) : <div className="text-[13px] text-fainter">No collections yet.</div>}
+            ) : <div className="text-[13px] text-fainter">{t("No collections yet.")}</div>}
           </div>
         </div>
         <div className={card + " gap-3"}>
-          <div className="flex items-center gap-2"><Sparkles size={16} className="text-teal" /><div className="font-semibold text-[15px]">{t.insights}</div><div className="ml-auto text-[12px] text-muted">Computed on your server</div></div>
+          <div className="flex items-center gap-2"><Sparkles size={16} className="text-teal" /><div className="font-semibold text-[15px]">{d.insights}</div><div className="ml-auto text-[12px] text-muted">{t("Computed on your server")}</div></div>
           {data.insights.length ? data.insights.map((ins) => (
             <div key={ins.title} className="flex flex-col gap-1 py-3 border-t border-line-soft">
-              <div className="font-semibold text-[14px]">{ins.title}</div>
-              <div className="text-[13.5px] text-ink-2">{ins.body}</div>
+              <div className="font-semibold text-[14px]">{t(ins.title)}</div>
+              <div className="text-[13.5px] text-ink-2">{t(ins.body)}</div>
               <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
-                <div className="text-[12px] text-faint">Basis: {ins.basis}</div>
-                <Go screen={ins.href === "/app/expiry" ? "exp" : "pur"} href={ins.href} className="ml-auto text-teal font-semibold text-[13px]">{ins.cta} →</Go>
+                <div className="text-[12px] text-faint">{t("Basis: {basis}", { basis: t(ins.basis) })}</div>
+                <Go screen={ins.href === "/app/expiry" ? "exp" : "pur"} href={ins.href} className="ml-auto text-teal font-semibold text-[13px]">{t(ins.cta)} →</Go>
               </div>
             </div>
-          )) : <div className="text-[13px] text-fainter border-t border-line-soft pt-3">Insights appear once there are sales and stock to learn from: expiry exposure, items about to run out, and price changes.</div>}
+          )) : <div className="text-[13px] text-fainter border-t border-line-soft pt-3">{t("Insights appear once there are sales and stock to learn from: expiry exposure, items about to run out, and price changes.")}</div>}
         </div>
       </div>
 
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))]">
         <div className={card + " gap-2.5"}>
-          <div className="flex justify-between items-center"><div className="font-semibold text-[15px]">{t.low}</div><Go screen="inv" href="/app/inventory?filter=low">View all</Go></div>
+          <div className="flex justify-between items-center"><div className="font-semibold text-[15px]">{d.low}</div><Go screen="inv" href="/app/inventory?filter=low">{t("View all")}</Go></div>
           {data.lowStock.length ? data.lowStock.slice(0, 6).map((ls) => (
             <div key={ls.id} className="flex flex-col gap-[5px] py-1.5">
               <div className="flex justify-between w-full text-[13.5px]"><span className="font-medium">{ls.name}</span><span className="tnum text-muted">{ls.stock} / {ls.reorder}</span></div>
               <div className="w-full h-[5px] bg-line-soft rounded-[3px] overflow-hidden"><div className="h-full bg-[#C27B12]" style={{ width: Math.round((ls.stock / ls.reorder) * 100) + "%" }} /></div>
-              {ls.coverDays != null ? <div className="text-[12px] text-warn">{ls.coverDays} days cover</div> : null}
+              {ls.coverDays != null ? <div className="text-[12px] text-warn">{t("{n} days cover", { n: ls.coverDays })}</div> : null}
             </div>
-          )) : <div className="text-[13px] text-fainter">Nothing below its reorder level.</div>}
+          )) : <div className="text-[13px] text-fainter">{t("Nothing below its reorder level.")}</div>}
         </div>
         <div className={card + " gap-1.5"}>
-          <div className="flex justify-between items-center"><div className="font-semibold text-[15px]">{t.expiring}</div><Go screen="exp" href="/app/expiry">Prevent loss</Go></div>
+          <div className="flex justify-between items-center"><div className="font-semibold text-[15px]">{d.expiring}</div><Go screen="exp" href="/app/expiry">{t("Prevent loss")}</Go></div>
           {data.expiring.length ? data.expiring.slice(0, 6).map((e) => {
             const [bg, fg] = e.days <= 30 ? ["#FBEAE8", "#B3261E"] : e.days <= 60 ? ["#FDF2E1", "#94570A"] : ["#EEF0F2", "#4B535B"];
             return (
               <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2.5 items-center py-[7px] border-b border-row">
-                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qtyText}{e.qtyText === String(e.qty) ? " units" : ""}{e.status !== "ok" ? ` · ${BATCH_STATUS[e.status] ?? e.status}` : ""}</span></div>
+                <div className="flex flex-col min-w-0"><span className="text-[13.5px] font-medium">{e.name}</span><span className="text-[12px] text-muted">{e.batchNo} · {e.qtyText === String(e.qty) ? t("{n} units", { n: e.qtyText }) : e.qtyText}{e.status !== "ok" ? ` · ${t(BATCH_STATUS[e.status] ?? e.status)}` : ""}</span></div>
                 <span className="text-[13px] tnum">{inr0(e.value)}</span>
-                <span className="px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap" style={{ background: bg, color: fg }}>{e.days} days</span>
+                <span className="px-2 py-0.5 rounded-full text-[12px] font-medium whitespace-nowrap" style={{ background: bg, color: fg }}>{t("{n} days", { n: e.days })}</span>
               </div>
             );
-          }) : <div className="text-[13px] text-fainter">No batches expire in the next 90 days.</div>}
+          }) : <div className="text-[13px] text-fainter">{t("No batches expire in the next 90 days.")}</div>}
         </div>
         <div className={card + " gap-3"}>
-          <div className="font-semibold text-[15px]">{t.branchPerf}</div>
+          <div className="font-semibold text-[15px]">{d.branchPerf}</div>
           {data.branchPerf.map((b) => (
             <div key={b.name} className="flex flex-col gap-[5px]">
-              <div className="flex justify-between text-[13.5px]"><span className="font-medium">{b.name}</span><span className="tnum"><strong>{inr0(b.total)}</strong> <span className="text-muted">· {b.bills} bill{b.bills === 1 ? "" : "s"}</span></span></div>
+              <div className="flex justify-between text-[13.5px]"><span className="font-medium">{b.name}</span><span className="tnum"><strong>{inr0(b.total)}</strong> <span className="text-muted">· {t(b.bills === 1 ? "{n} bill" : "{n} bills", { n: b.bills })}</span></span></div>
               <div className="h-2 bg-line-soft rounded overflow-hidden"><div className="h-full bg-blue rounded" style={{ width: Math.round((b.total / bm) * 100) + "%" }} /></div>
             </div>
           ))}
           <div className="mt-auto pt-3 border-t border-line-soft flex items-center gap-2.5">
             {data.backup.last ? <CloudCheck size={20} className="text-ok" /> : <CloudOff size={20} className="text-warn" />}
-            <div className="flex flex-col flex-1"><span className="text-[13px] font-semibold">Last verified backup</span><span className="text-[12.5px] text-muted">{data.backup.last ?? "None yet"} · {data.backup.driveConnected ? "Google Drive connected" : "Drive not connected"}</span>{data.backup.problems.map((x) => <span key={x} role="alert" className="text-[12.5px] text-bad">{x}</span>)}</div>
-            <Go screen="bak" href="/app/backup" className="border border-input bg-white rounded-[7px] px-2.5 py-1.5 text-[12.5px] text-ink">Open</Go>
+            <div className="flex flex-col flex-1"><span className="text-[13px] font-semibold">{t("Last verified backup")}</span><span className="text-[12.5px] text-muted">{data.backup.last ?? t("None yet")} · {data.backup.driveConnected ? t("Google Drive connected") : t("Drive not connected")}</span>{data.backup.problems.map((x) => <span key={x} role="alert" className="text-[12.5px] text-bad">{t(x)}</span>)}</div>
+            <Go screen="bak" href="/app/backup" className="border border-input bg-white rounded-[7px] px-2.5 py-1.5 text-[12.5px] text-ink">{t("Open", { ctx: "verb" })}</Go>
           </div>
         </div>
       </div>
 
       {showActivity ? <div className={card + " gap-1"}>
-        <div className="font-semibold text-[15px] mb-1.5">{t.activity}</div>
+        <div className="font-semibold text-[15px] mb-1.5">{d.activity}</div>
         {data.activity.map((a) => (
           <div key={a.id} className="grid grid-cols-[96px_minmax(0,1fr)_auto] gap-3 py-[7px] border-b border-row text-[13.5px] items-baseline max-sm:grid-cols-[72px_minmax(0,1fr)]">
             <span className="text-faint text-[12.5px] tnum">{a.when}</span>
             <span><strong className="font-semibold">{a.action}</strong>{a.detail ? <span className="text-muted"> · {a.detail}</span> : null}</span>
-            <span className="text-muted text-[12.5px] whitespace-nowrap max-sm:hidden">{a.who}</span>
+            <span className="text-muted text-[12.5px] whitespace-nowrap max-sm:hidden">{a.who === "System" ? t("System") : a.who}</span>
           </div>
         ))}
       </div> : null}
@@ -181,6 +184,7 @@ export function Dashboard({ data, dict: t, perms }: { data: DashboardData; dict:
 }
 
 function GettingStarted({ perms }: { perms: string[] }) {
+  const t = useT();
   const steps: { done: boolean; title: string; body: string; screen: ScreenId; href: string; perm?: string }[] = [
     { done: false, title: "Add your medicines", body: "Build the catalogue: name, generic, pack, GST rate, MRP and reorder level.", screen: "inv", href: "/app/inventory?add=1" },
     { done: false, title: "Receive opening stock", body: "Enter batches with expiry dates and cost, or scan a supplier invoice.", screen: "pur", href: "/app/purchases", perm: "purchase" },
@@ -189,14 +193,14 @@ function GettingStarted({ perms }: { perms: string[] }) {
   ];
   return (
     <div className="bg-white border border-teal-line rounded-xl px-5 py-4 flex flex-col gap-3">
-      <div className="flex items-center gap-2"><PackagePlus size={18} className="text-teal" /><div className="font-semibold text-[15px]">Get your pharmacy running</div></div>
+      <div className="flex items-center gap-2"><PackagePlus size={18} className="text-teal" /><div className="font-semibold text-[15px]">{t("Get your pharmacy running")}</div></div>
       <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
         {steps.filter((s) => !s.perm || perms.includes(s.perm)).map((s) => {
           const ready = READY.has(s.screen);
           const inner = (
             <>
-              <div className="flex items-center gap-2 font-semibold text-[13.5px] text-ink">{s.done ? <CheckCircle2 size={16} className="text-ok" /> : <Circle size={16} className="text-fainter" />}{s.title}</div>
-              <div className="text-[12.5px] text-muted">{s.body}</div>
+              <div className="flex items-center gap-2 font-semibold text-[13.5px] text-ink">{s.done ? <CheckCircle2 size={16} className="text-ok" /> : <Circle size={16} className="text-fainter" />}{t(s.title)}</div>
+              <div className="text-[12.5px] text-muted">{t(s.body)}</div>
             </>
           );
           return ready

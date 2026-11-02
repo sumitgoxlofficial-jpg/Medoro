@@ -5,7 +5,8 @@ import { getGrievance, getPrivacy } from "@/domain/system/privacy";
 import { STRICT_RULES } from "@/domain/system/strict";
 import { RETENTION_RULES, retentionPreview } from "@/domain/system/retention";
 import { PageHead } from "@/components/page-head";
-import { t } from "@/lib/i18n";
+import { t as dictFor } from "@/lib/i18n";
+import { tFor } from "@/lib/tr";
 import { PrivacyView } from "./view";
 import { SupportCard } from "./support-card";
 import { GrievanceCard, RetentionCard } from "./privacy-cards";
@@ -21,6 +22,7 @@ export const metadata = { title: "Privacy & data" };
 export default async function Page() {
   const ctx = await requireCtx();
   if (!can(ctx, "users")) redirect("/app");
+  const t = tFor(ctx.lang);
   if (!ctx.readOnly) await checkIn(ctx.tenantId, { minAgeMs: 10 * 60_000, timeoutMs: 4000 });
   const [p, customers, integrations, grants, asks, grievance, tenant, retention] = await Promise.all([
     getPrivacy(ctx.tenantId), db.customer.findMany({ where: { tenantId: ctx.tenantId, erasedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -34,13 +36,15 @@ export default async function Page() {
   const move = (tenant.settings as { driveMove?: { state?: string } }).driveMove;
   return (
     <>
-      <PageHead title={t(ctx.lang).privacy} sub="Data ownership, external services, export and deletion" />
+      <PageHead title={dictFor(ctx.lang).privacy} sub="Data ownership, external services, export and deletion" />
       <div className="flex flex-col gap-4">
         <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-1.5 max-w-[1200px]" data-testid="data-home">
-          <div className="font-semibold text-[15px]">Where your pharmacy’s records live</div>
+          <div className="font-semibold text-[15px]">{t("Where your pharmacy’s records live")}</div>
           <div className="text-[13.5px] text-muted">{inDrive
-            ? <>On your counters and in your own Google Drive, encrypted with keys only you hold. Medoro keeps your account and device list, not your bills, stock or customers{move?.state === "moved" ? "; its old copy is read-only and is deleted 7 days after the move, or sooner from the Drive mode card on the speed-test page" : ""}. Keep your Drive recovery code safe: Medoro can’t restore your data without it.</>
-            : <>In this pharmacy’s database on Medoro’s server, backed up (encrypted) to your Google Drive if connected. {driveRequired() ? "Medoro now keeps every pharmacy’s data in its own Google Drive: move yours from Billing (device). Until then this copy is read-only." : "You can move everything into your own Google Drive from Billing (device) once Drive mode is on."}</>}</div>
+            ? `${t(move?.state === "moved"
+              ? "On your counters and in your own Google Drive, encrypted with keys only you hold. Medoro keeps your account and device list, not your bills, stock or customers; its old copy is read-only and is deleted 7 days after the move, or sooner from the Drive mode card on the speed-test page."
+              : "On your counters and in your own Google Drive, encrypted with keys only you hold. Medoro keeps your account and device list, not your bills, stock or customers.")} ${t("Keep your Drive recovery code safe: Medoro can’t restore your data without it.")}`
+            : `${t("In this pharmacy’s database on Medoro’s server, backed up (encrypted) to your Google Drive if connected.")} ${driveRequired() ? t("Medoro now keeps every pharmacy’s data in its own Google Drive: move yours from Billing (device). Until then this copy is read-only.") : t("You can move everything into your own Google Drive from Billing (device) once Drive mode is on.")}`}</div>
         </div>
         <PrivacyView p={p} customers={customers} wa={on("whatsapp")} drive={on("gdrive")} driveRecords={inDrive} licence={!!process.env.LICENSE_SERVER_URL} ai={{ enabled: ai.enabled, globalOff: ai.globalOff, remoteNames: ai.remoteNames, mode: ai.mode, note: ai.note ?? null, remoteHost }}
           strictRules={[...STRICT_RULES]} telemetryUrl={!!process.env.TELEMETRY_URL} crashUrl={!!process.env.CRASH_REPORT_URL} />

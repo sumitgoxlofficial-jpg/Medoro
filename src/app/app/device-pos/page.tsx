@@ -8,6 +8,7 @@ import { deviceDriveEnabled } from "@/domain/system/gdrive";
 import { DevicePos } from "./device-pos";
 import { DeviceHead } from "./device-head";
 import { TABS, type Tab } from "@/components/device/tabs";
+import { getT } from "@/server/lang";
 
 const TAB_KEYS = new Set<string>(TABS.map(([k]) => k));
 
@@ -26,9 +27,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const settings = ((await db.tenant.findUnique({ where: { id: ctx.tenantId }, select: { settings: true } }))?.settings ?? {}) as { driveOnly?: boolean; driveMove?: unknown };
   const fresh = settings.driveOnly === true, inDrive = fresh || !!settings.driveMove;
   const cap = Math.min(discountCap(ctx.perms), await maxDiscount(ctx.tenantId));
+  const t = await getT();
   return (
     <>
-      <DeviceHead sub={`${ctx.mustMove ? "Medoro now keeps every pharmacy’s data in its own Google Drive. Move yours here to keep billing." : inDrive ? "Your pharmacy’s records live on this device and in your Google Drive, encrypted." : "Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive."} F2 search · F9 complete`} />
+      <DeviceHead sub={`${t(ctx.mustMove ? "Medoro now keeps every pharmacy’s data in its own Google Drive. Move yours here to keep billing." : inDrive ? "Your pharmacy’s records live on this device and in your Google Drive, encrypted." : "Drive mode (pilot): bills are saved in this device’s own database and queued for your Google Drive.")} ${t("F2 search · F9 complete")}`} />
       <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit={can(ctx, "credit")} discCap={cap} drive={await deviceDriveEnabled(ctx.tenantId)} fresh={fresh} mustMove={!!ctx.mustMove} driveResult={(await searchParams).drive ?? null} tab={TAB_KEYS.has((await searchParams).tab ?? "") ? ((await searchParams).tab as Tab) : undefined} />
     </>
   );

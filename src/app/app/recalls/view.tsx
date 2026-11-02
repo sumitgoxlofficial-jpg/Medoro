@@ -6,6 +6,7 @@ import { Badge, type Tone } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { dayMonth } from "@/lib/dates";
 import type { listRecalls } from "@/domain/inventory/recalls";
+import { useT } from "@/lib/i18n-client";
 import { addRecallAction, quarantineRecallAction, recallStatusAction, returnRecallAction } from "./actions";
 
 type R = Awaited<ReturnType<typeof listRecalls>>[number];
@@ -14,74 +15,75 @@ const inp = "w-full min-w-0 border border-input rounded-lg px-3 py-2 text-[13.5p
 const lbl = "flex flex-col gap-1 text-[12px] text-muted font-medium";
 
 export function RecallsView({ recalls, canAdjust, canPurchase, branchName, canRecord, today, medicines }: { recalls: R[]; canAdjust: boolean; canPurchase: boolean; branchName: string; canRecord: boolean; today: string; medicines: { id: string; label: string }[] }) {
+  const t = useT();
   const toast = useToast();
   const blank = { product: "", medicineId: "", batches: "", source: "", publishedAt: "", reason: "" };
   const [f, setF] = useState(blank);
   const [pending, start] = useTransition();
   const raiseReturn = (r: R) => {
     const here = r.matches.filter((m) => m.returnable);
-    if (!confirm(`Return ${here.map((m) => `${m.medicine} ${m.batchNo} × ${m.qty}`).join(", ")} from ${branchName} to the supplier? A debit note is raised for each batch.`)) return;
+    if (!confirm(t("Return {items} from {branch} to the supplier? A debit note is raised for each batch.", { items: here.map((m) => `${m.medicine} ${m.batchNo} × ${m.qty}`).join(", "), branch: branchName }))) return;
     start(async () => {
       const x = await returnRecallAction(r.id);
-      toast(x.ok ? `${x.data.notes.join(", ")} raised. Stock and payable reduced.${x.data.skipped.length ? ` Write off opening stock: ${x.data.skipped.join(", ")}.` : ""}` : x.error, x.ok ? "green" : "red");
+      toast(x.ok ? t("{no} raised. Stock and payable reduced.", { no: x.data.notes.join(", ") }) + (x.data.skipped.length ? " " + t("Write off opening stock: {items}.", { items: x.data.skipped.join(", ") }) : "") : x.error, x.ok ? "green" : "red");
     });
   };
   return (
     <div className="flex flex-col gap-3.5 max-w-[1400px]">
-      <div className="text-[13px] text-ink-2 bg-teal-soft border border-teal-line rounded-[10px] px-3.5 py-2.5">Record only notices from verified sources (CDSCO, state drug controller, manufacturer). Medoro never generates recall notices. It matches the medicine and batch numbers in the notice against stock in every branch.</div>
+      <div className="text-[13px] text-ink-2 bg-teal-soft border border-teal-line rounded-[10px] px-3.5 py-2.5">{t("Record only notices from verified sources (CDSCO, state drug controller, manufacturer). Medoro never generates recall notices. It matches the medicine and batch numbers in the notice against stock in every branch.")}</div>
       {recalls.length ? recalls.map((r) => {
         const [label, tone] = ST[r.status] ?? [r.status, "gray"];
         const live = r.matches.filter((m) => m.sellable);
         return (
           <div key={r.id} className="bg-white border border-line rounded-xl px-4 py-3.5 flex flex-col gap-1.5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="font-mono text-[12.5px] text-muted">{r.ref}</span><strong className="text-[15px]">{r.product}</strong><Badge tone={tone}>{label}</Badge>
+              <span className="font-mono text-[12.5px] text-muted">{r.ref}</span><strong className="text-[15px]">{r.product}</strong><Badge tone={tone}>{t(label)}</Badge>
               {canRecord ? (
-                <select value={r.status} aria-label="Status" onChange={(e) => {
+                <select value={r.status} aria-label={t("Status")} onChange={(e) => {
                   const s = e.target.value as R["status"];
-                  if (s === "supplier_return" && r.matches.some((m) => m.returnable)) { if (canPurchase) raiseReturn(r); else toast("Raising a supplier return needs the purchases permission.", "red"); return; }
+                  if (s === "supplier_return" && r.matches.some((m) => m.returnable)) { if (canPurchase) raiseReturn(r); else toast(t("Raising a supplier return needs the purchases permission."), "red"); return; }
                   start(async () => { const x = await recallStatusAction(r.id, s as never); if (!x.ok) toast(x.error, "red"); });
                 }} className="ml-auto border border-input rounded-md px-2 py-1 text-[12.5px] bg-white">
-                  {Object.entries(ST).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}
+                  {Object.entries(ST).map(([k, [l]]) => <option key={k} value={k}>{t(l)}</option>)}
                 </select>
               ) : null}
             </div>
-            <div className="text-[13.5px] text-ink-2">{r.reason} · batches {r.batchNos.join(", ")}</div>
-            <div className="text-[12.5px] text-faint">Source: {r.source} · published {dayMonth(new Date(r.publishedAt + "T00:00:00Z"), true)}</div>
+            <div className="text-[13.5px] text-ink-2">{r.reason} · {t("batches {list}", { list: r.batchNos.join(", ") })}</div>
+            <div className="text-[12.5px] text-faint">{t("Source: {source} · published {date}", { source: r.source, date: dayMonth(new Date(r.publishedAt + "T00:00:00Z"), true) })}</div>
             <div className="flex items-center gap-3 flex-wrap pt-1">
               <span className="text-[13px]" style={{ color: live.length ? "#B3261E" : "#1E7F4F" }}>
-                {r.matches.length ? r.matches.map((m) => `${m.branch}: ${m.medicine} ${m.batchNo} · ${m.qty} units · ${m.sellable ? "SELLABLE" : m.status}`).join("  |  ") : "No matching stock in any branch"}
+                {r.matches.length ? r.matches.map((m) => `${m.branch}: ${m.medicine} ${m.batchNo} · ${t("{n} units", { n: m.qty })} · ${m.sellable ? t("SELLABLE") : t(m.status)}`).join("  |  ") : t("No matching stock in any branch")}
               </span>
-              {canAdjust && live.length ? <Button size="sm" variant="danger" className="ml-auto" disabled={pending} onClick={() => start(async () => { const x = await quarantineRecallAction(r.id); toast(x.ok ? `${x.data} batch(es) quarantined and blocked at POS.` : x.error, x.ok ? "green" : "red"); })}>Quarantine affected stock</Button> : null}
+              {canAdjust && live.length ? <Button size="sm" variant="danger" className="ml-auto" disabled={pending} onClick={() => start(async () => { const x = await quarantineRecallAction(r.id); toast(x.ok ? t("{n} batch(es) quarantined and blocked at POS.", { n: x.data }) : x.error, x.ok ? "green" : "red"); })}>Quarantine affected stock</Button> : null}
               {canPurchase && r.matches.some((m) => m.returnable) ? <Button size="sm" className={live.length && canAdjust ? "" : "ml-auto"} disabled={pending} onClick={() => raiseReturn(r)}>Return to supplier</Button> : null}
             </div>
           </div>
         );
       }) : (
-        <div className="bg-white border border-line rounded-xl py-8 flex flex-col items-center gap-2 text-center"><ShieldAlert size={24} className="text-fainter" /><div className="font-semibold">No recall notices recorded</div><div className="text-[13px] text-faint">When a notice arrives, record it here and Medoro checks every branch for the batches.</div></div>
+        <div className="bg-white border border-line rounded-xl py-8 flex flex-col items-center gap-2 text-center"><ShieldAlert size={24} className="text-fainter" /><div className="font-semibold">{t("No recall notices recorded")}</div><div className="text-[13px] text-faint">{t("When a notice arrives, record it here and Medoro checks every branch for the batches.")}</div></div>
       )}
       {canRecord ? (
         <div className="bg-white border border-line rounded-xl px-4 py-3.5 flex flex-col gap-2.5">
-          <div className="font-semibold text-[14.5px]">Record a verified notice</div>
+          <div className="font-semibold text-[14.5px]">{t("Record a verified notice")}</div>
           <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-[2fr_1.5fr_1.5fr_160px]">
-            <label className={lbl}>Medicine *
-              <input className={inp} list="recall-meds" value={f.product} onChange={(e) => setF({ ...f, product: e.target.value, medicineId: medicines.find((m) => m.label === e.target.value)?.id ?? "" })} placeholder="From catalogue" aria-label="Medicine" />
+            <label className={lbl}>{t("Medicine *")}
+              <input className={inp} list="recall-meds" value={f.product} onChange={(e) => setF({ ...f, product: e.target.value, medicineId: medicines.find((m) => m.label === e.target.value)?.id ?? "" })} placeholder={t("From catalogue")} aria-label={t("Medicine")} />
             </label>
             <datalist id="recall-meds">{medicines.map((m) => <option key={m.id} value={m.label} />)}</datalist>
-            <label className={lbl}>Batches (comma separated) *
-              <input className={inp} value={f.batches} onChange={(e) => setF({ ...f, batches: e.target.value.toUpperCase() })} placeholder="e.g. AB123, AB124" aria-label="Batches" />
+            <label className={lbl}>{t("Batches (comma separated) *")}
+              <input className={inp} value={f.batches} onChange={(e) => setF({ ...f, batches: e.target.value.toUpperCase() })} placeholder={t("e.g. AB123, AB124")} aria-label={t("Batches")} />
             </label>
-            <label className={lbl}>Source &amp; reference no. *
-              <input className={inp} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} placeholder="e.g. CDSCO alert no." aria-label="Source" />
+            <label className={lbl}>{t("Source & reference no. *")}
+              <input className={inp} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} placeholder={t("e.g. CDSCO alert no.")} aria-label={t("Source")} />
             </label>
-            <label className={lbl}>Published on *
-              <input className={inp} type="date" max={today} value={f.publishedAt} onChange={(e) => setF({ ...f, publishedAt: e.target.value })} aria-label="Published on" />
+            <label className={lbl}>{t("Published on *")}
+              <input className={inp} type="date" max={today} value={f.publishedAt} onChange={(e) => setF({ ...f, publishedAt: e.target.value })} aria-label={t("Published on")} />
             </label>
-            <label className={lbl + " col-span-full"}>Reason
-              <input className={inp} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder="As stated in the notice" aria-label="Reason" />
+            <label className={lbl + " col-span-full"}>{t("Reason")}
+              <input className={inp} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} placeholder={t("As stated in the notice")} aria-label={t("Reason")} />
             </label>
           </div>
-          <Button variant="primary" className="self-start" disabled={pending} onClick={() => start(async () => { const x = await addRecallAction({ medicineId: f.medicineId, batches: f.batches, source: f.source, publishedAt: f.publishedAt, reason: f.reason }); if (!x.ok) return toast(x.error, "red"); toast(`${x.data} recorded and matched against stock.`, "green"); setF(blank); })}>Record & match stock</Button>
+          <Button variant="primary" className="self-start" disabled={pending} onClick={() => start(async () => { const x = await addRecallAction({ medicineId: f.medicineId, batches: f.batches, source: f.source, publishedAt: f.publishedAt, reason: f.reason }); if (!x.ok) return toast(x.error, "red"); toast(t("{ref} recorded and matched against stock.", { ref: x.data }), "green"); setF(blank); })}>Record & match stock</Button>
         </div>
       ) : null}
     </div>

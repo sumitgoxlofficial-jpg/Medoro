@@ -7,6 +7,7 @@ import { deviceDb } from "@/drivedb/device";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { DeviceApp, type Tab } from "@/components/device/device-app";
 import { card, input, errText, type Cfg, type Who } from "@/components/device/ui";
+import { useT } from "@/lib/i18n-client";
 import { deviceSeedAction } from "../lab/actions";
 import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
@@ -17,6 +18,7 @@ import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrn
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
   const conn = useDriveConnect(drive);
+  const t = useT();
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
   const [einv, setEinv] = useState(false);
@@ -36,7 +38,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
       who={who}
       initialTab={tab}
       empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} mustMove={mustMove} />}
-      side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.</div> : null}
+      side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">{t("Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.")}</div> : null}
       settingsExtra={owner && drive ? <><DevicesPanel /><PaymentsPanel onChange={setPaying} /></> : null}
     />
     </DriveGate>
@@ -87,6 +89,7 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
   const [saved, setSaved] = useState<string | null>(null);
   const [vault, setVault] = useState<boolean | null>(null);
   const [code, setCode] = useState("");
+  const t = useT();
   useEffect(() => {
     if (!drive || access?.status !== "approved") return;
     dev.call("driveStatus").then((s) => { setSaved(s.snapshotAt ?? s.lastSnapshot); setVault(s.vault); }, () => setSaved(null));
@@ -98,7 +101,7 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
     if (!r.ok) { toast(r.error, "red"); setBusy(false); return; }
     try {
       const c = await dev.call("importSeed", r.data, userId);
-      toast(fresh ? "This device is ready. Add your medicines under Stock, or receive a supplier bill under Purchases." : `Loaded ${r.data.medicines.length} medicines and ${r.data.batches.length} batches onto this device.`, "green");
+      toast(fresh ? "This device is ready. Add your medicines under Stock, or receive a supplier bill under Purchases." : t("Loaded {medicines} medicines and {batches} batches onto this device.", { medicines: r.data.medicines.length, batches: r.data.batches.length }), "green");
       ready(c);
     } catch (e) { toast(errText(e) || "Couldn’t load the catalogue.", "red"); }
     setBusy(false);
@@ -109,7 +112,7 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
       const r = await dev.call("restore", code);
       const c = await dev.call("config");
       if (!c) throw new Error("The copy in Drive has no counter settings.");
-      toast(`Restored from Google Drive (copy of ${dayMonth(new Date(r.snapshotAt))} ${hhmm(new Date(r.snapshotAt))}, ${r.applied} later changes).`, "green");
+      toast(t("Restored from Google Drive (copy of {when}, {n} later changes).", { when: `${dayMonth(new Date(r.snapshotAt))} ${hhmm(new Date(r.snapshotAt))}`, n: r.applied }), "green");
       ready(c);
     } catch (e) { toast(errText(e) || "Restore failed.", "red"); }
     setBusy(false);
@@ -124,38 +127,38 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
   return (
     <div className="flex flex-col gap-3">
     {canMove && <MoveFromMedoro userId={userId} ready={ready} />}
-    {mustMove && owner && !canMove && !saved && <div className={card}><div className="text-sm text-muted">{drive ? "Checking Google Drive…" : "Connect Google Drive first, then move your pharmacy’s data into it."}</div></div>}
+    {mustMove && owner && !canMove && !saved && <div className={card}><div className="text-sm text-muted">{drive ? t("Checking Google Drive…") : t("Connect Google Drive first, then move your pharmacy’s data into it.")}</div></div>}
     {!(mustMove && owner && !saved) && <div className={card}>
-      {!(mustMove && owner) && <div className="font-semibold">{canMove ? "Or just try it out" : "Set up this device"}</div>}
+      {!(mustMove && owner) && <div className="font-semibold">{canMove ? t("Or just try it out") : t("Set up this device")}</div>}
       {owner && mustMove ? null : owner ? (
         <>
           {fresh ? (
             <>
-              <div className="text-sm text-muted">Start your pharmacy on this device. Your medicines, stock, bills and customers are kept here and, once you set up Drive storage, in your Google Drive, encrypted with a key only you hold.{drive ? "" : " Connect Google Drive on the Backup page first, so nothing is kept on this device alone."}</div>
-              <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? "Starting…" : "Start my pharmacy on this device"}</Button>
+              <div className="text-sm text-muted">{t("Start your pharmacy on this device. Your medicines, stock, bills and customers are kept here and, once you set up Drive storage, in your Google Drive, encrypted with a key only you hold.")}{drive ? "" : ` ${t("Connect Google Drive on the Backup page first, so nothing is kept on this device alone.")}`}</div>
+              <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? t("Starting…") : t("Start my pharmacy on this device")}</Button>
             </>
           ) : (
             <>
-              <div className="text-sm text-muted">This device has no catalogue yet. Load this branch’s medicines, stock and customers from Medoro once; after that, billing here works without the server.</div>
-              <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? "Loading…" : "Load catalogue onto this device"}</Button>
+              <div className="text-sm text-muted">{t("This device has no catalogue yet. Load this branch’s medicines, stock and customers from Medoro once; after that, billing here works without the server.")}</div>
+              <Button variant="primary" className="self-start" onClick={load} disabled={busy}><Download size={16} /> {busy ? t("Loading…") : t("Load catalogue onto this device")}</Button>
             </>
           )}
         </>
       ) : mustMove && !saved ? (
-        <div className="text-sm text-muted">Medoro now keeps every pharmacy’s data in its own Google Drive. The owner needs to move this pharmacy’s data on their counter first; this page then sets itself up from Google Drive.</div>
+        <div className="text-sm text-muted">{t("Medoro now keeps every pharmacy’s data in its own Google Drive. The owner needs to move this pharmacy’s data on their counter first; this page then sets itself up from Google Drive.")}</div>
       ) : staffWaiting ? (
-        <div className="text-sm text-muted">This counter has asked to join. Ask the owner to approve it on their counter under <b>Counter → Devices</b>; this page then sets itself up from Google Drive.</div>
+        <div className="text-sm text-muted">{t("This counter has asked to join. Ask the owner to approve it on their counter under")} <b>{t("Counter → Devices")}</b>{t("; this page then sets itself up from Google Drive.")}</div>
       ) : access?.status === "removed" ? (
-        <div className="text-sm text-muted">The owner removed this device from Drive mode.</div>
+        <div className="text-sm text-muted">{t("The owner removed this device from Drive mode.")}</div>
       ) : !saved ? (
-        <div className="text-sm text-muted">{drive ? "Connecting to Google Drive…" : "The owner needs to connect Google Drive and set up Drive mode first."}</div>
+        <div className="text-sm text-muted">{drive ? t("Connecting to Google Drive…") : t("The owner needs to connect Google Drive and set up Drive mode first.")}</div>
       ) : null}
       {saved && (
         <div className={`${owner ? "border-t border-line pt-3" : ""} flex flex-col gap-2`}>
-          <div className="font-semibold">{owner ? "Or restore from Google Drive" : "Set up from Google Drive"}</div>
-          <div className="text-sm text-muted">A copy of this pharmacy was saved to Drive on {dayMonth(new Date(saved))} {hhmm(new Date(saved))}. {owner ? "Restoring brings back every medicine, batch, customer and bill. A device that was set up before opens without the code." : "This brings this counter every medicine, batch, customer and bill, and keeps it in step with the other counters."}</div>
-          {owner && <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Drive recovery code (XXXX-XXXX-…)" aria-label="Drive recovery code" className={`${input} font-mono`} />}
-          <Button variant={owner ? "outline" : "primary"} className="self-start" onClick={restore} disabled={busy}>{busy ? "Restoring…" : owner ? "Restore from Google Drive" : "Set up from Google Drive"}</Button>
+          <div className="font-semibold">{owner ? t("Or restore from Google Drive") : t("Set up from Google Drive")}</div>
+          <div className="text-sm text-muted">{t("A copy of this pharmacy was saved to Drive on {when}.", { when: `${dayMonth(new Date(saved))} ${hhmm(new Date(saved))}` })} {owner ? t("Restoring brings back every medicine, batch, customer and bill. A device that was set up before opens without the code.") : t("This brings this counter every medicine, batch, customer and bill, and keeps it in step with the other counters.")}</div>
+          {owner && <input value={code} onChange={(e) => setCode(e.target.value)} placeholder={t("Drive recovery code (XXXX-XXXX-…)")} aria-label={t("Drive recovery code")} className={`${input} font-mono`} />}
+          <Button variant={owner ? "outline" : "primary"} className="self-start" onClick={restore} disabled={busy}>{busy ? t("Restoring…") : owner ? t("Restore from Google Drive") : t("Set up from Google Drive")}</Button>
         </div>
       )}
     </div>}

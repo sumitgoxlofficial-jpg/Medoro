@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { useT } from "@/lib/i18n-client";
 import { deviceDb, deviceId } from "@/drivedb/device";
 import { DEVICE_CHANGED_EVENT } from "@/drivedb/live-events";
 import { Billing } from "./billing";
@@ -17,6 +18,11 @@ import { Orders } from "./orders";
 import { Activity } from "./activity";
 import { Assistant } from "./assistant";
 import { Dashboard } from "./dashboard";
+import { Doctors } from "./doctors";
+import { Recalls } from "./recalls";
+import { Cheques } from "./cheques";
+import { PurchaseTools } from "./purchase-tools";
+import { Insights } from "./insights";
 import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
@@ -41,6 +47,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
   settingsExtra?: React.ReactNode;
 }) {
   const toast = useToast();
+  const t = useT();
   const dev = useRef(deviceDb()).current;
   const [state, setState] = useState<"opening" | "empty" | "locked" | "ready" | "error">("opening");
   const [err, setErr] = useState("");
@@ -89,9 +96,9 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
     })();
   }, [dev, ready]);
 
-  if (state === "opening") return <div className={card}>Opening this device’s database…</div>;
-  if (state === "error") return <div className={card}><div className="text-bad text-sm">This browser can’t run the device database: {err}</div><div className="text-sm text-muted">Use a current Chrome or Edge.</div></div>;
-  if (state === "empty") return empty ? <>{empty(ready)}</> : <div className={card}>This device has no pharmacy data yet. Connect to the internet and sign in to Medoro to set it up.</div>;
+  if (state === "opening") return <div className={card}>{t("Opening this device’s database…")}</div>;
+  if (state === "error") return <div className={card}><div className="text-bad text-sm">{t("This browser can’t run the device database: {err}", { err })}</div><div className="text-sm text-muted">{t("Use a current Chrome or Edge.")}</div></div>;
+  if (state === "empty") return empty ? <>{empty(ready)}</> : <div className={card}>{t("This device has no pharmacy data yet. Connect to the internet and sign in to Medoro to set it up.")}</div>;
   if (!cfg) return null;
 
   const who: Who = online ?? { userId: cfg.userId ?? "device", userName: cfg.userName || "Counter", owner: false, canCredit: true, discCap: cfg.maxDiscountPct };
@@ -106,14 +113,14 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
     };
     return (
       <div className={`${card} max-w-sm`}>
-        <div className="flex items-center gap-2 font-semibold"><Lock size={18} className="text-teal" />{cfg.pharmacy?.tradeName ?? "Pharmacy"} · counter {cfg.series}</div>
+        <div className="flex items-center gap-2 font-semibold"><Lock size={18} className="text-teal" />{t("{name} · counter {series}", { name: cfg.pharmacy?.tradeName ?? t("Pharmacy"), series: cfg.series })}</div>
         {cfg.pinSet ? (
           <>
-            <div className="text-sm text-muted">Enter the counter PIN to bill on this device.</div>
-            <input type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") void unlock(); }} aria-label="Counter PIN" className={input} />
+            <div className="text-sm text-muted">{t("Enter the counter PIN to bill on this device.")}</div>
+            <input type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") void unlock(); }} aria-label={t("Counter PIN")} className={input} />
             <Button variant="primary" onClick={unlock} disabled={pin.length < 4}>Unlock</Button>
           </>
-        ) : <div className="text-sm text-muted">No counter PIN is set on this device yet. Sign in to Medoro once and set it under Counter.</div>}
+        ) : <div className="text-sm text-muted">{t("No counter PIN is set on this device yet. Sign in to Medoro once and set it under Counter.")}</div>}
       </div>
     );
   }
@@ -123,22 +130,27 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
     <div className="flex flex-col gap-4">
       {/* Signed in, the sidebar opens each screen; the Dashboard then looks like Medoro's own, without the counter's tab row. */}
       {!(online && tab === "dash") && <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
-        {TABS.filter(([k]) => (k !== "settings" && k !== "activity") || online?.owner).map(([k, name]) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{name}{k === "stock" && negative > 0 && <span className="ml-1.5 inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-bad text-white text-[11px] font-semibold" title={`${negative} ${negative === 1 ? "batch" : "batches"} below zero`}>{negative}</span>}</button>
+        {TABS.filter(([k]) => (k !== "settings" && k !== "activity" && k !== "insights") || online?.owner).map(([k, name]) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{t(name)}{k === "stock" && negative > 0 && <span className="ml-1.5 inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-bad text-white text-[11px] font-semibold" title={t(negative === 1 ? "{n} batch below zero" : "{n} batches below zero", { n: negative })}>{negative}</span>}</button>
         ))}
-        {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">Lock</button>}
+        {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">{t("Lock")}</button>}
       </div>}
       {tab === "dash" && <Dashboard cfg={cfg} owner={who.owner} refresh={tick} go={setTab} />}
       {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id) => { bump(); try { setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
       {tab === "bills" && <Bills cfg={cfg} who={who} refresh={tick} />}
       {tab === "stock" && <Stock cfg={cfg} owner={who.owner} userId={who.userId} refresh={tick} />}
       {tab === "purchases" && <Purchases cfg={cfg} who={who} onSaved={bump} />}
+      {tab === "supplier" && <PurchaseTools cfg={cfg} who={who} refresh={tick} />}
+      {tab === "recalls" && <Recalls cfg={cfg} who={who} refresh={tick} />}
+      {tab === "doctors" && <Doctors cfg={cfg} who={who} refresh={tick} />}
+      {tab === "cheques" && <Cheques cfg={cfg} who={who} refresh={tick} />}
       {tab === "orders" && <Orders cfg={cfg} who={who} onBilled={bump} />}
       {tab === "customers" && <Customers who={who} refresh={tick} pharmacy={cfg.pharmacy} />}
       {tab === "activity" && online?.owner && <Activity refresh={tick} />}
       {tab === "accounts" && <Accounts cfg={cfg} who={who} refresh={tick} />}
       {tab === "money" && <Money cfg={cfg} who={who} refresh={tick} />}
       {tab === "reports" && <ReportsGst cfg={cfg} />}
+      {tab === "insights" && online?.owner && <Insights cfg={cfg} who={who} refresh={tick} />}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}
       <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => setReceipt(null)} who={who} />
@@ -148,6 +160,9 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
 
 function CounterSettings({ cfg, onChange }: { cfg: Cfg; onChange: () => void }) {
   const toast = useToast();
+  const t = useT();
+  // The address stays bold in both languages; the Hindi line keeps {url} where it goes.
+  const [before, after] = t("With a PIN, this counter keeps billing when the internet is down: open {url} (or any Medoro page while offline) and enter the PIN.").split("{url}");
   const dev = deviceDb();
   const [pin, setPin] = useState("");
   const [again, setAgain] = useState("");
@@ -157,17 +172,17 @@ function CounterSettings({ cfg, onChange }: { cfg: Cfg; onChange: () => void }) 
   };
   return (
     <div className={`${card} max-w-lg`}>
-      <div className="font-semibold">Counter PIN</div>
+      <div className="font-semibold">{t("Counter PIN")}</div>
       <div className="text-sm text-muted">
-        With a PIN, this counter keeps billing when the internet is down: open <b>medoro.in/device</b> (or any Medoro page while offline) and enter the PIN.
-        The PIN is stored only on this device. {cfg.pinSet ? "A PIN is set; saving replaces it." : "No PIN is set yet."}
+        {before}<b>medoro.in/device</b>{after}{" "}
+        {t("The PIN is stored only on this device.")} {t(cfg.pinSet ? "A PIN is set; saving replaces it." : "No PIN is set yet.")}
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <input type="password" inputMode="numeric" placeholder="New PIN (4–8 digits)" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} aria-label="New PIN" className={input} />
-        <input type="password" inputMode="numeric" placeholder="Same PIN again" value={again} onChange={(e) => setAgain(e.target.value.replace(/\D/g, ""))} aria-label="Repeat PIN" className={input} />
+        <input type="password" inputMode="numeric" placeholder={t("New PIN (4–8 digits)")} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} aria-label={t("New PIN")} className={input} />
+        <input type="password" inputMode="numeric" placeholder={t("Same PIN again")} value={again} onChange={(e) => setAgain(e.target.value.replace(/\D/g, ""))} aria-label={t("Repeat PIN")} className={input} />
       </div>
       <Button variant="primary" className="self-start" onClick={save} disabled={pin.length < 4}>Save PIN</Button>
-      <div className="text-[13px] text-muted">Counter series: <b>{cfg.series}</b> · Branch: {cfg.branchName} · Saved user for offline bills: {cfg.userName}</div>
+      <div className="text-[13px] text-muted">{t("Counter series:")} <b>{cfg.series}</b> · {t("Branch:")} {cfg.branchName} · {t("Saved user for offline bills:")} {cfg.userName}</div>
     </div>
   );
 }

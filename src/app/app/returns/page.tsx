@@ -3,6 +3,7 @@ import { requireCtx, can } from "@/server/context";
 import { currentShift, recentInvoices, todaysCreditNotes } from "@/domain/sales/returns";
 import { PageHead } from "@/components/page-head";
 import { t } from "@/lib/i18n";
+import { tFor } from "@/lib/tr";
 import { ReturnsView } from "./view";
 
 export const metadata = { title: "Returns & shift" };
@@ -14,7 +15,7 @@ export default async function Page() {
   return (
     <>
       <PageHead title={t(ctx.lang).ret} sub="Sales returns, refunds and cashier shift close" />
-      <ReturnsView invoices={invoices} creditNotes={cns} shift={shift} canRefund={can(ctx, "refund")} counter={ctx.counterName ?? "Browser counter"} />
+      <ReturnsView invoices={invoices} creditNotes={cns} shift={shift} canRefund={can(ctx, "refund")} counter={ctx.counterName ?? tFor(ctx.lang)("Browser counter")} />
     </>
   );
 }

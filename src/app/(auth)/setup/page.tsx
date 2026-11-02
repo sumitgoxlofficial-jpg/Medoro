@@ -6,9 +6,10 @@ import { setupDrive } from "@/server/setup-drive";
 import { driveAppConfigured } from "@/domain/system/gdrive";
 import { Start } from "./start";
 import { Unlock } from "./unlock";
+import { getT } from "@/server/lang";
 import { DEPLOYMENTS, databaseKind, type Deployment } from "@/domain/identity/deployment";
 
-export const metadata = { title: "Set up your pharmacy" };
+export async function generateMetadata() { return { title: (await getT())("Set up your pharmacy") }; }
 export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ restore?: string }> }) {
