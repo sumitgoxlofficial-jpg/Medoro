@@ -2,11 +2,14 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { cn } from "./cn";
+import { tx } from "@/lib/tx";
+import { useT } from "@/lib/i18n-client";
 
 export function Modal({ open, onClose, title, sub, children, footer, width = 480, className }: {
   open: boolean; onClose: () => void; title?: React.ReactNode; sub?: React.ReactNode;
   children: React.ReactNode; footer?: React.ReactNode; width?: number; className?: string;
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -20,10 +23,10 @@ export function Modal({ open, onClose, title, sub, children, footer, width = 480
         {title ? (
           <div className="flex items-start gap-3 px-6 pt-5 pb-3">
             <div className="flex-1 min-w-0">
-              <div className="text-[17px] font-semibold text-ink-strong">{title}</div>
-              {sub ? <div className="text-[12.5px] text-muted mt-0.5">{sub}</div> : null}
+              <div className="text-[17px] font-semibold text-ink-strong">{tx(title)}</div>
+              {sub ? <div className="text-[12.5px] text-muted mt-0.5">{tx(sub)}</div> : null}
             </div>
-            <button onClick={onClose} aria-label="Close" className="size-8 -mr-2 -mt-1 rounded-md flex items-center justify-center text-faint hover:bg-chip cursor-pointer"><X size={17} /></button>
+            <button onClick={onClose} aria-label={t("Close")} className="size-8 -mr-2 -mt-1 rounded-md flex items-center justify-center text-faint hover:bg-chip cursor-pointer"><X size={17} /></button>
           </div>
         ) : null}
         <div className="px-6 pb-5 overflow-auto flex flex-col gap-3.5">{children}</div>

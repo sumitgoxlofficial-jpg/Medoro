@@ -19,7 +19,7 @@ export async function setBranch(id: string) {
 
 export async function setLang(lang: "en" | "hi") {
   (await cookies()).set(LANG_COOKIE, lang === "hi" ? "hi" : "en", opts);
-  revalidatePath("/app", "layout");
+  revalidatePath("/", "layout");
 }
 
 export async function setViewAs(role: string) {

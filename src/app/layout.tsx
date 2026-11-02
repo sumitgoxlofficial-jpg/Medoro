@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { SwRegister } from "@/components/sw-register";
+import { LangProvider } from "@/lib/i18n-client";
+import { getLang } from "@/server/lang";
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
@@ -28,9 +30,10 @@ export const viewport: Viewport = { themeColor: "#0B5E5B" };
 // from middleware.ts on its scripts (a prerendered page would carry no nonce and be blocked).
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await headers();
+  const lang = await getLang();
   return (
-    <html lang="en">
-      <body>{children}<SwRegister /></body>
+    <html lang={lang}>
+      <body><LangProvider lang={lang}>{children}</LangProvider><SwRegister /></body>
     </html>
   );
 }

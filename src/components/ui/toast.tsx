@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { useT } from "@/lib/i18n-client";
 
 type ToastTone = "red" | "green" | "amber" | "blue" | "gray";
 const BG: Record<ToastTone, string> = { red: "#B3261E", green: "#1E7F4F", amber: "#94570A", blue: "#2459C9", gray: "#2B3036" };
@@ -9,11 +10,13 @@ const Ctx = createContext<(text: string, tone?: ToastTone) => void>(() => {});
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [t, setT] = useState<{ text: string; tone: ToastTone; id: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Messages (including server errors) are shown in the chosen language when a Hindi line exists.
+  const tr = useT();
   const show = useCallback((text: string, tone: ToastTone = "gray") => {
     clearTimeout(timer.current);
-    setT({ text, tone, id: Date.now() });
+    setT({ text: tr(text), tone, id: Date.now() });
     timer.current = setTimeout(() => setT(null), 3400);
-  }, []);
+  }, [tr]);
   return (
     <Ctx.Provider value={show}>
       {children}

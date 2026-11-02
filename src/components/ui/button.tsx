@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { cn } from "./cn";
+import { tx } from "@/lib/tx";
 
 type Variant = "primary" | "outline" | "ghost" | "danger" | "danger-outline" | "soft";
 type Size = "sm" | "md" | "lg";
@@ -21,7 +22,7 @@ const S: Record<Size, string> = {
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "outline", size = "md", className, type = "button", ...p }, ref,
+  { variant = "outline", size = "md", className, type = "button", children, ...p }, ref,
 ) {
   return (
     <button
@@ -33,6 +34,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
         V[variant], S[size], variant === "primary" && "font-semibold", className,
       )}
       {...p}
-    />
+    >{tx(children)}</button>
   );
 });
