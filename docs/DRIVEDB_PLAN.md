@@ -349,8 +349,12 @@ working with me; they overlap a little.
   figures; Medoro makes the A4 invoice PDF (pharmacy name, GSTIN and address from its own records), sends it from the
   linked phone or with the approved Meta invoice template (PDF as the document header) and keeps nothing: no message
   row, no PDF, no number. "Send PDF on WhatsApp" on the counter's receipt when WhatsApp is connected; the wa.me text
-  share stays as a fallback. A revoked token or a signed-out phone pauses sending and alerts the owner. Delivery
-  status isn't followed (nothing is kept to follow it with). Test: `whatsapp-phone.test.ts`.
+  share stays as a fallback. A revoked token or a signed-out phone pauses sending and alerts the owner.
+  **Delivery status** (device migration 10, `src/drivedb/messages.ts`): the counter keeps each message's id and status
+  and asks Medoro once a minute (`counterMessageStatus`). A linked phone's connector is asked directly (nothing stored);
+  for Meta, whose updates come only to the webhook, Medoro keeps the message id and status alone (`CounterMsgStatus`,
+  no number or text) for 7 days. The receipt shows sent / delivered / read; store updates show delivered and read
+  counts. Tests: `whatsapp-phone.test.ts`, `whatsapp.test.ts`, `messages.test.ts`.
 
 ### Phase 7 progress (slice 1 built: the move, checks, read-only copy, undo)
 - Server `src/domain/system/drive-move.ts`: `startMove` freezes Medoro's copy (`tenant.settings.driveMove`;

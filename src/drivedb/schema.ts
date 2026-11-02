@@ -134,6 +134,11 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "campaignId", "customerId", "status", "error", "at"],
   },
+  // WhatsApp messages sent from the counters (migration 10): the provider's message id and its latest status.
+  messageLog: {
+    kind: "mutable",
+    columns: ["id", "kind", "refId", "customerId", "messageId", "status", "error", "sentAt", ...MUTABLE],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -396,6 +401,16 @@ export const MIGRATIONS: readonly string[] = [
   ` + ["customerConsent", "campaign", "campaignSend"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // 10: WhatsApp messages sent from the counters (bills and store updates), so the counter can show delivered / read.
+  `
+  CREATE TABLE messageLog (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('bill', 'campaign')), refId TEXT NOT NULL, customerId TEXT,
+    messageId TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('sent', 'delivered', 'read', 'failed')), error TEXT,
+    sentAt TEXT NOT NULL, updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX messageLog_ref ON messageLog(kind, refId);
+  CREATE INDEX messageLog_open ON messageLog(status, sentAt);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

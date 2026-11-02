@@ -7,7 +7,7 @@ import { retryMessage } from "@/domain/comms/delivery";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, dayMonth, todayISO } from "@/lib/dates";
-import { sendCounterCampaign } from "@/domain/comms/counter-send";
+import { counterMessageStatus, sendCounterBill, sendCounterCampaign } from "@/domain/comms/counter-send";
 import { setDriveMode } from "@/domain/system/drive-mode";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -199,14 +199,25 @@ describe("WhatsApp", () => {
     await expect(sendCounterCampaign(cashier, batch)).rejects.toThrow();
     const rows = await db.waMessage.count();
     expect((await sendCounterCampaign(owner, batch)).results).toEqual([
-      { id: "cust-a", status: "sent" }, { id: "cust-b", status: "opted_out" }, { id: "cust-c", status: "failed", error: "Not a valid mobile number" },
+      { id: "cust-a", status: "sent", messageId: expect.stringMatching(/^wamid\./) }, { id: "cust-b", status: "opted_out" }, { id: "cust-c", status: "failed", error: "Not a valid mobile number" },
     ]);
     expect(sentBodies.at(-1)).toMatchObject({ to: "919822041700", template: { name: "store_update", components: [{ parameters: [{ text: "Asha" }, { text: "We are open till 11 pm." }] }] } });
     expect(await db.waMessage.count()).toBe(rows);
     // Babu agreed again at the counter after his STOP: that later choice counts, and the opt-out is lifted.
     const again = { ...batch, first: false, recipients: [{ id: "cust-b", name: "Babu", phone: "9822041799", consentAt: new Date(Date.now() + 1000).toISOString() }] };
-    expect((await sendCounterCampaign(owner, again)).results).toEqual([{ id: "cust-b", status: "sent" }]);
+    expect((await sendCounterCampaign(owner, again)).results).toEqual([{ id: "cust-b", status: "sent", messageId: expect.stringMatching(/^wamid\./) }]);
     expect(await db.waOptOut.count()).toBe(0);
+    // Delivery status: Meta reports to the webhook; only the message id and status are kept, for the counter.
+    const r = await sendCounterBill(cashier, { sendId: "press0000009", phone: "9822041700", customerName: "Asha Rao", invoiceNo: "DAB12-2026-9", at: new Date().toISOString(),
+      lines: [{ name: "Pan 40", batchNo: "P1", expiry: "2027-08-31", qtyText: "1 strip", mrp: 15500, discount: 0, gstRate: 12, amount: 15500 }],
+      totals: { mrp: 15500, discount: 0, taxable: 13839, cgst: 830, sgst: 831, igst: 0, roundOff: 0, total: 15500 }, payments: [{ mode: "cash" }] });
+    expect(r.messageId).toMatch(/^wamid\./);
+    const row = await db.counterMsgStatus.findFirstOrThrow({ where: { wamid: r.messageId! } });
+    expect(row).toMatchObject({ status: "sent", error: null });
+    expect(JSON.stringify(row)).not.toContain("9822041700");
+    const sb = JSON.stringify({ entry: [{ changes: [{ value: { metadata: { phone_number_id: "112093847561203" }, statuses: [{ id: r.messageId, status: "read" }], messages: [] } }] }] });
+    await handleWebhook(sb, "sha256=" + createHmac("sha256", SECRET).update(sb).digest("hex"));
+    expect(await counterMessageStatus(cashier, [r.messageId!, "unknown-id"])).toEqual({ [r.messageId!]: { status: "read", error: null } });
     await setDriveMode(owner, false);
     await expect(sendCounterCampaign(owner, again)).rejects.toThrow(/Customer messaging/);
   });

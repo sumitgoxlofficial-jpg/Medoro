@@ -7,7 +7,7 @@ import { deviceDb } from "@/drivedb/device";
 import { dayMonth } from "@/lib/dates";
 import { card, input, label, errText, type Who } from "./ui";
 
-type Camp = { id: string; name: string; message: string; audience: number; at: string; sent: number; failed: number; optedOut: number; notOnWhatsApp: number; pending: number };
+type Camp = { id: string; name: string; message: string; audience: number; at: string; delivered: number; read: number; sent: number; failed: number; optedOut: number; notOnWhatsApp: number; pending: number };
 const BATCH = 25;
 
 /**
@@ -79,13 +79,14 @@ export function StoreUpdates({ who, refresh }: { who: Who; refresh: number }) {
       </div>
       {list.length > 0 && (
         <table className="text-[13px] w-full">
-          <thead><tr className="text-left text-muted"><th className="font-medium py-1">Update</th><th className="font-medium">Date</th><th className="font-medium text-right">Sent</th><th className="font-medium text-right">Not sent</th><th /></tr></thead>
+          <thead><tr className="text-left text-muted"><th className="font-medium py-1">Update</th><th className="font-medium">Date</th><th className="font-medium text-right">Sent</th><th className="font-medium text-right">Delivered · read</th><th className="font-medium text-right">Not sent</th><th /></tr></thead>
           <tbody>
             {list.map((c) => (
               <tr key={c.id} className="border-t border-line">
                 <td className="py-1.5">{c.name}<div className="text-xs text-muted truncate max-w-[340px]">{c.message}</div></td>
                 <td>{dayMonth(new Date(c.at), true)}</td>
                 <td className="text-right tabular-nums">{c.sent}</td>
+                <td className="text-right tabular-nums">{c.delivered} · {c.read}</td>
                 <td className="text-right tabular-nums text-muted" title="Failed · replied STOP · not on WhatsApp">{c.failed} · {c.optedOut} · {c.notOnWhatsApp}</td>
                 <td className="text-right">{c.pending > 0 && <Button size="sm" onClick={() => run(c.id, c.message, false)} disabled={!!busy}>{busy === c.id ? progress || "Sending…" : `Resume (${c.pending})`}</Button>}</td>
               </tr>

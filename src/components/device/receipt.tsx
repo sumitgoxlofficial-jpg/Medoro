@@ -136,9 +136,15 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
     try {
       const r = await who.whatsapp.send(billForSend(d, phone, crypto.randomUUID().replace(/-/g, "")));
       if (!r.ok) throw new Error(r.error);
+      if (r.data.messageId) await dev.call("logMessage", { kind: "bill", refId: id, customerId: (d.sale.customerId as string | null) ?? null, messageId: r.data.messageId });
+      void loadSent();
       toast(who.whatsapp.via === "phone" ? "Bill PDF sent from your linked WhatsApp." : "Bill PDF sent on WhatsApp.", "green");
     } catch (e) { toast(errText(e), "red"); } finally { setBusy(false); }
   };
+  // This bill's WhatsApp sends and how far the latest got (updated by the counter's minute check).
+  const [sent, setSent] = useState<{ status: string; error: string | null; sentAt: string }[]>([]);
+  const loadSent = async () => { if (id) setSent(await dev.call("billMessages", id).catch(() => [])); };
+  useEffect(() => { void loadSent(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const b2b = !!d?.sale.customerGstin;
   return (
     <Modal open={!!d} onClose={() => { setFresh(null); onClose(); }} title={d ? `Bill ${String(d.sale.invoiceNo)}` : ""} width={420}
@@ -151,6 +157,12 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
         <Button variant="primary" onClick={printReceipt}><Printer size={16} /> Print</Button>
       </div>}>
       {d ? <div className="border border-line rounded-lg p-3"><ReceiptView d={d} pharmacy={pharmacy} /></div> : null}
+      {sent[0] && (
+        <div className={`mt-2 text-[13px] ${sent[0].status === "failed" ? "text-bad" : "text-muted"}`} data-testid="wa-status">
+          WhatsApp: {{ sent: "sent", delivered: "delivered", read: "read", failed: "not delivered" }[sent[0].status] ?? sent[0].status}
+          {sent[0].error ? ` (${sent[0].error})` : ""} · {hhmm(new Date(sent[0].sentAt))}{sent.length > 1 ? ` · sent ${sent.length} times` : ""}
+        </div>
+      )}
     </Modal>
   );
 }

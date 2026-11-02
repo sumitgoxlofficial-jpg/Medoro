@@ -22,6 +22,7 @@ import * as einv from "./einvoice";
 import * as money from "./money";
 import * as dash from "./dashboard";
 import * as camp from "./campaigns";
+import * as msgs from "./messages";
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
 
@@ -169,7 +170,7 @@ function pushSoon() {
   pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
 }
 /** Calls that only read, or run the sync themselves: no push needed after them. */
-const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns"]);
+const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -253,6 +254,11 @@ const handlers = {
   campaignPending: (campaignId: string, limit?: number, skip?: string[]) => camp.campaignPending(need(), campaignId, limit, skip),
   recordCampaignResults: (campaignId: string, results: camp.SendResult[], userId: string) => camp.recordCampaignResults(need(), campaignId, results, userId),
   listCampaigns: () => camp.listCampaigns(need()),
+  // WhatsApp delivery status of messages sent from the counters (src/drivedb/messages.ts).
+  logMessage: (m: Parameters<typeof msgs.logMessage>[1]) => msgs.logMessage(need(), m),
+  openMessageIds: () => msgs.openMessageIds(need()),
+  recordMessageStatuses: (report: Parameters<typeof msgs.recordStatuses>[1]) => msgs.recordStatuses(need(), report),
+  billMessages: (saleId: string) => msgs.billMessages(need(), saleId),
   // UPI & Bank: statement import, matching, review and reports (src/drivedb/money.ts).
   finSettings: () => money.finSettings(need()),
   saveFinSettings: (s: money.FinSettings) => money.saveFinSettings(need(), s),

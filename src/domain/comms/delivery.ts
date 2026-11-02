@@ -297,6 +297,7 @@ export async function resumeAfterReconnect(tenantId: string) {
  */
 export async function deliveryTick(now = new Date(), limit = 100) {
   await phoneTick(now).catch((e) => console.error("[delivery] phone", e));
+  await db.counterMsgStatus.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } }).catch(() => undefined);
   const due = await db.waMessage.findMany({ where: { status: "failed", errorKind: "retry", attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now } }, orderBy: { nextAttemptAt: "asc" }, take: limit });
   const paused = new Map<string, boolean>();
   const out = { sent: 0, failed: 0, skipped: 0 };

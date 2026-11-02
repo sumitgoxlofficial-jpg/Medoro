@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { DriveDB } from "./client";
 import { CounterError } from "./pharmacy";
+import { campaignDelivery, logMessage } from "./messages";
 
 const now = () => new Date().toISOString();
 const MOBILE = /^[6-9]\d{9}$/;
@@ -78,7 +79,7 @@ function pendingAll(db: DriveDB, campaignId: string) {
   return campaignAudience(db).filter((c) => !done.has(c.id));
 }
 
-export type SendResult = { id: string; status: "sent" | "failed" | "opted_out" | "not_on_whatsapp"; error?: string };
+export type SendResult = { id: string; status: "sent" | "failed" | "opted_out" | "not_on_whatsapp"; error?: string; messageId?: string };
 
 /** Records what Medoro answered for a batch. An opt-out also withdraws the customer's consent here. */
 export function recordCampaignResults(db: DriveDB, campaignId: string, results: SendResult[], userId: string) {
@@ -87,6 +88,7 @@ export function recordCampaignResults(db: DriveDB, campaignId: string, results: 
     for (const r of results) {
       if (!db.engine.all("SELECT 1 FROM customer WHERE id = ?", [r.id]).length) continue;
       db.from("campaignSend").insert({ campaignId, customerId: r.id, status: r.status, error: r.error?.slice(0, 160) ?? null, at: now() });
+      if (r.status === "sent" && r.messageId) logMessage(db, { kind: "campaign", refId: campaignId, customerId: r.id, messageId: r.messageId });
       if (r.status === "opted_out" && offersConsent(db, r.id).granted) {
         db.from("customerConsent").insert({ customerId: r.id, purpose: "offers", channel: "whatsapp", granted: 0, method: "Replied STOP on WhatsApp", userId, at: now() });
       }
@@ -103,6 +105,6 @@ export function listCampaigns(db: DriveDB, limit = 20) {
           WHERE s.campaignId = ? AND s.id = (SELECT id FROM campaignSend WHERE campaignId = s.campaignId AND customerId = s.customerId ORDER BY at DESC, rowid DESC LIMIT 1)
           GROUP BY s.status`, [c.id]);
       const n = (k: string) => Number(latest.find((x) => x.status === k)?.n ?? 0);
-      return { ...c, sent: n("sent"), failed: n("failed"), optedOut: n("opted_out"), notOnWhatsApp: n("not_on_whatsapp"), pending: pendingAll(db, c.id).length };
+      return { ...c, ...campaignDelivery(db, c.id), sent: n("sent"), failed: n("failed"), optedOut: n("opted_out"), notOnWhatsApp: n("not_on_whatsapp"), pending: pendingAll(db, c.id).length };
     });
 }

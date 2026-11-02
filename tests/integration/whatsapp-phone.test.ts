@@ -8,7 +8,7 @@ import { phoneKind, phoneText } from "@/domain/comms/phone-text";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale, createCustomer } from "@/domain/sales/service";
 import { addDays, todayISO } from "@/lib/dates";
-import { counterWhatsAppState, sendCounterBill, type CounterBill } from "@/domain/comms/counter-send";
+import { counterMessageStatus, counterWhatsAppState, sendCounterBill, type CounterBill } from "@/domain/comms/counter-send";
 import { setDriveMode } from "@/domain/system/drive-mode";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -120,7 +120,12 @@ describe("WhatsApp from a linked phone (QR)", () => {
     expect(await counterWhatsAppState(cashier)).toMatchObject({ connected: true, via: "phone" });
     await expect(sendCounterBill(cashier, { ...bill, phone: "12345" })).rejects.toThrow(/valid 10-digit/);
     const rows = await db.waMessage.count(), audits = await db.auditEvent.count();
-    expect(await sendCounterBill(cashier, bill)).toEqual({ sent: true, via: "phone" });
+    const res = await sendCounterBill(cashier, bill);
+    expect(res).toMatchObject({ sent: true, via: "phone", messageId: expect.stringMatching(/^msg-/) });
+    // Delivery status comes straight from the connector: nothing is stored for it.
+    results[res.messageId!] = "DELIVERED";
+    expect(await counterMessageStatus(cashier, [res.messageId!])).toEqual({ [res.messageId!]: { status: "delivered", error: null } });
+    expect(await db.counterMsgStatus.count()).toBe(0);
     const m = sent.at(-1)!;
     expect(m).toMatchObject({ path: "/api/v1/messages/document", to: "+919822041736", file: "DAB12-2026-7.pdf", key: `counter:${cashier.tenantId}:press0000001` });
     expect(m.text).toBe("Hello Ramesh Patil, thank you for shopping at Test Medical Store. Your invoice DAB12-2026-7 for Rs 155.00 is attached.");

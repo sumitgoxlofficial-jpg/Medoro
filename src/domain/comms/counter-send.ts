@@ -10,6 +10,7 @@ import { invoiceGrievance } from "@/domain/system/privacy";
 import { driveModeOn } from "@/domain/system/drive-mode";
 import { activeAccount, isPhone, markDisconnected, sendPhoneText, sendTemplate } from "./delivery";
 import { GraphError } from "./graph";
+import { phoneResults } from "./connector";
 import { clearOptOut, optedOut } from "./opt-outs";
 
 /**
@@ -68,9 +69,10 @@ export async function sendCounterBill(ctx: Ctx, raw: CounterBill) {
     filename: `${b.invoiceNo.replace(/[^A-Za-z0-9_-]/g, "-")}.pdf`,
   };
   const vars = [b.customerName || "Customer", b.invoiceNo, (b.totals.total / 100).toFixed(2)];
+  let messageId: string | null;
   try {
-    if (isPhone(w.cfg)) await sendPhoneText(ctx.tenantId, { phone, ref: "counter", vars, key: `counter:${ctx.tenantId}:${b.sendId}`, pdf });
-    else await sendTemplate(w, phone, { template: w.cfg.invoiceTemplate || "invoice_share", vars, n: 3, pdf });
+    if (isPhone(w.cfg)) messageId = await sendPhoneText(ctx.tenantId, { phone, ref: "counter", vars, key: `counter:${ctx.tenantId}:${b.sendId}`, pdf });
+    else messageId = await trackMeta(ctx.tenantId, await sendTemplate(w, phone, { template: w.cfg.invoiceTemplate || "invoice_share", vars, n: 3, pdf }));
   } catch (e) {
     // GraphError is a UserError too, so it is checked first.
     if (e instanceof GraphError) {
@@ -80,8 +82,40 @@ export async function sendCounterBill(ctx: Ctx, raw: CounterBill) {
     }
     throw e;
   }
-  return { sent: true as const, via: isPhone(w.cfg) ? ("phone" as const) : ("meta" as const) };
+  return { sent: true as const, via: isPhone(w.cfg) ? ("phone" as const) : ("meta" as const), messageId };
 }
+
+/** Meta reports delivery only to the webhook: keep the message id (nothing else) so the counter can ask later. */
+async function trackMeta(tenantId: string, wamid: string | null) {
+  if (wamid) await db.counterMsgStatus.upsert({ where: { tenantId_wamid: { tenantId, wamid } }, create: { tenantId, wamid, status: "sent" }, update: {} });
+  return wamid;
+}
+
+const STATUS_ORDER = ["queued", "sent", "delivered", "read"];
+/** The webhook's delivery update for a counter's message (forward only; a failure is kept with its reason). */
+export async function applyCounterStatus(tenantId: string, wamid: string, status: string, error?: string) {
+  const row = await db.counterMsgStatus.findUnique({ where: { tenantId_wamid: { tenantId, wamid } } });
+  if (!row || row.status === "failed") return !!row;
+  if (status === "failed") await db.counterMsgStatus.update({ where: { id: row.id }, data: { status: "failed", error: (error ?? "Not delivered").slice(0, 160) } });
+  else if (STATUS_ORDER.indexOf(status) > STATUS_ORDER.indexOf(row.status)) await db.counterMsgStatus.update({ where: { id: row.id }, data: { status } });
+  return true;
+}
+
+/**
+ * Where a counter's WhatsApp messages stand, by message id: from the linked phone's connector (asked now, nothing
+ * stored) or from what Meta's webhook reported. Ids Medoro knows nothing about are left out.
+ */
+export async function counterMessageStatus(ctx: Ctx, ids: string[]) {
+  if (!ctx.perms.includes("sale")) throw new UserError("Your role can’t see message status.");
+  const want = [...new Set(ids.filter((x) => typeof x === "string" && x.length > 0 && x.length <= 200))].slice(0, 200);
+  const out: Record<string, { status: string; error: string | null }> = {};
+  for (const r of await db.counterMsgStatus.findMany({ where: { tenantId: ctx.tenantId, wamid: { in: want } } })) out[r.wamid] = { status: r.status, error: r.error };
+  const rest = want.filter((x) => !out[x]);
+  const w = rest.length ? await activeAccount(ctx.tenantId) : null;
+  if (w && isPhone(w.cfg)) Object.assign(out, (await phoneResults(ctx.tenantId, rest)) ?? {});
+  return out;
+}
+
 
 // ───────────── Store updates (campaigns) from a counter ─────────────
 
@@ -98,7 +132,7 @@ export const counterCampaignSchema = z.object({
   })).min(1).max(CAMPAIGN_BATCH_MAX),
 });
 export type CounterCampaignBatch = z.input<typeof counterCampaignSchema>;
-export type RecipientResult = { id: string; status: "sent" | "failed" | "opted_out" | "not_on_whatsapp"; error?: string };
+export type RecipientResult = { id: string; status: "sent" | "failed" | "opted_out" | "not_on_whatsapp"; error?: string; messageId?: string };
 
 /**
  * One batch of a store update from a Drive counter. The counter chooses the recipients (customers who agreed to offers
@@ -129,9 +163,10 @@ export async function sendCounterCampaign(ctx: Ctx, raw: CounterCampaignBatch): 
     }
     const vars = [p.name.split(" ")[0] || "Customer", c.message];
     try {
-      if (isPhone(w.cfg)) await sendPhoneText(ctx.tenantId, { phone: p.phone, ref: `campaign:${c.campaignId}`, vars, key: `camp:${ctx.tenantId}:${c.campaignId}:${p.id}` });
-      else await sendTemplate(w, p.phone, { template: "store_update", vars, n: 2 });
-      results.push({ id: p.id, status: "sent" });
+      const messageId = isPhone(w.cfg)
+        ? await sendPhoneText(ctx.tenantId, { phone: p.phone, ref: `campaign:${c.campaignId}`, vars, key: `camp:${ctx.tenantId}:${c.campaignId}:${p.id}` })
+        : await trackMeta(ctx.tenantId, await sendTemplate(w, p.phone, { template: "store_update", vars, n: 2 }));
+      results.push({ id: p.id, status: "sent", ...(messageId ? { messageId } : {}) });
     } catch (e) {
       // A plain UserError (e.g. the store_update template isn't approved) fails every recipient the same way: stop and
       // say so. GraphError extends UserError, so it is told apart first.

@@ -24,7 +24,7 @@ export type Who = {
   /** The pharmacy's WhatsApp is connected (signed in): send a bill's PDF through Medoro, which keeps nothing. */
   whatsapp?: {
     via: "phone" | "meta";
-    send: (bill: ReturnType<typeof billForSend>) => Promise<{ ok: true; data: { sent: true } } | { ok: false; error: string }>;
+    send: (bill: ReturnType<typeof billForSend>) => Promise<{ ok: true; data: { sent: true; messageId: string | null } } | { ok: false; error: string }>;
     /** One batch of a store update (owner); Medoro answers each recipient's result. */
     campaign: (batch: CampaignBatch) => Promise<{ ok: true; data: { results: SendResult[] } } | { ok: false; error: string }>;
   } | null;

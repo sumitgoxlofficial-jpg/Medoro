@@ -12,7 +12,7 @@ import { DevicesPanel, DrivePanel, useDriveConnect } from "./drive-panel";
 import { FinishMove, MoveFromMedoro } from "./move";
 import { PaymentsPanel } from "./payments-panel";
 import { DriveGate } from "./drive-gate";
-import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, counterWhatsAppAction, einvoiceStatusAction, payLinkAction, payStatusAction, sendCounterBillAction, sendCounterCampaignAction } from "../lab/actions";
+import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, counterMessageStatusAction, counterWhatsAppAction, einvoiceStatusAction, payLinkAction, payStatusAction, sendCounterBillAction, sendCounterCampaignAction } from "../lab/actions";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
@@ -27,6 +27,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     void counterWhatsAppAction().then((r) => setWa(r.ok && r.data.connected ? r.data.via : null), () => {});
     void aiGatewayStatusAction().then((r) => setAi(r.ok && r.data.enabled && r.data.model ? { remote: r.data.model === "remote", remoteNames: r.data.remoteNames } : null), () => {});
   }, []);
+  useDeliveryStatus(!!wa);
   const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null, whatsapp: wa ? { via: wa, send: sendCounterBillAction, campaign: sendCounterCampaignAction } : null };
   return (
     <DriveGate fresh={fresh || mustMove} move={mustMove} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
@@ -40,6 +41,29 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     />
     </DriveGate>
   );
+}
+
+/**
+ * Asks Medoro once a minute (and when the page opens) where this counter's recent WhatsApp messages stand, and saves
+ * delivered / read on the device. Only message ids go to Medoro.
+ */
+function useDeliveryStatus(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    const dev = deviceDb();
+    let stop = false;
+    const check = async () => {
+      try {
+        const ids = await dev.call("openMessageIds");
+        if (!ids.length || stop) return;
+        const r = await counterMessageStatusAction(ids);
+        if (r.ok && !stop) await dev.call("recordMessageStatuses", r.data);
+      } catch { /* offline or not set up: next time */ }
+    };
+    void check();
+    const t = setInterval(() => { if (document.visibilityState === "visible") void check(); }, 60_000);
+    return () => { stop = true; clearInterval(t); };
+  }, [on]);
 }
 
 /**

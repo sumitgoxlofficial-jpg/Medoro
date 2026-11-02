@@ -12,7 +12,7 @@ import { gatewayStatus, gatewayStep, type stepInput } from "@/domain/ai/gateway"
 import type { ChatMsg, ToolSpec } from "@/domain/ai/llm";
 import { counterCancelIrn, counterIrn, einvoiceState, type counterCancelSchema } from "@/domain/gst/service";
 import type { EinvDoc } from "@/domain/gst/einvoice";
-import { counterWhatsAppState, sendCounterBill, sendCounterCampaign, type CounterBill, type CounterCampaignBatch } from "@/domain/comms/counter-send";
+import { counterMessageStatus, counterWhatsAppState, sendCounterBill, sendCounterCampaign, type CounterBill, type CounterCampaignBatch } from "@/domain/comms/counter-send";
 import { completeMove, deleteMedoroCopy, moveExport, moveStatus, startMove, undoMove, type MovePart } from "@/domain/system/drive-move";
 
 /** Phase 0 speed test: gives the owner's browser a short-lived Drive pass. Medoro sees no test data. */
@@ -106,3 +106,5 @@ export async function counterWhatsAppAction() { return run((c) => counterWhatsAp
 export async function sendCounterBillAction(bill: CounterBill) { return run((c) => sendCounterBill(c, bill)); }
 /** One batch of a store update from the counter (Medoro checks opt-outs, sends, and keeps nothing). */
 export async function sendCounterCampaignAction(batch: CounterCampaignBatch) { return run((c) => sendCounterCampaign(c, batch)); }
+/** Delivered / read for messages the counters sent, by message id. */
+export async function counterMessageStatusAction(ids: string[]) { return run((c) => counterMessageStatus(c, ids)); }

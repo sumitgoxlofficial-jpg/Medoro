@@ -123,7 +123,9 @@ The message body excludes prescriber and diagnosis details. Opt-outs ("STOP") on
 Counters of a Drive mode pharmacy keep their bills and customers on the device, so they send through a gateway that
 keeps nothing (`src/domain/comms/counter-send.ts`):
 - **Bills:** the counter sends the bill's figures; Medoro makes the PDF and sends it from the linked phone or with the
-  approved invoice template. No message row, PDF or number is stored, so delivery status isn't followed.
+  approved invoice template. No message row, PDF or number is stored. Delivery status: the counter asks by message
+  id; a linked phone's connector answers directly, and for Meta only the message id and status from the webhook are
+  kept (`CounterMsgStatus`, 7 days).
 - **Store updates:** the counter keeps consent to offers per customer and each recipient's result; Medoro checks the
   opt-out list and sends each batch from the linked phone or with the approved `store_update` template.
 - **STOP:** a Meta STOP reply for a Drive pharmacy is kept as a keyed hash of the number (`WaOptOut`); a linked phone
