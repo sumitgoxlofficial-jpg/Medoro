@@ -37,8 +37,8 @@ function windows(now: Date, years: number) {
 
 /** Inactive customers: created and last bought (and last changed consent) before the cutoff, with nothing outstanding. */
 async function inactiveCustomers(tenantId: string, cutoff: Date) {
-  const rows = await db.$queryRaw<{ id: string; phone: string | null }[]>`
-    SELECT c.id, c.phone FROM "Customer" c
+  const rows = await db.$queryRaw<{ id: string; phone: string | null; gstin: string | null }[]>`
+    SELECT c.id, c.phone, c.gstin FROM "Customer" c
     WHERE c."tenantId" = ${tenantId} AND c."erasedAt" IS NULL AND c."createdAt" < ${cutoff}
       AND NOT EXISTS (SELECT 1 FROM "Sale" s WHERE s."customerId" = c.id AND s.at >= ${cutoff})
       AND NOT EXISTS (SELECT 1 FROM "ConsentRecord" r WHERE r."customerId" = c.id AND r.at >= ${cutoff})`;
@@ -79,7 +79,7 @@ export async function retentionPreview(tenantId: string, now = new Date()) {
 export async function applyRetention(tenantId: string, now = new Date(), by?: { id: string; name: string }) {
   const { retentionYears } = await getPrivacy(tenantId);
   const w = windows(now, retentionYears), q = wheres(tenantId, w, now);
-  const whatsapp = (await db.waMessage.updateMany({ where: q.whatsapp, data: { recipient: "redacted" } })).count;
+  const whatsapp = (await db.waMessage.updateMany({ where: q.whatsapp, data: { recipient: "redacted", payload: Prisma.DbNull } })).count;
   let customers = 0;
   for (const c of await inactiveCustomers(tenantId, w.customers)) {
     await db.$transaction((tx) => anonymiseCustomer(tx, tenantId, c, "Inactive customer"));

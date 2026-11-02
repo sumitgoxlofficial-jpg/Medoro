@@ -19,6 +19,11 @@ describe("team and roles", () => {
     await expect(togglePermission(ctx, owner.id, "sale")).rejects.toThrow(/locked/);
     expect(await togglePermission(ctx, cashier.id, "disc")).toBe(true);
     expect((await db.role.findUniqueOrThrow({ where: { id: cashier.id } })).permissions).toContain("disc");
+    // A manager allowed to manage users can't hand out owner-only rights or widen their own role.
+    const mgr = { ...(await ctxFor("Manager")), realRole: "Manager", perms: ["users"] as typeof ctx.perms };
+    const manager = roles.find((r) => r.name === "Manager")!;
+    await expect(togglePermission(mgr, cashier.id, "integrations")).rejects.toThrow(/Only the owner/);
+    await expect(togglePermission(mgr, manager.id, "sale")).rejects.toThrow(/your own role/);
 
     await expect(updateMember(ctx, ctx.userId, { active: false })).rejects.toThrow(/your own/);
     const t = await db.tenant.findFirstOrThrow();

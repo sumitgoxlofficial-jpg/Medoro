@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual, verify, type KeyObject } from "node:crypto";
 import { cookies } from "next/headers";
-import { seal, unseal } from "./vault";
+import { seal, unsealClient } from "./vault";
 
 // "Sign in with Google": OpenID Connect authorization code flow with PKCE (S256), state and nonce.
 // Uses the same OAuth client as Google Drive backups, with its own redirect URI.
@@ -33,7 +33,7 @@ const cookieOpts = (path: string, maxAge: number) => ({ httpOnly: true, sameSite
 const sealJson = (v: unknown) => b64u(seal(JSON.stringify(v)));
 function openJson<T>(v: string | undefined): T | null {
   if (!v) return null;
-  try { return JSON.parse(unseal(Buffer.from(v, "base64url")).toString()) as T; } catch { return null; }
+  try { return JSON.parse(unsealClient(Buffer.from(v, "base64url")).toString()) as T; } catch { return null; }
 }
 
 /** Starts a flow: binds state, nonce and the PKCE verifier to this browser in a sealed httpOnly cookie. */

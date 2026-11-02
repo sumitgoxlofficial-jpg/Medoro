@@ -2,6 +2,7 @@ import "server-only";
 import { UserError } from "@/server/action";
 import { isSetupDone } from "@/domain/identity/service";
 import { setupUnlocked, signupOpen } from "@/server/setup-gate";
+import { log } from "@/server/log";
 
 type R<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -13,7 +14,7 @@ export async function setupStep<T>(fn: () => Promise<T>): Promise<R<T>> {
     return { ok: true, data: await fn() };
   } catch (e) {
     if (e instanceof UserError || (e instanceof Error && "status" in e)) return { ok: false, error: e.message };
-    console.error(e);
+    log.error("setup step failed", { err: e });
     return { ok: false, error: "Something went wrong. Nothing was changed." };
   }
 }
@@ -32,7 +33,7 @@ export async function restoreStep<T>(fn: () => Promise<T>): Promise<R<T>> {
     return { ok: true, data: await fn() };
   } catch (e) {
     if (e instanceof UserError || (e instanceof Error && "status" in e)) return { ok: false, error: e.message };
-    console.error(e);
+    log.error("setup step failed", { err: e });
     return { ok: false, error: "Something went wrong. Nothing was changed." };
   }
 }

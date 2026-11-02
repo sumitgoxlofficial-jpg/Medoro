@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { seal, unseal } from "./vault";
+import { seal, unsealClient } from "./vault";
 import { saveDriveToken } from "@/domain/system/gdrive";
 
 // During first-run setup there is no pharmacy to store a Google token on yet, so the browser holds it in a
@@ -14,7 +14,7 @@ export async function holdSetupDrive(refreshToken: string, account: string) {
 export async function setupDrive(): Promise<{ refreshToken: string; account: string } | null> {
   const v = (await cookies()).get(COOKIE)?.value;
   if (!v) return null;
-  try { return JSON.parse(unseal(Buffer.from(v, "base64url")).toString()); } catch { return null; }
+  try { return JSON.parse(unsealClient(Buffer.from(v, "base64url")).toString()); } catch { return null; }
 }
 
 export async function dropSetupDrive() {

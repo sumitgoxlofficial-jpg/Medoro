@@ -12,6 +12,7 @@ import { invoicePdf } from "@/domain/sales/pdf";
 import { graph, GraphError, type FailKind } from "./graph";
 import { connectorFailKind, connectorProblem, linkState, phoneResults, resumeBuiltIn, sendFromPhone } from "./connector";
 import { phoneKind, phoneText } from "./phone-text";
+import { log } from "@/server/log";
 
 export type WaTemplate = { name: string; language: string; status: string; category: string; params?: number; header?: string };
 export type WaConfig = {
@@ -237,7 +238,7 @@ export async function dispatch(m: WaMessage): Promise<{ ok: true } | { ok: false
   } catch (e) {
     const kind: FailKind = e instanceof GraphError ? e.kind : e instanceof SmsError ? (e.retry ? "retry" : "permanent") : e instanceof UserError ? "permanent" : "retry";
     const reason = (e instanceof GraphError ? e.reason : e instanceof Error ? e.message : "Send failed").slice(0, 200);
-    if (!(e instanceof UserError)) console.error("[delivery]", e);
+    if (!(e instanceof UserError)) log.error("delivery failed", { err: e });
     await recordFailure(m, kind, reason, e instanceof PhoneError || (e instanceof GraphError && e.code !== undefined));
     return { ok: false, error: reason, kind };
   }
@@ -296,7 +297,7 @@ export async function resumeAfterReconnect(tenantId: string) {
  * attempts in all. Pharmacies whose WhatsApp is disconnected are skipped (their queue is paused).
  */
 export async function deliveryTick(now = new Date(), limit = 100) {
-  await phoneTick(now).catch((e) => console.error("[delivery] phone", e));
+  await phoneTick(now).catch((e) => log.error("delivery phone tick failed", { err: e }));
   await db.counterMsgStatus.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 7 * 86400_000) } } }).catch(() => undefined);
   const due = await db.waMessage.findMany({ where: { status: "failed", errorKind: "retry", attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now } }, orderBy: { nextAttemptAt: "asc" }, take: limit });
   const paused = new Map<string, boolean>();

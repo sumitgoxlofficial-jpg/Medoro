@@ -11,6 +11,7 @@ import * as support from "@/staff/support";
 import * as licence from "@/staff/licence";
 import * as coupons from "@/staff/coupons";
 import * as partners from "@/staff/partners";
+import { log } from "@/server/log";
 
 async function origin() {
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
@@ -23,7 +24,7 @@ async function open<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
   try { return { ok: true, data: await fn() }; } catch (e) {
     if (e instanceof ZodError) return { ok: false, error: e.issues[0]?.message ?? "Invalid input." };
     if (e instanceof UserError) return { ok: false, error: e.message };
-    console.error(e);
+    log.error("staff action failed", { err: e });
     return { ok: false, error: "Something went wrong. Try again." };
   }
 }

@@ -5,14 +5,16 @@ import { cookies } from "next/headers";
 /**
  * First-run setup creates the owner of this installation, so on a public server it must not be
  * open to whoever finds the URL first. When SETUP_TOKEN is set (and always on Vercel), the wizard
- * asks for it once; a short-lived cookie then carries a hash of it.
+ * asks for it once; a short-lived cookie then carries a hash of it. A production server without SETUP_TOKEN keeps
+ * setup locked (scripts/lan-setup.* write one); SETUP_OPEN=1 opts out, e.g. for a test run on a private machine.
  */
 const COOKIE = "medoro_setup";
 const digest = (s: string) => createHash("sha256").update("medoro-setup:" + s).digest();
 
 export function setupGate(): "open" | "token" | "disabled" {
   if (process.env.SETUP_TOKEN) return "token";
-  return process.env.VERCEL ? "disabled" : "open";
+  if (process.env.VERCEL) return "disabled";
+  return process.env.NODE_ENV === "production" && process.env.SETUP_OPEN !== "1" ? "disabled" : "open";
 }
 
 export function tokenMatches(given: string) {

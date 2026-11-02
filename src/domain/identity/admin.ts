@@ -182,8 +182,13 @@ export async function togglePermission(ctx: Ctx, roleId: string, perm: Perm) {
   return db.$transaction(async (tx) => {
     const r = await tx.role.findFirst({ where: { id: roleId, tenantId: ctx.tenantId } });
     if (!r) throw new UserError("Role not found.");
-    if (r.locked) throw new UserError("Owner permissions are locked.");
+    if (r.locked || r.name === "Owner" || r.name === "Medoro support (read-only)") throw new UserError("Owner permissions are locked.");
     const on = r.permissions.includes(perm);
+    if (ctx.realRole !== "Owner") {
+      // Same rules as per-person grants: only the owner hands out owner-only rights or changes their own role.
+      if (r.name === ctx.realRole) throw new UserError("You can’t change your own role’s permissions.");
+      if (!on && OWNER_ONLY_GRANTS.includes(perm)) throw new UserError(`Only the owner can grant “${PERM_LABEL[perm]}”.`);
+    }
     await tx.role.update({ where: { id: r.id }, data: { permissions: on ? r.permissions.filter((p) => p !== perm) : [...r.permissions, perm] } });
     await writeAudit(tx, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: on ? "Permission revoked" : "Permission granted", entity: "role", entityId: r.id, detail: `${r.name} · ${perm}` });
     return !on;

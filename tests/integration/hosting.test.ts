@@ -51,6 +51,11 @@ describe("hosting safety", () => {
     vi.stubEnv("VERCEL", "");
     vi.stubEnv("SETUP_TOKEN", "");
     expect(g.setupGate()).toBe("open");
+    // A production server without a token keeps setup locked unless explicitly opted out.
+    vi.stubEnv("NODE_ENV", "production");
+    expect(g.setupGate()).toBe("disabled");
+    vi.stubEnv("SETUP_OPEN", "1");
+    expect(g.setupGate()).toBe("open");
   });
 
   it("refuses to start on Vercel with missing or weak settings, and flags public secrets", () => {

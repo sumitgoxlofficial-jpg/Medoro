@@ -5,6 +5,7 @@ import { UserError, type ActionResult } from "@/server/action";
 import { clientIp } from "@/server/auth";
 import { websiteLead, type websiteLeadSchema } from "@/staff/public";
 import type { z } from "zod";
+import { log } from "@/server/log";
 
 export async function startTrialAction(input: z.input<typeof websiteLeadSchema>): Promise<ActionResult<null>> {
   try {
@@ -13,7 +14,7 @@ export async function startTrialAction(input: z.input<typeof websiteLeadSchema>)
   } catch (e) {
     if (e instanceof ZodError) return { ok: false, error: e.issues[0]?.message ?? "Check the form." };
     if (e instanceof UserError) return { ok: false, error: e.message };
-    console.error(e);
+    log.error("start action failed", { err: e });
     return { ok: false, error: "Something went wrong. Please message us on WhatsApp instead." };
   }
 }

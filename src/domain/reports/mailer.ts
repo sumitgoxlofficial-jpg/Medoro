@@ -13,6 +13,7 @@ import { istClock } from "@/domain/system/schedule";
 import { reportRows } from "@/domain/accounting/reports";
 import type { Period } from "@/domain/accounting/service";
 import { MAIL_REPORTS, WEEKDAYS, type MailReportId, type ReportMailLast as LastRun, type ReportMailSettings } from "./mail-contracts";
+import { log } from "@/server/log";
 
 export { MAIL_REPORTS, WEEKDAYS };
 export type { MailReportId, ReportMailSettings };
@@ -195,6 +196,6 @@ export async function reportMailTick(now = new Date(), opts: { daily?: boolean }
     const day = todayISO(now);
     // Claim today's run atomically so two servers or overlapping ticks can't both send.
     const claimed = await db.$executeRaw`UPDATE "Tenant" SET settings = jsonb_set(settings, '{reportMailRun}', to_jsonb(${day}::text)) WHERE id = ${t.id} AND COALESCE(settings->>'reportMailRun', '') <> ${day}`;
-    if (claimed) await sendReportMail(t.id, {}, now).catch((e) => console.error("[report-mail]", e));
+    if (claimed) await sendReportMail(t.id, {}, now).catch((e) => log.error("report mail failed", { err: e }));
   }
 }

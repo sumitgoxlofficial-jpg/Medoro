@@ -2,6 +2,7 @@ import "server-only";
 import { ZodError } from "zod";
 import { UserError } from "@/server/action";
 import { LicenceApiError } from "@/staff/licence";
+import { log } from "@/server/log";
 
 const no = { "Cache-Control": "no-store" };
 
@@ -16,7 +17,7 @@ export async function licenceApi(req: Request, fn: (body: string) => Promise<unk
     if (e instanceof ZodError) return Response.json({ error: e.issues[0]?.message ?? "Invalid request." }, { status: 400, headers: no });
     if (e instanceof SyntaxError) return Response.json({ error: "Invalid JSON." }, { status: 400, headers: no });
     if (e instanceof UserError) return Response.json({ error: e.message }, { status: 400, headers: no });
-    console.error("[licence]", e);
+    log.error("licence api failed", { err: e });
     return Response.json({ error: "Licence server error." }, { status: 500, headers: no });
   }
 }

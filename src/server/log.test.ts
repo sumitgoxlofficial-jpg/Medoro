@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { format, log, redact } from "./log";
+import { format, log, redact, scrub } from "./log";
 
 describe("structured logger", () => {
   afterEach(() => { vi.restoreAllMocks(); delete process.env.LOG_LEVEL; });
@@ -9,6 +9,12 @@ describe("structured logger", () => {
     expect(out.user).toEqual({ email: "[redacted]", phone: "[redacted]", name: "A" });
     expect(out.headers).toEqual({ authorization: "[redacted]", Cookie: "[redacted]" });
     expect(out).toMatchObject({ otp: "[redacted]", code: "[redacted]", password: "[redacted]", sessionToken: "[redacted]", ok: "1" });
+  });
+
+  it("scrubs credentials and contact details out of error text and string values", () => {
+    const out = JSON.stringify(redact({ err: new Error("connect postgresql://medoro:hunter2@db:5432/x for a@b.in, 9822000001"), detail: "Bearer abc.def" }));
+    expect(out).not.toMatch(/hunter2|a@b\.in|9822000001|abc\.def/);
+    expect(scrub("+91 9822000001 and $argon2id$v=19$m=1$abc")).toBe("[phone] and [hash]");
   });
 
   it("writes one JSON line and honours LOG_LEVEL", () => {

@@ -14,6 +14,7 @@ import { customerBalances } from "@/domain/parties/balances";
 import { loyaltySettings, salePoints } from "@/domain/sales/loyalty";
 import { consentWhere, hasConsent, type Purpose } from "@/domain/parties/consent";
 import { activeAccount, approvedTemplate, dispatch, queueMessage, smsReady, smsSettings, waAccount, type Payload, type SmsSettings, type WaTemplate } from "./delivery";
+import { log as logger } from "@/server/log";
 
 export type CrmSettings = {
   refill: boolean; feedback: boolean; payment: boolean; refillTemplate: string; feedbackTemplate: string; paymentTemplate: string; feedbackHours: number;
@@ -387,7 +388,7 @@ export async function messagingTick(now = new Date(), opts: { daily?: boolean } 
   const { hhmm } = istClock(now);
   const weekday = new Date(now.getTime() + 330 * 60_000).getUTCDay();
   const day = todayISO(now);
-  const log = (e: unknown) => { if (!(e instanceof UserError)) console.error("[messaging]", e); };
+  const log = (e: unknown) => { if (!(e instanceof UserError)) logger.error("messaging failed", { err: e }); };
   // Claim today's run atomically so two servers or overlapping ticks can't both send.
   const claim = (id: string, key: string) => db.$executeRaw`UPDATE "Tenant" SET settings = jsonb_set(settings, ${`{${key}}`}::text[], to_jsonb(${day}::text)) WHERE id = ${id} AND COALESCE(settings->>${key}, '') <> ${day}`;
   for (const t of tenants) {

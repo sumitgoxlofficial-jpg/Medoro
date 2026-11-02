@@ -7,6 +7,7 @@ import { db } from "@/server/db";
 import { clientInfo } from "@/server/auth";
 import { UserError, type ActionResult } from "@/server/action";
 import type { StaffRoleId } from "./constants";
+import { log } from "@/server/log";
 
 // Staff sessions are completely separate from pharmacy sessions: own cookie, own table,
 // and the staff code never imports pharmacy services or reads pharmacy tables.
@@ -89,7 +90,7 @@ export async function staffRun<T>(fn: (s: Staff) => Promise<T>, message?: string
   } catch (e) {
     if (e instanceof ZodError) return { ok: false, error: e.issues[0]?.message ?? "Invalid input." };
     if (e instanceof UserError) return { ok: false, error: e.message };
-    console.error(e);
+    log.error("staff auth failed", { err: e });
     return { ok: false, error: "Something went wrong. Nothing was saved." };
   }
 }

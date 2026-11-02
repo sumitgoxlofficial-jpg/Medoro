@@ -147,6 +147,11 @@ describe("staff console", () => {
     expect(d.notes[0].text).toBe("Owner prefers WhatsApp");
     // Sales only see their own customers.
     expect(await customerDetail({ ...karan, id: "someone-else" }, c.id)).toBeNull();
+    // Reference partners sign themselves up, so they see no customers, links or notes.
+    const partner = { ...karan, role: "partner" as const };
+    await expect(customers(partner)).rejects.toThrow(/role/);
+    await expect(customerDetail(partner, c.id)).rejects.toThrow(/role/);
+    await expect(addNote(partner, c.id, "x")).rejects.toThrow(/role/);
   });
 
   it("winning a lead twice at once logs one sale", async () => {

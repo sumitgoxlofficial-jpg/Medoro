@@ -24,11 +24,12 @@ import { mailEnabled } from "@/server/mail";
 import { adoptSetupDrive } from "@/server/setup-drive";
 import { MOBILE_RE, inviteContact, passwordSchema, pinSchema, type SetupInput } from "@/domain/identity/contracts";
 import { ZodError } from "zod";
+import { log } from "@/server/log";
 
 type R<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 const fail = (error: string): R<never> => ({ ok: false, error });
 const errMsg = (e: unknown) =>
-  e instanceof ZodError ? e.issues[0]?.message ?? "Invalid input." : e instanceof UserError ? e.message : (console.error(e), "Something went wrong. Nothing was saved.");
+  e instanceof ZodError ? e.issues[0]?.message ?? "Invalid input." : e instanceof UserError ? e.message : (log.error("auth action failed", { err: e }), "Something went wrong. Nothing was saved.");
 
 // ───────────── First-run setup ─────────────
 
@@ -44,7 +45,7 @@ export async function setupAction(input: SetupInput): Promise<R<{ invites: { con
     if (!(await setupUnlocked())) return fail("Enter the setup token first.");
     const r = await createPharmacy(input);
     const owner = await db.user.findUniqueOrThrow({ where: { id: r.ownerId } });
-    await adoptSetupDrive(owner.tenantId).catch((e) => console.error("[setup] Google Drive not kept:", e));
+    await adoptSetupDrive(owner.tenantId).catch((e) => log.error("setup: Google Drive not kept", { err: e }));
     await createSession(owner.id, owner.tokenVersion, { mfaPassed: false, device: "Setup", firstFactor: "password" });
     return { ok: true, data: { invites: r.invites, tenantCode: r.tenantCode } };
   } catch (e) { return fail(errMsg(e)); }
