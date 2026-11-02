@@ -48,7 +48,7 @@ export function DriveGate({ fresh, move = false, drive, owner, access, driveResu
     try { setCode(await dev.call("createVault")); } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
-  const failed = driveResult && driveResult !== "ok" ? { denied: "Google Drive wasn’t connected: access was declined.", scope: "Google Drive was connected without file access. Connect again and allow Medoro to create files.", error: "Connecting Google Drive failed. Try again.", state: "That sign-in expired. Try again.", forbidden: "Only the owner can connect Google Drive." }[driveResult] ?? "Google Drive wasn’t connected. Try again." : null;
+  const failed = driveResult && driveResult !== "ok" ? { denied: "Google Drive wasn’t connected: access was declined.", scope: "Not all Google Drive access was allowed. Connect again and tick both Google Drive boxes on Google’s screen.", error: "Connecting Google Drive failed. Try again.", state: "That sign-in expired. Try again.", forbidden: "Only the owner can connect Google Drive." }[driveResult] ?? "Google Drive wasn’t connected. Try again." : null;
 
   return (
     <div className={card} data-testid="drive-gate">

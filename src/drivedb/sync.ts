@@ -1,5 +1,5 @@
 /**
- * Keeps every counter's device database in step through the owner's Google Drive (Medoro/<pharmacy>/drivedb):
+ * Keeps every counter's device database in step through the owner's Google Drive (its hidden app data area):
  *   encryption-meta.json        keys (see keyring.ts)
  *   manifest.json               the current full copy, and how far into each device's changes it reaches
  *   pharmacy.db.enc             the latest full copy (encrypted)

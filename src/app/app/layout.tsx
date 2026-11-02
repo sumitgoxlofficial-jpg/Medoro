@@ -12,6 +12,7 @@ import { subscriptionBanner } from "@/domain/system/subscription";
 import { remoteRequests, supportInbox } from "@/domain/system/licence";
 import { effectivePerms } from "@/domain/identity/permissions";
 import { driveRequired } from "@/domain/system/drive-state";
+import { driveNeedsReconnect } from "@/domain/system/gdrive";
 import { UNDO_DAYS } from "@/domain/system/drive-move";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (ctx.mustMove) alerts.unshift(owner
     ? "Medoro now keeps every pharmacy’s data in its own Google Drive. Move yours on Billing (device): until then Medoro’s copy is read-only."
     : "Medoro now keeps every pharmacy’s data in its own Google Drive. Until the owner moves it on Billing (device), Medoro’s copy is read-only.");
+  if (owner && ctx.moved && (await driveNeedsReconnect(ctx.tenantId))) alerts.unshift("Medoro’s files are visible in your Google Drive. Reconnect Google Drive once on Backup & restore to hide them, like WhatsApp backups.");
   const del = (tenant.settings as { deletion?: { scheduledFor?: string } }).deletion?.scheduledFor;
   const deletionOn = del ? new Date(del).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : null;
   const strict = ((tenant.settings as { privacy?: { strict?: boolean } }).privacy?.strict ?? true) !== false;

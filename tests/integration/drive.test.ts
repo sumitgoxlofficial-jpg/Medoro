@@ -8,7 +8,7 @@ import { seal } from "@/server/vault";
 import { getObject, readDocument, saveDocument } from "@/server/storage";
 import { newTotpSecret } from "@/server/totp";
 import { backupFile, discardRestore, prune, runBackup, saveBackupSettings, testRestore } from "@/domain/system/backup";
-import { consentUrl, driveDisconnect, driveState, DriveScopeMissing, exchangeCode, pkce, saveDriveToken } from "@/domain/system/gdrive";
+import { consentUrl, driveDisconnect, driveNeedsReconnect, driveState, DriveScopeMissing, exchangeCode, pkce, relayStore, saveDriveToken } from "@/domain/system/gdrive";
 import { freshRestore, importBackup, parseKit, previewFreshRestore, reenterKit } from "@/domain/system/recovery";
 import { backupHealth, badgesAndAlerts } from "@/domain/reports/alerts";
 import { recoveryKitHtml } from "@/components/recovery-kit";
@@ -22,7 +22,7 @@ type Call = { method: string; url: string; auth?: string; body?: string };
 function fakeGoogle() {
   const g = {
     files: new Map<string, DFile>(), calls: [] as Call[], seq: 0, access: 0, revoked: new Set<string>(), expired: new Set<string>(),
-    grantScope: "https://www.googleapis.com/auth/drive.file openid email",
+    grantScope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata openid email",
     add(f: Omit<DFile, "id" | "createdTime"> & { createdTime?: string }) { const id = "f" + ++g.seq; g.files.set(id, { createdTime: new Date().toISOString(), ...f, id }); return id; },
   };
   const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
@@ -62,7 +62,7 @@ function fakeGoogle() {
       const boundary = /boundary=(\S+)/.exec(headers["Content-Type"])![1];
       const parts = b.toString("latin1").split(`--${boundary}`);
       const meta = JSON.parse(parts[1].split("\r\n\r\n")[1].trim()) as { name: string; parents: string[]; mimeType: string; appProperties?: Record<string, string> };
-      if (meta.parents.some((p) => !g.files.has(p))) return json({ error: { message: "File not found" } }, 404);
+      if (meta.parents.some((p) => p !== "appDataFolder" && !g.files.has(p))) return json({ error: { message: "File not found" } }, 404);
       const start = b.indexOf("\r\n\r\n", b.indexOf("\r\n\r\n") + 4) + 4, end = b.lastIndexOf(`\r\n--${boundary}--`);
       return json({ id: g.add({ ...meta, bytes: b.subarray(start, end) }) });
     }
@@ -72,7 +72,9 @@ function fakeGoogle() {
     }
     if (u.pathname === "/drive/v3/files" && method === "GET") {
       const q = u.searchParams.get("q") ?? "";
-      const files = [...g.files.values()].filter((f) => matches(f, q)).sort((a, b) => b.createdTime.localeCompare(a.createdTime));
+      // The hidden app data area is only searched when asked for, and only holds files put there.
+      const hidden = u.searchParams.get("spaces") === "appDataFolder";
+      const files = [...g.files.values()].filter((f) => f.parents.includes("appDataFolder") === hidden && matches(f, q)).sort((a, b) => b.createdTime.localeCompare(a.createdTime));
       return json({ files: files.map((f) => ({ id: f.id, name: f.name, size: String(f.bytes.length), createdTime: f.createdTime, appProperties: f.appProperties })) });
     }
     const id = /^\/drive\/v3\/files\/([^/]+)$/.exec(u.pathname)?.[1];
@@ -105,11 +107,11 @@ describe("Google Drive: connect, back up, store files, prune and recover", () =>
     return ctx;
   };
 
-  it("consent asks for drive.file offline with PKCE; the code exchange sends the verifier and the token is stored sealed", async () => {
+  it("consent asks for drive.file and drive.appdata offline with PKCE; the code exchange sends the verifier and the token is stored sealed", async () => {
     const { verifier, challenge } = pkce();
     expect(challenge).toBe(createHash("sha256").update(verifier).digest("base64url"));
     const u = new URL(consentUrl("st4te", challenge));
-    expect(Object.fromEntries(u.searchParams)).toMatchObject({ scope: "https://www.googleapis.com/auth/drive.file openid email", access_type: "offline", prompt: "consent", state: "st4te", code_challenge: challenge, code_challenge_method: "S256", response_type: "code" });
+    expect(Object.fromEntries(u.searchParams)).toMatchObject({ scope: "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.appdata openid email", access_type: "offline", prompt: "consent", state: "st4te", code_challenge: challenge, code_challenge_method: "S256", response_type: "code" });
     const t = await exchangeCode("authcode", verifier);
     expect(new URLSearchParams(g.calls[0].body).get("code_verifier")).toBe(verifier);
     expect(t).toEqual({ refreshToken: "rt-authcode", email: "owner@gmail.com" });
@@ -120,6 +122,42 @@ describe("Google Drive: connect, back up, store files, prune and recover", () =>
     expect(await driveState(ctx.tenantId)).toMatchObject({ status: "connected", account: "owner@gmail.com" });
     g.grantScope = "openid email";
     await expect(exchangeCode("again", verifier)).rejects.toBeInstanceOf(DriveScopeMissing);
+    // Without the hidden app data box ticked, Drive mode files would show in the owner's Drive: refused too.
+    g.grantScope = "https://www.googleapis.com/auth/drive.file openid email";
+    await expect(exchangeCode("again", verifier)).rejects.toBeInstanceOf(DriveScopeMissing);
+  });
+
+  it("keeps Drive mode files in the hidden app data area, and moves an earlier version's visible files there on reconnect", async () => {
+    const ctx = await ctxFor();
+    const t = ctx.tenantId;
+    // Connected before the hidden area existed: files go to the visible Medoro/<pharmacy>/drivedb folder, and the owner is asked to reconnect.
+    await saveDriveToken(t, "rt-old", "owner@gmail.com");
+    const i = await db.integration.findUniqueOrThrow({ where: { tenantId_kind: { tenantId: t, kind: "gdrive" } } });
+    await db.integration.update({ where: { id: i.id }, data: { config: { ...(i.config as object), scope: "drive.file" } } });
+    expect(await driveNeedsReconnect(t)).toBe(true);
+    await relayStore(t).write("manifest.json", Buffer.from("{}"));
+    await relayStore(t).write("pharmacy.db.enc", Buffer.from("sealed-snapshot"));
+    const visible = folder(g, "drivedb")!;
+    expect([...g.files.values()].filter((f) => f.parents.includes(visible.id)).map((f) => f.name).sort()).toEqual(["manifest.json", "pharmacy.db.enc"]);
+
+    // Reconnecting grants the hidden area: the files move out of sight, and the emptied Medoro folders go.
+    const { verifier } = pkce();
+    const r = await exchangeCode("again", verifier);
+    await saveDriveToken(t, r.refreshToken, r.email);
+    expect(await driveNeedsReconnect(t)).toBe(false);
+    const store = relayStore(t);
+    expect((await store.list("")).map((f) => f.name).sort()).toEqual(["manifest.json", "pharmacy.db.enc"]);
+    const hidden = [...g.files.values()].filter((f) => f.parents.includes("appDataFolder"));
+    expect(hidden.map((f) => f.name).sort()).toEqual(["manifest.json", "pharmacy.db.enc"]);
+    expect(hidden.find((f) => f.name === "pharmacy.db.enc")!.bytes.toString()).toBe("sealed-snapshot");
+    expect([...g.files.values()].filter((f) => !f.parents.includes("appDataFolder"))).toEqual([]); // nothing visible left
+    expect((await db.integration.findUniqueOrThrow({ where: { id: i.id } })).config).toMatchObject({ hiddenAt: expect.any(String) });
+
+    // From now on everything is written to, and read from, the hidden area.
+    await store.write("log-DEV1-1.enc", Buffer.from("change"));
+    const [snap] = await store.list("pharmacy.db");
+    expect((await store.read(snap.id, 0, 64)).bytes.toString()).toBe("sealed-snapshot");
+    expect([...g.files.values()].every((f) => f.parents.includes("appDataFolder"))).toBe(true);
   });
 
   it("backs up into Medoro/<pharmacy>/backups with tags, reuses folders and the access token, and refreshes once on 401", async () => {
