@@ -14,13 +14,13 @@ import { RestorePanel, type PendingRestore } from "./restore-panel";
 type H = { id: string; at: string; kind: string; size: number; sha: string | null; status: string; error: string | null; drive: boolean; local: boolean };
 const ST: Record<string, [string, Tone]> = { verified: ["Verified", "green"], partial: ["Partial", "amber"], failed: ["Failed", "red"], running: ["Running", "blue"], expired: ["Expired", "gray"] };
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
-const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"], scope: ["Drive access wasn’t ticked on Google’s consent screen. Connect again and allow it.", "red"] };
+const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"], scope: ["Not all Drive access was ticked on Google’s screen. Connect again and tick both Google Drive boxes.", "red"] };
 type DriveFile = { id: string; name: string; size: number; createdTime: string; known: boolean };
 
-export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron, mustMove = false }: {
+export function BackupView({ history, drive, folder, driveApp, fingerprint, keyDate, keyState, settings, flash, problems, canRestore, pendingRestore, code, hostCron, mustMove = false, reconnect = false }: {
   history: H[]; drive: DriveState; folder: string; driveApp: boolean; fingerprint: string | null; keyDate: string | null; keyState: "ok" | "missing" | "unreadable";
   settings: { schedule: string; retention: number; files: "server" | "gdrive"; every: number }; flash: string | null; problems: string[];
-  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean; mustMove?: boolean;
+  canRestore: boolean; pendingRestore: PendingRestore | null; code: string; hostCron: boolean; mustMove?: boolean; reconnect?: boolean;
 }) {
   const toast = useToast();
   const router = useRouter();
@@ -71,6 +71,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
           {drive.status === "connected" ? (
             <>
               <div className="grid grid-cols-[110px_1fr] gap-1 text-[13.5px]"><span className="text-muted">Account</span><span>{drive.account || "Connected"}</span><span className="text-muted">Folder</span><span>{folder}</span><span className="text-muted">Access</span><span>Only files Medoro creates</span></div>
+              {reconnect ? <><div className="text-[13px] text-muted">Reconnect once so Medoro’s files move out of sight into your Drive’s hidden app data area, like WhatsApp backups. Nothing is lost; it takes a moment.</div><a href="/api/integrations/google/start" className="self-start bg-teal text-white rounded-lg px-3 py-2 text-[13.5px] font-semibold no-underline hover:bg-teal-hover hover:text-white">Reconnect Google Drive</a></> : null}
               {mustMove ? <a href="/app/device-pos" className="self-start bg-teal text-white rounded-lg px-3 py-2 text-[13.5px] font-semibold no-underline hover:bg-teal-hover hover:text-white">Required: move your data into this Drive&nbsp;→</a> : null}
               <Button variant="danger-outline" className="self-start" disabled={pending} onClick={() => start(async () => { const r = await disconnectAction(); toast(r.ok ? r.data : r.error, r.ok ? "green" : "red"); })}>Disconnect & revoke</Button>
             </>

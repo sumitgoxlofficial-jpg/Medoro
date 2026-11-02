@@ -443,6 +443,11 @@ In this order, each shippable alone:
   Medoro's copy is read-only (`ctx.mustMove`) and is sent to Billing (device) to move; Medoro's copy is deleted
   automatically 7 days after a move (`autoDeleteMovedCopies`, cron) once Drive holds a copy saved after it; old
   Medoro backups can't be restored onto the hosted server. A pharmacy's own self-hosted server is unaffected.
+- **Hidden in Drive, like WhatsApp backups:** DriveDB files live in Drive's app data area (`drive.appdata` scope,
+  `appDataFolder`), which counts towards the owner's storage but never shows among their files and only Medoro's OAuth
+  client can open. Connecting asks for `drive.file` + `drive.appdata`; a Drive connected earlier keeps the visible
+  `Medoro/<pharmacy>/drivedb` folder until the owner reconnects, when its files are copied into the hidden area and the
+  emptied folders are removed (`relayStore` / `hideOldFiles` in `src/domain/system/gdrive.ts`).
 
 **Total: about 4–5 months** of steady work. Phases 0–3 (about 2 months) give a working single-counter
 Drive-mode pharmacy you can start selling.

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { setupDriveForget, setupDriveStatus } from "./restore-actions";
 
 const START = "/api/integrations/google/start?setup=1";
-const MSG: Record<string, string> = { scope: "Drive access wasn’t allowed on Google’s screen. Connect again and tick the Drive permission.", denied: "Google access was not granted.", state: "The Google sign-in expired. Try again.", error: "Couldn’t connect Google Drive. Try again.", forbidden: "Setup is closed." };
+const MSG: Record<string, string> = { scope: "Not all Drive access was allowed on Google’s screen. Connect again and tick both Google Drive boxes.", denied: "Google access was not granted.", state: "The Google sign-in expired. Try again.", error: "Couldn’t connect Google Drive. Try again.", forbidden: "Setup is closed." };
 
 /** Google Drive connected during setup (before the pharmacy exists). Consent runs in a popup so the wizard keeps its state. */
 export function useSetupDrive(initial: string | null) {

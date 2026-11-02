@@ -5,11 +5,16 @@ import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import { reseal, seal, unseal } from "@/server/vault";
 
-// Google Drive with the drive.file scope: Medoro can only see files it creates (with this OAuth client).
+// Google Drive with the drive.file and drive.appdata scopes: Medoro can only see files it creates (with this OAuth
+// client). A Drive mode pharmacy's records live in Drive's hidden app data area, like WhatsApp backups: they count
+// towards the owner's storage but never show among their files.
 const env = () => ({ id: process.env.GOOGLE_OAUTH_CLIENT_ID, secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET, redirect: process.env.GOOGLE_OAUTH_REDIRECT_URI });
 export const driveAppConfigured = () => { const e = env(); return !!(e.id && e.secret && e.redirect); };
 
 export const SCOPE = "https://www.googleapis.com/auth/drive.file";
+export const APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+/** The hidden app data area of the Drive: only Medoro (this OAuth client) can see it. */
+const APPDATA = "appDataFolder";
 const TOKEN = "https://oauth2.googleapis.com/token";
 const REVOKE = "https://oauth2.googleapis.com/revoke";
 const API = "https://www.googleapis.com/drive/v3/files";
@@ -25,6 +30,8 @@ export type DriveConfig = {
   /** "Medoro Backups" folder used by earlier versions. */
   folderId?: string;
   folders?: { root?: string; pharmacy?: string; backups?: string; files?: string; drivedb?: string };
+  /** When the DriveDB files of an earlier version were moved from the visible folder into the hidden app data area. */
+  hiddenAt?: string;
   /** Set when Google refused the stored token (revoked, expired or password changed). */
   lostAt?: string; lostReason?: string;
 };
@@ -42,7 +49,7 @@ export function pkce() {
 export function consentUrl(state: string, challenge: string) {
   const e = env();
   const q = new URLSearchParams({
-    client_id: e.id!, redirect_uri: e.redirect!, response_type: "code", scope: `${SCOPE} openid email`, access_type: "offline", prompt: "consent",
+    client_id: e.id!, redirect_uri: e.redirect!, response_type: "code", scope: `${SCOPE} ${APPDATA_SCOPE} openid email`, access_type: "offline", prompt: "consent",
     state, code_challenge: challenge, code_challenge_method: "S256",
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${q}`;
@@ -56,7 +63,8 @@ export async function exchangeCode(code: string, verifier: string) {
   const r = await fetch(TOKEN, form({ code, client_id: e.id!, client_secret: e.secret!, redirect_uri: e.redirect!, grant_type: "authorization_code", code_verifier: verifier }));
   const j = (await r.json().catch(() => ({}))) as { refresh_token?: string; id_token?: string; scope?: string; error?: string; error_description?: string };
   if (!r.ok) throw new Error(j.error_description ?? j.error ?? `Google returned ${r.status}`);
-  if (!(j.scope ?? "").split(" ").includes(SCOPE)) throw new DriveScopeMissing("Drive access wasn’t granted. Tick “See, edit, create and delete only the specific Google Drive files you use with this app”.");
+  const granted = (j.scope ?? "").split(" ");
+  if (!granted.includes(SCOPE) || !granted.includes(APPDATA_SCOPE)) throw new DriveScopeMissing("Drive access wasn’t fully granted. Tick both Google Drive boxes: “See, edit, create and delete only the specific Google Drive files you use with this app” and “See, create and delete its own configuration data in your Google Drive”.");
   if (!j.refresh_token) throw new Error("Google didn’t return a refresh token.");
   const email = j.id_token ? (JSON.parse(Buffer.from(j.id_token.split(".")[1], "base64url").toString()) as { email?: string }).email : undefined;
   return { refreshToken: j.refresh_token, email: email ?? "" };
@@ -67,7 +75,7 @@ const integration = (tenantId: string) => db.integration.findUnique({ where: { t
 /** Stores the refresh token, sealed with HOST_KEY. Folder ids are kept when the same Google account reconnects. */
 export async function saveDriveToken(tenantId: string, refreshToken: string, account: string) {
   const old = ((await integration(tenantId))?.config ?? {}) as DriveConfig;
-  const config: DriveConfig = { account, scope: "drive.file", ...(old.account === account ? { folderId: old.folderId, folders: old.folders } : {}) };
+  const config: DriveConfig = { account, scope: "drive.file drive.appdata", ...(old.account === account ? { folderId: old.folderId, folders: old.folders, hiddenAt: old.hiddenAt } : {}) };
   const data = { config: config as object, encryptedSecret: new Uint8Array(seal(refreshToken)), connectedAt: new Date() };
   await db.integration.upsert({ where: { tenantId_kind: { tenantId, kind: "gdrive" } }, create: { tenantId, kind: "gdrive", ...data }, update: data });
   tokens.delete(tenantId);
@@ -372,18 +380,90 @@ function fakeRelay(tenantId: string): RelayStore {
   };
 }
 
-/** The pharmacy's Medoro/<pharmacy>/drivedb folder, accessed with its Drive token on the server. */
+/** Was this Drive connected with the hidden app data area (drive.appdata)? Connections made before it weren't. */
+export const driveHidden = (cfg: DriveConfig | null | undefined) => (cfg?.scope ?? "").split(" ").includes("drive.appdata");
+
+/** Is the pharmacy's Drive still connected without the hidden area, so Medoro's files show in it? Reconnecting fixes it. */
+export async function driveNeedsReconnect(tenantId: string) {
+  const i = await integration(tenantId);
+  return !!i?.encryptedSecret && !!i.connectedAt && !driveHidden(i.config as DriveConfig);
+}
+
+const hiding = new Map<string, Promise<void>>();
+
+/**
+ * Moves the DriveDB files an earlier version kept in the visible Medoro/<pharmacy>/drivedb folder into the hidden app
+ * data area, then removes the emptied folders. Each file is copied before its original is deleted, so a failure part
+ * way through loses nothing and the next try carries on.
+ */
+async function hideOldFiles(tenantId: string, a: DriveAuth) {
+  const cfg = ((await integration(tenantId))?.config ?? {}) as DriveConfig;
+  const old = cfg.folders?.drivedb;
+  if (old && !cfg.hiddenAt) {
+    const list = async (q: string, spaces: string) => {
+      const out: RelayFile[] = [];
+      let page: string | undefined;
+      do {
+        const p = new URLSearchParams({ q, fields: "nextPageToken,files(id,name,size)", pageSize: "1000", spaces, ...(page ? { pageToken: page } : {}) });
+        const j = (await (await api(a, `${API}?${p}`, "Couldn’t list Medoro’s files in Drive")).json()) as { files?: { id: string; name: string; size?: string }[]; nextPageToken?: string };
+        out.push(...(j.files ?? []).map((f) => ({ id: f.id, name: f.name, size: Number(f.size ?? 0) })));
+        page = j.nextPageToken;
+      } while (page);
+      return out;
+    };
+    let visible: RelayFile[] = [];
+    try { visible = await list(`'${esc(old)}' in parents and trashed = false`, "drive"); }
+    catch (e) { if (!(e instanceof DriveHttpError && e.status === 404)) throw e; } // the owner deleted the folder
+    const there = new Set((await list(`'${APPDATA}' in parents and trashed = false`, APPDATA)).map((f) => f.name));
+    for (const f of visible) {
+      if (!there.has(f.name)) await withToken(a, async (token) => uploadToDrive(token, APPDATA, f.name, await driveDownload(a, f.id)));
+      await driveDelete(a, f.id);
+    }
+    await driveDelete(a, old);
+    // Medoro/<pharmacy> and Medoro go too once nothing else (backups, stored files) is in them.
+    const gone: string[] = [];
+    for (const id of [cfg.folders?.pharmacy, cfg.folders?.root]) {
+      if (!id || (await list(`'${esc(id)}' in parents and trashed = false`, "drive").catch(() => [{} as RelayFile])).length) break;
+      await driveDelete(a, id);
+      gone.push(id);
+    }
+    const latest = await integration(tenantId);
+    if (latest) {
+      const c = latest.config as DriveConfig;
+      const folders = Object.fromEntries(Object.entries(c.folders ?? {}).filter(([k, v]) => k !== "drivedb" && !gone.includes(v!)));
+      await db.integration.update({ where: { id: latest.id }, data: { config: { ...c, folders, hiddenAt: new Date().toISOString() } as object } });
+    }
+  }
+}
+
+/**
+ * Where the pharmacy's DriveDB files live, accessed with its Drive token on the server: the hidden app data area
+ * (moving any files an earlier version left in the visible folder), or, for a Drive connected before the hidden area
+ * existed, the visible Medoro/<pharmacy>/drivedb folder until the owner reconnects.
+ */
 export function relayStore(tenantId: string): RelayStore {
   if (fakeDrive()) return fakeRelay(tenantId);
   const a = tenantDrive(tenantId);
-  const folder = () => folderFor(tenantId, a, "drivedb");
+  let at: Promise<{ parent: string; spaces: string }> | null = null;
+  const where = () => (at ??= (async () => {
+    const cfg = ((await integration(tenantId))?.config ?? {}) as DriveConfig;
+    if (!driveHidden(cfg)) return { parent: await folderFor(tenantId, a, "drivedb"), spaces: "drive" };
+    if (cfg.folders?.drivedb && !cfg.hiddenAt) {
+      const run = hiding.get(tenantId) ?? hideOldFiles(tenantId, a).finally(() => hiding.delete(tenantId));
+      hiding.set(tenantId, run);
+      await run;
+    }
+    return { parent: APPDATA, spaces: APPDATA };
+  })().catch((e) => { at = null; throw e; }));
+  const folder = async () => (await where()).parent;
   const find = async (name: string) => (await listIn(`name = '${esc(name)}'`))[0];
   const listIn = async (q: string) => {
+    const { parent, spaces } = await where();
     const out: RelayFile[] = [];
     let page: string | undefined;
     do {
-      const p = new URLSearchParams({ q: `'${esc(await folder())}' in parents and trashed = false and ${q}`, fields: "nextPageToken,files(id,name,size)", pageSize: "1000", spaces: "drive", ...(page ? { pageToken: page } : {}) });
-      const j = (await (await api(a, `${API}?${p}`, "Couldn’t list the DriveDB folder")).json()) as { files?: { id: string; name: string; size?: string }[]; nextPageToken?: string };
+      const p = new URLSearchParams({ q: `'${esc(parent)}' in parents and trashed = false and ${q}`, fields: "nextPageToken,files(id,name,size)", pageSize: "1000", spaces, ...(page ? { pageToken: page } : {}) });
+      const j = (await (await api(a, `${API}?${p}`, "Couldn’t list the DriveDB files")).json()) as { files?: { id: string; name: string; size?: string }[]; nextPageToken?: string };
       out.push(...(j.files ?? []).map((f) => ({ id: f.id, name: f.name, size: Number(f.size ?? 0) })));
       page = j.nextPageToken;
     } while (page);
