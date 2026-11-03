@@ -17,38 +17,30 @@ export function Hero() {
   const t = useT();
   const lang = useLang();
   return (
-    <section aria-labelledby="hero-title" className="relative">
-      <div className="max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4.5vw,56px)] grid grid-cols-12 gap-x-6 gap-y-7 items-end max-[640px]:px-4">
-        <div className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
-          <div className="site-up flex items-center gap-4 flex-wrap">
-            <span className="text-[14px] font-medium text-[var(--s-brand)]">{t("Pharmacy software for Indian medical stores")}</span>
-          </div>
-          <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(42px,6vw,76px)] [--d:1]">
+    // Desktop: copy and product shot side by side, sized to fill one screen under the 65px header.
+    // Below 1000px the two stack, as before.
+    <section aria-labelledby="hero-title" className="relative overflow-hidden min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
+      <div aria-hidden className="absolute inset-x-0 bottom-0 top-[62%] bg-[var(--s-soft)] border-t border-[var(--s-line)] min-[1000px]:hidden" />
+      <div className="relative w-full max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4vw,40px)] pb-[clamp(48px,6vw,56px)] min-[1000px]:py-8 grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] gap-x-12 gap-y-10 items-center max-[640px]:px-4">
+        <div className="flex flex-col gap-5">
+          <span className="site-up text-[14px] font-medium text-[var(--s-brand)]">{t("Pharmacy software for Indian medical stores")}</span>
+          <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(40px,5.2vw,64px)] min-[1000px]:text-[clamp(40px,min(4.4vw,7.2vh),62px)] [--d:1]">
             {H1.map((l, i) => <span key={l} className={`block ${i === 1 ? "text-[var(--s-brand)]" : ""}`}>{t(l)}</span>)}
           </h1>
-        </div>
-        <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-6 min-[1000px]:pb-2">
-          <p className="site-up m-0 text-[clamp(17px,1.5vw,19px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{t("Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.")}</p>
-          <div className="site-up flex gap-3 flex-wrap [--d:3]">
+          <p className="site-up m-0 text-[clamp(16px,1.3vw,18px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{t("Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.")}</p>
+          <div className="site-up flex gap-3 flex-wrap pt-1 [--d:3]">
             <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
             <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={17} aria-hidden className="text-[#146C43]" />{t("Get a demo on WhatsApp")}</a>
           </div>
           <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{t("No card needed. Pay by UPI, card or netbanking only if you continue.")}</p>
         </div>
-      </div>
 
-      <div className="relative mt-[clamp(28px,3.5vw,44px)]">
-        <div aria-hidden className="absolute inset-x-0 bottom-0 top-[38%] bg-[var(--s-soft)] border-t border-[var(--s-line)]" />
-        <div className="relative max-w-[1200px] mx-auto px-6 pb-[clamp(48px,7vw,96px)] max-[640px]:px-4">
-          <div className="site-up [--d:3] relative">
-            <div className="site-tilt">
-              <BrowserFrame label={t("Dashboard · Sanjeevani Pharmacy, FC Road")}>
-                <Image src={lang === "hi" ? "/site/dashboard-hi.webp" : "/site/dashboard.webp"} alt={t("Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days")} width={2000} height={1250} priority sizes="(min-width: 1248px) 1152px, calc(100vw - 32px)" className="block w-full h-auto" />
-              </BrowserFrame>
-            </div>
-            <div className="site-drift absolute -right-2 min-[1248px]:-right-10 -bottom-10 w-[clamp(150px,19vw,236px)] max-[560px]:hidden">
-              <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt={t("The owner’s view of the same dashboard on a phone")} width={600} height={1298} sizes="236px" className="block w-full h-auto" /></div></div>
-            </div>
+        <div className="site-up [--d:3] relative">
+          <BrowserFrame label={t("Dashboard · Sanjeevani Pharmacy, FC Road")}>
+            <Image src={lang === "hi" ? "/site/dashboard-hi.webp" : "/site/dashboard.webp"} alt={t("Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days")} width={2000} height={1250} priority sizes="(min-width: 1248px) 630px, (min-width: 1000px) 52vw, calc(100vw - 32px)" className="block w-full h-auto" />
+          </BrowserFrame>
+          <div className="absolute -right-2 min-[1248px]:-right-8 -bottom-8 w-[clamp(96px,10vw,136px)] max-[560px]:hidden">
+            <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt={t("The owner’s view of the same dashboard on a phone")} width={600} height={1298} sizes="136px" className="block w-full h-auto" /></div></div>
           </div>
         </div>
       </div>
