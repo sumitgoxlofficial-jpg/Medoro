@@ -14,10 +14,24 @@ const RZP = "https://checkout.razorpay.com https://api.razorpay.com";
  * it may compile the SQLite WebAssembly and talk to Google Drive directly, so pharmacy data never passes through us.
  */
 const DRIVEDB = /^\/drivedb\//;
+/**
+ * The live product tour on the homepage: the design prototype built by scripts/build-tour.mjs. Its runtime compiles
+ * the prototype's templates with `new Function`, so it needs 'unsafe-eval'. To keep that away from the app, the
+ * policy sandboxes it into an opaque origin (no cookies, no storage, no same-origin access to Medoro) and lets only
+ * our own pages frame it. Its fonts are then cross-origin requests, hence CORS on these files.
+ */
+const TOUR = /^\/tour\//;
 
 export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): string {
   if (DRIVEDB.test(path)) {
     return ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'", "connect-src 'self' https://www.googleapis.com", "worker-src 'self'", "base-uri 'none'", "frame-ancestors 'none'"].join("; ");
+  }
+  if (TOUR.test(path)) {
+    return [
+      "default-src 'none'", "script-src 'self' 'unsafe-eval'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
+      "font-src 'self'", "connect-src 'self'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'self'",
+      "sandbox allow-scripts allow-downloads",
+    ].join("; ");
   }
   const frameable = FRAMEABLE.test(path), checkout = CHECKOUT.test(path);
   const d: [string, string][] = [
@@ -46,9 +60,10 @@ export function securityHeaders(o: HeaderOpts): Record<string, string> {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
-    "X-Frame-Options": FRAMEABLE.test(o.path) ? "SAMEORIGIN" : "DENY",
+    "X-Frame-Options": FRAMEABLE.test(o.path) || TOUR.test(o.path) ? "SAMEORIGIN" : "DENY",
     "Cross-Origin-Opener-Policy": CHECKOUT.test(o.path) ? "same-origin-allow-popups" : "same-origin",
   };
+  if (TOUR.test(o.path)) h["Access-Control-Allow-Origin"] = "*";
   if (o.https && process.env.DISABLE_HSTS !== "1") h["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains";
   return h;
 }

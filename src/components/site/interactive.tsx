@@ -60,6 +60,39 @@ export function BrowserFrame({ label, children }: { label: string; children: Rea
   );
 }
 
+// ───────────── Live product tour ─────────────
+
+/**
+ * The working prototype from design/, built into public/tour/ by scripts/build-tour.mjs. It runs sandboxed in its own
+ * opaque origin (see TOUR in src/server/security-headers.ts), so it can't see the visitor's session or our cookies.
+ * The iframe loads only when the section nears the viewport.
+ */
+export function ProductTour() {
+  const t = useT();
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="site-browser">
+        <div className="flex items-center gap-3 h-9 px-3.5 border-b border-[var(--s-line)] bg-[#FAFBFB]">
+          <span aria-hidden className="flex gap-1.5">{[0, 1, 2].map((i) => <span key={i} className="size-2.5 rounded-full bg-[#D5DBDA]" />)}</span>
+          <span className="text-[12.5px] text-[var(--s-muted)] truncate">{t("Live demo · sample data, nothing is saved")}</span>
+          <a href="/tour/index.html" target="_blank" rel="noopener" className="ml-auto inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--s-brand)] whitespace-nowrap">
+            {t("Open full screen")}<ArrowRight size={13} aria-hidden />
+          </a>
+        </div>
+        <iframe
+          src="/tour/index.html"
+          title={t("Medoro live demo: a working copy of the app with sample data")}
+          loading="lazy"
+          sandbox="allow-scripts allow-downloads"
+          referrerPolicy="no-referrer"
+          className="block w-full h-[clamp(560px,82vh,820px)] border-0 bg-[#F5F6F7]"
+        />
+      </div>
+      <p className="m-0 text-[14px] text-[var(--s-muted)] min-[1000px]:hidden">{t("The demo is made for a computer screen. On a phone, open it full screen and turn the phone sideways.")}</p>
+    </div>
+  );
+}
+
 // ───────────── Feature tabs ─────────────
 
 const FEATURES = [

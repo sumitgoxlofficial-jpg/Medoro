@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "build:tour": "node scripts/build-tour.mjs",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "node scripts/copy-sqlite.mjs || true"
