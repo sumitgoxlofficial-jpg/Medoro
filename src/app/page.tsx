@@ -6,7 +6,7 @@ import {
 import { cookies } from "next/headers";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
 import { SiteLangCarryOver } from "@/components/site/header";
-import { FeatureTabs, Hero, Marquee, Pricing } from "@/components/site/interactive";
+import { FeatureTabs, Hero, Marquee, Pricing, ProductTour } from "@/components/site/interactive";
 import { PRODUCTS } from "@/staff/constants";
 import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
@@ -202,6 +202,17 @@ export default async function Home() {
             <p className={lead}>{t("Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.")}</p>
           </div>
           <FeatureTabs />
+        </section>
+
+        <section id="tour" aria-labelledby="tour-title" className="bg-[var(--s-soft)] border-t border-[var(--s-line)]">
+          <div className={`${wrap} py-[clamp(56px,8vw,96px)] flex flex-col gap-10`}>
+            <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
+              <span className={eyebrow}>{t("Product tour")}</span>
+              <h2 id="tour-title" className={h2}>{t("Don’t take our word for it. Use it.")}</h2>
+              <p className={lead}>{t("This is a working demo with a three-branch pharmacy’s sample data. Bill a sale with F2 and F9, check what expires this quarter, receive a purchase or ask the AI. Nothing you do here is saved.")}</p>
+            </div>
+            <ProductTour />
+          </div>
         </section>
 
         <section aria-labelledby="facts-title" className="border-y border-[var(--s-line)] bg-[var(--s-soft)]">

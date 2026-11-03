@@ -44,4 +44,19 @@ describe("security headers", () => {
       expect(p).not.toContain("googleapis");
     }
   });
+
+  it("sandboxes the product tour and lets only our own pages frame it", () => {
+    const h = securityHeaders({ nonce: "n", https: true, path: "/tour/index.html" });
+    const csp = h["Content-Security-Policy"];
+    expect(csp).toContain("sandbox allow-scripts allow-downloads");
+    expect(csp).not.toContain("allow-same-origin");
+    expect(csp).toContain("script-src 'self' 'unsafe-eval'");
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(h["X-Frame-Options"]).toBe("SAMEORIGIN");
+    for (const path of ["/", "/app", "/tourism", "/signin"]) {
+      const o = securityHeaders({ nonce: "n", https: true, path });
+      expect(o["Content-Security-Policy"]).not.toContain("unsafe-eval");
+      expect(o["Access-Control-Allow-Origin"]).toBeUndefined();
+    }
+  });
 });

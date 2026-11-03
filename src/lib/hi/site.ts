@@ -102,6 +102,15 @@ export const hi: Record<string, string> = {
   "One system for the counter, the godown and your CA.": "काउंटर, गोदाम और CA, सबके लिए एक ही सिस्टम।",
   "Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.": "ये असली स्क्रीन हैं, किसी फ़ार्मेसी के रोज़ के काम से, कोई नमूना नहीं। कोई हिस्सा चुनें और देखें कैसे काम करता है।",
   "Medoro features": "Medoro की सुविधाएँ",
+  // Live product tour
+  "Product tour": "प्रोडक्ट टूर",
+  "Don’t take our word for it. Use it.": "हमारी बात मत मानिए। ख़ुद चलाकर देखिए।",
+  "This is a working demo with a three-branch pharmacy’s sample data. Bill a sale with F2 and F9, check what expires this quarter, receive a purchase or ask the AI. Nothing you do here is saved.":
+    "यह चलता हुआ डेमो है, तीन ब्रांच वाली एक फ़ार्मेसी के नमूना डेटा के साथ। F2 और F9 से बिल बनाइए, देखिए इस तिमाही क्या एक्सपायर हो रहा है, खरीद दर्ज कीजिए या AI से पूछिए। यहाँ आप जो भी करेंगे, वह सेव नहीं होता।",
+  "Live demo · sample data, nothing is saved": "लाइव डेमो · नमूना डेटा, कुछ सेव नहीं होता",
+  "Open full screen": "पूरी स्क्रीन पर खोलें",
+  "Medoro live demo: a working copy of the app with sample data": "Medoro लाइव डेमो: नमूना डेटा के साथ ऐप की चलती हुई कॉपी",
+  "The demo is made for a computer screen. On a phone, open it full screen and turn the phone sideways.": "डेमो कंप्यूटर स्क्रीन के लिए बना है। फ़ोन पर इसे पूरी स्क्रीन पर खोलें और फ़ोन को आड़ा कर लें।",
   "Purchases & GRN": "खरीद और GRN",
   "GST & Tally": "GST और Tally",
   "Backups & your data": "बैकअप और आपका डेटा",
