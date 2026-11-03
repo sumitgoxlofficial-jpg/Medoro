@@ -45,7 +45,7 @@ test("device counter: stock in, customers, credit, return, day-end, then offline
   await page.getByLabel("Search medicine").fill(name);
   await page.getByRole("button", { name }).click();
   await page.getByRole("button", { name }).click();
-  await page.getByLabel("Customer").fill("Asha");
+  await page.getByLabel("Customer name").fill("Asha");
   await page.getByRole("button", { name: /Asha Devi/ }).click();
   await page.getByRole("radio", { name: "CREDIT" }).click();
   await page.getByRole("button", { name: /Complete bill/ }).click();

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { db, resetFakeDrive } from "./helpers";
+import { db, openTab, resetFakeDrive } from "./helpers";
 
 // A Drive pharmacy's Dashboard and every sidebar screen open the matching counter tab, on the counter's own data.
 test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", async ({ page }) => {
@@ -18,7 +18,10 @@ test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", as
 
     // Dashboard (in the sidebar) opens the counter's dashboard.
     await page.locator("nav").getByRole("link", { name: "Billing (POS)" }).click();
-    await expect(page.getByRole("tab", { name: "Billing", selected: true })).toBeVisible();
+    // Billing shows only the bill: no counter tab row (the sidebar is the way out).
+    await expect(page).toHaveURL(/tab=bill/);
+    await expect(page.getByLabel("Search medicine")).toBeVisible();
+    await expect(page.getByRole("tablist")).toHaveCount(0);
     await page.locator("nav").getByRole("link", { name: "Dashboard" }).click();
     await expect(page).toHaveURL(/\/app\/device-pos\?tab=dash/);
     const dash = page.getByTestId("device-dashboard");
@@ -41,7 +44,7 @@ test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", as
     await nav.getByRole("link", { name: "Purchases" }).click();
     await expect(page.getByRole("tab", { name: "Purchases", selected: true })).toBeVisible();
     // Switching tabs on the counter moves the sidebar highlight with it.
-    await page.getByRole("tab", { name: "Dashboard" }).click();
+    await openTab(page, "Dashboard");
     await expect(page).toHaveURL(/tab=dash/);
     await expect(nav.getByRole("link", { name: "Dashboard" })).toHaveClass(/font-semibold/);
   } finally {

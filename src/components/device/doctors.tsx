@@ -167,7 +167,7 @@ function SalesReport({ cfg, refresh }: { cfg: Cfg; refresh: number }) {
  * Prescriber at the counter: search the doctor list and pick one (name and registration no. go on the bill), or
  * type a name and reg. no. as they are. A typed doctor can be saved to the list with one tap.
  */
-export function DoctorPicker({ value, onChange }: { value: { name: string; reg: string }; onChange: (v: { name: string; reg: string }) => void }) {
+export function DoctorPicker({ value, onChange, stacked = false }: { value: { name: string; reg: string }; onChange: (v: { name: string; reg: string }) => void; stacked?: boolean }) {
   const t = useT();
   const toast = useToast();
   const dev = useRef(deviceDb()).current;
@@ -195,7 +195,7 @@ export function DoctorPicker({ value, onChange }: { value: { name: string; reg: 
   const choose = (d: Doctor) => { onChange({ name: d.name, reg: d.regNo ?? "" }); setOpen(false); setKnown(true); };
   return (
     <div className="flex flex-col gap-1">
-      <div className="grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_1fr] gap-2 max-sm:grid-cols-1">
+      <div className={stacked ? "grid grid-cols-1 gap-2" : "grid grid-cols-[1fr_auto] sm:grid-cols-[2fr_1fr] gap-2 max-sm:grid-cols-1"}>
         <div className="relative">
           <input value={value.name} onChange={(e) => { onChange({ ...value, name: e.target.value }); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
             onKeyDown={(e) => {

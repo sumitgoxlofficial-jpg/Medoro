@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { driveModeOn, importMedicines, monthsAhead, uid } from "./helpers";
+import { driveModeOn, importMedicines, monthsAhead, openTab, uid } from "./helpers";
 
 const dmy = (daysAhead = 0) => {
   const d = new Date(Date.now() + 330 * 60_000 + daysAhead * 86400_000).toISOString().slice(0, 10).split("-");
@@ -18,17 +18,17 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible();
 
   // A credit customer and a ₹300 credit bill.
-  await page.getByRole("tab", { name: "Customers" }).click();
+  await openTab(page, "Customers");
   await page.getByRole("button", { name: "Add customer" }).click();
   const cust = `Rahul ${uid()}`;
   await page.getByLabel("Customer name").fill(cust);
   await page.getByLabel("Mobile").fill("9822" + String(Date.now()).slice(-6));
   await page.getByLabel("Credit limit").fill("5000");
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
-  await page.getByRole("tab", { name: "Billing" }).click();
+  await openTab(page, "Billing");
   await page.getByLabel("Search medicine").fill(name);
   for (let i = 0; i < 3; i++) await page.getByRole("button", { name }).click();
-  await page.getByLabel("Customer").fill(cust);
+  await page.getByLabel("Customer name").fill(cust);
   await page.getByRole("button", { name: new RegExp(cust) }).click();
   await page.getByRole("radio", { name: "CREDIT" }).click();
   await page.getByRole("button", { name: /Complete bill/ }).click();
@@ -44,7 +44,7 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
 
   // Connections: honest labels, no connect buttons; the shop's own UPI ID for bill QR codes.
-  await page.getByRole("tab", { name: "UPI & Bank" }).click();
+  await openTab(page, "UPI & Bank");
   await page.getByRole("button", { name: "Connections" }).click();
   await expect(page.getByText("Bank statement upload (any bank)").locator("..")).toContainText("Available");
   await expect(page.getByText("PhonePe Business").locator("..")).toContainText("Partner onboarding required");
@@ -94,12 +94,12 @@ test("bank statement upload matches a credit bill and flags a counter UPI paymen
   await expect(page.getByText("Automatic bank sync").locator("..")).toContainText("Not connected");
 
   // The customer owes nothing now.
-  await page.getByRole("tab", { name: "Customers" }).click();
+  await openTab(page, "Customers");
   await page.getByLabel("Search customers").fill(cust);
   await expect(page.getByRole("listitem").filter({ hasText: cust })).toContainText("nothing due");
 
   // Reports and the web page.
-  await page.getByRole("tab", { name: "UPI & Bank" }).click();
+  await openTab(page, "UPI & Bank");
   await page.getByRole("button", { name: "Reports" }).click();
   await expect(page.getByText("Bank-wise collections").locator("..")).toContainText("HDFC Bank ••4321");
   await page.goto("/app/money");

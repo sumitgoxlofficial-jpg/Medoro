@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Printer, MessageCircle, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,9 @@ export function printReceipt() {
   window.print();
 }
 
-export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, who }: { d: SaleDetail | null; pharmacy: Pharmacy | null; onClose: () => void; autoPrint?: boolean; who?: Who }) {
+/** sendWhatsApp: the counter asked to send this bill on WhatsApp. With WhatsApp connected the PDF goes on opening;
+ *  otherwise the receipt points to the WhatsApp share button. */
+export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, who, sendWhatsApp = false }: { d: SaleDetail | null; pharmacy: Pharmacy | null; onClose: () => void; autoPrint?: boolean; who?: Who; sendWhatsApp?: boolean }) {
   const toast = useToast();
   const t = useT();
   const [fresh, setFresh] = useState<SaleDetail | null>(null);
@@ -143,6 +145,13 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
       toast(who.whatsapp.via === "phone" ? "Bill PDF sent from your linked WhatsApp." : "Bill PDF sent on WhatsApp.", "green");
     } catch (e) { toast(errText(e), "red"); } finally { setBusy(false); }
   };
+  // Asked for at the counter: send once per bill, as soon as it opens, when the bill has the customer's number.
+  const autoSent = useRef<string | null>(null);
+  useEffect(() => {
+    if (!sendWhatsApp || !given || !who?.whatsapp || !given.sale.customerPhone || autoSent.current === id) return;
+    autoSent.current = id;
+    void sendPdf();
+  }, [sendWhatsApp, given, id]); // eslint-disable-line react-hooks/exhaustive-deps
   // This bill's WhatsApp sends and how far the latest got (updated by the counter's minute check).
   const [sent, setSent] = useState<{ status: string; error: string | null; sentAt: string }[]>([]);
   const loadSent = async () => { if (id) setSent(await dev.call("billMessages", id).catch(() => [])); };
@@ -158,6 +167,13 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
         {who?.whatsapp && <Button onClick={sendPdf} disabled={busy}><MessageCircle size={16} /> {busy ? t("Sending…") : t("Send PDF on WhatsApp")}</Button>}
         <Button variant="primary" onClick={printReceipt}><Printer size={16} /> {t("Print")}</Button>
       </div>}>
+      {sendWhatsApp && !who?.whatsapp && wa ? (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-[#BFE3D0] bg-ok-bg px-3 py-2 text-[13px]">
+          <MessageCircle size={16} className="text-ok shrink-0" aria-hidden />
+          <span className="flex-1">{t("Send this bill to +91 {phone} on WhatsApp.", { phone: String(d?.sale.customerPhone ?? "") })}</span>
+          <Button size="sm" variant="primary" onClick={() => window.open(wa, "_blank", "noopener")}>{t("Open WhatsApp")}</Button>
+        </div>
+      ) : null}
       {d ? <div className="border border-line rounded-lg p-3"><ReceiptView d={d} pharmacy={pharmacy} /></div> : null}
       {sent[0] && (
         <div className={`mt-2 text-[13px] ${sent[0].status === "failed" ? "text-bad" : "text-muted"}`} data-testid="wa-status">

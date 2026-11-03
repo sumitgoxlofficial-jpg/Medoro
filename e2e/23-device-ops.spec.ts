@@ -56,7 +56,7 @@ test("device stock corrections, a cash-on-delivery order and loyalty points", as
   await openTab(page, "Billing");
   await page.getByLabel("Search medicine").fill(name);
   await page.getByRole("button", { name }).click();
-  await page.getByLabel("Customer").fill(phone.slice(0, 6));
+  await page.getByLabel("Customer mobile").fill(phone.slice(0, 6));
   await page.getByRole("button", { name: /Sunita Devi/ }).click();
   await expect(page.getByText("20 pts")).toBeVisible();
   await page.getByLabel("Points to use").fill("20");

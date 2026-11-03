@@ -29,7 +29,7 @@ test("device: send stock to the other branch, WhatsApp a bill, see it all in the
   await openTab(page, "Billing");
   await page.getByLabel("Search medicine").fill(name);
   await page.getByRole("button", { name }).click();
-  await page.getByLabel("Customer").fill("Kiran");
+  await page.getByLabel("Customer name").fill("Kiran");
   await page.getByRole("button", { name: /Kiran/ }).click();
   await page.getByRole("button", { name: /Complete bill/ }).click();
   await expect(page.getByRole("dialog").getByText("TAX INVOICE")).toBeVisible();
