@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { expect, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { TABS } from "../src/components/device/tabs";
 
 /** Written by setup.e2e.ts after the first-run wizard; read by every spec. */
 export const AUTH_DIR = path.join(__dirname, ".auth");
@@ -290,4 +291,15 @@ export async function driveModeOn(page: Page) {
     await page.getByRole("button", { name: "Turn on Drive mode" }).click();
     await expect(page.getByRole("button", { name: "Turn off Drive mode" })).toBeVisible();
   }
+}
+
+/**
+ * Open a tab of Billing on this device by its label. Signed in, the tab row is hidden on Billing and the Dashboard
+ * (the sidebar is the way out there), so the tab is then opened by the address the sidebar uses.
+ */
+export async function openTab(page: Page, name: (typeof TABS)[number][1]) {
+  const tab = page.getByRole("tab", { name, exact: true });
+  if (await tab.isVisible()) return tab.click();
+  const key = TABS.find(([, n]) => n === name)![0];
+  await page.goto(`/app/device-pos?tab=${key}`);
 }

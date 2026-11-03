@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { driveModeOn, importMedicines, monthsAhead, uid } from "./helpers";
+import { driveModeOn, importMedicines, monthsAhead, openTab, uid } from "./helpers";
 
 // DriveDB phase 5 (slice 3): branch transfers, WhatsApp bill links and the activity log on the device.
 test("device: send stock to the other branch, WhatsApp a bill, see it all in the activity log", async ({ page, context }) => {
@@ -11,7 +11,7 @@ test("device: send stock to the other branch, WhatsApp a bill, see it all in the
   await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible();
 
   // Send 5 to the other branch.
-  await page.getByRole("tab", { name: "Stock" }).click();
+  await openTab(page, "Stock");
   await page.getByLabel("Search stock").fill(name);
   await page.getByRole("button", { name: `Batches of ${name}` }).click();
   await page.getByLabel(/^Send quantity/).fill("5");
@@ -21,12 +21,12 @@ test("device: send stock to the other branch, WhatsApp a bill, see it all in the
 
   // A bill for a customer with a mobile: the bill has a WhatsApp button with the bill text.
   const phone = "97" + String(Date.now()).slice(-8);
-  await page.getByRole("tab", { name: "Customers" }).click();
+  await openTab(page, "Customers");
   await page.getByRole("button", { name: "Add customer" }).click();
   await page.getByLabel("Customer name").fill("Kiran");
   await page.getByLabel("Mobile").fill(phone);
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
-  await page.getByRole("tab", { name: "Billing" }).click();
+  await openTab(page, "Billing");
   await page.getByLabel("Search medicine").fill(name);
   await page.getByRole("button", { name }).click();
   await page.getByLabel("Customer").fill("Kiran");
@@ -44,7 +44,7 @@ test("device: send stock to the other branch, WhatsApp a bill, see it all in the
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
 
   // The activity log shows the bill and the transfer.
-  await page.getByRole("tab", { name: "Activity" }).click();
+  await openTab(page, "Activity");
   await expect(page.getByText(/Bill D\w{4}\d{4}-000001 · Kiran/)).toBeVisible();
   await expect(page.getByText(new RegExp(`Sent to another branch: -5 · ${name}`))).toBeVisible();
 

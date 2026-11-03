@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { anonContext, createStaff, driveModeOn, employeeLogin, importMedicines, monthsAhead, resetFakeDrive, state, uid } from "./helpers";
+import { anonContext, createStaff, driveModeOn, employeeLogin, importMedicines, monthsAhead, openTab, resetFakeDrive, state, uid } from "./helpers";
 
 // DriveDB phase 4: owner and staff counters share one pharmacy through Google Drive (the test server's fake,
 // through Medoro's relay). Staff join with the owner's approval; both see each other's bills and the same stock;
@@ -30,7 +30,7 @@ test("a staff counter joins with approval, both counters stay in step, and remov
   await expect(sp.getByText(/has asked to join/)).toBeVisible();
 
   // Owner approves it under Counter → Devices.
-  await page.getByRole("tab", { name: "Counter" }).click();
+  await openTab(page, "Counter");
   await page.getByRole("button", { name: new RegExp(`Approve .*${staff.name}`) }).click();
   await expect(page.getByText(/approved\. It sets itself up from Google Drive/)).toBeVisible();
 
@@ -39,7 +39,7 @@ test("a staff counter joins with approval, both counters stay in step, and remov
   await sp.getByRole("button", { name: "Set up from Google Drive" }).click();
   await expect(sp.getByText(/Restored from Google Drive/)).toBeVisible();
   const sell = async (p: Page, packs: number) => {
-    await p.getByRole("tab", { name: "Billing" }).click();
+    await openTab(p, "Billing");
     await p.getByLabel("Search medicine").fill(name);
     for (let i = 0; i < packs; i++) await p.getByRole("button", { name }).click();
     await p.getByRole("button", { name: /Complete bill/ }).click();
@@ -51,28 +51,28 @@ test("a staff counter joins with approval, both counters stay in step, and remov
 
   // Both counters end with both bills and the same stock (50 − 3 − 2).
   const stockOf = async (p: Page) => {
-    await p.getByRole("tab", { name: "Stock" }).click();
+    await openTab(p, "Stock");
     await p.getByLabel("Search stock").fill(name);
     return p.getByRole("row", { name: new RegExp(name) });
   };
   for (const p of [page, sp]) {
     await expect(async () => {
-      await p.getByRole("tab", { name: "Billing" }).click();
+      await openTab(p, "Billing");
       await p.getByRole("button", { name: "Sync now" }).click();
       await expect(await stockOf(p)).toContainText("45 ", { timeout: 2000 });
     }).toPass({ timeout: 60_000 });
-    await p.getByRole("tab", { name: "Bills & day-end" }).click();
+    await openTab(p, "Bills & day-end");
     await expect(p.getByText(/· Walk-in · 1 item/)).toHaveCount(2);
   }
 
   // Owner removes the staff device: it is shut out.
-  await page.getByRole("tab", { name: "Counter" }).click();
+  await openTab(page, "Counter");
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: new RegExp(`Remove .*${staff.name}`) }).click();
   await expect(page.getByText(/removed\./)).toBeVisible();
   await sp.reload();
   // A reload stays on the tab it was on (it's in the address); the Drive status is on the Billing tab.
-  await sp.getByRole("tab", { name: "Billing" }).click();
+  await openTab(sp, "Billing");
   await expect(sp.getByText(/removed this device from Drive mode/).first()).toBeVisible({ timeout: 30_000 });
   await sctx.close();
 
