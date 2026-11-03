@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { driveModeOn, importMedicines, monthsAhead, uid } from "./helpers";
+import { driveModeOn, importMedicines, monthsAhead, openTab, uid } from "./helpers";
 
 // DriveDB phase 5: accounts, reports and GST on the device.
 test("device accounts, reports and GST: supplier payment, expense, cash book, profit and GSTR-1 download", async ({ page }) => {
@@ -12,7 +12,7 @@ test("device accounts, reports and GST: supplier payment, expense, cash book, pr
   await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible();
 
   // A supplier bill: 10 packs at ₹70 + 12% GST = ₹784.
-  await page.getByRole("tab", { name: "Purchases" }).click();
+  await openTab(page, "Purchases");
   await page.getByLabel("New supplier").fill("Jharkhand Pharma");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByLabel("Bill number").fill(`JP-${uid()}`);
@@ -26,7 +26,7 @@ test("device accounts, reports and GST: supplier payment, expense, cash book, pr
   await expect(page.getByText(/₹784\.00 incl\. GST/)).toBeVisible();
 
   // Accounts: pay ₹500 in cash, add a ₹100 cash expense.
-  await page.getByRole("tab", { name: "Accounts" }).click();
+  await openTab(page, "Accounts");
   await page.getByRole("button", { name: "Pay Jharkhand Pharma" }).click();
   await page.getByLabel("Payment amount").fill("500");
   await page.getByLabel("Payment mode").selectOption("cash");
@@ -39,7 +39,7 @@ test("device accounts, reports and GST: supplier payment, expense, cash book, pr
   await expect(page.getByText(/Out ₹600\.00/)).toBeVisible();
 
   // A cash bill: 2 packs = ₹224.
-  await page.getByRole("tab", { name: "Billing" }).click();
+  await openTab(page, "Billing");
   await page.getByLabel("Search medicine").fill(name);
   await page.getByRole("button", { name }).click();
   await page.getByRole("button", { name }).click();
@@ -48,11 +48,11 @@ test("device accounts, reports and GST: supplier payment, expense, cash book, pr
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
 
   // Day-end: cash in drawer = 224 − 500 − 100.
-  await page.getByRole("tab", { name: "Bills & day-end" }).click();
+  await openTab(page, "Bills & day-end");
   await expect(page.getByText("Cash in drawer from today").locator("..")).toContainText("−₹376.00");
 
   // Reports & GST: profit, and a GSTR-1 file with this sale.
-  await page.getByRole("tab", { name: "Reports & GST" }).click();
+  await openTab(page, "Reports & GST");
   await expect(page.getByTestId("gross-profit")).not.toHaveText("₹0.00");
   await expect(page.getByRole("cell", { name: "B2CS (7)" })).toBeVisible();
   const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /GSTR-1 JSON/ }).click()]);

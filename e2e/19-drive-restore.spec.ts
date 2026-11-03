@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { OWNER_STATE, driveModeOn, importMedicines, monthsAhead, resetFakeDrive, uid } from "./helpers";
+import { OWNER_STATE, driveModeOn, importMedicines, monthsAhead, openTab, resetFakeDrive, uid } from "./helpers";
 
 // DriveDB phase 2: the device saves the pharmacy to (the test server's fake) Google Drive through Medoro's relay,
 // encrypted; a fresh device restores it with the recovery code.
@@ -44,10 +44,10 @@ test("set up Drive storage, then restore everything on a fresh device with the r
   await pageB.getByLabel("Drive recovery code").fill(code.toLowerCase());
   await pageB.getByRole("button", { name: "Restore from Google Drive" }).click();
   await expect(pageB.getByText(/Restored from Google Drive/)).toBeVisible();
-  await pageB.getByRole("tab", { name: "Bills & day-end" }).click();
+  await openTab(pageB, "Bills & day-end");
   await expect(pageB.getByText(/-000001 · Walk-in/)).toBeVisible();
   await expect(pageB.getByText(/-000002 · Walk-in/)).toBeVisible();
-  await pageB.getByRole("tab", { name: "Billing" }).click();
+  await openTab(pageB, "Billing");
   await expect(pageB.getByText("Last full copy")).toBeVisible();
 
   await pageB.goto("/app/lab");

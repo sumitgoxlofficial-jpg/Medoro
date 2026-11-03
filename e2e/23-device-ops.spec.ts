@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { db, driveModeOn, importMedicines, monthsAhead, tenant, uid } from "./helpers";
+import { db, driveModeOn, importMedicines, monthsAhead, openTab, tenant, uid } from "./helpers";
 
 // DriveDB phase 5 (slice 2): stock corrections and counts, blocking a batch, home delivery orders, loyalty points.
 test("device stock corrections, a cash-on-delivery order and loyalty points", async ({ page }) => {
@@ -14,7 +14,7 @@ test("device stock corrections, a cash-on-delivery order and loyalty points", as
   await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible();
 
   // Stock: write off 2 damaged, recall and release the batch, then a count.
-  await page.getByRole("tab", { name: "Stock" }).click();
+  await openTab(page, "Stock");
   await page.getByLabel("Search stock").fill(name);
   await page.getByRole("button", { name: `Batches of ${name}` }).click();
   const dlg = page.getByRole("dialog");
@@ -33,7 +33,7 @@ test("device stock corrections, a cash-on-delivery order and loyalty points", as
 
   // A cash-on-delivery order for a new customer: take, pack & bill, out, delivered.
   const phone = "98" + String(Date.now()).slice(-8);
-  await page.getByRole("tab", { name: "Orders" }).click();
+  await openTab(page, "Orders");
   await page.getByRole("button", { name: "New order" }).click();
   await page.getByLabel("Order customer").fill(phone);
   await page.getByLabel("New customer name").fill("Sunita Devi");
@@ -53,7 +53,7 @@ test("device stock corrections, a cash-on-delivery order and loyalty points", as
   await expect(page.getByText(/Delivered\. Cash ₹200\.00 recorded/)).toBeVisible();
 
   // She earned 20 points on the ₹200 order; spend 20 on a counter bill.
-  await page.getByRole("tab", { name: "Billing" }).click();
+  await openTab(page, "Billing");
   await page.getByLabel("Search medicine").fill(name);
   await page.getByRole("button", { name }).click();
   await page.getByLabel("Customer").fill(phone.slice(0, 6));
