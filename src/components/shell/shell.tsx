@@ -65,7 +65,7 @@ function ShellInner(p: ShellProps) {
   useEffect(() => {
     const on = () => { setNarrow(window.innerWidth < 1180); setPhone(window.innerWidth < 768); };
     on(); window.addEventListener("resize", on);
-    if (window.innerWidth >= 1500) setAiOpen(true);
+    // The AI drawer starts closed on every screen size; it opens only from Ask AI, Ctrl+J or a "medoro:ai" event.
     const ask = () => setAiOpen(true);
     window.addEventListener("medoro:ai", ask);
     return () => { window.removeEventListener("resize", on); window.removeEventListener("medoro:ai", ask); };
