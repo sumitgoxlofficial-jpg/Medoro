@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  ArrowRight, Check, CloudOff, Download, FileCheck, HardDriveUpload, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, Plus,
+  ArrowRight, Check, CloudOff, Download, Eye, FileCheck, HardDriveUpload, Headset, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, Plus,
   ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database,
 } from "lucide-react";
 import { cookies } from "next/headers";
@@ -9,6 +9,7 @@ import { SiteLangCarryOver } from "@/components/site/header";
 import { FeatureTabs, Hero, Marquee, Pricing, ProductTour } from "@/components/site/interactive";
 import { PRODUCTS } from "@/staff/constants";
 import { getLang } from "@/server/lang";
+import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
@@ -74,6 +75,25 @@ const SEC: [typeof Check, string, string][] = [
   [Lock, "Encrypted backups", "Encrypted before they leave your computer. Only your recovery key opens them."],
   [FileCheck, "Consent records", "WhatsApp opt-in and opt-out recorded per customer, with the date and method."],
   [Download, "Leave any time", "Full JSON export, CSV reports for your CA, and backups only your key opens."],
+];
+
+/**
+ * Trust badges in the Security section. Every status is a fact the product enforces today (see the comment on each),
+ * not a plan: keep it that way when editing. [icon, title, status, detail, link?]
+ */
+type Trust = [typeof Check, string, string, string, string?];
+const trustBadges = (google: boolean): Trust[] => [
+  // src/server/security-headers.ts: HSTS (2 years) and upgrade-insecure-requests on every HTTPS response.
+  [Lock, "SSL / HTTPS secure", "HTTPS only", "Medoro’s website and hosted app load only over an encrypted connection, enforced with HSTS."],
+  // Roles and permission matrix, two-step sign-in for owners and managers, audit trail.
+  [ShieldCheck, "Data protection", "Built in", "Role-based access, two-step sign-in for owners and managers, and a log of every sensitive action."],
+  [Database, "Secure infrastructure", "You choose where", "Records live in your Google Drive, a shop PC, your server or your cloud. Backups are encrypted before upload."],
+  // Shown only when Google sign-in is set up on this deployment (same check as the sign-in page).
+  google
+    ? [UserCheck, "Google sign-in", "Available", "Continue with Google, or sign in with your mobile or email and a second step."]
+    : [KeyRound, "Two-step sign-in", "Owners and managers", "A one-time code on top of the password. Lost devices can be signed out remotely."],
+  [Eye, "Privacy first", "Policy published", "We never hold your invoices, stock or patient details. DPDP rights and a grievance officer.", "/legal#privacy"],
+  [Headset, "Customer support", "Mon to Sat, 9 am to 9 pm", "Real people on WhatsApp and email for setup, switching and day-to-day help.", "/legal#contact"],
 ];
 
 const FAQ: { title: string; items: [string, string][] }[] = [
@@ -313,6 +333,22 @@ export default async function Home() {
                   {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="rounded-lg border border-white/10 p-4 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{t(l)}</span><span className="text-[14px] text-[#9FB5B1]">{t(d)}</span></div>)}
                 </div>
               </div>
+            </div>
+            <div data-reveal className="rounded-2xl border border-white/12 bg-white/[.03] p-[clamp(20px,3vw,32px)] flex flex-col gap-6">
+              <h3 id="trust-title" className="m-0 text-[20px] font-semibold">{t("Medoro trust & security")}</h3>
+              <ul aria-labelledby="trust-title" className="m-0 p-0 list-none grid gap-x-10 gap-y-8 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
+                {trustBadges(googleLoginConfigured()).map(([Icon, title, status, d, href]) => (
+                  <li key={title} className="flex flex-col gap-2.5">
+                    <Icon size={24} aria-hidden className="text-[#4ADE80]" />
+                    <span className="text-[17px] font-semibold">{t(title)}</span>
+                    <span className="self-start rounded-md bg-[#4ADE80]/12 px-2 py-0.5 text-[13px] font-semibold text-[#4ADE80]">{t(status)}</span>
+                    <span className="text-[15px] text-[#B5C7C3]">
+                      {t(d)}
+                      {href ? <> <a href={href} className="text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Read more")}</a></> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
             <ul className="m-0 p-0 list-none grid gap-x-10 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
               {SEC.map(([Icon, title, d], i) => (
