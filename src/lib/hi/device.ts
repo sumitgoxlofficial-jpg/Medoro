@@ -73,6 +73,11 @@ export const hi: Record<string, string> = {
   "Complete bill": "बिल पूरा करें",
   "Send this bill to +91 {phone} on WhatsApp.": "यह बिल WhatsApp पर +91 {phone} को भेजें।",
   "Open WhatsApp": "WhatsApp खोलें",
+  "Bill saved": "बिल सेव हो गया",
+  "No mobile number on this bill": "इस बिल पर मोबाइल नंबर नहीं है",
+  "Send PDF again": "PDF दोबारा भेजें",
+  // WhatsApp delivery status on the receipt (looked up from data, so listed here by hand)
+  "Not delivered": "नहीं पहुँचा",
   "Enter a 10-digit mobile number, or clear it.": "10 अंकों का मोबाइल नंबर डालें, या उसे हटा दें।",
   "Enter the customer’s name to save them with this bill.": "इस बिल के साथ सेव करने के लिए ग्राहक का नाम डालें।",
   "Customer mobile or name (optional)": "ग्राहक का मोबाइल या नाम (वैकल्पिक)",

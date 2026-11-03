@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { Printer, MessageCircle, FileCheck2 } from "lucide-react";
+import { CircleCheck, FileCheck2, MessageCircle, Printer, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { inr } from "@/lib/money";
@@ -29,47 +29,106 @@ const exp = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 export function ReceiptView({ d, pharmacy }: { d: SaleDetail; pharmacy: Pharmacy | null }) {
   const s = d.sale as Record<string, string | number | null>;
   const at = new Date(String(s.at));
+  const num = (k: string) => Number(s[k] ?? 0);
+  // GST by rate, from the lines (prices are MRP-inclusive: tax = amount − taxable).
+  const slabs = new Map<number, { taxable: number; tax: number }>();
+  for (const l of d.lines) {
+    const amt = l.mrpPaise * l.qty - l.discountPaise, x = slabs.get(l.gstRate) ?? { taxable: 0, tax: 0 };
+    slabs.set(l.gstRate, { taxable: x.taxable + l.taxablePaise, tax: x.tax + amt - l.taxablePaise });
+  }
+  const units = d.lines.reduce((n, l) => n + l.qty, 0);
+  const Row = ({ k, v, b }: { k: React.ReactNode; v: React.ReactNode; b?: boolean }) => (
+    <div className={`flex justify-between gap-3 ${b ? "font-bold" : ""}`}><span>{k}</span><span className="tabular-nums whitespace-nowrap">{v}</span></div>
+  );
+  const Rule = ({ solid }: { solid?: boolean }) => <div className={`my-1.5 border-t border-black ${solid ? "" : "border-dashed"}`} />;
   return (
-    <div className="receipt-print font-mono text-[12px] leading-snug text-black bg-white">
+    <div className="receipt-print font-sans text-[11.5px] leading-[1.45] text-black bg-white tabular-nums">
+      {/* Seller */}
       <div className="text-center">
-        <div className="text-[14px] font-bold">{pharmacy?.name ?? "Pharmacy"}</div>
-        {pharmacy?.address ? <div>{pharmacy.address}</div> : null}
-        {pharmacy?.phone ? <div>Ph {pharmacy.phone}</div> : null}
-        {pharmacy?.gstin ? <div>GSTIN {pharmacy.gstin}</div> : null}
-        {pharmacy?.dl ? <div>DL {pharmacy.dl}</div> : null}
-        <div className="font-bold mt-1">TAX INVOICE</div>
+        <div className="text-[16px] font-bold tracking-[.01em] leading-tight">{pharmacy?.name ?? "Pharmacy"}</div>
+        {pharmacy?.address ? <div className="mt-0.5">{pharmacy.address}</div> : null}
+        {pharmacy?.phone ? <div>Phone: {pharmacy.phone}</div> : null}
+        {(pharmacy?.gstin || pharmacy?.dl) ? (
+          <div className="text-[10.5px]">{[pharmacy?.gstin ? `GSTIN: ${pharmacy.gstin}` : "", pharmacy?.dl ? `DL: ${pharmacy.dl}` : ""].filter(Boolean).join("  |  ")}</div>
+        ) : null}
       </div>
-      <div className="flex justify-between mt-1"><span>{String(s.invoiceNo)}</span><span>{dayMonth(at, true)} {hhmm(at)}</span></div>
-      {s.customerName ? <div>To: {String(s.customerName)}{s.customerPhone ? ` · ${s.customerPhone}` : ""}{s.customerGstin ? ` · GSTIN ${s.customerGstin}` : ""}</div> : null}
-      {s.patientName ? <div>Patient: {String(s.patientName)}</div> : null}
-      {s.prescriber ? <div>Dr: {String(s.prescriber)}{s.prescriberReg ? ` (Reg ${s.prescriberReg})` : ""}</div> : null}
-      <div className="border-t border-dashed border-black my-1" />
+      <div className="my-2 border-y border-black py-0.5 text-center text-[12px] font-bold tracking-[.18em]">TAX INVOICE</div>
+
+      {/* Bill details */}
+      <div className="grid grid-cols-[auto_1fr] gap-x-2">
+        <span>Bill No</span><span className="text-right font-bold">{String(s.invoiceNo)}</span>
+        <span>Date</span><span className="text-right">{dayMonth(at, true)}, {hhmm(at)}</span>
+        {s.customerName ? <><span>Customer</span><span className="text-right">{String(s.customerName)}</span></> : <><span>Customer</span><span className="text-right">Walk-in</span></>}
+        {s.customerPhone ? <><span>Mobile</span><span className="text-right">+91 {String(s.customerPhone)}</span></> : null}
+        {s.customerGstin ? <><span>GSTIN</span><span className="text-right">{String(s.customerGstin)}</span></> : null}
+        {s.patientName ? <><span>Patient</span><span className="text-right">{String(s.patientName)}</span></> : null}
+        {s.prescriber ? <><span>Doctor</span><span className="text-right">Dr {String(s.prescriber)}{s.prescriberReg ? ` (Reg ${s.prescriberReg})` : ""}</span></> : null}
+      </div>
+
+      {/* Items */}
+      <Rule solid />
+      <div className="grid grid-cols-[1fr_28px_54px_62px] gap-x-1 text-[10.5px] font-bold uppercase">
+        <span>Item</span><span className="text-right">Qty</span><span className="text-right">Rate</span><span className="text-right">Amount</span>
+      </div>
+      <Rule />
       {d.lines.map((l) => (
-        <div key={l.id} className="mb-0.5">
-          <div>{l.name}</div>
-          <div className="flex justify-between"><span>{l.qty} {l.loose ? l.looseUnit : l.packUnit} × {inr(l.mrpPaise)} · B {l.batchNo} · Exp {exp(l.expiryDate)} · {l.gstRate}%</span><span>{inr(l.mrpPaise * l.qty - l.discountPaise)}</span></div>
+        <div key={l.id} className="mb-1.5">
+          <div className="grid grid-cols-[1fr_28px_54px_62px] gap-x-1">
+            <span className="font-semibold break-words">{l.name}</span>
+            <span className="text-right">{l.qty}</span>
+            <span className="text-right">{inr(l.mrpPaise)}</span>
+            <span className="text-right font-semibold">{inr(l.mrpPaise * l.qty - l.discountPaise)}</span>
+          </div>
+          <div className="text-[10px] text-black/80">
+            {l.loose ? l.looseUnit : l.packUnit} · Batch {l.batchNo} · Exp {exp(l.expiryDate)}{l.hsn ? ` · HSN ${l.hsn}` : ""} · GST {l.gstRate}%
+          </div>
         </div>
       ))}
-      <div className="border-t border-dashed border-black my-1" />
-      <div className="flex justify-between"><span>MRP total</span><span>{inr(Number(s.subtotalPaise))}</span></div>
-      {Number(s.discountPaise) ? <div className="flex justify-between"><span>Discount</span><span>−{inr(Number(s.discountPaise))}</span></div> : null}
-      <div className="flex justify-between"><span>Taxable</span><span>{inr(Number(s.taxablePaise))}</span></div>
-      {Number(s.igstPaise) ? <div className="flex justify-between"><span>IGST</span><span>{inr(Number(s.igstPaise))}</span></div> : <>
-        <div className="flex justify-between"><span>CGST</span><span>{inr(Number(s.cgstPaise))}</span></div>
-        <div className="flex justify-between"><span>SGST</span><span>{inr(Number(s.sgstPaise))}</span></div>
+      <Rule />
+      <Row k={`Items ${d.lines.length} · Qty ${units}`} v="" />
+
+      {/* Totals */}
+      <Row k="MRP total" v={inr(num("subtotalPaise"))} />
+      {num("discountPaise") ? <Row k="Discount" v={`−${inr(num("discountPaise"))}`} /> : null}
+      <Row k="Taxable value" v={inr(num("taxablePaise"))} />
+      {num("igstPaise") ? <Row k="IGST" v={inr(num("igstPaise"))} /> : <>
+        <Row k="CGST" v={inr(num("cgstPaise"))} />
+        <Row k="SGST" v={inr(num("sgstPaise"))} />
       </>}
-      {Number(s.roundOffPaise) ? <div className="flex justify-between"><span>Round off</span><span>{inr(Number(s.roundOffPaise))}</span></div> : null}
-      <div className="flex justify-between font-bold text-[14px]"><span>TOTAL</span><span>{inr(Number(s.totalPaise))}</span></div>
-      <div>Paid: {d.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amountPaise)}`).join(" + ")}</div>
-      {d.returns.map((r) => <div key={r.id}>Credit note {r.creditNoteNo}: −{inr(r.amountPaise)} ({r.refundMode})</div>)}
+      {num("roundOffPaise") ? <Row k="Round off" v={inr(num("roundOffPaise"))} /> : null}
+      <div className="my-1.5 border-y-2 border-black py-1 flex justify-between items-baseline">
+        <span className="text-[13px] font-bold">TOTAL</span><span className="text-[17px] font-bold">{inr(num("totalPaise"))}</span>
+      </div>
+      <Row k="Paid" v={d.payments.map((p) => `${p.mode.toUpperCase()} ${inr(p.amountPaise)}`).join(" + ")} />
+      {num("discountPaise") ? <div className="mt-1 text-center font-bold">You saved {inr(num("discountPaise"))} on this bill</div> : null}
+      {d.returns.map((r) => <Row key={r.id} k={`Credit note ${r.creditNoteNo} (${r.refundMode})`} v={`−${inr(r.amountPaise)}`} />)}
+
+      {/* GST by rate */}
+      {slabs.size > 0 ? (
+        <>
+          <Rule />
+          <div className="grid grid-cols-[1fr_1fr_1fr] text-[10px]">
+            <span className="font-bold">GST %</span><span className="text-right font-bold">Taxable</span><span className="text-right font-bold">Tax</span>
+            {[...slabs].sort(([a], [b]) => a - b).map(([rate, v]) => (
+              <span key={rate} className="contents"><span>{rate}%</span><span className="text-right">{inr(v.taxable)}</span><span className="text-right">{inr(v.tax)}</span></span>
+            ))}
+          </div>
+        </>
+      ) : null}
+
       {d.einvoice && !d.einvoice.cancelled ? (
-        <div className="border-t border-dashed border-black mt-1 pt-1 text-[11px] break-all" data-testid="irn">
+        <div className="border-t border-dashed border-black mt-1.5 pt-1 text-[10px] break-all" data-testid="irn">
           <div>IRN {d.einvoice.irn}</div>
           {d.einvoice.ackNo ? <div>Ack {d.einvoice.ackNo}{d.einvoice.ackDt ? ` · ${d.einvoice.ackDt}` : ""}</div> : null}
           {d.einvoice.signedQr ? <IrnQr text={d.einvoice.signedQr} /> : null}
         </div>
-      ) : d.einvoice?.cancelled ? <div className="text-[11px] mt-1">E-invoice cancelled</div> : null}
-      <div className="text-center mt-2">Prices include GST. Get well soon.</div>
+      ) : d.einvoice?.cancelled ? <div className="text-[10px] mt-1">E-invoice cancelled</div> : null}
+
+      <Rule />
+      <div className="text-center">
+        <div className="font-semibold">Thank you! Get well soon.</div>
+        <div className="text-[10px]">Prices include GST. Check medicines and expiry before leaving the counter.</div>
+      </div>
     </div>
   );
 }
@@ -157,30 +216,69 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
   const loadSent = async () => { if (id) setSent(await dev.call("billMessages", id).catch(() => [])); };
   useEffect(() => { void loadSent(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const b2b = !!d?.sale.customerGstin;
+  const close = () => { setFresh(null); onClose(); };
+  const sale = d?.sale as Record<string, string | number | null> | undefined;
+  const at = sale ? new Date(String(sale.at)) : null;
+  const phone = (sale?.customerPhone as string | null) ?? null;
+  const last = sent[0];
+  const STATUS: Record<string, [string, string]> = {
+    sent: ["Sent", "bg-chip text-ink-2"], delivered: ["Delivered", "bg-teal-soft text-teal"], read: ["Read", "bg-ok-bg text-ok"], failed: ["Not delivered", "bg-bad-bg text-bad"],
+  };
   return (
-    <Modal open={!!d} onClose={() => { setFresh(null); onClose(); }} title={d ? `Bill ${String(d.sale.invoiceNo)}` : ""} width={420}
-      footer={<div className="flex gap-2 justify-end flex-wrap">
-        <Button onClick={() => { setFresh(null); onClose(); }}>Close</Button>
+    <Modal open={!!d} onClose={close} title={d ? `Bill ${String(d.sale.invoiceNo)}` : ""} width={460}
+      sub={at ? `${dayMonth(at, true)} · ${hhmm(at)}` : undefined}
+      footer={<div className="flex w-full items-center gap-2 flex-wrap">
+        <Button variant="ghost" onClick={close}>Close</Button>
+        <span className="flex-1" />
         {ein && b2b && !d?.einvoice && <Button onClick={getIrn} disabled={busy}><FileCheck2 size={16} /> {busy ? t("Getting IRN…") : t("E-invoice")}</Button>}
         {ein && d?.einvoice && !d.einvoice.cancelled && <Button variant="danger-outline" onClick={cancelIrn} disabled={busy}>Cancel e-invoice</Button>}
-        {wa && <Button onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={16} /> {who?.whatsapp ? t("Share text") : "WhatsApp"}</Button>}
-        {who?.whatsapp && <Button onClick={sendPdf} disabled={busy}><MessageCircle size={16} /> {busy ? t("Sending…") : t("Send PDF on WhatsApp")}</Button>}
-        <Button variant="primary" onClick={printReceipt}><Printer size={16} /> {t("Print")}</Button>
+        <Button variant="primary" size="lg" onClick={printReceipt}><Printer size={17} /> {t("Print")}</Button>
       </div>}>
-      {sendWhatsApp && !who?.whatsapp && wa ? (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border border-[#BFE3D0] bg-ok-bg px-3 py-2 text-[13px]">
-          <MessageCircle size={16} className="text-ok shrink-0" aria-hidden />
-          <span className="flex-1">{t("Send this bill to +91 {phone} on WhatsApp.", { phone: String(d?.sale.customerPhone ?? "") })}</span>
-          <Button size="sm" variant="primary" onClick={() => window.open(wa, "_blank", "noopener")}>{t("Open WhatsApp")}</Button>
+      {d && sale ? (
+        <div className="flex flex-col gap-4">
+          {/* What was billed, at a glance. */}
+          <div className="flex items-center gap-3 rounded-xl border border-[#BFE3D0] bg-ok-bg px-4 py-3">
+            <CircleCheck size={26} className="text-ok shrink-0" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-ok">{t("Bill saved")}</div>
+              <div className="text-[13px] text-ink-2 truncate">{sale.customerName ? `${String(sale.customerName)}${phone ? ` · +91 ${phone}` : ""}` : t("Walk-in customer")}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[22px] font-bold leading-none tabular-nums text-ink-strong">{inr(Number(sale.totalPaise))}</div>
+              <div className="mt-1 text-[11.5px] font-semibold uppercase tracking-[.05em] text-muted">{d.payments.map((p) => p.mode.toUpperCase()).join(" + ")}</div>
+            </div>
+          </div>
+
+          {/* The tax invoice as it prints on the 80 mm printer. */}
+          <div className="rounded-xl bg-page border border-line-soft p-3 sm:p-4">
+            <div className="mx-auto w-full max-w-[320px] max-h-[44vh] overflow-auto rounded-md bg-white px-4 py-3 shadow-[0_1px_3px_rgba(16,24,40,.12)]">
+              <ReceiptView d={d} pharmacy={pharmacy} />
+            </div>
+          </div>
+
+          {/* Sending it to the customer. */}
+          {(who?.whatsapp || wa) ? (
+            <div className="rounded-xl border border-line px-4 py-3 flex flex-col gap-2.5">
+              <div className="flex items-center gap-2">
+                <MessageCircle size={17} className="text-ok shrink-0" aria-hidden />
+                <span className="text-[14px] font-semibold">{t("WhatsApp")}</span>
+                <span className="text-[13px] text-muted truncate">{phone ? `+91 ${phone}` : t("No mobile number on this bill")}</span>
+                {last ? (
+                  <span data-testid="wa-status" className={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${(STATUS[last.status] ?? STATUS.sent)[1]}`} title={last.error ? t(last.error) : undefined}>
+                    {t((STATUS[last.status] ?? [last.status])[0])} · {hhmm(new Date(last.sentAt))}{sent.length > 1 ? ` · ×${sent.length}` : ""}
+                  </span>
+                ) : null}
+              </div>
+              {last?.error ? <div className="text-[12.5px] text-bad">{t(last.error)}</div> : null}
+              {sendWhatsApp && !who?.whatsapp && wa && !last ? <div className="text-[12.5px] text-muted">{t("Send this bill to +91 {phone} on WhatsApp.", { phone: phone ?? "" })}</div> : null}
+              <div className="flex gap-2 flex-wrap">
+                {who?.whatsapp && <Button onClick={sendPdf} disabled={busy} className="text-ok border-[#BFE3D0] hover:bg-ok-bg"><Send size={15} /> {busy ? t("Sending…") : last ? t("Send PDF again") : t("Send PDF on WhatsApp")}</Button>}
+                {wa && <Button variant={who?.whatsapp ? "ghost" : "outline"} className={who?.whatsapp ? undefined : "text-ok border-[#BFE3D0] hover:bg-ok-bg"} onClick={() => window.open(wa, "_blank", "noopener")}><MessageCircle size={15} /> {who?.whatsapp ? t("Share text") : t("Open WhatsApp")}</Button>}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
-      {d ? <div className="border border-line rounded-lg p-3"><ReceiptView d={d} pharmacy={pharmacy} /></div> : null}
-      {sent[0] && (
-        <div className={`mt-2 text-[13px] ${sent[0].status === "failed" ? "text-bad" : "text-muted"}`} data-testid="wa-status">
-          WhatsApp: {t({ sent: "sent", delivered: "delivered", read: "read", failed: "not delivered" }[sent[0].status] ?? sent[0].status)}
-          {sent[0].error ? ` (${t(sent[0].error)})` : ""} · {hhmm(new Date(sent[0].sentAt))}{sent.length > 1 ? ` · ${t("sent {n} times", { n: sent.length })}` : ""}
-        </div>
-      )}
     </Modal>
   );
 }
