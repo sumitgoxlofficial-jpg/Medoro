@@ -75,6 +75,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
     dev.call("negativeStock", cfg.branchId).then((r) => setNegative(r.length), () => setNegative(0));
   }, [dev, state, cfg, tick, tab]);
   const [receipt, setReceipt] = useState<SaleDetail | null>(null);
+  const [receiptWa, setReceiptWa] = useState(false);
 
   // Kept in a ref so a page refresh (a new `who` object) doesn't re-run the first-open check below.
   const signedIn = useRef(!!online);
@@ -137,7 +138,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">{t("Lock")}</button>}
       </div>}
       {tab === "dash" && <Dashboard cfg={cfg} owner={who.owner} refresh={tick} go={setTab} />}
-      {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id) => { bump(); try { setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
+      {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id, o) => { bump(); try { setReceiptWa(!!o?.whatsapp); setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
       {tab === "bills" && <Bills cfg={cfg} who={who} refresh={tick} />}
       {tab === "stock" && <Stock cfg={cfg} owner={who.owner} userId={who.userId} refresh={tick} />}
       {tab === "purchases" && <Purchases cfg={cfg} who={who} onSaved={bump} />}
@@ -154,7 +155,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
       {tab === "insights" && online?.owner && <Insights cfg={cfg} who={who} refresh={tick} />}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}
-      <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => setReceipt(null)} who={who} />
+      <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => { setReceipt(null); setReceiptWa(false); }} who={who} sendWhatsApp={receiptWa} />
     </div>
   );
 }

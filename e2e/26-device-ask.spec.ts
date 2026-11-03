@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { driveModeOn, importMedicines, monthsAhead, uid } from "./helpers";
+import { driveModeOn, importMedicines, monthsAhead, openTab, uid } from "./helpers";
 
 // DriveDB phase 6: the counter's assistant answers from the device's own data (built-in rules: no model on the test server).
 test("ask the counter about sales and stock", async ({ page }) => {
@@ -9,7 +9,7 @@ test("ask the counter about sales and stock", async ({ page }) => {
   await page.goto("/app/device-pos");
   await page.getByRole("button", { name: "Load catalogue onto this device" }).click();
   await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible();
-  await page.getByRole("tab", { name: "Ask" }).click();
+  await openTab(page, "Ask");
   await page.getByRole("button", { name: "Sales today" }).click();
   await expect(page.getByTestId("answer").first()).toContainText(/Today so far: ₹0 across 0 bills/);
   await expect(page.getByTestId("answer").first()).toContainText("Built-in rules");
