@@ -465,25 +465,25 @@ model BankStatement {
 
 // One bank statement row. Amount is signed: + money in (deposit), − money out (withdrawal).
 model BankLine {
-  id           String        @id @default(uuid())
-  tenantId     String
-  statementId  String
-  statement    BankStatement @relation(fields: [statementId], references: [id])
-  date         DateTime      @db.Date
-  description  String
-  ref          String?
-  amountPaise  BigInt
-  balancePaise BigInt?
-  row          Int           @default(0) // position in the imported file, to order same-day lines
-  fingerprint  String
-  ledgerLineId String?       @unique
-  matchedBy    String? // auto, manual; bill / bill-auto when the line paid a credit bill (a receipt was posted for it)
-  reconciledAt DateTime?
-  reconciledBy String?
+  id              String        @id @default(uuid())
+  tenantId        String
+  statementId     String
+  statement       BankStatement @relation(fields: [statementId], references: [id])
+  date            DateTime      @db.Date
+  description     String
+  ref             String?
+  amountPaise     BigInt
+  balancePaise    BigInt?
+  row             Int           @default(0) // position in the imported file, to order same-day lines
+  fingerprint     String
+  ledgerLineId    String?       @unique
+  matchedBy       String? // auto, manual; bill / bill-auto when the line paid a credit bill (a receipt was posted for it)
+  reconciledAt    DateTime?
+  reconciledBy    String?
   /// The credit bill this bank credit paid (bill-level matching, accounting/bank-bills.ts)
   saleId          String?
   /// Bills a person said this credit isn't for: never suggested again
-  rejectedSaleIds String[] @default([])
+  rejectedSaleIds String[]      @default([])
 
   @@unique([tenantId, fingerprint])
   @@index([tenantId, date])
@@ -1104,28 +1104,34 @@ enum StaffStatus {
 }
 
 model StaffUser {
-  id              String         @id @default(uuid())
-  empNo           String         @unique
+  id              String                  @id @default(uuid())
+  empNo           String                  @unique
   name            String
   email           String
-  kind            String         @default("team") // team (Medoro employees) or partner: one email can have one of each
+  kind            String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
   phone           String
   role            StaffRole
-  team            String         @default("")
+  team            String                  @default("")
   status          StaffStatus
   passwordHash    String?
   totpSecret      String? // sealed
-  totpEnabled     Boolean        @default(false)
-  referralCode    String?        @unique
-  googleSub       String?        @unique // reference partners can sign in with Google
-  bonusPct        Decimal        @default(0) @db.Decimal(5, 2)
-  inviteTokenHash String?        @unique
+  totpEnabled     Boolean                 @default(false)
+  referralCode    String?                 @unique
+  googleSub       String?                 @unique // reference partners can sign in with Google
+  bonusPct        Decimal                 @default(0) @db.Decimal(5, 2)
+  inviteTokenHash String?                 @unique
   inviteExpiresAt DateTime?
-  tokenVersion    Int            @default(0)
+  tokenVersion    Int                     @default(0)
   approvedBy      String?
-  createdAt       DateTime       @default(now())
+  createdAt       DateTime                @default(now())
   sessions        StaffSession[]
   bank            StaffBank?
+  growthMember    GrowthMember?
+  territories     EmployeeTerritory[]
+  callingTargets  EmployeeCallingTarget[]
+  leadAssignments LeadAssignment[]
+  callSessions    CallSession[]
+  followUps       FollowUpTask[]
 
   @@unique([email, kind])
 }
@@ -1589,17 +1595,17 @@ model LoyaltyLedger {
 /// DriveDB (Drive mode): a device allowed to sync this pharmacy's encrypted data through Medoro's relay.
 /// Only its public key and status live here; the data and keys are in the owner's Google Drive.
 model DriveDevice {
-  id        String    @id @default(uuid())
-  tenantId  String
-  deviceId  String
-  userId    String
-  name      String
-  role      String // owner | staff
-  status    String    @default("pending") // pending | approved | removed
-  publicKey Json
-  createdAt DateTime  @default(now())
-  decidedAt DateTime?
-  lastSeen  DateTime?
+  id          String    @id @default(uuid())
+  tenantId    String
+  deviceId    String
+  userId      String
+  name        String
+  role        String // owner | staff
+  status      String    @default("pending") // pending | approved | removed
+  publicKey   Json
+  createdAt   DateTime  @default(now())
+  decidedAt   DateTime?
+  lastSeen    DateTime?
   lastSyncAt  DateTime? // last sync with Google Drive that worked
   lastError   String? // the device's last sync error (text only), cleared by the next good sync
   lastErrorAt DateTime?
@@ -1646,4 +1652,628 @@ model CounterMsgStatus {
 
   @@unique([tenantId, wamid])
   @@index([createdAt])
+}
+
+// ───────────────────────── Growth Intelligence (staff console) ─────────────────────────
+// Medoro's own pharmacy prospecting: leads, assignments, calls, follow-ups, campaigns, consent.
+// Part of the control plane: never linked to pharmacy (tenant) tables, never holds patient data.
+// Staff identities are StaffUser rows; GrowthMember adds the Growth role on top.
+
+enum GrowthRole {
+  manager
+  sales
+  analyst
+}
+
+enum LeadVerification {
+  UNVERIFIED
+  BUSINESS_VERIFIED
+  PHONE_VERIFIED
+  EMAIL_VERIFIED
+  WEBSITE_VERIFIED
+  PARTIALLY_VERIFIED
+  INVALID
+  DUPLICATE
+}
+
+enum LeadStage {
+  NEW_LEAD
+  RESEARCH_PENDING
+  QUALIFIED
+  ASSIGNED
+  CONTACT_PERMISSION_PENDING
+  CONTACT_AUTHORIZED
+  FIRST_CONTACT
+  INTERESTED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  TRIAL_STARTED
+  NEGOTIATION
+  CONVERTED
+  LOST
+  FOLLOW_UP_LATER
+  DO_NOT_CONTACT
+}
+
+enum LeadCategory {
+  RETAIL
+  INDEPENDENT
+  CHAIN
+  HOSPITAL
+  MEDICINE_RETAILER
+  OTHER
+}
+
+enum CallOutcome {
+  NOT_CALLED
+  NO_ANSWER
+  BUSY
+  CONNECTED
+  INTERESTED
+  NOT_INTERESTED
+  WRONG_NUMBER
+  FOLLOW_UP_REQUIRED
+  DEMO_SCHEDULED
+  CONVERTED
+  DO_NOT_CONTACT
+}
+
+model GrowthTeam {
+  id        String         @id @default(uuid())
+  name      String         @unique
+  managerId String? // StaffUser id of the marketing manager
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+  members   GrowthMember[]
+}
+
+/// A staff member's Growth Intelligence role (GrowthEmployee). Super admins are Growth admins without a row.
+model GrowthMember {
+  id        String      @id @default(uuid())
+  staffId   String      @unique
+  staff     StaffUser   @relation(fields: [staffId], references: [id])
+  role      GrowthRole
+  teamId    String?
+  team      GrowthTeam? @relation(fields: [teamId], references: [id])
+  active    Boolean     @default(true)
+  addedBy   String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model EmployeeTerritory {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id])
+  state     String
+  district  String    @default("")
+  pin       String    @default("")
+  createdBy String
+  createdAt DateTime  @default(now())
+
+  @@unique([staffId, state, district, pin])
+  @@index([state, district, pin])
+}
+
+model EmployeeCallingTarget {
+  id            String    @id @default(uuid())
+  staffId       String
+  staff         StaffUser @relation(fields: [staffId], references: [id])
+  period        String // daily, weekly
+  calls         Int // reported call attempts
+  connected     Int       @default(0)
+  conversions   Int       @default(0)
+  effectiveFrom DateTime  @db.Date
+  setBy         String
+  createdAt     DateTime  @default(now())
+
+  @@index([staffId, period, effectiveFrom])
+}
+
+/// Daily roll-up written by the background job; dashboards read live data, this keeps history cheap to chart.
+model EmployeeDailyPerformance {
+  id          String   @id @default(uuid())
+  staffId     String
+  day         DateTime @db.Date
+  launches    Int      @default(0)
+  reported    Int      @default(0)
+  connected   Int      @default(0)
+  interested  Int      @default(0)
+  demos       Int      @default(0)
+  conversions Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([staffId, day])
+}
+
+model LeadSource {
+  id           String         @id @default(uuid())
+  key          String         @unique
+  name         String
+  kind         String // open_data, public_directory, official_api, provider, upload, submitted, manual
+  licence      String         @default("")
+  attribution  String         @default("")
+  termsUrl     String         @default("")
+  allowsExport Boolean        @default(true)
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  leads        PharmacyLead[]
+}
+
+model PharmacyLead {
+  id                 String            @id @default(uuid())
+  code               String            @unique
+  name               String
+  nameKey            String // normalised for duplicate matching
+  category           LeadCategory      @default(RETAIL)
+  ownerName          String            @default("")
+  ownerVerified      Boolean           @default(false)
+  phone              String? // E.164, e.g. +919876543210
+  phoneRaw           String            @default("")
+  email              String            @default("")
+  website            String            @default("")
+  domain             String            @default("")
+  address            String            @default("")
+  state              String            @default("")
+  district           String            @default("")
+  city               String            @default("")
+  pin                String            @default("")
+  lat                Float?
+  lng                Float?
+  sourceId           String?
+  source             LeadSource?       @relation(fields: [sourceId], references: [id])
+  sourceRef          String            @default("") // the record's id at the source, e.g. osm:node/123
+  sourceUrl          String            @default("")
+  collectedAt        DateTime          @default(now())
+  verification       LeadVerification  @default(UNVERIFIED)
+  businessVerifiedAt DateTime?
+  phoneVerifiedAt    DateTime?
+  emailVerifiedAt    DateTime?
+  websiteVerifiedAt  DateTime?
+  locationVerifiedAt DateTime?
+  invalidReason      String?
+  duplicateOfId      String?
+  possibleDuplicate  Boolean           @default(false)
+  score              Int               @default(0)
+  scoredAt           DateTime?
+  stage              LeadStage         @default(NEW_LEAD)
+  lostReason         String?
+  softwareStatus     String            @default("") // user-provided: none, paper, other_happy, other_unhappy
+  assignedStaffId    String? // the active primary assignee (kept in step with LeadAssignment)
+  lastContactedAt    DateTime?
+  nextFollowUpAt     DateTime?
+  pipelineLeadId     String? // the staff pipeline Lead this was handed off to
+  importJobId        String?
+  createdById        String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+  erasedAt           DateTime?
+  contacts           PharmacyContact[]
+  evidence           LeadEvidence[]
+  assignments        LeadAssignment[]
+  notes              LeadNote[]
+  activities         LeadActivity[]
+  calls              CallSession[]
+  followUps          FollowUpTask[]
+  scores             LeadScore[]
+
+  @@index([state, district, city])
+  @@index([pin])
+  @@index([phone])
+  @@index([domain])
+  @@index([stage])
+  @@index([verification])
+  @@index([assignedStaffId])
+  @@index([nextFollowUpAt])
+  @@index([createdAt])
+  @@index([sourceId, sourceRef])
+}
+
+model PharmacyContact {
+  id          String       @id @default(uuid())
+  leadId      String
+  lead        PharmacyLead @relation(fields: [leadId], references: [id])
+  name        String
+  role        String       @default("owner") // owner, manager, pharmacist, other
+  phone       String? // E.164
+  email       String       @default("")
+  provenance  String // verified, user_provided, source
+  createdById String?
+  createdAt   DateTime     @default(now())
+  deletedAt   DateTime?
+
+  @@index([leadId])
+}
+
+/// Why a fact about a lead is believed. Append-only: a failed or withdrawn check is a new row.
+model LeadEvidence {
+  id        String       @id @default(uuid())
+  leadId    String
+  lead      PharmacyLead @relation(fields: [leadId], references: [id])
+  kind      String // business, phone, email, website, location, source, software
+  method    String // call_confirmed, website_fetch, document, manual_review, email_reply, source_listing, call_report
+  result    String // verified, failed, info, withdrawn
+  detail    String
+  url       String       @default("")
+  byStaffId String?
+  at        DateTime     @default(now())
+
+  @@index([leadId, kind, at])
+}
+
+model LeadScore {
+  id        String       @id @default(uuid())
+  leadId    String
+  lead      PharmacyLead @relation(fields: [leadId], references: [id])
+  total     Int
+  breakdown Json
+  at        DateTime     @default(now())
+
+  @@index([leadId, at])
+}
+
+model LeadImportJob {
+  id                 String    @id @default(uuid())
+  code               String    @unique
+  fileName           String
+  sourceId           String?
+  status             String // running, completed, failed
+  mapping            Json
+  totalRows          Int       @default(0)
+  created            Int       @default(0)
+  duplicates         Int       @default(0)
+  possibleDuplicates Int       @default(0)
+  invalid            Int       @default(0)
+  processed          Int       @default(0)
+  errors             Json      @default("[]")
+  rows               Json? // normalised rows still to process; cleared when the job finishes
+  createdById        String
+  createdAt          DateTime  @default(now())
+  finishedAt         DateTime?
+}
+
+model LeadDuplicateCandidate {
+  id        String    @id @default(uuid())
+  leadId    String // the newer record
+  matchId   String // the existing record it may duplicate
+  reason    String
+  score     Float
+  status    String    @default("open") // open, merged, dismissed
+  decidedBy String?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([leadId, matchId])
+  @@index([status])
+}
+
+model LeadAssignment {
+  id            String       @id @default(uuid())
+  leadId        String
+  lead          PharmacyLead @relation(fields: [leadId], references: [id])
+  staffId       String
+  staff         StaffUser    @relation(fields: [staffId], references: [id])
+  primary       Boolean      @default(true)
+  active        Boolean      @default(true)
+  /// Set to leadId while this is the active primary assignment, NULL otherwise: one active primary per lead.
+  activeLeadKey String?      @unique
+  assignedById  String
+  assignedAt    DateTime     @default(now())
+  dueAt         DateTime?
+  endedAt       DateTime?
+  endedById     String?
+  endReason     String?
+
+  @@index([staffId, active])
+  @@index([leadId])
+}
+
+/// Append-only log of assignment changes (assigned, reassigned, withdrawn).
+model LeadAssignmentHistory {
+  id          String   @id @default(uuid())
+  leadId      String
+  action      String
+  fromStaffId String?
+  toStaffId   String?
+  byStaffId   String
+  reason      String   @default("")
+  at          DateTime @default(now())
+
+  @@index([leadId, at])
+}
+
+model LeadNote {
+  id        String       @id @default(uuid())
+  leadId    String
+  lead      PharmacyLead @relation(fields: [leadId], references: [id])
+  staffId   String
+  staffName String
+  text      String
+  at        DateTime     @default(now())
+  deletedAt DateTime?
+
+  @@index([leadId, at])
+}
+
+/// The lead's timeline. Append-only.
+model LeadActivity {
+  id        String       @id @default(uuid())
+  leadId    String
+  lead      PharmacyLead @relation(fields: [leadId], references: [id])
+  kind      String // created, imported, assigned, call_launched, call_reported, stage, note, verified, follow_up, message, demo, conversion, merged, consent, erased
+  text      String
+  staffId   String?
+  staffName String       @default("")
+  refId     String?
+  at        DateTime     @default(now())
+
+  @@index([leadId, at])
+}
+
+model CallSession {
+  id              String       @id @default(uuid())
+  leadId          String
+  lead            PharmacyLead @relation(fields: [leadId], references: [id])
+  staffId         String
+  staff           StaffUser    @relation(fields: [staffId], references: [id])
+  assignmentId    String?
+  phone           String // the E.164 number handed to the dialer
+  launchedAt      DateTime     @default(now())
+  status          String       @default("launched") // launched, reported
+  reportedAt      DateTime?
+  outcome         CallOutcome?
+  interestLevel   String? // none, low, medium, high
+  notes           String       @default("")
+  numberConfirmed Boolean      @default(false) // the person who answered confirmed this is the pharmacy
+  softwareStatus  String       @default("")
+  demoRequested   Boolean      @default(false)
+  followUpAt      DateTime?
+  reportKey       String?      @unique // idempotency key of the report
+  userAgent       String       @default("")
+
+  @@index([staffId, launchedAt])
+  @@index([leadId, launchedAt])
+  @@index([reportedAt])
+}
+
+model FollowUpTask {
+  id          String       @id @default(uuid())
+  leadId      String
+  lead        PharmacyLead @relation(fields: [leadId], references: [id])
+  staffId     String
+  staff       StaffUser    @relation(fields: [staffId], references: [id])
+  dueAt       DateTime
+  note        String       @default("")
+  status      String       @default("open") // open, done, cancelled
+  callId      String?
+  createdById String
+  createdAt   DateTime     @default(now())
+  doneAt      DateTime?
+  escalatedAt DateTime?
+
+  @@index([staffId, status, dueAt])
+  @@index([leadId, status])
+}
+
+model SalesDeal {
+  id          String   @id @default(uuid())
+  leadId      String   @unique
+  staffId     String
+  product     String
+  cycle       String   @default("m")
+  amountPaise Int      @default(0)
+  status      String   @default("open") // open, won, lost
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DemoBooking {
+  id          String    @id @default(uuid())
+  leadId      String
+  staffId     String
+  at          DateTime
+  mode        String    @default("phone") // phone, video, visit
+  status      String    @default("scheduled") // scheduled, completed, no_show, cancelled
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@index([staffId, at])
+  @@index([leadId])
+}
+
+model ConversionRecord {
+  id          String   @id @default(uuid())
+  leadId      String   @unique
+  staffId     String
+  product     String
+  cycle       String   @default("m")
+  amountPaise Int      @default(0)
+  reference   String   @default("")
+  notes       String   @default("")
+  callId      String?
+  at          DateTime @default(now())
+
+  @@index([staffId, at])
+}
+
+model MessageTemplate {
+  id        String   @id @default(uuid())
+  channel   String // whatsapp, email
+  name      String
+  language  String   @default("en")
+  category  String   @default("MARKETING") // WhatsApp: MARKETING, UTILITY
+  subject   String   @default("")
+  body      String
+  status    String   @default("draft") // draft, pending, approved, rejected
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([channel, name, language])
+}
+
+model SalesCampaign {
+  id         String              @id @default(uuid())
+  code       String              @unique
+  name       String
+  channel    String // whatsapp, email
+  templateId String
+  audience   Json // filters
+  status     String              @default("draft") // draft, pending_approval, approved, running, completed, cancelled
+  dailyCap   Int                 @default(200)
+  createdBy  String
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  recipients CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id         String        @id @default(uuid())
+  campaignId String
+  campaign   SalesCampaign @relation(fields: [campaignId], references: [id])
+  leadId     String
+  address    String // phone (E.164) or email
+  status     String // queued, skipped, sent, delivered, read, replied, failed
+  reason     String        @default("")
+  providerId String?
+  sentAt     DateTime?
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([campaignId, leadId])
+  @@index([campaignId, status])
+  @@index([providerId])
+}
+
+model MessageConversation {
+  id            String         @id @default(uuid())
+  leadId        String?
+  channel       String // whatsapp, email
+  address       String // E.164 phone or email
+  lastMessageAt DateTime       @default(now())
+  lastInboundAt DateTime?
+  unread        Int            @default(0)
+  createdAt     DateTime       @default(now())
+  events        MessageEvent[]
+
+  @@unique([channel, address])
+  @@index([leadId])
+}
+
+model MessageEvent {
+  id             String              @id @default(uuid())
+  conversationId String
+  conversation   MessageConversation @relation(fields: [conversationId], references: [id])
+  direction      String // out, in, status
+  kind           String // text, template, status
+  body           String              @default("")
+  status         String              @default("") // queued, sent, delivered, read, failed, received
+  providerId     String?
+  staffId        String?
+  campaignId     String?
+  error          String?
+  at             DateTime            @default(now())
+
+  @@index([conversationId, at])
+  @@index([providerId])
+}
+
+/// Consent to contact a lead on a channel for a purpose. Revocation keeps the row (revokedAt).
+model ContactConsent {
+  id          String    @id @default(uuid())
+  leadId      String
+  channel     String // phone, whatsapp, email, sms
+  purpose     String // marketing, service
+  scope       String    @default("") // what was agreed, in the contact's words where possible
+  lawfulBasis String // consent, legitimate_use
+  evidence    String // how it was obtained: call note, form, reply…
+  source      String    @default("") // call, form, inbound, import
+  grantedAt   DateTime  @default(now())
+  recordedBy  String
+  revokedAt   DateTime?
+  revokedBy   String?
+  revokeNote  String?
+
+  @@index([leadId, channel, purpose])
+}
+
+/// Do-not-contact list. Keyed by a hash of the phone or email so it survives erasure of the lead.
+model SuppressionRecord {
+  id        String    @id @default(uuid())
+  channel   String // all, phone, whatsapp, email
+  valueHash String
+  hint      String // masked value for people, e.g. +91•••••43210
+  reason    String // dnc_request, opt_out, bounce, complaint, wrong_number, manual, erasure
+  leadId    String?
+  createdBy String
+  createdAt DateTime  @default(now())
+  liftedAt  DateTime?
+  liftedBy  String?
+  liftNote  String?
+
+  @@index([valueHash])
+}
+
+model IntegrationConnection {
+  id        String   @id @default(uuid())
+  kind      String   @unique // whatsapp, email, osm
+  status    String // connected, disconnected, error
+  config    Json // non-secret settings
+  secrets   Bytes? // sealed JSON with tokens
+  lastError String?
+  updatedBy String
+  updatedAt DateTime @updatedAt
+}
+
+model BackgroundJob {
+  id             String    @id @default(uuid())
+  kind           String
+  payload        Json
+  status         String    @default("queued") // queued, running, done, failed, dead
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  runAt          DateTime  @default(now())
+  lockedAt       DateTime?
+  lastError      String?
+  idempotencyKey String?   @unique
+  createdBy      String?
+  createdAt      DateTime  @default(now())
+  finishedAt     DateTime?
+
+  @@index([status, runAt])
+}
+
+model EventOutbox {
+  id          String    @id @default(uuid())
+  topic       String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+  attempts    Int       @default(0)
+  lastError   String?
+
+  @@index([processedAt, createdAt])
+}
+
+/// Append-only audit trail of Growth Intelligence actions.
+model GrowthAuditLog {
+  id        String   @id @default(uuid())
+  at        DateTime @default(now())
+  staffId   String?
+  staffName String
+  action    String
+  entity    String   @default("")
+  entityId  String?
+  detail    String   @default("")
+  ip        String?
+}
+
+model GrowthSetting {
+  key   String @id
+  value Json
 }

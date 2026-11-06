@@ -2,19 +2,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
-import { BadgeIndianRupee, Building2, Handshake, Kanban, LayoutDashboard, LifeBuoy, Lock, LogOut, Percent, Ticket, Users, Wallet } from "lucide-react";
+import { BadgeIndianRupee, Building2, Handshake, Kanban, Radar, LayoutDashboard, LifeBuoy, Lock, LogOut, Percent, Ticket, Users, Wallet } from "lucide-react";
 import { ToastProvider } from "@/components/ui/toast";
 import { ROLE_LABEL, type StaffRoleId } from "@/staff/constants";
 import { staffSignOut } from "../actions";
 import { NAV, type View } from "./nav";
 
-const ICON: Record<View, typeof Users> = { overview: LayoutDashboard, employees: Users, commission: Percent, leads: Kanban, sales: BadgeIndianRupee, payouts: Wallet, partners: Handshake, customers: Building2, tickets: LifeBuoy, coupons: Ticket };
+const ICON: Record<View, typeof Users> = { overview: LayoutDashboard, employees: Users, commission: Percent, leads: Kanban, sales: BadgeIndianRupee, payouts: Wallet, partners: Handshake, customers: Building2, tickets: LifeBuoy, coupons: Ticket, growth: Radar };
 
-export function ConsoleShell({ me, badges, children }: { me: { name: string; role: StaffRoleId; empNo: string }; badges: Record<string, number>; children: React.ReactNode }) {
+export function ConsoleShell({ me, badges, growth, children }: { me: { name: string; role: StaffRoleId; empNo: string }; badges: Record<string, number>; growth?: [string, string][] | null; children: React.ReactNode }) {
   const path = usePathname();
   const [, start] = useTransition();
-  const nav = NAV[me.role];
+  const nav: [View, string][] = growth?.length ? [...NAV[me.role], ["growth", "Growth intelligence"]] : NAV[me.role];
   const cur = nav.find(([v]) => path.startsWith(`/staff/${v}`)) ?? nav[0];
+  const inGrowth = cur[0] === "growth";
+  const sub = inGrowth ? growth?.find(([v]) => path === `/staff/growth/${v}` || path.startsWith(`/staff/growth/${v}/`)) : undefined;
   const initials = me.name.split(" ").map((x) => x[0]).join("").slice(0, 2).toUpperCase();
   return (
     <ToastProvider>
@@ -35,6 +37,13 @@ export function ConsoleShell({ me, badges, children }: { me: { name: string; rol
                 </Link>
               );
             })}
+            {inGrowth && growth ? (
+              <div className="flex flex-col gap-px mt-1 ml-3 pl-2 border-l border-white/10">
+                {growth.map(([v, label]) => (
+                  <Link key={v} href={`/staff/growth/${v}`} className={`text-[12.5px] px-2 py-[5px] rounded-md ${sub?.[0] === v ? "bg-white/10 text-white font-semibold" : "text-[#9DB0B5] hover:text-white hover:bg-white/[.05]"}`}>{label}</Link>
+                ))}
+              </div>
+            ) : null}
           </nav>
           <div className="m-2 px-3 py-2.5 border border-white/10 rounded-lg text-[11.5px] text-[#9DB0B5] flex gap-2"><Lock size={13} className="text-[#5FD3BC] mt-0.5 flex-none" /><span>Account data only. No access to any pharmacy’s database, invoices or backups.</span></div>
           <div className="flex items-center gap-2.5 px-3.5 py-3 border-t border-white/[.08]">
@@ -45,7 +54,7 @@ export function ConsoleShell({ me, badges, children }: { me: { name: string; rol
         </aside>
         <div className="flex flex-col min-w-0 min-h-0">
           <header className="h-16 flex-none bg-white border-b border-[#E6E8EB] flex items-center gap-3 px-5 max-[640px]:px-4">
-            <strong className="text-[17px] whitespace-nowrap truncate">{cur[1]}</strong>
+            <strong className="text-[17px] whitespace-nowrap truncate">{cur[1]}{sub ? <span className="text-muted font-medium"> · {sub[1]}</span> : null}</strong>
             <span className="ml-auto text-[12.5px] text-muted whitespace-nowrap max-[640px]:hidden">{me.name} · {ROLE_LABEL[me.role]}</span>
             <button onClick={() => start(() => staffSignOut())} className="min-[900px]:hidden ml-auto text-muted cursor-pointer flex items-center gap-1.5 text-[13px]"><LogOut size={16} />Sign out</button>
           </header>
@@ -53,6 +62,9 @@ export function ConsoleShell({ me, badges, children }: { me: { name: string; rol
             {nav.map(([v, label]) => (
               <Link key={v} href={`/staff/${v}`} className={`whitespace-nowrap text-[13px] px-3 py-1.5 rounded-md ${cur[0] === v ? "bg-[rgba(95,211,188,.18)] text-white font-semibold" : "text-[#B8C7CC]"}`}>{label}{badges[v] ? ` · ${badges[v]}` : ""}</Link>
             ))}
+            {inGrowth && growth ? growth.map(([v, label]) => (
+              <Link key={"g" + v} href={`/staff/growth/${v}`} className={`whitespace-nowrap text-[12.5px] px-2.5 py-1.5 rounded-md ${sub?.[0] === v ? "bg-white/15 text-white font-semibold" : "text-[#9DB0B5]"}`}>{label}</Link>
+            )) : null}
           </nav>
           <main className="flex-1 overflow-auto p-5 grid auto-rows-max content-start gap-4 min-h-0 max-[640px]:p-3">{children}</main>
         </div>
