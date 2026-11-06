@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 
 import { db } from "@/server/db";
 import { getStaff, type Staff } from "@/staff/auth";
-import { completeGoogleEmployee, employeeFromGoogle, signIn } from "@/staff/people";
+import { completeGoogleEmployee, employeeFromGoogle, setEmployeeStatus, signIn } from "@/staff/people";
 import { actorFor } from "@/staff/growth/access";
 import { decideEmployee, pendingEmployees } from "@/staff/growth/team";
 import { resetDb } from "./helpers";
@@ -90,5 +90,21 @@ describe("sales employees: Google sign-up, admin approval, Google sign-in", () =
     await db.staffUser.create({ data: { empNo: "T-010", name: "Karan Shah", email: "karan@medoro.in", kind: "team", phone: "9822010014", role: "sales", status: "active", passwordHash: "x" } });
     expect(await employeeFromGoogle(g("g-karan", "karan@medoro.in"))).toBe("/staff/employee?google=ok");
     expect((await db.staffUser.findFirstOrThrow({ where: { email: "karan@medoro.in" } })).googleSub).toBe("g-karan");
+  });
+  it("approving a Google sign-up on the Employees page activates it (not 'invited') with the Growth sales role", async () => {
+    expect(await employeeFromGoogle(g("g-meena", "meena@gmail.com", "Meena"))).toBe("/staff/employee?google=new");
+    await completeGoogleEmployee({ name: "Meena Iyer", phone: "9823055555", agree: true });
+    const m = await db.staffUser.findFirstOrThrow({ where: { email: "meena@gmail.com" } });
+    await setEmployeeStatus(admin, m.id, "approve");
+    expect(await db.staffUser.findUniqueOrThrow({ where: { id: m.id }, include: { growthMember: true } })).toMatchObject({ status: "active", growthMember: { role: "sales", active: true } });
+    expect(await employeeFromGoogle(g("g-meena", "meena@gmail.com"))).toBe("/staff/employee?google=ok");
+    expect((await getStaff())?.email).toBe("meena@gmail.com");
+  });
+
+  it("a Google profile left 'invited' by an earlier approval signs in with Google and is activated", async () => {
+    const u = await db.staffUser.create({ data: { empNo: "T-020", name: "Sumit Test", email: "sumit.t@gmail.com", kind: "team", phone: "9822010020", role: "sales", status: "invited", googleSub: "g-sumit", approvedBy: "Aarti Admin" } });
+    expect(await employeeFromGoogle(g("g-sumit", "sumit.t@gmail.com"))).toBe("/staff/employee?google=ok");
+    expect(await db.staffUser.findUniqueOrThrow({ where: { id: u.id }, include: { growthMember: true } })).toMatchObject({ status: "active", inviteTokenHash: null, growthMember: { role: "sales" } });
+    expect((await getStaff())?.email).toBe("sumit.t@gmail.com");
   });
 });
