@@ -2,18 +2,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { GROWTH_ROLE_LABEL, INDIAN_STATES } from "@/staff/growth/constants";
-import { addTerritory, removeTerritory, saveTeam, setMember, setTarget } from "../../../growth-actions";
+import { addTerritory, decideEmployee, removeTerritory, saveTeam, setMember, setTarget } from "../../../growth-actions";
 import { Empty, Panel, Pill, btn, btnPrimary, fieldCls, lbl, selSm, useRun } from "../../ui";
 
 type T = { calls: number; connected: number; conversions: number } | null;
 type P = { id: string; name: string; empNo: string; email: string; staffRole: string; status: string; growthRole: string | null; memberActive: boolean; teamId: string | null; team: string; territories: { id: string; state: string; district: string; pin: string }[]; targets: { daily: T; weekly: T }; activeLeads: number };
 
-export function EmployeesView({ m, admin }: { m: { teams: { id: string; name: string; managerId: string | null }[]; staff: P[] }; admin: boolean }) {
+type Pending = { id: string; empNo: string; name: string; email: string; phone: string; team: string; googleSub: string | null; createdAt: string };
+
+export function EmployeesView({ m, pending = [], admin }: { m: { teams: { id: string; name: string; managerId: string | null }[]; staff: P[] }; pending?: Pending[]; admin: boolean }) {
   const { run, busy } = useRun();
   const [team, setTeam] = useState({ name: "", managerId: "" });
   const managers = m.staff.filter((s) => s.growthRole === "manager");
   return (
     <>
+      {admin ? <PendingSignups pending={pending} teams={m.teams} /> : null}
       <Panel title="Growth employees" sub="People come from the staff console’s Employees page (same sign-in). Here they get a Growth role, team, territory and targets.">
         {admin ? <div className="px-4 pt-3 text-[12.5px] text-muted">New person? Create or approve their profile in <Link className="text-teal" href="/staff/employees">Employees</Link> first.</div> : null}
         {m.staff.length ? m.staff.map((p) => <Person key={p.id} p={p} teams={m.teams} admin={admin} />) : <Empty>No staff yet.</Empty>}
@@ -76,5 +79,24 @@ function Person({ p, teams, admin }: { p: P; teams: { id: string; name: string }
         </div>
       ) : null}
     </div>
+  );
+}
+
+function PendingSignups({ pending, teams }: { pending: Pending[]; teams: { id: string; name: string }[] }) {
+  const { run, busy } = useRun();
+  const [team, setTeam] = useState<Record<string, string>>({});
+  return (
+    <Panel title="Waiting for approval" sub="Sales employees who signed up on the employee sign-in page (/staff/employee). Check they work for Medoro before approving: approval lets them sign in with Google and see the leads assigned to them.">
+      {pending.length ? pending.map((p) => (
+        <div key={p.id} className="flex gap-2 items-center flex-wrap px-4 py-3 border-t border-[#F1F3F4] text-[13.5px]">
+          <div className="flex-1 min-w-[240px]"><strong>{p.name}</strong> <span className="text-muted">· {p.empNo}</span>
+            <div className="text-muted text-[12.5px]">{p.email}{p.googleSub ? " (Google)" : ""} · {p.phone}{p.team ? ` · ${p.team}` : ""} · signed up {new Date(p.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+          </div>
+          <select aria-label={`Team for ${p.name}`} className={selSm} value={team[p.id] ?? ""} onChange={(e) => setTeam({ ...team, [p.id]: e.target.value })}><option value="">No team</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+          <button className={btnPrimary} disabled={busy} onClick={() => run(() => decideEmployee(p.id, true, team[p.id] || null))}>Approve</button>
+          <button className={btn} disabled={busy} onClick={() => { if (window.confirm(`Reject ${p.name}? They won’t be able to sign in.`)) run(() => decideEmployee(p.id, false, null)); }}>Reject</button>
+        </div>
+      )) : <Empty>No sign-ups waiting.</Empty>}
+    </Panel>
   );
 }

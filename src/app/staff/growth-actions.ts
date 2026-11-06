@@ -57,6 +57,7 @@ export const setMember = async (i: Parameters<typeof team.setMember>[1]) => done
 export const saveTeam = async (i: Parameters<typeof team.saveTeam>[1]) => done(await growthRun((a) => team.saveTeam(a, i), "Team saved."));
 export const addTerritory = async (staffId: string, i: Parameters<typeof team.addTerritory>[2]) => done(await growthRun((a) => team.addTerritory(a, staffId, i), "Territory added."));
 export const removeTerritory = async (id: string) => done(await growthRun((a) => team.removeTerritory(a, id), "Territory removed."));
+export const decideEmployee = async (staffId: string, approve: boolean, teamId: string | null) => done(await growthRun((a) => team.decideEmployee(a, staffId, approve, teamId), approve ? "Approved. They can sign in with Google now." : "Sign-up rejected."));
 export const setTarget = async (i: Parameters<typeof team.setTarget>[1]) => done(await growthRun((a) => team.setTarget(a, i), "Target saved."));
 
 // Calls and follow-ups
