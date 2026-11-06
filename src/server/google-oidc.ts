@@ -6,14 +6,14 @@ import { seal, unsealClient } from "./vault";
 // "Sign in with Google": OpenID Connect authorization code flow with PKCE (S256), state and nonce.
 // Uses the same OAuth client as Google Drive backups, with its own redirect URI.
 type Env = Record<string, string | undefined>;
-export type GoogleIntent = "signin" | "link" | "partner";
+export type GoogleIntent = "signin" | "link" | "partner" | "employee";
 export type GoogleClaims = { sub: string; email: string; name: string | null };
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
 const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
-const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup", PARTNER_COOKIE = "medoro_gpartner", EMAIL_COOKIE = "medoro_everify";
+const FLOW_COOKIE = "medoro_goidc", LINK_COOKIE = "medoro_glink", SIGNUP_COOKIE = "medoro_gsignup", PARTNER_COOKIE = "medoro_gpartner", EMPLOYEE_COOKIE = "medoro_gemployee", EMAIL_COOKIE = "medoro_everify";
 const FLOW_PATH = "/api/auth/google";
 const SKEW_S = 60;
 
@@ -149,6 +149,17 @@ export async function readPendingPartner() {
   return v && v.exp > Date.now() ? v : null;
 }
 export async function clearPendingPartner() { (await cookies()).set(PARTNER_COOKIE, "", cookieOpts("/", 0)); }
+
+// A new sales employee who continued with Google: their verified identity waits here (sealed, 30 minutes) while they
+// add their name and mobile; the profile they create then waits for a super admin's approval.
+export async function setPendingEmployee(v: Omit<PendingSignup, "exp">) {
+  (await cookies()).set(EMPLOYEE_COOKIE, sealJson({ ...v, exp: Date.now() + 1_800_000 }), cookieOpts("/", 1800));
+}
+export async function readPendingEmployee() {
+  const v = openJson<PendingSignup>((await cookies()).get(EMPLOYEE_COOKIE)?.value);
+  return v && v.exp > Date.now() ? v : null;
+}
+export async function clearPendingEmployee() { (await cookies()).set(EMPLOYEE_COOKIE, "", cookieOpts("/", 0)); }
 
 // Sign-up with email: the address is proven with a code first (sealed, 30 minutes), like Google proves it.
 type VerifiedEmail = { email: string; exp: number };

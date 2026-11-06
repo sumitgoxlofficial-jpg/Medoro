@@ -1,5 +1,29 @@
 # Employees, roles and distribution
 
+## Employee sign-in with Google (sales employees)
+
+Sales employees have their own sign-in page: **`/staff/employee`** (also linked from the Medoro team sign-in as
+"Sales employee? Sign in with Google").
+
+1. The employee taps **Continue with Google** and picks their Google account (any Google-verified email, e.g. Gmail).
+2. First time: they enter full name, mobile and area/team, accept the employee terms and tap **Send for approval**.
+   This creates a staff profile with role *Sales* in status *pending*. No password, no authenticator. Super admins get an
+   email when email is configured.
+3. A super admin opens **Growth intelligence → My employees → Waiting for approval**, checks the person, optionally picks
+   a team, and taps **Approve** (or **Reject**). Approval activates the profile *and* gives it the Sales employee Growth
+   role in one step.
+4. From then on the employee taps **Continue with Google** on `/staff/employee` and lands on **My assigned leads**.
+
+Rules: only staff with role *Sales* can use this page; admins, managers, analysts and customer care keep the Medoro team
+sign-in (email + password + authenticator), because they can see and export many leads. A Google account already used
+by a reference partner can't be reused; a profile linked to one Google account can't be opened with another; rejected
+and deactivated profiles can't sign in; sign-ups are rate limited per network. An existing password-based sales profile
+can link Google the first time it uses this page (Google has verified the same email). Deactivating an employee under
+Employees ends their sessions as before.
+
+It uses the existing "Sign in with Google" setup (`GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, redirect URI
+`<APP_URL>/api/auth/google/callback`): no new configuration. Without it the page says Google sign-in isn't set up.
+
 ## Identities
 
 Growth employees are the existing staff console profiles. A super admin creates or approves them under **Employees**

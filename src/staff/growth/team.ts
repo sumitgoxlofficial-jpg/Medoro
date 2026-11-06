@@ -105,3 +105,24 @@ export function latestTargets(rows: T[], onIso = todayISO()) {
 export async function targetsFor(staffId: string, onIso = todayISO()) {
   return latestTargets(await db.employeeCallingTarget.findMany({ where: { staffId }, orderBy: { effectiveFrom: "desc" }, take: 20 }), onIso);
 }
+
+// ── Sales employees who signed up with Google on the employee page wait here for a super admin.
+export async function pendingEmployees(a: Actor) {
+  need(a, "team.manage");
+  return db.staffUser.findMany({ where: { kind: "team", role: "sales", status: "pending" }, select: { id: true, empNo: true, name: true, email: true, phone: true, team: true, googleSub: true, createdAt: true }, orderBy: { createdAt: "asc" } });
+}
+
+/** Approve: the profile becomes active and gets the Sales employee Growth role (optionally in a team). Reject: deactivated. */
+export async function decideEmployee(a: Actor, staffId: string, approve: boolean, teamId: string | null = null) {
+  need(a, "team.manage");
+  const u = await db.staffUser.findUnique({ where: { id: staffId } });
+  if (!u || u.kind !== "team" || u.role !== "sales" || u.status !== "pending") throw new UserError("This sign-up was already decided.");
+  if (teamId && !(await db.growthTeam.findFirst({ where: { id: teamId, deletedAt: null } }))) throw new UserError("Team not found.");
+  await db.$transaction(async (tx) => {
+    const r = await tx.staffUser.updateMany({ where: { id: staffId, status: "pending" }, data: approve ? { status: "active", approvedBy: a.id } : { status: "deactivated", tokenVersion: { increment: 1 } } });
+    if (!r.count) throw new UserError("This sign-up was already decided.");
+    if (approve) await tx.growthMember.upsert({ where: { staffId }, create: { staffId, role: "sales", teamId, active: true, addedBy: a.id }, update: { role: "sales", teamId, active: true } });
+    await tx.staffAudit.create({ data: { staffId: a.id, staffName: a.name, action: approve ? "Employee approved" : "Employee sign-up rejected", detail: `${u.empNo} · ${u.email}` } });
+  });
+  await gaudit(a, approve ? "Employee approved" : "Employee sign-up rejected", "member", staffId, `${u.empNo} · ${u.email}${u.googleSub ? " · Google" : ""}`);
+}

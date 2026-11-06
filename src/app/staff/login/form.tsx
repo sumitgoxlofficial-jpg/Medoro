@@ -213,6 +213,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
             {step === "signin" && !handoff && mode === "partner" ? <button type="button" onClick={() => { setSu((x) => ({ ...x, role: "partner" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
             {step === "signin" && !handoff && mode === "team" && setupOpen ? <button type="button" onClick={() => { setSu((x) => ({ ...x, role: "sales" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />First time? Set up the admin profile</button> : null}
             {step === "signin" && !handoff && mode === "team" && !setupOpen ? <div className="text-[12.5px] text-muted text-center">New to the team? Ask your admin for an invite link.</div> : null}
+            {step === "signin" && !handoff && mode === "team" ? <Link href="/staff/employee" className="self-center text-[13.5px] font-semibold text-teal">Sales employee? Sign in with Google</Link> : null}
             {step === "signup" ? <button type="button" onClick={() => { setStep("signin"); setErr(""); }} className="self-center min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Back to sign in</button> : null}
             <div className="text-[11.5px] text-faint text-center">{mode === "team" ? "Team sign-in also needs your authenticator app" : "Partners see only their own referrals and earnings"} · every sign-in is audited</div>
           </form>
@@ -232,7 +233,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
   );
 }
 
-function GoogleG() {
+export function GoogleG() {
   return (
     <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true" className="flex-none">
       <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />

@@ -4,11 +4,15 @@ import { beginGoogle, googleLogin } from "@/server/google-oidc";
 
 export const dynamic = "force-dynamic";
 
-/** /api/auth/google/start?intent=signin|link|partner → Google's consent screen. */
+/** /api/auth/google/start?intent=signin|link|partner|employee → Google's consent screen. */
 export async function GET(req: Request) {
   const g = googleLogin();
   const to = (path: string) => Response.redirect(new URL(path, g ? new URL(g.redirect).origin : new URL(req.url).origin), 302);
   const asked = new URL(req.url).searchParams.get("intent");
+  if (asked === "employee") {
+    if (!g) return to("/staff/employee?google=off");
+    return Response.redirect(await beginGoogle("employee"), 302);
+  }
   if (asked === "partner") {
     if (!g) return to("/staff/login?google=off");
     return Response.redirect(await beginGoogle("partner"), 302);
