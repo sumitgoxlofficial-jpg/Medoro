@@ -5,7 +5,7 @@ import { computeScore, deriveVerification, type ScoreFacts } from "./score";
 import { splitPlan } from "./distribution";
 import { nextStage } from "./calls";
 import { checkUrl, isPrivateIp, pinnedGet, UnsafeUrl, vetUrl } from "./safe-fetch";
-import { fromOsm, overpassQuery } from "./discovery";
+import { fromOsm, overpassQuery, pinMatches } from "./discovery";
 import { recommendFollowUp } from "./ai";
 import { autoMap } from "./imports";
 import { normalizeLead } from "./leads";
@@ -155,9 +155,18 @@ describe("OpenStreetMap discovery", () => {
   it("builds an Overpass query for a state and PIN, escaping input", () => {
     const q = overpassQuery({ state: "Maharashtra", district: "", city: "Pune", pin: "411005" });
     expect(q).toContain(`["name:en"~"^Maharashtra$",i]`);
-    expect(q).toContain(`["addr:postcode"="411005"]`);
+    expect(q).not.toContain("addr:postcode"); // OSM rarely has PINs in India: filtered afterwards
+    expect(q).toContain(`["name:en"~"^Pune$",i]`);
     expect(q).toContain(`nwr["amenity"="pharmacy"]`);
     expect(overpassQuery({ state: "Goa", district: "", city: `x"];out;`, pin: "" })).not.toContain(`x"]`);
+  });
+  it("a searched PIN drops only pharmacies with a different recorded PIN, and is never copied onto one", () => {
+    const el = (pc?: string) => ({ type: "node", id: 1, lat: 25.6, lon: 85.1, tags: { amenity: "pharmacy", name: "X", ...(pc ? { "addr:postcode": pc } : {}) } });
+    expect(pinMatches(el("800006"), "800006")).toBe(true);
+    expect(pinMatches(el(), "800006")).toBe(true);
+    expect(pinMatches(el("800001"), "800006")).toBe(false);
+    expect(pinMatches(el("800001"), "")).toBe(true);
+    expect(fromOsm(el(), { state: "Bihar", district: "Patna", city: "Patna", pin: "800006" }).pin).toBe("");
   });
   it("maps an OSM element with attribution link", () => {
     const r = fromOsm({ type: "node", id: 42, lat: 18.52, lon: 73.85, tags: { name: "Lifeline Pharmacy", amenity: "pharmacy", phone: "+91 20 2553 1234; +91 98230 00000", "addr:postcode": "411004", "addr:street": "FC Road" } }, { state: "Maharashtra", district: "", city: "Pune", pin: "" });

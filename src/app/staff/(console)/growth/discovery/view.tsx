@@ -23,6 +23,7 @@ export function DiscoveryView({ jobs, enabled, endpoint, attribution }: { jobs: 
         </form>
         <div className="px-4 pb-4 text-[12.5px] text-muted flex flex-col gap-1">
           <span>{enabled ? `Runs in the background against ${endpoint}, one query per search (public Overpass usage limits apply).` : "Discovery is switched off on this server (GROWTH_OSM=off)."} Found pharmacies start unverified; records without a phone go to Research pending.</span>
+          <span>Tip: most pharmacies on OpenStreetMap in India have no PIN code recorded, so search by city or district. A PIN only drops pharmacies whose recorded PIN is different.</span>
           <span>{attribution}. Every lead keeps a link to its OpenStreetMap record.</span>
           <span>Other approved sources: <Link className="text-teal" href="/staff/growth/import">import</Link> official directory exports, licensed provider data or lists pharmacies gave you.</span>
         </div>

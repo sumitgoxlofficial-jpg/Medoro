@@ -33,13 +33,18 @@ export function overpassQuery(i: DiscoverInput, limit = 1500) {
   const lines = ["[out:json][timeout:90];", `area["admin_level"="4"]["name:en"~"^${q(i.state)}$",i]->.s;`];
   let area = ".s";
   const place = i.city || i.district;
-  if (place) { lines.push(`rel["boundary"="administrative"]["name"~"^${q(place)}$",i](area.s);`, "map_to_area->.p;"); area = ".p"; }
-  const post = i.pin ? `["addr:postcode"="${i.pin}"]` : "";
-  lines.push("(", `  nwr["amenity"="pharmacy"]${post}(area${area});`, `  nwr["healthcare"="pharmacy"]${post}(area${area});`, ");", `out center tags ${limit};`);
+  // Match the boundary's name or its English name (some carry the local-script name as "name").
+  if (place) { lines.push("(", `  rel["boundary"="administrative"]["name"~"^${q(place)}$",i](area.s);`, `  rel["boundary"="administrative"]["name:en"~"^${q(place)}$",i](area.s);`, ");", "map_to_area->.p;"); area = ".p"; }
+  // PIN codes are rarely tagged on Indian pharmacies in OpenStreetMap, so the PIN is not part of the query: it is
+  // applied afterwards (pinMatches), keeping pharmacies with no recorded PIN.
+  lines.push("(", `  nwr["amenity"="pharmacy"](area${area});`, `  nwr["healthcare"="pharmacy"](area${area});`, ");", `out center tags ${limit};`);
   return lines.join("\n");
 }
 
 type OsmEl = { type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
+/** With a PIN searched: drop pharmacies whose recorded PIN differs; keep those with none (OSM rarely has one). */
+export const pinMatches = (el: OsmEl, pin: string) => { const p = (el.tags?.["addr:postcode"] ?? "").replace(/\s/g, ""); return !pin || !p || p === pin; };
+
 /** One OSM element → a raw lead. */
 export function fromOsm(el: OsmEl, i: DiscoverInput) {
   const t = el.tags ?? {};
@@ -54,7 +59,8 @@ export function fromOsm(el: OsmEl, i: DiscoverInput) {
     city: t["addr:city"] ?? i.city,
     district: t["addr:district"] ?? i.district,
     state: i.state,
-    pin: (t["addr:postcode"] ?? "").replace(/\s/g, "") || i.pin,
+    // Only a PIN OpenStreetMap records: the searched PIN is never copied onto a pharmacy.
+    pin: (t["addr:postcode"] ?? "").replace(/\s/g, ""),
     lat: el.lat ?? el.center?.lat ?? null,
     lng: el.lon ?? el.center?.lon ?? null,
     sourceRef: `osm:${el.type}/${el.id}`,
@@ -91,7 +97,8 @@ export async function runDiscovery(payload: { importJobId: string } & DiscoverIn
   });
   if (res.status === 429 || res.status === 504) throw new Error(`Overpass is busy (HTTP ${res.status}); will retry`);
   if (!res.ok) throw new Error(`Overpass answered HTTP ${res.status}`);
-  const els = ((await res.json()) as { elements?: OsmEl[] }).elements ?? [];
+  const all = ((await res.json()) as { elements?: OsmEl[] }).elements ?? [];
+  const els = all.filter((el) => pinMatches(el, payload.pin));
   const by = { id: job.createdById, name: "OpenStreetMap discovery" };
   let created = 0, duplicates = 0, possible = 0, invalid = 0;
   const errors: { line: number; name: string; errors: string[] }[] = [];
