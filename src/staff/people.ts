@@ -116,10 +116,26 @@ export async function employeeFromGoogle(c: GoogleClaims): Promise<string> {
   if (u.role !== "sales") return `${EMP}?google=notsales`;
   if (u.status === "deactivated") return `${EMP}?google=deactivated`;
   if (!u.googleSub) await db.staffUser.update({ where: { id: u.id }, data: { googleSub: c.sub } });
-  if (u.status !== "active") return `${EMP}?google=pending`;
+  if (u.status === "pending") return `${EMP}?google=pending`;
+  // "invited": a super admin created or already approved this profile (it just has no password); Google has proven
+  // the email, so it opens now.
+  if (u.status === "invited") await db.staffUser.update({ where: { id: u.id }, data: { status: "active", inviteTokenHash: null, inviteExpiresAt: null } });
+  else if (u.status !== "active") return `${EMP}?google=pending`;
+  await ensureGrowthSales(u.id, u.approvedBy ?? "employee sign-in");
   await createStaffSession(u.id, u.tokenVersion, { mfaPassed: true });
   await staffAudit({ id: u.id, name: u.name }, "Signed in", "Google (sales employee)");
   return `${EMP}?google=ok`;
+}
+
+/**
+ * A sales employee who uses the Google employee page gets the Growth "Sales employee" role (their assigned leads), unless
+ * a Growth admin already set a role or removed their access on purpose.
+ */
+async function ensureGrowthSales(staffId: string, addedBy: string) {
+  const u = await db.staffUser.findUnique({ where: { id: staffId }, select: { role: true, kind: true } });
+  if (!u || u.role !== "sales" || u.kind !== "team") return;
+  if (await db.growthMember.findUnique({ where: { staffId } })) return;
+  await db.growthMember.create({ data: { staffId, role: "sales", addedBy } }).catch(() => {});
 }
 
 export const googleEmployeeSchema = z.object({
@@ -255,8 +271,10 @@ export async function setEmployeeStatus(s: Staff, id: string, action: "approve" 
   if (!u) throw new UserError("Employee not found.");
   if (action === "approve" && u.status !== "pending") throw new UserError("Only pending profiles can be approved.");
   if (action === "deactivate" && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active" } })) <= 1) throw new UserError("Keep at least one active super admin.");
-  const status = action === "deactivate" ? "deactivated" : u.passwordHash ? "active" : "invited";
+  // A profile that signs in with Google has no password: approving it makes it active, not "invited".
+  const status = action === "deactivate" ? "deactivated" : u.passwordHash || u.googleSub ? "active" : "invited";
   await db.staffUser.update({ where: { id }, data: { status, tokenVersion: action === "deactivate" ? { increment: 1 } : undefined, approvedBy: action === "approve" ? s.name : undefined } });
+  if (action === "approve" && status === "active" && u.googleSub) await ensureGrowthSales(u.id, s.id);
   await staffAudit(s, action === "approve" ? "Employee approved" : action === "deactivate" ? "Employee deactivated" : "Employee reactivated", `${u.empNo} · ${u.email}`);
 }
 
