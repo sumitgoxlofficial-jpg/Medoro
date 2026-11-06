@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
@@ -74,7 +74,7 @@ export async function startEmailSetup(a: Actor, raw: z.input<typeof emailSchema>
   need(a, "integrations.manage");
   const i = emailSchema.parse(raw);
   if (!mailEnabled()) throw new UserError("No email provider is configured on this server (MAIL_PROVIDER and MAIL_FROM).");
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const code = String(randomInt(100000, 1000000));
   await sender.email(a.email, "Medoro Growth: confirm the sender", `Enter this code in Growth Intelligence → Email manager to confirm campaign email works: ${code}\n\nSender: ${process.env.MAIL_FROM}`);
   await db.integrationConnection.upsert({ where: { kind: "email" }, create: { kind: "email", status: "pending", config: { ...i, from: process.env.MAIL_FROM ?? "" }, secrets: seal(JSON.stringify({ code })), updatedBy: a.id }, update: { status: "pending", config: { ...i, from: process.env.MAIL_FROM ?? "" }, secrets: seal(JSON.stringify({ code })), updatedBy: a.id } });
   await gaudit(a, "Email sender setup started", "integration", "email", i.fromName);

@@ -4,7 +4,7 @@ import { canonicalState, ROLE_PERMS } from "./constants";
 import { computeScore, deriveVerification, type ScoreFacts } from "./score";
 import { splitPlan } from "./distribution";
 import { nextStage } from "./calls";
-import { checkUrl, isPrivateIp, UnsafeUrl } from "./safe-fetch";
+import { checkUrl, isPrivateIp, pinnedGet, UnsafeUrl, vetUrl } from "./safe-fetch";
 import { fromOsm, overpassQuery } from "./discovery";
 import { recommendFollowUp } from "./ai";
 import { autoMap } from "./imports";
@@ -137,6 +137,17 @@ describe("SSRF guard", () => {
     await expect(checkUrl("http://user:pw@shop.example/", pub)).rejects.toBeInstanceOf(UnsafeUrl);
     await expect(checkUrl("http://shop.example:8080/", pub)).rejects.toBeInstanceOf(UnsafeUrl);
     expect((await checkUrl("https://shop.example/x", pub)).hostname).toBe("shop.example");
+    expect((await vetUrl("https://shop.example/x", pub)).address).toBe("93.184.216.34");
+  });
+  it("connects only to the pinned address, never re-resolving the host", async () => {
+    const { createServer } = await import("node:http");
+    const srv = createServer((req, res) => res.end(`host=${req.headers.host}`));
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", r));
+    const port = (srv.address() as { port: number }).port;
+    // "pinned.invalid" can't resolve in DNS: reaching the server proves the request used the pinned IP.
+    const r = await pinnedGet(new URL(`http://pinned.invalid:${port}/`), "127.0.0.1", 1024);
+    srv.close();
+    expect(r).toMatchObject({ status: 200, text: `host=pinned.invalid:${port}` });
   });
 });
 
