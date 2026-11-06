@@ -127,12 +127,12 @@ export async function distribute(a: Actor, raw: z.input<typeof distributeSchema>
 }
 
 /** Unassigned leads go to the employee whose territory matches most specifically (PIN, then district, then state). */
-export async function assignByTerritory(a: Actor, raw: { state?: string; dueAt?: string | null }) {
+export async function assignByTerritory(a: Actor, raw: { state?: string; dueAt?: string | null; requirePhone?: boolean }) {
   need(a, "assign");
   const staff = await assignableStaff(a);
   const terr = await db.employeeTerritory.findMany({ where: { staffId: { in: staff.map((s) => s.id) }, ...(raw.state ? { state: raw.state } : {}) } });
   if (!terr.length) throw new UserError("No territories set. Add territories under My employees first.");
-  const leads = await db.pharmacyLead.findMany({ where: { AND: [leadScope(a), { assignedStaffId: null, erasedAt: null, duplicateOfId: null, stage: { not: "DO_NOT_CONTACT" }, state: { in: [...new Set(terr.map((t) => t.state))] } }] }, select: { id: true, code: true, stage: true, assignedStaffId: true, state: true, district: true, pin: true }, orderBy: [{ pin: "asc" }, { createdAt: "asc" }], take: MAX_BULK });
+  const leads = await db.pharmacyLead.findMany({ where: { AND: [leadScope(a), { assignedStaffId: null, erasedAt: null, duplicateOfId: null, stage: { not: "DO_NOT_CONTACT" }, state: { in: [...new Set(terr.map((t) => t.state))] }, ...(raw.requirePhone === false ? {} : { phone: { not: null } }) }] }, select: { id: true, code: true, stage: true, assignedStaffId: true, state: true, district: true, pin: true }, orderBy: [{ pin: "asc" }, { createdAt: "asc" }], take: MAX_BULK });
   const groups = new Map<string, typeof leads>();
   for (const l of leads) {
     const byPin = terr.filter((t) => t.pin && t.pin === l.pin);

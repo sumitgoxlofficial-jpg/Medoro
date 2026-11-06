@@ -59,7 +59,7 @@ function parse(fileName: string, bytes: Uint8Array) {
 const mappingSchema = z.record(z.string(), z.number().int().min(0).max(200));
 
 /** Checks every row: validation, duplicates against existing leads and inside the file. Nothing is saved. */
-async function evaluate(fileName: string, bytes: Uint8Array, rawMapping?: Record<string, number>) {
+async function evaluate(fileName: string, bytes: Uint8Array, rawMapping?: Record<string, number>, requirePhone = true) {
   const { header, body } = parse(fileName, bytes);
   const mapping: Mapping = rawMapping ? (mappingSchema.parse(rawMapping) as Mapping) : autoMap(header);
   if (mapping.name === undefined) throw new UserError("Map a column to “Pharmacy name”.");
@@ -82,6 +82,8 @@ async function evaluate(fileName: string, bytes: Uint8Array, rawMapping?: Record
   const out: (PreviewRow & { value?: LeadInput; matches: Match[] })[] = [];
   for (const r of records) {
     const base = { line: r.line, name: r.value.name, phone: r.value.phone ?? r.value.phoneRaw, city: r.value.city, pin: r.value.pin };
+    // Callers need a number: by default a row without a valid Indian phone isn't imported.
+    if (requirePhone && !r.value.phone && !r.errors.length) r.errors.push(r.value.phoneRaw ? `“${r.value.phoneRaw}” isn’t a valid Indian phone number.` : "No phone number.");
     if (r.errors.length) { out.push({ ...base, status: "invalid", messages: [...r.errors, ...r.warnings], matches: [] }); continue; }
     const v = r.value;
     if ((v.phone && erased.has(valueHash("phone", v.phone))) || (v.email && erased.has(valueHash("email", v.email)))) { out.push({ ...base, status: "erased", messages: ["Asked for erasure; skipped."], matches: [] }); continue; }
@@ -97,9 +99,9 @@ async function evaluate(fileName: string, bytes: Uint8Array, rawMapping?: Record
   return { header, mapping, rows: out };
 }
 
-export async function previewImport(a: Actor, fileName: string, bytes: Uint8Array, mapping?: Record<string, number>) {
+export async function previewImport(a: Actor, fileName: string, bytes: Uint8Array, mapping?: Record<string, number>, requirePhone = true) {
   need(a, "leads.import");
-  const e = await evaluate(fileName, bytes, mapping);
+  const e = await evaluate(fileName, bytes, mapping, requirePhone);
   const count = (s: RowStatus) => e.rows.filter((r) => r.status === s).length;
   return {
     header: e.header, mapping: e.mapping, fields: FIELDS.map((f) => ({ key: f.key, label: f.label, required: f.required })),
@@ -111,6 +113,7 @@ export async function previewImport(a: Actor, fileName: string, bytes: Uint8Arra
 export const sourceSchema = z.object({
   sourceId: z.string().uuid().optional(),
   newSource: z.object({ name: z.string().trim().min(3).max(100), kind: z.enum(["public_directory", "official_api", "provider", "upload", "submitted"]), licence: z.string().trim().max(100).default(""), attribution: z.string().trim().max(200).default(""), termsUrl: z.string().trim().max(300).default(""), allowsExport: z.boolean().default(true) }).optional(),
+  requirePhone: z.boolean().default(true),
   confirmLawful: z.literal(true, { message: "Confirm the list was collected lawfully and its terms allow this use." }),
 });
 
@@ -118,7 +121,7 @@ export const sourceSchema = z.object({
 export async function commitImport(a: Actor, fileName: string, bytes: Uint8Array, mapping: Record<string, number> | undefined, rawSource: z.input<typeof sourceSchema>) {
   need(a, "leads.import");
   const src = sourceSchema.parse(rawSource);
-  const e = await evaluate(fileName, bytes, mapping);
+  const e = await evaluate(fileName, bytes, mapping, src.requirePhone);
   const source = src.sourceId
     ? await db.leadSource.findUnique({ where: { id: src.sourceId } })
     : src.newSource

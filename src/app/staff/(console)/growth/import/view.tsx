@@ -15,10 +15,11 @@ export function ImportView({ jobs, sources }: { jobs: J[]; sources: { id: string
   const fileRef = useRef<HTMLInputElement>(null);
   const [p, setP] = useState<Preview | null>(null);
   const [mapping, setMapping] = useState<Record<string, number>>({});
+  const [requirePhone, setRequirePhone] = useState(true);
   const [src, setSrc] = useState({ sourceId: "", newName: "", kind: "public_directory", licence: "", attribution: "", allowsExport: true, lawful: false });
   const fd = () => { const f = new FormData(); const file = fileRef.current?.files?.[0]; if (file) f.set("file", file); return f; };
-  const preview = (m?: Record<string, number>) => run(() => previewImport(fd(), m), (r) => { setP(r); setMapping(r.mapping); });
-  const commit = () => run(() => commitImport(fd(), mapping, { sourceId: src.sourceId || undefined, newSource: !src.sourceId && src.newName ? { name: src.newName, kind: src.kind as "upload", licence: src.licence, attribution: src.attribution, termsUrl: "", allowsExport: src.allowsExport } : undefined, confirmLawful: src.lawful as true }),
+  const preview = (m?: Record<string, number>, rp = requirePhone) => run(() => previewImport(fd(), m, rp), (r) => { setP(r); setMapping(r.mapping); });
+  const commit = () => run(() => commitImport(fd(), mapping, { sourceId: src.sourceId || undefined, newSource: !src.sourceId && src.newName ? { name: src.newName, kind: src.kind as "upload", licence: src.licence, attribution: src.attribution, termsUrl: "", allowsExport: src.allowsExport } : undefined, requirePhone, confirmLawful: src.lawful as true }),
     (j) => { setP(null); if (fileRef.current) fileRef.current.value = ""; return j.status === "completed" ? `${j.code}: ${j.created} leads created, ${j.duplicates} duplicates, ${j.invalid} rows with problems.` : `${j.code} is running in the background.`; });
   return (
     <>
@@ -26,6 +27,7 @@ export function ImportView({ jobs, sources }: { jobs: J[]; sources: { id: string
         <div className="flex gap-2 p-4 flex-wrap items-center">
           <input ref={fileRef} type="file" accept=".csv,.xlsx" className="text-[13px]" onChange={() => setP(null)} />
           <button className={btnPrimary} disabled={busy} onClick={() => preview()}><Upload size={15} />Preview</button>
+          <label className="flex gap-2 items-center text-[13px]"><input type="checkbox" checked={requirePhone} onChange={(e) => { setRequirePhone(e.target.checked); if (p) preview(mapping, e.target.checked); }} />Only rows with a valid phone number</label>
         </div>
         {p ? (<>
           <div className="px-4 pb-2 flex gap-2 flex-wrap text-[13px]">{Object.entries(p.counts).map(([k, n]) => <Pill key={k} bg={(TONE[k] ?? ["#EEF0F2", "#3D454D"])[0]} fg={(TONE[k] ?? ["#EEF0F2", "#3D454D"])[1]}>{k}: {n}</Pill>)}</div>

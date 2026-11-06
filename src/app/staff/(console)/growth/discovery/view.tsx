@@ -10,7 +10,7 @@ type J = { id: string; code: string; fileName: string; status: string; totalRows
 
 export function DiscoveryView({ jobs, enabled, endpoint, attribution }: { jobs: J[]; enabled: boolean; endpoint: string; attribution: string }) {
   const { run, busy } = useRun();
-  const [f, setF] = useState({ state: "", district: "", city: "", pin: "" });
+  const [f, setF] = useState({ state: "", district: "", city: "", pin: "", requirePhone: true });
   return (
     <>
       <Panel title="Discover pharmacies" sub="India → State → District → City → PIN code. Searches OpenStreetMap (open data) for pharmacies; nothing is scraped.">
@@ -20,6 +20,7 @@ export function DiscoveryView({ jobs, enabled, endpoint, attribution }: { jobs: 
           <label className={lbl}>City<input className={fieldCls} value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} /></label>
           <label className={lbl}>PIN code<input className={fieldCls} maxLength={6} inputMode="numeric" value={f.pin} onChange={(e) => setF({ ...f, pin: e.target.value })} /></label>
           <div className="flex items-end gap-2"><button className={btnPrimary} disabled={busy || !enabled || !f.state}>Discover</button></div>
+          <label className="flex gap-2 items-center text-[13px] col-span-2 min-[900px]:col-span-5"><input type="checkbox" checked={f.requirePhone} onChange={(e) => setF({ ...f, requirePhone: e.target.checked })} />Only pharmacies with a phone number (others are skipped, not saved)</label>
         </form>
         <div className="px-4 pb-4 text-[12.5px] text-muted flex flex-col gap-1">
           <span>{enabled ? `Runs in the background against ${endpoint}, one query per search (public Overpass usage limits apply).` : "Discovery is switched off on this server (GROWTH_OSM=off)."} Found pharmacies start unverified; records without a phone go to Research pending.</span>
@@ -31,7 +32,7 @@ export function DiscoveryView({ jobs, enabled, endpoint, attribution }: { jobs: 
       <Panel title="Discovery runs" right={<button className={btn} disabled={busy} onClick={() => run(() => runJobsNow(), (r) => `${r.ran} background job(s) run.`)}>Run pending now</button>}>
         {jobs.length ? (
           <div className="overflow-auto"><table className="w-full border-collapse min-w-[720px] text-[13.5px]">
-            <thead><tr className="bg-[#FAFBFB] text-muted text-[12px]"><th className={th}>Run</th><th className={th}>Area</th><th className={th}>Status</th><th className={th + " text-right"}>Found</th><th className={th + " text-right"}>New leads</th><th className={th + " text-right"}>Already known</th><th className={th + " text-right"}>Skipped</th><th className={th}>Started</th></tr></thead>
+            <thead><tr className="bg-[#FAFBFB] text-muted text-[12px]"><th className={th}>Run</th><th className={th}>Area</th><th className={th}>Status</th><th className={th + " text-right"}>Found</th><th className={th + " text-right"}>New leads</th><th className={th + " text-right"}>Already known</th><th className={th + " text-right"}>Skipped (no phone)</th><th className={th}>Started</th></tr></thead>
             <tbody>{jobs.map((j) => <tr key={j.id}><td className={td}>{j.code}</td><td className={td}>{j.fileName.replace("OpenStreetMap: ", "")}</td><td className={td}><Pill bg={j.status === "completed" ? "#E3F5EC" : "#FFF4E0"} fg={j.status === "completed" ? "#18794E" : "#94570A"}>{j.status}</Pill></td><td className={td + " text-right tnum"}>{j.totalRows}</td><td className={td + " text-right tnum"}>{j.created}</td><td className={td + " text-right tnum"}>{j.duplicates}</td><td className={td + " text-right tnum"}>{j.invalid}</td><td className={td}>{fmtDT(j.createdAt)}</td></tr>)}</tbody>
           </table></div>
         ) : <Empty>No discovery runs yet.</Empty>}
