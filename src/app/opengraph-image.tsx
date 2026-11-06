@@ -20,7 +20,6 @@ export default async function OpengraphImage() {
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#fff", padding: "64px 72px", fontFamily: "Plex Sans", color: "#0E1614", borderTop: "12px solid #0B5E5B" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`data:image/png;base64,${mark.toString("base64")}`} width={64} height={52} alt="" />
           <div style={{ display: "flex", fontFamily: "Plex Cond", fontSize: 44 }}><span style={{ color: "#0B3A78" }}>Med</span><span style={{ color: "#0A8A73" }}>oro</span></div>
         </div>
