@@ -213,6 +213,7 @@ export const filterSchema = z.object({
   sourceId: z.string().max(40).optional(), minScore: z.coerce.number<string | number>().min(0).max(100).optional(), website: z.string().max(200).optional(),
   page: z.coerce.number<string | number>().int().min(1).max(10_000).default(1), pageSize: z.coerce.number<string | number>().int().min(10).max(200).default(50),
   sort: z.enum(["recent", "score", "name", "followup"]).default("recent"),
+  phone: z.enum(["", "yes", "no"]).optional(),
 });
 export type LeadFilter = z.input<typeof filterSchema>;
 
@@ -232,6 +233,8 @@ export function filterWhere(a: Actor, f: z.output<typeof filterSchema>): Prisma.
   if (f.staffId === "none") and.push({ assignedStaffId: null });
   else if (f.staffId) and.push({ assignedStaffId: f.staffId });
   if (f.sourceId) and.push({ sourceId: f.sourceId });
+  if (f.phone === "yes") and.push({ phone: { not: null } });
+  else if (f.phone === "no") and.push({ phone: null });
   if (f.minScore !== undefined) and.push({ score: { gte: f.minScore } });
   return { AND: and };
 }

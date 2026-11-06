@@ -32,7 +32,7 @@ export const saveSource = async (i: Parameters<typeof leads.saveSource>[1]) => d
 export const rescoreLeads = async (ids: string[]) => done(await growthRun((a) => leads.rescoreLeads(a, ids), "Scores recomputed."));
 
 // Import
-export const previewImport = async (fd: FormData, mapping?: Record<string, number>) => growthRun(async (a) => { const f = file(fd); return imports.previewImport(a, f.name, await bytes(f), mapping); });
+export const previewImport = async (fd: FormData, mapping?: Record<string, number>, requirePhone = true) => growthRun(async (a) => { const f = file(fd); return imports.previewImport(a, f.name, await bytes(f), mapping, requirePhone); });
 export const commitImport = async (fd: FormData, mapping: Record<string, number> | undefined, source: Parameters<typeof imports.commitImport>[4]) => done(await growthRun(async (a) => { const f = file(fd); return imports.commitImport(a, f.name, await bytes(f), mapping, source); }));
 export const continueImport = async (id: string) => done(await growthRun((a) => imports.continueImport(a, id)));
 export const importErrors = async (id: string) => growthRun((a) => imports.importErrorsCsv(a, id));

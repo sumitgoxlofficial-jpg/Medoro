@@ -122,6 +122,13 @@ describe("Growth Intelligence", () => {
     expect(xp.counts.new).toBe(1);
     await expect(previewImport(admin, "list.xls", x)).rejects.toThrow(/\.csv or \.xlsx/);
     await commitImport(admin, "list.xlsx", x, undefined, { confirmLawful: true });
+    // Rows without a valid phone are rejected by default; opting out lets an address-only row in.
+    const noPhone = csv([["Name", "Phone", "Address", "State", "PIN"], ["Address Only Chemist", "", "MG Road", "Maharashtra", "411001"], ["Landline Typo", "12345", "MG Road", "Maharashtra", "411001"]]);
+    const np = await previewImport(admin, "np.csv", noPhone);
+    expect(np.counts).toMatchObject({ invalid: 2, new: 0 });
+    expect(np.rows[0].messages[0]).toBe("No phone number.");
+    expect(np.rows[1].messages[0]).toMatch(/isn’t a valid Indian phone number/);
+    expect((await previewImport(admin, "np.csv", noPhone, undefined, false)).counts.new).toBe(2); // both have address + PIN; the bad number is only a warning
   });
 
   it("verifies only with evidence; website check is SSRF-safe and content-based", async () => {
@@ -395,13 +402,20 @@ describe("Growth Intelligence", () => {
       { type: "node", id: 3, lat: 15.51, lon: 73.84, tags: { amenity: "pharmacy" } },
     ] };
     const f = (async () => new Response(JSON.stringify(res), { status: 200 })) as unknown as typeof fetch;
+    // Default: pharmacies without a phone are skipped, so callers only ever get numbers.
     await runDiscovery({ importJobId: job.id, state: "Goa", district: "", city: "Panaji", pin: "" }, f);
-    expect(await db.leadImportJob.findUniqueOrThrow({ where: { id: job.id } })).toMatchObject({ status: "completed", created: 2, invalid: 1 });
+    const j1 = await db.leadImportJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(j1).toMatchObject({ status: "completed", created: 1, invalid: 2 });
+    expect(JSON.stringify(j1.errors)).toContain("No phone number on OpenStreetMap");
     const p = await db.pharmacyLead.findFirstOrThrow({ where: { name: "Panaji Medical Hall" } });
     expect(p).toMatchObject({ phone: "+918322223344", sourceUrl: "https://www.openstreetmap.org/node/1", state: "Goa" });
+    expect(await db.pharmacyLead.count({ where: { name: "Map Only Chemist" } })).toBe(0);
+    // Opting out keeps map-only pharmacies for research; re-running never duplicates.
+    await db.leadImportJob.update({ where: { id: job.id }, data: { status: "running" } });
+    await runDiscovery({ importJobId: job.id, state: "Goa", district: "", city: "Panaji", pin: "", requirePhone: false }, f);
     expect((await db.pharmacyLead.findFirstOrThrow({ where: { name: "Map Only Chemist" } })).stage).toBe("RESEARCH_PENDING");
     await db.leadImportJob.update({ where: { id: job.id }, data: { status: "running" } });
-    await runDiscovery({ importJobId: job.id, state: "Goa", district: "", city: "Panaji", pin: "" }, f);
+    await runDiscovery({ importJobId: job.id, state: "Goa", district: "", city: "Panaji", pin: "", requirePhone: false }, f);
     expect(await db.pharmacyLead.count({ where: { sourceId: src.id } })).toBe(2);
   });
 

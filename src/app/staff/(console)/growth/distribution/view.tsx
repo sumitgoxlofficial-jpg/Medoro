@@ -11,13 +11,13 @@ type H = { id: string; action: string; at: string; reason: string; from: string;
 
 export function DistributionView({ o, staff, history, admin }: { o: O; staff: { id: string; name: string; empNo: string }[]; history: H; admin: boolean }) {
   const { run, busy } = useRun();
-  const [f, setF] = useState({ state: "", district: "", city: "", pin: "", stage: "", minScore: "", onlyUnassigned: true });
+  const [f, setF] = useState({ state: "", district: "", city: "", pin: "", stage: "", minScore: "", onlyUnassigned: true, requirePhone: true });
   const [pick, setPick] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"equal" | "balance">("equal");
   const [due, setDue] = useState("");
   const [reassign, setReassign] = useState(false);
   const [moveTo, setMoveTo] = useState<Record<string, Set<string>>>({});
-  const filter = { state: f.state || undefined, district: f.district || undefined, city: f.city || undefined, pin: f.pin || undefined, stage: f.stage || undefined, minScore: f.minScore || undefined, staffId: f.onlyUnassigned ? "none" : undefined };
+  const filter = { state: f.state || undefined, district: f.district || undefined, city: f.city || undefined, pin: f.pin || undefined, stage: f.stage || undefined, minScore: f.minScore || undefined, staffId: f.onlyUnassigned ? "none" : undefined, phone: f.requirePhone ? "yes" as const : undefined };
   const toggle = (id: string) => setPick((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const totals = o.employees.reduce((t, e) => ({ active: t.active + e.active, pending: t.pending + e.pending, fu: t.fu + e.overdueFollowUps }), { active: 0, pending: 0, fu: 0 });
   return (
@@ -38,6 +38,7 @@ export function DistributionView({ o, staff, history, admin }: { o: O; staff: { 
           <label className={lbl}>Minimum score<input className={fieldCls} inputMode="numeric" value={f.minScore} onChange={(e) => setF({ ...f, minScore: e.target.value })} /></label>
           <label className={lbl}>Deadline (optional)<input type="datetime-local" className={fieldCls} value={due} onChange={(e) => setDue(e.target.value)} /></label>
           <label className="flex gap-2 items-center text-[13px] col-span-2"><input type="checkbox" checked={f.onlyUnassigned} onChange={(e) => setF({ ...f, onlyUnassigned: e.target.checked })} />Only unassigned leads</label>
+          <label className="flex gap-2 items-center text-[13px] col-span-2"><input type="checkbox" checked={f.requirePhone} onChange={(e) => setF({ ...f, requirePhone: e.target.checked })} />Only leads with a phone number</label>
           {!f.onlyUnassigned ? <label className="flex gap-2 items-center text-[13px] col-span-2"><input type="checkbox" checked={reassign} onChange={(e) => setReassign(e.target.checked)} />Move leads that already have an owner</label> : null}
         </div>
         <div className="px-4 pb-2 text-[12.5px] text-muted">Employees ({pick.size} chosen)</div>
@@ -48,7 +49,7 @@ export function DistributionView({ o, staff, history, admin }: { o: O; staff: { 
         <div className="flex gap-2 flex-wrap items-center px-4 pb-4">
           <select className={fieldCls + " !w-auto"} value={mode} onChange={(e) => setMode(e.target.value as "equal")}><option value="equal">Equal split (e.g. 300 → 100 each)</option><option value="balance">Balance by current load</option></select>
           <button className={btnPrimary} disabled={busy || !pick.size} onClick={() => run(() => distribute({ filter, staffIds: [...pick], mode, dueAt: due ? localToIso(due) : null, reassign: !f.onlyUnassigned && reassign }), (r) => `${r.assigned} leads assigned: ${Object.entries(r.byStaff).map(([id, n]) => `${staff.find((s) => s.id === id)?.name ?? id} ${n}`).join(", ")}${r.skipped.length ? `; ${r.skipped.length} skipped` : ""}.`)}>Distribute matching leads</button>
-          <button className={btn} disabled={busy} onClick={() => run(() => assignByTerritory({ state: f.state || undefined, dueAt: due ? localToIso(due) : null }), (r) => `${r.assigned} unassigned leads given to the employees whose territory matches.`)}>Assign by territory</button>
+          <button className={btn} disabled={busy} onClick={() => run(() => assignByTerritory({ state: f.state || undefined, dueAt: due ? localToIso(due) : null, requirePhone: f.requirePhone }), (r) => `${r.assigned} unassigned leads given to the employees whose territory matches.`)}>Assign by territory</button>
           <Link className={btn} href="/staff/growth/leads?staffId=none">Pick leads one by one</Link>
         </div>
       </Panel>

@@ -23,8 +23,10 @@ export const discoverSchema = z.object({
   district: z.string().trim().max(80).default(""),
   city: z.string().trim().max(80).default(""),
   pin: z.string().trim().default("").refine((p) => !p || PIN_RE.test(p), "PIN code must be 6 digits."),
+  /** Callers need a number: by default a pharmacy without a valid phone on the map is skipped, not saved. */
+  requirePhone: z.boolean().default(true),
 });
-export type DiscoverInput = z.output<typeof discoverSchema>;
+export type DiscoverInput = Omit<z.output<typeof discoverSchema>, "requirePhone"> & { requirePhone?: boolean };
 
 const q = (s: string) => s.replace(/["\\]/g, "").replace(/[.*+?^${}()|[\]]/g, "\\$&");
 
@@ -106,6 +108,7 @@ export async function runDiscovery(payload: { importJobId: string } & DiscoverIn
     const raw = fromOsm(el, payload);
     if (await db.pharmacyLead.findFirst({ where: { sourceId: job.sourceId, sourceRef: raw.sourceRef }, select: { id: true } })) { duplicates++; continue; }
     const norm = normalizeLead(raw);
+    if (payload.requirePhone !== false && !norm.value.phone) { invalid++; errors.push({ line: n + 1, name: raw.name || raw.sourceRef, errors: ["No phone number on OpenStreetMap"] }); continue; }
     // A pharmacy on the map with no phone or address is still worth researching: its map position is its location.
     const errs = norm.errors.filter((e) => !(e.startsWith("Needs at least") && norm.value.lat !== null));
     if (errs.length) { invalid++; errors.push({ line: n + 1, name: raw.name || raw.sourceRef, errors: errs }); continue; }

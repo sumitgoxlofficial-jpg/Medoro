@@ -51,6 +51,7 @@ export function LeadsView({ list, facets, staff, filter, can }: Props) {
           <label className={lbl}>Stage<select name="stage" defaultValue={filter.stage ?? ""} className={fieldCls}><option value="">Any</option>{STAGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
           {staff.length ? <label className={lbl}>Employee<select name="staffId" defaultValue={filter.staffId ?? ""} className={fieldCls}><option value="">Anyone</option><option value="none">Unassigned</option>{staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label> : null}
           <label className={lbl}>Source<select name="sourceId" defaultValue={filter.sourceId ?? ""} className={fieldCls}><option value="">Any</option>{facets.sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+          <label className={lbl}>Phone<select name="phone" defaultValue={filter.phone ?? ""} className={fieldCls}><option value="">Any</option><option value="yes">Has phone</option><option value="no">Missing phone</option></select></label>
           <label className={lbl}>Sort<select name="sort" defaultValue={filter.sort ?? "recent"} className={fieldCls}><option value="recent">Newest</option><option value="score">Score</option><option value="name">Name</option><option value="followup">Next follow-up</option></select></label>
           <div className="flex gap-2 items-end"><button className={btnPrimary}>Search</button><Link href="/staff/growth/leads" className={btn}>Clear</Link></div>
         </form>
