@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Download, Plus, UserPlus } from "lucide-react";
 import { INDIAN_STATES, STAGES, VERIFICATION_LABEL } from "@/staff/growth/constants";
 import { displayPhone } from "@/staff/growth/normalize";
-import { assignLeads, createLead, exportLeads, withdrawLeads } from "../../../growth-actions";
+import { assignLeads, createLead, exportLeads, setLeadPhone, withdrawLeads } from "../../../growth-actions";
 import { Empty, Panel, btn, btnPrimary, fieldCls, lbl, td, th, useRun } from "../../ui";
 import { LeadLink, ScoreChip, StageBadge, VerifyBadge, downloadText, fmtD, localToIso } from "../kit";
 
@@ -14,7 +14,7 @@ type Props = {
   facets: { states: { state: string; n: number }[]; sources: { id: string; name: string }[] };
   staff: { id: string; name: string; empNo: string }[];
   filter: Record<string, string | undefined>;
-  can: { assign: boolean; create: boolean; export: boolean };
+  can: { assign: boolean; create: boolean; export: boolean; edit: boolean };
 };
 
 export function LeadsView({ list, facets, staff, filter, can }: Props) {
@@ -81,7 +81,7 @@ export function LeadsView({ list, facets, staff, filter, can }: Props) {
               <tr key={r.id} className={sel.has(r.id) ? "bg-[#F2F9F8]" : ""}>
                 {can.assign ? <td className={td}><input type="checkbox" aria-label={`Select ${r.name}`} checked={sel.has(r.id)} onChange={() => toggle(r.id)} /></td> : null}
                 <td className={td}><LeadLink id={r.id} name={r.name} code={r.code} />{r.possibleDuplicate ? <span className="ml-1 text-[11px] text-[#94570A] font-semibold">possible duplicate</span> : null}</td>
-                <td className={td + " tnum whitespace-nowrap"}>{r.phone ? displayPhone(r.phone) : <span className="text-muted">{r.phoneRaw || "—"}</span>}</td>
+                <td className={td + " tnum whitespace-nowrap"}>{r.phone ? displayPhone(r.phone) : can.edit ? <AddPhone id={r.id} name={r.name} city={r.city || r.district} raw={r.phoneRaw} /> : <span className="text-muted">{r.phoneRaw || "—"}</span>}</td>
                 <td className={td}>{[r.city, r.district, r.state].filter(Boolean).join(", ")}{r.pin ? <span className="text-muted"> · {r.pin}</span> : null}</td>
                 <td className={td}><VerifyBadge v={r.verification} /></td>
                 <td className={td + " text-right"}><ScoreChip n={r.score} /></td>
@@ -124,6 +124,23 @@ function AddLead({ onDone }: { onDone: () => void }) {
       <label className={lbl}>State<select className={fieldCls} value={f.state} onChange={set("state")}><option value="">Choose</option>{INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}</select></label>
       <label className={lbl}>PIN code<input className={fieldCls} value={f.pin} onChange={set("pin")} inputMode="numeric" maxLength={6} /></label>
       <div className="col-span-2 flex gap-2 items-end"><button className={btnPrimary} disabled={busy}>Save lead</button><button type="button" className={btn} onClick={onDone}>Cancel</button><span className="text-[12px] text-muted">Use only public business details or details given to you.</span></div>
+    </form>
+  );
+}
+
+/** A lead with no phone: type the number someone looked up, or open a web search for the shop in a new tab. */
+function AddPhone({ id, name, city, raw }: { id: string; name: string; city: string; raw: string }) {
+  const { run, busy } = useRun();
+  const [v, setV] = useState("");
+  const q = encodeURIComponent(`${name} ${city} medical store phone number`);
+  return (
+    <form className="flex flex-col gap-1 min-w-[170px]" onSubmit={(e) => { e.preventDefault(); run(() => setLeadPhone(id, v), () => setV("")); }}>
+      {raw ? <span className="text-[11.5px] text-[#C0362C]">Not valid: {raw}</span> : null}
+      <span className="flex gap-1">
+        <input aria-label={`Phone for ${name}`} className="border border-input rounded-md px-2 py-1 text-[13px] w-[120px] outline-none focus:border-teal" inputMode="tel" placeholder="Add phone" value={v} onChange={(e) => setV(e.target.value)} />
+        <button className={btn} disabled={busy || v.replace(/\D/g, "").length < 10}>Save</button>
+      </span>
+      <a className="text-[12px] text-teal" href={`https://www.google.com/search?q=${q}`} target="_blank" rel="noopener noreferrer">Find number ↗</a>
     </form>
   );
 }

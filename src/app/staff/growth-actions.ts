@@ -25,6 +25,7 @@ const file = (fd: FormData) => { const f = fd.get("file"); if (!(f instanceof Fi
 // Leads
 export const createLead = async (i: Parameters<typeof leads.createLead>[1]) => done(await growthRun((a) => leads.createLead(a, i), "Lead added."));
 export const updateLead = async (id: string, i: Parameters<typeof leads.updateLead>[2]) => done(await growthRun((a) => leads.updateLead(a, id, i), "Lead saved."));
+export const setLeadPhone = async (id: string, phone: string) => done(await growthRun((a) => leads.setLeadPhone(a, id, phone), "Phone saved."));
 export const addNote = async (id: string, text: string) => done(await growthRun((a) => leads.addNote(a, id, text), "Note added."));
 export const addContact = async (id: string, i: Parameters<typeof leads.addContact>[2]) => done(await growthRun((a) => leads.addContact(a, id, i), "Contact added."));
 export const exportLeads = async (f: leads.LeadFilter, purpose: string) => growthRun((a) => leads.exportLeads(a, f, purpose));

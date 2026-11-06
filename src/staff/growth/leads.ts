@@ -369,3 +369,27 @@ export async function saveSource(a: Actor, raw: z.input<typeof sourceSchema>) {
   await gaudit(a, "Lead source saved", "source", s.id, `${s.name} · export ${s.allowsExport ? "allowed" : "not allowed"}`);
   return s.id;
 }
+
+/**
+ * Adds a phone number a person looked up for a lead that had none (e.g. on the pharmacy's signboard, its own website
+ * or a directory they checked). Recorded as evidence from that person; it isn't "verified" until a call confirms it.
+ */
+export async function setLeadPhone(a: Actor, leadId: string, raw: string) {
+  need(a, "leads.edit");
+  const lead = await findLead(a, leadId);
+  if (lead.erasedAt) throw new UserError("This lead was erased.");
+  const phone = toE164(raw);
+  if (!phone) throw new UserError("Enter a valid Indian phone number: a 10-digit mobile, or a landline with its STD code.");
+  if (phone === lead.phone) return { phone };
+  const dup = (await findMatches(db, { name: "", phone, domain: "", pin: "", address: "" }, leadId)).find((m) => m.strong);
+  if (dup) throw new UserError(`That number already belongs to ${dup.code} · ${dup.name}. If it's the same pharmacy, merge them in Lead verification.`);
+  await db.$transaction(async (tx) => {
+    await tx.pharmacyLead.update({ where: { id: leadId }, data: { phone, phoneRaw: clean(raw, 40), phoneVerifiedAt: null, ...(lead.stage === "RESEARCH_PENDING" ? { stage: lead.assignedStaffId ? "ASSIGNED" : "NEW_LEAD" } : {}) } });
+    await tx.leadEvidence.create({ data: { leadId, kind: "phone", method: "manual_review", result: "info", detail: `Phone ${phone} added by ${a.name} (looked up; not yet confirmed on a call)`, byStaffId: a.id } });
+    await activity(tx, leadId, "note", `Phone added: ${phone}`, a);
+    await syncVerification(tx, leadId);
+    await rescore(tx, leadId);
+  });
+  await gaudit(a, "Lead phone added", "lead", leadId, `${lead.code} · ${phone}`);
+  return { phone };
+}

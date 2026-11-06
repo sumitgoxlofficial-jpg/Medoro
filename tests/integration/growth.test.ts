@@ -419,6 +419,20 @@ describe("Growth Intelligence", () => {
     expect(await db.pharmacyLead.count({ where: { sourceId: src.id } })).toBe(2);
   });
 
+  it("a looked-up phone can be added to a lead without one; invalid and taken numbers are refused", async () => {
+    const { setLeadPhone } = await import("@/staff/growth/leads");
+    const l = await db.pharmacyLead.findFirstOrThrow({ where: { name: "Map Only Chemist" } });
+    expect(l).toMatchObject({ phone: null, stage: "RESEARCH_PENDING" });
+    await expect(setLeadPhone(admin, l.id, "12345")).rejects.toThrow(/valid Indian phone/);
+    await expect(setLeadPhone(admin, l.id, "0832 222 3344")).rejects.toThrow(/already belongs to .*Panaji Medical Hall/);
+    await expect(setLeadPhone(rahul, l.id, "9431012345")).rejects.toThrow(/isn’t assigned to you/); // unassigned: not in a sales employee's scope
+    expect(await setLeadPhone(admin, l.id, "94310 12345")).toEqual({ phone: "+919431012345" });
+    const after = await db.pharmacyLead.findUniqueOrThrow({ where: { id: l.id } });
+    expect(after).toMatchObject({ phone: "+919431012345", stage: "NEW_LEAD", phoneVerifiedAt: null });
+    expect(await db.leadEvidence.count({ where: { leadId: l.id, kind: "phone", detail: { contains: "not yet confirmed on a call" } } })).toBe(1);
+    expect((await listLeads(admin, { phone: "no", q: "Map Only" })).total).toBe(0);
+  });
+
   it("withdraws assignments and keeps the audit trail append-only", async () => {
     const l = await db.pharmacyLead.findFirstOrThrow({ where: { assignedStaffId: priya.id } });
     await expect(withdraw(admin, [l.id], "")).rejects.toThrow(/reason/);
