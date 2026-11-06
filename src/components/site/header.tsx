@@ -56,6 +56,11 @@ export function SiteHeader() {
   }, []);
   return (
     <header className={`sticky top-0 z-40 bg-white/95 supports-[backdrop-filter]:bg-white/85 backdrop-blur border-b transition-colors duration-300 ${scrolled || open ? "border-[var(--s-line)]" : "border-transparent"}`}>
+      {/* Phones: Medoro's sales employees sign in here, so the link stays visible above the bar. */}
+      <div className="min-[768px]:hidden bg-[#0E1A1F] text-[#DCE6E9] text-[13px] px-4 h-9 flex items-center justify-center gap-1.5">
+        <span>{t("Medoro sales employee?")}</span>
+        <Link href="/staff/employee" className="font-semibold text-[#5FD3BC] hover:text-white">{t("Employee login")} →</Link>
+      </div>
       <div className="max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[1099px]:gap-4 max-[959px]:gap-3 max-[640px]:px-4">
         <Link href="/" aria-label={t("Medoro home")} className="flex-none"><Wordmark size={21} /></Link>
         <nav aria-label={t("Main")} className="hidden min-[1180px]:flex gap-1 text-[15px]">
@@ -63,6 +68,7 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex gap-2 items-center">
           <SiteLangSwitch className="max-[559px]:hidden" />
+          <Link href="/staff/employee" className="max-[767px]:hidden flex items-center h-11 px-3 rounded-lg text-[15px] font-semibold text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)]">{t("Employee login")}</Link>
           <Link href="/signin" className="max-[419px]:hidden flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]">{t("Log in")}</Link>
           <a href="/trial" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><span className="max-[520px]:hidden">{t("Start 7-day free trial")}</span><span className="min-[521px]:hidden">{t("Free trial")}</span></a>
           <button type="button" onClick={() => setOpen((x) => !x)} aria-label={open ? t("Close menu") : t("Open menu")} aria-expanded={open} aria-controls="site-menu"
@@ -76,7 +82,8 @@ export function SiteHeader() {
           {NAV.map(([l, h]) => <a key={h} href={h} onClick={() => setOpen(false)} className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t(l, { ctx: "site" })}</a>)}
           <Link href="/signin" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Log in")}</Link>
           <a href="/trial" className="text-[var(--s-brand)] text-[16px] font-semibold py-3.5 border-b border-[var(--s-line-2)]">{t("Start 7-day free trial")}</a>
-          <Link href="/signin?view=employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5">{t("Pharmacy staff login")}</Link>
+          <Link href="/signin?view=employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Pharmacy staff login")}</Link>
+          <Link href="/staff/employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5">{t("Medoro employee login")}</Link>
         </nav>
         <SiteLangSwitch className="min-[560px]:hidden mt-4" />
       </div>
