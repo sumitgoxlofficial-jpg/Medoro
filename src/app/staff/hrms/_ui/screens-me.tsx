@@ -1,11 +1,11 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
-import { BOARD_COLS, CLAIM_STATUS, CLAIM_TYPES, LEAVE_TYPES, TICKET_TOPICS, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle } from "../actions";
+import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, CLAIM_TYPES, LEAVE_TYPES, TICKET_TOPICS, inr, leaveLabel } from "@/staff/hrms/constants";
+import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 
 type P = { sh: Shell };
@@ -49,8 +49,9 @@ export function ProfileForm({ initial, complete, onSave, busy }: { initial: Part
   );
 }
 
-export function ProfileScreen({ d, sh }: { d: Data<"profile"> } & P) {
+export function ProfileScreen({ d }: { d: Data<"profile"> }) {
   const { run, busy, toast } = useRun();
+  const [card, setCard] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const p = d.p;
   const pick = (f: File | undefined) => {
@@ -73,7 +74,7 @@ export function ProfileScreen({ d, sh }: { d: Data<"profile"> } & P) {
           <Avatar name={p.name} photo={p.photo} size={72} />
           <div className="flex-1 min-w-[200px]"><h2 className="text-[20px] font-bold">{p.name}</h2><p className="text-[13px] text-[#64748B]">{p.designation || "—"} · {p.dept || "—"} · {p.empNo}</p><p className="text-[12.5px] text-[#64748B]">{p.email}</p></div>
           <input ref={file} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
-          <button className={btnCls} onClick={() => file.current?.click()}>Change photo</button>{p.photo ? <button className={btnCls} onClick={() => run(() => savePhoto(null))}>Remove</button> : null}
+          <button className={btnCls} onClick={() => setCard(true)}>ID card</button><button className={btnCls} onClick={() => file.current?.click()}>Change photo</button>{p.photo ? <button className={btnCls} onClick={() => run(() => savePhoto(null))}>Remove</button> : null}
         </div>
         <Grid n={4} className="mt-4">
           <Stat l="Joined" v={p.joinDate ? dayLong(p.joinDate) : "—"} /><Stat l="Type" v={p.empType} /><Stat l="Location" v={p.location || "—"} /><Stat l="Reports to" v={p.manager || "—"} />
@@ -81,7 +82,15 @@ export function ProfileScreen({ d, sh }: { d: Data<"profile"> } & P) {
         <p className="text-[12px] text-[#64748B] mt-3">Joining documents {p.docsAccepted ? `accepted on ${dayLabel(p.docsAcceptedAt!)}` : "not yet accepted"} · Authenticator app {p.totp ? "on" : "off"}</p>
       </Card>
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
-      {sh.me.role !== "employee" || p.role ? null : null}
+      {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>
+        <div className="print-area mx-auto w-[300px] rounded-2xl overflow-hidden border border-[#CBD5E1] bg-white text-center shadow">
+          <div className="bg-[#0B5E5B] text-white py-3"><div className="text-[18px] font-bold">Medoro</div><div className="text-[10px] tracking-[.12em] text-white/70">PHARMACY SOFTWARE</div></div>
+          <div className="pt-5 flex justify-center"><Avatar name={p.name} photo={p.photo} size={88} /></div>
+          <div className="px-5 pb-5 pt-3"><div className="text-[17px] font-bold">{p.name}</div><div className="text-[12.5px] text-[#64748B]">{p.designation || "—"}{p.dept ? ` · ${p.dept}` : ""}</div>
+            <div className="mt-3 inline-block bg-[#D6F3EF] text-[#0B5E5B] font-bold text-[14px] rounded-lg px-3 py-1">{p.empNo}</div>
+            <div className="mt-3 text-[11.5px] text-[#475569] leading-5">{p.email}<br />Joined {p.joinDate ? dayLabel(p.joinDate) : "—"}{p.bloodGroup ? ` · Blood group ${p.bloodGroup}` : ""}{p.emergencyPhone ? <><br />Emergency: {p.emergencyName} {p.emergencyPhone}</> : null}</div></div>
+          <div className="bg-[#F1F5F9] text-[10px] text-[#64748B] py-1.5">Property of Medoro · medoro.in</div></div>
+        <button className={primaryCls} onClick={() => window.print()}>Print ID card</button></Modal> : null}
     </>
   );
 }
@@ -89,8 +98,11 @@ export function ProfileScreen({ d, sh }: { d: Data<"profile"> } & P) {
 // ── Home
 export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
   const [tab, setTab] = useState<"tasks" | "assigned" | "reminders">("tasks");
-  const [show, setShow] = useState(false), [rem, setRem] = useState(""), [ann, setAnn] = useState(false);
+  const [show, setShow] = useState(false), [rem, setRem] = useState(""), [ann, setAnn] = useState(false), [custom, setCustom] = useState(false), [hid, setHid] = useState<string[]>([]);
   const { run, busy } = useRun();
+  // Which home sections to show is a per-person, per-browser choice.
+  useEffect(() => { try { const v = JSON.parse(localStorage.getItem("hrms.home.hide") ?? "[]"); if (Array.isArray(v)) setHid(v.filter((x) => typeof x === "string")); } catch { /* none saved */ } }, []);
+  const toggleSection = (id: string) => setHid((h) => { const n = h.includes(id) ? h.filter((x) => x !== id) : [...h, id]; try { localStorage.setItem("hrms.home.hide", JSON.stringify(n)); } catch { /* private window */ } return n; });
   const open = d.tasks.filter((t) => t.kind === "task" && !t.done), rems = d.tasks.filter((t) => t.kind === "reminder" && !t.done);
   const doneToday = d.tasks.filter((t) => t.kind === "task" && t.done && t.doneAt && t.doneAt.slice(0, 10) === sh.today).length;
   const total = open.length + doneToday;
@@ -105,7 +117,7 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
         </div>
         <div className="text-right"><div className="text-[40px] font-bold leading-none" suppressHydrationWarning>{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</div><div className="text-[12px] text-white/70">Local time · India</div></div>
       </div>
-      <Card title="Today" sub="Task-based day · due 11:59 PM" right={<Tabs value={tab} onChange={setTab} options={[["tasks", "Tasks"], ["assigned", `Assigned · ${open.length}`], ["reminders", `Reminders · ${rems.length}`]]} />}>
+      {!hid.includes("today") ? <><Card title="Today" sub="Task-based day · due 11:59 PM" right={<Tabs value={tab} onChange={setTab} options={[["tasks", "Tasks"], ["assigned", `Assigned · ${open.length}`], ["reminders", `Reminders · ${rems.length}`]]} />}>
         <div className="px-5 pb-4">
           {tab === "tasks" ? (
             <div className="flex items-center gap-4 flex-wrap"><div className="flex-1 min-w-[220px]"><div className="font-bold text-[15px]">{doneToday} of {total} tasks done today</div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-2 overflow-hidden"><div className="h-full bg-[#14B8A6]" style={{ width: `${total ? (doneToday * 100) / total : 0}%` }} /></div><div className="text-[12px] text-[#64748B] mt-1.5">{open.length} remaining · finish before midnight, at your own pace</div></div><div className="text-[24px] font-bold">{left}</div><Link href="/staff/hrms/mytasks" className={primaryCls}>Open my tasks →</Link></div>
@@ -113,19 +125,22 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
             : <div>{rems.map((t) => <div key={t.id} className="flex items-center gap-2.5 py-2 border-t border-[#F1F5F9] first:border-0 text-[13.5px]"><input type="checkbox" aria-label={`Done: ${t.title}`} onChange={() => run(() => setTaskDone(t.id, true))} /><span className="flex-1">{t.title}</span><button className={dangerCls} onClick={() => run(() => deleteTask(t.id))}>Remove</button></div>)}
               <form className="flex gap-2 mt-2" onSubmit={(e) => { e.preventDefault(); if (rem.trim()) run(() => addReminder({ title: rem }), () => { setRem(""); }); }}><input className={inputCls} placeholder="Add a reminder for today" value={rem} onChange={(e) => setRem(e.target.value)} /><button className={primaryCls} disabled={busy}>Add</button></form></div>}
         </div>
-      </Card>
+      </Card></> : null}
       <Grid n={3}>
-        <Card title="Leave balance" pad><div className="flex gap-5">{d.bal.filter((b) => b.total > 0).map((b) => <div key={b.id}><div className="text-[22px] font-bold">{b.left}</div><div className="text-[11.5px] text-[#64748B]">{b.label}</div></div>)}</div><Link href="/staff/hrms/leave" className="text-[13px] font-semibold text-[#0B5E5B] mt-3 inline-block">Apply leave →</Link></Card>
-        <Card title="Last payslip" pad>{d.slip ? <><div className="text-[20px] font-bold">{d.slip.label}</div><div className="text-[12px] text-[#64748B]">Credited {d.slip.paidOn ? dayLabel(d.slip.paidOn) : "—"} · <button className="text-[#0B5E5B] font-semibold cursor-pointer bg-transparent border-0 p-0" onClick={() => setShow(!show)}>{show ? "Hide" : "Show"} amount</button></div><div className="text-[18px] font-bold mt-1"><Hide n={d.slip.net} show={show} /></div></> : <div className="text-[13px] text-[#64748B]">No payslip yet.</div>}<Link href="/staff/hrms/payslips" className="text-[13px] font-semibold text-[#0B5E5B] mt-3 inline-block">View payslips →</Link></Card>
-        <Card title="Projects" pad>{d.proj.length ? d.proj.map((p) => <div key={p.id} className="text-[13px] mb-2"><div className="flex justify-between"><strong>{p.name}</strong><span className="text-[#64748B]">{p.progress}%</span></div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-1"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${p.progress}%` }} /></div></div>) : <div className="text-[13px] text-[#64748B]">You’re not on a project yet.</div>}</Card>
+      {!hid.includes("leave") ? <><Card title="Leave balance" pad><div className="flex gap-5">{d.bal.filter((b) => b.total > 0).map((b) => <div key={b.id}><div className="text-[22px] font-bold">{b.left}</div><div className="text-[11.5px] text-[#64748B]">{b.label}</div></div>)}</div><Link href="/staff/hrms/leave" className="text-[13px] font-semibold text-[#0B5E5B] mt-3 inline-block">Apply leave →</Link></Card></> : null}
+      {!hid.includes("payslip") ? <><Card title="Last payslip" pad>{d.slip ? <><div className="text-[20px] font-bold">{d.slip.label}</div><div className="text-[12px] text-[#64748B]">Credited {d.slip.paidOn ? dayLabel(d.slip.paidOn) : "—"} · <button className="text-[#0B5E5B] font-semibold cursor-pointer bg-transparent border-0 p-0" onClick={() => setShow(!show)}>{show ? "Hide" : "Show"} amount</button></div><div className="text-[18px] font-bold mt-1"><Hide n={d.slip.net} show={show} /></div></> : <div className="text-[13px] text-[#64748B]">No payslip yet.</div>}<Link href="/staff/hrms/payslips" className="text-[13px] font-semibold text-[#0B5E5B] mt-3 inline-block">View payslips →</Link></Card></> : null}
+      {!hid.includes("projects") ? <><Card title="Projects" pad>{d.proj.length ? d.proj.map((p) => <div key={p.id} className="text-[13px] mb-2"><div className="flex justify-between"><strong>{p.name}</strong><span className="text-[#64748B]">{p.progress}%</span></div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-1"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${p.progress}%` }} /></div></div>) : <div className="text-[13px] text-[#64748B]">You’re not on a project yet.</div>}</Card></> : null}
       </Grid>
-      {d.meets.length ? <Card title="Meetings today" pad>{d.meets.map((m) => <div key={m.id} className="flex items-center gap-3 py-1.5 text-[13.5px]"><strong>{timeLabel(m.at)}</strong><span className="flex-1">{m.title}</span>{m.link ? <a className={btnCls} href={m.link} target="_blank" rel="noreferrer">Join</a> : null}</div>)}</Card> : null}
+      {d.meets.length && !hid.includes("meetings") ? <Card title="Meetings today" pad>{d.meets.map((m) => <div key={m.id} className="flex items-center gap-3 py-1.5 text-[13.5px]"><strong>{timeLabel(m.at)}</strong><span className="flex-1">{m.title}</span>{m.link ? <a className={btnCls} href={m.link} target="_blank" rel="noreferrer">Join</a> : null}</div>)}</Card> : null}
       <Grid n={2}>
-        <Card title="Announcements" right={d.canPost ? <button className={btnCls} onClick={() => setAnn(true)}>+ Post</button> : null} pad>
+      {!hid.includes("announcements") ? <><Card title="Announcements" right={d.canPost ? <button className={btnCls} onClick={() => setAnn(true)}>+ Post</button> : null} pad>
           {d.ann.length ? d.ann.map((a) => <div key={a.id} className="flex gap-3 py-2.5 border-t border-[#F1F5F9] first:border-0"><span className="size-9 rounded-lg border border-[#E2E8F0] flex items-center justify-center">{a.emoji}</span><div className="flex-1"><div className="flex gap-2 text-[13.5px] font-semibold"><span className="flex-1">{a.title}</span><span className="text-[11.5px] font-normal text-[#94A3B8]">{ago(a.at)}</span></div><div className="text-[12.5px] text-[#64748B]">{a.body}</div>{d.canPost ? <button className="text-[11.5px] text-[#B3261E] cursor-pointer bg-transparent border-0 p-0 mt-1" onClick={() => run(() => deleteAnnouncement(a.id))}>Remove</button> : null}</div></div>) : <Empty>No announcements yet.</Empty>}
-        </Card>
-        <Card title="Upcoming holidays" pad>{d.hols.length ? d.hols.map((h) => <div key={h.id} className="flex items-center gap-3 py-2 border-t border-[#F1F5F9] first:border-0"><div className="flex-1"><div className="text-[13.5px] font-semibold">{h.name}</div><div className="text-[12px] text-[#64748B]">{h.kind}</div></div><div className="text-right font-bold text-[#0B5E5B]">{dayLabel(h.day)}</div></div>) : <Empty>HR hasn’t added holidays yet.</Empty>}</Card>
+        </Card></> : null}
+      {!hid.includes("holidays") ? <><Card title="Upcoming holidays" pad>{d.hols.length ? d.hols.map((h) => <div key={h.id} className="flex items-center gap-3 py-2 border-t border-[#F1F5F9] first:border-0"><div className="flex-1"><div className="text-[13.5px] font-semibold">{h.name}</div><div className="text-[12px] text-[#64748B]">{h.kind}</div></div><div className="text-right font-bold text-[#0B5E5B]">{dayLabel(h.day)}</div></div>) : <Empty>HR hasn’t added holidays yet.</Empty>}</Card></> : null}
       </Grid>
+      <div><button className={btnCls} onClick={() => setCustom(true)}>⚙️ Customize home</button></div>
+      {custom ? <Modal title="Customize home" onClose={() => setCustom(false)}><p className="text-[13px] text-[#64748B]">Choose what shows on your home screen. This is saved in this browser.</p>
+        {[["today", "Today and tasks"], ["leave", "Leave balance"], ["payslip", "Last payslip"], ["projects", "Projects"], ["meetings", "Meetings today"], ["announcements", "Announcements"], ["holidays", "Upcoming holidays"]].map(([id, label]) => <label key={id} className="flex items-center gap-2 text-[13.5px] py-1 cursor-pointer"><input type="checkbox" checked={!hid.includes(id)} onChange={() => toggleSection(id)} />{label}</label>)}</Modal> : null}
       {ann ? <AnnounceModal onClose={() => setAnn(false)} /> : null}
     </>
   );
@@ -316,7 +331,7 @@ export function PayslipView({ s }: { s: Slip }) {
   const rows: [string, number][] = [["Basic", s.basic], ["House rent allowance", s.hra], ["Special allowance", s.special], ["Incentive", s.incentive]];
   const ded: [string, number][] = [["Provident fund", s.pf], ["ESI", s.esi], ["Professional tax", s.pt], ["Income tax (TDS)", s.tds], ["Loss of pay", s.lop]];
   return (
-    <div id="payslip" className="bg-white text-[#0f172a] text-[12.5px] p-6 border border-[#E2E8F0] rounded-xl">
+    <div id="payslip" className="print-area bg-white text-[#0f172a] text-[12.5px] p-6 border border-[#E2E8F0] rounded-xl">
       <div className="flex justify-between border-b border-[#E2E8F0] pb-3"><div><div className="text-[18px] font-bold">{s.company.name}</div><div className="text-[#64748B] whitespace-pre-line">{s.company.address}</div></div><div className="text-right"><div className="font-bold">Payslip · {s.label}</div>{s.paidOn ? <div className="text-[#64748B]">Paid {dayLabel(s.paidOn)}</div> : null}</div></div>
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 py-3 border-b border-[#E2E8F0]">{[["Employee", s.emp.name], ["Employee ID", s.emp.empNo], ["Designation", s.emp.designation || "—"], ["Department", s.emp.dept || "—"], ["Date of joining", s.emp.joinDate ? dayLabel(s.emp.joinDate) : "—"], ["PAN", s.emp.pan || "—"], ["UAN", s.emp.uan || "—"], ["Bank", s.emp.bank || "—"], ["Paid days", `${s.workDays - s.lopDays} of ${s.workDays}`], ["Loss-of-pay days", String(s.lopDays)]].map(([k, v]) => <div key={k} className="flex justify-between gap-2"><span className="text-[#64748B]">{k}</span><strong>{v}</strong></div>)}</div>
       <div className="grid grid-cols-2 gap-6 py-3"><div><div className="font-bold mb-1">Earnings</div>{rows.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}<div className="flex justify-between border-t border-[#E2E8F0] mt-1 pt-1 font-bold"><span>Gross</span><span>{inr(s.gross)}</span></div></div><div><div className="font-bold mb-1">Deductions</div>{ded.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}{s.reimburse ? <div className="flex justify-between py-0.5 text-[#0B5E5B]"><span>Reimbursements (added)</span><span>+{inr(s.reimburse)}</span></div> : null}</div></div>
@@ -389,3 +404,44 @@ export function SupportScreen({ d }: { d: Data<"support"> }) {
   );
 }
 
+
+// ── My Projects
+export function MyProjectsScreen({ d }: { d: Data<"myprojects"> }) {
+  const { run } = useRun();
+  return d.projects.length ? <>{d.projects.map((p) => (
+    <Card key={p.id} pad>
+      <div className="flex items-center gap-3 flex-wrap"><div className="flex-1 min-w-[220px]"><h3 className="text-[16px] font-bold">{p.name}</h3><p className="text-[12.5px] text-[#64748B]">{p.client} · Lead: {p.lead || "—"} · {p.deadline ? `Deadline ${dayLabel(p.deadline)}` : "No deadline"} · Team: {p.team.join(", ")}</p></div><Pill tone={statusTone(p.status)}>{p.status}</Pill><div className="w-40"><div className="h-2 bg-[#E2E8F0] rounded-full"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${p.progress}%` }} /></div><div className="text-[11.5px] text-[#64748B] mt-1">{p.progress}% done</div></div></div>
+      <div className="mt-3 text-[12px] font-semibold text-[#64748B] uppercase tracking-wide">Your tasks</div>
+      {p.mine.length ? p.mine.map((t) => <div key={t.id} className="flex items-center gap-3 py-2 border-t border-[#F1F5F9] text-[13.5px]"><input type="checkbox" checked={t.done} aria-label={`Done: ${t.title}`} onChange={(e) => run(() => setTaskDone(t.id, e.target.checked))} /><span className={cx("flex-1", t.done && "line-through text-[#94A3B8]")}>{t.title}</span>{t.overdue ? <Pill tone="red">Overdue</Pill> : null}{t.due ? <span className="text-[12px] text-[#64748B]">due {dayLabel(t.due)}</span> : null}<select aria-label={`Stage of ${t.title}`} className="border border-[#CDD2D7] rounded px-1 py-1 text-[12px] bg-white" value={t.col} onChange={(e) => run(() => moveTask(t.id, e.target.value))}>{BOARD_COLS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}</select></div>) : <p className="text-[13px] text-[#64748B] py-2">No tasks for you here yet.</p>}
+      {p.others ? <p className="text-[12px] text-[#94A3B8] mt-1">{p.others} more task{p.others > 1 ? "s" : ""} assigned to teammates.</p> : null}
+    </Card>))}</> : <Card pad><Empty>You’re not on any project yet. HR adds people to projects.</Empty></Card>;
+}
+
+// ── Assets
+const ASSET_ST: Record<string, [string, "green" | "amber" | "red" | "gray"]> = { in_use: ["In use", "green"], in_stock: ["In stock", "gray"], repair: ["In repair", "amber"], lost: ["Lost", "red"] };
+const ASSET_ICON: Record<string, string> = { Laptop: "💻", Monitor: "🖥", Phone: "📱", "Access card": "🪪", "Keyboard & mouse": "⌨️", Headset: "🎧", Other: "📦" };
+export function AssetsScreen({ d }: { d: Data<"assets"> }) {
+  const { run, busy } = useRun();
+  const [issue, setIssue] = useState<{ id: string; name: string } | null>(null), [note, setNote] = useState("");
+  const [f, setF] = useState({ name: "", kind: ASSET_KINDS[0] as string, assigneeId: "", note: "" }), [q, setQ] = useState(""), [give, setGive] = useState<{ id: string; name: string; who: string } | null>(null);
+  const all = d.all?.filter((a) => `${a.tag} ${a.name} ${a.assignee}`.toLowerCase().includes(q.toLowerCase()));
+  return <>
+    <Card title="Assets assigned to me" pad>{d.mine.length ? d.mine.map((a) => (
+      <div key={a.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 mb-2"><span className="size-10 rounded-lg bg-[#F1F5F9] flex items-center justify-center text-[18px]">{ASSET_ICON[a.kind] ?? "📦"}</span><div className="flex-1"><div className="text-[13.5px] font-semibold">{a.name}</div><div className="text-[12px] text-[#64748B]">{a.tag}{a.issuedOn ? ` · issued ${dayLabel(a.issuedOn)}` : ""}</div></div>
+        <Pill tone={ASSET_ST[a.status]?.[1] ?? "gray"}>{ASSET_ST[a.status]?.[0] ?? a.status}</Pill><button className={btnCls} onClick={() => { setIssue({ id: a.id, name: a.name }); setNote(""); }}>Report issue</button></div>)) : <Empty>Nothing is assigned to you yet.</Empty>}</Card>
+    {d.all ? <>
+      <Card title="Add an item" sub="Leave “Issue to” empty to keep it in stock" pad><form className="flex gap-2 flex-wrap items-end" onSubmit={(e) => { e.preventDefault(); run(() => addAsset({ name: f.name, kind: f.kind as "Laptop", note: f.note, assigneeId: f.assigneeId || null }), (tag) => { setF({ ...f, name: "", note: "" }); return `${tag} added.`; }); }}>
+        <Field label="Item"><input className={cx(inputCls, "!w-64")} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="MacBook Pro 14 inch" required /></Field>
+        <Field label="Type"><select className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{ASSET_KINDS.map((k) => <option key={k}>{k}</option>)}</select></Field>
+        <Field label="Issue to"><select className={inputCls} value={f.assigneeId} onChange={(e) => setF({ ...f, assigneeId: e.target.value })}><option value="">In stock</option>{d.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+        <Field label="Note"><input className={cx(inputCls, "!w-52")} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field><button className={primaryCls} disabled={busy}>Add</button></form></Card>
+      <Card title={`Asset register · ${d.all.length}`} right={<input className={cx(inputCls, "!w-52")} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />}>
+        <Table head={["Tag", "Item", "With", "Status", ""]} empty={all?.length ? undefined : "No items yet."}>
+          {all?.map((a) => <tr key={a.id}><td className={tdCls}>{a.tag}</td><td className={tdCls}><strong>{a.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{a.kind}{a.note ? ` · ${a.note}` : ""}</div></td><td className={tdCls}>{a.assignee || "—"}{a.issuedOn ? <div className="text-[11.5px] text-[#94A3B8]">since {dayLabel(a.issuedOn)}</div> : null}</td>
+            <td className={tdCls}><select aria-label={`Status of ${a.tag}`} className="border border-[#CDD2D7] rounded px-1 py-1 text-[12px] bg-white" value={a.status} onChange={(e) => run(() => setAssetStatus(a.id, e.target.value))}>{Object.entries(ASSET_ST).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select></td>
+            <td className={tdCls}>{a.assigneeId ? <button className={btnCls} onClick={() => run(() => returnAsset(a.id))}>Take back</button> : a.status !== "lost" ? <button className={btnCls} onClick={() => setGive({ id: a.id, name: a.name, who: "" })}>Issue</button> : null}</td></tr>)}
+        </Table></Card></> : null}
+    {issue ? <Modal title={`Report an issue · ${issue.name}`} onClose={() => setIssue(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => reportAssetIssue(issue.id, note), (code) => { setIssue(null); return `Ticket ${code} raised for HR.`; }); }}><Field label="What is wrong?"><textarea className={inputCls} rows={3} value={note} onChange={(e) => setNote(e.target.value)} required minLength={5} /></Field><button className={primaryCls} disabled={busy}>Send to HR</button></form></Modal> : null}
+    {give && d.all ? <Modal title={`Issue ${give.name}`} onClose={() => setGive(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => issueAsset(give.id, give.who), () => { setGive(null); }); }}><Field label="To"><select className={inputCls} value={give.who} onChange={(e) => setGive({ ...give, who: e.target.value })} required><option value="">Choose…</option>{d.people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field><button className={primaryCls} disabled={busy}>Issue</button></form></Modal> : null}
+  </>;
+}

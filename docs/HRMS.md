@@ -26,6 +26,24 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 4. Month end: HR or Finance processes **Payroll**; employees get a payslip (printable as PDF).
 5. Leaving: HR deactivates the profile. Sessions end immediately.
 
+## More screens
+
+* **Assets** (everyone: *Assets* under Me; HR: the register too). HR adds equipment (tags `MS-AST-0001`…), issues it to an employee and takes it back.
+  An employee sees their items and can **Report issue**: that raises an HR support ticket and marks the item *In repair*.
+* **My Projects** (everyone). The projects you are a member of, your tasks in each (tick done, move stage), team and progress.
+* **Projects** (HR, *Tasks & projects*): views **Dashboard, Board, Timeline, List, Sprints, Risks**. Timeline draws a bar per task from when it was
+  created to its due date. Sprints have dates and a goal; tasks join a sprint of their own project (List view). Risks have a level, owner, mitigation and status.
+* **Accounts**: **Sales CRM & Leads** (deals), **Marketing CRM** (campaigns), **Workflows & Automations**, plus Proforma, Delivery challans, Vendors and Vendor leads registers.
+  Workflows are only listed if they really run: *Mark overdue invoices* (sent invoices past their due date become Overdue and Accounts is told, whenever an
+  accounts screen opens) and *Post the salary journal* (processing payroll adds one journal entry for the month's net pay). Each can be switched off.
+* **Me**: **ID card** (My profile, printable), **Customize home** (hide sections; saved in the browser), **night mode** (moon button; saved in the browser).
+* Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).
+
+## Not built (in the design, not in Medoro yet)
+
+Team Chat with calls and screen sharing, selfie check-in, idle-time monitoring, AI meeting minutes and AI candidate screening, Wins / Culture OS /
+Non-Negotiables (these three are blank in the design itself). Ally answers from HR records; it does not read uploaded documents.
+
 ## Rules the code enforces
 
 * **Attendance.** Check-in is on by default. A working day in the past with no check-in, no leave and no approved

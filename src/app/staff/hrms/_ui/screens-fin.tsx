@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Data } from "@/staff/hrms/screens";
 import { GST_RATES, inr } from "@/staff/hrms/constants";
-import { addRecord, createInvoice, deleteRecord, openInvoice, setRecordStatus } from "../actions";
+import { addRecord, createInvoice, deleteRecord, openInvoice, setRecordStatus, setWorkflow } from "../actions";
 import { Card, Field, Grid, Modal, Pill, Stat, Table, Tabs, btnCls, cx, dangerCls, dayLabel, download, inputCls, primaryCls, statusTone, tdCls, useRun } from "./kit";
 import Link from "next/link";
 
@@ -55,7 +55,7 @@ export function RegisterScreen({ regs }: { regs: Regs }) {
 
 function InvoiceDoc({ v }: { v: NonNullable<Extract<Awaited<ReturnType<typeof openInvoice>>, { ok: true }>["data"]> }) {
   const { doc, company } = v;
-  return <div id="payslip" className="text-[12.5px] border border-[#E2E8F0] rounded-xl p-6 bg-white">
+  return <div id="payslip" className="print-area bg-white text-[12.5px] border border-[#E2E8F0] rounded-xl p-6 bg-white">
     <div className="flex justify-between border-b border-[#E2E8F0] pb-3"><div><div className="text-[18px] font-bold">{company.name}</div><div className="text-[#64748B] whitespace-pre-line">{company.address}</div>{company.gstin ? <div>GSTIN {company.gstin}</div> : null}</div><div className="text-right"><div className="text-[16px] font-bold">TAX INVOICE</div><div>{doc.no}</div><div className="text-[#64748B]">{dayLabel(doc.date)}{doc.due ? ` · due ${dayLabel(doc.due)}` : ""}</div></div></div>
     <div className="py-3"><div className="text-[11px] font-semibold text-[#64748B]">BILL TO</div><strong>{doc.client}</strong>{doc.gstin ? <div>GSTIN {doc.gstin}</div> : null}<div className="text-[#64748B]">{doc.address} {doc.state}</div></div>
     <table className="w-full border-collapse"><thead><tr className="bg-[#F8FAFC]">{["Description", "HSN", "Qty", "Rate", "GST", "Amount"].map((h) => <th key={h} className="text-left p-2 text-[11px] uppercase text-[#64748B]">{h}</th>)}</tr></thead><tbody>{doc.items.map((it, i) => <tr key={i} className="border-t border-[#F1F5F9]"><td className="p-2">{it.desc}</td><td className="p-2">{it.hsn}</td><td className="p-2">{it.qty}</td><td className="p-2">{inr(it.rate)}</td><td className="p-2">{it.gst}%</td><td className="p-2">{inr(it.qty * it.rate)}</td></tr>)}</tbody></table>
@@ -96,4 +96,15 @@ export function FinGst({ d }: { d: Data<"fin_gst"> }) {
     <Grid n={3}><Stat l="Output GST" v={inr(out)} /><Stat l="Input GST (bills)" v={inr(inp)} c="#0f172a" /><Stat l="Net payable" v={inr(out - inp)} c="#B45309" /></Grid>
     <Card title="Month by month" sub="Output from sent invoices, input from the GST column of bills" right={<button className={btnCls} onClick={() => download("gst-summary.csv", ["Month,Output GST,Input GST,Net payable", ...g.map((x) => [x.month, x.output, x.input, x.payable].join(","))].join("\n"))}>↓ Export</button>}><Table head={["Month", "Output GST", "Input GST", "Net payable"]} empty={g.length ? undefined : "No invoices or bills yet."}>{g.map((x) => <tr key={x.month}><td className={tdCls}>{x.month}</td><td className={tdCls}>{inr(x.output)}</td><td className={tdCls}>{inr(x.input)}</td><td className={tdCls}><strong>{inr(x.payable)}</strong></td></tr>)}</Table></Card>
     <p className="text-[12px] text-[#64748B] text-center">Filing GSTR-1 and GSTR-3B is done on the GST portal; use this summary and the exports to prepare them.</p></>;
+}
+
+export function WorkflowsScreen({ d }: { d: Data<"fin_workflows"> }) {
+  const { run } = useRun();
+  const runs = d.wf.reduce((a, w) => a + w.runs, 0);
+  return <>
+    <Grid n={3}><Stat l="Active rules" v={d.wf.filter((w) => w.on).length} sub={`of ${d.wf.length}`} /><Stat l="Times they have run" v={runs} c="#0f172a" /><Stat l="Last run" v={d.wf.map((w) => w.last).filter(Boolean).sort().pop()?.slice(0, 10) ? dayLabel(d.wf.map((w) => w.last).filter(Boolean).sort().pop()!) : "—"} c="#0f172a" /></Grid>
+    <Card title="Automation rules" sub="Every rule here really runs. Switch one off and it stops."><Table head={["Rule", "When", "Then", "Runs", "Last run", "On"]}>
+      {d.wf.map((w) => <tr key={w.id}><td className={tdCls}><strong>{w.name}</strong></td><td className={tdCls}>{w.trigger}</td><td className={tdCls}>{w.action}</td><td className={tdCls}>{w.runs}</td><td className={tdCls}>{w.last ? dayLabel(w.last) : "—"}</td>
+        <td className={tdCls}><button role="switch" aria-checked={w.on} aria-label={`${w.name}: ${w.on ? "on" : "off"}`} onClick={() => run(() => setWorkflow(w.id, !w.on))} className={cx("w-11 h-6 rounded-full relative cursor-pointer border-0", w.on ? "bg-[#14B8A6]" : "bg-[#CBD5E1]")}><span className={cx("absolute top-0.5 size-5 rounded-full bg-white transition-all", w.on ? "left-[22px]" : "left-0.5")} /></button></td></tr>)}
+    </Table></Card></>;
 }

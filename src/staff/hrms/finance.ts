@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { nextSeq } from "@/server/sequence";
 import { todayISO } from "@/lib/dates";
-import { audit, loadSettings, need, type Me } from "./auth";
+import { audit, holders, loadSettings, need, notify, type Me } from "./auth";
 import { ALL_REGISTERS, GST_RATES, REGISTERS, registerOf, type Register } from "./constants";
 
 // Medoro's own books, kept as simple registers. Each HrRecord row is one line of a register: `v` holds its columns
@@ -37,6 +37,7 @@ const stats = (reg: Register, list: Row[]) => {
 /** The registers of one accounts screen, with their rows and totals. */
 export async function registers(me: Me, screen: string) {
   need(me, "finance");
+  await runOverdue();
   const regs = REGISTERS[screen] ?? [];
   return Promise.all(regs.map(async (reg) => { const list = await rows(reg.id); return { reg, rows: list, stats: stats(reg, list) }; }));
 }
@@ -141,4 +142,57 @@ export async function summary(me: Me) {
     pnl: { income: Math.round(inv.filter((d) => d.v[3] !== "Draft").reduce((a, d) => a + (d.doc?.taxable ?? num(d.v[2])), 0)), expenses: Math.round(expenses), payroll: payrollAll },
     gst, ageing: inv.filter((d) => d.v[3] === "Sent" || d.v[3] === "Overdue").map((d) => ({ no: d.v[0], client: d.v[1], amount: num(d.v[2]), on: d.on, status: d.v[3] })),
   };
+}
+
+// ── Workflows: rules that really run. Each has a switch; its run count and last run are kept in HrSetting "workflows".
+export const WORKFLOWS = [
+  { id: "overdue", name: "Mark overdue invoices", trigger: "A sent invoice passes its due date", action: "Set it to Overdue and tell Accounts" },
+  { id: "salaryjv", name: "Post the salary journal", trigger: "Payroll is processed for a month", action: "Add a journal entry: Salaries expense / Salaries payable" },
+] as const;
+type WfState = Record<string, { on: boolean; runs: number; last: string | null }>;
+const wfState = async (): Promise<WfState> => {
+  const row = await db.hrSetting.findUnique({ where: { key: "workflows" } });
+  const v = (row?.value ?? {}) as Partial<WfState>;
+  return Object.fromEntries(WORKFLOWS.map((w) => [w.id, { on: v[w.id]?.on ?? true, runs: Number(v[w.id]?.runs) || 0, last: v[w.id]?.last ?? null }]));
+};
+const wfSave = (st: WfState) => db.hrSetting.upsert({ where: { key: "workflows" }, update: { value: st }, create: { key: "workflows", value: st } });
+async function wfRan(id: string, n: number) {
+  const st = await wfState();
+  st[id] = { ...st[id], runs: st[id].runs + n, last: new Date().toISOString() };
+  await wfSave(st);
+}
+export async function workflows(me: Me) {
+  need(me, "finance");
+  await runOverdue();
+  const st = await wfState();
+  return WORKFLOWS.map((w) => ({ ...w, ...st[w.id] }));
+}
+export async function setWorkflow(me: Me, id: string, on: boolean) {
+  need(me, "finance");
+  if (!WORKFLOWS.some((w) => w.id === id)) throw new UserError("Unknown rule.");
+  const st = await wfState();
+  st[id] = { ...st[id], on };
+  await wfSave(st);
+  await audit(me, `Workflow ${on ? "switched on" : "switched off"}`, id);
+}
+/** Sent invoices past their due date become Overdue. Runs whenever the accounts screens load. */
+export async function runOverdue() {
+  if (!(await wfState()).overdue.on) return 0;
+  const today = todayISO();
+  const list = await db.hrRecord.findMany({ where: { kind: "invoices" } });
+  const late = list.filter((r) => { const d = r.data as unknown as Data; return d.v[3] === "Sent" && !!d.doc?.due && d.doc.due < today; });
+  for (const r of late) { const d = r.data as unknown as Data; const v = [...d.v]; v[3] = "Overdue"; await db.hrRecord.update({ where: { id: r.id }, data: { data: { ...d, v } } }); }
+  if (late.length) {
+    await wfRan("overdue", late.length);
+    await notify(await holders("finance"), `${late.length} invoice${late.length > 1 ? "s are" : " is"} now overdue.`, "fin_sales");
+  }
+  return late.length;
+}
+/** After payroll: one journal entry for the month's net pay, when the rule is on. */
+export async function postSalaryJournal(byId: string, monthLabel: string, net: number) {
+  if (!(await wfState()).salaryjv.on || net <= 0) return null;
+  const no = await number("JV");
+  await db.hrRecord.create({ data: { kind: "journals", data: { v: [no, "Salaries expense", "Salaries payable", String(Math.round(net)), `Salary ${monthLabel}`], on: todayISO() }, byId } });
+  await wfRan("salaryjv", 1);
+  return no;
 }

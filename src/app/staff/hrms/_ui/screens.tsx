@@ -1,15 +1,18 @@
 "use client";
 import type { Data, ScreenId, Shell } from "@/staff/hrms/screens";
-import { AttendanceScreen, CalendarScreen, HomeScreen, JobsScreen, LeaveScreen, MyTasksScreen, PayslipsScreen, ProfileScreen, SupportScreen } from "./screens-me";
-import { AllyUsageScreen, ApprovalsScreen, AssignTasksScreen, AuditScreen, CredentialsScreen, DashboardScreen, DepartmentsScreen, EmployeesScreen, HrAttendanceScreen, HrLeaveScreen, NewEmployeeScreen, OnboardingScreen, PayrollScreen, PermsScreen, PerfScreen, ProjectsScreen, RecruitScreen, ReportsScreen, SettingsScreen } from "./screens-hr";
+import { AssetsScreen, AttendanceScreen, CalendarScreen, HomeScreen, MyProjectsScreen, JobsScreen, LeaveScreen, MyTasksScreen, PayslipsScreen, ProfileScreen, SupportScreen } from "./screens-me";
+import { AllyUsageScreen, ApprovalsScreen, AssignTasksScreen, AuditScreen, CredentialsScreen, DashboardScreen, DepartmentsScreen, EmployeesScreen, HrAttendanceScreen, HrLeaveScreen, NewEmployeeScreen, OnboardingScreen, PayrollScreen, PermsScreen, PerfScreen, RecruitScreen, ReportsScreen, SettingsScreen } from "./screens-hr";
+import { ProjectsScreen } from "./screens-projects";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
-import { FinGst, FinHome, FinReports, RegisterScreen } from "./screens-fin";
+import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
 
 /** Picks the screen for the page. `data` is what that screen's loader returned. */
 export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; sh: Shell }) {
   const d = data as never;
   switch (screen) {
     case "home": return <HomeScreen d={d as Data<"home">} sh={sh} />;
+    case "myprojects": return <MyProjectsScreen d={d as Data<"myprojects">} />;
+    case "assets": return <AssetsScreen d={d as Data<"assets">} />;
     case "mytasks": return <MyTasksScreen d={d as Data<"mytasks">} />;
     case "calendar": return <CalendarScreen d={d as Data<"calendar">} sh={sh} />;
     case "attendance": return <AttendanceScreen d={d as Data<"attendance">} sh={sh} />;
@@ -17,7 +20,7 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "payslips": return <PayslipsScreen d={d as Data<"payslips">} />;
     case "jobs": return <JobsScreen d={d as Data<"jobs">} />;
     case "support": return <SupportScreen d={d as Data<"support">} />;
-    case "profile": return <ProfileScreen d={d as Data<"profile">} sh={sh} />;
+    case "profile": return <ProfileScreen d={d as Data<"profile">} />;
     case "slhome": return <SalesHome d={d as Data<"slhome">} sh={sh} />;
     case "slboard": return <LeadBoard d={d as Data<"slboard">} />;
     case "slleads": return <MyLeads d={d as Data<"slleads">} />;
@@ -40,8 +43,9 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "finhome": return <FinHome d={d as Data<"finhome">} />;
     case "fin_reports": return <FinReports d={d as Data<"fin_reports">} />;
     case "fin_gst": return <FinGst d={d as Data<"fin_gst">} />;
-    case "fin_contacts": case "fin_sales": case "fin_purchases": case "fin_accounting": case "fin_products": case "fin_banking":
+    case "fin_contacts": case "fin_salescrm": case "fin_mktgcrm": case "fin_sales": case "fin_purchases": case "fin_accounting": case "fin_products": case "fin_banking":
       return <RegisterScreen key={screen} regs={(d as Data<"fin_sales">).regs} />;
+    case "fin_workflows": return <WorkflowsScreen d={d as Data<"fin_workflows">} />;
     case "saapprovals": return <ApprovalsScreen d={d as Data<"saapprovals">} />;
     case "saperms": return <PermsScreen d={d as Data<"saperms">} />;
     case "auditlogs": return <AuditScreen d={d as Data<"auditlogs">} />;

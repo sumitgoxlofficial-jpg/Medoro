@@ -2455,6 +2455,7 @@ model HrTask {
   col        String     @default("todo") // board column: backlog, todo, progress, review, done
   projectId  String?
   project    HrProject? @relation(fields: [projectId], references: [id])
+  sprintId   String?
   comment    String     @default("")
   doneAt     DateTime?
   createdAt  DateTime   @default(now())
@@ -2605,4 +2606,45 @@ model HrRecord {
 model HrSetting {
   key   String @id
   value Json
+}
+
+/// Equipment issued to employees (laptops, monitors, access cards...).
+model HrAsset {
+  id         String    @id @default(uuid())
+  tag        String    @unique // e.g. MS-AST-0001
+  name       String
+  kind       String    @default("Laptop")
+  assigneeId String?
+  issuedOn   DateTime? @db.Date
+  status     String    @default("in_stock") // in_use, in_stock, repair, lost
+  note       String    @default("")
+  createdAt  DateTime  @default(now())
+
+  @@index([assigneeId])
+}
+
+/// A risk on a project, with who owns it and what is being done about it.
+model HrRisk {
+  id         String   @id @default(uuid())
+  projectId  String
+  title      String
+  level      String   @default("Medium") // High, Medium, Low
+  ownerId    String?
+  status     String   @default("open") // open, mitigated, closed
+  mitigation String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model HrSprint {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  startOn   DateTime @db.Date
+  endOn     DateTime @db.Date
+  goal      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
 }

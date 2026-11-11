@@ -81,7 +81,7 @@ export const presenceColor = (p: string) => (p === "active" ? "#14B8A6" : p === 
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-auto py-8 px-4 print:hidden" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-auto py-8 px-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div role="dialog" aria-label={title} className={cx("bg-white rounded-2xl shadow-2xl w-full p-5 flex flex-col gap-4", wide ? "max-w-[820px]" : "max-w-[520px]")}>
         <div className="flex items-center gap-3"><h3 className="text-[16px] font-bold flex-1">{title}</h3><button onClick={onClose} aria-label="Close" className="text-[20px] leading-none text-[#64748B] cursor-pointer bg-transparent border-0">×</button></div>
         {children}
