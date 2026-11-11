@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { MessageCircle, Mail } from "lucide-react";
 import { useT } from "@/lib/i18n-client";
+import { UDYAM } from "@/lib/udyam";
 import { WA_DEMO, Wordmark } from "./brand";
 
 const FOOT: { t: string; links: [string, string][] }[] = [
@@ -34,7 +35,7 @@ export function SiteFooter() {
           ))}
         </div>
         <div className="border-t border-[var(--s-line)] pt-6 flex justify-between gap-x-6 gap-y-3 flex-wrap text-[13.5px] text-[var(--s-muted)]">
-          <span>{t("© 2026 Medoro. Made in Bokaro for Indian pharmacies.")}</span>
+          <span>{t("© 2026 Medoro. Made in Bokaro for Indian pharmacies.")} <a href={UDYAM.verifyUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-[var(--s-ink)]">{t("Udyam-registered MSME")} · {UDYAM.number}</a></span>
           <span className="max-w-[640px]">{t("Medoro is business software. It does not give clinical advice; compliance responsibilities stay with the licensed pharmacist.")}</span>
         </div>
       </div>

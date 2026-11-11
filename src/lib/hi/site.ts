@@ -38,6 +38,7 @@ export const hi: Record<string, string> = {
   "Cancellation & refunds": "कैंसिलेशन और रिफ़ंड",
   "Cookie policy": "कुकी पॉलिसी",
   "DPDP rights": "DPDP अधिकार",
+  "Udyam-registered MSME": "उद्यम-पंजीकृत MSME",
   "© 2026 Medoro. Made in Bokaro for Indian pharmacies.": "© 2026 Medoro. भारतीय फ़ार्मेसी के लिए, बोकारो में बना।",
   "Medoro is business software. It does not give clinical advice; compliance responsibilities stay with the licensed pharmacist.":
     "Medoro एक बिज़नेस सॉफ़्टवेयर है। यह दवा या इलाज की सलाह नहीं देता; नियमों के पालन की ज़िम्मेदारी लाइसेंसधारी फ़ार्मासिस्ट की ही रहती है।",
