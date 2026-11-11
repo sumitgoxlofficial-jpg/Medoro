@@ -25,6 +25,7 @@ const ICONS: Record<string, string> = {
   file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
   sliders: '<line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/>',
   sparkle: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
 };
 const Ico = ({ n, s = 16 }: { n: string; s?: number }) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden dangerouslySetInnerHTML={{ __html: ICONS[n] ?? "" }} />;
@@ -70,7 +71,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
               {items.map((n) => (
                 <Link key={n.id} href={`/staff/hrms/${n.id}`} onClick={() => setNavOpen(false)} aria-current={n.id === screen ? "page" : undefined}
                   className={cx("flex items-center gap-2.5 px-2.5 py-[7px] rounded-[9px] text-[12.5px] font-medium", n.id === screen ? "bg-white/[.16] text-white font-semibold shadow-[inset_3px_0_0_#14B8A6]" : "text-white/70 hover:bg-white/10 hover:text-white")}>
-                  <Ico n={n.icon} s={15} />{n.label}
+                  <Ico n={n.icon} s={15} />{n.label}{n.id === "chat" && sh.chatUnread ? <span className="ml-auto bg-[#14B8A6] text-white text-[10px] font-bold rounded-full min-w-[17px] h-[17px] px-1 flex items-center justify-center" aria-label={`${sh.chatUnread} unread`}>{sh.chatUnread}</span> : null}
                 </Link>
               ))}
             </div>

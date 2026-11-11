@@ -2674,3 +2674,44 @@ model HrIdle {
   @@index([staffId, day])
   @@index([day])
 }
+
+/// Team Chat. A conversation is a direct message (dmKey = the two staff ids, sorted) or a group.
+model HrChat {
+  id          String   @id @default(uuid())
+  kind        String // dm, group
+  name        String   @default("")
+  dmKey       String?  @unique
+  createdById String
+  createdAt   DateTime @default(now())
+  lastAt      DateTime @default(now())
+
+  @@index([lastAt])
+}
+
+/// Who is in a conversation, and how far they have read (lastReadSeq drives unread counts and the read ticks).
+model HrChatMember {
+  chatId      String
+  staffId     String
+  lastReadSeq Int      @default(0)
+  fromSeq     Int      @default(0) // a person added to a group later doesn't see messages sent before
+  joinedAt    DateTime @default(now())
+
+  @@id([chatId, staffId])
+  @@index([staffId])
+}
+
+/// One message. The text and any picture are sealed with HOST_KEY: nothing readable sits in the database, and only the
+/// two people (or the group) in the chat, and the super admin through the audited review screen, can read it.
+model HrChatMessage {
+  id        String    @id @default(uuid())
+  seq       Int       @unique @default(autoincrement())
+  chatId    String
+  senderId  String
+  kind      String    @default("text") // text, image, meet
+  body      Bytes
+  image     Bytes?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([chatId, seq])
+}

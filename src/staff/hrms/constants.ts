@@ -17,7 +17,7 @@ export const DEFAULT_PERMS: Perms = {
   finance: ["payroll", "reports", "finance"], sales: [], employee: [],
 };
 
-export type IconId = "home" | "clock" | "plane" | "rupee" | "target" | "box" | "help" | "users" | "cal" | "briefcase" | "shield" | "file" | "sliders" | "sparkle";
+export type IconId = "home" | "clock" | "plane" | "rupee" | "target" | "box" | "help" | "users" | "cal" | "briefcase" | "shield" | "file" | "sliders" | "sparkle" | "chat";
 export type ScreenDef = { id: string; label: string; icon: IconId; title: string; sub: string; group?: string; roles?: HrRoleId[]; module?: ModuleId; hidden?: boolean };
 
 /** Every screen. A screen opens for the listed roles, or for anyone holding its module. */
@@ -66,6 +66,7 @@ export const SCREENS: ScreenDef[] = [
   // Super admin
   { id: "saapprovals", label: "Approvals", icon: "plane", title: "Approvals", sub: "Final sign-off on reimbursement claims", group: "ADMIN", roles: ["admin"] },
   { id: "saperms", label: "Roles & Permissions", icon: "shield", title: "Roles & Permissions", sub: "Configurable access per role", group: "ADMIN", roles: ["admin"] },
+  { id: "chatreview", label: "Chat review", icon: "shield", title: "Chat review", sub: "Open a conversation when you must. Every opening is logged", group: "ADMIN", roles: ["admin"] },
   { id: "auditlogs", label: "Audit Logs", icon: "file", title: "Audit Logs", sub: "System and user activity", group: "ADMIN", roles: ["admin"] },
   { id: "settings", label: "Settings", icon: "sliders", title: "System Settings", sub: "Workforce policy, leave policy and company details", group: "ADMIN", roles: ["admin"] },
   // Me
@@ -73,6 +74,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "leave", label: "Leave & Approvals", icon: "plane", title: "Leave", sub: "Balances, requests and reimbursement claims", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "payslips", label: "Payslips", icon: "rupee", title: "Payslips", sub: "Salary history", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "jobs", label: "Work at Medoro", icon: "briefcase", title: "Work at Medoro", sub: "Open roles · refer someone you know", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "support", label: "Support", icon: "help", title: "Support", sub: "HR helpdesk", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "profile", label: "My profile", icon: "users", title: "My profile", sub: "Personal, bank and emergency details", hidden: true, roles: ["employee", "sales", "hr", "admin", "finance"] },

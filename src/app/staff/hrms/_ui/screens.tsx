@@ -2,6 +2,7 @@
 import type { Data, ScreenId, Shell } from "@/staff/hrms/screens";
 import { AssetsScreen, AttendanceScreen, CalendarScreen, HomeScreen, MyProjectsScreen, JobsScreen, LeaveScreen, MyTasksScreen, PayslipsScreen, ProfileScreen, SupportScreen } from "./screens-me";
 import { AllyUsageScreen, ApprovalsScreen, AssignTasksScreen, AuditScreen, CredentialsScreen, DashboardScreen, DepartmentsScreen, EmployeesScreen, HrAttendanceScreen, HrLeaveScreen, NewEmployeeScreen, OnboardingScreen, PayrollScreen, PermsScreen, PerfScreen, RecruitScreen, ReportsScreen, SettingsScreen } from "./screens-hr";
+import { ChatReviewScreen, ChatScreen } from "./screens-chat";
 import { ProjectsScreen } from "./screens-projects";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
 import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
@@ -19,6 +20,8 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "leave": return <LeaveScreen d={d as Data<"leave">} />;
     case "payslips": return <PayslipsScreen d={d as Data<"payslips">} />;
     case "jobs": return <JobsScreen d={d as Data<"jobs">} />;
+    case "chat": return <ChatScreen d={d as Data<"chat">} />;
+    case "chatreview": return <ChatReviewScreen d={d as Data<"chatreview">} />;
     case "support": return <SupportScreen d={d as Data<"support">} />;
     case "profile": return <ProfileScreen d={d as Data<"profile">} />;
     case "slhome": return <SalesHome d={d as Data<"slhome">} sh={sh} />;
