@@ -49,6 +49,20 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 * **Ally.** Answers from the employee's own records. With a local model on this server (`AI_MODE=local`) the same facts
   are given to it to phrase the answer; HR data never goes to a remote provider.
 
+## Google Calendar
+
+Each employee can connect their own Google Calendar under **Calendar → Google Calendar → Connect**. Their Google events then
+show in the HRMS month view, and a meeting scheduled in the HRMS can be added to Google Calendar with a **Google Meet link**
+and email invitations (sent by Google to the attendees' official emails). Cancelling the meeting removes the Google event.
+
+* Only the `calendar.events` scope is requested (read and create events; no contacts, no mail, no other calendars' settings).
+  The refresh token is sealed with `HOST_KEY`; **Disconnect** revokes it at Google and forgets it.
+* A Google problem never blocks the HRMS: meetings are still created, and the screen says what Google refused.
+* One-time server setup, in the Google Cloud project of `GOOGLE_OAUTH_CLIENT_ID`: enable the **Google Calendar API**, add the
+  scope `.../auth/calendar.events` to the OAuth consent screen, and add the redirect URI
+  `<APP_URL>/staff/hrms/google/callback` (or set `GOOGLE_CALENDAR_REDIRECT_URI`) to the client's authorised redirect URIs.
+  While the consent screen is in *Testing*, only listed test users can connect.
+
 ## Sign-in security
 
 Argon2id passwords (12+ characters), lockout after 5 wrong tries for 15 minutes (per ID and per IP), one-time passwords

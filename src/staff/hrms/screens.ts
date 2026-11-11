@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
+import { listEvents, status as gcalStatus } from "./gcal";
 import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary } from "./finance";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
@@ -40,12 +41,19 @@ export const loaders = {
   mytasks: async (me: Me) => ({ tasks: await myTasks(me), projects: await myProjects(me) }),
   calendar: async (me: Me, q: Q) => {
     const month = monthArg(q.m), first = month + "-01", last = addDays(addMonths(month, 1) + "-01", -1);
-    const [hols, out, meets, all] = await Promise.all([
+    const [hols, out, meets, all, g] = await Promise.all([
       holidays(first, last), whosOut(first, last),
-      meetings(me, new Date(`${first}T00:00:00+05:30`), new Date(`${addDays(last, 1)}T00:00:00+05:30`)), people(),
+      meetings(me, new Date(`${first}T00:00:00+05:30`), new Date(`${addDays(last, 1)}T00:00:00+05:30`)), people(), gcalStatus(me.id),
     ]);
     const upcoming = await meetings(me, new Date(Date.now() - 2 * 3600_000), new Date(Date.now() + 60 * 86400_000));
-    return { month, hols, out, meets, upcoming, people: all, canHolidays: can(me, "attendance"), nextHols: await upcomingHolidays() };
+    // Google events for the month. A Google problem shows as a message; it never breaks the page.
+    let gEvents: Awaited<ReturnType<typeof listEvents>> = [], gError = "";
+    if (g.connected) {
+      try { gEvents = await listEvents(me, new Date(`${first}T00:00:00+05:30`).toISOString(), new Date(`${addDays(last, 1)}T00:00:00+05:30`).toISOString()); }
+      catch (e) { gError = e instanceof Error ? e.message : "Couldn’t read Google Calendar."; }
+    }
+    const notice = q.google === "connected" ? "Google Calendar connected." : q.google === "denied" ? "Google Calendar wasn’t connected: access was not allowed." : q.google === "off" ? "Google Calendar isn’t set up on this server yet. Ask the super admin." : q.google === "failed" ? (q.why ?? "Couldn’t connect Google Calendar.").slice(0, 200) : q.google === "error" ? "Couldn’t connect Google Calendar. Try again." : "";
+    return { month, hols, out, meets, upcoming, people: all, canHolidays: can(me, "attendance"), nextHols: await upcomingHolidays(), google: { ...g, events: gEvents, error: gError, notice } };
   },
   attendance: async (me: Me, q: Q) => {
     const s = await loadSettings(), month = monthArg(q.m);
