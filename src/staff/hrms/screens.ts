@@ -4,11 +4,11 @@ import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
 import { listEvents, status as gcalStatus } from "./gcal";
-import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
+import { DESIGN_NAV, EMPLOYEE_GROUPS, EXTRA_NAV, HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
-import { chatList, chatPeople, reviewChats, reviewPeople, unreadTotal } from "./chat";
+import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
@@ -20,12 +20,28 @@ const monthArg = (v: string | undefined) => (v && /^\d{4}-(0[1-9]|1[0-2])$/.test
 const upcomingHolidays = () => holidays(todayISO(), addDays(todayISO(), 365)).then((h) => h.slice(0, 6));
 const people = async () => (await roster()).map((p) => ({ id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, role: p.role }));
 
+const iconOf = (id: string) => SCREENS.find((x) => x.id === id)?.icon ?? "file";
+/** The side menu: the design's list for the role (plus Team Chat), only what the person may open. */
+function navFor(me: Me) {
+  const open = new Set(screensFor(me.role, me.perms).map((x) => x.id));
+  return [...DESIGN_NAV[me.role], ...EXTRA_NAV].filter(([id]) => open.has(id))
+    .map(([id, label]) => ({ id, label, icon: iconOf(id), group: me.role === "employee" ? EMPLOYEE_GROUPS[id] ?? "" : "" }))
+    // Headings apply from where they start; carry them forward so the menu groups under WORK / ME / COMPANY.
+    .map((n, i, all) => ({ ...n, group: me.role === "employee" ? [...all.slice(0, i + 1)].reverse().find((x) => x.group)?.group ?? "" : "" }))
+    .filter((n, i, all) => all.findIndex((x) => x.id === n.id) === i);
+}
+/** Screens the person can open that the design's menu doesn't list (shown under "More" in the account menu). */
+function moreFor(me: Me) {
+  const listed = new Set([...DESIGN_NAV[me.role], ...EXTRA_NAV].map(([id]) => id));
+  return screensFor(me.role, me.perms).filter((x) => !x.hidden && !listed.has(x.id) && !(x.id === HOME_OF[me.role])).map((x) => ({ id: x.id, label: x.label }));
+}
+
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
 export async function shell(me: Me) {
   const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
-    nav: screensFor(me.role, me.perms).filter((x) => !x.hidden).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" })),
+    nav: navFor(me), more: moreFor(me),
     home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(), chatUnread,
   };
 }
@@ -72,7 +88,11 @@ export const loaders = {
   },
   payslips: async (me: Me) => ({ slips: await myPayslips(me.id) }),
   jobs: async () => ({ jobs: await jobs(true) }),
-  chat: async (me: Me, q: Q) => ({ chats: await chatList(me), people: await chatPeople(me), meId: me.id, open: q.c ?? "", google: (await gcalStatus(me.id)).connected, isAdmin: me.role === "admin" }),
+  chat: async (me: Me, q: Q) => {
+    await syncChannels();
+    const [chats, people, mine, g] = await Promise.all([chatList(me), chatPeople(me), myChatProfile(me), gcalStatus(me.id)]);
+    return { chats, people, me: mine, open: q.c ?? "", google: g.connected, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
+  },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   profile: async (me: Me) => ({ p: await myProfile(me) }),

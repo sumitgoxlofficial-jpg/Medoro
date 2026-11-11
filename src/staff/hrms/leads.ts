@@ -80,7 +80,8 @@ export async function logCall(me: Me, id: string, note: string) {
 /** The salesperson's month: won against target, pipeline, follow-ups due and incentive earned. */
 export async function salesSummary(me: Me) {
   const ym = todayISO().slice(0, 7);
-  const [leads, inc, profile, team] = await Promise.all([myLeads(me), incentives(ym), db.hrProfile.findUnique({ where: { staffId: me.id } }), teamBoard()]);
+  const inc = await incentives(ym); // worked out once and shared with the leaderboard
+  const [leads, profile, team] = await Promise.all([myLeads(me), db.hrProfile.findUnique({ where: { staffId: me.id } }), teamBoard(inc)]);
   const mineInc = inc.get(me.id) ?? { won: 0, value: 0, incentive: 0 };
   return {
     leads, target: profile?.monthlyTarget ?? 40, wonMonth: mineInc.won, value: mineInc.value, incentive: mineInc.incentive, pct: Number(profile?.incentivePct ?? 0),
@@ -88,11 +89,11 @@ export async function salesSummary(me: Me) {
   };
 }
 /** Leaderboard for the month: every salesperson's wins against target. */
-export async function teamBoard() {
+export async function teamBoard(known?: Awaited<ReturnType<typeof incentives>>) {
   const ym = todayISO().slice(0, 7);
   const [people, inc, counts] = await Promise.all([
     db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true, hr: { select: { monthlyTarget: true, incentivePct: true, location: true } } }, orderBy: { name: "asc" } }),
-    incentives(ym),
+    known ?? incentives(ym),
     db.lead.groupBy({ by: ["staffId", "stage"], _count: true }),
   ]);
   return people.map((u) => {

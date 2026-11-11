@@ -3,7 +3,8 @@
 // DB triggers in the init migration block UPDATE/DELETE on them.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"] // one joined query instead of several for include (used on the hot sign-in path)
 }
 
 datasource db {
@@ -2327,6 +2328,7 @@ model HrProfile {
   photo              String? // small data: URL chosen by the employee
   presence           String    @default("offline") // active, break, offline
   presenceNote       String    @default("")
+  chatAvatar         String    @default("") // an emoji shown beside chat messages; empty means the profile photo
   presenceAt         DateTime?
   otpHash            String? // one-time password issued by HR (argon2)
   otpExpiresAt       DateTime?
@@ -2681,6 +2683,9 @@ model HrChat {
   kind        String // dm, group
   name        String   @default("")
   dmKey       String?  @unique
+  sysKey      String?  @unique // company channels kept in step with the team: all, dept:<name>, project:<id>
+  about       String   @default("")
+  photo       String? // small data: URL
   createdById String
   createdAt   DateTime @default(now())
   lastAt      DateTime @default(now())
@@ -2694,6 +2699,7 @@ model HrChatMember {
   staffId     String
   lastReadSeq Int      @default(0)
   fromSeq     Int      @default(0) // a person added to a group later doesn't see messages sent before
+  typingAt    DateTime?
   joinedAt    DateTime @default(now())
 
   @@id([chatId, staffId])
@@ -2714,4 +2720,22 @@ model HrChatMessage {
   createdAt DateTime  @default(now())
 
   @@index([chatId, seq])
+}
+
+/// An emoji reaction on a message (one row per person and emoji).
+model HrChatReaction {
+  messageId String
+  staffId   String
+  emoji     String
+
+  @@id([messageId, staffId, emoji])
+}
+
+/// A vote in a poll message (one row per person and option; single-choice polls keep one).
+model HrChatVote {
+  messageId String
+  staffId   String
+  option    Int
+
+  @@id([messageId, staffId, option])
 }

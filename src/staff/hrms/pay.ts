@@ -49,8 +49,11 @@ export function computeSlip(ctc: number, o: { workDays: number; lopDays: number;
 export async function incentives(ym: string) {
   const from = new Date(`${ym}-01T00:00:00+05:30`);
   const to = new Date(`${addMonths(ym, 1)}-01T00:00:00+05:30`);
-  const wins = await db.leadLog.findMany({ where: { text: { startsWith: "Won" }, at: { gte: from, lt: to } }, include: { lead: { select: { staffId: true, product: true, stage: true } } } });
-  const rates = new Map((await db.hrProfile.findMany({ where: { role: "sales" }, select: { staffId: true, incentivePct: true } })).map((p) => [p.staffId, Number(p.incentivePct)]));
+  const [wins, rateRows] = await Promise.all([
+    db.leadLog.findMany({ where: { text: { startsWith: "Won" }, at: { gte: from, lt: to } }, include: { lead: { select: { staffId: true, product: true, stage: true } } }, relationLoadStrategy: "join" }),
+    db.hrProfile.findMany({ where: { role: "sales" }, select: { staffId: true, incentivePct: true } }),
+  ]);
+  const rates = new Map(rateRows.map((p) => [p.staffId, Number(p.incentivePct)]));
   const out = new Map<string, { won: number; value: number; incentive: number }>();
   const seen = new Set<string>();
   for (const w of wins) {

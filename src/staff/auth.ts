@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { db } from "@/server/db";
 import { clientInfo } from "@/server/auth";
+import { defer } from "@/server/defer";
 import { UserError, type ActionResult } from "@/server/action";
 import type { StaffRoleId } from "./constants";
 import { log } from "@/server/log";
@@ -48,11 +49,11 @@ export async function createStaffSession(staffId: string, tokenVersion: number, 
 export async function readStaffSession(allowPendingMfa = false, hrms = false) {
   const token = (await cookies()).get(STAFF_COOKIE)?.value;
   if (!token) return null;
-  const s = await db.staffSession.findUnique({ where: { id: sha(token) }, include: { staff: true } });
+  const s = await db.staffSession.findUnique({ where: { id: sha(token) }, include: { staff: { include: { hr: true } } }, relationLoadStrategy: "join" });
   if (!s || s.revokedAt || s.expiresAt < new Date() || s.tokenVersion !== s.staff.tokenVersion || s.staff.status !== "active") return null;
   if (!s.mfaPassed && !allowPendingMfa) return null;
   if (s.kind === "hrms" && !hrms && s.staff.role !== "sales") return null;
-  if (Date.now() - s.lastSeenAt.getTime() > 60_000) await db.staffSession.update({ where: { id: s.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
+  if (Date.now() - s.lastSeenAt.getTime() > 60_000) await defer(() => db.staffSession.update({ where: { id: s.id }, data: { lastSeenAt: new Date() } }));
   return s;
 }
 

@@ -368,5 +368,5 @@ export async function saveOffer(me: Me, id: string, raw: z.input<typeof offerSch
 export async function candidates(me: Me) {
   need(me, "recruitment");
   const [rows, names] = await Promise.all([db.hrCandidate.findMany({ where: { stage: { not: "rejected" } }, orderBy: { createdAt: "desc" }, take: 300 }), nameMap()]);
-  return rows.map((c) => ({ id: c.id, jobId: c.jobId, name: c.name, email: c.email, phone: c.phone, role: c.role, note: c.note, score: c.score, stage: c.stage, offer: c.offer as (z.infer<typeof offerSchema> & { by: string; on: string }) | null, referredBy: c.referredBy ? names.get(c.referredBy) ?? "" : "" }));
+  return rows.map((c) => ({ id: c.id, jobId: c.jobId, name: c.name, email: c.email, phone: c.phone, role: c.role, note: c.note, score: c.score, stage: c.stage, offer: c.offer as (z.infer<typeof offerSchema> & { by: string; on: string; sentOn?: string }) | null, referredBy: c.referredBy ? names.get(c.referredBy) ?? "" : "" }));
 }

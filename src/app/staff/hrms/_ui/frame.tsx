@@ -3,9 +3,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
-import { HR_ROLE_LABEL, ONBOARD_STEPS, BREAKS } from "@/staff/hrms/constants";
-import { acceptDocuments, askAlly, endBreak, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
+import { HR_ROLE_LABEL, NO_TITLE_SCREENS, ONBOARD_STEPS, BREAKS } from "@/staff/hrms/constants";
+import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
+import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
+import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
 import { IdleWatcher } from "./monitor";
 import { Screen } from "./screens";
@@ -50,12 +52,13 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const toggleNight = () => setNight((n) => { try { localStorage.setItem("hrms.night", n ? "0" : "1"); } catch { /* private window */ } return !n; });
   // Keep presence fresh and pick up new notifications.
   useEffect(() => { const t = setInterval(() => router.refresh(), 60_000); return () => clearInterval(t); }, [router]);
+  useEffect(() => { const open = () => setAlly(true); window.addEventListener("hrms:ally", open); return () => window.removeEventListener("hrms:ally", open); }, []);
   if (gate) return <Gate gate={gate} sh={sh} />;
   const unread = sh.notes.filter((n) => n.unread).length;
   const groups: [string, typeof sh.nav][] = [];
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
-  const greet = screen === sh.home ? `${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
-  const subtitle = screen === sh.home ? `${HR_ROLE_LABEL[sh.me.role]} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}` : sub;
+  const greet = screen === sh.home && screen === "slhome" ? `${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
+  const subtitle = screen === sh.home && screen === "slhome" ? `${HR_ROLE_LABEL[sh.me.role]} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}` : sub;
   return (
     <div className="flex min-h-screen print:block">
       <aside className={cx("w-[210px] flex-none bg-[#0B5E5B] text-white flex-col px-3 py-5 sticky top-0 h-screen print:hidden", navOpen ? "flex fixed z-40 left-0 top-0" : "hidden min-[860px]:flex")}>
@@ -85,7 +88,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
           <button className="min-[860px]:hidden border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          <div className="min-w-0 mr-auto"><h1 className="text-[19px] font-bold truncate">{greet}</h1>{subtitle ? <p className="text-[12.5px] text-[#64748B] truncate">{subtitle}</p> : null}</div>
+          {NO_TITLE_SCREENS.includes(screen) ? <div className="mr-auto" /> : <div className="min-w-0 mr-auto"><h1 className="text-[19px] font-bold truncate">{greet}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>}
           {sh.onBreak
             ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0">On break: {sh.onBreak.kind} · end break</button>
             : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
@@ -114,6 +117,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             {menu ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl w-[240px] p-1.5">
               <div className="px-3 py-2 border-b border-[#F1F5F9] mb-1"><div className="text-[13.5px] font-bold">{sh.me.name}</div><div className="text-[11.5px] text-[#64748B]">{sh.me.empNo} · {sh.me.designation || HR_ROLE_LABEL[sh.me.role]}</div></div>
               <Link href="/staff/hrms/profile" onClick={() => setMenu(false)} className="block px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9]">My profile</Link>
+              {sh.more.length ? <><div className="px-3 pt-2 pb-1 text-[10px] font-bold tracking-[.1em] text-[#94A3B8] border-t border-[#F1F5F9] mt-1">MORE</div><div className="max-h-[240px] overflow-y-auto">{sh.more.map((m) => <Link key={m.id} href={`/staff/hrms/${m.id}`} onClick={() => setMenu(false)} className="block px-3 py-1.5 rounded-lg text-[12.5px] hover:bg-[#F1F5F9]">{m.label}</Link>)}</div></> : null}
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => { setMenu(false); setPw(true); }}>Change password</button>
               {sh.me.growth ? <Link href="/staff/growth/my-work" className="block px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9]">Open lead tools</Link> : null}
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#B3261E] hover:bg-[#FDECEA] cursor-pointer bg-transparent border-0" onClick={() => void hrSignOut()}>Sign out</button>
@@ -154,7 +158,8 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "docs"; sh: Shell }
   const at = gate === "password" ? 0 : gate === "profile" ? 1 : 2;
   const { run, busy } = useRun();
   const [agree, setAgree] = useState([false, false, false]);
-  const docs = ["Offer letter", "Appointment letter", "Non-disclosure agreement"];
+  const docs: [LetterType, string][] = JOINING_LETTERS.map((t) => [t, letterLabel(t)]);
+  const v = useLetterView();
   return (
     <div className="max-w-[760px] mx-auto px-4 py-10 flex flex-col gap-5">
       <div className="flex items-center gap-3">
@@ -168,14 +173,16 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "docs"; sh: Shell }
       {gate === "docs" ? (
         <Card title="Joining documents" sub="Read each one, then accept." pad>
           <div className="flex flex-col gap-3">
-            {docs.map((d, i) => (
-              <label key={d} className="flex items-start gap-3 border border-[#E2E8F0] rounded-xl p-3.5 cursor-pointer">
-                <input type="checkbox" className="mt-1" checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />
+            {docs.map(([t, d], i) => (
+              <div key={t} className="flex items-start gap-3 border border-[#E2E8F0] rounded-xl p-3.5">
+                <input type="checkbox" className="mt-1" aria-label={`I have read and accept the ${d.toLowerCase()}`} checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />
                 <span><strong className="text-[13.5px]">{d}</strong><span className="block text-[12.5px] text-[#64748B]">{i === 0 ? "Your role, pay and joining date as agreed." : i === 1 ? "Terms of your employment at Medoro, including notice period and leave policy." : "You agree to keep Medoro and pharmacy customer data confidential."} HR can share the signed copies on request.</span></span>
-              </label>
+                <button type="button" className={cx(btnCls, "ml-auto")} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>Read</button>
+              </div>
             ))}
             <p className="text-[12px] text-[#64748B]">Accepting is recorded with today’s date. Steps: {ONBOARD_STEPS.length} onboarding tasks follow with HR.</p>
             <button className={primaryCls} disabled={busy || !agree.every(Boolean)} onClick={() => run(() => acceptDocuments())}>Accept and enter the HRMS</button>
+            {v.open ? <LetterModal letter={v.open.letter} pdf={v.open.pdf} onClose={v.close} /> : null}
           </div>
         </Card>
       ) : null}

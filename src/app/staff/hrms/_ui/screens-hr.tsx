@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
 import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
-import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
+import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
+import { LettersPanel, OfferModal } from "./letters";
 import { AnnounceModal, PayslipView } from "./screens-me";
 
 type P = { sh: Shell };
@@ -48,16 +49,17 @@ function EmployeeTable({ people }: { people: Data<"hremployees">["people"] }) {
 type Person = Data<"hremployees">["people"][number];
 export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
   const { run, busy } = useRun();
-  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null);
+  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null);
   const list = d.people.filter((p) => `${p.name} ${p.dept} ${p.empNo} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Card title="Employee directory" sub={`${d.people.filter((p) => p.status !== "deactivated").length} active · ${d.depts.length} departments`} right={<><input className={cx(inputCls, "!w-56")} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /><Link href="/staff/hrms/hrnewemp" className={primaryCls}>+ Create employee profile</Link></>}>
         <Table head={["Name", "Department", "Designation", "Access", "Status", ""]} empty={list.length ? undefined : "No match."}>
           {list.map((p) => <tr key={p.id}><td className={tdCls}><div className="flex items-center gap-2.5"><Avatar name={p.name} photo={p.photo} size={30} /><div><strong>{p.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{p.empNo} · {p.email}</div></div></div></td><td className={tdCls}>{p.dept || "—"}</td><td className={tdCls}>{p.designation || "—"}</td><td className={tdCls}>{HR_ROLE_LABEL[p.role]}</td><td className={tdCls}><Pill tone={statusTone(p.status)}>{p.status === "invited" ? "Not signed in" : p.status}</Pill></td>
-            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : <button className={dangerCls} onClick={() => { if (confirm(`Deactivate ${p.name}? They are signed out everywhere.`)) run(() => setEmployeeActive(p.id, false)); }}>Deactivate</button>) : null}</div></td></tr>)}
+            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : <button className={dangerCls} onClick={() => { if (confirm(`Deactivate ${p.name}? They are signed out everywhere.`)) run(() => setEmployeeActive(p.id, false)); }}>Deactivate</button>) : null}</div></td></tr>)}
         </Table>
       </Card>
+      {letters ? <LettersPanel staffId={letters.id} name={letters.name} onClose={() => setLetters(null)} /> : null}
       {edit ? <EditModal p={edit} d={d} onClose={() => setEdit(null)} busy={busy} run={run} /> : null}
       {bal ? <LeaveModal p={bal} onClose={() => setBal(null)} /> : null}
       {otp ? <Modal title="One-time password" onClose={() => setOtp(null)}><p className="text-[13.5px]">Give this to {otp.name} ({otp.empNo}). It works for one sign-in within 24 hours; they then set a new password.</p><code className="block text-center text-[22px] font-bold tracking-wider bg-[#F1F5F9] rounded-xl py-3 select-all">{otp.otp}</code><button className={btnCls} onClick={() => navigator.clipboard?.writeText(otp.otp)}>Copy</button><p className="text-[12px] text-[#64748B]">It isn’t stored anywhere readable. Close this and it can’t be shown again.</p></Modal> : null}
@@ -94,7 +96,7 @@ function LeaveModal({ p, onClose }: { p: Person; onClose: () => void }) {
 export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
   const { run, busy } = useRun();
   const blank = { name: "", personalEmail: "", phone: "", dept: d.depts[0]?.name ?? "", designation: "", role: "employee", empType: "Full-time", joinDate: "", ctc: "", location: "", managerId: "", incentivePct: "0" };
-  const [v, setV] = useState(blank), [email, setEmail] = useState(""), [made, setMade] = useState<{ empNo: string; email: string; temp: string; mailed: boolean; name: string } | null>(null);
+  const [v, setV] = useState(blank), [email, setEmail] = useState(""), [made, setMade] = useState<{ id: string; empNo: string; email: string; temp: string; mailed: boolean; name: string } | null>(null), [letters, setLetters] = useState<{ id: string; name: string } | null>(null);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const preview = async (name: string) => { if (name.trim().split(/\s+/).length < 2) return setEmail(""); const r = await previewOfficialEmail(name); if (r.ok) setEmail(r.data); };
   return (
@@ -126,7 +128,9 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
           <p className="text-[12.5px] text-[#64748B] mt-4 border-t border-[#F1F5F9] pt-3">On first sign-in the employee must set their own password, fill in personal, bank and emergency details, and accept the offer letter, appointment letter and non-disclosure agreement.</p>
         </Card>
       </div>
+      {letters ? <LettersPanel staffId={letters.id} name={letters.name} onClose={() => setLetters(null)} /> : null}
       {made ? <Modal title={`${made.name} is ready`} onClose={() => setMade(null)}>
+        <p className="text-[13px] text-[#0B5E5B] bg-[#D6F3EF] rounded-lg px-3 py-2">✓ Offer letter, appointment letter and non-disclosure agreement were generated from the details you entered. <button className="underline bg-transparent border-0 cursor-pointer text-[#0B5E5B] font-semibold" onClick={() => setLetters({ id: made.id, name: made.name })}>View, print or email them</button></p>
         <p className="text-[13.5px]">Share these once, privately. {made.mailed ? "They were also emailed to the personal address." : "Email isn’t set up on this server, so they were not emailed."}</p>
         <div className="bg-[#F1F5F9] rounded-xl p-4 text-[14px] leading-7">Employee ID: <strong>{made.empNo}</strong><br />Official email: <strong>{made.email}</strong><br />Temporary password: <strong className="select-all">{made.temp}</strong></div>
         <div className="flex gap-2"><button className={btnCls} onClick={() => navigator.clipboard?.writeText(`Employee ID: ${made.empNo}\nOfficial email: ${made.email}\nTemporary password: ${made.temp}`)}>Copy</button><Link className={primaryCls} href="/staff/hrms/hremployees">Go to employees</Link></div>
@@ -264,9 +268,9 @@ export function AssignTasksScreen({ d }: { d: Data<"assigntasks"> }) {
 }
 // ── Recruitment
 export function RecruitScreen({ d }: { d: Data<"recruit"> }) {
-  const { run, busy } = useRun();
+  const { run, busy } = useRun(), router = useRouter();
   const [job, setJob] = useState({ title: "", dept: d.depts[0]?.name ?? "", location: "Bokaro", type: "Full-time" }), [cand, setCand] = useState({ jobId: "", name: "", email: "", phone: "", note: "", score: "" });
-  const [offer, setOffer] = useState<{ id: string; name: string; position: string; empType: string; pay: string; joinDate: string; mode: string; terms: string } | null>(null), [view, setView] = useState<{ name: string; o: NonNullable<Data<"recruit">["cands"][number]["offer"]> } | null>(null);
+  const [offer, setOffer] = useState<{ id: string; name: string; position: string; empType: string; pay: string; joinDate: string; mode: string; terms: string } | null>(null), [view, setView] = useState<{ id: string; name: string; o: NonNullable<Data<"recruit">["cands"][number]["offer"]> } | null>(null);
   return <>
     <Card title={`Active job openings · ${d.jobs.filter((j) => j.status === "active").length}`} pad>
       {d.jobs.map((j) => <div key={j.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-xl px-4 py-2.5 mb-2"><div className="flex-1"><strong className="text-[13.5px]">{j.title}</strong><div className="text-[12px] text-[#64748B]">{j.dept} · {j.location} · {j.type}</div></div><span className="text-[12px] text-[#64748B]">{j.applicants} applicants</span><Pill tone={j.status === "active" ? "green" : "gray"}>{j.status}</Pill><button className={btnCls} onClick={() => run(() => setJobOpen(j.id, j.status !== "active"))}>{j.status === "active" ? "Close job" : "Reopen"}</button></div>)}
@@ -278,12 +282,12 @@ export function RecruitScreen({ d }: { d: Data<"recruit"> }) {
     <Grid n={4}>{CAND_STAGES.map((s) => <Card key={s.id} title={s.label} right={<Pill tone="gray">{d.cands.filter((c) => c.stage === s.id).length}</Pill>} pad>
       {d.cands.filter((c) => c.stage === s.id).map((c) => <div key={c.id} className="border border-[#E2E8F0] rounded-xl p-2.5 mb-2 text-[12.5px]"><div className="flex justify-between"><strong>{c.name}</strong>{c.score !== null ? <Pill tone="green">Score {c.score}</Pill> : <button className="text-[11.5px] text-[#0B5E5B] cursor-pointer bg-transparent border-0 p-0" onClick={() => { const v = prompt("Screening score (0–100)"); if (v !== null && v !== "") run(() => scoreCandidate(c.id, Number(v))); }}>Add score</button>}</div><div className="text-[#64748B]">{c.role}{c.referredBy ? ` · referred by ${c.referredBy}` : ""}</div>{c.email || c.phone ? <div className="text-[11.5px] text-[#94A3B8]">{c.email} {c.phone}</div> : null}
         <div className="flex gap-1 mt-1.5 flex-wrap">{s.id !== "hired" ? <button className={btnCls} onClick={() => run(() => moveCandidate(c.id, CAND_STAGES[CAND_STAGES.findIndex((x) => x.id === s.id) + 1].id))}>Move to {CAND_STAGES[CAND_STAGES.findIndex((x) => x.id === s.id) + 1].label} →</button> : null}
-          {s.id === "offer" || s.id === "interview" ? <button className={btnCls} onClick={() => (c.offer ? setView({ name: c.name, o: c.offer }) : setOffer({ id: c.id, name: c.name, position: c.role, empType: "Full-time", pay: "", joinDate: "", mode: "On-site", terms: "" }))}>{c.offer ? "View offer" : "Offer letter"}</button> : null}
+          {s.id === "offer" || s.id === "interview" ? <button className={btnCls} onClick={() => (c.offer ? setView({ id: c.id, name: c.name, o: c.offer }) : setOffer({ id: c.id, name: c.name, position: c.role, empType: "Full-time", pay: "", joinDate: "", mode: "On-site", terms: "" }))}>{c.offer ? "View offer" : "Offer letter"}</button> : null}
           {s.id === "offer" && c.offer ? <button className={btnCls} onClick={() => setOffer({ id: c.id, name: c.name, ...c.offer! })}>Edit</button> : null}<button className={dangerCls} onClick={() => run(() => moveCandidate(c.id, "rejected"))}>Reject</button></div></div>)}</Card>)}</Grid>
     {offer ? <Modal title={`Offer letter · ${offer.name}`} onClose={() => setOffer(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => saveOffer(offer.id, offer), () => { setOffer(null); }); }}>
       <Grid n={3}><Field label="Position"><input className={inputCls} value={offer.position} onChange={(e) => setOffer({ ...offer, position: e.target.value })} required /></Field><Field label="Type"><select className={inputCls} value={offer.empType} onChange={(e) => setOffer({ ...offer, empType: e.target.value })}>{EMP_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field><Field label="Pay"><input className={inputCls} value={offer.pay} onChange={(e) => setOffer({ ...offer, pay: e.target.value })} placeholder="₹ 4,80,000 per year" required /></Field><Field label="Joining date"><input className={inputCls} type="date" value={offer.joinDate} onChange={(e) => setOffer({ ...offer, joinDate: e.target.value })} required /></Field><Field label="Mode"><select className={inputCls} value={offer.mode} onChange={(e) => setOffer({ ...offer, mode: e.target.value })}><option>On-site</option><option>Hybrid</option><option>Remote</option></select></Field></Grid>
       <Field label="Other terms"><textarea className={inputCls} rows={3} value={offer.terms} onChange={(e) => setOffer({ ...offer, terms: e.target.value })} /></Field><button className={primaryCls} disabled={busy}>Save offer letter</button></form></Modal> : null}
-    {view ? <Modal title="Offer letter" onClose={() => setView(null)} wide><div className="print-area bg-white text-[13.5px] leading-7 border border-[#E2E8F0] rounded-xl p-6"><strong>Medoro</strong> · {dayLabel(view.o.on)}<br /><br />Dear {view.name},<br />We are pleased to offer you the position of <strong>{view.o.position}</strong> ({view.o.empType}, {view.o.mode}) at Medoro, starting <strong>{dayLong(view.o.joinDate)}</strong>, at <strong>{view.o.pay}</strong>.{view.o.terms ? <><br /><br />{view.o.terms}</> : null}<br /><br />Please reply to accept.<br /><br />{view.o.by}, HR</div><button className={primaryCls} onClick={() => window.print()}>Print / save as PDF</button></Modal> : null}
+    {view ? <OfferModal id={view.id} sent={view.o.sentOn ?? null} onClose={() => setView(null)} onSent={() => router.refresh()} /> : null}
   </>;
 }
 
