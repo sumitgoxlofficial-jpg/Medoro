@@ -14,6 +14,7 @@ import * as leads from "@/staff/hrms/leads";
 import * as fin from "@/staff/hrms/finance";
 import * as ally from "@/staff/hrms/ally";
 import * as gcal from "@/staff/hrms/gcal";
+import * as assets from "@/staff/hrms/assets";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -88,6 +89,11 @@ export const setTaskDone = async (id: string, on: boolean, comment = "") => done
 export const moveTask = async (id: string, col: string) => done(await hrRun((me) => work.moveTask(me, id, col)));
 export const deleteTask = async (id: string) => done(await hrRun((me) => work.deleteTask(me, id), "Removed."));
 export const saveProject = async (input: In<typeof work.saveProject>) => done(await hrRun((me) => work.saveProject(me, input), "Project saved."));
+export const saveRisk = async (input: In<typeof work.saveRisk>) => done(await hrRun((me) => work.saveRisk(me, input), "Risk saved."));
+export const deleteRisk = async (id: string) => done(await hrRun((me) => work.deleteRisk(me, id), "Risk removed."));
+export const saveSprint = async (input: In<typeof work.saveSprint>) => done(await hrRun((me) => work.saveSprint(me, input), "Sprint saved."));
+export const deleteSprint = async (id: string) => done(await hrRun((me) => work.deleteSprint(me, id), "Sprint deleted."));
+export const setTaskSprint = async (taskId: string, sprintId: string | null) => done(await hrRun((me) => work.setTaskSprint(me, taskId, sprintId)));
 export const deleteProject = async (id: string) => done(await hrRun((me) => work.deleteProject(me, id), "Project deleted."));
 export const postAnnouncement = async (input: In<typeof work.postAnnouncement>) => done(await hrRun((me) => work.postAnnouncement(me, input), "Announcement posted to everyone."));
 export const deleteAnnouncement = async (id: string) => done(await hrRun((me) => work.deleteAnnouncement(me, id), "Announcement removed."));
@@ -128,3 +134,11 @@ export const openInvoice = async (id: string) => hrRun((me) => fin.invoice(me, i
 // ── Super admin
 export const saveSettings = async (input: Settings) => done(await hrRun((me) => people.saveSettings(me, input), "Settings saved."));
 export const togglePerm = async (role: string, moduleId: string) => done(await hrRun((me) => people.togglePerm(me, role, moduleId)));
+
+// ── Assets and workflows
+export const addAsset = async (input: In<typeof assets.addAsset>) => done(await hrRun((me) => assets.addAsset(me, input), "Asset added."));
+export const issueAsset = async (id: string, staffId: string) => done(await hrRun((me) => assets.issueAsset(me, id, staffId), "Issued."));
+export const returnAsset = async (id: string, status: "in_stock" | "repair" | "lost" = "in_stock") => done(await hrRun((me) => assets.returnAsset(me, id, status), "Taken back."));
+export const setAssetStatus = async (id: string, status: string) => done(await hrRun((me) => assets.setAssetStatus(me, id, status)));
+export const reportAssetIssue = async (id: string, note: string) => done(await hrRun((me) => assets.reportIssue(me, id, note)));
+export const setWorkflow = async (id: string, on: boolean) => done(await hrRun((me) => fin.setWorkflow(me, id, on)));

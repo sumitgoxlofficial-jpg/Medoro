@@ -5,7 +5,8 @@ import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
 import { listEvents, status as gcalStatus } from "./gcal";
 import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
-import { registers, summary } from "./finance";
+import { registers, summary, workflows } from "./finance";
+import { allAssets, myAssets } from "./assets";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
@@ -38,6 +39,8 @@ export const loaders = {
     ]);
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees") };
   },
+  myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
+  assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people() : [] }),
   mytasks: async (me: Me) => ({ tasks: await myTasks(me), projects: await myProjects(me) }),
   calendar: async (me: Me, q: Q) => {
     const month = monthArg(q.m), first = month + "-01", last = addDays(addMonths(month, 1) + "-01", -1);
@@ -104,6 +107,9 @@ export const loaders = {
   finhome: async (me: Me) => ({ sum: await summary(me) }),
   fin_reports: async (me: Me) => ({ sum: await summary(me) }),
   fin_gst: async (me: Me) => ({ sum: await summary(me) }),
+  fin_salescrm: async (me: Me) => ({ regs: await registers(me, "fin_salescrm") }),
+  fin_mktgcrm: async (me: Me) => ({ regs: await registers(me, "fin_mktgcrm") }),
+  fin_workflows: async (me: Me) => ({ wf: await workflows(me) }),
   fin_contacts: async (me: Me) => ({ regs: await registers(me, "fin_contacts") }),
   fin_sales: async (me: Me) => ({ regs: await registers(me, "fin_sales") }),
   fin_purchases: async (me: Me) => ({ regs: await registers(me, "fin_purchases") }),

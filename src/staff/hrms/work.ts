@@ -14,10 +14,10 @@ const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
 const HR = "_hrms"; // sequence namespace
 
 // ── Tasks and reminders
-type TaskRow = { id: string; kind: string; title: string; assigneeId: string; byId: string; due: Date | null; priority: string; status: string; col: string; projectId: string | null; comment: string; doneAt: Date | null; createdAt: Date };
+type TaskRow = { id: string; kind: string; title: string; assigneeId: string; byId: string; due: Date | null; priority: string; status: string; col: string; projectId: string | null; sprintId: string | null; comment: string; doneAt: Date | null; createdAt: Date };
 const taskOut = (t: TaskRow, names: Map<string, string>, projects?: Map<string, string>) => ({
   id: t.id, kind: t.kind, title: t.title, assigneeId: t.assigneeId, assignee: names.get(t.assigneeId) ?? "", by: names.get(t.byId) ?? "", due: t.due ? isoOf(t.due) : null, priority: t.priority, done: t.status === "done",
-  col: t.col as ColId, projectId: t.projectId, project: t.projectId ? projects?.get(t.projectId) ?? "" : "", comment: t.comment, doneAt: t.doneAt?.toISOString() ?? null,
+  col: t.col as ColId, projectId: t.projectId, sprintId: t.sprintId, start: isoOf(t.createdAt), project: t.projectId ? projects?.get(t.projectId) ?? "" : "", comment: t.comment, doneAt: t.doneAt?.toISOString() ?? null,
   overdue: t.status !== "done" && !!t.due && isoOf(t.due) < todayISO(),
 });
 export type Task = ReturnType<typeof taskOut>;
@@ -41,7 +41,7 @@ export async function allTasks(me: Me) {
 }
 const taskSchema = z.object({
   title: z.string().trim().min(3, "Describe the task.").max(200), assigneeId: z.string().min(1, "Choose who it is for."), due: iso.or(z.literal("")).default(""),
-  priority: z.enum(PRIORITIES).default("Medium"), projectId: z.string().nullish(), col: z.enum(COL_IDS).default("todo"),
+  priority: z.enum(PRIORITIES).default("Medium"), projectId: z.string().nullish(), sprintId: z.string().nullish(), col: z.enum(COL_IDS).default("todo"),
 });
 export async function assignTask(me: Me, raw: z.input<typeof taskSchema>) {
   need(me, "tasks");
@@ -49,7 +49,7 @@ export async function assignTask(me: Me, raw: z.input<typeof taskSchema>) {
   const who = await db.staffUser.findFirst({ where: { id: i.assigneeId, kind: "team", status: "active" } });
   if (!who) throw new UserError("That employee isn’t active.");
   if (i.projectId && !(await db.hrProject.findUnique({ where: { id: i.projectId } }))) throw new UserError("Project not found.");
-  await db.hrTask.create({ data: { title: i.title, assigneeId: i.assigneeId, byId: me.id, due: i.due ? dateOnly(i.due) : null, priority: i.priority, projectId: i.projectId || null, col: i.col, status: i.col === "done" ? "done" : "open", doneAt: i.col === "done" ? new Date() : null } });
+  await db.hrTask.create({ data: { title: i.title, assigneeId: i.assigneeId, byId: me.id, due: i.due ? dateOnly(i.due) : null, priority: i.priority, projectId: i.projectId || null, sprintId: i.projectId ? i.sprintId || null : null, col: i.col, status: i.col === "done" ? "done" : "open", doneAt: i.col === "done" ? new Date() : null } });
   if (who.id !== me.id) await notify([who.id], `${me.name} assigned you a task: ${i.title}`, "mytasks");
   await audit(me, "Task assigned", `${who.name} · ${i.title}`);
 }
@@ -109,7 +109,11 @@ export async function deleteProject(me: Me, id: string) {
 }
 export async function projects(me: Me) {
   need(me, "tasks");
-  const [rows, names] = await Promise.all([db.hrProject.findMany({ include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap()]);
+  const [rows, names, risks, sprints] = await Promise.all([
+    db.hrProject.findMany({ include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap(),
+    db.hrRisk.findMany({ orderBy: { createdAt: "desc" } }), db.hrSprint.findMany({ orderBy: { startOn: "asc" } }),
+  ]);
+  const today = todayISO();
   return rows.map((p) => {
     const tasks = p.tasks.map((t) => taskOut(t, names));
     const done = tasks.filter((t) => t.done).length;
@@ -117,12 +121,72 @@ export async function projects(me: Me) {
       id: p.id, name: p.name, client: p.client, leadId: p.leadId, lead: p.leadId ? names.get(p.leadId) ?? "" : "", members: p.members, memberNames: p.members.map((m) => names.get(m) ?? "").filter(Boolean),
       deadline: p.deadline ? isoOf(p.deadline) : "", status: p.status, tasks, progress: tasks.length ? Math.round((done * 100) / tasks.length) : 0,
       late: tasks.filter((t) => t.overdue).length,
+      risks: risks.filter((r) => r.projectId === p.id).map((r) => ({ id: r.id, title: r.title, level: r.level, ownerId: r.ownerId, owner: r.ownerId ? names.get(r.ownerId) ?? "" : "", status: r.status, mitigation: r.mitigation })),
+      sprints: sprints.filter((x) => x.projectId === p.id).map((x) => {
+        const start = isoOf(x.startOn), end = isoOf(x.endOn), inSprint = tasks.filter((t) => t.sprintId === x.id);
+        return { id: x.id, name: x.name, start, end, goal: x.goal, state: today < start ? "planned" : today > end ? "done" : "active", total: inSprint.length, done: inSprint.filter((t) => t.done).length };
+      }),
     };
   });
 }
+
+// ── Project risks and sprints
+const riskSchema = z.object({
+  id: z.string().optional(), projectId: z.string().min(1), title: z.string().trim().min(3, "Describe the risk.").max(200), level: z.enum(PRIORITIES).default("Medium"),
+  ownerId: z.string().nullish(), status: z.enum(["open", "mitigated", "closed"]).default("open"), mitigation: z.string().trim().max(400).default(""),
+});
+export async function saveRisk(me: Me, raw: z.input<typeof riskSchema>) {
+  need(me, "tasks");
+  const i = riskSchema.parse(raw);
+  if (!(await db.hrProject.findUnique({ where: { id: i.projectId } }))) throw new UserError("Project not found.");
+  const data = { title: i.title, level: i.level, ownerId: i.ownerId || null, status: i.status, mitigation: i.mitigation };
+  if (i.id) {
+    const r = await db.hrRisk.updateMany({ where: { id: i.id, projectId: i.projectId }, data });
+    if (!r.count) throw new UserError("Risk not found.");
+  } else await db.hrRisk.create({ data: { projectId: i.projectId, ...data } });
+  await audit(me, i.id ? "Risk updated" : "Risk added", i.title);
+}
+export async function deleteRisk(me: Me, id: string) {
+  need(me, "tasks");
+  await db.hrRisk.deleteMany({ where: { id } });
+}
+const sprintSchema = z.object({ id: z.string().optional(), projectId: z.string().min(1), name: z.string().trim().min(2, "Name the sprint.").max(80), start: iso, end: iso, goal: z.string().trim().max(200).default("") });
+export async function saveSprint(me: Me, raw: z.input<typeof sprintSchema>) {
+  need(me, "tasks");
+  const i = sprintSchema.parse(raw);
+  if (i.end < i.start) throw new UserError("The sprint can’t end before it starts.");
+  if (!(await db.hrProject.findUnique({ where: { id: i.projectId } }))) throw new UserError("Project not found.");
+  const data = { name: i.name, startOn: dateOnly(i.start), endOn: dateOnly(i.end), goal: i.goal };
+  if (i.id) {
+    const r = await db.hrSprint.updateMany({ where: { id: i.id, projectId: i.projectId }, data });
+    if (!r.count) throw new UserError("Sprint not found.");
+  } else await db.hrSprint.create({ data: { projectId: i.projectId, ...data } });
+  await audit(me, i.id ? "Sprint updated" : "Sprint created", i.name);
+}
+export async function deleteSprint(me: Me, id: string) {
+  need(me, "tasks");
+  await db.$transaction([db.hrTask.updateMany({ where: { sprintId: id }, data: { sprintId: null } }), db.hrSprint.deleteMany({ where: { id } })]);
+}
+/** Puts a project task in a sprint of the same project (or takes it out). */
+export async function setTaskSprint(me: Me, taskId: string, sprintId: string | null) {
+  need(me, "tasks");
+  const t = await db.hrTask.findUnique({ where: { id: taskId } });
+  if (!t || !t.projectId) throw new UserError("Task not found.");
+  if (sprintId && !(await db.hrSprint.findFirst({ where: { id: sprintId, projectId: t.projectId } }))) throw new UserError("That sprint belongs to another project.");
+  await db.hrTask.update({ where: { id: taskId }, data: { sprintId } });
+}
+
+/** The projects the person is a member of, with their tasks in each (for My Projects and the home screen). */
 export async function myProjects(me: Me) {
-  const rows = await db.hrProject.findMany({ where: { members: { has: me.id }, status: { not: "Done" } }, include: { tasks: { select: { status: true } } } });
-  return rows.map((p) => ({ id: p.id, name: p.name, status: p.status, deadline: p.deadline ? isoOf(p.deadline) : "", progress: p.tasks.length ? Math.round((p.tasks.filter((t) => t.status === "done").length * 100) / p.tasks.length) : 0 }));
+  const [rows, names] = await Promise.all([db.hrProject.findMany({ where: { members: { has: me.id }, status: { not: "Done" } }, include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap()]);
+  return rows.map((p) => {
+    const tasks = p.tasks.map((t) => taskOut(t, names));
+    return {
+      id: p.id, name: p.name, status: p.status, client: p.client, lead: p.leadId ? names.get(p.leadId) ?? "" : "", team: p.members.map((m) => names.get(m) ?? "").filter(Boolean),
+      deadline: p.deadline ? isoOf(p.deadline) : "", progress: tasks.length ? Math.round((tasks.filter((t) => t.done).length * 100) / tasks.length) : 0,
+      mine: tasks.filter((t) => t.assigneeId === me.id), others: tasks.filter((t) => t.assigneeId !== me.id).length,
+    };
+  });
 }
 
 // ── Announcements

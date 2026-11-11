@@ -2,10 +2,12 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
+import { log } from "@/server/log";
 import { dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { product } from "../constants";
 import { audit, can, loadSettings, need, notify, type Me } from "./auth";
 import { monthLabel, type Settings } from "./constants";
+import { postSalaryJournal } from "./finance";
 import { openBankAccount } from "./people";
 import { addMonths, monthFor } from "./time";
 
@@ -107,18 +109,20 @@ export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, 
   const drafts = run.lines.filter((l) => l.status === "draft");
   const ctc = new Map((await db.hrProfile.findMany({ where: { staffId: { in: drafts.map((d) => d.staffId) } }, select: { staffId: true, ctc: true } })).map((p) => [p.staffId, p.ctc]));
   const paidOn = dateOnly(todayISO());
-  let n = 0;
+  let n = 0, total = 0;
   await db.$transaction(async (tx) => {
     for (const d of drafts) {
       const over = lop[d.staffId];
       const slip = over === undefined ? d : computeSlip(ctc.get(d.staffId) ?? 0, { workDays: d.workDays, lopDays: z.number().int().min(0).max(31).parse(over), incentive: d.incentive, reimburse: d.reimburse, ptax: s.ptax });
       await tx.hrPayslip.create({ data: { staffId: d.staffId, month: run.ym, ...slipOf(slip), status: "paid", paidOn, runBy: me.id } });
       await tx.hrClaim.updateMany({ where: { staffId: d.staffId, status: "approved", paidMonth: null }, data: { paidMonth: run.ym } });
-      n++;
+      n++; total += slip.net;
     }
   });
   await notify(drafts.map((d) => d.staffId), `Your ${run.label} payslip is ready.`, "payslips");
   await audit(me, "Payroll processed", `${run.label} · ${n} payslip${n === 1 ? "" : "s"}`);
+  // The "Post the salary journal" workflow adds the month's journal entry (when switched on).
+  await postSalaryJournal(me.id, run.label, total).catch((e) => log.error("salary journal failed", { err: e }));
   return n;
 }
 

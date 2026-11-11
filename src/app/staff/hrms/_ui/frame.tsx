@@ -33,6 +33,19 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const [navOpen, setNavOpen] = useState(false);
   const router = useRouter();
   const { run } = useRun();
+  const [night, setNight] = useState(false);
+  useEffect(() => { try { setNight(localStorage.getItem("hrms.night") === "1"); } catch { /* default light */ } }, []);
+  // Night mode inverts the page (and turns pictures back) like the design does; it is a per-browser choice.
+  useEffect(() => {
+    const el = document.documentElement;
+    el.style.filter = night ? "invert(.93) hue-rotate(180deg)" : "";
+    el.style.background = night ? "#e9eef5" : "";
+    let st = document.getElementById("hrms-night-style");
+    if (!st) { st = document.createElement("style"); st.id = "hrms-night-style"; document.head.appendChild(st); }
+    st.textContent = night ? "html img{filter:invert(1.075) hue-rotate(180deg)} @media print{html{filter:none !important}}" : "";
+    return () => { el.style.filter = ""; el.style.background = ""; };
+  }, [night]);
+  const toggleNight = () => setNight((n) => { try { localStorage.setItem("hrms.night", n ? "0" : "1"); } catch { /* private window */ } return !n; });
   // Keep presence fresh and pick up new notifications.
   useEffect(() => { const t = setInterval(() => router.refresh(), 60_000); return () => clearInterval(t); }, [router]);
   if (gate) return <Gate gate={gate} sh={sh} />;
@@ -80,6 +93,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
               {BREAKS.map((b) => <button key={b} className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => { setBrk(false); run(() => startBreak(b), () => `Enjoy your break: ${b}.`); }}>{b}</button>)}
             </div> : null}
           </div>
+          <button className={btnCls} aria-label={night ? "Switch to day mode" : "Switch to night mode"} aria-pressed={night} onClick={toggleNight}>{night ? "☀️" : "🌙"}</button>
           <div className="relative">
             <button className={cx(btnCls, "relative")} aria-label="Notifications" onClick={() => { setBell((o) => !o); if (!bell && unread) void readNotifications().then(() => router.refresh()); }}>
               <Ico n="bell" />{unread ? <span className="absolute -top-1 -right-1 bg-[#DC2626] text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{unread}</span> : null}
