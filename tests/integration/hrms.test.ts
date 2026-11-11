@@ -99,7 +99,7 @@ describe("HRMS", () => {
     await saveProfile(esha, { phone: "9822000003", personalEmail: "", dob: "1999-01-01", gender: "", address: "x", emergencyName: "a", emergencyPhone: "9811111111", bloodGroup: "", bankHolder: "Esha", bankAccount: "123456789012", bankIfsc: "HDFC0001234", pan: "ABCDE1234F", uan: "" });
     const p = await db.hrProfile.findUniqueOrThrow({ where: { staffId: esha.id } });
     expect(p.bankLast4).toBe("9012");
-    expect(p.panMasked).toBe("AB•••••34F".replace("34F", "34F"));
+    expect(p.panMasked).toBe("AB•••••34F");
     expect(Buffer.from(p.bankAccountSealed!).toString("utf8")).not.toContain("123456789012");
   });
 

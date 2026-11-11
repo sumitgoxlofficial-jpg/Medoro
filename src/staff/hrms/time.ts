@@ -182,8 +182,9 @@ export async function grantLeave(me: Me, staffId: string, type: string, days: nu
   const ty = z.enum(LEAVE_IDS).parse(type), n = z.number().int().min(-30).max(30).parse(days);
   const p = await db.hrProfile.findUnique({ where: { staffId } });
   if (!p) throw new UserError("Employee not found.");
-  const extra = { ...((p.leaveExtra ?? {}) as Record<string, number>) };
-  extra[ty] = (Number(extra[ty]) || 0) + n;
+  const old = (p.leaveExtra ?? {}) as Record<string, number>;
+  // Rebuilt from the known leave types only, so no other key can be written.
+  const extra = Object.fromEntries(LEAVE_IDS.map((k) => [k, (Number(old[k]) || 0) + (k === ty ? n : 0)]));
   await db.hrProfile.update({ where: { staffId }, data: { leaveExtra: extra } });
   await notify([staffId], `${n > 0 ? n + " day(s) added to" : -n + " day(s) removed from"} your ${leaveLabel(ty)} balance.`, "leave");
   await audit(me, "Leave balance adjusted", `${staffId} · ${ty} · ${n > 0 ? "+" : ""}${n}`);
