@@ -13,6 +13,7 @@ import * as work from "@/staff/hrms/work";
 import * as leads from "@/staff/hrms/leads";
 import * as fin from "@/staff/hrms/finance";
 import * as ally from "@/staff/hrms/ally";
+import * as gcal from "@/staff/hrms/gcal";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -90,7 +91,8 @@ export const saveProject = async (input: In<typeof work.saveProject>) => done(aw
 export const deleteProject = async (id: string) => done(await hrRun((me) => work.deleteProject(me, id), "Project deleted."));
 export const postAnnouncement = async (input: In<typeof work.postAnnouncement>) => done(await hrRun((me) => work.postAnnouncement(me, input), "Announcement posted to everyone."));
 export const deleteAnnouncement = async (id: string) => done(await hrRun((me) => work.deleteAnnouncement(me, id), "Announcement removed."));
-export const scheduleMeeting = async (input: In<typeof work.scheduleMeeting>) => done(await hrRun((me) => work.scheduleMeeting(me, input), "Meeting scheduled. Attendees were notified."));
+export const scheduleMeeting = async (input: In<typeof work.scheduleMeeting>) => done(await hrRun((me) => work.scheduleMeeting(me, input)));
+export const disconnectGoogle = async () => done(await hrRun((me) => gcal.disconnect(me), "Google Calendar disconnected."));
 export const saveMeetingNotes = async (id: string, notes: string) => done(await hrRun((me) => work.saveMeetingNotes(me, id, notes), "Minutes saved."));
 export const cancelMeeting = async (id: string) => done(await hrRun((me) => work.cancelMeeting(me, id), "Meeting cancelled."));
 export const recognise = async (input: In<typeof work.recognise>) => done(await hrRun((me) => work.recognise(me, input), "Recognition sent."));

@@ -2536,17 +2536,27 @@ model HrTicket {
 }
 
 model HrMeeting {
-  id        String   @id @default(uuid())
-  title     String
-  at        DateTime
-  minutes   Int      @default(30)
-  link      String   @default("")
-  byId      String
-  attendees String[]
-  notes     String   @default("") // minutes of the meeting
-  createdAt DateTime @default(now())
+  id            String   @id @default(uuid())
+  title         String
+  at            DateTime
+  minutes       Int      @default(30)
+  link          String   @default("")
+  byId          String
+  attendees     String[]
+  notes         String   @default("") // minutes of the meeting
+  googleEventId String? // the organiser's Google Calendar event, when it was added there
+  createdAt     DateTime @default(now())
 
   @@index([at])
+}
+
+/// An employee's connected Google Calendar. The refresh token is sealed with HOST_KEY; only the calendar.events scope is requested.
+model HrGoogle {
+  staffId     String   @id
+  email       String
+  tokenSealed Bytes
+  scope       String   @default("")
+  createdAt   DateTime @default(now())
 }
 
 model HrRecognition {

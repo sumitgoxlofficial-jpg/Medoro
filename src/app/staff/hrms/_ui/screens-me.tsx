@@ -5,10 +5,16 @@ import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
 import { BOARD_COLS, CLAIM_STATUS, CLAIM_TYPES, LEAVE_TYPES, TICKET_TOPICS, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask } from "../actions";
+import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 
 type P = { sh: Shell };
+
+/** A real browser navigation to a route that redirects to Google, so deliberately not next/link. */
+const GoogleConnect = () => (
+  // eslint-disable-next-line @next/next/no-html-link-for-pages
+  <a className={primaryCls} href="/staff/hrms/google/start">Connect Google Calendar</a>
+);
 
 // ── Profile form (also the first-sign-in step)
 type Prof = Data<"profile">["p"];
@@ -169,17 +175,26 @@ export function CalendarScreen({ d, sh }: { d: Data<"calendar"> } & P) {
   const first = new Date(Date.UTC(y, m - 1, 1)), dim = new Date(Date.UTC(y, m, 0)).getUTCDate(), lead = first.getUTCDay();
   const nav = (n: number) => { const t = new Date(Date.UTC(y, m - 1 + n, 1)); router.push(`/staff/hrms/calendar?m=${t.toISOString().slice(0, 7)}`); };
   const cells = Array.from({ length: lead + dim }, (_, i) => (i < lead ? null : `${d.month}-${String(i - lead + 1).padStart(2, "0")}`));
-  const on = (day: string) => ({ h: d.hols.find((x) => x.day === day), o: d.out.filter((x) => x.from <= day && x.to >= day), mt: d.meets.filter((x) => x.at.slice(0, 10) === day || new Date(x.at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) === day) });
+  const ist = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  // A Google event belongs to every day it covers (all-day ends are exclusive).
+  const gOn = (day: string) => d.google.events.filter((e) => (e.allDay ? e.start.slice(0, 10) <= day && day < e.end.slice(0, 10) : ist(e.start) <= day && day <= ist(e.end)));
+  const on = (day: string) => ({ h: d.hols.find((x) => x.day === day), o: d.out.filter((x) => x.from <= day && x.to >= day), mt: d.meets.filter((x) => x.at.slice(0, 10) === day || ist(x.at) === day), g: gOn(day) });
   const dayInfo = sel ? on(sel) : null;
   return (
     <>
       <Card title={first.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })} right={<><button className={btnCls} onClick={() => nav(-1)} aria-label="Previous month">‹</button><button className={btnCls} onClick={() => nav(1)} aria-label="Next month">›</button><button className={primaryCls} onClick={() => setMeet(true)}>+ Schedule meeting</button></>} pad>
         <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-[#64748B] mb-1">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((x) => <div key={x}>{x}</div>)}</div>
         <div className="grid grid-cols-7 gap-1">
-          {cells.map((day, i) => { if (!day) return <div key={i} />; const { h, o, mt } = on(day), wk = [0, 6].includes(new Date(day + "T00:00:00Z").getUTCDay());
+          {cells.map((day, i) => { if (!day) return <div key={i} />; const { h, o, mt, g } = on(day), wk = [0, 6].includes(new Date(day + "T00:00:00Z").getUTCDay());
             return <button key={day} onClick={() => setSel(day)} className={cx("min-h-[64px] rounded-lg border text-left p-1.5 cursor-pointer text-[12px] flex flex-col gap-0.5", h ? "bg-[#FFFBEB] border-[#FCD34D]" : wk ? "bg-[#F8FAFC] border-[#F1F5F9] text-[#94A3B8]" : "bg-white border-[#F1F5F9]", day === sh.today && "outline outline-2 outline-[#14B8A6] -outline-offset-2")}>
-              <span className="font-semibold">{Number(day.slice(8))}</span>{h ? <span className="text-[10px] text-[#92400E] leading-tight">{h.name}</span> : null}{mt.length ? <span className="text-[10px] text-[#5B45B0]">● {mt.length} meeting{mt.length > 1 ? "s" : ""}</span> : null}{o.length ? <span className="text-[10px] text-[#B45309]">{o.length} out</span> : null}</button>; })}
+              <span className="font-semibold">{Number(day.slice(8))}</span>{h ? <span className="text-[10px] text-[#92400E] leading-tight">{h.name}</span> : null}{mt.length ? <span className="text-[10px] text-[#5B45B0]">● {mt.length} meeting{mt.length > 1 ? "s" : ""}</span> : null}{g.length ? <span className="text-[10px] text-[#1A73E8]">▪ {g.length} Google</span> : null}{o.length ? <span className="text-[10px] text-[#B45309]">{o.length} out</span> : null}</button>; })}
         </div>
+      </Card>
+      <Card title="Google Calendar" sub={d.google.connected ? `Connected as ${d.google.email || "your Google account"}. Your Google events show in the calendar above.` : "Connect your Google account to see your Google Calendar here and send meeting invites with a Google Meet link."} right={d.google.connected ? <button className={dangerCls} disabled={busy} onClick={() => run(() => disconnectGoogle())}>Disconnect</button> : d.google.configured ? <GoogleConnect /> : null} pad>
+        {d.google.notice ? <p className="text-[13px] rounded-lg bg-[#F2F9F8] border border-[#CFE6E3] px-3 py-2 mb-2">{d.google.notice}</p> : null}
+        {d.google.error ? <p className="text-[13px] rounded-lg bg-[#FEF3C7] text-[#92400E] px-3 py-2 mb-2">{d.google.error}</p> : null}
+        {!d.google.configured && !d.google.connected ? <p className="text-[13px] text-[#64748B]">Not set up on this server yet. The super admin needs to add the Google client and enable the Calendar API (see docs/HRMS.md).</p> : null}
+        {d.google.connected && !d.google.error ? <p className="text-[12.5px] text-[#64748B]">{d.google.events.length} event{d.google.events.length === 1 ? "" : "s"} this month.</p> : null}
       </Card>
       <Grid n={2}>
         <Card title="Upcoming meetings" pad>{d.upcoming.length ? d.upcoming.map((x) => (
@@ -193,23 +208,26 @@ export function CalendarScreen({ d, sh }: { d: Data<"calendar"> } & P) {
       {dayInfo && sel ? <Modal title={dayLong(sel)} onClose={() => setSel(null)}>
         {dayInfo.h ? <p className="text-[13.5px]">🎉 {dayInfo.h.name} · {dayInfo.h.kind}</p> : null}
         {dayInfo.mt.map((x) => <p key={x.id} className="text-[13.5px]">🗓 {timeLabel(x.at)} · {x.title}</p>)}
+        {dayInfo.g.map((x) => <p key={x.id} className="text-[13.5px]"><span className="text-[#1A73E8]">G</span> {x.allDay ? "All day" : timeLabel(x.start)} · {x.title}{x.meet ? <> · <a className="text-[#0B5E5B] font-semibold" href={x.meet} target="_blank" rel="noreferrer">Meet</a></> : null}{x.link ? <> · <a className="text-[#0B5E5B] font-semibold" href={x.link} target="_blank" rel="noreferrer">open</a></> : null}</p>)}
         {dayInfo.o.length ? <div><strong className="text-[13px]">Out of office</strong>{dayInfo.o.map((x) => <p key={x.id} className="text-[13px]">{x.name} · {leaveLabel(x.type)}</p>)}</div> : null}
-        {!dayInfo.h && !dayInfo.mt.length && !dayInfo.o.length ? <p className="text-[13.5px] text-[#64748B]">Nothing on this day.</p> : null}
+        {!dayInfo.h && !dayInfo.mt.length && !dayInfo.o.length && !dayInfo.g.length ? <p className="text-[13.5px] text-[#64748B]">Nothing on this day.</p> : null}
       </Modal> : null}
-      {meet ? <MeetingModal people={d.people.filter((p) => p.id !== sh.me.id)} onClose={() => setMeet(false)} /> : null}
+      
+      {meet ? <MeetingModal people={d.people.filter((p) => p.id !== sh.me.id)} google={d.google.connected} onClose={() => setMeet(false)} /> : null}
       {notes ? <Modal title="Meeting minutes" onClose={() => setNotes(null)}><textarea className={inputCls} rows={8} value={notes.text} onChange={(e) => setNotes({ ...notes, text: e.target.value })} placeholder="Decisions, action items…" /><button className={primaryCls} disabled={busy} onClick={() => run(() => saveMeetingNotes(notes.id, notes.text), () => { setNotes(null); })}>Save minutes</button></Modal> : null}
     </>
   );
 }
-function MeetingModal({ people, onClose }: { people: { id: string; name: string }[]; onClose: () => void }) {
+function MeetingModal({ people, google, onClose }: { people: { id: string; name: string }[]; google: boolean; onClose: () => void }) {
   const { run, busy } = useRun();
-  const [v, setV] = useState({ title: "", day: "", time: "10:00", minutes: 30, link: "", attendees: [] as string[] });
+  const [v, setV] = useState({ title: "", day: "", time: "10:00", minutes: 30, link: "", attendees: [] as string[], google: google });
   return <Modal title="Schedule a meeting" onClose={onClose}>
-    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => scheduleMeeting(v), () => { onClose(); }); }}>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => scheduleMeeting(v), (r) => { onClose(); return r.google === "added" ? "Meeting scheduled and added to Google Calendar. Invitations were sent." : r.google === "failed" ? "Meeting scheduled, but it couldn’t be added to Google Calendar. Try Disconnect and Connect again." : "Meeting scheduled. Attendees were notified."; }); }}>
       <Field label="Title"><input className={inputCls} value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} required /></Field>
       <div className="grid grid-cols-3 gap-2"><Field label="Date"><input className={inputCls} type="date" value={v.day} onChange={(e) => setV({ ...v, day: e.target.value })} required /></Field><Field label="Time (IST)"><input className={inputCls} type="time" value={v.time} onChange={(e) => setV({ ...v, time: e.target.value })} required /></Field><Field label="Minutes"><input className={inputCls} type="number" min={5} value={v.minutes} onChange={(e) => setV({ ...v, minutes: Number(e.target.value) })} /></Field></div>
       <Field label="Meeting link (optional)"><input className={inputCls} value={v.link} onChange={(e) => setV({ ...v, link: e.target.value })} placeholder="https://meet.google.com/…" /></Field>
       <Field label="Who should join?"><select multiple className={cx(inputCls, "h-32")} value={v.attendees} onChange={(e) => setV({ ...v, attendees: [...e.target.selectedOptions].map((o) => o.value) })}>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
+      {google ? <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={v.google} onChange={(e) => setV({ ...v, google: e.target.checked })} />Add to my Google Calendar, create a Meet link and email invitations</label> : null}
       <button className={primaryCls} disabled={busy}>Schedule</button>
     </form></Modal>;
 }

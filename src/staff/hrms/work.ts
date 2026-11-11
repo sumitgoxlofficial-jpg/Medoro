@@ -2,11 +2,13 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
+import { log } from "@/server/log";
 import { nextSeq } from "@/server/sequence";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, need, notify, type Me } from "./auth";
 import { COL_IDS, JOB_TYPES, PRIORITIES, PROJECT_STATUS, TICKET_TOPICS, type ColId } from "./constants";
 import { nameMap } from "./people";
+import { pushMeeting, removeEvent } from "./gcal";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
 const HR = "_hrms"; // sequence namespace
@@ -144,15 +146,21 @@ export async function deleteAnnouncement(me: Me, id: string) {
 // ── Meetings
 const meetingSchema = z.object({
   title: z.string().trim().min(3, "Enter the meeting title.").max(120), day: iso, time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time."),
-  minutes: z.coerce.number().int().min(5).max(480).default(30), link: z.string().trim().max(300).regex(/^$|^https:\/\/\S+$/, "The meeting link must start with https://").default(""), attendees: z.array(z.string()).max(100).default([]),
+  minutes: z.coerce.number().int().min(5).max(480).default(30), link: z.string().trim().max(300).regex(/^$|^https:\/\/\S+$/, "The meeting link must start with https://").default(""), attendees: z.array(z.string()).max(100).default([]), google: z.boolean().default(false),
 });
 export async function scheduleMeeting(me: Me, raw: z.input<typeof meetingSchema>) {
   const i = meetingSchema.parse(raw);
   const at = new Date(`${i.day}T${i.time}:00+05:30`);
   if (at.getTime() < Date.now() - 3600_000) throw new UserError("Pick a time in the future.");
   const attendees = [...new Set([me.id, ...i.attendees])];
-  await db.hrMeeting.create({ data: { title: i.title, at, minutes: i.minutes, link: i.link, byId: me.id, attendees } });
+  const m = await db.hrMeeting.create({ data: { title: i.title, at, minutes: i.minutes, link: i.link, byId: me.id, attendees } });
   await notify(attendees.filter((a) => a !== me.id), `${me.name} invited you to “${i.title}” on ${i.day} at ${i.time}.`, "calendar");
+  // The meeting stands even if Google can't be reached; the organiser is told.
+  let google: "off" | "added" | "failed" = "off", meet = "";
+  if (i.google) {
+    try { meet = (await pushMeeting(me, m.id)).meet; google = "added"; } catch (e) { log.error("google calendar event failed", { err: e }); google = "failed"; }
+  }
+  return { google, meet };
 }
 export async function saveMeetingNotes(me: Me, id: string, notes: string) {
   const m = await db.hrMeeting.findUnique({ where: { id } });
@@ -162,6 +170,7 @@ export async function saveMeetingNotes(me: Me, id: string, notes: string) {
 export async function cancelMeeting(me: Me, id: string) {
   const m = await db.hrMeeting.findUnique({ where: { id } });
   if (!m || (m.byId !== me.id && me.role !== "admin")) throw new UserError("Only the organiser can cancel this meeting.");
+  if (m.googleEventId) await removeEvent(m.byId, m.googleEventId).catch((e) => log.error("google calendar event removal failed", { err: e }));
   await db.hrMeeting.delete({ where: { id } });
   await notify(m.attendees.filter((a) => a !== me.id), `“${m.title}” was cancelled.`, "calendar");
 }
