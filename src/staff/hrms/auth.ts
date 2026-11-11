@@ -8,6 +8,7 @@ import { checkTotp, openSecret } from "@/server/totp";
 import { UserError, type ActionResult } from "@/server/action";
 import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { defer } from "@/server/defer";
 import { createStaffSession, readStaffSession, staffAudit } from "../auth";
 import type { StaffRoleId } from "../constants";
 import { DEFAULT_PERMS, DEFAULT_SETTINGS, HR_ROLES, MODULES, hasModule, type HrRoleId, type ModuleId, type Perms, type Settings } from "./constants";
@@ -24,17 +25,27 @@ export type Me = {
 export const password = z.string().min(12, "Password must be at least 12 characters.").max(200);
 
 // ── Settings and permissions (HrSetting rows)
-export async function loadPerms(): Promise<Perms> {
-  const row = await db.hrSetting.findUnique({ where: { key: "perms" } });
-  const saved = (row?.value ?? {}) as Partial<Perms>;
+// Settings and permissions change rarely but every page reads them: keep them for a few seconds per server instance
+// (saving clears the copy at once). Actions always read them fresh. Tests read fresh every time.
+const TTL = process.env.NODE_ENV === "test" ? 0 : 10_000;
+const memo = new Map<string, { at: number; value: unknown }>();
+export const invalidateSettings = () => memo.clear();
+async function setting(key: "perms" | "settings", fresh: boolean): Promise<unknown> {
+  const hit = memo.get(key);
+  if (!fresh && hit && Date.now() - hit.at < TTL) return hit.value;
+  const value = (await db.hrSetting.findUnique({ where: { key } }))?.value ?? {};
+  memo.set(key, { at: Date.now(), value });
+  return value;
+}
+export async function loadPerms(fresh = false): Promise<Perms> {
+  const saved = (await setting("perms", fresh)) as Partial<Perms>;
   const ids = MODULES.map((m) => m.id) as string[];
   const out = { ...DEFAULT_PERMS };
   for (const r of HR_ROLES) if (r !== "admin" && Array.isArray(saved[r])) out[r] = saved[r]!.filter((m) => ids.includes(m));
   return out;
 }
-export async function loadSettings(): Promise<Settings> {
-  const row = await db.hrSetting.findUnique({ where: { key: "settings" } });
-  const v = (row?.value ?? {}) as Partial<Settings>;
+export async function loadSettings(fresh = false): Promise<Settings> {
+  const v = (await setting("settings", fresh)) as Partial<Settings>;
   return { ...DEFAULT_SETTINGS, ...v, company: { ...DEFAULT_SETTINGS.company, ...(v.company ?? {}) }, leave: { ...DEFAULT_SETTINGS.leave, ...(v.leave ?? {}) } };
 }
 
@@ -48,12 +59,12 @@ export async function ensureProfile(staffId: string, staffRole: StaffRoleId) {
 }
 
 export async function getMe(): Promise<Me | null> {
-  const s = await readStaffSession(false, true);
+  const s = await readStaffSession(false, true); // one joined query: session, staff and HR profile
   if (!s || s.staff.kind !== "team" || s.staff.role === "partner") return null;
   const u = s.staff;
-  const [p, perms] = await Promise.all([ensureProfile(u.id, u.role), loadPerms()]);
+  const [p, perms] = await Promise.all([u.hr ?? ensureProfile(u.id, u.role), loadPerms()]);
   if (!p.presenceAt || Date.now() - p.presenceAt.getTime() > 60_000) {
-    await db.hrProfile.update({ where: { staffId: u.id }, data: { presenceAt: new Date(), ...(p.presence === "offline" ? { presence: "active" } : {}) } }).catch(() => {});
+    await defer(() => db.hrProfile.update({ where: { staffId: u.id }, data: { presenceAt: new Date(), ...(p.presence === "offline" ? { presence: "active" } : {}) } }));
   }
   return {
     id: u.id, empNo: u.empNo, name: u.name, first: u.name.trim().split(/\s+/)[0], email: u.email, staffRole: u.role, role: roleOf(u.role, p.role), perms, sessionId: s.id,
@@ -91,6 +102,7 @@ export async function holders(m: ModuleId): Promise<string[]> {
 export async function hrRun<T>(fn: (me: Me) => Promise<T>, message?: string): Promise<ActionResult<T>> {
   const me = await getMe();
   if (!me) return { ok: false, error: "Your session has ended. Sign in again." };
+  me.perms = await loadPerms(true); // an action never trusts a cached permission
   try {
     return { ok: true, data: await fn(me), message };
   } catch (e) {

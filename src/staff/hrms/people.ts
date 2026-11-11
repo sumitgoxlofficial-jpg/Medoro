@@ -11,7 +11,7 @@ import { dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { staffDomain } from "../auth";
 import { IFSC_BANKS, IFSC_RE, MOBILE_RE, PAN_RE, digits } from "../constants";
 import { newEmployeeNo, referral } from "../people";
-import { audit, loadPerms, loadSettings, need, needAdmin, roleOf, type Me } from "./auth";
+import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
@@ -304,6 +304,7 @@ export async function saveSettings(me: Me, raw: Settings) {
   needAdmin(me);
   const value = settingsSchema.parse(raw);
   await db.hrSetting.upsert({ where: { key: "settings" }, update: { value }, create: { key: "settings", value } });
+  invalidateSettings();
   await audit(me, "Settings saved");
 }
 export async function togglePerm(me: Me, role: string, moduleId: string) {
@@ -314,6 +315,7 @@ export async function togglePerm(me: Me, role: string, moduleId: string) {
   const on = perms[r].includes(m);
   perms[r] = on ? perms[r].filter((x) => x !== m) : [...perms[r], m];
   await db.hrSetting.upsert({ where: { key: "perms" }, update: { value: perms }, create: { key: "perms", value: perms } });
+  invalidateSettings();
   await audit(me, "Permission " + (on ? "revoked" : "granted"), `${r} · ${m}`);
 }
 export async function auditLog(me: Me, take = 200) {

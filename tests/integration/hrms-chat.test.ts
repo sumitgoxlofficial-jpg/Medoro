@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
-import { addToGroup, chatImage, chatList, chatMessages, createGroup, deleteMessage, groupMembers, leaveGroup, openDm, reviewChats, reviewMessages, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
+import { AVATARS, REACTIONS, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
 import { resetDb } from "./helpers";
 
 let admin: Me, hr: Me, ann: Me, bob: Me, cat: Me;
@@ -112,7 +112,7 @@ describe("team chat", () => {
     await sendText(ann, chatId, "before cat joined");
     await expect(addToGroup(bob, chatId, [cat.id])).rejects.toThrow("made the group");
     await addToGroup(ann, chatId, [cat.id]);
-    expect((await groupMembers(cat, chatId)).people.map((p) => p.name).sort()).toEqual(["Ann Employee", "Bob Employee", "Cat Employee"]);
+    expect((await groupInfo(cat, chatId)).members.map((p) => p.name).sort()).toEqual(["Ann Employee", "Bob Employee", "Cat Employee"]);
     expect((await chatMessages(cat, chatId, null, true)).msgs).toEqual([]);
     await sendText(bob, chatId, "welcome cat");
     expect((await chatMessages(cat, chatId, null, true)).msgs.map((m) => m.body)).toEqual(["welcome cat"]);
@@ -132,5 +132,89 @@ describe("team chat", () => {
     let failed = false;
     for (let i = 0; i < 45 && !failed; i++) { try { await sendText(bob, chatId, `m${i}`); } catch { failed = true; } }
     expect(failed).toBe(true);
+  });
+
+  it("reacts to messages, one toggle per person and emoji", async () => {
+    const { chatId } = await openDm(ann, bob.id);
+    const m = await sendText(ann, chatId, "react to me");
+    expect((await react(bob, m.id, "👍")).reactions).toEqual([{ emoji: "👍", n: 1, mine: true }]);
+    await react(ann, m.id, "👍"); await react(ann, m.id, "❤️");
+    const seen = (await chatMessages(bob, chatId, null, false, true)).refresh!.find((x) => x.id === m.id)!;
+    expect(seen.reactions).toEqual([{ emoji: "👍", n: 2, mine: true }, { emoji: "❤️", n: 1, mine: false }]);
+    expect((await react(bob, m.id, "👍")).reactions.find((r) => r.emoji === "👍")?.n).toBe(1); // toggled off
+    await expect(react(bob, m.id, "💩")).rejects.toThrow("reactions shown");
+    await expect(react(cat, m.id, "👍")).rejects.toThrow();
+    expect(REACTIONS.length).toBe(6);
+  });
+
+  it("runs polls: single and multiple choice, changing votes, validation", async () => {
+    const { chatId } = await openDm(ann, bob.id);
+    await expect(sendPoll(ann, chatId, "Lunch?", ["Pizza"], false)).rejects.toThrow("at least 2");
+    await expect(sendPoll(ann, chatId, "", ["a", "b"], false)).rejects.toThrow("question");
+    await expect(sendPoll(ann, chatId, "x", Array.from({ length: 9 }, (_, i) => `o${i}`), false)).rejects.toThrow("up to 8");
+    const p = await sendPoll(ann, chatId, "Lunch?", ["Pizza", "Dosa", "Salad"], false);
+    expect(p).toMatchObject({ kind: "poll", body: "Lunch?" });
+    expect(p.poll!.options.map((o) => o.text)).toEqual(["Pizza", "Dosa", "Salad"]);
+    await vote(ann, p.id, 0);
+    expect((await vote(bob, p.id, 1)).poll).toMatchObject({ total: 2, options: [{ votes: 1, mine: false }, { votes: 1, mine: true }, { votes: 0, mine: false }] });
+    expect((await vote(bob, p.id, 2)).poll.options.map((o) => o.votes)).toEqual([1, 0, 1]); // single choice moves the vote
+    expect((await vote(bob, p.id, 2)).poll.total).toBe(1); // voting again removes it
+    await expect(vote(bob, p.id, 9)).rejects.toThrow("options");
+    await expect(vote(cat, p.id, 0)).rejects.toThrow();
+    const multi = await sendPoll(ann, chatId, "Which days?", ["Mon", "Tue"], true);
+    await vote(bob, multi.id, 0); const both = await vote(bob, multi.id, 1);
+    expect(both.poll.options.map((o) => o.mine)).toEqual([true, true]);
+    expect(both.poll.total).toBe(1);
+  });
+
+  it("shows who is typing and who is online", async () => {
+    await db.hrChatMessage.updateMany({ data: { createdAt: new Date(0) } }); // earlier tests used up the per-minute allowance
+    const { chatId } = await openDm(ann, bob.id);
+    await setTyping(bob, chatId);
+    expect((await chatMessages(ann, chatId, null, false)).typing).toEqual([bob.id]);
+    expect((await chatMessages(bob, chatId, null, false)).typing).toEqual([]);
+    await sendText(bob, chatId, "done typing");
+    expect((await chatMessages(ann, chatId, null, false)).typing).toEqual([]);
+    await db.hrProfile.update({ where: { staffId: bob.id }, data: { presence: "active", presenceAt: new Date() } });
+    expect((await presenceMap())[bob.id]).toBe("active");
+    expect((await chatList(ann)).find((c) => c.withId === bob.id)?.presence).toBe("active");
+  });
+
+  it("keeps a chat avatar and rejects unknown characters", async () => {
+    expect((await setChatAvatar(ann, AVATARS[3])).avatar).toBe(AVATARS[3]);
+    await expect(setChatAvatar(ann, "<script>")).rejects.toThrow("characters shown");
+    expect((await setChatAvatar(ann, "")).avatar).toBe("");
+  });
+
+  it("lets the group owner set a photo and description, and no one else", async () => {
+    const { chatId } = await createGroup(ann, "Design crew", [bob.id, cat.id]);
+    const tiny = "data:image/jpeg;base64," + Buffer.alloc(300, 1).toString("base64");
+    const g = await updateGroup(ann, chatId, { about: "  All things design  ", photo: tiny });
+    expect(g).toMatchObject({ about: "All things design", photo: tiny, canEdit: true, sys: false });
+    expect((await groupInfo(bob, chatId)).canEdit).toBe(false);
+    await expect(updateGroup(bob, chatId, { about: "mine now" })).rejects.toThrow("made the group");
+    await expect(updateGroup(ann, chatId, { photo: "javascript:alert(1)" })).rejects.toThrow("JPG or PNG");
+    await expect(updateGroup(ann, chatId, { about: "x".repeat(301) })).rejects.toThrow("300");
+    expect((await updateGroup(ann, chatId, { photo: null })).photo).toBeNull();
+    expect((await chatList(bob)).find((c) => c.id === chatId)).toMatchObject({ about: "All things design", kind: "group" });
+    expect(g.members.find((m) => m.id === bob.id)).toMatchObject({ name: "Bob Employee", you: false });
+  });
+
+  it("builds company channels from departments and projects, and keeps them in step", async () => {
+    await db.hrProfile.updateMany({ where: { staffId: { in: [ann.id, bob.id] } }, data: { dept: "Engineering" } });
+    await db.hrProject.create({ data: { name: "POS 2.0", members: [ann.id, cat.id], status: "In progress" } });
+    await syncChannels(true);
+    const names = (await chatList(ann)).filter((c) => c.sys).map((c) => c.title).sort();
+    expect(names).toEqual(["# POS 2.0", "All Hands", "Engineering Team"]);
+    expect((await chatList(cat)).filter((c) => c.sys).map((c) => c.title).sort()).toEqual(["# POS 2.0", "All Hands"]);
+    const all = (await chatList(ann)).find((c) => c.title === "All Hands")!;
+    await expect(leaveGroup(ann, all.id)).rejects.toThrow("company channel");
+    await expect(addToGroup(ann, all.id, [cat.id])).rejects.toThrow("automatically");
+    expect((await groupInfo(admin, all.id)).canEdit).toBe(true); // the super admin runs company channels
+    expect((await groupInfo(ann, all.id)).canEdit).toBe(false);
+    // Moving someone out of the department removes them from its channel.
+    await db.hrProfile.update({ where: { staffId: bob.id }, data: { dept: "Sales" } });
+    await syncChannels(true);
+    expect((await chatList(bob)).filter((c) => c.sys).map((c) => c.title)).toEqual(["All Hands"]);
   });
 });

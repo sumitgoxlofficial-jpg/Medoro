@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
 import { HR_ROLE_LABEL, ONBOARD_STEPS, BREAKS } from "@/staff/hrms/constants";
-import { acceptDocuments, askAlly, endBreak, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
+import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
+import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
+import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
 import { IdleWatcher } from "./monitor";
 import { Screen } from "./screens";
@@ -154,7 +156,8 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "docs"; sh: Shell }
   const at = gate === "password" ? 0 : gate === "profile" ? 1 : 2;
   const { run, busy } = useRun();
   const [agree, setAgree] = useState([false, false, false]);
-  const docs = ["Offer letter", "Appointment letter", "Non-disclosure agreement"];
+  const docs: [LetterType, string][] = JOINING_LETTERS.map((t) => [t, letterLabel(t)]);
+  const v = useLetterView();
   return (
     <div className="max-w-[760px] mx-auto px-4 py-10 flex flex-col gap-5">
       <div className="flex items-center gap-3">
@@ -168,14 +171,16 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "docs"; sh: Shell }
       {gate === "docs" ? (
         <Card title="Joining documents" sub="Read each one, then accept." pad>
           <div className="flex flex-col gap-3">
-            {docs.map((d, i) => (
-              <label key={d} className="flex items-start gap-3 border border-[#E2E8F0] rounded-xl p-3.5 cursor-pointer">
-                <input type="checkbox" className="mt-1" checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />
+            {docs.map(([t, d], i) => (
+              <div key={t} className="flex items-start gap-3 border border-[#E2E8F0] rounded-xl p-3.5">
+                <input type="checkbox" className="mt-1" aria-label={`I have read and accept the ${d.toLowerCase()}`} checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />
                 <span><strong className="text-[13.5px]">{d}</strong><span className="block text-[12.5px] text-[#64748B]">{i === 0 ? "Your role, pay and joining date as agreed." : i === 1 ? "Terms of your employment at Medoro, including notice period and leave policy." : "You agree to keep Medoro and pharmacy customer data confidential."} HR can share the signed copies on request.</span></span>
-              </label>
+                <button type="button" className={cx(btnCls, "ml-auto")} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>Read</button>
+              </div>
             ))}
             <p className="text-[12px] text-[#64748B]">Accepting is recorded with today’s date. Steps: {ONBOARD_STEPS.length} onboarding tasks follow with HR.</p>
             <button className={primaryCls} disabled={busy || !agree.every(Boolean)} onClick={() => run(() => acceptDocuments())}>Accept and enter the HRMS</button>
+            {v.open ? <LetterModal letter={v.open.letter} pdf={v.open.pdf} onClose={v.close} /> : null}
           </div>
         </Card>
       ) : null}

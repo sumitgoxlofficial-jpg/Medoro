@@ -8,7 +8,7 @@ import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
-import { chatList, chatPeople, reviewChats, reviewPeople, unreadTotal } from "./chat";
+import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
@@ -72,7 +72,11 @@ export const loaders = {
   },
   payslips: async (me: Me) => ({ slips: await myPayslips(me.id) }),
   jobs: async () => ({ jobs: await jobs(true) }),
-  chat: async (me: Me, q: Q) => ({ chats: await chatList(me), people: await chatPeople(me), meId: me.id, open: q.c ?? "", google: (await gcalStatus(me.id)).connected, isAdmin: me.role === "admin" }),
+  chat: async (me: Me, q: Q) => {
+    await syncChannels();
+    const [chats, people, mine, g] = await Promise.all([chatList(me), chatPeople(me), myChatProfile(me), gcalStatus(me.id)]);
+    return { chats, people, me: mine, open: q.c ?? "", google: g.connected, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
+  },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   profile: async (me: Me) => ({ p: await myProfile(me) }),
