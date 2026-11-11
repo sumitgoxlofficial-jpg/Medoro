@@ -25,7 +25,10 @@ const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode
   "GrowthTeam", "GrowthMember", "EmployeeTerritory", "EmployeeCallingTarget", "EmployeeDailyPerformance", "LeadSource", "PharmacyLead", "PharmacyContact",
   "LeadEvidence", "LeadScore", "LeadImportJob", "LeadDuplicateCandidate", "LeadAssignment", "LeadAssignmentHistory", "LeadNote", "LeadActivity", "CallSession",
   "FollowUpTask", "SalesDeal", "DemoBooking", "ConversionRecord", "MessageTemplate", "SalesCampaign", "CampaignRecipient", "MessageConversation", "MessageEvent",
-  "ContactConsent", "SuppressionRecord", "IntegrationConnection", "BackgroundJob", "EventOutbox", "GrowthAuditLog", "GrowthSetting"]);
+  "ContactConsent", "SuppressionRecord", "IntegrationConnection", "BackgroundJob", "EventOutbox", "GrowthAuditLog", "GrowthSetting",
+  // Medoro HRMS (Medoro's own people records): platform-owned, never part of a pharmacy's backup or restore.
+  "HrProfile", "HrDepartment", "HrAttendance", "HrBreak", "HrLeave", "HrCorrection", "HrClaim", "HrHoliday", "HrAnnouncement", "HrProject", "HrTask", "HrPayslip",
+  "HrJob", "HrCandidate", "HrTicket", "HrMeeting", "HrRecognition", "HrNotification", "HrAllyUsage", "HrRecord", "HrSetting"]);
 
 type Layout = {
   /** Restored tables in insert order (parents first). Child tables have `via`: the FK column and its tenant-owned parent. */

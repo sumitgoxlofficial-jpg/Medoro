@@ -7,10 +7,8 @@ import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
 import { allow, createStaffSession, isEmail, isStaffEmail, newToken, readStaffSession, staffAudit, staffDomain, tokenHash, type Staff } from "./auth";
 import { MOBILE_RE, digits, type StaffRoleId } from "./constants";
-import { clearPendingEmployee, clearPendingPartner, clearVerifiedEmail, readPendingEmployee, readPendingPartner, readVerifiedEmail, setPendingEmployee, setPendingPartner, type GoogleClaims } from "@/server/google-oidc";
-import { enforce } from "@/server/ratelimit";
-import { log } from "@/server/log";
-import { mailEnabled, sendMail } from "@/server/mail";
+import { clearPendingPartner, clearVerifiedEmail, readPendingPartner, readVerifiedEmail, setPendingPartner, type GoogleClaims } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
 
 const CP = "_cp"; // sequence namespace for the control plane
 const INVITE_DAYS = 7;
@@ -25,11 +23,16 @@ const byEmail = (email: string, kind: StaffKind) => db.staffUser.findUnique({ wh
 const phone = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile.");
 const password = z.string().min(12, "Password must be at least 12 characters.").max(200);
 
-async function newEmployeeNo() {
-  const n = await db.$transaction((tx) => nextSeq(tx, CP, "EMP"));
-  return { empNo: "MS-" + String(n).padStart(3, "0"), n };
+export async function newEmployeeNo() {
+  // Skips numbers already in use (profiles created or imported another way), so a new profile never collides.
+  for (let i = 0; i < 1000; i++) {
+    const n = await db.$transaction((tx) => nextSeq(tx, CP, "EMP"));
+    const empNo = "MS-" + String(n).padStart(3, "0");
+    if (!(await db.staffUser.findUnique({ where: { empNo }, select: { id: true } }))) return { empNo, n };
+  }
+  throw new UserError("Couldn’t allocate an employee ID. Try again.");
 }
-const referral = (name: string, n: number) => name.trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10) + n;
+export const referral = (name: string, n: number) => name.trim().split(/\s+/)[0].toUpperCase().replace(/[^A-Z]/g, "").slice(0, 10) + n;
 
 // ── Self sign-up. Reference partners are active straight away; sales and care wait for a super admin.
 // The very first super admin comes from STAFF_BOOTSTRAP_EMAIL.
@@ -98,61 +101,6 @@ export async function completeGooglePartner(raw: z.input<typeof googlePartnerSch
   return { next: "done" as const, code: u.referralCode };
 }
 
-// ── Sales employees with Google (the employee sign-in page, /staff/employee). Sales role only.
-// A new employee creates their own profile with their Google account; it waits for a super admin to approve it.
-// Google has verified the email, so there's no password and no authenticator for these profiles.
-const EMP = "/staff/employee";
-
-/** After Google, on the employee page: signs an approved sales employee in, or holds a new identity for sign-up. */
-export async function employeeFromGoogle(c: GoogleClaims): Promise<string> {
-  const bySub = await db.staffUser.findUnique({ where: { googleSub: c.sub } });
-  if (bySub?.kind === "partner") return `${EMP}?google=partner`;
-  const u = bySub ?? (await byEmail(c.email, "team"));
-  if (!u) {
-    await setPendingEmployee({ sub: c.sub, email: c.email, name: c.name });
-    return `${EMP}?google=new`;
-  }
-  if (u.googleSub && u.googleSub !== c.sub) return `${EMP}?google=mismatch`;
-  if (u.role !== "sales") return `${EMP}?google=notsales`;
-  if (u.status === "deactivated") return `${EMP}?google=deactivated`;
-  if (!u.googleSub) await db.staffUser.update({ where: { id: u.id }, data: { googleSub: c.sub } });
-  if (u.status !== "active") return `${EMP}?google=pending`;
-  await createStaffSession(u.id, u.tokenVersion, { mfaPassed: true });
-  await staffAudit({ id: u.id, name: u.name }, "Signed in", "Google (sales employee)");
-  return `${EMP}?google=ok`;
-}
-
-export const googleEmployeeSchema = z.object({
-  name: z.string().trim().min(2, "Enter your full name.").max(80),
-  phone, team: z.string().trim().max(60).default(""),
-  agree: z.literal(true, { message: "Confirm the employee terms." }),
-});
-
-/** Creates the sales profile for the Google identity held after `employeeFromGoogle`. It starts as pending. */
-export async function completeGoogleEmployee(raw: z.input<typeof googleEmployeeSchema>) {
-  const g = await readPendingEmployee();
-  if (!g) throw new UserError("Your Google sign-in expired. Tap “Continue with Google” again.");
-  const i = googleEmployeeSchema.parse(raw);
-  const { ip } = await clientInfo();
-  await enforce("signup", `staff-employee:${ip ?? "?"}`);
-  if (await db.staffUser.findFirst({ where: { OR: [{ email: g.email, kind: "team" }, { googleSub: g.sub }] } })) {
-    await clearPendingEmployee();
-    throw new UserError("A profile with this Google account already exists. Tap “Continue with Google” to sign in.");
-  }
-  const { empNo, n } = await newEmployeeNo();
-  const u = await db.staffUser.create({
-    data: { empNo, name: i.name, email: g.email, kind: "team", phone: i.phone, team: i.team, role: "sales", status: "pending", googleSub: g.sub, passwordHash: null, referralCode: referral(i.name, n) },
-  });
-  await clearPendingEmployee();
-  await staffAudit({ id: u.id, name: u.name }, "Employee signed up with Google", `${empNo} · waiting for approval`);
-  // Tell the super admins, when email is set up. Best effort: the request shows in the console either way.
-  if (mailEnabled()) {
-    const admins = await db.staffUser.findMany({ where: { role: "super_admin", status: "active" }, select: { email: true } });
-    for (const a of admins) await sendMail({ to: a.email, subject: `New employee waiting for approval: ${i.name}`, text: `${i.name} (${g.email}, ${i.phone}) signed up as a sales employee with Google.\n\nApprove or reject in the staff console: Growth intelligence → My employees.` }).catch((e) => log.error("approval mail failed", { err: e }));
-  }
-  return { empNo, pending: true as const };
-}
-
 // ── Sign-in: password, then an authenticator code (enrolled on first sign-in). `as` picks which profile opens.
 export async function signIn(rawEmail: string, pw: string, as: StaffKind = "team") {
   const e = String(rawEmail ?? "").trim().toLowerCase();
@@ -166,12 +114,13 @@ export async function signIn(rawEmail: string, pw: string, as: StaffKind = "team
     throw new UserError(as === "team" ? "This email has a reference partner profile, not a Medoro team profile. Use the Reference partner tab." : "This email has no partner profile yet. Join free below, or use the Medoro team tab.");
   }
   if (u && u.kind === "partner" && u.googleSub && !u.passwordHash) throw new UserError("This profile signs in with Google. Tap “Continue with Google”.");
-  if (u && u.kind === "team" && u.googleSub && !u.passwordHash) throw new UserError("This employee profile signs in with Google on the employee sign-in page (/staff/employee).");
+  if (u && u.kind === "team" && u.googleSub && !u.passwordHash) throw new UserError("This employee profile has no password yet. Ask HR for a one-time password, then sign in on the employee sign-in page (/staff/employee).");
   if (!u || !(await verifyPassword(u.passwordHash, String(pw ?? "")))) {
     const left = await recordFailure(keys);
     await staffAudit({ id: u?.id ?? null, name: e }, "Sign-in failed", "wrong email or password");
     throw new UserError(left ? `Email or password is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many attempts. Try again in 15 minutes.");
   }
+  if (u.role === "employee") throw new UserError("This profile uses the Medoro HRMS. Sign in on the employee sign-in page (/staff/employee).");
   if (u.role !== "partner" && !isStaffEmail(e)) throw new UserError(`Use your @${staffDomain()} work email.`);
   if (u.status === "pending") throw new UserError("Your profile is waiting for approval. You’ll be able to sign in once Medoro approves it.");
   if (u.status !== "active") throw new UserError("This profile is deactivated. Contact Medoro.");
@@ -234,7 +183,7 @@ export async function acceptInvite(token: string, pw: string) {
 
 export const employeeSchema = z.object({
   name: z.string().trim().min(2, "Enter the full name.").max(80), email: anyEmail(), phone,
-  role: z.enum(["super_admin", "sales", "care", "partner"]), team: z.string().trim().max(60).default(""),
+  role: z.enum(["super_admin", "sales", "care", "partner", "employee"]), team: z.string().trim().max(60).default(""),
 }).refine((i) => i.role === "partner" || isStaffEmail(i.email), { message: `Medoro team members use an @${staffDomain()} work email.`, path: ["email"] });
 
 export async function createEmployee(s: Staff, raw: z.input<typeof employeeSchema>, origin: string) {

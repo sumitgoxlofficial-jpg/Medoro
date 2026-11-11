@@ -1,6 +1,6 @@
 import { exchangeCode, googleLogin, safeEqual, takeFlow, verifyIdToken, type GoogleClaims } from "@/server/google-oidc";
 import { googleSignIn, linkGoogleToSession } from "@/domain/identity/google";
-import { employeeFromGoogle, partnerFromGoogle } from "@/staff/people";
+import { partnerFromGoogle } from "@/staff/people";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (!g) return to("/signin?google=off");
   const flow = await takeFlow();
   if (!flow || !safeEqual(flow.state, url.searchParams.get("state") ?? "")) return to("/signin?google=state");
-  const back = (why: string) => to(flow.intent === "link" ? `/app?google=${why}` : flow.intent === "partner" ? `/staff/login?google=${why}` : flow.intent === "employee" ? `/staff/employee?google=${why}` : `/signin?google=${why}`);
+  const back = (why: string) => to(flow.intent === "link" ? `/app?google=${why}` : flow.intent === "partner" ? `/staff/login?google=${why}` : `/signin?google=${why}`);
   const code = url.searchParams.get("code");
   if (!code) return back("cancelled");
   let claims: GoogleClaims;
@@ -23,6 +23,5 @@ export async function GET(req: Request) {
   }
   if (flow.intent === "link") return back(await linkGoogleToSession(claims));
   if (flow.intent === "partner") return to(await partnerFromGoogle(claims));
-  if (flow.intent === "employee") return to(await employeeFromGoogle(claims));
   return to(await googleSignIn(claims));
 }

@@ -1,68 +1,73 @@
 "use client";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
-import { ArrowLeft, Clock, PhoneCall } from "lucide-react";
-import { Wordmark } from "@/components/site/chrome";
-import { staffGoogleEmployee } from "../actions";
-import { GoogleG } from "../login/form";
+import { hrSendCode, hrSignIn } from "../hrms/actions";
 
-const field = "border border-input rounded-[10px] px-3 py-[10px] text-[15px] outline-none bg-white focus:border-teal w-full";
-const label = "flex flex-col gap-[5px] text-[13px] text-muted";
+const field = "border border-[#CDD2D7] rounded-[10px] px-3.5 py-3 text-[15px] outline-none focus:border-[#0B5E5B] bg-white w-full";
 
-export function EmployeeLogin({ google, handoff = false, newProfile = null, notice = "", waiting = false }: { google: boolean; handoff?: boolean; newProfile?: { email: string; name: string } | null; notice?: string; waiting?: boolean }) {
+export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
+  const router = useRouter();
+  const [id, setId] = useState(""), [pw, setPw] = useState(""), [code, setCode] = useState("");
+  const [totp, setTotp] = useState(false), [err, setErr] = useState(""), [info, setInfo] = useState("");
   const [busy, start] = useTransition();
-  const [err, setErr] = useState("");
-  const [done, setDone] = useState(false);
-  const [f, setF] = useState({ name: newProfile?.name ?? "", phone: "", team: "", agree: false });
-  useEffect(() => { if (handoff) window.location.replace("/staff/growth/my-work"); }, [handoff]);
   const submit = (e: React.FormEvent) => {
-    e.preventDefault(); setErr("");
-    start(async () => { const r = await staffGoogleEmployee({ ...f, agree: f.agree as true }); if (r.ok) setDone(true); else setErr(r.error); });
+    e.preventDefault(); setErr(""); setInfo("");
+    start(async () => {
+      const r = await hrSignIn(id, pw, code);
+      if (!r.ok) return setErr(r.error);
+      if (r.data.next === "totp") { setTotp(true); return; }
+      router.replace("/staff/hrms");
+      router.refresh();
+    });
   };
-  const gBtn = (text: string) => google ? <a href="/api/auth/google/start?intent=employee" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[12px] text-[15px] font-semibold text-ink no-underline hover:border-teal"><GoogleG />{text}</a> : null;
-
+  const forgot = () => {
+    setErr(""); setInfo("");
+    if (!emailCodes) return setInfo("Ask HR for a one-time password: HR → Credentials. It works once, then you set a new password.");
+    start(async () => {
+      const r = await hrSendCode(id);
+      if (!r.ok) return setErr(r.error);
+      setInfo("If that ID exists, a 6-digit one-time password was emailed to you. Type it as the password above.");
+    });
+  };
   return (
-    <div className="min-h-dvh bg-[#F5F6F7] text-ink flex flex-col leading-[1.45]">
-      <header className="h-[68px] flex items-center gap-4 px-[clamp(16px,3vw,32px)] border-b border-[#E6E8EB] bg-white">
-        <Link href="/" className="no-underline"><Wordmark size={22} /></Link>
-        <span className="h-6 px-2.5 rounded-full bg-[#0E1A1F] text-white text-[11.5px] font-semibold tracking-[.08em] uppercase flex items-center">Employee</span>
-        <Link href="/" className="ml-auto text-[14px] font-semibold text-ink-2 flex gap-1.5 items-center whitespace-nowrap"><ArrowLeft size={15} />medoro.in</Link>
-      </header>
-      <main className="flex-1 flex items-center justify-center px-4 py-[clamp(24px,5vh,56px)]">
-        <div className="w-[min(440px,100%)] flex flex-col gap-4">
-          <section className="bg-white border border-line rounded-[14px] p-7 flex flex-col gap-4 shadow-[0_1px_2px_rgba(16,24,40,.04)] max-[400px]:p-5">
-            <div className="flex gap-3 items-center">
-              <span className="size-10 rounded-[10px] bg-[#0E1A1F] text-[#5FD3BC] flex items-center justify-center flex-none"><PhoneCall size={20} /></span>
-              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">Sales employee sign in</h1><span className="text-[13px] text-muted">Your assigned pharmacies, calls and follow-ups</span></div>
-            </div>
-
-            {handoff ? <div className="text-[14px] text-muted py-2">Signing you in…</div>
-            : done || waiting ? (
-              <div className="flex flex-col gap-2 py-1" role="status">
-                <div className="flex gap-2 items-center font-semibold text-[15px]"><Clock size={18} className="text-[#94570A]" />Waiting for approval</div>
-                <p className="m-0 text-[14px] text-muted">{done ? "Your profile was created. " : ""}A Medoro admin checks and approves new employees. Once approved, come back here and tap “Continue with Google” to start work.</p>
-              </div>
-            ) : newProfile ? (
-              <form onSubmit={submit} className="flex flex-col gap-3">
-                <p className="m-0 text-[14px]">Create your employee profile for <strong>{newProfile.email}</strong>. A Medoro admin approves it before you can sign in.</p>
-                <label className={label}>Full name<input required className={field} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoComplete="name" /></label>
-                <label className={label}>Mobile number<input required className={field} inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} autoComplete="tel" placeholder="98765 43210" /></label>
-                <label className={label}>Area or team (optional)<input className={field} value={f.team} onChange={(e) => setF({ ...f, team: e.target.value })} placeholder="e.g. Pune West" /></label>
-                <label className="flex gap-2 items-start text-[13px]"><input type="checkbox" className="mt-1" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} /><span>I work for Medoro as a sales employee. I’ll use pharmacy contact details only for Medoro’s work, respect do-not-contact requests, and report calls truthfully.</span></label>
-                {err ? <div className="text-[13.5px] text-[#B3261E]" role="alert">{err}</div> : null}
-                <button disabled={busy || !f.agree} className="bg-teal text-white rounded-[10px] py-[12px] text-[15px] font-semibold disabled:opacity-60">{busy ? "Sending…" : "Send for approval"}</button>
-              </form>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {notice ? <div className="text-[13.5px] rounded-lg bg-[#FFF4E0] text-[#94570A] px-3 py-2" role="alert">{notice}</div> : null}
-                {google ? gBtn("Continue with Google") : <div className="text-[14px] text-muted">Google sign-in isn’t set up on this server yet. Ask your admin.</div>}
-                <p className="m-0 text-[12.5px] text-muted">New here? Continue with Google to create your profile; an admin approves it. No password needed.</p>
-              </div>
-            )}
-          </section>
-          <div className="text-[12.5px] text-muted text-center">Admin, manager or customer care? <Link href="/staff/login?as=team" className="text-teal font-semibold">Medoro team sign in</Link></div>
+    <div className="min-h-screen flex max-[860px]:flex-col" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div className="flex-[1.05] bg-[#0B5E5B] text-white px-12 py-11 flex flex-col max-[860px]:px-6 max-[860px]:py-8">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/medoro-mark.png" alt="" className="size-11 rounded-[10px] bg-white p-[3px]" />
+          <div><div className="text-[26px] font-bold tracking-tight leading-none">Medoro</div><div className="text-[10.5px] tracking-[.1em] uppercase text-white/50 mt-1.5">HRMS · Pharmacy software</div></div>
         </div>
-      </main>
+        <div className="my-auto max-w-[420px] max-[860px]:hidden">
+          <div className="text-[11px] font-bold text-[#14B8A6] uppercase tracking-[.08em]">Medoro team workspace</div>
+          <h1 className="text-[34px] leading-[1.15] font-bold mt-2 text-[#D6F3EF]">Built for how Indian pharmacies work.</h1>
+          <p className="text-white/65 mt-3 text-[15px]">Attendance, leave, payslips, tasks and leads for everyone at Medoro, in one place.</p>
+        </div>
+      </div>
+      <div className="flex-1 bg-[#F8FAFC] flex items-center justify-center px-6 py-10">
+        <form onSubmit={submit} className="w-full max-w-[380px] flex flex-col gap-4">
+          <div><h2 className="text-[24px] font-bold text-[#0f172a]">Welcome to Medoro HRMS</h2><p className="text-[14px] text-[#475569] mt-1">Sign in with your employee ID or official email.</p></div>
+          <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Employee ID or official email
+            <input className={field} value={id} onChange={(e) => setId(e.target.value)} placeholder="MS-004 or name@medoro.in" autoComplete="username" autoFocus required disabled={totp} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Password
+            <input className={field} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" required disabled={totp} />
+          </label>
+          {totp ? (
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Authenticator code
+              <input className={field} inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value)} placeholder="6-digit code" autoComplete="one-time-code" autoFocus required />
+            </label>
+          ) : null}
+          {err ? <div role="alert" className="text-[13.5px] text-[#B3261E] bg-[#FDECEA] rounded-lg px-3 py-2">{err}</div> : null}
+          {info ? <div className="text-[13.5px] text-[#0B5E5B] bg-[#E1F1EF] rounded-lg px-3 py-2">{info}</div> : null}
+          <button disabled={busy} className="bg-[#0B5E5B] text-white rounded-[10px] py-3 font-semibold text-[15px] cursor-pointer hover:bg-[#094A48] disabled:opacity-60">{busy ? "Signing in…" : "Sign in"}</button>
+          <div className="flex justify-between text-[13px]">
+            <button type="button" onClick={forgot} disabled={busy || !id.trim()} className="text-[#0B5E5B] font-semibold cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0">Forgot password?</button>
+            <Link href="/" className="text-[#475569]">← medoro website</Link>
+          </div>
+          <p className="text-[12px] text-[#64748B] border-t border-[#E2E8F0] pt-3">Only Medoro employees can sign in. Your employee ID and first password come from HR. Locks for 15 minutes after 5 wrong tries.</p>
+        </form>
+      </div>
     </div>
   );
 }
