@@ -11,6 +11,7 @@ import { deletionTick } from "@/domain/system/deletion";
 import { driveHealthTick } from "@/domain/system/drive-health";
 import { autoDeleteMovedCopies } from "@/domain/system/drive-move";
 import { growthTick } from "@/staff/growth/jobs";
+import { leadSheetTick } from "@/staff/hrms/lead-sheet";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -23,7 +24,7 @@ async function tick(daily: boolean) {
     const now = new Date();
     let failed = false;
     // Each job runs even if another fails.
-    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily })]) {
+    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily }), () => (daily ? leadSheetTick() : Promise.resolve())]) {
       try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; }
     }
     return failed ? new Response("error", { status: 500 }) : new Response("ok");

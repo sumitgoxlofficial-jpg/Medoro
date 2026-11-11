@@ -1,0 +1,161 @@
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+const jar = new Map<string, string>();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (k: string) => (jar.has(k) ? { value: jar.get(k) } : undefined), set: (k: string, v: string) => (v ? jar.set(k, v) : jar.delete(k)), delete: (k: string) => jar.delete(k) }),
+  headers: async () => new Headers({ "x-forwarded-for": "10.0.0.9", "user-agent": "vitest" }),
+}));
+vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("redirect " + u); } }));
+
+import { db } from "@/server/db";
+import { loadPerms, type Me } from "@/staff/hrms/auth";
+import { leadSheetTick, parseSheetUrl, saveSheet, sheetStatus, syncSheet } from "@/staff/hrms/lead-sheet";
+import { langOf, speaks, stateName, stateOf } from "@/staff/hrms/states";
+import { updateEmployee } from "@/staff/hrms/people";
+import { resetDb } from "./helpers";
+
+const ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
+const URL_OK = `https://docs.google.com/spreadsheets/d/${ID}/edit#gid=777`;
+let hr: Me, emp: Me, s1: Me, s2: Me;
+const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true }; };
+const mk = (n: number, name: string, role: "super_admin" | "employee" | "sales", hrRole: "admin" | "employee" | "sales") =>
+  db.staffUser.create({ data: { empNo: `MS-40${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98600000${n}0`, role, status: "active", referralCode: role === "sales" ? "SS" + n : null, hr: { create: { role: hrRole, profileDone: true, docsAcceptedAt: new Date() } } } });
+
+let body = "", type = "text/csv", status = 200, called: string[] = [];
+beforeAll(async () => {
+  await resetDb();
+  process.env.SESSION_SECRET ||= "test-only-secret-0123456789abcdef0123";
+  hr = await mkMe((await mk(1, "Asha Admin", "super_admin", "admin")).id);
+  emp = await mkMe((await mk(2, "Eve Employee", "employee", "employee")).id);
+  s1 = await mkMe((await mk(3, "Sam Sales", "sales", "sales")).id);
+  s2 = await mkMe((await mk(4, "Sia Sales", "sales", "sales")).id);
+});
+beforeEach(() => {
+  jar.clear(); called = []; status = 200; type = "text/csv";
+  vi.stubGlobal("fetch", vi.fn(async (u: string) => { called.push(String(u)); return new Response(body, { status, headers: { "content-type": type } }); }));
+});
+afterEach(() => vi.unstubAllGlobals());
+
+const CSV = [
+  "Store,Owner,Mobile Number,City,Plan,Source",
+  "Gupta Chemists,Arun Thakur,9876543210,Hazaribagh,Starter,Field visit",
+  "Balaji Drug House,Pankaj Mishra,+91 98765 43211,Bokaro,Professional,Referral",
+  "Sunrise Medical Hall,Sushil Oraon,9876543212,Giridih,Pro,Field visit",
+  "Bad Row,Nobody,12345,Ranchi,Starter,Field visit",
+].join("\n");
+
+describe("master lead sheet", () => {
+  it("accepts only Google Sheets links and finds the tab", () => {
+    expect(parseSheetUrl(URL_OK)).toEqual({ id: ID, gid: "777" });
+    expect(parseSheetUrl(`https://docs.google.com/spreadsheets/d/${ID}`)).toEqual({ id: ID, gid: "0" });
+    expect(parseSheetUrl("https://evil.example.com/spreadsheets/d/" + ID)).toBeNull();
+    expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/short")).toBeNull();
+    expect(parseSheetUrl("http://docs.google.com/spreadsheets/d/" + ID)).toBeNull();
+  });
+
+  it("is for people with the Leads module only, and rejects other links", async () => {
+    await expect(saveSheet(emp, { url: URL_OK, auto: false, assign: true })).rejects.toThrow("Your role can’t do that");
+    await expect(sheetStatus(emp)).rejects.toThrow("Your role can’t do that");
+    await expect(saveSheet(hr, { url: "https://example.com/x", auto: false, assign: true })).rejects.toThrow("Google Sheet link");
+    await expect(syncSheet(hr)).rejects.toThrow("Paste the Google Sheet link");
+  });
+
+  it("reads the sheet, adds new leads, skips bad rows and duplicates, and gives them to the sales team", async () => {
+    body = CSV;
+    await saveSheet(hr, { url: URL_OK, auto: false, assign: true });
+    const r = await syncSheet(hr);
+    expect(called[0]).toBe(`https://docs.google.com/spreadsheets/d/${ID}/export?format=csv&gid=777`);
+    expect(r).toMatchObject({ added: 3, assigned: 3, skipped: 1 });
+    expect(r.skippedRows[0]).toContain("Row 5");
+    const leads = await db.lead.findMany({ orderBy: { code: "asc" } });
+    expect(leads.map((l) => l.phone)).toEqual(["9876543210", "9876543211", "9876543212"]);
+    expect(leads.every((l) => l.staffId && l.nextOn)).toBe(true);
+    const per = [s1.id, s2.id].map((id) => leads.filter((l) => l.staffId === id).length).sort();
+    expect(per).toEqual([1, 2]); // spread across the two salespeople
+    expect(await db.hrNotification.count({ where: { staffId: { in: [s1.id, s2.id] } } })).toBeGreaterThan(0);
+    // Syncing again adds only what is new.
+    body = CSV + "\nNew Pharma,Ravi,9876543299,Patna,Starter,Referral";
+    const again = await syncSheet(hr);
+    expect(again).toMatchObject({ added: 1, assigned: 1 });
+    expect(await db.lead.count()).toBe(4);
+    expect((await sheetStatus(hr)).last).toMatchObject({ added: 1, by: "Asha Admin", error: "" });
+  });
+
+  it("leaves leads unassigned when automatic giving-out is off, and honours an 'assigned to' column", async () => {
+    await db.lead.deleteMany({});
+    body = "Pharmacy,Phone,Assigned To\nAlpha Meds,9123456780,MS-404\nBeta Meds,9123456781,\nGamma Meds,9123456782,Sam Sales";
+    await saveSheet(hr, { url: URL_OK, auto: false, assign: false });
+    const r = await syncSheet(hr);
+    expect(r).toMatchObject({ added: 3, assigned: 2 });
+    const byPhone = Object.fromEntries((await db.lead.findMany()).map((l) => [l.phone, l.staffId]));
+    expect(byPhone["9123456780"]).toBe(s2.id);
+    expect(byPhone["9123456781"]).toBe("");
+    expect(byPhone["9123456782"]).toBe(s1.id);
+  });
+
+  it("explains a private sheet and remembers the failure", async () => {
+    body = "<html>Sign in</html>"; type = "text/html; charset=utf-8";
+    await expect(syncSheet(hr)).rejects.toThrow("Anyone with the link");
+    expect((await sheetStatus(hr)).last?.error).toContain("Anyone with the link");
+    type = "text/csv"; body = "just one line"; 
+    await expect(syncSheet(hr)).rejects.toThrow("no leads");
+    body = "Foo,Bar\n1,2";
+    await expect(syncSheet(hr)).rejects.toThrow("first row must name the columns");
+  });
+
+  it("syncs by itself each day only when switched on", async () => {
+    await db.lead.deleteMany({});
+    body = "Store,Phone\nDaily Meds,9000000001";
+    await saveSheet(hr, { url: URL_OK, auto: false, assign: false });
+    await leadSheetTick();
+    expect(await db.lead.count()).toBe(0);
+    await saveSheet(hr, { url: URL_OK, auto: true, assign: false });
+    await leadSheetTick();
+    expect(await db.lead.count()).toBe(1);
+    expect((await sheetStatus(hr)).last?.by).toBe("Daily sync");
+    // A failing sheet never throws out of the daily job.
+    status = 403; type = "text/html";
+    await expect(leadSheetTick()).resolves.toBeUndefined();
+  });
+
+  it("knows states, languages and towns", () => {
+    expect(stateName(" BIHAR ")).toBe("Bihar"); expect(stateName("U.P.")).toBe("Uttar Pradesh"); expect(stateName("Orissa")).toBe("Odisha"); expect(stateName("Mars")).toBe("");
+    expect(langOf("Bihar")).toBe("hindi"); expect(langOf("Jharkhand")).toBe("hindi"); expect(langOf("Tamil Nadu")).toBe("tamil"); expect(langOf("")).toBe("");
+    expect(stateOf("", "Patna")).toBe("Bihar"); expect(stateOf("Kerala", "Patna")).toBe("Kerala"); expect(stateOf("", "Nowhereville")).toBe("");
+    expect(speaks("Bihar", "Uttar Pradesh")).toBe(true); expect(speaks("Bihar", "Tamil Nadu")).toBe(false); expect(speaks("", "Tamil Nadu")).toBe(true); expect(speaks("Bihar", "")).toBe(true);
+  });
+
+  it("gives a salesperson from Bihar Hindi-speaking states only, and keeps other leads for someone who speaks their language", async () => {
+    await db.lead.deleteMany({});
+    await db.hrProfile.update({ where: { staffId: s1.id }, data: { homeState: "Bihar" } });
+    await db.hrProfile.update({ where: { staffId: s2.id }, data: { homeState: "Tamil Nadu" } });
+    body = ["Store,Phone,City,State",
+      "Patna Meds,9100000001,Patna,", "Ranchi Meds,9100000002,Ranchi,Jharkhand", "Lucknow Meds,9100000003,Lucknow,UP", "Jaipur Meds,9100000004,Jaipur,Rajasthan",
+      "Chennai Meds,9100000005,Chennai,Tamil Nadu", "Mystery Meds,9100000006,Smalltown,"].join("\n");
+    await saveSheet(hr, { url: URL_OK, auto: false, assign: true });
+    const r = await syncSheet(hr);
+    expect(r).toMatchObject({ added: 6, assigned: 6, unmatched: 0 });
+    const by = Object.fromEntries((await db.lead.findMany()).map((l) => [l.name, { who: l.staffId, state: l.state }]));
+    for (const n of ["Patna Meds", "Ranchi Meds", "Lucknow Meds", "Jaipur Meds"]) expect(by[n].who).toBe(s1.id); // Hindi-speaking states go to the Bihar salesperson
+    expect(by["Chennai Meds"].who).toBe(s2.id); // Tamil lead goes to the Tamil Nadu salesperson
+    expect([s1.id, s2.id]).toContain(by["Mystery Meds"].who); // unknown state: anyone
+    expect(by["Patna Meds"].state).toBe("Bihar"); expect(by["Lucknow Meds"].state).toBe("Uttar Pradesh");
+  });
+
+  it("leaves a lead waiting when no salesperson speaks its language, and says so", async () => {
+    await db.lead.deleteMany({});
+    await db.hrProfile.update({ where: { staffId: s2.id }, data: { homeState: "Bihar" } });
+    body = "Store,Phone,State\nTamil Meds,9200000001,Tamil Nadu\nHindi Meds,9200000002,Bihar";
+    const r = await syncSheet(hr);
+    expect(r).toMatchObject({ added: 2, assigned: 1, unmatched: 1, unmatchedLang: ["Tamil"] });
+    expect((await db.lead.findFirstOrThrow({ where: { name: "Tamil Meds" } })).staffId).toBe("");
+    expect((await sheetStatus(hr)).last).toMatchObject({ unmatched: 1 });
+  });
+
+  it("lets HR set an employee's home state, and only a real state", async () => {
+    const base = { dept: "Sales", designation: "Exec", role: "sales" as const, empType: "Full-time" as const, location: "Bokaro", managerId: null, incentivePct: 3, ctc: 100000 };
+    await updateEmployee(hr, s1.id, { ...base, homeState: "jharkhand" });
+    expect((await db.hrProfile.findUniqueOrThrow({ where: { staffId: s1.id } })).homeState).toBe("Jharkhand");
+    await expect(updateEmployee(hr, s1.id, { ...base, homeState: "Atlantis" })).rejects.toThrow("Choose the state from the list");
+  });
+});

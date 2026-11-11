@@ -18,6 +18,7 @@ import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
+import * as leadSheet from "@/staff/hrms/lead-sheet";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -172,3 +173,7 @@ export const getLetter = async (staffId: string, type: string, lastDay?: string)
 export const getOfferLetter = async (candidateId: string) => hrRun((me) => letters.candidateLetter(me, candidateId));
 export const emailLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.emailLetter(me, staffId, type, lastDay));
 export const emailOffer = async (candidateId: string) => done(await hrRun((me) => letters.emailOffer(me, candidateId)));
+
+// ── Master lead sheet (Google Sheets)
+export const saveLeadSheet = async (input: { url: string; auto: boolean; assign: boolean }) => done(await hrRun((me) => leadSheet.saveSheet(me, input), "Lead sheet saved."));
+export const syncLeadSheet = async () => done(await hrRun((me) => leadSheet.syncSheet(me)));

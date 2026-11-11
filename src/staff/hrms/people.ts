@@ -11,6 +11,7 @@ import { dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { staffDomain } from "../auth";
 import { IFSC_BANKS, IFSC_RE, MOBILE_RE, PAN_RE, digits } from "../constants";
 import { newEmployeeNo, referral } from "../people";
+import { stateName } from "./states";
 import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
@@ -21,7 +22,7 @@ const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "En
 export type Person = {
   id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
   location: string; managerId: string | null; joinDate: string | null; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
-  photo: string | null; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
+  photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
 
 /** Presence as others see it: someone "active" who hasn't been seen for 5 minutes is offline. */
@@ -37,7 +38,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     const h = u.hr;
     return {
       id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
-      empType: h?.empType ?? "Full-time", location: h?.location ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, ctc: h?.ctc ?? 0,
+      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
       profileDone: h?.profileDone ?? false, docsAccepted: !!h?.docsAcceptedAt, hasPassword: !!u.passwordHash,
@@ -112,6 +113,7 @@ export const newEmployeeSchema = z.object({
   role: z.enum(["employee", "hr", "finance", "sales"]), empType: z.enum(EMP_TYPES), joinDate: iso,
   ctc: z.coerce.number().int("Enter the annual CTC in rupees.").min(0).max(100_000_000), location: z.string().trim().max(60).default(""),
   managerId: z.string().nullish(), incentivePct: z.coerce.number().min(0).max(5, "Sales incentive can’t be more than 5%.").default(0),
+  homeState: z.string().trim().default("").refine((v) => !v || !!stateName(v), "Choose the state from the list.").transform(stateName),
 });
 
 export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSchema>) {
@@ -128,7 +130,7 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
     data: {
       empNo, name: i.name, email, kind: "team", phone: i.phone, team: i.dept, role: staffRole, status: "active", passwordHash: await hashPassword(temp), approvedBy: me.name,
       referralCode: staffRole === "sales" ? referral(i.name, n) : null,
-      hr: { create: { role: i.role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, managerId: i.managerId || null, joinDate: dateOnly(i.joinDate), ctc: i.ctc, incentivePct: i.role === "sales" ? i.incentivePct : 0, personalEmail: i.personalEmail, mustChangePassword: true } },
+      hr: { create: { role: i.role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: dateOnly(i.joinDate), ctc: i.ctc, incentivePct: i.role === "sales" ? i.incentivePct : 0, personalEmail: i.personalEmail, mustChangePassword: true } },
     },
   });
   await audit(me, "Employee created", `${empNo} · ${email} · ${i.role}`);
@@ -154,7 +156,7 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   const role = was === "admin" ? "admin" : i.role;
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
-  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget } as const;
+  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget } as const;
   await db.$transaction([
     db.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } }),
     db.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } }),

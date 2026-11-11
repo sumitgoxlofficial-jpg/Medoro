@@ -1288,6 +1288,7 @@ model Lead {
   discountPct    Int?
   discountStatus String? // pending, approved, rejected
   email          String    @default("")
+  state          String    @default("") // Indian state, so the lead goes to a salesperson who speaks its language
   createdAt      DateTime  @default(now())
   logs           LeadLog[]
 }
@@ -2328,6 +2329,7 @@ model HrProfile {
   photo              String? // small data: URL chosen by the employee
   presence           String    @default("offline") // active, break, offline
   presenceNote       String    @default("")
+  homeState          String    @default("") // where a salesperson is from: leads go to people who speak the lead's language
   chatAvatar         String    @default("") // an emoji shown beside chat messages; empty means the profile photo
   presenceAt         DateTime?
   otpHash            String? // one-time password issued by HR (argon2)

@@ -4,12 +4,13 @@ import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
 import { listEvents, status as gcalStatus } from "./gcal";
-import { DESIGN_NAV, EMPLOYEE_GROUPS, EXTRA_NAV, HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
+import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
+import { sheetStatus } from "./lead-sheet";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
 import { addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
@@ -20,20 +21,9 @@ const monthArg = (v: string | undefined) => (v && /^\d{4}-(0[1-9]|1[0-2])$/.test
 const upcomingHolidays = () => holidays(todayISO(), addDays(todayISO(), 365)).then((h) => h.slice(0, 6));
 const people = async () => (await roster()).map((p) => ({ id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, role: p.role }));
 
-const iconOf = (id: string) => SCREENS.find((x) => x.id === id)?.icon ?? "file";
-/** The side menu: the design's list for the role (plus Team Chat), only what the person may open. */
+/** The side menu: every screen the person may open, grouped as before (Team Chat included). */
 function navFor(me: Me) {
-  const open = new Set(screensFor(me.role, me.perms).map((x) => x.id));
-  return [...DESIGN_NAV[me.role], ...EXTRA_NAV].filter(([id]) => open.has(id))
-    .map(([id, label]) => ({ id, label, icon: iconOf(id), group: me.role === "employee" ? EMPLOYEE_GROUPS[id] ?? "" : "" }))
-    // Headings apply from where they start; carry them forward so the menu groups under WORK / ME / COMPANY.
-    .map((n, i, all) => ({ ...n, group: me.role === "employee" ? [...all.slice(0, i + 1)].reverse().find((x) => x.group)?.group ?? "" : "" }))
-    .filter((n, i, all) => all.findIndex((x) => x.id === n.id) === i);
-}
-/** Screens the person can open that the design's menu doesn't list (shown under "More" in the account menu). */
-function moreFor(me: Me) {
-  const listed = new Set([...DESIGN_NAV[me.role], ...EXTRA_NAV].map(([id]) => id));
-  return screensFor(me.role, me.perms).filter((x) => !x.hidden && !listed.has(x.id) && !(x.id === HOME_OF[me.role])).map((x) => ({ id: x.id, label: x.label }));
+  return screensFor(me.role, me.perms).filter((x) => !x.hidden).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
 }
 
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
@@ -41,7 +31,7 @@ export async function shell(me: Me) {
   const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
-    nav: navFor(me), more: moreFor(me),
+    nav: navFor(me), more: [] as { id: string; label: string }[],
     home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(), chatUnread,
   };
 }
@@ -106,7 +96,7 @@ export const loaders = {
   perf: async (me: Me, q: Q) => ({ ...(await performance(me, q.p === "week" || q.p === "month" ? q.p : "today")), people: await people() }),
   assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
   assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
-  hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS }),
+  hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
   hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id }),
   hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: me.email.split("@")[1] ?? "medoro.in" }),
   departments: async () => {

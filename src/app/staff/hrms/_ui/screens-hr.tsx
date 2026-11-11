@@ -6,6 +6,7 @@ import type { Data, Shell } from "@/staff/hrms/screens";
 import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
 import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
+import { STATES } from "@/staff/hrms/states";
 import { LettersPanel, OfferModal } from "./letters";
 import { AnnounceModal, PayslipView } from "./screens-me";
 
@@ -67,7 +68,7 @@ export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
   );
 }
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
-  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget) });
+  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const isAdmin = p.role === "admin";
   return <Modal title={`Edit ${p.name}`} onClose={onClose} wide>
@@ -78,6 +79,7 @@ function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremploye
         <Field label="System access"><select className={inputCls} value={isAdmin ? "admin" : v.role} onChange={set("role")} disabled={isAdmin || (!d.isAdmin)}>{isAdmin ? <option value="admin">Super Admin</option> : null}<option value="employee">Employee</option><option value="sales">Sales</option><option value="hr">HR Admin</option><option value="finance">Finance</option></select></Field>
         <Field label="Employment type"><select className={inputCls} value={v.empType} onChange={set("empType")}>{EMP_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
         <Field label="Location"><input className={inputCls} value={v.location} onChange={set("location")} /></Field>
+        <Field label="Home state" hint="Sales leads match this state’s language"><select className={inputCls} value={v.homeState} onChange={set("homeState")}><option value="">—</option>{STATES.map((x) => <option key={x}>{x}</option>)}</select></Field>
         <Field label="Reports to"><select className={inputCls} value={v.managerId} onChange={set("managerId")}><option value="">—</option>{d.people.filter((x) => x.id !== p.id && x.status === "active").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
         <Field label="Date of joining"><input className={inputCls} type="date" value={v.joinDate} onChange={set("joinDate")} /></Field>
         <Field label="Annual CTC (₹)"><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} /></Field>
@@ -95,7 +97,7 @@ function LeaveModal({ p, onClose }: { p: Person; onClose: () => void }) {
 
 export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
   const { run, busy } = useRun();
-  const blank = { name: "", personalEmail: "", phone: "", dept: d.depts[0]?.name ?? "", designation: "", role: "employee", empType: "Full-time", joinDate: "", ctc: "", location: "", managerId: "", incentivePct: "0" };
+  const blank = { homeState: "", name: "", personalEmail: "", phone: "", dept: d.depts[0]?.name ?? "", designation: "", role: "employee", empType: "Full-time", joinDate: "", ctc: "", location: "", managerId: "", incentivePct: "0" };
   const [v, setV] = useState(blank), [email, setEmail] = useState(""), [made, setMade] = useState<{ id: string; empNo: string; email: string; temp: string; mailed: boolean; name: string } | null>(null), [letters, setLetters] = useState<{ id: string; name: string } | null>(null);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const preview = async (name: string) => { if (name.trim().split(/\s+/).length < 2) return setEmail(""); const r = await previewOfficialEmail(name); if (r.ok) setEmail(r.data); };
@@ -115,6 +117,7 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
               <Field label="Date of joining *"><input className={inputCls} type="date" value={v.joinDate} onChange={set("joinDate")} required /></Field>
               <Field label="Annual CTC (₹) *"><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} required /></Field>
               <Field label="Work location"><input className={inputCls} value={v.location} onChange={set("location")} /></Field>
+              <Field label="Home state" hint="Sales leads match this state’s language"><select className={inputCls} value={v.homeState} onChange={set("homeState")}><option value="">—</option>{STATES.map((x) => <option key={x}>{x}</option>)}</select></Field>
               <Field label="Reporting manager"><select className={inputCls} value={v.managerId} onChange={set("managerId")}><option value="">—</option>{d.managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Field>
               {v.role === "sales" ? <Field label="Sales incentive % (max 5)"><input className={inputCls} inputMode="decimal" value={v.incentivePct} onChange={set("incentivePct")} /></Field> : null}
             </Grid>
