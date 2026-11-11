@@ -37,14 +37,25 @@ export async function removeHoliday(me: Me, id: string) {
   await db.hrHoliday.delete({ where: { id } });
   await audit(me, "Holiday removed", `${isoOf(h.day)} · ${h.name}`);
 }
-/** The three national holidays with a fixed date, for the given year. */
+/** Gazetted holidays that fall on the same date every year. */
+const FIXED_HOLIDAYS: [string, string][] = [["01-26", "Republic Day"], ["04-14", "Dr. Ambedkar Jayanti"], ["08-15", "Independence Day"], ["10-02", "Gandhi Jayanti"], ["12-25", "Christmas"]];
+/**
+ * Festival holidays move with the moon, so they are listed per year (central government gazetted list). They can shift by a
+ * day, and states add their own: HR checks them in the calendar and edits what differs. Years without a list get the fixed ones.
+ */
+const FESTIVAL_HOLIDAYS: Record<number, [string, string][]> = {
+  2026: [["03-04", "Holi"], ["03-21", "Id-ul-Fitr"], ["03-26", "Ram Navami"], ["03-31", "Mahavir Jayanti"], ["04-03", "Good Friday"], ["05-01", "Buddha Purnima"], ["05-27", "Id-ul-Zuha (Bakrid)"],
+    ["06-26", "Muharram"], ["08-26", "Milad-un-Nabi"], ["09-04", "Janmashtami"], ["10-20", "Dussehra"], ["11-08", "Diwali"], ["11-24", "Guru Nanak Jayanti"]],
+};
+/** Adds the official holidays of a year (existing dates are left alone). */
 export async function addNationalHolidays(me: Me, year: number) {
   need(me, "attendance");
   const y = z.number().int().min(2020).max(2100).parse(year);
-  const fixed = [["01-26", "Republic Day"], ["08-15", "Independence Day"], ["10-02", "Gandhi Jayanti"]];
-  const r = await db.hrHoliday.createMany({ data: fixed.map(([d, name]) => ({ day: dateOnly(`${y}-${d}`), name, kind: "National holiday" })), skipDuplicates: true });
-  await audit(me, "National holidays added", String(y));
-  return r.count;
+  const festivals = FESTIVAL_HOLIDAYS[y];
+  const all = [...FIXED_HOLIDAYS, ...(festivals ?? [])];
+  const r = await db.hrHoliday.createMany({ data: all.map(([d, name]) => ({ day: dateOnly(`${y}-${d}`), name, kind: "National holiday" })), skipDuplicates: true });
+  await audit(me, "Official holidays added", `${y} · ${r.count} new`);
+  return { added: r.count, festivals: !!festivals };
 }
 
 // ── Attendance
