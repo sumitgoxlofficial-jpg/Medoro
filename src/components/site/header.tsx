@@ -63,6 +63,7 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex gap-2 items-center">
           <SiteLangSwitch className="max-[559px]:hidden" />
+          <Link href="/staff/employee" className="max-[1179px]:hidden flex items-center h-11 px-3 rounded-lg text-[15px] font-medium text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">{t("Medoro employee login")}</Link>
           <Link href="/signin" className="max-[419px]:hidden flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]">{t("Log in")}</Link>
           <a href="/trial" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><span className="max-[520px]:hidden">{t("Start 7-day free trial")}</span><span className="min-[521px]:hidden">{t("Free trial")}</span></a>
           <button type="button" onClick={() => setOpen((x) => !x)} aria-label={open ? t("Close menu") : t("Open menu")} aria-expanded={open} aria-controls="site-menu"
@@ -76,6 +77,7 @@ export function SiteHeader() {
           {NAV.map(([l, h]) => <a key={h} href={h} onClick={() => setOpen(false)} className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t(l, { ctx: "site" })}</a>)}
           <Link href="/signin" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Log in")}</Link>
           <a href="/trial" className="text-[var(--s-brand)] text-[16px] font-semibold py-3.5 border-b border-[var(--s-line-2)]">{t("Start 7-day free trial")}</a>
+          <Link href="/staff/employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Medoro employee login")}</Link>
           <Link href="/signin?view=employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Pharmacy staff login")}</Link>
         </nav>
         <SiteLangSwitch className="min-[560px]:hidden mt-4" />

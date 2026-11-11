@@ -60,6 +60,7 @@ export const hi: Record<string, string> = {
 
   // ───────────── Counter staff sign-in (PIN) ─────────────
   "Pharmacy staff login": "फ़ार्मेसी स्टाफ़ लॉगिन",
+  "Medoro employee login": "Medoro कर्मचारी लॉगिन",
   "For pharmacists, cashiers and accountants": "फ़ार्मासिस्ट, कैशियर और अकाउंटेंट के लिए",
   Counter: "काउंटर",
   "Enter your pharmacy code to see counters.": "काउंटर देखने के लिए अपना फ़ार्मेसी कोड डालें।",
