@@ -37,7 +37,6 @@ export const staffVerify = async (code: string) => open(() => people.verifyTotp(
 export const staffSignup = async (input: Parameters<typeof people.signup>[0]) => open(() => people.signup(input));
 export const staffSendPartnerCode = async (email: string) => open(async () => { const { sendSignupCode } = await import("@/domain/identity/signup-email"); await sendSignupCode(email, "partner"); return null; });
 export const staffVerifyPartnerCode = async (email: string, code: string) => open(async () => { const { verifySignupCode } = await import("@/domain/identity/signup-email"); await verifySignupCode(email, code); return null; });
-export const staffGoogleEmployee = async (input: Parameters<typeof people.completeGoogleEmployee>[0]) => open(() => people.completeGoogleEmployee(input));
 export const staffGooglePartner = async (input: Parameters<typeof people.completeGooglePartner>[0]) => open(() => people.completeGooglePartner(input));
 export const staffAcceptInvite = async (token: string, password: string) => open(() => people.acceptInvite(token, password));
 export async function staffSignOut() {

@@ -32,21 +32,26 @@ export const isEmail = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e
 
 export type Staff = { id: string; empNo: string; name: string; email: string; role: StaffRoleId; referralCode: string | null; sessionId: string };
 
-export async function createStaffSession(staffId: string, tokenVersion: number, opts: { mfaPassed?: boolean } = {}) {
+export async function createStaffSession(staffId: string, tokenVersion: number, opts: { mfaPassed?: boolean; kind?: "console" | "hrms" } = {}) {
   const token = randomBytes(32).toString("base64url");
   const { ip, userAgent } = await clientInfo();
   const expiresAt = new Date(Date.now() + SESSION_HOURS * 3600_000);
-  await db.staffSession.create({ data: { id: sha(token), staffId, tokenVersion, expiresAt, ip, userAgent, mfaPassed: opts.mfaPassed ?? false } });
+  await db.staffSession.create({ data: { id: sha(token), staffId, tokenVersion, expiresAt, ip, userAgent, mfaPassed: opts.mfaPassed ?? false, kind: opts.kind ?? "console" } });
   (await cookies()).set(STAFF_COOKIE, token, { httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/staff", expires: expiresAt });
 }
 
-/** The signed-in staff member. Sessions waiting for the authenticator code only come back with `allowPendingMfa`. */
-export async function readStaffSession(allowPendingMfa = false) {
+/**
+ * The signed-in staff member. Sessions waiting for the authenticator code only come back with `allowPendingMfa`.
+ * A session started on the HRMS sign-in (password only) opens the HRMS; it opens the console only for sales
+ * employees, who see nothing there but their own leads and commission. `hrms` returns any session kind.
+ */
+export async function readStaffSession(allowPendingMfa = false, hrms = false) {
   const token = (await cookies()).get(STAFF_COOKIE)?.value;
   if (!token) return null;
   const s = await db.staffSession.findUnique({ where: { id: sha(token) }, include: { staff: true } });
   if (!s || s.revokedAt || s.expiresAt < new Date() || s.tokenVersion !== s.staff.tokenVersion || s.staff.status !== "active") return null;
   if (!s.mfaPassed && !allowPendingMfa) return null;
+  if (s.kind === "hrms" && !hrms && s.staff.role !== "sales") return null;
   if (Date.now() - s.lastSeenAt.getTime() > 60_000) await db.staffSession.update({ where: { id: s.id }, data: { lastSeenAt: new Date() } }).catch(() => {});
   return s;
 }

@@ -6,6 +6,7 @@ export const NAV: Record<StaffRoleId, [View, string][]> = {
   sales: [["leads", "Pipeline"], ["sales", "My sales & commission"], ["payouts", "Payouts"], ["customers", "My customers"]],
   care: [["tickets", "Support tickets"], ["customers", "Customers"]],
   partner: [["sales", "My referrals & earnings"], ["payouts", "Payouts"]],
+  employee: [], // HRMS only: never reaches the console
 };
 export const ROLES_FOR: Record<View, StaffRoleId[]> = {
   overview: ["super_admin"], employees: ["super_admin"], commission: ["super_admin"], leads: ["super_admin", "sales"], sales: ["super_admin", "sales", "partner"],

@@ -1094,6 +1094,7 @@ enum StaffRole {
   sales
   care
   partner // reference partner: an outside MR or consultant who refers pharmacies for commission
+  employee // a Medoro employee who only uses the HRMS (no staff console)
 }
 
 enum StaffStatus {
@@ -1132,6 +1133,7 @@ model StaffUser {
   leadAssignments LeadAssignment[]
   callSessions    CallSession[]
   followUps       FollowUpTask[]
+  hr              HrProfile?
 
   @@unique([email, kind])
 }
@@ -1142,6 +1144,7 @@ model StaffSession {
   staff        StaffUser @relation(fields: [staffId], references: [id])
   tokenVersion Int
   mfaPassed    Boolean   @default(false)
+  kind         String    @default("console") // console (password + authenticator, or Google) or hrms (HRMS password sign-in)
   createdAt    DateTime  @default(now())
   lastSeenAt   DateTime  @default(now())
   expiresAt    DateTime
@@ -2274,6 +2277,322 @@ model GrowthAuditLog {
 }
 
 model GrowthSetting {
+  key   String @id
+  value Json
+}
+
+// ───────────────────────── Medoro HRMS (/staff/hrms) ─────────────────────────
+// Medoro's own people records: attendance, leave, claims, payroll, tasks, projects, recruitment and the
+// finance registers. Every employee is a StaffUser; HrProfile adds the HR side. Nothing links to pharmacy tables.
+
+enum HrRole {
+  employee
+  hr
+  admin
+  finance
+  sales
+}
+
+model HrProfile {
+  staffId            String    @id
+  staff              StaffUser @relation(fields: [staffId], references: [id])
+  role               HrRole    @default(employee)
+  dept               String    @default("")
+  designation        String    @default("")
+  empType            String    @default("Full-time")
+  location           String    @default("")
+  managerId          String?
+  joinDate           DateTime? @db.Date
+  ctc                Int       @default(0) // rupees per year
+  incentivePct       Decimal   @default(0) @db.Decimal(4, 2)
+  monthlyTarget      Int       @default(40) // pharmacies to win per month (sales)
+  personalEmail      String    @default("")
+  mustChangePassword Boolean   @default(false)
+  profileDone        Boolean   @default(false)
+  docsAcceptedAt     DateTime?
+  dob                DateTime? @db.Date
+  gender             String    @default("")
+  address            String    @default("")
+  emergencyName      String    @default("")
+  emergencyPhone     String    @default("")
+  bloodGroup         String    @default("")
+  bankHolder         String    @default("")
+  bankAccountSealed  Bytes?
+  bankLast4          String    @default("")
+  bankIfsc           String    @default("")
+  bankName           String    @default("")
+  panSealed          Bytes?
+  panMasked          String    @default("")
+  uan                String    @default("")
+  photo              String? // small data: URL chosen by the employee
+  presence           String    @default("offline") // active, break, offline
+  presenceNote       String    @default("")
+  presenceAt         DateTime?
+  otpHash            String? // one-time password issued by HR (argon2)
+  otpExpiresAt       DateTime?
+  onboarding         Json      @default("[]") // checklist ticks for a new joiner
+  leaveExtra         Json      @default("{}") // extra days granted per leave type, e.g. {"comp":1}
+  createdAt          DateTime  @default(now())
+}
+
+model HrDepartment {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  headId    String?
+  createdAt DateTime @default(now())
+}
+
+model HrAttendance {
+  id       String    @id @default(uuid())
+  staffId  String
+  day      DateTime  @db.Date
+  inAt     DateTime?
+  outAt    DateTime?
+  status   String // present, late, wfh, absent
+  breakMin Int       @default(0)
+  note     String    @default("")
+
+  @@unique([staffId, day])
+  @@index([day])
+}
+
+model HrBreak {
+  id      String    @id @default(uuid())
+  staffId String
+  kind    String
+  startAt DateTime  @default(now())
+  endAt   DateTime?
+
+  @@index([staffId, startAt])
+}
+
+model HrLeave {
+  id        String    @id @default(uuid())
+  staffId   String
+  type      String // casual, sick, privilege, comp
+  fromDay   DateTime  @db.Date
+  toDay     DateTime  @db.Date
+  days      Int
+  reason    String    @default("")
+  status    String    @default("pending") // pending, approved, rejected, cancelled
+  decidedBy String?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, fromDay])
+  @@index([status])
+}
+
+model HrCorrection {
+  id        String    @id @default(uuid())
+  staffId   String
+  day       DateTime  @db.Date
+  reason    String
+  status    String    @default("pending")
+  decidedBy String?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([status])
+}
+
+model HrClaim {
+  id        String    @id @default(uuid())
+  staffId   String
+  type      String
+  amount    Int // rupees
+  note      String    @default("")
+  billKey   String? // storage key of the uploaded bill
+  billName  String    @default("")
+  status    String    @default("pending_hr") // pending_hr, pending_admin, approved, rejected
+  hrBy      String?
+  adminBy   String?
+  decidedAt DateTime?
+  paidMonth String? // payroll month (YYYY-MM) the claim was paid with
+  createdAt DateTime  @default(now())
+
+  @@index([staffId])
+  @@index([status])
+}
+
+model HrHoliday {
+  id   String   @id @default(uuid())
+  day  DateTime @unique @db.Date
+  name String
+  kind String   @default("National holiday")
+}
+
+model HrAnnouncement {
+  id        String   @id @default(uuid())
+  emoji     String   @default("📢")
+  title     String
+  body      String
+  byId      String
+  createdAt DateTime @default(now())
+}
+
+model HrProject {
+  id        String    @id @default(uuid())
+  name      String
+  client    String    @default("Internal")
+  leadId    String?
+  members   String[]
+  deadline  DateTime? @db.Date
+  status    String    @default("Planning") // Planning, In progress, On hold, Done
+  createdAt DateTime  @default(now())
+  tasks     HrTask[]
+}
+
+model HrTask {
+  id         String     @id @default(uuid())
+  kind       String     @default("task") // task (assigned work) or reminder (personal)
+  title      String
+  assigneeId String
+  byId       String
+  due        DateTime?  @db.Date
+  priority   String     @default("Medium") // High, Medium, Low
+  status     String     @default("open") // open, done
+  col        String     @default("todo") // board column: backlog, todo, progress, review, done
+  projectId  String?
+  project    HrProject? @relation(fields: [projectId], references: [id])
+  comment    String     @default("")
+  doneAt     DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([assigneeId, status])
+  @@index([projectId])
+}
+
+model HrPayslip {
+  id        String    @id @default(uuid())
+  staffId   String
+  month     String // YYYY-MM
+  workDays  Int
+  lopDays   Int       @default(0)
+  basic     Int
+  hra       Int
+  special   Int
+  incentive Int       @default(0)
+  reimburse Int       @default(0)
+  gross     Int
+  pf        Int
+  esi       Int
+  pt        Int
+  tds       Int
+  lop       Int       @default(0)
+  net       Int
+  status    String    @default("pending") // pending, paid
+  paidOn    DateTime? @db.Date
+  runBy     String
+  createdAt DateTime  @default(now())
+
+  @@unique([staffId, month])
+  @@index([month])
+}
+
+model HrJob {
+  id         String        @id @default(uuid())
+  title      String
+  dept       String
+  location   String
+  type       String
+  status     String        @default("active") // active, closed
+  createdAt  DateTime      @default(now())
+  candidates HrCandidate[]
+}
+
+model HrCandidate {
+  id         String   @id @default(uuid())
+  jobId      String?
+  job        HrJob?   @relation(fields: [jobId], references: [id])
+  name       String
+  email      String   @default("")
+  phone      String   @default("")
+  role       String
+  note       String   @default("")
+  score      Int? // screening score out of 100, entered by HR
+  stage      String   @default("applied") // applied, interview, offer, hired, rejected
+  offer      Json? // the offer letter fields once generated
+  referredBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([stage])
+}
+
+model HrTicket {
+  id         String    @id @default(uuid())
+  code       String    @unique
+  staffId    String
+  category   String
+  subject    String
+  body       String
+  status     String    @default("open") // open, resolved
+  reply      String    @default("")
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([staffId])
+}
+
+model HrMeeting {
+  id        String   @id @default(uuid())
+  title     String
+  at        DateTime
+  minutes   Int      @default(30)
+  link      String   @default("")
+  byId      String
+  attendees String[]
+  notes     String   @default("") // minutes of the meeting
+  createdAt DateTime @default(now())
+
+  @@index([at])
+}
+
+model HrRecognition {
+  id        String   @id @default(uuid())
+  fromId    String
+  toId      String
+  badge     String   @default("🌟")
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([toId])
+}
+
+model HrNotification {
+  id        String    @id @default(uuid())
+  staffId   String
+  text      String
+  screen    String    @default("")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, readAt])
+}
+
+model HrAllyUsage {
+  staffId String
+  day     DateTime @db.Date
+  prompts Int      @default(0)
+  chars   Int      @default(0)
+
+  @@id([staffId, day])
+}
+
+/// Finance registers (contacts, invoices, bills, journals, products, bank accounts…): one row per record,
+/// `kind` names the register and `data` holds its columns.
+model HrRecord {
+  id        String   @id @default(uuid())
+  kind      String
+  data      Json
+  byId      String
+  createdAt DateTime @default(now())
+
+  @@index([kind, createdAt])
+}
+
+model HrSetting {
   key   String @id
   value Json
 }

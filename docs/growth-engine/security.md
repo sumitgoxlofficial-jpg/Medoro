@@ -2,7 +2,7 @@
 
 | Area | Implementation |
 |---|---|
-| Authentication | Sales employees: Google OpenID Connect (existing PKCE + state + nonce flow, signed ID token, verified email only) on `/staff/employee`, new profiles need super-admin approval. Everyone else: existing staff sessions: Argon2id passwords, mandatory TOTP, 10-hour sessions, revocation on deactivation; httpOnly, SameSite=Strict cookie scoped to `/staff` |
+| Authentication | Employees (HRMS, `/staff/employee`): employee ID or work email plus an Argon2id password, 5-attempt lockout, one-time passwords issued by HR, forced password change after a temporary password; HR creates every profile, there is no self sign-up. Admins, managers, customer care and partners: existing staff sessions: Argon2id passwords, mandatory TOTP, 10-hour sessions, revocation on deactivation; httpOnly, SameSite=Strict cookie scoped to `/staff` |
 | Authorisation | Growth role + permission checked in every service (`need`), lead visibility through `leadScope`; pages redirect, actions and API return errors. Tests cover sales/manager/analyst boundaries |
 | Data isolation | No foreign keys or queries to pharmacy tables (static test), Growth tables excluded from pharmacy backup/restore, RLS on every table |
 | Input validation | Zod schemas on every action and endpoint; phone/email/website/state/PIN normalisation; enum checks |
