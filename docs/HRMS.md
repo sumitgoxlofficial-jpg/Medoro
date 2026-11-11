@@ -52,9 +52,26 @@ Both are **off** until the super admin switches them on under **Settings → Wor
   HR sees idle minutes today (and "idle now") in Team Attendance.
 * Data protection: these are personal data under India's DPDP Act. Use them only for attendance, tell staff what is recorded and for how long (this page and the notice on Attendance say it), and keep the retention above.
 
+## Team Chat
+
+`/staff/hrms/chat`: one-to-one messages, groups (up to 100 people), photos (JPEG/PNG/WebP, 2 MB), unread counts, read ticks and a
+"📹 Meet" button that creates a Google Meet link in the sender's own Google Calendar and posts it in the chat (needs the sender to have
+connected Google Calendar).
+
+* **Live-ness.** The screen polls `/staff/hrms/chat/poll` every 2.5 s while the tab is visible (15 s in the background). Messages appear
+  within a few seconds. There is no always-open connection, because Vercel doesn't keep them; about 100 people online is roughly 40
+  small indexed requests a second.
+* **Privacy.** Every message and picture is sealed with `HOST_KEY` before it is stored. Only the people in a conversation can read it:
+  HR and Finance cannot. The super admin can open any conversation from **Chat review**; each opening is written to Audit Logs (who,
+  which chat, which people, never the text), and the chat screen tells staff this. It is encryption at rest with an audited admin key,
+  **not** end-to-end encryption: the server must be able to open messages for delivery, review and backups.
+* People added to a group later don't see earlier messages. You can delete your own messages. Messages are kept until a retention
+  rule is added; they are included in database backups (still sealed).
+* Not built: typing indicators, online status, voice notes, Google Drive backups of chats.
+
 ## Not built (in the design, not in Medoro yet)
 
-Team Chat with calls and screen sharing, AI meeting minutes and AI candidate screening, Wins / Culture OS /
+Built-in voice/video calls and screen sharing (Team Chat uses a Google Meet link instead), AI meeting minutes and AI candidate screening, Wins / Culture OS /
 Non-Negotiables (these three are blank in the design itself). Ally answers from HR records; it does not read uploaded documents.
 
 ## Rules the code enforces

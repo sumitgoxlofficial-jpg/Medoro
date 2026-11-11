@@ -8,6 +8,7 @@ import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
+import { chatList, chatPeople, reviewChats, reviewPeople, unreadTotal } from "./chat";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
@@ -21,11 +22,11 @@ const people = async () => (await roster()).map((p) => ({ id: p.id, name: p.name
 
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
 export async function shell(me: Me) {
-  const [s, notes, att, brk] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } })]);
+  const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
     nav: screensFor(me.role, me.perms).filter((x) => !x.hidden).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" })),
-    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(),
+    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(), chatUnread,
   };
 }
 export type Shell = Awaited<ReturnType<typeof shell>>;
@@ -71,6 +72,8 @@ export const loaders = {
   },
   payslips: async (me: Me) => ({ slips: await myPayslips(me.id) }),
   jobs: async () => ({ jobs: await jobs(true) }),
+  chat: async (me: Me, q: Q) => ({ chats: await chatList(me), people: await chatPeople(me), meId: me.id, open: q.c ?? "", google: (await gcalStatus(me.id)).connected, isAdmin: me.role === "admin" }),
+  chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   profile: async (me: Me) => ({ p: await myProfile(me) }),
 

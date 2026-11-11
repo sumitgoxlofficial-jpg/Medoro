@@ -16,6 +16,7 @@ import * as ally from "@/staff/hrms/ally";
 import * as gcal from "@/staff/hrms/gcal";
 import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
+import * as chat from "@/staff/hrms/chat";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -146,3 +147,15 @@ export const returnAsset = async (id: string, status: "in_stock" | "repair" | "l
 export const setAssetStatus = async (id: string, status: string) => done(await hrRun((me) => assets.setAssetStatus(me, id, status)));
 export const reportAssetIssue = async (id: string, note: string) => done(await hrRun((me) => assets.reportIssue(me, id, note)));
 export const setWorkflow = async (id: string, on: boolean) => done(await hrRun((me) => fin.setWorkflow(me, id, on)));
+
+// ── Team Chat (no revalidate: the chat screen keeps its own live state)
+export const chatOpenDm = async (otherId: string) => hrRun((me) => chat.openDm(me, otherId));
+export const chatCreateGroup = async (name: string, members: string[]) => hrRun((me) => chat.createGroup(me, name, members), "Group created.");
+export const chatSend = async (chatId: string, body: string) => hrRun((me) => chat.sendText(me, chatId, body));
+export const chatSendImage = async (chatId: string, form: FormData) => hrRun((me) => chat.sendImage(me, chatId, form));
+export const chatDelete = async (id: string) => hrRun((me) => chat.deleteMessage(me, id), "Message deleted.");
+export const chatMeet = async (chatId: string) => hrRun((me) => chat.startMeet(me, chatId));
+export const chatMembers = async (chatId: string) => hrRun((me) => chat.groupMembers(me, chatId));
+export const chatAddMembers = async (chatId: string, members: string[]) => hrRun((me) => chat.addToGroup(me, chatId, members), "People added.");
+export const chatLeave = async (chatId: string) => hrRun((me) => chat.leaveGroup(me, chatId), "You left the group.");
+export const chatReviewOpen = async (staffId: string, chatId: string) => hrRun((me) => chat.reviewMessages(me, staffId, chatId));

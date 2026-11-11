@@ -146,6 +146,24 @@ export async function pushMeeting(me: Me, meetingId: string) {
   return { meet: meet || m.link };
 }
 
+/** A Google Meet call that starts now, made in the caller's own calendar. Guests are added so they can join without knocking. */
+export async function instantMeet(me: Me, title: string, guestEmails: string[]) {
+  if (!(await db.hrGoogle.findUnique({ where: { staffId: me.id }, select: { staffId: true } }))) throw new UserError("Connect Google Calendar first (Calendar page) to start a Meet call.");
+  const now = Date.now();
+  const { status: st, json } = await api(me.id, "/calendars/primary/events?conferenceDataVersion=1&sendUpdates=none", {
+    method: "POST",
+    body: {
+      summary: title, description: "Started from Medoro Team Chat.",
+      start: { dateTime: new Date(now).toISOString() }, end: { dateTime: new Date(now + 60 * 60_000).toISOString() },
+      attendees: guestEmails.slice(0, 100).map((email) => ({ email })),
+      conferenceData: { createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } },
+    },
+  });
+  const link = typeof json.hangoutLink === "string" ? json.hangoutLink : "";
+  if (st >= 400 || !/^https:\/\/meet\.google\.com\/[a-z0-9-]+$/i.test(link)) throw new UserError("Google couldn’t create the Meet call. Try again in a moment.");
+  return link;
+}
+
 /** Removes a meeting's Google event (and tells guests). A missing event is fine. */
 export async function removeEvent(staffId: string, eventId: string) {
   if (!(await db.hrGoogle.findUnique({ where: { staffId }, select: { staffId: true } }))) return;
