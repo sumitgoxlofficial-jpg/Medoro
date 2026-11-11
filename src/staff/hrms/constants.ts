@@ -79,6 +79,21 @@ export const SCREENS: ScreenDef[] = [
   { id: "support", label: "Support", icon: "help", title: "Support", sub: "HR helpdesk", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "profile", label: "My profile", icon: "users", title: "My profile", sub: "Personal, bank and emergency details", hidden: true, roles: ["employee", "sales", "hr", "admin", "finance"] },
 ];
+/** The menu each role sees, exactly as in the design (order and names). Screens a role can open but the design doesn't list sit under "More" in the account menu. */
+export const DESIGN_NAV: Record<HrRoleId, [string, string][]> = {
+  employee: [["home", "Home"], ["mytasks", "My Tasks"], ["calendar", "Calendar"], ["attendance", "Attendance"], ["leave", "Leave & Approvals"], ["payslips", "Payslips"], ["jobs", "Work at Medoro"], ["support", "Support"]],
+  sales: [["slhome", "Dashboard"], ["slboard", "Lead Tracker"], ["slleads", "My Leads"], ["calendar", "Calendar"], ["attendance", "Attendance"], ["leave", "Leave & Approvals"], ["payslips", "Payslips"], ["support", "Support"]],
+  hr: [["hrhome", "Dashboard"], ["perf", "Performance"], ["calendar", "Calendar"], ["assigntasks", "Assign Tasks"], ["hrleads", "Leads"], ["assignprojects", "Projects"], ["hremployees", "Employees"], ["hrnewemp", "New Employee"], ["recruit", "Recruitment"], ["hrattendance", "Attendance"], ["hrleave", "Leave & Approvals"], ["credentials", "Credentials"], ["allyusage", "Ally Usage"], ["payroll", "Payroll"], ["onboarding", "Onboarding"], ["reports", "Reports"]],
+  admin: [["sahome", "Dashboard"], ["perf", "Performance"], ["calendar", "Calendar"], ["assigntasks", "Assign Tasks"], ["assignprojects", "Projects"], ["hremployees", "Employees"], ["departments", "Departments"], ["saapprovals", "Approvals"], ["allyusage", "Ally Usage"], ["saperms", "Roles & Permissions"], ["auditlogs", "Audit Logs"], ["settings", "Settings"]],
+  finance: [["finhome", "Dashboard"], ["fin_contacts", "Contacts"], ["fin_sales", "Sales & Invoices"], ["fin_purchases", "Purchases & Expenses"], ["fin_accounting", "Accounting"], ["fin_products", "Products & Inventory"], ["fin_reports", "Reports"], ["fin_gst", "GST Reports"], ["fin_workflows", "Workflows & Automations"], ["fin_banking", "Banking & Payments"], ["payroll", "Payroll & HRMS"]],
+};
+/** Team Chat sits with the main menu for everyone (the design has no chat page; this one was asked for). */
+export const EXTRA_NAV: [string, string][] = [["chat", "Team Chat"], ["chatreview", "Chat review"]];
+/** Only the employee menu has WORK / ME / COMPANY headings in the design. */
+export const EMPLOYEE_GROUPS: Record<string, string> = { home: "WORK", attendance: "ME", jobs: "COMPANY" };
+/** Dashboards show no page title: the greeting is part of the page (employee) or there is none. */
+export const NO_TITLE_SCREENS = ["home", "hrhome", "sahome", "finhome"];
+
 export const HOME_OF: Record<HrRoleId, string> = { employee: "home", sales: "slhome", hr: "hrhome", admin: "sahome", finance: "finhome" };
 
 export const hasModule = (role: HrRoleId, perms: Perms, m: ModuleId) => role === "admin" || perms[role].includes(m);

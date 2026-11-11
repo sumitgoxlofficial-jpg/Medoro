@@ -112,11 +112,13 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
   const left = (() => { const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1).getTime() - n.getTime(); return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m left`; })();
   return (
     <>
+      <div className="flex justify-end -mb-1"><button className={btnCls} onClick={() => setCustom(true)}>⚙️ Customize home</button></div>
       <div className="rounded-[20px] px-8 py-6 text-white flex flex-wrap items-center gap-4" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F)" }}>
         <div className="flex-1 min-w-[240px]">
           <div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
-          <div className="text-[26px] font-bold mt-1">Here’s your day at a glance.</div>
-          <div className="flex gap-2 mt-4 flex-wrap"><Link href="/staff/hrms/mytasks" className="bg-white text-[#0B5E5B] px-4 py-2 rounded-[10px] font-semibold text-[13px]">View my tasks</Link><Link href="/staff/hrms/attendance" className="bg-white/15 border border-white/30 px-4 py-2 rounded-[10px] font-semibold text-[13px]">{sh.att.inAt && !sh.att.outAt ? "Check out" : sh.att.inAt ? "Attendance" : "Check in"}</Link></div>
+          <div className="text-[26px] font-bold mt-1">{new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, {sh.me.first} 👋</div>
+          <div className="text-[13px] text-white/80 mt-1.5 max-w-[460px]">Here’s your day at a glance. Helping Indian pharmacies bill faster and waste less stock.</div>
+          <div className="flex gap-2 mt-4 flex-wrap"><Link href="/staff/hrms/mytasks" className="bg-white text-[#0B5E5B] px-4 py-2 rounded-[10px] font-semibold text-[13px]">View my tasks</Link><button onClick={() => window.dispatchEvent(new Event("hrms:ally"))} className="bg-white/15 border border-white/30 text-white px-4 py-2 rounded-[10px] font-semibold text-[13px] cursor-pointer">✦ Ask Ally</button></div>
         </div>
         <div className="text-right"><div className="text-[40px] font-bold leading-none" suppressHydrationWarning>{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</div><div className="text-[12px] text-white/70">Local time · India</div></div>
       </div>
@@ -132,7 +134,8 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
       <Grid n={3}>
       {!hid.includes("leave") ? <><Card title="Leave balance" pad><div className="flex gap-5">{d.bal.filter((b) => b.total > 0).map((b) => <div key={b.id}><div className="text-[22px] font-bold">{b.left}</div><div className="text-[11.5px] text-[#64748B]">{b.label}</div></div>)}</div><Link href="/staff/hrms/leave" className="text-[13px] font-semibold text-[#0B5E5B] mt-3 inline-block">Apply leave →</Link></Card></> : null}
       {!hid.includes("payslip") ? <><Card title="Last payslip" pad>{d.slip ? <><div className="text-[20px] font-bold">{d.slip.label}</div><div className="text-[12px] text-[#64748B]">Credited {d.slip.paidOn ? dayLabel(d.slip.paidOn) : "—"} · <button className="text-[#0B5E5B] font-semibold cursor-pointer bg-transparent border-0 p-0" onClick={() => setShow(!show)}>{show ? "Hide" : "Show"} amount</button></div><div className="text-[18px] font-bold mt-1"><Hide n={d.slip.net} show={show} /></div></> : <div className="text-[13px] text-[#64748B]">No payslip yet.</div>}<Link href="/staff/hrms/payslips" className="text-[13px] font-semibold text-[#0B5E5B] mt-3 inline-block">View payslips →</Link></Card></> : null}
-      {!hid.includes("projects") ? <><Card title="Projects" pad>{d.proj.length ? d.proj.map((p) => <div key={p.id} className="text-[13px] mb-2"><div className="flex justify-between"><strong>{p.name}</strong><span className="text-[#64748B]">{p.progress}%</span></div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-1"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${p.progress}%` }} /></div></div>) : <div className="text-[13px] text-[#64748B]">You’re not on a project yet.</div>}</Card></> : null}
+      {!hid.includes("today") ? <Card title="Assigned to me" pad>{open.length ? open.slice(0, 3).map((t) => <div key={t.id} className="text-[13px] py-1 flex gap-2"><span aria-hidden>☐</span>{t.title}</div>) : <div className="text-[12.5px] text-[#64748B] py-1">Nothing assigned right now.</div>}<Link href="/staff/hrms/mytasks" className="inline-block mt-2 text-[12px] text-[#0B5E5B] font-semibold">View my tasks →</Link></Card> : null}
+      {!hid.includes("projects") && d.proj.length ? <><Card title="Projects" pad>{d.proj.length ? d.proj.map((p) => <div key={p.id} className="text-[13px] mb-2"><div className="flex justify-between"><strong>{p.name}</strong><span className="text-[#64748B]">{p.progress}%</span></div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-1"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${p.progress}%` }} /></div></div>) : <div className="text-[13px] text-[#64748B]">You’re not on a project yet.</div>}</Card></> : null}
       </Grid>
       {d.meets.length && !hid.includes("meetings") ? <Card title="Meetings today" pad>{d.meets.map((m) => <div key={m.id} className="flex items-center gap-3 py-1.5 text-[13.5px]"><strong>{timeLabel(m.at)}</strong><span className="flex-1">{m.title}</span>{m.link ? <a className={btnCls} href={m.link} target="_blank" rel="noreferrer">Join</a> : null}</div>)}</Card> : null}
       <Grid n={2}>
@@ -141,7 +144,6 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
         </Card></> : null}
       {!hid.includes("holidays") ? <><Card title="Upcoming holidays" pad>{d.hols.length ? d.hols.map((h) => <div key={h.id} className="flex items-center gap-3 py-2 border-t border-[#F1F5F9] first:border-0"><div className="flex-1"><div className="text-[13.5px] font-semibold">{h.name}</div><div className="text-[12px] text-[#64748B]">{h.kind}</div></div><div className="text-right font-bold text-[#0B5E5B]">{dayLabel(h.day)}</div></div>) : <Empty>HR hasn’t added holidays yet.</Empty>}</Card></> : null}
       </Grid>
-      <div><button className={btnCls} onClick={() => setCustom(true)}>⚙️ Customize home</button></div>
       {custom ? <Modal title="Customize home" onClose={() => setCustom(false)}><p className="text-[13px] text-[#64748B]">Choose what shows on your home screen. This is saved in this browser.</p>
         {[["today", "Today and tasks"], ["leave", "Leave balance"], ["payslip", "Last payslip"], ["projects", "Projects"], ["meetings", "Meetings today"], ["announcements", "Announcements"], ["holidays", "Upcoming holidays"]].map(([id, label]) => <label key={id} className="flex items-center gap-2 text-[13.5px] py-1 cursor-pointer"><input type="checkbox" checked={!hid.includes(id)} onChange={() => toggleSection(id)} />{label}</label>)}</Modal> : null}
       {ann ? <AnnounceModal onClose={() => setAnn(false)} /> : null}
@@ -256,7 +258,7 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
   const router = useRouter();
   const { run, busy } = useRun();
   const [shot, setShot] = useState<"in" | "out" | null>(null);
-  const [sel, setSel] = useState<Data<"attendance">["cells"][number] | null>(null), [reason, setReason] = useState("");
+  const [sel, setSel] = useState<Data<"attendance">["cells"][number] | null>(null), [reason, setReason] = useState(""), [corr, setCorr] = useState<{ day: string; reason: string } | null>(null);
   const lead = new Date(d.cells[0].day + "T00:00:00Z").getUTCDay();
   const doIn = (selfie?: string) => run(() => checkIn(selfie), (x) => { setShot(null); return x.status === "late" ? `Checked in (late: after ${d.lateAfter}).` : "Checked in. Have a great day."; });
   const label = new Date(d.ym + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -267,17 +269,24 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex-1 min-w-[220px]"><div className="text-[11px] tracking-[.1em] font-semibold text-[#64748B]">TODAY</div><div className="flex gap-8 mt-1 text-[13px]"><span>Check-in<br /><strong className="text-[16px]">{inn ? timeLabel(inn) : "—"}</strong></span><span>Check-out<br /><strong className="text-[16px]">{out ? timeLabel(out) : "—"}</strong></span></div></div>
           {!d.checkin ? <Pill tone="gray">Check-in is switched off by the super admin</Pill> : null}
+          {d.checkin ? <button className="border border-[#0B5E5B] text-[#0B5E5B] bg-white rounded-xl px-4 py-3 text-[12.5px] font-semibold cursor-pointer hover:bg-[#F0FDFA]" onClick={() => setCorr({ day: d.cells.filter((c) => c.day < sh.today).at(-1)?.day ?? sh.today, reason: "" })}>Request correction</button> : null}
           {d.checkin && !inn ? <button disabled={busy} onClick={() => (d.selfie ? setShot("in") : doIn())} className="size-[84px] rounded-full bg-[#0B5E5B] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check in</button> : null}
           {d.checkin && inn && !out ? <button disabled={busy} onClick={() => (d.selfie ? setShot("out") : run(() => checkOut()))} className="size-[84px] rounded-full bg-[#B45309] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check out</button> : null}
         </div>
       </Card>
       {d.selfie || d.monitor ? <Card pad><p className="text-[12.5px] text-[#475569]">{d.selfie ? "📷 Selfie check-in is on: you take a photo when you check in and out. It is kept for 30 days and only you and HR can see it. " : ""}{d.monitor ? `⏱ Idle-time tracking is on: while you are checked in and not on a break, inactivity in this HRMS tab of ${d.monitor}+ minutes is recorded. Nothing you type is captured, and no other app or window is watched.` : ""}</p></Card> : null}
       <Grid n={5}><Stat l="Present" v={d.counts.present} /><Stat l="Late" v={d.counts.late} c="#B45309" /><Stat l="Absent" v={d.counts.absent} c="#DC2626" /><Stat l="Holidays" v={d.counts.holidays} c="#92400E" /><Stat l="Overtime" v={`${Math.floor(d.counts.overtimeMin / 60)}h`} c="#0f172a" /></Grid>
-      <Card title={label} right={<><button className={btnCls} aria-label="Previous month" onClick={() => router.push(`/staff/hrms/attendance?m=${d.prev}`)}>‹</button><button className={btnCls} aria-label="Next month" disabled={d.isCurrent} onClick={() => router.push(`/staff/hrms/attendance?m=${d.next}`)}>›</button></>} pad>
+      <Card title={<span className="flex items-center gap-3"><button className={btnCls} aria-label="Previous month" onClick={() => router.push(`/staff/hrms/attendance?m=${d.prev}`)}>‹</button>{label}<button className={btnCls} aria-label="Next month" disabled={d.isCurrent} onClick={() => router.push(`/staff/hrms/attendance?m=${d.next}`)}>›</button></span>} right={<div className="flex gap-3 flex-wrap text-[11px] text-[#475569]">{[["present", "Present", "#14B8A6"], ["late", "Late", "#F59E0B"], ["absent", "Absent", "#DC2626"], ["leave", "Leave", "#3B82F6"], ["holiday", "Holiday", "#D97706"], ["weekend", "Weekend", "#64748B"]].map(([k, l, c]) => <span key={k} className="flex items-center gap-1.5"><i className="size-2 rounded-full" style={{ background: c }} />{l}</span>)}</div>} pad>
         <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-[#64748B] mb-1.5">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((x) => <div key={x}>{x}</div>)}</div>
         <div className="grid grid-cols-7 gap-1.5">{Array.from({ length: lead }, (_, i) => <div key={"e" + i} />)}{d.cells.map((c) => <button key={c.day} title={c.label} onClick={() => { setSel(c); setReason(""); }} className={cx("border rounded-lg py-2.5 text-[12.5px] font-semibold cursor-pointer", CELL[c.kind], c.day === sh.today && "outline outline-2 outline-[#14B8A6] -outline-offset-2")}>{Number(c.day.slice(8))}</button>)}</div>
-        <div className="flex gap-3 flex-wrap text-[11.5px] text-[#64748B] mt-3">{[["present", "Present"], ["late", "Late"], ["absent", "Absent"], ["leave", "Leave"], ["holiday", "Holiday"], ["weekend", "Weekend"]].map(([k, l]) => <span key={k} className="flex items-center gap-1.5"><i className={cx("size-3 rounded border", CELL[k])} />{l}</span>)}</div>
       </Card>
+      {corr ? <Modal title="Request an attendance correction" onClose={() => setCorr(null)}>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => requestCorrection({ day: corr.day, reason: corr.reason }), () => { setCorr(null); }); }}>
+          <Field label="Which day?"><input className={inputCls} type="date" max={sh.today} value={corr.day} onChange={(e) => setCorr({ ...corr, day: e.target.value })} required /></Field>
+          <Field label="What should HR correct?"><textarea className={inputCls} rows={3} value={corr.reason} onChange={(e) => setCorr({ ...corr, reason: e.target.value })} placeholder="e.g. I forgot to check in; I was at the client site." required /></Field>
+          <button className={primaryCls} disabled={busy}>Send to HR</button>
+        </form>
+      </Modal> : null}
       {shot ? <SelfieModal title={shot === "in" ? "Check in: take a selfie" : "Check out: take a selfie"} busy={busy} onClose={() => setShot(null)} onDone={(img) => (shot === "in" ? doIn(img) : run(() => checkOut(img), () => { setShot(null); }))} /> : null}
       {sel ? <Modal title={dayLong(sel.day)} onClose={() => setSel(null)}>
         <p className="text-[14px]">{sel.label}</p>
