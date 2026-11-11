@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { inr } from "@/staff/hrms/constants";
 import { LOST_REASONS, STAGES } from "@/staff/constants";
-import { addLead, assignLead, autoAssignLeads, importLeads, logLeadCall, setLeadFollowUp, setLeadStage, setSalesTerms } from "../actions";
+import { addLead, assignLead, autoAssignLeads, importLeads, logLeadCall, saveLeadSheet, setLeadFollowUp, setLeadStage, setSalesTerms, syncLeadSheet } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, btnCls, cx, inputCls, primaryCls, tdCls, useRun } from "./kit";
 
 type Lead = Data<"slhome">["leads"][number];
@@ -75,6 +75,36 @@ export function MyLeads({ d }: { d: Data<"slleads"> }) {
 }
 
 // ── HR: leads
+/** The master lead list in Google Sheets: connect it once, then sync by hand or every day. */
+function LeadSheetCard({ sheet }: { sheet: Data<"hrleads">["sheet"] }) {
+  const { run, busy } = useRun();
+  const [v, setV] = useState({ url: sheet.url, auto: sheet.auto, assign: sheet.assign }), [skipped, setSkipped] = useState<string[]>([]);
+  const last = sheet.last, dirty = v.url !== sheet.url || v.auto !== sheet.auto || v.assign !== sheet.assign;
+  return (
+    <Card title="Master lead sheet · Google Sheets" sub="Connect your Google Sheet of leads. New rows are added and given to the sales team to call." pad>
+      <div className="flex flex-col gap-3">
+        <Field label="Google Sheet link" hint="Open the sheet ▸ Share ▸ General access ▸ “Anyone with the link” ▸ Viewer, then paste its address here. Use the tab you want (its link ends with #gid=…).">
+          <input className={inputCls} placeholder="https://docs.google.com/spreadsheets/d/…" value={v.url} onChange={(e) => setV({ ...v, url: e.target.value })} />
+        </Field>
+        <div className="flex gap-5 flex-wrap text-[13px]">
+          <label className="flex items-center gap-2"><input type="checkbox" checked={v.assign} onChange={(e) => setV({ ...v, assign: e.target.checked })} />Give new leads to the sales team automatically (fewest open leads first)</label>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={v.auto} disabled={!v.url} onChange={(e) => setV({ ...v, auto: e.target.checked })} />Sync every day</label>
+        </div>
+        <div className="flex gap-2 flex-wrap items-center">
+          <button className={primaryCls} disabled={busy || !dirty} onClick={() => run(() => saveLeadSheet(v))}>Save</button>
+          <button className={btnCls} disabled={busy || !sheet.url || dirty} onClick={() => run(() => syncLeadSheet(), (r) => { setSkipped(r.skippedRows); return `${r.added} new lead${r.added === 1 ? "" : "s"} added${r.assigned ? `, ${r.assigned} given to the sales team` : ""}.`; })}>↻ Sync now</button>
+          {dirty ? <span className="text-[12px] text-[#B45309]">Save your changes, then sync.</span> : null}
+        </div>
+        {last ? <p role="status" className={cx("text-[12.5px] rounded-lg px-3 py-2", last.error ? "bg-[#FDECEA] text-[#B3261E]" : "bg-[#F0FDFA] text-[#0B5E5B]")}>
+          {last.error ? `Last sync failed: ${last.error}` : `Last sync ${new Date(last.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })} by ${last.by}: ${last.added} added, ${last.assigned} given out, ${last.skipped} skipped (already leads or invalid rows).${last.more ? ` More rows are waiting. Press Sync now again (up to ${sheet.maxPerRun} new leads at a time).` : ""}`}
+        </p> : null}
+        {skipped.length ? <details className="text-[12px] text-[#64748B]"><summary className="cursor-pointer">Skipped rows</summary><ul className="list-disc pl-5 mt-1">{skipped.map((x) => <li key={x}>{x}</li>)}</ul></details> : null}
+        <p className="text-[12px] text-[#64748B]">Columns (first row): <b>store</b>, <b>owner</b>, <b>phone</b>, <b>city</b>, <b>plan</b>, <b>source</b>. Optional: <b>assigned to</b> with an employee ID or name to give that lead straight to one salesperson. Leads are matched by phone number, so the same sheet can be synced again and again.</p>
+      </div>
+    </Card>
+  );
+}
+
 export function HrLeads({ d }: { d: Data<"hrleads"> }) {
   const { run, busy, toast } = useRun();
   const file = useRef<HTMLInputElement>(null);
@@ -87,6 +117,7 @@ export function HrLeads({ d }: { d: Data<"hrleads"> }) {
     run(async () => importLeads(await file.text()), (r) => { setRes(r); return `${r.added} lead${r.added === 1 ? "" : "s"} added.`; });
   };
   return <>
+    <LeadSheetCard sheet={d.sheet} />
     <Grid n={4}>{d.team.map((t) => <Card key={t.id} pad><div className="flex items-center gap-2.5"><Avatar name={t.name} size={32} /><div className="flex-1 min-w-0"><div className="font-semibold text-[13.5px] truncate">{t.name}</div><div className="text-[11.5px] text-[#64748B]">{t.empNo}</div></div><button className={btnCls} onClick={() => setTerms({ id: t.id, name: t.name, target: String(t.target), pct: String(t.pct) })}>Terms</button></div>
       <div className="text-[22px] font-bold mt-2">{t.won} / {t.target}</div><div className="h-1.5 bg-[#E2E8F0] rounded-full"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${t.target ? Math.min(100, (t.won * 100) / t.target) : 0}%` }} /></div><div className="text-[11.5px] text-[#64748B] mt-1.5">{t.open} open · {t.assigned} assigned · incentive {inr(t.incentive)} at {t.pct}%</div></Card>)}{!d.team.length ? <Card pad><Empty>No sales employees yet. Create one in New Employee with access “Sales”.</Empty></Card> : null}</Grid>
     <Grid n={2}>

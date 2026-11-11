@@ -10,6 +10,7 @@ import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
+import { sheetStatus } from "./lead-sheet";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
 import { addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
@@ -95,7 +96,7 @@ export const loaders = {
   perf: async (me: Me, q: Q) => ({ ...(await performance(me, q.p === "week" || q.p === "month" ? q.p : "today")), people: await people() }),
   assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
   assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
-  hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS }),
+  hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
   hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id }),
   hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: me.email.split("@")[1] ?? "medoro.in" }),
   departments: async () => {

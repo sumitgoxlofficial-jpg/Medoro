@@ -149,29 +149,54 @@ export function parseCsv(text: string): string[][] {
   row.push(cur); if (row.some((x) => x.trim())) rows.push(row);
   return rows;
 }
-/** CSV with columns store, owner, phone, city, plan, source. Uploaded leads arrive unassigned. */
-export async function importLeads(me: Me, text: string) {
-  need(me, "leads");
-  if (text.length > 2_000_000) throw new UserError("That file is too large. Upload at most about 10,000 leads at a time.");
+const HEAD = {
+  name: ["store", "pharmacy", "name", "pharmacy name", "store name", "shop", "shop name", "medical store", "firm name"],
+  owner: ["owner", "owner name", "contact person", "proprietor"], phone: ["phone", "mobile", "mobile number", "phone number", "contact", "contact number", "whatsapp", "whatsapp number"],
+  city: ["city", "town", "location", "area"], plan: ["plan", "product", "interested in"], source: ["source", "lead source"],
+  assigned: ["assigned to", "assignee", "salesperson", "sales person", "employee", "emp id", "employee id", "assigned"],
+};
+export const MAX_NEW_PER_RUN = 1500; // one run stays well inside the host's time limit; the rest is picked up by the next run
+
+/**
+ * Adds leads from CSV text with columns store, owner, phone, city, plan, source (and, optionally, "assigned to" with an
+ * employee ID or name). Already-known phone numbers are skipped, so running it again on the same sheet adds only what is new.
+ */
+export async function importText(text: string, opts: { maxChars?: number; limit?: number } = {}) {
+  if (text.length > (opts.maxChars ?? 2_000_000)) throw new UserError("That file is too large. Upload at most about 10,000 leads at a time.");
   const rows = parseCsv(text);
-  if (rows.length < 2) throw new UserError("The file has no leads. It needs a header row and at least one lead.");
+  if (rows.length < 2) throw new UserError("The sheet has no leads. It needs a header row and at least one lead.");
   const head = rows[0].map((h) => h.trim().toLowerCase());
-  const col = (...names: string[]) => head.findIndex((h) => names.includes(h));
-  const ix = { name: col("store", "pharmacy", "name", "pharmacy name"), owner: col("owner", "owner name"), phone: col("phone", "mobile"), city: col("city"), plan: col("plan"), source: col("source") };
+  const col = (names: string[]) => head.findIndex((h) => names.includes(h));
+  const ix = { name: col(HEAD.name), owner: col(HEAD.owner), phone: col(HEAD.phone), city: col(HEAD.city), plan: col(HEAD.plan), source: col(HEAD.source), assigned: col(HEAD.assigned) };
   if (ix.name < 0 || ix.phone < 0) throw new UserError("The first row must name the columns: store, owner, phone, city, plan, source.");
-  const have = new Set((await db.lead.findMany({ select: { phone: true } })).map((l) => l.phone));
-  let added = 0; const skipped: string[] = [];
+  const [have, sales] = await Promise.all([
+    db.lead.findMany({ select: { phone: true } }),
+    db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true } }),
+  ]);
+  const known = new Set(have.map((l) => l.phone)), limit = opts.limit ?? Infinity;
+  const who = (v: string) => { const t = v.trim().toLowerCase(); return t ? sales.find((u) => u.empNo.toLowerCase() === t || u.name.toLowerCase() === t)?.id ?? "" : ""; };
+  let added = 0, assigned = 0, more = false; const skipped: string[] = []; const got = new Map<string, number>();
   for (const [n, r] of rows.slice(1).entries()) {
     const get = (i: number) => (i >= 0 ? r[i] ?? "" : "").trim();
-    const p = leadSchema.safeParse({ name: get(ix.name), owner: get(ix.owner), phone: get(ix.phone), city: get(ix.city), plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit" });
+    const staffId = who(get(ix.assigned));
+    const p = leadSchema.safeParse({ name: get(ix.name), owner: get(ix.owner), phone: get(ix.phone), city: get(ix.city), plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit", staffId });
     if (!p.success) { skipped.push(`Row ${n + 2}: ${p.error.issues[0]?.message ?? "invalid"}`); continue; }
-    if (have.has(p.data.phone)) { skipped.push(`Row ${n + 2}: ${p.data.phone} is already a lead`); continue; }
-    have.add(p.data.phone);
+    if (known.has(p.data.phone)) { skipped.push(`Row ${n + 2}: ${p.data.phone} is already a lead`); continue; }
+    if (added >= limit) { more = true; break; }
+    known.add(p.data.phone);
     await insertLead(p.data);
     added++;
+    if (staffId) { assigned++; got.set(staffId, (got.get(staffId) ?? 0) + 1); }
   }
-  await audit(me, "Leads uploaded", `${added} added · ${skipped.length} skipped`);
-  return { added, skipped: skipped.slice(0, 20), skippedCount: skipped.length };
+  for (const [id, c] of got) await notify([id], `${c} new lead${c > 1 ? "s" : ""} from HR.`, "slleads");
+  return { added, assigned, more, skipped: skipped.slice(0, 20), skippedCount: skipped.length };
+}
+/** CSV with columns store, owner, phone, city, plan, source. Uploaded leads arrive unassigned unless the file names who gets them. */
+export async function importLeads(me: Me, text: string) {
+  need(me, "leads");
+  const r = await importText(text);
+  await audit(me, "Leads uploaded", `${r.added} added · ${r.skippedCount} skipped`);
+  return r;
 }
 export async function assignLead(me: Me, id: string, staffId: string) {
   need(me, "leads");
@@ -182,11 +207,10 @@ export async function assignLead(me: Me, id: string, staffId: string) {
   await db.lead.update({ where: { id }, data: { staffId, nextOn: staffId && !l.nextOn && l.stage !== "lost" ? dateOnly(addDays(todayISO(), 1)) : l.nextOn } });
   if (staffId && staffId !== me.id) await notify([staffId], `New lead from HR: ${l.name}`, "slleads");
 }
-/** Gives every unassigned lead to the salesperson with the fewest open leads, one at a time. */
-export async function autoAssign(me: Me) {
-  need(me, "leads");
+/** Gives every unassigned lead to the salesperson with the fewest open leads, one at a time. Returns how many were given out. */
+export async function assignWaiting(): Promise<number> {
   const team = await teamBoard();
-  if (!team.length) throw new UserError("There are no active sales employees to assign to.");
+  if (!team.length) return 0;
   const waiting = await db.lead.findMany({ where: { staffId: "" }, orderBy: { createdAt: "asc" } });
   const load = new Map(team.map((t) => [t.id, t.open]));
   const got = new Map<string, number>();
@@ -196,8 +220,14 @@ export async function autoAssign(me: Me) {
     load.set(id, load.get(id)! + 1); got.set(id, (got.get(id) ?? 0) + 1);
   }
   for (const [id, n] of got) await notify([id], `${n} new lead${n > 1 ? "s" : ""} from HR.`, "slleads");
-  await audit(me, "Leads auto-assigned", `${waiting.length} leads`);
   return waiting.length;
+}
+export async function autoAssign(me: Me) {
+  need(me, "leads");
+  if (!(await teamBoard()).length) throw new UserError("There are no active sales employees to assign to.");
+  const n = await assignWaiting();
+  await audit(me, "Leads auto-assigned", `${n} leads`);
+  return n;
 }
 export async function setSalesTerms(me: Me, staffId: string, raw: { target: number; pct: number }) {
   need(me, "leads");
