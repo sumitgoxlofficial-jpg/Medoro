@@ -59,6 +59,8 @@ enabled an authenticator app also enter its code in the HRMS.
 
 ## Setup
 
+To create (or reset) a super admin with a one-time password, run on the server: `node scripts/create-super-admin.mjs <email> <one-time-password> ["Full Name"] [mobile]`. The password works for one sign-in within 7 days and is then replaced. Never commit it.
+
 Run `pnpm prisma migrate deploy`. The first super admin comes from `STAFF_BOOTSTRAP_EMAIL` (staff console sign-up). Set
 `STAFF_EMAIL_DOMAIN` for official emails (default `medoro.in`) and `MAIL_PROVIDER`/`MAIL_FROM` if you want welcome and
 one-time-password emails. Add holidays in **Calendar**, then review **Settings** (company details, late time, leave policy).
