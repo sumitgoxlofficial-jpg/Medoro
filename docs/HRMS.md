@@ -39,9 +39,22 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 * **Me**: **ID card** (My profile, printable), **Customize home** (hide sections; saved in the browser), **night mode** (moon button; saved in the browser).
 * Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).
 
+## Selfie check-in and idle-time monitoring
+
+Both are **off** until the super admin switches them on under **Settings → Workforce policy**. Tell your team before you do: employees also see a notice on their Attendance screen.
+
+* **Selfie check-in.** A photo from the camera is needed to check in and out; no photo, no check-in (HR can still mark attendance). The picture is a record for HR to look at:
+  nothing is analysed or matched. It is a small JPEG, **sealed with `HOST_KEY`**, opened only for the employee and people with the Attendance module through
+  `/staff/hrms/selfie/<id>` (never cached), and **deleted after 30 days**. HR sees them in Team Attendance; the employee sees their own in the day popup.
+* **Idle-time monitoring.** Counts inactivity (mouse, keyboard, scroll, touch) **in the HRMS browser tab only**, while the employee is checked in and not on a break. After the set
+  minutes (1–30) the person is asked "Still working?"; with no answer in 2 minutes the stretch is recorded as idle from their last activity until they come back. A hidden tab
+  isn't counted (work in another window is invisible to us). **Nothing typed, no screenshots, no other apps.** Breaks and check-out end an idle stretch. Records are deleted after 90 days.
+  HR sees idle minutes today (and "idle now") in Team Attendance.
+* Data protection: these are personal data under India's DPDP Act. Use them only for attendance, tell staff what is recorded and for how long (this page and the notice on Attendance say it), and keep the retention above.
+
 ## Not built (in the design, not in Medoro yet)
 
-Team Chat with calls and screen sharing, selfie check-in, idle-time monitoring, AI meeting minutes and AI candidate screening, Wins / Culture OS /
+Team Chat with calls and screen sharing, AI meeting minutes and AI candidate screening, Wins / Culture OS /
 Non-Negotiables (these three are blank in the design itself). Ally answers from HR records; it does not read uploaded documents.
 
 ## Rules the code enforces

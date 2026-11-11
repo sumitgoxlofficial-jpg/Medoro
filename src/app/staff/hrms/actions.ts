@@ -15,6 +15,7 @@ import * as fin from "@/staff/hrms/finance";
 import * as ally from "@/staff/hrms/ally";
 import * as gcal from "@/staff/hrms/gcal";
 import * as assets from "@/staff/hrms/assets";
+import * as monitor from "@/staff/hrms/monitor";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -51,8 +52,11 @@ export const readNotifications = async () => done(await hrRun((me) => people.rea
 export const askAlly = async (q: string, history: { who: "me" | "ai"; text: string }[]) => hrRun((me) => ally.ask(me, q, history));
 
 // ── Attendance, leave, claims
-export const checkIn = async () => done(await hrRun((me) => time.checkIn(me)));
-export const checkOut = async () => done(await hrRun((me) => time.checkOut(me), "Checked out. See you tomorrow."));
+export const checkIn = async (selfie?: string) => done(await hrRun((me) => time.checkIn(me, selfie)));
+export const checkOut = async (selfie?: string) => done(await hrRun((me) => time.checkOut(me, selfie), "Checked out. See you tomorrow."));
+/** Idle-time monitoring (only does anything when the super admin switched it on). */
+export const idleStart = async (sinceIso: string) => hrRun((me) => monitor.idleStart(me, sinceIso));
+export const idleEnd = async () => hrRun((me) => monitor.idleEnd(me));
 export const requestCorrection = async (input: In<typeof time.requestCorrection>) => done(await hrRun((me) => time.requestCorrection(me, input), "Correction request sent to HR."));
 export const decideCorrection = async (id: string, approve: boolean) => done(await hrRun((me) => time.decideCorrection(me, id, approve), approve ? "Correction approved." : "Correction rejected."));
 export const applyLeave = async (input: In<typeof time.applyLeave>) => done(await hrRun((me) => time.applyLeave(me, input)));

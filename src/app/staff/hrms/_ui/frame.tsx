@@ -7,6 +7,7 @@ import { HR_ROLE_LABEL, ONBOARD_STEPS, BREAKS } from "@/staff/hrms/constants";
 import { acceptDocuments, askAlly, endBreak, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
 import { ProfileForm } from "./screens-me";
+import { IdleWatcher } from "./monitor";
 import { Screen } from "./screens";
 
 const ICONS: Record<string, string> = {
@@ -120,6 +121,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
         </header>
         <main className="flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12"><Screen screen={screen} data={data} sh={sh} /></main>
       </div>
+      <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} />
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}
       {pw ? <PasswordModal onClose={() => setPw(false)} /> : null}
     </div>
