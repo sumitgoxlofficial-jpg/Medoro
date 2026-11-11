@@ -13,7 +13,7 @@ import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
 import { createEmployee, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
-import { applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim } from "@/staff/hrms/time";
+import { addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim } from "@/staff/hrms/time";
 import { annualTax, computeSlip, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
@@ -170,6 +170,16 @@ describe("HRMS", () => {
     expect((await payslip(eshaMe, slip.id)).emp.name).toBe("Esha Employee");
     const other = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-004" } })).id);
     await expect(payslip(other, slip.id)).rejects.toThrow(/not found/);
+  });
+
+  it("official holidays: fixed dates plus the year's festivals, added once", async () => {
+    const r = await addNationalHolidays(hr, 2026);
+    expect(r).toEqual({ added: 18, festivals: true });
+    expect(await db.hrHoliday.findUnique({ where: { day: dateOnly("2026-11-08") } })).toMatchObject({ name: "Diwali" });
+    expect(await db.hrHoliday.findUnique({ where: { day: dateOnly("2026-08-15") } })).toMatchObject({ name: "Independence Day" });
+    expect(await addNationalHolidays(hr, 2026)).toEqual({ added: 0, festivals: true });
+    expect(await addNationalHolidays(hr, 2031)).toEqual({ added: 5, festivals: false }); // no festival list for that year
+    await expect(addNationalHolidays(await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-003" } })).id), 2026)).rejects.toThrow(/role can’t/);
   });
 
   it("attendance counts absent only for past working days", async () => {
