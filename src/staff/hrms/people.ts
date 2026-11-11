@@ -190,9 +190,8 @@ export async function tickOnboarding(me: Me, id: string, step: number, done: boo
   const p = await db.hrProfile.findUnique({ where: { staffId: id } });
   if (!p) throw new UserError("Employee not found.");
   const ticks = ONBOARD_STEPS.map((_, i) => Array.isArray(p.onboarding) && p.onboarding[i] === true);
-  if (step < 0 || step >= ticks.length) throw new UserError("Unknown step.");
-  ticks[step] = done;
-  await db.hrProfile.update({ where: { staffId: id }, data: { onboarding: ticks } });
+  if (!Number.isInteger(step) || step < 0 || step >= ticks.length) throw new UserError("Unknown step.");
+  await db.hrProfile.update({ where: { staffId: id }, data: { onboarding: ticks.map((t, i) => (i === step ? done : t)) } });
 }
 
 // ── My profile: personal, emergency and bank details. Account number and PAN are sealed; screens show them masked.

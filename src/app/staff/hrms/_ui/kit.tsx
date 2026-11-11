@@ -64,7 +64,7 @@ export const Pill = ({ tone = "gray", children }: { tone?: keyof typeof TONES; c
   <span className="text-[10.5px] font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap inline-block" style={{ background: TONES[tone][0], color: TONES[tone][1] }}>{children}</span>
 );
 export const statusTone = (s: string): keyof typeof TONES =>
-  /approved|paid|active|present|won|done|resolved|hired|fulfilled|accepted|reconciled|applied$/i.test(s) ? "green" : /pending|late|draft|due|open|processing|waiting|new|planning|sent|low/i.test(s) ? "amber" : /reject|overdue|absent|lost|cancel|closed|out of|deactiv/i.test(s) ? "red" : "gray";
+  /approved|paid|active|present|won|done|resolved|hired|fulfilled|accepted|reconciled|applied/i.test(s) ? "green" : /pending|late|draft|due|open|processing|waiting|new|planning|sent|low/i.test(s) ? "amber" : /reject|overdue|absent|lost|cancel|closed|out of|deactiv/i.test(s) ? "red" : "gray";
 
 export function Avatar({ name, photo, size = 34, dot }: { name: string; photo?: string | null; size?: number; dot?: string }) {
   return (
