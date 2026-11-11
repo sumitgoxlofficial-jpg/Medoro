@@ -8,6 +8,7 @@ import type { Staff } from "../auth";
 import { LEAD_SOURCES, LOST_REASONS, MOBILE_RE, PRODUCTS, STAGES, digits, product } from "../constants";
 import * as console_ from "../sales";
 import { audit, can, need, notify, type Me } from "./auth";
+import { speaks, stateOf, langOf, langLabel } from "./states";
 import { incentives } from "./pay";
 
 // The HRMS sales screens work on the staff console's Lead table, so a pharmacy won here is the same sale and
@@ -17,11 +18,11 @@ const PLANS = PRODUCTS.filter((p) => !("addon" in p) && !("once" in p));
 const PLAN_IDS = PLANS.map((p) => p.id) as [string, ...string[]];
 const asStaff = (me: Me): Staff => ({ id: me.id, empNo: me.empNo, name: me.name, email: me.email, role: me.staffRole, referralCode: null, sessionId: me.sessionId });
 
-type LeadRow = { id: string; code: string; name: string; owner: string; phone: string; city: string; source: string; product: string; stage: string; nextOn: Date | null; staffId: string; lostReason: string | null };
+type LeadRow = { id: string; code: string; name: string; owner: string; phone: string; city: string; source: string; product: string; stage: string; nextOn: Date | null; staffId: string; lostReason: string | null; state?: string };
 const out = (l: LeadRow, names?: Map<string, string>) => {
   const p = product(l.product), today = todayISO(), next = l.nextOn ? isoOf(l.nextOn) : null;
   return {
-    id: l.id, code: l.code, name: l.name, owner: l.owner, phone: l.phone, city: l.city, source: l.source, plan: p.name, planPrice: p.m, stage: l.stage, next,
+    id: l.id, code: l.code, name: l.name, owner: l.owner, phone: l.phone, city: l.city, state: l.state ?? "", source: l.source, plan: p.name, planPrice: p.m, stage: l.stage, next,
     follow: !next || l.stage === "won" || l.stage === "lost" ? "" : next < today ? "Overdue" : next === today ? "Today" : next === addDays(today, 1) ? "Tomorrow" : `In ${Math.round((dateOnly(next).getTime() - dateOnly(today).getTime()) / 86400_000)} days`,
     due: !!next && next <= today && l.stage !== "won" && l.stage !== "lost", staffId: l.staffId, assignee: l.staffId ? names?.get(l.staffId) ?? "" : "", lostReason: l.lostReason ?? "",
   };
@@ -92,7 +93,7 @@ export async function salesSummary(me: Me) {
 export async function teamBoard(known?: Awaited<ReturnType<typeof incentives>>) {
   const ym = todayISO().slice(0, 7);
   const [people, inc, counts] = await Promise.all([
-    db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true, hr: { select: { monthlyTarget: true, incentivePct: true, location: true } } }, orderBy: { name: "asc" } }),
+    db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true, hr: { select: { monthlyTarget: true, incentivePct: true, location: true, homeState: true } } }, orderBy: { name: "asc" } }),
     known ?? incentives(ym),
     db.lead.groupBy({ by: ["staffId", "stage"], _count: true }),
   ]);
@@ -101,7 +102,7 @@ export async function teamBoard(known?: Awaited<ReturnType<typeof incentives>>) 
     const total = mineCounts.reduce((a, c) => a + c._count, 0);
     const open = mineCounts.filter((c) => c.stage !== "won" && c.stage !== "lost").reduce((a, c) => a + c._count, 0);
     const i = inc.get(u.id) ?? { won: 0, value: 0, incentive: 0 };
-    return { id: u.id, name: u.name, empNo: u.empNo, area: u.hr?.location ?? "", target: u.hr?.monthlyTarget ?? 40, pct: Number(u.hr?.incentivePct ?? 0), won: i.won, incentive: i.incentive, assigned: total, open };
+    return { id: u.id, name: u.name, empNo: u.empNo, area: u.hr?.location ?? "", home: u.hr?.homeState ?? "", target: u.hr?.monthlyTarget ?? 40, pct: Number(u.hr?.incentivePct ?? 0), won: i.won, incentive: i.incentive, assigned: total, open };
   }).sort((a, b) => b.won - a.won || a.name.localeCompare(b.name));
 }
 
@@ -109,14 +110,14 @@ export async function teamBoard(known?: Awaited<ReturnType<typeof incentives>>) 
 const leadSchema = z.object({
   name: z.string().trim().min(3, "Enter the pharmacy name.").max(120), owner: z.string().trim().max(80).default(""),
   phone: z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile."), city: z.string().trim().max(60).default(""),
-  plan: z.enum(PLAN_IDS).default("starter"), source: z.string().trim().max(40).default("Field visit"), staffId: z.string().default(""),
+  plan: z.enum(PLAN_IDS).default("starter"), source: z.string().trim().max(40).default("Field visit"), staffId: z.string().default(""), state: z.string().trim().max(40).default(""),
 });
 const planOf = (v: string) => { const t = v.trim().toLowerCase(); return PLANS.find((p) => p.id === t || p.name.toLowerCase() === t)?.id ?? (t.startsWith("pro") ? "pro" : t.startsWith("multi") ? "multi" : "starter"); };
 const sourceOf = (v: string) => LEAD_SOURCES.find((s) => s.toLowerCase() === v.trim().toLowerCase()) ?? "Field visit";
 
 async function insertLead(i: z.output<typeof leadSchema>) {
   const n = await db.$transaction((tx) => nextSeq(tx, CP, "LEAD"));
-  return db.lead.create({ data: { code: `L-${n}`, name: i.name, owner: i.owner || "—", phone: i.phone, city: i.city || "—", source: sourceOf(i.source), product: i.plan, stage: "new", nextOn: i.staffId ? dateOnly(addDays(todayISO(), 1)) : null, staffId: i.staffId } });
+  return db.lead.create({ data: { code: `L-${n}`, name: i.name, owner: i.owner || "—", phone: i.phone, city: i.city || "—", source: sourceOf(i.source), product: i.plan, stage: "new", nextOn: i.staffId ? dateOnly(addDays(todayISO(), 1)) : null, staffId: i.staffId, state: stateOf(i.state, i.city) } });
 }
 export async function addLead(me: Me, raw: z.input<typeof leadSchema>) {
   need(me, "leads");
@@ -152,7 +153,7 @@ export function parseCsv(text: string): string[][] {
 const HEAD = {
   name: ["store", "pharmacy", "name", "pharmacy name", "store name", "shop", "shop name", "medical store", "firm name"],
   owner: ["owner", "owner name", "contact person", "proprietor"], phone: ["phone", "mobile", "mobile number", "phone number", "contact", "contact number", "whatsapp", "whatsapp number"],
-  city: ["city", "town", "location", "area"], plan: ["plan", "product", "interested in"], source: ["source", "lead source"],
+  city: ["city", "town", "location", "area"], state: ["state", "lead state", "province"], plan: ["plan", "product", "interested in"], source: ["source", "lead source"],
   assigned: ["assigned to", "assignee", "salesperson", "sales person", "employee", "emp id", "employee id", "assigned"],
 };
 export const MAX_NEW_PER_RUN = 1500; // one run stays well inside the host's time limit; the rest is picked up by the next run
@@ -167,7 +168,7 @@ export async function importText(text: string, opts: { maxChars?: number; limit?
   if (rows.length < 2) throw new UserError("The sheet has no leads. It needs a header row and at least one lead.");
   const head = rows[0].map((h) => h.trim().toLowerCase());
   const col = (names: string[]) => head.findIndex((h) => names.includes(h));
-  const ix = { name: col(HEAD.name), owner: col(HEAD.owner), phone: col(HEAD.phone), city: col(HEAD.city), plan: col(HEAD.plan), source: col(HEAD.source), assigned: col(HEAD.assigned) };
+  const ix = { name: col(HEAD.name), owner: col(HEAD.owner), phone: col(HEAD.phone), city: col(HEAD.city), state: col(HEAD.state), plan: col(HEAD.plan), source: col(HEAD.source), assigned: col(HEAD.assigned) };
   if (ix.name < 0 || ix.phone < 0) throw new UserError("The first row must name the columns: store, owner, phone, city, plan, source.");
   const [have, sales] = await Promise.all([
     db.lead.findMany({ select: { phone: true } }),
@@ -179,7 +180,7 @@ export async function importText(text: string, opts: { maxChars?: number; limit?
   for (const [n, r] of rows.slice(1).entries()) {
     const get = (i: number) => (i >= 0 ? r[i] ?? "" : "").trim();
     const staffId = who(get(ix.assigned));
-    const p = leadSchema.safeParse({ name: get(ix.name), owner: get(ix.owner), phone: get(ix.phone), city: get(ix.city), plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit", staffId });
+    const p = leadSchema.safeParse({ name: get(ix.name), owner: get(ix.owner), phone: get(ix.phone), city: get(ix.city), state: get(ix.state), plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit", staffId });
     if (!p.success) { skipped.push(`Row ${n + 2}: ${p.error.issues[0]?.message ?? "invalid"}`); continue; }
     if (known.has(p.data.phone)) { skipped.push(`Row ${n + 2}: ${p.data.phone} is already a lead`); continue; }
     if (added >= limit) { more = true; break; }
@@ -207,27 +208,36 @@ export async function assignLead(me: Me, id: string, staffId: string) {
   await db.lead.update({ where: { id }, data: { staffId, nextOn: staffId && !l.nextOn && l.stage !== "lost" ? dateOnly(addDays(todayISO(), 1)) : l.nextOn } });
   if (staffId && staffId !== me.id) await notify([staffId], `New lead from HR: ${l.name}`, "slleads");
 }
-/** Gives every unassigned lead to the salesperson with the fewest open leads, one at a time. Returns how many were given out. */
-export async function assignWaiting(): Promise<number> {
+/**
+ * Gives every unassigned lead to a salesperson who can talk to it in their own language (a salesperson from Bihar gets leads from
+ * Hindi-speaking states only), choosing the one with the fewest open leads. A lead whose state is unknown, or a salesperson with
+ * no home state, is not restricted. A lead nobody can take stays unassigned and is counted in `unmatched`.
+ */
+export async function assignWaiting(): Promise<{ given: number; unmatched: number; unmatchedLang: string[] }> {
   const team = await teamBoard();
-  if (!team.length) return 0;
+  if (!team.length) return { given: 0, unmatched: 0, unmatchedLang: [] };
   const waiting = await db.lead.findMany({ where: { staffId: "" }, orderBy: { createdAt: "asc" } });
   const load = new Map(team.map((t) => [t.id, t.open]));
-  const got = new Map<string, number>();
+  const home = new Map(team.map((t) => [t.id, t.home]));
+  const got = new Map<string, number>(), langs = new Set<string>();
+  let given = 0, unmatched = 0;
   for (const l of waiting) {
-    const [id] = [...load.entries()].sort((a, b) => a[1] - b[1])[0];
-    await db.lead.update({ where: { id: l.id }, data: { staffId: id, nextOn: l.stage === "lost" ? null : dateOnly(addDays(todayISO(), 1)) } });
-    load.set(id, load.get(id)! + 1); got.set(id, (got.get(id) ?? 0) + 1);
+    const state = stateOf(l.state, l.city);
+    const eligible = [...load.entries()].filter(([id]) => speaks(home.get(id) ?? "", state)).sort((a, b) => a[1] - b[1]);
+    if (!eligible.length) { unmatched++; const g = langOf(state); if (g) langs.add(langLabel(g)); continue; }
+    const [id] = eligible[0];
+    await db.lead.update({ where: { id: l.id }, data: { staffId: id, ...(l.state ? {} : state ? { state } : {}), nextOn: l.stage === "lost" ? null : dateOnly(addDays(todayISO(), 1)) } });
+    load.set(id, load.get(id)! + 1); got.set(id, (got.get(id) ?? 0) + 1); given++;
   }
   for (const [id, n] of got) await notify([id], `${n} new lead${n > 1 ? "s" : ""} from HR.`, "slleads");
-  return waiting.length;
+  return { given, unmatched, unmatchedLang: [...langs] };
 }
 export async function autoAssign(me: Me) {
   need(me, "leads");
   if (!(await teamBoard()).length) throw new UserError("There are no active sales employees to assign to.");
-  const n = await assignWaiting();
-  await audit(me, "Leads auto-assigned", `${n} leads`);
-  return n;
+  const r = await assignWaiting();
+  await audit(me, "Leads auto-assigned", `${r.given} given · ${r.unmatched} waiting for a matching language`);
+  return r;
 }
 export async function setSalesTerms(me: Me, staffId: string, raw: { target: number; pct: number }) {
   need(me, "leads");

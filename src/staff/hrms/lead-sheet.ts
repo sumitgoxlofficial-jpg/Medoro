@@ -10,7 +10,7 @@ import { MAX_NEW_PER_RUN, assignWaiting, importText } from "./leads";
 // "Anyone with the link can view"), adds the leads it doesn't know yet (by phone number) and, if switched on, hands the new ones
 // to the sales team. It runs when HR presses Sync and, if switched on, once a day. No Google sign-in or extra permission is used.
 const KEY = "leadSheet";
-type Last = { at: string; by: string; added: number; assigned: number; skipped: number; more: boolean; error: string };
+type Last = { at: string; by: string; added: number; assigned: number; skipped: number; more: boolean; unmatched: number; unmatchedLang: string[]; error: string };
 type Cfg = { url: string; auto: boolean; assign: boolean; last: Last | null };
 const EMPTY: Cfg = { url: "", auto: false, assign: true, last: null };
 const MAX_BYTES = 5_000_000;
@@ -56,14 +56,14 @@ export async function runSync(by: string) {
   const at = new Date().toISOString();
   try {
     const r = await importText(await fetchCsv(c.url), { maxChars: MAX_BYTES, limit: MAX_NEW_PER_RUN });
-    const assignedNow = c.assign ? await assignWaiting() : 0;
-    const last: Last = { at, by, added: r.added, assigned: r.assigned + assignedNow, skipped: r.skippedCount, more: r.more, error: "" };
+    const give = c.assign ? await assignWaiting() : { given: 0, unmatched: 0, unmatchedLang: [] as string[] };
+    const last: Last = { at, by, added: r.added, assigned: r.assigned + give.given, skipped: r.skippedCount, more: r.more, unmatched: give.unmatched, unmatchedLang: give.unmatchedLang, error: "" };
     await save({ ...c, last });
     return { ...last, skippedRows: r.skipped };
   } catch (e) {
     const error = e instanceof UserError ? e.message : "Couldn’t sync the sheet. Try again.";
     if (!(e instanceof UserError)) log.error("lead sheet sync failed", { err: e });
-    await save({ ...c, last: { at, by, added: 0, assigned: 0, skipped: 0, more: false, error } });
+    await save({ ...c, last: { at, by, added: 0, assigned: 0, skipped: 0, more: false, unmatched: 0, unmatchedLang: [], error } });
     throw e instanceof UserError ? e : new UserError(error);
   }
 }

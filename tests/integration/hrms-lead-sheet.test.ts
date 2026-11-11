@@ -10,6 +10,8 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
 import { leadSheetTick, parseSheetUrl, saveSheet, sheetStatus, syncSheet } from "@/staff/hrms/lead-sheet";
+import { langOf, speaks, stateName, stateOf } from "@/staff/hrms/states";
+import { updateEmployee } from "@/staff/hrms/people";
 import { resetDb } from "./helpers";
 
 const ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
@@ -114,5 +116,46 @@ describe("master lead sheet", () => {
     // A failing sheet never throws out of the daily job.
     status = 403; type = "text/html";
     await expect(leadSheetTick()).resolves.toBeUndefined();
+  });
+
+  it("knows states, languages and towns", () => {
+    expect(stateName(" BIHAR ")).toBe("Bihar"); expect(stateName("U.P.")).toBe("Uttar Pradesh"); expect(stateName("Orissa")).toBe("Odisha"); expect(stateName("Mars")).toBe("");
+    expect(langOf("Bihar")).toBe("hindi"); expect(langOf("Jharkhand")).toBe("hindi"); expect(langOf("Tamil Nadu")).toBe("tamil"); expect(langOf("")).toBe("");
+    expect(stateOf("", "Patna")).toBe("Bihar"); expect(stateOf("Kerala", "Patna")).toBe("Kerala"); expect(stateOf("", "Nowhereville")).toBe("");
+    expect(speaks("Bihar", "Uttar Pradesh")).toBe(true); expect(speaks("Bihar", "Tamil Nadu")).toBe(false); expect(speaks("", "Tamil Nadu")).toBe(true); expect(speaks("Bihar", "")).toBe(true);
+  });
+
+  it("gives a salesperson from Bihar Hindi-speaking states only, and keeps other leads for someone who speaks their language", async () => {
+    await db.lead.deleteMany({});
+    await db.hrProfile.update({ where: { staffId: s1.id }, data: { homeState: "Bihar" } });
+    await db.hrProfile.update({ where: { staffId: s2.id }, data: { homeState: "Tamil Nadu" } });
+    body = ["Store,Phone,City,State",
+      "Patna Meds,9100000001,Patna,", "Ranchi Meds,9100000002,Ranchi,Jharkhand", "Lucknow Meds,9100000003,Lucknow,UP", "Jaipur Meds,9100000004,Jaipur,Rajasthan",
+      "Chennai Meds,9100000005,Chennai,Tamil Nadu", "Mystery Meds,9100000006,Smalltown,"].join("\n");
+    await saveSheet(hr, { url: URL_OK, auto: false, assign: true });
+    const r = await syncSheet(hr);
+    expect(r).toMatchObject({ added: 6, assigned: 6, unmatched: 0 });
+    const by = Object.fromEntries((await db.lead.findMany()).map((l) => [l.name, { who: l.staffId, state: l.state }]));
+    for (const n of ["Patna Meds", "Ranchi Meds", "Lucknow Meds", "Jaipur Meds"]) expect(by[n].who).toBe(s1.id); // Hindi-speaking states go to the Bihar salesperson
+    expect(by["Chennai Meds"].who).toBe(s2.id); // Tamil lead goes to the Tamil Nadu salesperson
+    expect([s1.id, s2.id]).toContain(by["Mystery Meds"].who); // unknown state: anyone
+    expect(by["Patna Meds"].state).toBe("Bihar"); expect(by["Lucknow Meds"].state).toBe("Uttar Pradesh");
+  });
+
+  it("leaves a lead waiting when no salesperson speaks its language, and says so", async () => {
+    await db.lead.deleteMany({});
+    await db.hrProfile.update({ where: { staffId: s2.id }, data: { homeState: "Bihar" } });
+    body = "Store,Phone,State\nTamil Meds,9200000001,Tamil Nadu\nHindi Meds,9200000002,Bihar";
+    const r = await syncSheet(hr);
+    expect(r).toMatchObject({ added: 2, assigned: 1, unmatched: 1, unmatchedLang: ["Tamil"] });
+    expect((await db.lead.findFirstOrThrow({ where: { name: "Tamil Meds" } })).staffId).toBe("");
+    expect((await sheetStatus(hr)).last).toMatchObject({ unmatched: 1 });
+  });
+
+  it("lets HR set an employee's home state, and only a real state", async () => {
+    const base = { dept: "Sales", designation: "Exec", role: "sales" as const, empType: "Full-time" as const, location: "Bokaro", managerId: null, incentivePct: 3, ctc: 100000 };
+    await updateEmployee(hr, s1.id, { ...base, homeState: "jharkhand" });
+    expect((await db.hrProfile.findUniqueOrThrow({ where: { staffId: s1.id } })).homeState).toBe("Jharkhand");
+    await expect(updateEmployee(hr, s1.id, { ...base, homeState: "Atlantis" })).rejects.toThrow("Choose the state from the list");
   });
 });
