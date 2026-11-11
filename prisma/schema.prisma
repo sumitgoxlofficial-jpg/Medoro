@@ -2648,3 +2648,29 @@ model HrSprint {
 
   @@index([projectId])
 }
+
+/// A check-in or check-out selfie. The picture is sealed with HOST_KEY; only the employee and HR can open it; it is deleted after 30 days.
+model HrSelfie {
+  id      String   @id @default(uuid())
+  staffId String
+  day     DateTime @db.Date
+  kind    String // in, out
+  image   Bytes
+  at      DateTime @default(now())
+
+  @@unique([staffId, day, kind])
+  @@index([at])
+}
+
+/// A stretch of time with no activity in the HRMS tab while the employee was checked in (idle-time monitoring, when switched on).
+model HrIdle {
+  id      String    @id @default(uuid())
+  staffId String
+  day     DateTime  @db.Date
+  startAt DateTime
+  endAt   DateTime?
+  minutes Int       @default(0)
+
+  @@index([staffId, day])
+  @@index([day])
+}

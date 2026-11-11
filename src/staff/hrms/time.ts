@@ -6,6 +6,7 @@ import { UserError } from "@/server/action";
 import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/storage";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "./auth";
+import { closeIdle, idleToday, parseSelfie, purgeOld, saveSelfie } from "./monitor";
 import { CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, leaveLabel, type LeaveTypeId, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
@@ -63,19 +64,23 @@ export async function today(me: Me) {
   const a = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(todayISO()) } } });
   return { inAt: a?.inAt?.toISOString() ?? null, outAt: a?.outAt?.toISOString() ?? null, status: a?.status ?? null };
 }
-export async function checkIn(me: Me) {
+export async function checkIn(me: Me, selfie?: string) {
   const day = todayISO(), now = new Date();
   const s = await loadSettings();
+  const photo = s.selfie ? parseSelfie(selfie) : null; // checked first: no selfie, no check-in, when the rule is on
   const have = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } } });
   if (have?.inAt) throw new UserError("You have already checked in today.");
   if (await approvedLeaveOn(me.id, day)) throw new UserError("You are on approved leave today. Ask HR to cancel the leave first.");
   const status = istClock(now) > s.lateAfter ? "late" : "present";
   await db.hrAttendance.upsert({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } }, update: { inAt: now, status }, create: { staffId: me.id, day: dateOnly(day), inAt: now, status } });
   await db.hrProfile.update({ where: { staffId: me.id }, data: { presence: "active", presenceNote: "", presenceAt: now } });
-  await audit(me, "Checked in", istClock(now));
+  if (photo) await saveSelfie(me.id, day, "in", photo);
+  await purgeOld().catch(() => {}); // selfies and idle records past their retention
+  await audit(me, "Checked in", istClock(now) + (photo ? " · selfie" : ""));
   return { status, at: now.toISOString() };
 }
-export async function checkOut(me: Me) {
+export async function checkOut(me: Me, selfie?: string) {
+  const photo = (await loadSettings()).selfie ? parseSelfie(selfie) : null;
   const a = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(todayISO()) } } });
   if (!a?.inAt) throw new UserError("Check in first.");
   if (a.outAt) throw new UserError("You have already checked out today.");
@@ -85,7 +90,9 @@ export async function checkOut(me: Me) {
     db.hrBreak.updateMany({ where: { staffId: me.id, endAt: null }, data: { endAt: now } }),
     db.hrProfile.update({ where: { staffId: me.id }, data: { presence: "offline", presenceNote: "" } }),
   ]);
-  await audit(me, "Checked out", istClock(now));
+  await closeIdle(me.id, now);
+  if (photo) await saveSelfie(me.id, todayISO(), "out", photo);
+  await audit(me, "Checked out", istClock(now) + (photo ? " · selfie" : ""));
 }
 
 const approvedLeaveOn = (staffId: string, day: string) => db.hrLeave.findFirst({ where: { staffId, status: "approved", fromDay: { lte: dateOnly(day) }, toDay: { gte: dateOnly(day) } } });
@@ -161,16 +168,19 @@ export async function decideCorrection(me: Me, id: string, approve: boolean) {
 export async function teamToday(me: Me) {
   need(me, "attendance");
   const day = todayISO();
-  const [staff, att, leaves] = await Promise.all([
+  const [staff, att, leaves, idle, shots] = await Promise.all([
     db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" }, status: "active" }, select: { id: true, name: true, empNo: true, hr: { select: { dept: true } } }, orderBy: { name: "asc" } }),
     db.hrAttendance.findMany({ where: { day: dateOnly(day) } }),
     db.hrLeave.findMany({ where: { status: "approved", fromDay: { lte: dateOnly(day) }, toDay: { gte: dateOnly(day) } } }),
+    idleToday(),
+    db.hrSelfie.findMany({ where: { day: dateOnly(day) }, select: { id: true, staffId: true, kind: true } }),
   ]);
   const off = weekend(day) || !!(await db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }));
   return staff.map((u) => {
     const a = att.find((x) => x.staffId === u.id), onLeave = leaves.some((l) => l.staffId === u.id);
     const status = a?.inAt ? (a.status === "late" ? "Late" : "Present") : onLeave ? "On leave" : off ? "Day off" : "Not in yet";
-    return { id: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", inAt: a?.inAt ? fmtTime(a.inAt) : "", outAt: a?.outAt ? fmtTime(a.outAt) : "", status };
+    return { id: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", inAt: a?.inAt ? fmtTime(a.inAt) : "", outAt: a?.outAt ? fmtTime(a.outAt) : "", status,
+      idleMin: idle.get(u.id)?.minutes ?? 0, idleNow: idle.get(u.id)?.open ?? false, selfieIn: shots.find((x) => x.staffId === u.id && x.kind === "in")?.id ?? null, selfieOut: shots.find((x) => x.staffId === u.id && x.kind === "out")?.id ?? null };
   });
 }
 

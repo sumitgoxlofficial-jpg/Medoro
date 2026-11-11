@@ -12,6 +12,7 @@ import { staffDomain } from "../auth";
 import { IFSC_BANKS, IFSC_RE, MOBILE_RE, PAN_RE, digits } from "../constants";
 import { newEmployeeNo, referral } from "../people";
 import { audit, loadPerms, loadSettings, need, needAdmin, roleOf, type Me } from "./auth";
+import { closeIdle } from "./monitor";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
@@ -258,6 +259,7 @@ export async function acceptDocuments(me: Me) {
 // ── Presence and breaks
 export async function startBreak(me: Me, kind: string) {
   const k = z.enum(BREAKS).parse(kind);
+  await closeIdle(me.id); // a break isn't idle time
   await db.$transaction([
     db.hrBreak.updateMany({ where: { staffId: me.id, endAt: null }, data: { endAt: new Date() } }),
     db.hrBreak.create({ data: { staffId: me.id, kind: k } }),
@@ -294,7 +296,7 @@ export const settingsSchema = z.object({
     name: z.string().trim().min(2, "Enter the company name.").max(120), address: z.string().trim().max(300), gstin: z.string().trim().toUpperCase().regex(/^$|^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, "GSTIN looks wrong."),
     state: z.string().trim().max(40), phone: z.string().trim().max(20), email: z.string().trim().max(120), bank: z.string().trim().max(200),
   }),
-  checkin: z.boolean(), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
+  checkin: z.boolean(), selfie: z.boolean(), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
   leave: z.object({ casual: z.coerce.number().int().min(0).max(60), sick: z.coerce.number().int().min(0).max(60), privilege: z.coerce.number().int().min(0).max(60), comp: z.coerce.number().int().min(0).max(60) }),
   ptax: z.coerce.number().int().min(0).max(2500), payDay: z.coerce.number().int().min(1).max(28),
 });

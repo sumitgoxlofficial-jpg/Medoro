@@ -113,13 +113,16 @@ export type Settings = {
   company: { name: string; address: string; gstin: string; state: string; phone: string; email: string; bank: string };
   checkin: boolean; // employees check in and out; missed working days count as loss of pay
   lateAfter: string; // HH:MM, India time
+  selfie: boolean; // a selfie is needed to check in and out
+  idleMonitor: boolean; // idle time in the HRMS tab is recorded while checked in
+  idleMinutes: number; // minutes without activity before Ally asks "still working?"
   leave: Record<LeaveTypeId, number>; // days a year
   ptax: number; // professional tax a month, rupees
   payDay: number;
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", selfie: false, idleMonitor: false, idleMinutes: 5, leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, ptax: 200, payDay: 1,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.

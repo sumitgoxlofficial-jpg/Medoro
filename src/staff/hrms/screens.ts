@@ -7,6 +7,7 @@ import { listEvents, status as gcalStatus } from "./gcal";
 import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
+import { selfieIds } from "./monitor";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
@@ -24,7 +25,7 @@ export async function shell(me: Me) {
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
     nav: screensFor(me.role, me.perms).filter((x) => !x.hidden).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" })),
-    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, today: todayISO(),
+    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(),
   };
 }
 export type Shell = Awaited<ReturnType<typeof shell>>;
@@ -60,7 +61,8 @@ export const loaders = {
   },
   attendance: async (me: Me, q: Q) => {
     const s = await loadSettings(), month = monthArg(q.m);
-    return { ...(await monthFor(me.id, month, s)), isCurrent: month === ym(), prev: addMonths(month, -1), next: addMonths(month, 1), lateAfter: s.lateAfter, checkin: s.checkin };
+    const first = month + "-01", last = addDays(addMonths(month, 1) + "-01", -1);
+    return { ...(await monthFor(me.id, month, s)), isCurrent: month === ym(), prev: addMonths(month, -1), next: addMonths(month, 1), lateAfter: s.lateAfter, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, selfies: await selfieIds(me.id, first, last) };
   },
   leave: async (me: Me) => {
     const s = await loadSettings();

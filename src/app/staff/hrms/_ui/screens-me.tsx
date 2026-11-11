@@ -6,6 +6,7 @@ import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
 import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, CLAIM_TYPES, LEAVE_TYPES, TICKET_TOPICS, inr, leaveLabel } from "@/staff/hrms/constants";
 import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { Selfie, SelfieModal } from "./monitor";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 
 type P = { sh: Shell };
@@ -252,8 +253,10 @@ const CELL: Record<string, string> = { present: "bg-[#D6F3EF] text-[#0B5E5B] bor
 export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
   const router = useRouter();
   const { run, busy } = useRun();
+  const [shot, setShot] = useState<"in" | "out" | null>(null);
   const [sel, setSel] = useState<Data<"attendance">["cells"][number] | null>(null), [reason, setReason] = useState("");
   const lead = new Date(d.cells[0].day + "T00:00:00Z").getUTCDay();
+  const doIn = (selfie?: string) => run(() => checkIn(selfie), (x) => { setShot(null); return x.status === "late" ? `Checked in (late: after ${d.lateAfter}).` : "Checked in. Have a great day."; });
   const label = new Date(d.ym + "-01T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
   const inn = sh.att.inAt, out = sh.att.outAt;
   return (
@@ -262,18 +265,21 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex-1 min-w-[220px]"><div className="text-[11px] tracking-[.1em] font-semibold text-[#64748B]">TODAY</div><div className="flex gap-8 mt-1 text-[13px]"><span>Check-in<br /><strong className="text-[16px]">{inn ? timeLabel(inn) : "—"}</strong></span><span>Check-out<br /><strong className="text-[16px]">{out ? timeLabel(out) : "—"}</strong></span></div></div>
           {!d.checkin ? <Pill tone="gray">Check-in is switched off by the super admin</Pill> : null}
-          {d.checkin && !inn ? <button disabled={busy} onClick={() => run(() => checkIn(), (x) => (x.status === "late" ? `Checked in (late: after ${d.lateAfter}).` : "Checked in. Have a great day."))} className="size-[84px] rounded-full bg-[#0B5E5B] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check in</button> : null}
-          {d.checkin && inn && !out ? <button disabled={busy} onClick={() => run(() => checkOut())} className="size-[84px] rounded-full bg-[#B45309] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check out</button> : null}
+          {d.checkin && !inn ? <button disabled={busy} onClick={() => (d.selfie ? setShot("in") : doIn())} className="size-[84px] rounded-full bg-[#0B5E5B] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check in</button> : null}
+          {d.checkin && inn && !out ? <button disabled={busy} onClick={() => (d.selfie ? setShot("out") : run(() => checkOut()))} className="size-[84px] rounded-full bg-[#B45309] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check out</button> : null}
         </div>
       </Card>
+      {d.selfie || d.monitor ? <Card pad><p className="text-[12.5px] text-[#475569]">{d.selfie ? "📷 Selfie check-in is on: you take a photo when you check in and out. It is kept for 30 days and only you and HR can see it. " : ""}{d.monitor ? `⏱ Idle-time tracking is on: while you are checked in and not on a break, inactivity in this HRMS tab of ${d.monitor}+ minutes is recorded. Nothing you type is captured, and no other app or window is watched.` : ""}</p></Card> : null}
       <Grid n={5}><Stat l="Present" v={d.counts.present} /><Stat l="Late" v={d.counts.late} c="#B45309" /><Stat l="Absent" v={d.counts.absent} c="#DC2626" /><Stat l="Holidays" v={d.counts.holidays} c="#92400E" /><Stat l="Overtime" v={`${Math.floor(d.counts.overtimeMin / 60)}h`} c="#0f172a" /></Grid>
       <Card title={label} right={<><button className={btnCls} aria-label="Previous month" onClick={() => router.push(`/staff/hrms/attendance?m=${d.prev}`)}>‹</button><button className={btnCls} aria-label="Next month" disabled={d.isCurrent} onClick={() => router.push(`/staff/hrms/attendance?m=${d.next}`)}>›</button></>} pad>
         <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-[#64748B] mb-1.5">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((x) => <div key={x}>{x}</div>)}</div>
         <div className="grid grid-cols-7 gap-1.5">{Array.from({ length: lead }, (_, i) => <div key={"e" + i} />)}{d.cells.map((c) => <button key={c.day} title={c.label} onClick={() => { setSel(c); setReason(""); }} className={cx("border rounded-lg py-2.5 text-[12.5px] font-semibold cursor-pointer", CELL[c.kind], c.day === sh.today && "outline outline-2 outline-[#14B8A6] -outline-offset-2")}>{Number(c.day.slice(8))}</button>)}</div>
         <div className="flex gap-3 flex-wrap text-[11.5px] text-[#64748B] mt-3">{[["present", "Present"], ["late", "Late"], ["absent", "Absent"], ["leave", "Leave"], ["holiday", "Holiday"], ["weekend", "Weekend"]].map(([k, l]) => <span key={k} className="flex items-center gap-1.5"><i className={cx("size-3 rounded border", CELL[k])} />{l}</span>)}</div>
       </Card>
+      {shot ? <SelfieModal title={shot === "in" ? "Check in: take a selfie" : "Check out: take a selfie"} busy={busy} onClose={() => setShot(null)} onDone={(img) => (shot === "in" ? doIn(img) : run(() => checkOut(img), () => { setShot(null); }))} /> : null}
       {sel ? <Modal title={dayLong(sel.day)} onClose={() => setSel(null)}>
         <p className="text-[14px]">{sel.label}</p>
+        {d.selfies[sel.day] ? <div className="flex gap-3">{(["in", "out"] as const).map((k) => (d.selfies[sel.day][k] ? <Selfie key={k} id={d.selfies[sel.day][k]!} label={`Check-${k}`} /> : null))}</div> : null}
         {sel.correctable ? <form className="flex flex-col gap-2" onSubmit={(e) => { e.preventDefault(); run(() => requestCorrection({ day: sel.day, reason }), () => { setSel(null); }); }}><Field label="Ask HR to correct this day"><textarea className={inputCls} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Forgot to check in, I was at the pharmacy site" required minLength={5} /></Field><button className={primaryCls} disabled={busy}>Request correction</button></form> : null}
       </Modal> : null}
     </>

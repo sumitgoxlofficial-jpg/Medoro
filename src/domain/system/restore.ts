@@ -28,7 +28,7 @@ const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode
   "ContactConsent", "SuppressionRecord", "IntegrationConnection", "BackgroundJob", "EventOutbox", "GrowthAuditLog", "GrowthSetting",
   // Medoro HRMS (Medoro's own people records): platform-owned, never part of a pharmacy's backup or restore.
   "HrProfile", "HrDepartment", "HrAttendance", "HrBreak", "HrLeave", "HrCorrection", "HrClaim", "HrHoliday", "HrAnnouncement", "HrProject", "HrTask", "HrPayslip",
-  "HrJob", "HrCandidate", "HrTicket", "HrMeeting", "HrRecognition", "HrNotification", "HrAllyUsage", "HrRecord", "HrSetting", "HrGoogle", "HrAsset", "HrRisk", "HrSprint"]);
+  "HrJob", "HrCandidate", "HrTicket", "HrMeeting", "HrRecognition", "HrNotification", "HrAllyUsage", "HrRecord", "HrSetting", "HrGoogle", "HrAsset", "HrRisk", "HrSprint", "HrSelfie", "HrIdle"]);
 
 type Layout = {
   /** Restored tables in insert order (parents first). Child tables have `via`: the FK column and its tenant-owned parent. */
