@@ -49,7 +49,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           <img src="/medoro-mark.png" alt="" className="size-9 rounded-[9px] bg-white p-[2px]" />
           <div><div className="text-[18px] font-bold leading-none">Medoro</div><div className="text-[9.5px] tracking-[.1em] uppercase text-white/50 mt-1">HRMS · Pharmacy software</div></div>
         </div>
-        <nav className="flex flex-col gap-px flex-1 min-h-0 overflow-y-auto pb-2" aria-label="Main">
+        <nav className="flex flex-col gap-px flex-1 min-h-0 overflow-y-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Main">
           {groups.map(([g, items]) => (
             <div key={g} className="flex flex-col gap-px">
               {g ? <div className="text-[10px] tracking-[.12em] font-bold text-white/40 px-2.5 pt-3 pb-1">{g}</div> : null}
