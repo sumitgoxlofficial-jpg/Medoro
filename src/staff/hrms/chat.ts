@@ -22,7 +22,7 @@ export type ChatMsg = {
 };
 export type ChatRow = {
   id: string; kind: "dm" | "group"; title: string; photo: string | null; avatar: string; withId: string | null; presence: string; sys: boolean; about: string;
-  members: number; last: string; lastAt: string; unread: number;
+  members: number; last: string; /** First name of whoever sent the last message, when it is not you. */ lastBy: string; lastAt: string; unread: number;
 };
 export type Presence = Record<string, string>;
 
@@ -164,7 +164,7 @@ export async function chatList(me: Pick<Me, "id">): Promise<ChatRow[]> {
     return {
       id: c.id, kind: c.kind === "dm" ? "dm" : "group", title: c.kind === "dm" ? p?.name ?? "Former colleague" : c.name, photo: c.kind === "dm" ? p?.hr?.photo ?? null : c.photo, avatar: p?.hr?.chatAvatar ?? "",
       withId, presence: p ? liveStatus(p.hr?.presence ?? "offline", p.hr?.presenceAt ?? null) : "offline", sys: !!c.sysKey, about: c.about,
-      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
+      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? (people.get(last.senderId)?.name.split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
     };
   });
 }
