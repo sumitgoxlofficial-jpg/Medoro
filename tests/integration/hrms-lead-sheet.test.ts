@@ -12,6 +12,8 @@ import { loadPerms, type Me } from "@/staff/hrms/auth";
 import { leadSheetTick, parseSheetUrl, saveSheet, sheetStatus, syncSheet } from "@/staff/hrms/lead-sheet";
 import { langOf, speaks, stateName, stateOf } from "@/staff/hrms/states";
 import { updateEmployee } from "@/staff/hrms/people";
+import { strToU8, zipSync } from "fflate";
+import { readXlsx } from "@/staff/hrms/xlsx";
 import { resetDb } from "./helpers";
 
 const ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
@@ -21,7 +23,33 @@ const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.f
 const mk = (n: number, name: string, role: "super_admin" | "employee" | "sales", hrRole: "admin" | "employee" | "sales") =>
   db.staffUser.create({ data: { empNo: `MS-40${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98600000${n}0`, role, status: "active", referralCode: role === "sales" ? "SS" + n : null, hr: { create: { role: hrRole, profileDone: true, docsAcceptedAt: new Date() } } } });
 
-let body = "", type = "text/csv", status = 200, called: string[] = [];
+const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** A minimal .xlsx workbook, the way Google Sheets exports it. */
+function xlsx(tabs: { name: string; rows: string[][] }[]) {
+  const shared: string[] = [];
+  const si = (v: string) => { let i = shared.indexOf(v); if (i < 0) { shared.push(v); i = shared.length - 1; } return i; };
+  const letter = (n: number) => String.fromCharCode(65 + n);
+  const sheets = tabs.map((t) => `<worksheet><sheetData>${t.rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => (v === "" ? "" : `<c r="${letter(ci)}${ri + 1}" t="s"><v>${si(v)}</v></c>`)).join("")}</row>`).join("")}</sheetData></worksheet>`);
+  const files: Record<string, Uint8Array> = {
+    "xl/workbook.xml": strToU8(`<workbook xmlns:r="x"><sheets>${tabs.map((t, i) => `<sheet name="${esc(t.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>`),
+    "xl/_rels/workbook.xml.rels": strToU8(`<Relationships>${tabs.map((_, i) => `<Relationship Id="rId${i + 1}" Type="t" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}</Relationships>`),
+  };
+  sheets.forEach((x, i) => { files[`xl/worksheets/sheet${i + 1}.xml`] = strToU8(x); });
+  files["xl/sharedStrings.xml"] = strToU8(`<sst>${shared.map((v) => `<si><t>${esc(v)}</t></si>`).join("")}</sst>`);
+  return zipSync(files);
+}
+const HEADER = ["PIN Code", "Locality / Area", "Shop Name", "Phone Number", "Full Address", "Rating", "Reviews Count", "Website"];
+const BOOK = [
+  { name: "Summary", rows: [["Totals"], ["Bihar", "179"]] },
+  { name: "Bihar", rows: [["Bihar Medical Shops Directory"], ["Verified Directory • PIN Code & Locality Wise"], ["179", "34", "4.60", "83", "809"], ["Total Shops", "Unique PIN Codes", "Average Rating"], HEADER,
+    ["800001", "Dak Bunglow", "Chemist Box - Dakbunglow", "+91 80 3701 6711", "Gupta Mansion, New Dakbunglow Road, Dak Bunglow, Chouraha, Patna, Bihar 800001", "4.9", "7903", "https://x.in"],
+    ["800001", "Lodipur", "Sona Medical Stores & Co", "+91 99319 17455", "Bailey Rd, opp. Planetarium, Lodipur, Patna, Bihar 800001", "4.1", "104", "N/A"],
+    ["800020", "Kankarbagh", "Pooja Pharmaceuticals", "+91 93047 98168", "Narayan Market, Ashok Nagar, Kankarbagh, Patna, Bihar 800020", "5", "232", "N/A"],
+    ["800020", "Kankarbagh", "Duplicate Shop", "+91 99319 17455", "Somewhere, Patna, Bihar 800020", "4", "1", "N/A"]] },
+  { name: "Tamil Nadu", rows: [["Shop Name", "Phone Number", "Full Address"], ["Chennai Meds", "+91 98400 11111", "T Nagar, Chennai, Tamil Nadu 600017"]] },
+];
+
+let body = "", type = "text/csv", status = 200, called: string[] = [], bytes: Uint8Array | null = null;
 beforeAll(async () => {
   await resetDb();
   process.env.SESSION_SECRET ||= "test-only-secret-0123456789abcdef0123";
@@ -31,8 +59,8 @@ beforeAll(async () => {
   s2 = await mkMe((await mk(4, "Sia Sales", "sales", "sales")).id);
 });
 beforeEach(() => {
-  jar.clear(); called = []; status = 200; type = "text/csv";
-  vi.stubGlobal("fetch", vi.fn(async (u: string) => { called.push(String(u)); return new Response(body, { status, headers: { "content-type": type } }); }));
+  jar.clear(); called = []; status = 200; type = "text/csv"; bytes = null;
+  vi.stubGlobal("fetch", vi.fn(async (u: string) => { called.push(String(u)); return new Response((bytes ?? body) as BodyInit, { status, headers: { "content-type": type } }); }));
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -47,7 +75,7 @@ const CSV = [
 describe("master lead sheet", () => {
   it("accepts only Google Sheets links and finds the tab", () => {
     expect(parseSheetUrl(URL_OK)).toEqual({ id: ID, gid: "777" });
-    expect(parseSheetUrl(`https://docs.google.com/spreadsheets/d/${ID}`)).toEqual({ id: ID, gid: "0" });
+    expect(parseSheetUrl(`https://docs.google.com/spreadsheets/d/${ID}`)).toEqual({ id: ID, gid: null });
     expect(parseSheetUrl("https://evil.example.com/spreadsheets/d/" + ID)).toBeNull();
     expect(parseSheetUrl("https://docs.google.com/spreadsheets/d/short")).toBeNull();
     expect(parseSheetUrl("http://docs.google.com/spreadsheets/d/" + ID)).toBeNull();
@@ -66,7 +94,7 @@ describe("master lead sheet", () => {
     const r = await syncSheet(hr);
     expect(called[0]).toBe(`https://docs.google.com/spreadsheets/d/${ID}/export?format=csv&gid=777`);
     expect(r).toMatchObject({ added: 3, assigned: 3, skipped: 1 });
-    expect(r.skippedRows[0]).toContain("Row 5");
+    expect(r.skippedRows[0]).toContain("row 5");
     const leads = await db.lead.findMany({ orderBy: { code: "asc" } });
     expect(leads.map((l) => l.phone)).toEqual(["9876543210", "9876543211", "9876543212"]);
     expect(leads.every((l) => l.staffId && l.nextOn)).toBe(true);
@@ -98,9 +126,9 @@ describe("master lead sheet", () => {
     await expect(syncSheet(hr)).rejects.toThrow("Anyone with the link");
     expect((await sheetStatus(hr)).last?.error).toContain("Anyone with the link");
     type = "text/csv"; body = "just one line"; 
-    await expect(syncSheet(hr)).rejects.toThrow("no leads");
+    await expect(syncSheet(hr)).rejects.toThrow("find the columns");
     body = "Foo,Bar\n1,2";
-    await expect(syncSheet(hr)).rejects.toThrow("first row must name the columns");
+    await expect(syncSheet(hr)).rejects.toThrow("find the columns");
   });
 
   it("syncs by itself each day only when switched on", async () => {
@@ -157,5 +185,30 @@ describe("master lead sheet", () => {
     await updateEmployee(hr, s1.id, { ...base, homeState: "jharkhand" });
     expect((await db.hrProfile.findUniqueOrThrow({ where: { staffId: s1.id } })).homeState).toBe("Jharkhand");
     await expect(updateEmployee(hr, s1.id, { ...base, homeState: "Atlantis" })).rejects.toThrow("Choose the state from the list");
+  });
+
+  it("reads a workbook with one tab per state, a title block above the header and the town inside the address", async () => {
+    const book = readXlsx(xlsx(BOOK));
+    expect(book.map((t) => t.name)).toEqual(["Summary", "Bihar", "Tamil Nadu"]);
+    expect(book[1].rows[4][2]).toBe("Shop Name");
+    expect(book[1].rows[5][4]).toContain("Patna, Bihar 800001");
+    expect(() => readXlsx(strToU8("not a zip"))).toThrow("isn’t a spreadsheet");
+
+    await db.lead.deleteMany({});
+    await db.hrProfile.update({ where: { staffId: s1.id }, data: { homeState: "Bihar" } });
+    await db.hrProfile.update({ where: { staffId: s2.id }, data: { homeState: "Tamil Nadu" } });
+    bytes = xlsx(BOOK); type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    await saveSheet(hr, { url: `https://docs.google.com/spreadsheets/d/${ID}/edit?usp=sharing`, auto: false, assign: true });
+    const r = await syncSheet(hr);
+    expect(called[0]).toBe(`https://docs.google.com/spreadsheets/d/${ID}/export?format=xlsx`); // no #gid: every tab
+    expect(r).toMatchObject({ added: 4, assigned: 4, skipped: 1, unmatched: 0 });
+    const leads = Object.fromEntries((await db.lead.findMany()).map((l) => [l.name, l]));
+    expect(leads["Sona Medical Stores & Co"]).toMatchObject({ phone: "9931917455", city: "Patna", state: "Bihar", staffId: s1.id });
+    expect(leads["Chemist Box - Dakbunglow"].phone).toBe("8037016711");
+    expect(leads["Chennai Meds"]).toMatchObject({ city: "Chennai", state: "Tamil Nadu", staffId: s2.id });
+    expect(leads["Duplicate Shop"]).toBeUndefined();
+    expect(new Set((await db.lead.findMany()).map((l) => l.code)).size).toBe(4); // numbers are unique
+    // The next lead made any other way carries on from the reserved numbers.
+    expect((await db.sequence.findFirstOrThrow({ where: { key: "LEAD" } })).next).toBeGreaterThan(4);
   });
 });
