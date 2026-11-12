@@ -410,6 +410,7 @@ export const hi: Record<string, string> = {
   "up to date": "अप-टू-डेट",
   "Not saved to Drive yet": "अभी Drive में सेव नहीं हुआ",
   "Recent activity": "हाल की गतिविधि",
+  "More tools": "और टूल्स",
   "Nothing yet.": "अभी कुछ नहीं।",
 
   // ---- Activity (lines built by src/drivedb/reports.ts activityLog) ----

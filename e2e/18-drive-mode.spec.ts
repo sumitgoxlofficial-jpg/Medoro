@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { importMedicines, monthsAhead, uid } from "./helpers";
+import { importMedicines, monthsAhead, openTab, uid } from "./helpers";
 
 // Drive mode pilot: the owner turns it on, loads the catalogue onto this browser and bills there.
 test("owner turns on Drive mode and bills on the device", async ({ page }) => {
@@ -27,7 +27,7 @@ test("owner turns on Drive mode and bills on the device", async ({ page }) => {
   // The bill opens ready to print; the day's bills are under "Bills & day-end".
   await expect(page.getByRole("dialog").getByText("TAX INVOICE")).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).first().click();
-  await page.getByRole("tab", { name: "Bills & day-end" }).click();
+  await openTab(page, "Bills & day-end");
   await expect(page.getByText(/D\w{4}\d{4}-000001 · Walk-in · 1 item/)).toBeVisible();
 
   // Turn it off again so the rest of the suite runs as normal.
