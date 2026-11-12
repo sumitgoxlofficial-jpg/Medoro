@@ -271,7 +271,8 @@ export async function startBreak(me: Me, kind: string) {
 export async function endBreak(me: Me) {
   const open = await db.hrBreak.findMany({ where: { staffId: me.id, endAt: null } });
   const now = new Date();
-  const mins = open.reduce((a, b) => a + Math.max(0, Math.round((now.getTime() - b.startAt.getTime()) / 60_000)), 0);
+  // The daily lunch hour is taken off automatically, so a "Lunch" break isn't counted a second time.
+  const mins = open.filter((b) => b.kind !== "Lunch").reduce((a, b) => a + Math.max(0, Math.round((now.getTime() - b.startAt.getTime()) / 60_000)), 0);
   await db.$transaction([
     db.hrBreak.updateMany({ where: { staffId: me.id, endAt: null }, data: { endAt: now } }),
     db.hrProfile.update({ where: { staffId: me.id }, data: { presence: "active", presenceNote: "", presenceAt: now } }),
@@ -298,13 +299,14 @@ export const settingsSchema = z.object({
     name: z.string().trim().min(2, "Enter the company name.").max(120), address: z.string().trim().max(300), gstin: z.string().trim().toUpperCase().regex(/^$|^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, "GSTIN looks wrong."),
     state: z.string().trim().max(40), phone: z.string().trim().max(20), email: z.string().trim().max(120), bank: z.string().trim().max(200),
   }),
-  checkin: z.boolean(), selfie: z.boolean(), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
+  checkin: z.boolean(), selfie: z.boolean(), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), workHours: z.coerce.number().min(1, "Work at least 1 hour a day.").max(12, "Work hours can be at most 12 a day."), lunchFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch start as HH:MM."), lunchTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch end as HH:MM."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
   leave: z.object({ casual: z.coerce.number().int().min(0).max(60), sick: z.coerce.number().int().min(0).max(60), privilege: z.coerce.number().int().min(0).max(60), comp: z.coerce.number().int().min(0).max(60) }),
   ptax: z.coerce.number().int().min(0).max(2500), payDay: z.coerce.number().int().min(1).max(28),
 });
 export async function saveSettings(me: Me, raw: Settings) {
   needAdmin(me);
   const value = settingsSchema.parse(raw);
+  if (value.lunchFrom >= value.lunchTo) throw new UserError("Lunch must end after it starts.");
   await db.hrSetting.upsert({ where: { key: "settings" }, update: { value }, create: { key: "settings", value } });
   invalidateSettings();
   await audit(me, "Settings saved");

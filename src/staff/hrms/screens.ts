@@ -15,7 +15,7 @@ import { sentLetters, unreadLetters } from "./letters-server";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
-import { addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
+import { isWorkDay, addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
@@ -34,7 +34,7 @@ export async function shell(me: Me) {
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
     nav: navFor(me), more: [] as { id: string; label: string }[],
-    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(), chatUnread,
+    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };
 }
 export type Shell = Awaited<ReturnType<typeof shell>>;

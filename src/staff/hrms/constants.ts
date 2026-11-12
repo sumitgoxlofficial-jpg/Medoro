@@ -133,13 +133,16 @@ export type Settings = {
   selfie: boolean; // a selfie is needed to check in and out
   idleMonitor: boolean; // idle time in the HRMS tab is recorded while checked in
   idleMinutes: number; // minutes without activity before Ally asks "still working?"
+  workHours: number; // hours of work expected every working day, not counting lunch
+  lunchFrom: string; // HH:MM India time: the daily lunch break starts (not counted as work or as idle)
+  lunchTo: string; // HH:MM India time: and ends
   leave: Record<LeaveTypeId, number>; // days a year
   ptax: number; // professional tax a month, rupees
   payDay: number;
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", selfie: false, idleMonitor: false, idleMinutes: 5, leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", selfie: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, ptax: 200, payDay: 1,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.
@@ -184,3 +187,12 @@ export const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).m
 export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 /** "2026-11" → "November 2026" */
 export const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+
+/** "13:00" → minutes since midnight. */
+export const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+/** The working day in words: "10:00 AM to 7:00 PM, with lunch 1:00 PM to 2:00 PM". Ends = late-after time + work hours + the lunch hour. */
+export function scheduleText(s: Pick<Settings, "lateAfter" | "workHours" | "lunchFrom" | "lunchTo">) {
+  const clock = (m: number) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
+  const start = toMin(s.lateAfter), lunch = Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom));
+  return { start: clock(start), end: clock(start + s.workHours * 60 + lunch), lunchFrom: clock(toMin(s.lunchFrom)), lunchTo: clock(toMin(s.lunchTo)), lunchMin: lunch };
+}

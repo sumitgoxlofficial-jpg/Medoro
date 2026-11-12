@@ -3,13 +3,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
-import { HR_ROLE_LABEL, NO_TITLE_SCREENS, ONBOARD_STEPS, BREAKS } from "@/staff/hrms/constants";
+import { HR_ROLE_LABEL, NO_TITLE_SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
 import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
 import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
 import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
-import { IdleWatcher } from "./monitor";
+import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { Screen } from "./screens";
 
 const ICONS: Record<string, string> = {
@@ -55,6 +55,8 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   useEffect(() => { const open = () => setAlly(true); window.addEventListener("hrms:ally", open); return () => window.removeEventListener("hrms:ally", open); }, []);
   if (gate) return <Gate gate={gate} sh={sh} />;
   const unread = sh.notes.filter((n) => n.unread).length;
+  const lunchNow = (() => { const ist = new Date(Date.now() + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes(); return m >= toMin(sh.lunch.from) && m < toMin(sh.lunch.to); })();
+  const to12 = (hhmm: string) => { const h = Number(hhmm.slice(0, 2)); return `${h % 12 || 12}:${hhmm.slice(3, 5)} ${h < 12 ? "AM" : "PM"}`; };
   const groups: [string, typeof sh.nav][] = [];
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
   const greet = screen === sh.home && screen === "slhome" ? `${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
@@ -91,7 +93,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           {NO_TITLE_SCREENS.includes(screen) ? <div className="mr-auto" /> : <div className="min-w-0 mr-auto"><h1 className="text-[19px] font-bold truncate">{greet}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>}
           {sh.onBreak
             ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0">On break: {sh.onBreak.kind} · end break</button>
-            : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
+            : lunchNow ? <span className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5">🍽 Lunch break · back at {to12(sh.lunch.to)}</span> : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
           <div className="relative">
             <button className={btnCls} onClick={() => setBrk((o) => !o)} disabled={!!sh.onBreak}>☕ Take a break</button>
             {brk ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl p-1.5 w-[210px]">
@@ -126,7 +128,8 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
         </header>
         <main className="flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12"><Screen screen={screen} data={data} sh={sh} /></main>
       </div>
-      <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} />
+      <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} lunch={sh.lunch} />
+      {sh.needsPhoto ? <PhotoCheckin lateAfter={sh.lateAfter} /> : null}
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}
       {pw ? <PasswordModal onClose={() => setPw(false)} /> : null}
     </div>
