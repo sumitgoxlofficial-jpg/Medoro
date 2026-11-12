@@ -12,7 +12,7 @@ import type { ImportKind, Preview } from "@/domain/imports/service";
 
 const TITLE: Record<ImportKind, string> = { medicines: "Import medicines and opening stock", suppliers: "Import suppliers", customers: "Import customers" };
 const HELP: Record<ImportKind, string> = {
-  medicines: "One row per batch. Rows for a medicine you already have only add the batch. Leave Batch, Expiry, Opening qty and Cost empty to add just the medicine. Stock goes into the branch you’re working in.",
+  medicines: "One row per batch. Rows for a medicine you already have only add the batch. Leave Batch, Expiry, Opening qty and Cost empty to add just the medicine. Stock goes into the branch you’re working in. Moving from another billing program? Upload its stock list as it is (Excel or CSV) with the medicine name, batch, expiry, quantity, MRP and cost. If form, company or GST are missing they are filled in and shown in the preview, so you can check them before anything is saved.",
   suppliers: "Suppliers that already exist (same name) are skipped. Opening balance is what you owe them today.",
   customers: "Customers whose mobile is already on file are skipped. Mark WhatsApp opt-in only if the customer agreed to messages.",
 };

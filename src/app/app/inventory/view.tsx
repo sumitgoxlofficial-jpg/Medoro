@@ -146,16 +146,17 @@ function Drawer({ d, onClose, onEdit, onLabels, onOpen, canEdit, canAdjust, canP
   const [pending, start] = useTransition();
   const blank = { batchNo: "", expiry: "", qty: "", unit: "pack" as "pack" | "case", cost: "", mrp: (m.mrp / 100).toFixed(2), supplierId: "", invoiceNo: "" };
   const [rcv, setRcv] = useState(blank);
+  const [acceptShort, setAcceptShort] = useState(false);
   const [rack, setRack] = useState(d.branchRack);
   useEffect(() => { setRcv({ ...blank, mrp: (m.mrp / 100).toFixed(2) }); setRack(d.branchRack); }, [m.id, m.mrp, d.branchRack]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
 
   const receive = () => start(async () => {
-    const r = await receiveBatchAction({ medicineId: m.id, batchNo: rcv.batchNo, expiry: rcv.expiry, qty: rcv.qty, unit: rcv.unit, cost: rcv.cost, mrp: rcv.mrp, supplierId: rcv.supplierId || null, invoiceNo: rcv.invoiceNo } as unknown as ReceiveInput);
+    const r = await receiveBatchAction({ medicineId: m.id, batchNo: rcv.batchNo, expiry: rcv.expiry, qty: rcv.qty, unit: rcv.unit, cost: rcv.cost, mrp: rcv.mrp, supplierId: rcv.supplierId || null, invoiceNo: rcv.invoiceNo, acceptShortExpiry: acceptShort } as unknown as ReceiveInput);
     if (!r.ok) return toast(r.error, "red");
     const v = { batch: rcv.batchNo.toUpperCase(), units: r.data.unitsText, grn: r.data.grnNo };
     toast(r.data.grnNo ? t("Batch {batch} received: {units} · {grn}.", v) : t("Batch {batch} received: {units}.", v), "green");
-    setRcv((x) => ({ ...x, batchNo: "", expiry: "", qty: "", cost: "", invoiceNo: "" }));
+    setRcv((x) => ({ ...x, batchNo: "", expiry: "", qty: "", cost: "", invoiceNo: "" })); setAcceptShort(false);
   });
   const saveRack = () => start(async () => { toastR(await setRackAction(m.id, rack)); });
   const [act, setAct] = useState<Detail["batches"][number] | null>(null);
@@ -251,6 +252,7 @@ function Drawer({ d, onClose, onEdit, onLabels, onOpen, canEdit, canAdjust, canP
                 </select>
                 {rcv.supplierId ? <input className={ri} value={rcv.invoiceNo} onChange={(e) => setRcv({ ...rcv, invoiceNo: e.target.value })} placeholder={t("Supplier invoice no.")} aria-label={t("Supplier invoice number")} /> : null}
               </div>
+              {rcv.supplierId ? <label className="flex items-center gap-2 text-[12.5px] text-muted cursor-pointer"><input type="checkbox" className="accent-teal" checked={acceptShort} onChange={(e) => setAcceptShort(e.target.checked)} />{t("I accept short-dated stock (less shelf life than your minimum, set under Purchases ▸ Pricing rules)")}</label> : null}
               <div className="flex items-center gap-3 flex-wrap">
                 <Button variant="primary" size="sm" className="h-8 px-3.5" disabled={pending} onClick={receive}>{rcv.supplierId ? "Post GRN" : "Add opening stock"}</Button>
                 <span className="text-[12px] text-faint">{t(rcv.supplierId ? "Posts the GRN, the supplier payable and input GST." : d.suppliers.length || !canPurchase ? "For stock already on your shelves." : "Add suppliers under Suppliers & customers to post GRNs.")}{m.packSize > 1 ? ` ${t("Stock is kept in {loose}s ({n} per {pack}).", { loose: m.looseUnit, n: m.packSize, pack: packWord })}` : ""}</span>

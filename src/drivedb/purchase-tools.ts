@@ -12,7 +12,7 @@ import { DriveDB } from "./client";
 import { CounterError, type Medicine } from "./pharmacy";
 import { recordPurchase } from "./trade";
 import { applyMapping, autoMapping, EBILL_FIELDS, missingFields, nameKey, nameScore, readEbillTable, resolveMapping, REQUIRED_FIELDS, type EbillField, type EbillLine, type EbillMapping } from "@/domain/purchasing/ebill";
-import { DEFAULT_RULES, exGst, GST_BASES, marginPct, priceLine, schemeFree, type PricingRules } from "@/domain/purchasing/pricing";
+import { DEFAULT_RULES, exGst, GST_BASES, marginPct, priceLine, schemeFree, type PriceRules } from "@/domain/purchasing/pricing";
 import { CLAIM_REASONS, CLAIM_STATUS, type ClaimReason } from "@/domain/inventory/claim-types";
 import { stockValue } from "@/lib/units";
 import { daysTo, fiscalYear, todayISO } from "@/lib/dates";
@@ -26,12 +26,12 @@ const pct = z.number().min(0).max(99.99).default(0);
 // ---------- pricing rules ----------
 
 /** The web's pricing rules plus the lowest margin the pharmacy wants on MRP (lines below it are flagged). */
-export type CounterPricing = PricingRules & { minMarginPct: number };
+export type CounterPricing = PriceRules & { minMarginPct: number };
 
 export function pricingRules(db: DriveDB): CounterPricing {
   const r = db.from<{ gstBase: string; itc: number; minMarginPct: number }>("purchaseSetting").eq("id", "rules").first();
-  if (!r) return { ...DEFAULT_RULES, minMarginPct: 0 };
-  return { gstBase: (GST_BASES as readonly string[]).includes(r.gstBase) ? (r.gstBase as PricingRules["gstBase"]) : "net", itc: !!n(r.itc), minMarginPct: n(r.minMarginPct) };
+  if (!r) return { gstBase: DEFAULT_RULES.gstBase, itc: DEFAULT_RULES.itc, minMarginPct: 0 };
+  return { gstBase: (GST_BASES as readonly string[]).includes(r.gstBase) ? (r.gstBase as PriceRules["gstBase"]) : "net", itc: !!n(r.itc), minMarginPct: n(r.minMarginPct) };
 }
 
 export const pricingInput = z.object({ gstBase: z.enum(GST_BASES), itc: z.boolean(), minMarginPct: z.number().min(0, "Margin can’t be negative.").max(90).default(0) });
@@ -50,7 +50,7 @@ export type EbillCostInput = { qty: number; free: number; scheme: string; ptr: n
  * after scheme, trade and cash discounts over the paid packs; GST on the counter is then worked out on that value.
  * Free packs are part of the same supply: no GST, and they lower the landed cost.
  */
-export function ebillLineCost(l: EbillCostInput, gstRate: number, rules: PricingRules = DEFAULT_RULES) {
+export function ebillLineCost(l: EbillCostInput, gstRate: number, rules: PriceRules = DEFAULT_RULES) {
   const free = l.free || schemeFree(l.qty, l.scheme);
   const p = priceLine({ qty: l.qty, freeQty: free, rate: l.ptr ?? 0, gstRate, schemePct: l.schemePct, tradePct: l.discPct, cashPct: l.cdPct }, rules);
   const ratePaise = l.qty > 0 ? Math.round(p.net / l.qty) : 0;

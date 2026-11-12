@@ -36,7 +36,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "acc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
+export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
 
 /**
  * A pharmacy whose records live on its counters and in its Google Drive: each screen opens the matching tab of
@@ -44,7 +44,7 @@ export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret
  * that would open the same tab twice keep only the first.
  */
 export const DRIVE_TAB: Partial<Record<ScreenId, string>> = {
-  dash: "dash", pos: "bill", ord: "orders", ret: "bills", inv: "stock", exp: "reports", pur: "purchases", parties: "customers", acc: "accounts", money: "money",
+  dash: "dash", pos: "bill", ord: "orders", ret: "bills", inv: "stock", exp: "reports", pur: "purchases", parties: "customers", money: "money",
   recall: "recalls", doc: "doctors", chq: "cheques", intel: "insights",
 };
 /** Screens that stay for Drive pharmacies as they are: WhatsApp and customer messaging, account, devices, plan, privacy, help. */

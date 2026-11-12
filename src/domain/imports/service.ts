@@ -20,28 +20,28 @@ export const MAX_ROWS = 5000;
 /** Template columns and the header spellings we accept for each. */
 const COLS: Record<ImportKind, { key: string; label: string; required?: boolean; aliases: string[] }[]> = {
   medicines: [
-    { key: "name", label: "Brand name", required: true, aliases: ["name", "brand", "brandname", "medicine", "medicinename", "product", "productname", "item", "itemname"] },
+    { key: "name", label: "Brand name", required: true, aliases: ["name", "brand", "brandname", "medicine", "medicinename", "product", "productname", "item", "itemname", "itemdescription", "description", "particulars", "itemdesc", "productdescription"] },
     { key: "generic", label: "Generic / salt", aliases: ["generic", "salt", "genericname", "molecule"] },
     { key: "strength", label: "Strength", aliases: ["strength", "dose", "potency"] },
     { key: "composition", label: "Composition", aliases: ["composition", "saltcomposition", "salts", "contents", "content"] },
     { key: "form", label: "Form", required: true, aliases: ["form", "dosageform", "type"] },
-    { key: "manufacturer", label: "Manufacturer", required: true, aliases: ["manufacturer", "company", "mfr", "mfg", "brandowner"] },
+    { key: "manufacturer", label: "Manufacturer", required: true, aliases: ["manufacturer", "company", "mfr", "mfg", "brandowner", "mfrname", "manufacturername", "companyname", "mkt", "marketedby", "mfgname"] },
     { key: "pack", label: "Pack", aliases: ["pack", "packsize", "packing"] },
     { key: "packSize", label: "Units per pack", aliases: ["unitsperpack", "unitsperstrip", "tabsperstrip", "conversion", "packqty"] },
     { key: "packUnit", label: "Pack unit", aliases: ["packunit", "packtype"] },
     { key: "looseUnit", label: "Loose unit", aliases: ["looseunit", "baseunit"] },
     { key: "allowLoose", label: "Sell loose (yes/no)", aliases: ["allowloose", "loose", "sellloose", "loosesale"] },
-    { key: "mrp", label: "MRP", required: true, aliases: ["mrp", "mrpperpack", "price"] },
-    { key: "gstRate", label: "GST %", required: true, aliases: ["gst", "gstrate", "gstpercent", "tax", "taxrate"] },
+    { key: "mrp", label: "MRP", required: true, aliases: ["mrp", "mrpperpack", "price", "mrprate", "maxretailprice", "mrpvalue"] },
+    { key: "gstRate", label: "GST %", required: true, aliases: ["gst", "gstrate", "gstpercent", "tax", "taxrate", "gstper", "gstperc", "taxper", "taxpercent", "gstp"] },
     { key: "schedule", label: "Schedule", aliases: ["schedule", "drugschedule", "sch", "scheduletype", "drugcategory"] },
     { key: "hsn", label: "HSN", aliases: ["hsn", "hsncode"] },
     { key: "barcode", label: "Barcode", aliases: ["barcode", "ean", "upc"] },
     { key: "reorderLevel", label: "Reorder level", aliases: ["reorderlevel", "reorder", "minstock", "minimumstock"] },
     { key: "rack", label: "Rack", aliases: ["rack", "shelf", "location", "bin"] },
-    { key: "batch", label: "Batch", aliases: ["batch", "batchno", "batchnumber", "lot"] },
-    { key: "expiry", label: "Expiry", aliases: ["expiry", "exp", "expirydate", "expdate"] },
-    { key: "qty", label: "Opening qty", aliases: ["qty", "quantity", "stock", "openingqty", "openingstock", "closingstock"] },
-    { key: "cost", label: "Cost per pack (excl. GST)", aliases: ["cost", "costperpack", "purchaserate", "rate", "ptr", "purchaseprice"] },
+    { key: "batch", label: "Batch", aliases: ["batch", "batchno", "batchnumber", "lot", "lotno", "batchnum"] },
+    { key: "expiry", label: "Expiry", aliases: ["expiry", "exp", "expirydate", "expdate", "expdt", "expirydt", "expirymonth", "expiryon", "expon"] },
+    { key: "qty", label: "Opening qty", aliases: ["qty", "quantity", "stock", "openingqty", "openingstock", "closingstock", "closingqty", "balanceqty", "balqty", "currentstock", "stockqty", "qtyinhand", "onhand", "qtyonhand", "availableqty", "availablestock", "closing"] },
+    { key: "cost", label: "Cost per pack (excl. GST)", aliases: ["cost", "costperpack", "purchaserate", "rate", "ptr", "purchaseprice", "purrate", "landingcost", "costprice", "purchasecost", "pcost", "netrate", "ptrrate"] },
   ],
   suppliers: [
     { key: "name", label: "Supplier name", required: true, aliases: ["name", "supplier", "suppliername", "party", "partyname", "distributor"] },
@@ -86,15 +86,27 @@ function mapColumns(kind: ImportKind, t: Table) {
   const has = (label: string) => columns.some((c) => c.label === label && c.found);
   // A composition column ("Paracetamol 500mg + Caffeine 25mg") can stand in for generic; strength is checked per row.
   const salt = kind === "medicines" && !has("Composition") && !has("Generic / salt") ? ["Generic / salt"] : [];
-  const missing = [...columns.filter((c) => c.required && !c.found).map((c) => c.label), ...salt];
+  // A plain stock sheet (name, batch, expiry, quantity, MRP, cost) from an older billing program has no form, manufacturer, GST or salt
+  // columns. It still imports: those are filled in sensibly and listed in the preview so the shop can check them.
+  const stockSheet = kind === "medicines" && "name" in idx && "batch" in idx && "qty" in idx;
+  const FILLABLE = ["Form", "Manufacturer", "GST %"];
+  const missing = [...columns.filter((c) => c.required && !c.found && !(stockSheet && FILLABLE.includes(c.label))).map((c) => c.label), ...(stockSheet ? [] : salt)];
   if (missing.length) throw new UserError(`Missing column${missing.length > 1 ? "s" : ""}: ${missing.join(", ")}. Download the template to see the expected headers.`);
   const rows: Mapped[] = t.slice(1).map((r, i) => ({ line: i + 2, v: Object.fromEntries(Object.entries(idx).map(([k, j]) => [k, (r[j] ?? "").trim()])) }));
-  return { columns, rows };
+  return { columns, rows, stockSheet };
 }
 
 const zodErrors = (e: z.ZodError) => e.issues.map((i) => i.message);
 const nameKey = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 const formOf = (s: string) => FORMS.find((f) => f.toLowerCase() === s.toLowerCase().replace(/s$/, "") || f.toLowerCase() === s.toLowerCase()) ?? null;
+/** A guess at the dosage form from how the pack is written on a stock list: "DOLO 650 TAB", "AZEE SYP". */
+export function inferForm(name: string): (typeof FORMS)[number] {
+  const n = ` ${name.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+  const has = (...w: string[]) => w.some((x) => n.includes(` ${x} `));
+  return has("tab", "tabs", "tablet", "tablets") ? "Tablet" : has("cap", "caps", "capsule", "capsules") ? "Capsule" : has("syp", "syrup", "liq", "liquid") ? "Syrup" : has("susp", "suspension", "dry syp") ? "Suspension"
+    : has("inj", "injection", "vial", "amp", "ampoule") ? "Injection" : has("gel") ? "Gel" : has("cream", "crm", "lotion") ? "Cream" : has("oint", "ointment") ? "Ointment" : has("drop", "drops", "eye", "ear", "nasal") ? "Drops"
+    : has("sachet", "sac") ? "Sachet" : has("powder", "pwd") ? "Powder" : has("inhaler", "rotacap", "respules") ? "Inhaler" : "Other";
+}
 const scheduleOf = (s: string) => {
   const v = s.toUpperCase().replace(/SCHEDULE|SCH\.?|\s/g, "");
   const n = /^(NDPS|NARCOTICS?|PSYCHOTROPIC|NRX)$/.test(v) ? "NDPS" : v === "OTC" || v === "NONE" ? "" : v;
@@ -103,7 +115,7 @@ const scheduleOf = (s: string) => {
 
 /** Validates every row and works out what importing it would do. Nothing is written. */
 async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
-  const { columns, rows } = mapColumns(kind, t);
+  const { columns, rows, stockSheet } = mapColumns(kind, t);
   const out: (RowResult & { input?: unknown })[] = [];
 
   if (kind === "medicines") {
@@ -119,7 +131,14 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
     const batchSet = new Set(batches.map((b) => `${b.medicineId}|${b.batchNo}`));
     const seenMed = new Map<string, number>(), seenBatch = new Set<string>();
     for (const { line, v } of rows) {
-      const errors: string[] = [];
+      const errors: string[] = [], assumed: string[] = [];
+      if (stockSheet) {
+        if (!v.form) { v.form = inferForm(v.name ?? ""); assumed.push(`form ${v.form}`); }
+        if (!v.manufacturer) { v.manufacturer = "Not given"; assumed.push("manufacturer not given"); }
+        if (!v.gstRate) { v.gstRate = "12"; assumed.push("GST 12%"); }
+        if (!v.generic && !v.composition) { v.generic = (v.name ?? "").replace(/\d+[a-z%.]*/gi, " ").replace(/\s+/g, " ").trim() || (v.name ?? ""); assumed.push("salt taken from the name"); }
+        if (!v.strength) v.strength = "-";
+      }
       const form = formOf(v.form ?? "");
       if (!form) errors.push(`Form “${v.form}” isn’t one of: ${FORMS.join(", ")}.`);
       const schedule = scheduleOf(v.schedule ?? "");
@@ -169,7 +188,8 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
       const note = action === "create" ? (stock ? `New medicine with ${stock.qty} packs in batch ${stock.batchNo}` : "New medicine")
         : action === "add stock" ? `Already listed${firstLine ? ` (row ${firstLine})` : ""}; adds batch ${stock!.batchNo}`
         : stockInDb ? `Batch ${(v.batch ?? "").toUpperCase()} already in stock` : `Already listed${firstLine ? ` (row ${firstLine})` : ""}`;
-      out.push({ line, label, action, note, errors, input: { med, stock, key: k } });
+      const check = assumed.length && action === "create" ? ` · assumed ${assumed.join(", ")}: check them in Inventory` : "";
+      out.push({ line, label, action, note: note + check, errors, input: { med, stock, key: k } });
     }
   }
 

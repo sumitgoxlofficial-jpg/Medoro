@@ -23,9 +23,10 @@ export async function savePricingRulesAction(rules: PricingRules) {
   const r = await run(async (ctx) => {
     authorize(ctx, "users");
     if (!(GST_BASES as readonly string[]).includes(rules.gstBase) || typeof rules.itc !== "boolean") throw new UserError("Invalid pricing rules.");
+    if (!Number.isInteger(rules.minShelfDays) || rules.minShelfDays < 0 || rules.minShelfDays > 730) throw new UserError("Minimum shelf life is between 0 and 730 days (0 turns the check off).");
     const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } });
     const before = rulesOf(t.settings);
-    await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), purchasing: { gstBase: rules.gstBase, itc: rules.itc } } } });
+    await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...(t.settings as object), purchasing: { gstBase: rules.gstBase, itc: rules.itc, minShelfDays: rules.minShelfDays } } } });
     await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Purchase pricing rules changed", entity: "tenant", before, after: rules, detail: `GST on ${rules.gstBase} · input GST ${rules.itc ? "claimed" : "added to cost"}` });
   }, "Saved. New GRNs use these rules; posted GRNs keep theirs.");
   revalidatePath("/app", "layout");

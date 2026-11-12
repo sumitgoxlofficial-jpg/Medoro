@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { zId } from "@/lib/id";
 import { endOfMonthIfMonth } from "@/domain/inventory/contracts";
-import { DEFAULT_RULES, parseScheme, purchaseTotals, type PricingRules } from "./pricing";
+import { DEFAULT_RULES, parseScheme, purchaseTotals, type PriceRules } from "./pricing";
 
 const money = (msg: string) => z.union([z.string(), z.number()]).transform((v) => Math.round((parseFloat(String(v)) || 0) * 100)).refine((p) => p > 0, msg);
 const optMoney = (msg: string) => z.union([z.string(), z.number(), z.null()]).transform((v) => (v === "" || v == null ? null : Math.round((parseFloat(String(v)) || 0) * 100))).refine((p) => p == null || p > 0, msg).default(null);
@@ -42,6 +42,8 @@ export const grnSchema = z.object({
   statedTotal: z.union([z.string(), z.number()]).transform((v) => (v === "" || v == null ? null : Math.round(parseFloat(String(v)) * 100))).refine((v) => v == null || (Number.isFinite(v) && v > 0), "Enter the total printed on the invoice as an amount.").nullable().default(null),
   poId: zId().nullable().default(null),
   scanDocId: zId().nullable().default(null),
+  /** The person has seen the lines that arrive with less shelf life than the pharmacy's minimum and takes them anyway. */
+  acceptShortExpiry: z.boolean().default(false),
   lines: z.array(grnLineSchema).min(1, "Add at least one line."),
 });
 export type GrnInput = z.input<typeof grnSchema>;
@@ -61,7 +63,7 @@ export type PoInput = z.input<typeof poSchema>;
  * Purchase totals: GST is added on top of the rate (supplier invoices quote PTR excluding GST), after the line's
  * scheme, trade and cash discounts. `taxable` is the value GST was computed on; `net` is the purchase value.
  */
-export function grnTotals(lines: { qty: number; rate: number; gstRate: number; freeQty?: number; schemePct?: number; tradePct?: number; cashPct?: number }[], rules: PricingRules = DEFAULT_RULES) {
+export function grnTotals(lines: { qty: number; rate: number; gstRate: number; freeQty?: number; schemePct?: number; tradePct?: number; cashPct?: number }[], rules: PriceRules = DEFAULT_RULES) {
   const t = purchaseTotals(lines, rules);
   return { taxable: t.taxable, net: t.net, disc: t.disc, gst: t.gst, total: t.total, lines: t.lines };
 }

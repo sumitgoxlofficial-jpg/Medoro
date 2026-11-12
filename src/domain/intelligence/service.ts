@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { authorize, authorizeAny, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
+import { clearance } from "./clearance";
 import { addDays, dateOnly, daysTo, isoOf, startOfTodayIST, todayISO } from "@/lib/dates";
 import { fmtQty, stockValue } from "@/lib/units";
 import { big } from "@/lib/money";
@@ -47,7 +48,12 @@ export async function expiryRows(ctx: Ctx, windowDays: number) {
     else if (!unsold) rec = { kind: "none", text: "Sells through before expiry at the current rate." };
     else if (b.supplier?.acceptsReturns && d >= 20) rec = { kind: "return", text: `Return ${unsold} to ${b.supplier.name} while there are ${d} days left.` };
     else if (best && best.v > v && Math.floor(best.v * d) > 0) rec = { kind: "transfer", text: `${best.name} sells ${best.v.toFixed(1)}/day. Transfer ${Math.min(unsold, Math.floor(best.v * d))}.`, branchId: best.id };
-    else rec = { kind: "promote", text: "Recommend to regular customers or discount within your cap." };
+    else {
+      const c = clearance({ days: d, mrp: Number(b.mrpPaise), cost: Number(cost), gstRate: b.medicine.gstRate });
+      rec = c.pct > 0
+        ? { kind: "promote", text: `Clear ${unsold} left: offer about ${c.pct}% off (₹${(c.price / 100).toFixed(2)} a pack against MRP ₹${(Number(b.mrpPaise) / 100).toFixed(2)}). Don't go below ₹${(c.floor / 100).toFixed(2)}, which is your cost with GST.${c.limited ? " Cost limits the discount." : ""}` }
+        : { kind: "promote", text: `${unsold} left won't sell in time and there is no room to discount above cost. Ask the supplier to take it back, or plan a write-off.` };
+    }
     return { id: b.id, medicine: b.medicine.name, batchNo: b.batchNo, expiry: isoOf(b.expiryDate), days: d, qty: b.qtyAvailable, qtyText: fmtQty(b.qtyAvailable, b.medicine), unitWord: ps > 1 ? `${b.medicine.looseUnit}s` : "units", cost, mrp: big(b.mrpPaise), status: b.status, velocity: v, sold, unsold, exposure: stockValue(cost, b.qtyAvailable, ps), loss: stockValue(cost, unsold, ps), supplier: b.supplier?.name ?? null, rec };
   });
   return { rows: rows.filter((r) => r.days > 0), expired: rows.filter((r) => r.days <= 0), branches };

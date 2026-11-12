@@ -228,10 +228,13 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today, rules }:
     schemePct: parseFloat(l.schemePct) || 0, tradePct: parseFloat(l.tradePct) || 0, cashPct: parseFloat(l.cashPct) || 0,
   })), rules), [lines, catalogue, rules]);
   const flagged = lines.filter((l) => flagsOf(l).length).length;
+  const shortOf = (l: RLine) => (rules.minShelfDays > 0 && l.expiry ? daysTo(l.expiry.length === 7 ? l.expiry + "-28" : l.expiry) : null);
+  const shortLines = lines.filter((l) => { const d = shortOf(l); return d != null && d > 0 && d < rules.minShelfDays; });
+  const [acceptShort, setAcceptShort] = useState(false);
   const statedP = stated ? toPaise(stated) : null;
   const diff = statedP == null ? null : statedP - tot.total;
   const match = diff != null && Math.abs(diff) <= 100;
-  const canApprove = !!sup && !!inv.trim() && lines.length > 0 && !flagged && match;
+  const canApprove = !!sup && !!inv.trim() && lines.length > 0 && !flagged && match && (!shortLines.length || acceptShort);
 
   const upload = async (f: File) => {
     setUploading(true);
@@ -263,7 +266,7 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today, rules }:
 
   const approve = () => start(async () => {
     const r = await postGrnAction({
-      supplierId: sup, invoiceNo: inv, invoiceDate: date, statedTotal: stated, poId: poId || null, scanDocId: doc?.id ?? null,
+      supplierId: sup, invoiceNo: inv, invoiceDate: date, statedTotal: stated, poId: poId || null, scanDocId: doc?.id ?? null, acceptShortExpiry: acceptShort,
       lines: lines.map((l) => ({
         medicineId: l.medicineId, batchNo: l.batchNo, expiry: l.expiry, qty: l.qty, freeQty: String(freeOf(l)), rate: l.rate, mrp: l.mrp, poItemId: l.poItemId,
         pts: l.pts, scheme: l.scheme, schemePct: l.schemePct, tradePct: l.tradePct, cashPct: l.cashPct, supplierCode: l.supplierCode, sourceName: l.sourceName, ocrIndex: l.ocrIndex ?? null, verified: l.verified,
@@ -402,6 +405,7 @@ function Receive({ po, orders, catalogue, suppliers, scans, ocr, today, rules }:
         <div className="text-[13.5px]">{t("Calculated")} <strong className="tnum">{inr(tot.total)}</strong></div>
         <div className="text-[13.5px]">{t("Printed")} <strong className="tnum">{statedP == null ? "—" : inr(statedP)}</strong></div>
         <Badge tone={statedP == null ? "gray" : match ? "green" : "red"}>{statedP == null ? t("Enter the printed total") : match ? (diff ? t("Totals match (round-off {amount})", { amount: inr(diff!) }) : t("Totals match")) : t("Difference {amount}", { amount: inr(diff!) })}</Badge>
+        {shortLines.length ? <label className="basis-full flex items-start gap-2 text-[13px] bg-[#FFF7E6] border border-[#F5D58A] rounded-lg px-3 py-2 cursor-pointer"><input type="checkbox" className="mt-0.5 accent-teal" checked={acceptShort} onChange={(e) => setAcceptShort(e.target.checked)} /><span><strong>{t(shortLines.length > 1 ? "{n} lines arrive short-dated" : "{n} line arrives short-dated", { n: shortLines.length })}</strong> {t("(under {d} days of shelf life): {names}. Ask the supplier to replace them, or tick to accept short-dated stock.", { d: rules.minShelfDays, names: shortLines.slice(0, 3).map((l) => `${catalogue.find((c) => c.id === l.medicineId)?.label ?? t("item")} ${l.batchNo} (${shortOf(l)} days)`).join(", ") })}</span></label> : null}
         <span className="text-[13px]" style={{ color: flagged ? "#94570A" : "#1E7F4F" }}>{flagged ? t(flagged > 1 ? "{n} lines need attention" : "{n} line need attention", { n: flagged }) : t("All lines validated")}</span>
         <Button variant="primary" className="ml-auto" disabled={!canApprove || pending} onClick={approve} title={canApprove ? "" : t("Resolve flagged lines and match the printed total first")}>{t("Approve & post GRN")}</Button>
       </div>

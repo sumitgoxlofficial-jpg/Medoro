@@ -41,6 +41,8 @@ export const receiveSchema = z.object({
   unit: z.enum(["pack", "case"]).default("pack"),
   cost: rupees("Enter purchase cost per pack."),
   mrp: rupees("Enter MRP per pack."),
+  /** With a supplier bill: the person takes stock that arrives with less shelf life than the pharmacy's minimum. */
+  acceptShortExpiry: z.boolean().default(false),
   supplierId: zId().nullable().default(null),
   invoiceNo: z.string().trim().max(40).default(""),
 });

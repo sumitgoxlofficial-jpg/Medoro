@@ -7,6 +7,7 @@ import { authorize, authorizeView, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail, type Attachment } from "@/server/mail";
 import { toCsv } from "@/lib/csv-format";
+import { expiryDigest } from "./expiry-digest";
 import { addDays, dayMonth, istMidnight, todayISO } from "@/lib/dates";
 import { inr0 } from "@/lib/money";
 import { istClock } from "@/domain/system/schedule";
@@ -116,9 +117,8 @@ export async function buildReportMail(tenantId: string, s: Pick<ReportMailSettin
       add("low-stock", rows);
     } else if (id === "expiring") {
       const rows = await reportRows(ctx, "expiry-exposure", p, "all");
-      const col = rows[0]?.indexOf("Days left") ?? -1;
-      const soon = col >= 0 ? rows.slice(1).filter((r) => Number(r[col]) <= 30).length : 0;
-      lines.push(`Expiring: ${rows.length - 1} batch${rows.length === 2 ? "" : "es"} within 180 days, ${soon} within 30 days`);
+      const dg = expiryDigest(rows);
+      lines.push(dg.lines.length ? dg.lines.join("\n") : `Expiring: ${rows.length - 1} batch${rows.length === 2 ? "" : "es"} within 180 days`);
       add("expiring-stock", rows);
     } else if (id === "dues") {
       const [c, sp] = await Promise.all([reportRows(ctx, "customer-dues", p), reportRows(ctx, "supplier-dues", p)]);

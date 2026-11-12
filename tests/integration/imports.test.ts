@@ -84,4 +84,32 @@ describe("data import", () => {
     expect(await previewImport(owner, "customers", "w.csv", walkIns)).toMatchObject({ ok: 0, skip: 3 });
     expect(await db.customer.count({ where: { phone: null } })).toBe(2);
   });
+
+  it("a plain stock list from an older billing program imports, with form, company and GST filled in and shown", async () => {
+    const ctx = await ctxFor("Owner");
+    const file = xlsx([
+      ["Item Name", "Batch No.", "Exp Date", "Closing Qty", "M.R.P.", "Pur Rate"],
+      ["COMBIFLAM TAB", "CF1", `Jan-${next}`, 30, 38.5, 27],
+      ["AZEE 500 SYP", "AZ1", `03/${next}`, 12, "₹92.00", 66],
+      ["VOLINI GEL 30G", "VG1", `${next}-06`, 8, 140, 101],
+      ["PAN 40", "PN9", `11/${next}`, 20, 155, 110],
+    ]);
+    const p = await previewImport(ctx, "medicines", "old-stock.xlsx", file);
+    expect(p.bad).toBe(0);
+    expect(p.rows.map((r) => r.action)).toEqual(["create", "create", "create", "create"]);
+    expect(p.rows[0].note).toContain("assumed form Tablet, manufacturer not given, GST 12%");
+    const r = await runImport(ctx, "medicines", "old-stock.xlsx", file);
+    expect(r).toMatchObject({ created: 4, stocked: 4, failed: [] });
+    const m = Object.fromEntries((await db.medicine.findMany({ where: { name: { in: ["COMBIFLAM TAB", "AZEE 500 SYP", "VOLINI GEL 30G", "PAN 40"] } }, include: { batches: true } })).map((x) => [x.name, x]));
+    expect(m["COMBIFLAM TAB"]).toMatchObject({ form: "Tablet", gstRate: 12, manufacturer: "Not given" });
+    expect(m["AZEE 500 SYP"].form).toBe("Syrup"); expect(m["VOLINI GEL 30G"].form).toBe("Gel"); expect(m["PAN 40"].form).toBe("Other");
+    expect(m["COMBIFLAM TAB"].batches[0]).toMatchObject({ batchNo: "CF1", qtyAvailable: 30 });
+    expect(Number(m["COMBIFLAM TAB"].batches[0].costPaise)).toBe(2700);
+    expect(m["COMBIFLAM TAB"].batches[0].expiryDate.toISOString().slice(0, 10)).toBe(`${next}-01-31`); // the end of the printed month
+    // Running the same list again adds nothing.
+    expect(await runImport(ctx, "medicines", "old-stock.xlsx", file)).toMatchObject({ created: 0, stocked: 0 });
+    // Expired batches still don't come in as sellable.
+    const old = xlsx([["Item Name", "Batch No", "Expiry", "Qty", "MRP", "Rate"], ["OLD TAB", "X1", "01/2020", 5, 10, 7]]);
+    expect((await previewImport(ctx, "medicines", "x.xlsx", old)).bad).toBe(1);
+  });
 });
