@@ -45,11 +45,12 @@ type Preview = R<"ebillPreview">;
 type Line = EbillPreviewLine & { picked?: boolean };
 const MATCH: Record<MatchedBy, [string, Tone]> = { barcode: ["Barcode", "green"], code: ["Item code", "green"], learned: ["Learned", "teal"], name: ["Name match: check", "amber"] };
 
-function EbillImport({ cfg, who, refresh, onSaved }: { cfg: Cfg; who: Who; refresh: number; onSaved: () => void }) {
+export function EbillImport({ cfg, who, refresh, onSaved }: { cfg: Cfg; who: Who; refresh: number; onSaved: () => void }) {
   const t = useT(), toast = useToast();
   const dev = useRef(deviceDb()).current;
   const [sups, setSups] = useState<R<"supplierList">>([]);
   const [supplierId, setSupplierId] = useState("");
+  const [newSup, setNewSup] = useState("");
   const [file, setFile] = useState<{ name: string; bytes: Uint8Array } | null>(null);
   const [res, setRes] = useState<Preview | null>(null);
   const [mapping, setMapping] = useState<EbillMapping>({ headerRow: -1, cols: {}, rowFilter: null });
@@ -134,7 +135,10 @@ function EbillImport({ cfg, who, refresh, onSaved }: { cfg: Cfg; who: Who; refre
             {busy ? <span className="text-[12.5px] text-muted">{t("Reading…")}</span> : null}
           </div>
         </div>
-        {!sups.length && <div className="text-[13px] text-muted">{t("Add the supplier on the Purchases tab first.")}</div>}
+        <label className={label}>{t("Or add a supplier")}
+          <span className="flex gap-1 max-w-md"><input value={newSup} onChange={(e) => setNewSup(e.target.value)} placeholder={t("Supplier name")} className={input} aria-label={t("New supplier")} />
+            <Button onClick={async () => { try { const x = await dev.call("addSupplier", { name: newSup }); setSups(await dev.call("supplierList")); setSupplierId(x.id); reset(); setNewSup(""); } catch (e) { toast(errText(e), "red"); } }} disabled={!newSup.trim()}>{t("Add")}</Button></span>
+        </label>
       </div>
 
       {res && mapOpen && (

@@ -4,6 +4,8 @@ export const hi: Record<string, string> = {
   "Supplier tools": "सप्लायर टूल्स",
   // Tabs
   "E-bill import": "ई-बिल इम्पोर्ट",
+  "Upload bill file": "बिल की फ़ाइल अपलोड करें",
+  "Type the bill": "बिल खुद भरें",
   "Pricing": "प्राइसिंग",
   "Claims": "क्लेम",
 
