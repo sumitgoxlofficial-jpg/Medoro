@@ -8,7 +8,7 @@ import type { Staff } from "../auth";
 import { LEAD_SOURCES, LOST_REASONS, MOBILE_RE, PRODUCTS, STAGES, digits, product } from "../constants";
 import * as console_ from "../sales";
 import { audit, can, need, notify, type Me } from "./auth";
-import { speaks, stateOf, langOf, langLabel } from "./states";
+import { speaks, stateName, stateOf, langOf, langLabel } from "./states";
 import { incentives } from "./pay";
 
 // The HRMS sales screens work on the staff console's Lead table, so a pharmacy won here is the same sale and
@@ -151,46 +151,96 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 const HEAD = {
-  name: ["store", "pharmacy", "name", "pharmacy name", "store name", "shop", "shop name", "medical store", "firm name"],
-  owner: ["owner", "owner name", "contact person", "proprietor"], phone: ["phone", "mobile", "mobile number", "phone number", "contact", "contact number", "whatsapp", "whatsapp number"],
-  city: ["city", "town", "location", "area"], state: ["state", "lead state", "province"], plan: ["plan", "product", "interested in"], source: ["source", "lead source"],
+  name: ["store", "pharmacy", "name", "pharmacy name", "store name", "shop", "shop name", "medical store", "firm name", "medical shop", "chemist"],
+  owner: ["owner", "owner name", "contact person", "proprietor"], phone: ["phone", "mobile", "mobile number", "phone number", "contact", "contact number", "whatsapp", "whatsapp number", "mobile no", "phone no"],
+  city: ["city", "town"], locality: ["locality / area", "locality", "area", "location"], address: ["full address", "address"], state: ["state", "lead state", "province"],
+  plan: ["plan", "product", "interested in"], source: ["source", "lead source"],
   assigned: ["assigned to", "assignee", "salesperson", "sales person", "employee", "emp id", "employee id", "assigned"],
 };
-export const MAX_NEW_PER_RUN = 1500; // one run stays well inside the host's time limit; the rest is picked up by the next run
+export const MAX_NEW_PER_RUN = 5000; // one run stays well inside the host's time limit; the rest is picked up by the next run
+
+const cleanCity = (v: string) => v.replace(/\d{5,6}/g, "").replace(/[^\p{L}\s.'-]/gu, " ").replace(/\s+/g, " ").trim();
+/** "…, Kankarbagh, Patna, Bihar 800020" → { city: "Patna", state: "Bihar" } */
+function fromAddress(address: string): { city: string; state: string } {
+  const parts = address.split(",").map((x) => x.trim()).filter(Boolean);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const st = stateName(cleanCity(parts[i]));
+    if (st) return { state: st, city: i > 0 ? cleanCity(parts[i - 1]) : "" };
+  }
+  return { state: "", city: "" };
+}
+/** The header row of a tab: the first of its top rows that has a shop-name column and a phone column (titles and totals above it are ignored). */
+function findHeader(rows: string[][]) {
+  for (let r = 0; r < Math.min(rows.length, 25); r++) {
+    const head = rows[r].map((h) => h.trim().toLowerCase());
+    const col = (names: string[]) => head.findIndex((h) => names.includes(h));
+    const ix = { name: col(HEAD.name), owner: col(HEAD.owner), phone: col(HEAD.phone), city: col(HEAD.city), locality: col(HEAD.locality), address: col(HEAD.address), state: col(HEAD.state), plan: col(HEAD.plan), source: col(HEAD.source), assigned: col(HEAD.assigned) };
+    if (ix.name >= 0 && ix.phone >= 0) return { row: r, ix };
+  }
+  return null;
+}
+/** Reserves `n` lead numbers at once (one query instead of one per lead). Returns the first. */
+async function reserveCodes(n: number): Promise<number> {
+  const rows = await db.$queryRaw<{ first: number }[]>`
+    INSERT INTO "Sequence" ("tenantId", "key", "next") VALUES (${CP}, 'LEAD', ${n + 1})
+    ON CONFLICT ("tenantId", "key") DO UPDATE SET "next" = "Sequence"."next" + ${n}
+    RETURNING "next" - ${n} AS first`;
+  return Number(rows[0].first);
+}
 
 /**
- * Adds leads from CSV text with columns store, owner, phone, city, plan, source (and, optionally, "assigned to" with an
- * employee ID or name). Already-known phone numbers are skipped, so running it again on the same sheet adds only what is new.
+ * Adds leads from the tabs of a workbook (or one CSV). Each tab needs a header row with a shop-name and a phone column; rows above it
+ * (titles, totals) are ignored, and a tab named after a state gives its leads that state. Optional columns: owner, city, state, plan,
+ * source, full address (the town and state are read from it), and "assigned to" (employee ID or name). Phone numbers already known are
+ * skipped, so syncing the same sheet again adds only what is new.
  */
-export async function importText(text: string, opts: { maxChars?: number; limit?: number } = {}) {
-  if (text.length > (opts.maxChars ?? 2_000_000)) throw new UserError("That file is too large. Upload at most about 10,000 leads at a time.");
-  const rows = parseCsv(text);
-  if (rows.length < 2) throw new UserError("The sheet has no leads. It needs a header row and at least one lead.");
-  const head = rows[0].map((h) => h.trim().toLowerCase());
-  const col = (names: string[]) => head.findIndex((h) => names.includes(h));
-  const ix = { name: col(HEAD.name), owner: col(HEAD.owner), phone: col(HEAD.phone), city: col(HEAD.city), state: col(HEAD.state), plan: col(HEAD.plan), source: col(HEAD.source), assigned: col(HEAD.assigned) };
-  if (ix.name < 0 || ix.phone < 0) throw new UserError("The first row must name the columns: store, owner, phone, city, plan, source.");
+export async function importTabs(tabs: { name: string; rows: string[][] }[], opts: { limit?: number } = {}) {
   const [have, sales] = await Promise.all([
     db.lead.findMany({ select: { phone: true } }),
     db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true } }),
   ]);
   const known = new Set(have.map((l) => l.phone)), limit = opts.limit ?? Infinity;
   const who = (v: string) => { const t = v.trim().toLowerCase(); return t ? sales.find((u) => u.empNo.toLowerCase() === t || u.name.toLowerCase() === t)?.id ?? "" : ""; };
-  let added = 0, assigned = 0, more = false; const skipped: string[] = []; const got = new Map<string, number>();
-  for (const [n, r] of rows.slice(1).entries()) {
-    const get = (i: number) => (i >= 0 ? r[i] ?? "" : "").trim();
-    const staffId = who(get(ix.assigned));
-    const p = leadSchema.safeParse({ name: get(ix.name), owner: get(ix.owner), phone: get(ix.phone), city: get(ix.city), state: get(ix.state), plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit", staffId });
-    if (!p.success) { skipped.push(`Row ${n + 2}: ${p.error.issues[0]?.message ?? "invalid"}`); continue; }
-    if (known.has(p.data.phone)) { skipped.push(`Row ${n + 2}: ${p.data.phone} is already a lead`); continue; }
-    if (added >= limit) { more = true; break; }
-    known.add(p.data.phone);
-    await insertLead(p.data);
-    added++;
-    if (staffId) { assigned++; got.set(staffId, (got.get(staffId) ?? 0) + 1); }
+  const fresh: z.output<typeof leadSchema>[] = []; const skipped: string[] = []; let skippedCount = 0, more = false, tabsRead = 0;
+  for (const tab of tabs) {
+    const h = findHeader(tab.rows);
+    if (!h) continue;
+    tabsRead++;
+    const { ix } = h, tabState = stateName(tab.name);
+    for (let r = h.row + 1; r < tab.rows.length && !more; r++) {
+      const row = tab.rows[r], get = (i: number) => (i >= 0 ? row[i] ?? "" : "").trim();
+      if (!row.some((c) => c.trim())) continue;
+      const addr = fromAddress(get(ix.address));
+      const p = leadSchema.safeParse({
+        name: get(ix.name), owner: get(ix.owner), phone: get(ix.phone), city: get(ix.city) || addr.city || get(ix.locality), state: get(ix.state) || addr.state || tabState,
+        plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit", staffId: who(get(ix.assigned)),
+      });
+      const where = `${tab.name ? `${tab.name} · ` : ""}row ${r + 1}`;
+      if (!p.success) { skippedCount++; if (skipped.length < 20) skipped.push(`${where}: ${p.error.issues[0]?.message ?? "invalid"}`); continue; }
+      if (known.has(p.data.phone)) { skippedCount++; if (skipped.length < 20) skipped.push(`${where}: ${p.data.phone} is already a lead`); continue; }
+      if (fresh.length >= limit) { more = true; break; }
+      known.add(p.data.phone);
+      fresh.push(p.data);
+    }
   }
-  for (const [id, c] of got) await notify([id], `${c} new lead${c > 1 ? "s" : ""} from HR.`, "slleads");
-  return { added, assigned, more, skipped: skipped.slice(0, 20), skippedCount: skipped.length };
+  if (!tabsRead) throw new UserError("Couldn’t find the columns. Each tab needs a header row with a shop name (store, pharmacy…) and a phone (mobile…) column.");
+  let added = 0, assigned = 0;
+  if (fresh.length) {
+    const first = await reserveCodes(fresh.length), tomorrow = dateOnly(addDays(todayISO(), 1));
+    const rows = fresh.map((i, k) => ({ code: `L-${first + k}`, name: i.name, owner: i.owner || "—", phone: i.phone, city: i.city || "—", source: sourceOf(i.source), product: i.plan, stage: "new", nextOn: i.staffId ? tomorrow : null, staffId: i.staffId, state: stateOf(i.state, i.city) }));
+    for (let k = 0; k < rows.length; k += 1000) added += (await db.lead.createMany({ data: rows.slice(k, k + 1000), skipDuplicates: true })).count;
+    const got = new Map<string, number>();
+    for (const l of rows) if (l.staffId) { assigned++; got.set(l.staffId, (got.get(l.staffId) ?? 0) + 1); }
+    for (const [id, c] of got) await notify([id], `${c} new lead${c > 1 ? "s" : ""} from HR.`, "slleads");
+  }
+  return { added, assigned, more, skipped, skippedCount };
+}
+/** CSV text with a header row (see importTabs). */
+export async function importText(text: string, opts: { maxChars?: number; limit?: number } = {}) {
+  if (text.length > (opts.maxChars ?? 2_000_000)) throw new UserError("That file is too large. Upload at most about 10,000 leads at a time.");
+  const rows = parseCsv(text);
+  if (rows.length < 2) throw new UserError("The sheet has no leads. It needs a header row and at least one lead.");
+  return importTabs([{ name: "", rows }], { limit: opts.limit });
 }
 /** CSV with columns store, owner, phone, city, plan, source. Uploaded leads arrive unassigned unless the file names who gets them. */
 export async function importLeads(me: Me, text: string) {
@@ -219,17 +269,26 @@ export async function assignWaiting(): Promise<{ given: number; unmatched: numbe
   const waiting = await db.lead.findMany({ where: { staffId: "" }, orderBy: { createdAt: "asc" } });
   const load = new Map(team.map((t) => [t.id, t.open]));
   const home = new Map(team.map((t) => [t.id, t.home]));
-  const got = new Map<string, number>(), langs = new Set<string>();
+  const langs = new Set<string>(), plan = new Map<string, { open: string[]; lost: string[] }>(), states: { id: string; state: string }[] = [];
   let given = 0, unmatched = 0;
   for (const l of waiting) {
     const state = stateOf(l.state, l.city);
     const eligible = [...load.entries()].filter(([id]) => speaks(home.get(id) ?? "", state)).sort((a, b) => a[1] - b[1]);
     if (!eligible.length) { unmatched++; const g = langOf(state); if (g) langs.add(langLabel(g)); continue; }
     const [id] = eligible[0];
-    await db.lead.update({ where: { id: l.id }, data: { staffId: id, ...(l.state ? {} : state ? { state } : {}), nextOn: l.stage === "lost" ? null : dateOnly(addDays(todayISO(), 1)) } });
-    load.set(id, load.get(id)! + 1); got.set(id, (got.get(id) ?? 0) + 1); given++;
+    const p = plan.get(id) ?? { open: [], lost: [] };
+    (l.stage === "lost" ? p.lost : p.open).push(l.id); plan.set(id, p);
+    if (!l.state && state) states.push({ id: l.id, state });
+    load.set(id, load.get(id)! + 1); given++;
   }
-  for (const [id, n] of got) await notify([id], `${n} new lead${n > 1 ? "s" : ""} from HR.`, "slleads");
+  // One update per salesperson (and one per state learned from the town), not one per lead.
+  const tomorrow = dateOnly(addDays(todayISO(), 1));
+  for (const [id, p] of plan) {
+    if (p.open.length) await db.lead.updateMany({ where: { id: { in: p.open } }, data: { staffId: id, nextOn: tomorrow } });
+    if (p.lost.length) await db.lead.updateMany({ where: { id: { in: p.lost } }, data: { staffId: id, nextOn: null } });
+    await notify([id], `${p.open.length + p.lost.length} new lead${p.open.length + p.lost.length > 1 ? "s" : ""} from HR.`, "slleads");
+  }
+  for (const [state, ids] of Object.entries(states.reduce<Record<string, string[]>>((m, x) => ((m[x.state] ??= []).push(x.id), m), {}))) await db.lead.updateMany({ where: { id: { in: ids } }, data: { state } });
   return { given, unmatched, unmatchedLang: [...langs] };
 }
 export async function autoAssign(me: Me) {

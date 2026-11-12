@@ -6,6 +6,8 @@ import { loaders, resolveScreen, shell } from "@/staff/hrms/screens";
 import { Frame } from "../_ui/frame";
 
 export const dynamic = "force-dynamic";
+// Syncing a large Google Sheet from Leads runs as an action of this page, so give it room.
+export const maxDuration = 60;
 
 export default async function Page({ params, searchParams }: { params: Promise<{ s?: string[] }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const t0 = Date.now();
