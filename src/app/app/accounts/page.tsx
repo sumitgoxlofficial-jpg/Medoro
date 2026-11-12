@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { requireCtx, can } from "@/server/context";
+import { requireCtx, can, entitlementsOf } from "@/server/context";
+import { hasFeature, upgradeMessage } from "@/lib/plans";
+import { UpgradeNote } from "@/components/upgrade-note";
 import { UserError } from "@/server/action";
 import { accountLedger, accountNames, accountsOverview, dayBook, DAY_BOOK_PAGE, periodOf, trialBalance } from "@/domain/accounting/service";
 import { h1Register, PHARMACY_REPORTS, REPORTS } from "@/domain/accounting/reports";
@@ -25,6 +27,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   if (!can(ctx, "reports")) redirect("/app");
   const sp = await searchParams, tr = tFor(ctx.lang);
   const view = sp.view === "tb" ? "tb" : sp.view === "ledger" ? "ledger" : sp.view === "h1" ? "h1" : sp.view === "gst" ? "gst" : "overview";
+  // The Schedule H1 register is a legal record, so it stays open on every plan; the rest of this screen is part of Accounts.
+  const ent = await entitlementsOf(ctx);
+  if (view !== "h1" && !hasFeature(ent, "accounts")) {
+    return <><PageHead title={t(ctx.lang).acc} sub={tr("Ledgers, P&L, GST summary and exports")} /><UpgradeNote message={upgradeMessage(ent, "accounts")} canUpgrade={can(ctx, "users")} /></>;
+  }
   if (view === "h1") {
     const p = periodOf(sp.period);
     const rows = await h1Register(ctx.tenantId, ctx.branchId, p);

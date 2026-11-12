@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { requireCtx, can } from "@/server/context";
+import { requireCtx, can, entitlementsOf } from "@/server/context";
+import { hasFeature, upgradeMessage } from "@/lib/plans";
 import { auditTrail, listBranches, listTeam, listTransfers, roleMatrix } from "@/domain/identity/admin";
 import { PERMS, PERM_LABEL } from "@/domain/identity/permissions";
 import { db } from "@/server/db";
@@ -14,14 +15,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const ctx = await requireCtx();
   if (!can(ctx, "users")) redirect("/app");
   const tab = (["users", "roles", "branches", "audit"].includes((await searchParams).tab ?? "") ? (await searchParams).tab : "users") as "users" | "roles" | "branches" | "audit";
+  const ent = await entitlementsOf(ctx), rolesOpen = hasFeature(ent, "roles");
   const [team, roles, branches, transfers, audit, tenant, maxDisc] = await Promise.all([
-    listTeam(ctx), roleMatrix(ctx), listBranches(ctx), listTransfers(ctx), tab === "audit" ? auditTrail(ctx) : Promise.resolve([]), db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }), maxDiscount(ctx.tenantId),
+    listTeam(ctx), roleMatrix(ctx), listBranches(ctx), listTransfers(ctx), tab === "audit" && rolesOpen ? auditTrail(ctx) : Promise.resolve([]), db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId } }), maxDiscount(ctx.tenantId),
   ]);
   return (
     <>
       <PageHead title={t(ctx.lang).users} sub="Roles, permissions, branches and audit trail" />
       <UsersView tab={tab} team={team} roles={roles} perms={PERMS.map((p) => ({ id: p, label: PERM_LABEL[p] }))} branches={branches} transfers={transfers} audit={audit}
         tenantCode={tenant.code} myBranches={ctx.branches.map((b) => b.id)} canAdjust={can(ctx, "adjust")}
+        locked={rolesOpen ? undefined : { message: upgradeMessage(ent, "roles"), canUpgrade: true }}
         maxDisc={maxDisc} isOwner={ctx.realRole === "Owner" && ctx.role === "Owner"} />
     </>
   );

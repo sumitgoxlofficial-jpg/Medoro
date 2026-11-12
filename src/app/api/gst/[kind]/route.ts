@@ -1,4 +1,4 @@
-import { getCtx } from "@/server/context";
+import { getCtx, requireFeature } from "@/server/context";
 import { UserError } from "@/server/action";
 import { gstExport, type ExportKind } from "@/domain/gst/service";
 
@@ -9,6 +9,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ kind: st
   if (!ctx) return new Response("Sign in first", { status: 401 });
   if (ctx.readOnly) return new Response("Medoro support access is read-only and can’t download data.", { status: 403 });
   if (!ctx.perms.includes("reports")) return new Response("Your role cannot export reports.", { status: 403 });
+  // The HSN summary is a statutory register, so it stays free; GSTR-1/3B files and Tally exports are part of Accounts.
+  try { if ((await params).kind !== "hsn-csv") await requireFeature(ctx, "accounts"); } catch (e) { return new Response(e instanceof Error ? e.message : "Not part of your plan.", { status: 402 }); }
   const { kind } = await params;
   if (!KINDS.includes(kind as ExportKind)) return new Response("Unknown export", { status: 404 });
   const q = new URL(req.url).searchParams;
