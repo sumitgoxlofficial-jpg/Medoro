@@ -1,7 +1,7 @@
 import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
-  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "acc"
+  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "est" | "acc"
   | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Finance" | "Engagement" | "System"; abbr: string; sub: string };
@@ -12,6 +12,7 @@ export const NAV: NavDef[] = [
   { id: "pos", href: "/app/pos", icon: "ScanBarcode", perm: "sale", group: "Operations", abbr: "POS", sub: "F2 search · F4 hold · F9 complete" },
   { id: "ord", href: "/app/orders", icon: "Bike", perm: "sale", group: "Operations", abbr: "Orders", sub: "Phone, WhatsApp and counter orders for home delivery" },
   { id: "dlv", href: "/app/deliveries", icon: "Navigation", perm: "delivery", group: "Operations", abbr: "Deliver", sub: "Your deliveries: call, navigate, mark delivered" },
+  { id: "est", href: "/app/estimates", icon: "FileText", perm: "sale", group: "Operations", abbr: "Estimate", sub: "Quotations: a priced list for a customer who isn’t buying yet" },
   { id: "ret", href: "/app/returns", icon: "Undo2", perm: "sale", group: "Operations", abbr: "Returns", sub: "Sales returns, refunds and cashier shift close" },
   { id: "inv", href: "/app/inventory", icon: "Package", perm: null, group: "Operations", abbr: "Stock", sub: "Catalogue, batches and stock ledger" },
   { id: "count", href: "/app/count", icon: "ClipboardCheck", perm: "adjust", group: "Operations", abbr: "Count", sub: "Physical count against system stock" },
@@ -36,7 +37,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
+export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
 
 /**
  * A pharmacy whose records live on its counters and in its Google Drive: each screen opens the matching tab of

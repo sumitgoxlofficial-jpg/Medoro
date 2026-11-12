@@ -1441,6 +1441,26 @@ model FileObject {
 }
 
 /// A same-day void of a whole sale. Append-only; the sale itself is never changed.
+/// A priced list for a customer who is not buying yet (quotation). No stock or books are touched.
+model Estimate {
+  id           String   @id @default(uuid())
+  tenantId     String
+  branchId     String
+  no           String
+  customerName String   @default("")
+  phone        String   @default("")
+  validUntil   DateTime @db.Date
+  notes        String   @default("")
+  lines        Json
+  totalPaise   BigInt
+  status       String   @default("open") // open, billed, cancelled
+  userId       String
+  createdAt    DateTime @default(now())
+
+  @@unique([tenantId, no])
+  @@index([tenantId, branchId, createdAt])
+}
+
 /// The prescription (photo or PDF) behind a counter bill, kept beside the sale because sale rows never change.
 model SalePrescription {
   id       String   @id @default(uuid())
