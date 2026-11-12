@@ -1,5 +1,14 @@
 /** Hindi lines for: purchases (purchase orders, GRNs, e-bills, claims), suppliers & customers, doctors. Key = the English text exactly as written in the code (see src/lib/tr.ts). */
 export const hi: Record<string, string> = {
+  // ── Purchases: short-dated stock ──
+  "Minimum shelf life when receiving stock": "स्टॉक लेते समय न्यूनतम शेल्फ लाइफ",
+  "Minimum shelf life in days": "न्यूनतम शेल्फ लाइफ (दिनों में)",
+  "days (0 turns the check off). Lines with less shelf life need “I accept short-dated stock” before the bill can be posted.": "दिन (0 रखने पर जाँच बंद)। जिन लाइनों की शेल्फ लाइफ इससे कम है, उनके लिए बिल पोस्ट करने से पहले “मैं कम एक्सपायरी वाला स्टॉक स्वीकार करता/करती हूँ” चुनना होगा।",
+  "{n} lines arrive short-dated": "{n} लाइनें कम एक्सपायरी के साथ आई हैं",
+  "{n} line arrives short-dated": "{n} लाइन कम एक्सपायरी के साथ आई है",
+  "(under {d} days of shelf life): {names}. Ask the supplier to replace them, or tick to accept short-dated stock.": "({d} दिन से कम शेल्फ लाइफ): {names}। सप्लायर से बदलवाएँ, या कम एक्सपायरी वाला स्टॉक स्वीकार करने के लिए टिक करें।",
+  "item": "आइटम",
+  "I accept short-dated stock (less shelf life than your minimum, set under Purchases ▸ Pricing rules)": "मैं कम एक्सपायरी वाला स्टॉक स्वीकार करता/करती हूँ (आपके न्यूनतम से कम शेल्फ लाइफ; इसे खरीद ▸ प्राइसिंग नियम में सेट करें)",
   // ── Purchases: orders ──
   "Purchase orders, supplier invoices and GRNs": "खरीद ऑर्डर, सप्लायर इनवॉइस और GRN",
   "Purchase orders": "खरीद ऑर्डर",

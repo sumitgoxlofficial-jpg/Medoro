@@ -11,12 +11,17 @@
 export const GST_BASES = ["net", "before_cd", "gross"] as const;
 export type GstBase = (typeof GST_BASES)[number];
 /** itc false: the pharmacy can't claim input GST (composition scheme), so GST is part of stock cost. */
-export type PricingRules = { gstBase: GstBase; itc: boolean };
-export const DEFAULT_RULES: PricingRules = { gstBase: "net", itc: true };
+export type PricingRules = { gstBase: GstBase; itc: boolean; minShelfDays: number };
+/** minShelfDays: stock arriving with less shelf life than this needs a "short-dated" acknowledgement (0 turns the check off). */
+export const DEFAULT_MIN_SHELF_DAYS = 180;
+/** What the price maths needs; the shelf-life minimum isn't part of it. */
+export type PriceRules = Pick<PricingRules, "gstBase" | "itc">;
+export const DEFAULT_RULES: PricingRules = { gstBase: "net", itc: true, minShelfDays: DEFAULT_MIN_SHELF_DAYS };
 
 export function rulesOf(settings: unknown): PricingRules {
   const p = (settings as { purchasing?: Partial<PricingRules> } | null)?.purchasing;
-  return { gstBase: p?.gstBase && (GST_BASES as readonly string[]).includes(p.gstBase) ? p.gstBase : "net", itc: p?.itc !== false };
+  const shelf = Number(p?.minShelfDays);
+  return { gstBase: p?.gstBase && (GST_BASES as readonly string[]).includes(p.gstBase) ? p.gstBase : "net", itc: p?.itc !== false, minShelfDays: Number.isInteger(shelf) && shelf >= 0 && shelf <= 730 ? shelf : DEFAULT_MIN_SHELF_DAYS };
 }
 
 /** "10+2", "10 + 2", "10+2F" → buy 10 get 2. */
@@ -53,7 +58,7 @@ export type PricedLine = {
   landed: number;
 };
 
-export function priceLine(l: PriceInput, rules: PricingRules = DEFAULT_RULES): PricedLine {
+export function priceLine(l: PriceInput, rules: PriceRules = DEFAULT_RULES): PricedLine {
   const qty = Math.max(0, l.qty || 0), free = Math.max(0, l.freeQty || 0);
   const gross = qty * l.rate;
   const schemeDisc = pctOf(gross, l.schemePct);
@@ -68,7 +73,7 @@ export function priceLine(l: PriceInput, rules: PricingRules = DEFAULT_RULES): P
   return { gross, schemeDisc, tradeDisc, cashDisc, disc: gross - net, net, taxable, gst, payable: net + gst, cost, units, landed: units ? Math.round(cost / units) : 0 };
 }
 
-export function purchaseTotals(lines: PriceInput[], rules: PricingRules = DEFAULT_RULES) {
+export function purchaseTotals(lines: PriceInput[], rules: PriceRules = DEFAULT_RULES) {
   const priced = lines.map((l) => priceLine(l, rules));
   const sum = (f: (p: PricedLine) => number) => priced.reduce((a, p) => a + f(p), 0);
   const net = sum((p) => p.net), gst = sum((p) => p.gst);

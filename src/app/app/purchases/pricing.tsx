@@ -25,6 +25,8 @@ export function PricingRulesButton({ rules }: { rules: PricingRules }) {
       <Modal open={open} onClose={() => setOpen(false)} title="Purchase pricing rules" sub="How GRNs work out GST and landed cost" width={560}
         footer={<><Button onClick={() => setOpen(false)}>Cancel</Button><Button variant="primary" onClick={save} disabled={pending}>Save rules</Button></>}>
         <div className="flex flex-col gap-2">
+          <div className="text-[13px] font-semibold">{t("Minimum shelf life when receiving stock")}</div>
+          <label className="flex items-center gap-2 text-[13px]"><input type="number" min={0} max={730} className="border border-line rounded-lg px-2.5 py-1.5 w-24 bg-white" value={r.minShelfDays} onChange={(e) => setR({ ...r, minShelfDays: Math.max(0, Math.min(730, parseInt(e.target.value) || 0)) })} aria-label={t("Minimum shelf life in days")} />{t("days (0 turns the check off). Lines with less shelf life need “I accept short-dated stock” before the bill can be posted.")}</label>
           <div className="text-[13px] font-semibold">{t("GST on purchase lines is worked out")}</div>
           {BASES.map(([v, label, hint]) => (
             <label key={v} className="flex gap-2 items-start cursor-pointer text-[13px]">

@@ -55,6 +55,12 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
     return { ...l, freeQty: l.freeQty || schemeFree(l.qty, l.scheme), m };
   });
   const rules = rulesOf((await tx.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { settings: true } })).settings);
+  // Short-dated stock: less shelf life than the pharmacy's minimum. It can still be received, but only knowingly.
+  const short = rules.minShelfDays > 0 ? lines.filter((l) => daysTo(l.expiry) < rules.minShelfDays) : [];
+  if (short.length && !i.acceptShortExpiry) {
+    const names = short.slice(0, 3).map((l) => `${l.m.name} (${daysTo(l.expiry)} days left)`).join(", ");
+    throw new UserError(`${short.length} line${short.length > 1 ? "s have" : " has"} less than ${rules.minShelfDays} days of shelf life: ${names}${short.length > 3 ? " and more" : ""}. Ask the supplier to replace ${short.length > 1 ? "them" : "it"}, or tick “I accept short-dated stock” to receive ${short.length > 1 ? "them" : "it"} anyway.`);
+  }
   const t = grnTotals(lines.map((l) => ({ qty: l.qty, freeQty: l.freeQty, rate: l.rate, gstRate: l.m.gstRate, schemePct: l.schemePct, tradePct: l.tradePct, cashPct: l.cashPct })), rules);
   const payable = i.statedTotal ?? Math.round(t.total / 100) * 100;
   const roundOff = payable - t.total;
@@ -116,6 +122,7 @@ export async function postGrn(tx: Tx, ctx: Ctx, raw: GrnInput) {
   if (po) await refreshPoStatus(tx, po.id);
   if (i.scanDocId) await tx.scanDocument.updateMany({ where: { id: i.scanDocId, tenantId: ctx.tenantId }, data: { status: "approved" } });
   await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "GRN posted", entity: "grn", entityId: grn.id, detail: `${grnNo} · ${supplier.name} Inv ${i.invoiceNo} · ${lines.length} line(s) · ${inr(payable)}${po ? " · " + po.no : ""}` });
+  if (short.length) await writeAudit(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Short-dated stock accepted", entity: "grn", entityId: grn.id, detail: `${grnNo} · ${short.map((l) => `${l.m.name} ${l.batchNo} (${daysTo(l.expiry)} days)`).join(", ")}`.slice(0, 480) });
   return { grnId: grn.id, grnNo, total: payable };
 }
 

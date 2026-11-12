@@ -187,7 +187,7 @@ export async function receiveBatchIn(tx: Tx, ctx: Ctx, raw: ReceiveInput) {
   const packs = i.unit === "case" ? i.qty * m.caseSize : i.qty;
   const units = packs * m.packSize;
   if (i.supplierId) {
-    const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
+    const r = await postGrn(tx, ctx, { supplierId: i.supplierId, invoiceNo: i.invoiceNo, invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null, acceptShortExpiry: i.acceptShortExpiry,
       lines: [{ medicineId: m.id, batchNo: i.batchNo, expiry: i.expiry, qty: packs, freeQty: 0, rate: i.cost / 100, mrp: i.mrp / 100, poItemId: null }] });
     const b = await tx.batch.findFirstOrThrow({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, medicineId: m.id, batchNo: i.batchNo } });
     return { batchId: b.id, grnNo: r.grnNo, units, unitsText: receivedText(units, m) };

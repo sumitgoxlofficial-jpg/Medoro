@@ -48,7 +48,7 @@ async function seed(ctx: Ctx, mark: string, phone: string): Promise<Seed> {
   const supplierId = await saveSupplier(ctx, null, { name: `${mark} Distributors`, creditDays: "30", opening: "100" });
   const customerId = await saveCustomer(ctx, null, { name: `${mark} Customer`, phone, waOptIn: true, creditLimit: "1000", opening: "50" });
   const medicineId = await createMedicine(ctx, { name: `${mark} Tablet`, generic: `${mark} generic`, strength: "500 mg", form: "Tablet", manufacturer: `${mark} Labs`, pack: "10", mrp: "50", gstRate: 12, schedule: "", reorderLevel: 100, barcode: "", hsn: "3004", rack: "" });
-  await receiveBatch(ctx, { medicineId, batchNo: `${mark}B1`, expiry: addDays(todayISO(), 60), qty: 20, cost: "20", mrp: "50", supplierId, invoiceNo: `${mark}-INV` });
+  await receiveBatch(ctx, { medicineId, batchNo: `${mark}B1`, expiry: addDays(todayISO(), 60), qty: 20, cost: "20", mrp: "50", supplierId, invoiceNo: `${mark}-INV`, acceptShortExpiry: true });
   const batch = await db.batch.findFirstOrThrow({ where: { tenantId: ctx.tenantId, medicineId } });
   const sale = await commitSale(ctx, { idempotencyKey: "k_" + randomUUID().replace(/-/g, ""), lines: [{ medicineId, batchId: batch.id, qty: 2 }], customerId, discountPct: 0, pay: { mode: "cash" } });
   await holdCart(ctx, `${mark} held`, { lines: [] });

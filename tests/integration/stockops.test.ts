@@ -19,7 +19,7 @@ describe("stock operations and intelligence", () => {
     const ctx = await ctxFor();
     sup = await saveSupplier(ctx, null, { name: "Pune Pharma", creditDays: "21", leadDays: "2" });
     med = await createMedicine(ctx, { name: "Okacet", generic: "Cetirizine", strength: "10 mg", form: "Tablet", manufacturer: "Cipla", pack: "10", mrp: "21", gstRate: 12, schedule: "", reorderLevel: 30, barcode: "", hsn: "3004", rack: "A-1" });
-    await receiveBatch(ctx, { medicineId: med, batchNo: "OK1", expiry: addDays(todayISO(), 45).slice(0, 10), qty: 40, cost: "13.50", mrp: "21", supplierId: sup, invoiceNo: "PP/1" });
+    await receiveBatch(ctx, { medicineId: med, batchNo: "OK1", expiry: addDays(todayISO(), 45).slice(0, 10), qty: 40, cost: "13.50", mrp: "21", supplierId: sup, invoiceNo: "PP/1", acceptShortExpiry: true });
     await receiveBatch(ctx, { medicineId: med, batchNo: "OK2", expiry: addDays(todayISO(), 400).slice(0, 7), qty: 20, cost: "13.50", mrp: "21", supplierId: null, invoiceNo: "" });
     b1 = (await db.batch.findFirstOrThrow({ where: { batchNo: "OK1" } })).id;
     b2 = (await db.batch.findFirstOrThrow({ where: { batchNo: "OK2" } })).id;

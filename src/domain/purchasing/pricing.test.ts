@@ -34,9 +34,9 @@ describe("purchase pricing", () => {
   });
 
   it("reads rules from settings and computes margins", () => {
-    expect(rulesOf({})).toEqual({ gstBase: "net", itc: true });
-    expect(rulesOf({ purchasing: { gstBase: "bad", itc: false } })).toEqual({ gstBase: "net", itc: false });
-    expect(rulesOf({ purchasing: { gstBase: "gross" } })).toEqual({ gstBase: "gross", itc: true });
+    expect(rulesOf({})).toEqual({ gstBase: "net", itc: true, minShelfDays: 180 });
+    expect(rulesOf({ purchasing: { gstBase: "bad", itc: false } })).toEqual({ gstBase: "net", itc: false, minShelfDays: 180 });
+    expect(rulesOf({ purchasing: { gstBase: "gross" } })).toEqual({ gstBase: "gross", itc: true, minShelfDays: 180 });
     expect(exGst(3360, 12)).toBe(3000);
     expect(marginPct(3000, 1862)).toBe(37.93);
     expect(marginPct(0, 10)).toBeNull();

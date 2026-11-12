@@ -154,7 +154,7 @@ describe("purchase pricing, e-bills and claims", () => {
 
   it("suggests near-expiry claims inside each supplier's return window", async () => {
     const ctx = await ctxFor("Manager");
-    await postGrnTx(ctx, { supplierId: sup, invoiceNo: "MMA/NE", invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
+    await postGrnTx(ctx, { supplierId: sup, invoiceNo: "MMA/NE", invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null, acceptShortExpiry: true,
       lines: [{ medicineId: pan, batchNo: "NEAR1", expiry: addDays(todayISO(), 60), qty: 4, freeQty: 0, rate: "110", mrp: "155", poItemId: null }] });
     let s = await nearExpiryClaims(ctx);
     expect(s.find((g) => g.supplierId === sup)?.items.map((i) => i.batchNo)).toEqual(["NEAR1"]);
