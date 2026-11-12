@@ -24,7 +24,11 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
    with `HOST_KEY` and shown masked), accept the offer letter, appointment letter and NDA.
 3. Daily: check in/out (late after the time in Settings), breaks, tasks, leave and claims.
 4. Month end: HR or Finance processes **Payroll**; employees get a payslip (printable as PDF).
-5. Leaving: HR deactivates the profile. Sessions end immediately.
+5. Leaving: HR opens **Record exit** on the employee and enters the last working day. Today or earlier deactivates them at
+   once (sessions end immediately). A later day is a notice period: they keep working and are deactivated the day after it
+   (the exit can be cancelled until then). That month's payslip is the **final settlement**: pay up to the last day, unused
+   privilege leave paid at a day's basic (monthly basic ÷ 26), and gratuity after five years (15 days' basic per year of
+   service). The settlement is an estimate; have a CA confirm it.
 
 ## More screens
 
@@ -36,6 +40,10 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 * **Accounts**: **Sales CRM & Leads** (deals), **Marketing CRM** (campaigns), **Workflows & Automations**, plus Proforma, Delivery challans, Vendors and Vendor leads registers.
   Workflows are only listed if they really run: *Mark overdue invoices* (sent invoices past their due date become Overdue and Accounts is told, whenever an
   accounts screen opens) and *Post the salary journal* (processing payroll adds one journal entry for the month's net pay). Each can be switched off.
+* **KYC & certificates** (My profile). The employee uploads identity and address proof, certificates, a relieving letter or a
+  cancelled cheque (PDF, JPG, PNG). HR opens them from **Employees → Documents**, marks each verified or removes it. Files open
+  only for their owner and people with the Employees module; HR opening one is written to Audit Logs. A verified document can
+  only be removed by HR. Medoro stores the uploaded file only: it does not ask for or keep the Aadhaar number.
 * **Me**: **ID card** (My profile, printable), **Customize home** (hide sections; saved in the browser), **night mode** (moon button; saved in the browser).
 * Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).
 
@@ -78,16 +86,30 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
 
 * **Attendance.** Check-in is on by default. A working day in the past with no check-in, no leave and no approved
   correction is *absent* and counts as loss of pay in payroll (HR can override LOP days per person before processing).
-  Weekends and holidays never count. Corrections go to HR.
-* **Leave.** Yearly policy per type (Settings), plus extra days HR grants. Weekends/holidays inside a request are not
+  Weekly offs (Saturday and Sunday unless changed in Settings → *Weekly days off*) and holidays never count. Corrections go to HR.
+  HR can give a person their own **shift start** (Edit employee); they are late after that time instead of the company time.
+  A day someone forgot to check out of is closed the next day at a full working day after check-in, with a note.
+  Days before a person's HRMS profile was created are never absent ("No record"), so adding existing staff doesn't dock their pay.
+* **Leave.** Yearly policy per type (Settings), plus extra days HR grants. In the year someone joins they get the share
+  from their joining month (joined in October: 3/12 of each type, rounded). Weekends/holidays inside a request are not
   counted; requests can't overlap; you can't approve your own leave (someone else, or the super admin, must).
+  A request can be **half a day** (one date; the person still checks in for the other half). **Unpaid leave** has no balance:
+  each day is loss of pay in payroll. A request goes to HR **and the person's reporting manager** ("Reports to" on the profile);
+  either can decide it. The manager sees *Team requests* on their own Leave screen. Unused **privilege leave carries forward**
+  into the next year, up to the cap in Settings (default 30 days; 0 switches it off).
 * **Claims.** Employee → HR review → super-admin final sign-off → paid with the next payroll (added to net pay, once).
   Bills are stored through the normal file storage (disk, database or Supabase) and open only for the owner, HR and the super admin.
 * **Payroll.** Monthly from the annual CTC: basic 50%, HRA 40% of basic, rest special allowance. PF 12% of basic capped at
   ₹15,000, ESI 0.75% when monthly CTC ≤ ₹21,000, professional tax from Settings, TDS estimated on the new tax regime
   (₹75,000 standard deduction, nothing up to ₹12,00,000 taxable with marginal relief, 4% cess), sales incentive from won
-  pharmacies. A processed month can't be processed again. The bank transfer file opens account numbers and is audited.
-  TDS is an estimate: have a CA confirm it for people with other income or the old regime.
+  pharmacies. A processed month can't be processed again, so a month opens for processing on its
+  last working day (before that the screen is a preview). Someone who leaves is paid up to their last working day, in that month. The bank transfer file opens account numbers and is audited.
+  HR can put a person on the **old regime** with their accepted yearly deductions (Edit employee); TDS then uses the old slabs.
+  TDS is an estimate: have a CA confirm it for people with other income.
+  Downloads on the Payroll screen for a processed month: the **PF return** in EPFO's ECR text layout (people without a UAN are
+  left out and named), the **ESI return** (both shares; add the ESI number on Edit employee), the payroll report (with the
+  employer's PF and ESI) and the bank file. Employees download a **tax statement** for a financial year from Payslips (what a CA
+  needs for Form 16; Form 16 itself is issued from TRACES). Every change of CTC is kept as a salary revision on the profile.
 * **Leads.** Sales screens work on the same lead table and the same *won → logged sale and commission* path as the staff
   console pipeline. HR uploads a CSV (`store, owner, phone, city, plan, source`), assigns leads or auto-assigns them evenly,
   and sets each salesperson's monthly target and incentive (max 5%).

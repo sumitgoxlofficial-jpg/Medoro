@@ -17,6 +17,7 @@ import { hi as counter_intel } from "./counter_intel";
 import { hi as counter_money } from "./counter_money";
 import { hi as server } from "./server";
 import { hi as site } from "./site";
+import { hi as estimates } from "./estimates";
 export const HI: Record<string, string> = {
   ...server,
   ...common,
@@ -36,4 +37,5 @@ export const HI: Record<string, string> = {
   ...counter_intel,
   ...counter_money,
   ...site,
+  ...estimates,
 };

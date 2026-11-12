@@ -8,12 +8,12 @@ import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { welcomeMail } from "./mails";
 import { log } from "@/server/log";
-import { dateOnly, isoOf, todayISO } from "@/lib/dates";
+import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { staffDomain } from "../auth";
 import { IFSC_BANKS, IFSC_RE, MOBILE_RE, PAN_RE, digits } from "../constants";
 import { newEmployeeNo, referral } from "../people";
 import { stateName } from "./states";
-import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, roleOf, type Me } from "./auth";
+import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, notify, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
@@ -22,7 +22,7 @@ const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "En
 
 export type Person = {
   id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
-  location: string; managerId: string | null; joinDate: string | null; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
+  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
   photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
 
@@ -39,7 +39,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     const h = u.hr;
     return {
       id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
-      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, ctc: h?.ctc ?? 0,
+      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
       profileDone: h?.profileDone ?? false, docsAccepted: !!h?.docsAcceptedAt, hasPassword: !!u.passwordHash,
@@ -144,7 +144,9 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
 }
 
 export const editEmployeeSchema = newEmployeeSchema.omit({ personalEmail: true, phone: true, joinDate: true, name: true }).extend({
-  joinDate: iso.nullish(), monthlyTarget: z.coerce.number().int().min(0).max(1000).default(40),
+  joinDate: iso.nullish(), shiftStart: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/, "Enter the shift start as HH:MM.").default(""),
+  taxRegime: z.enum(["new", "old"]).default("new"), taxDeclared: z.coerce.number().int().min(0, "Deductions can’t be negative.").max(5_000_000).default(0),
+  esiNo: z.string().trim().regex(/^$|^\d{10}$|^\d{17}$/, "The ESI number is 10 or 17 digits.").default(""), monthlyTarget: z.coerce.number().int().min(0).max(1000).default(40),
 });
 export async function updateEmployee(me: Me, id: string, raw: z.input<typeof editEmployeeSchema>) {
   need(me, "employees");
@@ -157,23 +159,41 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   const role = was === "admin" ? "admin" : i.role;
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
-  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget } as const;
+  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo } as const;
   await db.$transaction([
     db.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } }),
     db.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } }),
+    ...(u.hr && u.hr.ctc !== i.ctc ? [db.hrSalaryRevision.create({ data: { staffId: id, fromCtc: u.hr.ctc, toCtc: i.ctc, byId: me.id } })] : []),
   ]);
   await audit(me, "Employee updated", `${u.empNo} · ${role} · ${i.dept} · ${i.designation}`);
 }
 
-export async function setEmployeeActive(me: Me, id: string, active: boolean) {
+/** Changes of annual CTC, newest first (HR). */
+export async function salaryRevisions() {
+  const rows = await db.hrSalaryRevision.findMany({ orderBy: { at: "desc" }, take: 1000 });
+  return rows.map((r) => ({ id: r.id, staffId: r.staffId, from: r.fromCtc, to: r.toCtc, on: todayISO(r.at) }));
+}
+
+/** Deactivating records the last working day (today unless given): payroll pays up to it, in that month. */
+export async function setEmployeeActive(me: Me, id: string, active: boolean, lastDay?: string) {
   need(me, "employees");
   if (id === me.id) throw new UserError("You can’t change your own access.");
   const u = await db.staffUser.findUnique({ where: { id } });
   if (!u || u.kind !== "team") throw new UserError("Employee not found.");
   if (u.role === "super_admin" && me.role !== "admin") throw new UserError("Only the super admin can change a super admin.");
   if (!active && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active" } })) <= 1) throw new UserError("Keep at least one active super admin.");
-  await db.staffUser.update({ where: { id }, data: { status: active ? "active" : "deactivated", tokenVersion: active ? undefined : { increment: 1 } } });
-  await audit(me, active ? "Employee reactivated" : "Employee deactivated", `${u.empNo} · ${u.email}`);
+  const hr = await db.hrProfile.findUnique({ where: { staffId: id }, select: { joinDate: true } });
+  const exit = active ? null : iso.parse(lastDay || todayISO());
+  if (exit && exit > addDays(todayISO(), 180)) throw new UserError("The last working day can be at most 180 days ahead.");
+  // A last working day still to come (a notice period): the person keeps working and is deactivated the day after it.
+  const later = !!exit && exit > todayISO();
+  if (exit && hr?.joinDate && exit < isoOf(hr.joinDate)) throw new UserError("The last working day can’t be before the joining date.");
+  await db.$transaction([
+    db.staffUser.update({ where: { id }, data: { status: active || later ? "active" : "deactivated", tokenVersion: active || later ? undefined : { increment: 1 } } }),
+    ...(hr ? [db.hrProfile.update({ where: { staffId: id }, data: { exitDate: exit ? dateOnly(exit) : null } })] : []),
+  ]);
+  if (later) await notify([id], `Your last working day is recorded as ${exit}.`, "profile");
+  await audit(me, active ? (u.status === "active" ? "Exit cancelled" : "Employee reactivated") : later ? "Exit recorded" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);
 }
 
 /** A password HR reads out to someone who forgot theirs. Works for one sign-in within 24 hours; then they set a new one. */
@@ -301,7 +321,9 @@ export const settingsSchema = z.object({
     state: z.string().trim().max(40), phone: z.string().trim().max(20), email: z.string().trim().max(120), bank: z.string().trim().max(200),
   }),
   checkin: z.boolean(), selfie: z.boolean(), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), workHours: z.coerce.number().min(1, "Work at least 1 hour a day.").max(12, "Work hours can be at most 12 a day."), lunchFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch start as HH:MM."), lunchTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch end as HH:MM."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
+  weekOff: z.array(z.coerce.number().int().min(0).max(6)).max(6, "Keep at least one working day in the week.").default([0, 6]),
   leave: z.object({ casual: z.coerce.number().int().min(0).max(60), sick: z.coerce.number().int().min(0).max(60), privilege: z.coerce.number().int().min(0).max(60), comp: z.coerce.number().int().min(0).max(60) }),
+  carryForward: z.coerce.number().int().min(0).max(120).default(30),
   ptax: z.coerce.number().int().min(0).max(2500), payDay: z.coerce.number().int().min(1).max(28),
 });
 export async function saveSettings(me: Me, raw: Settings) {

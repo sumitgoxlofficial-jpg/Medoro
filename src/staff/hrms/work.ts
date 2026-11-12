@@ -5,7 +5,7 @@ import { UserError } from "@/server/action";
 import { log } from "@/server/log";
 import { nextSeq } from "@/server/sequence";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
-import { audit, can, holders, need, notify, type Me } from "./auth";
+import { audit, can, holders, loadSettings, need, notify, type Me } from "./auth";
 import { COL_IDS, JOB_TYPES, PRIORITIES, PROJECT_STATUS, TICKET_TOPICS, type ColId } from "./constants";
 import { nameMap } from "./people";
 import { pushMeeting, removeEvent } from "./gcal";
@@ -267,8 +267,9 @@ export async function performance(me: Me, period: "today" | "week" | "month") {
     db.hrRecognition.findMany({ where: { createdAt: { gte: fromAt } }, select: { toId: true } }),
   ]);
   let workDays = 0;
+  const weekOff = (await loadSettings()).weekOff;
   const hol = new Set((await db.hrHoliday.findMany({ where: { day: { gte: dateOnly(from), lte: dateOnly(today) } } })).map((h) => isoOf(h.day)));
-  for (let d = from; d <= today; d = addDays(d, 1)) { const w = dateOnly(d).getUTCDay(); if (w !== 0 && w !== 6 && !hol.has(d)) workDays++; }
+  for (let d = from; d <= today; d = addDays(d, 1)) { if (!weekOff.includes(dateOnly(d).getUTCDay()) && !hol.has(d)) workDays++; }
   const rows = staff.filter((u) => u.hr?.role !== "admin").map((u) => {
     const mine = tasks.filter((t) => t.assigneeId === u.id);
     const done = mine.filter((t) => t.status === "done");

@@ -85,6 +85,8 @@ export const hi: Record<string, string> = {
   "Schedule H1 register": "शेड्यूल H1 रजिस्टर",
   "H1, X and NDPS sales with patient and prescriber": "मरीज़ और डॉक्टर के साथ H1, X और NDPS बिक्री",
   "HSN summary": "HSN सारांश",
+  "Sales by cashier": "कैशियर के अनुसार बिक्री",
+  "Bills, discounts, voids and returns for each person who billed": "बिल बनाने वाले हर व्यक्ति के बिल, छूट, रद्द बिल और वापसी",
   "HSN-wise quantity, taxable value and tax (GSTR-1 Table 12)": "HSN-वार मात्रा, टैक्स योग्य मूल्य और टैक्स (GSTR-1 टेबल 12)",
 
   // Accounts: tabs, trial balance, ledger

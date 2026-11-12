@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
-import { Printer, FileDown } from "lucide-react";
+import { Printer, FileDown, FileImage, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
@@ -10,7 +10,7 @@ import { inr, inr0 } from "@/lib/money";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { REFUND_MODES } from "@/domain/sales/contracts";
 import type { currentShift, recentInvoices, returnableLines, todaysCreditNotes } from "@/domain/sales/returns";
-import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction, sendCreditNoteAction, voidAction } from "./actions";
+import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction, sendCreditNoteAction, uploadSaleRxAction, voidAction } from "./actions";
 
 type Inv = Awaited<ReturnType<typeof recentInvoices>>[number];
 type Lines = NonNullable<Awaited<ReturnType<typeof returnableLines>>>;
@@ -59,6 +59,16 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
         {lines ? (
           <>
             {lines.voided ? <div role="status" className="text-[13px] text-bad bg-bad-bg rounded-lg px-3 py-2"><strong>VOID</strong> · {dayMonth(new Date(lines.voided.at))} {hhmm(new Date(lines.voided.at))} · {lines.voided.reason}</div> : null}
+            <div className="flex items-center gap-3 flex-wrap text-[13px]">
+              <span className="text-muted">{t("Prescription")}{lines.prescriber ? ` · ${lines.prescriber}` : ""}:</span>
+              {lines.hasRx ? <a href={`/api/sales/${lines.id}/rx`} target="_blank" rel="noreferrer" className="text-teal flex items-center gap-1 no-underline"><FileImage size={13} />{t("View")}</a> : null}
+              <label className="text-teal flex items-center gap-1 cursor-pointer"><Upload size={13} />{t(lines.hasRx ? "Replace Rx" : "Attach Rx")}<input type="file" accept="image/*,application/pdf" capture="environment" className="hidden" disabled={pending} onChange={(e) => {
+                const f = e.target.files?.[0]; e.target.value = "";
+                if (!f) return;
+                const fd = new FormData(); fd.append("file", f);
+                start(async () => { const r = await uploadSaleRxAction(lines.id, fd); if (!r.ok) return toast(r.error, "red"); toast(t("Prescription attached."), "green"); setLines(await linesAction(lines.id)); });
+              }} /></label>
+            </div>
             <div className="border border-[#E3E6E9] rounded-lg overflow-hidden">
               {lines.lines.map((l) => {
                 const max = l.sold - l.returned;

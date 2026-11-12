@@ -1441,6 +1441,56 @@ model FileObject {
 }
 
 /// A same-day void of a whole sale. Append-only; the sale itself is never changed.
+/// Check-in and check-out of the pharmacy's own staff (one row per person per India-time day).
+model StaffAttendance {
+  id       String    @id @default(uuid())
+  tenantId String
+  branchId String
+  userId   String
+  day      DateTime  @db.Date
+  inAt     DateTime?
+  outAt    DateTime?
+  note     String    @default("")
+  editedBy String? // a manager who set or corrected this day
+
+  @@unique([tenantId, userId, day])
+  @@index([tenantId, branchId, day])
+}
+
+/// A priced list for a customer who is not buying yet (quotation). No stock or books are touched.
+model Estimate {
+  id           String   @id @default(uuid())
+  tenantId     String
+  branchId     String
+  no           String
+  customerName String   @default("")
+  phone        String   @default("")
+  validUntil   DateTime @db.Date
+  notes        String   @default("")
+  lines        Json
+  totalPaise   BigInt
+  status       String   @default("open") // open, billed, cancelled
+  userId       String
+  createdAt    DateTime @default(now())
+
+  @@unique([tenantId, no])
+  @@index([tenantId, branchId, createdAt])
+}
+
+/// The prescription (photo or PDF) behind a counter bill, kept beside the sale because sale rows never change.
+model SalePrescription {
+  id       String   @id @default(uuid())
+  tenantId String
+  branchId String
+  saleId   String   @unique
+  path     String
+  mime     String
+  userId   String
+  at       DateTime @default(now())
+
+  @@index([tenantId])
+}
+
 model SaleVoid {
   id              String   @id @default(uuid())
   tenantId        String
@@ -2305,6 +2355,11 @@ model HrProfile {
   location           String    @default("")
   managerId          String?
   joinDate           DateTime? @db.Date
+  taxRegime          String    @default("new") // new or old income-tax regime, for the monthly TDS estimate
+  taxDeclared        Int       @default(0) // old regime: yearly deductions HR accepted (80C, 80D, HRA…), rupees
+  esiNo              String    @default("") // ESI insurance number, for the ESI return
+  shiftStart         String    @default("") // HH:MM India time this person is late after; empty = the company time
+  exitDate           DateTime? @db.Date // last working day, set when HR deactivates the profile
   ctc                Int       @default(0) // rupees per year
   incentivePct       Decimal   @default(0) @db.Decimal(4, 2)
   monthlyTarget      Int       @default(40) // pharmacies to win per month (sales)
@@ -2373,10 +2428,11 @@ model HrBreak {
 model HrLeave {
   id        String    @id @default(uuid())
   staffId   String
-  type      String // casual, sick, privilege, comp
+  type      String // casual, sick, privilege, comp, unpaid
   fromDay   DateTime  @db.Date
   toDay     DateTime  @db.Date
   days      Int
+  half      Boolean   @default(false) // a half day: one date, counts as 0.5
   reason    String    @default("")
   status    String    @default("pending") // pending, approved, rejected, cancelled
   decidedBy String?
@@ -2468,17 +2524,45 @@ model HrTask {
   @@index([projectId])
 }
 
+/// A document an employee uploaded for HR (identity, address, certificates). The file is in file storage under `key`.
+model HrDocument {
+  id         String    @id @default(uuid())
+  staffId    String
+  kind       String
+  name       String
+  key        String
+  verifiedBy String?
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([staffId])
+}
+
+/// Every change of annual CTC, so pay history can be explained later.
+model HrSalaryRevision {
+  id      String   @id @default(uuid())
+  staffId String
+  fromCtc Int
+  toCtc   Int
+  byId    String
+  at      DateTime @default(now())
+
+  @@index([staffId, at])
+}
+
 model HrPayslip {
   id        String    @id @default(uuid())
   staffId   String
   month     String // YYYY-MM
   workDays  Int
-  lopDays   Int       @default(0)
+  lopDays   Float     @default(0)
   basic     Int
   hra       Int
   special   Int
   incentive Int       @default(0)
   reimburse Int       @default(0)
+  encash    Int       @default(0) // final settlement: unused privilege leave paid out (part of gross)
+  gratuity  Int       @default(0) // final settlement: gratuity after five years (added to net pay)
   gross     Int
   pf        Int
   esi       Int

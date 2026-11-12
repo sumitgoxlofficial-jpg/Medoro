@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
-import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
-import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
+import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
+import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, pfReturn, esiReturn, employeeDocs, verifyDoc, removeDoc, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
 import { scheduleText } from "@/staff/hrms/constants";
@@ -51,29 +51,53 @@ function EmployeeTable({ people }: { people: Data<"hremployees">["people"] }) {
 type Person = Data<"hremployees">["people"][number];
 export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
   const { run, busy } = useRun();
-  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null);
+  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null), [leaving, setLeaving] = useState<Person | null>(null), [docsOf, setDocsOf] = useState<Person | null>(null);
   const list = d.people.filter((p) => `${p.name} ${p.dept} ${p.empNo} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Card title="Employee directory" sub={`${d.people.filter((p) => p.status !== "deactivated").length} active · ${d.depts.length} departments`} right={<><input className={cx(inputCls, "!w-56")} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /><Link href="/staff/hrms/hrnewemp" className={primaryCls}>+ Create employee profile</Link></>}>
         <Table head={["Name", "Department", "Designation", "Access", "Status", ""]} empty={list.length ? undefined : "No match."}>
           {list.map((p) => <tr key={p.id}><td className={tdCls}><div className="flex items-center gap-2.5"><Avatar name={p.name} photo={p.photo} size={30} /><div><strong>{p.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{p.empNo} · {p.email}</div></div></div></td><td className={tdCls}>{p.dept || "—"}</td><td className={tdCls}>{p.designation || "—"}</td><td className={tdCls}>{HR_ROLE_LABEL[p.role]}</td><td className={tdCls}><Pill tone={statusTone(p.status)}>{p.status === "invited" ? "Not signed in" : p.status}</Pill></td>
-            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : <button className={dangerCls} onClick={() => { if (confirm(`Deactivate ${p.name}? They are signed out everywhere.`)) run(() => setEmployeeActive(p.id, false)); }}>Deactivate</button>) : null}</div></td></tr>)}
+            <td className={tdCls}><div className="flex gap-1.5 flex-wrap min-w-[360px]"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button><button className={btnCls} onClick={() => setDocsOf(p)}>Documents</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : p.exitDate ? <button className={btnCls} title={`Last working day ${p.exitDate}`} onClick={() => { if (confirm(`Cancel ${p.name}’s exit (last working day ${p.exitDate})?`)) run(() => setEmployeeActive(p.id, true)); }}>Leaving {dayLabel(p.exitDate)} · cancel</button> : <button className={dangerCls} onClick={() => setLeaving(p)}>Record exit</button>) : null}</div></td></tr>)}
         </Table>
       </Card>
       {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} onClose={() => setLetters(null)} /> : null}
       {edit ? <EditModal p={edit} d={d} onClose={() => setEdit(null)} busy={busy} run={run} /> : null}
       {bal ? <LeaveModal p={bal} onClose={() => setBal(null)} /> : null}
+      {docsOf ? <DocsModal p={docsOf} onClose={() => setDocsOf(null)} /> : null}
+      {leaving ? <ExitModal p={leaving} onClose={() => setLeaving(null)} run={run} busy={busy} /> : null}
       {otp ? <Modal title="One-time password" onClose={() => setOtp(null)}><p className="text-[13.5px]">Give this to {otp.name} ({otp.empNo}). It works for one sign-in within 24 hours; they then set a new password.</p><code className="block text-center text-[22px] font-bold tracking-wider bg-[#F1F5F9] rounded-xl py-3 select-all">{otp.otp}</code><button className={btnCls} onClick={() => navigator.clipboard?.writeText(otp.otp)}>Copy</button><p className="text-[12px] text-[#64748B]">It isn’t stored anywhere readable. Close this and it can’t be shown again.</p></Modal> : null}
     </>
   );
 }
+function DocsModal({ p, onClose }: { p: Person; onClose: () => void }) {
+  const { toast } = useRun();
+  const [rows, setRows] = useState<{ id: string; kind: string; name: string; verified: boolean; at: string }[] | null>(null), [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { const r = await employeeDocs(p.id); if (r.ok) setRows(r.data); else toast(r.error, "red"); }, [p.id, toast]);
+  useEffect(() => { void load(); }, [load]);
+  const act = async (fn: () => Promise<{ ok: boolean; error?: string }>) => { setBusy(true); const r = await fn(); setBusy(false); if (!r.ok) toast(r.error ?? "That didn’t work.", "red"); await load(); };
+  return <Modal title={`${p.name} · documents`} onClose={onClose} wide>
+    {rows === null ? <Empty>Loading…</Empty> : rows.length ? <Table head={["Document", "File", "Uploaded", "Status", ""]}>{rows.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified" : "Not verified"}</Pill></td><td className={tdCls}><div className="flex gap-1.5"><button className={btnCls} disabled={busy} onClick={() => void act(() => verifyDoc(x.id, !x.verified))}>{x.verified ? "Unverify" : "Mark verified"}</button><button className={dangerCls} disabled={busy} onClick={() => { if (confirm(`Remove this ${x.kind}?`)) void act(() => removeDoc(x.id)); }}>Remove</button></div></td></tr>)}</Table> : <Empty>{p.name} hasn’t uploaded any documents. They upload them under My profile → KYC & certificates.</Empty>}
+    <p className="text-[12px] text-[#64748B] mt-2">Opening a document is written to Audit Logs.</p>
+  </Modal>;
+}
+function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
+  const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const [day, setDay] = useState(today);
+  const max = new Date(Date.now() + 5.5 * 3600_000 + 180 * 86_400_000).toISOString().slice(0, 10), later = day > today;
+  return <Modal title={`${p.name} is leaving`} onClose={onClose}>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => setEmployeeActive(p.id, false, day), () => { onClose(); }); }}>
+      <Field label="Last working day" hint="Today or earlier deactivates them now. A later day (notice period) keeps them working until then."><input className={inputCls} type="date" value={day} min={p.joinDate ?? undefined} max={max} onChange={(e) => setDay(e.target.value)} required /></Field>
+      <div className="text-[12.5px] text-[#64748B]">{later ? "They keep working and are deactivated the day after this date." : "They are signed out everywhere and can’t sign in again."} That month’s payroll pays up to this day and adds the final settlement: unused privilege leave, and gratuity after five years. Records and payslips are kept.</div>
+      <button className={dangerCls} disabled={busy}>{later ? "Record last working day" : "Deactivate now"}</button>
+    </form></Modal>;
+}
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
-  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
+  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", shiftStart: p.shiftStart, taxRegime: p.taxRegime as string, taxDeclared: String(p.taxDeclared), esiNo: p.esiNo, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const isAdmin = p.role === "admin";
   return <Modal title={`Edit ${p.name}`} onClose={onClose} wide>
-    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", ctc: Number(v.ctc), incentivePct: Number(v.incentivePct), monthlyTarget: Number(v.monthlyTarget), joinDate: v.joinDate || null, managerId: v.managerId || null }), () => { onClose(); }); }}>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", taxRegime: v.taxRegime as "new", taxDeclared: Number(v.taxDeclared) || 0, ctc: Number(v.ctc), incentivePct: Number(v.incentivePct), monthlyTarget: Number(v.monthlyTarget), joinDate: v.joinDate || null, managerId: v.managerId || null }), () => { onClose(); }); }}>
       <Grid n={3}>
         <Field label="Department"><select className={inputCls} value={v.dept} onChange={set("dept")}><option value="">—</option>{d.depts.map((x) => <option key={x.id}>{x.name}</option>)}</select></Field>
         <Field label="Designation"><input className={inputCls} value={v.designation} onChange={set("designation")} required /></Field>
@@ -84,8 +108,13 @@ function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremploye
         <Field label="Reports to"><select className={inputCls} value={v.managerId} onChange={set("managerId")}><option value="">—</option>{d.people.filter((x) => x.id !== p.id && x.status === "active").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
         <Field label="Date of joining"><input className={inputCls} type="date" value={v.joinDate} onChange={set("joinDate")} /></Field>
         <Field label="Annual CTC (₹)"><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} /></Field>
+        <Field label="Shift starts (HH:MM)" hint="Late after this time. Empty = the company time in Settings"><input className={inputCls} value={v.shiftStart} onChange={set("shiftStart")} pattern="(|([01]\d|2[0-3]):[0-5]\d)" placeholder="e.g. 14:00" /></Field>
+        <Field label="Income-tax regime" hint="For the monthly TDS estimate"><select className={inputCls} value={v.taxRegime} onChange={set("taxRegime")}><option value="new">New regime</option><option value="old">Old regime</option></select></Field>
+        {v.taxRegime === "old" ? <Field label="Declared deductions a year (₹)" hint="80C, 80D, HRA and others you accepted"><input className={inputCls} inputMode="numeric" value={v.taxDeclared} onChange={(e) => setV({ ...v, taxDeclared: e.target.value.replace(/\D/g, "") })} /></Field> : null}
+        <Field label="ESI number" hint="10 or 17 digits, if insured"><input className={inputCls} inputMode="numeric" value={v.esiNo} onChange={(e) => setV({ ...v, esiNo: e.target.value.replace(/\D/g, "") })} /></Field>
         {v.role === "sales" || p.role === "sales" ? <><Field label="Sales incentive %" hint="Max 5%"><input className={inputCls} inputMode="decimal" value={v.incentivePct} onChange={set("incentivePct")} /></Field><Field label="Monthly target (pharmacies)"><input className={inputCls} inputMode="numeric" value={v.monthlyTarget} onChange={set("monthlyTarget")} /></Field></> : null}
       </Grid>
+      {d.revisions.some((r) => r.staffId === p.id) ? <div className="text-[12.5px] text-[#64748B]"><strong className="text-[#0f172a]">Salary revisions</strong>{d.revisions.filter((r) => r.staffId === p.id).map((r) => <div key={r.id}>{dayLabel(r.on)}: {inr(r.from)} → {inr(r.to)} a year</div>)}</div> : null}
       <button className={primaryCls} disabled={busy}>Save</button>
     </form></Modal>;
 }
@@ -216,21 +245,22 @@ function HolidayAdmin({ d }: { d: Data<"hrleave"> }) {
 // ── Payroll
 export function PayrollScreen({ d }: { d: Data<"payroll"> }) {
   const router = useRouter();
-  const { run, busy } = useRun();
+  const { run, busy, toast } = useRun();
   const r = d.run, [lop, setLop] = useState<Record<string, string>>({}), [slip, setSlip] = useState<Parameters<typeof PayslipView>[0]["s"] | null>(null);
   const tot = (k: "gross" | "net" | "tds" | "pf") => r.lines.reduce((a, l) => a + l[k], 0);
-  const get = async (fn: typeof bankFile) => { const x = await fn(r.ym); if (x.ok) download(x.data.name, x.data.text); };
+  const get = async (fn: typeof bankFile) => { const x = await fn(r.ym); if (x.ok) download(x.data.name, x.data.text); else toast(x.error, "red"); };
+  const getReturn = async (fn: typeof pfReturn) => { const x = await fn(r.ym); if (!x.ok) return toast(x.error, "red"); if (x.data.text) download(x.data.name, x.data.text, "text/plain"); if (x.data.missing.length) toast(`Left out (no UAN on the profile): ${x.data.missing.join(", ")}`, "red"); else if (!x.data.text) toast("No one has this deduction this month.", "red"); };
   return <>
     <Grid n={4}><Stat l="Employees" v={r.lines.length} c="#0f172a" /><Stat l="Gross" v={inr(tot("gross"))} /><Stat l="PF + TDS" v={inr(tot("pf") + tot("tds"))} c="#B45309" /><Stat l="Net pay" v={inr(tot("net"))} /></Grid>
     <Card title={`${r.label} payroll run`} sub="PF, ESI, professional tax and TDS are calculated automatically. Absent days are loss of pay." right={<><button className={btnCls} onClick={() => router.push(`/staff/hrms/payroll?m=${d.prev}`)}>‹</button><button className={btnCls} onClick={() => router.push(`/staff/hrms/payroll?m=${d.next}`)}>›</button>
       {r.canProcess ? <button className={primaryCls} disabled={busy} onClick={() => { if (confirm(`Process ${r.label} payroll? This creates payslips for everyone listed and cannot be undone.`)) run(() => processPayroll(r.ym, Object.fromEntries(Object.entries(lop).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)]))), (n) => `${n} payslip${n === 1 ? "" : "s"} created.`); }}>Process payroll</button> : null}</>}>
       {r.note ? <Empty>{r.note}</Empty> : null}
       <Table head={["Employee", "Paid days", "LOP", "Gross", "Deductions", "Reimb.", "Net pay", "Status"]}>
-        {r.lines.map((l) => <tr key={l.staffId}><td className={tdCls}><strong>{l.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{l.empNo}{!l.hasBank ? " · no bank details" : ""}</div></td><td className={tdCls}>{l.workDays - l.lopDays}/{l.workDays}</td>
-          <td className={tdCls}>{l.status === "draft" ? <input className={cx(inputCls, "!w-16 !py-1")} inputMode="numeric" placeholder={String(l.lopDays)} value={lop[l.staffId] ?? ""} onChange={(e) => setLop({ ...lop, [l.staffId]: e.target.value.replace(/\D/g, "") })} aria-label={`Loss-of-pay days for ${l.name}`} /> : l.lopDays}</td>
+        {r.lines.map((l) => <tr key={l.staffId}><td className={tdCls}><strong>{l.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{l.empNo}{!l.hasBank ? " · no bank details" : ""}</div>{l.final ? <div className="text-[11.5px] text-[#B45309]">Final settlement · last day {dayLabel(l.final)}{l.encash ? ` · leave encashment ${inr(l.encash)}` : ""}{l.gratuity ? ` · gratuity ${inr(l.gratuity)}` : ""}</div> : null}</td><td className={tdCls}>{l.workDays - l.lopDays}/{l.workDays}</td>
+          <td className={tdCls}>{l.status === "draft" ? <input className={cx(inputCls, "!w-16 !py-1")} inputMode="numeric" placeholder={String(l.lopDays)} value={lop[l.staffId] ?? ""} onChange={(e) => setLop({ ...lop, [l.staffId]: e.target.value.replace(/[^\d.]/g, "") })} aria-label={`Loss-of-pay days for ${l.name}`} /> : l.lopDays}</td>
           <td className={tdCls}>{inr(l.gross)}</td><td className={tdCls} title={`PF ${l.pf} · ESI ${l.esi} · PT ${l.pt} · TDS ${l.tds}`}>{inr(l.pf + l.esi + l.pt + l.tds)}</td><td className={tdCls}>{l.reimburse ? inr(l.reimburse) : "—"}</td><td className={tdCls}><strong>{inr(l.net)}</strong></td><td className={tdCls}><Pill tone={l.status === "paid" ? "green" : "amber"}>{l.status === "paid" ? "Paid" : "Pending"}</Pill></td></tr>)}
       </Table>
-      <div className="flex gap-2 p-4 flex-wrap"><button className={btnCls} onClick={() => void get(payrollReport)}>↓ Payroll report (CSV)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void get(bankFile)}>↓ Bank transfer file</button>{r.lines.find((l) => l.status === "paid") ? <span className="text-[12px] text-[#64748B] self-center">Open a payslip from Reports or ask the employee to view it in Payslips.</span> : null}</div>
+      <div className="flex gap-2 p-4 flex-wrap"><button className={btnCls} onClick={() => void get(payrollReport)}>↓ Payroll report (CSV)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void get(bankFile)}>↓ Bank transfer file</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void getReturn(pfReturn)}>↓ PF return (ECR)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void getReturn(esiReturn)}>↓ ESI return</button>{r.lines.find((l) => l.status === "paid") ? <span className="text-[12px] text-[#64748B] self-center">Open a payslip from Reports or ask the employee to view it in Payslips.</span> : null}</div>
     </Card>
     {slip ? <Modal title="Payslip" onClose={() => setSlip(null)} wide><PayslipView s={slip} /></Modal> : null}
   </>;
@@ -350,10 +380,12 @@ export function SettingsScreen({ d }: { d: Data<"settings"> }) {
           <Field label="Lunch to (HH:MM)"><input className={inputCls} value={s.lunchTo} onChange={(e) => setS({ ...s, lunchTo: e.target.value })} pattern="([01]\d|2[0-3]):[0-5]\d" placeholder="14:00" /></Field>
         </Grid>
         <p className="text-[12px] text-[#64748B] mt-1">With “late after” at the start time, the working day is {scheduleText(s).start} to {scheduleText(s).end} with lunch {scheduleText(s).lunchFrom} to {scheduleText(s).lunchTo}. Lunch is not counted as work or as idle time.</p>
+        <Field label="Weekly days off"><div className="flex gap-3 flex-wrap mt-1 mb-2">{WEEKDAYS.map((w, i) => <label key={w} className="flex items-center gap-1.5 text-[13px] cursor-pointer"><input type="checkbox" checked={s.weekOff.includes(i)} onChange={(e) => setS({ ...s, weekOff: e.target.checked ? [...s.weekOff, i].sort() : s.weekOff.filter((x) => x !== i) })} />{w}</label>)}</div></Field>
         <Field label="Late after (HH:MM, India time)"><input className={cx(inputCls, "!w-32 mt-1")} value={s.lateAfter} onChange={(e) => setS({ ...s, lateAfter: e.target.value })} pattern="([01]\d|2[0-3]):[0-5]\d" /></Field>
         <Field label="Professional tax a month (₹)"><input className={cx(inputCls, "!w-32 mt-2")} inputMode="numeric" value={s.ptax} onChange={(e) => setS({ ...s, ptax: Number(e.target.value.replace(/\D/g, "")) })} /></Field>
       </Card>
-      <Card title="Leave policy · days a year" pad><Grid n={4}>{LEAVE_TYPES.map((t) => <Field key={t.id} label={t.label}><input className={inputCls} inputMode="numeric" value={s.leave[t.id]} onChange={(e) => setS({ ...s, leave: { ...s.leave, [t.id]: Number(e.target.value.replace(/\D/g, "")) } })} /></Field>)}</Grid></Card>
+      <Card title="Leave policy · days a year" pad><Grid n={4}>{LEAVE_TYPES.map((t) => <Field key={t.id} label={t.label}><input className={inputCls} inputMode="numeric" value={s.leave[t.id]} onChange={(e) => setS({ ...s, leave: { ...s.leave, [t.id]: Number(e.target.value.replace(/\D/g, "")) } })} /></Field>)}</Grid>
+        <Field label="Privilege leave carried forward (max days)" hint="Unused privilege leave moves to the next year, up to this many days. 0 switches it off."><input className={cx(inputCls, "!w-32 mt-2")} inputMode="numeric" value={s.carryForward} onChange={(e) => setS({ ...s, carryForward: Number(e.target.value.replace(/\D/g, "")) })} /></Field></Card>
     </Grid>
     <div><button className={primaryCls} disabled={busy}>Save settings</button></div>
   </form>;

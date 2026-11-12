@@ -13,10 +13,11 @@ import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, r
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
+import { myDocs } from "./docs";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
-import { auditLog, departments, myProfile, notifications, roster } from "./people";
-import { isWorkDay, addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
+import { auditLog, departments, myProfile, notifications, roster, salaryRevisions } from "./people";
+import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
@@ -32,6 +33,7 @@ function navFor(me: Me) {
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
 export async function shell(me: Me) {
   const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
+  await closeExits().catch(() => {}); // people whose recorded last working day has passed
   const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
@@ -68,7 +70,7 @@ export const loaders = {
       catch (e) { gError = e instanceof Error ? e.message : "Couldn’t read Google Calendar."; }
     }
     const notice = q.google === "connected" ? "Google Calendar connected." : q.google === "denied" ? "Google Calendar wasn’t connected: access was not allowed." : q.google === "off" ? "Google Calendar isn’t set up on this server yet. Ask the super admin." : q.google === "failed" ? (q.why ?? "Couldn’t connect Google Calendar.").slice(0, 200) : q.google === "error" ? "Couldn’t connect Google Calendar. Try again." : "";
-    return { month, hols, out, meets, upcoming, people: all, canHolidays: can(me, "attendance"), nextHols: await upcomingHolidays(), google: { ...g, events: gEvents, error: gError, notice } };
+    return { month, hols, out, meets, upcoming, people: all, weekOff: (await loadSettings()).weekOff, canHolidays: can(me, "attendance"), nextHols: await upcomingHolidays(), google: { ...g, events: gEvents, error: gError, notice } };
   },
   attendance: async (me: Me, q: Q) => {
     const s = await loadSettings(), month = monthArg(q.m);
@@ -77,8 +79,8 @@ export const loaders = {
   },
   leave: async (me: Me) => {
     const s = await loadSettings();
-    const [bal, mine, out, myClaims] = await Promise.all([leaveBalances(me.id, s), myLeaves(me), whosOut(todayISO(), addDays(todayISO(), 14)), claims({ staffId: me.id })]);
-    return { bal, mine, out, claims: myClaims };
+    const [bal, mine, out, myClaims, team] = await Promise.all([leaveBalances(me.id, s), myLeaves(me), whosOut(todayISO(), addDays(todayISO(), 14)), claims({ staffId: me.id }), teamRequests(me)]);
+    return { bal, mine, out, claims: myClaims, team };
   },
   payslips: async (me: Me) => ({ slips: await myPayslips(me.id) }),
   jobs: async () => ({ jobs: await jobs(true) }),
@@ -90,7 +92,7 @@ export const loaders = {
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
-  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me) }),
+  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id) }),
 
   slhome: async (me: Me) => salesSummary(me),
   slboard: async (me: Me) => salesSummary(me),
@@ -102,7 +104,7 @@ export const loaders = {
   assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
   assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
   hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
-  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled() }),
+  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled(), revisions: await salaryRevisions() }),
   hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: me.email.split("@")[1] ?? "medoro.in", mail: mailEnabled() }),
   departments: async () => {
     const [depts, staff] = await Promise.all([departments(), roster()]);
@@ -171,7 +173,7 @@ async function reports(me: Me) {
   const perPerson = staff.map((p) => ({
     id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, designation: p.designation, joinDate: p.joinDate ?? "", status: p.status,
     present: att.filter((a) => a.staffId === p.id && a.inAt).length, late: att.filter((a) => a.staffId === p.id && a.status === "late").length,
-    leaveDays: leaves.filter((l) => l.staffId === p.id).reduce((a, l) => a + l.days, 0), lastIn: att.filter((a) => a.staffId === p.id && a.inAt).map((a) => isoOf(a.day)).sort().pop() ?? "",
+    leaveDays: leaves.filter((l) => l.staffId === p.id).reduce((a, l) => a + (l.half ? 0.5 : l.days), 0), lastIn: att.filter((a) => a.staffId === p.id && a.inAt).map((a) => isoOf(a.day)).sort().pop() ?? "",
   }));
   return { headcount: staff.length, byDept, months, perPerson, month, policy: s.leave, canPayroll: can(me, "payroll") };
 }

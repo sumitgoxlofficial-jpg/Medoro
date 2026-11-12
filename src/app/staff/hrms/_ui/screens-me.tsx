@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
-import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, CLAIM_TYPES, LEAVE_TYPES, TICKET_TOPICS, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
+import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
 import { Selfie, SelfieModal } from "./monitor";
-import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
+import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 
 type P = { sh: Shell };
 
@@ -84,6 +84,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
         <p className="text-[12px] text-[#64748B] mt-3">Joining documents {p.docsAccepted ? `accepted on ${dayLabel(p.docsAcceptedAt!)}` : "not yet accepted"} · Authenticator app {p.totp ? "on" : "off"}</p>
       </Card>
       <Card title="My documents" sub="Your offer letter, appointment letter and non-disclosure agreement, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
+      <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
       {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>
         <div className="print-area mx-auto w-[300px] rounded-2xl overflow-hidden border border-[#CBD5E1] bg-white text-center shadow">
@@ -206,7 +207,7 @@ export function CalendarScreen({ d, sh }: { d: Data<"calendar"> } & P) {
       <Card title={first.toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" })} right={<><button className={btnCls} onClick={() => nav(-1)} aria-label="Previous month">‹</button><button className={btnCls} onClick={() => nav(1)} aria-label="Next month">›</button><button className={primaryCls} onClick={() => setMeet(true)}>+ Schedule meeting</button></>} pad>
         <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-[#64748B] mb-1">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((x) => <div key={x}>{x}</div>)}</div>
         <div className="grid grid-cols-7 gap-1">
-          {cells.map((day, i) => { if (!day) return <div key={i} />; const { h, o, mt, g } = on(day), wk = [0, 6].includes(new Date(day + "T00:00:00Z").getUTCDay());
+          {cells.map((day, i) => { if (!day) return <div key={i} />; const { h, o, mt, g } = on(day), wk = d.weekOff.includes(new Date(day + "T00:00:00Z").getUTCDay());
             return <button key={day} onClick={() => setSel(day)} className={cx("min-h-[64px] rounded-lg border text-left p-1.5 cursor-pointer text-[12px] flex flex-col gap-0.5", h ? "bg-[#FFFBEB] border-[#FCD34D]" : wk ? "bg-[#F8FAFC] border-[#F1F5F9] text-[#94A3B8]" : "bg-white border-[#F1F5F9]", day === sh.today && "outline outline-2 outline-[#14B8A6] -outline-offset-2")}>
               <span className="font-semibold">{Number(day.slice(8))}</span>{h ? <span className="text-[10px] text-[#92400E] leading-tight">{h.name}</span> : null}{mt.length ? <span className="text-[10px] text-[#5B45B0]">● {mt.length} meeting{mt.length > 1 ? "s" : ""}</span> : null}{g.length ? <span className="text-[10px] text-[#1A73E8]">▪ {g.length} Google</span> : null}{o.length ? <span className="text-[10px] text-[#B45309]">{o.length} out</span> : null}</button>; })}
         </div>
@@ -298,10 +299,31 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
   );
 }
 
+function MyDocs({ docs }: { docs: Data<"profile">["docs"] }) {
+  const { run, busy, toast } = useRun();
+  const [kind, setKind] = useState<string>(DOC_KINDS[0]);
+  const file = useRef<HTMLInputElement>(null);
+  const send = (e: React.FormEvent) => {
+    e.preventDefault();
+    const f = file.current?.files?.[0];
+    if (!f) return toast("Choose a file to upload.", "red");
+    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f);
+    run(() => uploadDoc(fd), () => { if (file.current) file.current.value = ""; });
+  };
+  return <>
+    <form className="flex gap-2 flex-wrap items-end" onSubmit={send}>
+      <Field label="Document"><select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>{DOC_KINDS.map((k) => <option key={k}>{k}</option>)}</select></Field>
+      <Field label="File (PDF, JPG, PNG)"><input ref={file} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" /></Field>
+      <button className={primaryCls} disabled={busy}>Upload</button>
+    </form>
+    {docs.length ? <div className="mt-4"><Table head={["Document", "File", "Uploaded", "Status", ""]}>{docs.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified by HR" : "Waiting for HR"}</Pill></td><td className={tdCls}>{x.verified ? null : <button className={dangerCls} disabled={busy} onClick={() => run(() => removeDoc(x.id))}>Remove</button>}</td></tr>)}</Table></div> : <Empty>No documents uploaded yet.</Empty>}
+  </>;
+}
+
 // ── Leave & claims
 export function LeaveScreen({ d }: { d: Data<"leave"> }) {
   const { run, busy, toast } = useRun();
-  const [form, setForm] = useState(false), [v, setV] = useState({ type: "casual", from: "", to: "", reason: "" });
+  const [form, setForm] = useState(false), [v, setV] = useState({ type: "casual", from: "", to: "", reason: "", half: false });
   const [claim, setClaim] = useState({ type: CLAIM_TYPES[0] as string, amount: "", note: "" });
   const bill = useRef<HTMLInputElement>(null);
   const sendClaim = (e: React.FormEvent) => {
@@ -312,11 +334,12 @@ export function LeaveScreen({ d }: { d: Data<"leave"> }) {
   };
   return (
     <>
-      <Grid n={4}>{d.bal.map((b) => <Stat key={b.id} l={b.label} v={b.left} sub={`days left of ${b.total}${b.pending ? ` · ${b.pending} pending` : ""}`} />)}</Grid>
+      <Grid n={4}>{d.bal.map((b) => <Stat key={b.id} l={b.label} v={b.left} sub={`days left of ${b.total}${b.carried ? ` · ${b.carried} carried forward` : ""}${b.pending ? ` · ${b.pending} pending` : ""}`} />)}</Grid>
+      {d.team.length ? <Card title="Team requests" sub="Leave requests from the people who report to you" pad>{d.team.map((a) => <div key={a.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 mb-2"><Avatar name={a.name} size={32} /><div className="flex-1 min-w-0"><div className="text-[13.5px] font-semibold">{a.name}</div><div className="text-[12px] text-[#64748B]">{a.text}</div>{a.note ? <div className="text-[12px] italic text-[#64748B]">{a.note}</div> : null}</div><button className={primaryCls} disabled={busy} onClick={() => run(() => decideLeave(a.id, true))}>Approve</button><button className={dangerCls} disabled={busy} onClick={() => run(() => decideLeave(a.id, false))}>Reject</button></div>)}</Card> : null}
       <Grid n={2}>
         <Card title="My requests" right={<button className={primaryCls} onClick={() => setForm(true)}>+ Apply leave</button>}>
           <Table head={["Type", "Dates", "Days", "Status", ""]} empty={d.mine.length ? undefined : "No leave requests yet."}>
-            {d.mine.map((l) => <tr key={l.id}><td className={tdCls}>{leaveLabel(l.type)}</td><td className={tdCls}>{dayLabel(l.from)}{l.to !== l.from ? ` – ${dayLabel(l.to)}` : ""}</td><td className={tdCls}>{l.days}</td><td className={tdCls}><Pill tone={statusTone(l.status)}>{l.status}</Pill></td><td className={tdCls}>{l.canCancel ? <button className={dangerCls} onClick={() => run(() => cancelLeave(l.id))}>Cancel</button> : null}</td></tr>)}
+            {d.mine.map((l) => <tr key={l.id}><td className={tdCls}>{leaveLabel(l.type)}</td><td className={tdCls}>{dayLabel(l.from)}{l.to !== l.from ? ` – ${dayLabel(l.to)}` : ""}</td><td className={tdCls}>{l.half ? "½" : l.days}</td><td className={tdCls}><Pill tone={statusTone(l.status)}>{l.status}</Pill></td><td className={tdCls}>{l.canCancel ? <button className={dangerCls} onClick={() => run(() => cancelLeave(l.id))}>Cancel</button> : null}</td></tr>)}
           </Table>
         </Card>
         <Card title="Who’s out" sub="Next 2 weeks" pad>{d.out.length ? d.out.map((o) => <div key={o.id} className="flex items-center gap-2.5 py-1.5 text-[13px]"><Avatar name={o.name} size={28} /><span className="flex-1"><strong>{o.name}</strong><br /><span className="text-[12px] text-[#64748B]">{dayLabel(o.from)}{o.to !== o.from ? ` – ${dayLabel(o.to)}` : ""} · {leaveLabel(o.type)}</span></span></div>) : <Empty>Everyone is in.</Empty>}</Card>
@@ -332,11 +355,12 @@ export function LeaveScreen({ d }: { d: Data<"leave"> }) {
         {d.claims.length ? <div className="mt-4"><Table head={["Date", "Type", "Amount", "Note", "Bill", "Status"]}>{d.claims.map((c) => <tr key={c.id}><td className={tdCls}>{dayLabel(c.at)}</td><td className={tdCls}>{c.type}</td><td className={tdCls}>{inr(c.amount)}</td><td className={tdCls}>{c.note}</td><td className={tdCls}>{c.hasBill ? <a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/bill/${c.id}`} target="_blank" rel="noreferrer">view</a> : "—"}</td><td className={tdCls}><Pill tone={statusTone(c.status)}>{CLAIM_STATUS[c.status]}{c.paidMonth ? ` · paid ${c.paidMonth}` : ""}</Pill></td></tr>)}</Table></div> : null}
       </Card>
       {form ? <Modal title="Apply for leave" onClose={() => setForm(false)}>
-        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (!v.from || !v.to) return toast("Pick both dates.", "red"); run(() => applyLeave(v), (days) => { setForm(false); return `Leave requested for ${days} day${days > 1 ? "s" : ""}. HR will decide.`; }); }}>
-          <Field label="Type"><select className={inputCls} value={v.type} onChange={(e) => setV({ ...v, type: e.target.value })}>{LEAVE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></Field>
-          <div className="grid grid-cols-2 gap-2"><Field label="From"><input className={inputCls} type="date" value={v.from} onChange={(e) => setV({ ...v, from: e.target.value, to: v.to && v.to >= e.target.value ? v.to : e.target.value })} required /></Field><Field label="To"><input className={inputCls} type="date" min={v.from} value={v.to} onChange={(e) => setV({ ...v, to: e.target.value })} required /></Field></div>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (!v.from || !v.to) return toast("Pick both dates.", "red"); run(() => applyLeave(v), (days) => { setForm(false); return `Leave requested for ${daysText(days)}. Your manager or HR will decide.`; }); }}>
+          <Field label="Type"><select className={inputCls} value={v.type} onChange={(e) => setV({ ...v, type: e.target.value })}>{APPLY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></Field>
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer"><input type="checkbox" checked={!!v.half} onChange={(e) => setV({ ...v, half: e.target.checked, to: e.target.checked ? v.from : v.to })} /> Half day (one date)</label>
+          <div className="grid grid-cols-2 gap-2"><Field label="From"><input className={inputCls} type="date" value={v.from} onChange={(e) => setV({ ...v, from: e.target.value, to: !v.half && v.to && v.to >= e.target.value ? v.to : e.target.value })} required /></Field><Field label="To"><input className={inputCls} type="date" min={v.from} value={v.to} disabled={!!v.half} onChange={(e) => setV({ ...v, to: e.target.value })} required /></Field></div>
           <Field label="Reason"><textarea className={inputCls} rows={3} value={v.reason} onChange={(e) => setV({ ...v, reason: e.target.value })} /></Field>
-          <p className="text-[12px] text-[#64748B]">Weekends and holidays aren’t counted.</p>
+          <p className="text-[12px] text-[#64748B]">Weekends and holidays aren’t counted. Unpaid leave has no limit; each day is deducted from salary.</p>
           <button className={primaryCls} disabled={busy}>Send request</button>
         </form></Modal> : null}
     </>
@@ -346,28 +370,31 @@ export function LeaveScreen({ d }: { d: Data<"leave"> }) {
 // ── Payslips (printable)
 type Slip = NonNullable<Extract<Awaited<ReturnType<typeof openPayslip>>, { ok: true }>["data"]>;
 export function PayslipView({ s }: { s: Slip }) {
-  const rows: [string, number][] = [["Basic", s.basic], ["House rent allowance", s.hra], ["Special allowance", s.special], ["Incentive", s.incentive]];
+  const rows: [string, number][] = [["Basic", s.basic], ["House rent allowance", s.hra], ["Special allowance", s.special], ["Incentive", s.incentive], ...(s.encash ? [["Leave encashment", s.encash] as [string, number]] : [])];
   const ded: [string, number][] = [["Provident fund", s.pf], ["ESI", s.esi], ["Professional tax", s.pt], ["Income tax (TDS)", s.tds], ["Loss of pay", s.lop]];
   return (
     <div id="payslip" className="print-area bg-white text-[#0f172a] text-[12.5px] p-6 border border-[#E2E8F0] rounded-xl">
-      <div className="flex justify-between border-b border-[#E2E8F0] pb-3"><div><div className="text-[18px] font-bold">{s.company.name}</div><div className="text-[#64748B] whitespace-pre-line">{s.company.address}</div></div><div className="text-right"><div className="font-bold">Payslip · {s.label}</div>{s.paidOn ? <div className="text-[#64748B]">Paid {dayLabel(s.paidOn)}</div> : null}</div></div>
+      <div className="flex justify-between border-b border-[#E2E8F0] pb-3"><div><div className="text-[18px] font-bold">{s.company.name}</div><div className="text-[#64748B] whitespace-pre-line">{s.company.address}</div></div><div className="text-right"><div className="font-bold">{s.lastDay ? "Final settlement" : "Payslip"} · {s.label}</div>{s.lastDay ? <div className="text-[#64748B]">Last working day {dayLabel(s.lastDay)}</div> : null}{s.paidOn ? <div className="text-[#64748B]">Paid {dayLabel(s.paidOn)}</div> : null}</div></div>
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 py-3 border-b border-[#E2E8F0]">{[["Employee", s.emp.name], ["Employee ID", s.emp.empNo], ["Designation", s.emp.designation || "—"], ["Department", s.emp.dept || "—"], ["Date of joining", s.emp.joinDate ? dayLabel(s.emp.joinDate) : "—"], ["PAN", s.emp.pan || "—"], ["UAN", s.emp.uan || "—"], ["Bank", s.emp.bank || "—"], ["Paid days", `${s.workDays - s.lopDays} of ${s.workDays}`], ["Loss-of-pay days", String(s.lopDays)]].map(([k, v]) => <div key={k} className="flex justify-between gap-2"><span className="text-[#64748B]">{k}</span><strong>{v}</strong></div>)}</div>
-      <div className="grid grid-cols-2 gap-6 py-3"><div><div className="font-bold mb-1">Earnings</div>{rows.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}<div className="flex justify-between border-t border-[#E2E8F0] mt-1 pt-1 font-bold"><span>Gross</span><span>{inr(s.gross)}</span></div></div><div><div className="font-bold mb-1">Deductions</div>{ded.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}{s.reimburse ? <div className="flex justify-between py-0.5 text-[#0B5E5B]"><span>Reimbursements (added)</span><span>+{inr(s.reimburse)}</span></div> : null}</div></div>
+      <div className="grid grid-cols-2 gap-6 py-3"><div><div className="font-bold mb-1">Earnings</div>{rows.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}<div className="flex justify-between border-t border-[#E2E8F0] mt-1 pt-1 font-bold"><span>Gross</span><span>{inr(s.gross)}</span></div></div><div><div className="font-bold mb-1">Deductions</div>{ded.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}{s.reimburse ? <div className="flex justify-between py-0.5 text-[#0B5E5B]"><span>Reimbursements (added)</span><span>+{inr(s.reimburse)}</span></div> : null}{s.gratuity ? <div className="flex justify-between py-0.5 text-[#0B5E5B]"><span>Gratuity (added)</span><span>+{inr(s.gratuity)}</span></div> : null}</div></div>
       <div className="flex justify-between bg-[#D6F3EF] rounded-lg px-4 py-3 text-[15px] font-bold text-[#0B5E5B]"><span>Net pay</span><span>{inr(s.net)}</span></div>
-      <p className="text-[11px] text-[#94A3B8] mt-3">This is a computer-generated payslip. Tax shown is an estimate under the new regime.</p>
+      <p className="text-[11px] text-[#94A3B8] mt-3">This is a computer-generated payslip. Tax shown is an estimate under the {s.regime} regime.{s.employer.pf || s.employer.esi ? ` The company also pays, on top of this: PF ${inr(s.employer.pf)}${s.employer.esi ? `, ESI ${inr(s.employer.esi)}` : ""}.` : ""}</p>
     </div>
   );
 }
 export function PayslipsScreen({ d }: { d: Data<"payslips"> }) {
-  const { run } = useRun();
+  const { run, toast } = useRun();
   const [show, setShow] = useState(false), [slip, setSlip] = useState<Slip | null>(null), [q, setQ] = useState("");
   const total = d.slips.reduce((a, s) => a + s.net, 0), tds = d.slips.reduce((a, s) => a + s.tds, 0);
+  // Financial years (April to March) that have a payslip, newest first.
+  const fys = [...new Set(d.slips.map((s) => Number(s.month.slice(0, 4)) - (Number(s.month.slice(5, 7)) < 4 ? 1 : 0)))].sort((a, b) => b - a);
+  const [fy, setFy] = useState(fys[0] ?? 0);
   const view = (id: string, print = false) => run(() => openPayslip(id), (s) => { setSlip(s); if (print) setTimeout(() => window.print(), 250); });
   const list = d.slips.filter((s) => s.label.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Grid n={4}><Stat l="Latest net pay" v={d.slips[0] ? <Hide n={d.slips[0].net} show={show} /> : "—"} sub={d.slips[0]?.label} /><Stat l="Payslips" v={d.slips.length} c="#0f172a" /><Stat l="Net paid so far" v={<Hide n={total} show={show} />} /><Stat l="TDS deducted" v={<Hide n={tds} show={show} />} c="#0f172a" /></Grid>
-      <Card title="Salary history" right={<><input className={cx(inputCls, "!w-44")} placeholder="Search month…" value={q} onChange={(e) => setQ(e.target.value)} /><button className={btnCls} onClick={() => setShow(!show)}>{show ? "Hide amounts" : "Show amounts"}</button></>}>
+      <Card title="Salary history" right={<><input className={cx(inputCls, "!w-44")} placeholder="Search month…" value={q} onChange={(e) => setQ(e.target.value)} /><button className={btnCls} onClick={() => setShow(!show)}>{show ? "Hide amounts" : "Show amounts"}</button>{fys.length ? <><select className={cx(inputCls, "!w-32")} value={fy} onChange={(e) => setFy(Number(e.target.value))} aria-label="Financial year">{fys.map((y) => <option key={y} value={y}>FY {y}-{String(y + 1).slice(2)}</option>)}</select><button className={btnCls} onClick={async () => { const x = await taxStatement(fy || fys[0]); if (x.ok) download(x.data.name, x.data.text); else toast(x.error, "red"); }}>↓ Tax statement</button></> : null}</>}>
         <Table head={["Month", "Paid on", "Net pay", ""]} empty={list.length ? undefined : "No payslips yet. They appear here once payroll is processed."}>
           {list.map((s) => <tr key={s.id}><td className={tdCls}><strong>{s.label}</strong></td><td className={tdCls}>{s.paidOn ? dayLabel(s.paidOn) : "—"}</td><td className={tdCls}><Hide n={s.net} show={show} /></td><td className={tdCls}><div className="flex gap-1.5"><button className={btnCls} onClick={() => view(s.id)}>View</button><button className={btnCls} onClick={() => view(s.id, true)}>↓ PDF</button></div></td></tr>)}
         </Table>

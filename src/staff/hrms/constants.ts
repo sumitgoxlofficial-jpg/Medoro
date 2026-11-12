@@ -106,7 +106,14 @@ export const LEAVE_TYPES = [
 ] as const;
 export type LeaveTypeId = (typeof LEAVE_TYPES)[number]["id"];
 export const LEAVE_IDS = LEAVE_TYPES.map((l) => l.id) as [LeaveTypeId, ...LeaveTypeId[]];
-export const leaveLabel = (id: string) => LEAVE_TYPES.find((l) => l.id === id)?.label ?? id;
+/** Unpaid leave has no yearly balance: each day is loss of pay. Everything an employee can apply for is in APPLY_TYPES. */
+export const UNPAID = "unpaid";
+export const APPLY_TYPES = [...LEAVE_TYPES, { id: UNPAID, label: "Unpaid Leave (loss of pay)", short: "Unpaid" }] as const;
+export const APPLY_IDS = APPLY_TYPES.map((l) => l.id) as [string, ...string[]];
+export const leaveLabel = (id: string) => APPLY_TYPES.find((l) => l.id === id)?.label ?? id;
+/** Days a leave request counts for: half a day, or its working days. */
+export const leaveDays = (l: { days: number; half?: boolean | null }) => (l.half ? 0.5 : l.days);
+export const daysText = (n: number) => (n === 0.5 ? "half a day" : `${n} day${n === 1 ? "" : "s"}`);
 
 export const CLAIM_TYPES = ["AI tool subscription", "Medical bill", "Internet reimbursement", "Travel", "Other"] as const;
 export const CLAIM_STATUS: Record<string, string> = { pending_hr: "Pending HR", pending_admin: "Pending Admin", approved: "Approved", rejected: "Rejected" };
@@ -122,6 +129,8 @@ export const ASSET_KINDS = ["Laptop", "Monitor", "Phone", "Access card", "Keyboa
 export const EMP_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const CAND_STAGES = [{ id: "applied", label: "Applied" }, { id: "interview", label: "Interview" }, { id: "offer", label: "Offer" }, { id: "hired", label: "Hired" }] as const;
+export const DOC_KINDS = ["Aadhaar card", "PAN card", "Passport / photo ID", "Address proof", "Education certificate", "Previous employment (relieving letter)", "Bank proof (cancelled cheque)", "Other"] as const;
+export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 export const TICKET_TOPICS = ["Payroll", "Leave", "Attendance", "Documents", "IT & access", "Other"] as const;
 export const ONBOARD_STEPS = ["Documents", "Laptop", "Access card", "Buddy assigned", "Training plan"] as const;
 export const DEFAULT_DEPTS = ["Leadership", "HR", "Finance", "Sales", "Engineering", "Product", "Customer Care", "Operations"];
@@ -130,6 +139,7 @@ export type Settings = {
   company: { name: string; address: string; gstin: string; state: string; phone: string; email: string; bank: string };
   checkin: boolean; // employees check in and out; missed working days count as loss of pay
   lateAfter: string; // HH:MM, India time
+  weekOff: number[]; // weekly days off, 0 = Sunday … 6 = Saturday
   selfie: boolean; // a selfie is needed to check in and out
   idleMonitor: boolean; // idle time in the HRMS tab is recorded while checked in
   idleMinutes: number; // minutes without activity before Ally asks "still working?"
@@ -137,12 +147,13 @@ export type Settings = {
   lunchFrom: string; // HH:MM India time: the daily lunch break starts (not counted as work or as idle)
   lunchTo: string; // HH:MM India time: and ends
   leave: Record<LeaveTypeId, number>; // days a year
+  carryForward: number; // most unused privilege-leave days carried into the next year (0 = none)
   ptax: number; // professional tax a month, rupees
   payDay: number;
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", selfie: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.
