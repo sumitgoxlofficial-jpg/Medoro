@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
-import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
+import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
 import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
@@ -81,7 +81,7 @@ function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; 
     </form></Modal>;
 }
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
-  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
+  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", shiftStart: p.shiftStart, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const isAdmin = p.role === "admin";
   return <Modal title={`Edit ${p.name}`} onClose={onClose} wide>
@@ -96,6 +96,7 @@ function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremploye
         <Field label="Reports to"><select className={inputCls} value={v.managerId} onChange={set("managerId")}><option value="">—</option>{d.people.filter((x) => x.id !== p.id && x.status === "active").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
         <Field label="Date of joining"><input className={inputCls} type="date" value={v.joinDate} onChange={set("joinDate")} /></Field>
         <Field label="Annual CTC (₹)"><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} /></Field>
+        <Field label="Shift starts (HH:MM)" hint="Late after this time. Empty = the company time in Settings"><input className={inputCls} value={v.shiftStart} onChange={set("shiftStart")} pattern="(|([01]\d|2[0-3]):[0-5]\d)" placeholder="e.g. 14:00" /></Field>
         {v.role === "sales" || p.role === "sales" ? <><Field label="Sales incentive %" hint="Max 5%"><input className={inputCls} inputMode="decimal" value={v.incentivePct} onChange={set("incentivePct")} /></Field><Field label="Monthly target (pharmacies)"><input className={inputCls} inputMode="numeric" value={v.monthlyTarget} onChange={set("monthlyTarget")} /></Field></> : null}
       </Grid>
       <button className={primaryCls} disabled={busy}>Save</button>
@@ -362,6 +363,7 @@ export function SettingsScreen({ d }: { d: Data<"settings"> }) {
           <Field label="Lunch to (HH:MM)"><input className={inputCls} value={s.lunchTo} onChange={(e) => setS({ ...s, lunchTo: e.target.value })} pattern="([01]\d|2[0-3]):[0-5]\d" placeholder="14:00" /></Field>
         </Grid>
         <p className="text-[12px] text-[#64748B] mt-1">With “late after” at the start time, the working day is {scheduleText(s).start} to {scheduleText(s).end} with lunch {scheduleText(s).lunchFrom} to {scheduleText(s).lunchTo}. Lunch is not counted as work or as idle time.</p>
+        <Field label="Weekly days off"><div className="flex gap-3 flex-wrap mt-1 mb-2">{WEEKDAYS.map((w, i) => <label key={w} className="flex items-center gap-1.5 text-[13px] cursor-pointer"><input type="checkbox" checked={s.weekOff.includes(i)} onChange={(e) => setS({ ...s, weekOff: e.target.checked ? [...s.weekOff, i].sort() : s.weekOff.filter((x) => x !== i) })} />{w}</label>)}</div></Field>
         <Field label="Late after (HH:MM, India time)"><input className={cx(inputCls, "!w-32 mt-1")} value={s.lateAfter} onChange={(e) => setS({ ...s, lateAfter: e.target.value })} pattern="([01]\d|2[0-3]):[0-5]\d" /></Field>
         <Field label="Professional tax a month (₹)"><input className={cx(inputCls, "!w-32 mt-2")} inputMode="numeric" value={s.ptax} onChange={(e) => setS({ ...s, ptax: Number(e.target.value.replace(/\D/g, "")) })} /></Field>
       </Card>

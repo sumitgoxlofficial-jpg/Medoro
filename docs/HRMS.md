@@ -82,7 +82,9 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
 
 * **Attendance.** Check-in is on by default. A working day in the past with no check-in, no leave and no approved
   correction is *absent* and counts as loss of pay in payroll (HR can override LOP days per person before processing).
-  Weekends and holidays never count. Corrections go to HR.
+  Weekly offs (Saturday and Sunday unless changed in Settings → *Weekly days off*) and holidays never count. Corrections go to HR.
+  HR can give a person their own **shift start** (Edit employee); they are late after that time instead of the company time.
+  A day someone forgot to check out of is closed the next day at a full working day after check-in, with a note.
   Days before a person's HRMS profile was created are never absent ("No record"), so adding existing staff doesn't dock their pay.
 * **Leave.** Yearly policy per type (Settings), plus extra days HR grants. In the year someone joins they get the share
   from their joining month (joined in October: 3/12 of each type, rounded). Weekends/holidays inside a request are not

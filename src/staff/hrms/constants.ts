@@ -129,6 +129,7 @@ export const ASSET_KINDS = ["Laptop", "Monitor", "Phone", "Access card", "Keyboa
 export const EMP_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const CAND_STAGES = [{ id: "applied", label: "Applied" }, { id: "interview", label: "Interview" }, { id: "offer", label: "Offer" }, { id: "hired", label: "Hired" }] as const;
+export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 export const TICKET_TOPICS = ["Payroll", "Leave", "Attendance", "Documents", "IT & access", "Other"] as const;
 export const ONBOARD_STEPS = ["Documents", "Laptop", "Access card", "Buddy assigned", "Training plan"] as const;
 export const DEFAULT_DEPTS = ["Leadership", "HR", "Finance", "Sales", "Engineering", "Product", "Customer Care", "Operations"];
@@ -137,6 +138,7 @@ export type Settings = {
   company: { name: string; address: string; gstin: string; state: string; phone: string; email: string; bank: string };
   checkin: boolean; // employees check in and out; missed working days count as loss of pay
   lateAfter: string; // HH:MM, India time
+  weekOff: number[]; // weekly days off, 0 = Sunday … 6 = Saturday
   selfie: boolean; // a selfie is needed to check in and out
   idleMonitor: boolean; // idle time in the HRMS tab is recorded while checked in
   idleMinutes: number; // minutes without activity before Ally asks "still working?"
@@ -150,7 +152,7 @@ export type Settings = {
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", selfie: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.

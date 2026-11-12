@@ -122,7 +122,7 @@ export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; l
   // A month is processed once and can't be redone, so it opens on its last working day: by then every absence is known.
   const hol = new Set((await holidays(first, last)).map((h) => h.day));
   let opens = last;
-  while (opens > first && (weekend(opens) || hol.has(opens))) opens = isoOf(new Date(dateOnly(opens).getTime() - 86_400_000));
+  while (opens > first && (weekend(opens, s.weekOff) || hol.has(opens))) opens = isoOf(new Date(dateOnly(opens).getTime() - 86_400_000));
   const early = !future && todayISO() < opens;
   return {
     ym, label: monthLabel(ym), lines, processed: !drafts && lines.length > 0, canProcess: drafts > 0 && !future && !early,

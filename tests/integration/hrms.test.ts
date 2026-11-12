@@ -12,8 +12,8 @@ import { db } from "@/server/db";
 import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
-import { createEmployee, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
-import { addMonths, addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
+import { createEmployee, saveSettings, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
+import { addMonths, addNationalHolidays, checkIn, closeOpenDays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
 import { annualTax, computeSlip, finalSettlement, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
@@ -350,6 +350,30 @@ describe("HRMS", () => {
       const slip = await db.hrPayslip.findFirstOrThrow({ where: { staffId: u.id, month: "2031-09" } });
       expect(slip).toMatchObject({ encash: line.encash, gratuity: line.gratuity });
       expect((await payslip(hr, slip.id)).lastDay).toBe("2031-09-19");
+    } finally { vi.useRealTimers(); }
+  });
+  it("weekly offs from Settings, a person's own shift start, and automatic check-out of a forgotten day", async () => {
+    const s = await loadSettings();
+    const nina = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-050" } })).id);
+    // A six-day week: Saturday becomes a working day.
+    const six = { ...s, weekOff: [0] };
+    const sat = (await monthFor(nina.id, "2032-05", six)).cells.find((c) => c.day === "2032-05-08")!; // a Saturday
+    expect(sat.kind).not.toBe("weekend");
+    expect((await monthFor(nina.id, "2032-05", s)).cells.find((c) => c.day === "2032-05-08")!.kind).toBe("weekend");
+    await expect(saveSettings(admin, { ...s, weekOff: [0, 1, 2, 3, 4, 5, 6] })).rejects.toThrow();
+    // Shift start: an afternoon shift is not late at 1 PM, the company time (10:00) would be.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2032-05-10T07:30:00Z")); // Monday 1:00 PM in India
+      await db.hrProfile.update({ where: { staffId: nina.id }, data: { shiftStart: "14:00" } });
+      expect((await checkIn(nina)).status).toBe("present");
+      // Never checked out: the next day it is closed after a full working day.
+      vi.setSystemTime(new Date("2032-05-11T04:00:00Z"));
+      expect(await closeOpenDays()).toBeGreaterThan(0);
+      const a = await db.hrAttendance.findUniqueOrThrow({ where: { staffId_day: { staffId: nina.id, day: dateOnly("2032-05-10") } } });
+      expect(a.outAt!.toISOString()).toBe("2032-05-10T16:30:00.000Z"); // 8 hours of work + the lunch hour
+      expect(a.note).toMatch(/Auto check-out/);
+      expect(await closeOpenDays()).toBe(0);
     } finally { vi.useRealTimers(); }
   });
 });

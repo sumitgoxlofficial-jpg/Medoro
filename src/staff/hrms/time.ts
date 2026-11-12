@@ -23,7 +23,8 @@ export const workedMin = (a: { inAt: Date; outAt: Date; breakMin: number }, s: P
   Math.max(0, Math.round((a.outAt.getTime() - a.inAt.getTime()) / 60_000) - lunchOverlapMin(a.inAt, a.outAt, s) - a.breakMin);
 export const hm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 export const istClock = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(11, 16);
-export const weekend = (day: string) => { const w = dateOnly(day).getUTCDay(); return w === 0 || w === 6; };
+/** Is this date one of the weekly days off (Settings; Saturday and Sunday unless changed)? */
+export const weekend = (day: string, off: number[] = [0, 6]) => off.includes(dateOnly(day).getUTCDay());
 const daysBetween = (from: string, to: string) => { const out: string[] = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push(d); return out; };
 const monthBounds = (ym: string) => { const first = ym + "-01"; const d = dateOnly(first); const last = isoOf(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))); return { first, last }; };
 export const ymOf = (day: string) => day.slice(0, 7);
@@ -72,7 +73,7 @@ export async function addNationalHolidays(me: Me, year: number) {
 // ── Attendance
 /** Is today a day this person is expected to work? Not a weekend, a holiday or approved leave. */
 export async function isWorkDay(staffId: string, day = todayISO()) {
-  if (weekend(day)) return false;
+  if (weekend(day, (await loadSettings()).weekOff)) return false;
   const [hol, leave] = await Promise.all([db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }), approvedLeaveOn(staffId, day)]);
   return !hol && (!leave || leave.half);
 }
@@ -88,7 +89,9 @@ export async function checkIn(me: Me, selfie?: string) {
   if (have?.inAt) throw new UserError("You have already checked in today.");
   const onLeave = await approvedLeaveOn(me.id, day);
   if (onLeave && !onLeave.half) throw new UserError("You are on approved leave today. Ask HR to cancel the leave first.");
-  const status = istClock(now) > s.lateAfter ? "late" : "present";
+  // Late after the person's own shift start when HR set one, else the company time.
+  const shift = (await db.hrProfile.findUnique({ where: { staffId: me.id }, select: { shiftStart: true } }))?.shiftStart;
+  const status = istClock(now) > (shift || s.lateAfter) ? "late" : "present";
   await db.hrAttendance.upsert({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } }, update: { inAt: now, status }, create: { staffId: me.id, day: dateOnly(day), inAt: now, status } });
   await db.hrProfile.update({ where: { staffId: me.id }, data: { presence: "active", presenceNote: "", presenceAt: now } });
   if (photo) await saveSelfie(me.id, day, "in", photo);
@@ -142,7 +145,7 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     const a = byDay.get(day), lv = leaves.find((l) => isoOf(l.fromDay) <= day && isoOf(l.toDay) >= day);
     const inAt = a?.inAt?.toISOString() ?? null, outAt = a?.outAt?.toISOString() ?? null;
     const cell = (kind: DayCell["kind"], label: string, correctable = false): DayCell => ({ day, kind, label, inAt, outAt, correctable: correctable && !asked.has(day) });
-    const working = !weekend(day) && !holBy.has(day);
+    const working = !weekend(day, s.weekOff) && !holBy.has(day);
     // A half-day leave on a day the person also worked: half a day of leave (or of loss of pay, when unpaid).
     const halfNote = () => { if (!lv?.half || !working) return ""; if (lv.type === UNPAID) counts.unpaid += 0.5; else counts.leave += 0.5; return ` · half-day ${leaveLabel(lv.type)}`; };
     if (working && day >= start && day <= todayDay && (!left || day <= left)) counts.workDays++;
@@ -156,7 +159,7 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     }
     if (a?.status === "present") { counts.present++; return cell("present", `Present · ${a.note || "marked by HR"}${halfNote()}`); }
     if (holBy.has(day)) { if (day <= todayDay) counts.holidays++; return cell("holiday", `Holiday · ${holBy.get(day)}`); }
-    if (weekend(day)) return cell("weekend", "Weekend");
+    if (weekend(day, s.weekOff)) return cell("weekend", "Weekly off");
     if (left && day > left) return cell("before", AFTER_LEAVING);
     if (day < start) return cell("before", BEFORE_JOINING);
     if (lv) {
@@ -210,7 +213,7 @@ export async function teamToday(me: Me) {
     idleToday(),
     db.hrSelfie.findMany({ where: { day: dateOnly(day) }, select: { id: true, staffId: true, kind: true } }),
   ]);
-  const off = weekend(day) || !!(await db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }));
+  const off = weekend(day, set.weekOff) || !!(await db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }));
   return staff.filter((u) => u.hr?.role !== "admin").map((u) => { // the super admin is not on the attendance roll
     const a = att.find((x) => x.staffId === u.id), onLeave = leaves.some((l) => l.staffId === u.id);
     const status = a?.inAt ? (a.status === "late" ? "Late" : "Present") : onLeave ? "On leave" : off ? "Day off" : "Not in yet";
@@ -224,11 +227,30 @@ export async function teamToday(me: Me) {
  * Deactivates people whose last working day has passed (an exit recorded in advance). Runs at most every ten
  * minutes from ordinary page loads; `now` forces it (payroll).
  */
+/**
+ * Closes past days someone forgot to check out of: check-out is set to a full working day after check-in (never past
+ * midnight, India time) and the day is noted, so hours and reports aren't left open. Returns how many were closed.
+ */
+export async function closeOpenDays() {
+  const s = await loadSettings();
+  const open = await db.hrAttendance.findMany({ where: { day: { lt: dateOnly(todayISO()) }, inAt: { not: null }, outAt: null }, take: 500 });
+  const span = (s.workHours * 60 + Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom))) * 60_000;
+  for (const a of open) {
+    const midnight = new Date(`${addDays(isoOf(a.day), 1)}T00:00:00+05:30`).getTime() - 60_000;
+    const outAt = new Date(Math.min(a.inAt!.getTime() + span, midnight));
+    await db.$transaction([
+      db.hrAttendance.update({ where: { id: a.id }, data: { outAt, note: [a.note, "Auto check-out (forgot to check out)"].filter(Boolean).join(" · ") } }),
+      db.hrBreak.updateMany({ where: { staffId: a.staffId, endAt: null, startAt: { lt: outAt } }, data: { endAt: outAt } }),
+    ]);
+  }
+  return open.length;
+}
 let exitsCheckedAt = 0;
 export async function closeExits(now = false) {
   if (!now && Date.now() - exitsCheckedAt < 600_000) return;
   exitsCheckedAt = Date.now();
   await db.staffUser.updateMany({ where: { kind: "team", status: "active", hr: { exitDate: { lt: dateOnly(todayISO()) } } }, data: { status: "deactivated", tokenVersion: { increment: 1 } } });
+  await closeOpenDays();
 }
 
 // ── Leave
@@ -293,13 +315,13 @@ export async function applyLeave(me: Me, raw: { type: string; from: string; to: 
   if (i.from < addDays(todayISO(), -30)) throw new UserError("Leave can be applied up to 30 days back.");
   if (i.to > addDays(i.from, 60)) throw new UserError("Apply for at most 60 days at a time.");
   const hol = new Set((await holidays(i.from, i.to)).map((h) => h.day));
-  const days = daysBetween(i.from, i.to).filter((d) => !weekend(d) && !hol.has(d)).length;
+  const s = await loadSettings();
+  const days = daysBetween(i.from, i.to).filter((d) => !weekend(d, s.weekOff) && !hol.has(d)).length;
   if (!days) throw new UserError("Those dates are all weekends or holidays.");
   const clash = await db.hrLeave.findFirst({ where: { staffId: me.id, status: { in: ["pending", "approved"] }, fromDay: { lte: dateOnly(i.to) }, toDay: { gte: dateOnly(i.from) } } });
   if (clash) throw new UserError("You already have leave on some of these dates.");
   const need_ = i.half ? 0.5 : days;
   if (i.type !== UNPAID) {
-    const s = await loadSettings();
     const bal = (await leaveBalances(me.id, s, i.from.slice(0, 4))).find((b) => b.id === i.type)!;
     if (bal.left < need_) throw new UserError(`You have ${bal.left} ${leaveLabel(i.type)} day${bal.left === 1 ? "" : "s"} left; this request needs ${need_}. You can apply for unpaid leave instead.`);
   }

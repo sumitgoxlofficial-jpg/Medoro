@@ -69,7 +69,7 @@ export const loaders = {
       catch (e) { gError = e instanceof Error ? e.message : "Couldn’t read Google Calendar."; }
     }
     const notice = q.google === "connected" ? "Google Calendar connected." : q.google === "denied" ? "Google Calendar wasn’t connected: access was not allowed." : q.google === "off" ? "Google Calendar isn’t set up on this server yet. Ask the super admin." : q.google === "failed" ? (q.why ?? "Couldn’t connect Google Calendar.").slice(0, 200) : q.google === "error" ? "Couldn’t connect Google Calendar. Try again." : "";
-    return { month, hols, out, meets, upcoming, people: all, canHolidays: can(me, "attendance"), nextHols: await upcomingHolidays(), google: { ...g, events: gEvents, error: gError, notice } };
+    return { month, hols, out, meets, upcoming, people: all, weekOff: (await loadSettings()).weekOff, canHolidays: can(me, "attendance"), nextHols: await upcomingHolidays(), google: { ...g, events: gEvents, error: gError, notice } };
   },
   attendance: async (me: Me, q: Q) => {
     const s = await loadSettings(), month = monthArg(q.m);

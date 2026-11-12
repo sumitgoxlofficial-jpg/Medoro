@@ -1,0 +1,1 @@
+ALTER TABLE "HrProfile" ADD COLUMN "shiftStart" TEXT NOT NULL DEFAULT '';

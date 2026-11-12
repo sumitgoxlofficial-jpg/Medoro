@@ -2305,6 +2305,7 @@ model HrProfile {
   location           String    @default("")
   managerId          String?
   joinDate           DateTime? @db.Date
+  shiftStart         String    @default("") // HH:MM India time this person is late after; empty = the company time
   exitDate           DateTime? @db.Date // last working day, set when HR deactivates the profile
   ctc                Int       @default(0) // rupees per year
   incentivePct       Decimal   @default(0) @db.Decimal(4, 2)
