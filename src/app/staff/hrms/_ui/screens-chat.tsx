@@ -5,14 +5,15 @@ import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
 import type { Data } from "@/staff/hrms/screens";
 import {
   chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendImage, chatSetAvatar,
-  chatTyping, chatUpdateGroup, chatVote,
+  chatTyping, chatUpdateGroup, chatVote, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
-import { Card, Empty, Field, Modal, Tabs, btnCls, cx, dayLong, inputCls, primaryCls, timeLabel, useRun } from "./kit";
+import { Card, Empty, Field, Modal, Tabs, btnCls, cx, dangerCls, dayLong, inputCls, primaryCls, timeLabel, useRun } from "./kit";
 
 type D = Data<"chat">;
 type Person = D["people"][number];
 type Poll = { chats: ChatRow[]; unread: number; presence: Presence | null; thread: { msgs: ChatMsg[]; readUpTo: number; typing: string[]; refresh: ChatMsg[] | null } | null };
+type Backup = Awaited<ReturnType<typeof import("@/staff/hrms/chat-backup").backupStatus>> & { notice: string };
 type Info = Awaited<ReturnType<typeof chatGroupInfo>> extends infer R ? (R extends { ok: true; data: infer T } ? T : never) : never;
 
 const dayKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -132,7 +133,7 @@ export function ChatScreen({ d }: { d: D }) {
   const [pres, setPres] = useState<Presence>(() => Object.fromEntries(d.people.filter((p) => p.presence !== "offline").map((p) => [p.id, p.presence])));
   const [draft, setDraft] = useState(""), [sending, setSending] = useState(false), [q, setQ] = useState("");
   const [find, setFind] = useState(""), [findOpen, setFindOpen] = useState(false);
-  const [modal, setModal] = useState<"" | "new" | "info" | "poll" | "avatar">(""), [showList, setShowList] = useState(!d.open);
+  const [modal, setModal] = useState<"" | "new" | "info" | "poll" | "avatar" | "backup">(d.backup.notice ? "backup" : ""), [showList, setShowList] = useState(!d.open);
   const [viewer, setViewer] = useState<string | null>(null), [incoming, setIncoming] = useState<ChatMsg | null>(null), [avatar, setAvatar] = useState(d.me.avatar);
   const log = useRef<HTMLDivElement>(null), file = useRef<HTMLInputElement>(null), top = useRef(0), pinned = useRef(true), activeRef = useRef(active), tickN = useRef(0), lastTyped = useRef(0), first = useRef(true);
   activeRef.current = active;
@@ -261,7 +262,7 @@ export function ChatScreen({ d }: { d: D }) {
           <div className="p-3 flex flex-col gap-2">
             <div className="flex items-center gap-2"><span className="font-bold text-[14px]">Team chat</span><span className="text-[11px] text-[#0B5E5B] bg-[#D6F3EF] rounded-full px-2 py-0.5 font-semibold">● Live · {online + 1} online</span>
               <button className="ml-auto bg-transparent border-0 cursor-pointer" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={28} /></button></div>
-            <div className="flex gap-2"><input className={inputCls} placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} /><SoundToggle /><button className={primaryCls} onClick={() => setModal("new")}>+ New</button></div>
+            <div className="flex gap-2"><input className={inputCls} placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} /><SoundToggle /><button type="button" title="Back up your chats to your Google Drive" aria-label="Chat backup" onClick={() => setModal("backup")} className="flex-none px-2.5 rounded-lg border border-[#CBD5E1] bg-white text-[15px] cursor-pointer">☁</button><button className={primaryCls} onClick={() => setModal("new")}>+ New</button></div>
           </div>
           <div className="overflow-y-auto flex-1" role="list">
             {channels.length ? <div className="px-3 pt-2 pb-1 text-[10.5px] font-bold tracking-[.1em] text-[#94A3B8]">CHANNELS</div> : null}
@@ -313,6 +314,7 @@ export function ChatScreen({ d }: { d: D }) {
       </div>
 
       {modal === "new" ? <NewChat people={d.people} pres={pres} onClose={() => setModal("")} onDm={startDm} onGroup={async (name, ids) => { const r = await chatCreateGroup(name, ids); if (!r.ok) { toast(r.error, "red"); return; } setModal(""); await poll(false, true); pick(r.data.chatId); }} /> : null}
+      {modal === "backup" ? <BackupModal b={d.backup} onClose={() => setModal("")} /> : null}
       {modal === "info" && chat ? <GroupInfo chatId={chat.id} people={d.people} onClose={() => setModal("")} onLeft={() => { setModal(""); setActive(""); setShowList(true); void poll(false, true); }} onChanged={() => void poll(false, true)} /> : null}
       {modal === "poll" && chat ? <PollModal title={chat.title} onClose={() => setModal("")} onPost={async (qq, opts, multi) => { const r = await chatPoll(chat.id, qq, opts, multi); if (!r.ok) { toast(r.error, "red"); return; } setModal(""); afterSend(r.data); }} /> : null}
       {modal === "avatar" ? <AvatarModal avatars={d.avatars} me={d.me} current={avatar} onClose={() => setModal("")} onPick={async (e) => { const r = await chatSetAvatar(e); if (!r.ok) { toast(r.error, "red"); return; } setAvatar(r.data.avatar); }} /> : null}
@@ -507,5 +509,36 @@ export function ChatReviewScreen({ d }: { d: Data<"chatreview"> }) {
         </Modal>
       ) : null}
     </>
+  );
+}
+
+/** Each employee's own encrypted copy of their chats in their own Google Drive (a hidden app file only Medoro can open). */
+function BackupModal({ b, onClose }: { b: Backup; onClose: () => void }) {
+  const { run, busy } = useRun();
+  const kb = (n: number) => (n < 1_000_000 ? `${Math.max(1, Math.round(n / 1000))} KB` : `${(n / 1_000_000).toFixed(1)} MB`);
+  const when = b.lastAt ? new Date(b.lastAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  return (
+    <Modal title="☁ Chat backup" onClose={onClose}>
+      {b.notice ? <p className="text-[13px] rounded-lg bg-[#F2F9F8] border border-[#CFE6E3] px-3 py-2 m-0">{b.notice}</p> : null}
+      <p className="text-[13px] text-[#475569] m-0">Keeps a copy of your chats in <strong>your own Google Drive</strong>, like WhatsApp does. The file is hidden (you will not see it in Drive) and encrypted, so nobody who opens your Drive can read it; only Medoro can open it again. Photos are not included. It backs up by itself every day.</p>
+      {!b.configured ? <p className="text-[13px] rounded-lg bg-[#FEF3C7] text-[#92400E] px-3 py-2 m-0">Google isn’t set up on this server yet. Ask the super admin.</p> : null}
+      {b.connected ? (
+        <>
+          <div className="text-[13px]"><div>Google account: <strong>{b.email || "connected"}</strong></div>
+            <div>{b.lastAt ? <>Last backup: <strong>{when}</strong> · {b.lastCount} message{b.lastCount === 1 ? "" : "s"} · {kb(b.lastBytes)}</> : "No backup yet."}</div></div>
+          {b.error ? <p className="text-[13px] rounded-lg bg-[#FEF3C7] text-[#92400E] px-3 py-2 m-0">{b.error}</p> : null}
+          <div className="flex gap-2 flex-wrap">
+            <button className={primaryCls} disabled={busy} onClick={() => run(() => chatBackupNow(), (r) => `Backed up ${r.count} message${r.count === 1 ? "" : "s"} to your Google Drive.`)}>{busy ? "Working…" : "Back up now"}</button>
+            <button className={btnCls} disabled={busy} onClick={() => run(() => chatBackupRestore(), (r) => (r.restored ? `Restored ${r.restored} missing message${r.restored === 1 ? "" : "s"}.` : "Nothing was missing: all your messages are already here."))}>Restore missing messages</button>
+            <button className={dangerCls} disabled={busy} onClick={() => run(() => chatBackupDisconnect(), () => { onClose(); })}>Disconnect</button>
+          </div>
+        </>
+      ) : b.configured ? (
+        // A real browser navigation to a route that redirects to Google, so deliberately not next/link.
+        // eslint-disable-next-line @next/next/no-html-link-for-pages
+        <a className={primaryCls} href="/staff/hrms/google/start?for=backup">Connect Google Drive</a>
+      ) : null}
+      <div className="flex justify-end"><button className={btnCls} onClick={onClose}>Close</button></div>
+    </Modal>
   );
 }

@@ -14,6 +14,9 @@ type Env = Record<string, string | undefined>;
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth", TOKEN_URL = "https://oauth2.googleapis.com/token", REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const API = "https://www.googleapis.com/calendar/v3";
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
+/** Drive's hidden per-app folder: Medoro can read and write only the files it made there, and the employee sees nothing in their Drive. */
+export const APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+export type Purpose = "calendar" | "backup";
 const FLOW_COOKIE = "medoro_hrgcal", FLOW_PATH = "/staff/hrms/google";
 
 export function gcalConfig(env: Env = process.env) {
@@ -29,14 +32,14 @@ const equal = (a: string, b: string) => a.length === b.length && timingSafeEqual
 const cookieOpts = (maxAge: number) => ({ httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: FLOW_PATH, maxAge });
 
 /** Starts the connection: returns Google's consent URL. The flow cookie carries state, the PKCE verifier and who is connecting. */
-export async function beginConnect(me: Me) {
+export async function beginConnect(me: Me, purpose: Purpose = "calendar") {
   const g = gcalConfig();
   if (!g) throw new UserError("Google Calendar isn’t set up on this server yet. Ask the super admin.");
   const state = b64u(randomBytes(32)), verifier = b64u(randomBytes(48));
-  const sealed = b64u(seal(JSON.stringify({ state, verifier, staffId: me.id, exp: Date.now() + 600_000 })));
+  const sealed = b64u(seal(JSON.stringify({ state, verifier, staffId: me.id, purpose, exp: Date.now() + 600_000 })));
   (await cookies()).set(FLOW_COOKIE, sealed, cookieOpts(600));
   const q = new URLSearchParams({
-    client_id: g.id, redirect_uri: g.redirect, response_type: "code", scope: `${SCOPE} openid email`, access_type: "offline", prompt: "consent",
+    client_id: g.id, redirect_uri: g.redirect, response_type: "code", scope: `${purpose === "backup" ? APPDATA_SCOPE : SCOPE} openid email`, access_type: "offline", prompt: "consent",
     state, code_challenge: b64u(createHash("sha256").update(verifier).digest()), code_challenge_method: "S256", login_hint: me.email,
   });
   return `${AUTH_URL}?${q}`;
@@ -48,29 +51,41 @@ async function takeFlow() {
   c.set(FLOW_COOKIE, "", cookieOpts(0));
   if (!raw) return null;
   try {
-    const f = JSON.parse(unsealClient(Buffer.from(raw, "base64url")).toString()) as { state: string; verifier: string; staffId: string; exp: number };
+    const f = JSON.parse(unsealClient(Buffer.from(raw, "base64url")).toString()) as { state: string; verifier: string; staffId: string; purpose?: Purpose; exp: number };
     return f.exp > Date.now() ? f : null;
   } catch { return null; }
 }
 const form = (o: Record<string, string>) => ({ method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(o), signal: AbortSignal.timeout(15_000) });
 
 /** Google's redirect lands here: checks state, swaps the code for a refresh token and stores it for the employee who started it. */
-export async function finishConnect(code: string, state: string) {
-  const g = gcalConfig();
+export async function finishConnect(code: string, state: string): Promise<Purpose> {
   const flow = await takeFlow();
+  try { return await complete(code, state, flow); }
+  catch (e) { if (e instanceof UserError) (e as UserError & { purpose?: Purpose }).purpose = flow?.purpose === "backup" ? "backup" : "calendar"; throw e; } // so the error lands on the page the person came from
+}
+async function complete(code: string, state: string, flow: Awaited<ReturnType<typeof takeFlow>>): Promise<Purpose> {
+  const g = gcalConfig();
   if (!g || !flow || !equal(flow.state, state)) throw new UserError("That Google sign-in expired. Try connecting again.");
   const staff = await db.staffUser.findFirst({ where: { id: flow.staffId, kind: "team", status: "active" }, select: { id: true, name: true } });
   if (!staff) throw new UserError("This profile isn’t active.");
   const r = await fetch(TOKEN_URL, form({ code, client_id: g.id, client_secret: g.secret, redirect_uri: g.redirect, grant_type: "authorization_code", code_verifier: flow.verifier }));
   const j = (await r.json().catch(() => ({}))) as { refresh_token?: string; id_token?: string; scope?: string; error?: string };
   if (!r.ok) { log.error("google calendar code exchange failed", { error: j.error }); throw new UserError("Google didn’t accept the connection. Try again."); }
-  if (!(j.scope ?? "").split(" ").includes(SCOPE)) throw new UserError("Calendar access wasn’t allowed. Connect again and tick the calendar permission.");
+  const purpose: Purpose = flow.purpose === "backup" ? "backup" : "calendar";
+  if (!(j.scope ?? "").split(" ").includes(purpose === "backup" ? APPDATA_SCOPE : SCOPE)) throw new UserError(purpose === "backup" ? "Google Drive access wasn’t allowed. Connect again and allow Medoro to store its backup file." : "Calendar access wasn’t allowed. Connect again and tick the calendar permission.");
   if (!j.refresh_token) throw new UserError("Google didn’t return a long-lived token. Remove Medoro in your Google account’s connected apps, then connect again.");
   const email = j.id_token ? (JSON.parse(Buffer.from(j.id_token.split(".")[1], "base64url").toString()) as { email?: string }).email ?? "" : "";
+  if (purpose === "backup") {
+    const b = { email, tokenSealed: new Uint8Array(seal(j.refresh_token)), fileId: "", lastError: "" };
+    await db.hrChatBackup.upsert({ where: { staffId: staff.id }, update: b, create: { staffId: staff.id, ...b } });
+    await audit({ id: staff.id, name: staff.name }, "Chat backup connected", email);
+    return "backup";
+  }
   const data = { email, tokenSealed: new Uint8Array(seal(j.refresh_token)), scope: "calendar.events" };
   await db.hrGoogle.upsert({ where: { staffId: staff.id }, update: data, create: { staffId: staff.id, ...data } });
   tokens.delete(staff.id);
   await audit({ id: staff.id, name: staff.name }, "Google Calendar connected", email);
+  return "calendar";
 }
 
 export async function status(staffId: string) {

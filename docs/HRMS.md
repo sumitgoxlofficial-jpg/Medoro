@@ -126,3 +126,7 @@ To create (or reset) a super admin with a one-time password, run on the server: 
 Run `pnpm prisma migrate deploy`. The first super admin comes from `STAFF_BOOTSTRAP_EMAIL` (staff console sign-up). Set
 `STAFF_EMAIL_DOMAIN` for official emails (default `medoro.in`) and `MAIL_PROVIDER`/`MAIL_FROM` if you want welcome and
 one-time-password emails. Add holidays in **Calendar**, then review **Settings** (company details, late time, leave policy).
+
+## Chat backup to the employee's own Google Drive
+
+Team Chat ▸ ☁ lets each employee connect their **own** Google account. Medoro then keeps one encrypted copy of their conversations in Drive's hidden app folder (scope `drive.appdata`: Medoro sees only the file it made, and the employee sees nothing in their Drive). The file is sealed with `HOST_KEY`, so only this Medoro server can open it again. It backs up daily (the cron tick) and on "Back up now"; "Restore missing messages" puts back messages that are gone from the database (never changing or removing anything; messages deleted by their sender stay deleted). Pictures are not included. It uses the same Google OAuth client and redirect URI as Google Calendar: add the `drive.appdata` scope to the OAuth consent screen and make sure the Drive API is enabled.

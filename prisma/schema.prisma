@@ -2564,6 +2564,19 @@ model HrGoogle {
   createdAt   DateTime @default(now())
 }
 
+/// An employee's own Google Drive copy of their chats: an encrypted file in Drive's hidden app folder. The refresh token is sealed with HOST_KEY.
+model HrChatBackup {
+  staffId     String    @id
+  email       String
+  tokenSealed Bytes
+  fileId      String    @default("")
+  lastAt      DateTime?
+  lastCount   Int       @default(0)
+  lastBytes   Int       @default(0)
+  lastError   String    @default("")
+  createdAt   DateTime  @default(now())
+}
+
 model HrRecognition {
   id        String   @id @default(uuid())
   fromId    String
