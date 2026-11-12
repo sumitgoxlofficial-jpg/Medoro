@@ -19,7 +19,7 @@ const dm = (iso: string, lang: Lang) => new Date(iso + "T00:00:00").toLocaleDate
 const weekday = (lang: Lang) => (lang === "en" ? weekdayLong() : new Date(todayISO() + "T00:00:00Z").toLocaleDateString(localeOf(lang), { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }));
 
 /** The owner's dashboard, from this device's own data: sales, margin, purchases, dues, the last 14 days, and stock to act on. */
-export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "stock" | "reports" | "customers") => void }) {
+export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "stock" | "reports" | "customers" | "supplier" | "ask" | "activity" | "settings") => void }) {
   const toast = useToast();
   const t = useT();
   const lang = useLang();
@@ -136,6 +136,14 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
             <div className="flex-1 min-w-0"><div className="text-[13.5px] font-semibold">{t("Last full copy in Google Drive")}</div><div className="text-[12.5px] text-muted">{drive?.lastSnapshot ? `${new Date(drive.lastSnapshot).toLocaleString(localeOf(lang), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })} · ${drive.pending ? t("{n} changes waiting", { n: drive.pending }) : t("up to date")}` : t("Not saved to Drive yet")}</div></div>
             <a href="/app/backup" className="border border-line rounded-lg px-3 h-8 inline-flex items-center text-[13px] text-ink no-underline hover:border-teal">{t("Open", { ctx: "verb" })}</a>
           </div>
+        </div>
+      </div>
+      <div className={card}>
+        <div className="font-semibold">{t("More tools")}</div>
+        <div className="flex gap-2 flex-wrap mt-2">
+          {([["supplier", "Supplier tools", false], ["ask", "Ask", false], ["activity", "Activity", true], ["settings", "Counter", true]] as const).filter(([, , ownerOnly]) => !ownerOnly || owner).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => go(k)} className="px-3 h-9 rounded-lg border border-line bg-white text-[13.5px] hover:bg-page cursor-pointer">{t(label)}</button>
+          ))}
         </div>
       </div>
       <div className={card}>
