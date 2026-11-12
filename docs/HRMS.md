@@ -24,8 +24,11 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
    with `HOST_KEY` and shown masked), accept the offer letter, appointment letter and NDA.
 3. Daily: check in/out (late after the time in Settings), breaks, tasks, leave and claims.
 4. Month end: HR or Finance processes **Payroll**; employees get a payslip (printable as PDF).
-5. Leaving: HR deactivates the profile and enters the last working day. Sessions end immediately; the final month's payslip
-   pays up to that day.
+5. Leaving: HR opens **Record exit** on the employee and enters the last working day. Today or earlier deactivates them at
+   once (sessions end immediately). A later day is a notice period: they keep working and are deactivated the day after it
+   (the exit can be cancelled until then). That month's payslip is the **final settlement**: pay up to the last day, unused
+   privilege leave paid at a day's basic (monthly basic ÷ 26), and gratuity after five years (15 days' basic per year of
+   service). The settlement is an estimate; have a CA confirm it.
 
 ## More screens
 
@@ -84,6 +87,10 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
 * **Leave.** Yearly policy per type (Settings), plus extra days HR grants. In the year someone joins they get the share
   from their joining month (joined in October: 3/12 of each type, rounded). Weekends/holidays inside a request are not
   counted; requests can't overlap; you can't approve your own leave (someone else, or the super admin, must).
+  A request can be **half a day** (one date; the person still checks in for the other half). **Unpaid leave** has no balance:
+  each day is loss of pay in payroll. A request goes to HR **and the person's reporting manager** ("Reports to" on the profile);
+  either can decide it. The manager sees *Team requests* on their own Leave screen. Unused **privilege leave carries forward**
+  into the next year, up to the cap in Settings (default 30 days; 0 switches it off).
 * **Claims.** Employee → HR review → super-admin final sign-off → paid with the next payroll (added to net pay, once).
   Bills are stored through the normal file storage (disk, database or Supabase) and open only for the owner, HR and the super admin.
 * **Payroll.** Monthly from the annual CTC: basic 50%, HRA 40% of basic, rest special allowance. PF 12% of basic capped at

@@ -2481,6 +2481,8 @@ model HrPayslip {
   special   Int
   incentive Int       @default(0)
   reimburse Int       @default(0)
+  encash    Int       @default(0) // final settlement: unused privilege leave paid out (part of gross)
+  gratuity  Int       @default(0) // final settlement: gratuity after five years (added to net pay)
   gross     Int
   pf        Int
   esi       Int

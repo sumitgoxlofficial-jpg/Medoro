@@ -14,7 +14,7 @@ import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
 import { createEmployee, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
 import { addMonths, addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
-import { annualTax, computeSlip, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
+import { annualTax, computeSlip, finalSettlement, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
 import { assignTask, performance, setTaskDone } from "@/staff/hrms/work";
@@ -284,7 +284,7 @@ describe("HRMS", () => {
   it("someone who leaves is paid up to the last working day, in that month only", async () => {
     const nina = await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-050" } });
     await db.hrProfile.update({ where: { staffId: nina.id }, data: { joinDate: dateOnly("2026-01-05") } });
-    await expect(setEmployeeActive(hr, nina.id, false, "2099-01-01")).rejects.toThrow(/future/);
+    await expect(setEmployeeActive(hr, nina.id, false, "2099-01-01")).rejects.toThrow(/180 days/);
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
       vi.setSystemTime(new Date("2031-07-31T06:00:00Z"));
@@ -327,5 +327,29 @@ describe("HRMS", () => {
     expect(await pl("2027")).toMatchObject({ total: 30, carried: 15 });
     expect(await pl("2028")).toMatchObject({ total: 45, carried: 30 });
     expect(await pl("2029")).toMatchObject({ total: 45, carried: 30 }); // capped at 30
+  });
+  it("exit with notice: the person works until the last day, then is deactivated; the final month carries the settlement", async () => {
+    expect(finalSettlement(600_000, "2026-01-05", "2031-03-31", 10)).toEqual({ encashDays: 10, encash: Math.round((25_000 / 26) * 10), gratuity: Math.round((25_000 * 15 * 5) / 26) });
+    expect(finalSettlement(600_000, "2026-01-05", "2029-03-31", 0).gratuity).toBe(0); // under five years
+    expect(finalSettlement(600_000, "2026-01-05", "2030-10-31", 0).gratuity).toBe(Math.round((25_000 * 15 * 5) / 26)); // 4 years 240 days counts
+    const u = await mk("MS-060", "Leo Leaver", "leo@medoro.in", "employee", "employee");
+    await db.hrProfile.update({ where: { staffId: u.id }, data: { createdAt: new Date("2026-01-05T00:00:00Z") } });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2031-09-10T06:00:00Z"));
+      await setEmployeeActive(hr, u.id, false, "2031-09-19"); // a Friday, nine days ahead
+      expect((await db.staffUser.findUniqueOrThrow({ where: { id: u.id } })).status).toBe("active");
+      vi.setSystemTime(new Date("2031-09-30T06:00:00Z"));
+      const line = (await payrollFor(hr, "2031-09")).lines.find((l) => l.empNo === "MS-060")!;
+      expect((await db.staffUser.findUniqueOrThrow({ where: { id: u.id } })).status).toBe("deactivated"); // the day passed
+      expect(line.final).toBe("2031-09-19");
+      expect(line.encash).toBeGreaterThan(0); // unused privilege leave, with what was carried forward
+      expect(line.gratuity).toBe(Math.round((25_000 * 15 * 6) / 26)); // 5 years 8 months counts as 6
+      expect(line.gross).toBeGreaterThanOrEqual(line.encash);
+      await processPayroll(hr, "2031-09", Object.fromEntries((await payrollFor(hr, "2031-09")).lines.map((l) => [l.staffId, 0])));
+      const slip = await db.hrPayslip.findFirstOrThrow({ where: { staffId: u.id, month: "2031-09" } });
+      expect(slip).toMatchObject({ encash: line.encash, gratuity: line.gratuity });
+      expect((await payslip(hr, slip.id)).lastDay).toBe("2031-09-19");
+    } finally { vi.useRealTimers(); }
   });
 });

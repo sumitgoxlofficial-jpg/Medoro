@@ -8,12 +8,12 @@ import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { welcomeMail } from "./mails";
 import { log } from "@/server/log";
-import { dateOnly, isoOf, todayISO } from "@/lib/dates";
+import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { staffDomain } from "../auth";
 import { IFSC_BANKS, IFSC_RE, MOBILE_RE, PAN_RE, digits } from "../constants";
 import { newEmployeeNo, referral } from "../people";
 import { stateName } from "./states";
-import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, roleOf, type Me } from "./auth";
+import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, notify, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
@@ -22,7 +22,7 @@ const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "En
 
 export type Person = {
   id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
-  location: string; managerId: string | null; joinDate: string | null; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
+  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
   photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
 
@@ -39,7 +39,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     const h = u.hr;
     return {
       id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
-      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, ctc: h?.ctc ?? 0,
+      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
       profileDone: h?.profileDone ?? false, docsAccepted: !!h?.docsAcceptedAt, hasPassword: !!u.passwordHash,
@@ -175,13 +175,16 @@ export async function setEmployeeActive(me: Me, id: string, active: boolean, las
   if (!active && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active" } })) <= 1) throw new UserError("Keep at least one active super admin.");
   const hr = await db.hrProfile.findUnique({ where: { staffId: id }, select: { joinDate: true } });
   const exit = active ? null : iso.parse(lastDay || todayISO());
-  if (exit && exit > todayISO()) throw new UserError("The last working day can’t be in the future. Deactivate on or after that day.");
+  if (exit && exit > addDays(todayISO(), 180)) throw new UserError("The last working day can be at most 180 days ahead.");
+  // A last working day still to come (a notice period): the person keeps working and is deactivated the day after it.
+  const later = !!exit && exit > todayISO();
   if (exit && hr?.joinDate && exit < isoOf(hr.joinDate)) throw new UserError("The last working day can’t be before the joining date.");
   await db.$transaction([
-    db.staffUser.update({ where: { id }, data: { status: active ? "active" : "deactivated", tokenVersion: active ? undefined : { increment: 1 } } }),
+    db.staffUser.update({ where: { id }, data: { status: active || later ? "active" : "deactivated", tokenVersion: active || later ? undefined : { increment: 1 } } }),
     ...(hr ? [db.hrProfile.update({ where: { staffId: id }, data: { exitDate: exit ? dateOnly(exit) : null } })] : []),
   ]);
-  await audit(me, active ? "Employee reactivated" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);
+  if (later) await notify([id], `Your last working day is recorded as ${exit}.`, "profile");
+  await audit(me, active ? (u.status === "active" ? "Exit cancelled" : "Employee reactivated") : later ? "Exit recorded" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);
 }
 
 /** A password HR reads out to someone who forgot theirs. Works for one sign-in within 24 hours; then they set a new one. */

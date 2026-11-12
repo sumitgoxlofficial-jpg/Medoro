@@ -220,6 +220,17 @@ export async function teamToday(me: Me) {
   });
 }
 
+/**
+ * Deactivates people whose last working day has passed (an exit recorded in advance). Runs at most every ten
+ * minutes from ordinary page loads; `now` forces it (payroll).
+ */
+let exitsCheckedAt = 0;
+export async function closeExits(now = false) {
+  if (!now && Date.now() - exitsCheckedAt < 600_000) return;
+  exitsCheckedAt = Date.now();
+  await db.staffUser.updateMany({ where: { kind: "team", status: "active", hr: { exitDate: { lt: dateOnly(todayISO()) } } }, data: { status: "deactivated", tokenVersion: { increment: 1 } } });
+}
+
 // ── Leave
 /** The part of a year's leave someone gets: all of it, or from the month they joined when they joined in that year. */
 export function yearShare(joinDate: string, year: string) {
