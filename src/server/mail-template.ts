@@ -13,6 +13,9 @@ export type Block =
 
 export type Composed = { greeting?: string; blocks: Block[]; signoff?: { name: string; org?: string } | null; /** Mentions passwords or codes: adds the "never share" line to the footer. Set automatically when the email has a code. */ secure?: boolean };
 
+/** The logo is served from the app itself (public/email-logo.png). */
+const logoUrl = () => `${(process.env.APP_URL?.trim() || "https://medoro.in").replace(/\/$/, "")}/email-logo.png`;
+
 const FOOT = "This is an automated message from Medoro.";
 const FOOT_SECURE = "This is an automated message from Medoro. Please do not share your password or one-time code with anyone.";
 
@@ -45,7 +48,7 @@ export function composeHtml(c: Composed, subject: string): string {
 <body style="margin:0;padding:0;background:#F3F5F7;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1B232A">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F5F7"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border:1px solid #E3E7EB;border-radius:12px;overflow:hidden">
-<tr><td style="background:#0B5E5B;padding:18px 28px;color:#fff;font-size:20px;font-weight:700;letter-spacing:.3px">Medoro</td></tr>
+<tr><td style="padding:18px 28px;border-bottom:3px solid #0B5E5B"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="padding-right:12px;vertical-align:middle"><img src="${logoUrl()}" width="44" alt="Medoro" style="display:block;border:0;height:auto"></td><td style="vertical-align:middle;font-size:22px;font-weight:700;letter-spacing:.3px;color:#0B3A7A">Med<span style="color:#0E9A80">oro</span></td></tr></table></td></tr>
 <tr><td style="padding:28px 28px 8px;font-size:15px">${c.greeting ? `<p style="margin:0 0 16px;font-weight:600">${esc(c.greeting)}</p>` : ""}${body}${sign}</td></tr>
 <tr><td style="padding:16px 28px 22px;color:#7A858E;font-size:12px;line-height:1.5;border-top:1px solid #EEF1F3">${esc(c.secure || c.blocks.some((b) => "code" in b) ? FOOT_SECURE : FOOT)}</td></tr>
 </table></td></tr></table></body></html>`;

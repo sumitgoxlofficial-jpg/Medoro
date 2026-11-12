@@ -11,6 +11,7 @@ describe("professional email layout", () => {
     expect(m.text).toContain("Temporary password: Ab12-xyz");
     expect(m.text).toMatch(/Warm regards,\nHuman Resources\nMedoro$/);
     expect(m.html).toContain("<!doctype html>");
+    expect(m.html).toMatch(/<img src="https:\/\/[^"]+\/email-logo\.png" width="44" alt="Medoro"/);
     expect(m.html).toContain("Temporary password");
     expect(m.html).toContain("do not share your password");
   });
