@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Letter } from "@/staff/hrms/letters";
 import { EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, letterLabel, type LetterType } from "@/staff/hrms/letters";
-import { emailLetter, emailOffer, getLetter, getOfferLetter } from "../actions";
-import { Empty, Field, Modal, Tabs, btnCls, inputCls, primaryCls, useRun } from "./kit";
+import { emailOffer, getLetter, getOfferLetter, sendLetters } from "../actions";
+import { Empty, Field, Modal, Pill, Tabs, btnCls, cx, inputCls, primaryCls, useRun } from "./kit";
 
 /** The letter as it prints: company letterhead, reference and date, the body, and the sign-off. */
 export function LetterSheet({ l }: { l: Letter }) {
@@ -21,6 +21,8 @@ export function LetterSheet({ l }: { l: Letter }) {
     </div>
   );
 }
+
+const LOAD_FAILED = "Couldn’t load the letter. Refresh the page (Ctrl+Shift+R) and try again.";
 
 /** One letter in a window with Print / Save as PDF and a PDF download. */
 export function LetterModal({ letter, pdf, onClose, extra }: { letter: Letter; pdf: string; onClose: () => void; extra?: React.ReactNode }) {
@@ -43,45 +45,57 @@ export function useLetterView() {
   const [open, setOpen] = useState<{ letter: Letter; pdf: string } | null>(null), [busy, setBusy] = useState(false);
   const show = useCallback(async (get: () => ReturnType<typeof getLetter>, pdf: string) => {
     setBusy(true);
-    const r = await get();
+    const r = await get().catch(() => null);
     setBusy(false);
+    if (!r) { toast(LOAD_FAILED, "red"); return; }
     if (!r.ok) { toast(r.error, "red"); return; }
     setOpen({ letter: r.data, pdf });
   }, [toast]);
   return { open, busy, show, close: () => setOpen(null) };
 }
 
-/** An employee's own joining letters (offer, appointment, NDA): read, print or download. */
-export function MyLetters() {
+type Sent = { id: string; type: string; label: string; lastDay: string; sentAt: string; unread: boolean };
+/** An employee's own letters: the joining letters (offer, appointment, NDA) and anything else HR has sent, with a "New" tag until opened. */
+export function MyLetters({ sent = [] }: { sent?: Sent[] }) {
   const v = useLetterView();
+  const exit = sent.filter((x) => EXIT_LETTERS.includes(x.type as LetterType));
+  const fresh = new Set(sent.filter((x) => x.unread).map((x) => x.type + x.lastDay));
   return (
     <>
-      <div className="flex gap-2 flex-wrap">
-        {JOINING_LETTERS.map((t) => <button key={t} className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>📄 {letterLabel(t)}</button>)}
+      <div className="flex gap-2 flex-wrap items-center">
+        {JOINING_LETTERS.map((t) => <button key={t} className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>📄 {letterLabel(t)}{fresh.has(t) ? <Pill tone="green">New</Pill> : null}</button>)}
+        {exit.map((x) => <button key={x.id} className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", x.type, x.lastDay), `/staff/hrms/letter/me/${x.type}?day=${x.lastDay}`)}>📄 {x.label}{fresh.has(x.type + x.lastDay) ? <Pill tone="green">New</Pill> : null}</button>)}
       </div>
       {v.open ? <LetterModal letter={v.open.letter} pdf={v.open.pdf} onClose={v.close} /> : null}
     </>
   );
 }
 
-/** HR: every letter for one employee, written from their record. Exit letters ask for the last working day. */
-export function LettersPanel({ staffId, name, onClose }: { staffId: string; name: string; onClose: () => void }) {
+/** HR: every letter for one employee, written from their record, and sending them to the employee's own screen (and email). */
+export function LettersPanel({ staffId, name, mail = false, onClose }: { staffId: string; name: string; mail?: boolean; onClose: () => void }) {
   const { toast } = useRun();
   const [type, setType] = useState<LetterType>("offer"), [day, setDay] = useState(new Date().toISOString().slice(0, 10));
   const [letter, setLetter] = useState<Letter | null>(null), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
-  const exit = EXIT_LETTERS.includes(type);
+  const [pick, setPick] = useState<Set<LetterType>>(new Set(JOINING_LETTERS)), [email, setEmail] = useState(false), [sendOpen, setSendOpen] = useState(false);
+  const exit = EXIT_LETTERS.includes(type), anyExit = [...pick].some((t) => EXIT_LETTERS.includes(t));
   useEffect(() => {
     let live = true;
     setLetter(null); setErr("");
-    void getLetter(staffId, type, exit ? day : undefined).then((r) => { if (!live) return; if (r.ok) setLetter(r.data); else setErr(r.error); });
+    getLetter(staffId, type, exit ? day : undefined)
+      .then((r) => { if (!live) return; if (r.ok) setLetter(r.data); else setErr(r.error); })
+      .catch(() => { if (live) setErr(LOAD_FAILED); });
     return () => { live = false; };
   }, [staffId, type, day, exit]);
   const pdf = `/staff/hrms/letter/${staffId}/${type}${exit ? `?day=${day}` : ""}`;
-  const mail = async () => {
+  const toggle = (t: LetterType) => setPick((s) => { const n = new Set(s); if (!n.delete(t)) n.add(t); return n; });
+  const send = async () => {
     setBusy(true);
-    const r = await emailLetter(staffId, type, exit ? day : undefined);
+    const r = await sendLetters(staffId, [...pick], day, email).catch(() => null);
     setBusy(false);
-    if (r.ok) toast(`Letter emailed to ${r.data.sentTo.join(", ")}.`, "green"); else toast(r.error, "red");
+    if (!r) { toast(LOAD_FAILED, "red"); return; }
+    if (!r.ok) { toast(r.error, "red"); return; }
+    toast(`${r.data.sent} letter${r.data.sent === 1 ? "" : "s"} sent to ${name}. ${r.data.emailed.length ? `Emailed to ${r.data.emailed.join(", ")}. ` : ""}They see ${r.data.sent === 1 ? "it" : "them"} on their screen under My documents.`, "green");
+    setSendOpen(false);
   };
   return (
     <Modal title={`Letters · ${name}`} onClose={onClose} wide>
@@ -91,9 +105,18 @@ export function LettersPanel({ staffId, name, onClose }: { staffId: string; name
       <div className="flex gap-2 flex-wrap">
         <button className={primaryCls} disabled={!letter} onClick={() => window.print()}>Print / save as PDF</button>
         <a className={btnCls} href={letter ? pdf : undefined} aria-disabled={!letter} download>↓ Download PDF</a>
-        <button className={btnCls} disabled={!letter || busy} onClick={() => void mail()}>✉ Email to employee</button>
+        <button className={btnCls} onClick={() => setSendOpen((o) => !o)} aria-expanded={sendOpen}>✉ Send to {name.split(" ")[0]}…</button>
         <button className={`${btnCls} ml-auto`} onClick={onClose}>Close</button>
       </div>
+      {sendOpen ? (
+        <div className="border border-[#a8b6c8] rounded-xl p-4 flex flex-col gap-3 bg-[#F8FAFC]">
+          <div className="text-[13.5px] font-bold">Send to {name}: shows on their screen and they get a notification</div>
+          <div className="flex gap-x-5 gap-y-1 flex-wrap">{LETTER_TYPES.map((l) => <label key={l.id} className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={pick.has(l.id)} onChange={() => toggle(l.id)} />{l.label}</label>)}</div>
+          {anyExit ? <Field label="Last working day (for exit letters)"><input className={`${inputCls} !w-48`} type="date" value={day} onChange={(e) => setDay(e.target.value)} /></Field> : null}
+          <label className={cx("flex items-center gap-2 text-[13px]", !mail && "opacity-60")}><input type="checkbox" checked={email} disabled={!mail} onChange={(e) => setEmail(e.target.checked)} />Also email the PDFs{mail ? "" : " (email isn’t set up on this server yet)"}</label>
+          <div><button className={primaryCls} disabled={busy || !pick.size} onClick={() => void send()}>Send {pick.size} letter{pick.size === 1 ? "" : "s"}</button></div>
+        </div>
+      ) : null}
     </Modal>
   );
 }
@@ -102,14 +125,14 @@ export function LettersPanel({ staffId, name, onClose }: { staffId: string; name
 export function OfferModal({ id, sent, onClose, onSent }: { id: string; sent: string | null; onClose: () => void; onSent: () => void }) {
   const { toast } = useRun();
   const [letter, setLetter] = useState<Letter | null>(null), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
-  useEffect(() => { void getOfferLetter(id).then((r) => { if (r.ok) setLetter(r.data); else setErr(r.error); }); }, [id]);
+  useEffect(() => { getOfferLetter(id).then((r) => { if (r.ok) setLetter(r.data); else setErr(r.error); }).catch(() => setErr(LOAD_FAILED)); }, [id]);
   return (
     <Modal title="Offer letter" onClose={onClose} wide>
       {err ? <p role="alert" className="text-[13px] text-[#B3261E] bg-[#FDECEA] rounded-lg px-3 py-2">{err}</p> : letter ? <LetterSheet l={letter} /> : <Empty>Writing the letter…</Empty>}
       <div className="flex gap-2 flex-wrap items-center">
         <button className={primaryCls} disabled={!letter} onClick={() => window.print()}>Print / save as PDF</button>
         <a className={btnCls} href={letter ? `/staff/hrms/letter/offer/${id}` : undefined} download>↓ Download PDF</a>
-        <button className={btnCls} disabled={!letter || busy} onClick={async () => { setBusy(true); const r = await emailOffer(id); setBusy(false); if (r.ok) { toast(`Offer sent to ${r.data.sentTo}. Acceptance pending.`, "green"); onSent(); } else toast(r.error, "red"); }}>✉ {sent ? "Send again" : "Email to candidate"}</button>
+        <button className={btnCls} disabled={!letter || busy} onClick={async () => { setBusy(true); const r = await emailOffer(id).catch(() => null); setBusy(false); if (!r) { toast(LOAD_FAILED, "red"); return; } if (r.ok) { toast(`Offer sent to ${r.data.sentTo}. Acceptance pending.`, "green"); onSent(); } else toast(r.error, "red"); }}>✉ {sent ? "Send again" : "Email to candidate"}</button>
         {sent ? <span className="text-[12px] text-[#0B5E5B] font-semibold">Sent {sent} · acceptance pending</span> : null}
         <button className={`${btnCls} ml-auto`} onClick={onClose}>Close</button>
       </div>

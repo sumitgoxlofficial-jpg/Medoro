@@ -5,7 +5,7 @@ import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { clean } from "@/domain/sales/pdf";
 import { todayISO } from "@/lib/dates";
-import { audit, loadSettings, need, type Me } from "./auth";
+import { audit, loadSettings, need, notify, type Me } from "./auth";
 import { EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, buildCandidateOffer, buildLetter, letterLabel, type Letter, type LetterPerson, type LetterType, type OfferTerms } from "./letters";
 
 const isType = (t: unknown): t is LetterType => LETTER_TYPES.some((l) => l.id === t);
@@ -21,16 +21,22 @@ async function person(staffId: string): Promise<LetterPerson | null> {
   };
 }
 
-/** A letter for one person. Employees open their own joining letters; HR (Employees module) opens anyone's, and writes exit letters. */
+/** A letter for one person. Employees open their own joining letters, and any exit letter HR has sent them; HR (Employees module) opens anyone's. */
 export async function letterFor(me: Me, staffId: string, type: unknown, lastDay?: unknown): Promise<Letter> {
   if (!isType(type)) throw new UserError("Choose a letter.");
-  const own = staffId === me.id && JOINING_LETTERS.includes(type);
-  if (!own) need(me, "employees");
-  if (EXIT_LETTERS.includes(type) && !isDay(lastDay) && lastDay !== undefined && lastDay !== "") throw new UserError("Enter the last working day.");
+  const day = isDay(lastDay) ? lastDay : "";
+  if (EXIT_LETTERS.includes(type) && lastDay !== undefined && lastDay !== "" && !isDay(lastDay)) throw new UserError("Enter the last working day.");
+  const mine = staffId === me.id;
+  let sent = null;
+  if (mine && EXIT_LETTERS.includes(type)) {
+    sent = await db.hrLetter.findFirst({ where: { staffId, type, ...(day ? { lastDay: day } : {}) }, orderBy: { sentAt: "desc" } });
+    if (!sent) { need(me, "employees"); }
+  } else if (!(mine && JOINING_LETTERS.includes(type))) need(me, "employees");
   const p = await person(staffId);
   if (!p) throw new UserError("Employee not found.");
   const s = await loadSettings();
-  return buildLetter(type, p, { name: s.company.name, address: s.company.address }, { lastDay: isDay(lastDay) ? lastDay : undefined });
+  if (mine) await db.hrLetter.updateMany({ where: { staffId, type, readAt: null }, data: { readAt: new Date() } }); // opening a letter HR sent marks it read
+  return buildLetter(type, p, { name: s.company.name, address: s.company.address }, { lastDay: sent?.lastDay || day || undefined });
 }
 /** The offer HR prepared for a candidate. */
 export async function candidateLetter(me: Me, id: string): Promise<Letter> {
@@ -107,4 +113,42 @@ export async function emailOffer(me: Me, id: string) {
   await db.hrCandidate.update({ where: { id }, data: { offer: { ...(c.offer as object), sentOn: todayISO() } } });
   await audit(me, "Offer letter emailed", `${c.name}`);
   return { sentTo: c.email };
+}
+
+/** Letters HR has sent to this employee (exit letters show only once sent; joining letters are always there), newest first. */
+export async function sentLetters(me: Pick<Me, "id">) {
+  const rows = await db.hrLetter.findMany({ where: { staffId: me.id }, orderBy: { sentAt: "desc" }, take: 30 });
+  return rows.map((r) => ({ id: r.id, type: r.type, label: letterLabel(r.type), lastDay: r.lastDay, sentAt: r.sentAt.toISOString(), unread: !r.readAt }));
+}
+export async function unreadLetters(staffId: string) { return db.hrLetter.count({ where: { staffId, readAt: null } }); }
+
+/**
+ * HR sends letters to an employee: they appear on the employee's own screen (My documents, with a notification and a "New" tag),
+ * and, if asked and email is set up, go out as PDFs by email too. Sending a letter again puts it back as new.
+ */
+export async function sendLetters(me: Me, staffId: string, types: unknown, lastDay: unknown, email: boolean) {
+  need(me, "employees");
+  const list = [...new Set(Array.isArray(types) ? types.filter(isType) : [])];
+  if (!list.length) throw new UserError("Choose at least one letter to send.");
+  const exit = list.filter((t) => EXIT_LETTERS.includes(t));
+  if (exit.length && !isDay(lastDay)) throw new UserError("Enter the last working day for the exit letters.");
+  const u = await db.staffUser.findFirst({ where: { id: staffId, kind: "team", role: { not: "partner" } }, select: { id: true, name: true } });
+  if (!u) throw new UserError("Employee not found.");
+  if (email && !mailEnabled()) throw new UserError("Email isn’t set up on this server yet. Untick “Also email” to send to their screen only.");
+  for (const type of list) {
+    const day = EXIT_LETTERS.includes(type) ? String(lastDay) : "";
+    await db.hrLetter.upsert({ where: { staffId_type_lastDay: { staffId, type, lastDay: day } }, update: { sentAt: new Date(), sentById: me.id, readAt: null }, create: { staffId, type, lastDay: day, sentById: me.id } });
+  }
+  const labels = list.map((t) => letterLabel(t).toLowerCase());
+  await notify([staffId], `HR sent you ${labels.length === 1 ? `your ${labels[0]}` : `${labels.length} letters`}: ${labels.join(", ")}. Open My documents.`, "profile");
+  let emailed: string[] = [];
+  if (email) {
+    const atts = [];
+    for (const type of list) { const l = await letterFor(me, staffId, type, EXIT_LETTERS.includes(type) ? lastDay : undefined); atts.push({ filename: `${l.title.replace(/\W+/g, "-")}.pdf`, content: Buffer.from(await letterPdf(l)), contentType: "application/pdf" }); }
+    const row = await db.staffUser.findUnique({ where: { id: staffId }, include: { hr: { select: { personalEmail: true } } } });
+    emailed = [...new Set([row?.hr?.personalEmail, row?.email].filter((x): x is string => !!x && sendable(x)))];
+    for (const to of emailed) await sendMail({ to, subject: `${labels.length === 1 ? letterLabel(list[0]) : "Your letters"} · ${(await loadSettings()).company.name || "Medoro"}`, text: `Dear ${u.name.split(" ")[0]},\n\nHR has sent you: ${labels.join(", ")}. They are attached, and you can read them any time in the HRMS under My documents.\n\nHuman Resources`, attachments: atts });
+  }
+  await audit(me, "Letters sent", `${u.name} · ${list.join(", ")}${emailed.length ? " · emailed" : ""}`);
+  return { sent: list.length, emailed };
 }

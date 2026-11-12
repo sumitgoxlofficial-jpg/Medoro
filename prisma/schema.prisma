@@ -2741,3 +2741,18 @@ model HrChatVote {
 
   @@id([messageId, staffId, option])
 }
+
+/// A letter HR has sent to an employee: it shows on their screen (My documents) with a notification, and can be emailed too.
+/// The letter text is written from their record when opened, so it is never stored here.
+model HrLetter {
+  id       String    @id @default(uuid())
+  staffId  String
+  type     String // offer, appointment, nda, experience, relieving
+  lastDay  String    @default("") // exit letters: the last working day (YYYY-MM-DD)
+  sentById String
+  sentAt   DateTime  @default(now())
+  readAt   DateTime?
+
+  @@unique([staffId, type, lastDay])
+  @@index([staffId, readAt])
+}
