@@ -10,3 +10,4 @@ CREATE TABLE "HrDocument" (
     CONSTRAINT "HrDocument_pkey" PRIMARY KEY ("id")
 );
 CREATE INDEX "HrDocument_staffId_idx" ON "HrDocument"("staffId");
+ALTER TABLE public."HrDocument" ENABLE ROW LEVEL SECURITY;

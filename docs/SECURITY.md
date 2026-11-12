@@ -91,3 +91,6 @@ Set `MAIL_FROM` (e.g. `Medoro <no-reply@pharmacy.example.in>`) on a domain verif
 - **sendgrid**: `SENDGRID_API_KEY` with "Mail Send" permission; verify the sender domain under Sender Authentication.
 - **http** (alias **smtp-http**): your own relay, e.g. a small service in front of your SMTP server. `MAIL_HTTP_URL` (HTTPS) receives `POST {"from","to","subject","text"}` with `Authorization: Bearer <MAIL_HTTP_TOKEN>`.
 - **console**: development only; prints messages to the server log.
+
+## Prescription on a counter bill
+A photo or PDF can be attached to a bill from Returns ▸ the bill (`SalePrescription`, file in file storage). It opens only inside the pharmacy for people who can bill or see reports at that branch, never cached, and attaching is audited. Like order prescriptions, it is kept for the Drugs Rules register when a customer is erased.

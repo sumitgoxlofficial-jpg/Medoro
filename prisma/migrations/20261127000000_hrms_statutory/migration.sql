@@ -12,3 +12,4 @@ CREATE TABLE "HrSalaryRevision" (
     CONSTRAINT "HrSalaryRevision_pkey" PRIMARY KEY ("id")
 );
 CREATE INDEX "HrSalaryRevision_staffId_at_idx" ON "HrSalaryRevision"("staffId", "at");
+ALTER TABLE public."HrSalaryRevision" ENABLE ROW LEVEL SECURITY;

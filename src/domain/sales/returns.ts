@@ -45,11 +45,13 @@ export async function recentInvoices(ctx: Ctx, q: string) {
 export async function returnableLines(ctx: Ctx, saleId: string) {
   const s = await db.sale.findFirst({ where: { id: saleId, tenantId: ctx.tenantId }, include: { items: true, customer: true, voided: true } });
   if (!s) return null;
-  const [meds, batches] = await Promise.all([
+  const [meds, batches, rx] = await Promise.all([
     db.medicine.findMany({ where: { id: { in: s.items.map((i) => i.medicineId) } }, select: { id: true, name: true, packSize: true, packUnit: true, looseUnit: true } }),
     db.batch.findMany({ where: { id: { in: s.items.map((i) => i.batchId) } }, select: { id: true, batchNo: true, expiryDate: true } }),
+    db.salePrescription.count({ where: { saleId: s.id, tenantId: ctx.tenantId } }),
   ]);
   return {
+    hasRx: rx > 0, prescriber: s.prescriber,
     id: s.id, no: s.invoiceNo, customer: s.customer?.name ?? null, payMode: s.payMode, hasCustomer: !!s.customerId, total: big(s.totalPaise),
     voided: s.voided ? { at: s.voided.at.toISOString(), reason: s.voided.reason } : null, canVoid: voidable(s),
     lines: s.items.map((i) => {

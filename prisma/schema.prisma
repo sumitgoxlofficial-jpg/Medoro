@@ -1441,6 +1441,20 @@ model FileObject {
 }
 
 /// A same-day void of a whole sale. Append-only; the sale itself is never changed.
+/// The prescription (photo or PDF) behind a counter bill, kept beside the sale because sale rows never change.
+model SalePrescription {
+  id       String   @id @default(uuid())
+  tenantId String
+  branchId String
+  saleId   String   @unique
+  path     String
+  mime     String
+  userId   String
+  at       DateTime @default(now())
+
+  @@index([tenantId])
+}
+
 model SaleVoid {
   id              String   @id @default(uuid())
   tenantId        String

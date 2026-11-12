@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch } from "@/domain/inventory/service";
 import { commitSale } from "@/domain/sales/service";
-import { closeShift, creditNoteData, currentShift, openShift, processReturn } from "@/domain/sales/returns";
+import { closeShift, creditNoteData, currentShift, openShift, processReturn, returnableLines } from "@/domain/sales/returns";
+import { attachSaleRx, readSaleRx } from "@/domain/sales/rx";
 import { addDays, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -82,5 +83,21 @@ describe("returns and shifts", () => {
     expect(c).toEqual({ expected: 10000 + s.total, counted: 25500, diff: 0 });
     expect((await db.shift.findFirstOrThrow({ where: { closedAt: { not: null } }, orderBy: { closedAt: "desc" } })).expectedPaise).toBe(BigInt(10000 + s.total));
     expect((await db.sale.findUniqueOrThrow({ where: { id: s.saleId } })).shiftId).not.toBeNull();
+  });
+  it("a prescription photo is attached to a counter bill, replaced, and opens only inside the pharmacy", async () => {
+    const mgr = await ctxFor("Manager");
+    const s = await commitSale(mgr, { idempotencyKey: key(), lines: [{ medicineId: med, batchId: batch, qty: 1 }], customerId: null, discountPct: 0, pay: { mode: "cash" } });
+    expect((await returnableLines(mgr, s.saleId))!.hasRx).toBe(false);
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    await attachSaleRx(mgr, s.saleId, png, "image/png");
+    await attachSaleRx(mgr, s.saleId, Buffer.concat([png, Buffer.from([9])]), "image/png"); // a clearer photo replaces it
+    expect(await db.salePrescription.count({ where: { saleId: s.saleId } })).toBe(1);
+    expect((await returnableLines(mgr, s.saleId))!.hasRx).toBe(true);
+    const f = await readSaleRx(mgr, s.saleId);
+    expect(f).toMatchObject({ mime: "image/png" });
+    expect(f!.bytes.length).toBe(12);
+    await expect(attachSaleRx(mgr, randomUUID(), png, "image/png")).rejects.toThrow(/Bill not found/);
+    expect(await readSaleRx({ ...mgr, tenantId: randomUUID() }, s.saleId)).toBeNull(); // another pharmacy sees nothing
+    expect(await db.auditEvent.count({ where: { action: "Prescription attached", entityId: s.saleId } })).toBe(2);
   });
 });
