@@ -9,6 +9,7 @@ import * as pharmacy from "./pharmacy";
 import * as trade from "./trade";
 import * as seed from "./seed";
 import * as reports from "./reports";
+import * as stockSheet from "./stock-sheet";
 import * as books from "./books";
 import * as ops from "./ops";
 import * as sync from "./sync";
@@ -176,7 +177,7 @@ function pushSoon() {
   pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
 }
 /** Calls that only read, or run the sync themselves: no push needed after them. */
-const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages"]);
+const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "previewStockSheet", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -216,6 +217,8 @@ const handlers = {
   listBills: (iso: string, text?: string) => reports.listBills(need(), iso, text),
   dayReport: (branchId: string, iso?: string) => reports.dayReport(need(), branchId, iso),
   dashboard: (branchId: string, range?: dash.DashRange) => dash.dashboard(need(), branchId, range),
+  previewStockSheet: (branchId: string, table: string[][]) => stockSheet.previewStockSheet(need(), branchId, table),
+  importStockSheet: (input: Parameters<typeof stockSheet.importStockSheet>[1]) => stockSheet.importStockSheet(need(), input),
   stockList: (branchId: string, text?: string) => reports.stockList(need(), branchId, text),
   updateMedicine: (id: string, patch: Parameters<typeof reports.updateMedicine>[2]) => reports.updateMedicine(need(), id, patch),
   customerList: (text?: string) => reports.customerList(need(), text),

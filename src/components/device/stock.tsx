@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Boxes } from "lucide-react";
+import { Plus, Pencil, Boxes, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
@@ -10,6 +10,7 @@ import { useLang, useT } from "@/lib/i18n-client";
 import type { Lang, TFn } from "@/lib/tr";
 import type { NegativeBatch } from "@/drivedb/ops";
 import { card, input, label, errText, toPaise, unitsOf, type Cfg } from "./ui";
+import { StockImport } from "./stock-import";
 
 type Row = { id: string; name: string; generic: string; mrpPaise: number; gstRate: number; packSize: number; packUnit: string; looseUnit: string; reorderLevel: number; rack: string | null; barcode: string | null; schedule: string | null; active: number; stock: number; nextExpiry: string | null; low: boolean };
 const qtyText = (r: Row, lang: Lang, t: TFn) => (r.packSize > 1 ? `${unitsOf(lang, t, Math.floor(r.stock / r.packSize), r.packUnit)}${r.stock % r.packSize ? ` + ${r.stock % r.packSize} ${t(r.looseUnit)}` : ""}` : unitsOf(lang, t, r.stock, r.packUnit));
@@ -24,6 +25,7 @@ export function Stock({ cfg, owner, userId, refresh }: { cfg: Cfg; owner: boolea
   const [rows, setRows] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Row | "new" | null>(null);
   const [batches, setBatches] = useState<Row | null>(null);
+  const [importing, setImporting] = useState(false);
   const [negative, setNegative] = useState<NegativeBatch[]>([]);
   const load = useCallback(() => Promise.all([
     dev.call("stockList", cfg.branchId, q).then((r) => setRows(r as Row[])),
@@ -38,6 +40,7 @@ export function Stock({ cfg, owner, userId, refresh }: { cfg: Cfg; owner: boolea
       <div className="flex gap-2 flex-wrap items-center">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Search medicine, generic or barcode")} aria-label={t("Search stock")} className={`${input} flex-1 min-w-[220px]`} />
         <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={lowOnly} onChange={(e) => setLowOnly(e.target.checked)} /> {t("Low stock only")}</label>
+        {owner && <Button onClick={() => setImporting(true)}><Upload size={16} /> {t("Import")}</Button>}
         {owner && <Button onClick={() => setEdit("new")}><Plus size={16} /> {t("Add medicine")}</Button>}
       </div>
       {negative.length > 0 && (
@@ -79,6 +82,7 @@ export function Stock({ cfg, owner, userId, refresh }: { cfg: Cfg; owner: boolea
           </tbody>
         </table>
       </div>
+      {importing && <StockImport cfg={cfg} userId={userId} open onClose={() => setImporting(false)} onDone={() => void load()} />}
       {edit && <MedicineForm row={edit === "new" ? null : edit} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load(); }} />}
       {batches && <BatchPanel med={batches} cfg={cfg} userId={userId} onClose={() => { setBatches(null); void load(); }} />}
     </div>
