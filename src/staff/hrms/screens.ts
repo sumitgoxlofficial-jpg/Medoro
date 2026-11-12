@@ -30,11 +30,12 @@ function navFor(me: Me) {
 
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
 export async function shell(me: Me) {
+  const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
   const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
     nav: navFor(me), more: [] as { id: string; label: string }[],
-    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
+    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };
 }
 export type Shell = Awaited<ReturnType<typeof shell>>;
@@ -71,7 +72,7 @@ export const loaders = {
   attendance: async (me: Me, q: Q) => {
     const s = await loadSettings(), month = monthArg(q.m);
     const first = month + "-01", last = addDays(addMonths(month, 1) + "-01", -1);
-    return { ...(await monthFor(me.id, month, s)), isCurrent: month === ym(), prev: addMonths(month, -1), next: addMonths(month, 1), lateAfter: s.lateAfter, checkin: s.checkin, selfie: s.selfie, monitor: s.idleMonitor ? s.idleMinutes : 0, selfies: await selfieIds(me.id, first, last) };
+    return { ...(await monthFor(me.id, month, s)), isCurrent: month === ym(), prev: addMonths(month, -1), next: addMonths(month, 1), lateAfter: s.lateAfter, checkin: s.checkin && me.role !== "admin", selfie: s.selfie && me.role !== "admin", monitor: s.idleMonitor && me.role !== "admin" ? s.idleMinutes : 0, selfies: await selfieIds(me.id, first, last) };
   },
   leave: async (me: Me) => {
     const s = await loadSettings();

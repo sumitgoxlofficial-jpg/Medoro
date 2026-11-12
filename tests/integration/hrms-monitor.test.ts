@@ -209,4 +209,15 @@ describe("a photo is asked for as soon as someone signs in and hasn't checked in
     await setting({ selfie: true });
     expect((await shell(other)).needsPhoto).toBe(true);
   });
+  it("the super admin has no photo check-in, idle tracking or attendance roll", async () => {
+    await wipeToday(); await setting({ selfie: true, checkin: true, idleMonitor: true, idleMinutes: 5 });
+    at("2026-11-11T04:45:00Z");
+    const sh = await shell(admin);
+    expect(sh).toMatchObject({ needsPhoto: false, checkin: false, selfie: false, monitor: 0 });
+    expect(await shell(emp)).toMatchObject({ selfie: true, monitor: 5 });
+    await checkIn(admin); // no photo asked of the super admin
+    expect(await idleStart(admin, "2026-11-11T04:30:00Z")).toEqual({ recorded: false });
+    expect((await teamToday(admin)).some((r) => r.id === admin.id)).toBe(false);
+    expect((await teamToday(admin)).some((r) => r.id === emp.id)).toBe(true);
+  });
 });
