@@ -239,7 +239,7 @@ describe("reference partners", () => {
     await expect(sendSignupCode("ravi.mr@gmail.com", "partner")).rejects.toThrow(/already have a partner profile/);
     await sendSignupCode("kiran.mr@gmail.com", "partner");
     expect(mails.at(-1)).toMatchObject({ to: ["kiran.mr@gmail.com"] });
-    const code = /\n {4}(\d{6})\n/.exec(mails.at(-1)!.text)![1];
+    const code = /\n(\d{6})\n/.exec(mails.at(-1)!.text)![1];
     await expect(verifySignupCode("kiran.mr@gmail.com", code === "000000" ? "111111" : "000000")).rejects.toThrow(/didn’t match/);
     await verifySignupCode("kiran.mr@gmail.com", code);
     await expect(signup({ ...join, email: "other.mr@gmail.com" })).rejects.toThrow(/Confirm your email/);

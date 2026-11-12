@@ -5,6 +5,7 @@ import { writeAudit } from "@/server/audit";
 import { checkLock, clearFailures, clientInfo, hashPassword, lockKeys, recordFailure } from "@/server/auth";
 import { deliverSms, hashCode, newCode, otpEnabled, sameHash, throttleSend } from "@/server/otp";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { compose } from "@/server/mail-template";
 import { UserError } from "@/server/action";
 import { inviteContact, passwordSchema } from "./contracts";
 
@@ -65,10 +66,17 @@ async function issueCode(u: CodeUser, purpose: Purpose, channel: Channel) {
     if (channel === "sms") await deliverSms(u.phone!, code, purpose, CODE_MIN);
     else {
       const what = purpose === "reset" ? "reset your Medoro password" : "reset two-step verification on your Medoro account";
+      const subject = purpose === "reset" ? "Your Medoro password reset code" : "Your Medoro verification code";
       await sendMail({
-        to: u.email!,
-        subject: purpose === "reset" ? `Your Medoro password reset code: ${code}` : `Your Medoro verification code: ${code}`,
-        text: `Hi ${u.name.split(" ")[0]},\n\nUse this code to ${what}:\n\n    ${code}\n\nIt expires in ${CODE_MIN} minutes and works once. If you didn't ask for it, ignore this email and tell your pharmacy owner: someone may know your password or email.\n\nMedoro`,
+        to: u.email!, subject,
+        ...compose({
+          greeting: `Dear ${u.name.trim().split(/\s+/)[0]},`,
+          blocks: [
+            { p: `We received a request to ${what}. Please enter the code below to continue.` },
+            { code, note: `Valid for ${CODE_MIN} minutes and can be used once.` },
+            { note: "If you did not make this request, please ignore this email and let your pharmacy owner know, as someone may have your password or email address." },
+          ],
+        }, subject),
       });
     }
   } catch (e) {

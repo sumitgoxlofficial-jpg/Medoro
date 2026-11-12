@@ -8,6 +8,7 @@ import { checkTotp, openSecret } from "@/server/totp";
 import { UserError, type ActionResult } from "@/server/action";
 import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { otpMail } from "./mails";
 import { defer } from "@/server/defer";
 import { createStaffSession, readStaffSession, staffAudit } from "../auth";
 import type { StaffRoleId } from "../constants";
@@ -179,7 +180,7 @@ export async function sendCode(rawId: string) {
     await ensureProfile(u.id, u.role);
     await db.hrProfile.update({ where: { staffId: u.id }, data: { otpHash: await hashPassword(code), otpExpiresAt: new Date(Date.now() + 10 * 60_000) } });
     const to = u.hr?.personalEmail || u.email;
-    await sendMail({ to, subject: "Your Medoro HRMS one-time password", text: `Hi ${u.name.split(" ")[0]},\n\nYour one-time password is ${code}. It works once, for 10 minutes. After signing in you set a new password.\n\nIf you didn’t ask for this, tell HR.` }).catch((e) => log.error("hrms code mail failed", { err: e }));
+    await sendMail({ to, ...otpMail({ name: u.name, code, org: (await loadSettings()).company.name || "Medoro" }) }).catch((e) => log.error("hrms code mail failed", { err: e }));
   }
   return { sent: true };
 }

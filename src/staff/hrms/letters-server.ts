@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { lettersMail, offerMail } from "./mails";
 import { clean } from "@/domain/sales/pdf";
 import { todayISO } from "@/lib/dates";
 import { audit, loadSettings, need, notify, type Me } from "./auth";
@@ -170,7 +171,7 @@ export async function emailLetter(me: Me, staffId: string, type: unknown, lastDa
   const to = [...new Set([u?.hr?.personalEmail, u?.email].filter((x): x is string => !!x && sendable(x)))];
   if (!to.length) throw new UserError("This employee has no email address on record.");
   const pdf = Buffer.from(await letterPdf(letter));
-  for (const addr of to) await sendMail({ to: addr, subject: `${letter.title} · ${letter.company}`, text: `Dear ${letter.to.split(" ")[0]},\n\nPlease find your ${letterLabel(letter.type).toLowerCase()} attached.\n\nHuman Resources, ${letter.company}`, attachments: [{ filename: `${letter.title.replace(/\W+/g, "-")}.pdf`, content: pdf, contentType: "application/pdf" }] });
+  for (const addr of to) await sendMail({ to: addr, ...lettersMail({ name: letter.to, labels: [letterLabel(letter.type).toLowerCase()], org: letter.company }), attachments: [{ filename: `${letter.title.replace(/\W+/g, "-")}.pdf`, content: pdf, contentType: "application/pdf" }] });
   await audit(me, "Letter emailed", `${letter.title} · ${letter.ref}`);
   return { sentTo: to };
 }
@@ -182,7 +183,7 @@ export async function emailOffer(me: Me, id: string) {
   if (!sendable(c.email)) throw new UserError("Add the candidate’s email address first.");
   if (!mailEnabled()) throw new UserError("Email isn’t set up on this server yet. Print or download the offer instead.");
   const letter = await candidateLetter(me, id);
-  await sendMail({ to: c.email, subject: `${letter.title} · ${letter.company}`, text: `Dear ${c.name.split(" ")[0]},\n\nPlease find your offer letter attached. Reply to this email to accept within 7 days.\n\nHuman Resources, ${letter.company}`, attachments: [{ filename: "Offer-letter.pdf", content: Buffer.from(await letterPdf(letter)), contentType: "application/pdf" }] });
+  await sendMail({ to: c.email, ...offerMail({ name: c.name, org: letter.company, title: letter.title, validDays: 7 }), attachments: [{ filename: "Offer-letter.pdf", content: Buffer.from(await letterPdf(letter)), contentType: "application/pdf" }] });
   await db.hrCandidate.update({ where: { id }, data: { offer: { ...(c.offer as object), sentOn: todayISO() } } });
   await audit(me, "Offer letter emailed", `${c.name}`);
   return { sentTo: c.email };
@@ -220,7 +221,7 @@ export async function sendLetters(me: Me, staffId: string, types: unknown, lastD
     for (const type of list) { const l = await letterFor(me, staffId, type, EXIT_LETTERS.includes(type) ? lastDay : undefined); atts.push({ filename: `${l.title.replace(/\W+/g, "-")}.pdf`, content: Buffer.from(await letterPdf(l)), contentType: "application/pdf" }); }
     const row = await db.staffUser.findUnique({ where: { id: staffId }, include: { hr: { select: { personalEmail: true } } } });
     emailed = [...new Set([row?.hr?.personalEmail, row?.email].filter((x): x is string => !!x && sendable(x)))];
-    for (const to of emailed) await sendMail({ to, subject: `${labels.length === 1 ? letterLabel(list[0]) : "Your letters"} · ${(await loadSettings()).company.name || "Medoro"}`, text: `Dear ${u.name.split(" ")[0]},\n\nHR has sent you: ${labels.join(", ")}. They are attached, and you can read them any time in the HRMS under My documents.\n\nHuman Resources`, attachments: atts });
+    for (const to of emailed) await sendMail({ to, ...lettersMail({ name: u.name, labels, org: (await loadSettings()).company.name || "Medoro" }), attachments: atts });
   }
   await audit(me, "Letters sent", `${u.name} · ${list.join(", ")}${emailed.length ? " · emailed" : ""}`);
   return { sent: list.length, emailed };

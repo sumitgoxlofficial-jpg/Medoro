@@ -53,7 +53,7 @@ describe("encrypted backups", () => {
     try {
       await expect(runBackup(ctx.tenantId, "scheduled")).rejects.toThrow();
       const mail = info.mock.calls.map((c) => String(c[0])).find((s) => s.startsWith("[mail] to owner@test.in"));
-      expect(mail).toMatch(/backup failed/);
+      expect(mail).toMatch(/backup did not complete/);
     } finally { delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SECRET_KEY; delete process.env.MAIL_PROVIDER; info.mockRestore(); }
   });
 

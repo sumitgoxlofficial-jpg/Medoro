@@ -9,6 +9,7 @@ import { hit } from "@/server/ratelimit";
 import { seal as sealBuf, unseal } from "@/server/vault";
 const seal = (v: string) => new Uint8Array(sealBuf(v));
 import { sendMail, mailEnabled } from "@/server/mail";
+import { compose } from "@/server/mail-template";
 import { graph } from "@/domain/comms/graph";
 import { activity, findLead, gaudit, leadScope, need, type Actor } from "./access";
 import { addSuppression, messageBlocker, policy, suppressionFor } from "./compliance";
@@ -32,7 +33,7 @@ const realSender: Sender = {
     const r = await graph<{ messages?: { id: string }[] }>(`/${c.phoneNumberId}/messages`, c.token, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messaging_product: "whatsapp", to: to.replace(/^\+/, ""), ...payload }) });
     return r.messages?.[0]?.id ?? "";
   },
-  async email(to, subject, text) { await sendMail({ to, subject, text }); return null; },
+  async email(to, subject, text) { await sendMail({ to, subject, text, plain: true }); return null; },
 };
 let sender = realSender;
 export function setSender(s: Sender | null) { sender = s ?? realSender; }
@@ -75,7 +76,7 @@ export async function startEmailSetup(a: Actor, raw: z.input<typeof emailSchema>
   const i = emailSchema.parse(raw);
   if (!mailEnabled()) throw new UserError("No email provider is configured on this server (MAIL_PROVIDER and MAIL_FROM).");
   const code = String(randomInt(100000, 1000000));
-  await sender.email(a.email, "Medoro Growth: confirm the sender", `Enter this code in Growth Intelligence → Email manager to confirm campaign email works: ${code}\n\nSender: ${process.env.MAIL_FROM}`);
+  { const subject = "Medoro Growth: confirm the sender"; await sendMail({ to: a.email, subject, ...compose({ greeting: "Hello,", blocks: [{ p: "Enter the code below in Growth Intelligence → Email manager to confirm that campaign email is working." }, { code }, { facts: [["Sender", process.env.MAIL_FROM ?? ""]] }] }, subject) }); }
   await db.integrationConnection.upsert({ where: { kind: "email" }, create: { kind: "email", status: "pending", config: { ...i, from: process.env.MAIL_FROM ?? "" }, secrets: seal(JSON.stringify({ code })), updatedBy: a.id }, update: { status: "pending", config: { ...i, from: process.env.MAIL_FROM ?? "" }, secrets: seal(JSON.stringify({ code })), updatedBy: a.id } });
   await gaudit(a, "Email sender setup started", "integration", "email", i.fromName);
 }

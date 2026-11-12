@@ -6,6 +6,7 @@ import { hashPassword } from "@/server/auth";
 import { seal, unseal } from "@/server/vault";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { welcomeMail } from "./mails";
 import { log } from "@/server/log";
 import { dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { staffDomain } from "../auth";
@@ -136,7 +137,7 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
   await audit(me, "Employee created", `${empNo} · ${email} · ${i.role}`);
   let mailed = false;
   if (mailEnabled()) {
-    mailed = await sendMail({ to: i.personalEmail, subject: "Welcome to Medoro: your sign-in details", text: `Hi ${i.name.split(" ")[0]},\n\nWelcome to Medoro. Your profile is ready.\n\nEmployee ID: ${empNo}\nOfficial email: ${email}\nTemporary password: ${temp}\n\nSign in on the employee sign-in page. You will set your own password, fill in your details and accept your joining documents.\n\nMedoro HR` })
+    mailed = await sendMail({ to: i.personalEmail, ...welcomeMail({ name: i.name, empNo, email, temp, org: (await loadSettings()).company.name || "Medoro" }) })
       .then(() => true).catch((e) => { log.error("welcome mail failed", { err: e }); return false; });
   }
   return { id: u.id, empNo, email, temp, mailed };

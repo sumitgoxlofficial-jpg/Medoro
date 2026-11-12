@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { compose } from "@/server/mail-template";
 import { hashCode, newCode, throttleSend, verifyOtp } from "@/server/otp";
 import { setVerifiedEmail } from "@/server/google-oidc";
 
@@ -27,10 +28,17 @@ export async function sendSignupCode(raw: string, kind: SignupKind = "pharmacy")
   const data = { codeHash: hashCode(key(email), code), purpose: "signup", attempts: 0, expiresAt: new Date(Date.now() + MIN * 60_000) };
   await db.otpCode.upsert({ where: { phone: key(email) }, create: { phone: key(email), ...data }, update: data });
   try {
+    const subject = "Your Medoro sign-up verification code";
     await sendMail({
-      to: email,
-      subject: `Your Medoro sign-up code: ${code}`,
-      text: `Hi,\n\nUse this code to create your Medoro ${kind === "partner" ? "reference partner" : "pharmacy"} account:\n\n    ${code}\n\nIt expires in ${MIN} minutes. If you didn't ask for it, you can ignore this email.\n\nMedoro`,
+      to: email, subject,
+      ...compose({
+        greeting: "Hello,",
+        blocks: [
+          { p: `Thank you for choosing Medoro. Please enter the code below to verify your email and create your ${kind === "partner" ? "reference partner" : "pharmacy"} account.` },
+          { code, note: `Valid for ${MIN} minutes.` },
+          { note: "If you did not ask for this code, you can safely ignore this email. No account will be created." },
+        ],
+      }, subject),
     });
   } catch (e) {
     await db.otpCode.deleteMany({ where: { phone: key(email) } });
