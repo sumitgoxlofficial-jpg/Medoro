@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db, type DbOrTx, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, can, type Ctx } from "@/server/context";
+import { authorize, can, requireFeature, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq } from "@/server/sequence";
 import { invoiceNo as makeInvoiceNo, validSeries } from "@/lib/docno";
@@ -148,6 +148,7 @@ async function commitTx(tx: Tx, ctx: Ctx, input: SaleInput, at?: Date, note?: st
     pay.cash = cash; pay.upi = due - cash;
   } else if (m === "credit") {
     if (!can(ctx, "credit")) throw new UserError("Your role cannot make credit sales.");
+    await requireFeature(ctx, "credit");
     if (!customer) throw new UserError("Select a customer for a credit sale.");
     // Serialise credit sales per customer so two counters can't both fit under the limit.
     await tx.$queryRaw`SELECT id FROM "Customer" WHERE id = ${customer.id} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
@@ -297,6 +298,7 @@ export async function createCustomer(ctx: Ctx, raw: CustomerInput & ConsentInput
   authorize(ctx, "sale");
   const i = customerSchema.parse(raw);
   if (i.creditLimit > 0 && !can(ctx, "credit")) throw new UserError("Your role cannot set a credit limit.");
+  if (i.creditLimit > 0) await requireFeature(ctx, "credit");
   if (i.waOptIn && !i.phone) throw new UserError("WhatsApp opt-in needs a mobile number.");
   if (i.smsOptIn && !i.phone) throw new UserError("SMS consent needs a mobile number.");
   return db.$transaction(async (tx) => {

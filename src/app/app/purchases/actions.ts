@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/server/db";
 import { run, UserError } from "@/server/action";
+import { requireFeature } from "@/server/context";
 import { writeAudit } from "@/server/audit";
 import { MAX_BYTES, MAX_LABEL, saveDocument, sniff } from "@/server/storage";
 import { approveSupplierInvoice, createPo, discardScan, purchaseCatalogue, setPoStatus } from "@/domain/purchasing/service";
@@ -19,6 +20,7 @@ export async function postGrnAction(input: GrnInput) { return fresh(await run((c
 export async function uploadInvoiceAction(form: FormData) {
   return run(async (ctx) => {
     if (!ctx.perms.includes("purchase")) throw new UserError("Your role cannot receive purchases.");
+    await requireFeature(ctx, "scanner");
     const f = form.get("file");
     if (!(f instanceof File)) throw new UserError("Choose a file.");
     if (f.size > MAX_BYTES) throw new UserError(`File is larger than ${MAX_LABEL}.`);

@@ -4,7 +4,7 @@ import { zId } from "@/lib/id";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { hashPassword } from "@/server/auth";
-import { authorize, type Ctx } from "@/server/context";
+import { authorize, requireFeature, requireRoom, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { verifyChain } from "@/lib/audit-hash";
 import { GSTIN_RE, inviteContact, passwordSchema, pinSchema, ROLE_OPTIONS } from "./contracts";
@@ -37,12 +37,22 @@ export const inviteSchema = z.object({
   branchId: zId().nullable(),
 });
 
+/** People using a seat on the plan: active users plus invites still waiting to be used. */
+export async function seatsUsed(tenantId: string) {
+  const [users, invites] = await Promise.all([
+    db.user.count({ where: { tenantId, active: true, isSupport: false } }),
+    db.invite.count({ where: { tenantId, usedAt: null, expiresAt: { gt: new Date() } } }),
+  ]);
+  return users + invites;
+}
+
 export async function inviteEmployee(ctx: Ctx, raw: z.input<typeof inviteSchema>) {
   authorize(ctx, "users");
   const i = inviteSchema.parse(raw);
   const c = inviteContact(i.contact);
   if (!c) throw new UserError("Enter a valid 10-digit mobile number or email.");
   if (i.role === "Manager" && !c.email) throw new UserError("Invite managers by email: they sign in with a password and an authenticator app.");
+  await requireRoom(ctx, "users", await seatsUsed(ctx.tenantId));
   return db.$transaction(async (tx) => {
     if (i.branchId && !(await tx.branch.findFirst({ where: { id: i.branchId, tenantId: ctx.tenantId } }))) throw new UserError("Branch not found.");
     if (await tx.user.findFirst({ where: { tenantId: ctx.tenantId, OR: [c.phone ? { phone: c.phone } : { email: c.email }] } })) throw new UserError("Someone on your team already uses this contact.");
@@ -102,6 +112,7 @@ export async function updateMember(ctx: Ctx, userId: string, patch: MemberPatch)
     if (!u) throw new UserError("User not found.");
     if (u.id === ctx.userId) throw new UserError("You can’t change your own role, branches or status.");
     if (u.role.name === "Owner") throw new UserError("The owner account can’t be changed here.");
+    if (patch.active === true && !u.active) await requireRoom(ctx, "users", await seatsUsed(ctx.tenantId));
     const data: Record<string, unknown> = {};
     const notes: string[] = [];
     if (patch.role && patch.role !== u.role.name) {
@@ -139,6 +150,7 @@ export async function updateMember(ctx: Ctx, userId: string, patch: MemberPatch)
 /** Per-user override of one permission: "grant" adds it on top of the role, "revoke" withholds it, "role" follows the role. */
 export async function setUserPermission(ctx: Ctx, userId: string, perm: Perm, state: "role" | "grant" | "revoke") {
   authorize(ctx, "users");
+  await requireFeature(ctx, "roles");
   if (ctx.realRole !== ctx.role) throw new UserError("Switch back from “View as” before changing permissions.");
   if (!(PERMS as readonly string[]).includes(perm) || !["role", "grant", "revoke"].includes(state)) throw new UserError("Unknown permission.");
   if (state === "grant" && OWNER_ONLY_GRANTS.includes(perm) && ctx.realRole !== "Owner") throw new UserError(`Only the owner can grant “${PERM_LABEL[perm]}”.`);
@@ -177,6 +189,7 @@ export async function roleMatrix(ctx: Ctx) {
 
 export async function togglePermission(ctx: Ctx, roleId: string, perm: Perm) {
   authorize(ctx, "users");
+  await requireFeature(ctx, "roles");
   if (ctx.realRole !== ctx.role) throw new UserError("Switch back from “View as” before changing permissions.");
   if (!(PERMS as readonly string[]).includes(perm)) throw new UserError("Unknown permission.");
   return db.$transaction(async (tx) => {
@@ -222,6 +235,10 @@ export const branchSchema = z.object({
 export async function saveBranch(ctx: Ctx, id: string | null, raw: z.input<typeof branchSchema>) {
   authorize(ctx, "users");
   const i = branchSchema.parse(raw);
+  if (!id) {
+    await requireRoom(ctx, "branches", await db.branch.count({ where: { tenantId: ctx.tenantId, active: true } }));
+    await requireRoom(ctx, "counters", await db.counter.count({ where: { tenantId: ctx.tenantId, active: true } })); // a new branch starts with a counter
+  }
   return db.$transaction(async (tx) => {
     if (await tx.branch.findFirst({ where: { tenantId: ctx.tenantId, name: { equals: i.name, mode: "insensitive" }, ...(id ? { NOT: { id } } : {}) } })) throw new UserError("A branch with this name exists.");
     const data = { name: i.name, address: i.address || null, gstin: i.gstin || null, drugLicence: i.dl || null };
@@ -244,6 +261,7 @@ export async function saveBranch(ctx: Ctx, id: string | null, raw: z.input<typeo
 
 export async function addCounter(ctx: Ctx, branchId: string) {
   authorize(ctx, "users");
+  await requireRoom(ctx, "counters", await db.counter.count({ where: { tenantId: ctx.tenantId, active: true } }));
   return db.$transaction(async (tx) => {
     const b = await tx.branch.findFirst({ where: { id: branchId, tenantId: ctx.tenantId } });
     if (!b) throw new UserError("Branch not found.");
@@ -268,6 +286,7 @@ export async function listTransfers(ctx: Ctx) {
 
 export async function auditTrail(ctx: Ctx, take = 200) {
   authorize(ctx, "users");
+  await requireFeature(ctx, "roles");
   const rows = await db.auditEvent.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { id: "desc" }, take });
   return rows.map((a) => ({ id: String(a.id), at: a.at.toISOString(), who: a.userName ?? "System", action: a.action, detail: a.detail, ip: a.ip }));
 }
@@ -275,6 +294,7 @@ export async function auditTrail(ctx: Ctx, take = 200) {
 /** Re-computes the whole hash chain. Returns the first broken row, if any. */
 export async function verifyAudit(ctx: Ctx) {
   authorize(ctx, "users");
+  await requireFeature(ctx, "roles");
   const rows = await db.auditEvent.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { id: "asc" } });
   const bad = verifyChain(rows.map((r) => ({ ...r, at: r.at.toISOString() })));
   return { count: rows.length, ok: bad === -1, brokenAt: bad === -1 ? null : String(rows[bad].id) };

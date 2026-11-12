@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeView, can, type Ctx } from "@/server/context";
+import { authorize, authorizeView, can, requireFeature, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { addDays, istDate, istMidnight, todayISO } from "@/lib/dates";
 import { big, inr } from "@/lib/money";
@@ -96,6 +96,7 @@ export async function inputGstByRate(tenantId: string, p: Period, branchIds: str
 
 export async function accountsOverview(ctx: Ctx, p: Period) {
   authorizeView(ctx, "reports");
+  await requireFeature(ctx, "accounts");
   const [tot, all, cogsRows, gstOut, gstIn] = await Promise.all([
     accountTotals(ctx.tenantId, p.from, p.to),
     accountTotals(ctx.tenantId, null, new Date()),
@@ -151,6 +152,7 @@ const partyNames = async (tenantId: string, lines: { partyType: string | null; p
 /** One account's postings between two IST dates (inclusive), with opening and running balance (+ = debit). */
 export async function accountLedger(ctx: Ctx, account: string, fromDay?: string, toDay?: string) {
   authorizeView(ctx, "reports");
+  await requireFeature(ctx, "accounts");
   const r = dayRange(fromDay, toDay, periodOf("month"));
   const [open, lines] = await Promise.all([
     db.$queryRaw<{ bal: bigint | null }[]>`SELECT SUM(l."debitPaise" - l."creditPaise") bal FROM "LedgerLine" l JOIN "Voucher" v ON v.id = l."voucherId" WHERE v."tenantId" = ${ctx.tenantId} AND l.account = ${account} AND v.date < ${r.from}`,
@@ -170,6 +172,7 @@ export async function accountLedger(ctx: Ctx, account: string, fromDay?: string,
 /** Closing balance of every account as of the end of an IST date. Debits equal credits. */
 export async function trialBalance(ctx: Ctx, asOfDay?: string) {
   authorizeView(ctx, "reports");
+  await requireFeature(ctx, "accounts");
   const day = asOfDay && ISO_DAY.test(asOfDay) ? asOfDay : todayISO();
   const tot = await accountTotals(ctx.tenantId, null, istMidnight(addDays(day, 1)));
   const rows = [...tot].map(([account, t]) => ({ account, dr: Math.max(t.dr - t.cr, 0), cr: Math.max(t.cr - t.dr, 0) })).filter((r) => r.dr || r.cr).sort((a, b) => a.account.localeCompare(b.account));
@@ -179,6 +182,7 @@ export async function trialBalance(ctx: Ctx, asOfDay?: string) {
 /** Newest first, a page at a time; pass the last voucher id shown as `after` for the next page. */
 export async function dayBook(ctx: Ctx, p: Period, after?: string, take = DAY_BOOK_PAGE) {
   if (!can(ctx, "reports") && !can(ctx, "payments")) authorizeView(ctx, "reports");
+  await requireFeature(ctx, "accounts");
   const vs = await db.voucher.findMany({ where: { tenantId: ctx.tenantId, date: { gte: p.from, lt: p.to } }, include: { lines: true }, orderBy: [{ date: "desc" }, { no: "desc" }, { id: "desc" }], take, ...(after ? { cursor: { id: after }, skip: 1 } : {}) });
   const reversed = new Set((await db.voucher.findMany({ where: { tenantId: ctx.tenantId, reversesId: { in: vs.map((v) => v.id) } }, select: { reversesId: true } })).map((r) => r.reversesId));
   return vs.map((v) => ({
@@ -200,6 +204,7 @@ export const expenseSchema = z.object({
 
 export async function recordExpense(ctx: Ctx, raw: z.input<typeof expenseSchema>) {
   authorize(ctx, "payments");
+  await requireFeature(ctx, "accounts");
   const i = expenseSchema.parse(raw);
   return db.$transaction(async (tx) => {
     const v = await postVoucher(tx, { tenantId: ctx.tenantId, branchId: ctx.branchId, type: "payment", userId: ctx.userId, refType: "expense", narration: `${i.account}${i.note ? " · " + i.note : ""} · ${i.method}`,
@@ -212,6 +217,7 @@ export async function recordExpense(ctx: Ctx, raw: z.input<typeof expenseSchema>
 /** Reverses a manual voucher with a mirror entry. The original stays for audit. */
 export async function reverseVoucher(ctx: Ctx, id: string, reason: string) {
   authorize(ctx, "payments");
+  await requireFeature(ctx, "accounts");
   if (reason.trim().length < 3) throw new UserError("Enter a reason for the reversal.");
   return db.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${"rev:" + id}))`;

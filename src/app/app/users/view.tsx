@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, X, Copy, Store, ShieldCheck, Plus, Pencil, KeyRound } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
+import { UpgradeNote } from "@/components/upgrade-note";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -46,7 +47,8 @@ function DiscountCeiling({ initial, isOwner }: { initial: number; isOwner: boole
   );
 }
 
-export function UsersView({ tab, team, roles, perms, branches, transfers, audit, tenantCode, myBranches, canAdjust, maxDisc, isOwner }: {
+export function UsersView({ tab, team, roles, perms, branches, transfers, audit, tenantCode, myBranches, canAdjust, maxDisc, isOwner, locked }: {
+  locked?: { message: string; canUpgrade: boolean };
   tab: "users" | "roles" | "branches" | "audit"; team: Team; roles: Awaited<ReturnType<typeof roleMatrix>>; perms: { id: Perm; label: string }[];
   branches: Br[]; transfers: Awaited<ReturnType<typeof listTransfers>>; audit: Awaited<ReturnType<typeof auditTrail>>; tenantCode: string; myBranches: string[]; canAdjust: boolean;
   maxDisc: number; isOwner: boolean;
@@ -125,7 +127,8 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
         </>
       ) : null}
 
-      {tab === "roles" ? (
+      {tab === "roles" && locked ? <UpgradeNote message={locked.message} canUpgrade={locked.canUpgrade} /> : null}
+      {tab === "roles" && !locked ? (
         <div className={card + " p-4 overflow-auto"}>
           <div className="grid min-w-[700px]" style={{ gridTemplateColumns: `minmax(220px,1.4fr) repeat(${roles.length}, minmax(90px,1fr))` }}>
             <div className="text-[12px] text-muted font-medium py-2">{t("Permission")}</div>
@@ -186,7 +189,8 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
         </>
       ) : null}
 
-      {tab === "audit" ? (
+      {tab === "audit" && locked ? <UpgradeNote message={locked.message} canUpgrade={locked.canUpgrade} /> : null}
+      {tab === "audit" && !locked ? (
         <div className={card + " px-4 py-3 flex flex-col"}>
           <div className="flex items-center gap-3 mb-1 flex-wrap">
             <div className="font-semibold text-[14.5px]">{t("Audit trail")}</div><span className="text-[12px] text-faint">{t("Append-only and hash-chained on your server. Latest 200 events.")}</span>

@@ -1,4 +1,6 @@
-import { requireCtx, can } from "@/server/context";
+import { requireCtx, can, entitlementsOf } from "@/server/context";
+import { hasFeature, upgradeMessage } from "@/lib/plans";
+import { UpgradeNote } from "@/components/upgrade-note";
 import { canManageOffline, offlineOverview } from "@/domain/sales/offline";
 import { OfflinePanel } from "./offline-panel";
 import { db } from "@/server/db";
@@ -31,6 +33,7 @@ export default async function Page() {
   const t = tFor(ctx.lang);
   // Everyone can see their own sign-ins and this branch's offline billing; the full device list (with IPs) is for user admins.
   const allUsers = can(ctx, "users");
+  const ent = await entitlementsOf(ctx), offlineLocked = hasFeature(ent, "offline") ? null : upgradeMessage(ent, "offline");
   const [sessions, counters, branches, off] = await Promise.all([
     db.session.findMany({ where: { user: { tenantId: ctx.tenantId }, ...(allUsers ? {} : { userId: ctx.userId }), revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: { select: { name: true } } }, orderBy: { lastSeenAt: "desc" } }),
     db.counter.findMany({ where: { tenantId: ctx.tenantId, active: true } }),
@@ -60,6 +63,7 @@ export default async function Page() {
             </div>
           ))}
         </div>
+        {offlineLocked ? <UpgradeNote compact message={offlineLocked} canUpgrade={allUsers} /> : null}
         <OfflinePanel devices={off.devices} ops={off.ops} branchId={ctx.branchId} branchName={ctx.branchName} counterName={ctx.counterName} canManage={!ctx.readOnly && canManageOffline(ctx)} />
       </div>
     </>

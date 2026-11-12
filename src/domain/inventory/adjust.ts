@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zId } from "@/lib/id";
 import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, can, type Ctx } from "@/server/context";
+import { authorize, can, requireFeature, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { nextSeq, pad } from "@/server/sequence";
 import { gstDocNo } from "@/lib/docno";
@@ -160,6 +160,7 @@ export async function listBranchTransfers(ctx: Ctx) {
 
 export async function requestTransfer(ctx: Ctx, batchId: string, toBranch: string, qty: number, note = "") {
   authorize(ctx, "adjust");
+  await requireFeature(ctx, "transfers");
   if (!Number.isInteger(qty) || qty < 1) throw new UserError("Enter a quantity.");
   if (toBranch === ctx.branchId) throw new UserError("Choose another branch.");
   return db.$transaction(async (tx) => {

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/server/db";
-import { authorizeAny, type Ctx } from "@/server/context";
+import { authorizeAny, requireFeature, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { big } from "@/lib/money";
 import { dayRange, periodOf } from "@/domain/accounting/service";
@@ -18,7 +18,7 @@ const KIND: Record<string, string> = { purchase: "Bill", debit_note: "Debit note
  */
 export async function partyStatement(ctx: Ctx, type: PartyType, id: string, fromDay?: string, toDay?: string) {
   if (type === "supplier") authorizeAny(ctx, "payments", "purchase", "reports");
-  else authorizeAny(ctx, "payments", "reports");
+  else { authorizeAny(ctx, "payments", "reports"); await requireFeature(ctx, "credit"); }
   const party = type === "supplier"
     ? await db.supplier.findFirst({ where: { id, tenantId: ctx.tenantId }, select: { id: true, name: true, gstin: true, phone: true } })
     : await db.customer.findFirst({ where: { id, tenantId: ctx.tenantId, erasedAt: null }, select: { id: true, name: true, phone: true } });

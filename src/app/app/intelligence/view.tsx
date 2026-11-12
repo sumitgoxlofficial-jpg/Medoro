@@ -3,6 +3,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
+import { UpgradeNote } from "@/components/upgrade-note";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
@@ -16,10 +17,10 @@ const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,2
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row align-top";
 
-export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, sea, month, cur, suppliers, canPurchase, canReview }: {
+export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, anomalyLocked, sea, month, cur, suppliers, canPurchase, canReview }: {
   policy: { cover: number; safety: number }; th: { disc: number; refunds: number; cash: number };
   fc: Awaited<ReturnType<typeof forecast>>; prices: Awaited<ReturnType<typeof priceComparison>>; slow: Awaited<ReturnType<typeof slowStock>>;
-  anomalies: Awaited<ReturnType<typeof anomalies>>; sea: Awaited<ReturnType<typeof seasonal>>; month: number; cur: number;
+  anomalies: Awaited<ReturnType<typeof anomalies>> | null; anomalyLocked?: { message: string; canUpgrade: boolean }; sea: Awaited<ReturnType<typeof seasonal>>; month: number; cur: number;
   suppliers: { id: string; name: string }[]; canPurchase: boolean; canReview: boolean;
 }) {
   const t = useT();
@@ -142,7 +143,8 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
         </div>
       </div>
 
-      <div className={card + " p-4 flex flex-col gap-2"}>
+      {!an && anomalyLocked ? <UpgradeNote compact message={anomalyLocked.message} canUpgrade={anomalyLocked.canUpgrade} /> : null}
+      {an ? <div className={card + " p-4 flex flex-col gap-2"}>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="font-semibold text-[15px]">{t("Audit anomalies")}</div>
           <span className="text-[12px] text-faint">{t("Signals to review, not proof of wrongdoing. Last 7 days.")}</span>
@@ -160,7 +162,7 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, se
             {a.reviewed ? <span className="text-[12.5px] text-ok">{t(a.reviewed)}</span> : canReview ? <Button size="sm" disabled={pending} onClick={() => start(async () => { await reviewAction(a.key, `${a.rule} · ${a.detail}`); })}>Mark reviewed</Button> : null}
           </div>
         )) : <div className="text-[13px] text-fainter">{t("Nothing flagged in the last 7 days.")}</div>}
-      </div>
+      </div> : null}
     </div>
   );
 }
