@@ -10,6 +10,7 @@ import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, p
 import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
 import { IdleWatcher, PhotoCheckin } from "./monitor";
+import { ChatNotifier } from "./chat-notify";
 import { Screen } from "./screens";
 
 const ICONS: Record<string, string> = {
@@ -128,6 +129,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
         </header>
         <main className="flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12"><Screen screen={screen} data={data} sh={sh} /></main>
       </div>
+      <ChatNotifier screen={screen} />
       <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} lunch={sh.lunch} />
       {sh.needsPhoto ? <PhotoCheckin lateAfter={sh.lateAfter} /> : null}
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}

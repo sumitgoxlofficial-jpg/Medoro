@@ -7,6 +7,7 @@ import {
   chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendImage, chatSetAvatar,
   chatTyping, chatUpdateGroup, chatVote,
 } from "../actions";
+import { SoundToggle } from "./chat-notify";
 import { Card, Empty, Field, Modal, Tabs, btnCls, cx, dayLong, inputCls, primaryCls, timeLabel, useRun } from "./kit";
 
 type D = Data<"chat">;
@@ -141,6 +142,7 @@ export function ChatScreen({ d }: { d: D }) {
 
   const apply = useCallback((p: Poll, chatId: string, reset: boolean) => {
     setChats(p.chats);
+    window.dispatchEvent(new CustomEvent("hrms:chats", { detail: { chats: p.chats, active: activeRef.current } })); // the notifier rings for messages in other chats
     if (p.presence) setPres(p.presence);
     if (!p.thread || chatId !== activeRef.current) return;
     const { msgs: add, refresh } = p.thread;
@@ -259,7 +261,7 @@ export function ChatScreen({ d }: { d: D }) {
           <div className="p-3 flex flex-col gap-2">
             <div className="flex items-center gap-2"><span className="font-bold text-[14px]">Team chat</span><span className="text-[11px] text-[#0B5E5B] bg-[#D6F3EF] rounded-full px-2 py-0.5 font-semibold">● Live · {online + 1} online</span>
               <button className="ml-auto bg-transparent border-0 cursor-pointer" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={28} /></button></div>
-            <div className="flex gap-2"><input className={inputCls} placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} /><button className={primaryCls} onClick={() => setModal("new")}>+ New</button></div>
+            <div className="flex gap-2"><input className={inputCls} placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} /><SoundToggle /><button className={primaryCls} onClick={() => setModal("new")}>+ New</button></div>
           </div>
           <div className="overflow-y-auto flex-1" role="list">
             {channels.length ? <div className="px-3 pt-2 pb-1 text-[10.5px] font-bold tracking-[.1em] text-[#94A3B8]">CHANNELS</div> : null}
