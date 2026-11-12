@@ -261,7 +261,7 @@ export async function performance(me: Me, period: "today" | "week" | "month") {
   const from = period === "today" ? today : period === "week" ? addDays(today, -6) : today.slice(0, 8) + "01";
   const fromAt = new Date(`${from}T00:00:00+05:30`);
   const [staff, tasks, att, recs] = await Promise.all([
-    db.staffUser.findMany({ where: { kind: "team", status: "active", role: { not: "partner" } }, select: { id: true, name: true, hr: { select: { dept: true, designation: true, presence: true, presenceAt: true } } } }),
+    db.staffUser.findMany({ where: { kind: "team", status: "active", role: { not: "partner" } }, select: { id: true, name: true, hr: { select: { dept: true, designation: true, presence: true, presenceAt: true, role: true } } } }),
     db.hrTask.findMany({ where: { kind: "task", OR: [{ due: { gte: dateOnly(from), lte: dateOnly(today) } }, { doneAt: { gte: fromAt } }, { status: "open", due: { lt: dateOnly(from) } }] } }),
     db.hrAttendance.findMany({ where: { day: { gte: dateOnly(from), lte: dateOnly(today) }, inAt: { not: null } }, select: { staffId: true } }),
     db.hrRecognition.findMany({ where: { createdAt: { gte: fromAt } }, select: { toId: true } }),
@@ -269,7 +269,7 @@ export async function performance(me: Me, period: "today" | "week" | "month") {
   let workDays = 0;
   const hol = new Set((await db.hrHoliday.findMany({ where: { day: { gte: dateOnly(from), lte: dateOnly(today) } } })).map((h) => isoOf(h.day)));
   for (let d = from; d <= today; d = addDays(d, 1)) { const w = dateOnly(d).getUTCDay(); if (w !== 0 && w !== 6 && !hol.has(d)) workDays++; }
-  const rows = staff.map((u) => {
+  const rows = staff.filter((u) => u.hr?.role !== "admin").map((u) => {
     const mine = tasks.filter((t) => t.assigneeId === u.id);
     const done = mine.filter((t) => t.status === "done");
     const onTime = done.filter((t) => !t.due || !t.doneAt || todayISO(t.doneAt) <= isoOf(t.due)).length;

@@ -53,7 +53,7 @@ const checkedInNow = async (staffId: string) => {
 /** The browser reports that the person was inactive since `sinceIso` and didn't answer "still working?". */
 export async function idleStart(me: Me, sinceIso: string) {
   const s = await loadSettings();
-  if (!s.idleMonitor) return { recorded: false };
+  if (!s.idleMonitor || me.role === "admin") return { recorded: false };
   const since = new Date(sinceIso);
   if (Number.isNaN(since.getTime())) throw new UserError("Bad time.");
   const a = await checkedInNow(me.id);

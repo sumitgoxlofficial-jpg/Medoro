@@ -83,7 +83,7 @@ export async function today(me: Me) {
 export async function checkIn(me: Me, selfie?: string) {
   const day = todayISO(), now = new Date();
   const s = await loadSettings();
-  const photo = s.selfie ? parseSelfie(selfie) : null; // checked first: no selfie, no check-in, when the rule is on
+  const photo = s.selfie && me.role !== "admin" ? parseSelfie(selfie) : null; // checked first: no selfie, no check-in, when the rule is on
   const have = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } } });
   if (have?.inAt) throw new UserError("You have already checked in today.");
   if (await approvedLeaveOn(me.id, day)) throw new UserError("You are on approved leave today. Ask HR to cancel the leave first.");
@@ -186,14 +186,14 @@ export async function teamToday(me: Me) {
   need(me, "attendance");
   const day = todayISO(), set = await loadSettings();
   const [staff, att, leaves, idle, shots] = await Promise.all([
-    db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" }, status: "active" }, select: { id: true, name: true, empNo: true, hr: { select: { dept: true } } }, orderBy: { name: "asc" } }),
+    db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" }, status: "active" }, select: { id: true, name: true, empNo: true, hr: { select: { dept: true, role: true } } }, orderBy: { name: "asc" } }),
     db.hrAttendance.findMany({ where: { day: dateOnly(day) } }),
     db.hrLeave.findMany({ where: { status: "approved", fromDay: { lte: dateOnly(day) }, toDay: { gte: dateOnly(day) } } }),
     idleToday(),
     db.hrSelfie.findMany({ where: { day: dateOnly(day) }, select: { id: true, staffId: true, kind: true } }),
   ]);
   const off = weekend(day) || !!(await db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }));
-  return staff.map((u) => {
+  return staff.filter((u) => u.hr?.role !== "admin").map((u) => { // the super admin is not on the attendance roll
     const a = att.find((x) => x.staffId === u.id), onLeave = leaves.some((l) => l.staffId === u.id);
     const status = a?.inAt ? (a.status === "late" ? "Late" : "Present") : onLeave ? "On leave" : off ? "Day off" : "Not in yet";
     return { id: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", inAt: a?.inAt ? fmtTime(a.inAt) : "", outAt: a?.outAt ? fmtTime(a.outAt) : "", status,
