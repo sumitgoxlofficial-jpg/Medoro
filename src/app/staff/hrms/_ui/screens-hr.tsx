@@ -60,7 +60,7 @@ export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
             <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : <button className={dangerCls} onClick={() => { if (confirm(`Deactivate ${p.name}? They are signed out everywhere.`)) run(() => setEmployeeActive(p.id, false)); }}>Deactivate</button>) : null}</div></td></tr>)}
         </Table>
       </Card>
-      {letters ? <LettersPanel staffId={letters.id} name={letters.name} onClose={() => setLetters(null)} /> : null}
+      {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} onClose={() => setLetters(null)} /> : null}
       {edit ? <EditModal p={edit} d={d} onClose={() => setEdit(null)} busy={busy} run={run} /> : null}
       {bal ? <LeaveModal p={bal} onClose={() => setBal(null)} /> : null}
       {otp ? <Modal title="One-time password" onClose={() => setOtp(null)}><p className="text-[13.5px]">Give this to {otp.name} ({otp.empNo}). It works for one sign-in within 24 hours; they then set a new password.</p><code className="block text-center text-[22px] font-bold tracking-wider bg-[#F1F5F9] rounded-xl py-3 select-all">{otp.otp}</code><button className={btnCls} onClick={() => navigator.clipboard?.writeText(otp.otp)}>Copy</button><p className="text-[12px] text-[#64748B]">It isn’t stored anywhere readable. Close this and it can’t be shown again.</p></Modal> : null}
@@ -131,7 +131,7 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
           <p className="text-[12.5px] text-[#64748B] mt-4 border-t border-[#F1F5F9] pt-3">On first sign-in the employee must set their own password, fill in personal, bank and emergency details, and accept the offer letter, appointment letter and non-disclosure agreement.</p>
         </Card>
       </div>
-      {letters ? <LettersPanel staffId={letters.id} name={letters.name} onClose={() => setLetters(null)} /> : null}
+      {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} onClose={() => setLetters(null)} /> : null}
       {made ? <Modal title={`${made.name} is ready`} onClose={() => setMade(null)}>
         <p className="text-[13px] text-[#0B5E5B] bg-[#D6F3EF] rounded-lg px-3 py-2">✓ Offer letter, appointment letter and non-disclosure agreement were generated from the details you entered. <button className="underline bg-transparent border-0 cursor-pointer text-[#0B5E5B] font-semibold" onClick={() => setLetters({ id: made.id, name: made.name })}>View, print or email them</button></p>
         <p className="text-[13.5px]">Share these once, privately. {made.mailed ? "They were also emailed to the personal address." : "Email isn’t set up on this server, so they were not emailed."}</p>

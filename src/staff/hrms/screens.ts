@@ -11,6 +11,8 @@ import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
+import { sentLetters, unreadLetters } from "./letters-server";
+import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
 import { addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
@@ -45,7 +47,7 @@ export const loaders = {
       myTasks(me), leaveBalances(me.id, s), myPayslips(me.id), announcements(5), upcomingHolidays(),
       meetings(me, new Date(`${todayISO()}T00:00:00+05:30`), new Date(`${addDays(todayISO(), 1)}T00:00:00+05:30`)), myProjects(me),
     ]);
-    return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees") };
+    return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id) };
   },
   myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
   assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people() : [] }),
@@ -85,7 +87,7 @@ export const loaders = {
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
-  profile: async (me: Me) => ({ p: await myProfile(me) }),
+  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me) }),
 
   slhome: async (me: Me) => salesSummary(me),
   slboard: async (me: Me) => salesSummary(me),
@@ -97,8 +99,8 @@ export const loaders = {
   assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
   assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
   hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
-  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id }),
-  hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: me.email.split("@")[1] ?? "medoro.in" }),
+  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled() }),
+  hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: me.email.split("@")[1] ?? "medoro.in", mail: mailEnabled() }),
   departments: async () => {
     const [depts, staff] = await Promise.all([departments(), roster()]);
     return { depts: depts.map((d) => ({ ...d, count: staff.filter((p) => p.dept === d.name).length, head: staff.find((p) => p.id === d.headId)?.name ?? "" })), people: staff.map((p) => ({ id: p.id, name: p.name })) };

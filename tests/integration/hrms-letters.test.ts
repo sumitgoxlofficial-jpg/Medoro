@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
 import { buildLetter, JOINING_LETTERS, LETTER_TYPES } from "@/staff/hrms/letters";
-import { candidateLetter, emailLetter, emailOffer, letterFor, letterPdf } from "@/staff/hrms/letters-server";
+import { candidateLetter, emailLetter, emailOffer, letterFor, letterPdf, sendLetters, sentLetters, unreadLetters } from "@/staff/hrms/letters-server";
 import { resetDb } from "./helpers";
 
 let admin: Me, hr: Me, ann: Me, bob: Me;
@@ -79,5 +79,42 @@ describe("letters", () => {
     await expect(emailOffer(hr, c.id)).rejects.toThrow("Email isn’t set up");
     await expect(emailLetter(hr, ann.id, "offer")).rejects.toThrow("Email isn’t set up");
     await expect(emailLetter(bob, ann.id, "offer")).rejects.toThrow("Your role can’t do that");
+  });
+
+  it("sends letters to the employee's screen with a notification, and exit letters appear only once sent", async () => {
+    delete process.env.MAIL_PROVIDER;
+    await expect(sendLetters(bob, ann.id, ["offer"], "", false)).rejects.toThrow("Your role can’t do that");
+    await expect(sendLetters(hr, ann.id, [], "", false)).rejects.toThrow("at least one letter");
+    await expect(sendLetters(hr, ann.id, ["relieving"], "", false)).rejects.toThrow("last working day");
+    await expect(sendLetters(hr, ann.id, ["offer"], "", true)).rejects.toThrow("Email isn’t set up");
+    expect(await db.hrLetter.count()).toBe(0); // nothing half-sent
+    // Before HR sends it, an employee cannot read their own exit letter.
+    await expect(letterFor(ann, ann.id, "relieving", "2027-06-30")).rejects.toThrow("Your role can’t do that");
+
+    const r = await sendLetters(hr, ann.id, ["offer", "appointment", "relieving"], "2027-06-30", false);
+    expect(r).toEqual({ sent: 3, emailed: [] });
+    const note = await db.hrNotification.findFirstOrThrow({ where: { staffId: ann.id }, orderBy: { createdAt: "desc" } });
+    expect(note).toMatchObject({ screen: "profile" }); expect(note.text).toContain("offer letter"); expect(note.text).toContain("relieving letter");
+    expect(await unreadLetters(ann.id)).toBe(3);
+    expect((await sentLetters(ann)).map((x) => [x.type, x.lastDay, x.unread]).sort()).toEqual([["appointment", "", true], ["offer", "", true], ["relieving", "2027-06-30", true]]);
+
+    // The employee opens the exit letter HR sent, and only for that day.
+    expect((await letterFor(ann, ann.id, "relieving", "2027-06-30")).paras.join(" ")).toContain("30 June 2027");
+    await expect(letterFor(bob, ann.id, "relieving", "2027-06-30")).rejects.toThrow("Your role can’t do that"); // nobody else
+    expect(await unreadLetters(ann.id)).toBe(2); // opening marks that letter read
+    await letterFor(ann, ann.id, "offer");
+    expect((await sentLetters(ann)).find((x) => x.type === "offer")?.unread).toBe(false);
+    // Sending again puts it back as new.
+    await sendLetters(hr, ann.id, ["offer"], "", false);
+    expect((await sentLetters(ann)).find((x) => x.type === "offer")?.unread).toBe(true);
+    expect(await db.hrLetter.count({ where: { staffId: ann.id, type: "offer" } })).toBe(1);
+  });
+
+  it("can also email the sent letters as PDFs when mail is set up", async () => {
+    process.env.MAIL_PROVIDER = "console";
+    const r = await sendLetters(hr, bob.id, ["offer", "nda"], "", true);
+    expect(r.sent).toBe(2); expect(r.emailed).toEqual(["bob@medoro.in"]);
+    expect(await db.hrLetter.count({ where: { staffId: bob.id } })).toBe(2);
+    delete process.env.MAIL_PROVIDER;
   });
 });

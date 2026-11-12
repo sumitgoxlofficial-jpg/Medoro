@@ -83,7 +83,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
         </Grid>
         <p className="text-[12px] text-[#64748B] mt-3">Joining documents {p.docsAccepted ? `accepted on ${dayLabel(p.docsAcceptedAt!)}` : "not yet accepted"} · Authenticator app {p.totp ? "on" : "off"}</p>
       </Card>
-      <Card title="My documents" sub="Your offer letter, appointment letter and non-disclosure agreement, written from your HR record" pad><MyLetters /></Card>
+      <Card title="My documents" sub="Your offer letter, appointment letter and non-disclosure agreement, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
       {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>
         <div className="print-area mx-auto w-[300px] rounded-2xl overflow-hidden border border-[#CBD5E1] bg-white text-center shadow">
@@ -112,6 +112,7 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
   const left = (() => { const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1).getTime() - n.getTime(); return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m left`; })();
   return (
     <>
+      {d.newLetters ? <Link href="/staff/hrms/profile" className="flex items-center gap-3 bg-[#D6F3EF] border border-[#0B5E5B] rounded-xl px-4 py-3 text-[13.5px] text-[#0B5E5B] font-semibold no-underline"><span aria-hidden>📄</span>HR sent you {d.newLetters} new letter{d.newLetters === 1 ? "" : "s"}<span className="ml-auto">Open My documents →</span></Link> : null}
       <div className="flex justify-end -mb-1"><button className={btnCls} onClick={() => setCustom(true)}>⚙️ Customize home</button></div>
       <div className="rounded-[20px] px-8 py-6 text-white flex flex-wrap items-center gap-4" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F)" }}>
         <div className="flex-1 min-w-[240px]">

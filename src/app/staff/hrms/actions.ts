@@ -177,3 +177,4 @@ export const emailOffer = async (candidateId: string) => done(await hrRun((me) =
 // ── Master lead sheet (Google Sheets)
 export const saveLeadSheet = async (input: { url: string; auto: boolean; assign: boolean }) => done(await hrRun((me) => leadSheet.saveSheet(me, input), "Lead sheet saved."));
 export const syncLeadSheet = async () => done(await hrRun((me) => leadSheet.syncSheet(me)));
+export const sendLetters = async (staffId: string, types: string[], lastDay: string, email: boolean) => done(await hrRun((me) => letters.sendLetters(me, staffId, types, lastDay, email)));
