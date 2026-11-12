@@ -61,6 +61,12 @@ describe("accounting", () => {
       expect(rows.length).toBeGreaterThan(0);
     }
     expect((await reportRows(ctx, "sales-register", periodOf("month"))).length).toBe(2);
+    // Sales by cashier: the one bill under the person who made it, with its total and no returns yet.
+    const sale = await db.sale.findFirstOrThrow();
+    const [head, row] = await reportRows(ctx, "cashier-sales", periodOf("month"));
+    expect(head.slice(0, 7)).toEqual(["Cashier", "Bills", "Voided bills", "Sales", "Discount given", "Returns", "Net sales"]);
+    expect(row.slice(0, 4)).toEqual([ctx.userName, 1, 0, (Number(sale.totalPaise) / 100).toFixed(2)]);
+    expect(row[6]).toBe(row[3]);
   });
 
   it("nets credit notes out of the GST summary, by slab", async () => {

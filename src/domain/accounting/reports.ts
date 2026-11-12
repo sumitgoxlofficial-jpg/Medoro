@@ -25,6 +25,7 @@ export const REPORTS = [
   ["stock-movements", "Stock movements", "Immutable stock ledger"],
   ["h1-register", "Schedule H1 register", "H1, X and NDPS sales with patient and prescriber"],
   ["hsn-summary", "HSN summary", "HSN-wise quantity, taxable value and tax (GSTR-1 Table 12)"],
+  ["cashier-sales", "Sales by cashier", "Bills, discounts, voids and returns for each person who billed"],
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
 
@@ -132,6 +133,29 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
     case "h1-register": {
       const rows = await h1Register(T, B, p);
       return [H1_HEAD, ...rows.map((r) => [r.date, r.invoiceNo, r.patient, r.prescriber, r.prescriberReg, r.rxNo, r.medicine, r.schedule, r.batchNo, r.expiry, r.qty, r.returned, r.billedBy])];
+    }
+    case "cashier-sales": {
+      // Who billed what. A void or return counts against the person who made the bill, whoever processed it.
+      const [s, ret, users] = await Promise.all([
+        db.sale.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, select: { id: true, userId: true, totalPaise: true, discountPaise: true, payMode: true, voided: { select: { id: true } } } }),
+        db.salesReturn.findMany({ where: { tenantId: T, branchId: B, at: { gte: p.from, lt: p.to } }, select: { saleId: true, amountPaise: true } }),
+        db.user.findMany({ where: { tenantId: T }, select: { id: true, name: true } }),
+      ]);
+      const billedBy = new Map((await db.sale.findMany({ where: { tenantId: T, id: { in: [...new Set(ret.map((x) => x.saleId))] } }, select: { id: true, userId: true } })).map((x) => [x.id, x.userId]));
+      const modes = [...new Set(s.map((x) => String(x.payMode)))].sort();
+      const by = new Map<string, { bills: number; voids: number; gross: number; discount: number; returns: number; mode: Map<string, number> }>();
+      const row = (u: string) => { let v = by.get(u); if (!v) by.set(u, v = { bills: 0, voids: 0, gross: 0, discount: 0, returns: 0, mode: new Map() }); return v; };
+      for (const x of s) {
+        const v = row(x.userId);
+        if (x.voided) { v.voids++; continue; }
+        v.bills++; v.gross += big(x.totalPaise); v.discount += big(x.discountPaise);
+        v.mode.set(String(x.payMode), (v.mode.get(String(x.payMode)) ?? 0) + big(x.totalPaise));
+      }
+      for (const x of ret) { const u = billedBy.get(x.saleId); if (u) row(u).returns += big(x.amountPaise); }
+      const name = (u: string) => users.find((x) => x.id === u)?.name ?? "Unknown";
+      const list = [...by.entries()].sort((a, b) => b[1].gross - a[1].gross || name(a[0]).localeCompare(name(b[0])));
+      return [["Cashier", "Bills", "Voided bills", "Sales", "Discount given", "Returns", "Net sales", "Average bill", ...modes.map((m) => `${m} sales`)],
+        ...list.map(([u, v]) => [name(u), v.bills, v.voids, r2(v.gross), r2(v.discount), r2(v.returns), r2(v.gross - v.returns), v.bills ? r2(Math.round(v.gross / v.bills)) : "0.00", ...modes.map((m) => r2(v.mode.get(m) ?? 0))])];
     }
     case "hsn-summary":
       return hsnCsv(hsnRows((await gstDocs(T, [B], p)).docs));
