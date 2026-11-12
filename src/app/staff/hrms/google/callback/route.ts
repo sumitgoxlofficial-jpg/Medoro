@@ -1,6 +1,8 @@
 import { UserError } from "@/server/action";
 import { log } from "@/server/log";
 import { finishConnect } from "@/staff/hrms/gcal";
+import { backUp } from "@/staff/hrms/chat-backup";
+import { defer } from "@/server/defer";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,7 @@ export async function GET(req: Request) {
   let result = "error", purpose = "calendar";
   if (u.searchParams.get("error")) result = "denied";
   else {
-    try { purpose = await finishConnect(u.searchParams.get("code") ?? "", u.searchParams.get("state") ?? ""); result = "connected"; }
+    try { const done = await finishConnect(u.searchParams.get("code") ?? "", u.searchParams.get("state") ?? ""); purpose = done.purpose; result = "connected"; if (purpose === "backup") await defer(() => backUp(done.staffId)); } // the first backup starts by itself
     catch (e) { if ((e as { purpose?: string }).purpose === "backup") purpose = "backup"; if (!(e instanceof UserError)) log.error("google connect failed", { err: e }); result = e instanceof UserError ? "failed&why=" + encodeURIComponent(e.message) : "error"; }
   }
   const next = purpose === "backup" ? `/staff/hrms/chat?backup=${result}` : `/staff/hrms/calendar?google=${result}`;

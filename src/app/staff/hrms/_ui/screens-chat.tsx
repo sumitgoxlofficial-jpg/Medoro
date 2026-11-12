@@ -248,6 +248,7 @@ export function ChatScreen({ d }: { d: D }) {
 
   return (
     <div className="flex flex-col gap-3">
+      <BackupPrompt b={d.backup} />
       <p className="text-[12px] text-[#64748B]">Messages are encrypted and kept private to the people in each conversation. Only the super admin can open a conversation for review, and every review is recorded in the audit log.</p>
       {incoming ? (
         <div role="alert" className="flex items-center gap-3 bg-[#0B5E5B] text-white rounded-xl px-4 py-3">
@@ -540,5 +541,23 @@ function BackupModal({ b, onClose }: { b: Backup; onClose: () => void }) {
       ) : null}
       <div className="flex justify-end"><button className={btnCls} onClick={onClose}>Close</button></div>
     </Modal>
+  );
+}
+
+const BACKUP_ASKED = "hrms.chat.backup.asked";
+/** WhatsApp-style first-time offer: one tap to turn on the daily Google Drive backup. Google needs each person's own OK once; after that it runs by itself. */
+function BackupPrompt({ b }: { b: Backup }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => { try { setShow(b.configured && !b.connected && !localStorage.getItem(BACKUP_ASKED)); } catch { setShow(false); } }, [b.configured, b.connected]);
+  if (!show) return null;
+  return (
+    <div role="region" aria-label="Chat backup" className="flex items-center gap-3 flex-wrap bg-[#F2F9F8] border border-[#CFE6E3] rounded-xl px-4 py-3">
+      <span className="text-[20px]" aria-hidden>☁</span>
+      <span className="flex-1 min-w-[220px] text-[13px]"><strong>Back up your chats automatically</strong><span className="block text-[12px] text-[#475569]">Choose your Google account once. Your chats are then saved, encrypted, to your own Google Drive every day.</span></span>
+      <button className={btnCls} onClick={() => { try { localStorage.setItem(BACKUP_ASKED, "1"); } catch { /* ignore */ } setShow(false); }}>Not now</button>
+      {/* A real browser navigation to a route that redirects to Google, so deliberately not next/link. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a className={primaryCls} href="/staff/hrms/google/start?for=backup">Turn on</a>
+    </div>
   );
 }

@@ -40,7 +40,7 @@ export async function beginConnect(me: Me, purpose: Purpose = "calendar") {
   (await cookies()).set(FLOW_COOKIE, sealed, cookieOpts(600));
   const q = new URLSearchParams({
     client_id: g.id, redirect_uri: g.redirect, response_type: "code", scope: `${purpose === "backup" ? APPDATA_SCOPE : SCOPE} openid email`, access_type: "offline", prompt: "consent",
-    state, code_challenge: b64u(createHash("sha256").update(verifier).digest()), code_challenge_method: "S256", login_hint: me.email,
+    state, code_challenge: b64u(createHash("sha256").update(verifier).digest()), code_challenge_method: "S256", login_hint: purpose === "backup" ? me.personalEmail || me.email : me.email, // the personal Gmail is preselected on Google's account chooser
   });
   return `${AUTH_URL}?${q}`;
 }
@@ -58,9 +58,9 @@ async function takeFlow() {
 const form = (o: Record<string, string>) => ({ method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(o), signal: AbortSignal.timeout(15_000) });
 
 /** Google's redirect lands here: checks state, swaps the code for a refresh token and stores it for the employee who started it. */
-export async function finishConnect(code: string, state: string): Promise<Purpose> {
+export async function finishConnect(code: string, state: string): Promise<{ purpose: Purpose; staffId: string }> {
   const flow = await takeFlow();
-  try { return await complete(code, state, flow); }
+  try { const purpose = await complete(code, state, flow); return { purpose, staffId: flow!.staffId }; }
   catch (e) { if (e instanceof UserError) (e as UserError & { purpose?: Purpose }).purpose = flow?.purpose === "backup" ? "backup" : "calendar"; throw e; } // so the error lands on the page the person came from
 }
 async function complete(code: string, state: string, flow: Awaited<ReturnType<typeof takeFlow>>): Promise<Purpose> {
