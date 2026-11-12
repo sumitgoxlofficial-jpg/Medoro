@@ -85,7 +85,7 @@ export const loaders = {
   chat: async (me: Me, q: Q) => {
     await syncChannels();
     const [chats, people, mine, g, backup] = await Promise.all([chatList(me), chatPeople(me), myChatProfile(me), gcalStatus(me.id), backupStatus(me.id)]);
-    const notice = q.backup === "connected" ? "Google Drive connected. Press “Back up now” to make the first backup." : q.backup === "denied" ? "Google Drive wasn’t connected: access was not allowed." : q.backup === "off" ? "Google isn’t set up on this server yet. Ask the super admin." : q.backup === "failed" ? (q.why ?? "Couldn’t connect Google Drive.").slice(0, 200) : q.backup === "error" ? "Couldn’t connect Google Drive. Try again." : "";
+    const notice = q.backup === "connected" ? "Google Drive connected. Your first backup is running now, and from here on your chats back up by themselves every day." : q.backup === "denied" ? "Google Drive wasn’t connected: access was not allowed." : q.backup === "off" ? "Google isn’t set up on this server yet. Ask the super admin." : q.backup === "failed" ? (q.why ?? "Couldn’t connect Google Drive.").slice(0, 200) : q.backup === "error" ? "Couldn’t connect Google Drive. Try again." : "";
     return { chats, people, me: mine, open: q.c ?? "", google: g.connected, backup: { ...backup, notice }, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
