@@ -1441,6 +1441,22 @@ model FileObject {
 }
 
 /// A same-day void of a whole sale. Append-only; the sale itself is never changed.
+/// Check-in and check-out of the pharmacy's own staff (one row per person per India-time day).
+model StaffAttendance {
+  id       String    @id @default(uuid())
+  tenantId String
+  branchId String
+  userId   String
+  day      DateTime  @db.Date
+  inAt     DateTime?
+  outAt    DateTime?
+  note     String    @default("")
+  editedBy String? // a manager who set or corrected this day
+
+  @@unique([tenantId, userId, day])
+  @@index([tenantId, branchId, day])
+}
+
 /// A priced list for a customer who is not buying yet (quotation). No stock or books are touched.
 model Estimate {
   id           String   @id @default(uuid())

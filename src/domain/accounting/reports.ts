@@ -11,6 +11,7 @@ import { H1_SCHEDULES } from "@/lib/rx";
 import { inputGstByRate, outputGstByRate, trialBalance, type Period } from "./service";
 import { hsnCsv, hsnRows } from "@/domain/gst/common";
 import { gstDocs } from "@/domain/gst/service";
+import { attendanceRows } from "@/domain/identity/attendance";
 
 export const REPORTS = [
   ["sales-register", "Sales register", "Invoices with tax split"],
@@ -25,6 +26,7 @@ export const REPORTS = [
   ["stock-movements", "Stock movements", "Immutable stock ledger"],
   ["h1-register", "Schedule H1 register", "H1, X and NDPS sales with patient and prescriber"],
   ["hsn-summary", "HSN summary", "HSN-wise quantity, taxable value and tax (GSTR-1 Table 12)"],
+  ["staff-attendance", "Staff attendance", "Who punched in and out each day, with hours"],
   ["cashier-sales", "Sales by cashier", "Bills, discounts, voids and returns for each person who billed"],
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
@@ -134,6 +136,8 @@ async function branchRows(ctx: Ctx, id: ReportId, p: Period, B: string): Promise
       const rows = await h1Register(T, B, p);
       return [H1_HEAD, ...rows.map((r) => [r.date, r.invoiceNo, r.patient, r.prescriber, r.prescriberReg, r.rxNo, r.medicine, r.schedule, r.batchNo, r.expiry, r.qty, r.returned, r.billedBy])];
     }
+    case "staff-attendance":
+      return attendanceRows(T, B, p.from, p.to);
     case "cashier-sales": {
       // Who billed what. A void or return counts against the person who made the bill, whoever processed it.
       const [s, ret, users] = await Promise.all([
