@@ -9,7 +9,7 @@ import { audit, can, loadSettings, need, notify, type Me } from "./auth";
 import { monthLabel, type Settings } from "./constants";
 import { postSalaryJournal } from "./finance";
 import { openBankAccount } from "./people";
-import { addMonths, monthFor } from "./time";
+import { AFTER_LEAVING, BEFORE_JOINING, addMonths, holidays, monthFor, weekend } from "./time";
 
 const ymRe = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Pick a month.");
 
@@ -73,7 +73,7 @@ type Line = Slip & { staffId: string; name: string; empNo: string; dept: string;
 export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; label: string; lines: Line[]; processed: boolean; canProcess: boolean; note: string }> {
   need(me, "payroll");
   const ym = ymRe.parse(ymRaw), s = await loadSettings();
-  const last = isoOf(new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)));
+  const first = `${ym}-01`, last = isoOf(new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)));
   const [staff, saved, inc, claims] = await Promise.all([
     db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" } }, include: { hr: true }, orderBy: { name: "asc" } }),
     db.hrPayslip.findMany({ where: { month: ym } }),
@@ -85,20 +85,29 @@ export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; l
     const have = saved.find((p) => p.staffId === u.id);
     const base = { staffId: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", hasBank: !!u.hr?.bankLast4 };
     if (have) { lines.push({ ...base, ...slipOf(have), status: "paid", paidOn: have.paidOn ? isoOf(have.paidOn) : null }); continue; }
-    if (u.status !== "active" || !u.hr || u.hr.ctc <= 0) continue;
+    if (!u.hr || u.hr.ctc <= 0) continue;
+    // Someone who left is paid up to their last working day, in the month they left.
+    const exit = u.hr.exitDate ? isoOf(u.hr.exitDate) : null;
+    if (u.status !== "active" && !(u.status === "deactivated" && exit && exit >= first)) continue;
     if (u.hr.joinDate && isoOf(u.hr.joinDate) > last) continue;
     const m = await monthFor(u.id, ym, s);
     const workDays = m.cells.filter((c) => c.kind !== "weekend" && c.kind !== "holiday").length;
-    // People who joined part-way are not paid for the working days before they joined.
-    const before = m.cells.filter((c) => c.kind === "before" && c.label === "Before joining").length;
+    // Working days before joining or after the last working day are not paid.
+    const before = m.cells.filter((c) => c.kind === "before" && (c.label === BEFORE_JOINING || c.label === AFTER_LEAVING)).length;
     const reimburse = claims.filter((c) => c.staffId === u.id).reduce((a, c) => a + c.amount, 0);
     lines.push({ ...base, ...computeSlip(u.hr.ctc, { workDays, lopDays: m.counts.absent + before, incentive: inc.get(u.id)?.incentive ?? 0, reimburse, ptax: s.ptax }), status: "draft", paidOn: null });
   }
   const drafts = lines.filter((l) => l.status === "draft").length;
   const future = ym > todayISO().slice(0, 7);
+  // A month is processed once and can't be redone, so it opens on its last working day: by then every absence is known.
+  const hol = new Set((await holidays(first, last)).map((h) => h.day));
+  let opens = last;
+  while (opens > first && (weekend(opens) || hol.has(opens))) opens = isoOf(new Date(dateOnly(opens).getTime() - 86_400_000));
+  const early = !future && todayISO() < opens;
   return {
-    ym, label: monthLabel(ym), lines, processed: !drafts && lines.length > 0, canProcess: drafts > 0 && !future,
-    note: future ? "This month hasn’t started." : !lines.length ? "No one has a salary (annual CTC) set yet. Set it on the employee’s profile." : "",
+    ym, label: monthLabel(ym), lines, processed: !drafts && lines.length > 0, canProcess: drafts > 0 && !future && !early,
+    note: future ? "This month hasn’t started." : !lines.length ? "No one has a salary (annual CTC) set yet. Set it on the employee’s profile."
+      : early && drafts ? `This is a preview. ${monthLabel(ym)} can be processed from ${opens}, its last working day, so that every absence is counted.` : "",
   };
 }
 const slipOf = (p: { workDays: number; lopDays: number; basic: number; hra: number; special: number; incentive: number; reimburse: number; gross: number; pf: number; esi: number; pt: number; tds: number; lop: number; net: number }): Slip =>

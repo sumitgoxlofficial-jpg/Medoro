@@ -133,7 +133,8 @@ describe("accounts: more registers and workflows that really run", () => {
     await expect(setWorkflow(fin, "nonsense", true)).rejects.toThrow(/Unknown rule/);
   });
   it("processing payroll posts one salary journal for the month's net pay (when the rule is on)", async () => {
-    const ym = todayISO().slice(0, 7);
+    const d = new Date(); d.setUTCDate(0); // last day of the previous month: a month that has ended
+    const ym = d.toISOString().slice(0, 7);
     const before = await db.hrRecord.count({ where: { kind: "journals" } });
     await processPayroll(admin, ym, { [admin.id]: 0, [fin.id]: 0, [emp.id]: 0, [other.id]: 0 });
     const journals = await db.hrRecord.findMany({ where: { kind: "journals" } });

@@ -23,7 +23,7 @@ export const workedMin = (a: { inAt: Date; outAt: Date; breakMin: number }, s: P
   Math.max(0, Math.round((a.outAt.getTime() - a.inAt.getTime()) / 60_000) - lunchOverlapMin(a.inAt, a.outAt, s) - a.breakMin);
 export const hm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 export const istClock = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(11, 16);
-const weekend = (day: string) => { const w = dateOnly(day).getUTCDay(); return w === 0 || w === 6; };
+export const weekend = (day: string) => { const w = dateOnly(day).getUTCDay(); return w === 0 || w === 6; };
 const daysBetween = (from: string, to: string) => { const out: string[] = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push(d); return out; };
 const monthBounds = (ym: string) => { const first = ym + "-01"; const d = dateOnly(first); const last = isoOf(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))); return { first, last }; };
 export const ymOf = (day: string) => day.slice(0, 7);
@@ -113,6 +113,8 @@ export async function checkOut(me: Me, selfie?: string) {
 
 const approvedLeaveOn = (staffId: string, day: string) => db.hrLeave.findFirst({ where: { staffId, status: "approved", fromDay: { lte: dateOnly(day) }, toDay: { gte: dateOnly(day) } } });
 
+/** Working days outside someone's employment: never paid. Other "before" cells ("No record") are paid. */
+export const BEFORE_JOINING = "Before joining", AFTER_LEAVING = "After leaving";
 export type DayCell = { day: string; kind: "present" | "late" | "absent" | "leave" | "holiday" | "weekend" | "upcoming" | "today" | "before"; label: string; inAt: string | null; outAt: string | null; correctable: boolean };
 
 /** One person's month: a cell per day plus the counts. Absence is only counted when check-in is switched on. */
@@ -123,10 +125,14 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     db.hrAttendance.findMany({ where: { staffId, day: { gte: dateOnly(first), lte: dateOnly(last) } } }),
     holidays(first, last),
     db.hrLeave.findMany({ where: { staffId, status: "approved", fromDay: { lte: dateOnly(last) }, toDay: { gte: dateOnly(first) } } }),
-    db.hrProfile.findUnique({ where: { staffId }, select: { joinDate: true, createdAt: true } }),
+    db.hrProfile.findUnique({ where: { staffId }, select: { joinDate: true, exitDate: true, createdAt: true } }),
     db.hrCorrection.findMany({ where: { staffId, status: "pending", day: { gte: dateOnly(first), lte: dateOnly(last) } } }),
   ]);
   const start = profile?.joinDate ? isoOf(profile.joinDate) : profile ? todayISO(profile.createdAt) : first;
+  // Nobody could check in before their HRMS profile existed, so those days are never counted as absent.
+  const created = profile ? todayISO(profile.createdAt) : first;
+  const tracked = created > start ? created : start;
+  const left = profile?.exitDate ? isoOf(profile.exitDate) : null; // last working day of someone who has left
   const byDay = new Map(att.map((a) => [isoOf(a.day), a]));
   const holBy = new Map(hols.map((h) => [h.day, h.name]));
   const asked = new Set(corrections.map((c) => isoOf(c.day)));
@@ -136,7 +142,7 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     const inAt = a?.inAt?.toISOString() ?? null, outAt = a?.outAt?.toISOString() ?? null;
     const cell = (kind: DayCell["kind"], label: string, correctable = false): DayCell => ({ day, kind, label, inAt, outAt, correctable: correctable && !asked.has(day) });
     const working = !weekend(day) && !holBy.has(day);
-    if (working && day >= start && day <= todayDay) counts.workDays++;
+    if (working && day >= start && day <= todayDay && (!left || day <= left)) counts.workDays++;
     if (a?.inAt) {
       const worked = a.outAt ? workedMin({ inAt: a.inAt, outAt: a.outAt, breakMin: a.breakMin }, s) : 0;
       if (a.outAt) counts.overtimeMin += Math.max(0, worked - s.workHours * 60);
@@ -148,11 +154,12 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     if (a?.status === "present") { counts.present++; return cell("present", `Present · ${a.note || "marked by HR"}`); }
     if (holBy.has(day)) { if (day <= todayDay) counts.holidays++; return cell("holiday", `Holiday · ${holBy.get(day)}`); }
     if (weekend(day)) return cell("weekend", "Weekend");
+    if (left && day > left) return cell("before", AFTER_LEAVING);
+    if (day < start) return cell("before", BEFORE_JOINING);
     if (lv) { counts.leave++; return cell("leave", `On leave · ${leaveLabel(lv.type)}`); }
     if (day > todayDay) return cell("upcoming", "Upcoming");
     if (day === todayDay) return cell("today", "Today · not checked in yet");
-    if (day < start) return cell("before", "Before joining");
-    if (!s.checkin) return cell("before", "No record");
+    if (!s.checkin || day < tracked) return cell("before", "No record");
     counts.absent++;
     return cell("absent", asked.has(day) ? "Absent · correction requested" : "Absent · no check-in", true);
   });
@@ -203,14 +210,22 @@ export async function teamToday(me: Me) {
 }
 
 // ── Leave
+/** The part of a year's leave someone gets: all of it, or from the month they joined when they joined in that year. */
+export function yearShare(joinDate: string, year: string) {
+  const y = joinDate.slice(0, 4);
+  if (!joinDate || y < year) return 1;
+  if (y > year) return 0;
+  return (13 - Number(joinDate.slice(5, 7))) / 12;
+}
 export async function leaveBalances(staffId: string, s: Settings, year = todayISO().slice(0, 4)) {
   const [p, rows] = await Promise.all([
-    db.hrProfile.findUnique({ where: { staffId }, select: { leaveExtra: true } }),
+    db.hrProfile.findUnique({ where: { staffId }, select: { leaveExtra: true, joinDate: true } }),
     db.hrLeave.findMany({ where: { staffId, status: { in: ["approved", "pending"] }, fromDay: { gte: dateOnly(`${year}-01-01`), lte: dateOnly(`${year}-12-31`) } } }),
   ]);
   const extra = (p?.leaveExtra ?? {}) as Record<string, number>;
+  const share = yearShare(p?.joinDate ? isoOf(p.joinDate) : "", year);
   return LEAVE_TYPES.map((l) => {
-    const total = s.leave[l.id] + (Number(extra[l.id]) || 0);
+    const total = Math.round(s.leave[l.id] * share) + (Number(extra[l.id]) || 0);
     const used = rows.filter((r) => r.type === l.id && r.status === "approved").reduce((a, r) => a + r.days, 0);
     const pending = rows.filter((r) => r.type === l.id && r.status === "pending").reduce((a, r) => a + r.days, 0);
     return { id: l.id, label: l.short, total, used, pending, left: Math.max(0, total - used - pending) };

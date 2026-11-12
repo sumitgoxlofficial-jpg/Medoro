@@ -165,15 +165,23 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   await audit(me, "Employee updated", `${u.empNo} · ${role} · ${i.dept} · ${i.designation}`);
 }
 
-export async function setEmployeeActive(me: Me, id: string, active: boolean) {
+/** Deactivating records the last working day (today unless given): payroll pays up to it, in that month. */
+export async function setEmployeeActive(me: Me, id: string, active: boolean, lastDay?: string) {
   need(me, "employees");
   if (id === me.id) throw new UserError("You can’t change your own access.");
   const u = await db.staffUser.findUnique({ where: { id } });
   if (!u || u.kind !== "team") throw new UserError("Employee not found.");
   if (u.role === "super_admin" && me.role !== "admin") throw new UserError("Only the super admin can change a super admin.");
   if (!active && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active" } })) <= 1) throw new UserError("Keep at least one active super admin.");
-  await db.staffUser.update({ where: { id }, data: { status: active ? "active" : "deactivated", tokenVersion: active ? undefined : { increment: 1 } } });
-  await audit(me, active ? "Employee reactivated" : "Employee deactivated", `${u.empNo} · ${u.email}`);
+  const hr = await db.hrProfile.findUnique({ where: { staffId: id }, select: { joinDate: true } });
+  const exit = active ? null : iso.parse(lastDay || todayISO());
+  if (exit && exit > todayISO()) throw new UserError("The last working day can’t be in the future. Deactivate on or after that day.");
+  if (exit && hr?.joinDate && exit < isoOf(hr.joinDate)) throw new UserError("The last working day can’t be before the joining date.");
+  await db.$transaction([
+    db.staffUser.update({ where: { id }, data: { status: active ? "active" : "deactivated", tokenVersion: active ? undefined : { increment: 1 } } }),
+    ...(hr ? [db.hrProfile.update({ where: { staffId: id }, data: { exitDate: exit ? dateOnly(exit) : null } })] : []),
+  ]);
+  await audit(me, active ? "Employee reactivated" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);
 }
 
 /** A password HR reads out to someone who forgot theirs. Works for one sign-in within 24 hours; then they set a new one. */

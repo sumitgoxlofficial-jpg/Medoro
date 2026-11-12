@@ -12,8 +12,8 @@ import { db } from "@/server/db";
 import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
-import { createEmployee, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
-import { addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim } from "@/staff/hrms/time";
+import { createEmployee, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
+import { addMonths, addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, yearShare } from "@/staff/hrms/time";
 import { annualTax, computeSlip, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
@@ -156,7 +156,7 @@ describe("HRMS", () => {
   });
 
   it("payroll: processes a month once, pays approved claims once, and the owner can open the payslip", async () => {
-    const ym = todayISO().slice(0, 7);
+    const ym = addMonths(todayISO().slice(0, 7), -1); // a month that has ended
     const run = await payrollFor(hr, ym);
     const esha = run.lines.find((l) => l.empNo === "MS-003")!;
     expect(esha.status).toBe("draft");
@@ -230,7 +230,7 @@ describe("HRMS", () => {
     expect((rec.data as { doc: { total: number } }).doc.total).toBe(11800);
     const sum = await summary(fin);
     expect(sum.invoiced).toBe(11800); // drafts are not counted
-    expect(sum.gst[0].output).toBe(1800);
+    expect(sum.gst.find((g) => g.month === todayISO().slice(0, 7))!.output).toBe(1800);
     await expect(createInvoice(fin, { client: "X", gstin: "BAD", address: "", state: "", due: "", notes: "", draft: false, items: [{ desc: "a", hsn: "", qty: 1, rate: 1, gst: 18 }] })).rejects.toThrow(/GSTIN/);
   });
 
@@ -242,5 +242,61 @@ describe("HRMS", () => {
     expect(await getMe()).toBeNull();
     await expect(signIn("MS-003", PW)).rejects.toThrow(/deactivated/);
     void dateOnly;
+  });
+  it("days before the HRMS profile existed are never absent or loss of pay", async () => {
+    const s = await loadSettings(), prev = addMonths(todayISO().slice(0, 7), -1);
+    const sam = await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-004" } }); // joined in January, profile made today
+    const m = await monthFor(sam.id, prev, s);
+    expect(m.counts.absent).toBe(0);
+    expect(m.cells.some((c) => c.kind === "before" && c.label === "No record")).toBe(true);
+    // Once the profile is older than the month, a working day with no check-in is absent again.
+    await db.hrProfile.update({ where: { staffId: sam.id }, data: { createdAt: new Date("2026-01-05T00:00:00Z") } });
+    expect((await monthFor(sam.id, prev, s)).counts.absent).toBeGreaterThan(0);
+    await db.hrProfile.update({ where: { staffId: sam.id }, data: { createdAt: new Date() } });
+  });
+
+  it("leave is pro-rated from the month of joining in the first year", async () => {
+    expect(yearShare("2026-10-01", "2026")).toBe(0.25);
+    expect(yearShare("2025-10-01", "2026")).toBe(1);
+    expect(yearShare("2027-01-01", "2026")).toBe(0);
+    const s = await loadSettings();
+    const u = await mk("MS-050", "Nina New", "nina@medoro.in", "employee", "employee");
+    await db.hrProfile.update({ where: { staffId: u.id }, data: { joinDate: dateOnly("2030-10-01") } });
+    const bal = await leaveBalances(u.id, s, "2030");
+    expect(bal.find((b) => b.id === "casual")!.total).toBe(3);
+    expect(bal.find((b) => b.id === "privilege")!.total).toBe(4); // 15 × 3/12 = 3.75
+    expect((await leaveBalances(u.id, s, "2031")).find((b) => b.id === "casual")!.total).toBe(12);
+  });
+
+  it("a month can be processed only from its last working day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2031-06-10T06:00:00Z"));
+      const early = await payrollFor(hr, "2031-06");
+      expect(early.canProcess).toBe(false);
+      expect(early.note).toMatch(/preview.*2031-06-30/);
+      await expect(processPayroll(hr, "2031-06")).rejects.toThrow(/preview/);
+      vi.setSystemTime(new Date("2031-06-30T06:00:00Z")); // a Monday
+      expect((await payrollFor(hr, "2031-06")).canProcess).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("someone who leaves is paid up to the last working day, in that month only", async () => {
+    const nina = await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-050" } });
+    await db.hrProfile.update({ where: { staffId: nina.id }, data: { joinDate: dateOnly("2026-01-05") } });
+    await expect(setEmployeeActive(hr, nina.id, false, "2099-01-01")).rejects.toThrow(/future/);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2031-07-31T06:00:00Z"));
+      await setEmployeeActive(hr, nina.id, false, "2031-07-10"); // a Thursday: 8 working days in, 15 after
+      await db.hrAttendance.createMany({ data: ["01", "02", "03", "04", "07", "08", "09", "10"].map((d) => ({ staffId: nina.id, day: dateOnly(`2031-07-${d}`), status: "present", note: "marked by HR" })) });
+      const line = (await payrollFor(hr, "2031-07")).lines.find((l) => l.empNo === "MS-050")!;
+      expect(line).toMatchObject({ status: "draft", workDays: 23, lopDays: 15 });
+      expect(line.net).toBeGreaterThan(0);
+      vi.setSystemTime(new Date("2031-08-29T06:00:00Z"));
+      expect((await payrollFor(hr, "2031-08")).lines.some((l) => l.empNo === "MS-050")).toBe(false);
+      await setEmployeeActive(hr, nina.id, true);
+      expect((await db.hrProfile.findUniqueOrThrow({ where: { staffId: nina.id } })).exitDate).toBeNull();
+    } finally { vi.useRealTimers(); }
   });
 });

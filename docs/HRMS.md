@@ -24,7 +24,8 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
    with `HOST_KEY` and shown masked), accept the offer letter, appointment letter and NDA.
 3. Daily: check in/out (late after the time in Settings), breaks, tasks, leave and claims.
 4. Month end: HR or Finance processes **Payroll**; employees get a payslip (printable as PDF).
-5. Leaving: HR deactivates the profile. Sessions end immediately.
+5. Leaving: HR deactivates the profile and enters the last working day. Sessions end immediately; the final month's payslip
+   pays up to that day.
 
 ## More screens
 
@@ -79,14 +80,17 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
 * **Attendance.** Check-in is on by default. A working day in the past with no check-in, no leave and no approved
   correction is *absent* and counts as loss of pay in payroll (HR can override LOP days per person before processing).
   Weekends and holidays never count. Corrections go to HR.
-* **Leave.** Yearly policy per type (Settings), plus extra days HR grants. Weekends/holidays inside a request are not
+  Days before a person's HRMS profile was created are never absent ("No record"), so adding existing staff doesn't dock their pay.
+* **Leave.** Yearly policy per type (Settings), plus extra days HR grants. In the year someone joins they get the share
+  from their joining month (joined in October: 3/12 of each type, rounded). Weekends/holidays inside a request are not
   counted; requests can't overlap; you can't approve your own leave (someone else, or the super admin, must).
 * **Claims.** Employee → HR review → super-admin final sign-off → paid with the next payroll (added to net pay, once).
   Bills are stored through the normal file storage (disk, database or Supabase) and open only for the owner, HR and the super admin.
 * **Payroll.** Monthly from the annual CTC: basic 50%, HRA 40% of basic, rest special allowance. PF 12% of basic capped at
   ₹15,000, ESI 0.75% when monthly CTC ≤ ₹21,000, professional tax from Settings, TDS estimated on the new tax regime
   (₹75,000 standard deduction, nothing up to ₹12,00,000 taxable with marginal relief, 4% cess), sales incentive from won
-  pharmacies. A processed month can't be processed again. The bank transfer file opens account numbers and is audited.
+  pharmacies. A processed month can't be processed again, so a month opens for processing on its
+  last working day (before that the screen is a preview). Someone who leaves is paid up to their last working day, in that month. The bank transfer file opens account numbers and is audited.
   TDS is an estimate: have a CA confirm it for people with other income or the old regime.
 * **Leads.** Sales screens work on the same lead table and the same *won → logged sale and commission* path as the staff
   console pipeline. HR uploads a CSV (`store, owner, phone, city, plan, source`), assigns leads or auto-assigns them evenly,

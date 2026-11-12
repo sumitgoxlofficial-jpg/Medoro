@@ -51,22 +51,33 @@ function EmployeeTable({ people }: { people: Data<"hremployees">["people"] }) {
 type Person = Data<"hremployees">["people"][number];
 export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
   const { run, busy } = useRun();
-  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null);
+  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null), [leaving, setLeaving] = useState<Person | null>(null);
   const list = d.people.filter((p) => `${p.name} ${p.dept} ${p.empNo} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Card title="Employee directory" sub={`${d.people.filter((p) => p.status !== "deactivated").length} active · ${d.depts.length} departments`} right={<><input className={cx(inputCls, "!w-56")} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /><Link href="/staff/hrms/hrnewemp" className={primaryCls}>+ Create employee profile</Link></>}>
         <Table head={["Name", "Department", "Designation", "Access", "Status", ""]} empty={list.length ? undefined : "No match."}>
           {list.map((p) => <tr key={p.id}><td className={tdCls}><div className="flex items-center gap-2.5"><Avatar name={p.name} photo={p.photo} size={30} /><div><strong>{p.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{p.empNo} · {p.email}</div></div></div></td><td className={tdCls}>{p.dept || "—"}</td><td className={tdCls}>{p.designation || "—"}</td><td className={tdCls}>{HR_ROLE_LABEL[p.role]}</td><td className={tdCls}><Pill tone={statusTone(p.status)}>{p.status === "invited" ? "Not signed in" : p.status}</Pill></td>
-            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : <button className={dangerCls} onClick={() => { if (confirm(`Deactivate ${p.name}? They are signed out everywhere.`)) run(() => setEmployeeActive(p.id, false)); }}>Deactivate</button>) : null}</div></td></tr>)}
+            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : <button className={dangerCls} onClick={() => setLeaving(p)}>Deactivate</button>) : null}</div></td></tr>)}
         </Table>
       </Card>
       {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} onClose={() => setLetters(null)} /> : null}
       {edit ? <EditModal p={edit} d={d} onClose={() => setEdit(null)} busy={busy} run={run} /> : null}
       {bal ? <LeaveModal p={bal} onClose={() => setBal(null)} /> : null}
+      {leaving ? <ExitModal p={leaving} onClose={() => setLeaving(null)} run={run} busy={busy} /> : null}
       {otp ? <Modal title="One-time password" onClose={() => setOtp(null)}><p className="text-[13.5px]">Give this to {otp.name} ({otp.empNo}). It works for one sign-in within 24 hours; they then set a new password.</p><code className="block text-center text-[22px] font-bold tracking-wider bg-[#F1F5F9] rounded-xl py-3 select-all">{otp.otp}</code><button className={btnCls} onClick={() => navigator.clipboard?.writeText(otp.otp)}>Copy</button><p className="text-[12px] text-[#64748B]">It isn’t stored anywhere readable. Close this and it can’t be shown again.</p></Modal> : null}
     </>
   );
+}
+function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
+  const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const [day, setDay] = useState(today);
+  return <Modal title={`Deactivate ${p.name}`} onClose={onClose}>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => setEmployeeActive(p.id, false, day), () => { onClose(); }); }}>
+      <Field label="Last working day" hint="Payroll pays up to this day, in the month they leave."><input className={inputCls} type="date" value={day} min={p.joinDate ?? undefined} max={today} onChange={(e) => setDay(e.target.value)} required /></Field>
+      <div className="text-[12.5px] text-[#64748B]">They are signed out everywhere and can’t sign in again. Their records and payslips are kept.</div>
+      <button className={dangerCls} disabled={busy}>Deactivate</button>
+    </form></Modal>;
 }
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
   const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });

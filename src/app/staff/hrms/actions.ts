@@ -78,7 +78,7 @@ export const adminDecideClaim = async (id: string, approve: boolean) => done(awa
 export const createEmployee = async (input: In<typeof people.createEmployee>) => done(await hrRun((me) => people.createEmployee(me, input)));
 export const previewOfficialEmail = async (name: string) => hrRun(async (me) => { auth.need(me, "employees"); return people.officialEmail(name); });
 export const updateEmployee = async (id: string, input: Parameters<typeof people.updateEmployee>[2]) => done(await hrRun((me) => people.updateEmployee(me, id, input), "Employee updated."));
-export const setEmployeeActive = async (id: string, active: boolean) => done(await hrRun((me) => people.setEmployeeActive(me, id, active), active ? "Employee reactivated." : "Employee deactivated and signed out everywhere."));
+export const setEmployeeActive = async (id: string, active: boolean, lastDay?: string) => done(await hrRun((me) => people.setEmployeeActive(me, id, active, lastDay), active ? "Employee reactivated." : "Employee deactivated and signed out everywhere."));
 export const issueOneTimePassword = async (id: string) => done(await hrRun((me) => people.issueOneTimePassword(me, id)));
 export const tickOnboarding = async (id: string, step: number, on: boolean) => done(await hrRun((me) => people.tickOnboarding(me, id, step, on)));
 export const saveDepartment = async (input: In<typeof people.saveDepartment>) => done(await hrRun((me) => people.saveDepartment(me, input), "Department saved."));
