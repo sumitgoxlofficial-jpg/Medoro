@@ -27,7 +27,7 @@ import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
-import { TABS, type Tab } from "./tabs";
+import { HIDDEN_TABS, TABS, type Tab } from "./tabs";
 export type { Tab };
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
@@ -132,7 +132,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
       {/* Signed in, the sidebar opens each screen, so the Dashboard and Billing show without the counter's tab row: Billing
           is only the bill. Unlocked by PIN without signing in there is no sidebar, so the row stays. */}
       {!(online && (tab === "dash" || tab === "bill")) && <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
-        {TABS.filter(([k]) => (k !== "settings" && k !== "activity" && k !== "insights") || online?.owner).map(([k, name]) => (
+        {TABS.filter(([k]) => !HIDDEN_TABS.includes(k)).filter(([k]) => (k !== "settings" && k !== "activity" && k !== "insights") || online?.owner).map(([k, name]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{t(name)}{k === "stock" && negative > 0 && <span className="ml-1.5 inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-bad text-white text-[11px] font-semibold" title={t(negative === 1 ? "{n} batch below zero" : "{n} batches below zero", { n: negative })}>{negative}</span>}</button>
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">{t("Lock")}</button>}

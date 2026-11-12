@@ -19,7 +19,7 @@ const dm = (iso: string, lang: Lang) => new Date(iso + "T00:00:00").toLocaleDate
 const weekday = (lang: Lang) => (lang === "en" ? weekdayLong() : new Date(todayISO() + "T00:00:00Z").toLocaleDateString(localeOf(lang), { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }));
 
 /** The owner's dashboard, from this device's own data: sales, margin, purchases, dues, the last 14 days, and stock to act on. */
-export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "stock" | "reports" | "customers" | "accounts") => void }) {
+export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "stock" | "reports" | "customers") => void }) {
   const toast = useToast();
   const t = useT();
   const lang = useLang();
@@ -69,9 +69,9 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
         <Tile icon={<IndianRupee size={15} className="text-teal" />} label={range === "today" ? "Sales today" : "Sales"} value={inr(d.sales.paise)} sub={t(d.sales.bills === 1 ? "{n} bill" : "{n} bills", { n: d.sales.bills })} />
         {owner && <Tile icon={<Percent size={15} className="text-teal" />} label="Gross margin" value={d.margin.pct === null ? "—" : `${(d.margin.pct * 100).toFixed(1)}%`} sub={pts === null ? t("Before GST, after returns") : <span className={pts >= 0 ? "text-ok" : "text-bad"}>{t("{pts} pts vs the 7 days before", { pts: `${pts >= 0 ? "+" : ""}${pts}` })}</span>} />}
         <Tile icon={<Truck size={15} className="text-teal" />} label="Purchases" value={inr(d.purchases.paise)} sub={t(d.purchases.count === 1 ? "{n} supplier bill" : "{n} supplier bills", { n: d.purchases.count })} />
-        {owner && <Tile icon={<Receipt size={15} className="text-teal" />} label="Expenses" value={inr(d.expenses.paise)} sub={t(d.expenses.count === 1 ? "{n} entry" : "{n} entries", { n: d.expenses.count })} onClick={() => go("accounts")} />}
+        {owner && <Tile icon={<Receipt size={15} className="text-teal" />} label="Expenses" value={inr(d.expenses.paise)} sub={t(d.expenses.count === 1 ? "{n} entry" : "{n} entries", { n: d.expenses.count })} />}
         <Tile icon={<Users size={15} className="text-teal" />} label="Receivables" value={inr(d.receivables.paise)} sub={t(d.receivables.customers === 1 ? "{n} customer on credit" : "{n} customers on credit", { n: d.receivables.customers })} onClick={() => go("customers")} />
-        {owner && <Tile icon={<CalendarClock size={15} className="text-teal" />} label="Payables" value={inr(d.payables.paise)} sub={t(d.payables.suppliers === 1 ? "{n} supplier" : "{n} suppliers", { n: d.payables.suppliers })} onClick={() => go("accounts")} />}
+        {owner && <Tile icon={<CalendarClock size={15} className="text-teal" />} label="Payables" value={inr(d.payables.paise)} sub={t(d.payables.suppliers === 1 ? "{n} supplier" : "{n} suppliers", { n: d.payables.suppliers })} />}
       </div>
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <div className={card}>
