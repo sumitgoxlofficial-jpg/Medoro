@@ -32,7 +32,7 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
   };
   return (
     <div className="min-h-screen flex max-[860px]:flex-col" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      <div className="flex-[1.05] bg-[#0B5E5B] text-white px-12 py-11 flex flex-col max-[860px]:px-6 max-[860px]:py-8">
+      <div className="flex-[1.05] bg-[#0B5E5B] text-white px-12 py-11 flex flex-col max-[860px]:flex-none max-[860px]:px-6 max-[860px]:py-6">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/medoro-mark.png" alt="" className="size-11 rounded-[10px] bg-white p-[3px]" />

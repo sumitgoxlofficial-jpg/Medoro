@@ -29,9 +29,9 @@ export function EstimatesView({ rows, q }: { rows: EstimateRow[]; q: string }) {
   return (
     <div className="flex flex-col gap-3.5 max-w-[1200px]">
       <div className="flex gap-2 flex-wrap items-center">
-        <form className="relative" onSubmit={(e) => { e.preventDefault(); router.replace(term ? `${path}?q=${encodeURIComponent(term)}` : path); }}>
+        <form className="relative max-sm:w-full" onSubmit={(e) => { e.preventDefault(); router.replace(term ? `${path}?q=${encodeURIComponent(term)}` : path); }}>
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-faint" />
-          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t("Search number, name or phone")} aria-label={t("Search estimates")} className="pl-8 w-64" />
+          <Input value={term} onChange={(e) => setTerm(e.target.value)} placeholder={t("Search number, name or phone")} aria-label={t("Search estimates")} className="pl-8 w-64 max-sm:w-full" />
         </form>
         <Button variant="primary" className="ml-auto" onClick={() => setOpen(true)}><Plus size={14} />{t("New estimate")}</Button>
       </div>

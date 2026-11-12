@@ -98,7 +98,7 @@ export function Tabs<T extends string>({ value, options, onChange }: { value: T;
 }
 export function Table({ head, children, empty }: { head: string[]; children: React.ReactNode; empty?: string }) {
   return (
-    <div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr>{head.map((h, i) => <th key={i} className={thCls}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table>
+    <div className="overflow-x-auto"><table className="w-full min-w-[640px] border-collapse"><thead><tr>{head.map((h, i) => <th key={i} className={thCls}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table>
       {empty ? <Empty>{empty}</Empty> : null}</div>
   );
 }
