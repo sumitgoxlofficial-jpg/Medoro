@@ -4,7 +4,8 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEFAULT_GRANTS, effectivePerms, ForbiddenError, type Perm, type RoleName, ROLE_NAMES } from "@/domain/identity/permissions";
-import { accessFor } from "@/domain/system/access";
+import { licenceState } from "@/domain/system/access";
+import { hasFeature, limitMessage, upgradeMessage, type Entitlements, type Feature, type Limits } from "@/lib/plans";
 import { dataInDrive, mustMove } from "@/domain/system/drive-state";
 import { db } from "./db";
 import { readSession } from "./auth";
@@ -38,6 +39,8 @@ export type Ctx = {
   moved?: boolean;
   /** Still on Medoro's copy on Medoro's hosted server: read-only until the owner moves the data to Google Drive. */
   mustMove?: boolean;
+  /** What the pharmacy's plan includes. Missing (a test or internal context): looked up when needed. */
+  ent?: Entitlements;
 };
 
 export class ReadOnlyError extends Error {
@@ -48,6 +51,28 @@ export class ReadOnlyError extends Error {
 export class SubscriptionLockedError extends Error {
   status = 402;
   constructor() { super("Subscription expired — renew from Plan. Sales, purchases, stock changes and messages are paused; viewing, exports and backups still work."); }
+}
+
+/** A feature or limit the pharmacy's plan does not include. */
+export class PlanError extends Error {
+  status = 402;
+  constructor(message: string) { super(message); }
+}
+
+/** What the pharmacy's plan includes right now. */
+export async function entitlementsOf(ctx: Ctx): Promise<Entitlements> {
+  return ctx.ent ?? (await licenceState(ctx.tenantId)).ent;
+}
+/** Refuses unless the plan has the feature. The free trial, and a copy running without a licence, have everything. */
+export async function requireFeature(ctx: Ctx, f: Feature) {
+  const e = await entitlementsOf(ctx);
+  if (!hasFeature(e, f)) throw new PlanError(upgradeMessage(e, f));
+}
+/** Refuses when adding one more would pass the plan's limit; `now` is how many there are already. */
+export async function requireRoom(ctx: Ctx, what: keyof Limits, now: number) {
+  const e = await entitlementsOf(ctx);
+  const limit = e.limits[what];
+  if (now >= limit) throw new PlanError(limitMessage(e, what, limit));
 }
 
 export class MovedToDriveError extends Error {
@@ -81,11 +106,12 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
   const wanted = c.get(BRANCH_COOKIE)?.value;
   const br = branches.find((b) => b.id === wanted) ?? branches[0];
 
+  const lic = await licenceState(u.tenantId);
   // Per-user overrides apply on top of the role. "View as" lets an owner preview another role; it can only narrow.
   const own = effectivePerms(u.role.permissions, u.permGrants, u.permRevokes);
   let role = u.role.name, perms: string[] = own;
   const va = c.get(VIEWAS_COOKIE)?.value;
-  if (va && va !== role && own.includes("users") && (ROLE_NAMES as readonly string[]).includes(va)) {
+  if (va && va !== role && own.includes("users") && hasFeature(lic.ent, "roles") && (ROLE_NAMES as readonly string[]).includes(va)) {
     const r = await db.role.findFirst({ where: { tenantId: u.tenantId, name: va } });
     const p = r?.permissions ?? DEFAULT_GRANTS[va as RoleName];
     perms = p.filter((x) => own.includes(x as Perm));
@@ -99,7 +125,7 @@ export const getCtx = cache(async (): Promise<Ctx | null> => {
     lang: c.get(LANG_COOKIE)?.value === "hi" ? "hi" : "en", sessionId: s.id,
     counterId: s.counterId, counterName: s.counterId ? (await db.counter.findUnique({ where: { id: s.counterId } }))?.name ?? null : null,
     readOnly: u.isSupport,
-    locked: (await accessFor(u.tenantId)).readOnly,
+    locked: lic.access.readOnly, ent: lic.ent,
     moved: dataInDrive(u.tenant.settings),
     mustMove: mustMove(u.tenant.settings),
   };

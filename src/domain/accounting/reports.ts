@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/server/db";
-import type { Ctx } from "@/server/context";
+import { requireFeature, type Ctx } from "@/server/context";
 import { addDays, dateOnly, daysTo, isoOf, todayISO } from "@/lib/dates";
 import { big } from "@/lib/money";
 import { fmtQty, stockValue } from "@/lib/units";
@@ -31,6 +31,8 @@ export const REPORTS = [
 ] as const;
 export type ReportId = (typeof REPORTS)[number][0];
 
+/** Reports that belong to the Accounts plan feature. The registers a pharmacy keeps by law (H1, HSN summary, sales register) are not. */
+export const ACCOUNT_REPORTS: readonly ReportId[] = ["day-book", "trial-balance", "gst-summary"];
 /** Reports built from pharmacy-level balances and ledgers; the rest are per branch. */
 export const PHARMACY_REPORTS: readonly ReportId[] = ["supplier-dues", "customer-dues", "day-book", "trial-balance"];
 /** "branch": the current branch. "all": every branch the user can access. */
@@ -57,6 +59,9 @@ type Rows = (string | number | null)[][];
 export type ReportOptions = { showPhones?: boolean };
 
 export async function reportRows(ctx: Ctx, id: ReportId, p: Period, scope: ReportScope = "branch", opts: ReportOptions = {}): Promise<Rows> {
+  // Plan: the accounting reports are part of Accounts; one report across several branches is part of Multi-branch.
+  if ((ACCOUNT_REPORTS as readonly string[]).includes(id)) await requireFeature(ctx, "accounts");
+  if (scope === "all" && ctx.branches.length > 1) await requireFeature(ctx, "consolidated");
   const branches = reportBranches(ctx, id, scope);
   if (!branches) return pharmacyRows(ctx, id, p, opts);
   if (id === "gst-summary") return gstSummary(ctx.tenantId, p, branches.map((b) => b.id));

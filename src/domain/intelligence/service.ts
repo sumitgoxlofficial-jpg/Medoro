@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, type Ctx } from "@/server/context";
+import { authorize, authorizeAny, requireFeature, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { clearance } from "./clearance";
 import { addDays, dateOnly, daysTo, isoOf, startOfTodayIST, todayISO } from "@/lib/dates";
@@ -107,6 +107,7 @@ type Policy = { cover: number; safety: number };
  * with the quantity each branch needs. Items without a supplier on record are grouped under supplierId null.
  */
 export async function centralBuying(ctx: Ctx, policy: Policy) {
+  await requireFeature(ctx, "central");
   const per = await Promise.all(ctx.branches.map(async (b) => ({ b, rows: (await forecast(ctx, policy, b.id)).filter((r) => r.suggestion > 0) })));
   const sups = new Map<string, { supplierId: string | null; supplier: string; value: number; lines: Map<string, { medicineId: string; name: string; rate: number; qty: Record<string, number>; total: number }> }>();
   for (const { b, rows } of per) for (const r of rows) {
@@ -211,6 +212,7 @@ export async function slowStock(ctx: Ctx) {
 // ───────────── Anomalies ─────────────
 
 export async function anomalies(ctx: Ctx, th: { disc: number; refunds: number; cash: number }) {
+  await requireFeature(ctx, "anomaly");
   const since = new Date(Date.now() - 7 * 86400_000);
   const [sales, returns, shifts, counts, users, reviewed, signins, cost] = await Promise.all([
     db.sale.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: since }, discountPct: { gt: th.disc } }, select: { id: true, invoiceNo: true, discountPct: true, userId: true, at: true } }),

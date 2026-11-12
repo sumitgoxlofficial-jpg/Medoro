@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
-import { authorize, authorizeAny, can, type Ctx } from "@/server/context";
+import { authorize, authorizeAny, can, requireFeature, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { big, inr } from "@/lib/money";
 import { dayMonth, hhmm, todayISO } from "@/lib/dates";
@@ -34,6 +34,7 @@ async function deviceFor(ctx: Ctx, deviceId: string) {
 
 export async function enableDevice(ctx: Ctx, name: string) {
   authorizeAny(ctx, "users", "adjust");
+  await requireFeature(ctx, "offline");
   const label = name.trim().slice(0, 60) || ctx.counterName || "Counter";
   const d = await db.device.create({ data: { tenantId: ctx.tenantId, branchId: ctx.branchId, name: label, kind: "counter", offline: true } });
   await writeAudit(db, { tenantId: ctx.tenantId, branchId: ctx.branchId, userId: ctx.userId, userName: ctx.userName, action: "Offline billing turned on", entity: "device", entityId: d.id, detail: `${label} · ${ctx.branchName}` });
