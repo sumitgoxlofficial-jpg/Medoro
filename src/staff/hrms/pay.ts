@@ -95,7 +95,7 @@ export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; l
     // Working days before joining or after the last working day are not paid.
     const before = m.cells.filter((c) => c.kind === "before" && (c.label === BEFORE_JOINING || c.label === AFTER_LEAVING)).length;
     const reimburse = claims.filter((c) => c.staffId === u.id).reduce((a, c) => a + c.amount, 0);
-    lines.push({ ...base, ...computeSlip(u.hr.ctc, { workDays, lopDays: m.counts.absent + before, incentive: inc.get(u.id)?.incentive ?? 0, reimburse, ptax: s.ptax }), status: "draft", paidOn: null });
+    lines.push({ ...base, ...computeSlip(u.hr.ctc, { workDays, lopDays: m.counts.absent + m.counts.unpaid + before, incentive: inc.get(u.id)?.incentive ?? 0, reimburse, ptax: s.ptax }), status: "draft", paidOn: null });
   }
   const drafts = lines.filter((l) => l.status === "draft").length;
   const future = ym > todayISO().slice(0, 7);
@@ -125,7 +125,7 @@ export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, 
   await db.$transaction(async (tx) => {
     for (const d of drafts) {
       const over = lop[d.staffId];
-      const slip = over === undefined ? d : computeSlip(ctc.get(d.staffId) ?? 0, { workDays: d.workDays, lopDays: z.number().int().min(0).max(31).parse(over), incentive: d.incentive, reimburse: d.reimburse, ptax: s.ptax });
+      const slip = over === undefined ? d : computeSlip(ctc.get(d.staffId) ?? 0, { workDays: d.workDays, lopDays: z.number().min(0).max(31).multipleOf(0.5, "Loss-of-pay days are whole or half days.").parse(over), incentive: d.incentive, reimburse: d.reimburse, ptax: s.ptax });
       await tx.hrPayslip.create({ data: { staffId: d.staffId, month: run.ym, ...slipOf(slip), status: "paid", paidOn, runBy: me.id } });
       await tx.hrClaim.updateMany({ where: { staffId: d.staffId, status: "approved", paidMonth: null }, data: { paidMonth: run.ym } });
       n++; total += slip.net;

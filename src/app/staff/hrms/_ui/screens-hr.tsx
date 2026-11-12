@@ -238,7 +238,7 @@ export function PayrollScreen({ d }: { d: Data<"payroll"> }) {
       {r.note ? <Empty>{r.note}</Empty> : null}
       <Table head={["Employee", "Paid days", "LOP", "Gross", "Deductions", "Reimb.", "Net pay", "Status"]}>
         {r.lines.map((l) => <tr key={l.staffId}><td className={tdCls}><strong>{l.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{l.empNo}{!l.hasBank ? " · no bank details" : ""}</div></td><td className={tdCls}>{l.workDays - l.lopDays}/{l.workDays}</td>
-          <td className={tdCls}>{l.status === "draft" ? <input className={cx(inputCls, "!w-16 !py-1")} inputMode="numeric" placeholder={String(l.lopDays)} value={lop[l.staffId] ?? ""} onChange={(e) => setLop({ ...lop, [l.staffId]: e.target.value.replace(/\D/g, "") })} aria-label={`Loss-of-pay days for ${l.name}`} /> : l.lopDays}</td>
+          <td className={tdCls}>{l.status === "draft" ? <input className={cx(inputCls, "!w-16 !py-1")} inputMode="numeric" placeholder={String(l.lopDays)} value={lop[l.staffId] ?? ""} onChange={(e) => setLop({ ...lop, [l.staffId]: e.target.value.replace(/[^\d.]/g, "") })} aria-label={`Loss-of-pay days for ${l.name}`} /> : l.lopDays}</td>
           <td className={tdCls}>{inr(l.gross)}</td><td className={tdCls} title={`PF ${l.pf} · ESI ${l.esi} · PT ${l.pt} · TDS ${l.tds}`}>{inr(l.pf + l.esi + l.pt + l.tds)}</td><td className={tdCls}>{l.reimburse ? inr(l.reimburse) : "—"}</td><td className={tdCls}><strong>{inr(l.net)}</strong></td><td className={tdCls}><Pill tone={l.status === "paid" ? "green" : "amber"}>{l.status === "paid" ? "Paid" : "Pending"}</Pill></td></tr>)}
       </Table>
       <div className="flex gap-2 p-4 flex-wrap"><button className={btnCls} onClick={() => void get(payrollReport)}>↓ Payroll report (CSV)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void get(bankFile)}>↓ Bank transfer file</button>{r.lines.find((l) => l.status === "paid") ? <span className="text-[12px] text-[#64748B] self-center">Open a payslip from Reports or ask the employee to view it in Payslips.</span> : null}</div>
@@ -364,7 +364,8 @@ export function SettingsScreen({ d }: { d: Data<"settings"> }) {
         <Field label="Late after (HH:MM, India time)"><input className={cx(inputCls, "!w-32 mt-1")} value={s.lateAfter} onChange={(e) => setS({ ...s, lateAfter: e.target.value })} pattern="([01]\d|2[0-3]):[0-5]\d" /></Field>
         <Field label="Professional tax a month (₹)"><input className={cx(inputCls, "!w-32 mt-2")} inputMode="numeric" value={s.ptax} onChange={(e) => setS({ ...s, ptax: Number(e.target.value.replace(/\D/g, "")) })} /></Field>
       </Card>
-      <Card title="Leave policy · days a year" pad><Grid n={4}>{LEAVE_TYPES.map((t) => <Field key={t.id} label={t.label}><input className={inputCls} inputMode="numeric" value={s.leave[t.id]} onChange={(e) => setS({ ...s, leave: { ...s.leave, [t.id]: Number(e.target.value.replace(/\D/g, "")) } })} /></Field>)}</Grid></Card>
+      <Card title="Leave policy · days a year" pad><Grid n={4}>{LEAVE_TYPES.map((t) => <Field key={t.id} label={t.label}><input className={inputCls} inputMode="numeric" value={s.leave[t.id]} onChange={(e) => setS({ ...s, leave: { ...s.leave, [t.id]: Number(e.target.value.replace(/\D/g, "")) } })} /></Field>)}</Grid>
+        <Field label="Privilege leave carried forward (max days)" hint="Unused privilege leave moves to the next year, up to this many days. 0 switches it off."><input className={cx(inputCls, "!w-32 mt-2")} inputMode="numeric" value={s.carryForward} onChange={(e) => setS({ ...s, carryForward: Number(e.target.value.replace(/\D/g, "")) })} /></Field></Card>
     </Grid>
     <div><button className={primaryCls} disabled={busy}>Save settings</button></div>
   </form>;

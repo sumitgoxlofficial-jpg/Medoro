@@ -7,7 +7,7 @@ import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/st
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "./auth";
 import { closeIdle, idleToday, parseSelfie, purgeOld, saveSelfie } from "./monitor";
-import { CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, leaveLabel, toMin, type LeaveTypeId, type Settings } from "./constants";
+import { APPLY_IDS, CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, UNPAID, daysText, leaveDays, leaveLabel, toMin, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
 const IST = 330 * 60_000;
@@ -74,7 +74,7 @@ export async function addNationalHolidays(me: Me, year: number) {
 export async function isWorkDay(staffId: string, day = todayISO()) {
   if (weekend(day)) return false;
   const [hol, leave] = await Promise.all([db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }), approvedLeaveOn(staffId, day)]);
-  return !hol && !leave;
+  return !hol && (!leave || leave.half);
 }
 export async function today(me: Me) {
   const a = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(todayISO()) } } });
@@ -86,7 +86,8 @@ export async function checkIn(me: Me, selfie?: string) {
   const photo = s.selfie && me.role !== "admin" ? parseSelfie(selfie) : null; // checked first: no selfie, no check-in, when the rule is on
   const have = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } } });
   if (have?.inAt) throw new UserError("You have already checked in today.");
-  if (await approvedLeaveOn(me.id, day)) throw new UserError("You are on approved leave today. Ask HR to cancel the leave first.");
+  const onLeave = await approvedLeaveOn(me.id, day);
+  if (onLeave && !onLeave.half) throw new UserError("You are on approved leave today. Ask HR to cancel the leave first.");
   const status = istClock(now) > s.lateAfter ? "late" : "present";
   await db.hrAttendance.upsert({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } }, update: { inAt: now, status }, create: { staffId: me.id, day: dateOnly(day), inAt: now, status } });
   await db.hrProfile.update({ where: { staffId: me.id }, data: { presence: "active", presenceNote: "", presenceAt: now } });
@@ -136,27 +137,37 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
   const byDay = new Map(att.map((a) => [isoOf(a.day), a]));
   const holBy = new Map(hols.map((h) => [h.day, h.name]));
   const asked = new Set(corrections.map((c) => isoOf(c.day)));
-  const counts = { present: 0, late: 0, absent: 0, leave: 0, holidays: 0, overtimeMin: 0, workDays: 0 };
+  const counts = { present: 0, late: 0, absent: 0, leave: 0, unpaid: 0, holidays: 0, overtimeMin: 0, workDays: 0 };
   const cells: DayCell[] = daysBetween(first, last).map((day) => {
     const a = byDay.get(day), lv = leaves.find((l) => isoOf(l.fromDay) <= day && isoOf(l.toDay) >= day);
     const inAt = a?.inAt?.toISOString() ?? null, outAt = a?.outAt?.toISOString() ?? null;
     const cell = (kind: DayCell["kind"], label: string, correctable = false): DayCell => ({ day, kind, label, inAt, outAt, correctable: correctable && !asked.has(day) });
     const working = !weekend(day) && !holBy.has(day);
+    // A half-day leave on a day the person also worked: half a day of leave (or of loss of pay, when unpaid).
+    const halfNote = () => { if (!lv?.half || !working) return ""; if (lv.type === UNPAID) counts.unpaid += 0.5; else counts.leave += 0.5; return ` · half-day ${leaveLabel(lv.type)}`; };
     if (working && day >= start && day <= todayDay && (!left || day <= left)) counts.workDays++;
     if (a?.inAt) {
       const worked = a.outAt ? workedMin({ inAt: a.inAt, outAt: a.outAt, breakMin: a.breakMin }, s) : 0;
       if (a.outAt) counts.overtimeMin += Math.max(0, worked - s.workHours * 60);
       const late = a.status === "late";
       if (late) counts.late++; else counts.present++;
-      const text = `${late ? "Late" : "Present"} · in ${fmtTime(a.inAt)}${a.outAt ? ` · out ${fmtTime(a.outAt)} · ${hm(worked)} worked${worked < s.workHours * 60 ? ` (${hm(s.workHours * 60 - worked)} short)` : ""}` : ""}${a.note ? ` · ${a.note}` : ""}`;
+      const text = `${late ? "Late" : "Present"} · in ${fmtTime(a.inAt)}${a.outAt ? ` · out ${fmtTime(a.outAt)} · ${hm(worked)} worked${worked < s.workHours * 60 ? ` (${hm(s.workHours * 60 - worked)} short)` : ""}` : ""}${a.note ? ` · ${a.note}` : ""}${halfNote()}`;
       return cell(late ? "late" : "present", text, late);
     }
-    if (a?.status === "present") { counts.present++; return cell("present", `Present · ${a.note || "marked by HR"}`); }
+    if (a?.status === "present") { counts.present++; return cell("present", `Present · ${a.note || "marked by HR"}${halfNote()}`); }
     if (holBy.has(day)) { if (day <= todayDay) counts.holidays++; return cell("holiday", `Holiday · ${holBy.get(day)}`); }
     if (weekend(day)) return cell("weekend", "Weekend");
     if (left && day > left) return cell("before", AFTER_LEAVING);
     if (day < start) return cell("before", BEFORE_JOINING);
-    if (lv) { counts.leave++; return cell("leave", `On leave · ${leaveLabel(lv.type)}`); }
+    if (lv) {
+      const n = lv.half ? 0.5 : 1;
+      if (lv.type === UNPAID) counts.unpaid += n; else counts.leave += n;
+      if (!lv.half) return cell("leave", `On leave · ${leaveLabel(lv.type)}`);
+      // The other half of a half-day leave was a working half: with no check-in it is half a day absent.
+      const missed = day < todayDay && s.checkin && day >= tracked;
+      if (missed) counts.absent += 0.5;
+      return cell("leave", `Half-day ${leaveLabel(lv.type)}${missed ? " · no check-in for the other half" : ""}`, missed);
+    }
     if (day > todayDay) return cell("upcoming", "Upcoming");
     if (day === todayDay) return cell("today", "Today · not checked in yet");
     if (!s.checkin || day < tracked) return cell("before", "No record");
@@ -218,18 +229,38 @@ export function yearShare(joinDate: string, year: string) {
   return (13 - Number(joinDate.slice(5, 7))) / 12;
 }
 export async function leaveBalances(staffId: string, s: Settings, year = todayISO().slice(0, 4)) {
-  const [p, rows] = await Promise.all([
+  const [p, rows, carry] = await Promise.all([
     db.hrProfile.findUnique({ where: { staffId }, select: { leaveExtra: true, joinDate: true } }),
     db.hrLeave.findMany({ where: { staffId, status: { in: ["approved", "pending"] }, fromDay: { gte: dateOnly(`${year}-01-01`), lte: dateOnly(`${year}-12-31`) } } }),
+    carriedPrivilege(staffId, s, year),
   ]);
   const extra = (p?.leaveExtra ?? {}) as Record<string, number>;
   const share = yearShare(p?.joinDate ? isoOf(p.joinDate) : "", year);
   return LEAVE_TYPES.map((l) => {
-    const total = Math.round(s.leave[l.id] * share) + (Number(extra[l.id]) || 0);
-    const used = rows.filter((r) => r.type === l.id && r.status === "approved").reduce((a, r) => a + r.days, 0);
-    const pending = rows.filter((r) => r.type === l.id && r.status === "pending").reduce((a, r) => a + r.days, 0);
-    return { id: l.id, label: l.short, total, used, pending, left: Math.max(0, total - used - pending) };
+    const carried = l.id === "privilege" ? carry : 0;
+    const total = Math.round(s.leave[l.id] * share) + (Number(extra[l.id]) || 0) + carried;
+    const used = rows.filter((r) => r.type === l.id && r.status === "approved").reduce((a, r) => a + leaveDays(r), 0);
+    const pending = rows.filter((r) => r.type === l.id && r.status === "pending").reduce((a, r) => a + leaveDays(r), 0);
+    return { id: l.id, label: l.short, total, used, pending, carried, left: Math.max(0, total - used - pending) };
   });
+}
+/**
+ * Unused privilege leave brought into `year` from earlier years, at most `carryForward` days. Worked out year by year
+ * from the year of joining (ten years back at most), so what was carried once and not used keeps carrying, up to the cap.
+ */
+async function carriedPrivilege(staffId: string, s: Settings, year: string) {
+  if (!s.carryForward) return 0;
+  const p = await db.hrProfile.findUnique({ where: { staffId }, select: { joinDate: true } });
+  if (!p?.joinDate) return 0;
+  const y = Number(year), from = Math.max(Number(isoOf(p.joinDate).slice(0, 4)), y - 10);
+  if (from >= y) return 0;
+  const rows = await db.hrLeave.findMany({ where: { staffId, type: "privilege", status: "approved", fromDay: { gte: dateOnly(`${from}-01-01`), lte: dateOnly(`${y - 1}-12-31`) } }, select: { fromDay: true, days: true, half: true } });
+  let carry = 0;
+  for (let k = from; k < y; k++) {
+    const used = rows.filter((r) => isoOf(r.fromDay).startsWith(String(k))).reduce((a, r) => a + leaveDays(r), 0);
+    carry = Math.min(s.carryForward, Math.max(0, Math.round(s.leave.privilege * yearShare(isoOf(p.joinDate), String(k))) + carry - used));
+  }
+  return carry;
 }
 export async function grantLeave(me: Me, staffId: string, type: string, days: number) {
   need(me, "attendance");
@@ -244,9 +275,10 @@ export async function grantLeave(me: Me, staffId: string, type: string, days: nu
   await audit(me, "Leave balance adjusted", `${staffId} · ${ty} · ${n > 0 ? "+" : ""}${n}`);
 }
 
-export async function applyLeave(me: Me, raw: { type: string; from: string; to: string; reason: string }) {
-  const i = z.object({ type: z.enum(LEAVE_IDS), from: iso, to: iso, reason: z.string().trim().max(300).default("") }).parse(raw);
+export async function applyLeave(me: Me, raw: { type: string; from: string; to: string; reason: string; half?: boolean }) {
+  const i = z.object({ type: z.enum(APPLY_IDS), from: iso, to: iso, reason: z.string().trim().max(300).default(""), half: z.boolean().default(false) }).parse(raw);
   if (i.to < i.from) throw new UserError("The last day can’t be before the first day.");
+  if (i.half && i.to !== i.from) throw new UserError("A half day is for one date. Pick the same first and last day.");
   if (i.from < addDays(todayISO(), -30)) throw new UserError("Leave can be applied up to 30 days back.");
   if (i.to > addDays(i.from, 60)) throw new UserError("Apply for at most 60 days at a time.");
   const hol = new Set((await holidays(i.from, i.to)).map((h) => h.day));
@@ -254,12 +286,19 @@ export async function applyLeave(me: Me, raw: { type: string; from: string; to: 
   if (!days) throw new UserError("Those dates are all weekends or holidays.");
   const clash = await db.hrLeave.findFirst({ where: { staffId: me.id, status: { in: ["pending", "approved"] }, fromDay: { lte: dateOnly(i.to) }, toDay: { gte: dateOnly(i.from) } } });
   if (clash) throw new UserError("You already have leave on some of these dates.");
-  const s = await loadSettings();
-  const bal = (await leaveBalances(me.id, s, i.from.slice(0, 4))).find((b) => b.id === i.type)!;
-  if (bal.left < days) throw new UserError(`You have ${bal.left} ${leaveLabel(i.type)} day${bal.left === 1 ? "" : "s"} left; this request needs ${days}.`);
-  await db.hrLeave.create({ data: { staffId: me.id, type: i.type, fromDay: dateOnly(i.from), toDay: dateOnly(i.to), days, reason: i.reason } });
-  await notify((await holders("attendance")).filter((x) => x !== me.id), `${me.name} applied for ${days} day${days > 1 ? "s" : ""} of ${leaveLabel(i.type)}.`, "hrleave");
-  return days;
+  const need_ = i.half ? 0.5 : days;
+  if (i.type !== UNPAID) {
+    const s = await loadSettings();
+    const bal = (await leaveBalances(me.id, s, i.from.slice(0, 4))).find((b) => b.id === i.type)!;
+    if (bal.left < need_) throw new UserError(`You have ${bal.left} ${leaveLabel(i.type)} day${bal.left === 1 ? "" : "s"} left; this request needs ${need_}. You can apply for unpaid leave instead.`);
+  }
+  await db.hrLeave.create({ data: { staffId: me.id, type: i.type, fromDay: dateOnly(i.from), toDay: dateOnly(i.to), days, half: i.half, reason: i.reason } });
+  // HR and the person's reporting manager can decide it.
+  const mgr = (await db.hrProfile.findUnique({ where: { staffId: me.id }, select: { managerId: true } }))?.managerId;
+  const tell = new Set([...(await holders("attendance")), ...(mgr ? [mgr] : [])]);
+  tell.delete(me.id);
+  await notify([...tell], `${me.name} applied for ${daysText(need_)} of ${leaveLabel(i.type)}.`, mgr && tell.has(mgr) ? "leave" : "hrleave");
+  return need_;
 }
 export async function cancelLeave(me: Me, id: string) {
   const l = await db.hrLeave.findFirst({ where: { id, staffId: me.id } });
@@ -268,23 +307,34 @@ export async function cancelLeave(me: Me, id: string) {
   await db.hrLeave.update({ where: { id }, data: { status: "cancelled" } });
 }
 export async function decideLeave(me: Me, id: string, approve: boolean) {
-  need(me, "attendance");
   const l = await db.hrLeave.findUnique({ where: { id } });
+  // The person's reporting manager can decide it; so can anyone with Attendance & leave.
+  const mine = !!l && (await db.hrProfile.findUnique({ where: { staffId: l.staffId }, select: { managerId: true } }))?.managerId === me.id;
+  if (!mine) need(me, "attendance");
   if (!l || l.status !== "pending") throw new UserError("This request was already decided.");
   if (l.staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to approve your own leave.");
   await db.hrLeave.update({ where: { id }, data: { status: approve ? "approved" : "rejected", decidedBy: me.id, decidedAt: new Date() } });
-  await notify([l.staffId], `Your ${leaveLabel(l.type)} (${isoOf(l.fromDay)}${l.days > 1 ? " to " + isoOf(l.toDay) : ""}) was ${approve ? "approved" : "rejected"}.`, "leave");
+  await notify([l.staffId], `Your ${l.half ? "half-day " : ""}${leaveLabel(l.type)} (${isoOf(l.fromDay)}${l.days > 1 ? " to " + isoOf(l.toDay) : ""}) was ${approve ? "approved" : "rejected"}.`, "leave");
   await audit(me, `Leave ${approve ? "approved" : "rejected"}`, `${l.staffId} · ${l.type} · ${isoOf(l.fromDay)}`);
 }
 export async function myLeaves(me: Me) {
   const rows = await db.hrLeave.findMany({ where: { staffId: me.id }, orderBy: { createdAt: "desc" }, take: 40 });
-  return rows.map((l) => ({ id: l.id, type: l.type as LeaveTypeId, from: isoOf(l.fromDay), to: isoOf(l.toDay), days: l.days, reason: l.reason, status: l.status, canCancel: l.status === "pending" || (l.status === "approved" && isoOf(l.fromDay) > todayISO()) }));
+  return rows.map((l) => ({ id: l.id, type: l.type, from: isoOf(l.fromDay), to: isoOf(l.toDay), days: leaveDays(l), half: l.half, reason: l.reason, status: l.status, canCancel: l.status === "pending" || (l.status === "approved" && isoOf(l.fromDay) > todayISO()) }));
 }
 /** Approved leave overlapping the window: who is out. Reasons stay private. */
 export async function whosOut(from: string, to: string) {
   const rows = await db.hrLeave.findMany({ where: { status: "approved", fromDay: { lte: dateOnly(to) }, toDay: { gte: dateOnly(from) } }, orderBy: { fromDay: "asc" } });
   const names = new Map((await db.staffUser.findMany({ where: { id: { in: rows.map((r) => r.staffId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
-  return rows.map((l) => ({ id: l.id, staffId: l.staffId, name: names.get(l.staffId) ?? "", type: l.type, from: isoOf(l.fromDay), to: isoOf(l.toDay), days: l.days }));
+  return rows.map((l) => ({ id: l.id, staffId: l.staffId, name: names.get(l.staffId) ?? "", type: l.type, from: isoOf(l.fromDay), to: isoOf(l.toDay), days: leaveDays(l), half: l.half }));
+}
+
+const leaveText = (l: { type: string; fromDay: Date; toDay: Date; days: number; half: boolean }) => `${leaveLabel(l.type)} · ${isoOf(l.fromDay)}${l.days > 1 ? " to " + isoOf(l.toDay) : ""} · ${daysText(leaveDays(l))}`;
+/** Leave requests from the people who report to me, waiting for a decision. */
+export async function teamRequests(me: Me) {
+  const reports = await db.hrProfile.findMany({ where: { managerId: me.id, staff: { status: "active" } }, select: { staffId: true, staff: { select: { name: true } } } });
+  if (!reports.length) return [];
+  const rows = await db.hrLeave.findMany({ where: { status: "pending", staffId: { in: reports.map((r) => r.staffId) } }, orderBy: { createdAt: "asc" } });
+  return rows.map((l) => ({ id: l.id, name: reports.find((r) => r.staffId === l.staffId)?.staff.name ?? "", text: leaveText(l), note: l.reason }));
 }
 
 /** Everything waiting for HR: leave and attendance corrections. */
@@ -296,7 +346,7 @@ export async function pendingApprovals(me: Me) {
   ]);
   const names = new Map((await db.staffUser.findMany({ where: { id: { in: [...leaves, ...corr].map((r) => r.staffId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   return [
-    ...leaves.map((l) => ({ id: l.id, kind: "leave" as const, name: names.get(l.staffId) ?? "", mine: l.staffId === me.id, text: `${leaveLabel(l.type)} · ${isoOf(l.fromDay)}${l.days > 1 ? " to " + isoOf(l.toDay) : ""} · ${l.days} day${l.days > 1 ? "s" : ""}`, note: l.reason })),
+    ...leaves.map((l) => ({ id: l.id, kind: "leave" as const, name: names.get(l.staffId) ?? "", mine: l.staffId === me.id, text: leaveText(l), note: l.reason })),
     ...corr.map((c) => ({ id: c.id, kind: "correction" as const, name: names.get(c.staffId) ?? "", mine: c.staffId === me.id, text: `Attendance correction · ${isoOf(c.day)}`, note: c.reason })),
   ];
 }

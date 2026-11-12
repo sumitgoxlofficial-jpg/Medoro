@@ -2374,10 +2374,11 @@ model HrBreak {
 model HrLeave {
   id        String    @id @default(uuid())
   staffId   String
-  type      String // casual, sick, privilege, comp
+  type      String // casual, sick, privilege, comp, unpaid
   fromDay   DateTime  @db.Date
   toDay     DateTime  @db.Date
   days      Int
+  half      Boolean   @default(false) // a half day: one date, counts as 0.5
   reason    String    @default("")
   status    String    @default("pending") // pending, approved, rejected, cancelled
   decidedBy String?
@@ -2474,7 +2475,7 @@ model HrPayslip {
   staffId   String
   month     String // YYYY-MM
   workDays  Int
-  lopDays   Int       @default(0)
+  lopDays   Float     @default(0)
   basic     Int
   hra       Int
   special   Int

@@ -310,6 +310,7 @@ export const settingsSchema = z.object({
   }),
   checkin: z.boolean(), selfie: z.boolean(), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), workHours: z.coerce.number().min(1, "Work at least 1 hour a day.").max(12, "Work hours can be at most 12 a day."), lunchFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch start as HH:MM."), lunchTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch end as HH:MM."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
   leave: z.object({ casual: z.coerce.number().int().min(0).max(60), sick: z.coerce.number().int().min(0).max(60), privilege: z.coerce.number().int().min(0).max(60), comp: z.coerce.number().int().min(0).max(60) }),
+  carryForward: z.coerce.number().int().min(0).max(120).default(30),
   ptax: z.coerce.number().int().min(0).max(2500), payDay: z.coerce.number().int().min(1).max(28),
 });
 export async function saveSettings(me: Me, raw: Settings) {

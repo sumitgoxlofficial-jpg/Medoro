@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
-import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, CLAIM_TYPES, LEAVE_TYPES, TICKET_TOPICS, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
+import { addReminder, applyLeave, cancelLeave, decideLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
 import { Selfie, SelfieModal } from "./monitor";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
@@ -301,7 +301,7 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
 // ── Leave & claims
 export function LeaveScreen({ d }: { d: Data<"leave"> }) {
   const { run, busy, toast } = useRun();
-  const [form, setForm] = useState(false), [v, setV] = useState({ type: "casual", from: "", to: "", reason: "" });
+  const [form, setForm] = useState(false), [v, setV] = useState({ type: "casual", from: "", to: "", reason: "", half: false });
   const [claim, setClaim] = useState({ type: CLAIM_TYPES[0] as string, amount: "", note: "" });
   const bill = useRef<HTMLInputElement>(null);
   const sendClaim = (e: React.FormEvent) => {
@@ -312,11 +312,12 @@ export function LeaveScreen({ d }: { d: Data<"leave"> }) {
   };
   return (
     <>
-      <Grid n={4}>{d.bal.map((b) => <Stat key={b.id} l={b.label} v={b.left} sub={`days left of ${b.total}${b.pending ? ` · ${b.pending} pending` : ""}`} />)}</Grid>
+      <Grid n={4}>{d.bal.map((b) => <Stat key={b.id} l={b.label} v={b.left} sub={`days left of ${b.total}${b.carried ? ` · ${b.carried} carried forward` : ""}${b.pending ? ` · ${b.pending} pending` : ""}`} />)}</Grid>
+      {d.team.length ? <Card title="Team requests" sub="Leave requests from the people who report to you" pad>{d.team.map((a) => <div key={a.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 mb-2"><Avatar name={a.name} size={32} /><div className="flex-1 min-w-0"><div className="text-[13.5px] font-semibold">{a.name}</div><div className="text-[12px] text-[#64748B]">{a.text}</div>{a.note ? <div className="text-[12px] italic text-[#64748B]">{a.note}</div> : null}</div><button className={primaryCls} disabled={busy} onClick={() => run(() => decideLeave(a.id, true))}>Approve</button><button className={dangerCls} disabled={busy} onClick={() => run(() => decideLeave(a.id, false))}>Reject</button></div>)}</Card> : null}
       <Grid n={2}>
         <Card title="My requests" right={<button className={primaryCls} onClick={() => setForm(true)}>+ Apply leave</button>}>
           <Table head={["Type", "Dates", "Days", "Status", ""]} empty={d.mine.length ? undefined : "No leave requests yet."}>
-            {d.mine.map((l) => <tr key={l.id}><td className={tdCls}>{leaveLabel(l.type)}</td><td className={tdCls}>{dayLabel(l.from)}{l.to !== l.from ? ` – ${dayLabel(l.to)}` : ""}</td><td className={tdCls}>{l.days}</td><td className={tdCls}><Pill tone={statusTone(l.status)}>{l.status}</Pill></td><td className={tdCls}>{l.canCancel ? <button className={dangerCls} onClick={() => run(() => cancelLeave(l.id))}>Cancel</button> : null}</td></tr>)}
+            {d.mine.map((l) => <tr key={l.id}><td className={tdCls}>{leaveLabel(l.type)}</td><td className={tdCls}>{dayLabel(l.from)}{l.to !== l.from ? ` – ${dayLabel(l.to)}` : ""}</td><td className={tdCls}>{l.half ? "½" : l.days}</td><td className={tdCls}><Pill tone={statusTone(l.status)}>{l.status}</Pill></td><td className={tdCls}>{l.canCancel ? <button className={dangerCls} onClick={() => run(() => cancelLeave(l.id))}>Cancel</button> : null}</td></tr>)}
           </Table>
         </Card>
         <Card title="Who’s out" sub="Next 2 weeks" pad>{d.out.length ? d.out.map((o) => <div key={o.id} className="flex items-center gap-2.5 py-1.5 text-[13px]"><Avatar name={o.name} size={28} /><span className="flex-1"><strong>{o.name}</strong><br /><span className="text-[12px] text-[#64748B]">{dayLabel(o.from)}{o.to !== o.from ? ` – ${dayLabel(o.to)}` : ""} · {leaveLabel(o.type)}</span></span></div>) : <Empty>Everyone is in.</Empty>}</Card>
@@ -332,11 +333,12 @@ export function LeaveScreen({ d }: { d: Data<"leave"> }) {
         {d.claims.length ? <div className="mt-4"><Table head={["Date", "Type", "Amount", "Note", "Bill", "Status"]}>{d.claims.map((c) => <tr key={c.id}><td className={tdCls}>{dayLabel(c.at)}</td><td className={tdCls}>{c.type}</td><td className={tdCls}>{inr(c.amount)}</td><td className={tdCls}>{c.note}</td><td className={tdCls}>{c.hasBill ? <a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/bill/${c.id}`} target="_blank" rel="noreferrer">view</a> : "—"}</td><td className={tdCls}><Pill tone={statusTone(c.status)}>{CLAIM_STATUS[c.status]}{c.paidMonth ? ` · paid ${c.paidMonth}` : ""}</Pill></td></tr>)}</Table></div> : null}
       </Card>
       {form ? <Modal title="Apply for leave" onClose={() => setForm(false)}>
-        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (!v.from || !v.to) return toast("Pick both dates.", "red"); run(() => applyLeave(v), (days) => { setForm(false); return `Leave requested for ${days} day${days > 1 ? "s" : ""}. HR will decide.`; }); }}>
-          <Field label="Type"><select className={inputCls} value={v.type} onChange={(e) => setV({ ...v, type: e.target.value })}>{LEAVE_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></Field>
-          <div className="grid grid-cols-2 gap-2"><Field label="From"><input className={inputCls} type="date" value={v.from} onChange={(e) => setV({ ...v, from: e.target.value, to: v.to && v.to >= e.target.value ? v.to : e.target.value })} required /></Field><Field label="To"><input className={inputCls} type="date" min={v.from} value={v.to} onChange={(e) => setV({ ...v, to: e.target.value })} required /></Field></div>
+        <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (!v.from || !v.to) return toast("Pick both dates.", "red"); run(() => applyLeave(v), (days) => { setForm(false); return `Leave requested for ${daysText(days)}. Your manager or HR will decide.`; }); }}>
+          <Field label="Type"><select className={inputCls} value={v.type} onChange={(e) => setV({ ...v, type: e.target.value })}>{APPLY_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></Field>
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer"><input type="checkbox" checked={!!v.half} onChange={(e) => setV({ ...v, half: e.target.checked, to: e.target.checked ? v.from : v.to })} /> Half day (one date)</label>
+          <div className="grid grid-cols-2 gap-2"><Field label="From"><input className={inputCls} type="date" value={v.from} onChange={(e) => setV({ ...v, from: e.target.value, to: !v.half && v.to && v.to >= e.target.value ? v.to : e.target.value })} required /></Field><Field label="To"><input className={inputCls} type="date" min={v.from} value={v.to} disabled={!!v.half} onChange={(e) => setV({ ...v, to: e.target.value })} required /></Field></div>
           <Field label="Reason"><textarea className={inputCls} rows={3} value={v.reason} onChange={(e) => setV({ ...v, reason: e.target.value })} /></Field>
-          <p className="text-[12px] text-[#64748B]">Weekends and holidays aren’t counted.</p>
+          <p className="text-[12px] text-[#64748B]">Weekends and holidays aren’t counted. Unpaid leave has no limit; each day is deducted from salary.</p>
           <button className={primaryCls} disabled={busy}>Send request</button>
         </form></Modal> : null}
     </>

@@ -13,7 +13,7 @@ import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
 import { createEmployee, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
-import { addMonths, addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, yearShare } from "@/staff/hrms/time";
+import { addMonths, addNationalHolidays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
 import { annualTax, computeSlip, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
@@ -298,5 +298,34 @@ describe("HRMS", () => {
       await setEmployeeActive(hr, nina.id, true);
       expect((await db.hrProfile.findUniqueOrThrow({ where: { staffId: nina.id } })).exitDate).toBeNull();
     } finally { vi.useRealTimers(); }
+  });
+  it("half-day and unpaid leave, the reporting manager's approval, and privilege leave carried forward", async () => {
+    const s = await loadSettings();
+    const esha = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-003" } })).id);
+    const nina = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-050" } })).id);
+    const sam = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-004" } })).id);
+    // Half a day: one date, half a day off the balance.
+    const before = (await leaveBalances(nina.id, s, "2032")).find((b) => b.id === "sick")!.left;
+    await expect(applyLeave(nina, { type: "sick", from: "2032-03-01", to: "2032-03-02", reason: "", half: true })).rejects.toThrow(/one date/);
+    expect(await applyLeave(nina, { type: "sick", from: "2032-03-01", to: "2032-03-01", reason: "", half: true })).toBe(0.5);
+    expect((await leaveBalances(nina.id, s, "2032")).find((b) => b.id === "sick")!.left).toBe(before - 0.5);
+    // Unpaid leave needs no balance and is loss of pay.
+    expect(await applyLeave(nina, { type: "unpaid", from: "2032-03-08", to: "2032-03-09", reason: "family" })).toBe(2);
+    // Esha is Nina's manager: she sees the requests and can decide them; Sam can't.
+    await db.hrProfile.update({ where: { staffId: nina.id }, data: { managerId: esha.id } });
+    const team = await teamRequests(esha);
+    expect(team.map((t) => t.text)).toEqual(expect.arrayContaining([expect.stringMatching(/half a day/), expect.stringMatching(/Unpaid.*2 days/)]));
+    expect(await teamRequests(sam)).toEqual([]);
+    await expect(decideLeave(sam, team[0].id, true)).rejects.toThrow(/role can’t/);
+    for (const t of team) await decideLeave(esha, t.id, true);
+    const m = await monthFor(nina.id, "2032-03", s);
+    expect(m.counts.unpaid).toBe(2);
+    expect(m.counts.leave).toBe(0.5);
+    // Unused privilege leave carries into the next year, up to the cap.
+    const pl = async (y: string) => (await leaveBalances(nina.id, s, y)).find((b) => b.id === "privilege")!;
+    expect(await pl("2026")).toMatchObject({ total: 15, carried: 0 }); // the joining year
+    expect(await pl("2027")).toMatchObject({ total: 30, carried: 15 });
+    expect(await pl("2028")).toMatchObject({ total: 45, carried: 30 });
+    expect(await pl("2029")).toMatchObject({ total: 45, carried: 30 }); // capped at 30
   });
 });

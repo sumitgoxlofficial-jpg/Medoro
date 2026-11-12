@@ -16,7 +16,7 @@ import { sentLetters, unreadLetters } from "./letters-server";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster } from "./people";
-import { isWorkDay, addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamToday, today, whosOut } from "./time";
+import { isWorkDay, addMonths, claims, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
@@ -77,8 +77,8 @@ export const loaders = {
   },
   leave: async (me: Me) => {
     const s = await loadSettings();
-    const [bal, mine, out, myClaims] = await Promise.all([leaveBalances(me.id, s), myLeaves(me), whosOut(todayISO(), addDays(todayISO(), 14)), claims({ staffId: me.id })]);
-    return { bal, mine, out, claims: myClaims };
+    const [bal, mine, out, myClaims, team] = await Promise.all([leaveBalances(me.id, s), myLeaves(me), whosOut(todayISO(), addDays(todayISO(), 14)), claims({ staffId: me.id }), teamRequests(me)]);
+    return { bal, mine, out, claims: myClaims, team };
   },
   payslips: async (me: Me) => ({ slips: await myPayslips(me.id) }),
   jobs: async () => ({ jobs: await jobs(true) }),
@@ -171,7 +171,7 @@ async function reports(me: Me) {
   const perPerson = staff.map((p) => ({
     id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, designation: p.designation, joinDate: p.joinDate ?? "", status: p.status,
     present: att.filter((a) => a.staffId === p.id && a.inAt).length, late: att.filter((a) => a.staffId === p.id && a.status === "late").length,
-    leaveDays: leaves.filter((l) => l.staffId === p.id).reduce((a, l) => a + l.days, 0), lastIn: att.filter((a) => a.staffId === p.id && a.inAt).map((a) => isoOf(a.day)).sort().pop() ?? "",
+    leaveDays: leaves.filter((l) => l.staffId === p.id).reduce((a, l) => a + (l.half ? 0.5 : l.days), 0), lastIn: att.filter((a) => a.staffId === p.id && a.inAt).map((a) => isoOf(a.day)).sort().pop() ?? "",
   }));
   return { headcount: staff.length, byDept, months, perPerson, month, policy: s.leave, canPayroll: can(me, "payroll") };
 }
