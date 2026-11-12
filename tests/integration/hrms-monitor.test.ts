@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const jar = new Map<string, string>();
 vi.mock("next/headers", () => ({
@@ -11,7 +11,9 @@ import { db } from "@/server/db";
 import { loadPerms, loadSettings, type Me } from "@/staff/hrms/auth";
 import { idleEnd, idleStart, idleToday, purgeOld, selfieImage } from "@/staff/hrms/monitor";
 import { saveSettings, startBreak } from "@/staff/hrms/people";
-import { checkIn, checkOut, teamToday } from "@/staff/hrms/time";
+import { checkIn, checkOut, hm, lunchOverlapMin, teamToday, workedMin } from "@/staff/hrms/time";
+import { shell } from "@/staff/hrms/screens";
+import { DEFAULT_SETTINGS, scheduleText } from "@/staff/hrms/constants";
 import { addDays, dateOnly, todayISO } from "@/lib/dates";
 import { resetDb } from "./helpers";
 
@@ -138,5 +140,73 @@ describe("idle-time monitoring", () => {
     await expect(saveSettings(emp, await loadSettings())).rejects.toThrow(/Only the super admin/);
     await expect(setting({ idleMinutes: 0 })).rejects.toThrow(/at least 1/);
     await expect(setting({ idleMinutes: 31 })).rejects.toThrow(/at most 30/);
+  });
+});
+
+describe("an eight-hour day with a one-hour lunch", () => {
+  const ist = (h: number, m = 0) => new Date(Date.UTC(2026, 10, 11, h, m) - 5.5 * 3600_000); // 11 Nov 2026, India time
+  it("is the default policy and is written out in words", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", lateAfter: "10:00" });
+    expect(scheduleText(DEFAULT_SETTINGS)).toMatchObject({ start: "10:00 AM", end: "7:00 PM", lunchFrom: "1:00 PM", lunchTo: "2:00 PM", lunchMin: 60 });
+  });
+
+  it("takes the lunch hour off the day, whatever time the person comes and goes", async () => {
+    const s = await loadSettings(), w = (a: Date, b: Date, breakMin = 0) => workedMin({ inAt: a, outAt: b, breakMin }, s);
+    expect(lunchOverlapMin(ist(10), ist(19), s)).toBe(60);
+    expect(w(ist(10), ist(19))).toBe(480); // 10 AM to 7 PM is exactly eight hours of work
+    expect(w(ist(10), ist(12, 30))).toBe(150); // left before lunch: nothing taken off
+    expect(lunchOverlapMin(ist(13, 30), ist(18), s)).toBe(30); // came back mid-lunch
+    expect(w(ist(13, 30), ist(18))).toBe(240);
+    expect(w(ist(10), ist(19), 20)).toBe(460); // a 20 minute tea break comes off too
+    expect(hm(460)).toBe("7h 40m");
+  });
+
+  it("lists worked time and a shortfall for HR", async () => {
+    await wipeToday();
+    await setting({ selfie: false, lateAfter: "23:59" });
+    await db.hrAttendance.create({ data: { staffId: emp.id, day: dateOnly(todayISO()), inAt: ist(10), outAt: ist(16), status: "present", breakMin: 0 } });
+    const row = (await teamToday(hr)).find((r) => r.id === emp.id)!;
+    expect(row).toMatchObject({ worked: "5h 00m", short: true }); // 6 hours there, less lunch
+    await db.hrAttendance.update({ where: { staffId_day: { staffId: emp.id, day: dateOnly(todayISO()) } }, data: { outAt: ist(19) } });
+    expect((await teamToday(hr)).find((r) => r.id === emp.id)).toMatchObject({ worked: "8h 00m", short: false });
+  });
+
+  it("checks the settings: work hours and lunch", async () => {
+    const base = await loadSettings();
+    await expect(saveSettings(admin, { ...base, lunchFrom: "14:00", lunchTo: "13:00" })).rejects.toThrow("Lunch must end after it starts");
+    await expect(saveSettings(admin, { ...base, workHours: 15 })).rejects.toThrow("at most 12");
+    await expect(saveSettings(admin, { ...base, lunchFrom: "1pm" })).rejects.toThrow("HH:MM");
+    await saveSettings(admin, { ...base, workHours: 9, lunchFrom: "13:30", lunchTo: "14:30" });
+    expect(await loadSettings()).toMatchObject({ workHours: 9, lunchFrom: "13:30", lunchTo: "14:30" });
+    await saveSettings(admin, base);
+  });
+});
+
+describe("a photo is asked for as soon as someone signs in and hasn't checked in", () => {
+  afterEach(() => vi.useRealTimers());
+  const at = (iso: string) => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(iso)); };
+  it("asks on a working day, until they check in with the photo", async () => {
+    await wipeToday(); await setting({ selfie: true, checkin: true, lateAfter: "10:00" });
+    at("2026-11-11T04:45:00Z"); // Wednesday 10:15 AM India
+    expect((await shell(emp)).needsPhoto).toBe(true);
+    await checkIn(emp, jpeg());
+    expect((await shell(emp)).needsPhoto).toBe(false);
+    expect((await db.hrSelfie.count({ where: { staffId: emp.id, kind: "in" } }))).toBe(1);
+  });
+  it("doesn't ask on a weekend, a holiday, on leave, or when the rule is off", async () => {
+    await wipeToday(); await setting({ selfie: true, checkin: true });
+    at("2026-11-14T04:45:00Z"); // Saturday
+    expect((await shell(other)).needsPhoto).toBe(false);
+    at("2026-11-11T04:45:00Z");
+    await db.hrHoliday.create({ data: { day: dateOnly("2026-11-11"), name: "Test holiday" } });
+    expect((await shell(other)).needsPhoto).toBe(false);
+    await db.hrHoliday.deleteMany({});
+    await db.hrLeave.create({ data: { staffId: other.id, type: "casual", fromDay: dateOnly("2026-11-11"), toDay: dateOnly("2026-11-11"), days: 1, reason: "away", status: "approved" } });
+    expect((await shell(other)).needsPhoto).toBe(false);
+    await db.hrLeave.deleteMany({});
+    await setting({ selfie: false });
+    expect((await shell(other)).needsPhoto).toBe(false);
+    await setting({ selfie: true });
+    expect((await shell(other)).needsPhoto).toBe(true);
   });
 });

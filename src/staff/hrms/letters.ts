@@ -24,6 +24,7 @@ export type LetterPerson = {
 export type LetterCompany = {
   name: string; address: string; phone?: string; email?: string; gstin?: string;
   leave?: { casual: number; sick: number; privilege: number; comp: number }; ptax?: number;
+  work?: { start: string; end: string; hours: number; lunchFrom: string; lunchTo: string }; // the working day, written out (see scheduleText)
 };
 
 export type Block =
@@ -69,7 +70,7 @@ function terms(c: Ctx, from: number): Block[] {
       ...(c.incentive ? [`In addition, you will earn a sales incentive of ${p.incentivePct}% of the annual subscription value of each pharmacy you win and activate in a month, paid with the following month’s salary. Leads reversed within 30 days are adjusted against it. The incentive is a variable pay and is not part of your fixed CTC.`] : []),
     ]],
     ["Probation", [`You will be on probation for ${PROBATION_MONTHS} months from your date of joining, which may be extended by up to three months. Your confirmation will be communicated in writing. Until confirmed, you remain on probation even if no letter has been issued.`]],
-    ["Working hours, attendance and leave", [`Working hours, attendance and holidays follow the company policy published on the HRMS. You are entitled to ${lv.casual} days of casual leave, ${lv.sick} days of sick leave and ${lv.privilege} days of privilege leave in a year${lv.comp ? ` and ${lv.comp} comp off` : ""}, as per the leave policy.`]],
+    ["Working hours, attendance and leave", [co.work ? `Your working day is ${co.work.hours} hours, from ${co.work.start} to ${co.work.end}, with a one-hour lunch break from ${co.work.lunchFrom} to ${co.work.lunchTo} that is not counted as work. Attendance is marked on the HRMS: you check in with a photo when you start your day, and your screen activity on the HRMS is monitored as set out in the company policy.` : "Working hours follow the company policy published on the HRMS.", `Attendance and holidays follow the company policy published on the HRMS. You are entitled to ${lv.casual} days of casual leave, ${lv.sick} days of sick leave and ${lv.privilege} days of privilege leave in a year${lv.comp ? ` and ${lv.comp} comp off` : ""}, as per the leave policy.`]],
     ["Notice period and termination", [
       `Either party may end this employment by giving ${NOTICE_DAYS / 30} (one) month’s written notice (${NOTICE_DAYS} days), or by paying salary in lieu of the unserved notice period. The company may end your employment without notice or pay in lieu in case of misconduct, breach of confidentiality, fraud, or a serious breach of company policy.`,
       "On leaving, you will hand over your work, return all company property, documents and access, and complete the exit formalities. Your full and final settlement is processed after clearance, with the next payroll cycle.",

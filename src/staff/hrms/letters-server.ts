@@ -8,13 +8,15 @@ import { todayISO } from "@/lib/dates";
 import { audit, loadSettings, need, notify, type Me } from "./auth";
 import { EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, buildCandidateOffer, buildLetter, letterLabel, type Letter, type LetterCompany, type LetterPerson, type LetterType, type OfferTerms } from "./letters";
 import { LOGO_ASPECT, LOGO_PNG_BASE64 } from "./logo";
+import { scheduleText } from "./constants";
 
 const isType = (t: unknown): t is LetterType => LETTER_TYPES.some((l) => l.id === t);
 const isDay = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(new Date(d + "T00:00:00Z").getTime());
 
 const companyOf = async (): Promise<LetterCompany> => {
   const s = await loadSettings();
-  return { name: s.company.name, address: s.company.address, phone: s.company.phone, email: s.company.email, gstin: s.company.gstin, leave: s.leave, ptax: s.ptax };
+  const w = scheduleText(s);
+  return { name: s.company.name, address: s.company.address, phone: s.company.phone, email: s.company.email, gstin: s.company.gstin, leave: s.leave, ptax: s.ptax, work: { start: w.start, end: w.end, hours: s.workHours, lunchFrom: w.lunchFrom, lunchTo: w.lunchTo } };
 };
 
 async function person(staffId: string): Promise<LetterPerson | null> {

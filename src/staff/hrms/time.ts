@@ -7,11 +7,21 @@ import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/st
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "./auth";
 import { closeIdle, idleToday, parseSelfie, purgeOld, saveSelfie } from "./monitor";
-import { CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, leaveLabel, type LeaveTypeId, type Settings } from "./constants";
+import { CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, leaveLabel, toMin, type LeaveTypeId, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
 const IST = 330 * 60_000;
 /** "HH:MM" in India time. */
+/** Minutes of the daily lunch break that fall between check-in and check-out (the lunch hour is not work). */
+export function lunchOverlapMin(inAt: Date, outAt: Date, s: Pick<Settings, "lunchFrom" | "lunchTo">) {
+  const IST_MS = 5.5 * 3600_000, day0 = Math.floor((inAt.getTime() + IST_MS) / 86400_000) * 86400_000 - IST_MS; // midnight India time of the check-in day
+  const from = day0 + toMin(s.lunchFrom) * 60_000, to = day0 + toMin(s.lunchTo) * 60_000;
+  return Math.max(0, Math.round((Math.min(outAt.getTime(), to) - Math.max(inAt.getTime(), from)) / 60_000));
+}
+/** Time actually worked: check-in to check-out, less the lunch hour and any other breaks taken. */
+export const workedMin = (a: { inAt: Date; outAt: Date; breakMin: number }, s: Pick<Settings, "lunchFrom" | "lunchTo">) =>
+  Math.max(0, Math.round((a.outAt.getTime() - a.inAt.getTime()) / 60_000) - lunchOverlapMin(a.inAt, a.outAt, s) - a.breakMin);
+export const hm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
 export const istClock = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(11, 16);
 const weekend = (day: string) => { const w = dateOnly(day).getUTCDay(); return w === 0 || w === 6; };
 const daysBetween = (from: string, to: string) => { const out: string[] = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push(d); return out; };
@@ -60,6 +70,12 @@ export async function addNationalHolidays(me: Me, year: number) {
 }
 
 // ── Attendance
+/** Is today a day this person is expected to work? Not a weekend, a holiday or approved leave. */
+export async function isWorkDay(staffId: string, day = todayISO()) {
+  if (weekend(day)) return false;
+  const [hol, leave] = await Promise.all([db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }), approvedLeaveOn(staffId, day)]);
+  return !hol && !leave;
+}
 export async function today(me: Me) {
   const a = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(todayISO()) } } });
   return { inAt: a?.inAt?.toISOString() ?? null, outAt: a?.outAt?.toISOString() ?? null, status: a?.status ?? null };
@@ -122,10 +138,11 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     const working = !weekend(day) && !holBy.has(day);
     if (working && day >= start && day <= todayDay) counts.workDays++;
     if (a?.inAt) {
-      if (a.outAt) counts.overtimeMin += Math.max(0, Math.round((a.outAt.getTime() - a.inAt.getTime()) / 60_000) - a.breakMin - 9 * 60);
+      const worked = a.outAt ? workedMin({ inAt: a.inAt, outAt: a.outAt, breakMin: a.breakMin }, s) : 0;
+      if (a.outAt) counts.overtimeMin += Math.max(0, worked - s.workHours * 60);
       const late = a.status === "late";
       if (late) counts.late++; else counts.present++;
-      const text = `${late ? "Late" : "Present"} · in ${fmtTime(a.inAt)}${a.outAt ? ` · out ${fmtTime(a.outAt)}` : ""}${a.note ? ` · ${a.note}` : ""}`;
+      const text = `${late ? "Late" : "Present"} · in ${fmtTime(a.inAt)}${a.outAt ? ` · out ${fmtTime(a.outAt)} · ${hm(worked)} worked${worked < s.workHours * 60 ? ` (${hm(s.workHours * 60 - worked)} short)` : ""}` : ""}${a.note ? ` · ${a.note}` : ""}`;
       return cell(late ? "late" : "present", text, late);
     }
     if (a?.status === "present") { counts.present++; return cell("present", `Present · ${a.note || "marked by HR"}`); }
@@ -167,7 +184,7 @@ export async function decideCorrection(me: Me, id: string, approve: boolean) {
 /** Everyone's status today, for HR. */
 export async function teamToday(me: Me) {
   need(me, "attendance");
-  const day = todayISO();
+  const day = todayISO(), set = await loadSettings();
   const [staff, att, leaves, idle, shots] = await Promise.all([
     db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" }, status: "active" }, select: { id: true, name: true, empNo: true, hr: { select: { dept: true } } }, orderBy: { name: "asc" } }),
     db.hrAttendance.findMany({ where: { day: dateOnly(day) } }),
@@ -180,6 +197,7 @@ export async function teamToday(me: Me) {
     const a = att.find((x) => x.staffId === u.id), onLeave = leaves.some((l) => l.staffId === u.id);
     const status = a?.inAt ? (a.status === "late" ? "Late" : "Present") : onLeave ? "On leave" : off ? "Day off" : "Not in yet";
     return { id: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", inAt: a?.inAt ? fmtTime(a.inAt) : "", outAt: a?.outAt ? fmtTime(a.outAt) : "", status,
+      worked: a?.inAt ? hm(workedMin({ inAt: a.inAt, outAt: a.outAt ?? new Date(), breakMin: a.breakMin }, set)) : "", short: !!(a?.inAt && a.outAt && workedMin({ inAt: a.inAt, outAt: a.outAt, breakMin: a.breakMin }, set) < set.workHours * 60),
       idleMin: idle.get(u.id)?.minutes ?? 0, idleNow: idle.get(u.id)?.open ?? false, selfieIn: shots.find((x) => x.staffId === u.id && x.kind === "in")?.id ?? null, selfieOut: shots.find((x) => x.staffId === u.id && x.kind === "out")?.id ?? null };
   });
 }
