@@ -14,6 +14,7 @@ import * as leads from "@/staff/hrms/leads";
 import * as fin from "@/staff/hrms/finance";
 import * as ally from "@/staff/hrms/ally";
 import * as gcal from "@/staff/hrms/gcal";
+import * as chatBackup from "@/staff/hrms/chat-backup";
 import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
@@ -105,6 +106,9 @@ export const deleteProject = async (id: string) => done(await hrRun((me) => work
 export const postAnnouncement = async (input: In<typeof work.postAnnouncement>) => done(await hrRun((me) => work.postAnnouncement(me, input), "Announcement posted to everyone."));
 export const deleteAnnouncement = async (id: string) => done(await hrRun((me) => work.deleteAnnouncement(me, id), "Announcement removed."));
 export const scheduleMeeting = async (input: In<typeof work.scheduleMeeting>) => done(await hrRun((me) => work.scheduleMeeting(me, input)));
+export const chatBackupNow = async () => done(await hrRun(async (me) => { const r = await chatBackup.backUp(me.id, me); return r; }, "Chats backed up to your Google Drive."));
+export const chatBackupRestore = async () => done(await hrRun((me) => chatBackup.restore(me)));
+export const chatBackupDisconnect = async () => done(await hrRun((me) => chatBackup.disconnect(me), "Chat backup disconnected."));
 export const disconnectGoogle = async () => done(await hrRun((me) => gcal.disconnect(me), "Google Calendar disconnected."));
 export const saveMeetingNotes = async (id: string, notes: string) => done(await hrRun((me) => work.saveMeetingNotes(me, id, notes), "Minutes saved."));
 export const cancelMeeting = async (id: string) => done(await hrRun((me) => work.cancelMeeting(me, id), "Meeting cancelled."));

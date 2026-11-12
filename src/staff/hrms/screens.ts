@@ -4,6 +4,7 @@ import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
 import { listEvents, status as gcalStatus } from "./gcal";
+import { backupStatus } from "./chat-backup";
 import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
@@ -83,8 +84,9 @@ export const loaders = {
   jobs: async () => ({ jobs: await jobs(true) }),
   chat: async (me: Me, q: Q) => {
     await syncChannels();
-    const [chats, people, mine, g] = await Promise.all([chatList(me), chatPeople(me), myChatProfile(me), gcalStatus(me.id)]);
-    return { chats, people, me: mine, open: q.c ?? "", google: g.connected, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
+    const [chats, people, mine, g, backup] = await Promise.all([chatList(me), chatPeople(me), myChatProfile(me), gcalStatus(me.id), backupStatus(me.id)]);
+    const notice = q.backup === "connected" ? "Google Drive connected. Press “Back up now” to make the first backup." : q.backup === "denied" ? "Google Drive wasn’t connected: access was not allowed." : q.backup === "off" ? "Google isn’t set up on this server yet. Ask the super admin." : q.backup === "failed" ? (q.why ?? "Couldn’t connect Google Drive.").slice(0, 200) : q.backup === "error" ? "Couldn’t connect Google Drive. Try again." : "";
+    return { chats, people, me: mine, open: q.c ?? "", google: g.connected, backup: { ...backup, notice }, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
