@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
-import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
+import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, pfReturn, esiReturn, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
 import { scheduleText } from "@/staff/hrms/constants";
@@ -81,11 +81,11 @@ function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; 
     </form></Modal>;
 }
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
-  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", shiftStart: p.shiftStart, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
+  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", shiftStart: p.shiftStart, taxRegime: p.taxRegime as string, taxDeclared: String(p.taxDeclared), esiNo: p.esiNo, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
   const isAdmin = p.role === "admin";
   return <Modal title={`Edit ${p.name}`} onClose={onClose} wide>
-    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", ctc: Number(v.ctc), incentivePct: Number(v.incentivePct), monthlyTarget: Number(v.monthlyTarget), joinDate: v.joinDate || null, managerId: v.managerId || null }), () => { onClose(); }); }}>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", taxRegime: v.taxRegime as "new", taxDeclared: Number(v.taxDeclared) || 0, ctc: Number(v.ctc), incentivePct: Number(v.incentivePct), monthlyTarget: Number(v.monthlyTarget), joinDate: v.joinDate || null, managerId: v.managerId || null }), () => { onClose(); }); }}>
       <Grid n={3}>
         <Field label="Department"><select className={inputCls} value={v.dept} onChange={set("dept")}><option value="">—</option>{d.depts.map((x) => <option key={x.id}>{x.name}</option>)}</select></Field>
         <Field label="Designation"><input className={inputCls} value={v.designation} onChange={set("designation")} required /></Field>
@@ -97,8 +97,12 @@ function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremploye
         <Field label="Date of joining"><input className={inputCls} type="date" value={v.joinDate} onChange={set("joinDate")} /></Field>
         <Field label="Annual CTC (₹)"><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} /></Field>
         <Field label="Shift starts (HH:MM)" hint="Late after this time. Empty = the company time in Settings"><input className={inputCls} value={v.shiftStart} onChange={set("shiftStart")} pattern="(|([01]\d|2[0-3]):[0-5]\d)" placeholder="e.g. 14:00" /></Field>
+        <Field label="Income-tax regime" hint="For the monthly TDS estimate"><select className={inputCls} value={v.taxRegime} onChange={set("taxRegime")}><option value="new">New regime</option><option value="old">Old regime</option></select></Field>
+        {v.taxRegime === "old" ? <Field label="Declared deductions a year (₹)" hint="80C, 80D, HRA and others you accepted"><input className={inputCls} inputMode="numeric" value={v.taxDeclared} onChange={(e) => setV({ ...v, taxDeclared: e.target.value.replace(/\D/g, "") })} /></Field> : null}
+        <Field label="ESI number" hint="10 or 17 digits, if insured"><input className={inputCls} inputMode="numeric" value={v.esiNo} onChange={(e) => setV({ ...v, esiNo: e.target.value.replace(/\D/g, "") })} /></Field>
         {v.role === "sales" || p.role === "sales" ? <><Field label="Sales incentive %" hint="Max 5%"><input className={inputCls} inputMode="decimal" value={v.incentivePct} onChange={set("incentivePct")} /></Field><Field label="Monthly target (pharmacies)"><input className={inputCls} inputMode="numeric" value={v.monthlyTarget} onChange={set("monthlyTarget")} /></Field></> : null}
       </Grid>
+      {d.revisions.some((r) => r.staffId === p.id) ? <div className="text-[12.5px] text-[#64748B]"><strong className="text-[#0f172a]">Salary revisions</strong>{d.revisions.filter((r) => r.staffId === p.id).map((r) => <div key={r.id}>{dayLabel(r.on)}: {inr(r.from)} → {inr(r.to)} a year</div>)}</div> : null}
       <button className={primaryCls} disabled={busy}>Save</button>
     </form></Modal>;
 }
@@ -229,10 +233,11 @@ function HolidayAdmin({ d }: { d: Data<"hrleave"> }) {
 // ── Payroll
 export function PayrollScreen({ d }: { d: Data<"payroll"> }) {
   const router = useRouter();
-  const { run, busy } = useRun();
+  const { run, busy, toast } = useRun();
   const r = d.run, [lop, setLop] = useState<Record<string, string>>({}), [slip, setSlip] = useState<Parameters<typeof PayslipView>[0]["s"] | null>(null);
   const tot = (k: "gross" | "net" | "tds" | "pf") => r.lines.reduce((a, l) => a + l[k], 0);
-  const get = async (fn: typeof bankFile) => { const x = await fn(r.ym); if (x.ok) download(x.data.name, x.data.text); };
+  const get = async (fn: typeof bankFile) => { const x = await fn(r.ym); if (x.ok) download(x.data.name, x.data.text); else toast(x.error, "red"); };
+  const getReturn = async (fn: typeof pfReturn) => { const x = await fn(r.ym); if (!x.ok) return toast(x.error, "red"); if (x.data.text) download(x.data.name, x.data.text, "text/plain"); if (x.data.missing.length) toast(`Left out (no UAN on the profile): ${x.data.missing.join(", ")}`, "red"); else if (!x.data.text) toast("No one has this deduction this month.", "red"); };
   return <>
     <Grid n={4}><Stat l="Employees" v={r.lines.length} c="#0f172a" /><Stat l="Gross" v={inr(tot("gross"))} /><Stat l="PF + TDS" v={inr(tot("pf") + tot("tds"))} c="#B45309" /><Stat l="Net pay" v={inr(tot("net"))} /></Grid>
     <Card title={`${r.label} payroll run`} sub="PF, ESI, professional tax and TDS are calculated automatically. Absent days are loss of pay." right={<><button className={btnCls} onClick={() => router.push(`/staff/hrms/payroll?m=${d.prev}`)}>‹</button><button className={btnCls} onClick={() => router.push(`/staff/hrms/payroll?m=${d.next}`)}>›</button>
@@ -243,7 +248,7 @@ export function PayrollScreen({ d }: { d: Data<"payroll"> }) {
           <td className={tdCls}>{l.status === "draft" ? <input className={cx(inputCls, "!w-16 !py-1")} inputMode="numeric" placeholder={String(l.lopDays)} value={lop[l.staffId] ?? ""} onChange={(e) => setLop({ ...lop, [l.staffId]: e.target.value.replace(/[^\d.]/g, "") })} aria-label={`Loss-of-pay days for ${l.name}`} /> : l.lopDays}</td>
           <td className={tdCls}>{inr(l.gross)}</td><td className={tdCls} title={`PF ${l.pf} · ESI ${l.esi} · PT ${l.pt} · TDS ${l.tds}`}>{inr(l.pf + l.esi + l.pt + l.tds)}</td><td className={tdCls}>{l.reimburse ? inr(l.reimburse) : "—"}</td><td className={tdCls}><strong>{inr(l.net)}</strong></td><td className={tdCls}><Pill tone={l.status === "paid" ? "green" : "amber"}>{l.status === "paid" ? "Paid" : "Pending"}</Pill></td></tr>)}
       </Table>
-      <div className="flex gap-2 p-4 flex-wrap"><button className={btnCls} onClick={() => void get(payrollReport)}>↓ Payroll report (CSV)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void get(bankFile)}>↓ Bank transfer file</button>{r.lines.find((l) => l.status === "paid") ? <span className="text-[12px] text-[#64748B] self-center">Open a payslip from Reports or ask the employee to view it in Payslips.</span> : null}</div>
+      <div className="flex gap-2 p-4 flex-wrap"><button className={btnCls} onClick={() => void get(payrollReport)}>↓ Payroll report (CSV)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void get(bankFile)}>↓ Bank transfer file</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void getReturn(pfReturn)}>↓ PF return (ECR)</button><button className={btnCls} disabled={!r.lines.some((l) => l.status === "paid")} onClick={() => void getReturn(esiReturn)}>↓ ESI return</button>{r.lines.find((l) => l.status === "paid") ? <span className="text-[12px] text-[#64748B] self-center">Open a payslip from Reports or ask the employee to view it in Payslips.</span> : null}</div>
     </Card>
     {slip ? <Modal title="Payslip" onClose={() => setSlip(null)} wide><PayslipView s={slip} /></Modal> : null}
   </>;

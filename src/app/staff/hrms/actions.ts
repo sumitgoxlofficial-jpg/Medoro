@@ -88,6 +88,9 @@ export const deleteDepartment = async (id: string) => done(await hrRun((me) => p
 export const processPayroll = async (month: string, lop: Record<string, number>) => done(await hrRun((me) => pay.processPayroll(me, month, lop)));
 export const bankFile = async (month: string) => hrRun((me) => pay.bankFile(me, month));
 export const payrollReport = async (month: string) => hrRun((me) => pay.payrollReport(me, month));
+export const pfReturn = async (month: string) => hrRun((me) => pay.pfReturn(me, month));
+export const esiReturn = async (month: string) => hrRun((me) => pay.esiReturn(me, month));
+export const taxStatement = async (fyStart: number, staffId?: string) => hrRun((me) => pay.taxStatement(me, staffId || me.id, fyStart));
 export const openPayslip = async (id: string) => hrRun((me) => pay.payslip(me, id));
 
 // ── Tasks, projects, meetings, announcements

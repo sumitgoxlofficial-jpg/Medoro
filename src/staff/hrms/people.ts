@@ -22,7 +22,7 @@ const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "En
 
 export type Person = {
   id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
-  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; shiftStart: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
+  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
   photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
 
@@ -39,7 +39,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     const h = u.hr;
     return {
       id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
-      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, shiftStart: h?.shiftStart ?? "", ctc: h?.ctc ?? 0,
+      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
       profileDone: h?.profileDone ?? false, docsAccepted: !!h?.docsAcceptedAt, hasPassword: !!u.passwordHash,
@@ -144,7 +144,9 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
 }
 
 export const editEmployeeSchema = newEmployeeSchema.omit({ personalEmail: true, phone: true, joinDate: true, name: true }).extend({
-  joinDate: iso.nullish(), shiftStart: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/, "Enter the shift start as HH:MM.").default(""), monthlyTarget: z.coerce.number().int().min(0).max(1000).default(40),
+  joinDate: iso.nullish(), shiftStart: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/, "Enter the shift start as HH:MM.").default(""),
+  taxRegime: z.enum(["new", "old"]).default("new"), taxDeclared: z.coerce.number().int().min(0, "Deductions can’t be negative.").max(5_000_000).default(0),
+  esiNo: z.string().trim().regex(/^$|^\d{10}$|^\d{17}$/, "The ESI number is 10 or 17 digits.").default(""), monthlyTarget: z.coerce.number().int().min(0).max(1000).default(40),
 });
 export async function updateEmployee(me: Me, id: string, raw: z.input<typeof editEmployeeSchema>) {
   need(me, "employees");
@@ -157,12 +159,19 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   const role = was === "admin" ? "admin" : i.role;
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
-  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, shiftStart: i.shiftStart } as const;
+  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo } as const;
   await db.$transaction([
     db.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } }),
     db.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } }),
+    ...(u.hr && u.hr.ctc !== i.ctc ? [db.hrSalaryRevision.create({ data: { staffId: id, fromCtc: u.hr.ctc, toCtc: i.ctc, byId: me.id } })] : []),
   ]);
   await audit(me, "Employee updated", `${u.empNo} · ${role} · ${i.dept} · ${i.designation}`);
+}
+
+/** Changes of annual CTC, newest first (HR). */
+export async function salaryRevisions() {
+  const rows = await db.hrSalaryRevision.findMany({ orderBy: { at: "desc" }, take: 1000 });
+  return rows.map((r) => ({ id: r.id, staffId: r.staffId, from: r.fromCtc, to: r.toCtc, on: todayISO(r.at) }));
 }
 
 /** Deactivating records the last working day (today unless given): payroll pays up to it, in that month. */

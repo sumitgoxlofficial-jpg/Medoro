@@ -12,9 +12,9 @@ import { db } from "@/server/db";
 import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
-import { createEmployee, saveSettings, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
+import { createEmployee, salaryRevisions, saveSettings, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
 import { addMonths, addNationalHolidays, checkIn, closeOpenDays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
-import { annualTax, computeSlip, finalSettlement, payrollFor, processPayroll, payslip } from "@/staff/hrms/pay";
+import { annualTax, computeSlip, employerCost, esiReturn, finalSettlement, payrollFor, pfReturn, processPayroll, payslip, taxStatement } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
 import { assignTask, performance, setTaskDone } from "@/staff/hrms/work";
@@ -375,5 +375,36 @@ describe("HRMS", () => {
       expect(a.note).toMatch(/Auto check-out/);
       expect(await closeOpenDays()).toBe(0);
     } finally { vi.useRealTimers(); }
+  });
+  it("statutory: old tax regime, employer shares, PF and ESI returns, the yearly tax statement and salary revisions", async () => {
+    // Old regime: ₹50,000 standard deduction and declared deductions; nothing up to ₹5,00,000 taxable.
+    expect(annualTax(700_000, "old", 150_000)).toBe(0);
+    expect(annualTax(1_200_000, "old", 150_000)).toBe(Math.round((12_500 + 100_000) * 1.04)); // taxable 10,00,000
+    expect(annualTax(1_200_000, "old", 0)).toBeGreaterThan(annualTax(1_200_000, "old", 150_000));
+    expect(computeSlip(1_800_000, { workDays: 22, lopDays: 0, incentive: 0, reimburse: 0, ptax: 200, regime: "old", declared: 200_000 }).tds).toBe(Math.round(annualTax(1_800_000, "old", 200_000) / 12));
+    expect(employerCost({ pf: 1800, esi: 150, gross: 20_000 })).toEqual({ pf: 1800, esi: 650 });
+    expect(employerCost({ pf: 1800, esi: 0, gross: 50_000 }).esi).toBe(0);
+    // Returns for the month processed earlier (the previous month).
+    const ym = addMonths(todayISO().slice(0, 7), -1);
+    const esha = await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-003" } });
+    await db.hrProfile.update({ where: { staffId: esha.id }, data: { uan: "100200300400" } });
+    const pf = await pfReturn(hr, ym);
+    const mine = pf.text.split("\n").find((l) => l.startsWith("100200300400#~#ESHA EMPLOYEE#~#"))!;
+    const f = mine.split("#~#").map(Number);
+    expect(f[6]).toBe(1800); // 12% of the ₹15,000 ceiling
+    expect(f[7] + f[8]).toBe(1800); // EPS and the employer's EPF share add up to the employer's 12%
+    expect(pf.missing.length).toBeGreaterThan(0); // the others have no UAN yet
+    expect((await esiReturn(hr, ym)).text.split("\n")[0]).toMatch(/^ESI number,/);
+    await expect(pfReturn(await me(esha.id), ym)).rejects.toThrow(/role can’t/);
+    // The tax statement covers April to March; one's own, or anyone's with Payroll.
+    const fy = Number(ym.slice(0, 4)) - (Number(ym.slice(5, 7)) < 4 ? 1 : 0);
+    const st = await taxStatement(await me(esha.id), esha.id, fy);
+    expect(st.text).toMatch(/Total,\d+/);
+    await expect(taxStatement(await me(esha.id), hr.id, fy)).rejects.toThrow(/role can’t/);
+    // A change of CTC is kept as a revision.
+    const base = { dept: "Engineering", designation: "Engineer", role: "employee" as const, empType: "Full-time" as const, location: "", incentivePct: 0, monthlyTarget: 40 };
+    await updateEmployee(hr, esha.id, { ...base, ctc: 720_000, taxRegime: "old", taxDeclared: 150_000 });
+    expect((await salaryRevisions()).find((r) => r.staffId === esha.id)).toMatchObject({ from: 600_000, to: 720_000 });
+    expect(await db.hrProfile.findUniqueOrThrow({ where: { staffId: esha.id } })).toMatchObject({ taxRegime: "old", taxDeclared: 150_000 });
   });
 });

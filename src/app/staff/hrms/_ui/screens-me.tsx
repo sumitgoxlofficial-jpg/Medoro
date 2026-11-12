@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
 import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, decideLeave, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
 import { Selfie, SelfieModal } from "./monitor";
-import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
+import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 
 type P = { sh: Shell };
 
@@ -356,20 +356,23 @@ export function PayslipView({ s }: { s: Slip }) {
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 py-3 border-b border-[#E2E8F0]">{[["Employee", s.emp.name], ["Employee ID", s.emp.empNo], ["Designation", s.emp.designation || "—"], ["Department", s.emp.dept || "—"], ["Date of joining", s.emp.joinDate ? dayLabel(s.emp.joinDate) : "—"], ["PAN", s.emp.pan || "—"], ["UAN", s.emp.uan || "—"], ["Bank", s.emp.bank || "—"], ["Paid days", `${s.workDays - s.lopDays} of ${s.workDays}`], ["Loss-of-pay days", String(s.lopDays)]].map(([k, v]) => <div key={k} className="flex justify-between gap-2"><span className="text-[#64748B]">{k}</span><strong>{v}</strong></div>)}</div>
       <div className="grid grid-cols-2 gap-6 py-3"><div><div className="font-bold mb-1">Earnings</div>{rows.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}<div className="flex justify-between border-t border-[#E2E8F0] mt-1 pt-1 font-bold"><span>Gross</span><span>{inr(s.gross)}</span></div></div><div><div className="font-bold mb-1">Deductions</div>{ded.map(([k, n]) => <div key={k} className="flex justify-between py-0.5"><span>{k}</span><span>{inr(n)}</span></div>)}{s.reimburse ? <div className="flex justify-between py-0.5 text-[#0B5E5B]"><span>Reimbursements (added)</span><span>+{inr(s.reimburse)}</span></div> : null}{s.gratuity ? <div className="flex justify-between py-0.5 text-[#0B5E5B]"><span>Gratuity (added)</span><span>+{inr(s.gratuity)}</span></div> : null}</div></div>
       <div className="flex justify-between bg-[#D6F3EF] rounded-lg px-4 py-3 text-[15px] font-bold text-[#0B5E5B]"><span>Net pay</span><span>{inr(s.net)}</span></div>
-      <p className="text-[11px] text-[#94A3B8] mt-3">This is a computer-generated payslip. Tax shown is an estimate under the new regime.</p>
+      <p className="text-[11px] text-[#94A3B8] mt-3">This is a computer-generated payslip. Tax shown is an estimate under the {s.regime} regime.{s.employer.pf || s.employer.esi ? ` The company also pays, on top of this: PF ${inr(s.employer.pf)}${s.employer.esi ? `, ESI ${inr(s.employer.esi)}` : ""}.` : ""}</p>
     </div>
   );
 }
 export function PayslipsScreen({ d }: { d: Data<"payslips"> }) {
-  const { run } = useRun();
+  const { run, toast } = useRun();
   const [show, setShow] = useState(false), [slip, setSlip] = useState<Slip | null>(null), [q, setQ] = useState("");
   const total = d.slips.reduce((a, s) => a + s.net, 0), tds = d.slips.reduce((a, s) => a + s.tds, 0);
+  // Financial years (April to March) that have a payslip, newest first.
+  const fys = [...new Set(d.slips.map((s) => Number(s.month.slice(0, 4)) - (Number(s.month.slice(5, 7)) < 4 ? 1 : 0)))].sort((a, b) => b - a);
+  const [fy, setFy] = useState(fys[0] ?? 0);
   const view = (id: string, print = false) => run(() => openPayslip(id), (s) => { setSlip(s); if (print) setTimeout(() => window.print(), 250); });
   const list = d.slips.filter((s) => s.label.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Grid n={4}><Stat l="Latest net pay" v={d.slips[0] ? <Hide n={d.slips[0].net} show={show} /> : "—"} sub={d.slips[0]?.label} /><Stat l="Payslips" v={d.slips.length} c="#0f172a" /><Stat l="Net paid so far" v={<Hide n={total} show={show} />} /><Stat l="TDS deducted" v={<Hide n={tds} show={show} />} c="#0f172a" /></Grid>
-      <Card title="Salary history" right={<><input className={cx(inputCls, "!w-44")} placeholder="Search month…" value={q} onChange={(e) => setQ(e.target.value)} /><button className={btnCls} onClick={() => setShow(!show)}>{show ? "Hide amounts" : "Show amounts"}</button></>}>
+      <Card title="Salary history" right={<><input className={cx(inputCls, "!w-44")} placeholder="Search month…" value={q} onChange={(e) => setQ(e.target.value)} /><button className={btnCls} onClick={() => setShow(!show)}>{show ? "Hide amounts" : "Show amounts"}</button>{fys.length ? <><select className={cx(inputCls, "!w-32")} value={fy} onChange={(e) => setFy(Number(e.target.value))} aria-label="Financial year">{fys.map((y) => <option key={y} value={y}>FY {y}-{String(y + 1).slice(2)}</option>)}</select><button className={btnCls} onClick={async () => { const x = await taxStatement(fy || fys[0]); if (x.ok) download(x.data.name, x.data.text); else toast(x.error, "red"); }}>↓ Tax statement</button></> : null}</>}>
         <Table head={["Month", "Paid on", "Net pay", ""]} empty={list.length ? undefined : "No payslips yet. They appear here once payroll is processed."}>
           {list.map((s) => <tr key={s.id}><td className={tdCls}><strong>{s.label}</strong></td><td className={tdCls}>{s.paidOn ? dayLabel(s.paidOn) : "—"}</td><td className={tdCls}><Hide n={s.net} show={show} /></td><td className={tdCls}><div className="flex gap-1.5"><button className={btnCls} onClick={() => view(s.id)}>View</button><button className={btnCls} onClick={() => view(s.id, true)}>↓ PDF</button></div></td></tr>)}
         </Table>

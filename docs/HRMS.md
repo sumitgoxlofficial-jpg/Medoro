@@ -100,7 +100,12 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
   (₹75,000 standard deduction, nothing up to ₹12,00,000 taxable with marginal relief, 4% cess), sales incentive from won
   pharmacies. A processed month can't be processed again, so a month opens for processing on its
   last working day (before that the screen is a preview). Someone who leaves is paid up to their last working day, in that month. The bank transfer file opens account numbers and is audited.
-  TDS is an estimate: have a CA confirm it for people with other income or the old regime.
+  HR can put a person on the **old regime** with their accepted yearly deductions (Edit employee); TDS then uses the old slabs.
+  TDS is an estimate: have a CA confirm it for people with other income.
+  Downloads on the Payroll screen for a processed month: the **PF return** in EPFO's ECR text layout (people without a UAN are
+  left out and named), the **ESI return** (both shares; add the ESI number on Edit employee), the payroll report (with the
+  employer's PF and ESI) and the bank file. Employees download a **tax statement** for a financial year from Payslips (what a CA
+  needs for Form 16; Form 16 itself is issued from TRACES). Every change of CTC is kept as a salary revision on the profile.
 * **Leads.** Sales screens work on the same lead table and the same *won → logged sale and commission* path as the staff
   console pipeline. HR uploads a CSV (`store, owner, phone, city, plan, source`), assigns leads or auto-assigns them evenly,
   and sets each salesperson's monthly target and incentive (max 5%).

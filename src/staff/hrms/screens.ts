@@ -15,7 +15,7 @@ import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
-import { auditLog, departments, myProfile, notifications, roster } from "./people";
+import { auditLog, departments, myProfile, notifications, roster, salaryRevisions } from "./people";
 import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
@@ -103,7 +103,7 @@ export const loaders = {
   assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
   assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
   hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
-  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled() }),
+  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled(), revisions: await salaryRevisions() }),
   hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: me.email.split("@")[1] ?? "medoro.in", mail: mailEnabled() }),
   departments: async () => {
     const [depts, staff] = await Promise.all([departments(), roster()]);

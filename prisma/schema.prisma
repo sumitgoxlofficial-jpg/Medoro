@@ -2305,6 +2305,9 @@ model HrProfile {
   location           String    @default("")
   managerId          String?
   joinDate           DateTime? @db.Date
+  taxRegime          String    @default("new") // new or old income-tax regime, for the monthly TDS estimate
+  taxDeclared        Int       @default(0) // old regime: yearly deductions HR accepted (80C, 80D, HRA…), rupees
+  esiNo              String    @default("") // ESI insurance number, for the ESI return
   shiftStart         String    @default("") // HH:MM India time this person is late after; empty = the company time
   exitDate           DateTime? @db.Date // last working day, set when HR deactivates the profile
   ctc                Int       @default(0) // rupees per year
@@ -2469,6 +2472,18 @@ model HrTask {
 
   @@index([assigneeId, status])
   @@index([projectId])
+}
+
+/// Every change of annual CTC, so pay history can be explained later.
+model HrSalaryRevision {
+  id      String   @id @default(uuid())
+  staffId String
+  fromCtc Int
+  toCtc   Int
+  byId    String
+  at      DateTime @default(now())
+
+  @@index([staffId, at])
 }
 
 model HrPayslip {
