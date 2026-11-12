@@ -13,6 +13,7 @@ import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, r
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
+import { myDocs } from "./docs";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, roster, salaryRevisions } from "./people";
@@ -91,7 +92,7 @@ export const loaders = {
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
-  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me) }),
+  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id) }),
 
   slhome: async (me: Me) => salesSummary(me),
   slboard: async (me: Me) => salesSummary(me),

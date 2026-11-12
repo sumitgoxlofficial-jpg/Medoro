@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
-import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
+import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
 import { Selfie, SelfieModal } from "./monitor";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
@@ -84,6 +84,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
         <p className="text-[12px] text-[#64748B] mt-3">Joining documents {p.docsAccepted ? `accepted on ${dayLabel(p.docsAcceptedAt!)}` : "not yet accepted"} · Authenticator app {p.totp ? "on" : "off"}</p>
       </Card>
       <Card title="My documents" sub="Your offer letter, appointment letter and non-disclosure agreement, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
+      <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
       {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>
         <div className="print-area mx-auto w-[300px] rounded-2xl overflow-hidden border border-[#CBD5E1] bg-white text-center shadow">
@@ -296,6 +297,27 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
       </Modal> : null}
     </>
   );
+}
+
+function MyDocs({ docs }: { docs: Data<"profile">["docs"] }) {
+  const { run, busy, toast } = useRun();
+  const [kind, setKind] = useState<string>(DOC_KINDS[0]);
+  const file = useRef<HTMLInputElement>(null);
+  const send = (e: React.FormEvent) => {
+    e.preventDefault();
+    const f = file.current?.files?.[0];
+    if (!f) return toast("Choose a file to upload.", "red");
+    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f);
+    run(() => uploadDoc(fd), () => { if (file.current) file.current.value = ""; });
+  };
+  return <>
+    <form className="flex gap-2 flex-wrap items-end" onSubmit={send}>
+      <Field label="Document"><select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>{DOC_KINDS.map((k) => <option key={k}>{k}</option>)}</select></Field>
+      <Field label="File (PDF, JPG, PNG)"><input ref={file} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" /></Field>
+      <button className={primaryCls} disabled={busy}>Upload</button>
+    </form>
+    {docs.length ? <div className="mt-4"><Table head={["Document", "File", "Uploaded", "Status", ""]}>{docs.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified by HR" : "Waiting for HR"}</Pill></td><td className={tdCls}>{x.verified ? null : <button className={dangerCls} disabled={busy} onClick={() => run(() => removeDoc(x.id))}>Remove</button>}</td></tr>)}</Table></div> : <Empty>No documents uploaded yet.</Empty>}
+  </>;
 }
 
 // ── Leave & claims

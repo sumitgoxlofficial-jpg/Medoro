@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
-import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, pfReturn, esiReturn, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
+import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, pfReturn, esiReturn, employeeDocs, verifyDoc, removeDoc, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
 import { scheduleText } from "@/staff/hrms/constants";
@@ -51,23 +51,35 @@ function EmployeeTable({ people }: { people: Data<"hremployees">["people"] }) {
 type Person = Data<"hremployees">["people"][number];
 export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
   const { run, busy } = useRun();
-  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null), [leaving, setLeaving] = useState<Person | null>(null);
+  const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null), [leaving, setLeaving] = useState<Person | null>(null), [docsOf, setDocsOf] = useState<Person | null>(null);
   const list = d.people.filter((p) => `${p.name} ${p.dept} ${p.empNo} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Card title="Employee directory" sub={`${d.people.filter((p) => p.status !== "deactivated").length} active · ${d.depts.length} departments`} right={<><input className={cx(inputCls, "!w-56")} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /><Link href="/staff/hrms/hrnewemp" className={primaryCls}>+ Create employee profile</Link></>}>
         <Table head={["Name", "Department", "Designation", "Access", "Status", ""]} empty={list.length ? undefined : "No match."}>
           {list.map((p) => <tr key={p.id}><td className={tdCls}><div className="flex items-center gap-2.5"><Avatar name={p.name} photo={p.photo} size={30} /><div><strong>{p.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{p.empNo} · {p.email}</div></div></div></td><td className={tdCls}>{p.dept || "—"}</td><td className={tdCls}>{p.designation || "—"}</td><td className={tdCls}>{HR_ROLE_LABEL[p.role]}</td><td className={tdCls}><Pill tone={statusTone(p.status)}>{p.status === "invited" ? "Not signed in" : p.status}</Pill></td>
-            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : p.exitDate ? <button className={btnCls} title={`Last working day ${p.exitDate}`} onClick={() => { if (confirm(`Cancel ${p.name}’s exit (last working day ${p.exitDate})?`)) run(() => setEmployeeActive(p.id, true)); }}>Leaving {dayLabel(p.exitDate)} · cancel</button> : <button className={dangerCls} onClick={() => setLeaving(p)}>Record exit</button>) : null}</div></td></tr>)}
+            <td className={tdCls}><div className="flex gap-1.5 flex-wrap"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button><button className={btnCls} onClick={() => setDocsOf(p)}>Documents</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : p.exitDate ? <button className={btnCls} title={`Last working day ${p.exitDate}`} onClick={() => { if (confirm(`Cancel ${p.name}’s exit (last working day ${p.exitDate})?`)) run(() => setEmployeeActive(p.id, true)); }}>Leaving {dayLabel(p.exitDate)} · cancel</button> : <button className={dangerCls} onClick={() => setLeaving(p)}>Record exit</button>) : null}</div></td></tr>)}
         </Table>
       </Card>
       {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} onClose={() => setLetters(null)} /> : null}
       {edit ? <EditModal p={edit} d={d} onClose={() => setEdit(null)} busy={busy} run={run} /> : null}
       {bal ? <LeaveModal p={bal} onClose={() => setBal(null)} /> : null}
+      {docsOf ? <DocsModal p={docsOf} onClose={() => setDocsOf(null)} /> : null}
       {leaving ? <ExitModal p={leaving} onClose={() => setLeaving(null)} run={run} busy={busy} /> : null}
       {otp ? <Modal title="One-time password" onClose={() => setOtp(null)}><p className="text-[13.5px]">Give this to {otp.name} ({otp.empNo}). It works for one sign-in within 24 hours; they then set a new password.</p><code className="block text-center text-[22px] font-bold tracking-wider bg-[#F1F5F9] rounded-xl py-3 select-all">{otp.otp}</code><button className={btnCls} onClick={() => navigator.clipboard?.writeText(otp.otp)}>Copy</button><p className="text-[12px] text-[#64748B]">It isn’t stored anywhere readable. Close this and it can’t be shown again.</p></Modal> : null}
     </>
   );
+}
+function DocsModal({ p, onClose }: { p: Person; onClose: () => void }) {
+  const { toast } = useRun();
+  const [rows, setRows] = useState<{ id: string; kind: string; name: string; verified: boolean; at: string }[] | null>(null), [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { const r = await employeeDocs(p.id); if (r.ok) setRows(r.data); else toast(r.error, "red"); }, [p.id, toast]);
+  useEffect(() => { void load(); }, [load]);
+  const act = async (fn: () => Promise<{ ok: boolean; error?: string }>) => { setBusy(true); const r = await fn(); setBusy(false); if (!r.ok) toast(r.error ?? "That didn’t work.", "red"); await load(); };
+  return <Modal title={`${p.name} · documents`} onClose={onClose} wide>
+    {rows === null ? <Empty>Loading…</Empty> : rows.length ? <Table head={["Document", "File", "Uploaded", "Status", ""]}>{rows.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified" : "Not verified"}</Pill></td><td className={tdCls}><div className="flex gap-1.5"><button className={btnCls} disabled={busy} onClick={() => void act(() => verifyDoc(x.id, !x.verified))}>{x.verified ? "Unverify" : "Mark verified"}</button><button className={dangerCls} disabled={busy} onClick={() => { if (confirm(`Remove this ${x.kind}?`)) void act(() => removeDoc(x.id)); }}>Remove</button></div></td></tr>)}</Table> : <Empty>{p.name} hasn’t uploaded any documents. They upload them under My profile → KYC & certificates.</Empty>}
+    <p className="text-[12px] text-[#64748B] mt-2">Opening a document is written to Audit Logs.</p>
+  </Modal>;
 }
 function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);

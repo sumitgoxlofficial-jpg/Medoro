@@ -2474,6 +2474,20 @@ model HrTask {
   @@index([projectId])
 }
 
+/// A document an employee uploaded for HR (identity, address, certificates). The file is in file storage under `key`.
+model HrDocument {
+  id         String    @id @default(uuid())
+  staffId    String
+  kind       String
+  name       String
+  key        String
+  verifiedBy String?
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([staffId])
+}
+
 /// Every change of annual CTC, so pay history can be explained later.
 model HrSalaryRevision {
   id      String   @id @default(uuid())

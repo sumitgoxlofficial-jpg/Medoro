@@ -18,6 +18,7 @@ import { annualTax, computeSlip, employerCost, esiReturn, finalSettlement, payro
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
 import { assignTask, performance, setTaskDone } from "@/staff/hrms/work";
+import { docFile, employeeDocs, myDocs, removeDoc, uploadDoc, verifyDoc } from "@/staff/hrms/docs";
 import { dateOnly, todayISO } from "@/lib/dates";
 import { resetDb } from "./helpers";
 
@@ -406,5 +407,26 @@ describe("HRMS", () => {
     await updateEmployee(hr, esha.id, { ...base, ctc: 720_000, taxRegime: "old", taxDeclared: 150_000 });
     expect((await salaryRevisions()).find((r) => r.staffId === esha.id)).toMatchObject({ from: 600_000, to: 720_000 });
     expect(await db.hrProfile.findUniqueOrThrow({ where: { staffId: esha.id } })).toMatchObject({ taxRegime: "old", taxDeclared: 150_000 });
+  });
+  it("employee documents: the owner uploads, HR verifies and opens (audited), nobody else can", async () => {
+    const esha = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-003" } })).id);
+    const sam = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-004" } })).id);
+    const form = (kind: string, type = "application/pdf") => { const f = new FormData(); f.set("kind", kind); f.set("file", new File([new Uint8Array([37, 80, 68, 70, 45])], "aadhaar.pdf", { type })); return f; };
+    await expect(uploadDoc(esha, form("Nonsense"))).rejects.toThrow();
+    await expect(uploadDoc(esha, form("Aadhaar card", "application/zip"))).rejects.toThrow(/PDF, JPG or PNG/);
+    await uploadDoc(esha, form("Aadhaar card"));
+    const [d] = await myDocs(esha.id);
+    expect(d).toMatchObject({ kind: "Aadhaar card", name: "aadhaar.pdf", verified: false });
+    expect(await docFile(sam, d.id)).toBeNull(); // a colleague can't open it
+    await expect(employeeDocs(sam, esha.id)).rejects.toThrow(/role can’t/);
+    await expect(verifyDoc(sam, d.id, true)).rejects.toThrow(/role can’t/);
+    expect((await docFile(esha, d.id))!.type).toBe("application/pdf");
+    expect((await docFile(hr, d.id))!.name).toBe("aadhaar.pdf");
+    expect(await db.staffAudit.count({ where: { action: { contains: "Employee document opened" } } })).toBe(1);
+    await verifyDoc(hr, d.id, true);
+    expect((await employeeDocs(hr, esha.id))[0].verified).toBe(true);
+    await expect(removeDoc(esha, d.id)).rejects.toThrow(/verified/); // the owner can't pull a verified document
+    await removeDoc(hr, d.id);
+    expect(await myDocs(esha.id)).toEqual([]);
   });
 });

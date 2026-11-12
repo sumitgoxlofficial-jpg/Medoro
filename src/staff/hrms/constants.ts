@@ -129,6 +129,7 @@ export const ASSET_KINDS = ["Laptop", "Monitor", "Phone", "Access card", "Keyboa
 export const EMP_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const CAND_STAGES = [{ id: "applied", label: "Applied" }, { id: "interview", label: "Interview" }, { id: "offer", label: "Offer" }, { id: "hired", label: "Hired" }] as const;
+export const DOC_KINDS = ["Aadhaar card", "PAN card", "Passport / photo ID", "Address proof", "Education certificate", "Previous employment (relieving letter)", "Bank proof (cancelled cheque)", "Other"] as const;
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 export const TICKET_TOPICS = ["Payroll", "Leave", "Attendance", "Documents", "IT & access", "Other"] as const;
 export const ONBOARD_STEPS = ["Documents", "Laptop", "Access card", "Buddy assigned", "Training plan"] as const;

@@ -40,6 +40,10 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 * **Accounts**: **Sales CRM & Leads** (deals), **Marketing CRM** (campaigns), **Workflows & Automations**, plus Proforma, Delivery challans, Vendors and Vendor leads registers.
   Workflows are only listed if they really run: *Mark overdue invoices* (sent invoices past their due date become Overdue and Accounts is told, whenever an
   accounts screen opens) and *Post the salary journal* (processing payroll adds one journal entry for the month's net pay). Each can be switched off.
+* **KYC & certificates** (My profile). The employee uploads identity and address proof, certificates, a relieving letter or a
+  cancelled cheque (PDF, JPG, PNG). HR opens them from **Employees → Documents**, marks each verified or removes it. Files open
+  only for their owner and people with the Employees module; HR opening one is written to Audit Logs. A verified document can
+  only be removed by HR. Medoro stores the uploaded file only: it does not ask for or keep the Aadhaar number.
 * **Me**: **ID card** (My profile, printable), **Customize home** (hide sections; saved in the browser), **night mode** (moon button; saved in the browser).
 * Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).
 

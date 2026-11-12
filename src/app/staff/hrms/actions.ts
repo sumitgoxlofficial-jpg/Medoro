@@ -20,6 +20,7 @@ import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
+import * as docs from "@/staff/hrms/docs";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -70,6 +71,10 @@ export const grantLeave = async (staffId: string, type: string, days: number) =>
 export const addHoliday = async (input: In<typeof time.addHoliday>) => done(await hrRun((me) => time.addHoliday(me, input), "Holiday added."));
 export const removeHoliday = async (id: string) => done(await hrRun((me) => time.removeHoliday(me, id), "Holiday removed."));
 export const addNationalHolidays = async (year: number) => done(await hrRun((me) => time.addNationalHolidays(me, year)));
+export const uploadDoc = async (form: FormData) => done(await hrRun((me) => docs.uploadDoc(me, form), "Document uploaded. HR will verify it."));
+export const removeDoc = async (id: string) => done(await hrRun((me) => docs.removeDoc(me, id), "Document removed."));
+export const verifyDoc = async (id: string, ok: boolean) => done(await hrRun((me) => docs.verifyDoc(me, id, ok), ok ? "Marked as verified." : "Verification removed."));
+export const employeeDocs = async (staffId: string) => hrRun((me) => docs.employeeDocs(me, staffId));
 export const submitClaim = async (form: FormData) => done(await hrRun((me) => time.submitClaim(me, form), "Claim submitted. HR reviews it first."));
 export const hrDecideClaim = async (id: string, approve: boolean) => done(await hrRun((me) => time.hrDecideClaim(me, id, approve), approve ? "Sent to the super admin for final sign-off." : "Claim rejected."));
 export const adminDecideClaim = async (id: string, approve: boolean) => done(await hrRun((me) => time.adminDecideClaim(me, id, approve), approve ? "Approved. It is paid with the next payroll." : "Claim rejected."));
