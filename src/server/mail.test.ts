@@ -20,7 +20,7 @@ describe("email providers", () => {
     expect(calls[0].url).toBe("https://api.resend.com/emails");
     expect(calls[0].init.method).toBe("POST");
     expect(hdr(calls[0])).toMatchObject({ Authorization: "Bearer re_123", "Content-Type": "application/json" });
-    expect(JSON.parse(String(calls[0].init.body))).toEqual({ from: FROM, to: ["owner@test.in"], subject: "Code 123456", text: "Use 123456" });
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ from: FROM, to: ["owner@test.in"], subject: "Code 123456", text: "Use 123456", html: expect.stringContaining("Use 123456") });
   });
 
   it("sendgrid: v3 mail/send with personalizations and a parsed from", async () => {
@@ -30,7 +30,7 @@ describe("email providers", () => {
     expect(hdr(calls[0]).Authorization).toBe("Bearer SG.x");
     expect(JSON.parse(String(calls[0].init.body))).toEqual({
       personalizations: [{ to: [{ email: "owner@test.in" }] }], from: { name: "Medoro", email: "no-reply@pharmacy.example.in" },
-      subject: "Code 123456", content: [{ type: "text/plain", value: "Use 123456" }],
+      subject: "Code 123456", content: [{ type: "text/plain", value: "Use 123456" }, { type: "text/html", value: expect.stringContaining("Use 123456") }],
     });
   });
 
@@ -39,7 +39,7 @@ describe("email providers", () => {
     for (const p of ["http", "smtp-http"]) await sendMail(msg, { MAIL_PROVIDER: p, MAIL_HTTP_URL: "https://relay.example/mail", MAIL_HTTP_TOKEN: "rt", MAIL_FROM: FROM });
     expect(calls.map((c) => c.url)).toEqual(["https://relay.example/mail", "https://relay.example/mail"]);
     expect(hdr(calls[0]).Authorization).toBe("Bearer rt");
-    expect(JSON.parse(String(calls[1].init.body))).toEqual({ from: FROM, to: "owner@test.in", subject: "Code 123456", text: "Use 123456" });
+    expect(JSON.parse(String(calls[1].init.body))).toEqual({ from: FROM, to: "owner@test.in", subject: "Code 123456", text: "Use 123456", html: expect.stringContaining("Use 123456") });
   });
 
   it("sends attachments base64-encoded in each provider's format", async () => {

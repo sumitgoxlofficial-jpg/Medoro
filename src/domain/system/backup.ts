@@ -7,6 +7,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { compose } from "@/server/mail-template";
 import { fingerprint, reseal, unseal } from "@/server/vault";
 import { deleteObject, getObject, moveFilesToDrive, putObject, type FileStore } from "@/server/storage";
 import { BACKUP_FORMAT, dropSchema, dumpForBackup, isRestorable, prepare, restoreFiles, swapIn, type RestoreSummary } from "./restore";
@@ -129,7 +130,7 @@ async function alertOwners(tenantId: string, error: string) {
     db.user.findMany({ where: { tenantId, active: true, isSupport: false, role: { name: "Owner" }, email: { not: null } }, select: { email: true } }),
   ]);
   for (const o of owners) {
-    await sendMail({ to: o.email!, subject: `Medoro: backup failed for ${tenant?.name ?? "your pharmacy"}`, text: `Tonight's backup didn't finish: ${error.slice(0, 300)}\n\nOpen Medoro → Backup & restore and choose "Back up now". If it fails again, check the server's storage and Google Drive connection.` }).catch(() => {});
+    { const subject = `Action needed: backup did not complete for ${tenant?.name ?? "your pharmacy"}`; await sendMail({ to: o.email!, subject, ...compose({ greeting: "Dear Owner,", blocks: [{ p: "Tonight's backup did not finish." }, { note: error.slice(0, 300) }, { p: "Please open Medoro → Backup & restore and choose “Back up now”. If it fails again, check the server's storage and your Google Drive connection." }] }, subject) }).catch(() => {}); }
   }
 }
 

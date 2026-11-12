@@ -39,7 +39,7 @@ const google = fakeGoogle();
 let idClaims: Record<string, unknown> = {};
 
 function codeFrom(s: Sent) {
-  if (s.url.includes("resend.com")) return /\n {4}(\d{6})\n/.exec(JSON.parse(s.body).text)![1];
+  if (s.url.includes("resend.com")) return /\n(\d{6})\n/.exec(JSON.parse(s.body).text)![1];
   if (s.url.includes("msg91.com")) return JSON.parse(s.body).recipients[0].otp as string;
   if (s.url.includes("twilio.com")) return new URLSearchParams(s.body).get("Body")!.slice(0, 6);
   return JSON.parse(s.body).code as string;
@@ -332,7 +332,7 @@ describe("account recovery, providers and Google sign-in", () => {
     expect(await signupAction(form("mail.owner@gmail.com", "MAIL-OWNER"))).toMatchObject({ ok: false, error: expect.stringMatching(/Confirm your email/) });
     expect(await sendSignupEmailCode(EMAIL)).toMatchObject({ ok: false, error: expect.stringMatching(/already exists/) });
     expect(await sendSignupEmailCode("mail.owner@gmail.com")).toEqual({ ok: true });
-    expect(JSON.parse(sent.at(-1)!.body)).toMatchObject({ to: ["mail.owner@gmail.com"], subject: expect.stringMatching(/sign-up code/) });
+    expect(JSON.parse(sent.at(-1)!.body)).toMatchObject({ to: ["mail.owner@gmail.com"], subject: expect.stringMatching(/sign-up/) });
     expect(await verifySignupEmailCode("mail.owner@gmail.com", other(lastCode()))).toMatchObject({ ok: false });
     expect(await verifySignupEmailCode("mail.owner@gmail.com", lastCode())).toEqual({ ok: true });
     // The confirmed address only: another email on the form is refused.

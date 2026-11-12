@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/server/db";
 import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { compose } from "@/server/mail-template";
 import { driveSyncHealth } from "@/domain/reports/alerts";
 import { driveQuota } from "./gdrive";
 import { quotaProblem, type Quota } from "./drive-state";
@@ -27,8 +28,15 @@ export async function driveHealthTick(now = new Date(), quota: typeof driveQuota
       if (problems.length && mailEnabled() && (!h.mailedAt || now.getTime() - Date.parse(h.mailedAt) >= DAY)) {
         const owners = await db.user.findMany({ where: { tenantId: t.id, active: true, isSupport: false, role: { name: "Owner" }, email: { not: null } }, select: { email: true } });
         for (const o of owners) {
-          await sendMail({ to: o.email!, subject: `Medoro: your counters and Google Drive need a look (${t.name})`,
-            text: `${problems.map((p) => `• ${p}`).join("\n")}\n\nYour pharmacy's records live on your counters and in your Google Drive. Bills that haven't reached Drive exist only on that counter, so fix these soon. Open Medoro on the counter while online, or check Counter → Devices on the owner's counter.` }).catch(() => {});
+          const subject = `Action needed: your counters and Google Drive (${t.name})`;
+          await sendMail({ to: o.email!, subject, ...compose({
+            greeting: "Dear Owner,",
+            blocks: [
+              { p: `During today's check of ${t.name} we found the following:\n${problems.map((p) => `• ${p}`).join("\n")}` },
+              { p: "Your pharmacy's records live on your counters and in your Google Drive. Bills that have not reached Drive exist only on that counter, so please resolve this soon." },
+              { note: "What to do: open Medoro on the counter while it is online, or check Counter → Devices on the owner's counter." },
+            ],
+          }, subject) }).catch(() => {});
         }
         if (owners.length) next.mailedAt = now.toISOString();
       }

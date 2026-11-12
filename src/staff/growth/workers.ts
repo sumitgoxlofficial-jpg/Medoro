@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
 import { mailEnabled, sendMail } from "@/server/mail";
+import { compose } from "@/server/mail-template";
 import { log } from "@/server/log";
 import { register, subscribe } from "./jobs";
 import { processImport } from "./imports";
@@ -34,7 +35,7 @@ subscribe("followup.escalated", async (p) => {
   const managerId = t.staff.growthMember?.team?.managerId;
   const to = managerId ? await db.staffUser.findMany({ where: { id: managerId, status: "active" }, select: { email: true } }) : await db.staffUser.findMany({ where: { role: "super_admin", status: "active" }, select: { email: true } });
   for (const r of to) {
-    await sendMail({ to: r.email, subject: `Overdue follow-up: ${t.lead.name}`, text: `${t.staff.name}'s follow-up with ${t.lead.name} (${t.lead.code}) was due on ${t.dueAt.toISOString().slice(0, 16).replace("T", " ")} UTC and is still open.\n\nOpen Growth Intelligence → Follow-up calendar to review or reassign.` }).catch((e) => log.error("escalation mail failed", { err: e }));
+    await sendMail({ to: r.email, ...(() => { const subject = `Overdue follow-up: ${t.lead.name}`; return { subject, ...compose({ greeting: "Hello,", blocks: [{ p: `A follow-up is overdue and still open.` }, { facts: [["Lead", `${t.lead.name} (${t.lead.code})`], ["Assigned to", t.staff.name], ["Was due", `${t.dueAt.toISOString().slice(0, 16).replace("T", " ")} UTC`]] }, { p: "Please open Growth Intelligence → Follow-up calendar to review or reassign it." }] }, subject) }; })() }).catch((e) => log.error("escalation mail failed", { err: e }));
   }
 });
 subscribe("lead.converted", async (p) => { log.info("growth conversion", { leadId: p.leadId, staffId: p.staffId }); });

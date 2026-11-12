@@ -1,11 +1,13 @@
 import "server-only";
 import { UserError } from "./action";
+import { fromText } from "./mail-template";
 
 // Email goes out through MAIL_PROVIDER: resend, sendgrid, http (alias smtp-http: your own webhook or SMTP
 // relay), or console (prints messages to the server log; refused in production). Blank disables email.
 type Env = Record<string, string | undefined>;
 export type Attachment = { filename: string; content: Buffer | string; contentType?: string };
-export type Mail = { to: string; subject: string; text: string; attachments?: Attachment[] };
+/** text is always sent; html (the branded layout, built from the text when not given) is sent beside it. */
+export type Mail = { to: string; subject: string; text: string; html?: string; /** Send as plain text only (campaign emails that carry their own footer and unsubscribe line). */ plain?: boolean; attachments?: Attachment[] };
 
 const b64 = (a: Attachment) => (typeof a.content === "string" ? Buffer.from(a.content, "utf8") : a.content).toString("base64");
 const typeOf = (a: Attachment) => a.contentType ?? "application/octet-stream";
@@ -32,6 +34,7 @@ function providerFailed(provider: string, detail: string): never {
 export async function sendMail(m: Mail, env: Env = process.env) {
   const p = providerOf(env), from = env.MAIL_FROM ?? "";
   const att = m.attachments?.length ? m.attachments : null;
+  const html = m.plain ? undefined : m.html ?? fromText(m.text, m.subject);
   const need = (...ks: string[]) => { const miss = ks.filter((k) => !env[k]); if (miss.length) providerFailed(p, `${miss.join(", ")} not set`); };
   let req: { url: string; init: RequestInit };
   switch (p) {
@@ -43,7 +46,7 @@ export async function sendMail(m: Mail, env: Env = process.env) {
       need("RESEND_API_KEY", "MAIL_FROM");
       req = {
         url: "https://api.resend.com/emails",
-        init: { method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [m.to], subject: m.subject, text: m.text, ...(att ? { attachments: att.map((a) => ({ filename: a.filename, content: b64(a), content_type: typeOf(a) })) } : {}) }) },
+        init: { method: "POST", headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ from, to: [m.to], subject: m.subject, text: m.text, ...(html ? { html } : {}), ...(att ? { attachments: att.map((a) => ({ filename: a.filename, content: b64(a), content_type: typeOf(a) })) } : {}) }) },
       };
       break;
     case "sendgrid":
@@ -53,7 +56,7 @@ export async function sendMail(m: Mail, env: Env = process.env) {
         init: {
           method: "POST",
           headers: { Authorization: `Bearer ${env.SENDGRID_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ personalizations: [{ to: [{ email: m.to }] }], from: parseFrom(from), subject: m.subject, content: [{ type: "text/plain", value: m.text }], ...(att ? { attachments: att.map((a) => ({ content: b64(a), filename: a.filename, type: typeOf(a), disposition: "attachment" })) } : {}) }),
+          body: JSON.stringify({ personalizations: [{ to: [{ email: m.to }] }], from: parseFrom(from), subject: m.subject, content: [{ type: "text/plain", value: m.text }, ...(html ? [{ type: "text/html", value: html }] : [])], ...(att ? { attachments: att.map((a) => ({ content: b64(a), filename: a.filename, type: typeOf(a), disposition: "attachment" })) } : {}) }),
         },
       };
       break;
@@ -66,7 +69,7 @@ export async function sendMail(m: Mail, env: Env = process.env) {
         init: {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(env.MAIL_HTTP_TOKEN ? { Authorization: `Bearer ${env.MAIL_HTTP_TOKEN}` } : {}) },
-          body: JSON.stringify({ from, to: m.to, subject: m.subject, text: m.text, ...(att ? { attachments: att.map((a) => ({ filename: a.filename, contentType: typeOf(a), content: b64(a) })) } : {}) }),
+          body: JSON.stringify({ from, to: m.to, subject: m.subject, text: m.text, ...(html ? { html } : {}), ...(att ? { attachments: att.map((a) => ({ filename: a.filename, contentType: typeOf(a), content: b64(a) })) } : {}) }),
         },
       };
       break;
