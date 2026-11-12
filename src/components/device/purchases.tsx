@@ -7,14 +7,28 @@ import { deviceDb } from "@/drivedb/device";
 import { inr } from "@/lib/money";
 import { useT } from "@/lib/i18n-client";
 import { todayISO } from "@/lib/dates";
+import { Segmented } from "@/components/ui/segmented";
+import { EbillImport } from "./purchase-tools";
 import { card, input, label, errText, toPaise, type Cfg, type Who } from "./ui";
 
 type Sup = { id: string; name: string; gstin: string | null };
 type Med = { id: string; name: string; mrpPaise: number; gstRate: number; packUnit: string };
 type L = { med: Med; batchNo: string; expiry: string; packs: string; free: string; rate: string; mrp: string };
 
-/** Stock in: enter a supplier's bill line by line; stock goes up when it's saved. */
+/** Stock in: upload the supplier's bill file, or type it line by line; stock goes up when it's saved. */
 export function Purchases({ cfg, who, onSaved }: { cfg: Cfg; who: Who; onSaved: () => void }) {
+  const t = useT();
+  const [how, setHow] = useState<"file" | "type">("file");
+  const [tick, setTick] = useState(0);
+  return (
+    <div className="flex flex-col gap-4">
+      <Segmented value={how} onChange={setHow} options={[{ value: "file", label: t("Upload bill file") }, { value: "type", label: t("Type the bill") }]} />
+      {how === "file" ? <EbillImport cfg={cfg} who={who} refresh={tick} onSaved={() => { setTick((x) => x + 1); onSaved(); }} /> : <TypedBill cfg={cfg} who={who} onSaved={onSaved} />}
+    </div>
+  );
+}
+
+function TypedBill({ cfg, who, onSaved }: { cfg: Cfg; who: Who; onSaved: () => void }) {
   const toast = useToast();
   const t = useT();
   const dev = useRef(deviceDb()).current;
