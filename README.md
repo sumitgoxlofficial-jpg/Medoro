@@ -20,7 +20,7 @@ Tests (unit + integration against a real PostgreSQL; uses `TEST_DATABASE_URL`, d
 pnpm test
 pnpm lint && pnpm typecheck
 ```
-End-to-end (Playwright, `e2e/`): needs a production build, an empty migrated database and the server environment (`SESSION_SECRET`, `HOST_KEY`, `OTP_PROVIDER=console`, `STAFF_BOOTSTRAP_EMAIL`, …); see `docs/TEST_PLAN.md`.
+End-to-end (Playwright, `e2e/`): needs a production build, an empty migrated database and the server environment (`SESSION_SECRET`, `HOST_KEY`, `STAFF_BOOTSTRAP_EMAIL`, …; not `OTP_PROVIDER=console`, which the app refuses to start with); see `docs/TEST_PLAN.md`.
 ```bash
 pnpm prisma migrate reset --force && pnpm build
 pnpm test:e2e                     # starts `next start` itself; add a file or -g filter to narrow

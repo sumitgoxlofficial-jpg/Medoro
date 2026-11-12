@@ -27,6 +27,35 @@ jobs:
       # Unit tests (src/**) and integration tests against the Postgres service (tests/integration/**).
       - run: pnpm test
       - run: pnpm build
+  e2e:
+    # Browser tests that pass reliably on a fresh database: first-run setup, import, inventory, purchases, billing,
+    # returns, accounts, users, the website crawl and the HRMS. Other specs need extra setup (see docs/TEST_PLAN.md).
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test, POSTGRES_DB: medoro_e2e }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:test@localhost:5432/medoro_e2e
+      SESSION_SECRET: ci-only-not-a-real-secret-0123456789abcdef
+      HOST_KEY: ci-only-host-key-not-secret-0123456789abcdef
+      STAFF_BOOTSTRAP_EMAIL: founder@medoro.in
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate && pnpm prisma migrate deploy
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test --trace off e2e/setup.e2e.ts e2e/03-import.spec.ts e2e/04-inventory.spec.ts e2e/05-purchases.spec.ts e2e/06-pos.spec.ts e2e/07-returns-shift.spec.ts e2e/08-accounts.spec.ts e2e/09-users.spec.ts e2e/15-site-crawl.spec.ts e2e/30-hrms.spec.ts
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with: { name: playwright-report, path: "playwright-report\ntest-results", retention-days: 7 }
   security:
     runs-on: ubuntu-latest
     permissions:
