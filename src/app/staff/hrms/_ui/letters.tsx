@@ -101,7 +101,7 @@ export function LettersPanel({ staffId, name, mail = false, onClose }: { staffId
   const { toast } = useRun();
   const [type, setType] = useState<LetterType>("offer"), [day, setDay] = useState(new Date().toISOString().slice(0, 10));
   const [letter, setLetter] = useState<Letter | null>(null), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
-  const [pick, setPick] = useState<Set<LetterType>>(new Set(JOINING_LETTERS)), [email, setEmail] = useState(false), [sendOpen, setSendOpen] = useState(false);
+  const [pick, setPick] = useState<Set<LetterType>>(new Set(JOINING_LETTERS)), [email, setEmail] = useState(mail), [sendOpen, setSendOpen] = useState(false);
   const exit = EXIT_LETTERS.includes(type), anyExit = [...pick].some((t) => EXIT_LETTERS.includes(t));
   useEffect(() => {
     let live = true;
@@ -138,7 +138,7 @@ export function LettersPanel({ staffId, name, mail = false, onClose }: { staffId
           <div className="text-[13.5px] font-bold">Send to {name}: shows on their screen and they get a notification</div>
           <div className="flex gap-x-5 gap-y-1 flex-wrap">{LETTER_TYPES.map((l) => <label key={l.id} className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={pick.has(l.id)} onChange={() => toggle(l.id)} />{l.label}</label>)}</div>
           {anyExit ? <Field label="Last working day (for exit letters)"><input className={`${inputCls} !w-48`} type="date" value={day} onChange={(e) => setDay(e.target.value)} /></Field> : null}
-          <label className={cx("flex items-center gap-2 text-[13px]", !mail && "opacity-60")}><input type="checkbox" checked={email} disabled={!mail} onChange={(e) => setEmail(e.target.checked)} />Also email the PDFs{mail ? "" : " (email isn’t set up on this server yet)"}</label>
+          <label className={cx("flex items-center gap-2 text-[13px]", !mail && "opacity-60")}><input type="checkbox" checked={email} disabled={!mail} onChange={(e) => setEmail(e.target.checked)} />Also email the PDFs to their email address{mail ? "" : " (email isn’t set up on this server yet)"}</label>
           <div><button className={primaryCls} disabled={busy || !pick.size} onClick={() => void send()}>Send {pick.size} letter{pick.size === 1 ? "" : "s"}</button></div>
         </div>
       ) : null}
