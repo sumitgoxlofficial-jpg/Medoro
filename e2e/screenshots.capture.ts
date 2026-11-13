@@ -134,7 +134,7 @@ test("capture marketing screenshots", async ({ page, browser }) => {
       await c.getByLabel("Mobile").fill(phone);
       if (limit) await c.getByLabel("Credit limit ₹").fill(String(limit));
       if (owes) await c.getByLabel("Opening balance they owe ₹").fill(String(owes));
-      if (optIn) await c.getByText(/Customer agrees to receive invoices/).click();
+      if (optIn) await c.getByText(/Invoices and refill reminders on WhatsApp/).click();
       await c.getByRole("button", { name: "Save customer" }).click();
       await expectToast(page, "Customer added.");
     }
