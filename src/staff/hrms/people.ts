@@ -16,6 +16,7 @@ import { stateName } from "./states";
 import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, notify, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
 import { kycLabel } from "./kyc";
+import { cycleDayOf, firstSalary } from "./cycles";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
@@ -23,7 +24,7 @@ const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "En
 
 export type Person = {
   id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
-  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; kyc: "verified" | "submitted" | "missing"; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
+  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; kyc: "verified" | "submitted" | "missing"; payCycleDay: number; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
   photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
 
@@ -40,7 +41,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     const h = u.hr;
     return {
       id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
-      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, kyc: kycLabel(h), shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
+      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, kyc: kycLabel(h), payCycleDay: h?.payCycleDay ?? 0, shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
       profileDone: h?.profileDone ?? false, docsAccepted: !!h?.docsAcceptedAt, hasPassword: !!u.passwordHash,
@@ -132,7 +133,7 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
     data: {
       empNo, name: i.name, email, kind: "team", phone: i.phone, team: i.dept, role: staffRole, status: "active", passwordHash: await hashPassword(temp), approvedBy: me.name,
       referralCode: staffRole === "sales" ? referral(i.name, n) : null,
-      hr: { create: { role: i.role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: dateOnly(i.joinDate), ctc: i.ctc, incentivePct: i.role === "sales" ? i.incentivePct : 0, personalEmail: i.personalEmail, mustChangePassword: true } },
+      hr: { create: { payCycleDay: cycleDayOf(i.joinDate), role: i.role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: dateOnly(i.joinDate), ctc: i.ctc, incentivePct: i.role === "sales" ? i.incentivePct : 0, personalEmail: i.personalEmail, mustChangePassword: true } },
     },
   });
   await audit(me, "Employee created", `${empNo} · ${email} · ${i.role}`);
@@ -141,11 +142,11 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
     mailed = await sendMail({ to: i.personalEmail, ...welcomeMail({ name: i.name, empNo, email, temp, org: (await loadSettings()).company.name || "Medoro" }) })
       .then(() => true).catch((e) => { log.error("welcome mail failed", { err: e }); return false; });
   }
-  return { id: u.id, empNo, email, temp, mailed };
+  return { id: u.id, empNo, email, temp, mailed, firstSalary: firstSalary(i.joinDate).payDate };
 }
 
 export const editEmployeeSchema = newEmployeeSchema.omit({ personalEmail: true, phone: true, joinDate: true, name: true }).extend({
-  joinDate: iso.nullish(), shiftStart: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/, "Enter the shift start as HH:MM.").default(""),
+  joinDate: iso.nullish(), payCycleDay: z.coerce.number().int().min(0, "Pick the day of the month the pay cycle starts, or 0 for the calendar month.").max(31).optional(), shiftStart: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/, "Enter the shift start as HH:MM.").default(""),
   taxRegime: z.enum(["new", "old"]).default("new"), taxDeclared: z.coerce.number().int().min(0, "Deductions can’t be negative.").max(5_000_000).default(0),
   esiNo: z.string().trim().regex(/^$|^\d{10}$|^\d{17}$/, "The ESI number is 10 or 17 digits.").default(""), monthlyTarget: z.coerce.number().int().min(0).max(1000).default(40),
 });
@@ -154,13 +155,14 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   const i = editEmployeeSchema.parse(raw);
   const u = await db.staffUser.findUnique({ where: { id }, include: { hr: true } });
   if (!u || u.kind !== "team") throw new UserError("Employee not found.");
+  if (i.payCycleDay !== undefined && i.payCycleDay !== (u.hr?.payCycleDay ?? 0) && (await db.hrPayslip.count({ where: { staffId: id } }))) throw new UserError("This person has been paid already, so their pay cycle can’t change.");
   const was = roleOf(u.role, u.hr?.role);
   if (was === "admin" && me.role !== "admin") throw new UserError("Only the super admin can edit a super admin.");
   if (i.role !== was && was !== "admin" && me.role !== "admin") throw new UserError("Only the super admin can change system access.");
   const role = was === "admin" ? "admin" : i.role;
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
-  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo } as const;
+  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, ...(i.payCycleDay !== undefined ? { payCycleDay: i.payCycleDay } : {}), shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo } as const;
   await db.$transaction([
     db.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } }),
     db.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } }),
@@ -259,6 +261,8 @@ export async function saveProfile(me: Me, raw: z.input<typeof profileSchema>, co
       data: {
         personalEmail: i.personalEmail || h.personalEmail, dob: i.dob ? dateOnly(i.dob) : null, gender: i.gender, address: i.address, emergencyName: i.emergencyName, emergencyPhone: i.emergencyPhone,
         bloodGroup: i.bloodGroup, bankHolder: i.bankHolder, uan: i.uan,
+        // A different holder name, account or IFSC is a different account: HR's earlier confirmation no longer applies.
+        ...((i.bankHolder !== h.bankHolder || (i.bankAccount && i.bankAccount.slice(-4) !== h.bankLast4) || (i.bankIfsc && i.bankIfsc !== h.bankIfsc)) ? { bankConfirmedAt: null } : {}),
         ...(i.bankAccount ? { bankAccountSealed: new Uint8Array(seal(i.bankAccount)), bankLast4: i.bankAccount.slice(-4) } : {}),
         ...(i.bankIfsc ? { bankIfsc: i.bankIfsc, bankName: IFSC_BANKS[i.bankIfsc.slice(0, 4)] ?? i.bankIfsc.slice(0, 4) } : {}),
         ...(i.pan ? { panSealed: new Uint8Array(seal(i.pan)), panMasked: i.pan.slice(0, 2) + "•••••" + i.pan.slice(-3) } : {}),
@@ -267,6 +271,14 @@ export async function saveProfile(me: Me, raw: z.input<typeof profileSchema>, co
     }),
   ]);
   await audit(me, complete ? "Profile completed" : "Profile updated");
+}
+/** HR confirms the saved bank account is the employee's own when the holder's name differs from theirs (a joint account, a spelling). */
+export async function confirmBank(me: Me, staffId: string) {
+  need(me, "payroll");
+  const u = await db.staffUser.findUnique({ where: { id: staffId }, select: { name: true, empNo: true, hr: { select: { bankLast4: true, bankHolder: true } } } });
+  if (!u?.hr?.bankLast4) throw new UserError("This person has no bank account saved.");
+  await db.hrProfile.update({ where: { staffId }, data: { bankConfirmedAt: new Date() } });
+  await audit(me, "Bank account confirmed as the employee’s own", `${u.empNo} · holder ${u.hr.bankHolder} · ••••${u.hr.bankLast4}`);
 }
 export const openBankAccount = (sealed: Uint8Array | null) => (sealed ? unseal(sealed).toString() : "");
 

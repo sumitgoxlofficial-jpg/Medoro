@@ -20,13 +20,14 @@ import { createInvoice, summary } from "@/staff/hrms/finance";
 import { assignTask, performance, setTaskDone } from "@/staff/hrms/work";
 import { docFile, employeeDocs, myDocs, removeDoc, uploadDoc, verifyDoc } from "@/staff/hrms/docs";
 import { dateOnly, todayISO } from "@/lib/dates";
+import { seal } from "@/server/vault";
 import { resetDb } from "./helpers";
 
 const PW = "long-enough-password-1";
 let admin: Me, hr: Me;
 const me = async (id: string) => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true } as Me; };
 const mk = async (empNo: string, name: string, email: string, role: "super_admin" | "employee" | "sales", hrRole: "admin" | "hr" | "employee" | "sales" | "finance", extra: { ctc?: number } = {}) =>
-  db.staffUser.create({ data: { empNo, name, email, kind: "team", phone: "98" + empNo.replace(/\D/g, "").padStart(8, "0"), role, status: "active", passwordHash: await hashPassword(PW), referralCode: role === "sales" ? "S" + empNo : null, hr: { create: { role: hrRole, ctc: extra.ctc ?? 600000, joinDate: new Date("2026-01-05"), profileDone: true, docsAcceptedAt: new Date(), incentivePct: 3 } } } });
+  db.staffUser.create({ data: { empNo, name, email, kind: "team", phone: "98" + empNo.replace(/\D/g, "").padStart(8, "0"), role, status: "active", passwordHash: await hashPassword(PW), referralCode: role === "sales" ? "S" + empNo : null, hr: { create: { role: hrRole, ctc: extra.ctc ?? 600000, joinDate: new Date("2026-01-05"), profileDone: true, docsAcceptedAt: new Date(), bankAccountSealed: new Uint8Array(seal("123456789012")), bankLast4: "9012", bankIfsc: "HDFC0001234", bankHolder: name, incentivePct: 3 } } } });
 
 describe("HRMS", () => {
   beforeAll(async () => {
@@ -275,7 +276,9 @@ describe("HRMS", () => {
       vi.setSystemTime(new Date("2031-06-10T06:00:00Z"));
       const early = await payrollFor(hr, "2031-06");
       expect(early.canProcess).toBe(false);
-      expect(early.note).toMatch(/preview.*2031-06-30/);
+      expect(early.note).toMatch(/This is a preview\. June 2031 can be processed from 20\d\d-\d\d-\d\d/);
+      // Someone paid by calendar month opens on the month's last working day (a Monday, 30 June).
+      expect(early.lines.find((l) => l.empNo === "MS-004")).toMatchObject({ opens: "2031-06-30", ready: false, from: "2031-06-01", to: "2031-06-30", payDate: "2031-06-30" });
       await expect(processPayroll(hr, "2031-06")).rejects.toThrow(/preview/);
       vi.setSystemTime(new Date("2031-06-30T06:00:00Z")); // a Monday
       expect((await payrollFor(hr, "2031-06")).canProcess).toBe(true);

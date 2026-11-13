@@ -26,7 +26,7 @@ export const istClock = (d: Date) => new Date(d.getTime() + IST).toISOString().s
 /** Is this date one of the weekly days off (Settings; Saturday and Sunday unless changed)? */
 export const weekend = (day: string, off: number[] = [0, 6]) => off.includes(dateOnly(day).getUTCDay());
 const daysBetween = (from: string, to: string) => { const out: string[] = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push(d); return out; };
-const monthBounds = (ym: string) => { const first = ym + "-01"; const d = dateOnly(first); const last = isoOf(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))); return { first, last }; };
+export const monthBounds = (ym: string) => { const first = ym + "-01"; const d = dateOnly(first); const last = isoOf(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0))); return { first, last }; };
 export const ymOf = (day: string) => day.slice(0, 7);
 export const addMonths = (ym: string, n: number) => { const d = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1)); return isoOf(d).slice(0, 7); };
 
@@ -121,9 +121,13 @@ const approvedLeaveOn = (staffId: string, day: string) => db.hrLeave.findFirst({
 export const BEFORE_JOINING = "Before joining", AFTER_LEAVING = "After leaving";
 export type DayCell = { day: string; kind: "present" | "late" | "absent" | "leave" | "holiday" | "weekend" | "upcoming" | "today" | "before"; label: string; inAt: string | null; outAt: string | null; correctable: boolean };
 
-/** One person's month: a cell per day plus the counts. Absence is only counted when check-in is switched on. */
+/** One person's calendar month: a cell per day plus the counts. */
 export async function monthFor(staffId: string, ym: string, s: Settings) {
   const { first, last } = monthBounds(ym);
+  return { ym, ...(await rangeFor(staffId, first, last, s)) };
+}
+/** One person's days from `first` to `last`: a cell per day plus the counts. Absence is only counted when check-in is switched on. */
+export async function rangeFor(staffId: string, first: string, last: string, s: Settings) {
   const todayDay = todayISO();
   const [att, hols, leaves, profile, corrections] = await Promise.all([
     db.hrAttendance.findMany({ where: { staffId, day: { gte: dateOnly(first), lte: dateOnly(last) } } }),
@@ -177,7 +181,7 @@ export async function monthFor(staffId: string, ym: string, s: Settings) {
     counts.absent++;
     return cell("absent", asked.has(day) ? "Absent · correction requested" : "Absent · no check-in", true);
   });
-  return { ym, cells, counts };
+  return { cells, counts };
 }
 export const fmtTime = (d: Date) => { const [h, m] = istClock(d).split(":").map(Number); return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };
 

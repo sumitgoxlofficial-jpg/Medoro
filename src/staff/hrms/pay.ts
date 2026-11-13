@@ -3,13 +3,15 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { log } from "@/server/log";
-import { dateOnly, isoOf, todayISO } from "@/lib/dates";
+import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { product } from "../constants";
 import { audit, can, loadSettings, need, notify, type Me } from "./auth";
 import { monthLabel, type Settings } from "./constants";
 import { postSalaryJournal } from "./finance";
 import { openBankAccount } from "./people";
-import { AFTER_LEAVING, BEFORE_JOINING, addMonths, closeExits, holidays, leaveBalances, monthFor, weekend } from "./time";
+import { AFTER_LEAVING, BEFORE_JOINING, addMonths, closeExits, holidays, leaveBalances, rangeFor, weekend } from "./time";
+import { cycleWindow } from "./cycles";
+import { namesMatch } from "./digilocker";
 
 const ymRe = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Pick a month.");
 
@@ -66,12 +68,12 @@ export function finalSettlement(ctc: number, joinDate: string, exit: string, lea
   return { encashDays: leaveLeft, encash: Math.round((basic / 26) * leaveLeft), gratuity: eligible ? Math.round((basic * 15 * counted) / 26) : 0 };
 }
 
-/** Incentive for a month: the salesperson's rate on the annual plan value of the pharmacies they won in it. */
-export async function incentives(ym: string) {
-  const from = new Date(`${ym}-01T00:00:00+05:30`);
-  const to = new Date(`${addMonths(ym, 1)}-01T00:00:00+05:30`);
+/** Incentive for the days from `from` to `to` inclusive: the salesperson's rate on the annual plan value of the pharmacies they won in them. */
+export async function incentivesBetween(from: string, to: string) {
+  const fromAt = new Date(`${from}T00:00:00+05:30`);
+  const toAt = new Date(`${addDays(to, 1)}T00:00:00+05:30`);
   const [wins, rateRows] = await Promise.all([
-    db.leadLog.findMany({ where: { text: { startsWith: "Won" }, at: { gte: from, lt: to } }, include: { lead: { select: { staffId: true, product: true, stage: true } } }, relationLoadStrategy: "join" }),
+    db.leadLog.findMany({ where: { text: { startsWith: "Won" }, at: { gte: fromAt, lt: toAt } }, include: { lead: { select: { staffId: true, product: true, stage: true } } }, relationLoadStrategy: "join" }),
     db.hrProfile.findMany({ where: { role: "sales" }, select: { staffId: true, incentivePct: true } }),
   ]);
   const rates = new Map(rateRows.map((p) => [p.staffId, Number(p.incentivePct)]));
@@ -87,54 +89,93 @@ export async function incentives(ym: string) {
   }
   return out;
 }
+/** Incentive for a calendar month. */
+export const incentives = (ym: string) => incentivesBetween(`${ym}-01`, addDays(`${addMonths(ym, 1)}-01`, -1));
 
-type Line = Slip & { staffId: string; name: string; empNo: string; dept: string; status: "draft" | "paid"; paidOn: string | null; hasBank: boolean; final: string | null };
+/**
+ * Can this person be paid into a bank account that is theirs? The account number and IFSC must be saved, and the holder's
+ * name must be the employee's own (initials count) unless HR has confirmed the account (a joint account, a spelling).
+ */
+export function bankStatus(h: { bankLast4: string; bankIfsc: string; bankHolder: string; bankConfirmedAt: Date | null; bankAccountSealed: Uint8Array | null } | null | undefined, name: string) {
+  if (!h?.bankLast4 || !h.bankIfsc || !h.bankAccountSealed) return { ok: false, issue: "No bank account saved." , fixable: false };
+  if (!h.bankHolder.trim()) return { ok: false, issue: "The bank account has no holder name.", fixable: false };
+  if (!namesMatch(h.bankHolder, name) && !h.bankConfirmedAt) return { ok: false, issue: `The account holder (${h.bankHolder}) isn’t this employee’s name.`, fixable: true };
+  return { ok: true, issue: "", fixable: false };
+}
 
-/** The month's payroll: saved payslips where it has been processed, a live draft for everyone else. */
+type Line = Slip & {
+  staffId: string; name: string; empNo: string; dept: string; status: "draft" | "paid"; paidOn: string | null; hasBank: boolean; final: string | null;
+  /** The days this payslip pays for and the day it is due in the bank. */
+  from: string; to: string; payDate: string; cycleDay: number;
+  /** Ready to be processed now: the pay period is over and the salary has a bank account of their own to go to. */
+  ready: boolean; opens: string; bankIssue: string; canConfirmBank: boolean;
+};
+
+/**
+ * The payroll for a pay month: saved payslips where processed, a live draft for everyone else. Each person is on their own
+ * pay period: a calendar month, or (a new joiner) a monthly cycle from their joining day, so the same pay month holds
+ * different periods for different people. A payslip is processed once the last working day of its period has come, and only
+ * for people whose salary has an account of their own to go to.
+ */
 export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; label: string; lines: Line[]; processed: boolean; canProcess: boolean; note: string }> {
   need(me, "payroll");
   const ym = ymRe.parse(ymRaw), s = await loadSettings();
   await closeExits(true);
-  const first = `${ym}-01`, last = isoOf(new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)));
-  const [staff, saved, inc, claims] = await Promise.all([
+  const today = todayISO();
+  const [staff, saved, claims] = await Promise.all([
     db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" } }, include: { hr: true }, orderBy: { name: "asc" } }),
     db.hrPayslip.findMany({ where: { month: ym } }),
-    incentives(ym),
     db.hrClaim.findMany({ where: { status: "approved", paidMonth: null } }),
   ]);
+  const incCache = new Map<string, Awaited<ReturnType<typeof incentivesBetween>>>();
+  const holCache = new Map<string, Set<string>>();
+  const holidaysIn = async (from: string, to: string) => { const k = from + "|" + to; if (!holCache.has(k)) holCache.set(k, new Set((await holidays(from, to)).map((h) => h.day))); return holCache.get(k)!; };
   const lines: Line[] = [];
   for (const u of staff) {
     const have = saved.find((p) => p.staffId === u.id);
+    const cycleDay = u.hr?.payCycleDay ?? 0, win = cycleWindow(cycleDay, ym);
     const exitDay = u.hr?.exitDate ? isoOf(u.hr.exitDate) : null;
-    const base = { staffId: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", hasBank: !!u.hr?.bankLast4, final: exitDay && exitDay.slice(0, 7) === ym ? exitDay : null };
-    if (have) { lines.push({ ...base, ...slipOf(have), status: "paid", paidOn: have.paidOn ? isoOf(have.paidOn) : null }); continue; }
+    const bank = bankStatus(u.hr, u.name);
+    const base = { staffId: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", hasBank: !!u.hr?.bankLast4, final: exitDay && exitDay >= win.from && exitDay <= win.to ? exitDay : null, cycleDay, bankIssue: bank.issue, canConfirmBank: bank.fixable };
+    if (have) {
+      const from = have.periodFrom ? isoOf(have.periodFrom) : win.from, to = have.periodTo ? isoOf(have.periodTo) : win.to;
+      lines.push({ ...base, ...slipOf(have), status: "paid", paidOn: have.paidOn ? isoOf(have.paidOn) : null, from, to, payDate: have.payDate ? isoOf(have.payDate) : win.payDate, ready: false, opens: "", bankIssue: "", canConfirmBank: false });
+      continue;
+    }
     if (!u.hr || u.hr.ctc <= 0) continue;
-    // Someone who left is paid up to their last working day, in the month they left.
+    // Someone who left is paid up to their last working day, in the period it falls in.
     const exit = u.hr.exitDate ? isoOf(u.hr.exitDate) : null;
-    if (u.status !== "active" && !(u.status === "deactivated" && exit && exit >= first)) continue;
-    if (exit && exit < first) continue;
-    // The month someone leaves carries their full and final settlement.
+    if (u.status !== "active" && !(u.status === "deactivated" && exit && exit >= win.from)) continue;
+    if (exit && exit < win.from) continue;
+    if (u.hr.joinDate && isoOf(u.hr.joinDate) > win.to) continue;
+    // The period someone leaves in carries their full and final settlement.
     const fnf = base.final && u.hr.joinDate ? finalSettlement(u.hr.ctc, isoOf(u.hr.joinDate), base.final, (await leaveBalances(u.id, s, base.final.slice(0, 4))).find((b) => b.id === "privilege")?.left ?? 0) : null;
-    if (u.hr.joinDate && isoOf(u.hr.joinDate) > last) continue;
-    const m = await monthFor(u.id, ym, s);
+    const m = await rangeFor(u.id, win.from, win.to, s);
     const workDays = m.cells.filter((c) => c.kind !== "weekend" && c.kind !== "holiday").length;
     // Working days before joining or after the last working day are not paid.
     const before = m.cells.filter((c) => c.kind === "before" && (c.label === BEFORE_JOINING || c.label === AFTER_LEAVING)).length;
     const reimburse = claims.filter((c) => c.staffId === u.id).reduce((a, c) => a + c.amount, 0);
-    lines.push({ ...base, ...computeSlip(u.hr.ctc, { workDays, lopDays: m.counts.absent + m.counts.unpaid + before, incentive: inc.get(u.id)?.incentive ?? 0, reimburse, ptax: s.ptax, encash: fnf?.encash, gratuity: fnf?.gratuity, ...taxOf(u.hr) }), status: "draft", paidOn: null });
+    const ik = win.from + "|" + win.to;
+    if (!incCache.has(ik)) incCache.set(ik, await incentivesBetween(win.from, win.to));
+    // A period is processed once and can't be redone, so it opens on its last working day (or the day they leave): by then every absence is known.
+    const end = base.final ?? win.to, hol = await holidaysIn(win.from, end);
+    let opens = end;
+    while (opens > win.from && (weekend(opens, s.weekOff) || hol.has(opens))) opens = addDays(opens, -1);
+    lines.push({ ...base, ...computeSlip(u.hr.ctc, { workDays, lopDays: m.counts.absent + m.counts.unpaid + before, incentive: incCache.get(ik)!.get(u.id)?.incentive ?? 0, reimburse, ptax: s.ptax, encash: fnf?.encash, gratuity: fnf?.gratuity, ...taxOf(u.hr) }),
+      status: "draft", paidOn: null, from: win.from, to: win.to, payDate: win.payDate, ready: today >= opens && bank.ok, opens });
   }
-  const drafts = lines.filter((l) => l.status === "draft").length;
-  const future = ym > todayISO().slice(0, 7);
-  // A month is processed once and can't be redone, so it opens on its last working day: by then every absence is known.
-  const hol = new Set((await holidays(first, last)).map((h) => h.day));
-  let opens = last;
-  while (opens > first && (weekend(opens, s.weekOff) || hol.has(opens))) opens = isoOf(new Date(dateOnly(opens).getTime() - 86_400_000));
-  const early = !future && todayISO() < opens;
-  return {
-    ym, label: monthLabel(ym), lines, processed: !drafts && lines.length > 0, canProcess: drafts > 0 && !future && !early,
-    note: future ? "This month hasn’t started." : !lines.length ? "No one has a salary (annual CTC) set yet. Set it on the employee’s profile."
-      : early && drafts ? `This is a preview. ${monthLabel(ym)} can be processed from ${opens}, its last working day, so that every absence is counted.` : "",
-  };
+  const drafts = lines.filter((l) => l.status === "draft");
+  const ready = drafts.filter((l) => l.ready), stillOpen = drafts.filter((l) => today < l.opens);
+  const earliest = stillOpen.map((l) => l.opens).sort()[0];
+  const blocked = drafts.filter((l) => today >= l.opens && l.bankIssue);
+  let note = "";
+  if (!lines.length) note = "No one has a salary (annual CTC) set yet. Set it on the employee’s profile.";
+  else if (!ready.length && drafts.length) note = [
+    earliest ? `This is a preview. ${monthLabel(ym)} can be processed from ${earliest}, the last working day of the pay period, so that every absence is counted.` : "",
+    blocked.length ? `Fix the bank account shown against ${blocked.length === 1 ? "this person" : "these people"} before they can be paid.` : "",
+  ].filter(Boolean).join(" ");
+  else if (blocked.length) note = `${blocked.length} ${blocked.length === 1 ? "person is" : "people are"} left out until their bank account is fixed (shown in the list).`;
+  return { ym, label: monthLabel(ym), lines, processed: !drafts.length && lines.length > 0, canProcess: ready.length > 0, note };
 }
 const taxOf = (h: { taxRegime: string; taxDeclared: number } | null | undefined) => ({ regime: (h?.taxRegime === "old" ? "old" : "new") as TaxRegime, declared: h?.taxDeclared ?? 0 });
 /** What the company pays on top of a payslip: its own PF share (equal to the employee's) and ESI at 3.25% of gross. */
@@ -142,12 +183,12 @@ export const employerCost = (p: { pf: number; esi: number; gross: number }) => (
 const slipOf = (p: { workDays: number; lopDays: number; basic: number; hra: number; special: number; incentive: number; reimburse: number; encash: number; gratuity: number; gross: number; pf: number; esi: number; pt: number; tds: number; lop: number; net: number }): Slip =>
   ({ workDays: p.workDays, lopDays: p.lopDays, basic: p.basic, hra: p.hra, special: p.special, incentive: p.incentive, reimburse: p.reimburse, encash: p.encash, gratuity: p.gratuity, gross: p.gross, pf: p.pf, esi: p.esi, pt: p.pt, tds: p.tds, lop: p.lop, net: p.net });
 
-/** Saves a payslip for everyone in the draft and marks their approved claims paid. `lop` overrides loss-of-pay days per person. */
+/** Saves a payslip for everyone in the run who is ready and marks their approved claims paid. `lop` overrides loss-of-pay days per person. */
 export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, number> = {}) {
   const run = await payrollFor(me, ymRaw);
   if (!run.canProcess) throw new UserError(run.note || "This month is already processed.");
   const s = await loadSettings();
-  const drafts = run.lines.filter((l) => l.status === "draft");
+  const drafts = run.lines.filter((l) => l.status === "draft" && l.ready); // the rest wait for their period to end or their bank account to be fixed
   const prof = new Map((await db.hrProfile.findMany({ where: { staffId: { in: drafts.map((d) => d.staffId) } }, select: { staffId: true, ctc: true, taxRegime: true, taxDeclared: true } })).map((p) => [p.staffId, p]));
   const paidOn = dateOnly(todayISO());
   let n = 0, total = 0;
@@ -155,7 +196,7 @@ export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, 
     for (const d of drafts) {
       const over = lop[d.staffId];
       const slip = over === undefined ? d : computeSlip(prof.get(d.staffId)?.ctc ?? 0, { ...taxOf(prof.get(d.staffId)), workDays: d.workDays, lopDays: z.number().min(0).max(31).multipleOf(0.5, "Loss-of-pay days are whole or half days.").parse(over), incentive: d.incentive, reimburse: d.reimburse, ptax: s.ptax, encash: d.encash, gratuity: d.gratuity });
-      await tx.hrPayslip.create({ data: { staffId: d.staffId, month: run.ym, ...slipOf(slip), status: "paid", paidOn, runBy: me.id } });
+      await tx.hrPayslip.create({ data: { staffId: d.staffId, month: run.ym, ...slipOf(slip), periodFrom: dateOnly(d.from), periodTo: dateOnly(d.to), payDate: dateOnly(d.payDate), status: "paid", paidOn, runBy: me.id } });
       await tx.hrClaim.updateMany({ where: { staffId: d.staffId, status: "approved", paidMonth: null }, data: { paidMonth: run.ym } });
       n++; total += slip.net;
     }
@@ -170,20 +211,28 @@ export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, 
 const csv = (rows: (string | number)[][]) => rows.map((r) => r.map((c) => { const v = String(c); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : /^[=+\-@]/.test(v) ? "'" + v : v; }).join(",")).join("\n");
 
 /** Bank transfer file for a processed month: account numbers are opened for this download only, and it is audited. */
+/** "13 Nov to 12 Dec 2026" for a pay period, or the month when the payslip is from before pay periods were recorded. */
+export const periodText = (from: Date | string | null, to: Date | string | null, ym: string) => {
+  if (!from || !to) return monthLabel(ym);
+  const f = typeof from === "string" ? from : isoOf(from), t = typeof to === "string" ? to : isoOf(to);
+  const d = (x: string) => new Date(x + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+  return `${d(f)} to ${d(t)} ${t.slice(0, 4)}`;
+};
 export async function bankFile(me: Me, ymRaw: string) {
   need(me, "payroll");
   const ym = ymRe.parse(ymRaw);
   const slips = await db.hrPayslip.findMany({ where: { month: ym } });
   if (!slips.length) throw new UserError("Process this month’s payroll first.");
   const staff = await db.staffUser.findMany({ where: { id: { in: slips.map((p) => p.staffId) } }, include: { hr: true } });
-  const rows = slips.map((p) => { const u = staff.find((x) => x.id === p.staffId); return [u?.empNo ?? "", u?.hr?.bankHolder || u?.name || "", openBankAccount(u?.hr?.bankAccountSealed ?? null), u?.hr?.bankIfsc ?? "", p.net, `Salary ${monthLabel(ym)}`]; });
+  const rows = slips.map((p) => { const u = staff.find((x) => x.id === p.staffId); return [u?.empNo ?? "", u?.hr?.bankHolder || u?.name || "", openBankAccount(u?.hr?.bankAccountSealed ?? null), u?.hr?.bankIfsc ?? "", p.net, `Salary ${periodText(p.periodFrom, p.periodTo, ym)}`, p.payDate ? isoOf(p.payDate) : ""]; });
   await audit(me, "Bank transfer file downloaded", monthLabel(ym));
-  return { name: `medoro-salary-${ym}.csv`, text: csv([["Employee ID", "Beneficiary", "Account number", "IFSC", "Amount", "Narration"], ...rows]) };
+  // Every payslip here was processed only for an account of the employee's own (see bankStatus), and each is due on its own pay date.
+  return { name: `medoro-salary-${ym}.csv`, text: csv([["Employee ID", "Beneficiary", "Account number", "IFSC", "Amount", "Narration", "Pay on"], ...rows]) };
 }
 export async function payrollReport(me: Me, ymRaw: string) {
   const run = await payrollFor(me, ymRaw);
-  const head = ["Employee ID", "Name", "Department", "Paid days", "LOP days", "Basic", "HRA", "Special", "Incentive", "Leave encashment", "Gross", "PF", "ESI", "Prof. tax", "TDS", "Reimbursement", "Gratuity", "Net pay", "Status", "Last working day", "Employer PF", "Employer ESI"];
-  return { name: `medoro-payroll-${run.ym}.csv`, text: csv([head, ...run.lines.map((l) => [l.empNo, l.name, l.dept, l.workDays - l.lopDays, l.lopDays, l.basic, l.hra, l.special, l.incentive, l.encash, l.gross, l.pf, l.esi, l.pt, l.tds, l.reimburse, l.gratuity, l.net, l.status, l.final ?? "", employerCost(l).pf, employerCost(l).esi])]) };
+  const head = ["Employee ID", "Name", "Department", "Paid days", "LOP days", "Basic", "HRA", "Special", "Incentive", "Leave encashment", "Gross", "PF", "ESI", "Prof. tax", "TDS", "Reimbursement", "Gratuity", "Net pay", "Status", "Last working day", "Employer PF", "Employer ESI", "Pay period from", "Pay period to", "Pay date"];
+  return { name: `medoro-payroll-${run.ym}.csv`, text: csv([head, ...run.lines.map((l) => [l.empNo, l.name, l.dept, l.workDays - l.lopDays, l.lopDays, l.basic, l.hra, l.special, l.incentive, l.encash, l.gross, l.pf, l.esi, l.pt, l.tds, l.reimburse, l.gratuity, l.net, l.status, l.final ?? "", employerCost(l).pf, employerCost(l).esi, l.from, l.to, l.payDate])]) };
 }
 
 /**
@@ -238,7 +287,7 @@ export async function taxStatement(me: Me, staffId: string, fyStart: number) {
 // ── Payslips
 export async function myPayslips(staffId: string) {
   const rows = await db.hrPayslip.findMany({ where: { staffId }, orderBy: { month: "desc" } });
-  return rows.map((p) => ({ id: p.id, month: p.month, label: monthLabel(p.month), net: p.net, gross: p.gross, tds: p.tds, paidOn: p.paidOn ? isoOf(p.paidOn) : null }));
+  return rows.map((p) => ({ id: p.id, month: p.month, label: monthLabel(p.month), net: p.net, gross: p.gross, tds: p.tds, paidOn: p.paidOn ? isoOf(p.paidOn) : null, period: periodText(p.periodFrom, p.periodTo, p.month), payDate: p.payDate ? isoOf(p.payDate) : null }));
 }
 /** A payslip with what the printed page needs. Its owner can open it, and so can anyone with Payroll. */
 export async function payslip(me: Me, id: string) {
@@ -249,7 +298,8 @@ export async function payslip(me: Me, id: string) {
     id: p.id, month: p.month, label: monthLabel(p.month), paidOn: p.paidOn ? isoOf(p.paidOn) : null, ...slipOf(p),
     emp: { name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", designation: u.hr?.designation ?? "", joinDate: u.hr?.joinDate ? isoOf(u.hr.joinDate) : "", pan: u.hr?.panMasked ?? "", uan: u.hr?.uan ?? "", bank: u.hr?.bankLast4 ? `${u.hr.bankName} ••••${u.hr.bankLast4}` : "" },
     employer: employerCost(p), regime: u.hr?.taxRegime === "old" ? "old" : "new",
-    lastDay: u.hr?.exitDate && isoOf(u.hr.exitDate).slice(0, 7) === p.month ? isoOf(u.hr.exitDate) : null,
+    period: periodText(p.periodFrom, p.periodTo, p.month), payDate: p.payDate ? isoOf(p.payDate) : null,
+    lastDay: u.hr?.exitDate && (p.periodFrom && p.periodTo ? isoOf(u.hr.exitDate) >= isoOf(p.periodFrom) && isoOf(u.hr.exitDate) <= isoOf(p.periodTo) : isoOf(u.hr.exitDate).slice(0, 7) === p.month) ? isoOf(u.hr.exitDate) : null,
     company: (s as Settings).company,
   };
 }
