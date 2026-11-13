@@ -157,7 +157,7 @@ test("capture marketing screenshots", async ({ page, browser }) => {
     await dlg.getByLabel("Supplier").selectOption({ label: "Mahavir Pharma Distributors" });
     await dlg.getByLabel("Medicine").selectOption({ label: "Telma 40 40 mg" });
     await dlg.getByLabel("Quantity", { exact: true }).fill("30");
-    await dlg.getByLabel("Rate").fill("166");
+    await dlg.getByLabel("PTR").fill("166");
     await dlg.getByRole("button", { name: "Save draft" }).click();
     await expectToast(page, /PO-.* saved as a draft/);
     const po = await db().purchaseOrder.findFirstOrThrow({ where: { tenantId: t.id }, orderBy: { createdAt: "desc" } });
@@ -177,7 +177,7 @@ test("capture marketing screenshots", async ({ page, browser }) => {
     await dlg.getByLabel("Supplier").selectOption({ label: "Shree Ganesh Medical Agencies" });
     await dlg.getByLabel("Medicine").selectOption({ label: "Thyronorm 50 50 mcg" });
     await dlg.getByLabel("Quantity", { exact: true }).fill("20");
-    await dlg.getByLabel("Rate").fill("141");
+    await dlg.getByLabel("PTR").fill("141");
     await dlg.getByRole("button", { name: "Save draft" }).click();
     await expectToast(page, /PO-.* saved as a draft/);
 
