@@ -13,11 +13,11 @@ import { PRODUCTS } from "@/staff/constants";
 import type { planView } from "@/domain/system/licence";
 import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf, type Lang, type TFn } from "@/lib/tr";
-import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
+import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, emailInvoiceAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
 
 type Online = {
   enabled: boolean;
-  payments: { id: string; status: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; at: string; periodTo: string | null; note: string | null; refunded: boolean }[];
+  payments: { id: string; status: string; plan: string; cycle: string; amountPaise: number; gstPaise: number; coupon: string | null; paymentId: string | null; at: string; periodTo: string | null; note: string | null; refunded: boolean; invoiceNo: string | null; invoiceEmailedAt: string | null }[];
   billing: { status: string | null; renewsAt: string | null; renewOpen: boolean; renewOpensOn: string | null; ai: { active: boolean; until: string | null; renewOpen: boolean; renewOpensOn: string | null } };
 };
 const PAY_STATUS: Record<string, [string, Tone]> = { paid: ["Paid", "green"], refunded: ["Refunded", "gray"], duplicate: ["Paid twice · refunded", "amber"], failed: ["Failed", "red"] };
@@ -57,6 +57,12 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const day = dayIn(lang), when = whenIn(lang);
   const router = useRouter();
   const [busy, start] = useTransition();
+  const sendInvoice = (id: string) => start(async () => {
+    const r = await emailInvoiceAction(id);
+    if (!r.ok) return toast(r.error, "red");
+    toast(t("Invoice emailed to {email}.", { email: r.data.to }), "green");
+    router.refresh();
+  });
   const current = PLANS.find((p) => p.name === v.plan)?.id ?? "pro";
   const [product, setProduct] = useState<"starter" | "pro" | "multi" | "ai">(current as "starter" | "pro" | "multi");
   const [cycle, setCycle] = useState("m");
@@ -145,8 +151,8 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               </form>
               {couponErr ? <span role="alert" className="text-[12.5px] text-bad -mt-1">{couponErr}</span> : null}
               {coupon ? (
-                <span className="text-[13.5px]">{rich(t("Coupon {code}: {label}."), { code: <strong className="font-mono">{coupon.code}</strong>, label: t(coupon.label) })} <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>
-              ) : <span className="text-[13.5px]">{t("Amount")} <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>}
+                <span className="text-[13.5px]">{rich(t("Coupon {code}: {label}."), { code: <strong className="font-mono">{coupon.code}</strong>, label: t(coupon.label) })} <span className="line-through text-muted tnum">₹{amount.toLocaleString("en-IN")}</span> <strong className="tnum">{rs(due)}</strong></span>
+              ) : <span className="text-[13.5px]">{t("Amount")} <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong></span>}
               <Button variant="primary" className="self-start" disabled={busy || paying || product === "ai"} onClick={() => void payOnline()}>{paying ? t("Opening…") : due === 0 ? t("Activate plan") : t("Pay {amount} now", { amount: rs(due) })}</Button>
               <span className="text-[12.5px] text-faint">{rich(t(v.access.phase === "trial" || v.access.phase === "active"
                 ? "UPI, cards, netbanking and wallets, through Razorpay. Your plan extends as soon as the payment goes through, after the days you have left. No auto-renewal; cancel any time. By paying you accept the {terms} and {refund}."
@@ -182,7 +188,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {qr ? <img src={qr} alt={t("UPI QR code")} width={168} height={168} className="rounded-lg border border-line" /> : null}
                 <div className="flex flex-col gap-1 text-[13.5px] flex-1 min-w-[200px]">
-                  <span>{t("Amount")} <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>
+                  <span>{t("Amount")} <strong className="tnum">₹{amount.toLocaleString("en-IN")}</strong></span>
                   {pay.upi ? <span>{t("UPI ID")} <strong className="font-mono">{pay.upi}</strong> ({pay.payee})</span> : null}
                   {pay.bank ? <span className="whitespace-pre-line">{t("Bank transfer: {bank}", { bank: pay.bank })}</span> : null}
                   <span className="flex items-center gap-1.5">{t("Reference")} <strong className="font-mono">{ref}</strong>
@@ -226,7 +232,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
                 </>
               )}
             </>
-          ) : <div className="text-[13px] text-ink-2">{hasAi ? t("Included in your plan.") : t("₹{price}/month on top of your plan (incl. GST).", { price: aiPrice })}</div>}
+          ) : <div className="text-[13px] text-ink-2">{hasAi ? t("Included in your plan.") : t("₹{price}/month on top of your plan.", { price: aiPrice })}</div>}
           {pendingAddon ? <div className="text-[12.5px] text-muted">{t(KIND[pendingAddon.kind])} · {t("{name} since {time}", { name: t(STATUS[pendingAddon.status][0]).toLowerCase(), time: when(pendingAddon.at) })}</div> : null}
           {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? t("Remove add-on") : t("Add AI add-on")}</Button> : null}
         </div>
@@ -294,11 +300,17 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               <thead><tr className="text-muted text-[12px] text-left"><th className="py-1 font-medium">{t("Date")}</th><th className="py-1 font-medium">{t("For")}</th><th className="py-1 font-medium text-right">{t("Amount")}</th></tr></thead>
               <tbody>{online.payments.map((p) => (
                 <tr key={p.id} className="border-t border-row align-top">
-                  <td className="py-1.5">{day(p.at)}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
+                  <td className="py-1.5">{day(p.at)}{p.invoiceNo ? <div className="text-[12px] font-semibold">{p.invoiceNo}</div> : null}<div className="text-[12px] text-muted font-mono">{p.paymentId}</div></td>
                   <td className="py-1.5">{p.plan} · {p.cycle === "y" ? t("1 year") : t("1 month")}{p.coupon ? <div className="text-[12px] text-muted">{t("Coupon {code}", { code: p.coupon })}</div> : null}
                     {p.status === "paid" && p.periodTo ? <div className="text-[12px] text-muted">{t("Paid until {date}", { date: day(p.periodTo) })}</div> : null}
                     {p.note ? <div className="text-[12px] text-muted">{t(p.note)}</div> : null}</td>
-                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">{t("incl. GST {amount}", { amount: inr(p.gstPaise) })}</div><Badge tone={PAY_STATUS[p.status]?.[1] ?? "gray"} className="mt-1">{t(PAY_STATUS[p.status]?.[0] ?? p.status)}</Badge></td>
+                  <td className="py-1.5 text-right tnum">{inr(p.amountPaise)}<div className="text-[12px] text-muted">{t("No GST charged")}</div><Badge tone={PAY_STATUS[p.status]?.[1] ?? "gray"} className="mt-1">{t(PAY_STATUS[p.status]?.[0] ?? p.status)}</Badge>
+                    {p.invoiceNo ? (
+                      <div className="mt-1.5 flex justify-end gap-3 text-[12px]">
+                        <a href={`/api/billing/invoice/${p.id}`} target="_blank" rel="noreferrer" className="font-semibold text-teal underline">{t("Invoice PDF")}</a>
+                        <button type="button" disabled={busy} onClick={() => sendInvoice(p.id)} className="font-semibold text-teal underline cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0">{p.invoiceEmailedAt ? t("Email again") : t("Email it")}</button>
+                      </div>
+                    ) : null}</td>
                 </tr>
               ))}</tbody>
             </table>

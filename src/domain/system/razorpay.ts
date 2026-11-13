@@ -5,6 +5,7 @@ import { db, type Tx } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
+import { sendInvoiceQuietly } from "./invoice";
 import { PRODUCTS } from "@/staff/constants";
 import { claimCoupon, couponLabel, discountOf, usableCoupon, type CouponBuyer } from "./coupons";
 
@@ -139,7 +140,7 @@ export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
   }
   const price = await quote(raw, { tenantId: ctx.tenantId });
   const coupon = price.coupon?.code ?? null;
-  const base = { tenantId: ctx.tenantId, plan, cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount, createdBy: ctx.userName };
+  const base = { tenantId: ctx.tenantId, plan, cycle, amountPaise: price.total, gstPaise: price.gst, couponCode: coupon, discountPaise: price.discount, createdBy: ctx.userName, buyerEmail: ctx.userEmail || null };
   if (price.total === 0) {
     // A 100% coupon: nothing to charge, so the plan starts without Razorpay.
     const orderId = `free_${randomBytes(12).toString("hex")}`;
@@ -233,6 +234,8 @@ async function creditReferral(tx: Tx, p: { id: string; tenantId: string; plan: s
 /** Applies a captured payment and refunds it straight away if it was a duplicate. */
 async function settle(orderId: string, paymentId: string, by: string) {
   const r = await applyPaid(orderId, paymentId, by);
+  // The buyer gets an invoice (PDF) by email once the money is in. A failed email never fails the payment.
+  if (r === "applied") await sendInvoiceQuietly(orderId);
   if (r === "duplicate") {
     const p = await db.onlinePayment.findUniqueOrThrow({ where: { orderId } });
     if (p.provider === "coupon" || !p.amountPaise) return r;
@@ -320,6 +323,6 @@ export async function onlinePayments(tenantId: string) {
   return rows.map((r) => ({
     id: r.id, status: r.status, plan: PRODUCTS.find((x) => x.id === r.plan)?.name ?? r.plan, cycle: r.cycle, amountPaise: r.amountPaise, gstPaise: r.gstPaise, coupon: r.couponCode,
     paymentId: r.provider === "coupon" ? null : r.paymentId, at: (r.paidAt ?? r.createdAt).toISOString(), periodTo: r.periodTo?.toISOString() ?? null,
-    note: r.note, refunded: !!r.refundedAt,
+    note: r.note, refunded: !!r.refundedAt, invoiceNo: r.invoiceNo, invoiceEmailedAt: r.invoiceSentAt?.toISOString() ?? null,
   }));
 }

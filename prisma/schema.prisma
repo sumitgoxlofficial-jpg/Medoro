@@ -1001,6 +1001,9 @@ model OnlinePayment {
   createdBy     String
   createdAt     DateTime  @default(now())
   paidAt        DateTime?
+  invoiceNo     String?   @unique // MED-2026-00001: the invoice for this payment (no GST is charged)
+  buyerEmail    String? // who paid: the invoice is emailed here
+  invoiceSentAt DateTime?
 
   @@index([tenantId, createdAt])
 }

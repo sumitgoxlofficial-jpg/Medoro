@@ -35,3 +35,14 @@ limits and customer statements (`credit`), the invoice upload (`scanner`), role 
 trail (`roles`), enabling an offline counter (`offline`), transfer requests (`transfers`), central buying (`central`),
 anomaly review (`anomaly`), and inviting, reactivating or adding users, counters and branches (limits). Counters on the
 Google Drive (device) side are a separate registry and are not limited by plan yet.
+
+## Invoices for subscription payments
+
+Every paid subscription payment (Razorpay) gets an invoice numbered `MED-2026-00001`, in the order payments are made. **No GST is charged**, so the
+invoice shows the price, any coupon discount and the total paid, with "GST: Not charged". It is a one-page PDF with the Medoro logo and the logo's colours.
+
+- **Emailed automatically** to the person who paid (the owner if their email isn't known) right after the payment goes through, with the PDF attached. It needs email set up
+  on the server (`MAIL_PROVIDER`, `MAIL_FROM`). A failed email never fails the payment.
+- **On the Plan page**, under Medoro invoices: each payment has *Invoice PDF* (opens it) and *Email it* / *Email again*.
+- Payments made before invoices existed were numbered when this was added, oldest first.
+- Optional settings: `MEDORO_LEGAL_NAME`, `MEDORO_ADDRESS` (lines separated by `|`), `MEDORO_BILLING_EMAIL`, `MEDORO_PHONE` appear on the invoice when set.

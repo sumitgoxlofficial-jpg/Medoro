@@ -4,6 +4,8 @@ import { run, UserError } from "@/server/action";
 import { authorize } from "@/server/context";
 import { checkIn, claimPayment, connectLicenceKey, payOnlineLink, requestAddon, requestCancel, type paymentSchema } from "@/domain/system/licence";
 import type { z } from "zod";
+import { emailInvoice } from "@/domain/system/invoice";
+import { limited, userKey } from "@/server/ratelimit";
 import { confirmCheckout, createOrder, markFailed, quote, resumeSubscription, type orderSchema } from "@/domain/system/razorpay";
 
 const fresh = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
@@ -66,4 +68,15 @@ export async function resumeOnlineAction() {
 /** Self-hosted and desktop installations: the signed link to Medoro's pay page. */
 export async function payLinkAction() {
   return run(async (c) => { authorize(c, "users"); return payOnlineLink(c.tenantId); });
+}
+
+/** Emails the invoice (PDF attached) for one payment, to the buyer or to the address given. */
+export async function emailInvoiceAction(id: string, to?: string) {
+  return run(async (c) => {
+    authorize(c, "users");
+    const slow = await limited("invoiceEmail", userKey(c));
+    if (slow) throw new UserError("Too many invoice emails. Try again in a while.");
+    const r = await emailInvoice(c.tenantId, String(id ?? ""), to);
+    return { to: r.to };
+  }, "Invoice emailed.");
 }

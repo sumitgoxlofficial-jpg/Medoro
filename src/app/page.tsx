@@ -367,10 +367,10 @@ export default async function Home() {
               <span className={eyebrow}>{t("Pricing", { ctx: "site" })}</span>
               <h2 id="pricing-title" className={h2}>{t("Plain prices in rupees. 7 days free.")}</h2>
             </div>
-            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("Prices include 18% GST. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.")}</p>
+            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("No GST is charged on these prices. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.")}</p>
           </div>
           <Pricing />
-          <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">{t("Launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.")}</p>
+          <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">{t("Launch prices in Indian rupees. No GST is charged. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.")}</p>
         </section>
 
         <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">

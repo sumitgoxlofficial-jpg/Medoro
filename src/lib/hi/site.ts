@@ -296,9 +296,9 @@ export const hi: Record<string, string> = {
 
   // Pricing
   "Plain prices in rupees. 7 days free.": "रुपयों में साफ़ कीमतें। 7 दिन मुफ़्त।",
-  "Prices include 18% GST. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.": "कीमतों में 18% GST शामिल है। UPI, कार्ड या नेटबैंकिंग से भुगतान करें। कभी भी बंद करें, आपका डेटा जहाँ है वहीं रहेगा।",
-  "Launch prices in Indian rupees, including 18% GST. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.":
-    "शुरुआती कीमतें, भारतीय रुपये में, 18% GST समेत। सालाना प्लान का भुगतान पहले होता है। WhatsApp मैसेज पर Meta का कन्वर्सेशन चार्ज लगता है। अपना सर्वर या क्लाउड होस्ट करने का ख़र्च आपका प्रोवाइडर अलग से लेता है।",
+  "No GST is charged on these prices. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.": "इन कीमतों पर कोई GST नहीं लिया जाता। UPI, कार्ड या नेटबैंकिंग से भुगतान करें। कभी भी बंद करें, आपका डेटा जहाँ है वहीं रहेगा।",
+  "Launch prices in Indian rupees. No GST is charged. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.":
+    "शुरुआती कीमतें, भारतीय रुपये में। कोई GST नहीं लिया जाता। सालाना प्लान का भुगतान पहले होता है। WhatsApp मैसेज पर Meta का कन्वर्सेशन चार्ज लगता है। अपना सर्वर या क्लाउड होस्ट करने का ख़र्च आपका प्रोवाइडर अलग से लेता है।",
   "Billing period": "भुगतान की अवधि",
   Yearly: "सालाना",
   "2 months free": "2 महीने मुफ़्त",

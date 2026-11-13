@@ -73,7 +73,7 @@ export function PayForm({ link, info }: { link: { l: string; s: string }; info: 
             <Field label="Coupon code (optional)" className="flex-1"><Input value={code} onChange={(e) => { setCode(e.target.value.toUpperCase()); setCoupon(null); }} placeholder="LAUNCH20" className="font-mono uppercase" autoComplete="off" /></Field>
             {coupon ? <Button onClick={() => { setCoupon(null); setCode(""); }}>Remove</Button> : <Button type="submit" disabled={busy || !code.trim()}>Apply</Button>}
           </form>
-          <span className="text-[13.5px]">{coupon ? <>{t("Coupon")} <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted">{rs(list)}</span> </> : `${t("Amount")} `}<strong className="tnum">{rs(due)}</strong> <span className="text-muted">{t("(incl. 18% GST)")}</span></span>
+          <span className="text-[13.5px]">{coupon ? <>{t("Coupon")} <strong className="font-mono">{coupon.code}</strong>: {coupon.label}. <span className="line-through text-muted">{rs(list)}</span> </> : `${t("Amount")} `}<strong className="tnum">{rs(due)}</strong></span>
           <Button variant="primary" size="lg" disabled={busy} onClick={pay}>{busy ? t("Please wait…") : due === 0 ? t("Activate plan") : t("Pay {amount} now", { amount: rs(due) })}</Button>
           <span className="text-[12.5px] text-faint">{t("UPI, cards, netbanking and wallets, through Razorpay. A renewal paid early starts when your current period ends. No auto-renewal.")} {t("By paying you accept the")} <a href="/legal#terms" target="_blank" className="underline">{t("Terms")}</a> {t("and")} <a href="/legal#refund" target="_blank" className="underline">{t("Cancellation & refund policy")}</a>.</span>
         </>
