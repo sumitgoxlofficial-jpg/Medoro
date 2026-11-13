@@ -56,11 +56,10 @@ test("a staff counter joins with approval, both counters stay in step, and remov
     return p.getByRole("row", { name: new RegExp(name) });
   };
   for (const p of [page, sp]) {
-    await expect(async () => {
-      await openTab(p, "Billing");
-      await p.getByRole("button", { name: "Sync now" }).click();
-      await expect(await stockOf(p)).toContainText("45 ", { timeout: 2000 });
-    }).toPass({ timeout: 60_000 });
+    // Each counter picks up the other's bill by itself (the sync runs every few seconds and on a live push, and the
+    // open screen reloads when it arrives). Don't reload the page while waiting: that cuts a sync short, and then
+    // neither counter ever gets the other's sale.
+    await expect(await stockOf(p)).toContainText("45 ", { timeout: 60_000 });
     await openTab(p, "Bills & day-end");
     await expect(p.getByText(/· Walk-in · 1 item/)).toHaveCount(2);
   }
