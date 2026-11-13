@@ -171,3 +171,17 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
   body.printing-receipt .receipt-print, body.printing-receipt .receipt-print * { visibility: visible !important; }
   body.printing-receipt .receipt-print { position: absolute; left: 0; top: 0; width: 80mm; padding: 0; margin: 0; box-shadow: none; border: 0; }
 }
+
+/* App sidebar: a thin scrollbar and soft edge shadows that show there is more above or below. */
+.side-scroll {
+  scrollbar-width: thin; scrollbar-color: #D5DADD transparent;
+  background:
+    linear-gradient(var(--color-side) 30%, rgba(251,251,252,0)) 0 0 / 100% 22px no-repeat local,
+    linear-gradient(rgba(251,251,252,0), var(--color-side) 70%) 0 100% / 100% 22px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(16,24,40,.10), rgba(16,24,40,0)) 0 0 / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(16,24,40,.10), rgba(16,24,40,0)) 0 100% / 100% 8px no-repeat scroll;
+}
+.side-scroll::-webkit-scrollbar { width: 6px; }
+.side-scroll::-webkit-scrollbar-track { background: transparent; }
+.side-scroll::-webkit-scrollbar-thumb { background: #D5DADD; border-radius: 999px; }
+.side-scroll::-webkit-scrollbar-thumb:hover { background: #B9C0C5; }
