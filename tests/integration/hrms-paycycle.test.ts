@@ -30,9 +30,9 @@ beforeAll(async () => {
 });
 
 describe("pay cycles from the joining day, and salary only into the employee's own bank account", () => {
-  it("a new joiner is paid a month after joining, for their own cycle (join 13 Nov 2026: first salary 13 Dec)", async () => {
+  it("a new joiner is paid a month after joining, for their own cycle (join 13 Nov 2026: first salary due Sun 13 Dec, paid Fri 11 Dec)", async () => {
     const r = await createEmployee(hr, input("Riya Sharma", 1, "2026-11-13"));
-    expect(r.firstSalary).toBe("2026-12-13");
+    expect(r.firstSalary).toBe("2026-12-11");
     const staff = await db.staffUser.findUniqueOrThrow({ where: { empNo: r.empNo }, include: { hr: true } });
     expect(staff.hr!.payCycleDay).toBe(13);
     await db.hrProfile.update({ where: { staffId: r.id }, data: { createdAt: new Date("2026-11-13T00:00:00Z") } });
@@ -49,7 +49,7 @@ describe("pay cycles from the joining day, and salary only into the employee's o
     at("2026-12-10T06:00:00Z");
     let run = await payrollFor(hr, "2026-12");
     const line = run.lines.find((l) => l.staffId === r.id)!;
-    expect(line).toMatchObject({ from: "2026-11-13", to: "2026-12-12", payDate: "2026-12-13", opens: "2026-12-11", ready: false, cycleDay: 13, status: "draft" });
+    expect(line).toMatchObject({ from: "2026-11-13", to: "2026-12-12", payDate: "2026-12-11", opens: "2026-12-11", ready: false, cycleDay: 13, status: "draft" });
     expect(line).toMatchObject({ workDays: 21, lopDays: 0 }); // no days before joining in their own cycle: a full month
     await expect(processPayroll(hr, "2026-12")).rejects.toThrow(/preview/);
     at("2026-12-11T06:00:00Z");
@@ -57,11 +57,11 @@ describe("pay cycles from the joining day, and salary only into the employee's o
     expect(run.lines.find((l) => l.staffId === r.id)).toMatchObject({ ready: true });
     expect(await processPayroll(hr, "2026-12")).toBeGreaterThanOrEqual(1);
     const slip = await db.hrPayslip.findFirstOrThrow({ where: { staffId: r.id, month: "2026-12" } });
-    expect([slip.periodFrom!.toISOString().slice(0, 10), slip.periodTo!.toISOString().slice(0, 10), slip.payDate!.toISOString().slice(0, 10)]).toEqual(["2026-11-13", "2026-12-12", "2026-12-13"]);
+    expect([slip.periodFrom!.toISOString().slice(0, 10), slip.periodTo!.toISOString().slice(0, 10), slip.payDate!.toISOString().slice(0, 10)]).toEqual(["2026-11-13", "2026-12-12", "2026-12-11"]);
     expect(slip.net).toBeGreaterThan(0);
-    expect(await payslip(hr, slip.id)).toMatchObject({ period: "13 Nov to 12 Dec 2026", payDate: "2026-12-13" });
-    expect((await bankFile(hr, "2026-12")).text).toMatch(/Salary 13 Nov to 12 Dec 2026,2026-12-13/);
-    expect((await payrollReport(hr, "2026-12")).text).toMatch(/2026-11-13,2026-12-12,2026-12-13/);
+    expect(await payslip(hr, slip.id)).toMatchObject({ period: "13 Nov to 12 Dec 2026", payDate: "2026-12-11" });
+    expect((await bankFile(hr, "2026-12")).text).toMatch(/Salary 13 Nov to 12 Dec 2026,2026-12-11/);
+    expect((await payrollReport(hr, "2026-12")).text).toMatch(/2026-11-13,2026-12-12,2026-12-11/);
     // January is the next cycle, 13 Dec to 12 Jan, due 13 Jan.
     at("2027-01-12T06:00:00Z");
     expect((await payrollFor(hr, "2027-01")).lines.find((l) => l.staffId === r.id)).toMatchObject({ from: "2026-12-13", to: "2027-01-12", payDate: "2027-01-13", status: "draft" });
@@ -76,7 +76,7 @@ describe("pay cycles from the joining day, and salary only into the employee's o
     at("2026-12-31T06:00:00Z");
     expect((await payrollFor(hr, "2026-12")).lines.find((l) => l.staffId === r.id)).toMatchObject({ from: "2026-12-01", to: "2026-12-31", payDate: "2026-12-31", cycleDay: 0 });
     await updateEmployee(hr, r.id, { dept: "Support", designation: "Executive", role: "employee", empType: "Full-time", location: "", ctc: 600000, incentivePct: 0, monthlyTarget: 40, payCycleDay: 5 });
-    expect((await payrollFor(hr, "2026-12")).lines.find((l) => l.staffId === r.id)).toMatchObject({ from: "2026-11-05", to: "2026-12-04", payDate: "2026-12-05" });
+    expect((await payrollFor(hr, "2026-12")).lines.find((l) => l.staffId === r.id)).toMatchObject({ from: "2026-11-05", to: "2026-12-04", payDate: "2026-12-04" });
   });
 
   it("salary only goes into the employee's own account: details must exist and the holder must be them, unless HR confirms", async () => {
