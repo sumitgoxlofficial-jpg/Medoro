@@ -106,8 +106,8 @@ test.describe("counter staff", () => {
       await expect(p.getByText(/a code is on its way/)).toBeVisible();
       const mail = await sink.latest(email);
       expect(mail.from).toContain("no-reply@e2e-pharmacy.in");
-      const code = mail.subject.match(/(\d{6})/)![1];
-      expect(mail.text).toContain(code);
+      expect(mail.subject).not.toMatch(/\d{6}/); // the code stays out of the subject line
+      const code = mail.text.match(/\b(\d{6})\b/)![1];
 
       await p.getByLabel("6-digit code").fill(code === "000000" ? "111111" : "000000");
       await p.getByLabel("New password (10+ characters)").fill(newPw);
