@@ -6,6 +6,7 @@ import { UserError } from "@/server/action";
 import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/storage";
 import { audit, can, holders, need, notify, type Me } from "./auth";
 import { DOC_KINDS } from "./constants";
+import { notifyVerified, refreshKyc } from "./kyc";
 
 // Employee documents (identity, address, certificates). The employee uploads; HR opens and marks them verified.
 // Files go through the normal file storage and open only for their owner and people with the Employees module.
@@ -24,6 +25,7 @@ export async function uploadDoc(me: Me, form: FormData) {
   const key = `_hrms/docs/${randomUUID()}.${ext}`;
   await putObject(key, Buffer.from(await file.arrayBuffer()), file.type);
   await db.hrDocument.create({ data: { staffId: me.id, kind, name: file.name.replace(/[^\w.\- ]/g, "").slice(0, 80) || `document.${ext}`, key } });
+  await refreshKyc(me.id);
   await notify((await holders("employees")).filter((x) => x !== me.id), `${me.name} uploaded a document: ${kind}.`, "hremployees");
 }
 export async function myDocs(staffId: string) {
@@ -40,6 +42,7 @@ export async function removeDoc(me: Me, id: string) {
   if (!d || (d.staffId !== me.id && !can(me, "employees"))) throw new UserError("Document not found.");
   if (d.verifiedAt && !can(me, "employees")) throw new UserError("HR has verified this document. Ask HR to remove it.");
   await db.hrDocument.delete({ where: { id } });
+  await refreshKyc(d.staffId);
   if (d.staffId !== me.id) await audit(me, "Employee document removed", `${d.staffId} · ${d.kind}`);
 }
 export async function verifyDoc(me: Me, id: string, ok: boolean) {
@@ -48,7 +51,9 @@ export async function verifyDoc(me: Me, id: string, ok: boolean) {
   if (!d) throw new UserError("Document not found.");
   if (d.staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to verify your own document.");
   await db.hrDocument.update({ where: { id }, data: { verifiedBy: ok ? me.id : null, verifiedAt: ok ? new Date() : null } });
-  if (ok) await notify([d.staffId], `HR verified your document: ${d.kind}.`, "profile");
+  const k = await refreshKyc(d.staffId);
+  if (k?.justVerified) await notifyVerified(d.staffId);
+  else if (ok) await notify([d.staffId], `HR verified your document: ${d.kind}.`, "profile");
   await audit(me, ok ? "Employee document verified" : "Employee document unverified", `${d.staffId} · ${d.kind}`);
 }
 /** The file itself, for its owner and people with the Employees module. HR opening someone's document is audited. */

@@ -19,7 +19,7 @@ import { resetDb } from "./helpers";
 const ID = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
 const URL_OK = `https://docs.google.com/spreadsheets/d/${ID}/edit#gid=777`;
 let hr: Me, emp: Me, s1: Me, s2: Me;
-const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true }; };
+const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycVerified: true }; };
 const mk = (n: number, name: string, role: "super_admin" | "employee" | "sales", hrRole: "admin" | "employee" | "sales") =>
   db.staffUser.create({ data: { empNo: `MS-40${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98600000${n}0`, role, status: "active", referralCode: role === "sales" ? "SS" + n : null, hr: { create: { role: hrRole, profileDone: true, docsAcceptedAt: new Date() } } } });
 

@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { test, expect, type Page } from "@playwright/test";
+import { verhoeffDigit } from "../src/lib/aadhaar";
 import { db, uid } from "./helpers";
 
 /**
  * Spec 30 · Medoro HRMS (/staff/hrms). A super admin made with scripts/create-super-admin.mjs signs in with a one-time
- * password, creates an employee, and the employee goes through first sign-in, check-in and a half-day leave that the
+ * password, creates an employee, and the employee goes through first sign-in (including Aadhaar and PAN), check-in and a half-day leave that the
  * admin approves. Then payroll shows a preview, and a last working day is recorded and cancelled.
  */
 const tag = uid().toLowerCase();
@@ -26,6 +27,23 @@ async function setPassword(page: Page, password: string) {
   await page.locator("input[type=password]").nth(1).fill(password);
   await page.getByRole("button", { name: "Save password" }).click();
 }
+/** The Aadhaar and PAN step: numbers with consent, then a card for each. `withPan` when the PAN isn't saved yet (the super admin skips the details form). */
+async function completeKyc(p: Page, withPan: boolean) {
+  await expect(p.getByText("Verify your identity")).toBeVisible();
+  const body = "23412341234";
+  await p.getByPlaceholder("1234 5678 9012").fill(body + verhoeffDigit(body));
+  if (withPan) await p.getByPlaceholder("ABCDE1234F").fill("ABCPS1234K");
+  await p.getByRole("checkbox").check();
+  await p.getByRole("button", { name: "Save numbers" }).click();
+  await expect(p.getByText(/Saved: XXXX XXXX \d{4}/)).toBeVisible();
+  await expect(p.getByRole("link", { name: "Verify with DigiLocker" })).toHaveCount(0); // not set up on this server
+  const pdf = { name: "card.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") };
+  await p.getByLabel("Aadhaar card file").setInputFiles(pdf);
+  await p.locator("section section").filter({ hasText: "2. Aadhaar proof" }).getByRole("button", { name: "Upload" }).click();
+  await expect(p.getByText("Waiting for HR").first()).toBeVisible();
+  await p.getByLabel("PAN card file").setInputFiles(pdf);
+  await p.locator("section section").filter({ hasText: "3. PAN card" }).getByRole("button", { name: "Upload" }).click();
+}
 /** The first weekday on or after `from` (YYYY-MM-DD), so a leave date is never a weekly off. */
 function weekday(from: Date) {
   const d = new Date(from);
@@ -40,6 +58,7 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   // The super admin signs in with the one-time password and must set their own.
   await signIn(page, ADMIN.email, ADMIN.otp);
   await setPassword(page, ADMIN.password);
+  await completeKyc(page, true); // everyone, the super admin included, gives Aadhaar and PAN
   await expect(page.getByText("Employee database")).toBeVisible();
 
   // New employee: the ID, official email and temporary password are generated.
@@ -79,6 +98,8 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   await emp.getByLabel("IFSC").fill("HDFC0001234");
   await emp.getByLabel("PAN").fill("ABCPS1234K");
   await emp.getByRole("button", { name: "Save and continue" }).click();
+  // Aadhaar and PAN: the numbers with consent, then a card for each (DigiLocker isn't set up here, so HR checks the Aadhaar card).
+  await completeKyc(emp, false);
   await expect(emp.getByRole("button", { name: "Accept and enter the HRMS" })).toBeVisible();
   await expect(emp.getByRole("checkbox")).toHaveCount(3);
   for (const box of await emp.getByRole("checkbox").all()) await box.check();
@@ -111,6 +132,22 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   await expect.poll(async () => (await db().hrLeave.findUniqueOrThrow({ where: { id: leave.id } })).status).toBe("approved");
   await emp.reload();
   await expect(emp.getByRole("row").filter({ hasText: "Casual Leave" })).toContainText("approved");
+
+  // HR checks both cards against the numbers: the directory shows the employee as verified.
+  await page.goto("/staff/hrms/hremployees");
+  await page.getByRole("row").filter({ hasText: empNo }).getByRole("button", { name: "Documents" }).click();
+  const dlg = page.getByRole("dialog");
+  await expect(dlg.getByText("Submitted: check the cards")).toBeVisible();
+  await dlg.getByRole("button", { name: "Show full numbers to compare with the cards" }).click();
+  await expect(dlg.getByText(/2341 2341 234\d/)).toBeVisible();
+  const mark = dlg.getByRole("button", { name: "Mark verified" });
+  await expect(mark).toHaveCount(2);
+  await mark.first().click();
+  await expect(mark).toHaveCount(1); // the list refreshed: one card is verified
+  await mark.first().click();
+  await expect(mark).toHaveCount(0);
+  await expect.poll(async () => (await db().hrProfile.findFirstOrThrow({ where: { staff: { empNo } } })).kycVerifiedAt).not.toBeNull();
+  await dlg.getByRole("button", { name: "Close" }).click();
 
   // Record a last working day two weeks ahead: the person stays active; then cancel the exit.
   await page.goto("/staff/hrms/hremployees");

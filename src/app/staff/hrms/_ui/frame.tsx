@@ -9,6 +9,7 @@ import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSign
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
 import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
+import { KycStep } from "./kyc";
 import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { ChatNotifier } from "./chat-notify";
 import { Screen } from "./screens";
@@ -33,7 +34,7 @@ const ICONS: Record<string, string> = {
 };
 const Ico = ({ n, s = 16 }: { n: string; s?: number }) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden dangerouslySetInnerHTML={{ __html: ICONS[n] ?? "" }} />;
 
-export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; screen: ScreenId; title: string; sub: string; data: unknown; gate: "password" | "profile" | "docs" | null }) {
+export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; screen: ScreenId; title: string; sub: string; data: unknown; gate: "password" | "profile" | "kyc" | "docs" | null }) {
   const [menu, setMenu] = useState(false), [bell, setBell] = useState(false), [brk, setBrk] = useState(false), [ally, setAlly] = useState(false), [pw, setPw] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const router = useRouter();
@@ -158,9 +159,9 @@ function PasswordForm({ forced, onDone }: { forced: boolean; onDone: () => void 
 const PasswordModal = ({ onClose }: { onClose: () => void }) => <Modal title="Change password" onClose={onClose}><PasswordForm forced={false} onDone={onClose} /></Modal>;
 
 /** First sign-in: set your own password, fill in your details, accept the joining documents. */
-function Gate({ gate, sh }: { gate: "password" | "profile" | "docs"; sh: Shell }) {
-  const steps = ["Set your password", "Your details", "Joining documents"];
-  const at = gate === "password" ? 0 : gate === "profile" ? 1 : 2;
+function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh: Shell }) {
+  const steps = ["Set your password", "Your details", "Aadhaar & PAN", "Joining documents"];
+  const at = gate === "password" ? 0 : gate === "profile" ? 1 : gate === "kyc" ? 2 : 3;
   const { run, busy } = useRun();
   const [agree, setAgree] = useState([false, false, false]);
   const docs: [LetterType, string][] = JOINING_LETTERS.map((t) => [t, letterLabel(t)]);
@@ -169,12 +170,13 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "docs"; sh: Shell }
     <div className="max-w-[760px] mx-auto px-4 py-10 flex flex-col gap-5">
       <div className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/medoro-mark.png" alt="" className="size-10 rounded-lg" /><div><h1 className="text-[22px] font-bold">Welcome to Medoro, {sh.me.first}</h1><p className="text-[13px] text-[#64748B]">{sh.me.empNo} · three quick steps before you start.</p></div>
+        <img src="/medoro-mark.png" alt="" className="size-10 rounded-lg" /><div><h1 className="text-[22px] font-bold">Welcome to Medoro, {sh.me.first}</h1><p className="text-[13px] text-[#64748B]">{sh.me.empNo} · four quick steps before you start.</p></div>
         <button onClick={() => void hrSignOut()} className={cx(btnCls, "ml-auto")}>Sign out</button>
       </div>
       <ol className="flex gap-2 flex-wrap">{steps.map((s, i) => <li key={s} className={cx("rounded-full px-3 py-1 text-[12.5px] font-semibold", i < at ? "bg-[#D6F3EF] text-[#0B5E5B]" : i === at ? "bg-[#0B5E5B] text-white" : "bg-[#E2E8F0] text-[#64748B]")}>{i + 1}. {s}</li>)}</ol>
       {gate === "password" ? <Card title="Set your own password" sub="The password HR gave you was temporary." pad><PasswordForm forced onDone={() => {}} /></Card> : null}
       {gate === "profile" ? <Card title="Your details" sub="Needed for HR records and to pay your salary. Bank account and PAN are stored encrypted." pad><ProfileForm initial={{ phone: sh.me.phone, personalEmail: sh.me.personalEmail }} complete onSave={(v) => run(() => saveProfile(v, true))} busy={busy} /></Card> : null}
+      {gate === "kyc" ? <KycStep blocked={sh.kycBlock} /> : null}
       {gate === "docs" ? (
         <Card title="Joining documents" sub="Read each one, then accept." pad>
           <div className="flex flex-col gap-3">
