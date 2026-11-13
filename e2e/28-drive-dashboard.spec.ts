@@ -30,7 +30,7 @@ test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", as
     await expect(dash).toContainText("Low stock");
     // Its own heading, like Medoro's dashboard: title, date and branch, period and Export.
     await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
-    await expect(page.getByText("Billing on this device")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Billing on this device" })).toHaveCount(0); // (the Drive card may mention it in a sentence)
     await expect(dash.getByRole("button", { name: "Export" })).toBeVisible();
     await dash.getByRole("button", { name: "7D" }).click();
     await expect(dash).toContainText(/Sales\b/);
