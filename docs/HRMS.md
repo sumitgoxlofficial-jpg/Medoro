@@ -49,7 +49,7 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 
 ## Aadhaar and PAN verification (KYC)
 
-Every employee must give their **Aadhaar and PAN** with proof before they can use the HRMS (a fourth step after *Your details*, for new joiners and for everyone already here at their next sign-in). They tick a consent box, then:
+Every employee must give their **Aadhaar and PAN** with proof before they can use the HRMS (the **super admin** is not asked: they go straight in) (a fourth step after *Your details*, for new joiners and for everyone already here at their next sign-in). They tick a consent box, then:
 
 1. **Numbers.** The Aadhaar number is checked for typing mistakes (12 digits and its check digit). Both numbers are **sealed with `HOST_KEY`** and shown masked (`XXXX XXXX 1234`, `AB•••••34K`). Changing the Aadhaar number clears an earlier verification.
 2. **Aadhaar proof.** **Verify with DigiLocker** (when set up): the employee signs in on DigiLocker with their Aadhaar OTP (Medoro never sees it), allows Medoro to read their e-Aadhaar once, and Medoro checks the **last four digits, name and date of birth** against what they entered and what is in Medoro. A match verifies the Aadhaar automatically. A mismatch changes nothing and says why; the employee uploads the card instead. Nothing from DigiLocker is kept.

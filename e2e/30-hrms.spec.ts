@@ -27,7 +27,7 @@ async function setPassword(page: Page, password: string) {
   await page.locator("input[type=password]").nth(1).fill(password);
   await page.getByRole("button", { name: "Save password" }).click();
 }
-/** The Aadhaar and PAN step: numbers with consent, then a card for each. `withPan` when the PAN isn't saved yet (the super admin skips the details form). */
+/** The Aadhaar and PAN step for an employee: numbers with consent, then a card for each. `withPan` when the PAN isn't saved yet. */
 async function completeKyc(p: Page, withPan: boolean) {
   await expect(p.getByText("Verify your identity")).toBeVisible();
   const body = "23412341234";
@@ -58,7 +58,8 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   // The super admin signs in with the one-time password and must set their own.
   await signIn(page, ADMIN.email, ADMIN.otp);
   await setPassword(page, ADMIN.password);
-  await completeKyc(page, true); // everyone, the super admin included, gives Aadhaar and PAN
+  // The super admin is not asked to verify their identity: they go straight in.
+  await expect(page.getByText("Verify your identity")).toHaveCount(0);
   await expect(page.getByText("Employee database")).toBeVisible();
 
   // New employee: the ID, official email and temporary password are generated.
