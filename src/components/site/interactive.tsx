@@ -40,7 +40,7 @@ export function Hero() {
             <Image src={lang === "hi" ? "/site/dashboard-hi.webp" : "/site/dashboard.webp"} alt={t("Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days")} width={2000} height={1250} priority sizes="(min-width: 1248px) 630px, (min-width: 1000px) 52vw, calc(100vw - 32px)" className="block w-full h-auto" />
           </BrowserFrame>
           <div className="absolute -right-2 min-[1248px]:-right-8 -bottom-8 w-[clamp(96px,10vw,136px)] max-[560px]:hidden">
-            <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt={t("The owner’s view of the same dashboard on a phone")} width={600} height={1298} sizes="136px" className="block w-full h-auto" /></div></div>
+            <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt={t("The owner’s view of the same dashboard on a phone")} width={600} height={1409} sizes="136px" className="block w-full h-auto" /></div></div>
           </div>
         </div>
       </div>
