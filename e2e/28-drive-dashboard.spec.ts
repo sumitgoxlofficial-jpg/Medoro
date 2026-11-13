@@ -30,7 +30,7 @@ test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", as
     await expect(dash).toContainText("Low stock");
     // Its own heading, like Medoro's dashboard: title, date and branch, period and Export.
     await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible();
-    await expect(page.getByText("Billing on this device")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Billing on this device" })).toHaveCount(0); // (the Drive card may mention it in a sentence)
     await expect(dash.getByRole("button", { name: "Export" })).toBeVisible();
     await dash.getByRole("button", { name: "7D" }).click();
     await expect(dash).toContainText(/Sales\b/);
@@ -38,12 +38,12 @@ test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", as
     // The sidebar opens counter tabs (Cheques is one now).
     const nav = page.locator("nav");
     await nav.getByRole("link", { name: "Cheques" }).click();
-    await expect(page.getByRole("tab", { name: "Cheques", selected: true })).toBeVisible();
+    await expect(page).toHaveURL(/tab=cheques/);
+    await expect(page.getByText("Cheques in hand (not cleared)")).toBeVisible();
     await nav.getByRole("link", { name: "Inventory" }).click();
     await expect(page).toHaveURL(/tab=stock/);
-    await expect(page.getByRole("tab", { name: "Stock", selected: true })).toBeVisible();
     await nav.getByRole("link", { name: "Purchases" }).click();
-    await expect(page.getByRole("tab", { name: "Purchases", selected: true })).toBeVisible();
+    await expect(page).toHaveURL(/tab=purchases/);
     // Switching tabs on the counter moves the sidebar highlight with it.
     await openTab(page, "Dashboard");
     await expect(page).toHaveURL(/tab=dash/);

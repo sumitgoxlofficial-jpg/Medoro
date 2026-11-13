@@ -60,7 +60,7 @@ test("device stock corrections, a cash-on-delivery order and loyalty points", as
   await page.getByRole("button", { name: /Sunita Devi/ }).click();
   await expect(page.getByText("20 pts")).toBeVisible();
   await page.getByLabel("Points to use").fill("20");
-  await expect(page.getByText(/to pay ₹80\.00/)).toBeVisible();
+  await expect(page.getByText("To pay", { exact: true }).locator("xpath=..")).toContainText("₹80.00");
   await page.getByRole("button", { name: /Complete bill/ }).click();
   await expect(page.getByText(/saved on this device.*8 points earned/)).toBeVisible();
 
