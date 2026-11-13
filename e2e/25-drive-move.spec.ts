@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { driveModeOn, resetFakeDrive } from "./helpers";
+import { driveModeOn, openTab, resetFakeDrive } from "./helpers";
 
 // DriveDB phase 7: the owner's device moves the whole pharmacy (everything earlier specs created) out of Medoro,
 // checks every count and total, saves it to (the test server's fake) Google Drive, then the move is undone.
@@ -23,9 +23,9 @@ test("move all data from Medoro to Drive, checked, with Medoro read-only and und
   await page.getByRole("button", { name: "Done" }).click();
 
   // The device is now the pharmacy: the catalogue and stock moved from Medoro are there, and Drive has a full copy.
-  await page.getByRole("tab", { name: "Stock" }).click();
+  await openTab(page, "Stock");
   await expect(page.getByText(/Paracetamol/).first()).toBeVisible();
-  await page.getByRole("tab", { name: "Billing" }).click();
+  await openTab(page, "Billing");
   await expect(page.getByText("Last full copy")).toBeVisible();
 
   // Medoro says so on the Drive mode card and in notifications (refusing changes is covered by tests/integration).

@@ -13,6 +13,7 @@ test("device accounts, reports and GST: supplier payment, expense, cash book, pr
 
   // A supplier bill: 10 packs at ₹70 + 12% GST = ₹784.
   await openTab(page, "Purchases");
+  await page.getByText("Type the bill", { exact: true }).click(); // Purchases opens on the bill-file upload
   await page.getByLabel("New supplier").fill("Jharkhand Pharma");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByLabel("Bill number").fill(`JP-${uid()}`);

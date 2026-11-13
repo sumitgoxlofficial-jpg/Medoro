@@ -87,7 +87,8 @@ async function sell(page: Page, s: Sale, custId: (i: number) => string) {
     if (q > 1) await page.getByLabel("Quantity").last().fill(String(q));
   }
   if (s.c >= 0) await page.locator("#pos-cust").selectOption(custId(s.c));
-  if (s.rx) await page.getByLabel("Prescriber name").fill(s.rx);
+  if (s.rx) await page.getByLabel("Prescriber", { exact: true }).fill(s.rx);
+  if (s.rx) { await page.getByLabel("Prescription number").fill(`RX-${Math.floor(Math.random() * 9e4 + 1e4)}`); const reg = page.getByLabel("Prescriber registration number"); if (await reg.isVisible()) await reg.fill("MMC-2014/08817"); }
   await page.getByRole("button", { name: s.pay, exact: true }).click();
   if (s.pay === "UPI") await page.getByPlaceholder(/UPI UTR/).fill(`4${Math.floor(Math.random() * 1e11)}`);
   return completeSale(page);
@@ -134,7 +135,7 @@ test("capture marketing screenshots", async ({ page, browser }) => {
       await c.getByLabel("Mobile").fill(phone);
       if (limit) await c.getByLabel("Credit limit ₹").fill(String(limit));
       if (owes) await c.getByLabel("Opening balance they owe ₹").fill(String(owes));
-      if (optIn) await c.getByText(/Customer agrees to receive invoices/).click();
+      if (optIn) await c.getByText(/Invoices and refill reminders on WhatsApp/).click();
       await c.getByRole("button", { name: "Save customer" }).click();
       await expectToast(page, "Customer added.");
     }
@@ -156,8 +157,8 @@ test("capture marketing screenshots", async ({ page, browser }) => {
     let dlg = page.getByRole("dialog");
     await dlg.getByLabel("Supplier").selectOption({ label: "Mahavir Pharma Distributors" });
     await dlg.getByLabel("Medicine").selectOption({ label: "Telma 40 40 mg" });
-    await dlg.getByLabel("Quantity").fill("30");
-    await dlg.getByLabel("Rate").fill("166");
+    await dlg.getByLabel("Quantity", { exact: true }).fill("30");
+    await dlg.getByLabel("PTR").fill("166");
     await dlg.getByRole("button", { name: "Save draft" }).click();
     await expectToast(page, /PO-.* saved as a draft/);
     const po = await db().purchaseOrder.findFirstOrThrow({ where: { tenantId: t.id }, orderBy: { createdAt: "desc" } });
@@ -176,8 +177,8 @@ test("capture marketing screenshots", async ({ page, browser }) => {
     dlg = page.getByRole("dialog");
     await dlg.getByLabel("Supplier").selectOption({ label: "Shree Ganesh Medical Agencies" });
     await dlg.getByLabel("Medicine").selectOption({ label: "Thyronorm 50 50 mcg" });
-    await dlg.getByLabel("Quantity").fill("20");
-    await dlg.getByLabel("Rate").fill("141");
+    await dlg.getByLabel("Quantity", { exact: true }).fill("20");
+    await dlg.getByLabel("PTR").fill("141");
     await dlg.getByRole("button", { name: "Save draft" }).click();
     await expectToast(page, /PO-.* saved as a draft/);
 
@@ -212,8 +213,10 @@ test("capture marketing screenshots", async ({ page, browser }) => {
   await addToCart(page, "Pan-D");
   await addToCart(page, "Azithral 500");
   await page.locator("#pos-cust").selectOption({ index: 1 });
-  await page.getByLabel("Prescriber name").fill("Dr. S. Mehta");
+  await page.getByLabel("Prescriber", { exact: true }).fill("Dr. S. Mehta");
   await page.getByPlaceholder(/Rx \/ register/).fill("RX-2291");
+  const reg = page.getByLabel("Prescriber registration number");
+  if (await reg.isVisible()) await reg.fill("MMC-2014/08817");
   await page.getByRole("button", { name: "UPI", exact: true }).click();
   await page.getByLabel("Search medicine").fill("dolo");
   await page.waitForTimeout(600);

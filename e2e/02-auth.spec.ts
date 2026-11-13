@@ -152,15 +152,15 @@ test.describe("counter staff", () => {
     await ctx.close();
   });
 
-  test("accountant lands on Accounting & reports", async ({ page, browser }) => {
+  test("accountant lands on the dashboard (the Accounts tab is hidden from every menu)", async ({ page, browser }) => {
     const s = state();
     const acc = await createStaff(browser, page, "Accountant", "Meera Shah");
     const ctx = await anonContext(browser);
     const p = await ctx.newPage();
     await employeeLogin(p, s.tenantCode, acc.employeeNo, acc.pin);
-    await expect(p).toHaveURL(/\/app\/accounts$/);
-    await expect(p.getByRole("heading", { name: "Accounting & reports" })).toBeVisible();
+    await expect(p).toHaveURL(/\/app$/);
     await expect(p.getByRole("link", { name: "Billing (POS)" })).toHaveCount(0);
+    await expect(p.getByRole("link", { name: /Accounting & reports/ })).toHaveCount(0);
     await ctx.close();
   });
 });
