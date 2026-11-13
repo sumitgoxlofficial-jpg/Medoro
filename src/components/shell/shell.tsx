@@ -54,6 +54,7 @@ function ShellInner(p: ShellProps) {
   const [drawer, setDrawer] = useState(false);
   const rail = narrow && !phone;
   const [closed, setClosed] = useState<Record<string, boolean>>({});
+  const [find, setFind] = useState("");
   const [menu, setMenu] = useState(false);
   const [profile, setProfile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -109,6 +110,9 @@ function ShellInner(p: ShellProps) {
   const base = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));
   // Records on the counters (Drive): each screen opens the matching tab of Billing (device).
   const allowed = p.driveNav ? base.map(driveNav).filter((n): n is NavDef => !!n) : base;
+  // "Find a screen": typing narrows the menu to matching screens (label or description), across every group.
+  const finding = find.trim().toLowerCase();
+  const shown = finding ? allowed.filter((n) => `${d[n.id] ?? ""} ${n.sub ?? ""}`.toLowerCase().includes(finding)) : allowed;
   const tab = search.get("tab") ?? "bill";
   const cur = p.driveNav && path === "/app/device-pos" ? allowed.find((n) => DRIVE_TAB[n.id] === tab) : screenOf(path);
   const title = path.startsWith("/app/owner/reports") ? t("Scheduled reports") : cur ? d[cur.id] : "";
@@ -133,27 +137,43 @@ function ShellInner(p: ShellProps) {
             {phone ? <button onClick={() => setDrawer(false)} aria-label={t("Close menu")} className="size-10 -mr-1 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:bg-hover"><X size={18} /></button> : null}
           </div>
         </div>
-        <nav className="flex flex-col gap-px p-2 flex-1 overflow-y-auto overflow-x-hidden">
-          {allowed.map((n, i) => {
+        {!rail ? (
+          <div className="px-2.5 pt-2.5 pb-1 flex-none">
+            <label className="relative block">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fainter pointer-events-none" aria-hidden />
+              <input value={find} onChange={(e) => setFind(e.target.value)} placeholder={t("Find a screen")} aria-label={t("Find a screen")} autoComplete="off" spellCheck={false}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setFind("");
+                  if (e.key === "Enter" && shown[0]) { router.push(shown[0].href); setFind(""); setDrawer(false); }
+                }}
+                className="w-full h-8 pl-8 pr-2 rounded-lg bg-[#F0F2F3] border border-transparent text-[12.5px] text-ink-strong placeholder:text-fainter transition-colors hover:bg-[#E9ECEE] focus:outline-none! focus-visible:outline-none! focus:bg-white focus:border-teal-border focus:ring-2 focus:ring-teal-tint" />
+            </label>
+          </div>
+        ) : null}
+        <nav className="side-scroll flex flex-col gap-0.5 px-2.5 pb-2 flex-1 overflow-y-auto overflow-x-hidden">
+          {finding && shown.length === 0 ? <div className="px-2 py-6 text-center text-[12.5px] text-faint">{t("No screen matches")} “{find.trim()}”</div> : null}
+          {shown.map((n, i) => {
             const a = cur?.id === n.id;
-            const head = !rail && (i === 0 || allowed[i - 1].group !== n.group);
-            const hidden = !rail && closed[n.group] && !a;
+            const head = !rail && !finding && (i === 0 || shown[i - 1].group !== n.group);
+            const hidden = !rail && !finding && closed[n.group] && !a;
             const Icon = NAV_ICONS[n.icon as keyof typeof NAV_ICONS];
             const b = p.badges[n.id];
             return (
               <div key={n.id} className="contents">
                 {head ? (
-                  <button onClick={() => setClosed((x) => ({ ...x, [n.group]: !x[n.group] }))} className="flex items-center gap-1 px-2 pt-3.5 pb-[5px] text-[11px] font-semibold tracking-[.04em] text-fainter hover:text-ink-2 cursor-pointer text-left">
-                    {closed[n.group] ? <ChevronRight size={12} /> : <ChevronDown size={12} />}{d[n.group]}
+                  <button onClick={() => setClosed((x) => ({ ...x, [n.group]: !x[n.group] }))} aria-expanded={!closed[n.group]}
+                    className={cn("group/head flex items-center justify-between gap-1 px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-[.08em] text-fainter hover:text-ink-2 cursor-pointer text-left", i === 0 ? "pt-2" : "mt-2 pt-3 border-t border-line-soft")}>
+                    <span>{d[n.group]}</span>
+                    {closed[n.group] ? <ChevronRight size={12} className="opacity-60 group-hover/head:opacity-100" /> : <ChevronDown size={12} className="opacity-60 group-hover/head:opacity-100" />}
                   </button>
                 ) : null}
                 {!hidden ? (
-                  <Link href={n.href} title={d[n.id]} className={cn("relative flex flex-none items-center rounded-md text-[13px]", phone ? "min-h-[40px]" : "min-h-[30px]", "no-underline",
-                    rail ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2 py-1.5",
-                    a ? "bg-white text-ink-strong font-semibold shadow-[0_1px_2px_rgba(16,24,40,.08),0_0_0_1px_#E6E8EB]" : "text-ink-2 font-medium hover:bg-hover hover:text-ink-2")}>
-                    <Icon size={16} className="flex-none" style={{ color: a ? "#0B5E5B" : "#6B737B" }} />
+                  <Link href={n.href} title={d[n.id]} aria-current={a ? "page" : undefined} className={cn("relative flex flex-none items-center rounded-lg text-[13.5px] no-underline transition-colors", phone ? "min-h-[44px]" : "min-h-[34px]",
+                    rail ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2.5 py-1.5",
+                    a ? "bg-teal-tint text-teal font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-full before:bg-teal" : "text-ink-2 font-medium hover:bg-hover hover:text-ink-strong")}>
+                    <Icon size={17} strokeWidth={a ? 2.1 : 1.8} className="flex-none" style={{ color: a ? "#0B5E5B" : "#6B737B" }} />
                     {!rail ? <span className="flex-1 truncate">{d[n.id]}</span> : <span className="text-[10px] leading-none whitespace-nowrap">{t(n.abbr)}</span>}
-                    {!rail && b && b[0] ? <span className="min-w-[18px] h-[18px] px-[5px] rounded-full text-[11px] font-semibold flex items-center justify-center tnum" style={{ background: BADGE[b[1]][0], color: BADGE[b[1]][1] }}>{b[0]}</span> : null}
+                    {!rail && b && b[0] ? <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center tnum" style={{ background: BADGE[b[1]][0], color: BADGE[b[1]][1] }}>{b[0]}</span> : null}
                   </Link>
                 ) : null}
               </div>
@@ -161,11 +181,11 @@ function ShellInner(p: ShellProps) {
           })}
         </nav>
         {!rail ? (
-          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title={p.strict ? t("Strict mode on: your live database runs on infrastructure you control. Medoro only holds licence data.") : t("Strict mode is off. Open Privacy to see what leaves your server.")} className="mx-2 my-1.5 flex items-center gap-2 h-8 px-2.5 border border-line bg-white rounded-[7px] text-[12px] text-ink-2 no-underline hover:border-input hover:text-ink-2">
+          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title={p.strict ? t("Strict mode on: your live database runs on infrastructure you control. Medoro only holds licence data.") : t("Strict mode is off. Open Privacy to see what leaves your server.")} className="mx-2.5 mb-2 mt-1 flex items-center gap-2 h-9 px-2.5 rounded-lg bg-[#F3F5F5] text-[12px] text-ink-2 no-underline transition-colors hover:bg-[#EAEEEE] hover:text-ink-strong">
             <ShieldCheck size={14} style={{ color: p.strict ? "#18794E" : "#94570A" }} /><span className="truncate">{p.strict ? t("Strict mode on · data stays with you") : t("Strict mode off · see Privacy")}</span>
           </Link>
         ) : null}
-        <div className="relative border-t border-line-soft px-2 py-1.5">
+        <div className="relative border-t border-line-soft px-2.5 py-2 flex-none">
           {menu ? (
             <>
               <div className="fixed inset-0 z-[70]" onClick={() => setMenu(false)} />
@@ -195,7 +215,7 @@ function ShellInner(p: ShellProps) {
               </div>
             </>
           ) : null}
-          <button onClick={() => setMenu((x) => !x)} title={t("Account menu")} className={cn("flex items-center gap-[9px] p-1.5 w-full rounded-lg cursor-pointer text-left hover:bg-hover", menu && "bg-hover")}>
+          <button onClick={() => setMenu((x) => !x)} title={t("Account menu")} className={cn("flex items-center gap-[10px] p-1.5 w-full rounded-lg cursor-pointer text-left transition-colors hover:bg-hover", menu && "bg-hover")}>
             <Avatar initials={initials} size={28} />
             {!rail ? (
               <>

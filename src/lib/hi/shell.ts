@@ -6,6 +6,8 @@ export const hi: Record<string, string> = {
   "{n} branch": "{n} ब्रांच",
   "{n} branches": "{n} ब्रांच",
   "Close menu": "मेन्यू बंद करें",
+  "Find a screen": "स्क्रीन खोजें",
+  "No screen matches": "कोई स्क्रीन नहीं मिली",
   "Open menu": "मेन्यू खोलें",
   "Strict mode on: your live database runs on infrastructure you control. Medoro only holds licence data.": "स्ट्रिक्ट मोड चालू: आपका लाइव डेटाबेस आपके अपने सिस्टम पर चलता है। Medoro के पास सिर्फ़ लाइसेंस की जानकारी है।",
   "Strict mode is off. Open Privacy to see what leaves your server.": "स्ट्रिक्ट मोड बंद है। आपके सर्वर से क्या बाहर जाता है, यह प्राइवेसी में देखें।",
