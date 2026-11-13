@@ -2355,6 +2355,12 @@ model HrProfile {
   location           String    @default("")
   managerId          String?
   joinDate           DateTime? @db.Date
+  aadhaarSealed      Bytes? // the 12-digit number, sealed with HOST_KEY; only the last four digits are ever shown
+  aadhaarLast4       String    @default("")
+  aadhaarVerifiedAt  DateTime? // matched against the person's own DigiLocker Aadhaar, or checked by HR against the card
+  aadhaarVerifiedBy  String    @default("") // "DigiLocker" or the HR person's name
+  kycSubmittedAt     DateTime? // Aadhaar and PAN numbers given, and the proof for each uploaded or verified through DigiLocker
+  kycVerifiedAt      DateTime? // Aadhaar and PAN both verified
   taxRegime          String    @default("new") // new or old income-tax regime, for the monthly TDS estimate
   taxDeclared        Int       @default(0) // old regime: yearly deductions HR accepted (80C, 80D, HRA…), rupees
   esiNo              String    @default("") // ESI insurance number, for the ESI return

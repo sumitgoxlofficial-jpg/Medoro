@@ -45,5 +45,10 @@ export function checkEnv(env: NodeJS.ProcessEnv = process.env): string[] {
   else if (mail === "sendgrid") needAll("MAIL_PROVIDER=sendgrid", "SENDGRID_API_KEY", "MAIL_FROM");
   else if (mail === "http" || mail === "smtp-http") needAll(`MAIL_PROVIDER=${mail}`, "MAIL_HTTP_URL", "MAIL_FROM");
   else if (mail) problems.push(`MAIL_PROVIDER "${mail}" is not one of resend, sendgrid, http.`);
+  // DigiLocker (Aadhaar verification in the HRMS): optional, but half-set it would fail when an employee tries it.
+  if (env.DIGILOCKER_CLIENT_ID || env.DIGILOCKER_CLIENT_SECRET || env.DIGILOCKER_BASE) {
+    needAll("DigiLocker", "DIGILOCKER_CLIENT_ID", "DIGILOCKER_CLIENT_SECRET", "DIGILOCKER_BASE");
+    if (!env.DIGILOCKER_REDIRECT_URI && !env.APP_URL) problems.push("DigiLocker needs APP_URL (or DIGILOCKER_REDIRECT_URI), so DigiLocker knows where to send people back.");
+  }
   return problems;
 }

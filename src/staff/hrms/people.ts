@@ -15,6 +15,7 @@ import { newEmployeeNo, referral } from "../people";
 import { stateName } from "./states";
 import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, notify, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
+import { kycLabel } from "./kyc";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
@@ -22,7 +23,7 @@ const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "En
 
 export type Person = {
   id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
-  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
+  location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; kyc: "verified" | "submitted" | "missing"; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
   photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
 
@@ -39,7 +40,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     const h = u.hr;
     return {
       id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
-      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
+      empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, kyc: kycLabel(h), shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
       profileDone: h?.profileDone ?? false, docsAccepted: !!h?.docsAcceptedAt, hasPassword: !!u.passwordHash,
@@ -320,7 +321,7 @@ export const settingsSchema = z.object({
     name: z.string().trim().min(2, "Enter the company name.").max(120), address: z.string().trim().max(300), gstin: z.string().trim().toUpperCase().regex(/^$|^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/, "GSTIN looks wrong."),
     state: z.string().trim().max(40), phone: z.string().trim().max(20), email: z.string().trim().max(120), bank: z.string().trim().max(200),
   }),
-  checkin: z.boolean(), selfie: z.boolean(), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), workHours: z.coerce.number().min(1, "Work at least 1 hour a day.").max(12, "Work hours can be at most 12 a day."), lunchFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch start as HH:MM."), lunchTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch end as HH:MM."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
+  checkin: z.boolean(), selfie: z.boolean(), kycBlock: z.boolean().default(false), idleMonitor: z.boolean(), idleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes."), workHours: z.coerce.number().min(1, "Work at least 1 hour a day.").max(12, "Work hours can be at most 12 a day."), lunchFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch start as HH:MM."), lunchTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the lunch end as HH:MM."), lateAfter: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter the time as HH:MM."),
   weekOff: z.array(z.coerce.number().int().min(0).max(6)).max(6, "Keep at least one working day in the week.").default([0, 6]),
   leave: z.object({ casual: z.coerce.number().int().min(0).max(60), sick: z.coerce.number().int().min(0).max(60), privilege: z.coerce.number().int().min(0).max(60), comp: z.coerce.number().int().min(0).max(60) }),
   carryForward: z.coerce.number().int().min(0).max(120).default(30),

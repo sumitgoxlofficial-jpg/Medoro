@@ -19,3 +19,15 @@ describe("Vercel preview deployments", () => {
     expect(set.APP_URL).toBe("https://preview.medoro.in");
   });
 });
+
+describe("DigiLocker", () => {
+  it("is optional, but half-set it is a problem", () => {
+    const ok = { ...base, APP_URL: "https://hr.test" };
+    expect(checkEnv({ ...ok })).toEqual([]);
+    const full = { DIGILOCKER_CLIENT_ID: "id", DIGILOCKER_CLIENT_SECRET: "secret", DIGILOCKER_BASE: "https://api.digitallocker.gov.in" };
+    expect(checkEnv({ ...ok, ...full })).toEqual([]);
+    expect(checkEnv({ ...ok, ...full, DIGILOCKER_BASE: undefined })).toContain("DigiLocker needs DIGILOCKER_BASE.");
+    expect(checkEnv({ ...ok, DIGILOCKER_CLIENT_ID: "id" })).toContain("DigiLocker needs DIGILOCKER_CLIENT_SECRET, DIGILOCKER_BASE.");
+    expect(checkEnv({ ...ok, APP_URL: undefined, VERCEL: undefined, ...full })).toContain("DigiLocker needs APP_URL (or DIGILOCKER_REDIRECT_URI), so DigiLocker knows where to send people back.");
+  });
+});

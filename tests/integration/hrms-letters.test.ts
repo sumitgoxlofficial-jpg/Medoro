@@ -16,7 +16,7 @@ import { PDFDocument } from "pdf-lib";
 import { resetDb } from "./helpers";
 
 let admin: Me, hr: Me, ann: Me, bob: Me;
-const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true }; };
+const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycVerified: true }; };
 const mk = (n: number, name: string, role: "super_admin" | "employee" | "sales", hrRole: "admin" | "hr" | "employee" | "sales", extra: object = {}) =>
   db.staffUser.create({ data: { empNo: `MS-30${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98500000${n}0`, role, status: "active", hr: { create: { role: hrRole, profileDone: true, docsAcceptedAt: new Date(), ...extra } } } });
 

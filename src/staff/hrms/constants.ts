@@ -141,6 +141,7 @@ export type Settings = {
   lateAfter: string; // HH:MM, India time
   weekOff: number[]; // weekly days off, 0 = Sunday … 6 = Saturday
   selfie: boolean; // a selfie is needed to check in and out
+  kycBlock: boolean; // hold people out of the HRMS until their Aadhaar and PAN are verified (not just submitted)
   idleMonitor: boolean; // idle time in the HRMS tab is recorded while checked in
   idleMinutes: number; // minutes without activity before Ally asks "still working?"
   workHours: number; // hours of work expected every working day, not counting lunch
@@ -153,7 +154,7 @@ export type Settings = {
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.

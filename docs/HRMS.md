@@ -43,9 +43,23 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 * **KYC & certificates** (My profile). The employee uploads identity and address proof, certificates, a relieving letter or a
   cancelled cheque (PDF, JPG, PNG). HR opens them from **Employees → Documents**, marks each verified or removes it. Files open
   only for their owner and people with the Employees module; HR opening one is written to Audit Logs. A verified document can
-  only be removed by HR. Medoro stores the uploaded file only: it does not ask for or keep the Aadhaar number.
+  only be removed by HR. Aadhaar and PAN numbers are collected in the KYC step (see *Aadhaar and PAN verification*).
 * **Me**: **ID card** (My profile, printable), **Customize home** (hide sections; saved in the browser), **night mode** (moon button; saved in the browser).
 * Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).
+
+## Aadhaar and PAN verification (KYC)
+
+Every employee must give their **Aadhaar and PAN** with proof before they can use the HRMS (a fourth step after *Your details*, for new joiners and for everyone already here at their next sign-in). They tick a consent box, then:
+
+1. **Numbers.** The Aadhaar number is checked for typing mistakes (12 digits and its check digit). Both numbers are **sealed with `HOST_KEY`** and shown masked (`XXXX XXXX 1234`, `AB•••••34K`). Changing the Aadhaar number clears an earlier verification.
+2. **Aadhaar proof.** **Verify with DigiLocker** (when set up): the employee signs in on DigiLocker with their Aadhaar OTP (Medoro never sees it), allows Medoro to read their e-Aadhaar once, and Medoro checks the **last four digits, name and date of birth** against what they entered and what is in Medoro. A match verifies the Aadhaar automatically. A mismatch changes nothing and says why; the employee uploads the card instead. Nothing from DigiLocker is kept.
+3. **PAN proof** (and the Aadhaar when DigiLocker isn't used): the employee uploads the card (PDF, JPG, PNG). HR opens **Employees → Documents**, can **show the full numbers to compare with the cards** (each opening is audited), and marks each card verified.
+
+The directory shows each person as **Verified**, **Check** (submitted, waiting for HR) or **Missing**. By default a person gets in once they have *submitted*; under **Settings** you can turn on *Keep people out until their Aadhaar and PAN are verified*, and they then wait for HR (or a DigiLocker match, then the PAN card check).
+
+**DigiLocker set-up** needs a DigiLocker partner (requester) account from MeitY / API Setu: set `DIGILOCKER_CLIENT_ID`, `DIGILOCKER_CLIENT_SECRET` and `DIGILOCKER_BASE` (the host DigiLocker gives you: production, or their sandbox while testing; Medoro does not guess it), and register `<APP_URL>/staff/hrms/digilocker/callback` as the redirect address. Check the endpoints Medoro calls (`/public/oauth2/1/authorize`, `/1/token`, `/3/xml/eaadhaar`) against the documentation DigiLocker gives your account, and test in their sandbox before relying on it. Until it is set up the button is hidden and employees upload the Aadhaar card for HR.
+
+Limits: Medoro matches the e-Aadhaar DigiLocker returns over TLS; it does not check UIDAI's digital signature on the XML, and PAN is checked by a person against the card (no NSDL/Protean PAN lookup). Aadhaar and PAN are personal data under India's DPDP Act, and the rules on collecting and storing Aadhaar numbers are strict: have a lawyer confirm the consent wording, who may open the numbers, and how long you keep them. Medoro keeps the sealed number only for HR's comparison; it is never shown in full on a payslip, list or export.
 
 ## Selfie check-in and idle-time monitoring
 

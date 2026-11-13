@@ -1,0 +1,6 @@
+ALTER TABLE "HrProfile" ADD COLUMN "aadhaarSealed" BYTEA;
+ALTER TABLE "HrProfile" ADD COLUMN "aadhaarLast4" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "HrProfile" ADD COLUMN "kycSubmittedAt" TIMESTAMP(3);
+ALTER TABLE "HrProfile" ADD COLUMN "kycVerifiedAt" TIMESTAMP(3);
+ALTER TABLE "HrProfile" ADD COLUMN "aadhaarVerifiedAt" TIMESTAMP(3);
+ALTER TABLE "HrProfile" ADD COLUMN "aadhaarVerifiedBy" TEXT NOT NULL DEFAULT '';

@@ -21,6 +21,8 @@ import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
+import * as kyc from "@/staff/hrms/kyc";
+import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -75,6 +77,10 @@ export const uploadDoc = async (form: FormData) => done(await hrRun((me) => docs
 export const removeDoc = async (id: string) => done(await hrRun((me) => docs.removeDoc(me, id), "Document removed."));
 export const verifyDoc = async (id: string, ok: boolean) => done(await hrRun((me) => docs.verifyDoc(me, id, ok), ok ? "Marked as verified." : "Verification removed."));
 export const employeeDocs = async (staffId: string) => hrRun((me) => docs.employeeDocs(me, staffId));
+export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved."));
+export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }));
+export const revealKyc = async (staffId: string) => hrRun((me) => kyc.revealKyc(me, staffId));
+export const employeeKyc = async (staffId: string) => hrRun((me) => kyc.kycStateFor(me, staffId));
 export const submitClaim = async (form: FormData) => done(await hrRun((me) => time.submitClaim(me, form), "Claim submitted. HR reviews it first."));
 export const hrDecideClaim = async (id: string, approve: boolean) => done(await hrRun((me) => time.hrDecideClaim(me, id, approve), approve ? "Sent to the super admin for final sign-off." : "Claim rejected."));
 export const adminDecideClaim = async (id: string, approve: boolean) => done(await hrRun((me) => time.adminDecideClaim(me, id, approve), approve ? "Approved. It is paid with the next payroll." : "Claim rejected."));

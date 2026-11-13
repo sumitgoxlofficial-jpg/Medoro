@@ -14,7 +14,7 @@ import { backUp, backupStatus, chatBackupTick, disconnect, exportFor, restore } 
 import { resetDb } from "./helpers";
 
 let ann: Me, bob: Me;
-const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true }; };
+const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycVerified: true }; };
 const mk = (n: number, name: string) => db.staffUser.create({ data: { empNo: `MS-20${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98400000${n}0`, role: "employee", status: "active", hr: { create: { role: "employee", profileDone: true, docsAcceptedAt: new Date() } } } });
 
 // A tiny pretend Google: the token endpoint and Drive's hidden app folder.

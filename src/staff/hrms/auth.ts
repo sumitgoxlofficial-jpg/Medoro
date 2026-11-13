@@ -21,6 +21,8 @@ import { DEFAULT_PERMS, DEFAULT_SETTINGS, HR_ROLES, MODULES, hasModule, type HrR
 export type Me = {
   id: string; empNo: string; name: string; first: string; email: string; staffRole: StaffRoleId; role: HrRoleId; perms: Perms; sessionId: string;
   phone: string; personalEmail: string; dept: string; designation: string; photo: string | null; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean;
+  /** Aadhaar and PAN given with proof / both verified (see kyc.ts). */
+  kycSubmitted: boolean; kycVerified: boolean;
 };
 
 export const password = z.string().min(12, "Password must be at least 12 characters.").max(200);
@@ -69,7 +71,7 @@ export async function getMe(): Promise<Me | null> {
   }
   return {
     id: u.id, empNo: u.empNo, name: u.name, first: u.name.trim().split(/\s+/)[0], email: u.email, staffRole: u.role, role: roleOf(u.role, p.role), perms, sessionId: s.id,
-    phone: u.phone, personalEmail: p.personalEmail, dept: p.dept, designation: p.designation, photo: p.photo, mustChangePassword: p.mustChangePassword, profileDone: p.profileDone, docsAccepted: !!p.docsAcceptedAt,
+    phone: u.phone, personalEmail: p.personalEmail, dept: p.dept, designation: p.designation, photo: p.photo, mustChangePassword: p.mustChangePassword, profileDone: p.profileDone, docsAccepted: !!p.docsAcceptedAt, kycSubmitted: !!p.kycSubmittedAt, kycVerified: !!p.kycVerifiedAt,
   };
 }
 
