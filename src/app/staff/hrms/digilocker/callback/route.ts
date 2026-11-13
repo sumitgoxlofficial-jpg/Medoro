@@ -11,16 +11,15 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request) {
   const u = new URL(req.url);
-  let q = "digilocker=failed";
-  if (u.searchParams.get("error")) q = "digilocker=denied";
-  else {
-    try {
-      const r = await finishVerify(u.searchParams.get("code") ?? "", u.searchParams.get("state") ?? "");
-      q = r.result === "verified" ? "digilocker=verified" : "digilocker=review&why=" + encodeURIComponent(r.why.join(" "));
-    } catch (e) {
-      if (!(e instanceof UserError)) log.error("digilocker verify failed", { err: e });
-      q = "digilocker=failed&why=" + encodeURIComponent(e instanceof UserError ? e.message : "Something went wrong. Try again, or upload your Aadhaar card.");
-    }
+  let q: string;
+  // The check always runs: what the URL says never decides whether it happens. When DigiLocker reports a refusal there
+  // is no code, so the check fails safe, and the message says it was a refusal.
+  try {
+    const r = await finishVerify(u.searchParams.get("code") ?? "", u.searchParams.get("state") ?? "");
+    q = r.result === "verified" ? "digilocker=verified" : "digilocker=review&why=" + encodeURIComponent(r.why.join(" "));
+  } catch (e) {
+    if (!(e instanceof UserError)) log.error("digilocker verify failed", { err: e });
+    q = u.searchParams.has("error") ? "digilocker=denied" : "digilocker=failed&why=" + encodeURIComponent(e instanceof UserError ? e.message : "Something went wrong. Try again, or upload your Aadhaar card.");
   }
   const next = `/staff/hrms?${q}`.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   return new Response(`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${next}"><title>Checking…</title></head><body style="font-family:system-ui;padding:2rem"><p>Checking your Aadhaar… <a href="${next}">Continue</a></p></body></html>`, {

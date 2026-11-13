@@ -72,7 +72,7 @@ describe("Aadhaar and PAN verification", () => {
     await expect(saveKycNumbers(riya, { aadhaar: "", pan: "", consent: true })).rejects.toThrow(/Enter your Aadhaar/);
     await saveKycNumbers(riya, { aadhaar: AADHAAR.replace(/(\d{4})(?=\d)/g, "$1 "), pan: "abcps1234k", consent: true });
     const p = await db.hrProfile.findUniqueOrThrow({ where: { staffId: riya.id } });
-    expect(p).toMatchObject({ aadhaarLast4: LAST4, panMasked: "AB•••••34K".replace("34K", "34K") });
+    expect(p).toMatchObject({ aadhaarLast4: LAST4, panMasked: "AB•••••34K" });
     expect(Buffer.from(p.aadhaarSealed!).toString("utf8")).not.toContain(AADHAAR); // sealed, not stored in the clear
     expect(await kycState(riya.id)).toMatchObject({ aadhaar: { masked: "XXXX XXXX " + LAST4, entered: true, doc: "none", verified: false }, pan: { entered: true, doc: "none" }, submitted: false, verified: false });
   });

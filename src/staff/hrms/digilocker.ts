@@ -96,6 +96,7 @@ export type VerifyResult = { staffId: string; result: "verified" | "review"; why
 export async function finishVerify(code: string, state: string): Promise<VerifyResult> {
   const c = digilockerConfig(), flow = await takeFlow();
   if (!c || !flow || !equal(flow.state, state)) throw new UserError("That DigiLocker sign-in expired. Try again.");
+  if (!code) throw new UserError("DigiLocker didn’t send a sign-in code. Try again, or upload your Aadhaar card.");
   const staff = await db.staffUser.findFirst({ where: { id: flow.staffId, kind: "team", status: "active" }, select: { id: true, name: true, hr: { select: { aadhaarLast4: true, dob: true } } } });
   if (!staff?.hr?.aadhaarLast4) throw new UserError("Enter and save your Aadhaar number first.");
   const t = await fetch(c.token, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, signal: AbortSignal.timeout(15_000),
