@@ -13,16 +13,17 @@ import { refreshKyc } from "./kyc";
 // belongs to the number they entered: the last four digits, their name and their date of birth. A match verifies the
 // Aadhaar with no HR step. Medoro keeps nothing from DigiLocker: the e-Aadhaar is read once and dropped.
 //
-// Needs a DigiLocker partner (requester) account: set DIGILOCKER_CLIENT_ID and DIGILOCKER_CLIENT_SECRET, and register
-// the redirect URI below with DigiLocker. Until then the employee uploads the Aadhaar card for HR instead.
+// Needs a DigiLocker partner (requester) account: set DIGILOCKER_CLIENT_ID, DIGILOCKER_CLIENT_SECRET and DIGILOCKER_BASE
+// (the host DigiLocker gave you, e.g. https://api.digitallocker.gov.in), and register the redirect URI below with DigiLocker. Until then the employee uploads the Aadhaar card for HR instead.
 type Env = Record<string, string | undefined>;
 const FLOW_COOKIE = "medoro_hrdl", FLOW_PATH = "/staff/hrms/digilocker";
 
 export function digilockerConfig(env: Env = process.env) {
   const id = env.DIGILOCKER_CLIENT_ID, secret = env.DIGILOCKER_CLIENT_SECRET;
-  const base = (env.DIGILOCKER_BASE || "https://digilocker.meripehchaan.gov.in").replace(/\/+$/, "");
+  // The address is not guessed: DigiLocker gives each partner the host to use (production or sandbox) with the credentials.
+  const base = (env.DIGILOCKER_BASE ?? "").trim().replace(/\/+$/, "");
   const redirect = env.DIGILOCKER_REDIRECT_URI || (env.APP_URL ? env.APP_URL.replace(/\/+$/, "") + "/staff/hrms/digilocker/callback" : "");
-  return id && secret && redirect ? { id, secret, redirect, authorize: `${base}/public/oauth2/1/authorize`, token: `${base}/public/oauth2/1/token`, eaadhaar: `${base}/public/oauth2/3/xml/eaadhaar` } : null;
+  return id && secret && base && redirect ? { id, secret, redirect, authorize: `${base}/public/oauth2/1/authorize`, token: `${base}/public/oauth2/1/token`, eaadhaar: `${base}/public/oauth2/3/xml/eaadhaar` } : null;
 }
 export const digilockerConfigured = () => !!digilockerConfig();
 

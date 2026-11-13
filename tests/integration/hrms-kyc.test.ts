@@ -31,7 +31,7 @@ let calls: Call[] = [], eaadhaar = xml(), tokenOk = true, readOk = true;
 beforeAll(async () => {
   await resetDb();
   process.env.SESSION_SECRET ||= "test-only-secret-0123456789abcdef0123";
-  Object.assign(process.env, { DIGILOCKER_CLIENT_ID: "dl-client", DIGILOCKER_CLIENT_SECRET: "dl-secret", APP_URL: "https://hr.test" });
+  Object.assign(process.env, { DIGILOCKER_CLIENT_ID: "dl-client", DIGILOCKER_CLIENT_SECRET: "dl-secret", DIGILOCKER_BASE: "https://digilocker.test", APP_URL: "https://hr.test" });
   hr = await mkMe((await mk("MS-001", "Hari HR", "hari@medoro.in", "hr", 1)).id);
   riya = await mkMe((await mk("MS-002", "Riya Sharma", "riya@medoro.in", "employee", 2, "1997-04-12")).id);
   sam = await mkMe((await mk("MS-003", "Sam Singh", "sam@medoro.in", "employee", 3)).id);
@@ -104,6 +104,14 @@ describe("Aadhaar and PAN verification", () => {
     expect(await db.staffAudit.count({ where: { action: "HRMS · KYC numbers opened" } })).toBe(before + 1);
   });
 
+  it("DigiLocker stays off until its host is set too", () => {
+    const base = process.env.DIGILOCKER_BASE;
+    delete process.env.DIGILOCKER_BASE;
+    expect(digilockerConfigured()).toBe(false);
+    process.env.DIGILOCKER_BASE = base;
+    expect(digilockerConfigured()).toBe(true);
+  });
+
   it("DigiLocker: needs the number saved first, then a match verifies the Aadhaar with no HR step", async () => {
     expect(digilockerConfigured()).toBe(true);
     await expect(beginVerify(sam)).rejects.toThrow(/Enter and save your Aadhaar/);
@@ -113,7 +121,7 @@ describe("Aadhaar and PAN verification", () => {
     expect((await kycState(riya.id)).submitted).toBe(false); // no Aadhaar proof yet
     const url = await beginVerify(riya);
     const u = new URL(url);
-    expect(u.origin + u.pathname).toBe("https://digilocker.meripehchaan.gov.in/public/oauth2/1/authorize");
+    expect(u.origin + u.pathname).toBe("https://digilocker.test/public/oauth2/1/authorize");
     expect(u.searchParams.get("client_id")).toBe("dl-client");
     expect(u.searchParams.get("redirect_uri")).toBe("https://hr.test/staff/hrms/digilocker/callback");
     expect(u.searchParams.get("code_challenge_method")).toBe("S256");
