@@ -88,7 +88,7 @@ async function sell(page: Page, s: Sale, custId: (i: number) => string) {
   }
   if (s.c >= 0) await page.locator("#pos-cust").selectOption(custId(s.c));
   if (s.rx) await page.getByLabel("Prescriber", { exact: true }).fill(s.rx);
-  if (s.rx) { await page.getByLabel("Prescription number").fill(`RX-${Math.floor(Math.random() * 9e4 + 1e4)}`); await page.getByLabel("Prescriber registration number").fill("MMC-2014/08817"); }
+  if (s.rx) { await page.getByLabel("Prescription number").fill(`RX-${Math.floor(Math.random() * 9e4 + 1e4)}`); const reg = page.getByLabel("Prescriber registration number"); if (await reg.isVisible()) await reg.fill("MMC-2014/08817"); }
   await page.getByRole("button", { name: s.pay, exact: true }).click();
   if (s.pay === "UPI") await page.getByPlaceholder(/UPI UTR/).fill(`4${Math.floor(Math.random() * 1e11)}`);
   return completeSale(page);
@@ -215,7 +215,8 @@ test("capture marketing screenshots", async ({ page, browser }) => {
   await page.locator("#pos-cust").selectOption({ index: 1 });
   await page.getByLabel("Prescriber", { exact: true }).fill("Dr. S. Mehta");
   await page.getByPlaceholder(/Rx \/ register/).fill("RX-2291");
-  await page.getByLabel("Prescriber registration number").fill("MMC-2014/08817");
+  const reg = page.getByLabel("Prescriber registration number");
+  if (await reg.isVisible()) await reg.fill("MMC-2014/08817");
   await page.getByRole("button", { name: "UPI", exact: true }).click();
   await page.getByLabel("Search medicine").fill("dolo");
   await page.waitForTimeout(600);
