@@ -121,37 +121,37 @@ function ShellInner(p: ShellProps) {
   return (
     <div className="grid h-dvh w-full overflow-hidden bg-bg text-[14px]" style={{ gridTemplateColumns: (phone ? "" : rail ? "76px " : "232px ") + "minmax(0,1fr)" + (aiOpen && showAi && !narrow ? " 380px" : "") }}>
       {phone && drawer ? <div className="fixed inset-0 z-[79] bg-[rgba(16,24,40,.35)]" onClick={() => setDrawer(false)} aria-hidden /> : null}
-      <aside className={cn("bg-side border-r border-line flex flex-col min-h-0", phone && "fixed inset-y-0 left-0 z-[80] w-[272px] max-w-[85vw] shadow-pop transition-transform duration-200", phone && !drawer && "-translate-x-full invisible")} aria-label={t("Menu")}>
-        <div className="h-14 flex items-center px-2.5 border-b border-line-soft flex-none">
+      <aside className={cn("bg-[#0B5E5B] text-white flex flex-col min-h-0", phone && "fixed inset-y-0 left-0 z-[80] w-[272px] max-w-[85vw] shadow-pop transition-transform duration-200", phone && !drawer && "-translate-x-full invisible")} aria-label={t("Menu")}>
+        <div className="h-14 flex items-center px-2.5 border-b border-white/10 flex-none">
           <div className="flex items-center gap-[9px] w-full p-1.5 rounded-lg">
-            <span className="size-7 rounded-[7px] bg-white border border-line flex items-center justify-center flex-none shadow-card">
+            <span className="size-8 rounded-[8px] bg-white flex items-center justify-center flex-none p-[2px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/medoro-mark.png" alt="Medoro" className="w-5 h-auto" />
+              <img src="/medoro-mark.png" alt="Medoro" className="w-full h-auto rounded-[6px]" />
             </span>
             {!rail ? (
               <span className="flex flex-col min-w-0 flex-1 leading-tight">
-                <span className="text-[13.5px] font-semibold text-ink-strong truncate">{p.tenantName}</span>
-                <span className="text-[11.5px] text-faint whitespace-nowrap">{t(p.branchCount === 1 ? "{n} branch" : "{n} branches", { n: p.branchCount })}</span>
+                <span className="text-[14px] font-bold text-white truncate">{p.tenantName}</span>
+                <span className="text-[10px] tracking-[.08em] uppercase text-white/50 whitespace-nowrap">{t(p.branchCount === 1 ? "{n} branch" : "{n} branches", { n: p.branchCount })}</span>
               </span>
             ) : null}
-            {phone ? <button onClick={() => setDrawer(false)} aria-label={t("Close menu")} className="size-10 -mr-1 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:bg-hover"><X size={18} /></button> : null}
+            {phone ? <button onClick={() => setDrawer(false)} aria-label={t("Close menu")} className="size-10 -mr-1 rounded-lg flex items-center justify-center text-white/70 cursor-pointer hover:bg-white/10 hover:text-white"><X size={18} /></button> : null}
           </div>
         </div>
         {!rail ? (
           <div className="px-2.5 pt-2.5 pb-1 flex-none">
             <label className="relative block">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fainter pointer-events-none" aria-hidden />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" aria-hidden />
               <input value={find} onChange={(e) => setFind(e.target.value)} placeholder={t("Find a screen")} aria-label={t("Find a screen")} autoComplete="off" spellCheck={false}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") setFind("");
                   if (e.key === "Enter" && shown[0]) { router.push(shown[0].href); setFind(""); setDrawer(false); }
                 }}
-                className="w-full h-8 pl-8 pr-2 rounded-lg bg-[#F0F2F3] border border-transparent text-[12.5px] text-ink-strong placeholder:text-fainter transition-colors hover:bg-[#E9ECEE] focus:outline-none! focus-visible:outline-none! focus:bg-white focus:border-teal-border focus:ring-2 focus:ring-teal-tint" />
+                className="w-full h-8 pl-8 pr-2 rounded-lg bg-white/10 border border-white/10 text-[12.5px] text-white placeholder:text-white/50 transition-colors hover:bg-white/[.14] focus:outline-none! focus-visible:outline-none! focus:bg-white/[.16] focus:border-[#14B8A6] focus:ring-2 focus:ring-[#14B8A6]/30" />
             </label>
           </div>
         ) : null}
         <nav className="side-scroll flex flex-col gap-0.5 px-2.5 pb-2 flex-1 overflow-y-auto overflow-x-hidden">
-          {finding && shown.length === 0 ? <div className="px-2 py-6 text-center text-[12.5px] text-faint">{t("No screen matches")} “{find.trim()}”</div> : null}
+          {finding && shown.length === 0 ? <div className="px-2 py-6 text-center text-[12.5px] text-white/60">{t("No screen matches")} “{find.trim()}”</div> : null}
           {shown.map((n, i) => {
             const a = cur?.id === n.id;
             const head = !rail && !finding && (i === 0 || shown[i - 1].group !== n.group);
@@ -162,7 +162,7 @@ function ShellInner(p: ShellProps) {
               <div key={n.id} className="contents">
                 {head ? (
                   <button onClick={() => setClosed((x) => ({ ...x, [n.group]: !x[n.group] }))} aria-expanded={!closed[n.group]}
-                    className={cn("group/head flex items-center justify-between gap-1 px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-[.08em] text-fainter hover:text-ink-2 cursor-pointer text-left", i === 0 ? "pt-2" : "mt-2 pt-3 border-t border-line-soft")}>
+                    className={cn("group/head flex items-center justify-between gap-1 px-2 pb-1 text-[10.5px] font-bold uppercase tracking-[.12em] text-white/45 hover:text-white/80 cursor-pointer text-left", i === 0 ? "pt-2" : "mt-1.5 pt-3")}>
                     <span>{d[n.group]}</span>
                     {closed[n.group] ? <ChevronRight size={12} className="opacity-60 group-hover/head:opacity-100" /> : <ChevronDown size={12} className="opacity-60 group-hover/head:opacity-100" />}
                   </button>
@@ -170,8 +170,8 @@ function ShellInner(p: ShellProps) {
                 {!hidden ? (
                   <Link href={n.href} title={d[n.id]} aria-current={a ? "page" : undefined} className={cn("relative flex flex-none items-center rounded-lg text-[13.5px] no-underline transition-colors", phone ? "min-h-[44px]" : "min-h-[34px]",
                     rail ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2.5 py-1.5",
-                    a ? "bg-teal-tint text-teal font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-full before:bg-teal" : "text-ink-2 font-medium hover:bg-hover hover:text-ink-strong")}>
-                    <Icon size={17} strokeWidth={a ? 2.1 : 1.8} className="flex-none" style={{ color: a ? "#0B5E5B" : "#6B737B" }} />
+                    a ? "bg-white/[.16] text-white font-semibold shadow-[inset_3px_0_0_#14B8A6]" : "text-white/75 font-medium hover:bg-white/10 hover:text-white")}>
+                    <Icon size={17} strokeWidth={a ? 2.1 : 1.8} className="flex-none" />
                     {!rail ? <span className="flex-1 truncate">{d[n.id]}</span> : <span className="text-[10px] leading-none whitespace-nowrap">{t(n.abbr)}</span>}
                     {!rail && b && b[0] ? <span className="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold flex items-center justify-center tnum" style={{ background: BADGE[b[1]][0], color: BADGE[b[1]][1] }}>{b[0]}</span> : null}
                   </Link>
@@ -181,11 +181,11 @@ function ShellInner(p: ShellProps) {
           })}
         </nav>
         {!rail ? (
-          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title={p.strict ? t("Strict mode on: your live database runs on infrastructure you control. Medoro only holds licence data.") : t("Strict mode is off. Open Privacy to see what leaves your server.")} className="mx-2.5 mb-2 mt-1 flex items-center gap-2 h-9 px-2.5 rounded-lg bg-[#F3F5F5] text-[12px] text-ink-2 no-underline transition-colors hover:bg-[#EAEEEE] hover:text-ink-strong">
-            <ShieldCheck size={14} style={{ color: p.strict ? "#18794E" : "#94570A" }} /><span className="truncate">{p.strict ? t("Strict mode on · data stays with you") : t("Strict mode off · see Privacy")}</span>
+          <Link href={p.perms.includes("users") ? "/app/privacy" : "/app/sync"} title={p.strict ? t("Strict mode on: your live database runs on infrastructure you control. Medoro only holds licence data.") : t("Strict mode is off. Open Privacy to see what leaves your server.")} className="mx-2.5 mb-2 mt-1 flex items-center gap-2 h-9 px-2.5 rounded-xl bg-white/10 border border-white/15 text-[12px] text-white/85 no-underline transition-colors hover:bg-white/[.14] hover:text-white">
+            <ShieldCheck size={14} style={{ color: p.strict ? "#5EEAD4" : "#FCD34D" }} /><span className="truncate">{p.strict ? t("Strict mode on · data stays with you") : t("Strict mode off · see Privacy")}</span>
           </Link>
         ) : null}
-        <div className="relative border-t border-line-soft px-2.5 py-2 flex-none">
+        <div className="relative border-t border-white/10 px-2.5 py-2 flex-none">
           {menu ? (
             <>
               <div className="fixed inset-0 z-[70]" onClick={() => setMenu(false)} />
@@ -215,12 +215,12 @@ function ShellInner(p: ShellProps) {
               </div>
             </>
           ) : null}
-          <button onClick={() => setMenu((x) => !x)} title={t("Account menu")} className={cn("flex items-center gap-[10px] p-1.5 w-full rounded-lg cursor-pointer text-left transition-colors hover:bg-hover", menu && "bg-hover")}>
-            <Avatar initials={initials} size={28} />
+          <button onClick={() => setMenu((x) => !x)} title={t("Account menu")} className={cn("flex items-center gap-[10px] p-1.5 w-full rounded-lg cursor-pointer text-left transition-colors hover:bg-white/10", menu && "bg-white/10")}>
+            <Avatar initials={initials} size={28} ring="#0B5E5B" />
             {!rail ? (
               <>
-                <div className="flex flex-col min-w-0 flex-1 leading-tight"><div className="text-[13px] font-semibold truncate text-ink-strong">{p.userName}</div><div className="text-[11.5px] text-faint">{t(p.role)} · {p.branchName}</div></div>
-                <Ellipsis size={16} className="text-fainter" />
+                <div className="flex flex-col min-w-0 flex-1 leading-tight"><div className="text-[13px] font-semibold truncate text-white">{p.userName}</div><div className="text-[11.5px] text-white/60">{t(p.role)} · {p.branchName}</div></div>
+                <Ellipsis size={16} className="text-white/60" />
               </>
             ) : null}
           </button>
@@ -309,10 +309,10 @@ function ShellInner(p: ShellProps) {
   );
 }
 
-function Avatar({ initials, size }: { initials: string; size: number }) {
+function Avatar({ initials, size, ring = "#FFFFFF" }: { initials: string; size: number; ring?: string }) {
   return (
     <div className="relative rounded-full text-white flex items-center justify-center font-semibold flex-none" style={{ width: size, height: size, fontSize: size * 0.4, background: "linear-gradient(135deg,#2459C9,#0A9A80)" }}>
-      {initials}<span className="absolute -right-px -bottom-px size-[9px] rounded-full bg-[#22A06B] border-2 border-side" />
+      {initials}<span className="absolute -right-px -bottom-px size-[9px] rounded-full bg-[#22A06B] border-2" style={{ borderColor: ring }} />
     </div>
   );
 }
