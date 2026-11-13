@@ -10,7 +10,7 @@ import { monthLabel, type Settings } from "./constants";
 import { postSalaryJournal } from "./finance";
 import { openBankAccount } from "./people";
 import { AFTER_LEAVING, BEFORE_JOINING, addMonths, closeExits, holidays, leaveBalances, rangeFor, weekend } from "./time";
-import { cycleWindow } from "./cycles";
+import { cycleWindow, payOnWorkingDay } from "./cycles";
 import { namesMatch } from "./digilocker";
 
 const ymRe = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Pick a month.");
@@ -130,6 +130,8 @@ export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; l
   const incCache = new Map<string, Awaited<ReturnType<typeof incentivesBetween>>>();
   const holCache = new Map<string, Set<string>>();
   const holidaysIn = async (from: string, to: string) => { const k = from + "|" + to; if (!holCache.has(k)) holCache.set(k, new Set((await holidays(from, to)).map((h) => h.day))); return holCache.get(k)!; };
+  /** The due date moved back to a working day: salary is not paid on a weekly off or a holiday. */
+  const payOn = async (due: string) => { const hol = await holidaysIn(addDays(due, -14), due); return payOnWorkingDay(due, (d) => weekend(d, s.weekOff) || hol.has(d)); };
   const lines: Line[] = [];
   for (const u of staff) {
     const have = saved.find((p) => p.staffId === u.id);
@@ -139,7 +141,7 @@ export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; l
     const base = { staffId: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", hasBank: !!u.hr?.bankLast4, final: exitDay && exitDay >= win.from && exitDay <= win.to ? exitDay : null, cycleDay, bankIssue: bank.issue, canConfirmBank: bank.fixable };
     if (have) {
       const from = have.periodFrom ? isoOf(have.periodFrom) : win.from, to = have.periodTo ? isoOf(have.periodTo) : win.to;
-      lines.push({ ...base, ...slipOf(have), status: "paid", paidOn: have.paidOn ? isoOf(have.paidOn) : null, from, to, payDate: have.payDate ? isoOf(have.payDate) : win.payDate, ready: false, opens: "", bankIssue: "", canConfirmBank: false });
+      lines.push({ ...base, ...slipOf(have), status: "paid", paidOn: have.paidOn ? isoOf(have.paidOn) : null, from, to, payDate: have.payDate ? isoOf(have.payDate) : await payOn(win.payDate), ready: false, opens: "", bankIssue: "", canConfirmBank: false });
       continue;
     }
     if (!u.hr || u.hr.ctc <= 0) continue;
@@ -162,7 +164,7 @@ export async function payrollFor(me: Me, ymRaw: string): Promise<{ ym: string; l
     let opens = end;
     while (opens > win.from && (weekend(opens, s.weekOff) || hol.has(opens))) opens = addDays(opens, -1);
     lines.push({ ...base, ...computeSlip(u.hr.ctc, { workDays, lopDays: m.counts.absent + m.counts.unpaid + before, incentive: incCache.get(ik)!.get(u.id)?.incentive ?? 0, reimburse, ptax: s.ptax, encash: fnf?.encash, gratuity: fnf?.gratuity, ...taxOf(u.hr) }),
-      status: "draft", paidOn: null, from: win.from, to: win.to, payDate: win.payDate, ready: today >= opens && bank.ok, opens });
+      status: "draft", paidOn: null, from: win.from, to: win.to, payDate: await payOn(win.payDate), ready: today >= opens && bank.ok, opens });
   }
   const drafts = lines.filter((l) => l.status === "draft");
   const ready = drafts.filter((l) => l.ready), stillOpen = drafts.filter((l) => today < l.opens);

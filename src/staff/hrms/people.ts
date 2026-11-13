@@ -16,7 +16,7 @@ import { stateName } from "./states";
 import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, notify, roleOf, type Me } from "./auth";
 import { closeIdle } from "./monitor";
 import { kycLabel } from "./kyc";
-import { cycleDayOf, firstSalary } from "./cycles";
+import { cycleDayOf, firstSalary, payOnWorkingDay } from "./cycles";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
@@ -142,7 +142,10 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
     mailed = await sendMail({ to: i.personalEmail, ...welcomeMail({ name: i.name, empNo, email, temp, org: (await loadSettings()).company.name || "Medoro" }) })
       .then(() => true).catch((e) => { log.error("welcome mail failed", { err: e }); return false; });
   }
-  return { id: u.id, empNo, email, temp, mailed, firstSalary: firstSalary(i.joinDate).payDate };
+  const due = firstSalary(i.joinDate).payDate, set = await loadSettings();
+  const hol = new Set((await db.hrHoliday.findMany({ where: { day: { gte: dateOnly(addDays(due, -14)), lte: dateOnly(due) } } })).map((h) => isoOf(h.day)));
+  const off = (d: string) => set.weekOff.includes(dateOnly(d).getUTCDay()) || hol.has(d);
+  return { id: u.id, empNo, email, temp, mailed, firstSalary: payOnWorkingDay(due, off) };
 }
 
 export const editEmployeeSchema = newEmployeeSchema.omit({ personalEmail: true, phone: true, joinDate: true, name: true }).extend({

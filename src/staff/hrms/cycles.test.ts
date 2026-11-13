@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonthsYm, cycleDayOf, cycleWindow, daysIn, firstSalary } from "./cycles";
+import { addMonthsYm, cycleDayOf, cycleWindow, daysIn, firstSalary, payOnWorkingDay } from "./cycles";
 
 describe("pay cycles", () => {
   it("joined 13 Nov: the first cycle is 13 Nov to 12 Dec, paid on 13 Dec, then every 13th", () => {
@@ -29,5 +29,12 @@ describe("pay cycles", () => {
   });
   it("joining on the 1st is paid on the 1st of the next month, for the month just worked", () => {
     expect(firstSalary("2026-11-01")).toEqual({ ym: "2026-12", from: "2026-11-01", to: "2026-11-30", payDate: "2026-12-01" });
+  });
+
+  it("a pay date on a day off moves back to the working day before it", () => {
+    const off = (d: string) => ["2026-12-12", "2026-12-13"].includes(d); // a weekend
+    expect(payOnWorkingDay("2026-12-13", off)).toBe("2026-12-11");
+    expect(payOnWorkingDay("2026-12-14", off)).toBe("2026-12-14");
+    expect(payOnWorkingDay("2026-12-13", (d) => d === "2026-12-13" || d === "2026-12-12" || d === "2026-12-11")).toBe("2026-12-10");
   });
 });

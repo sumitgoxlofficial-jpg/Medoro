@@ -22,3 +22,10 @@ export function firstSalary(joinDate: string) {
   const anchor = cycleDayOf(joinDate), ym = addMonthsYm(joinDate.slice(0, 7), 1);
   return { ym, ...cycleWindow(anchor, ym) };
 }
+
+/** The day the salary is really paid: the due date, or the working day before it when that is a weekly off or a holiday. */
+export function payOnWorkingDay(due: string, isOff: (day: string) => boolean): string {
+  let d = due;
+  for (let i = 0; i < 14 && isOff(d); i++) d = addDays(d, -1);
+  return d;
+}
