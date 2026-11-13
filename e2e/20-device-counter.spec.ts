@@ -18,6 +18,7 @@ test("device counter: stock in, customers, credit, return, day-end, then offline
 
   // Stock in: a supplier bill adds 5 packs + 1 free. (Billing has no tab row when signed in.)
   await openTab(page, "Purchases");
+  await page.getByText("Type the bill", { exact: true }).click(); // Purchases opens on the bill-file upload
   await page.getByLabel("New supplier").fill("Bokaro Agency");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByLabel("Bill number").fill(`SB-${uid()}`);

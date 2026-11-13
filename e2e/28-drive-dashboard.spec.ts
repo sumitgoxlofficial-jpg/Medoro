@@ -35,9 +35,10 @@ test("a Drive pharmacy's Dashboard and sidebar work from the counter's data", as
     await dash.getByRole("button", { name: "7D" }).click();
     await expect(dash).toContainText(/Sales\b/);
 
-    // The sidebar opens counter tabs, and screens with no counter tab are left out.
+    // The sidebar opens counter tabs (Cheques is one now).
     const nav = page.locator("nav");
-    await expect(nav.getByRole("link", { name: "Cheques" })).toHaveCount(0);
+    await nav.getByRole("link", { name: "Cheques" }).click();
+    await expect(page.getByRole("tab", { name: "Cheques", selected: true })).toBeVisible();
     await nav.getByRole("link", { name: "Inventory" }).click();
     await expect(page).toHaveURL(/tab=stock/);
     await expect(page.getByRole("tab", { name: "Stock", selected: true })).toBeVisible();
