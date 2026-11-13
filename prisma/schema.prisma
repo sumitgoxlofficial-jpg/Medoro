@@ -2355,6 +2355,8 @@ model HrProfile {
   location           String    @default("")
   managerId          String?
   joinDate           DateTime? @db.Date
+  payCycleDay        Int       @default(0) // 0 = paid by calendar month; 1-31 = the monthly cycle starts on this day (a new joiner: the joining day)
+  bankConfirmedAt    DateTime? // HR confirmed the saved bank account is theirs although the holder name differs
   aadhaarSealed      Bytes? // the 12-digit number, sealed with HOST_KEY; only the last four digits are ever shown
   aadhaarLast4       String    @default("")
   aadhaarVerifiedAt  DateTime? // matched against the person's own DigiLocker Aadhaar, or checked by HR against the card
@@ -2559,7 +2561,10 @@ model HrSalaryRevision {
 model HrPayslip {
   id        String    @id @default(uuid())
   staffId   String
-  month     String // YYYY-MM
+  month     String // YYYY-MM: the month the salary is paid in
+  periodFrom DateTime? @db.Date // the days it pays for (a payslip from before pay cycles has none: the whole month)
+  periodTo   DateTime? @db.Date
+  payDate    DateTime? @db.Date // the day the salary is due in the bank
   workDays  Int
   lopDays   Float     @default(0)
   basic     Int

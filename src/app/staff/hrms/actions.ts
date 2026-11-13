@@ -98,6 +98,7 @@ export const deleteDepartment = async (id: string) => done(await hrRun((me) => p
 // ── Payroll
 export const processPayroll = async (month: string, lop: Record<string, number>) => done(await hrRun((me) => pay.processPayroll(me, month, lop)));
 export const bankFile = async (month: string) => hrRun((me) => pay.bankFile(me, month));
+export const confirmBank = async (staffId: string) => done(await hrRun((me) => people.confirmBank(me, staffId), "Bank account confirmed."));
 export const payrollReport = async (month: string) => hrRun((me) => pay.payrollReport(me, month));
 export const pfReturn = async (month: string) => hrRun((me) => pay.pfReturn(me, month));
 export const esiReturn = async (month: string) => hrRun((me) => pay.esiReturn(me, month));

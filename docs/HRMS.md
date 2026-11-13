@@ -23,7 +23,7 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 2. First sign-in: set your own password, fill in personal, emergency and bank details (account number and PAN are sealed
    with `HOST_KEY` and shown masked), accept the offer letter, appointment letter and NDA.
 3. Daily: check in/out (late after the time in Settings), breaks, tasks, leave and claims.
-4. Month end: HR or Finance processes **Payroll**; employees get a payslip (printable as PDF).
+4. Pay day: HR or Finance processes **Payroll** once the pay period has ended; employees get a payslip (printable as PDF).
 5. Leaving: HR opens **Record exit** on the employee and enters the last working day. Today or earlier deactivates them at
    once (sessions end immediately). A later day is a notice period: they keep working and are deactivated the day after it
    (the exit can be cancelled until then). That month's payslip is the **final settlement**: pay up to the last day, unused
@@ -113,6 +113,8 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
   into the next year, up to the cap in Settings (default 30 days; 0 switches it off).
 * **Claims.** Employee → HR review → super-admin final sign-off → paid with the next payroll (added to net pay, once).
   Bills are stored through the normal file storage (disk, database or Supabase) and open only for the owner, HR and the super admin.
+* **Pay cycles.** A **new joiner is paid on a monthly cycle that starts on their joining day**: joined 13 Nov 2026, nothing is paid in November, the first salary is paid on **13 Dec 2026** for 13 Nov to 12 Dec, then on the 13th of every month (a day the month doesn't have, like the 31st in November, becomes its last day). HR sees the first salary date when creating the profile. People who were paid by calendar month before this keep it; HR can set a cycle day on *Edit employee* (0 = calendar month) until the person has been paid. A payslip is filed under the month it is **paid** in, and each person's payslip shows its own period and salary date. A period is processed once its last working day has come, and Process payroll pays the people who are ready; the rest stay in the list with the reason.
+* **Salary goes only into the employee's own bank account.** Payroll won't process someone with no bank account and IFSC saved, or whose account holder name isn't theirs (initials count: *A Verma* is *Asha Verma*). For a joint account or a spelling difference, HR can press *It's their account* on the Payroll screen; changing the account, IFSC or holder name removes that confirmation. The bank transfer file lists each person's salary date and period.
 * **Payroll.** Monthly from the annual CTC: basic 50%, HRA 40% of basic, rest special allowance. PF 12% of basic capped at
   ₹15,000, ESI 0.75% when monthly CTC ≤ ₹21,000, professional tax from Settings, TDS estimated on the new tax regime
   (₹75,000 standard deduction, nothing up to ₹12,00,000 taxable with marginal relief, 4% cess), sales incentive from won
