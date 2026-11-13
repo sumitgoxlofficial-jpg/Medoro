@@ -11,7 +11,7 @@ import { localeOf, type Lang } from "@/lib/tr";
 
 type Grant = { id: string; reason: string; minutes: number; createdBy: string; createdAt: string; expiresAt: string; usedAt: string | null; usedIp: string | null; revokedAt: string | null; revokedBy: string | null; active: boolean };
 type Ask = { id: string; by: string; ticket: string | null; requestedAt: string };
-const at = (iso: string, lang: Lang = "en") => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const at = (iso: string, lang: Lang = "en") => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
 /** Lets the owner give Medoro support a single-use, read-only, time-limited login. */
 export function SupportCard({ grants, requests = [] }: { grants: Grant[]; requests?: Ask[] }) {

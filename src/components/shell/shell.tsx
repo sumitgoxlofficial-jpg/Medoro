@@ -323,7 +323,7 @@ function ProfileModal({ open, onClose, name, email, role, initials }: { open: bo
   const [sessions, setSessions] = useState<Awaited<ReturnType<typeof listSessions>>>([]);
   const [, start] = useTransition();
   useEffect(() => { if (open) listSessions().then(setSessions); }, [open]);
-  const fmt = (iso: string) => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const fmt = (iso: string) => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
   return (
     <Modal open={open} onClose={onClose} width={480}
       footer={<><Button onClick={() => start(async () => { await revokeOtherSessions(); setSessions(await listSessions()); toast("All other devices signed out.", "green"); })}>Sign out all other devices</Button><Button variant="primary" onClick={onClose}>Done</Button></>}>
