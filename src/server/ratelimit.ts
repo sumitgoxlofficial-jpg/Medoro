@@ -13,6 +13,8 @@ export const RULES = {
   fullExport: { limit: 3, windowSec: 60 * 60, what: "full data exports" },
   report: { limit: 60, windowSec: 10 * 60, what: "report downloads" },
   backupDownload: { limit: 10, windowSec: 60 * 60, what: "backup downloads" },
+  invoiceDownload: { limit: 60, windowSec: 60 * 60, what: "invoice downloads" },
+  invoiceEmail: { limit: 10, windowSec: 60 * 60, what: "invoice emails" },
   document: { limit: 300, windowSec: 10 * 60, what: "document downloads" },
   otpSend: { limit: 5, windowSec: 15 * 60, what: "sign-in codes requested" },
   forgot: { limit: 5, windowSec: 60 * 60, what: "password reset requests" },
