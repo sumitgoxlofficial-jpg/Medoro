@@ -109,8 +109,8 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 
 /* Device frames */
 .site-browser { background: #fff; border: 1px solid #D5DBDA; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 1px rgba(14,22,20,.04), 0 24px 48px -24px rgba(14,22,20,.28); }
-.site-phone { background: #0E1614; border-radius: 34px; padding: 7px; box-shadow: 0 30px 60px -24px rgba(14,22,20,.45); }
-.site-phone > div { border-radius: 28px; overflow: hidden; background: #fff; }
+.site-phone { background: #0E1614; border-radius: 24px; padding: 5px; box-shadow: 0 30px 60px -24px rgba(14,22,20,.45); }
+.site-phone > div { border-radius: 19px; overflow: hidden; background: #fff; }
 
 /* Load-in for the hero only */
 @keyframes site-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
