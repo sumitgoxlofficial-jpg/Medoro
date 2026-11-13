@@ -87,7 +87,7 @@ async function sell(page: Page, s: Sale, custId: (i: number) => string) {
     if (q > 1) await page.getByLabel("Quantity").last().fill(String(q));
   }
   if (s.c >= 0) await page.locator("#pos-cust").selectOption(custId(s.c));
-  if (s.rx) await page.getByLabel("Prescriber name").fill(s.rx);
+  if (s.rx) await page.getByLabel("Prescriber", { exact: true }).fill(s.rx);
   await page.getByRole("button", { name: s.pay, exact: true }).click();
   if (s.pay === "UPI") await page.getByPlaceholder(/UPI UTR/).fill(`4${Math.floor(Math.random() * 1e11)}`);
   return completeSale(page);
@@ -212,7 +212,7 @@ test("capture marketing screenshots", async ({ page, browser }) => {
   await addToCart(page, "Pan-D");
   await addToCart(page, "Azithral 500");
   await page.locator("#pos-cust").selectOption({ index: 1 });
-  await page.getByLabel("Prescriber name").fill("Dr. S. Mehta");
+  await page.getByLabel("Prescriber", { exact: true }).fill("Dr. S. Mehta");
   await page.getByPlaceholder(/Rx \/ register/).fill("RX-2291");
   await page.getByRole("button", { name: "UPI", exact: true }).click();
   await page.getByLabel("Search medicine").fill("dolo");
