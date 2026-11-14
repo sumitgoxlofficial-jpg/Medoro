@@ -3,8 +3,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { hrSendCode, hrSignIn } from "../hrms/actions";
+import { HR_CARDS, TeamOrbit } from "./art";
 
-const field = "border border-[#CDD2D7] rounded-[10px] px-3.5 py-3 text-[15px] outline-none focus:border-[#0B5E5B] bg-white w-full";
+const field = "border border-[#CDD2D7] rounded-[10px] px-3.5 py-3 text-[15px] outline-none transition-[border-color,box-shadow] duration-300 focus:border-[#0B5E5B] focus:shadow-[0_0_0_4px_rgba(20,184,166,.18)] bg-white w-full";
 
 export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
   const router = useRouter();
@@ -31,22 +32,42 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
     });
   };
   return (
-    <div className="min-h-screen flex max-[860px]:flex-col" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
-      <div className="flex-[1.05] bg-[#0B5E5B] text-white px-12 py-11 flex flex-col max-[860px]:flex-none max-[860px]:px-6 max-[860px]:py-6">
-        <div className="flex items-center gap-3">
+    <div className="hr-motion min-h-screen flex max-[860px]:flex-col" style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+      <div className="relative overflow-hidden flex-[1.05] bg-[#0B5E5B] text-white px-12 py-11 flex flex-col max-[860px]:flex-none max-[860px]:px-6 max-[860px]:py-6">
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="hr-dots absolute inset-0" />
+          <div className="site-blob site-blob-a bg-[#14B8A6]/30" />
+          <div className="site-blob site-blob-b bg-[#F5C451]/15" />
+          <div className="site-blob site-blob-c bg-[#4ADE80]/15" />
+        </div>
+        <div className="relative flex items-center gap-3 hr-up">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/medoro-mark.png" alt="" className="size-11 rounded-[10px] bg-white p-[3px]" />
+          <img src="/medoro-mark.png" alt="" className="hr-breathe size-11 rounded-[10px] bg-white p-[3px]" />
           <div><div className="text-[26px] font-bold tracking-tight leading-none">Medoro</div><div className="text-[10.5px] tracking-[.1em] uppercase text-white/50 mt-1.5">HRMS · Pharmacy software</div></div>
         </div>
-        <div className="my-auto max-w-[420px] max-[860px]:hidden">
-          <div className="text-[11px] font-bold text-[#14B8A6] uppercase tracking-[.08em]">Medoro team workspace</div>
-          <h1 className="text-[34px] leading-[1.15] font-bold mt-2 text-[#D6F3EF]">Built for how Indian pharmacies work.</h1>
-          <p className="text-white/65 mt-3 text-[15px]">Attendance, leave, payslips, tasks and leads for everyone at Medoro, in one place.</p>
+        <div className="relative my-auto grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-center gap-6 max-[1439px]:grid-cols-1 max-[1439px]:gap-2 max-[860px]:hidden">
+          <div className="max-w-[420px]">
+            <div className="hr-up text-[11px] font-bold text-[#14B8A6] uppercase tracking-[.08em] [--d:1]">Medoro team workspace</div>
+            <h1 className="hr-up text-[34px] leading-[1.15] font-bold mt-2 [--d:2]"><span className="hr-shine">Built for how Indian pharmacies work.</span></h1>
+            <p className="hr-up text-white/65 mt-3 text-[15px] [--d:3]">Attendance, leave, payslips, tasks and leads for everyone at Medoro, in one place.</p>
+          </div>
+          <div aria-hidden className="relative hr-up [--d:3] max-w-[460px] max-[1439px]:max-w-[340px] max-[1439px]:justify-self-start max-[1439px]:ml-6 w-full justify-self-center">
+            <TeamOrbit className="w-full h-auto" />
+            {HR_CARDS.map(([icon, text, bg, pos], i) => (
+              <div key={text} style={{ ["--d" as string]: i }} className={`hr-card absolute ${pos} flex items-center gap-2 rounded-xl bg-white text-[#0f172a] shadow-[0_14px_30px_-12px_rgba(0,0,0,.45)] px-3 py-2 text-[12.5px] font-semibold whitespace-nowrap`}>
+                <span className="size-7 rounded-lg flex items-center justify-center text-[14px]" style={{ background: bg }}>{icon}</span>{text}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="flex-1 bg-[#F8FAFC] flex items-center justify-center px-6 py-10">
-        <form onSubmit={submit} className="w-full max-w-[380px] flex flex-col gap-4">
-          <div><h2 className="text-[24px] font-bold text-[#0f172a]">Welcome to Medoro HRMS</h2><p className="text-[14px] text-[#475569] mt-1">Sign in with your employee ID or official email.</p></div>
+      <div className="relative overflow-hidden flex-1 bg-[#F8FAFC] flex items-center justify-center px-6 py-10">
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="site-blob site-blob-b bg-[#14B8A6]/10" />
+          <div className="site-blob site-blob-c bg-[#F5C451]/12" />
+        </div>
+        <form onSubmit={submit} className="hr-form relative w-full max-w-[380px] flex flex-col gap-4">
+          <div><h2 className="text-[24px] font-bold text-[#0f172a]">Welcome to Medoro HRMS <span aria-hidden className="hr-wave inline-block">👋</span></h2><p className="text-[14px] text-[#475569] mt-1">Sign in with your employee ID or official email.</p></div>
           <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Employee ID or official email
             <input className={field} value={id} onChange={(e) => setId(e.target.value)} placeholder="MS-004 or name@medoro.in" autoComplete="username" autoFocus required disabled={totp} />
           </label>
@@ -60,7 +81,7 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
           ) : null}
           {err ? <div role="alert" className="text-[13.5px] text-[#B3261E] bg-[#FDECEA] rounded-lg px-3 py-2">{err}</div> : null}
           {info ? <div className="text-[13.5px] text-[#0B5E5B] bg-[#E1F1EF] rounded-lg px-3 py-2">{info}</div> : null}
-          <button disabled={busy} className="bg-[#0B5E5B] text-white rounded-[10px] py-3 font-semibold text-[15px] cursor-pointer hover:bg-[#094A48] disabled:opacity-60">{busy ? "Signing in…" : "Sign in"}</button>
+          <button disabled={busy} className="hr-btn relative overflow-hidden bg-[#0B5E5B] text-white rounded-[10px] py-3 font-semibold text-[15px] cursor-pointer transition-[background-color,transform,box-shadow] duration-300 hover:bg-[#094A48] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-12px_rgba(11,94,91,.7)] disabled:opacity-60">{busy ? "Signing in…" : "Sign in"}</button>
           <div className="flex justify-between text-[13px]">
             <button type="button" onClick={forgot} disabled={busy || !id.trim()} className="text-[#0B5E5B] font-semibold cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0">Forgot password?</button>
             <Link href="/" className="text-[#475569]">← medoro website</Link>
