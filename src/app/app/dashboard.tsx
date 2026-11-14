@@ -15,7 +15,7 @@ import type { Dict } from "@/lib/i18n";
 import type { DashboardData, Range } from "@/domain/reports/dashboard";
 import { dashboardAccess } from "@/domain/reports/dashboard-access";
 import { useT } from "@/lib/i18n-client";
-import { WelcomeBanner } from "@/components/welcome-banner";
+import { CountUp, WelcomeBanner } from "@/components/welcome-banner";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col";
 const rangeLabel = { today: "today", "7d": "last 7 days", "30d": "last 30 days" };
@@ -65,12 +65,12 @@ export function Dashboard({ data, dict: d, perms, userName = "", branch = "" }: 
   const marginDelta = k.margin != null && k.margin7 != null ? delta(k.margin - k.margin7, " pts", true) : null;
   const { fin, pay, activity: showActivity } = dashboardAccess(perms);
   const kpis = [
-    { label: data.range === "today" ? d.sales : t("Sales, {range}", { range: t(rangeLabel[data.range]) }), value: inr0(k.sales), Icon: IndianRupee, ibg: "#E1F1EF", ifg: "#0B5E5B", d: salesDelta, sub: t(salesDelta ? (k.bills === 1 ? "vs previous · {n} bill" : "vs previous · {n} bills") : k.bills === 1 ? "{n} bill" : "{n} bills", { n: k.bills }) },
+    { label: data.range === "today" ? d.sales : t("Sales, {range}", { range: t(rangeLabel[data.range]) }), value: inr0(k.sales), paise: k.sales as number | undefined, Icon: IndianRupee, ibg: "#E1F1EF", ifg: "#0B5E5B", d: salesDelta, sub: t(salesDelta ? (k.bills === 1 ? "vs previous · {n} bill" : "vs previous · {n} bills") : k.bills === 1 ? "{n} bill" : "{n} bills", { n: k.bills }) },
     { label: d.margin, value: k.margin == null ? "—" : k.margin.toFixed(1) + "%", Icon: Percent, ibg: "#EAF0FC", ifg: "#2459C9", d: marginDelta, sub: marginDelta ? t("vs 7-day average") : k.margin == null ? t("No sales yet") : t("On sales so far") },
-    { label: d.purch, value: inr0(k.purchases), Icon: Truck, ibg: "#F1EEFB", ifg: "#5B45B0", d: null, sub: t(k.grnCount === 1 ? "{n} GRN posted" : "{n} GRNs posted", { n: k.grnCount }) },
-    { label: d.expn, value: inr0(k.expenses), Icon: Receipt, ibg: "#F2F4F5", ifg: "#4B535B", d: null, sub: t(k.expenseCount === 1 ? "{n} payment voucher" : "{n} payment vouchers", { n: k.expenseCount }) },
-    { label: d.cdue, value: inr0(k.receivable), Icon: Users, ibg: "#FDF2E1", ifg: "#94570A", d: null, sub: t(k.onCredit === 1 ? "{n} customer on credit" : "{n} customers on credit", { n: k.onCredit }) },
-    { label: d.sdue, value: inr0(k.payable), Icon: CalendarClock, ibg: "#FDECEC", ifg: "#C0362C", d: null, sub: t("{amount} due in 7 days", { amount: inr0(k.dueWeek) }), subRed: k.dueWeek > 0 },
+    { label: d.purch, value: inr0(k.purchases), paise: k.purchases, Icon: Truck, ibg: "#F1EEFB", ifg: "#5B45B0", d: null, sub: t(k.grnCount === 1 ? "{n} GRN posted" : "{n} GRNs posted", { n: k.grnCount }) },
+    { label: d.expn, value: inr0(k.expenses), paise: k.expenses, Icon: Receipt, ibg: "#F2F4F5", ifg: "#4B535B", d: null, sub: t(k.expenseCount === 1 ? "{n} payment voucher" : "{n} payment vouchers", { n: k.expenseCount }) },
+    { label: d.cdue, value: inr0(k.receivable), paise: k.receivable, Icon: Users, ibg: "#FDF2E1", ifg: "#94570A", d: null, sub: t(k.onCredit === 1 ? "{n} customer on credit" : "{n} customers on credit", { n: k.onCredit }) },
+    { label: d.sdue, value: inr0(k.payable), paise: k.payable, Icon: CalendarClock, ibg: "#FDECEC", ifg: "#C0362C", d: null, sub: t("{amount} due in 7 days", { amount: inr0(k.dueWeek) }), subRed: k.dueWeek > 0 },
   ].filter((x) => x.label === d.cdue ? pay : x.Icon === IndianRupee || fin);
   const mx = Math.max(1, ...data.history.map((h) => h.total));
   const payTotal = data.pay.cash + data.pay.upi + data.pay.card + data.pay.credit;
@@ -84,13 +84,14 @@ export function Dashboard({ data, dict: d, perms, userName = "", branch = "" }: 
 
       <div className={"grid bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-hidden " + (kpis.length > 2 ? "grid-cols-2 md:grid-cols-3 2xl:grid-cols-6" : "grid-cols-1 sm:grid-cols-2 max-w-[640px]")}>
         {kpis.map((x, i) => (
-          <div key={x.label} style={{ ["--d" as string]: i }} className="app-up app-tile px-[18px] pt-4 pb-[15px] flex flex-col gap-2.5 border-r border-b border-line-soft -mr-px -mb-px min-w-0">
-            <div className="flex items-center gap-2">
+          <div key={x.label} style={{ ["--d" as string]: i, ["--accent" as string]: x.ifg }} className="app-up app-tile app-kpi relative overflow-hidden px-[18px] pt-4 pb-[15px] flex flex-col gap-2.5 border-r border-b border-line-soft -mr-px -mb-px min-w-0">
+            <x.Icon aria-hidden size={64} strokeWidth={1.4} className="app-drift pointer-events-none absolute -right-2 -bottom-3 opacity-[.07]" style={{ color: x.ifg, ["--dur" as string]: `${11 + (i % 3) * 2}s` }} />
+            <div className="relative flex items-center gap-2">
               <span className="app-ico size-[26px] rounded-[7px] flex items-center justify-center flex-none" style={{ background: x.ibg, color: x.ifg }}><x.Icon size={14} /></span>
               <span className="flex-1 min-w-0 text-[12.5px] text-muted font-medium leading-tight">{x.label}</span>
             </div>
-            <div className="text-[24px] font-semibold tracking-[-.02em] leading-[1.1] tnum text-ink-strong">{x.value}</div>
-            <div className="flex items-center gap-1.5 min-h-5 flex-wrap">
+            <div className="relative text-[24px] font-semibold tracking-[-.02em] leading-[1.1] tnum text-ink-strong">{"paise" in x && x.paise !== undefined ? <CountUp value={x.paise} format={inr0} /> : x.value}</div>
+            <div className="relative flex items-center gap-1.5 min-h-5 flex-wrap">
               {x.d ? <span className="inline-flex items-center gap-[3px] h-5 px-1.5 rounded-[5px] text-[11.5px] font-semibold tnum" style={{ background: x.d.bg, color: x.d.fg }}><x.d.Icon size={12} />{x.d.text}</span> : null}
               <span className="text-[12px] line-clamp-2 min-w-0" style={{ color: x.subRed ? "#C0362C" : "#6B737B" }}>{x.sub}</span>
             </div>

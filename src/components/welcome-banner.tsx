@@ -62,3 +62,16 @@ export function DashBackdrop() {
     </div>
   );
 }
+
+/** Counts a rupee amount up from zero when it first shows (instantly with reduced motion). */
+export function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
+  const [shown, setShown] = useState(value);
+  useEffect(() => {
+    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches || !value) { setShown(value); return; }
+    let raf = 0; const t0 = performance.now(), dur = 900;
+    const step = (t: number) => { const p = Math.min(1, (t - t0) / dur); setShown(Math.round(value * (1 - Math.pow(1 - p, 3)))); if (p < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <>{format(shown)}</>;
+}
