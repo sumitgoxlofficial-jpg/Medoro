@@ -106,3 +106,23 @@ export function ReferralArt({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** Faint work icons (calendar, clock, briefcase, ₹, check, plus) drifting around a sign-in form. */
+export function SideIcons() {
+  const s = { fill: "none", stroke: "#14B8A6", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const icons: [string, React.ReactNode][] = [
+    ["left-[7%] top-[12%] [--dur:9s]", <svg key="cal" viewBox="0 0 24 24" className="size-10" {...s}><rect x="3" y="4" width="18" height="18" rx="3" /><path d="M8 2v4M16 2v4M3 10h18M8 15h2M14 15h2" /></svg>],
+    ["right-[8%] top-[9%] [--dur:11s]", <svg key="clk" viewBox="0 0 24 24" className="size-11" {...s}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>],
+    ["left-[10%] bottom-[14%] [--dur:10s]", <svg key="brief" viewBox="0 0 24 24" className="size-10" {...s}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18" /></svg>],
+    ["right-[9%] bottom-[12%] [--dur:8.5s]", <svg key="rupee" viewBox="0 0 24 24" className="size-11" {...s} stroke="#E0A82E"><circle cx="12" cy="12" r="9" /><path d="M9 8h6M9 11h6M13 8c2 0 2 3 0 3h-4l4 5" /></svg>],
+    ["right-[16%] top-[46%] [--dur:12s] max-[1200px]:hidden", <svg key="chk" viewBox="0 0 24 24" className="size-8" {...s}><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" /></svg>],
+    ["left-[14%] top-[44%] [--dur:10.5s] max-[1200px]:hidden", <svg key="plus" viewBox="0 0 24 24" className="size-8" {...s} stroke="#F28B82"><path d="M12 5v14M5 12h14" /></svg>],
+  ];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 max-[640px]:hidden">
+      <div className="hr-corner absolute left-0 top-0 size-48" />
+      <div className="hr-corner absolute right-0 bottom-0 size-56 rotate-180" />
+      {icons.map(([pos, svg], i) => <div key={i} className={`hr-drift absolute opacity-40 ${pos}`} style={{ animationDelay: `${-i * 1.4}s` }}>{svg}</div>)}
+    </div>
+  );
+}

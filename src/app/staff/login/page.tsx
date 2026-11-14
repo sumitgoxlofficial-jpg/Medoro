@@ -8,7 +8,7 @@ import { googleLoginConfigured, readPendingPartner } from "@/server/google-oidc"
 import { mailEnabled } from "@/server/mail";
 import { StaffLogin } from "./form";
 
-export const metadata: Metadata = { title: "Medoro staff sign in" };
+export const metadata: Metadata = { title: "Medoro partner sign in" };
 export const dynamic = "force-dynamic";
 
 const GOOGLE_MSG: Record<string, string> = {
