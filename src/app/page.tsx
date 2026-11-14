@@ -12,6 +12,7 @@ import { getLang } from "@/server/lang";
 import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
 import { MotivationArt } from "@/components/site/motivation-art";
+import { MotivationStrip } from "@/components/site/motivation-strip";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
 const TITLE = "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores";
@@ -176,6 +177,8 @@ export default async function Home() {
           </div>
         </section>
 
+        <MotivationStrip art="sunrise" line={t("Every great pharmacy began with one counter and one early morning.")} sub={t("Open the shutter with confidence. Today is a good day to grow.")} />
+
         <section aria-labelledby="leaks-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
           <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
             <span className={eyebrow}>{t("Why owners switch")}</span>
@@ -194,6 +197,8 @@ export default async function Home() {
             ))}
           </ol>
         </section>
+
+        <MotivationStrip art="plant" line={t("Small savings grow, just like your store.")} sub={t("One expiry caught, one bill faster, one month calmer. It all adds up.")} flip />
 
         <section aria-labelledby="keys-title" className="site-dark bg-[var(--s-dark)] text-white">
           <div className={`${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
@@ -251,6 +256,8 @@ export default async function Home() {
             </dl>
           </div>
         </section>
+
+        <MotivationStrip art="rocket" line={t("Your counter can be the fastest in town.")} sub={t("Customers remember the shop that never kept them waiting.")} />
 
         <section aria-labelledby="compare-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
@@ -315,6 +322,8 @@ export default async function Home() {
           </div>
         </section>
 
+        <MotivationStrip art="steps" line={t("Big changes start with one small step.")} sub={t("Switching takes an afternoon. The benefits last for years.")} flip />
+
         <section id="security" aria-labelledby="security-title" className="site-dark bg-[var(--s-dark)] text-white">
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-16`}>
             <div className="grid grid-cols-12 gap-x-6 gap-y-12 items-center">
@@ -375,6 +384,8 @@ export default async function Home() {
           <Pricing />
           <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">{t("Launch prices in Indian rupees. No GST is charged. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.")}</p>
         </section>
+
+        <MotivationStrip art="trophy" line={t("You care for your patients. Medoro cares for your business.")} sub={t("Every day you show up, your town is healthier. Keep going.")} />
 
         <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>

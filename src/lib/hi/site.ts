@@ -413,4 +413,16 @@ export const hi: Record<string, string> = {
   "Faster evening rush": "शाम की भीड़ में तेज़ बिलिंग",
   "Calmer month-ends": "आसान महीने का अंत",
   "More time for patients": "मरीज़ों के लिए ज़्यादा समय",
+
+  // Motivation strips between homepage sections
+  "Every great pharmacy began with one counter and one early morning.": "हर बड़ी फ़ार्मेसी की शुरुआत एक काउंटर और एक सुबह से हुई थी।",
+  "Open the shutter with confidence. Today is a good day to grow.": "भरोसे के साथ शटर खोलिए। आज आगे बढ़ने का अच्छा दिन है।",
+  "Small savings grow, just like your store.": "छोटी बचत बढ़ती है, बिल्कुल आपके स्टोर की तरह।",
+  "One expiry caught, one bill faster, one month calmer. It all adds up.": "एक एक्सपायरी पकड़ी, एक बिल तेज़, एक महीना आसान। सब मिलकर बड़ा फ़र्क़ बनता है।",
+  "Your counter can be the fastest in town.": "आपका काउंटर शहर में सबसे तेज़ हो सकता है।",
+  "Customers remember the shop that never kept them waiting.": "ग्राहक उस दुकान को याद रखते हैं जहाँ कभी इंतज़ार नहीं करना पड़ा।",
+  "Big changes start with one small step.": "बड़े बदलाव एक छोटे क़दम से शुरू होते हैं।",
+  "Switching takes an afternoon. The benefits last for years.": "बदलने में बस एक दोपहर लगती है। फ़ायदा सालों तक मिलता है।",
+  "You care for your patients. Medoro cares for your business.": "आप मरीज़ों का ख़याल रखते हैं। Medoro आपके कारोबार का।",
+  "Every day you show up, your town is healthier. Keep going.": "आप रोज़ आते हैं, तो आपका शहर ज़्यादा स्वस्थ रहता है। आगे बढ़ते रहिए।",
 };
