@@ -242,3 +242,14 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 @keyframes site-pan { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 .site-pan { background: linear-gradient(120deg, #0B5E5B, #0E7C77, #084744, #14B8A6, #0B5E5B); background-size: 300% 300%; animation: site-pan 14s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .site-progress { display: none; } }
+/* Header: animated underline and icon nudge on the links, a pulsing logo mark, and a light sweep across the CTA. */
+.site-nav::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #14B8A6, #0B5E5B); transform: scaleX(0); transition: transform .3s var(--s-ease); }
+.site-nav:hover::after { transform: scaleX(1); }
+.site-nav-ico { transition: transform .35s var(--s-ease); }
+.group:hover .site-nav-ico { transform: translateY(-2px) rotate(-8deg) scale(1.15); }
+@keyframes site-logo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.site-logo img { animation: site-logo 3.5s ease-in-out infinite; transform-origin: center; }
+@keyframes site-sweep { 0%, 70% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(260%) skewX(-20deg); } }
+.site-cta::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: site-sweep 4.5s ease-in-out infinite; pointer-events: none; }
+@keyframes site-sparkle { 0%, 100% { transform: rotate(0) scale(1); } 50% { transform: rotate(18deg) scale(1.2); } }
+.site-sparkle { animation: site-sparkle 2.4s ease-in-out infinite; }
