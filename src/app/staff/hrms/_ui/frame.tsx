@@ -13,6 +13,8 @@ import { KycStep } from "./kyc";
 import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { ChatNotifier } from "./chat-notify";
 import { Screen } from "./screens";
+import { Check, FileSignature, KeyRound, ShieldCheck, UserRound } from "lucide-react";
+import { IdBadge, SideIcons } from "../../employee/art";
 
 const ICONS: Record<string, string> = {
   home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
@@ -167,14 +169,45 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
   const [agree, setAgree] = useState([false, false, false]);
   const docs: [LetterType, string][] = JOINING_LETTERS.map((t) => [t, letterLabel(t)]);
   const v = useLetterView();
+  const icons = [KeyRound, UserRound, ShieldCheck, FileSignature];
+  const StepIcon = icons[at];
+  const cheer = ["Let’s start with a password only you know.", "Nice. Now a few details for HR and your salary.", "Halfway there. A quick identity check.", "Last step. Read and accept, and you’re in."][at];
   return (
-    <div className="max-w-[760px] mx-auto px-4 py-10 flex flex-col gap-5">
-      <div className="flex items-center gap-3">
+    <div className="hr-motion relative min-h-screen overflow-hidden bg-[#F8FAFC]">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="site-blob site-blob-a bg-[#14B8A6]/12" />
+        <div className="site-blob site-blob-b bg-[#F5C451]/12" />
+        <div className="site-blob site-blob-c bg-[#8FD3C6]/20" />
+      </div>
+      <SideIcons />
+    <div className="relative max-w-[760px] mx-auto px-4 py-10 flex flex-col gap-5">
+      <div className="hr-up flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/medoro-mark.png" alt="" className="size-10 rounded-lg" /><div><h1 className="text-[22px] font-bold">Welcome to Medoro, {sh.me.first}</h1><p className="text-[13px] text-[#64748B]">{sh.me.empNo} · four quick steps before you start.</p></div>
+        <img src="/medoro-mark.png" alt="" className="hr-breathe size-10 rounded-lg" /><div><h1 className="text-[22px] font-bold">Welcome to Medoro, {sh.me.first} <span aria-hidden className="hr-wave inline-block">👋</span></h1><p className="text-[13px] text-[#64748B]">{sh.me.empNo} · four quick steps before you start.</p></div>
         <button onClick={() => void hrSignOut()} className={cx(btnCls, "ml-auto")}>Sign out</button>
       </div>
-      <ol className="flex gap-2 flex-wrap">{steps.map((s, i) => <li key={s} className={cx("rounded-full px-3 py-1 text-[12.5px] font-semibold", i < at ? "bg-[#D6F3EF] text-[#0B5E5B]" : i === at ? "bg-[#0B5E5B] text-white" : "bg-[#E2E8F0] text-[#64748B]")}>{i + 1}. {s}</li>)}</ol>
+      {/* Stepper: done steps get a tick, the current one pulses, the line fills as you go. */}
+      <ol aria-label={`Step ${at + 1} of ${steps.length}`} className="hr-up [--d:1] relative m-0 p-0 list-none grid grid-cols-4 gap-2">
+        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[19px] h-[3px] rounded-full bg-[#E2E8F0]" />
+        <span aria-hidden className="hr-fill absolute left-[12.5%] top-[19px] h-[3px] rounded-full bg-gradient-to-r from-[#14B8A6] to-[#0B5E5B]" style={{ width: `${(at / (steps.length - 1)) * 75}%` }} />
+        {steps.map((s, i) => {
+          const Icon = icons[i];
+          return (
+            <li key={s} aria-current={i === at ? "step" : undefined} className="relative flex flex-col items-center gap-1.5 text-center">
+              <span className={cx("size-10 rounded-full flex items-center justify-center border-2 transition-colors", i < at ? "bg-[#0B5E5B] border-[#0B5E5B] text-white" : i === at ? "hr-current bg-white border-[#0B5E5B] text-[#0B5E5B]" : "bg-white border-[#E2E8F0] text-[#94A3B8]")}>
+                {i < at ? <Check size={18} strokeWidth={3} aria-hidden /> : <Icon size={18} aria-hidden />}
+              </span>
+              <span className={cx("text-[12.5px] font-semibold leading-tight", i <= at ? "text-[#0B5E5B]" : "text-[#64748B]")}>{s}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <div key={gate} className="hr-up [--d:2] flex items-center gap-3 rounded-xl bg-gradient-to-r from-[#0B5E5B] to-[#0E7C77] text-white px-4 py-3 shadow-[0_14px_30px_-18px_rgba(11,94,91,.7)]">
+        <span className="hr-bob size-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center flex-none"><StepIcon size={20} aria-hidden /></span>
+        <span className="flex flex-col leading-tight"><strong className="text-[14.5px]">Step {at + 1} of {steps.length} · {steps[at]}</strong><span className="text-[13px] text-white/80">{cheer}</span></span>
+        {at === 2 ? <IdBadge className="hr-badge ml-auto w-[44px] h-auto max-[560px]:hidden" /> : null}
+      </div>
+      <div key={`card-${gate}`} className="hr-up [--d:3] hr-glow relative rounded-xl">
       {gate === "password" ? <Card title="Set your own password" sub="The password HR gave you was temporary." pad><PasswordForm forced onDone={() => {}} /></Card> : null}
       {gate === "profile" ? <Card title="Your details" sub="Needed for HR records and to pay your salary. Bank account and PAN are stored encrypted." pad><ProfileForm initial={{ phone: sh.me.phone, personalEmail: sh.me.personalEmail }} complete onSave={(v) => run(() => saveProfile(v, true))} busy={busy} /></Card> : null}
       {gate === "kyc" ? <KycStep blocked={sh.kycBlock} /> : null}
@@ -182,7 +215,7 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
         <Card title="Joining documents" sub="Read each one, then accept." pad>
           <div className="flex flex-col gap-3">
             {docs.map(([t, d], i) => (
-              <div key={t} className="flex items-start gap-3 border border-[#E2E8F0] rounded-xl p-3.5">
+              <div key={t} className={cx("flex items-start gap-3 border rounded-xl p-3.5 transition-[background-color,border-color,transform] duration-300 hover:-translate-y-0.5", agree[i] ? "bg-[#F0FBF6] border-[#9FDBBE]" : "border-[#E2E8F0]")}>
                 <input type="checkbox" className="mt-1" aria-label={`I have read and accept the ${d.toLowerCase()}`} checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />
                 <span><strong className="text-[13.5px]">{d}</strong><span className="block text-[12.5px] text-[#64748B]">{i === 0 ? "Your role, pay and joining date as agreed." : i === 1 ? "Terms of your employment at Medoro, including notice period and leave policy." : "You agree to keep Medoro and pharmacy customer data confidential."} HR can share the signed copies on request.</span></span>
                 <button type="button" className={cx(btnCls, "ml-auto")} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>Read</button>
@@ -194,6 +227,8 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
           </div>
         </Card>
       ) : null}
+      </div>
+    </div>
     </div>
   );
 }
