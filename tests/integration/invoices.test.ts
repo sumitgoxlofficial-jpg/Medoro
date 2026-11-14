@@ -17,10 +17,13 @@ const paid = (over: Partial<Parameters<typeof db.onlinePayment.create>[0]["data"
   });
 /** The text drawn on a PDF's pages: inflate each content stream and read its (text) and <hex> strings. */
 function pdfText(pdf: Buffer) {
+  // Cut each stream by its /Length, not by searching for "endstream": compressed bytes can end in a \r (or contain
+  // "endstream"-like bytes), which made a regex cut off the data now and then and the text come back empty.
   const raw = pdf.toString("latin1"), out: string[] = [];
-  for (const m of raw.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+  for (const m of raw.matchAll(/\/Length (\d+)[^>]*>>\s*stream\r?\n/g)) {
+    const start = m.index! + m[0].length, data = raw.slice(start, start + Number(m[1]));
     let body: string;
-    try { body = inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"); } catch { body = m[1]; }
+    try { body = inflateSync(Buffer.from(data, "latin1")).toString("latin1"); } catch { body = data; }
     for (const t of body.matchAll(/\(((?:[^()\\]|\\.)*)\)\s*Tj/g)) out.push(t[1]);
     for (const t of body.matchAll(/<([0-9a-fA-F]+)>\s*Tj/g)) out.push(Buffer.from(t[1], "hex").toString("latin1"));
   }
