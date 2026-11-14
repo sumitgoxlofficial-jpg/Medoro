@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { askAi } from "@/components/shell/ai-drawer";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
-  IndianRupee, Percent, Truck, Receipt, Users, CalendarClock, TrendingUp, TrendingDown, Sparkles, CloudCheck, CloudOff, Download, PackagePlus, CheckCircle2, Circle,
+  IndianRupee, Percent, Truck, Receipt, Users, CalendarClock, TrendingUp, TrendingDown, Sparkles, CloudCheck, CloudOff, Download, PackagePlus, CheckCircle2, Circle, ScanBarcode, ArrowRight,
 } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,37 @@ export function DashActions({ range, data, branch, canExport }: { range: Range; 
   );
 }
 
-export function Dashboard({ data, dict: d, perms }: { data: DashboardData; dict: Dict; perms: string[] }) {
+/** A friendly greeting with a small animated illustration at the top of the dashboard. */
+function Welcome({ name, branch, canSell }: { name: string; branch: string; canSell: boolean }) {
+  const t = useT();
+  // The greeting follows the viewer's own clock, so it is set after the page loads (no server/browser mismatch).
+  const [part, setPart] = useState<"morning" | "afternoon" | "evening" | null>(null);
+  useEffect(() => { const h = new Date().getHours(); setPart(h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"); }, []);
+  const first = name.trim().split(/\s+/)[0] ?? "";
+  const hello = part === "morning" ? t("Good morning, {name}", { name: first }) : part === "afternoon" ? t("Good afternoon, {name}", { name: first }) : part === "evening" ? t("Good evening, {name}", { name: first }) : t("Welcome, {name}", { name: first });
+  return (
+    <div className="app-up app-welcome relative overflow-hidden rounded-xl text-white px-[clamp(16px,2.4vw,24px)] py-[clamp(14px,2vw,18px)] flex items-center gap-4">
+      <div aria-hidden className="pointer-events-none absolute inset-0"><div className="app-glow" /></div>
+      <svg viewBox="0 0 120 90" className="relative flex-none w-[84px] h-auto max-[520px]:hidden" aria-hidden>
+        <rect x="8" y="58" width="104" height="24" rx="6" fill="#14B8A6" />
+        <rect x="8" y="58" width="104" height="6" rx="3" fill="#5EEAD4" />
+        <g className="app-bob"><rect x="18" y="16" width="44" height="34" rx="6" fill="#fff" /><path d="M24 42l9-9 7 5 12-12" stroke="#0B5E5B" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /><path d="M48 26h5v5" stroke="#F5C451" strokeWidth="3.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></g>
+        <g className="app-bob [animation-delay:-1.5s]"><circle cx="88" cy="34" r="16" fill="#F5C451" /><text x="88" y="40" textAnchor="middle" fontSize="16" fontWeight="700" fill="#94570A">₹</text></g>
+      </svg>
+      <div className="relative flex flex-col gap-0.5 min-w-0 flex-1">
+        <strong className="text-[clamp(17px,1.6vw,20px)] font-semibold truncate">{hello} <span className="app-wave inline-block" aria-hidden>👋</span></strong>
+        <span className="text-[13.5px] text-white/75 truncate">{t("Here’s how {branch} is doing.", { branch })}</span>
+      </div>
+      {canSell && READY.has("pos") ? (
+        <Link href="/app/pos" className="app-sweep relative overflow-hidden flex-none inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-white text-[#0B5E5B] text-[14px] font-semibold no-underline transition-transform duration-300 hover:-translate-y-0.5 hover:text-[#0B5E5B] max-[420px]:px-3">
+          <ScanBarcode size={16} aria-hidden />{t("New bill")}<ArrowRight size={15} aria-hidden className="max-[420px]:hidden" />
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+export function Dashboard({ data, dict: d, perms, userName = "", branch = "" }: { data: DashboardData; dict: Dict; perms: string[]; userName?: string; branch?: string }) {
   const t = useT();
   const k = data.kpi;
   const delta = (v: number, suffix: string, goodUp: boolean) => {
@@ -73,14 +104,15 @@ export function Dashboard({ data, dict: d, perms }: { data: DashboardData; dict:
   const bm = Math.max(1, ...data.branchPerf.map((b) => b.total));
 
   return (
-    <div className="flex flex-col gap-4 max-w-[1400px]">
+    <div className="app-motion flex flex-col gap-4 max-w-[1400px]">
+      {userName ? <Welcome name={userName} branch={branch} canSell={perms.includes("sale")} /> : null}
       {data.catalogueSize === 0 ? <GettingStarted perms={perms} /> : null}
 
       <div className={"grid bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-hidden " + (kpis.length > 2 ? "grid-cols-2 md:grid-cols-3 2xl:grid-cols-6" : "grid-cols-1 sm:grid-cols-2 max-w-[640px]")}>
-        {kpis.map((x) => (
-          <div key={x.label} className="px-[18px] pt-4 pb-[15px] flex flex-col gap-2.5 border-r border-b border-line-soft -mr-px -mb-px min-w-0">
+        {kpis.map((x, i) => (
+          <div key={x.label} style={{ ["--d" as string]: i }} className="app-up app-tile px-[18px] pt-4 pb-[15px] flex flex-col gap-2.5 border-r border-b border-line-soft -mr-px -mb-px min-w-0">
             <div className="flex items-center gap-2">
-              <span className="size-[26px] rounded-[7px] flex items-center justify-center flex-none" style={{ background: x.ibg, color: x.ifg }}><x.Icon size={14} /></span>
+              <span className="app-ico size-[26px] rounded-[7px] flex items-center justify-center flex-none" style={{ background: x.ibg, color: x.ifg }}><x.Icon size={14} /></span>
               <span className="flex-1 min-w-0 text-[12.5px] text-muted font-medium leading-tight">{x.label}</span>
             </div>
             <div className="text-[24px] font-semibold tracking-[-.02em] leading-[1.1] tnum text-ink-strong">{x.value}</div>
@@ -93,13 +125,13 @@ export function Dashboard({ data, dict: d, perms }: { data: DashboardData; dict:
       </div>
 
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))]">
-        <div className={card + " gap-3.5"}>
+        <div className={card + " app-up app-card gap-3.5 [--d:3]"}>
           <div className="flex justify-between items-baseline gap-2"><div className="font-semibold text-[15px]">{t("Sales, last 14 days")}</div><div className="text-[12.5px] text-faint whitespace-nowrap">{t("Incl. GST")}</div></div>
           <div className="flex items-end gap-1.5 max-sm:gap-1 h-[170px]">
             {data.history.map((h, i) => (
               <div key={h.date} title={`${h.date} · ${inr0(h.total)}`} className="flex-1 flex flex-col items-center gap-1 justify-end h-full">
                 <div className={"text-[11px] max-sm:text-[10px] font-semibold text-teal whitespace-nowrap" + (i === 13 ? " max-sm:self-end" : "")}>{i === 13 && h.total ? inr0(h.total) : ""}</div>
-                <div className="w-full max-w-7 rounded-t" style={{ height: Math.max(h.total ? 4 : 2, Math.round((h.total / mx) * 140)), background: i === 13 ? "#0B5E5B" : h.total ? "#B5D9D4" : "#EEF0F2" }} />
+                <div className="app-bar w-full max-w-7 rounded-t" style={{ height: Math.max(h.total ? 4 : 2, Math.round((h.total / mx) * 140)), background: i === 13 ? "#0B5E5B" : h.total ? "#B5D9D4" : "#EEF0F2", ["--d" as string]: i }} />
                 <div className={"text-[11px] max-sm:text-[10px] text-fainter" + (i % 2 && i !== 13 ? " max-sm:invisible" : "")}>{Number(h.date.slice(8))}</div>
               </div>
             ))}
@@ -114,8 +146,8 @@ export function Dashboard({ data, dict: d, perms }: { data: DashboardData; dict:
             ) : <div className="text-[13px] text-fainter">{t("No collections yet.")}</div>}
           </div>
         </div>
-        <div className={card + " gap-3"}>
-          <div className="flex items-center gap-2"><Sparkles size={16} className="text-teal" /><div className="font-semibold text-[15px]">{d.insights}</div><div className="ml-auto text-[12px] text-muted">{t("Computed on your server")}</div></div>
+        <div className={card + " app-up app-card gap-3 [--d:4]"}>
+          <div className="flex items-center gap-2"><Sparkles size={16} className="app-sparkle text-teal" /><div className="font-semibold text-[15px]">{d.insights}</div><div className="ml-auto text-[12px] text-muted">{t("Computed on your server")}</div></div>
           {data.insights.length ? data.insights.map((ins) => (
             <div key={ins.title} className="flex flex-col gap-1 py-3 border-t border-line-soft">
               <div className="font-semibold text-[14px]">{t(ins.title)}</div>

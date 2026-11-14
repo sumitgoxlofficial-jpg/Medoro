@@ -733,4 +733,11 @@ export const hi: Record<string, string> = {
   "Medoro’s copy was already deleted.": "Medoro की कॉपी पहले ही हट चुकी है।",
   "Move the data to Google Drive first.": "पहले डेटा Google Drive में भेजें।",
   "Type the pharmacy code exactly to confirm.": "पुष्टि के लिए फ़ार्मेसी कोड बिल्कुल वैसा ही लिखें।",
+
+  // Dashboard welcome
+  "Good morning, {name}": "सुप्रभात, {name}",
+  "Good afternoon, {name}": "नमस्ते, {name}",
+  "Good evening, {name}": "शुभ संध्या, {name}",
+  "Welcome, {name}": "स्वागत है, {name}",
+  "Here’s how {branch} is doing.": "{branch} का आज का हाल यहाँ है।",
 };

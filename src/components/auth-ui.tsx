@@ -7,7 +7,7 @@ export const authInput = "w-full border border-input rounded-lg px-3 py-[11px] t
 export const authMono = "font-mono uppercase tracking-[.04em]";
 
 export function AuthCard({ className, children, width = 420 }: { className?: string; children: React.ReactNode; width?: number }) {
-  return <div className={cn("bg-white border border-[#E3E6E9] rounded-[14px] p-7 flex flex-col gap-3.5", className)} style={{ width: `min(${width}px, 100%)` }}>{children}</div>;
+  return <div className={cn("hr-glow relative bg-white/90 backdrop-blur-md border border-[#E3E6E9] rounded-2xl p-7 flex flex-col gap-3.5 shadow-[0_24px_60px_-30px_rgba(11,94,91,.4)]", className)} style={{ width: `min(${width}px, 100%)` }}>{children}</div>;
 }
 
 export function AuthLabel({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
@@ -15,7 +15,7 @@ export function AuthLabel({ label, children }: { label: React.ReactNode; childre
 }
 
 export function AuthButton({ className, children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button className={cn("bg-teal text-white rounded-[10px] py-3 text-[15px] font-semibold cursor-pointer hover:bg-teal-hover disabled:opacity-60 disabled:cursor-wait", className)} {...p}>{typeof children === "string" ? <T>{children}</T> : children}</button>;
+  return <button className={cn("hr-btn relative overflow-hidden bg-teal text-white rounded-[10px] py-3 text-[15px] font-semibold cursor-pointer transition-[background-color,transform,box-shadow] duration-300 hover:bg-teal-hover hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-12px_rgba(11,94,91,.7)] disabled:opacity-60 disabled:cursor-wait disabled:translate-y-0", className)} {...p}>{typeof children === "string" ? <T>{children}</T> : children}</button>;
 }
 
 export function AuthError({ children }: { children?: React.ReactNode }) {
