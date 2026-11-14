@@ -28,6 +28,7 @@ import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
 import { HIDDEN_TABS, TABS, type Tab } from "./tabs";
+import { TabHero } from "./tab-hero";
 export type { Tab };
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
@@ -128,7 +129,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
 
   const bump = () => setTick((t) => t + 1);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="app-motion flex flex-col gap-4">
       {/* Signed in, the sidebar opens each screen, so no screen shows the counter's tab row (the Dashboard lists the few tools the
           sidebar doesn't have). Unlocked by PIN without signing in there is no sidebar, so the row stays for that. */}
       {!online && <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
@@ -137,6 +138,8 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">{t("Lock")}</button>}
       </div>}
+      <TabHero tab={tab} />
+      <div key={tab} className="app-up flex flex-col gap-4">
       {tab === "dash" && <Dashboard cfg={cfg} owner={who.owner} refresh={tick} go={setTab} userName={who.userName === "Counter" ? "" : who.userName} />}
       {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id, o) => { bump(); try { setReceiptWa(!!o?.whatsapp); setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
       {tab === "bills" && <Bills cfg={cfg} who={who} refresh={tick} />}
@@ -155,6 +158,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
       {tab === "insights" && online?.owner && <Insights cfg={cfg} who={who} refresh={tick} />}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}
+      </div>
       <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => { setReceipt(null); setReceiptWa(false); }} who={who} sendWhatsApp={receiptWa} />
     </div>
   );

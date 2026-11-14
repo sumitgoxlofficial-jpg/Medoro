@@ -600,4 +600,22 @@ export const hi: Record<string, string> = {
   "The count is {amount} short. Add a note explaining the difference.": "गिनती में {amount} कम है। अंतर का कारण नोट में लिखें।",
   "The count is {amount} over. Add a note explaining the difference.": "गिनती में {amount} ज़्यादा है। अंतर का कारण नोट में लिखें।",
   "{name}: {error}, {qty} ordered. Restock or cancel the order.": "{name}: {error}, {qty} ऑर्डर हुए। स्टॉक भरें या ऑर्डर रद्द करें।",
+
+  // Counter tab header strips
+  "Find bills, take returns and print the day-end.": "बिल खोजें, रिटर्न लें और दिन का हिसाब प्रिंट करें।",
+  "Batches, expiry dates and shelf counts on this counter.": "इस काउंटर पर बैच, एक्सपायरी और शेल्फ़ की गिनती।",
+  "Recalled batches: block, quarantine or return them.": "रिकॉल हुए बैच: रोकें, अलग रखें या लौटाएँ।",
+  "Receive supplier bills into stock.": "सप्लायर के बिल स्टॉक में लें।",
+  "Import distributor e-bills and other supplier tools.": "डिस्ट्रीब्यूटर ई-बिल इम्पोर्ट और सप्लायर के दूसरे टूल।",
+  "Home delivery orders, from order to doorstep.": "होम डिलीवरी ऑर्डर, ऑर्डर से दरवाज़े तक।",
+  "Customers, credit and reminders.": "ग्राहक, उधार और रिमाइंडर।",
+  "Prescribing doctors and their referrals.": "पर्चा लिखने वाले डॉक्टर और उनके रेफ़रल।",
+  "Cash book and what you owe suppliers.": "कैश बुक और सप्लायरों का बकाया।",
+  "UPI and bank credits, matched to bills.": "UPI और बैंक में आया पैसा, बिलों से मिलाया हुआ।",
+  "Cheques received and given, until they clear.": "मिले और दिए गए चेक, क्लियर होने तक।",
+  "Sales, stock and GST reports for your CA.": "आपके CA के लिए बिक्री, स्टॉक और GST रिपोर्ट।",
+  "Stock forecasts and what to reorder.": "स्टॉक का अनुमान और क्या दोबारा मँगाना है।",
+  "Ask about sales, stock and customers in plain words.": "बिक्री, स्टॉक और ग्राहकों के बारे में आसान शब्दों में पूछें।",
+  "Who did what on this counter, and when.": "इस काउंटर पर किसने क्या और कब किया।",
+  "PIN and settings for this device.": "इस डिवाइस का PIN और सेटिंग।",
 };

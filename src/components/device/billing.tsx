@@ -163,7 +163,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
           {cart.length ? (
             <div className="flex flex-col -mt-1">
               {cart.map((l, i) => (
-                <div key={`${l.med.id}-${l.unit}`} className="flex items-center gap-2 py-2.5 border-b border-line last:border-b-0 text-sm">
+                <div key={`${l.med.id}-${l.unit}`} className="app-line flex items-center gap-2 py-2.5 border-b border-line last:border-b-0 text-sm">
                   <div className="flex-1 min-w-0">
                     <div className="truncate font-medium">{l.med.name}</div>
                     <div className="text-muted text-xs">{t("{price} per {unit}", { price: inr(price(l)), unit: t(l.unit === "loose" ? l.med.looseUnit : l.med.packUnit) })}{l.med.schedule ? <span className="text-bad"> · {t("Sch")} {l.med.schedule}</span> : null}</div>
@@ -273,10 +273,10 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
             {discPaise > 0 && <div className="flex justify-between text-muted"><span>{t("Discount ({pct}%)", { pct: disc })}</span><span>−{inr(discPaise)}</span></div>}
             {roundOff !== 0 && cart.length > 0 && <div className="flex justify-between text-muted"><span>{t("Round off")}</span><span>{roundOff > 0 ? "+" : "−"}{inr(Math.abs(roundOff))}</span></div>}
             {redeemValue > 0 && <div className="flex justify-between text-muted"><span>{t("Paid with points")}</span><span>−{inr(redeemValue)}</span></div>}
-            <div className="flex items-baseline justify-between border-t border-line pt-2 mt-0.5"><span className="font-semibold">{t("To pay")}</span><span className="text-[24px] font-bold leading-none">{inr(toPay)}</span></div>
+            <div className="flex items-baseline justify-between border-t border-line pt-2 mt-0.5"><span className="font-semibold">{t("To pay")}</span><span key={toPay} className="app-bump text-[24px] font-bold leading-none">{inr(toPay)}</span></div>
           </div>
 
-          <Button variant="primary" size="lg" onClick={complete} disabled={busy || !cart.length}>
+          <Button variant="primary" size="lg" onClick={complete} disabled={busy || !cart.length} className="app-cta relative overflow-hidden">
             <Receipt size={18} /> {busy ? t("Saving…") : t("Complete bill")}
             {!busy && <kbd className="ml-1 rounded border border-white/40 px-1.5 text-[11px] font-medium">F9</kbd>}
           </Button>
