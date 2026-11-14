@@ -58,15 +58,25 @@ export function SiteHeader() {
     return () => { window.removeEventListener("scroll", f); window.removeEventListener("keydown", k); };
   }, []);
   return (
-    <header className={`sticky top-0 z-40 bg-white/95 supports-[backdrop-filter]:bg-white/85 backdrop-blur border-b transition-colors duration-300 ${scrolled || open ? "border-[var(--s-line)]" : "border-transparent"}`}>
-      <div className="max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[1099px]:gap-4 max-[959px]:gap-3 max-[640px]:px-4">
+    <header className={`site-head sticky top-0 z-40 bg-white/95 supports-[backdrop-filter]:bg-white/80 backdrop-blur border-b transition-[border-color,box-shadow] duration-300 ${scrolled || open ? "border-[var(--s-line)] shadow-[0_8px_24px_-18px_rgba(11,94,91,.35)]" : "border-transparent"}`}>
+      {/* Soft moving tint, a faint dot band and floating sparkles behind the bar; a gradient line slides along the bottom. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="site-head-tint absolute inset-0" />
+        <div className="site-head-dots absolute inset-y-0 left-0 w-[38%]" />
+        <div className="site-head-dots absolute inset-y-0 right-0 w-[30%] [transform:scaleX(-1)]" />
+        {[["left-[6%] top-[18%]", "#14B8A6", 0], ["left-[31%] bottom-[14%]", "#F5C451", 1], ["right-[34%] top-[16%]", "#8FD3C6", 2], ["right-[4%] bottom-[18%]", "#F28B82", 3]].map(([pos, c, i]) => (
+          <svg key={String(i)} viewBox="0 0 10 10" className={`site-head-spark absolute size-2.5 ${pos}`} style={{ animationDelay: `${-Number(i) * 0.9}s` }}><path d="M5 0l1.2 3.8L10 5 6.2 6.2 5 10 3.8 6.2 0 5l3.8-1.2z" fill={String(c)} /></svg>
+        ))}
+        <div className="site-head-line absolute inset-x-0 bottom-0 h-[2px]" />
+      </div>
+      <div className="relative max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[1099px]:gap-4 max-[959px]:gap-3 max-[640px]:px-4">
         <Link href="/" aria-label={t("Medoro home")} className="site-logo flex-none"><Wordmark size={21} /></Link>
         <nav aria-label={t("Main")} className="hidden min-[1180px]:flex gap-1 text-[15px]">
           {NAV.map(([l, h], i) => {
             const Icon = NAV_ICONS[i];
             return (
               <a key={h} href={h} className="site-nav group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap">
-                <Icon size={16} aria-hidden className="site-nav-ico max-[1799px]:hidden text-[var(--s-brand)]" />{t(l, { ctx: "site" })}
+                <Icon size={16} aria-hidden className="site-nav-ico max-[1499px]:hidden text-[var(--s-brand)]" />{t(l, { ctx: "site" })}
               </a>
             );
           })}
