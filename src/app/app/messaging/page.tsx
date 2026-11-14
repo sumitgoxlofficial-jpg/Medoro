@@ -1,3 +1,4 @@
+import { Megaphone } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
 import { crmSettings, listCampaigns, optInCount, optOuts, paymentDues, refillReminders, smsStatus } from "@/domain/comms/crm";
@@ -18,7 +19,7 @@ export default async function Page() {
   const connected = wa.connected && !wa.cfg.disconnected;
   return (
     <>
-      <PageHead title={t(ctx.lang).crm} sub="Opt-in reminders, store updates, loyalty points and opt-outs" />
+      <PageHead icon={Megaphone} title={t(ctx.lang).crm} sub="Opt-in reminders, store updates, loyalty points and opt-outs" />
       <CrmView s={s} reminders={reminders} campaigns={campaigns} outs={outs} counts={counts} dues={dues} sms={sms} loyalty={loyalty}
         templates={wa.connected ? [...new Set(wa.cfg.templates.filter((x) => x.status === "approved").map((x) => x.name))] : []} connected={connected} />
     </>

@@ -1,3 +1,4 @@
+import { CreditCard } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireCtx, can, entitlementsOf } from "@/server/context";
 import { db } from "@/server/db";
@@ -27,7 +28,7 @@ export default async function Page() {
   const pay = { upi: process.env.PAYMENT_UPI_ID?.trim() || null, payee: process.env.PAYMENT_PAYEE?.trim() || "Medoro", bank: process.env.PAYMENT_BANK?.trim() || null };
   return (
     <>
-      <PageHead title={t(ctx.lang).plan} sub="Plan, payments, licence and Medoro invoices" />
+      <PageHead icon={CreditCard} title={t(ctx.lang).plan} sub="Plan, payments, licence and Medoro invoices" />
       <PlanIncludes ent={{ plan: ent.plan, open: ent.open, features: [...ent.features], limits: { branches: Number.isFinite(ent.limits.branches) ? ent.limits.branches : null, counters: Number.isFinite(ent.limits.counters) ? ent.limits.counters : null, users: Number.isFinite(ent.limits.users) ? ent.limits.users : null } }} usage={{ branches, counters, users }} />
       <PlanView v={v} usage={{ branches, counters, users }} pay={pay} reference={v.customerCode ?? tenant.code} online={{ enabled: razorpayEnabled(), payments: online, billing }} />
     </>

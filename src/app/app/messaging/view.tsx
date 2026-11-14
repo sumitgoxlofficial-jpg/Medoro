@@ -11,7 +11,7 @@ import type { LoyaltySettings } from "@/domain/sales/loyalty";
 import type { SmsType } from "@/server/sms";
 import { crmAction, draftAction, loyaltyAction, sendAction, sendPaymentsAction, sendRefillsAction, smsAction } from "./actions";
 
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
 const sel = "border border-input rounded-lg px-2 py-1.5 text-[13px] bg-white";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

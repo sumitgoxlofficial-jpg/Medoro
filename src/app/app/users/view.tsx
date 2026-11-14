@@ -25,7 +25,7 @@ const ROLE_TONE: Record<string, Tone> = { Owner: "teal", Manager: "blue", Pharma
 const TR: Record<string, [string, Tone]> = { pending: ["Pending approval", "amber"], in_transit: ["In transit", "blue"], received: ["Received", "green"], rejected: ["Rejected", "gray"], cancelled: ["Cancelled", "gray"] };
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const when = (iso: string | null, t?: TFn) => (iso ? `${dayMonth(new Date(iso))} ${hhmm(new Date(iso))}` : t ? t("Never") : "Never");
 
 function DiscountCeiling({ initial, isOwner }: { initial: number; isOwner: boolean }) {

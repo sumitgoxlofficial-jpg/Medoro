@@ -8,7 +8,7 @@ import type { RetentionCounts } from "@/domain/system/retention";
 import { grievanceAction, retentionPreviewAction, retentionRunAction } from "./actions";
 import { useT } from "@/lib/i18n-client";
 
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 
 export function GrievanceCard({ initial, pharmacyPhone }: { initial: Grievance; pharmacyPhone: string | null }) {
   const toast = useToast();

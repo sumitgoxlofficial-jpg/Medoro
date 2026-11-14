@@ -1,3 +1,4 @@
+import { CloudUpload } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
 import { db } from "@/server/db";
@@ -29,7 +30,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const reconnect = await driveNeedsReconnect(ctx.tenantId);
   return (
     <>
-      <PageHead title={t(ctx.lang).bak} sub="Encrypted backups and files in your own Google Drive, like WhatsApp. Medoro keeps no copy once Drive has it." />
+      <PageHead icon={CloudUpload} title={t(ctx.lang).bak} sub="Encrypted backups and files in your own Google Drive, like WhatsApp. Medoro keeps no copy once Drive has it." />
       {ctx.moved ? (
         <div role="status" className="mb-3 rounded-xl border border-line bg-white px-4 py-3 text-[13.5px]" data-testid="drive-backups-note">
           <strong className="font-semibold">{tFor(ctx.lang)("Your pharmacy’s records live in your Google Drive.")}</strong> {tFor(ctx.lang)("Keep Google Drive connected here: the counters save through it.")}

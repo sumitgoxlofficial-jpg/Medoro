@@ -12,7 +12,7 @@ import type { messageLog, waStatus, WaSettings } from "@/domain/comms/whatsapp";
 import type { PhoneLink } from "@/domain/comms/whatsapp";
 import { connectAction, disconnectAction, linkPhoneAction, retryAction, settingsAction, signupAction, templatesAction } from "./actions";
 
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 const ST: Record<string, Tone> = { queued: "gray", sent: "blue", delivered: "teal", read: "green", failed: "red", approved: "green", pending: "amber", rejected: "red", paused: "amber", disabled: "red" };
 
 type Fb = { init(o: object): void; login(cb: (r: { authResponse?: { code?: string } | null }) => void, o: object): void };

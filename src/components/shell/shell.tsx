@@ -19,6 +19,8 @@ import { localeOf } from "@/lib/tr";
 import { DRIVE_TAB, NAV, READY, driveNav, screenOf, type NavDef, type ScreenId } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
 import { DashBackdrop } from "@/components/welcome-banner";
+
+const BACKDROP = ["/app/device-pos", "/app/whatsapp", "/app/messaging", "/app/backup", "/app/sync", "/app/users", "/app/plan", "/app/privacy", "/app/help"];
 import {
   changePasswordAction, changePinAction, disconnectGoogleAction, listSessions, regenerateCodesAction, revokeOtherSessions, revokeSession, securityInfo, setBranch, setLang, setViewAs,
 } from "@/app/app/actions";
@@ -45,6 +47,8 @@ export function Shell(p: ShellProps) {
 
 function ShellInner(p: ShellProps) {
   const path = usePathname();
+  /** Pages that share the dashboard's animated backdrop and card motion (off with reduced motion). */
+  const themed = BACKDROP.some((b) => path === b || path.startsWith(b + "/"));
   const router = useRouter();
   const toast = useToast();
   const d = DICT[p.lang];
@@ -309,9 +313,9 @@ function ShellInner(p: ShellProps) {
           </div>
         </header>
         <div className="relative flex-1 min-h-0 flex flex-col bg-page">
-          {/* The dashboard and every counter tab get a soft animated backdrop behind the cards. */}
-          {path === "/app" || path === "/app/device-pos" ? <DashBackdrop /> : null}
-          <main className="relative flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 max-[640px]:px-4">{p.children}</main>
+          {/* The dashboard, every counter tab and the Engagement and System pages get a soft animated backdrop. */}
+          {path === "/app" || themed ? <DashBackdrop /> : null}
+          <main className={cn("relative flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 max-[640px]:px-4", themed && "app-motion")}>{p.children}</main>
         </div>
       </div>
       {showAi ? <AiDrawer open={aiOpen} floating={narrow} onClose={() => setAiOpen(false)} lang={p.lang} placeholder={d.aiPh} ai={p.ai} /> : null}

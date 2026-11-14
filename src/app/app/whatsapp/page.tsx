@@ -1,3 +1,4 @@
+import { MessageCircle } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
 import { embeddedSignupConfig, invoiceTemplateState, messageLog, phoneLinkProblem, waSettings, waStatus } from "@/domain/comms/whatsapp";
@@ -14,7 +15,7 @@ export default async function Page() {
   const base = process.env.APP_URL ?? "https://your-server";
   return (
     <>
-      <PageHead title={t(ctx.lang).wa} sub={st.connected && st.cfg.via === "phone" ? "Sending from your own WhatsApp, linked by QR code" : "Link your own WhatsApp by QR code"} />
+      <PageHead icon={MessageCircle} title={t(ctx.lang).wa} sub={st.connected && st.cfg.via === "phone" ? "Sending from your own WhatsApp, linked by QR code" : "Link your own WhatsApp by QR code"} />
       <WhatsAppView st={st} log={log} settings={settings} invoiceTemplate={tpl} signup={embeddedSignupConfig()} phoneLink={phoneLinkProblem()} webhook={`${base.replace(/\/$/, "")}/api/wa/webhook`} />
     </>
   );

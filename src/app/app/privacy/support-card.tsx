@@ -39,7 +39,7 @@ export function SupportCard({ grants, requests = [] }: { grants: Grant[]; reques
   });
 
   return (
-    <section className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3 max-w-[1300px]">
+    <section className="app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3 max-w-[1300px]">
       <div className="flex items-center gap-2 font-semibold text-[15px]"><Headset size={18} className="text-teal" />{t("Medoro support access")}</div>
       <p className="m-0 text-[13.5px] text-ink-2">{t("Medoro staff can’t see your data. If support needs to look at something, give them a link here. It signs them in as {who}, can only look (no changes, no downloads), works once, and ends when the time is up or you revoke it. Everything they open is in your audit trail.").split(/\{who\}/).map((x, i) => i ? <Fragment key={i}><strong>{t("Medoro support")}</strong>{x}</Fragment> : x)}</p>
 
