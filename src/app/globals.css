@@ -185,3 +185,12 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .side-scroll::-webkit-scrollbar-track { background: transparent; }
 .side-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 999px; }
 .side-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.35); }
+
+/* Homepage motivation illustration: a gentle float and twinkle (switched off with reduced motion by .site-root rules). */
+@keyframes mo-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes mo-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+.mo-float { animation: mo-float 5s ease-in-out infinite; }
+.mo-float-2 { animation-delay: -2.5s; }
+.mo-twinkle { animation: mo-twinkle 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.mo-twinkle-2 { animation-delay: -1s; }
+.mo-twinkle-3 { animation-delay: -2s; }

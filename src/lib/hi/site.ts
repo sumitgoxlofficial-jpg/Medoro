@@ -401,4 +401,16 @@ export const hi: Record<string, string> = {
   "Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.":
     "7 दिन का ट्रायल शुरू करें, Excel से अपना स्टॉक इम्पोर्ट करें, और कल से Medoro पर बिलिंग करें। हर क़दम पर हम WhatsApp पर साथ हैं।",
   "Skip to content": "सीधे मुख्य हिस्से पर जाएँ",
+
+  // Motivation section
+  "For the people behind the counter": "काउंटर के पीछे खड़े लोगों के लिए",
+  "You keep your town healthy. Let Medoro keep the books.": "आप शहर को स्वस्थ रखते हैं। हिसाब-किताब Medoro पर छोड़ दें।",
+  "Every strip you hand over is someone’s good night’s sleep. You deserve software that keeps up with you, so the evening rush feels calm and month-end feels light.":
+    "आप जो हर पत्ता देते हैं, उससे किसी को रात में चैन की नींद मिलती है। आपको ऐसा सॉफ़्टवेयर चाहिए जो आपके साथ चल सके, ताकि शाम की भीड़ आसान लगे और महीने का अंत हल्का।",
+  "Small steps at the counter every day build a bigger, stronger store every year.": "काउंटर पर रोज़ के छोटे क़दम हर साल एक बड़ा और मज़बूत स्टोर बनाते हैं।",
+  "Keep going. Your store is growing.": "आगे बढ़ते रहिए। आपका स्टोर बढ़ रहा है।",
+  "Fewer expired strips": "कम एक्सपायर्ड दवाएँ",
+  "Faster evening rush": "शाम की भीड़ में तेज़ बिलिंग",
+  "Calmer month-ends": "आसान महीने का अंत",
+  "More time for patients": "मरीज़ों के लिए ज़्यादा समय",
 };
