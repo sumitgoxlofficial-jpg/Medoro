@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { hrSendCode, hrSignIn } from "../hrms/actions";
-import { HR_CARDS, TeamOrbit } from "./art";
+import { HR_CARDS, IdBadge, SideIcons, TeamOrbit } from "./art";
 
 const field = "border border-[#CDD2D7] rounded-[10px] px-3.5 py-3 text-[15px] outline-none transition-[border-color,box-shadow] duration-300 focus:border-[#0B5E5B] focus:shadow-[0_0_0_4px_rgba(20,184,166,.18)] bg-white w-full";
 
@@ -66,7 +66,10 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
           <div className="site-blob site-blob-b bg-[#14B8A6]/10" />
           <div className="site-blob site-blob-c bg-[#F5C451]/12" />
         </div>
-        <form onSubmit={submit} className="hr-form relative w-full max-w-[380px] flex flex-col gap-4">
+        <SideIcons />
+        <div className="hr-form relative w-full max-w-[440px]">
+        <IdBadge className="hr-badge absolute left-1/2 -translate-x-1/2 -top-[92px] w-[72px] h-auto max-[640px]:hidden" />
+        <form onSubmit={submit} className="hr-glow relative w-full flex flex-col gap-4 rounded-2xl bg-white/80 backdrop-blur-md border border-white px-8 pt-10 pb-7 shadow-[0_24px_60px_-28px_rgba(11,94,91,.45)] max-[640px]:px-5 max-[640px]:pt-6 max-[640px]:bg-transparent max-[640px]:shadow-none max-[640px]:border-0 max-[640px]:backdrop-blur-none">
           <div><h2 className="text-[24px] font-bold text-[#0f172a]">Welcome to Medoro HRMS <span aria-hidden className="hr-wave inline-block">👋</span></h2><p className="text-[14px] text-[#475569] mt-1">Sign in with your employee ID or official email.</p></div>
           <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Employee ID or official email
             <input className={field} value={id} onChange={(e) => setId(e.target.value)} placeholder="MS-004 or name@medoro.in" autoComplete="username" autoFocus required disabled={totp} />
@@ -88,6 +91,7 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
           </div>
           <p className="text-[12px] text-[#64748B] border-t border-[#E2E8F0] pt-3">Only Medoro employees can sign in. Your employee ID and first password come from HR. Locks for 15 minutes after 5 wrong tries.</p>
         </form>
+        </div>
       </div>
     </div>
   );

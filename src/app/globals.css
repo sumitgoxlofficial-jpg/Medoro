@@ -295,3 +295,22 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 @media (prefers-reduced-motion: reduce) {
   .hr-motion *, .hr-motion *::before, .hr-motion *::after { animation: none !important; transition: none !important; }
 }
+/* HRMS sign-in, white side: swinging ID badge, drifting icons, dotted corners and a glowing card border. */
+@keyframes hr-swing { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.hr-swing { transform-origin: 60px 0; animation: hr-swing 4s ease-in-out infinite; }
+.hr-badge { filter: drop-shadow(0 12px 16px rgba(11,94,91,.18)); }
+@keyframes hr-drift { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(6px, -14px) rotate(8deg); } }
+.hr-drift { animation: hr-drift var(--dur, 10s) ease-in-out infinite; }
+.hr-corner { background-image: radial-gradient(rgba(11,94,91,.22) 1.3px, transparent 1.5px); background-size: 16px 16px; mask-image: radial-gradient(circle at 0 0, #000 20%, transparent 70%); }
+@property --hr-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+@keyframes hr-rotate { to { --hr-angle: 360deg; } }
+.hr-glow::before { content: ""; position: absolute; inset: -1.5px; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--hr-angle), transparent 0 60%, #14B8A6 75%, #F5C451 85%, transparent 95%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: hr-rotate 6s linear infinite; pointer-events: none; }
+@media (max-width: 640px) { .hr-glow::before { display: none; } }
+/* Site header background: slowly moving teal/gold tint, dot bands, twinkling sparkles and a sliding gradient underline. */
+@keyframes site-head-tint { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.site-head-tint { background: linear-gradient(100deg, rgba(20,184,166,.10), rgba(255,255,255,0) 30%, rgba(245,196,81,.10) 55%, rgba(255,255,255,0) 75%, rgba(20,184,166,.10)); background-size: 220% 100%; animation: site-head-tint 16s ease-in-out infinite; }
+.site-head-dots { background-image: radial-gradient(rgba(11,94,91,.16) 1px, transparent 1.2px); background-size: 12px 12px; mask-image: linear-gradient(90deg, #000, transparent); }
+@keyframes site-head-spark { 0%, 100% { opacity: .9; transform: scale(1) rotate(0); } 50% { opacity: .2; transform: scale(.5) rotate(45deg); } }
+.site-head-spark { animation: site-head-spark 3.2s ease-in-out infinite; }
+@keyframes site-head-line { from { background-position: 0 0; } to { background-position: 200% 0; } }
+.site-head-line { background: linear-gradient(90deg, transparent, #14B8A6 20%, #0B5E5B 40%, #F5C451 60%, transparent 80%); background-size: 50% 100%; background-repeat: repeat-x; opacity: .7; animation: site-head-line 6s linear infinite; }
