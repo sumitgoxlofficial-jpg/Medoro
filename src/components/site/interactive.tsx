@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useRef, useState, type KeyboardEvent } from "react";
 import {
-  ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, HardDriveUpload, MessageCircle, Minus, Pause, Play, ScanBarcode, Truck, Warehouse,
+  ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, CreditCard, Gift, HardDriveUpload, MessageCircle, Minus, Pause, Play, RefreshCcw, ScanBarcode, ShieldCheck, Sparkles, Truck, Warehouse,
 } from "lucide-react";
 import { PRODUCTS } from "@/staff/constants";
 import { useLang, useT } from "@/lib/i18n-client";
@@ -259,6 +259,9 @@ const CMP: [string, ...(boolean | string)[]][] = [
   ["Shop-network billing without internet", false, true, true], ["Branch transfers, consolidated reports", false, false, true], ["Priority support", false, false, true],
 ];
 
+// Reassurances shown above the plans: each is a promise the site already makes (trial, renewal, cancellation, payment, help).
+const PROMISES: [typeof Gift, string][] = [[Gift, "7 days free, no card"], [RefreshCcw, "Plans never renew on their own"], [ShieldCheck, "Cancel any time, your data stays"], [CreditCard, "Pay by UPI, card or netbanking"], [MessageCircle, "Setup help on WhatsApp"]];
+
 export function Pricing() {
   const t = useT();
   const [yearly, setYearly] = useState(false);
@@ -267,41 +270,54 @@ export function Pricing() {
   const ai = price("ai");
   return (
     <div className="flex flex-col gap-8">
+      <ul className="m-0 p-0 list-none flex flex-wrap gap-2.5">
+        {PROMISES.map(([Icon, l], i) => (
+          <li key={l} data-reveal style={{ ["--d" as string]: i }} className="site-lift inline-flex items-center gap-2 rounded-full bg-white border border-[var(--s-line)] pl-1.5 pr-3.5 py-1.5 text-[14.5px] font-medium text-[var(--s-ink)] shadow-[0_1px_2px_rgba(14,22,20,.05)]">
+            <span className="size-7 rounded-full bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={15} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} /></span>{t(l)}
+          </li>
+        ))}
+      </ul>
       <div role="group" aria-label={t("Billing period")} className="self-start inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
         <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>{t("Monthly")}</button>
-        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className="text-[12.5px] font-semibold text-[var(--s-brand)]">{t("2 months free")}</span></button>
+        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className={`text-[12.5px] font-semibold rounded-full px-2 py-0.5 ${yearly ? "bg-[var(--s-brand)] text-white" : "bg-[var(--s-brand-tint)] text-[var(--s-brand)] site-breathe"}`}>{t("2 months free")}</span></button>
       </div>
-      <div className="grid gap-px bg-[var(--s-line)] border border-[var(--s-line)] rounded-xl overflow-hidden min-[900px]:grid-cols-3">
-        {PLANS.map((p) => {
+      <div className="grid gap-5 items-stretch min-[900px]:grid-cols-3 min-[900px]:pt-4">
+        {PLANS.map((p, i) => {
           const m = price(p.id);
+          const monthly = yearly ? Math.round((m * 10) / 12) : m;
           return (
-            <div key={p.id} className="relative bg-white p-7 flex flex-col gap-5 max-[640px]:p-5">
-              {p.rec ? <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-[var(--s-brand)]" /> : null}
+            <div key={p.id} data-reveal style={{ ["--d" as string]: i }} className={`site-lift relative rounded-2xl p-7 flex flex-col gap-5 max-[640px]:p-5 ${p.rec ? "site-plan-rec bg-white min-[900px]:-mt-4 min-[900px]:mb-[-16px] shadow-[0_30px_60px_-30px_rgba(11,94,91,.55)]" : "bg-white border border-[var(--s-line)]"}`}>
+              {p.rec ? <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-[var(--s-brand)] text-white text-[12.5px] font-semibold px-3 py-1 shadow-[0_8px_18px_-8px_rgba(11,94,91,.8)] whitespace-nowrap"><Sparkles size={13} aria-hidden className="site-sparkle" />{t("Most stores pick this")}</span> : null}
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2.5 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{p.name}</h3>{p.rec ? <span className="text-[12.5px] font-semibold text-[var(--s-brand)] bg-[var(--s-brand-tint)] px-2 py-0.5 rounded">{t("Most stores pick this")}</span> : null}</div>
+                <div className="flex items-center gap-2.5 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{p.name}</h3></div>
                 <span className="text-[15px] text-[var(--s-muted)]">{t(p.for)}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="flex items-baseline gap-1.5"><span className="site-display text-[48px] leading-none text-[var(--s-ink)]">{inr(yearly ? Math.round((m * 10) / 12) : m)}</span><span className="text-[15px] text-[var(--s-muted)]">{t("/ month")}</span></div>
+                <div className="flex items-baseline gap-1.5"><span key={`${p.id}-${yearly}`} className={`site-swap site-display text-[48px] leading-none ${p.rec ? "text-[var(--s-brand)]" : "text-[var(--s-ink)]"}`}>{inr(monthly)}</span><span className="text-[15px] text-[var(--s-muted)]">{t("/ month")}</span></div>
                 <span className="text-[14px] text-[var(--s-muted)]">{yearly ? t("{amount} billed yearly", { amount: inr(m * 10) }) : t("Billed monthly after the free trial")}</span>
+                <span className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="text-[12.5px] font-semibold rounded-full bg-[var(--s-soft)] border border-[var(--s-line)] px-2.5 py-0.5 text-[var(--s-ink-2)]">{t("About {amount} a day", { amount: inr(Math.round(monthly / 30)) })}</span>
+                  {yearly ? <span key={`save-${p.id}`} className="site-swap text-[12.5px] font-semibold rounded-full bg-[#DCF2E7] text-[#146C43] px-2.5 py-0.5">{t("Save {amount} a year", { amount: inr(m * 2) })}</span> : null}
+                </span>
               </div>
-              <a href="/trial" className={`flex items-center justify-center h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"}`}>{t("Start free trial")}</a>
+              <a href="/trial" className={`site-link-arrow flex items-center justify-center gap-2 h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "site-cta relative overflow-hidden bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]"}`}>{t("Start free trial")}<ArrowRight size={16} aria-hidden /></a>
               <span className="text-[14px] font-medium text-[var(--s-ink)]">{t(p.cap)}</span>
               <ul className="m-0 p-0 list-none flex flex-col gap-2.5 border-t border-[var(--s-line)] pt-5">
-                {p.feats.map((f) => <li key={f} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{t(f)}</li>)}
+                {p.feats.map((f, j) => <li key={f} data-reveal style={{ ["--d" as string]: j }} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><span className="size-[18px] mt-[2px] rounded-full bg-[var(--s-brand-tint)] flex items-center justify-center flex-none"><Check size={12} strokeWidth={3} aria-hidden className="text-[var(--s-brand)]" /></span>{t(f)}</li>)}
               </ul>
             </div>
           );
         })}
       </div>
       <div className="grid gap-4 min-[900px]:grid-cols-2">
-        <div className="site-dark bg-[var(--s-dark)] text-white rounded-xl p-7 flex flex-col gap-2.5 max-[640px]:p-5">
-          <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]">{t("Add-on for any plan")}</span>
+        <div data-reveal className="site-dark site-lift relative overflow-hidden bg-[var(--s-dark)] text-white rounded-xl p-7 flex flex-col gap-2.5 max-[640px]:p-5">
+          <div aria-hidden className="pointer-events-none absolute inset-0"><div className="site-blob site-blob-b bg-[#14B8A6]/25" /></div>
+          <span className="relative flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]"><Bot size={16} aria-hidden className="site-breathe" />{t("Add-on for any plan")}</span>
           <div className="flex items-baseline justify-between gap-3 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{t("AI assistant")}</h3><span className="text-[17px] font-semibold">{yearly ? t("{amount} / month, billed yearly", { amount: inr(Math.round((ai * 10) / 12)) }) : t("{amount} / month", { amount: inr(ai) })}</span></div>
           <p className="m-0 text-[15px] text-[#C3D3D0]">{t("Ask in English, Hindi or Hinglish. Seasonal demand planner, invoice scanner and reorder suggestions. Runs on your server by default.")}</p>
           <a href="/trial" className="site-link-arrow mt-auto pt-3 self-start inline-flex items-center gap-1.5 text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Try it during the free trial")}<ArrowRight size={15} aria-hidden /></a>
         </div>
-        <div className="bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-1 max-[640px]:p-5">
+        <div data-reveal className="site-lift bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-1 max-[640px]:p-5">
           <h3 className="m-0 mb-2 text-[17px] font-semibold">{t("One-time and extras")}</h3>
           {EXTRAS.map(([l, v]) => <div key={l} className="flex justify-between gap-3 text-[15px] border-b border-[var(--s-line-2)] py-2 last:border-b-0"><span className="text-[var(--s-ink-2)]">{t(l)}</span><strong className="font-semibold whitespace-nowrap">{t(v[0], { amount: v[1] })}</strong></div>)}
         </div>
@@ -320,6 +336,16 @@ export function Pricing() {
               </tr>
             ))}</tbody>
           </table>
+        </div>
+      </div>
+      <div data-reveal className="site-pan relative overflow-hidden rounded-2xl text-white p-[clamp(22px,4vw,40px)] flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center min-[900px]:justify-between">
+        <div className="relative flex flex-col gap-2 max-w-[640px]">
+          <h3 className="m-0 text-[clamp(22px,2.6vw,30px)] font-semibold">{t("Not sure which plan fits?")}</h3>
+          <p className="m-0 text-[16px] text-[#D3EAE6]">{t("Start the 7-day trial now and choose a plan only if you continue. Or tell us about your store on WhatsApp and we’ll suggest one.")}</p>
+        </div>
+        <div className="relative flex gap-3 flex-wrap">
+          <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
+          <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/40 text-white text-[16px] font-semibold hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />{t("Ask on WhatsApp")}</a>
         </div>
       </div>
     </div>

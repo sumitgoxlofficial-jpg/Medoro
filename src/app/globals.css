@@ -314,3 +314,5 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .site-head-spark { animation: site-head-spark 3.2s ease-in-out infinite; }
 @keyframes site-head-line { from { background-position: 0 0; } to { background-position: 200% 0; } }
 .site-head-line { background: linear-gradient(90deg, transparent, #14B8A6 20%, #0B5E5B 40%, #F5C451 60%, transparent 80%); background-size: 50% 100%; background-repeat: repeat-x; opacity: .7; animation: site-head-line 6s linear infinite; }
+/* Pricing: the recommended plan gets a slowly rotating teal/gold border glow. */
+.site-plan-rec { border: 2px solid transparent; background: linear-gradient(#fff, #fff) padding-box, conic-gradient(from var(--hr-angle), #14B8A6, #0B5E5B 30%, #F5C451 55%, #14B8A6 80%, #0B5E5B) border-box; animation: hr-rotate 8s linear infinite; }

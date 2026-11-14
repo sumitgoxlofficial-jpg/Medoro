@@ -418,4 +418,16 @@ export const hi: Record<string, string> = {
   "₹486 paid by UPI": "₹486 UPI से मिले",
   "3 batches expire this month": "इस महीने 3 बैच एक्सपायर होंगे",
   "GST summary ready": "GST सारांश तैयार",
+
+  // Pricing: reassurances, price framing and the plan helper
+  "7 days free, no card": "7 दिन मुफ़्त, कार्ड की ज़रूरत नहीं",
+  "Plans never renew on their own": "प्लान अपने-आप रिन्यू नहीं होते",
+  "Cancel any time, your data stays": "कभी भी रद्द करें, आपका डेटा सुरक्षित रहता है",
+  "Pay by UPI, card or netbanking": "UPI, कार्ड या नेटबैंकिंग से भुगतान",
+  "Setup help on WhatsApp": "WhatsApp पर सेटअप में मदद",
+  "About {amount} a day": "लगभग {amount} प्रति दिन",
+  "Save {amount} a year": "साल में {amount} की बचत",
+  "Not sure which plan fits?": "कौन-सा प्लान सही है, तय नहीं कर पा रहे?",
+  "Start the 7-day trial now and choose a plan only if you continue. Or tell us about your store on WhatsApp and we’ll suggest one.":
+    "अभी 7 दिन का ट्रायल शुरू करें और आगे जारी रखें तभी प्लान चुनें। या WhatsApp पर अपने स्टोर के बारे में बताएँ, हम सही प्लान सुझाएँगे।",
 };
