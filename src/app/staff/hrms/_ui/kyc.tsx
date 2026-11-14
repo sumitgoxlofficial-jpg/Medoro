@@ -13,7 +13,7 @@ const Tick = ({ done }: { done: boolean }) => <span className={`inline-flex size
  * The Aadhaar and PAN step. Numbers first (with consent), then proof: the Aadhaar through DigiLocker (checked
  * automatically) or an uploaded card (checked by HR), and an uploaded PAN card (checked by HR).
  */
-export function KycStep({ blocked }: { blocked: boolean }) {
+export function KycStep() {
   const { run, busy, toast } = useRun();
   const router = useRouter();
   const [st, setSt] = useState<Status | null>(null);
@@ -38,15 +38,10 @@ export function KycStep({ blocked }: { blocked: boolean }) {
   if (!st) return <Card title="Aadhaar & PAN" pad><div className="text-[13px] text-[#64748B]">Loading…</div></Card>;
   const needNumbers = !st.aadhaar.entered || !st.pan.entered;
   const aadhaarProof = st.aadhaar.digilocker || st.aadhaar.doc !== "none";
-  if (st.submitted && blocked) {
-    return <Card title="Waiting for verification" sub="Your Aadhaar and PAN are submitted." pad>
-      <p className="text-[13.5px] text-[#475569]">HR checks your documents against the numbers you gave. You will be let in as soon as that is done. If it takes long, ask HR.</p>
-      <button className={btnCls + " mt-3"} onClick={() => { void load(); router.refresh(); }}>Check again</button>
-    </Card>;
-  }
   return (
     <Card title="Verify your identity" sub="Medoro needs your Aadhaar and PAN for every employee. They are stored encrypted and shown masked." pad>
       <div className="flex flex-col gap-4">
+        {st.note ? <div role="alert" className="text-[13px] rounded-lg px-3 py-2 bg-[#FDECEA] text-[#B3261E]"><strong>HR sent this back.</strong> {st.note} Fix it below and you can carry on.</div> : null}
         {notice ? <div role="status" className={`text-[13px] rounded-lg px-3 py-2 ${notice.tone === "ok" ? "bg-[#D6F3EF] text-[#0B5E5B]" : "bg-[#FEF3C7] text-[#92400E]"}`}>{notice.text}</div> : null}
 
         <section className="flex flex-col gap-2.5">
@@ -86,6 +81,7 @@ export function KycStep({ blocked }: { blocked: boolean }) {
         </section>
 
         {needNumbers ? <p className="text-[12px] text-[#64748B]">Save both numbers to continue.</p> : !aadhaarProof || st.pan.doc === "none" ? <p className="text-[12px] text-[#64748B]">Add the proof for each to continue.</p> : null}
+        <p className="text-[12px] text-[#64748B]">You don’t wait for HR: once both numbers and proofs are in, you go to the next step. HR checks them later and tells you if anything needs fixing.</p>
       </div>
     </Card>
   );

@@ -177,7 +177,7 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
       <ol className="flex gap-2 flex-wrap">{steps.map((s, i) => <li key={s} className={cx("rounded-full px-3 py-1 text-[12.5px] font-semibold", i < at ? "bg-[#D6F3EF] text-[#0B5E5B]" : i === at ? "bg-[#0B5E5B] text-white" : "bg-[#E2E8F0] text-[#64748B]")}>{i + 1}. {s}</li>)}</ol>
       {gate === "password" ? <Card title="Set your own password" sub="The password HR gave you was temporary." pad><PasswordForm forced onDone={() => {}} /></Card> : null}
       {gate === "profile" ? <Card title="Your details" sub="Needed for HR records and to pay your salary. Bank account and PAN are stored encrypted." pad><ProfileForm initial={{ phone: sh.me.phone, personalEmail: sh.me.personalEmail }} complete onSave={(v) => run(() => saveProfile(v, true))} busy={busy} /></Card> : null}
-      {gate === "kyc" ? <KycStep blocked={sh.kycBlock} /> : null}
+      {gate === "kyc" ? <KycStep /> : null}
       {gate === "docs" ? (
         <Card title="Joining documents" sub="Read each one, then accept." pad>
           <div className="flex flex-col gap-3">

@@ -51,6 +51,7 @@ export async function saveKycNumbers(me: Me, raw: z.input<typeof numbers>) {
     // A different number is not what DigiLocker matched, or what HR saw: it has to be verified again.
     if (i.aadhaar.slice(-4) !== h.aadhaarLast4) { data.aadhaarVerifiedAt = null; data.aadhaarVerifiedBy = ""; }
   }
+  data.kycNote = ""; // the employee has acted on what HR sent back
   if (i.pan) { data.panSealed = new Uint8Array(seal(i.pan)); data.panMasked = i.pan.slice(0, 2) + "•••••" + i.pan.slice(-3); }
   await db.hrProfile.update({ where: { staffId: me.id }, data });
   await audit(me, "KYC numbers saved", `${i.aadhaar ? "Aadhaar" : ""}${i.aadhaar && i.pan ? " and " : ""}${i.pan ? "PAN" : ""} · consent given`);
@@ -61,7 +62,7 @@ export type KycState = Awaited<ReturnType<typeof kycState>>;
 /** Where someone's KYC stands, for them and for HR. Numbers are masked. */
 export async function kycState(staffId: string) {
   const [p, docs] = await Promise.all([
-    db.hrProfile.findUnique({ where: { staffId }, select: { aadhaarLast4: true, aadhaarVerifiedAt: true, aadhaarVerifiedBy: true, panMasked: true, kycSubmittedAt: true, kycVerifiedAt: true } }),
+    db.hrProfile.findUnique({ where: { staffId }, select: { aadhaarLast4: true, aadhaarVerifiedAt: true, aadhaarVerifiedBy: true, panMasked: true, kycSubmittedAt: true, kycVerifiedAt: true, kycNote: true } }),
     db.hrDocument.findMany({ where: { staffId, kind: { in: [AADHAAR_DOC, PAN_DOC] } }, orderBy: { createdAt: "desc" }, select: { kind: true, verifiedAt: true } }),
   ]);
   const doc = (k: string) => { const d = docs.find((x) => x.kind === k); return d ? (d.verifiedAt ? "verified" as const : "uploaded" as const) : "none" as const; };
@@ -69,6 +70,7 @@ export async function kycState(staffId: string) {
     aadhaar: { masked: maskAadhaar(p?.aadhaarLast4 ?? ""), entered: !!p?.aadhaarLast4, doc: doc(AADHAAR_DOC), digilocker: !!p?.aadhaarVerifiedAt && p.aadhaarVerifiedBy === "DigiLocker", verifiedBy: p?.aadhaarVerifiedAt ? p.aadhaarVerifiedBy : "", verified: !!p?.aadhaarVerifiedAt || doc(AADHAAR_DOC) === "verified" },
     pan: { masked: p?.panMasked ?? "", entered: !!p?.panMasked, doc: doc(PAN_DOC), verified: doc(PAN_DOC) === "verified" },
     submitted: !!p?.kycSubmittedAt, verified: !!p?.kycVerifiedAt,
+    note: p?.kycNote ?? "", // why HR sent a proof back, until the employee fixes it
   };
 }
 /** Someone's KYC state, for HR (people with the Employees module). */

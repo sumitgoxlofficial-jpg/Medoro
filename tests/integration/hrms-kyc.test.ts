@@ -10,7 +10,8 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
-import { removeDoc, uploadDoc, verifyDoc, myDocs } from "@/staff/hrms/docs";
+import { rejectDoc, removeDoc, uploadDoc, verifyDoc, myDocs } from "@/staff/hrms/docs";
+import { gateOf } from "@/staff/hrms/gate";
 import { kycState, refreshKyc, revealKyc, saveKycNumbers } from "@/staff/hrms/kyc";
 import { beginVerify, digilockerConfigured, finishVerify, isoDob, matchAadhaar, namesMatch, parseEAadhaar } from "@/staff/hrms/digilocker";
 import { verhoeffDigit } from "@/lib/aadhaar";
@@ -170,5 +171,30 @@ describe("Aadhaar and PAN verification", () => {
     await saveKycNumbers(riya, { aadhaar: other + verhoeffDigit(other), pan: "", consent: true });
     expect(await kycState(riya.id)).toMatchObject({ aadhaar: { digilocker: false, verified: false }, submitted: false });
     expect(await refreshKyc(riya.id)).toMatchObject({ submitted: false, verified: false });
+  });
+});
+
+describe("employees don't wait for HR; HR sends a proof back with a reason", () => {
+  it("lets the employee carry on once submitted, then brings them back to fix what HR rejected", async () => {
+    const neha = await mkMe((await mk("MS-009", "Neha Rao", "neha@medoro.in", "employee", 9)).id);
+    await saveKycNumbers(neha, { aadhaar: AADHAAR, pan: "ABCPN1234K", consent: true });
+    await upload(neha, "Aadhaar card");
+    await upload(neha, "PAN card");
+    const me = await mkMe(neha.id);
+    expect(me.kycSubmitted).toBe(true);
+    expect(me.kycVerified).toBe(false);
+    expect(gateOf({ ...me, docsAccepted: false })).toBe("docs"); // on to the next step while HR reviews
+
+    const pan = (await myDocs(neha.id)).find((d) => d.kind === "PAN card")!;
+    await expect(rejectDoc(neha, pan.id, "blurred")).rejects.toThrow(); // only HR
+    await expect(rejectDoc(hr, pan.id, "  ")).rejects.toThrow(/Say what is wrong/);
+    await rejectDoc(hr, pan.id, "The photo is blurred.");
+    expect((await myDocs(neha.id)).some((d) => d.kind === "PAN card")).toBe(false);
+    expect(await kycState(neha.id)).toMatchObject({ submitted: false, note: "PAN card: The photo is blurred." });
+    expect(gateOf(await mkMe(neha.id))).toBe("kyc"); // back to the Aadhaar & PAN step, with the reason
+    expect(await db.hrNotification.findFirst({ where: { staffId: neha.id, text: { contains: "sent back your PAN card" } } })).toBeTruthy();
+
+    await upload(neha, "PAN card"); // fixed
+    expect(await kycState(neha.id)).toMatchObject({ submitted: true, note: "" });
   });
 });

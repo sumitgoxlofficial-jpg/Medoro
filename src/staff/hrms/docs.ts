@@ -6,7 +6,7 @@ import { UserError } from "@/server/action";
 import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/storage";
 import { audit, can, holders, need, notify, type Me } from "./auth";
 import { DOC_KINDS } from "./constants";
-import { notifyVerified, refreshKyc } from "./kyc";
+import { AADHAAR_DOC, PAN_DOC, notifyVerified, refreshKyc } from "./kyc";
 
 // Employee documents (identity, address, certificates). The employee uploads; HR opens and marks them verified.
 // Files go through the normal file storage and open only for their owner and people with the Employees module.
@@ -25,6 +25,7 @@ export async function uploadDoc(me: Me, form: FormData) {
   const key = `_hrms/docs/${randomUUID()}.${ext}`;
   await putObject(key, Buffer.from(await file.arrayBuffer()), file.type);
   await db.hrDocument.create({ data: { staffId: me.id, kind, name: file.name.replace(/[^\w.\- ]/g, "").slice(0, 80) || `document.${ext}`, key } });
+  if (kind === AADHAAR_DOC || kind === PAN_DOC) await db.hrProfile.updateMany({ where: { staffId: me.id }, data: { kycNote: "" } });
   await refreshKyc(me.id);
   await notify((await holders("employees")).filter((x) => x !== me.id), `${me.name} uploaded a document: ${kind}.`, "hremployees");
 }
@@ -55,6 +56,25 @@ export async function verifyDoc(me: Me, id: string, ok: boolean) {
   if (k?.justVerified) await notifyVerified(d.staffId);
   else if (ok) await notify([d.staffId], `HR verified your document: ${d.kind}.`, "profile");
   await audit(me, ok ? "Employee document verified" : "Employee document unverified", `${d.staffId} · ${d.kind}`);
+}
+/**
+ * HR found something wrong with a document (blurred, wrong person, number doesn't match): it goes back to the employee
+ * with the reason. The upload is removed, so an Aadhaar or PAN proof has to be sent again; the employee is told in the
+ * HRMS and sees the reason on their Aadhaar & PAN step.
+ */
+export async function rejectDoc(me: Me, id: string, rawReason: string) {
+  need(me, "employees");
+  const reason = String(rawReason ?? "").trim().slice(0, 300);
+  if (!reason) throw new UserError("Say what is wrong, so the employee can fix it.");
+  const d = await db.hrDocument.findUnique({ where: { id } });
+  if (!d) throw new UserError("Document not found.");
+  if (d.staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to check your own document.");
+  await db.hrDocument.delete({ where: { id } });
+  const kyc = d.kind === AADHAAR_DOC || d.kind === PAN_DOC;
+  if (kyc) await db.hrProfile.updateMany({ where: { staffId: d.staffId }, data: { kycNote: `${d.kind}: ${reason}` } });
+  await refreshKyc(d.staffId);
+  await notify([d.staffId], `HR sent back your ${d.kind}. Reason: ${reason.replace(/[.\s]+$/, "")}. Upload it again under My profile → Aadhaar & PAN.`, "profile");
+  await audit(me, "Employee document sent back", `${d.staffId} · ${d.kind} · ${reason}`);
 }
 /** The file itself, for its owner and people with the Employees module. HR opening someone's document is audited. */
 export async function docFile(me: Me, id: string) {
