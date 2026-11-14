@@ -63,8 +63,10 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const to12 = (hhmm: string) => { const h = Number(hhmm.slice(0, 2)); return `${h % 12 || 12}:${hhmm.slice(3, 5)} ${h < 12 ? "AM" : "PM"}`; };
   const groups: [string, typeof sh.nav][] = [];
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
-  const greet = screen === sh.home && screen === "slhome" ? `${new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
-  const subtitle = screen === sh.home && screen === "slhome" ? `${HR_ROLE_LABEL[sh.me.role]} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}` : sub;
+  // India time on both the server and the browser, so the greeting is the same in both renders.
+  const istHour = new Date(Date.now() + 5.5 * 3600_000).getUTCHours();
+  const greet = screen === sh.home && screen === "slhome" ? `${istHour < 12 ? "Good morning" : istHour < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
+  const subtitle = screen === sh.home && screen === "slhome" ? `${HR_ROLE_LABEL[sh.me.role]} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })}` : sub;
   return (
     <div className="flex min-h-screen print:block">
       <aside className={cx("w-[210px] flex-none bg-[#0B5E5B] text-white flex-col px-3 py-5 sticky top-0 h-screen print:hidden", navOpen ? "flex fixed z-40 left-0 top-0" : "hidden min-[860px]:flex")}>
@@ -91,10 +93,21 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           <span><span className="block text-[13px] font-bold leading-tight">Chat with Ally</span><span className="block text-[11px] text-white/60">Your work bestie</span></span>
         </button>
       </aside>
-      <div className="flex-1 min-w-0 flex flex-col">
-        <header className="flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
+      <div className="hr-motion hr-app relative flex-1 min-w-0 flex flex-col">
+        {/* Soft drifting colour and dotted corners behind every screen; motion stops with reduced motion. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden print:hidden">
+          <div className="site-blob site-blob-a bg-[#14B8A6]/10" />
+          <div className="site-blob site-blob-b bg-[#F5C451]/10" />
+          <div className="site-blob site-blob-c bg-[#8FD3C6]/15" />
+          <div className="hr-corner absolute right-0 top-0 size-56 -scale-x-100" />
+          <div className="hr-corner absolute left-0 bottom-0 size-48 -scale-y-100" />
+        </div>
+        <header className="relative flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
           <button className="min-[860px]:hidden border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          {NO_TITLE_SCREENS.includes(screen) ? <div className="mr-auto" /> : <div className="min-w-0 mr-auto"><h1 className="text-[19px] font-bold truncate">{greet}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>}
+          {NO_TITLE_SCREENS.includes(screen) ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
+            <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={sh.nav.find((n) => n.id === screen)?.icon ?? "sparkle"} s={19} /></span>
+            <div className="min-w-0"><h1 className="text-[19px] font-bold truncate">{greet}{greet !== title ? <span aria-hidden className="hr-wave inline-block ml-1.5">👋</span> : null}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>
+          </div>}
           {sh.onBreak
             ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0">On break: {sh.onBreak.kind} · end break</button>
             : lunchNow ? <span className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5">🍽 Lunch break · back at {to12(sh.lunch.to)}</span> : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
@@ -131,7 +144,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             </div> : null}
           </div>
         </header>
-        <main className="flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12"><Screen screen={screen} data={data} sh={sh} /></main>
+        <main key={screen} className="hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12"><Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
       <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} lunch={sh.lunch} />

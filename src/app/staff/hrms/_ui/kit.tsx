@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 import { useToast } from "@/components/ui/toast";
 import { initials } from "@/staff/hrms/constants";
+import { CountUp } from "@/components/welcome-banner";
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 export const inputCls = "border border-[#CDD2D7] rounded-lg px-3 py-2 text-[13.5px] outline-none bg-white focus:border-[#0B5E5B] w-full disabled:bg-[#F1F5F9]";
@@ -31,7 +32,7 @@ export function useRun() {
 
 export function Card({ title, sub, right, children, className, pad = false }: { title?: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string; pad?: boolean }) {
   return (
-    <section className={cx("bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] min-w-0", className)}>
+    <section className={cx("hr-sect bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] min-w-0", className)}>
       {title ? (
         <div className="px-5 pt-4 pb-3 flex gap-3 items-center flex-wrap">
           <div className="flex flex-col"><h3 className="text-[14.5px] font-bold text-[#0f172a]">{title}</h3>{sub ? <span className="text-[12px] text-[#64748B]">{sub}</span> : null}</div>
@@ -43,9 +44,9 @@ export function Card({ title, sub, right, children, className, pad = false }: { 
   );
 }
 export const Stat = ({ l, v, c, sub }: { l: string; v: React.ReactNode; c?: string; sub?: string }) => (
-  <div className="bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] px-4 py-3.5 min-w-0">
+  <div className="hr-stat relative overflow-hidden bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] px-4 py-3.5 min-w-0">
     <div className="text-[11px] font-semibold uppercase tracking-[.06em] text-[#64748B]">{l}</div>
-    <div className="text-[22px] font-bold mt-1 truncate" style={{ color: c ?? "#0B5E5B" }}>{v}</div>
+    <div className="text-[22px] font-bold mt-1 truncate" style={{ color: c ?? "#0B5E5B" }}>{typeof v === "number" ? <CountUp value={v} format={String} /> : v}</div>
     {sub ? <div className="text-[11.5px] text-[#64748B] mt-0.5">{sub}</div> : null}
   </div>
 );

@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { inr } from "@/staff/hrms/constants";
+import { CountUp } from "@/components/welcome-banner";
 import { LOST_REASONS, STAGES } from "@/staff/constants";
 import { addLead, assignLead, autoAssignLeads, importLeads, logLeadCall, saveLeadSheet, setLeadFollowUp, setLeadStage, setSalesTerms, syncLeadSheet } from "../actions";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, btnCls, cx, inputCls, primaryCls, tdCls, useRun } from "./kit";
@@ -34,14 +35,26 @@ export function SalesHome({ d, sh }: { d: Data<"slhome"> } & { sh: Shell }) {
   const pct = d.target ? Math.min(100, Math.round((d.wonMonth * 100) / d.target)) : 0;
   const left = Math.max(0, d.target - d.wonMonth);
   return <>
-    <div className="rounded-[18px] px-7 py-6 text-white flex gap-4 flex-wrap items-center" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F)" }}>
-      <div className="flex-1 min-w-[240px]"><div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{new Date().toLocaleDateString("en-IN", { month: "long" })} target</div><div className="text-[26px] font-bold">{d.wonMonth} of {d.target} pharmacies won</div><div className="h-2 bg-white/20 rounded-full mt-3"><div className="h-full bg-white rounded-full" style={{ width: `${pct}%` }} /></div><div className="text-[12px] text-white/70 mt-1.5">{left} more to go</div></div>
-      <div className="text-right"><div className="text-[40px] font-bold leading-none">{pct}%</div><div className="text-[11px] text-white/70">of monthly target</div></div>
+    {/* Month target banner: progress fills in, the % counts up, a target and rising chart drift behind. */}
+    <div className="hr-banner relative overflow-hidden rounded-[18px] px-7 py-6 max-[560px]:px-5 text-white flex gap-4 flex-wrap items-center" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F)" }}>
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="hr-dots absolute inset-0" />
+        <div className="hr-sheen absolute inset-y-0 -left-1/3 w-1/3" />
+        <svg viewBox="0 0 120 120" className="hr-spin-slow absolute -left-12 -bottom-20 size-44 opacity-20"><circle cx="60" cy="60" r="56" fill="none" stroke="#fff" strokeWidth="1.5" strokeDasharray="3 7" /><circle cx="60" cy="60" r="36" fill="none" stroke="#fff" strokeWidth="1.5" /><circle cx="60" cy="60" r="16" fill="none" stroke="#fff" strokeWidth="1.5" /><circle cx="60" cy="60" r="5" fill="#F5C451" /></svg>
+        <svg viewBox="0 0 200 80" className="absolute right-[18%] bottom-0 w-[220px] max-[700px]:hidden opacity-30"><path className="hr-draw" pathLength={1} d="M4 72l38-22 30 12 40-34 34 10 48-32" fill="none" stroke="#5EEAD4" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /><path d="M184 6l12-0 -2 12" fill="none" stroke="#F5C451" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <svg viewBox="0 0 10 10" className="hr-twinkle absolute right-[38%] top-4 size-2.5"><path d="M5 0l1.2 3.8L10 5 6.2 6.2 5 10 3.8 6.2 0 5l3.8-1.2z" fill="#F5C451" /></svg>
+        <svg viewBox="0 0 10 10" className="hr-twinkle absolute left-[46%] bottom-4 size-2 [animation-delay:-1.4s]"><path d="M5 0l1.2 3.8L10 5 6.2 6.2 5 10 3.8 6.2 0 5l3.8-1.2z" fill="#5EEAD4" /></svg>
+      </div>
+      <div className="relative flex-1 min-w-[240px]"><div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{new Date().toLocaleDateString("en-IN", { month: "long", timeZone: "Asia/Kolkata" })} target</div><div className="text-[26px] font-bold">{d.wonMonth} of {d.target} pharmacies won</div><div className="h-2 bg-white/20 rounded-full mt-3 overflow-hidden"><div className="hr-fill relative h-full bg-gradient-to-r from-[#5EEAD4] to-white rounded-full" style={{ width: `${pct}%` }} /></div><div className="text-[12px] text-white/70 mt-1.5">{left ? `${left} more to go. Keep going!` : "Target reached. Brilliant work!"}</div></div>
+      <div className="relative flex items-center gap-3">
+        <span aria-hidden className="hr-bob size-14 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-[26px] max-[560px]:hidden">{pct >= 100 ? "🏆" : "🎯"}</span>
+        <div className="text-right"><div className="text-[40px] font-bold leading-none"><CountUp value={pct} format={(n) => `${n}%`} /></div><div className="text-[11px] text-white/70">of monthly target</div></div>
+      </div>
     </div>
     <Grid n={4}><Stat l="Assigned to me" v={d.leads.length} sub={`${fresh.length} new`} /><Stat l="In pipeline" v={d.leads.filter((l) => !["won", "lost", "new"].includes(l.stage)).length} c="#0f172a" /><Stat l="Follow-ups due" v={due.length} c={due.length ? "#B45309" : "#0f172a"} /><Stat l="Incentive earned" v={inr(d.incentive)} sub={`${d.pct}% of ${inr(d.value)} annual plan value`} /></Grid>
     <Grid n={2}>
       <Card title="Follow-ups today" pad>{due.length ? due.slice(0, 8).map((l) => <div key={l.id} className="py-2.5 border-t border-[#F1F5F9] first:border-0"><div className="flex items-center gap-2 mb-1.5"><div className="flex-1"><strong className="text-[13.5px]">{l.name}</strong><div className="text-[12px] text-[#64748B]">{l.owner} · {l.city} · {l.phone}</div></div><Stage s={l.stage} /></div><LeadActions l={l} /></div>) : <Empty>No follow-ups due. Nice.</Empty>}</Card>
-      <Card title={`Team leaderboard · ${new Date().toLocaleDateString("en-IN", { month: "long" })}`} pad>{d.team.map((t, i) => <div key={t.id} className="py-1.5"><div className="flex justify-between text-[13px]"><span>{i + 1}. {t.name}{t.id === sh.me.id ? " (you)" : ""}</span><strong>{t.won} / {t.target}</strong></div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-1"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${t.target ? Math.min(100, (t.won * 100) / t.target) : 0}%` }} /></div></div>)}</Card>
+      <Card title={`Team leaderboard · ${new Date().toLocaleDateString("en-IN", { month: "long", timeZone: "Asia/Kolkata" })}`} pad>{d.team.map((t, i) => <div key={t.id} className="py-1.5"><div className="flex justify-between text-[13px]"><span>{i + 1}. {t.name}{t.id === sh.me.id ? " (you)" : ""}</span><strong>{t.won} / {t.target}</strong></div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-1"><div className="hr-fill h-full bg-[#14B8A6] rounded-full" style={{ width: `${t.target ? Math.min(100, (t.won * 100) / t.target) : 0}%`, animationDelay: `${400 + i * 90}ms` }} /></div></div>)}</Card>
     </Grid>
     <Card title="New leads from HR" right={<span className="text-[12px] text-[#64748B]">{fresh.length} waiting</span>}>
       <Table head={["Pharmacy", "Plan", "Source", ""]} empty={fresh.length ? undefined : "No new leads. HR assigns them here."}>{fresh.slice(0, 8).map((l) => <tr key={l.id}><td className={tdCls}><strong>{l.name}</strong><div className="text-[12px] text-[#64748B]">{l.owner} · {l.city}</div></td><td className={tdCls}>{l.plan} · {inr(l.planPrice)}/mo</td><td className={tdCls}>{l.source}</td><td className={tdCls}><button className={primaryCls} onClick={() => run(() => setLeadStage(l.id, "contacted"))}>Mark contacted</button></td></tr>)}</Table></Card>
@@ -119,7 +132,7 @@ export function HrLeads({ d }: { d: Data<"hrleads"> }) {
   return <>
     <LeadSheetCard sheet={d.sheet} />
     <Grid n={4}>{d.team.map((t) => <Card key={t.id} pad><div className="flex items-center gap-2.5"><Avatar name={t.name} size={32} /><div className="flex-1 min-w-0"><div className="font-semibold text-[13.5px] truncate">{t.name}</div><div className="text-[11.5px] text-[#64748B]">{t.empNo}</div></div><button className={btnCls} onClick={() => setTerms({ id: t.id, name: t.name, target: String(t.target), pct: String(t.pct) })}>Terms</button></div>
-      <div className="text-[22px] font-bold mt-2">{t.won} / {t.target}</div><div className="h-1.5 bg-[#E2E8F0] rounded-full"><div className="h-full bg-[#14B8A6] rounded-full" style={{ width: `${t.target ? Math.min(100, (t.won * 100) / t.target) : 0}%` }} /></div><div className="text-[11.5px] text-[#64748B] mt-1.5">{t.open} open · {t.assigned} assigned · incentive {inr(t.incentive)} at {t.pct}%</div></Card>)}{!d.team.length ? <Card pad><Empty>No sales employees yet. Create one in New Employee with access “Sales”.</Empty></Card> : null}</Grid>
+      <div className="text-[22px] font-bold mt-2">{t.won} / {t.target}</div><div className="h-1.5 bg-[#E2E8F0] rounded-full"><div className="hr-fill h-full bg-[#14B8A6] rounded-full" style={{ width: `${t.target ? Math.min(100, (t.won * 100) / t.target) : 0}%` }} /></div><div className="text-[11.5px] text-[#64748B] mt-1.5">{t.open} open · {t.assigned} assigned · incentive {inr(t.incentive)} at {t.pct}%</div></Card>)}{!d.team.length ? <Card pad><Empty>No sales employees yet. Create one in New Employee with access “Sales”.</Empty></Card> : null}</Grid>
     <Grid n={2}>
       <Card title="Upload leads" sub="CSV with columns: store, owner, phone, city, plan, source. Uploaded leads arrive unassigned." pad>
         <input ref={file} type="file" accept=".csv,text/csv" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} />

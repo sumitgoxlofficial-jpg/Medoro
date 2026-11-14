@@ -382,3 +382,23 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .app-motion .app-cta::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 35%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent); animation: site-sweep 5s ease-in-out infinite; pointer-events: none; }
 @keyframes app-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .25; transform: scale(.55); } }
 .app-motion .app-twinkle { animation: app-twinkle 2.8s ease-in-out infinite; }
+
+/* ───── HRMS app screens (src/app/staff/hrms): scoped to .hr-app, off with reduced motion via .hr-motion ───── */
+.hr-app .hr-title { animation: hr-up .5s cubic-bezier(.22,1,.36,1) both; }
+.hr-app .hr-tile-ico { animation: hr-bob 4s ease-in-out infinite; }
+.hr-app .hr-main > * { animation: hr-up .55s cubic-bezier(.22,1,.36,1) both; }
+.hr-app .hr-main > :nth-child(2) { animation-delay: 70ms; }
+.hr-app .hr-main > :nth-child(3) { animation-delay: 140ms; }
+.hr-app .hr-main > :nth-child(4) { animation-delay: 210ms; }
+.hr-app .hr-main > :nth-child(n+5) { animation-delay: 280ms; }
+.hr-app .hr-sect { transition: box-shadow .3s, border-color .3s; }
+.hr-app .hr-sect:hover { box-shadow: 0 16px 32px -20px rgba(11,94,91,.45); border-color: #8FB8B3; }
+.hr-app .hr-stat { transition: box-shadow .3s, border-color .3s; }
+.hr-app .hr-stat::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #14B8A6, #5EEAD4, #F5C451); transform: scaleX(0); transform-origin: left; transition: transform .45s cubic-bezier(.22,1,.36,1); }
+.hr-app .hr-stat:hover { box-shadow: 0 16px 32px -20px rgba(11,94,91,.45); border-color: #8FB8B3; }
+.hr-app .hr-stat:hover::after { transform: scaleX(1); }
+@keyframes hr-sheen { from { transform: translateX(0); } to { transform: translateX(450%); } }
+.hr-app .hr-sheen { background: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent); animation: hr-sheen 6s ease-in-out infinite; }
+.hr-app .hr-spin-slow { animation: hr-spin 40s linear infinite; }
+@keyframes hr-draw { 0% { stroke-dashoffset: 1; } 50%, 100% { stroke-dashoffset: 0; } }
+.hr-app .hr-draw { stroke-dasharray: 1; animation: hr-draw 5s cubic-bezier(.22,1,.36,1) infinite alternate; }
