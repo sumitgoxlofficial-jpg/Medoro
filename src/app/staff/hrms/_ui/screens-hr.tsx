@@ -1,10 +1,10 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
-import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, confirmBank, pfReturn, esiReturn, employeeDocs, employeeKyc, revealKyc, verifyDoc, rejectDoc, removeDoc, postJob, previewOfficialEmail, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
+import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, confirmBank, pfReturn, esiReturn, employeeDocs, employeeKyc, revealKyc, verifyDoc, rejectDoc, removeDoc, postJob, previewOfficialEmail, checkOfficialUsername, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { firstSalary } from "@/staff/hrms/cycles";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
@@ -144,15 +144,32 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
   const blank = { homeState: "", name: "", personalEmail: "", phone: "", dept: d.depts[0]?.name ?? "", designation: "", role: "employee", empType: "Full-time", joinDate: "", ctc: "", location: "", managerId: "", incentivePct: "0" };
   const [v, setV] = useState(blank), [email, setEmail] = useState(""), [made, setMade] = useState<{ id: string; empNo: string; email: string; temp: string; mailed: boolean; name: string; firstSalary: string } | null>(null), [letters, setLetters] = useState<{ id: string; name: string } | null>(null);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
-  const preview = async (name: string) => { if (name.trim().split(/\s+/).length < 2) return setEmail(""); const r = await previewOfficialEmail(name); if (r.ok) setEmail(r.data); };
+  // Username for the official email: suggested from the name until HR types their own, then checked live like a social handle.
+  const [user, setUser] = useState(""), [custom, setCustom] = useState(false), [avail, setAvail] = useState<{ user: string; ok: boolean; reason: string; suggestion: string } | null>(null);
+  const seq = useRef(0);
+  const preview = async (name: string) => { if (custom) return; if (name.trim().split(/\s+/).length < 2) { setUser(""); setEmail(""); return; } const r = await previewOfficialEmail(name); if (r.ok) { setUser(r.data.split("@")[0]); setEmail(r.data); } };
+  useEffect(() => {
+    if (!user) { setAvail(null); return; }
+    const n = ++seq.current;
+    const t = setTimeout(async () => { const r = await checkOfficialUsername(user); if (n === seq.current && r.ok) { setAvail({ user, ok: r.data.available, reason: r.data.reason, suggestion: r.data.suggestion.split("@")[0] }); setEmail(r.data.email); } }, 350);
+    return () => clearTimeout(t);
+  }, [user]);
+  const takeUser = (u: string) => { setCustom(u !== ""); setUser(u.toLowerCase().replace(/[^a-z0-9.]/g, "")); };
   return (
     <>
       <div className="grid gap-3.5 grid-cols-[minmax(0,2fr)_minmax(0,1fr)] max-[1000px]:grid-cols-1">
         <Card title="Employee details" sub={`Official email, employee ID and password are generated for you · @${d.domain}`} pad>
-          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => createEmployee({ ...v, role: v.role as "employee", empType: v.empType as "Full-time", ctc: Number(v.ctc || 0), incentivePct: Number(v.incentivePct || 0), managerId: v.managerId || null }), (r) => { setMade({ ...r, name: v.name }); setV(blank); setEmail(""); }); }}>
+          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (avail && avail.user === user && !avail.ok) return; run(() => createEmployee({ ...v, emailUser: user, role: v.role as "employee", empType: v.empType as "Full-time", ctc: Number(v.ctc || 0), incentivePct: Number(v.incentivePct || 0), managerId: v.managerId || null }), (r) => { setMade({ ...r, name: v.name }); setV(blank); setEmail(""); setUser(""); setCustom(false); setAvail(null); }); }}>
             <Grid n={3}>
               <Field label="Full name *"><input className={inputCls} value={v.name} onChange={(e) => { set("name")(e); void preview(e.target.value); }} required /></Field>
               <Field label="Personal email *" hint="Welcome details are sent here"><input className={inputCls} type="email" value={v.personalEmail} onChange={set("personalEmail")} required /></Field>
+              <Field label="Official email *" hint={avail && avail.user === user ? (avail.ok ? "✓ Available" : avail.suggestion ? `${avail.reason} Try ${avail.suggestion}.` : avail.reason) : "Suggested from the name; you can change it"}>
+                <div className={cx(inputCls, "flex items-center gap-1 !p-0 overflow-hidden", avail && avail.user === user && !avail.ok ? "!border-[#DC2626]" : "")}>
+                  <input className="flex-1 min-w-0 bg-transparent border-0 outline-none px-3 py-2" value={user} onChange={(e) => takeUser(e.target.value)} placeholder="firstname.lastname" autoComplete="off" spellCheck={false} required />
+                  <span className="pr-3 text-[#64748B] whitespace-nowrap">@{d.domain}</span>
+                </div>
+                {avail && avail.user === user && !avail.ok && avail.suggestion ? <button type="button" className="mt-1 text-[12px] underline bg-transparent border-0 p-0 cursor-pointer text-[#0B5E5B] font-semibold text-left" onClick={() => takeUser(avail.suggestion)}>Use {avail.suggestion}@{d.domain}</button> : null}
+              </Field>
               <Field label="Mobile *"><input className={inputCls} value={v.phone} onChange={set("phone")} inputMode="tel" required /></Field>
               <Field label="Department *"><select className={inputCls} value={v.dept} onChange={set("dept")}>{d.depts.map((x) => <option key={x.id}>{x.name}</option>)}</select></Field>
               <Field label="Designation *"><input className={inputCls} value={v.designation} onChange={set("designation")} required /></Field>

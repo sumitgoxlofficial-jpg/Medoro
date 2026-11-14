@@ -56,7 +56,7 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await expect(page).toHaveURL(/\/staff(\/overview)?$/);
 
   // An MR joins with a Gmail address and lands on their dashboard straight away.
-  const mr = `mr.${uid().toLowerCase()}@gmail.com`;
+  const mr = `mr.${uid().toLowerCase()}@medoro.in`;
   const other = await browser.newContext();
   const sp = await other.newPage();
   await join(sp, { name: "Priya Partner", email: mr, phone: "9822000003" });

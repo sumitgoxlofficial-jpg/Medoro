@@ -12,7 +12,7 @@ type Step = "signin" | "signup" | "signupDone" | "enroll" | "totp" | "invite" | 
 const input = "border border-input rounded-lg px-3 py-[11px] text-[15px] text-ink outline-none focus:border-teal bg-white w-full";
 const label = "flex flex-col gap-[5px] text-[13px] text-muted";
 
-export function StaffLogin({ invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, setupOpen = false, emailCodes = false }: {
+export function StaffLogin({ domain = "medoro.in", invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, setupOpen = false, emailCodes = false }: {
   domain: string; invite: { token: string; info: { name: string; email: string } | null } | null; pending: { email: string; enrolled: boolean } | null;
   joinPartner?: boolean; google?: boolean; googleNew?: { email: string; name: string } | null; notice?: string; handoff?: boolean;
   setupOpen?: boolean; emailCodes?: boolean;
@@ -154,7 +154,7 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
               <>
                 {gBtn("Continue with Google")}
                 {google ? <div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or with email<span className="h-px flex-1 bg-line" /></div> : null}
-                <label className={label}>Email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder="you@gmail.com" autoComplete="username" inputMode="email" /></label>
+                <label className={label}>Email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder={`you@${domain}`} autoComplete="username" inputMode="email" /></label>
                 <label className={label}>Password<input className={input} type="password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} autoComplete="current-password" /></label>
                 <div className="flex justify-end -mt-1.5 text-[13px]"><button type="button" onClick={() => setErr("Ask a Medoro admin to reset your partner password. Medoro team: use “Forgot password?” on the HRMS sign-in.")} className="min-h-10 inline-flex items-center text-teal cursor-pointer">Forgot password?</button></div>
               </>
@@ -173,14 +173,13 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
             {step === "signup" && mode === "partner" ? (
               <>
                 <span className="text-[14px] font-semibold">Become a reference partner</span>
-                <span className="text-[13px] text-muted">For MRs, distributors and consultants. Refer pharmacies to Medoro and earn commission on every plan they buy. Your account is ready straight away.</span>
-                {google ? <>{gBtn("Continue with Google")}<div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or fill in your details<span className="h-px flex-1 bg-line" /></div></> : null}
+                <span className="text-[13px] text-muted">Only for Medoro employees. Sign up with your @{domain} work email and earn commission on every plan your referred pharmacies buy.</span>
                 {([["name", "Full name", "text", "name"], ["email", "Email", "email", "email"], ["phone", "Mobile", "tel", "tel"], ["team", "Company / area (e.g. MR at Cipla, Pune)", "text", "off"], ["password", "Create a password (12+ characters)", "password", "new-password"]] as const).map(([k, l, t, ac]) => (
                   k === "email" && needCode ? (
                     <div key={k} className="flex flex-col gap-2">
                       <label className={label}>Email
                         <div className="flex gap-2">
-                          <input className={input + (codeSent ? " bg-[#F7F8F9] text-muted" : "")} type="email" autoComplete="email" value={su.email} readOnly={codeSent} onChange={(e) => { setSu((x) => ({ ...x, email: e.target.value })); setErr(""); }} placeholder="you@gmail.com" />
+                          <input className={input + (codeSent ? " bg-[#F7F8F9] text-muted" : "")} type="email" autoComplete="email" value={su.email} readOnly={codeSent} onChange={(e) => { setSu((x) => ({ ...x, email: e.target.value })); setErr(""); }} placeholder={`you@${domain}`} />
                           <button type="button" disabled={busy || !su.email.includes("@")} onClick={() => (codeSent ? (setCodeSent(false), setEcode("")) : sendCode())} className="flex-none border border-input rounded-lg px-3 text-[13px] font-semibold text-teal cursor-pointer whitespace-nowrap disabled:opacity-50">{codeSent ? "Change" : "Send code"}</button>
                         </div>
                       </label>
@@ -191,7 +190,7 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
                       ) : null}
                     </div>
                   ) : (
-                    <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} placeholder={k === "email" ? "you@gmail.com" : ""} /></label>
+                    <label key={k} className={label}>{l}<input className={input} type={t} autoComplete={ac} value={su[k]} onChange={(e) => { setSu((x) => ({ ...x, [k]: e.target.value })); setErr(""); }} placeholder={k === "email" ? `you@${domain}` : ""} /></label>
                   )
                 ))}
               </>

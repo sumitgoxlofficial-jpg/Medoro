@@ -14,6 +14,7 @@ const GOOGLE_MSG: Record<string, string> = {
   error: "Google sign-in didn’t work. Try again.",
   cancelled: "Google sign-in was cancelled.",
   off: "Google sign-in isn’t available right now. Use your email and password.",
+  nouser: "Google sign-in is only for existing profiles. New sign-ups are for Medoro employees with an @medoro.in email.",
   mismatch: "This email is linked to a different Google account. Use that account, or your password.",
   deactivated: "This partner profile is deactivated. Contact Medoro.",
 };

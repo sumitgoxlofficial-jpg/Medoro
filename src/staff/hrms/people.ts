@@ -86,18 +86,41 @@ export async function deleteDepartment(me: Me, id: string) {
 }
 
 // ── New employee: official email, employee ID and a temporary password are generated.
-const domain = () => (staffDomain() === "*" ? "medoro.in" : staffDomain());
+/** The company domain every official email uses (never the HR user's own address). */
+export const officialDomain = () => (staffDomain() === "*" ? "medoro.in" : staffDomain());
+const domain = officialDomain;
 const slug = (name: string) => name.toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, "").trim().split(/\s+/).filter(Boolean);
+const taken = async (email: string) => !!(await db.staffUser.findFirst({ where: { email }, select: { id: true } }));
 /** firstname.lastname@domain, with a number added when it is taken. */
 export async function officialEmail(name: string) {
   const parts = slug(name);
   if (!parts.length) return "";
   const base = parts.length > 1 ? `${parts[0]}.${parts[parts.length - 1]}` : parts[0];
+  return firstFree(base);
+}
+async function firstFree(base: string) {
   for (let n = 0; n < 50; n++) {
     const email = `${base}${n ? n + 1 : ""}@${domain()}`;
-    if (!(await db.staffUser.findUnique({ where: { email_kind: { email, kind: "team" } } }))) return email;
+    if (!(await taken(email))) return email;
   }
   throw new UserError("Couldn’t make an official email for this name. Try a different spelling.");
+}
+/** Username rules, like a social handle: lowercase letters, digits and dots; starts with a letter; no double or trailing dot. */
+export function usernameProblem(user: string) {
+  if (user.length < 3) return "Use at least 3 characters.";
+  if (user.length > 40) return "Use 40 characters or fewer.";
+  if (!/^[a-z][a-z0-9.]*$/.test(user)) return "Use only lowercase letters, numbers and dots, starting with a letter.";
+  if (user.includes("..") || user.endsWith(".")) return "Dots can’t be doubled or at the end.";
+  return "";
+}
+/** Live check for the New Employee form: is this username free? Suggests the next free one when it isn’t. */
+export async function checkOfficialUsername(raw: string) {
+  const user = raw.trim().toLowerCase();
+  const email = `${user}@${domain()}`;
+  const problem = usernameProblem(user);
+  if (problem) return { email, available: false, reason: problem, suggestion: "" };
+  if (!(await taken(email))) return { email, available: true, reason: "", suggestion: "" };
+  return { email, available: false, reason: `${email} is already taken.`, suggestion: await firstFree(user) };
 }
 const pick = (s: string) => s[randomInt(0, s.length)];
 /** 14 characters with upper, lower, digit and symbol; no look-alike characters. */
@@ -117,6 +140,8 @@ export const newEmployeeSchema = z.object({
   ctc: z.coerce.number().int("Enter the annual CTC in rupees.").min(0).max(100_000_000), location: z.string().trim().max(60).default(""),
   managerId: z.string().nullish(), incentivePct: z.coerce.number().min(0).max(5, "Sales incentive can’t be more than 5%.").default(0),
   homeState: z.string().trim().default("").refine((v) => !v || !!stateName(v), "Choose the state from the list.").transform(stateName),
+  /** Optional username for the official email (the part before @). Generated from the name when blank. */
+  emailUser: z.string().trim().toLowerCase().default(""),
 });
 
 export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSchema>) {
@@ -125,7 +150,13 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
   if ((i.role === "hr" || i.role === "finance") && me.role !== "admin") throw new UserError("Only the super admin can give HR or Finance access.");
   if (await db.staffUser.findFirst({ where: { kind: "team", phone: i.phone, status: { not: "deactivated" } } })) throw new UserError("An employee with this mobile number already exists.");
   if (await db.hrProfile.findFirst({ where: { personalEmail: i.personalEmail, staff: { status: { not: "deactivated" } } } })) throw new UserError("An employee with this personal email already exists.");
-  const email = await officialEmail(i.name);
+  let email: string;
+  if (i.emailUser) {
+    const c = await checkOfficialUsername(i.emailUser);
+    if (!c.available) throw new UserError(c.suggestion ? `${c.reason} Try ${c.suggestion.split("@")[0]}.` : c.reason);
+    email = c.email;
+  } else email = await officialEmail(i.name);
+  if (!email) throw new UserError("Enter a username for the official email.");
   const { empNo, n } = await newEmployeeNo();
   const temp = tempPassword();
   const staffRole = i.role === "sales" ? "sales" : "employee";

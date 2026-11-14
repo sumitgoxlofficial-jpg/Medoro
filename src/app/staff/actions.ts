@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { UserError, type ActionResult } from "@/server/action";
-import { destroyStaffSession, getStaff, staffAudit, staffRun } from "@/staff/auth";
+import { destroyStaffSession, getStaff, isStaffEmail, staffAudit, staffDomain, staffRun } from "@/staff/auth";
 import * as people from "@/staff/people";
 import * as sales from "@/staff/sales";
 import * as support from "@/staff/support";
@@ -35,7 +35,7 @@ export const staffSignIn = async (email: string, password: string, as: people.St
 export const staffEnroll = async () => open(() => people.enrollTotp());
 export const staffVerify = async (code: string) => open(() => people.verifyTotp(code));
 export const staffSignup = async (input: Parameters<typeof people.signup>[0]) => open(() => people.signup(input));
-export const staffSendPartnerCode = async (email: string) => open(async () => { const { sendSignupCode } = await import("@/domain/identity/signup-email"); await sendSignupCode(email, "partner"); return null; });
+export const staffSendPartnerCode = async (email: string) => open(async () => { if (!isStaffEmail(email)) throw new UserError(`Only Medoro employees can sign up. Use your @${staffDomain()} work email.`); const { sendSignupCode } = await import("@/domain/identity/signup-email"); await sendSignupCode(email, "partner"); return null; });
 export const staffVerifyPartnerCode = async (email: string, code: string) => open(async () => { const { verifySignupCode } = await import("@/domain/identity/signup-email"); await verifySignupCode(email, code); return null; });
 export const staffGooglePartner = async (input: Parameters<typeof people.completeGooglePartner>[0]) => open(() => people.completeGooglePartner(input));
 export const staffAcceptInvite = async (token: string, password: string) => open(() => people.acceptInvite(token, password));
