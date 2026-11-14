@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
-import { BadgeIndianRupee, Briefcase, Building2, Handshake, Kanban, Radar, LayoutDashboard, LifeBuoy, Lock, LogOut, Percent, Ticket, Users, Wallet } from "lucide-react";
+import { BadgeIndianRupee, Building2, Handshake, Kanban, Radar, LayoutDashboard, LifeBuoy, Lock, LogOut, Percent, Ticket, Users, Wallet } from "lucide-react";
 import { ToastProvider } from "@/components/ui/toast";
 import { ROLE_LABEL, type StaffRoleId } from "@/staff/constants";
 import { staffSignOut } from "../actions";
@@ -43,11 +43,6 @@ export function ConsoleShell({ me, badges, growth, children }: { me: { name: str
                   <Link key={v} href={`/staff/growth/${v}`} className={`text-[12.5px] px-2 py-[5px] rounded-md ${sub?.[0] === v ? "bg-white/10 text-white font-semibold" : "text-[#9DB0B5] hover:text-white hover:bg-white/[.05]"}`}>{label}</Link>
                 ))}
               </div>
-            ) : null}
-            {me.role !== "partner" ? (
-              <Link href="/staff/hrms" className="flex items-center gap-2.5 text-[13.5px] px-2.5 py-[9px] rounded-[7px] text-[#B8C7CC] font-medium hover:bg-white/[.06] hover:text-white mt-1 border-t border-white/[.06] pt-3">
-                <Briefcase size={16} className="w-[18px]" /><span className="flex-1">HRMS</span>
-              </Link>
             ) : null}
           </nav>
           <div className="m-2 px-3 py-2.5 border border-white/10 rounded-lg text-[11.5px] text-[#9DB0B5] flex gap-2"><Lock size={13} className="text-[#5FD3BC] mt-0.5 flex-none" /><span>Account data only. No access to any pharmacy’s database, invoices or backups.</span></div>

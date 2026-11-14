@@ -46,7 +46,7 @@ export async function hrSignOut() {
   const me = await auth.getMe();
   if (me) { await people.signedOut(me); await auth.audit(me, "Signed out"); }
   await destroyStaffSession();
-  redirect("/staff/login");
+  redirect("/staff/employee");
 }
 
 // ── Me

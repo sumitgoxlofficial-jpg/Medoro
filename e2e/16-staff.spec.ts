@@ -26,9 +26,9 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login/);
 
-  // First super admin from STAFF_BOOTSTRAP_EMAIL. One sign-in page for everyone: no tabs.
+  // First super admin from STAFF_BOOTSTRAP_EMAIL, on the Medoro team tab.
   await page.goto("/staff/login");
-  await expect(page.getByRole("tab")).toHaveCount(0);
+  await page.getByRole("tab", { name: "Medoro team" }).click();
   await page.getByRole("button", { name: /Set up the admin profile/ }).click();
   await page.getByLabel("Full name").fill("Founder Admin");
   await page.getByLabel("Admin email").fill(BOOTSTRAP);
@@ -37,7 +37,8 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await page.getByRole("button", { name: "Create admin profile" }).click();
   await expect(page.getByText("You’re the first super admin. Sign in to set up your authenticator.")).toBeVisible();
   await page.getByRole("button", { name: "Back to sign in" }).click();
-  await page.getByLabel("Email or employee ID").fill(BOOTSTRAP);
+  await page.getByRole("tab", { name: "Medoro team" }).click();
+  await page.getByLabel("Email", { exact: true }).fill(BOOTSTRAP);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Set up your authenticator")).toBeVisible();
