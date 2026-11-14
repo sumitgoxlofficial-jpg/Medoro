@@ -14,7 +14,7 @@ import { useT } from "@/lib/i18n-client";
 
 type H = { id: string; at: string; kind: string; size: number; sha: string | null; status: string; error: string | null; drive: boolean; local: boolean };
 const ST: Record<string, [string, Tone]> = { verified: ["Verified", "green"], partial: ["Partial", "amber"], failed: ["Failed", "red"], running: ["Running", "blue"], expired: ["Expired", "gray"] };
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
 const FLASH: Record<string, [string, "green" | "red"]> = { ok: ["Google Drive connected.", "green"], denied: ["Google access was not granted.", "red"], error: ["Couldn’t connect Google Drive. Try again.", "red"], state: ["The Google sign-in expired. Try again.", "red"], forbidden: ["Your role can’t connect integrations.", "red"], scope: ["Not all Drive access was ticked on Google’s screen. Connect again and tick both Google Drive boxes.", "red"] };
 type DriveFile = { id: string; name: string; size: number; createdTime: string; known: boolean };
 
@@ -141,7 +141,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
       </div>
       {!inDrive && <>
       {running ? <div className="bg-white border border-teal-line rounded-xl px-4 py-3 text-[13.5px]">{t(connected ? "Snapshot → encrypt → write → verify → upload…" : "Snapshot → encrypt → write → verify…")} <div className="h-1.5 bg-line-soft rounded mt-2 overflow-hidden"><div className="h-full w-1/2 bg-teal animate-pulse" /></div></div> : null}
-      <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
+      <div className="app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] overflow-auto tbl-scroll">
         <div className="font-semibold text-[15px] px-4 pt-3.5 pb-2">{t("Backup history")}</div>
         {history.length ? (
           <table className="w-full border-collapse min-w-[860px] text-[13.5px]">

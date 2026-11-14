@@ -1,3 +1,4 @@
+import { Lock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireCtx, can } from "@/server/context";
 import { db } from "@/server/db";
@@ -36,9 +37,9 @@ export default async function Page() {
   const move = (tenant.settings as { driveMove?: { state?: string } }).driveMove;
   return (
     <>
-      <PageHead title={dictFor(ctx.lang).privacy} sub="Data ownership, external services, export and deletion" />
+      <PageHead icon={Lock} title={dictFor(ctx.lang).privacy} sub="Data ownership, external services, export and deletion" />
       <div className="flex flex-col gap-4">
-        <div className="bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-1.5 max-w-[1200px]" data-testid="data-home">
+        <div className="app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-1.5 max-w-[1200px]" data-testid="data-home">
           <div className="font-semibold text-[15px]">{t("Where your pharmacy’s records live")}</div>
           <div className="text-[13.5px] text-muted">{inDrive
             ? `${t(move?.state === "moved"

@@ -9,10 +9,10 @@ import { PageHead } from "@/components/page-head";
 import { t as dictFor } from "@/lib/i18n";
 import { tFor, type TFn } from "@/lib/tr";
 import { dayMonth, hhmm } from "@/lib/dates";
-import { Monitor, Smartphone } from "lucide-react";
+import { Monitor, Smartphone, RefreshCw } from "lucide-react";
 
 export const metadata = { title: "Sync & offline" };
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-1";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-1";
 
 function ago(d: Date, t: TFn) {
   const s = Math.round((Date.now() - d.getTime()) / 1000);
@@ -51,7 +51,7 @@ export default async function Page() {
   });
   return (
     <>
-      <PageHead title={dictFor(ctx.lang).sync} sub="Devices connected to your server and offline reconciliation" />
+      <PageHead icon={RefreshCw} title={dictFor(ctx.lang).sync} sub="Devices connected to your server and offline reconciliation" />
       <div className="flex flex-col gap-4 max-w-[1400px]">
         <div className={card}>
           <div className="font-semibold text-[15px] mb-1">{allUsers ? t("Signed-in devices") : t("Your signed-in devices")}</div>

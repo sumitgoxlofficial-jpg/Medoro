@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { requireCtx, can, entitlementsOf } from "@/server/context";
 import { hasFeature, upgradeMessage } from "@/lib/plans";
@@ -21,7 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   ]);
   return (
     <>
-      <PageHead title={t(ctx.lang).users} sub="Roles, permissions, branches and audit trail" />
+      <PageHead icon={ShieldCheck} title={t(ctx.lang).users} sub="Roles, permissions, branches and audit trail" />
       <UsersView tab={tab} team={team} roles={roles} perms={PERMS.map((p) => ({ id: p, label: PERM_LABEL[p] }))} branches={branches} transfers={transfers} audit={audit}
         tenantCode={tenant.code} myBranches={ctx.branches.map((b) => b.id)} canAdjust={can(ctx, "adjust")}
         locked={rolesOpen ? undefined : { message: upgradeMessage(ent, "roles"), canUpgrade: true }}

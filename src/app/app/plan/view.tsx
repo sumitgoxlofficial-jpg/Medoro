@@ -24,7 +24,7 @@ const PAY_STATUS: Record<string, [string, Tone]> = { paid: ["Paid", "green"], re
 
 
 type V = Awaited<ReturnType<typeof planView>>;
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2.5";
 // Calendar dates (YYYY-MM-DD) as they are; timestamps as their India date, like the rest of the app.
 const dayIn = (lang: Lang) => (iso: string) => iso.length === 10 ? new Date(iso + "T00:00:00").toLocaleDateString(localeOf(lang), { day: "numeric", month: "short", year: "numeric" }) : new Date(iso).toLocaleDateString(localeOf(lang), { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 const whenIn = (lang: Lang) => (iso: string) => new Date(iso).toLocaleString(localeOf(lang), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });

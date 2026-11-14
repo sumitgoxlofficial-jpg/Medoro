@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n-client";
 
 type AiView = { enabled: boolean; globalOff: boolean; remoteNames: boolean; mode: "rules" | "local" | "remote"; note: string | null; remoteHost: string | null };
 
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 
 function Toggle({ checked, onChange, title, body, disabled }: { checked: boolean; onChange: (v: boolean) => void; title: string; body: string; disabled?: boolean }) {
   const t = useT();

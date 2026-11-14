@@ -13,7 +13,7 @@ import { useT } from "@/lib/i18n-client";
 
 type Op = { id: string; deviceId: string; status: string; createdAt: string; receivedAt: string; receipt: string; totalPaise: number; items: number; message: string | null; invoiceNo: string | null; resolution: string | null };
 type Props = { devices: { id: string; name: string; branchId: string; lastSeen: string }[]; ops: Op[]; branchId: string; branchName: string; counterName: string | null; canManage: boolean };
-const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2";
+const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-2";
 const when = (iso: string) => { const d = new Date(iso); return `${dayMonth(d)} · ${hhmm(d)}`; };
 
 export function OfflinePanel({ devices, ops, branchId, branchName, counterName, canManage }: Props) {
