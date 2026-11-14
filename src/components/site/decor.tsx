@@ -74,3 +74,35 @@ export function SavingsArt({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** Partners page: a partner in the middle, linked to pharmacies; ₹ coins travel back along the links. */
+export function ReferralArt({ className }: { className?: string }) {
+  const stores: [number, number][] = [[60, 52], [300, 52], [40, 190], [320, 190], [180, 236]];
+  return (
+    <svg viewBox="0 0 360 270" className={className} aria-hidden focusable="false">
+      <rect x="0" y="0" width="360" height="270" rx="24" fill="#F2F9F8" />
+      <circle cx="180" cy="128" r="70" fill="none" stroke="#CFE6E3" strokeWidth="1.5" strokeDasharray="3 7" className="site-spin" />
+      {stores.map(([x, y], i) => (
+        <g key={i}>
+          <path d={`M180 128L${x} ${y}`} stroke="#8FD3C6" strokeWidth="2" strokeDasharray="5 6" className="site-dash" />
+          <circle r="7" fill={GOLD} stroke="#D9A93A" strokeWidth="1.5">
+            <animateMotion dur="3.2s" begin={`${i * 0.6}s`} repeatCount="indefinite" path={`M${x} ${y}L180 128`} />
+          </circle>
+          <g className="site-bob" style={{ animationDelay: `${-i * 0.8}s` }}>
+            <rect x={x - 22} y={y - 18} width="44" height="36" rx="7" fill="#fff" stroke="#CFE6E3" strokeWidth="2" />
+            <path d={`M${x - 22} ${y - 8}h44`} stroke={T2} strokeWidth="8" />
+            <rect x={x - 6} y={y + 2} width="12" height="16" rx="2" fill={T} />
+            <path d={`M${x} ${y - 16}v-6M${x - 3} ${y - 19}h6`} stroke={ROSE} strokeWidth="2.4" strokeLinecap="round" />
+          </g>
+        </g>
+      ))}
+      <circle cx="180" cy="128" r="34" fill="rgba(20,184,166,.15)" className="site-breathe" />
+      <circle cx="180" cy="128" r="26" fill={T} />
+      <circle cx="180" cy="120" r="8" fill="#fff" />
+      <path d="M166 142c3-9 8-12 14-12s11 3 14 12" fill="#fff" />
+      <g className="site-float [--dur:7s]" style={{ transformOrigin: "180px 128px" }}>
+        <circle cx="214" cy="96" r="13" fill={GOLD} /><text x="214" y="101" textAnchor="middle" fontSize="13" fontWeight="700" fill="#94570A">₹</text>
+      </g>
+    </svg>
+  );
+}

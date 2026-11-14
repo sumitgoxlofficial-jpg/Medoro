@@ -316,3 +316,11 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .site-head-line { background: linear-gradient(90deg, transparent, #14B8A6 20%, #0B5E5B 40%, #F5C451 60%, transparent 80%); background-size: 50% 100%; background-repeat: repeat-x; opacity: .7; animation: site-head-line 6s linear infinite; }
 /* Pricing: the recommended plan gets a slowly rotating teal/gold border glow. */
 .site-plan-rec { border: 2px solid transparent; background: linear-gradient(#fff, #fff) padding-box, conic-gradient(from var(--hr-angle), #14B8A6, #0B5E5B 30%, #F5C451 55%, #14B8A6 80%, #0B5E5B) border-box; animation: hr-rotate 8s linear infinite; }
+/* Partners page: rotating ring, dashes flowing along links, and a dashed connector between the steps. */
+@keyframes site-spin { to { transform: rotate(360deg); } }
+.site-spin { transform-origin: 180px 128px; animation: site-spin 40s linear infinite; }
+@keyframes site-dash { to { stroke-dashoffset: -22; } }
+.site-dash { animation: site-dash 1.2s linear infinite reverse; }
+.site-steps::before { content: ""; position: absolute; left: 4%; right: 4%; top: 38px; height: 2px; background: repeating-linear-gradient(90deg, #8FD3C6 0 8px, transparent 8px 16px); background-size: 32px 2px; animation: site-steps 1.4s linear infinite; z-index: 0; }
+@keyframes site-steps { to { background-position: 32px 0; } }
+@media (max-width: 1099px) { .site-steps::before { display: none; } }
