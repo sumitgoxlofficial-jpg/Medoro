@@ -266,3 +266,32 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .site-foot-link:hover span { transform: translateX(2px); }
 @keyframes site-fab { 0% { box-shadow: 0 10px 30px -10px rgba(14,22,20,.5), 0 0 0 0 rgba(20,108,67,.45); } 100% { box-shadow: 0 10px 30px -10px rgba(14,22,20,.5), 0 0 0 14px rgba(20,108,67,0); } }
 .site-root .site-fab { animation: site-fab 2.4s ease-out infinite; }
+
+/* ───── HRMS sign-in page motion (src/app/staff/employee) ───── */
+.hr-motion .hr-dots { background-image: radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.2px); background-size: 22px 22px; opacity: .25; mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 30%, transparent 80%); }
+@keyframes hr-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.hr-up { animation: hr-up .8s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--d, 0) * 110ms); }
+.hr-form { animation: hr-up .9s cubic-bezier(.22,1,.36,1) .15s both; }
+@keyframes hr-shine { to { background-position: 200% center; } }
+.hr-shine { background: linear-gradient(90deg, #D6F3EF 0%, #5EEAD4 25%, #D6F3EF 50%, #F5C451 75%, #D6F3EF 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: hr-shine 8s linear infinite; }
+@keyframes hr-spin { to { transform: rotate(360deg); } }
+.hr-spin { transform-origin: 200px 190px; animation: hr-spin 60s linear infinite; }
+.hr-spin-rev { transform-origin: 200px 190px; animation: hr-spin 45s linear infinite reverse; }
+.hr-orbit { transform-origin: 200px 190px; animation: hr-spin 24s linear infinite; }
+.hr-counter { transform-origin: 0 0; animation: hr-spin 24s linear infinite reverse; }
+@keyframes hr-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.18); opacity: .55; } }
+.hr-pulse { transform-origin: 200px 190px; animation: hr-pulse 3s ease-in-out infinite; }
+@keyframes hr-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.hr-bob { animation: hr-bob 4s ease-in-out infinite; }
+@keyframes hr-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.6); } }
+.hr-twinkle { animation: hr-twinkle 2.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes hr-pop { from { opacity: 0; transform: translateY(12px) scale(.9); } to { opacity: 1; transform: none; } }
+.hr-card { animation: hr-pop .7s cubic-bezier(.22,1,.36,1) both, hr-bob 5s ease-in-out infinite; animation-delay: calc(.8s + var(--d, 0) * .45s), calc(1.5s + var(--d, 0) * .7s); }
+@keyframes hr-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+.hr-breathe { animation: hr-breathe 3.5s ease-in-out infinite; }
+@keyframes hr-wave { 0%, 60%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(16deg); } 20%, 40% { transform: rotate(-8deg); } }
+.hr-wave { animation: hr-wave 3s ease-in-out infinite; transform-origin: 70% 80%; }
+.hr-btn::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent); animation: site-sweep 4.5s ease-in-out infinite; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hr-motion *, .hr-motion *::before, .hr-motion *::after { animation: none !important; transition: none !important; }
+}
