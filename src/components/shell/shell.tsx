@@ -253,8 +253,14 @@ function ShellInner(p: ShellProps) {
             {offlineReady ? <a href="/offline" className="font-semibold text-teal underline">{t("Open offline billing")}</a> : null}
           </div>
         ) : null}
-        <header className={cn("flex items-center h-14 bg-white border-b border-line flex-none", phone ? "gap-1 px-2" : "gap-2.5 px-5")}>
-          <div className={cn("flex items-center gap-1.5 text-[13.5px] min-w-0", phone ? "flex-1" : "flex-none")}>
+        <header className={cn("app-head relative flex items-center h-14 bg-white border-b border-line flex-none", phone ? "gap-1 px-2" : "gap-2.5 px-5")}>
+          {/* Soft moving tint, a faint dot band and a gradient line sliding along the bottom (off with reduced motion). */}
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="site-head-tint absolute inset-0 opacity-70" />
+            <div className="site-head-dots absolute inset-y-0 right-0 w-[24%] [transform:scaleX(-1)]" />
+            <div className="site-head-line absolute inset-x-0 -bottom-px h-[2px] opacity-60" />
+          </div>
+          <div className={cn("relative flex items-center gap-1.5 text-[13.5px] min-w-0", phone ? "flex-1" : "flex-none")}>
             {!narrow ? <><span className="text-faint whitespace-nowrap max-w-[160px] truncate">{p.tenantName.split(" ")[0]}</span><ChevronRight size={14} className="text-[#A3AAB1]" /></> : null}
             {phone ? <button onClick={() => setDrawer(true)} aria-label={t("Open menu")} aria-expanded={drawer} className="size-10 -ml-1 rounded-lg flex items-center justify-center text-ink-2 cursor-pointer hover:bg-chip flex-none"><Menu size={20} /></button> : (
               <>
@@ -267,19 +273,19 @@ function ShellInner(p: ShellProps) {
                 <ChevronRight size={14} className="text-[#A3AAB1]" />
               </>
             )}
-            <span className="font-semibold whitespace-nowrap truncate">{title}</span>
+            <span key={title} className="app-title font-semibold whitespace-nowrap truncate">{title}</span>
           </div>
           {READY.has("pos") && p.perms.includes("sale") && phone ? (
-            <Link href="/app/pos?focus=1" aria-label={t("Search medicines")} className="size-10 rounded-lg flex items-center justify-center text-muted no-underline hover:bg-chip hover:text-muted flex-none"><Search size={18} /></Link>
+            <Link href="/app/pos?focus=1" aria-label={t("Search medicines")} className="relative size-10 rounded-lg flex items-center justify-center text-muted no-underline hover:bg-chip hover:text-muted flex-none"><Search size={18} /></Link>
           ) : READY.has("pos") && p.perms.includes("sale") ? (
-            <Link href="/app/pos?focus=1" className="ml-4 mr-auto flex items-center gap-2 w-[min(380px,32vw)] min-w-[140px] h-[34px] px-2.5 border border-line bg-page rounded-lg text-fainter text-[13px] no-underline hover:border-input hover:bg-white hover:text-fainter">
-              <Search size={15} /><span className="flex-1 truncate">{t("Search medicines…")}</span><span className="font-mono text-[11px] border border-[#E3E6E9] bg-white rounded px-[5px] text-faint">F2</span>
+            <Link href="/app/pos?focus=1" className="app-search group relative ml-4 mr-auto flex items-center gap-2 w-[min(380px,32vw)] min-w-[140px] h-[34px] px-2.5 border border-line bg-page/90 rounded-lg text-fainter text-[13px] no-underline transition-[border-color,background-color,box-shadow] duration-300 hover:border-teal-border hover:bg-white hover:text-fainter hover:shadow-[0_0_0_3px_rgba(20,184,166,.12)]">
+              <Search size={15} className="transition-transform duration-300 group-hover:scale-110 group-hover:text-teal" /><span className="flex-1 truncate">{t("Search medicines…")}</span><span className="font-mono text-[11px] border border-[#E3E6E9] bg-white rounded px-[5px] text-faint">F2</span>
             </Link>
           ) : phone ? null : <div className="mx-auto" />}
-          <div className="flex items-center gap-1.5 flex-none">
+          <div className="relative flex items-center gap-1.5 flex-none">
             <div title={live === "live" ? t(p.liveDevices === 1 ? "Live: changes from other devices appear here automatically. {n} device active in the last 5 minutes." : "Live: changes from other devices appear here automatically. {n} devices active in the last 5 minutes.", { n: p.liveDevices }) : live === "offline" ? t("This device is offline.") : t("Connecting to your server for live updates…")}
               className={cn("flex items-center gap-1.5 h-[30px] px-[9px] rounded-[7px] text-[12.5px] font-medium whitespace-nowrap", live === "live" ? "text-ok" : live === "offline" ? "text-bad" : "text-[#94570A]")}>
-              <span className={cn("size-[7px] rounded-full", live === "live" ? "bg-[#22A06B] shadow-[0_0_0_3px_#DCF2E7] animate-pulse-dot" : live === "offline" ? "bg-[#D64545]" : "bg-[#E0A82E]")} />
+              <span className={cn("size-[7px] rounded-full", live === "live" ? "bg-[#22A06B] shadow-[0_0_0_3px_#DCF2E7] animate-pulse-dot" : live === "offline" ? "bg-[#D64545]" : "app-connecting bg-[#E0A82E]")} />
               {!narrow ? (live === "live" ? t("Live") : live === "offline" ? t("Offline") : t("Connecting")) : null}
             </div>
             {!phone ? <><div className="w-px h-5 bg-line" /><LangToggle lang={p.lang} onChange={(l) => start(() => setLang(l))} /></> : null}
@@ -293,11 +299,11 @@ function ShellInner(p: ShellProps) {
                 <ChevronDown size={13} className="absolute right-[7px] text-fainter pointer-events-none" />
               </div>
             ) : null}
-            <button onClick={() => toast(p.alerts.length ? p.alerts.map((a) => t(a)).join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title={t("Notifications")} className="relative size-10 sm:size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
-              <Bell size={17} />{p.alerts.length ? <span className="absolute top-[7px] right-2 size-[7px] rounded-full bg-[#D64545] border-[1.5px] border-white" /> : null}
+            <button onClick={() => toast(p.alerts.length ? p.alerts.map((a) => t(a)).join(" · ") : "No alerts right now.", p.alerts.length ? "amber" : "gray")} title={t("Notifications")} className="group relative size-10 sm:size-8 rounded-[7px] text-muted cursor-pointer flex items-center justify-center hover:bg-chip">
+              <Bell size={17} className={cn("transition-transform", p.alerts.length ? "app-ring" : "group-hover:rotate-12")} />{p.alerts.length ? <span className="app-ping absolute top-[7px] right-2 size-[7px] rounded-full bg-[#D64545] border-[1.5px] border-white" /> : null}
             </button>
-            {showAi ? <button onClick={() => setAiOpen((x) => !x)} title={t("Ask AI (Ctrl+J)")} aria-expanded={aiOpen} className={cn("flex items-center gap-1.5 h-10 sm:h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] hover:brightness-110", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
-              <Sparkles size={15} />{!narrow ? d.ask : null}
+            {showAi ? <button onClick={() => setAiOpen((x) => !x)} title={t("Ask AI (Ctrl+J)")} aria-expanded={aiOpen} className={cn("app-ai relative overflow-hidden flex items-center gap-1.5 h-10 sm:h-8 px-3 rounded-[7px] text-white text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(16,24,40,.08)] transition-[filter,transform,box-shadow] duration-300 hover:brightness-110 hover:-translate-y-px hover:shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]", aiOpen ? "bg-[#094A48]" : "bg-teal")}>
+              <Sparkles size={15} className="site-sparkle" />{!narrow ? d.ask : null}
             </button> : null}
           </div>
         </header>
