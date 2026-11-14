@@ -194,3 +194,62 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .mo-twinkle { animation: mo-twinkle 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 .mo-twinkle-2 { animation-delay: -1s; }
 .mo-twinkle-3 { animation-delay: -2s; }
+
+/* ───── Homepage motion (all switched off by the .site-root reduced-motion rule above) ───── */
+/* Reading progress bar along the top of the page. */
+@supports (animation-timeline: scroll()) {
+  @keyframes site-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .site-progress { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 60; transform-origin: 0 50%; background: linear-gradient(90deg, #14B8A6, #0B5E5B 60%, #F5C451); animation: site-progress linear both; animation-timeline: scroll(root); }
+}
+/* Dot grid and drifting colour blobs (decor.tsx Aurora). */
+.site-dots { background-image: radial-gradient(rgba(11,94,91,.18) 1px, transparent 1.2px); background-size: 22px 22px; mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 75%); }
+.site-dark .site-dots { background-image: radial-gradient(rgba(255,255,255,.5) 1px, transparent 1.2px); }
+@keyframes site-blob { 0%, 100% { transform: translate(0, 0) scale(1); } 33% { transform: translate(6%, -8%) scale(1.12); } 66% { transform: translate(-5%, 6%) scale(.92); } }
+.site-blob { position: absolute; border-radius: 9999px; filter: blur(60px); animation: site-blob 18s ease-in-out infinite; }
+.site-blob-a { width: 42vw; height: 42vw; max-width: 560px; max-height: 560px; left: -8%; top: -12%; }
+.site-blob-b { width: 34vw; height: 34vw; max-width: 460px; max-height: 460px; right: -6%; top: 20%; animation-delay: -6s; animation-duration: 22s; }
+.site-blob-c { width: 30vw; height: 30vw; max-width: 400px; max-height: 400px; left: 30%; bottom: -18%; animation-delay: -11s; animation-duration: 26s; }
+/* Floating shapes and bobbing elements. */
+@keyframes site-float { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-16px) rotate(calc(var(--r, 0deg) + 8deg)); } }
+.site-float { animation: site-float var(--dur, 8s) ease-in-out infinite; filter: drop-shadow(0 8px 14px rgba(14,22,20,.12)); }
+@keyframes site-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+.site-bob { animation: site-bob 5s ease-in-out infinite; }
+/* Hero notification chips: pop in once, then bob. */
+@keyframes site-pop { from { opacity: 0; transform: translateY(14px) scale(.9); } to { opacity: 1; transform: none; } }
+.site-chip { animation: site-pop .7s var(--s-ease) both, site-bob 6s ease-in-out infinite; animation-delay: calc(.9s + var(--d, 0) * .45s), calc(1.6s + var(--d, 0) * .8s); }
+/* Shimmering gradient text for the hero's middle line. */
+@keyframes site-shine { to { background-position: 200% center; } }
+.site-shine { background: linear-gradient(90deg, #0B5E5B 0%, #14B8A6 25%, #0B5E5B 50%, #14B8A6 75%, #0B5E5B 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: site-shine 6s linear infinite; }
+/* Hover lift for cards and list rows. */
+.site-lift { transition: transform .35s var(--s-ease), box-shadow .35s var(--s-ease), border-color .35s; }
+.site-lift:hover { transform: translateY(-4px); box-shadow: 0 18px 36px -18px rgba(14,22,20,.28); }
+/* Icons that breathe in turn. */
+@keyframes site-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.site-breathe { animation: site-breathe 3.2s ease-in-out infinite; animation-delay: calc(var(--d, 0) * .4s); transform-origin: center; }
+/* Savings illustration: coins fall into the jar, the jar fills, the arrow draws. */
+@keyframes site-coin { 0% { transform: translateY(-30px); opacity: 0; } 15% { opacity: 1; } 70% { transform: translateY(150px); opacity: 1; } 85%, 100% { transform: translateY(150px); opacity: 0; } }
+.site-coin { animation: site-coin 3.3s cubic-bezier(.55,0,.75,.4) infinite; }
+@keyframes site-fill { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(0); } }
+.site-fill { animation: site-fill 3.3s ease-in-out infinite; }
+@keyframes site-draw { 0% { stroke-dashoffset: 1; } 60%, 100% { stroke-dashoffset: 0; } }
+.site-draw { stroke-dasharray: 1; animation: site-draw 4s var(--s-ease) infinite alternate; }
+@keyframes site-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.6); } }
+.site-twinkle { animation: site-twinkle 2.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+/* Security diagram: data flowing down the connectors. */
+@keyframes site-flow { from { background-position: 0 0; } to { background-position: 0 28px; } }
+.site-flow { background: repeating-linear-gradient(#8FD3C6 0 6px, transparent 6px 14px); background-size: 2px 28px; animation: site-flow 1.2s linear infinite; }
+/* CTA: slowly moving gradient. */
+@keyframes site-pan { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.site-pan { background: linear-gradient(120deg, #0B5E5B, #0E7C77, #084744, #14B8A6, #0B5E5B); background-size: 300% 300%; animation: site-pan 14s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .site-progress { display: none; } }
+/* Header: animated underline and icon nudge on the links, a pulsing logo mark, and a light sweep across the CTA. */
+.site-nav::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 3px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #14B8A6, #0B5E5B); transform: scaleX(0); transition: transform .3s var(--s-ease); }
+.site-nav:hover::after { transform: scaleX(1); }
+.site-nav-ico { transition: transform .35s var(--s-ease); }
+.group:hover .site-nav-ico { transform: translateY(-2px) rotate(-8deg) scale(1.15); }
+@keyframes site-logo { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.site-logo img { animation: site-logo 3.5s ease-in-out infinite; transform-origin: center; }
+@keyframes site-sweep { 0%, 70% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(260%) skewX(-20deg); } }
+.site-cta::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: site-sweep 4.5s ease-in-out infinite; pointer-events: none; }
+@keyframes site-sparkle { 0%, 100% { transform: rotate(0) scale(1); } 50% { transform: rotate(18deg) scale(1.2); } }
+.site-sparkle { animation: site-sparkle 2.4s ease-in-out infinite; }

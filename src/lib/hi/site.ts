@@ -413,4 +413,9 @@ export const hi: Record<string, string> = {
   "Faster evening rush": "शाम की भीड़ में तेज़ बिलिंग",
   "Calmer month-ends": "आसान महीने का अंत",
   "More time for patients": "मरीज़ों के लिए ज़्यादा समय",
+
+  // Hero notification chips
+  "₹486 paid by UPI": "₹486 UPI से मिले",
+  "3 batches expire this month": "इस महीने 3 बैच एक्सपायर होंगे",
+  "GST summary ready": "GST सारांश तैयार",
 };

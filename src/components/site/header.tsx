@@ -2,11 +2,14 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { ArrowLeftRight, Boxes, Handshake, HelpCircle, IndianRupee, LogIn, Menu, ShieldCheck, Sparkles, UserRound, X, type LucideIcon } from "lucide-react";
 import { useLang, useT } from "@/lib/i18n-client";
 import type { Lang } from "@/lib/tr";
 import { setLang } from "@/app/app/actions";
 import { Wordmark } from "./brand";
+
+/** Icons shown beside the header links (same order as NAV). */
+const NAV_ICONS: LucideIcon[] = [Boxes, ArrowLeftRight, ShieldCheck, IndianRupee, HelpCircle, Handshake];
 
 export const NAV: [string, string][] = [["Product", "/#product"], ["Switching", "/#switching"], ["Security", "/#security"], ["Pricing", "/#pricing"], ["FAQ", "/#faq"], ["Become a partner", "/partners"]];
 
@@ -57,15 +60,24 @@ export function SiteHeader() {
   return (
     <header className={`sticky top-0 z-40 bg-white/95 supports-[backdrop-filter]:bg-white/85 backdrop-blur border-b transition-colors duration-300 ${scrolled || open ? "border-[var(--s-line)]" : "border-transparent"}`}>
       <div className="max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[1099px]:gap-4 max-[959px]:gap-3 max-[640px]:px-4">
-        <Link href="/" aria-label={t("Medoro home")} className="flex-none"><Wordmark size={21} /></Link>
+        <Link href="/" aria-label={t("Medoro home")} className="site-logo flex-none"><Wordmark size={21} /></Link>
         <nav aria-label={t("Main")} className="hidden min-[1180px]:flex gap-1 text-[15px]">
-          {NAV.map(([l, h]) => <a key={h} href={h} className="px-3 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap">{t(l, { ctx: "site" })}</a>)}
+          {NAV.map(([l, h], i) => {
+            const Icon = NAV_ICONS[i];
+            return (
+              <a key={h} href={h} className="site-nav group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap">
+                <Icon size={16} aria-hidden className="site-nav-ico max-[1799px]:hidden text-[var(--s-brand)]" />{t(l, { ctx: "site" })}
+              </a>
+            );
+          })}
         </nav>
         <div className="ml-auto flex gap-2 items-center">
           <SiteLangSwitch className="max-[559px]:hidden" />
-          <Link href="/staff/employee" className="max-[1179px]:hidden flex items-center h-11 px-3 rounded-lg text-[15px] font-medium text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">{t("Medoro employee login")}</Link>
-          <Link href="/signin" className="max-[419px]:hidden flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]">{t("Log in")}</Link>
-          <a href="/trial" className="flex items-center h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><span className="max-[520px]:hidden">{t("Start 7-day free trial")}</span><span className="min-[521px]:hidden">{t("Free trial")}</span></a>
+          <Link href="/staff/employee" title={t("Medoro employee login")} className="group max-[1179px]:hidden flex items-center gap-1.5 h-11 px-3 rounded-lg text-[15px] font-medium text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">
+            <UserRound size={17} aria-hidden className="site-nav-ico text-[var(--s-brand)]" /><span className="max-[1799px]:sr-only">{t("Medoro employee login")}</span>
+          </Link>
+          <Link href="/signin" className="group max-[419px]:hidden flex items-center gap-1.5 h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><LogIn size={16} aria-hidden className="site-nav-ico max-[640px]:hidden" />{t("Log in")}</Link>
+          <a href="/trial" className="site-cta group relative overflow-hidden flex items-center gap-1.5 h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><Sparkles size={16} aria-hidden className="site-sparkle max-[400px]:hidden" /><span className="max-[520px]:hidden">{t("Start 7-day free trial")}</span><span className="min-[521px]:hidden">{t("Free trial")}</span></a>
           <button type="button" onClick={() => setOpen((x) => !x)} aria-label={open ? t("Close menu") : t("Open menu")} aria-expanded={open} aria-controls="site-menu"
             className="min-[1180px]:hidden size-11 rounded-lg border border-[var(--s-line)] bg-white flex items-center justify-center cursor-pointer text-[var(--s-ink)]">
             {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
@@ -74,7 +86,10 @@ export function SiteHeader() {
       </div>
       <div id="site-menu" hidden={!open} className="min-[1180px]:hidden border-t border-[var(--s-line)] bg-white px-4 pb-4">
         <nav aria-label={t("Mobile")} className="flex flex-col">
-          {NAV.map(([l, h]) => <a key={h} href={h} onClick={() => setOpen(false)} className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t(l, { ctx: "site" })}</a>)}
+          {NAV.map(([l, h], i) => {
+            const Icon = NAV_ICONS[i];
+            return <a key={h} href={h} onClick={() => setOpen(false)} className="flex items-center gap-3 text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]"><span className="size-8 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={17} aria-hidden className="text-[var(--s-brand)]" /></span>{t(l, { ctx: "site" })}</a>;
+          })}
           <Link href="/signin" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Log in")}</Link>
           <a href="/trial" className="text-[var(--s-brand)] text-[16px] font-semibold py-3.5 border-b border-[var(--s-line-2)]">{t("Start 7-day free trial")}</a>
           <Link href="/staff/employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Medoro employee login")}</Link>

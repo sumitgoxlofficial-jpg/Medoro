@@ -11,6 +11,7 @@ import { PRODUCTS } from "@/staff/constants";
 import { getLang } from "@/server/lang";
 import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
+import { Aurora, FloatingShapes, SavingsArt } from "@/components/site/decor";
 import { MotivationArt } from "@/components/site/motivation-art";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
@@ -152,6 +153,7 @@ export default async function Home() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow">{t("Skip to content")}</a>
       <SiteHeader />
       <SiteMotion />
+      <div aria-hidden className="site-progress" />
       {carryOver ? <SiteLangCarryOver /> : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
@@ -164,7 +166,7 @@ export default async function Home() {
             <ul className="m-0 p-0 list-none grid gap-x-8 gap-y-6 border-y border-[var(--s-line)] py-7 grid-cols-2 min-[720px]:grid-cols-3 min-[1100px]:grid-cols-6">
               {STANDARDS.map(([Icon, name, d], i) => (
                 <li key={name} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-1.5">
-                  <span className="flex items-center gap-2 text-[17px] font-semibold text-[var(--s-ink)]"><Icon size={18} aria-hidden className="text-[var(--s-brand)]" />{t(name)}</span>
+                  <span className="flex items-center gap-2 text-[17px] font-semibold text-[var(--s-ink)]"><Icon size={18} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} />{t(name)}</span>
                   <span className="text-[15px] text-[var(--s-muted)]">{t(d)}</span>
                 </li>
               ))}
@@ -181,11 +183,12 @@ export default async function Home() {
             <span className={eyebrow}>{t("Why owners switch")}</span>
             <h2 id="leaks-title" className={h2}>{t("Where a medical store quietly loses money.")}</h2>
             <p className={lead}>{t("Most of it is not theft or bad luck. It is stock nobody noticed, a slow counter on a busy evening, and hours lost to GST every month.")}</p>
+            <SavingsArt className="w-full max-w-[420px] h-auto mt-2 max-[999px]:hidden" />
           </div>
           <ol className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 m-0 p-0 list-none flex flex-col">
             {LEAKS.map(([title, d], i) => (
-              <li key={title} data-reveal className="grid grid-cols-[56px_minmax(0,1fr)] max-[640px]:grid-cols-1 gap-x-4 gap-y-2 py-8 border-t border-[var(--s-line)] last:border-b">
-                <span className="site-num text-[15px] text-[var(--s-brand)] pt-1">{String(i + 1).padStart(2, "0")}</span>
+              <li key={title} data-reveal className="group grid grid-cols-[56px_minmax(0,1fr)] max-[640px]:grid-cols-1 gap-x-4 gap-y-2 py-8 px-3 -mx-3 border-t border-[var(--s-line)] last:border-b transition-colors duration-300 hover:bg-[var(--s-soft)]">
+                <span className="site-num text-[15px] text-[var(--s-brand)] pt-1 transition-transform duration-300 group-hover:translate-x-1 group-hover:scale-125 origin-left">{String(i + 1).padStart(2, "0")}</span>
                 <div className="flex flex-col gap-2">
                   <h3 className="m-0 text-[22px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t(title)}</h3>
                   <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t(d)}</p>
@@ -195,8 +198,9 @@ export default async function Home() {
           </ol>
         </section>
 
-        <section aria-labelledby="keys-title" className="site-dark bg-[var(--s-dark)] text-white">
-          <div className={`${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
+        <section aria-labelledby="keys-title" className="site-dark bg-[var(--s-dark)] text-white relative overflow-hidden">
+          <Aurora dark />
+          <div className={`relative ${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
             <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
               <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("At the counter")}</span>
               <h2 id="keys-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("A bill in three keys.")}</h2>
@@ -205,7 +209,7 @@ export default async function Home() {
             <div data-play className="site-keys col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7">
               <ol className="m-0 p-0 list-none flex flex-col gap-3">
                 {KEYS.map(([k, label, out], i) => (
-                  <li key={k} data-step style={{ ["--step" as string]: i }} className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-5 bg-white/[.04] border border-white/10 rounded-xl px-5 py-4 max-[480px]:grid-cols-1 max-[480px]:gap-2">
+                  <li key={k} data-step style={{ ["--step" as string]: i }} className="site-lift grid grid-cols-[88px_minmax(0,1fr)] items-center gap-5 bg-white/[.04] border border-white/10 rounded-xl px-5 py-4 hover:border-[#14B8A6]/60 max-[480px]:grid-cols-1 max-[480px]:gap-2">
                     <kbd data-step style={{ ["--step" as string]: i }} className="site-num justify-self-start inline-flex items-center justify-center min-w-[64px] h-11 px-3 rounded-lg bg-white text-[var(--s-ink)] text-[16px] font-medium border border-[#C9D1CF] shadow-[0_2px_0_#C9D1CF]">{k}</kbd>
                     <span className="flex flex-col gap-0.5 min-w-0">
                       <span className="text-[14px] text-[#9FB5B1]">{t(label)}</span>
@@ -243,7 +247,7 @@ export default async function Home() {
           <div className={wrap}>
             <dl className="m-0 -mx-6 max-[640px]:-mx-4 grid grid-cols-2 min-[900px]:grid-cols-4">
               {FACTS.map(([n, pre, suf, d], i) => (
-                <div key={d} className={`flex flex-col gap-2 py-10 px-6 max-[640px]:px-4 max-[640px]:py-8 border-[var(--s-line)] ${i > 0 ? "min-[900px]:border-l" : ""} ${i % 2 ? "max-[899px]:border-l" : ""} ${i > 1 ? "max-[899px]:border-t" : ""}`}>
+                <div key={d} className={`flex flex-col gap-2 py-10 px-6 transition-colors duration-300 hover:bg-white max-[640px]:px-4 max-[640px]:py-8 border-[var(--s-line)] ${i > 0 ? "min-[900px]:border-l" : ""} ${i % 2 ? "max-[899px]:border-l" : ""} ${i > 1 ? "max-[899px]:border-t" : ""}`}>
                   <dt className="flex items-baseline text-[var(--s-ink)]"><span className="site-display text-[clamp(40px,4.4vw,56px)] leading-none" data-count={n} data-prefix={pre}>{pre}{Number(n).toLocaleString("en-IN")}</span><span className={`text-[17px] font-medium ${t(suf).startsWith("-") ? "" : "ml-1.5"}`}>{t(suf)}</span></dt>
                   <dd className="m-0 text-[15px] text-[var(--s-muted)]">{t(d)}</dd>
                 </div>
@@ -270,7 +274,7 @@ export default async function Home() {
               </thead>
               <tbody>
                 {COMPARE.map(([a, typical, m]) => (
-                  <tr key={a} className="align-top">
+                  <tr key={a} className="align-top transition-colors duration-300 hover:bg-[var(--s-soft)]">
                     <th scope="row" className="py-4 pr-6 text-left font-semibold text-[var(--s-ink)] border-b border-[var(--s-line)]">{t(a)}</th>
                     <td className="py-4 pr-6 text-[var(--s-muted)] border-b border-[var(--s-line)]">{t(typical, { ctx: "site" })}</td>
                     <td className="py-4 text-[var(--s-ink)] border-b border-[var(--s-line)]"><span className="flex gap-2.5 items-start"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" />{t(m)}</span></td>
@@ -315,8 +319,9 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="security" aria-labelledby="security-title" className="site-dark bg-[var(--s-dark)] text-white">
-          <div className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-16`}>
+        <section id="security" aria-labelledby="security-title" className="site-dark bg-[var(--s-dark)] text-white relative overflow-hidden">
+          <Aurora dark />
+          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-16`}>
             <div className="grid grid-cols-12 gap-x-6 gap-y-12 items-center">
               <div data-reveal className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
                 <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("Security and data ownership")}</span>
@@ -328,12 +333,12 @@ export default async function Home() {
                 <div className="rounded-xl border border-[#2C5A55] bg-white/[.03] p-5 flex flex-col gap-4">
                   <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6] flex gap-2 items-center"><Lock size={14} aria-hidden />{t("Your environment")}</span>
                   <div className="grid grid-cols-3 gap-3">
-                    {ENV.map(([Icon, l]) => <div key={l} className="rounded-lg bg-white/[.06] border border-white/10 px-3 py-4 flex flex-col items-center gap-2 text-center text-[14px]"><Icon size={22} aria-hidden className="text-[#8FD3C6]" />{t(l)}</div>)}
+                    {ENV.map(([Icon, l], i) => <div key={l} className="site-lift rounded-lg bg-white/[.06] border border-white/10 px-3 py-4 flex flex-col items-center gap-2 text-center text-[14px]"><Icon size={22} aria-hidden className="site-breathe text-[#8FD3C6]" style={{ ["--d" as string]: i }} />{t(l)}</div>)}
                   </div>
                 </div>
-                <div aria-hidden className="grid grid-cols-3 gap-3 justify-items-center max-[559px]:hidden">{[0, 1, 2].map((i) => <span key={i} className="w-px h-7 bg-[linear-gradient(#2C5A55,transparent)]" />)}</div>
+                <div aria-hidden className="grid grid-cols-3 gap-3 justify-items-center max-[559px]:hidden">{[0, 1, 2].map((i) => <span key={i} className="site-flow w-[2px] h-7 rounded-full" style={{ animationDelay: `${-i * .3}s` }} />)}</div>
                 <div className="grid gap-3 min-[560px]:grid-cols-3">
-                  {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="rounded-lg border border-white/10 p-4 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{t(l)}</span><span className="text-[14px] text-[#9FB5B1]">{t(d)}</span></div>)}
+                  {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="site-lift rounded-lg border border-white/10 p-4 hover:border-[#14B8A6]/60 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{t(l)}</span><span className="text-[14px] text-[#9FB5B1]">{t(d)}</span></div>)}
                 </div>
               </div>
             </div>
@@ -342,7 +347,7 @@ export default async function Home() {
               <ul aria-labelledby="trust-title" className="m-0 p-0 list-none grid gap-x-10 gap-y-8 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
                 {trustBadges(googleLoginConfigured()).map(([Icon, title, status, d, href]) => (
                   <li key={title} className="flex flex-col gap-2.5">
-                    <Icon size={24} aria-hidden className="text-[#4ADE80]" />
+                    <Icon size={24} aria-hidden className="site-breathe text-[#4ADE80]" />
                     <span className="text-[17px] font-semibold">{t(title)}</span>
                     <span className="self-start rounded-md bg-[#4ADE80]/12 px-2 py-0.5 text-[13px] font-semibold text-[#4ADE80]">{t(status)}</span>
                     <span className="text-[15px] text-[#B5C7C3]">
@@ -425,12 +430,13 @@ export default async function Home() {
         </section>
 
         <section aria-labelledby="cta-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
-          <div data-reveal className="rounded-2xl bg-[var(--s-brand)] text-white px-[clamp(24px,6vw,72px)] py-[clamp(48px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end">
-            <div className="col-span-12 min-[1000px]:col-span-8 flex flex-col gap-4">
+          <div data-reveal className="site-pan relative overflow-hidden rounded-2xl text-white px-[clamp(24px,6vw,72px)] py-[clamp(48px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end">
+            <div aria-hidden className="absolute inset-0 opacity-35"><FloatingShapes /></div>
+            <div className="relative col-span-12 min-[1000px]:col-span-8 flex flex-col gap-4">
               <h2 id="cta-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("Set up your counter this afternoon.")}</h2>
               <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">{t("Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.")}</p>
             </div>
-            <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:justify-self-end min-[1000px]:w-[280px]">
+            <div className="relative col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:justify-self-end min-[1000px]:w-[280px]">
               <a href="/trial" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
               <a href={WA_DEMO} className="w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />{t("Get a demo on WhatsApp")}</a>
             </div>
