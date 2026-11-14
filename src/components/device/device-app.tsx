@@ -137,7 +137,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">{t("Lock")}</button>}
       </div>}
-      {tab === "dash" && <Dashboard cfg={cfg} owner={who.owner} refresh={tick} go={setTab} />}
+      {tab === "dash" && <Dashboard cfg={cfg} owner={who.owner} refresh={tick} go={setTab} userName={who.userName === "Counter" ? "" : who.userName} />}
       {tab === "bill" && <Billing cfg={cfg} who={who} side={side} onBill={async (id, o) => { bump(); try { setReceiptWa(!!o?.whatsapp); setReceipt(await dev.call("saleDetail", id)); } catch { /* bill saved; preview optional */ } }} />}
       {tab === "bills" && <Bills cfg={cfg} who={who} refresh={tick} />}
       {tab === "stock" && <Stock cfg={cfg} owner={who.owner} userId={who.userId} refresh={tick} />}

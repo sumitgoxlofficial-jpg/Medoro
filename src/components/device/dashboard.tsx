@@ -13,13 +13,14 @@ import { deviceDb } from "@/drivedb/device";
 import type { Dashboard as Dash, DashRange } from "@/drivedb/dashboard";
 import { inr } from "@/lib/money";
 import { card, errText, type Cfg } from "./ui";
+import { WelcomeBanner } from "@/components/welcome-banner";
 
 const tile = "bg-white p-4 flex flex-col gap-1";
 const dm = (iso: string, lang: Lang) => new Date(iso + "T00:00:00").toLocaleDateString(localeOf(lang), { day: "numeric", month: "short" });
 const weekday = (lang: Lang) => (lang === "en" ? weekdayLong() : new Date(todayISO() + "T00:00:00Z").toLocaleDateString(localeOf(lang), { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }));
 
 /** The owner's dashboard, from this device's own data: sales, margin, purchases, dues, the last 14 days, and stock to act on. */
-export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "stock" | "reports" | "customers" | "supplier" | "ask" | "activity" | "settings") => void }) {
+export function Dashboard({ cfg, owner, refresh, go, userName = "" }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "bill" | "stock" | "reports" | "customers" | "supplier" | "ask" | "activity" | "settings") => void; userName?: string }) {
   const toast = useToast();
   const t = useT();
   const lang = useLang();
@@ -55,16 +56,18 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
   const pts = d.margin.pct !== null && d.margin.prevPct !== null ? Math.round((d.margin.pct - d.margin.prevPct) * 1000) / 10 : null;
   const coll = [["Cash", d.collections.cash, "bg-teal"], ["UPI", d.collections.upi, "bg-blue-600"], ["Card", d.collections.card, "bg-teal/50"], ["Credit", d.collections.credit, "bg-amber-500"]] as const;
   const collTotal = coll.reduce((a, c) => a + c[1], 0);
+  let n = 0; // stagger the tiles in the order they render
   const Tile = ({ icon, label, value, sub, onClick }: { icon: React.ReactNode; label: string; value: string; sub: React.ReactNode; onClick?: () => void }) => (
-    <div className={`${tile} ${onClick ? "cursor-pointer hover:bg-page" : ""}`} onClick={onClick}>
-      <div className="flex items-center gap-2 text-[13px] text-muted">{icon}{t(label)}</div>
+    <div style={{ ["--d" as string]: n++ }} className={`app-up app-tile ${tile} ${onClick ? "cursor-pointer hover:bg-page" : ""}`} onClick={onClick}>
+      <div className="flex items-center gap-2 text-[13px] text-muted"><span className="app-ico inline-flex">{icon}</span>{t(label)}</div>
       <div className="text-[24px] font-semibold tabular-nums">{value}</div>
       <div className="text-[12.5px] text-faint">{sub}</div>
     </div>
   );
   return (
-    <div className="flex flex-col gap-4 max-w-[1400px]" data-testid="device-dashboard">
+    <div className="app-motion flex flex-col gap-4 max-w-[1400px]" data-testid="device-dashboard">
       {head}
+      {userName ? <WelcomeBanner name={userName} branch={cfg.branchName} newBill={{ onClick: () => go("bill") }} /> : null}
       <div className="grid gap-px bg-line border border-line rounded-xl overflow-hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Tile icon={<IndianRupee size={15} className="text-teal" />} label={range === "today" ? "Sales today" : "Sales"} value={inr(d.sales.paise)} sub={t(d.sales.bills === 1 ? "{n} bill" : "{n} bills", { n: d.sales.bills })} />
         {owner && <Tile icon={<Percent size={15} className="text-teal" />} label="Gross margin" value={d.margin.pct === null ? "—" : `${(d.margin.pct * 100).toFixed(1)}%`} sub={pts === null ? t("Before GST, after returns") : <span className={pts >= 0 ? "text-ok" : "text-bad"}>{t("{pts} pts vs the 7 days before", { pts: `${pts >= 0 ? "+" : ""}${pts}` })}</span>} />}
@@ -74,12 +77,12 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
         {owner && <Tile icon={<CalendarClock size={15} className="text-teal" />} label="Payables" value={inr(d.payables.paise)} sub={t(d.payables.suppliers === 1 ? "{n} supplier" : "{n} suppliers", { n: d.payables.suppliers })} />}
       </div>
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
-        <div className={card}>
+        <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 3 }}>
           <div className="flex items-center justify-between"><div className="font-semibold">{t("Sales, last 14 days")}</div><div className="text-[12px] text-faint">{t("Incl. GST")}</div></div>
           <div className="flex items-end gap-1.5 h-40" aria-label={t("Sales by day")}>
-            {d.chart.map((c) => (
+            {d.chart.map((c, i) => (
               <div key={c.date} className="flex-1 flex flex-col items-center gap-1 h-full justify-end" title={`${dm(c.date, lang)}: ${inr(c.salesPaise)}`}>
-                <div className="w-full bg-teal/30 rounded-t" style={{ height: `${Math.max(2, (c.salesPaise / max) * 100)}%` }} />
+                <div className="app-bar w-full bg-teal/30 rounded-t" style={{ height: `${Math.max(2, (c.salesPaise / max) * 100)}%`, ["--d" as string]: i }} />
                 <div className="text-[10.5px] text-faint tabular-nums">{c.date.slice(8)}</div>
               </div>
             ))}
@@ -88,7 +91,7 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
           <div className="flex h-2.5 rounded-full overflow-hidden bg-line-soft">{collTotal ? coll.map(([k, v, cls]) => v ? <div key={k} className={cls} style={{ width: `${(v / collTotal) * 100}%` }} /> : null) : null}</div>
           <div className="flex gap-4 flex-wrap text-[12.5px]">{coll.map(([k, v, cls]) => <span key={k} className="flex items-center gap-1.5"><span className={`size-2 rounded-full ${cls}`} />{t(k)} <b className="tabular-nums">{inr(v)}</b></span>)}</div>
         </div>
-        <div className={card}>
+        <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 4 }}>
           <div className="font-semibold">{t("Insights")}</div>
           {d.negativeCount ? (
             <button onClick={() => go("stock")} className="flex flex-col gap-0.5 text-left cursor-pointer" aria-label={t("Stock below zero: count these batches")}>
@@ -103,7 +106,7 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
         </div>
       </div>
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-        <div className={card}>
+        <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 5 }}>
           <div className="flex items-center justify-between"><div className="font-semibold flex items-center gap-2"><PackageMinus size={16} className="text-teal" />{t("Low stock")}</div><button onClick={() => go("stock")} className="text-[13px] text-teal font-medium cursor-pointer">{t("View all")}</button></div>
           {d.lowStock.length ? <ul className="flex flex-col gap-3">{d.lowStock.map((m) => (
             <li key={m.id} className="flex flex-col gap-1">
@@ -113,7 +116,7 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
             </li>
           ))}</ul> : <div className="text-[13px] text-faint">{t("Nothing is low.")}</div>}
         </div>
-        <div className={card}>
+        <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 6 }}>
           <div className="flex items-center justify-between"><div className="font-semibold flex items-center gap-2"><Hourglass size={16} className="text-teal" />{t("Expiring within 90 days")}</div><button onClick={() => go("reports")} className="text-[13px] text-teal font-medium cursor-pointer">{t("Prevent loss")}</button></div>
           {d.expiring.length ? <ul className="flex flex-col">{d.expiring.map((e) => (
             <li key={e.name + e.batchNo} className="flex items-center justify-between gap-3 py-2 border-b border-row last:border-0">
@@ -123,7 +126,7 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
             </li>
           ))}</ul> : <div className="text-[13px] text-faint">{t("Nothing expires in the next 90 days.")}</div>}
         </div>
-        <div className={card}>
+        <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 7 }}>
           <div className="font-semibold">{t("Branch performance")}</div>
           {d.branches.length ? <ul className="flex flex-col gap-3">{(() => { const top = Math.max(1, ...d.branches.map((b) => b.salesPaise)); return d.branches.map((b) => (
             <li key={b.id} className="flex flex-col gap-1">
@@ -138,7 +141,7 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
           </div>
         </div>
       </div>
-      <div className={card}>
+      <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 8 }}>
         <div className="font-semibold">{t("More tools")}</div>
         <div className="flex gap-2 flex-wrap mt-2">
           {([["supplier", "Supplier tools", false], ["ask", "Ask", false], ["activity", "Activity", true], ["settings", "Counter", true]] as const).filter(([, , ownerOnly]) => !ownerOnly || owner).map(([k, label]) => (
@@ -146,7 +149,7 @@ export function Dashboard({ cfg, owner, refresh, go }: { cfg: Cfg; owner: boolea
           ))}
         </div>
       </div>
-      <div className={card}>
+      <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 9 }}>
         <div className="font-semibold">{t("Recent activity")}</div>
         {d.activity.length ? <ul className="flex flex-col">{d.activity.map((r, i) => (
           <li key={i} className="flex items-baseline gap-4 py-2 border-b border-row last:border-0 text-[13.5px]">
