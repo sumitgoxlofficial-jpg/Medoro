@@ -361,3 +361,8 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 @media (prefers-reduced-motion: reduce) {
   .app-head *, .app-head *::before, .app-head *::after { animation: none !important; transition: none !important; }
 }
+/* HRMS onboarding steps: the progress line fills, the current step pulses. */
+@keyframes hr-fill { from { width: 0; } }
+.hr-fill { animation: hr-fill 1s cubic-bezier(.22,1,.36,1) .3s both; }
+@keyframes hr-current { 0%, 100% { box-shadow: 0 0 0 0 rgba(20,184,166,.45); } 50% { box-shadow: 0 0 0 8px rgba(20,184,166,0); } }
+.hr-current { animation: hr-current 2s ease-out infinite; }
