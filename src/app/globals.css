@@ -324,3 +324,26 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .site-steps::before { content: ""; position: absolute; left: 4%; right: 4%; top: 38px; height: 2px; background: repeating-linear-gradient(90deg, #8FD3C6 0 8px, transparent 8px 16px); background-size: 32px 2px; animation: site-steps 1.4s linear infinite; z-index: 0; }
 @keyframes site-steps { to { background-position: 32px 0; } }
 @media (max-width: 1099px) { .site-steps::before { display: none; } }
+
+/* ───── Pharmacy app dashboard: gentle, work-friendly motion (off with reduced motion) ───── */
+@keyframes app-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.app-motion .app-up { animation: app-up .55s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--d, 0) * 60ms); }
+@keyframes app-bar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.app-motion .app-bar { transform-origin: bottom; animation: app-bar .7s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(200ms + var(--d, 0) * 35ms); }
+.app-motion .app-tile { transition: background-color .25s; }
+.app-motion .app-tile:hover { background: #F7FBFA; }
+.app-motion .app-tile:hover .app-ico { transform: scale(1.12) rotate(-6deg); }
+.app-motion .app-ico { transition: transform .3s cubic-bezier(.22,1,.36,1); }
+.app-motion .app-card { transition: box-shadow .3s, transform .3s; }
+.app-motion .app-card:hover { box-shadow: 0 14px 30px -20px rgba(11,94,91,.45); }
+.app-welcome { background: linear-gradient(115deg, #0B5E5B, #0E7C77 55%, #094A48); }
+@keyframes app-glow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30%, -10%); } }
+.app-glow { position: absolute; width: 50%; height: 220%; top: -60%; left: 10%; border-radius: 9999px; background: radial-gradient(closest-side, rgba(94,234,212,.35), transparent); filter: blur(10px); animation: app-glow 12s ease-in-out infinite; }
+@keyframes app-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.app-bob { animation: app-bob 3.6s ease-in-out infinite; }
+.app-wave { animation: hr-wave 3s ease-in-out infinite; transform-origin: 70% 80%; }
+.app-sweep::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(11,94,91,.15), transparent); animation: site-sweep 5s ease-in-out infinite; pointer-events: none; }
+.app-sparkle { animation: site-sparkle 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .app-motion *, .app-motion *::before, .app-motion *::after { animation: none !important; transition: none !important; }
+}

@@ -52,7 +52,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
           <a href="/api/integrations/google/start" className="bg-teal text-white rounded-lg px-3.5 py-2 font-semibold no-underline hover:bg-teal-hover hover:text-white">{drive.status === "lost" ? t("Reconnect Google Drive") : t("Connect Google Drive")}</a>
         </div>
       ) : null}
-      <Dashboard data={data} dict={d} perms={ctx.perms} />
+      <Dashboard data={data} dict={d} perms={ctx.perms} userName={ctx.userName} branch={ctx.branchName} />
       <DueCheques ctx={ctx} />
     </>
   );

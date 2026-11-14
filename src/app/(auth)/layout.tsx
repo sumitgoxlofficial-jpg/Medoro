@@ -1,20 +1,16 @@
-import Link from "next/link";
-import { Mark, Wordmark } from "@/components/brand";
 import { ToastProvider } from "@/components/ui/toast";
-import { LangSwitch } from "@/components/lang-switch";
+import { AuthShell } from "@/components/auth-shell";
+import { getT } from "@/server/lang";
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const t = await getT();
+  // Lines and points reuse the homepage's text, so they already read in Hindi.
+  const lines = ["Bill faster.", "Waste less stock.", "Close GST on time."].map((l) => t(l));
+  const points: [string, string][] = ([["GST", "MRP-inclusive, CGST, SGST and IGST"], ["FEFO", "Earliest expiry sells first"], ["Offline", "Billing on the shop network"], ["हिंदी", "Full Hindi interface"]] as const).map(([a, b]) => [t(a), t(b)]);
   return (
     <ToastProvider>
-      <div className="relative min-h-dvh bg-bg flex flex-col items-center gap-7 px-4 py-10">
-        {/* Before sign-in there is no header, so the language is picked here. */}
-        <LangSwitch className="absolute top-3 right-3" />
-        <Link href="/" className="flex items-center gap-2.5 no-underline">
-          <Mark size={36} />
-          <Wordmark size={22} />
-        </Link>
-        {children}
-      </div>
+      {/* Before sign-in there is no header, so the language is picked in the shell. */}
+      <AuthShell lines={lines} points={points}>{children}</AuthShell>
     </ToastProvider>
   );
 }
