@@ -114,7 +114,8 @@ export function LettersPanel({ staffId, name, mail = false, onClose, promotions 
       .catch(() => { if (live) setErr(LOAD_FAILED); });
     return () => { live = false; };
   }, [staffId, type, forDay]);
-  const pdf = `/staff/hrms/letter/${staffId}/${type}${forDay ? `?day=${forDay}` : ""}`;
+  // The day comes from a date field or the promotion picker: encode it so nothing typed there can change the link.
+  const pdf = `/staff/hrms/letter/${encodeURIComponent(staffId)}/${encodeURIComponent(type)}${forDay ? `?day=${encodeURIComponent(forDay)}` : ""}`;
   const toggle = (t: LetterType) => setPick((s) => { const n = new Set(s); if (!n.delete(t)) n.add(t); return n; });
   const tabs = LETTER_TYPES.filter((l) => l.id !== PROMOTION_LETTER || promotions.length);
   const send = async () => {
