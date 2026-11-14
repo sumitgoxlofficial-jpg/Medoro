@@ -210,7 +210,7 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
       <div key={`card-${gate}`} className="hr-up [--d:3] hr-glow relative rounded-xl">
       {gate === "password" ? <Card title="Set your own password" sub="The password HR gave you was temporary." pad><PasswordForm forced onDone={() => {}} /></Card> : null}
       {gate === "profile" ? <Card title="Your details" sub="Needed for HR records and to pay your salary. Bank account and PAN are stored encrypted." pad><ProfileForm initial={{ phone: sh.me.phone, personalEmail: sh.me.personalEmail }} complete onSave={(v) => run(() => saveProfile(v, true))} busy={busy} /></Card> : null}
-      {gate === "kyc" ? <KycStep blocked={sh.kycBlock} /> : null}
+      {gate === "kyc" ? <KycStep /> : null}
       {gate === "docs" ? (
         <Card title="Joining documents" sub="Read each one, then accept." pad>
           <div className="flex flex-col gap-3">

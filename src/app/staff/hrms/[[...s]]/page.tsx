@@ -25,5 +25,5 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   // A slow page leaves a line in the Vercel runtime logs: which screen, and how long sign-in check vs data took.
   if (total > 1500) log.warn("hrms slow page", { screen, totalMs: total, signInMs: tMe, dataMs: total - tMe });
   const def = SCREENS.find((x) => x.id === screen)!;
-  return <Frame sh={sh} screen={screen} title={def.title} sub={def.sub} data={JSON.parse(JSON.stringify(data))} gate={gateOf(me, sh.kycBlock)} />;
+  return <Frame sh={sh} screen={screen} title={def.title} sub={def.sub} data={JSON.parse(JSON.stringify(data))} gate={gateOf(me)} />;
 }

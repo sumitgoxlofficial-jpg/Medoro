@@ -2366,6 +2366,7 @@ model HrProfile {
   aadhaarVerifiedBy  String    @default("") // "DigiLocker" or the HR person's name
   kycSubmittedAt     DateTime? // Aadhaar and PAN numbers given, and the proof for each uploaded or verified through DigiLocker
   kycVerifiedAt      DateTime? // Aadhaar and PAN both verified
+  kycNote            String    @default("") // HR's reason for sending an Aadhaar or PAN proof back; cleared when the employee fixes it
   taxRegime          String    @default("new") // new or old income-tax regime, for the monthly TDS estimate
   taxDeclared        Int       @default(0) // old regime: yearly deductions HR accepted (80C, 80D, HRA…), rupees
   esiNo              String    @default("") // ESI insurance number, for the ESI return
