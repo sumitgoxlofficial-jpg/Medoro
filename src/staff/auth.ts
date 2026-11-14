@@ -73,7 +73,8 @@ export async function getStaff(): Promise<Staff | null> {
 
 export async function requireStaff(roles?: StaffRoleId[]): Promise<Staff> {
   const s = await getStaff();
-  if (!s) redirect("/staff/login");
+  // Signed in to the HRMS only: back there (admins open the console from its menu). Nobody signed in: partner sign-in.
+  if (!s) redirect((await readStaffSession(false, true)) ? "/staff/hrms" : "/staff/login");
   if (roles && !roles.includes(s.role)) redirect("/staff");
   return s;
 }

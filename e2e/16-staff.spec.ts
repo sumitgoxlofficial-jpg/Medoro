@@ -26,7 +26,7 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login/);
 
-  // First super admin from STAFF_BOOTSTRAP_EMAIL. One sign-in page for everyone: no tabs.
+  // First super admin from STAFF_BOOTSTRAP_EMAIL. The partner sign-in has no team tab; setup is offered on a fresh server.
   await page.goto("/staff/login");
   await expect(page.getByRole("tab")).toHaveCount(0);
   await page.getByRole("button", { name: /Set up the admin profile/ }).click();
@@ -35,11 +35,20 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await page.getByLabel("Mobile").fill("9822000002");
   await page.getByLabel(/Create a password/).fill(PASSWORD);
   await page.getByRole("button", { name: "Create admin profile" }).click();
-  await expect(page.getByText("You’re the first super admin. Sign in to set up your authenticator.")).toBeVisible();
-  await page.getByRole("button", { name: "Back to sign in" }).click();
-  await page.getByLabel("Email or employee ID").fill(BOOTSTRAP);
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText(/You’re the first super admin/)).toBeVisible();
+  // The Medoro team signs in on the HRMS, then opens the console from the account menu with an authenticator.
+  await page.getByRole("button", { name: "Go to HRMS sign-in" }).click();
+  await expect(page).toHaveURL(/\/staff\/employee/);
+  await page.locator("input[autocomplete=username]").fill(BOOTSTRAP);
+  await page.locator("input[type=password]").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/staff\/hrms/);
+  await expect(async () => {
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await expect(page.getByRole("button", { name: "Open staff console" })).toBeVisible({ timeout: 1000 });
+  }).toPass();
+  await page.getByRole("button", { name: "Open staff console" }).click();
+  await expect(page).toHaveURL(/\/staff\/login/);
   await expect(page.getByText("Set up your authenticator")).toBeVisible();
   const secret = (await page.locator("code").innerText()).trim();
   await page.getByLabel("6-digit code from your authenticator").fill(totp(secret));

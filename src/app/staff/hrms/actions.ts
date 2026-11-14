@@ -42,11 +42,17 @@ type In<F> = F extends (me: auth.Me, raw: infer A, ...rest: never[]) => unknown 
 export const hrSignIn = async (id: string, password: string, code = "") => open(() => auth.signIn(id, password, code));
 export const hrSendCode = async (id: string) => open(() => auth.sendCode(id));
 export const hrChangePassword = async (next: string, current = "") => done(await hrRun((me) => auth.changePassword(me, next, current), "Password changed."));
+/** Super admins and care open the staff console from the HRMS; it asks for their authenticator first. */
+export async function openStaffConsole() {
+  const me = await auth.getMe();
+  if (!me) redirect("/staff/employee");
+  return auth.consoleStepUp(me);
+}
 export async function hrSignOut() {
   const me = await auth.getMe();
   if (me) { await people.signedOut(me); await auth.audit(me, "Signed out"); }
   await destroyStaffSession();
-  redirect("/staff/login");
+  redirect("/staff/employee");
 }
 
 // ── Me

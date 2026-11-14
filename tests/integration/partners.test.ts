@@ -218,7 +218,7 @@ describe("reference partners", () => {
     expect(await getStaff()).toMatchObject({ role: "partner", id: rows[1].id });
     // Partner-only emails get a pointer on the team tab, and vice versa.
     await expect(signIn("ravi.mr@gmail.com", "ravi password 1", "team")).rejects.toThrow(/reference partner profile, not a Medoro team profile/);
-    await expect(signIn("neha@medoro.in", "neha password 1", "partner")).rejects.toThrow(/no partner profile yet/);
+    await expect(signIn("neha@medoro.in", "neha password 1", "partner")).rejects.toThrow(/Medoro team email/);
   });
 
   it("shows the admin a verified partner's full bank details for a manual transfer, and logs it", async () => {

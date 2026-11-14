@@ -111,16 +111,16 @@ export async function signIn(rawEmail: string, pw: string, as: StaffKind = "team
   if (mins) throw new UserError(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
   const u = await byEmail(e, as);
   if (!u && (await byEmail(e, as === "team" ? "partner" : "team"))) {
-    throw new UserError(as === "team" ? "This email has a reference partner profile, not a Medoro team profile." : "This email has no partner profile yet. Join free below.");
+    throw new UserError(as === "team" ? "This email has a reference partner profile, not a Medoro team profile." : "This is a Medoro team email. Use the Medoro HRMS sign-in instead (link below).");
   }
   if (u && u.kind === "partner" && u.googleSub && !u.passwordHash) throw new UserError("This profile signs in with Google. Tap “Continue with Google”.");
-  if (u && u.kind === "team" && u.googleSub && !u.passwordHash) throw new UserError("This employee profile has no password yet. Ask HR for a one-time password, then sign in with it as your password.");
+  if (u && u.kind === "team" && u.googleSub && !u.passwordHash) throw new UserError("This employee profile has no password yet. Ask HR for a one-time password, then sign in on the employee sign-in page (/staff/employee).");
   if (!u || !(await verifyPassword(u.passwordHash, String(pw ?? "")))) {
     const left = await recordFailure(keys);
     await staffAudit({ id: u?.id ?? null, name: e }, "Sign-in failed", "wrong email or password");
     throw new UserError(left ? `Email or password is incorrect. ${left} attempt${left > 1 ? "s" : ""} left.` : "Too many attempts. Try again in 15 minutes.");
   }
-  if (u.role === "employee") throw new UserError("This profile uses the Medoro HRMS. Sign in at /staff/login.");
+  if (u.role === "employee") throw new UserError("This profile uses the Medoro HRMS. Sign in on the employee sign-in page (/staff/employee).");
   if (u.role !== "partner" && !isStaffEmail(e)) throw new UserError(`Use your @${staffDomain()} work email.`);
   if (u.status === "pending") throw new UserError("Your profile is waiting for approval. You’ll be able to sign in once Medoro approves it.");
   if (u.status !== "active") throw new UserError("This profile is deactivated. Contact Medoro.");

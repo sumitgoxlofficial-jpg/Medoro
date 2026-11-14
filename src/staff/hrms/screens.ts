@@ -36,7 +36,7 @@ export async function shell(me: Me) {
   await closeExits().catch(() => {}); // people whose recorded last working day has passed
   const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
   return {
-    me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales" },
+    me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales", console: me.staffRole === "super_admin" || me.staffRole === "care" },
     nav: navFor(me), more: [] as { id: string; label: string }[],
     home: HOME_OF[me.role], kycBlock: s.kycBlock, notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };

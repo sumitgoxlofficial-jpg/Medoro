@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { db } from "@/server/db";
 import { getStaff, readStaffSession, staffDomain } from "@/staff/auth";
-import { getMe } from "@/staff/hrms/auth";
 import { inviteInfo } from "@/staff/people";
 import { googleLoginConfigured, readPendingPartner } from "@/server/google-oidc";
 import { mailEnabled } from "@/server/mail";
 import { StaffLogin } from "./form";
 
-export const metadata: Metadata = { title: "Medoro staff sign in" };
+export const metadata: Metadata = { title: "Reference partner sign in" };
 export const dynamic = "force-dynamic";
 
 const GOOGLE_MSG: Record<string, string> = {
@@ -19,15 +18,15 @@ const GOOGLE_MSG: Record<string, string> = {
   deactivated: "This partner profile is deactivated. Contact Medoro.",
 };
 
-/** The one sign-in for reference partners, the Medoro team and HRMS employees. */
+/**
+ * Reference partners sign in here. The Medoro team signs in on the HRMS (/staff/employee); super admins and care land
+ * here from the HRMS "Staff console" link only to confirm their authenticator. Team invite links also open here.
+ */
 export default async function Page({ searchParams }: { searchParams: Promise<{ invite?: string; join?: string; google?: string }> }) {
   const { invite, join, google } = await searchParams;
   // After Google the staff cookie (SameSite=Strict) isn't sent on this cross-site redirect; the page hands off in the browser.
   if (google === "ok") return <StaffLogin domain={staffDomain()} invite={null} pending={null} handoff />;
-  if (!invite) {
-    if (await getStaff()) redirect("/staff");
-    if (await getMe()) redirect("/staff/hrms");
-  }
+  if (!invite && (await getStaff())) redirect("/staff");
   const inv = invite ? await inviteInfo(invite) : null;
   const pending = await readStaffSession(true);
   const g = google === "new" ? await readPendingPartner() : null;

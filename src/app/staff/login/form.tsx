@@ -4,31 +4,28 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Check, Lock, Smartphone, User, UserPlus } from "lucide-react";
 import { Wordmark } from "@/components/site/chrome";
-import { staffAcceptInvite, staffEnroll, staffGooglePartner, staffSendPartnerCode, staffSignIn, staffSignInAny, staffSignup, staffVerify, staffVerifyPartnerCode } from "../actions";
-import { hrSendCode } from "../hrms/actions";
+import { staffAcceptInvite, staffEnroll, staffGooglePartner, staffSendPartnerCode, staffSignIn, staffSignup, staffVerify, staffVerifyPartnerCode } from "../actions";
 
 type Step = "signin" | "signup" | "signupDone" | "enroll" | "totp" | "invite" | "inviteDone" | "gpartner";
 const input = "border border-input rounded-lg px-3 py-[11px] text-[15px] text-ink outline-none focus:border-teal bg-white w-full";
 const label = "flex flex-col gap-[5px] text-[13px] text-muted";
 
-export function StaffLogin({ domain, invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, setupOpen = false, emailCodes = false }: {
+export function StaffLogin({ invite, pending, joinPartner = false, google = false, googleNew = null, notice = "", handoff = false, setupOpen = false, emailCodes = false }: {
   domain: string; invite: { token: string; info: { name: string; email: string } | null } | null; pending: { email: string; enrolled: boolean } | null;
   joinPartner?: boolean; google?: boolean; googleNew?: { email: string; name: string } | null; notice?: string; handoff?: boolean;
   setupOpen?: boolean; emailCodes?: boolean;
 }) {
   const router = useRouter();
-  // Sign-in is one form: the server works out whether it's a partner, team or HRMS profile. `mode` only picks which
-  // account the "create" form makes: a reference partner, or the first super admin.
-  const [mode, setMode] = useState<"partner" | "team">("partner");
+  // This page signs in reference partners. The Medoro team signs in on the HRMS (/staff/employee); super admins and
+  // care come back here only to confirm their authenticator for the staff console. `mode` picks what "create" makes:
+  // a partner account, or (on a fresh server) the first super admin.
+  const [mode, setMode] = useState<"partner" | "team">(pending ? "team" : "partner");
   const [step, setStep] = useState<Step>(googleNew ? "gpartner" : invite ? "invite" : pending ? (pending.enrolled ? "totp" : "enroll") : joinPartner ? "signup" : "signin");
   const [email, setEmail] = useState(pending?.email ?? "");
   const [pwd, setPwd] = useState("");
   const [code, setCode] = useState("");
   const [qr, setQr] = useState<{ qr: string; secret: string } | null>(null);
   const [err, setErr] = useState(notice);
-  const [info, setInfo] = useState("");
-  // HRMS profiles with an authenticator send its code along with the password.
-  const [hrCode, setHrCode] = useState<string | null>(null);
   const [gp, setGp] = useState({ name: googleNew?.name ?? "", phone: "", team: "" });
   const [busy, start] = useTransition();
   const [su, setSu] = useState({ name: "", email: "", phone: "", team: "", password: "", role: "partner" as "partner" | "sales" });
@@ -51,13 +48,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
 
   const primary = () => start(async () => {
     setErr("");
-    setInfo("");
     if (step === "signin") {
-      const r = await staffSignInAny(email, pwd, hrCode ?? "");
+      const r = await staffSignIn(email, pwd, "partner");
       if (!r.ok) return setErr(r.error);
-      if (r.data.next === "code") { setHrCode(""); return; }
-      setPwd(""); setHrCode(null);
-      if (r.data.next === "done") { router.replace(r.data.to); router.refresh(); return; }
+      setPwd("");
+      if (r.data.next === "done") { router.replace("/staff"); router.refresh(); return; }
       setStep(r.data.next);
     } else if (step === "enroll" || step === "totp") {
       const r = await staffVerify(code);
@@ -76,13 +71,16 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
         const a = await staffSignIn(su.email, su.password, "partner");
         if (a.ok && a.data.next === "done") { router.replace("/staff"); router.refresh(); return; }
       }
-      setDoneText(r.data.bootstrap ? "You’re the first super admin. Sign in to set up your authenticator." : "You’re in. Sign in to get your referral code and see your earnings.");
+      setDoneText(r.data.bootstrap ? "You’re the first super admin. Sign in on the Medoro HRMS, then open the Staff console to set up your authenticator." : "You’re in. Sign in to get your referral code and see your earnings.");
       setEmail(su.email); setStep("signupDone");
     } else if (step === "gpartner") {
       const r = await staffGooglePartner(gp);
       if (!r.ok) return setErr(r.error);
       router.replace("/staff"); router.refresh();
-    } else if (step === "signupDone" || step === "inviteDone") {
+    } else if (step === "inviteDone") {
+      router.push("/staff/employee");
+    } else if (step === "signupDone") {
+      if (mode === "team") return router.push("/staff/employee");
       setStep("signin");
     } else if (step === "invite") {
       const r = await staffAcceptInvite(invite!.token, pwd);
@@ -91,19 +89,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
     }
   });
 
-  const forgot = () => {
-    setErr(""); setInfo("");
-    const partners = "Reference partners: ask a Medoro admin to reset your password.";
-    if (!emailCodes) return setInfo(`Medoro team: ask HR for a one-time password (HR → Credentials) and type it as your password. ${partners}`);
-    if (!email) return setErr("Enter your email or employee ID first.");
-    start(async () => {
-      const r = await hrSendCode(email);
-      if (!r.ok) return setErr(r.error);
-      setInfo(`If this is a Medoro team account, we emailed a 6-digit one-time password. Type it as your password. ${partners}`);
-    });
-  };
-
-  const label1 = { signin: hrCode !== null ? "Verify" : "Continue", signup: mode === "team" ? "Create admin profile" : "Create partner account", gpartner: "Create partner account", signupDone: "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
+  const label1 = { signin: "Continue", signup: mode === "team" ? "Create admin profile" : "Create partner account", gpartner: "Create partner account", signupDone: mode === "team" ? "Go to HRMS sign-in" : "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
   const gBtn = (text: string) => google ? (
     <a href="/api/auth/google/start?intent=partner" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink"><GoogleG />{text}</a>
   ) : null;
@@ -120,10 +106,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
           <form onSubmit={(e) => { e.preventDefault(); primary(); }} className="bg-white border border-line rounded-[14px] p-7 flex flex-col gap-3.5 shadow-[0_1px_2px_rgba(16,24,40,.04)] max-[400px]:p-5">
             <div className="flex gap-3 items-center">
               <span className="size-10 rounded-[10px] bg-[#0E1A1F] text-[#5FD3BC] flex items-center justify-center flex-none"><BadgeCheck size={20} /></span>
-              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">{step === "signup" ? (mode === "team" ? "Set up Medoro admin" : "Join as a reference partner") : "Medoro staff sign in"}</h1><span className="text-[13px] text-muted">Reference partners, Medoro team and employees</span></div>
+              <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">{step === "enroll" || step === "totp" ? "Staff console access" : step === "invite" || step === "inviteDone" ? "Medoro team invite" : mode === "team" ? "Set up Medoro admin" : "Reference partner sign in"}</h1><span className="text-[13px] text-muted">{step === "enroll" || step === "totp" ? "Super admins and customer care" : mode === "team" || step === "invite" || step === "inviteDone" ? "Medoro team" : "MRs, distributors and consultants"}</span></div>
             </div>
 
             {handoff ? <div className="text-[14px] text-muted py-2">Signing you in…</div> : null}
+
 
             {step === "gpartner" && googleNew ? (
               <>
@@ -138,15 +125,11 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
 
             {step === "signin" && !handoff ? (
               <>
-                {hrCode === null ? gBtn("Partners: continue with Google") : null}
-                {hrCode === null && google ? <div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or with email<span className="h-px flex-1 bg-line" /></div> : null}
-                <label className={label}>Email or employee ID<input className={input} value={email} readOnly={hrCode !== null} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); setInfo(""); }} placeholder={domain !== "*" ? `you@gmail.com, name@${domain} or MS-004` : "you@gmail.com or MS-004"} autoComplete="username" /></label>
-                <label className={label}>Password<input className={input} type="password" value={pwd} readOnly={hrCode !== null} onChange={(e) => { setPwd(e.target.value); setErr(""); setInfo(""); }} autoComplete="current-password" /></label>
-                {hrCode !== null ? (
-                  <label className={label}>6-digit code from your authenticator<input className={input + " font-mono text-[18px] tracking-[.3em]"} value={hrCode} onChange={(e) => { setHrCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }} inputMode="numeric" autoComplete="one-time-code" autoFocus /></label>
-                ) : (
-                  <div className="flex justify-end -mt-1.5 text-[13px]"><button type="button" onClick={forgot} disabled={busy} className="min-h-10 inline-flex items-center text-teal cursor-pointer disabled:opacity-50">Forgot password?</button></div>
-                )}
+                {gBtn("Continue with Google")}
+                {google ? <div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or with email<span className="h-px flex-1 bg-line" /></div> : null}
+                <label className={label}>Email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder="you@gmail.com" autoComplete="username" inputMode="email" /></label>
+                <label className={label}>Password<input className={input} type="password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} autoComplete="current-password" /></label>
+                <div className="flex justify-end -mt-1.5 text-[13px]"><button type="button" onClick={() => setErr("Ask a Medoro admin to reset your partner password. Medoro team: use “Forgot password?” on the HRMS sign-in.")} className="min-h-10 inline-flex items-center text-teal cursor-pointer">Forgot password?</button></div>
               </>
             ) : null}
 
@@ -191,7 +174,7 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
               <div className="flex flex-col items-center text-center gap-2 py-1.5">
                 <span className="size-12 rounded-full bg-[#E7F6EE] text-[#18794E] flex items-center justify-center"><Check size={24} /></span>
                 <strong className="text-[17px]">{step === "signupDone" ? "Account created" : "Password set"}</strong>
-                <span className="text-[14px] text-muted">{step === "signupDone" ? doneText : "Sign in now. You’ll set up an authenticator app on the next step."}</span>
+                <span className="text-[14px] text-muted">{step === "signupDone" ? doneText : "Sign in on the Medoro HRMS with your email and this password."}</span>
               </div>
             ) : null}
 
@@ -221,15 +204,14 @@ export function StaffLogin({ domain, invite, pending, joinPartner = false, googl
             ) : null}
 
             {err ? <div role="alert" className="text-[13px] text-[#B3261E]">{err}</div> : null}
-            {info ? <div className="text-[13px] text-[#0B5E5B] bg-[#E1F1EF] rounded-lg px-3 py-2">{info}</div> : null}
             {!handoff && (step !== "invite" || invite?.info) ? (
               <button type="submit" disabled={busy} className="bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer flex gap-2 items-center justify-center disabled:opacity-60">{busy ? "Please wait…" : label1}</button>
             ) : null}
-            {step === "signin" && !handoff && hrCode === null ? <button type="button" onClick={() => { setMode("partner"); setSu((x) => ({ ...x, role: "partner" })); setStep("signup"); setErr(""); setInfo(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
-            {step === "signin" && !handoff && hrCode === null && setupOpen ? <button type="button" onClick={() => { setMode("team"); setSu((x) => ({ ...x, role: "sales" })); setStep("signup"); setErr(""); setInfo(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />First time? Set up the admin profile</button> : null}
-            {step === "signin" && !handoff && !setupOpen ? <div className="text-[12.5px] text-muted text-center">Joining the Medoro team? Your login comes from HR or an admin invite.</div> : null}
+            {step === "signin" && !handoff ? <button type="button" onClick={() => { setMode("partner"); setSu((x) => ({ ...x, role: "partner" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
+            {step === "signin" && !handoff && setupOpen ? <button type="button" onClick={() => { setMode("team"); setSu((x) => ({ ...x, role: "sales" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />First time? Set up the admin profile</button> : null}
+            {step === "signin" && !handoff ? <Link href="/staff/employee" className="self-center text-[13px] text-muted">Medoro team? <span className="font-semibold text-teal">Sign in on the HRMS</span></Link> : null}
             {step === "signup" ? <button type="button" onClick={() => { setStep("signin"); setMode("partner"); setErr(""); }} className="self-center min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">Back to sign in</button> : null}
-            <div className="text-[11.5px] text-faint text-center">Team accounts also ask for your authenticator code · every sign-in is audited</div>
+            <div className="text-[11.5px] text-faint text-center">{step === "enroll" || step === "totp" ? "The staff console needs your authenticator app" : "Partners see only their own referrals and earnings"} · every sign-in is audited</div>
           </form>
 
           <div className="flex gap-2.5 items-start bg-white border border-[#E6E8EB] rounded-xl px-4 py-3.5 text-[13px] text-ink-2">
