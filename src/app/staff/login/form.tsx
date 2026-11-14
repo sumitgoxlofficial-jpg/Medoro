@@ -2,8 +2,10 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Check, Lock, Smartphone, User, UserPlus } from "lucide-react";
+import { ArrowLeft, BadgeCheck, BadgeIndianRupee, BarChart3, Check, Handshake, Lock, Smartphone, User, UserPlus, Wallet } from "lucide-react";
 import { Wordmark } from "@/components/site/chrome";
+import { ReferralArt } from "@/components/site/decor";
+import { SideIcons } from "../employee/art";
 import { staffAcceptInvite, staffEnroll, staffGooglePartner, staffSendPartnerCode, staffSignIn, staffSignup, staffVerify, staffVerifyPartnerCode } from "../actions";
 
 type Step = "signin" | "signup" | "signupDone" | "enroll" | "totp" | "invite" | "inviteDone" | "gpartner";
@@ -91,21 +93,46 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
 
   const label1 = { signin: "Continue", signup: mode === "team" ? "Create admin profile" : "Create partner account", gpartner: "Create partner account", signupDone: mode === "team" ? "Go to HRMS sign-in" : "Back to sign in", enroll: "Verify and finish", totp: "Verify", invite: "Set password", inviteDone: "Sign in" }[step];
   const gBtn = (text: string) => google ? (
-    <a href="/api/auth/google/start?intent=partner" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink no-underline cursor-pointer hover:border-teal hover:text-ink"><GoogleG />{text}</a>
+    <a href="/api/auth/google/start?intent=partner" className="flex items-center justify-center gap-2.5 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink no-underline cursor-pointer transition-[border-color,box-shadow,transform] duration-300 hover:border-teal hover:text-ink hover:-translate-y-0.5 hover:shadow-[0_10px_20px_-14px_rgba(11,94,91,.6)]"><GoogleG />{text}</a>
   ) : null;
   
   return (
-    <div className="min-h-dvh bg-[#F5F6F7] text-ink flex flex-col leading-[1.45]">
-      <header className="h-[68px] flex items-center gap-4 px-[clamp(16px,3vw,32px)] border-b border-[#E6E8EB] bg-white">
+    <div className="hr-motion min-h-dvh bg-[#F5F6F7] text-ink flex flex-col leading-[1.45]">
+      <header className="relative z-10 h-[68px] flex items-center gap-4 px-[clamp(16px,3vw,32px)] border-b border-[#E6E8EB] bg-white/90 backdrop-blur">
         <Link href="/" className="no-underline"><Wordmark size={22} /></Link>
-        <span className="h-6 px-2.5 rounded-full bg-[#0E1A1F] text-white text-[11.5px] font-semibold tracking-[.08em] uppercase flex items-center">Staff</span>
-        <Link href="/" className="ml-auto text-[14px] font-semibold text-ink-2 flex gap-1.5 items-center whitespace-nowrap hover:text-ink-strong"><ArrowLeft size={15} />medoro.in</Link>
+        <span className="h-6 px-2.5 rounded-full bg-[#0B5E5B] text-white text-[11.5px] font-semibold tracking-[.08em] uppercase flex items-center gap-1"><Handshake size={13} aria-hidden />Partner</span>
+        <Link href="/partners" className="ml-auto max-[640px]:hidden text-[14px] font-semibold text-teal whitespace-nowrap hover:text-teal-hover">Partner programme</Link>
+        <Link href="/" className="max-[640px]:ml-auto text-[14px] font-semibold text-ink-2 flex gap-1.5 items-center whitespace-nowrap hover:text-ink-strong"><ArrowLeft size={15} />medoro.in</Link>
       </header>
-      <main className="flex-1 flex items-center justify-center px-4 py-[clamp(24px,5vh,56px)]">
-        <div className="w-[min(440px,100%)] flex flex-col gap-4">
-          <form onSubmit={(e) => { e.preventDefault(); primary(); }} className="bg-white border border-line rounded-[14px] p-7 flex flex-col gap-3.5 shadow-[0_1px_2px_rgba(16,24,40,.04)] max-[400px]:p-5">
+      <main className="flex-1 grid min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+        {/* Left: what partners get, with the referral illustration. */}
+        <aside className="relative overflow-hidden bg-[#0B5E5B] text-white px-[clamp(32px,4vw,64px)] py-12 flex-col justify-center gap-7 hidden min-[1100px]:flex">
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="hr-dots absolute inset-0" />
+            <div className="site-blob site-blob-a bg-[#14B8A6]/30" />
+            <div className="site-blob site-blob-b bg-[#F5C451]/15" />
+          </div>
+          <div className="relative flex flex-col gap-3 max-w-[520px]">
+            <span className="hr-up text-[12px] font-bold uppercase tracking-[.1em] text-[#5EEAD4]">Medoro reference partners</span>
+            <h2 className="hr-up [--d:1] m-0 text-[clamp(30px,2.6vw,40px)] leading-[1.12] font-bold"><span className="hr-shine">Recommend Medoro. Earn on every plan they buy.</span></h2>
+            <p className="hr-up [--d:2] m-0 text-[15.5px] text-white/70">For medical representatives, distributors and pharmacy consultants.</p>
+          </div>
+          <div className="relative hr-up [--d:3] max-w-[440px] w-full"><ReferralArt className="w-full h-auto drop-shadow-[0_24px_40px_rgba(0,0,0,.28)]" /></div>
+          <ul className="relative m-0 p-0 list-none flex flex-col gap-3 max-w-[520px]">
+            {([[BadgeIndianRupee, "Commission on the first payment and on every renewal"], [Wallet, "Monthly payouts to your bank account"], [BarChart3, "Your own dashboard: referrals, payments and earnings"]] as const).map(([Icon, l], i) => (
+              <li key={l} className="hr-up flex items-center gap-3 text-[15px] text-white/90" style={{ ["--d" as string]: 4 + i }}>
+                <span className="size-9 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center flex-none"><Icon size={18} aria-hidden className="hr-breathe text-[#5EEAD4]" /></span>{l}
+              </li>
+            ))}
+          </ul>
+        </aside>
+        <div className="relative overflow-hidden flex items-center justify-center px-4 py-[clamp(24px,5vh,56px)]">
+        <div aria-hidden className="pointer-events-none absolute inset-0"><div className="site-blob site-blob-b bg-[#14B8A6]/10" /><div className="site-blob site-blob-c bg-[#F5C451]/12" /></div>
+        <SideIcons />
+        <div className="hr-form relative w-[min(460px,100%)] flex flex-col gap-4">
+          <form onSubmit={(e) => { e.preventDefault(); primary(); }} className="hr-glow relative bg-white/90 backdrop-blur-md border border-white rounded-2xl p-7 flex flex-col gap-3.5 shadow-[0_24px_60px_-28px_rgba(11,94,91,.45)] max-[400px]:p-5">
             <div className="flex gap-3 items-center">
-              <span className="size-10 rounded-[10px] bg-[#0E1A1F] text-[#5FD3BC] flex items-center justify-center flex-none"><BadgeCheck size={20} /></span>
+              <span className="hr-breathe size-11 rounded-xl bg-[#0B5E5B] text-[#5EEAD4] flex items-center justify-center flex-none shadow-[0_10px_20px_-10px_rgba(11,94,91,.8)]">{step === "enroll" || step === "totp" || step === "invite" || step === "inviteDone" || mode === "team" ? <BadgeCheck size={21} /> : <Handshake size={21} />}</span>
               <div className="flex flex-col leading-[1.3]"><h1 className="m-0 text-[20px] font-semibold">{step === "enroll" || step === "totp" ? "Staff console access" : step === "invite" || step === "inviteDone" ? "Medoro team invite" : mode === "team" ? "Set up Medoro admin" : "Reference partner sign in"}</h1><span className="text-[13px] text-muted">{step === "enroll" || step === "totp" ? "Super admins and customer care" : mode === "team" || step === "invite" || step === "inviteDone" ? "Medoro team" : "MRs, distributors and consultants"}</span></div>
             </div>
 
@@ -205,7 +232,7 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
 
             {err ? <div role="alert" className="text-[13px] text-[#B3261E]">{err}</div> : null}
             {!handoff && (step !== "invite" || invite?.info) ? (
-              <button type="submit" disabled={busy} className="bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer flex gap-2 items-center justify-center disabled:opacity-60">{busy ? "Please wait…" : label1}</button>
+              <button type="submit" disabled={busy} className="hr-btn relative overflow-hidden bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer flex gap-2 items-center justify-center transition-[background-color,transform,box-shadow] duration-300 hover:bg-[#094A48] hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-12px_rgba(11,94,91,.7)] disabled:opacity-60">{busy ? "Please wait…" : label1}</button>
             ) : null}
             {step === "signin" && !handoff ? <button type="button" onClick={() => { setMode("partner"); setSu((x) => ({ ...x, role: "partner" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[14px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />New partner? Join free</button> : null}
             {step === "signin" && !handoff && setupOpen ? <button type="button" onClick={() => { setMode("team"); setSu((x) => ({ ...x, role: "sales" })); setStep("signup"); setErr(""); }} className="self-center min-h-10 inline-flex items-center gap-1.5 text-[13.5px] font-semibold text-teal cursor-pointer"><UserPlus size={15} />First time? Set up the admin profile</button> : null}
@@ -214,15 +241,16 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
             <div className="text-[11.5px] text-faint text-center">{step === "enroll" || step === "totp" ? "The staff console needs your authenticator app" : "Partners see only their own referrals and earnings"} · every sign-in is audited</div>
           </form>
 
-          <div className="flex gap-2.5 items-start bg-white border border-[#E6E8EB] rounded-xl px-4 py-3.5 text-[13px] text-ink-2">
+          <div className="flex gap-2.5 items-start bg-white/90 backdrop-blur border border-[#E6E8EB] rounded-xl px-4 py-3.5 text-[13px] text-ink-2">
             <Lock size={16} className="text-teal mt-0.5 flex-none" />
-            <span>Staff accounts see accounts, plans and support tickets only. <strong className="font-semibold">They cannot open any pharmacy’s database, invoices or backups.</strong> Access to a customer environment needs that pharmacy owner’s time-limited approval.</span>
+            <span>Partners see only their own referrals and earnings. <strong className="font-semibold">No partner or Medoro staff account can open any pharmacy’s database, invoices or backups.</strong> Access to a customer environment needs that pharmacy owner’s time-limited approval.</span>
           </div>
           <div className="flex justify-center gap-4 flex-wrap text-[13px]">
             <Link href="/partners" className="whitespace-nowrap">About the reference partner programme</Link>
             <Link href="/signin" className="whitespace-nowrap">Pharmacy owner sign in</Link>
             <Link href="/signin?view=employee" className="whitespace-nowrap">Pharmacy staff sign in</Link>
           </div>
+        </div>
         </div>
       </main>
     </div>
