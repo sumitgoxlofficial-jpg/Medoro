@@ -436,3 +436,10 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .hr-app .hr-breathe-c { animation: hr-breathe-c 2.6s ease-in-out infinite; }
 @keyframes hr-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
 .hr-app .hr-typing { animation: hr-typing 1.2s ease-in-out infinite; }
+/* HRMS profile card: the photo's dashed ring turns, fact tiles rise in and their icons lift on hover. */
+@keyframes hr-ring-spin { to { transform: rotate(360deg); } }
+.hr-app .hr-ring-spin { animation: hr-ring-spin 18s linear infinite; }
+.hr-app .hr-fact { animation: hr-up .55s cubic-bezier(.22,1,.36,1) both; transition: box-shadow .3s, border-color .3s; }
+.hr-app .hr-fact:hover { box-shadow: 0 16px 32px -20px rgba(11,94,91,.45); border-color: #8FB8B3; }
+.hr-app .hr-fact-ico { transition: transform .3s cubic-bezier(.22,1,.36,1); }
+.hr-app .hr-fact:hover .hr-fact-ico { transform: scale(1.1) rotate(-6deg); }

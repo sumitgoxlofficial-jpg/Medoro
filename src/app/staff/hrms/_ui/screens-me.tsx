@@ -7,10 +7,22 @@ import type { Shell } from "@/staff/hrms/screens";
 import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
 import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
+import { BriefcaseBusiness, CalendarDays, Camera, FileCheck2, IdCard, Mail, MapPin, ShieldCheck, UserCheck } from "lucide-react";
+import { IdBadge } from "../../employee/art";
 import { Selfie, SelfieModal } from "./monitor";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 
 type P = { sh: Shell };
+
+/** "3 days with Medoro", "5 months with Medoro", from the joining date (India time). */
+function withUs(joinIso: string) {
+  const days = Math.floor((Date.now() + 5.5 * 3600_000 - new Date(joinIso.slice(0, 10) + "T00:00:00Z").getTime()) / 86_400_000);
+  if (days < 0) return "Joining soon";
+  if (days < 1) return "First day today";
+  if (days < 60) return `${days} day${days === 1 ? "" : "s"} with Medoro`;
+  const m = Math.floor(days / 30.44);
+  return m < 24 ? `${m} months with Medoro` : `${Math.floor(m / 12)} years with Medoro`;
+}
 
 /** A real browser navigation to a route that redirects to Google, so deliberately not next/link. */
 const GoogleConnect = () => (
@@ -71,17 +83,54 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
   };
   return (
     <>
-      <Card pad>
-        <div className="flex items-center gap-4 flex-wrap">
-          <Avatar name={p.name} photo={p.photo} size={72} />
-          <div className="flex-1 min-w-[200px]"><h2 className="text-[20px] font-bold">{p.name}</h2><p className="text-[13px] text-[#64748B]">{p.designation || "—"} · {p.dept || "—"} · {p.empNo}</p><p className="text-[12.5px] text-[#64748B]">{p.email}</p></div>
-          <input ref={file} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
-          <button className={btnCls} onClick={() => setCard(true)}>ID card</button><button className={btnCls} onClick={() => file.current?.click()}>Change photo</button>{p.photo ? <button className={btnCls} onClick={() => run(() => savePhoto(null))}>Remove</button> : null}
+      {/* Profile card: a teal cover with a swinging ID badge, the photo in a turning ring, fact tiles with icons. */}
+      <Card className="overflow-hidden">
+        <div className="hr-cover relative -mx-5 -mt-1 h-[92px] overflow-hidden" style={{ background: "linear-gradient(120deg,#0B5E5B,#14907F 60%,#3FB8A6)" }}>
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="hr-dots absolute inset-0" />
+            <div className="hr-sheen absolute inset-y-0 -left-1/3 w-1/3" />
+            <svg viewBox="0 0 10 10" className="hr-twinkle absolute left-[38%] top-4 size-2.5"><path d="M5 0l1.2 3.8L10 5 6.2 6.2 5 10 3.8 6.2 0 5l3.8-1.2z" fill="#F5C451" /></svg>
+            <svg viewBox="0 0 10 10" className="hr-twinkle absolute left-[60%] bottom-4 size-2 [animation-delay:-1.4s]"><path d="M5 0l1.2 3.8L10 5 6.2 6.2 5 10 3.8 6.2 0 5l3.8-1.2z" fill="#5EEAD4" /></svg>
+            <IdBadge className="absolute right-6 -top-2 w-[64px] h-auto opacity-90 max-[560px]:hidden" />
+          </div>
         </div>
-        <Grid n={4} className="mt-4">
-          <Stat l="Joined" v={p.joinDate ? dayLong(p.joinDate) : "—"} /><Stat l="Type" v={p.empType} /><Stat l="Location" v={p.location || "—"} /><Stat l="Reports to" v={p.manager || "—"} />
-        </Grid>
-        <p className="text-[12px] text-[#64748B] mt-3">Joining documents {p.docsAccepted ? `accepted on ${dayLabel(p.docsAcceptedAt!)}` : "not yet accepted"} · Authenticator app {p.totp ? "on" : "off"}</p>
+        <div className="flex items-end gap-x-4 gap-y-2 flex-wrap pt-3">
+          <span className="hr-ring relative flex-none rounded-full p-[5px] bg-white -mt-14">
+            <span aria-hidden className="hr-ring-spin absolute inset-0 rounded-full border-2 border-dashed border-[#14B8A6]" />
+            <Avatar name={p.name} photo={p.photo} size={84} dot="#14B8A6" />
+          </span>
+          <div className="flex-1 min-w-[200px] pb-1">
+            <h2 className="text-[21px] font-bold leading-tight">{p.name}</h2>
+            <div className="flex gap-1.5 flex-wrap mt-1">
+              {p.designation ? <span className="text-[11.5px] font-semibold rounded-full px-2.5 py-[3px] bg-[#D6F3EF] text-[#0B5E5B]">{p.designation}</span> : null}
+              {p.dept ? <span className="text-[11.5px] font-semibold rounded-full px-2.5 py-[3px] bg-[#FFF4D6] text-[#94570A]">{p.dept}</span> : null}
+              <span className="text-[11.5px] font-semibold rounded-full px-2.5 py-[3px] bg-[#F1F5F9] text-[#334155] font-mono">{p.empNo}</span>
+            </div>
+            <p className="text-[12.5px] text-[#64748B] mt-1 flex items-center gap-1.5"><Mail size={13} aria-hidden />{p.email}</p>
+          </div>
+          <input ref={file} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
+          <div className="flex gap-2 flex-wrap pb-1">
+            <button className={btnCls} onClick={() => setCard(true)}><IdCard size={14} aria-hidden />ID card</button><button className={btnCls} onClick={() => file.current?.click()}><Camera size={14} aria-hidden />Change photo</button>{p.photo ? <button className={btnCls} onClick={() => run(() => savePhoto(null))}>Remove</button> : null}
+          </div>
+        </div>
+        <div className="grid gap-3 mt-4" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))" }}>
+          {([
+            [CalendarDays, "Joined", p.joinDate ? dayLong(p.joinDate) : "—", p.joinDate ? withUs(p.joinDate) : "", "#D6F3EF", "#0B5E5B"],
+            [BriefcaseBusiness, "Type", p.empType || "—", "", "#FFF4D6", "#94570A"],
+            [MapPin, "Location", p.location || "—", "", "#FDE7E4", "#B3261E"],
+            [UserCheck, "Reports to", p.manager || "—", "", "#E0ECFF", "#1E40AF"],
+          ] as const).map(([Icon, l, v, sub, bg, fg], i) => (
+            <div key={l} className="hr-fact relative overflow-hidden rounded-xl border border-[#D5DEE8] bg-white px-4 py-3.5 flex items-center gap-3 min-w-0" style={{ animationDelay: `${120 + i * 70}ms` }}>
+              <Icon aria-hidden size={64} strokeWidth={1.3} className="hr-drift absolute -right-3 -bottom-4 [--dur:12s]" style={{ color: fg, opacity: 0.08, animationDelay: `${-i * 1.5}s` }} />
+              <span className="hr-fact-ico flex-none size-10 rounded-xl flex items-center justify-center" style={{ background: bg, color: fg }}><Icon size={19} aria-hidden /></span>
+              <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-[.06em] text-[#64748B]">{l}</span><span className="block text-[16.5px] font-bold text-[#0B5E5B] truncate">{v}</span>{sub ? <span className="block text-[11.5px] text-[#64748B]">{sub}</span> : null}</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 flex-wrap mt-3 text-[12px]">
+          <span className={cx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold", p.docsAccepted ? "bg-[#DCF2E7] text-[#0A7A4F]" : "bg-[#FEF3C7] text-[#B45309]")}><FileCheck2 size={13} aria-hidden />Joining documents {p.docsAccepted ? `accepted on ${dayLabel(p.docsAcceptedAt!)}` : "not yet accepted"}</span>
+          <span className={cx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold", p.totp ? "bg-[#DCF2E7] text-[#0A7A4F]" : "bg-[#F1F5F9] text-[#475569]")}><ShieldCheck size={13} aria-hidden />Authenticator app {p.totp ? "on" : "off"}</span>
+        </div>
       </Card>
       <Card title="My documents" sub="Your offer letter, appointment letter and non-disclosure agreement, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
       <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
