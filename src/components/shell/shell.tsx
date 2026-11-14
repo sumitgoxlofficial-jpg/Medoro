@@ -18,6 +18,7 @@ import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf } from "@/lib/tr";
 import { DRIVE_TAB, NAV, READY, driveNav, screenOf, type NavDef, type ScreenId } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
+import { DashBackdrop } from "@/components/welcome-banner";
 import {
   changePasswordAction, changePinAction, disconnectGoogleAction, listSessions, regenerateCodesAction, revokeOtherSessions, revokeSession, securityInfo, setBranch, setLang, setViewAs,
 } from "@/app/app/actions";
@@ -307,7 +308,11 @@ function ShellInner(p: ShellProps) {
             </button> : null}
           </div>
         </header>
-        <main className="flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 bg-page max-[640px]:px-4">{p.children}</main>
+        <div className="relative flex-1 min-h-0 flex flex-col bg-page">
+          {/* Dashboards get a soft animated backdrop behind the cards. */}
+          {path === "/app" || (path === "/app/device-pos" && search.get("tab") === "dash") ? <DashBackdrop /> : null}
+          <main className="relative flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 max-[640px]:px-4">{p.children}</main>
+        </div>
       </div>
       {showAi ? <AiDrawer open={aiOpen} floating={narrow} onClose={() => setAiOpen(false)} lang={p.lang} placeholder={d.aiPh} ai={p.ai} /> : null}
       <ProfileModal open={profile} onClose={() => setProfile(false)} name={p.userName} email={p.userEmail} role={p.role} initials={initials} />
