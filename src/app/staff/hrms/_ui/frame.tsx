@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
-import { HR_ROLE_LABEL, NO_TITLE_SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
+import { HR_ROLE_LABEL, NO_TITLE_SCREENS, SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
 import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
 import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, openStaffConsole, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
@@ -13,6 +13,7 @@ import { KycStep } from "./kyc";
 import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { ChatNotifier } from "./chat-notify";
 import { Screen } from "./screens";
+import { ScreenHero } from "./hero";
 import { Check, FileSignature, KeyRound, ShieldCheck, UserRound } from "lucide-react";
 import { IdBadge, SideIcons } from "../../employee/art";
 
@@ -63,6 +64,9 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const to12 = (hhmm: string) => { const h = Number(hhmm.slice(0, 2)); return `${h % 12 || 12}:${hhmm.slice(3, 5)} ${h < 12 ? "AM" : "PM"}`; };
   const groups: [string, typeof sh.nav][] = [];
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
+  // Every titled screen except the sales dashboard (which greets you) opens with a teal strip that carries its title.
+  const def = SCREENS.find((x) => x.id === screen);
+  const hero = !!def && !NO_TITLE_SCREENS.includes(screen) && screen !== "slhome";
   // India time on both the server and the browser, so the greeting is the same in both renders.
   const istHour = new Date(Date.now() + 5.5 * 3600_000).getUTCHours();
   const greet = screen === sh.home && screen === "slhome" ? `${istHour < 12 ? "Good morning" : istHour < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
@@ -104,8 +108,8 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
         </div>
         <header className="relative flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
           <button className="min-[860px]:hidden border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          {NO_TITLE_SCREENS.includes(screen) ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
-            <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={sh.nav.find((n) => n.id === screen)?.icon ?? "sparkle"} s={19} /></span>
+          {NO_TITLE_SCREENS.includes(screen) || hero ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
+            <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={def?.icon ?? "home"} s={19} /></span>
             <div className="min-w-0"><h1 className="text-[19px] font-bold truncate">{greet}{greet !== title ? <span aria-hidden className="hr-wave inline-block ml-1.5">👋</span> : null}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>
           </div>}
           {sh.onBreak
@@ -144,7 +148,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             </div> : null}
           </div>
         </header>
-        <main key={screen} className="hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12"><Screen screen={screen} data={data} sh={sh} /></main>
+        <main key={screen} className="hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12">{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
       <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} lunch={sh.lunch} />

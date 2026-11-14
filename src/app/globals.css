@@ -402,3 +402,37 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .hr-app .hr-spin-slow { animation: hr-spin 40s linear infinite; }
 @keyframes hr-draw { 0% { stroke-dashoffset: 1; } 50%, 100% { stroke-dashoffset: 0; } }
 .hr-app .hr-draw { stroke-dasharray: 1; animation: hr-draw 5s cubic-bezier(.22,1,.36,1) infinite alternate; }
+
+/* ───── HRMS screen heroes (src/app/staff/hrms/_ui/hero.tsx): one small scene per kind of screen ───── */
+@keyframes hr-turn { to { transform: rotate(360deg); } }
+.hr-app .hr-hand { transform-box: view-box; transform-origin: 62px 40px; animation: hr-turn 6s linear infinite; }
+.hr-app .hr-hand-slow { transform-box: view-box; transform-origin: 62px 40px; animation: hr-turn 40s linear infinite; }
+.hr-app .hr-turn { transform-box: view-box; transform-origin: 70px 40px; animation: hr-turn 14s linear infinite; }
+@keyframes hr-pop-loop { 0%, 15% { opacity: 0; transform: scale(.6); } 25%, 85% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.9); } }
+.hr-app .hr-pop-loop { transform-box: fill-box; transform-origin: center; animation: hr-pop-loop 4s ease-in-out infinite; }
+@keyframes hr-dash { to { stroke-dashoffset: -36; } }
+.hr-app .hr-dash { animation: hr-dash 2.4s linear infinite; }
+@keyframes hr-fly { from { offset-distance: 0%; opacity: 0; } 10%, 85% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+.hr-app .hr-fly { transform-box: fill-box; offset-anchor: center; offset-path: path("M8 66c30-4 50-30 96-40"); offset-rotate: auto; animation: hr-fly 4.5s ease-in-out infinite; }
+@keyframes hr-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+.hr-app .hr-sway { transform-box: view-box; transform-origin: 118px 46px; animation: hr-sway 3.5s ease-in-out infinite; }
+@keyframes hr-drop { 0% { transform: translateY(-14px); opacity: 0; } 20% { opacity: 1; } 60%, 100% { transform: translateY(20px); opacity: 0; } }
+.hr-app .hr-drop { animation: hr-drop 2.6s cubic-bezier(.5,0,.75,0) infinite; }
+@keyframes hr-arrow { 0%, 10% { transform: translate(26px, -15px); opacity: 0; } 30%, 85% { transform: none; opacity: 1; } 100% { opacity: 0; } }
+.hr-app .hr-arrow { animation: hr-arrow 3.6s cubic-bezier(.22,1,.36,1) infinite; }
+@keyframes hr-ping { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(2.2); opacity: 0; } }
+.hr-app .hr-ping { transform-box: fill-box; transform-origin: center; animation: hr-ping 2.4s ease-out infinite; }
+@keyframes hr-move { 0%, 20% { transform: translateX(0); } 45%, 70% { transform: translateX(40px); } 95%, 100% { transform: translateX(80px); opacity: 0; } }
+.hr-app .hr-move { animation: hr-move 5s cubic-bezier(.65,0,.35,1) infinite; }
+@keyframes hr-pulse-sq { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.hr-app .hr-pulse-sq { animation: hr-pulse-sq 1.8s ease-in-out infinite; }
+@keyframes hr-rise { 0% { transform: translate(100px, 26px) scale(1); opacity: 0; } 30% { opacity: 1; } 100% { transform: translate(100px, 4px) scale(1.6); opacity: 0; } }
+.hr-app .hr-rise { animation: hr-rise 3s ease-out infinite; }
+@keyframes hr-grow { from { transform: scaleY(0); } }
+.hr-app .hr-grow { transform-box: fill-box; transform-origin: bottom; animation: hr-grow 1s cubic-bezier(.22,1,.36,1) .3s both; }
+@keyframes hr-knob { 0%, 100% { transform: translateX(-18px); } 50% { transform: translateX(22px); } }
+.hr-app .hr-knob { animation: hr-knob 4.4s ease-in-out infinite; }
+@keyframes hr-breathe-c { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.hr-app .hr-breathe-c { animation: hr-breathe-c 2.6s ease-in-out infinite; }
+@keyframes hr-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+.hr-app .hr-typing { animation: hr-typing 1.2s ease-in-out infinite; }
