@@ -217,7 +217,7 @@ describe("reference partners", () => {
     expect(await partnerFromGoogle({ sub: "g-aarti", email: "aarti@medoro.in", name: "Aarti" })).toBe("/staff/login?google=ok");
     expect(await getStaff()).toMatchObject({ role: "partner", id: rows[1].id });
     // Partner-only emails get a pointer on the team tab, and vice versa.
-    await expect(signIn("ravi.mr@gmail.com", "ravi password 1", "team")).rejects.toThrow(/Use the Reference partner tab/);
+    await expect(signIn("ravi.mr@gmail.com", "ravi password 1", "team")).rejects.toThrow(/reference partner profile, not a Medoro team profile/);
     await expect(signIn("neha@medoro.in", "neha password 1", "partner")).rejects.toThrow(/no partner profile yet/);
   });
 

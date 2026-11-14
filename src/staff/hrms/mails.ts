@@ -3,7 +3,7 @@ import { compose } from "@/server/mail-template";
 /** Wording of every email HRMS sends to an employee or candidate. Plain, courteous, one look (see src/server/mail-template.ts). */
 const first = (name: string) => name.trim().split(/\s+/)[0] || "there";
 const signoff = (org: string) => ({ name: "Human Resources", org });
-const loginUrl = () => (process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/staff/employee` : "");
+const loginUrl = () => (process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/staff/login` : "");
 
 export function welcomeMail(i: { name: string; empNo: string; email: string; temp: string; org: string }) {
   const url = loginUrl();

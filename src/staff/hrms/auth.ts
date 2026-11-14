@@ -77,7 +77,7 @@ export async function getMe(): Promise<Me | null> {
 
 export async function requireMe(): Promise<Me> {
   const me = await getMe();
-  if (!me) redirect("/staff/employee");
+  if (!me) redirect("/staff/login");
   return me;
 }
 

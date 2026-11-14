@@ -9,7 +9,7 @@ import { Aurora } from "./decor";
 const FOOT: { t: string; icon: LucideIcon; links: [string, string][] }[] = [
   { t: "Product", icon: Boxes, links: [["Billing & POS", "/#product"], ["Inventory & expiry", "/#product"], ["GST & accounts", "/#product"], ["WhatsApp & refills", "/#product"], ["Offline & branches", "/#product"], ["Pricing", "/#pricing"]] },
   { t: "Company", icon: Building2, links: [["About Medoro", "/legal#about"], ["Become a reference partner", "/partners"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
-  { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/employee"], ["Start 7-day free trial", "/trial"]] },
+  { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/login"], ["Start 7-day free trial", "/trial"]] },
   { t: "Legal", icon: Scale, links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
 
