@@ -26,8 +26,8 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login/);
 
-  // First super admin from STAFF_BOOTSTRAP_EMAIL. The partner sign-in has no team tab; setup is offered on a fresh server.
-  await page.goto("/staff/login");
+  // First super admin from STAFF_BOOTSTRAP_EMAIL. The partner sign-in has no team tab; setup is only at ?setup=1 on a fresh server.
+  await page.goto("/staff/login?setup=1");
   await expect(page.getByRole("tab")).toHaveCount(0);
   await page.getByRole("button", { name: /Set up the admin profile/ }).click();
   await page.getByLabel("Full name").fill("Founder Admin");

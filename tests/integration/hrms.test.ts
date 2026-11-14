@@ -12,7 +12,7 @@ import { db } from "@/server/db";
 import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
-import { createEmployee, salaryRevisions, saveSettings, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
+import { checkOfficialUsername, createEmployee, salaryRevisions, saveSettings, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
 import { addMonths, addNationalHolidays, checkIn, closeOpenDays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
 import { annualTax, computeSlip, employerCost, esiReturn, finalSettlement, payrollFor, pfReturn, processPayroll, payslip, taxStatement } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
@@ -69,6 +69,15 @@ describe("HRMS", () => {
     // Only the super admin gives HR or Finance access.
     await expect(createEmployee(hr, { name: "Boss Person", personalEmail: "b@x.in", phone: "9876543299", dept: "Ops", designation: "Lead", role: "hr", empType: "Full-time", joinDate: "2026-11-16", ctc: 0, location: "", managerId: null, incentivePct: 0 })).rejects.toThrow(/Only the super admin/);
     await expect(createEmployee(admin, { name: "Boss Person", personalEmail: "b@x.in", phone: "9876543299", dept: "Ops", designation: "Lead", role: "hr", empType: "Full-time", joinDate: "2026-11-16", ctc: 0, location: "", managerId: null, incentivePct: 0 })).resolves.toBeDefined();
+  });
+
+  it("HR can pick the official email username; a taken one is refused with the next free suggestion", async () => {
+    expect(await checkOfficialUsername("nina.newjoiner")).toMatchObject({ available: false, suggestion: "nina.newjoiner3@medoro.in" });
+    expect(await checkOfficialUsername("Nina.N")).toMatchObject({ available: true, email: "nina.n@medoro.in" });
+    expect(await checkOfficialUsername("bad..name")).toMatchObject({ available: false });
+    const base = { personalEmail: "pick@gmail.com", phone: "9876543277", dept: "Support", designation: "Executive", role: "employee" as const, empType: "Full-time" as const, joinDate: "2026-11-16", ctc: 0, location: "", managerId: null, incentivePct: 0 };
+    await expect(createEmployee(hr, { ...base, name: "Nina Other", emailUser: "nina.newjoiner" })).rejects.toThrow(/already taken/);
+    expect((await createEmployee(hr, { ...base, name: "Nina Other", emailUser: "nina.o" })).email).toBe("nina.o@medoro.in");
   });
 
   it("first sign-in with the temporary password forces a new password; the old one stops working", async () => {

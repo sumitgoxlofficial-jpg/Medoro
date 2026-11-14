@@ -22,8 +22,8 @@ const GOOGLE_MSG: Record<string, string> = {
  * Reference partners sign in here. The Medoro team signs in on the HRMS (/staff/employee); super admins and care land
  * here from the HRMS "Staff console" link only to confirm their authenticator. Team invite links also open here.
  */
-export default async function Page({ searchParams }: { searchParams: Promise<{ invite?: string; join?: string; google?: string }> }) {
-  const { invite, join, google } = await searchParams;
+export default async function Page({ searchParams }: { searchParams: Promise<{ invite?: string; join?: string; google?: string; setup?: string }> }) {
+  const { invite, join, google, setup } = await searchParams;
   // After Google the staff cookie (SameSite=Strict) isn't sent on this cross-site redirect; the page hands off in the browser.
   if (google === "ok") return <StaffLogin domain={staffDomain()} invite={null} pending={null} handoff />;
   if (!invite && (await getStaff())) redirect("/staff");
@@ -33,5 +33,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ i
   return <StaffLogin domain={staffDomain()} invite={invite ? { token: invite, info: inv } : null} pending={pending && !pending.mfaPassed ? { email: pending.staff.email, enrolled: pending.staff.totpEnabled } : null}
     joinPartner={join === "partner"} google={googleLoginConfigured()} googleNew={g ? { email: g.email, name: g.name ?? "" } : null}
     notice={google === "new" && !g ? GOOGLE_MSG.error : google ? GOOGLE_MSG[google] ?? "" : ""}
-    emailCodes={mailEnabled()} setupOpen={!(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }))} />;
+    emailCodes={mailEnabled()} setupOpen={setup === "1" && !(await db.staffUser.count({ where: { role: "super_admin", status: "active" } }))} />;
 }
