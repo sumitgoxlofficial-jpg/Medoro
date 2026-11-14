@@ -1,8 +1,8 @@
 "use client";
 import Image from "next/image";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, HardDriveUpload, MessageCircle, Minus, Pause, Play, ScanBarcode, Truck, Warehouse,
+  ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, CreditCard, Gift, HardDriveUpload, MessageCircle, Minus, Pause, Play, RefreshCcw, ScanBarcode, ShieldCheck, Sparkles, Truck, Warehouse,
 } from "lucide-react";
 import { PRODUCTS } from "@/staff/constants";
 import { useLang, useT } from "@/lib/i18n-client";
@@ -259,49 +259,114 @@ const CMP: [string, ...(boolean | string)[]][] = [
   ["Shop-network billing without internet", false, true, true], ["Branch transfers, consolidated reports", false, false, true], ["Priority support", false, false, true],
 ];
 
+// Reassurances shown above the plans: each is a promise the site already makes (trial, renewal, cancellation, payment, help).
+const PROMISES: [typeof Gift, string][] = [[Gift, "7 days free, no card"], [RefreshCcw, "Plans never renew on their own"], [ShieldCheck, "Cancel any time, your data stays"], [CreditCard, "Pay by UPI, card or netbanking"], [MessageCircle, "Setup help on WhatsApp"]];
+
+// Plan finder: the smallest plan whose limits (branches, counters, users) fit the answers.
+const FIND: { key: "b" | "c" | "u"; q: string; opts: [string, number][] }[] = [
+  { key: "b", q: "Branches", opts: [["1", 1], ["2–5", 5], ["6 or more", 6]] },
+  { key: "c", q: "Billing counters", opts: [["1–2", 2], ["3–5", 5], ["6–15", 15]] },
+  { key: "u", q: "People using it", opts: [["1–3", 3], ["4–10", 10], ["11–25", 25]] },
+];
+const LIMITS: [string, number, number, number][] = [["starter", 1, 2, 3], ["pro", 1, 5, 10], ["multi", 5, 15, 25]];
+const fitPlan = (a: { b: number; c: number; u: number }) => (LIMITS.find(([, b, c, u]) => a.b <= b && a.c <= c && a.u <= u) ?? LIMITS[2])[0];
+const AFTER: [string, string, string][] = [
+  ["Today", "Start the free trial", "Sign up and open your store. No card needed."],
+  ["Day 1", "Bring your stock in", "Import stock from Excel. Every row is checked before anything is saved, and we help on WhatsApp."],
+  ["Day 7", "Decide", "Pay by UPI, card or netbanking only if you continue. Plans never renew on their own."],
+];
+
 export function Pricing() {
   const t = useT();
   const [yearly, setYearly] = useState(false);
   const [compare, setCompare] = useState(false);
+  const [ans, setAns] = useState<{ b: number; c: number; u: number } | null>(null);
+  const fit = ans ? fitPlan(ans) : null;
+  const pick = (k: "b" | "c" | "u", v: number) => setAns((a) => ({ ...(a ?? { b: 1, c: 2, u: 3 }), [k]: v }));
+  // Phones: a slim "start free trial" bar while the pricing block is on screen.
+  const box = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.05 });
+    io.observe(el); return () => io.disconnect();
+  }, []);
   const seg = (on: boolean) => `h-10 max-[640px]:h-11 px-4 rounded-md text-[15px] font-medium cursor-pointer flex gap-2 items-center transition-colors ${on ? "bg-white text-[var(--s-ink)] shadow-[0_1px_2px_rgba(14,22,20,.12)]" : "text-[var(--s-muted)] hover:text-[var(--s-ink)]"}`;
   const ai = price("ai");
   return (
-    <div className="flex flex-col gap-8">
+    <div ref={box} className="flex flex-col gap-8">
+      <ul className="m-0 p-0 list-none flex flex-wrap gap-2.5">
+        {PROMISES.map(([Icon, l], i) => (
+          <li key={l} data-reveal style={{ ["--d" as string]: i }} className="site-lift inline-flex items-center gap-2 rounded-full bg-white border border-[var(--s-line)] pl-1.5 pr-3.5 py-1.5 text-[14.5px] font-medium text-[var(--s-ink)] shadow-[0_1px_2px_rgba(14,22,20,.05)]">
+            <span className="size-7 rounded-full bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={15} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} /></span>{t(l)}
+          </li>
+        ))}
+      </ul>
+      <div data-reveal className="rounded-2xl border border-[var(--s-line)] bg-[var(--s-soft)] p-[clamp(16px,2.4vw,24px)] flex flex-col gap-4">
+        <div className="flex items-center gap-2.5"><span className="size-8 rounded-lg bg-white border border-[var(--s-line)] flex items-center justify-center"><Sparkles size={16} aria-hidden className="site-sparkle text-[var(--s-brand)]" /></span><h3 className="m-0 text-[17px] font-semibold">{t("Find your plan in 3 taps")}</h3></div>
+        <div className="grid gap-4 min-[900px]:grid-cols-3">
+          {FIND.map((f) => (
+            <div key={f.key} role="group" aria-label={t(f.q)} className="flex flex-col gap-2">
+              <span className="text-[13.5px] font-semibold text-[var(--s-ink-2)]">{t(f.q)}</span>
+              <div className="flex gap-1.5 flex-wrap">
+                {f.opts.map(([l, v]) => {
+                  const on = ans?.[f.key] === v;
+                  return <button key={l} type="button" aria-pressed={on} onClick={() => pick(f.key, v)} className={`h-10 px-3.5 rounded-lg border text-[14.5px] font-medium cursor-pointer transition-[background-color,border-color,color,transform] duration-200 active:scale-95 ${on ? "bg-[var(--s-brand)] border-[var(--s-brand)] text-white" : "bg-white border-[var(--s-line)] text-[var(--s-ink)] hover:border-[var(--s-brand)]"}`}>{t(l)}</button>;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div aria-live="polite" className="min-h-[24px]">
+          {fit ? (
+            <p key={fit + JSON.stringify(ans)} className="site-swap m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15.5px]">
+              <Check size={17} aria-hidden className="text-[#146C43]" /><strong>{t("{plan} fits your store.", { plan: PLANS.find((p) => p.id === fit)!.name })}</strong>
+              {ans && ans.b > 5 ? <span className="text-[var(--s-muted)]">{t("Add extra branches at {amount} / month each.", { amount: "₹799" })}</span> : <span className="text-[var(--s-muted)]">{t("It’s highlighted below.")}</span>}
+            </p>
+          ) : <p className="m-0 text-[14.5px] text-[var(--s-muted)]">{t("Pick your answers and we’ll highlight the plan that fits.")}</p>}
+        </div>
+      </div>
       <div role="group" aria-label={t("Billing period")} className="self-start inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
         <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>{t("Monthly")}</button>
-        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className="text-[12.5px] font-semibold text-[var(--s-brand)]">{t("2 months free")}</span></button>
+        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className={`text-[12.5px] font-semibold rounded-full px-2 py-0.5 ${yearly ? "bg-[var(--s-brand)] text-white" : "bg-[var(--s-brand-tint)] text-[var(--s-brand)] site-breathe"}`}>{t("2 months free")}</span></button>
       </div>
-      <div className="grid gap-px bg-[var(--s-line)] border border-[var(--s-line)] rounded-xl overflow-hidden min-[900px]:grid-cols-3">
-        {PLANS.map((p) => {
+      <div className="grid gap-5 items-stretch min-[900px]:grid-cols-3 min-[900px]:pt-4">
+        {PLANS.map((p, i) => {
           const m = price(p.id);
+          const monthly = yearly ? Math.round((m * 10) / 12) : m;
           return (
-            <div key={p.id} className="relative bg-white p-7 flex flex-col gap-5 max-[640px]:p-5">
-              {p.rec ? <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] bg-[var(--s-brand)]" /> : null}
+            <div key={p.id} data-reveal style={{ ["--d" as string]: i }} className={`site-lift relative rounded-2xl p-7 flex flex-col gap-5 max-[640px]:p-5 transition-[box-shadow,outline-color] duration-300 ${fit === p.id ? "outline outline-[3px] outline-offset-4 outline-[#14B8A6]" : "outline-0"} ${p.rec ? "site-plan-rec bg-white min-[900px]:-mt-4 min-[900px]:mb-[-16px] shadow-[0_30px_60px_-30px_rgba(11,94,91,.55)]" : "bg-white border border-[var(--s-line)]"}`}>
+              {p.rec ? <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-[var(--s-brand)] text-white text-[12.5px] font-semibold px-3 py-1 shadow-[0_8px_18px_-8px_rgba(11,94,91,.8)] whitespace-nowrap"><Sparkles size={13} aria-hidden className="site-sparkle" />{t("Most stores pick this")}</span> : null}
               <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2.5 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{p.name}</h3>{p.rec ? <span className="text-[12.5px] font-semibold text-[var(--s-brand)] bg-[var(--s-brand-tint)] px-2 py-0.5 rounded">{t("Most stores pick this")}</span> : null}</div>
+                <div className="flex items-center gap-2.5 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{p.name}</h3>{fit === p.id ? <span className="site-swap inline-flex items-center gap-1 text-[12.5px] font-semibold rounded-full bg-[#DCF2E7] text-[#146C43] px-2.5 py-0.5"><Check size={13} aria-hidden />{t("Fits your store")}</span> : null}</div>
                 <span className="text-[15px] text-[var(--s-muted)]">{t(p.for)}</span>
               </div>
               <div className="flex flex-col gap-1">
-                <div className="flex items-baseline gap-1.5"><span className="site-display text-[48px] leading-none text-[var(--s-ink)]">{inr(yearly ? Math.round((m * 10) / 12) : m)}</span><span className="text-[15px] text-[var(--s-muted)]">{t("/ month")}</span></div>
+                <div className="flex items-baseline gap-1.5"><span key={`${p.id}-${yearly}`} className={`site-swap site-display text-[48px] leading-none ${p.rec ? "text-[var(--s-brand)]" : "text-[var(--s-ink)]"}`}>{inr(monthly)}</span><span className="text-[15px] text-[var(--s-muted)]">{t("/ month")}</span></div>
                 <span className="text-[14px] text-[var(--s-muted)]">{yearly ? t("{amount} billed yearly", { amount: inr(m * 10) }) : t("Billed monthly after the free trial")}</span>
+                <span className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="text-[12.5px] font-semibold rounded-full bg-[var(--s-soft)] border border-[var(--s-line)] px-2.5 py-0.5 text-[var(--s-ink-2)]">{t("About {amount} a day", { amount: inr(Math.round(monthly / 30)) })}</span>
+                  {yearly ? <span key={`save-${p.id}`} className="site-swap text-[12.5px] font-semibold rounded-full bg-[#DCF2E7] text-[#146C43] px-2.5 py-0.5">{t("Save {amount} a year", { amount: inr(m * 2) })}</span> : null}
+                </span>
               </div>
-              <a href="/trial" className={`flex items-center justify-center h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"}`}>{t("Start free trial")}</a>
+              <a href="/trial" className={`site-link-arrow flex items-center justify-center gap-2 h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${p.rec ? "site-cta relative overflow-hidden bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]"}`}>{t("Start free trial")}<ArrowRight size={16} aria-hidden /></a>
               <span className="text-[14px] font-medium text-[var(--s-ink)]">{t(p.cap)}</span>
               <ul className="m-0 p-0 list-none flex flex-col gap-2.5 border-t border-[var(--s-line)] pt-5">
-                {p.feats.map((f) => <li key={f} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{t(f)}</li>)}
+                {p.feats.map((f, j) => <li key={f} data-reveal style={{ ["--d" as string]: j }} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><span className="size-[18px] mt-[2px] rounded-full bg-[var(--s-brand-tint)] flex items-center justify-center flex-none"><Check size={12} strokeWidth={3} aria-hidden className="text-[var(--s-brand)]" /></span>{t(f)}</li>)}
               </ul>
             </div>
           );
         })}
       </div>
       <div className="grid gap-4 min-[900px]:grid-cols-2">
-        <div className="site-dark bg-[var(--s-dark)] text-white rounded-xl p-7 flex flex-col gap-2.5 max-[640px]:p-5">
-          <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]">{t("Add-on for any plan")}</span>
+        <div data-reveal className="site-dark site-lift relative overflow-hidden bg-[var(--s-dark)] text-white rounded-xl p-7 flex flex-col gap-2.5 max-[640px]:p-5">
+          <div aria-hidden className="pointer-events-none absolute inset-0"><div className="site-blob site-blob-b bg-[#14B8A6]/25" /></div>
+          <span className="relative flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6]"><Bot size={16} aria-hidden className="site-breathe" />{t("Add-on for any plan")}</span>
           <div className="flex items-baseline justify-between gap-3 flex-wrap"><h3 className="m-0 text-[20px] font-semibold">{t("AI assistant")}</h3><span className="text-[17px] font-semibold">{yearly ? t("{amount} / month, billed yearly", { amount: inr(Math.round((ai * 10) / 12)) }) : t("{amount} / month", { amount: inr(ai) })}</span></div>
           <p className="m-0 text-[15px] text-[#C3D3D0]">{t("Ask in English, Hindi or Hinglish. Seasonal demand planner, invoice scanner and reorder suggestions. Runs on your server by default.")}</p>
           <a href="/trial" className="site-link-arrow mt-auto pt-3 self-start inline-flex items-center gap-1.5 text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Try it during the free trial")}<ArrowRight size={15} aria-hidden /></a>
         </div>
-        <div className="bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-1 max-[640px]:p-5">
+        <div data-reveal className="site-lift bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-1 max-[640px]:p-5">
           <h3 className="m-0 mb-2 text-[17px] font-semibold">{t("One-time and extras")}</h3>
           {EXTRAS.map(([l, v]) => <div key={l} className="flex justify-between gap-3 text-[15px] border-b border-[var(--s-line-2)] py-2 last:border-b-0"><span className="text-[var(--s-ink-2)]">{t(l)}</span><strong className="font-semibold whitespace-nowrap">{t(v[0], { amount: v[1] })}</strong></div>)}
         </div>
@@ -320,6 +385,32 @@ export function Pricing() {
               </tr>
             ))}</tbody>
           </table>
+        </div>
+      </div>
+      <div className="flex flex-col gap-4">
+        <h3 data-reveal className="m-0 text-[20px] font-semibold">{t("What happens after you click “Start free trial”")}</h3>
+        <ol className="site-steps relative m-0 p-0 list-none grid gap-4 min-[900px]:grid-cols-3">
+          {AFTER.map(([when, title, d], i) => (
+            <li key={title} data-reveal style={{ ["--d" as string]: i }} className="site-lift relative z-[1] bg-white border border-[var(--s-line)] rounded-xl p-5 flex flex-col gap-2 hover:border-[#8FD3C6]">
+              <span className="flex items-center gap-2.5"><span className="size-9 rounded-full bg-[var(--s-brand)] text-white flex items-center justify-center text-[15px] font-bold">{i + 1}</span><span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-brand)]">{t(when)}</span></span>
+              <strong className="text-[17px]">{t(title)}</strong>
+              <span className="text-[15px] text-[var(--s-ink-2)] leading-[1.55]">{t(d)}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div aria-hidden={!inView} className={`min-[641px]:hidden fixed inset-x-0 bottom-0 z-[25] border-t border-[var(--s-line)] bg-white/95 backdrop-blur px-4 pr-20 py-2.5 flex items-center gap-3 transition-transform duration-300 ${inView ? "translate-y-0" : "translate-y-full"}`}>
+        <span className="flex flex-col leading-tight min-w-0"><strong className="text-[15px]">{t("From {amount} / month", { amount: inr(yearly ? Math.round((price("starter") * 10) / 12) : price("starter")) })}</strong><span className="text-[12.5px] text-[var(--s-muted)] truncate">{t("7 days free, no card")}</span></span>
+        <a href="/trial" tabIndex={inView ? 0 : -1} className="site-cta relative overflow-hidden ml-auto flex-none inline-flex items-center h-11 px-4 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold hover:text-white">{t("Start free trial")}</a>
+      </div>
+      <div data-reveal className="site-pan relative overflow-hidden rounded-2xl text-white p-[clamp(22px,4vw,40px)] flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center min-[900px]:justify-between">
+        <div className="relative flex flex-col gap-2 max-w-[640px]">
+          <h3 className="m-0 text-[clamp(22px,2.6vw,30px)] font-semibold">{t("Not sure which plan fits?")}</h3>
+          <p className="m-0 text-[16px] text-[#D3EAE6]">{t("Start the 7-day trial now and choose a plan only if you continue. Or tell us about your store on WhatsApp and we’ll suggest one.")}</p>
+        </div>
+        <div className="relative flex gap-3 flex-wrap">
+          <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
+          <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/40 text-white text-[16px] font-semibold hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />{t("Ask on WhatsApp")}</a>
         </div>
       </div>
     </div>

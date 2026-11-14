@@ -418,4 +418,37 @@ export const hi: Record<string, string> = {
   "₹486 paid by UPI": "₹486 UPI से मिले",
   "3 batches expire this month": "इस महीने 3 बैच एक्सपायर होंगे",
   "GST summary ready": "GST सारांश तैयार",
+
+  // Pricing: reassurances, price framing and the plan helper
+  "7 days free, no card": "7 दिन मुफ़्त, कार्ड की ज़रूरत नहीं",
+  "Plans never renew on their own": "प्लान अपने-आप रिन्यू नहीं होते",
+  "Cancel any time, your data stays": "कभी भी रद्द करें, आपका डेटा सुरक्षित रहता है",
+  "Pay by UPI, card or netbanking": "UPI, कार्ड या नेटबैंकिंग से भुगतान",
+  "Setup help on WhatsApp": "WhatsApp पर सेटअप में मदद",
+  "About {amount} a day": "लगभग {amount} प्रति दिन",
+  "Save {amount} a year": "साल में {amount} की बचत",
+  "Not sure which plan fits?": "कौन-सा प्लान सही है, तय नहीं कर पा रहे?",
+  "Start the 7-day trial now and choose a plan only if you continue. Or tell us about your store on WhatsApp and we’ll suggest one.":
+    "अभी 7 दिन का ट्रायल शुरू करें और आगे जारी रखें तभी प्लान चुनें। या WhatsApp पर अपने स्टोर के बारे में बताएँ, हम सही प्लान सुझाएँगे।",
+
+  // Pricing: plan finder, what happens next, mobile bar
+  "Find your plan in 3 taps": "3 टैप में अपना प्लान चुनें",
+  "Billing counters": "बिलिंग काउंटर",
+  "People using it": "इस्तेमाल करने वाले लोग",
+  "6 or more": "6 या ज़्यादा",
+  "{plan} fits your store.": "{plan} आपके स्टोर के लिए सही है।",
+  "Add extra branches at {amount} / month each.": "हर अतिरिक्त ब्रांच {amount} / महीना।",
+  "It’s highlighted below.": "नीचे हाइलाइट किया गया है।",
+  "Pick your answers and we’ll highlight the plan that fits.": "अपने जवाब चुनें, हम सही प्लान हाइलाइट कर देंगे।",
+  "Fits your store": "आपके स्टोर के लिए सही",
+  "What happens after you click “Start free trial”": "“फ़्री ट्रायल शुरू करें” दबाने के बाद क्या होता है",
+  "Today": "आज",
+  "Day 1": "पहला दिन",
+  "Day 7": "सातवाँ दिन",
+  "Sign up and open your store. No card needed.": "साइन अप करें और अपना स्टोर खोलें। कार्ड की ज़रूरत नहीं।",
+  "Bring your stock in": "अपना स्टॉक लाएँ",
+  "Import stock from Excel. Every row is checked before anything is saved, and we help on WhatsApp.": "Excel से स्टॉक इम्पोर्ट करें। कुछ भी सेव होने से पहले हर पंक्ति जाँची जाती है, और WhatsApp पर हम मदद करते हैं।",
+  "Decide": "फ़ैसला करें",
+  "Pay by UPI, card or netbanking only if you continue. Plans never renew on their own.": "आगे जारी रखें तभी UPI, कार्ड या नेटबैंकिंग से भुगतान करें। प्लान अपने-आप रिन्यू नहीं होते।",
+  "From {amount} / month": "{amount} / महीना से शुरू",
 };
