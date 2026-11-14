@@ -7,11 +7,19 @@ import {
 import { PRODUCTS } from "@/staff/constants";
 import { useLang, useT } from "@/lib/i18n-client";
 import { WA_DEMO } from "./brand";
+import { Aurora, FloatingShapes } from "./decor";
 
 // ───────────── Hero ─────────────
 
 // Hindi for these lines (and the Hindi dashboard screenshot) follows the site-wide `medoro_lang` cookie.
 const H1 = ["Bill faster.", "Waste less stock.", "Close GST on time."];
+// Little "live" notifications that pop in around the dashboard shot.
+const HERO_CHIPS: [string, string, string][] = [
+  ["✓", "₹486 paid by UPI", "-left-6 top-[14%] min-[1248px]:-left-10"],
+  ["⏳", "3 batches expire this month", "-left-4 bottom-[18%] min-[1248px]:-left-12"],
+  ["📄", "GST summary ready", "right-[12%] -top-5"],
+];
+const HERO_CHIP_BG = ["#DCF2E7", "#FDF2E1", "#E7F2F0"];
 
 export function Hero() {
   const t = useT();
@@ -20,12 +28,14 @@ export function Hero() {
     // Desktop: copy and product shot side by side, sized to fill one screen under the 65px header.
     // Below 1000px the two stack, as before.
     <section aria-labelledby="hero-title" className="relative overflow-hidden min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
-      <div aria-hidden className="absolute inset-x-0 bottom-0 top-[62%] bg-[var(--s-soft)] border-t border-[var(--s-line)] min-[1000px]:hidden" />
+      <Aurora />
+      <FloatingShapes />
+      <div aria-hidden className="absolute inset-x-0 bottom-0 top-[62%] bg-[var(--s-soft)]/70 border-t border-[var(--s-line)] min-[1000px]:hidden" />
       <div className="relative w-full max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4vw,40px)] pb-[clamp(48px,6vw,56px)] min-[1000px]:py-8 grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] gap-x-12 gap-y-10 items-center max-[640px]:px-4">
         <div className="flex flex-col gap-5">
           <span className="site-up text-[14px] font-medium text-[var(--s-brand)]">{t("Pharmacy software for Indian medical stores")}</span>
           <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(40px,5.2vw,64px)] min-[1000px]:text-[clamp(40px,min(4.4vw,7.2vh),62px)] [--d:1]">
-            {H1.map((l, i) => <span key={l} className={`block ${i === 1 ? "text-[var(--s-brand)]" : ""}`}>{t(l)}</span>)}
+            {H1.map((l, i) => <span key={l} className={`block ${i === 1 ? "site-shine" : ""}`}>{t(l)}</span>)}
           </h1>
           <p className="site-up m-0 text-[clamp(16px,1.3vw,18px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{t("Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.")}</p>
           <div className="site-up flex gap-3 flex-wrap pt-1 [--d:3]">
@@ -39,7 +49,14 @@ export function Hero() {
           <BrowserFrame label={t("Dashboard · Sanjeevani Pharmacy, FC Road")}>
             <Image src={lang === "hi" ? "/site/dashboard-hi.webp" : "/site/dashboard.webp"} alt={t("Medoro dashboard for Sanjeevani Pharmacy: today’s sales, margin, receivables, a 14-day sales chart, low stock and batches expiring within 90 days")} width={2000} height={1250} priority sizes="(min-width: 1248px) 630px, (min-width: 1000px) 52vw, calc(100vw - 32px)" className="block w-full h-auto" />
           </BrowserFrame>
-          <div className="absolute -right-2 min-[1248px]:-right-8 -bottom-8 w-[clamp(96px,10vw,136px)] max-[560px]:hidden">
+          <ul aria-hidden className="m-0 p-0 list-none max-[560px]:hidden">
+            {HERO_CHIPS.map(([icon, text, pos], i) => (
+              <li key={text} style={{ ["--d" as string]: i }} className={`site-chip absolute ${pos} flex items-center gap-2 rounded-xl bg-white/95 backdrop-blur border border-[var(--s-line)] shadow-[0_12px_28px_-12px_rgba(14,22,20,.35)] px-3 py-2 text-[13px] font-semibold text-[var(--s-ink)] whitespace-nowrap`}>
+                <span className="size-7 rounded-lg flex items-center justify-center text-[15px]" style={{ background: HERO_CHIP_BG[i] }}>{icon}</span>{t(text)}
+              </li>
+            ))}
+          </ul>
+          <div className="site-bob absolute -right-2 min-[1248px]:-right-8 -bottom-8 w-[clamp(96px,10vw,136px)] max-[560px]:hidden">
             <div className="site-phone"><div><Image src="/site/mobile-dashboard.webp" alt={t("The owner’s view of the same dashboard on a phone")} width={600} height={1409} sizes="136px" className="block w-full h-auto" /></div></div>
           </div>
         </div>
