@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { UserError, type ActionResult } from "@/server/action";
 import { destroyStaffSession, getStaff, staffAudit, staffRun } from "@/staff/auth";
 import * as people from "@/staff/people";
+import * as staffSignin from "@/staff/signin";
 import * as sales from "@/staff/sales";
 import * as support from "@/staff/support";
 import * as licence from "@/staff/licence";
@@ -32,6 +33,8 @@ const done = <T,>(r: ActionResult<T>) => { if (r.ok) revalidatePath("/staff", "l
 
 // ── Sign-in
 export const staffSignIn = async (email: string, password: string, as: people.StaffKind = "team") => open(() => people.signIn(email, password, as));
+/** One sign-in for partners, the Medoro team and HRMS employees: the server works out which profile opens. */
+export const staffSignInAny = async (id: string, password: string, code = "") => open(() => staffSignin.signIn(id, password, code));
 export const staffEnroll = async () => open(() => people.enrollTotp());
 export const staffVerify = async (code: string) => open(() => people.verifyTotp(code));
 export const staffSignup = async (input: Parameters<typeof people.signup>[0]) => open(() => people.signup(input));

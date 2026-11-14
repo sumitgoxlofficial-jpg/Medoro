@@ -16,10 +16,10 @@ const EMP = { name: `Riya ${tag.replace(/\d/g, "x")}`, personal: `riya.${tag}@ex
 test.use({ storageState: { cookies: [], origins: [] } });
 
 async function signIn(page: Page, id: string, password: string) {
-  await page.goto("/staff/employee");
-  await page.locator("input[autocomplete=username]").fill(id);
-  await page.locator("input[type=password]").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.goto("/staff/login");
+  await page.getByLabel("Email or employee ID").fill(id);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Continue" }).click();
 }
 async function setPassword(page: Page, password: string) {
   await expect(page.getByText("Set your own password")).toBeVisible();

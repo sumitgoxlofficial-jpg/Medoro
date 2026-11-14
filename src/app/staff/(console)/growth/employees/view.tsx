@@ -86,7 +86,7 @@ function PendingSignups({ pending, teams }: { pending: Pending[]; teams: { id: s
   const { run, busy } = useRun();
   const [team, setTeam] = useState<Record<string, string>>({});
   return (
-    <Panel title="Waiting for approval" sub="Sales profiles waiting for a super admin. Check they work for Medoro before approving: approval gives them the Sales employee Growth role. They sign in on the employee sign-in page (/staff/employee) with the password HR issues.">
+    <Panel title="Waiting for approval" sub="Sales profiles waiting for a super admin. Check they work for Medoro before approving: approval gives them the Sales employee Growth role. They sign in on the staff sign-in page (/staff/login) with the password HR issues.">
       {pending.length ? pending.map((p) => (
         <div key={p.id} className="flex gap-2 items-center flex-wrap px-4 py-3 border-t border-[#F1F3F4] text-[13.5px]">
           <div className="flex-1 min-w-[240px]"><strong>{p.name}</strong> <span className="text-muted">· {p.empNo}</span>

@@ -83,7 +83,7 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex gap-2 items-center">
           <SiteLangSwitch className="max-[559px]:hidden" />
-          <Link href="/staff/employee" title={t("Medoro employee login")} className="group max-[1179px]:hidden flex items-center gap-1.5 h-11 px-3 rounded-lg text-[15px] font-medium text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">
+          <Link href="/staff/login" title={t("Medoro employee login")} className="group max-[1179px]:hidden flex items-center gap-1.5 h-11 px-3 rounded-lg text-[15px] font-medium text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">
             <UserRound size={17} aria-hidden className="site-nav-ico text-[var(--s-brand)]" /><span className="max-[1799px]:sr-only">{t("Medoro employee login")}</span>
           </Link>
           <Link href="/signin" className="group max-[419px]:hidden flex items-center gap-1.5 h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><LogIn size={16} aria-hidden className="site-nav-ico max-[640px]:hidden" />{t("Log in")}</Link>
@@ -102,7 +102,7 @@ export function SiteHeader() {
           })}
           <Link href="/signin" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Log in")}</Link>
           <a href="/trial" className="text-[var(--s-brand)] text-[16px] font-semibold py-3.5 border-b border-[var(--s-line-2)]">{t("Start 7-day free trial")}</a>
-          <Link href="/staff/employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Medoro employee login")}</Link>
+          <Link href="/staff/login" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Medoro employee login")}</Link>
           <Link href="/signin?view=employee" className="text-[var(--s-ink)] text-[16px] font-medium py-3.5 border-b border-[var(--s-line-2)]">{t("Pharmacy staff login")}</Link>
         </nav>
         <SiteLangSwitch className="min-[560px]:hidden mt-4" />
