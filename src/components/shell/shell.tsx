@@ -309,8 +309,8 @@ function ShellInner(p: ShellProps) {
           </div>
         </header>
         <div className="relative flex-1 min-h-0 flex flex-col bg-page">
-          {/* Dashboards get a soft animated backdrop behind the cards. */}
-          {path === "/app" || (path === "/app/device-pos" && search.get("tab") === "dash") ? <DashBackdrop /> : null}
+          {/* The dashboard and every counter tab get a soft animated backdrop behind the cards. */}
+          {path === "/app" || path === "/app/device-pos" ? <DashBackdrop /> : null}
           <main className="relative flex-1 overflow-auto px-7 pt-6 pb-12 min-h-0 max-[640px]:px-4">{p.children}</main>
         </div>
       </div>

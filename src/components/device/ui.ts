@@ -5,8 +5,8 @@ import type { EinvDoc } from "@/domain/gst/einvoice";
 import type { IrnReply } from "@/drivedb/einvoice";
 import type { Lang, TFn } from "@/lib/tr";
 
-export const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
-export const input = "border border-line rounded-lg px-3 h-9 text-sm w-full bg-white";
+export const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
+export const input = "border border-line rounded-lg px-3 h-9 text-sm w-full bg-white transition-[border-color,box-shadow] duration-200 focus:border-teal focus:shadow-[0_0_0_3px_rgba(20,184,166,.15)]";
 export const label = "flex flex-col gap-1 text-[13px] text-muted";
 export type Cfg = CounterConfig;
 export type PayLinkInput = { customerId: string; saleId?: string | null; customerName: string; phone?: string | null; amountPaise: number; label?: string };
