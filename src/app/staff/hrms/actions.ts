@@ -19,6 +19,7 @@ import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
+import * as promos from "@/staff/hrms/promotions";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
 import * as kyc from "@/staff/hrms/kyc";
@@ -205,3 +206,12 @@ export const emailOffer = async (candidateId: string) => done(await hrRun((me) =
 export const saveLeadSheet = async (input: { url: string; auto: boolean; assign: boolean }) => done(await hrRun((me) => leadSheet.saveSheet(me, input), "Lead sheet saved."));
 export const syncLeadSheet = async () => done(await hrRun((me) => leadSheet.syncSheet(me)));
 export const sendLetters = async (staffId: string, types: string[], lastDay: string, email: boolean) => done(await hrRun((me) => letters.sendLetters(me, staffId, types, lastDay, email)));
+
+// ── Promotions
+/** Records the promotion and puts the Letter of Promotion on the employee's screen. Emailing it is a separate step (sendLetters), so a mail failure never undoes a promotion. */
+export const promoteEmployee = async (staffId: string, input: Parameters<typeof promos.promote>[2]) => done(await hrRun(async (me) => {
+  const r = await promos.promote(me, staffId, input);
+  await letters.sendLetters(me, staffId, ["promotion"], r.effective, false);
+  return r;
+}));
+export const cancelPromotion = async (id: string) => done(await hrRun((me) => promos.cancelPromotion(me, id), "Promotion cancelled."));

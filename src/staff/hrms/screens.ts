@@ -13,6 +13,7 @@ import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, r
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
+import { promotions } from "./promotions";
 import { myDocs } from "./docs";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
@@ -104,7 +105,7 @@ export const loaders = {
   assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
   assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
   hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
-  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled(), revisions: await salaryRevisions() }),
+  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled(), revisions: await salaryRevisions(), promotions: await promotions() }),
   hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: officialDomain(), mail: mailEnabled() }),
   departments: async () => {
     const [depts, staff] = await Promise.all([departments(), roster()]);

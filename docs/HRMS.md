@@ -44,6 +44,13 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
   cancelled cheque (PDF, JPG, PNG). HR opens them from **Employees → Documents**, marks each verified or removes it. Files open
   only for their owner and people with the Employees module; HR opening one is written to Audit Logs. A verified document can
   only be removed by HR. Aadhaar and PAN numbers are collected in the KYC step (see *Aadhaar and PAN verification*).
+* **Promotions** (HR, **Employees → Promote**). HR enters the new designation, department, reporting manager, annual CTC (with quick +10/15/20/30%
+  buttons), the roles and responsibilities of the new role (one per line) and an effective date. The employee's profile changes on that date
+  (at once when it is today or earlier; otherwise with the daily housekeeping, and always before payroll runs), a CTC change is kept in salary
+  revisions, and a **Letter of Promotion** (before/after at a glance, numbered responsibilities, revised Annexure A when pay changes, an
+  acknowledgement block) goes to the employee's **My documents** with a notification, and by email as a PDF if ticked. The letter keeps the terms
+  it was written with even if the profile is edited later. A promotion that hasn't taken effect can be cancelled, which withdraws its letter.
+  The current responsibilities show on the employee's profile, and HR can also edit them under **Edit**.
 * **Me**: **ID card** (My profile, printable), **Customize home** (hide sections; saved in the browser), **night mode** (moon button; saved in the browser).
 * Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).
 

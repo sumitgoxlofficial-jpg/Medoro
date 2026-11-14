@@ -132,7 +132,8 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
           <span className={cx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold", p.totp ? "bg-[#DCF2E7] text-[#0A7A4F]" : "bg-[#F1F5F9] text-[#475569]")}><ShieldCheck size={13} aria-hidden />Authenticator app {p.totp ? "on" : "off"}</span>
         </div>
       </Card>
-      <Card title="My documents" sub="Your offer letter, appointment letter and non-disclosure agreement, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
+      {p.responsibilities ? <Card title="My role and responsibilities" sub={p.designation ? `As ${p.designation}${p.dept ? `, ${p.dept}` : ""}` : undefined} pad><ul className="list-disc pl-5 text-[13.5px] flex flex-col gap-1">{p.responsibilities.split("\n").filter(Boolean).map((r, i) => <li key={i}>{r}</li>)}</ul></Card> : null}
+      <Card title="My documents" sub="Your offer letter, appointment letter, non-disclosure agreement and any letter HR sends you, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
       <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
       {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>

@@ -7,9 +7,10 @@ import { lettersMail, offerMail } from "./mails";
 import { clean } from "@/domain/sales/pdf";
 import { todayISO } from "@/lib/dates";
 import { audit, loadSettings, need, notify, type Me } from "./auth";
-import { EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, buildCandidateOffer, buildLetter, letterLabel, type Letter, type LetterCompany, type LetterPerson, type LetterType, type OfferTerms } from "./letters";
+import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, PROMOTION_LETTER, LETTER_TYPES, buildCandidateOffer, buildLetter, letterLabel, type Letter, type LetterCompany, type LetterPerson, type LetterType, type OfferTerms } from "./letters";
 import { LOGO_ASPECT, LOGO_PNG_BASE64 } from "./logo";
 import { scheduleText } from "./constants";
+import { promotionTerms } from "./promotions";
 
 const isType = (t: unknown): t is LetterType => LETTER_TYPES.some((l) => l.id === t);
 const isDay = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(new Date(d + "T00:00:00Z").getTime());
@@ -35,17 +36,20 @@ export async function letterFor(me: Me, staffId: string, type: unknown, lastDay?
   if (!isType(type)) throw new UserError("Choose a letter.");
   const day = isDay(lastDay) ? lastDay : "";
   if (EXIT_LETTERS.includes(type) && lastDay !== undefined && lastDay !== "" && !isDay(lastDay)) throw new UserError("Enter the last working day.");
+  if (type === PROMOTION_LETTER && !day) throw new UserError("Choose the promotion.");
   const mine = staffId === me.id;
   let sent = null;
-  if (mine && EXIT_LETTERS.includes(type)) {
+  if (mine && DATED_LETTERS.includes(type)) {
     sent = await db.hrLetter.findFirst({ where: { staffId, type, ...(day ? { lastDay: day } : {}) }, orderBy: { sentAt: "desc" } });
     if (!sent) { need(me, "employees"); }
   } else if (!(mine && JOINING_LETTERS.includes(type))) need(me, "employees");
   const p = await person(staffId);
   if (!p) throw new UserError("Employee not found.");
+  const promotion = type === PROMOTION_LETTER ? await promotionTerms(staffId, day) : undefined;
+  if (promotion === null) throw new UserError("No promotion is recorded with that effective date.");
   const co = await companyOf();
-  if (mine) await db.hrLetter.updateMany({ where: { staffId, type, readAt: null }, data: { readAt: new Date() } }); // opening a letter HR sent marks it read
-  return buildLetter(type, p, co, { lastDay: sent?.lastDay || day || undefined });
+  if (mine) await db.hrLetter.updateMany({ where: { staffId, type, readAt: null, ...(DATED_LETTERS.includes(type) && day ? { lastDay: day } : {}) }, data: { readAt: new Date() } }); // opening a letter HR sent marks it read
+  return buildLetter(type, p, co, { lastDay: sent?.lastDay || day || undefined, promotion });
 }
 /** The offer HR prepared for a candidate. */
 export async function candidateLetter(me: Me, id: string): Promise<Letter> {
@@ -189,7 +193,7 @@ export async function emailOffer(me: Me, id: string) {
   return { sentTo: c.email };
 }
 
-/** Letters HR has sent to this employee (exit letters show only once sent; joining letters are always there), newest first. */
+/** Letters HR has sent to this employee (exit and promotion letters show only once sent; joining letters are always there), newest first. */
 export async function sentLetters(me: Pick<Me, "id">) {
   const rows = await db.hrLetter.findMany({ where: { staffId: me.id }, orderBy: { sentAt: "desc" }, take: 30 });
   return rows.map((r) => ({ id: r.id, type: r.type, label: letterLabel(r.type), lastDay: r.lastDay, sentAt: r.sentAt.toISOString(), unread: !r.readAt }));
@@ -206,11 +210,15 @@ export async function sendLetters(me: Me, staffId: string, types: unknown, lastD
   if (!list.length) throw new UserError("Choose at least one letter to send.");
   const exit = list.filter((t) => EXIT_LETTERS.includes(t));
   if (exit.length && !isDay(lastDay)) throw new UserError("Enter the last working day for the exit letters.");
+  if (list.includes(PROMOTION_LETTER)) {
+    if (exit.length) throw new UserError("Send the promotion letter on its own.");
+    if (!isDay(lastDay) || !(await promotionTerms(staffId, lastDay))) throw new UserError("No promotion is recorded with that effective date.");
+  }
   const u = await db.staffUser.findFirst({ where: { id: staffId, kind: "team", role: { not: "partner" } }, select: { id: true, name: true } });
   if (!u) throw new UserError("Employee not found.");
   if (email && !mailEnabled()) throw new UserError("Email isn’t set up on this server yet. Untick “Also email” to send to their screen only.");
   for (const type of list) {
-    const day = EXIT_LETTERS.includes(type) ? String(lastDay) : "";
+    const day = DATED_LETTERS.includes(type) ? String(lastDay) : "";
     await db.hrLetter.upsert({ where: { staffId_type_lastDay: { staffId, type, lastDay: day } }, update: { sentAt: new Date(), sentById: me.id, readAt: null }, create: { staffId, type, lastDay: day, sentById: me.id } });
   }
   const labels = list.map((t) => letterLabel(t).toLowerCase());
@@ -218,7 +226,7 @@ export async function sendLetters(me: Me, staffId: string, types: unknown, lastD
   let emailed: string[] = [];
   if (email) {
     const atts = [];
-    for (const type of list) { const l = await letterFor(me, staffId, type, EXIT_LETTERS.includes(type) ? lastDay : undefined); atts.push({ filename: `${l.title.replace(/\W+/g, "-")}.pdf`, content: Buffer.from(await letterPdf(l)), contentType: "application/pdf" }); }
+    for (const type of list) { const l = await letterFor(me, staffId, type, DATED_LETTERS.includes(type) ? lastDay : undefined); atts.push({ filename: `${l.title.replace(/\W+/g, "-")}.pdf`, content: Buffer.from(await letterPdf(l)), contentType: "application/pdf" }); }
     const row = await db.staffUser.findUnique({ where: { id: staffId }, include: { hr: { select: { personalEmail: true } } } });
     emailed = [...new Set([row?.hr?.personalEmail, row?.email].filter((x): x is string => !!x && sendable(x)))];
     for (const to of emailed) await sendMail({ to, ...lettersMail({ name: u.name, labels, org: (await loadSettings()).company.name || "Medoro" }), attachments: atts });

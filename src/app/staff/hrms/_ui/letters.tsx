@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import type { Letter } from "@/staff/hrms/letters";
-import { EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, letterLabel, type LetterType } from "@/staff/hrms/letters";
+import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, PROMOTION_LETTER, letterLabel, type LetterType } from "@/staff/hrms/letters";
 import { emailOffer, getLetter, getOfferLetter, sendLetters } from "../actions";
 import { Empty, Field, Modal, Pill, Tabs, btnCls, cx, inputCls, primaryCls, useRun } from "./kit";
 
@@ -83,7 +83,7 @@ type Sent = { id: string; type: string; label: string; lastDay: string; sentAt: 
 /** An employee's own letters: the joining letters (offer, appointment, NDA) and anything else HR has sent, with a "New" tag until opened. */
 export function MyLetters({ sent = [] }: { sent?: Sent[] }) {
   const v = useLetterView();
-  const exit = sent.filter((x) => EXIT_LETTERS.includes(x.type as LetterType));
+  const exit = sent.filter((x) => DATED_LETTERS.includes(x.type as LetterType)); // exit and promotion letters, once HR sends them
   const fresh = new Set(sent.filter((x) => x.unread).map((x) => x.type + x.lastDay));
   return (
     <>
@@ -96,26 +96,31 @@ export function MyLetters({ sent = [] }: { sent?: Sent[] }) {
   );
 }
 
+type Promo = { effective: string; toDesig: string };
 /** HR: every letter for one employee, written from their record, and sending them to the employee's own screen (and email). */
-export function LettersPanel({ staffId, name, mail = false, onClose }: { staffId: string; name: string; mail?: boolean; onClose: () => void }) {
+export function LettersPanel({ staffId, name, mail = false, onClose, promotions = [], promotion }: { staffId: string; name: string; mail?: boolean; onClose: () => void; promotions?: Promo[]; promotion?: string }) {
   const { toast } = useRun();
-  const [type, setType] = useState<LetterType>("offer"), [day, setDay] = useState(new Date().toISOString().slice(0, 10));
+  const [type, setType] = useState<LetterType>(promotion ? PROMOTION_LETTER : "offer"), [day, setDay] = useState(new Date().toISOString().slice(0, 10));
+  const [promoDay, setPromoDay] = useState(promotion ?? promotions[0]?.effective ?? "");
   const [letter, setLetter] = useState<Letter | null>(null), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
   const [pick, setPick] = useState<Set<LetterType>>(new Set(JOINING_LETTERS)), [email, setEmail] = useState(mail), [sendOpen, setSendOpen] = useState(false);
-  const exit = EXIT_LETTERS.includes(type), anyExit = [...pick].some((t) => EXIT_LETTERS.includes(t));
+  const promo = type === PROMOTION_LETTER, exit = EXIT_LETTERS.includes(type), anyExit = [...pick].some((t) => EXIT_LETTERS.includes(t));
+  const forDay = promo ? promoDay : exit ? day : undefined;
   useEffect(() => {
     let live = true;
     setLetter(null); setErr("");
-    getLetter(staffId, type, exit ? day : undefined)
+    getLetter(staffId, type, forDay)
       .then((r) => { if (!live) return; if (r.ok) setLetter(r.data); else setErr(r.error); })
       .catch(() => { if (live) setErr(LOAD_FAILED); });
     return () => { live = false; };
-  }, [staffId, type, day, exit]);
-  const pdf = `/staff/hrms/letter/${staffId}/${type}${exit ? `?day=${day}` : ""}`;
+  }, [staffId, type, forDay]);
+  // The day comes from a date field or the promotion picker: encode it so nothing typed there can change the link.
+  const pdf = `/staff/hrms/letter/${encodeURIComponent(staffId)}/${encodeURIComponent(type)}${forDay ? `?day=${encodeURIComponent(forDay)}` : ""}`;
   const toggle = (t: LetterType) => setPick((s) => { const n = new Set(s); if (!n.delete(t)) n.add(t); return n; });
+  const tabs = LETTER_TYPES.filter((l) => l.id !== PROMOTION_LETTER || promotions.length);
   const send = async () => {
     setBusy(true);
-    const r = await sendLetters(staffId, [...pick], day, email).catch(() => null);
+    const r = await (promo ? sendLetters(staffId, [PROMOTION_LETTER], promoDay, email) : sendLetters(staffId, [...pick].filter((t) => t !== PROMOTION_LETTER), day, email)).catch(() => null);
     setBusy(false);
     if (!r) { toast(LOAD_FAILED, "red"); return; }
     if (!r.ok) { toast(r.error, "red"); return; }
@@ -124,8 +129,9 @@ export function LettersPanel({ staffId, name, mail = false, onClose }: { staffId
   };
   return (
     <Modal title={`Letters · ${name}`} onClose={onClose} wide>
-      <Tabs value={type} options={LETTER_TYPES.map((l) => [l.id, l.label] as [LetterType, string])} onChange={setType} />
+      <Tabs value={type} options={tabs.map((l) => [l.id, l.label] as [LetterType, string])} onChange={setType} />
       {exit ? <Field label="Last working day"><input className={`${inputCls} !w-48`} type="date" value={day} onChange={(e) => setDay(e.target.value)} /></Field> : null}
+      {promo && promotions.length > 1 ? <Field label="Promotion"><select className={`${inputCls} !w-auto`} value={promoDay} onChange={(e) => setPromoDay(e.target.value)}>{promotions.map((x) => <option key={x.effective} value={x.effective}>{x.toDesig} · from {x.effective}</option>)}</select></Field> : null}
       {err ? <p role="alert" className="text-[13px] text-[#B3261E] bg-[#FDECEA] rounded-lg px-3 py-2">{err}</p> : letter ? <LetterSheet l={letter} /> : <Empty>Writing the letter…</Empty>}
       <div className="flex gap-2 flex-wrap">
         <button className={primaryCls} disabled={!letter} onClick={() => window.print()}>Print / save as PDF</button>
@@ -136,10 +142,10 @@ export function LettersPanel({ staffId, name, mail = false, onClose }: { staffId
       {sendOpen ? (
         <div className="border border-[#a8b6c8] rounded-xl p-4 flex flex-col gap-3 bg-[#F8FAFC]">
           <div className="text-[13.5px] font-bold">Send to {name}: shows on their screen and they get a notification</div>
-          <div className="flex gap-x-5 gap-y-1 flex-wrap">{LETTER_TYPES.map((l) => <label key={l.id} className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={pick.has(l.id)} onChange={() => toggle(l.id)} />{l.label}</label>)}</div>
-          {anyExit ? <Field label="Last working day (for exit letters)"><input className={`${inputCls} !w-48`} type="date" value={day} onChange={(e) => setDay(e.target.value)} /></Field> : null}
+          {promo ? <div className="text-[13px]">Letter of promotion{promoDay ? ` (effective ${promoDay})` : ""}</div> : <div className="flex gap-x-5 gap-y-1 flex-wrap">{LETTER_TYPES.filter((l) => l.id !== PROMOTION_LETTER).map((l) => <label key={l.id} className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={pick.has(l.id)} onChange={() => toggle(l.id)} />{l.label}</label>)}</div>}
+          {anyExit && !promo ? <Field label="Last working day (for exit letters)"><input className={`${inputCls} !w-48`} type="date" value={day} onChange={(e) => setDay(e.target.value)} /></Field> : null}
           <label className={cx("flex items-center gap-2 text-[13px]", !mail && "opacity-60")}><input type="checkbox" checked={email} disabled={!mail} onChange={(e) => setEmail(e.target.checked)} />Also email the PDFs to their email address{mail ? "" : " (email isn’t set up on this server yet)"}</label>
-          <div><button className={primaryCls} disabled={busy || !pick.size} onClick={() => void send()}>Send {pick.size} letter{pick.size === 1 ? "" : "s"}</button></div>
+          <div>{promo ? <button className={primaryCls} disabled={busy || !promoDay} onClick={() => void send()}>Send letter of promotion</button> : <button className={primaryCls} disabled={busy || !pick.size} onClick={() => void send()}>Send {pick.size} letter{pick.size === 1 ? "" : "s"}</button>}</div>
         </div>
       ) : null}
     </Modal>

@@ -5,11 +5,14 @@ import { UDYAM } from "@/lib/udyam";
 
 export const LETTER_TYPES = [
   { id: "offer", label: "Offer letter" }, { id: "appointment", label: "Appointment letter" }, { id: "nda", label: "Non-disclosure agreement" },
-  { id: "experience", label: "Experience letter" }, { id: "relieving", label: "Relieving letter" },
+  { id: "experience", label: "Experience letter" }, { id: "relieving", label: "Relieving letter" }, { id: "promotion", label: "Letter of promotion" },
 ] as const;
 export type LetterType = (typeof LETTER_TYPES)[number]["id"];
 export const JOINING_LETTERS: LetterType[] = ["offer", "appointment", "nda"]; // what a new joiner reads and accepts
 export const EXIT_LETTERS: LetterType[] = ["experience", "relieving"]; // HR only, with a last working day
+export const PROMOTION_LETTER: LetterType = "promotion"; // written from a recorded promotion, keyed by its effective date
+/** Letters written for a particular day (exit: the last working day; promotion: the effective date). The employee sees these once HR sends them. */
+export const DATED_LETTERS: LetterType[] = [...EXIT_LETTERS, PROMOTION_LETTER];
 export const letterLabel = (t: string) => LETTER_TYPES.find((l) => l.id === t)?.label ?? t;
 
 export const NOTICE_DAYS = 30; // one month, either side
@@ -20,6 +23,11 @@ export const JURISDICTION = "Bokaro Steel City, Jharkhand";
 export type LetterPerson = {
   empNo: string; name: string; email: string; phone: string; address: string; desig: string; dept: string; empType: string; location: string; manager: string;
   joinDate: string | null; ctc: number; sales: boolean; incentivePct: number;
+};
+/** A recorded promotion, as the letter needs it (manager names, not ids). */
+export type PromotionTerms = {
+  effective: string; fromDesig: string; toDesig: string; fromDept: string; toDept: string; fromManager: string; toManager: string;
+  fromCtc: number; toCtc: number; responsibilities: string[]; note: string;
 };
 export type LetterCompany = {
   name: string; address: string; phone?: string; email?: string; gstin?: string;
@@ -106,8 +114,53 @@ const annexure = (c: Ctx): Block[] => {
   ];
 };
 
-export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany, opts: { lastDay?: string; today?: Date } = {}): Letter {
+/** The responsibilities HR typed, one per line, without bullets or numbering. */
+export const responsibilityLines = (t: string) => t.split(/\r?\n/).map((x) => x.replace(/^\s*(?:[-*•·]|\(?[a-z0-9]{1,2}[.)])\s*/i, "").trim()).filter(Boolean).slice(0, 15);
+
+function promotionLetter(p: LetterPerson, co: LetterCompany, pr: PromotionTerms, now: Date): Letter {
+  // The letter is written as of the promotion: the new role, the new pay and the new manager, whatever the profile says later.
+  const np: LetterPerson = { ...p, desig: pr.toDesig, dept: pr.toDept, manager: pr.toManager, ctc: pr.toCtc };
+  const c = ctxOf(np, co), eff = longDate(pr.effective), raise = pr.toCtc - pr.fromCtc, pct = pr.fromCtc > 0 ? Math.round((raise / pr.fromCtc) * 1000) / 10 : 0;
+  const change = (a: string, b: string) => (a && a !== b ? `${b} (previously ${a})` : b || "Unchanged");
+  const rows: [string, string][] = [
+    ["Effective from", eff], ["New designation", pr.toDesig], ["Previous designation", pr.fromDesig || "—"], ["Department", change(pr.fromDept, pr.toDept)],
+    ["Reporting to", change(pr.fromManager, pr.toManager || "To be confirmed")],
+    ["Annual CTC", raise ? `${inr(pr.toCtc)} per annum (previously ${inr(pr.fromCtc)}${pct > 0 ? `, an increase of ${pct}%` : ""})` : pr.toCtc > 0 ? `${inr(pr.toCtc)} per annum (unchanged)` : "Unchanged"],
+  ];
+  const resp = pr.responsibilities;
+  const clauses: [string, string[]][] = [
+    ["New role and responsibilities", [
+      `From ${eff} you will work as ${pr.toDesig}${pr.toDept ? ` in the ${pr.toDept} team` : ""}${pr.toManager ? `, reporting to ${pr.toManager}` : ""}.${resp.length ? " In this role you will be responsible for:" : " Your manager will brief you on the responsibilities of the new role, and they are recorded on the HRMS."}`,
+      ...resp.map((r, i) => `(${String.fromCharCode(97 + i)})  ${r}`),
+      "You will also carry out any other work reasonably assigned to you in keeping with the role.",
+    ]],
+    ["Compensation", [raise
+      ? `Your annual cost to company (CTC) is revised from ${inr(pr.fromCtc)} to ${inr(pr.toCtc)} with effect from ${eff}, which is about ${inr(salarySplit(pr.toCtc).monthly)} a month before statutory deductions. The revised break-up is given in Annexure A. The revised salary is paid from the payroll that covers ${eff}.`
+      : "Your compensation remains unchanged."]],
+    ["Other terms", [`All other terms and conditions of your appointment, including the notice period, confidentiality and the Non-Disclosure Agreement, remain unchanged. This letter forms part of your employment record.`]],
+  ];
+  return {
+    ...head(co), to: p.name, toLine: [pr.toDesig, pr.toDept].filter(Boolean).join(", "), toAddress: p.address, date: longDate(now),
+    type: "promotion", title: "Letter of Promotion", subject: `Promotion to ${pr.toDesig}`, ref: `${refOf("PRM", p.empNo, new Date(pr.effective + "T00:00:00Z"))}/${pr.effective.slice(5, 7)}`, confidential: true,
+    blocks: [
+      { k: "p", t: `Dear ${c.first},` },
+      { k: "p", t: `We are pleased to inform you that, in recognition of your performance and contribution to ${c.company}, you have been promoted${pr.fromDesig ? ` from ${pr.fromDesig}` : ""} to ${pr.toDesig} with effect from ${eff}.` },
+      { k: "facts", title: "Promotion at a glance", rows },
+      ...clauses.map(([title, t], i) => ({ k: "clause" as const, n: i + 1, title, t })),
+      ...(pr.note ? [{ k: "p" as const, t: pr.note }] : []),
+      { k: "p", t: `Congratulations on your promotion. We are confident you will take on the new responsibilities with the same commitment, and we look forward to your continued growth with ${c.company}.` },
+      { k: "sign", boxes: [{ title: `For ${c.company}`, lines: ["", "Authorised Signatory", "Human Resources"] }, { title: "Received and acknowledged", lines: ["Signature:", `Name: ${p.name}`, "Date:"] }] },
+      ...annexure(c).map((b) => (b.k === "table" ? { ...b, title: "Annexure A · Revised compensation structure" } : b)).filter(() => raise !== 0),
+    ],
+  };
+}
+
+export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany, opts: { lastDay?: string; today?: Date; promotion?: PromotionTerms } = {}): Letter {
   const now = opts.today ?? new Date(), c = ctxOf(p, co), today = longDate(now), base = { ...head(co), ...addressee(p), date: today };
+  if (type === "promotion") {
+    if (!opts.promotion) throw new Error("A promotion letter needs the promotion.");
+    return promotionLetter(p, co, opts.promotion, now);
+  }
   const glance = (rows: [string, string][]): Block => ({ k: "facts", title: "Terms at a glance", rows });
   const facts: [string, string][] = [
     ["Designation", p.desig || "To be confirmed"], ["Department", p.dept || "To be confirmed"], ["Employment type", p.empType || "Full-time"], ["Reporting to", p.manager || "To be confirmed"],

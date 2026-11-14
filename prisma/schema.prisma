@@ -2354,6 +2354,7 @@ model HrProfile {
   role               HrRole    @default(employee)
   dept               String    @default("")
   designation        String    @default("")
+  responsibilities   String    @default("") // the key responsibilities of the current role, one per line (set on hiring or a promotion)
   empType            String    @default("Full-time")
   location           String    @default("")
   managerId          String?
@@ -2560,6 +2561,30 @@ model HrSalaryRevision {
   at      DateTime @default(now())
 
   @@index([staffId, at])
+}
+
+/// A promotion: the role before and after, the new responsibilities and pay, from an effective date. The profile changes on that date
+/// (now, when it is today or earlier), and the Letter of Promotion (HrLetter type "promotion", keyed by the effective date) goes to the employee.
+model HrPromotion {
+  id               String    @id @default(uuid())
+  staffId          String
+  effective        String // YYYY-MM-DD
+  fromDesig        String
+  toDesig          String
+  fromDept         String
+  toDept           String
+  fromManagerId    String?
+  toManagerId      String?
+  fromCtc          Int
+  toCtc            Int
+  responsibilities String    @default("") // one per line
+  note             String    @default("") // a word from HR, written into the letter
+  byId             String
+  at               DateTime  @default(now())
+  appliedAt        DateTime? // when the profile was changed to the new role
+
+  @@unique([staffId, effective])
+  @@index([appliedAt, effective])
 }
 
 model HrPayslip {

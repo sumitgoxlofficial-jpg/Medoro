@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
 import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
-import { adminDecideClaim, assignTask, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, confirmBank, pfReturn, esiReturn, employeeDocs, employeeKyc, revealKyc, verifyDoc, rejectDoc, removeDoc, postJob, previewOfficialEmail, checkOfficialUsername, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
+import { adminDecideClaim, assignTask, cancelPromotion, promoteEmployee, sendLetters, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, confirmBank, pfReturn, esiReturn, employeeDocs, employeeKyc, revealKyc, verifyDoc, rejectDoc, removeDoc, postJob, previewOfficialEmail, checkOfficialUsername, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { firstSalary } from "@/staff/hrms/cycles";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
@@ -53,16 +53,20 @@ type Person = Data<"hremployees">["people"][number];
 export function EmployeesScreen({ d }: { d: Data<"hremployees"> }) {
   const { run, busy } = useRun();
   const [q, setQ] = useState(""), [edit, setEdit] = useState<Person | null>(null), [otp, setOtp] = useState<{ otp: string; name: string; empNo: string } | null>(null), [bal, setBal] = useState<Person | null>(null), [letters, setLetters] = useState<Person | null>(null), [leaving, setLeaving] = useState<Person | null>(null), [docsOf, setDocsOf] = useState<Person | null>(null);
+  const [promoting, setPromoting] = useState<Person | null>(null), [promoLetter, setPromoLetter] = useState<{ p: Person; day: string } | null>(null);
+  const promosOf = (id: string) => d.promotions.filter((x) => x.staffId === id);
   const list = d.people.filter((p) => `${p.name} ${p.dept} ${p.empNo} ${p.email}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <>
       <Card title="Employee directory" sub={`${d.people.filter((p) => p.status !== "deactivated").length} active · ${d.depts.length} departments`} right={<><input className={cx(inputCls, "!w-56")} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} /><Link href="/staff/hrms/hrnewemp" className={primaryCls}>+ Create employee profile</Link></>}>
         <Table head={["Name", "Department", "Designation", "Access", "Status", "KYC", ""]} empty={list.length ? undefined : "No match."}>
           {list.map((p) => <tr key={p.id}><td className={tdCls}><div className="flex items-center gap-2.5"><Avatar name={p.name} photo={p.photo} size={30} /><div><strong>{p.name}</strong><div className="text-[11.5px] text-[#94A3B8]">{p.empNo} · {p.email}</div></div></div></td><td className={tdCls}>{p.dept || "—"}</td><td className={tdCls}>{p.designation || "—"}</td><td className={tdCls}>{HR_ROLE_LABEL[p.role]}</td><td className={tdCls}><Pill tone={statusTone(p.status)}>{p.status === "invited" ? "Not signed in" : p.status}</Pill></td><td className={tdCls}><Pill tone={p.kyc === "verified" ? "green" : p.kyc === "submitted" ? "amber" : "red"}>{p.kyc === "verified" ? "Verified" : p.kyc === "submitted" ? "Check" : "Missing"}</Pill></td>
-            <td className={tdCls}><div className="flex gap-1.5 flex-wrap min-w-[360px]"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button><button className={btnCls} onClick={() => setDocsOf(p)}>Documents</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : p.exitDate ? <button className={btnCls} title={`Last working day ${p.exitDate}`} onClick={() => { if (confirm(`Cancel ${p.name}’s exit (last working day ${p.exitDate})?`)) run(() => setEmployeeActive(p.id, true)); }}>Leaving {dayLabel(p.exitDate)} · cancel</button> : <button className={dangerCls} onClick={() => setLeaving(p)}>Record exit</button>) : null}</div></td></tr>)}
+            <td className={tdCls}><div className="flex gap-1.5 flex-wrap min-w-[360px]"><button className={btnCls} onClick={() => setEdit(p)}>Edit</button><button className={btnCls} onClick={() => setBal(p)}>Leave</button><button className={btnCls} onClick={() => setLetters(p)}>Letters</button>{p.status !== "deactivated" && !p.exitDate && p.id !== d.meId ? <button className={btnCls} onClick={() => setPromoting(p)}>{promosOf(p.id).some((x) => !x.applied) ? "Promotion pending" : "Promote"}</button> : null}<button className={btnCls} onClick={() => setDocsOf(p)}>Documents</button>{p.status !== "deactivated" ? <button className={btnCls} onClick={() => run(() => issueOneTimePassword(p.id), (o) => { setOtp(o); })}>Reset password</button> : null}{p.id !== d.meId ? (p.status === "deactivated" ? <button className={btnCls} onClick={() => run(() => setEmployeeActive(p.id, true))}>Reactivate</button> : p.exitDate ? <button className={btnCls} title={`Last working day ${p.exitDate}`} onClick={() => { if (confirm(`Cancel ${p.name}’s exit (last working day ${p.exitDate})?`)) run(() => setEmployeeActive(p.id, true)); }}>Leaving {dayLabel(p.exitDate)} · cancel</button> : <button className={dangerCls} onClick={() => setLeaving(p)}>Record exit</button>) : null}</div></td></tr>)}
         </Table>
       </Card>
-      {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} onClose={() => setLetters(null)} /> : null}
+      {letters ? <LettersPanel staffId={letters.id} name={letters.name} mail={d.mail} promotions={promosOf(letters.id)} onClose={() => setLetters(null)} /> : null}
+      {promoting ? <PromoteModal p={promoting} d={d} onClose={() => setPromoting(null)} onDone={(day) => { const p = promoting; setPromoting(null); setPromoLetter({ p, day }); }} onLetter={(day) => { const p = promoting; setPromoting(null); setPromoLetter({ p, day }); }} /> : null}
+      {promoLetter ? <LettersPanel key={promoLetter.day} staffId={promoLetter.p.id} name={promoLetter.p.name} mail={d.mail} promotions={promosOf(promoLetter.p.id).length ? promosOf(promoLetter.p.id) : [{ effective: promoLetter.day, toDesig: "" }]} promotion={promoLetter.day} onClose={() => setPromoLetter(null)} /> : null}
       {edit ? <EditModal p={edit} d={d} onClose={() => setEdit(null)} busy={busy} run={run} /> : null}
       {bal ? <LeaveModal p={bal} onClose={() => setBal(null)} /> : null}
       {docsOf ? <DocsModal p={docsOf} onClose={() => setDocsOf(null)} /> : null}
@@ -105,9 +109,55 @@ function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; 
       <button className={dangerCls} disabled={busy}>{later ? "Record last working day" : "Deactivate now"}</button>
     </form></Modal>;
 }
+/** HR promotes someone: new designation, department, manager, pay and responsibilities from an effective date, and the Letter of Promotion. */
+function PromoteModal({ p, d, onClose, onDone, onLetter }: { p: Person; d: Data<"hremployees">; onClose: () => void; onDone: (day: string) => void; onLetter: (day: string) => void }) {
+  const { toast } = useRun();
+  const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const [v, setV] = useState({ toDesig: "", toDept: p.dept, toManagerId: p.managerId ?? "", toCtc: String(p.ctc), effective: today, responsibilities: p.responsibilities, note: "" });
+  const [email, setEmail] = useState(d.mail), [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
+  const mine = d.promotions.filter((x) => x.staffId === p.id), pending = mine.find((x) => !x.applied);
+  const ctc = Number(v.toCtc) || 0, hike = p.ctc > 0 && ctc !== p.ctc ? Math.round(((ctc - p.ctc) / p.ctc) * 1000) / 10 : 0;
+  const bump = (pct: number) => setV({ ...v, toCtc: String(Math.round((p.ctc * (1 + pct / 100)) / 100) * 100) });
+  const mgr = (id: string | null) => d.people.find((x) => x.id === id)?.name ?? "—";
+  const submit = async () => {
+    setBusy(true);
+    const r = await promoteEmployee(p.id, { ...v, toCtc: ctc, toManagerId: v.toManagerId || null }).catch(() => null);
+    if (!r || !r.ok) { setBusy(false); toast(r ? r.error : "That didn’t work. Refresh the page and try again.", "red"); return; }
+    let mailed = "";
+    if (email) { const m = await sendLetters(p.id, ["promotion"], v.effective, true).catch(() => null); mailed = m?.ok ? ` Emailed to ${m.data.emailed.join(", ")}.` : ` The email didn’t go: ${m && !m.ok ? m.error : "try again from Letters."}`; }
+    setBusy(false);
+    toast(`${p.name} is promoted to ${v.toDesig}${r.data.applied ? "; the profile is updated" : `; the profile changes on ${dayLabel(v.effective)}`}. The letter of promotion is on their screen.${mailed}`, "green");
+    onDone(v.effective);
+  };
+  return <Modal title={`Promote ${p.name}`} onClose={onClose} wide>
+    <div className="grid gap-x-6 gap-y-1 sm:grid-cols-4 text-[13px] border border-[#E2E8F0] rounded-xl p-3.5 bg-[#F8FAFC]">
+      {[["Current designation", p.designation || "—"], ["Department", p.dept || "—"], ["Reports to", mgr(p.managerId)], ["Annual CTC", p.ctc ? inr(p.ctc) : "—"]].map(([k, x]) => <div key={k}><div className="text-[11px] font-semibold uppercase tracking-[.06em] text-[#64748B]">{k}</div><div className="font-semibold">{x}</div></div>)}
+    </div>
+    {pending ? <div className="text-[13px] bg-[#FEF3C7] text-[#92400E] rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">A promotion to <strong>{pending.toDesig}</strong> takes effect on {dayLabel(pending.effective)}.
+      <button className={btnCls} onClick={() => onLetter(pending.effective)}>View letter</button>
+      <button className={dangerCls} disabled={busy} onClick={async () => { if (!confirm(`Cancel ${p.name}’s promotion to ${pending.toDesig}? Its letter is withdrawn.`)) return; setBusy(true); const r = await cancelPromotion(pending.id).catch(() => null); setBusy(false); if (r?.ok) onClose(); else toast(r ? r.error : "That didn’t work.", "red"); }}>Cancel promotion</button></div> : (
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <Grid n={3}>
+        <Field label="New designation"><input className={inputCls} value={v.toDesig} onChange={set("toDesig")} placeholder={p.designation ? `e.g. Senior ${p.designation}` : "e.g. Team Lead"} required autoFocus /></Field>
+        <Field label="Department"><select className={inputCls} value={v.toDept} onChange={set("toDept")} required><option value="">—</option>{d.depts.map((x) => <option key={x.id}>{x.name}</option>)}</select></Field>
+        <Field label="Reports to"><select className={inputCls} value={v.toManagerId} onChange={set("toManagerId")}><option value="">—</option>{d.people.filter((x) => x.id !== p.id && x.status === "active").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Field>
+        <Field label="New annual CTC (₹)" hint={hike ? `${hike > 0 ? "+" : ""}${hike}% on ${inr(p.ctc)}` : "Same as now"}><input className={inputCls} inputMode="numeric" value={v.toCtc} onChange={(e) => setV({ ...v, toCtc: e.target.value.replace(/\D/g, "") })} /></Field>
+        <Field label="Quick raise">{p.ctc > 0 ? <div className="flex gap-1.5 flex-wrap">{[10, 15, 20, 30].map((n) => <button type="button" key={n} className={btnCls} onClick={() => bump(n)}>+{n}%</button>)}</div> : <span className="text-[12.5px] text-[#64748B]">Enter the CTC</span>}</Field>
+        <Field label="Effective from" hint="Today or earlier changes the profile now; a later date changes it on that day"><input className={inputCls} type="date" value={v.effective} min={p.joinDate ?? undefined} onChange={set("effective")} required /></Field>
+      </Grid>
+      <Field label="Roles and responsibilities in the new role" hint="One per line. They go into the letter and the employee’s profile."><textarea className={inputCls} rows={5} value={v.responsibilities} onChange={set("responsibilities")} placeholder={"Lead a team of 4 sales executives\nOwn the monthly target for Jharkhand\nTrain new joiners on the Medoro demo"} /></Field>
+      <Field label="A note from HR (optional)" hint="Written into the letter, e.g. thanks for a particular achievement"><textarea className={inputCls} rows={2} value={v.note} onChange={set("note")} /></Field>
+      <label className={cx("flex items-center gap-2 text-[13px]", !d.mail && "opacity-60")}><input type="checkbox" checked={email} disabled={!d.mail} onChange={(e) => setEmail(e.target.checked)} />Also email the letter of promotion as a PDF{d.mail ? "" : " (email isn’t set up on this server yet)"}</label>
+      <p className="text-[12.5px] text-[#64748B]">The letter appears on {p.name.split(" ")[0]}’s screen under My documents with a notification. A change in CTC is kept in salary revisions and payroll uses it from the effective date.</p>
+      <div><button className={primaryCls} disabled={busy}>{busy ? "Promoting…" : "Promote and send letter"}</button></div>
+    </form>)}
+    {mine.length ? <div className="text-[12.5px] text-[#64748B]"><strong className="text-[#0f172a]">Promotion history</strong>{mine.map((x) => <div key={x.id} className="flex gap-2 items-center flex-wrap py-0.5">{dayLabel(x.effective)}: {x.fromDesig || "—"} → <strong className="text-[#0f172a]">{x.toDesig}</strong>{x.toCtc !== x.fromCtc ? ` · ${inr(x.fromCtc)} → ${inr(x.toCtc)}` : ""}{x.applied ? null : <Pill tone="amber">Pending</Pill>}<button className="underline bg-transparent border-0 cursor-pointer text-[#0B5E5B] font-semibold" onClick={() => onLetter(x.effective)}>Letter</button></div>)}</div> : null}
+  </Modal>;
+}
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
-  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", payCycleDay: String(p.payCycleDay), shiftStart: p.shiftStart, taxRegime: p.taxRegime as string, taxDeclared: String(p.taxDeclared), esiNo: p.esiNo, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState });
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
+  const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", payCycleDay: String(p.payCycleDay), shiftStart: p.shiftStart, taxRegime: p.taxRegime as string, taxDeclared: String(p.taxDeclared), esiNo: p.esiNo, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState, responsibilities: p.responsibilities });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
   const isAdmin = p.role === "admin";
   return <Modal title={`Edit ${p.name}`} onClose={onClose} wide>
     <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", taxRegime: v.taxRegime as "new", taxDeclared: Number(v.taxDeclared) || 0, ctc: Number(v.ctc), incentivePct: Number(v.incentivePct), monthlyTarget: Number(v.monthlyTarget), joinDate: v.joinDate || null, payCycleDay: Number(v.payCycleDay) || 0, managerId: v.managerId || null }), () => { onClose(); }); }}>
@@ -128,6 +178,7 @@ function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremploye
         <Field label="ESI number" hint="10 or 17 digits, if insured"><input className={inputCls} inputMode="numeric" value={v.esiNo} onChange={(e) => setV({ ...v, esiNo: e.target.value.replace(/\D/g, "") })} /></Field>
         {v.role === "sales" || p.role === "sales" ? <><Field label="Sales incentive %" hint="Max 5%"><input className={inputCls} inputMode="decimal" value={v.incentivePct} onChange={set("incentivePct")} /></Field><Field label="Monthly target (pharmacies)"><input className={inputCls} inputMode="numeric" value={v.monthlyTarget} onChange={set("monthlyTarget")} /></Field></> : null}
       </Grid>
+      <Field label="Key responsibilities" hint="One per line. Shown on the employee’s profile. To promote someone, use Promote instead: it also writes the letter."><textarea className={inputCls} rows={3} value={v.responsibilities} onChange={set("responsibilities")} /></Field>
       {d.revisions.some((r) => r.staffId === p.id) ? <div className="text-[12.5px] text-[#64748B]"><strong className="text-[#0f172a]">Salary revisions</strong>{d.revisions.filter((r) => r.staffId === p.id).map((r) => <div key={r.id}>{dayLabel(r.on)}: {inr(r.from)} → {inr(r.to)} a year</div>)}</div> : null}
       <button className={primaryCls} disabled={busy}>Save</button>
     </form></Modal>;
