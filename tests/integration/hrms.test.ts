@@ -188,7 +188,8 @@ describe("HRMS", () => {
     const s = await loadSettings();
     const esha = await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-003" } });
     const m = await monthFor(esha.id, todayISO().slice(0, 7), s);
-    expect(m.cells.find((c) => c.day === todayISO())?.kind).toBe("today");
+    // Today shows as "today" on a working day; on a weekly off or a holiday that wins (the test can run any day).
+    expect(["today", "weekend", "holiday"]).toContain(m.cells.find((c) => c.day === todayISO())?.kind);
     expect(m.cells.filter((c) => c.kind === "absent").every((c) => c.day < todayISO())).toBe(true);
   });
 
