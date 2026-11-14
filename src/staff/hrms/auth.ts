@@ -166,6 +166,21 @@ export async function signIn(rawId: string, pw: string, code = "") {
   return { next: "done" as const, mustChange: profile.mustChangePassword || byOtp };
 }
 
+/**
+ * From the HRMS to the staff console (super admins and care). An HRMS session is password-only, so this swaps it for
+ * a console session that waits for the authenticator code on /staff/login. A console session also opens the HRMS.
+ */
+export async function consoleStepUp(me: Me): Promise<string> {
+  if (me.staffRole !== "super_admin" && me.staffRole !== "care") throw new UserError("Your role doesn’t use the staff console.");
+  const s = await readStaffSession(false, true);
+  if (s && s.kind === "console" && s.mfaPassed) return "/staff";
+  const u = await db.staffUser.findUniqueOrThrow({ where: { id: me.id } });
+  if (s) await db.staffSession.update({ where: { id: s.id }, data: { revokedAt: new Date() } });
+  await createStaffSession(u.id, u.tokenVersion);
+  await staffAudit({ id: u.id, name: u.name }, "Staff console requested", "from the HRMS");
+  return "/staff/login";
+}
+
 const newCode = () => String(randomInt(0, 1_000_000)).padStart(6, "0");
 
 /** Emails a 6-digit one-time password (10 minutes). Says the same thing whether or not the ID exists. */

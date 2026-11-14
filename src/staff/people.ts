@@ -45,7 +45,7 @@ export const signupSchema = z.object({
 export async function signup(raw: z.input<typeof signupSchema>) {
   const i = signupSchema.parse(raw);
   const kind = kindOf(i.role);
-  if (await byEmail(i.email, kind)) throw new UserError(kind === "partner" ? "You already have a partner profile with this email. Sign in on the Reference partner tab." : "A team profile with this email already exists. Sign in, or ask a super admin.");
+  if (await byEmail(i.email, kind)) throw new UserError(kind === "partner" ? "You already have a partner profile with this email. Sign in instead." : "A team profile with this email already exists. Sign in, or ask a super admin.");
   // The first super admin comes from the Medoro team set-up, never from the partner form.
   // A partner who joins with email proves the address with a code first (when this server can send email).
   if (kind === "partner" && mailEnabled() && (await readVerifiedEmail()) !== i.email) throw new UserError("Confirm your email with the code we send first.");
@@ -111,7 +111,7 @@ export async function signIn(rawEmail: string, pw: string, as: StaffKind = "team
   if (mins) throw new UserError(`Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
   const u = await byEmail(e, as);
   if (!u && (await byEmail(e, as === "team" ? "partner" : "team"))) {
-    throw new UserError(as === "team" ? "This email has a reference partner profile, not a Medoro team profile. Use the Reference partner tab." : "This email has no partner profile yet. Join free below, or use the Medoro team tab.");
+    throw new UserError(as === "team" ? "This email has a reference partner profile, not a Medoro team profile." : "This is a Medoro team email. Use the Medoro HRMS sign-in instead (link below).");
   }
   if (u && u.kind === "partner" && u.googleSub && !u.passwordHash) throw new UserError("This profile signs in with Google. Tap “Continue with Google”.");
   if (u && u.kind === "team" && u.googleSub && !u.passwordHash) throw new UserError("This employee profile has no password yet. Ask HR for a one-time password, then sign in on the employee sign-in page (/staff/employee).");

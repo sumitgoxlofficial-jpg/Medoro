@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
 import { HR_ROLE_LABEL, NO_TITLE_SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
 import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
-import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, readNotifications, saveProfile, startBreak } from "../actions";
+import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, openStaffConsole, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
 import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
@@ -124,6 +124,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
               {sh.more.length ? <><div className="px-3 pt-2 pb-1 text-[10px] font-bold tracking-[.1em] text-[#94A3B8] border-t border-[#F1F5F9] mt-1">MORE</div><div className="max-h-[240px] overflow-y-auto">{sh.more.map((m) => <Link key={m.id} href={`/staff/hrms/${m.id}`} onClick={() => setMenu(false)} className="block px-3 py-1.5 rounded-lg text-[12.5px] hover:bg-[#F1F5F9]">{m.label}</Link>)}</div></> : null}
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => { setMenu(false); setPw(true); }}>Change password</button>
               {sh.me.growth ? <Link href="/staff/growth/my-work" className="block px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9]">Open lead tools</Link> : null}
+              {sh.me.console ? <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => void openStaffConsole().then((to) => { window.location.href = to; })}>Open staff console</button> : null}
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#B3261E] hover:bg-[#FDECEA] cursor-pointer bg-transparent border-0" onClick={() => void hrSignOut()}>Sign out</button>
             </div> : null}
           </div>
