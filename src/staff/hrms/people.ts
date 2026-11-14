@@ -17,13 +17,14 @@ import { audit, invalidateSettings, loadPerms, loadSettings, need, needAdmin, no
 import { closeIdle } from "./monitor";
 import { kycLabel } from "./kyc";
 import { cycleDayOf, firstSalary, payOnWorkingDay } from "./cycles";
+import { responsibilityLines } from "./letters";
 import { BREAKS, DEFAULT_DEPTS, EMP_TYPES, HR_ROLES, MODULES, ONBOARD_STEPS, type HrRoleId, type Perms, type Settings } from "./constants";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
 const mobile = z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile.");
 
 export type Person = {
-  id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; empType: string;
+  id: string; empNo: string; name: string; email: string; phone: string; status: string; role: HrRoleId; dept: string; designation: string; responsibilities: string; empType: string;
   location: string; managerId: string | null; joinDate: string | null; exitDate: string | null; kyc: "verified" | "submitted" | "missing"; payCycleDay: number; shiftStart: string; taxRegime: "new" | "old"; taxDeclared: number; esiNo: string; ctc: number; incentivePct: number; monthlyTarget: number; personalEmail: string;
   photo: string | null; homeState: string; presence: string; presenceNote: string; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean; hasPassword: boolean; onboarding: boolean[];
 };
@@ -40,7 +41,7 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
   return rows.map((u) => {
     const h = u.hr;
     return {
-      id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "",
+      id: u.id, empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, status: u.status, role: roleOf(u.role, h?.role), dept: h?.dept ?? "", designation: h?.designation ?? "", responsibilities: h?.responsibilities ?? "",
       empType: h?.empType ?? "Full-time", location: h?.location ?? "", homeState: h?.homeState ?? "", managerId: h?.managerId ?? null, joinDate: h?.joinDate ? isoOf(h.joinDate) : null, exitDate: h?.exitDate ? isoOf(h.exitDate) : null, kyc: kycLabel(h), payCycleDay: h?.payCycleDay ?? 0, shiftStart: h?.shiftStart ?? "", taxRegime: h?.taxRegime === "old" ? "old" : "new", taxDeclared: h?.taxDeclared ?? 0, esiNo: h?.esiNo ?? "", ctc: h?.ctc ?? 0,
       incentivePct: Number(h?.incentivePct ?? 0), monthlyTarget: h?.monthlyTarget ?? 40, personalEmail: h?.personalEmail ?? "", photo: h?.photo ?? null,
       presence: liveStatus(h?.presence ?? "offline", h?.presenceAt ?? null), presenceNote: h?.presenceNote ?? "", mustChangePassword: h?.mustChangePassword ?? false,
@@ -183,6 +184,8 @@ export const editEmployeeSchema = newEmployeeSchema.omit({ personalEmail: true, 
   joinDate: iso.nullish(), payCycleDay: z.coerce.number().int().min(0, "Pick the day of the month the pay cycle starts, or 0 for the calendar month.").max(31).optional(), shiftStart: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/, "Enter the shift start as HH:MM.").default(""),
   taxRegime: z.enum(["new", "old"]).default("new"), taxDeclared: z.coerce.number().int().min(0, "Deductions can’t be negative.").max(5_000_000).default(0),
   esiNo: z.string().trim().regex(/^$|^\d{10}$|^\d{17}$/, "The ESI number is 10 or 17 digits.").default(""), monthlyTarget: z.coerce.number().int().min(0).max(1000).default(40),
+  /** Key responsibilities of the role, one per line. Left out = unchanged. */
+  responsibilities: z.string().max(3000, "Keep the responsibilities under 3,000 characters.").optional(),
 });
 export async function updateEmployee(me: Me, id: string, raw: z.input<typeof editEmployeeSchema>) {
   need(me, "employees");
@@ -196,7 +199,7 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   const role = was === "admin" ? "admin" : i.role;
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
-  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, ...(i.payCycleDay !== undefined ? { payCycleDay: i.payCycleDay } : {}), shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo } as const;
+  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, ...(i.payCycleDay !== undefined ? { payCycleDay: i.payCycleDay } : {}), shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo, ...(i.responsibilities !== undefined ? { responsibilities: responsibilityLines(i.responsibilities).join("\n") } : {}) } as const;
   await db.$transaction([
     db.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } }),
     db.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } }),
@@ -261,7 +264,7 @@ export async function myProfile(me: Me) {
   const h = u.hr!;
   const mgr = h.managerId ? await db.staffUser.findUnique({ where: { id: h.managerId }, select: { name: true } }) : null;
   return {
-    empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, role: me.role, dept: h.dept, designation: h.designation, empType: h.empType, location: h.location, manager: mgr?.name ?? "",
+    empNo: u.empNo, name: u.name, email: u.email, phone: u.phone, role: me.role, dept: h.dept, designation: h.designation, responsibilities: h.responsibilities, empType: h.empType, location: h.location, manager: mgr?.name ?? "",
     joinDate: h.joinDate ? isoOf(h.joinDate) : "", ctc: h.ctc, incentivePct: Number(h.incentivePct), personalEmail: h.personalEmail, dob: h.dob ? isoOf(h.dob) : "", gender: h.gender, address: h.address,
     emergencyName: h.emergencyName, emergencyPhone: h.emergencyPhone, bloodGroup: h.bloodGroup, bankHolder: h.bankHolder, bankLast4: h.bankLast4, bankIfsc: h.bankIfsc, bankName: h.bankName,
     panMasked: h.panMasked, uan: h.uan, photo: h.photo, profileDone: h.profileDone, docsAccepted: !!h.docsAcceptedAt, docsAcceptedAt: h.docsAcceptedAt?.toISOString() ?? null, totp: u.totpEnabled,

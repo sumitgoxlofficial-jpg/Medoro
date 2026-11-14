@@ -8,6 +8,7 @@ import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "./auth";
 import { closeIdle, idleToday, parseSelfie, purgeOld, saveSelfie } from "./monitor";
 import { APPLY_IDS, CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, UNPAID, daysText, leaveDays, leaveLabel, toMin, type Settings } from "./constants";
+import { applyDuePromotions } from "./promotions";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
 const IST = 330 * 60_000;
@@ -254,6 +255,7 @@ export async function closeExits(now = false) {
   if (!now && Date.now() - exitsCheckedAt < 600_000) return;
   exitsCheckedAt = Date.now();
   await db.staffUser.updateMany({ where: { kind: "team", status: "active", hr: { exitDate: { lt: dateOnly(todayISO()) } } }, data: { status: "deactivated", tokenVersion: { increment: 1 } } });
+  await applyDuePromotions(true); // promotions whose effective date has come change the profile (and the CTC payroll uses)
   await closeOpenDays();
 }
 
