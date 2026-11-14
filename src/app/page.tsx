@@ -11,6 +11,7 @@ import { PRODUCTS } from "@/staff/constants";
 import { getLang } from "@/server/lang";
 import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
+import { MotivationArt } from "@/components/site/motivation-art";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
 const TITLE = "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores";
@@ -138,6 +139,8 @@ const jsonLd = {
 
 // The four figures under the product tabs: [number, prefix, suffix, line].
 const FACTS = [["7", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const;
+
+const MOTIVATION = ["Fewer expired strips", "Faster evening rush", "Calmer month-ends", "More time for patients"] as const;
 
 export default async function Home() {
   const lang = await getLang();
@@ -395,6 +398,28 @@ export default async function Home() {
                   ))}
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="motivation-title" className="bg-[var(--s-soft)] border-y border-[var(--s-line)] mb-[clamp(72px,10vw,128px)]">
+          <div className={`${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
+            <div data-reveal className="col-span-12 min-[1000px]:col-span-6 flex justify-center">
+              <MotivationArt className="w-full max-w-[520px] h-auto" />
+            </div>
+            <div className="col-span-12 min-[1000px]:col-span-6 flex flex-col gap-5">
+              <span className={eyebrow}>{t("For the people behind the counter")}</span>
+              <h2 id="motivation-title" className={h2}>{t("You keep your town healthy. Let Medoro keep the books.")}</h2>
+              <p className={lead}>{t("Every strip you hand over is someone’s good night’s sleep. You deserve software that keeps up with you, so the evening rush feels calm and month-end feels light.")}</p>
+              <figure data-reveal className="m-0 border-l-[3px] border-[#14B8A6] pl-5 py-1">
+                <blockquote className="m-0 text-[clamp(19px,1.7vw,23px)] leading-[1.45] font-medium text-[var(--s-ink)]">“{t("Small steps at the counter every day build a bigger, stronger store every year.")}”</blockquote>
+                <figcaption className="mt-2 text-[14px] text-[var(--s-muted)]">{t("Keep going. Your store is growing.")}</figcaption>
+              </figure>
+              <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
+                {MOTIVATION.map((m) => (
+                  <li key={m} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[var(--s-line)] px-3.5 py-1.5 text-[14.5px] font-medium text-[var(--s-ink-2)]"><Check size={15} aria-hidden className="text-[var(--s-brand)]" />{t(m)}</li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
