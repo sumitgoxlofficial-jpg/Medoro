@@ -26,8 +26,8 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await page.goto("/staff");
   await expect(page).toHaveURL(/\/staff\/login/);
 
-  // First super admin from STAFF_BOOTSTRAP_EMAIL. The partner sign-in has no team tab; setup is offered on a fresh server.
-  await page.goto("/staff/login");
+  // First super admin from STAFF_BOOTSTRAP_EMAIL. The partner sign-in has no team tab; setup is only at ?setup=1 on a fresh server.
+  await page.goto("/staff/login?setup=1");
   await expect(page.getByRole("tab")).toHaveCount(0);
   await page.getByRole("button", { name: /Set up the admin profile/ }).click();
   await page.getByLabel("Full name").fill("Founder Admin");
@@ -56,7 +56,7 @@ test("bootstrap super admin, a partner joins without approval, and a lead", asyn
   await expect(page).toHaveURL(/\/staff(\/overview)?$/);
 
   // An MR joins with a Gmail address and lands on their dashboard straight away.
-  const mr = `mr.${uid().toLowerCase()}@medoro.in`;
+  const mr = `mr.${uid().toLowerCase()}@gmail.com`;
   const other = await browser.newContext();
   const sp = await other.newPage();
   await join(sp, { name: "Priya Partner", email: mr, phone: "9822000003" });

@@ -7,7 +7,7 @@ import { nextSeq } from "@/server/sequence";
 import { UserError } from "@/server/action";
 import { allow, createStaffSession, isEmail, isStaffEmail, newToken, readStaffSession, staffAudit, staffDomain, tokenHash, type Staff } from "./auth";
 import { MOBILE_RE, digits, type StaffRoleId } from "./constants";
-import { clearPendingPartner, clearVerifiedEmail, readVerifiedEmail, type GoogleClaims } from "@/server/google-oidc";
+import { clearPendingPartner, clearVerifiedEmail, readPendingPartner, readVerifiedEmail, setPendingPartner, type GoogleClaims } from "@/server/google-oidc";
 import { mailEnabled } from "@/server/mail";
 
 const CP = "_cp"; // sequence namespace for the control plane
@@ -40,7 +40,7 @@ export const signupSchema = z.object({
   name: z.string().trim().min(2, "Enter your full name.").max(80),
   email: anyEmail(), phone, team: z.string().trim().max(60).default(""),
   role: z.enum(["sales", "care", "partner"]), password,
-}).refine((i) => isStaffEmail(i.email), { message: `Only Medoro employees can sign up. Use your @${staffDomain()} work email.`, path: ["email"] });
+}).refine((i) => i.role === "partner" || isStaffEmail(i.email), { message: `Medoro team profiles use an @${staffDomain()} work email. Joining as an MR or consultant? Choose Reference partner.`, path: ["email"] });
 
 export async function signup(raw: z.input<typeof signupSchema>) {
   const i = signupSchema.parse(raw);
@@ -68,8 +68,10 @@ export async function partnerFromGoogle(c: GoogleClaims): Promise<string> {
   // Only the partner profile: a Medoro team profile with the same email is separate and never opened by Google.
   const bySub = await db.staffUser.findUnique({ where: { googleSub: c.sub } });
   const u = bySub?.kind === "partner" ? bySub : await byEmail(c.email, "partner");
-  // New profiles are never made from Google: only Medoro employees sign up, with their work email.
-  if (!u) return "/staff/login?google=nouser";
+  if (!u) {
+    await setPendingPartner({ sub: c.sub, email: c.email, name: c.name });
+    return "/staff/login?join=partner&google=new";
+  }
   if (u.googleSub && u.googleSub !== c.sub) return "/staff/login?google=mismatch";
   if (u.status === "deactivated") return "/staff/login?google=deactivated";
   await db.staffUser.update({ where: { id: u.id }, data: { googleSub: c.sub, ...(u.status !== "active" ? { status: "active" } : {}) } });
@@ -80,11 +82,23 @@ export async function partnerFromGoogle(c: GoogleClaims): Promise<string> {
 
 export const googlePartnerSchema = z.object({ name: z.string().trim().min(2, "Enter your full name.").max(80), phone, team: z.string().trim().max(60).default("") });
 
-/** Google sign-up is closed: new profiles only come from Medoro employees with a work email. */
-export async function completeGooglePartner(raw?: z.input<typeof googlePartnerSchema>) {
-  if (raw) googlePartnerSchema.parse(raw);
+/** Creates the partner profile for the Google identity held after `partnerFromGoogle`, and signs them in. */
+export async function completeGooglePartner(raw: z.input<typeof googlePartnerSchema>) {
+  const g = await readPendingPartner();
+  if (!g) throw new UserError("Your Google sign-in expired. Tap “Continue with Google” again.");
+  const i = googlePartnerSchema.parse(raw);
+  if (await db.staffUser.findFirst({ where: { OR: [{ email: g.email, kind: "partner" }, { googleSub: g.sub }] } })) {
+    await clearPendingPartner();
+    throw new UserError("A profile with this Google account already exists. Tap “Continue with Google” to sign in.");
+  }
+  const { empNo, n } = await newEmployeeNo();
+  const u = await db.staffUser.create({
+    data: { empNo, name: i.name, email: g.email, kind: "partner", phone: i.phone, team: i.team, role: "partner", status: "active", googleSub: g.sub, passwordHash: null, referralCode: referral(i.name, n) },
+  });
   await clearPendingPartner();
-  throw new UserError(`New sign-ups with Google are closed. Only Medoro employees can sign up, with an @${staffDomain()} email.`);
+  await staffAudit({ id: u.id, name: u.name }, "Reference partner joined", `${empNo} · Google`);
+  await createStaffSession(u.id, u.tokenVersion, { mfaPassed: true });
+  return { next: "done" as const, code: u.referralCode };
 }
 
 // ── Sign-in: password, then an authenticator code (enrolled on first sign-in). `as` picks which profile opens.
