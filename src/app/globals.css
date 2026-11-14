@@ -253,3 +253,16 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .site-cta::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); animation: site-sweep 4.5s ease-in-out infinite; pointer-events: none; }
 @keyframes site-sparkle { 0%, 100% { transform: rotate(0) scale(1); } 50% { transform: rotate(18deg) scale(1.2); } }
 .site-sparkle { animation: site-sparkle 2.4s ease-in-out infinite; }
+/* Footer: moving waves on the top edge, a heartbeat line, a beating heart, an online ping and a pulsing WhatsApp button. */
+@keyframes site-wave { from { transform: translateX(0); } to { transform: translateX(-360px); } }
+.site-wave { animation: site-wave 9s linear infinite; }
+.site-wave-2 { animation-duration: 6s; animation-direction: reverse; }
+@keyframes site-ecg { 0% { stroke-dasharray: 0 1; stroke-dashoffset: 0; } 45% { stroke-dasharray: 1 1; stroke-dashoffset: 0; } 100% { stroke-dasharray: 1 1; stroke-dashoffset: -1; } }
+.site-ecg { animation: site-ecg 5s ease-in-out infinite; }
+@keyframes site-beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.3); } 30% { transform: scale(1); } 45% { transform: scale(1.2); } }
+.site-beat { animation: site-beat 1.6s ease-in-out infinite; transform-origin: center; }
+@keyframes site-ping { 0% { box-shadow: 0 0 0 0 rgba(34,160,107,.6); } 100% { box-shadow: 0 0 0 8px rgba(34,160,107,0); } }
+.site-ping { animation: site-ping 1.8s ease-out infinite; }
+.site-foot-link:hover span { transform: translateX(2px); }
+@keyframes site-fab { 0% { box-shadow: 0 10px 30px -10px rgba(14,22,20,.5), 0 0 0 0 rgba(20,108,67,.45); } 100% { box-shadow: 0 10px 30px -10px rgba(14,22,20,.5), 0 0 0 14px rgba(20,108,67,0); } }
+.site-root .site-fab { animation: site-fab 2.4s ease-out infinite; }
