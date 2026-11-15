@@ -16,7 +16,7 @@ describe("stock list import on the counter", () => {
   it("reads a plain stock list from another billing program and fills the gaps, shown in the preview", () => {
     const p = previewStockSheet(db, B, csv(OLD), TODAY);
     expect(p).toMatchObject({ ok: 2, bad: 0, skip: 0 });
-    expect(p.rows[0].note).toMatch(/form Tablet.*GST 12%/);
+    expect(p.rows[0].note).toMatch(/form Tablet.*GST 5%/);
   });
   it("creates medicines and batches in one go; stock is in units (packs x pack size)", () => {
     const r = importStockSheet(db, { branchId: B, userId: U, table: csv("Brand name,Units per pack,Batch,Expiry,Qty,MRP,GST,Cost,Form,Manufacturer\nDolo 650,15,A1,11/2028,10,33.60,12,24.5,Tablet,Micro\n") }, TODAY);

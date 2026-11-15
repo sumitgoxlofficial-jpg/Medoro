@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { inr } from "@/lib/money";
 import { EBILL_FIELDS, type EbillField, type EbillMapping } from "@/domain/purchasing/ebill";
 import type { EbillResult, MatchedLine } from "@/domain/purchasing/ebill-service";
-import { FORMS, GST_RATES } from "@/domain/inventory/contracts";
+import { DEFAULT_GST_RATE, FORMS, GST_RATES } from "@/domain/inventory/contracts";
 import { useT } from "@/lib/i18n-client";
 import { addMedicineAction } from "../inventory/actions";
 import { parseEbillAction } from "./pricing-actions";
@@ -142,7 +142,7 @@ const guessForm = (n: string) => (/\b(tab|tabs|tablet)\b/i.test(n) ? "Tablet" : 
 const title = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
 function QuickMedicine({ line, onClose, onCreated }: { line: MatchedLine | null; onClose: () => void; onCreated: (id: string) => void }) {
-  const [f, setF] = useState({ name: "", generic: "", strength: "", form: "Tablet", manufacturer: "", pack: "", mrp: "", gstRate: "12", hsn: "3004", barcode: "" });
+  const [f, setF] = useState({ name: "", generic: "", strength: "", form: "Tablet", manufacturer: "", pack: "", mrp: "", gstRate: String(DEFAULT_GST_RATE), hsn: "3004", barcode: "" });
   const t = useT();
   const [err, setErr] = useState(""), [pending, start] = useTransition();
   useEffect(() => {
@@ -150,7 +150,7 @@ function QuickMedicine({ line, onClose, onCreated }: { line: MatchedLine | null;
     setErr("");
     const name = title(line.name.replace(/\b(tab|tabs|tablet|cap|caps|syp|inj)\b\.?/gi, "").replace(/\s+/g, " ").trim());
     setF({ name, generic: "", strength: line.name.match(/\d+(\.\d+)?\s?(mg|ml|mcg|g|iu|%)/i)?.[0] ?? "", form: guessForm(line.name), manufacturer: "", pack: line.pack, mrp: line.mrp ? (line.mrp / 100).toFixed(2) : "",
-      gstRate: String(line.gst != null && (GST_RATES as readonly number[]).includes(line.gst) ? line.gst : 12), hsn: /^\d{4,8}$/.test(line.hsn) ? line.hsn : "3004", barcode: line.barcode });
+      gstRate: String(line.gst != null && (GST_RATES as readonly number[]).includes(line.gst) ? line.gst : DEFAULT_GST_RATE), hsn: /^\d{4,8}$/.test(line.hsn) ? line.hsn : "3004", barcode: line.barcode });
   }, [line]);
   if (!line) return null;
   const save = () => start(async () => {

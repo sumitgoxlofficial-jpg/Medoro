@@ -13,6 +13,7 @@ import type { DeviceHandlers } from "@/drivedb/device.worker";
 import { CLAIM_REASONS, CLAIM_STATUS, ebillLineCost, type ClaimReason, type EbillPreviewLine, type MatchedBy } from "@/drivedb/purchase-tools";
 import { EBILL_FIELDS, REQUIRED_FIELDS, type EbillField, type EbillMapping } from "@/domain/purchasing/ebill";
 import type { GstBase } from "@/domain/purchasing/pricing";
+import { DEFAULT_GST_RATE } from "@/domain/inventory/contracts";
 import { inr, inr0 } from "@/lib/money";
 import { dayMonth, monthYear, todayISO } from "@/lib/dates";
 import { card, input, label, errText, toPaise, type Cfg, type Who } from "./ui";
@@ -272,14 +273,14 @@ const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.to
 function QuickMedicine({ line, onClose, onCreated }: { line: Line | null; onClose: () => void; onCreated: (m: Med) => void }) {
   const t = useT(), toast = useToast();
   const dev = useRef(deviceDb()).current;
-  const [f, setF] = useState({ name: "", generic: "", strength: "", manufacturer: "", packSize: "1", mrp: "", gstRate: "12", hsn: "3004", barcode: "" });
+  const [f, setF] = useState({ name: "", generic: "", strength: "", manufacturer: "", packSize: "1", mrp: "", gstRate: String(DEFAULT_GST_RATE), hsn: "3004", barcode: "" });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!line) return;
     setF({
       name: titleCase(line.name.replace(/\b(tab|tabs|tablet|cap|caps|syp|inj)\b\.?/gi, "").replace(/\s+/g, " ").trim()), generic: "",
       strength: line.name.match(/\d+(\.\d+)?\s?(mg|ml|mcg|g|iu|%)/i)?.[0] ?? "", manufacturer: "", packSize: line.pack.match(/\d+/)?.[0] ?? "1",
-      mrp: line.mrp ? (line.mrp / 100).toFixed(2) : "", gstRate: String(line.gst != null && (GST_RATES as readonly number[]).includes(line.gst) ? line.gst : 12),
+      mrp: line.mrp ? (line.mrp / 100).toFixed(2) : "", gstRate: String(line.gst != null && (GST_RATES as readonly number[]).includes(line.gst) ? line.gst : DEFAULT_GST_RATE),
       hsn: /^\d{4,8}$/.test(line.hsn) ? line.hsn : "3004", barcode: line.barcode,
     });
   }, [line]);

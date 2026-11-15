@@ -5,7 +5,7 @@ import { authorizeAny, can, type Ctx } from "@/server/context";
 import { UserError } from "@/server/action";
 import { writeAudit } from "@/server/audit";
 import { daysTo } from "@/lib/dates";
-import { FORMS, GST_RATES, endOfMonthIfMonth as endOfMonth, medicineSchema } from "@/domain/inventory/contracts";
+import { DEFAULT_GST_RATE, FORMS, GST_RATES, endOfMonthIfMonth as endOfMonth, medicineSchema } from "@/domain/inventory/contracts";
 import { supplierSchema } from "@/domain/parties/contracts";
 import { customerSchema } from "@/domain/sales/contracts";
 import { createMedicineIn, receiveBatchIn } from "@/domain/inventory/service";
@@ -47,7 +47,7 @@ async function plan(ctx: Ctx, kind: ImportKind, t: Table) {
       if (stockSheet) {
         if (!v.form) { v.form = inferForm(v.name ?? ""); assumed.push(`form ${v.form}`); }
         if (!v.manufacturer) { v.manufacturer = "Not given"; assumed.push("manufacturer not given"); }
-        if (!v.gstRate) { v.gstRate = "12"; assumed.push("GST 12%"); }
+        if (!v.gstRate) { v.gstRate = String(DEFAULT_GST_RATE); assumed.push(`GST ${DEFAULT_GST_RATE}%`); }
         if (!v.generic && !v.composition) { v.generic = (v.name ?? "").replace(/\d+[a-z%.]*/gi, " ").replace(/\s+/g, " ").trim() || (v.name ?? ""); assumed.push("salt taken from the name"); }
         if (!v.strength) v.strength = "-";
       }
