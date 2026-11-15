@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data, Shell } from "@/staff/hrms/screens";
-import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_TYPES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
-import { adminDecideClaim, assignTask, cancelPromotion, promoteEmployee, sendLetters, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, confirmBank, pfReturn, esiReturn, employeeDocs, employeeKyc, revealKyc, verifyDoc, rejectDoc, removeDoc, postJob, previewOfficialEmail, checkOfficialUsername, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
+import { CAND_STAGES, CLAIM_STATUS, EMP_TYPES, HR_ROLE_LABEL, JOB_MODES, JOB_SOURCES, JOB_TYPES, SHARE_SITES, LEAVE_TYPES, MODULES, ONBOARD_STEPS, PRIORITIES, WEEKDAYS, inr, leaveLabel, monthLabel } from "@/staff/hrms/constants";
+import { adminDecideClaim, assignTask, cancelPromotion, promoteEmployee, sendLetters, bankFile, createEmployee, decideCorrection, decideLeave, deleteDepartment, deleteTask, grantLeave, hrDecideClaim, issueOneTimePassword, moveCandidate, payrollReport, confirmBank, pfReturn, esiReturn, employeeDocs, employeeKyc, revealKyc, verifyDoc, rejectDoc, removeDoc, postJob, updateJob, previewOfficialEmail, checkOfficialUsername, processPayroll, recognise, saveDepartment, saveOffer, scoreCandidate, setEmployeeActive, setJobOpen, tickOnboarding, togglePerm, updateEmployee, addCandidate, saveSettings } from "../actions";
 import { firstSalary } from "@/staff/hrms/cycles";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
@@ -410,23 +410,94 @@ export function AssignTasksScreen({ d }: { d: Data<"assigntasks"> }) {
   </>;
 }
 // ── Recruitment
+type JobRow = Data<"recruit">["jobs"][number];
+const blankJob = (dept: string) => ({ title: "", dept, location: "Bokaro", type: "Full-time", mode: "On-site", experience: "", salary: "", openings: "1", skills: "", description: "", requirements: "", benefits: "" });
+type JobForm = ReturnType<typeof blankJob>;
+const srcLabel = (id: string) => JOB_SOURCES.find((x) => x.id === id)?.label ?? id;
+
+function JobEditor({ init, id, depts, onClose }: { init: JobForm; id: string | null; depts: string[]; onClose: () => void }) {
+  const { run, busy } = useRun();
+  const [j, setJ] = useState(init);
+  const f = (k: keyof JobForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setJ({ ...j, [k]: e.target.value });
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    const input = { ...j, type: j.type as (typeof JOB_TYPES)[number], mode: j.mode as (typeof JOB_MODES)[number], openings: Number(j.openings) || 1 };
+    run(() => (id ? updateJob(id, input) : postJob(input)), onClose);
+  };
+  return <Modal wide title={id ? `Edit job · ${init.title}` : "Post a job"} onClose={onClose}><form className="flex flex-col gap-3" onSubmit={save}>
+    <p className="text-[12.5px] text-[#64748B] m-0">The job appears on the public careers page (/careers) with an Easy Apply button. Applicants get a thank-you email and land in Applied below.</p>
+    <Grid n={3}>
+      <Field label="Job title"><input className={inputCls} value={j.title} onChange={f("title")} placeholder="Customer Success Executive" required /></Field>
+      <Field label="Department"><select className={inputCls} value={j.dept} onChange={f("dept")}>{depts.map((x) => <option key={x}>{x}</option>)}</select></Field>
+      <Field label="Location"><input className={inputCls} value={j.location} onChange={f("location")} required /></Field>
+      <Field label="Job type"><select className={inputCls} value={j.type} onChange={f("type")}>{JOB_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
+      <Field label="Workplace"><select className={inputCls} value={j.mode} onChange={f("mode")}>{JOB_MODES.map((t) => <option key={t}>{t}</option>)}</select></Field>
+      <Field label="Openings"><input className={inputCls} inputMode="numeric" value={j.openings} onChange={(e) => setJ({ ...j, openings: e.target.value.replace(/\D/g, "") })} /></Field>
+      <Field label="Experience" hint="e.g. 0–2 years"><input className={inputCls} value={j.experience} onChange={f("experience")} /></Field>
+      <Field label="Salary (shown publicly)" hint="Leave blank to hide"><input className={inputCls} value={j.salary} onChange={f("salary")} placeholder="₹3.6–4.8 LPA" /></Field>
+      <Field label="Skills" hint="Comma separated"><input className={inputCls} value={j.skills} onChange={f("skills")} placeholder="Excel, Hindi, Customer support" /></Field>
+    </Grid>
+    <Field label="About the job" hint="Blank line = new paragraph. Start lines with - for bullets."><textarea className={inputCls} rows={6} value={j.description} onChange={f("description")} required /></Field>
+    <Grid n={2}>
+      <Field label="What we’re looking for"><textarea className={inputCls} rows={5} value={j.requirements} onChange={f("requirements")} placeholder={"- Graduate in any stream\n- Good spoken Hindi and English"} /></Field>
+      <Field label="What you get (benefits)"><textarea className={inputCls} rows={5} value={j.benefits} onChange={f("benefits")} placeholder={"- Paid leave\n- Salary on the 1st"} /></Field>
+    </Grid>
+    <div className="flex justify-end gap-2"><button type="button" className={btnCls} onClick={onClose}>Cancel</button><button className={primaryCls} disabled={busy}>{id ? "Save changes" : "Post job"}</button></div>
+  </form></Modal>;
+}
+
+function ShareLinks({ job, site, onClose }: { job: JobRow; site: string; onClose: () => void }) {
+  const base = `${site || (typeof window === "undefined" ? "" : window.location.origin)}/careers/${job.slug}`;
+  const [copied, setCopied] = useState("");
+  const copy = (k: string, v: string) => { void navigator.clipboard?.writeText(v).then(() => { setCopied(k); setTimeout(() => setCopied(""), 1500); }); };
+  return <Modal title={`Share · ${job.title}`} onClose={onClose}><div className="flex flex-col gap-2.5">
+    <p className="text-[12.5px] text-[#64748B] m-0">Post the job on any job site with its own link below: people who apply through it are tagged with that site in the pipeline. Google for Jobs picks the careers page up by itself.</p>
+    {SHARE_SITES.map((s) => { const url = `${base}?src=${s}`; return <div key={s} className="flex items-center gap-2"><span className="w-24 text-[13px] font-semibold">{srcLabel(s)}</span><input readOnly className={cx(inputCls, "flex-1 !text-[12px]")} value={url} onFocus={(e) => e.currentTarget.select()} /><button className={btnCls} onClick={() => copy(s, url)}>{copied === s ? "Copied ✓" : "Copy"}</button></div>; })}
+    <div className="flex gap-2 flex-wrap mt-1">
+      <a className={primaryCls} href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(base + "?src=linkedin")}`} target="_blank" rel="noreferrer">Share on LinkedIn</a>
+      <a className={btnCls} href="https://www.linkedin.com/talent/job-posting/post" target="_blank" rel="noreferrer">Post on LinkedIn Jobs ↗</a>
+      <a className={btnCls} href={`/careers/${job.slug}`} target="_blank" rel="noreferrer">Open careers page ↗</a>
+    </div></div></Modal>;
+}
+
 export function RecruitScreen({ d }: { d: Data<"recruit"> }) {
   const { run, busy } = useRun(), router = useRouter();
-  const [job, setJob] = useState({ title: "", dept: d.depts[0]?.name ?? "", location: "Bokaro", type: "Full-time" }), [cand, setCand] = useState({ jobId: "", name: "", email: "", phone: "", note: "", score: "" });
+  const depts = d.depts.length ? d.depts.map((x) => x.name) : ["General"];
+  const [edit, setEdit] = useState<{ id: string | null; init: JobForm } | null>(null), [share, setShare] = useState<JobRow | null>(null), [cv, setCv] = useState<Data<"recruit">["cands"][number] | null>(null);
+  const [cand, setCand] = useState({ jobId: "", name: "", email: "", phone: "", note: "", score: "" });
   const [offer, setOffer] = useState<{ id: string; name: string; position: string; empType: string; pay: string; joinDate: string; mode: string; terms: string } | null>(null), [view, setView] = useState<{ id: string; name: string; o: NonNullable<Data<"recruit">["cands"][number]["offer"]> } | null>(null);
+  const [srcF, setSrcF] = useState("");
+  const cands = srcF ? d.cands.filter((c) => c.source === srcF) : d.cands;
+  const bySource = JOB_SOURCES.map((s) => ({ ...s, n: d.cands.filter((c) => c.source === s.id).length })).filter((s) => s.n);
   return <>
-    <Card title={`Active job openings · ${d.jobs.filter((j) => j.status === "active").length}`} pad>
-      {d.jobs.map((j) => <div key={j.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-xl px-4 py-2.5 mb-2"><div className="flex-1"><strong className="text-[13.5px]">{j.title}</strong><div className="text-[12px] text-[#64748B]">{j.dept} · {j.location} · {j.type}</div></div><span className="text-[12px] text-[#64748B]">{j.applicants} applicants</span><Pill tone={j.status === "active" ? "green" : "gray"}>{j.status}</Pill><button className={btnCls} onClick={() => run(() => setJobOpen(j.id, j.status !== "active"))}>{j.status === "active" ? "Close job" : "Reopen"}</button></div>)}
-      <form className="flex gap-2 flex-wrap mt-2" onSubmit={(e) => { e.preventDefault(); run(() => postJob({ ...job, type: job.type as "Full-time" }), () => { setJob({ ...job, title: "" }); }); }}><input className={cx(inputCls, "!w-52")} placeholder="Job title" value={job.title} onChange={(e) => setJob({ ...job, title: e.target.value })} required /><select className={cx(inputCls, "!w-40")} value={job.dept} onChange={(e) => setJob({ ...job, dept: e.target.value })}>{d.depts.map((x) => <option key={x.id}>{x.name}</option>)}</select><input className={cx(inputCls, "!w-32")} value={job.location} onChange={(e) => setJob({ ...job, location: e.target.value })} /><select className={cx(inputCls, "!w-36")} value={job.type} onChange={(e) => setJob({ ...job, type: e.target.value })}>{JOB_TYPES.map((t) => <option key={t}>{t}</option>)}</select><button className={primaryCls} disabled={busy}>+ Post job</button></form>
+    <Card title={`Job openings · ${d.jobs.filter((j) => j.status === "active").length} live on the careers page`} right={<div className="flex gap-2"><a className={btnCls} href="/careers" target="_blank" rel="noreferrer">View careers page ↗</a><button className={primaryCls} onClick={() => setEdit({ id: null, init: blankJob(depts[0]) })}>+ Post a job</button></div>} pad>
+      {d.jobs.length ? d.jobs.map((j) => <div key={j.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-xl px-4 py-2.5 mb-2 flex-wrap"><div className="flex-1 min-w-[220px]"><strong className="text-[13.5px]">{j.title}</strong><div className="text-[12px] text-[#64748B]">{j.dept} · {j.location} · {j.mode} · {j.type}{j.salary ? ` · ${j.salary}` : ""} · posted {dayLabel(j.postedAt)}{j.description ? "" : " · ⚠ no description yet"}</div></div><span className="text-[12px] text-[#64748B]">{j.applicants} applicants</span><Pill tone={j.status === "active" ? "green" : "gray"}>{j.status === "active" ? "live" : "closed"}</Pill>
+        {j.slug && j.status === "active" ? <button className={btnCls} onClick={() => setShare(j)}>Share</button> : null}
+        <button className={btnCls} onClick={() => setEdit({ id: j.id, init: { title: j.title, dept: j.dept, location: j.location, type: j.type, mode: j.mode, experience: j.experience, salary: j.salary, openings: String(j.openings), skills: j.skills, description: j.description, requirements: j.requirements, benefits: j.benefits } })}>Edit</button>
+        <button className={btnCls} onClick={() => run(() => setJobOpen(j.id, j.status !== "active"))}>{j.status === "active" ? "Close job" : "Reopen"}</button></div>) : <Empty>No jobs yet. Post one and it goes live on the careers page.</Empty>}
     </Card>
-    <Card title="Add a candidate" sub="HR screening score is out of 100" pad><form className="flex gap-2 flex-wrap" onSubmit={(e) => { e.preventDefault(); run(() => addCandidate({ ...cand, score: cand.score === "" ? null : Number(cand.score) }), () => { setCand({ ...cand, name: "", email: "", phone: "", note: "", score: "" }); }); }}>
+    <Card title="Add a candidate" sub="For people who applied outside the careers page. HR screening score is out of 100." pad><form className="flex gap-2 flex-wrap" onSubmit={(e) => { e.preventDefault(); run(() => addCandidate({ ...cand, score: cand.score === "" ? null : Number(cand.score) }), () => { setCand({ ...cand, name: "", email: "", phone: "", note: "", score: "" }); }); }}>
       <select className={cx(inputCls, "!w-52")} value={cand.jobId} onChange={(e) => setCand({ ...cand, jobId: e.target.value })} required><option value="">Opening…</option>{d.jobs.filter((j) => j.status === "active").map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}</select>
       <input className={cx(inputCls, "!w-44")} placeholder="Name" value={cand.name} onChange={(e) => setCand({ ...cand, name: e.target.value })} required /><input className={cx(inputCls, "!w-44")} placeholder="Email" value={cand.email} onChange={(e) => setCand({ ...cand, email: e.target.value })} /><input className={cx(inputCls, "!w-32")} placeholder="Phone" value={cand.phone} onChange={(e) => setCand({ ...cand, phone: e.target.value })} /><input className={cx(inputCls, "!w-20")} placeholder="Score" inputMode="numeric" value={cand.score} onChange={(e) => setCand({ ...cand, score: e.target.value.replace(/\D/g, "") })} /><button className={primaryCls} disabled={busy}>Add</button></form></Card>
-    <Grid n={4}>{CAND_STAGES.map((s) => <Card key={s.id} title={s.label} right={<Pill tone="gray">{d.cands.filter((c) => c.stage === s.id).length}</Pill>} pad>
-      {d.cands.filter((c) => c.stage === s.id).map((c) => <div key={c.id} className="border border-[#E2E8F0] rounded-xl p-2.5 mb-2 text-[12.5px]"><div className="flex justify-between"><strong>{c.name}</strong>{c.score !== null ? <Pill tone="green">Score {c.score}</Pill> : <button className="text-[11.5px] text-[#0B5E5B] cursor-pointer bg-transparent border-0 p-0" onClick={() => { const v = prompt("Screening score (0–100)"); if (v !== null && v !== "") run(() => scoreCandidate(c.id, Number(v))); }}>Add score</button>}</div><div className="text-[#64748B]">{c.role}{c.referredBy ? ` · referred by ${c.referredBy}` : ""}</div>{c.email || c.phone ? <div className="text-[11.5px] text-[#94A3B8]">{c.email} {c.phone}</div> : null}
+    {bySource.length > 1 ? <div className="flex gap-1.5 flex-wrap items-center text-[12.5px]"><span className="text-[#64748B] mr-1">Source:</span><button className={cx(btnCls, !srcF && "!border-[#0B5E5B] !text-[#0B5E5B]")} onClick={() => setSrcF("")}>All · {d.cands.length}</button>{bySource.map((s) => <button key={s.id} className={cx(btnCls, srcF === s.id && "!border-[#0B5E5B] !text-[#0B5E5B]")} onClick={() => setSrcF(s.id)}>{s.label} · {s.n}</button>)}</div> : null}
+    <Grid n={4}>{CAND_STAGES.map((s) => <Card key={s.id} title={s.label} right={<Pill tone="gray">{cands.filter((c) => c.stage === s.id).length}</Pill>} pad>
+      {cands.filter((c) => c.stage === s.id).map((c) => <div key={c.id} className="border border-[#E2E8F0] rounded-xl p-2.5 mb-2 text-[12.5px]"><div className="flex justify-between gap-1"><button className="font-semibold text-left bg-transparent border-0 p-0 cursor-pointer text-[#0f172a] hover:underline" onClick={() => setCv(c)}>{c.name}</button>{c.score !== null ? <Pill tone="green">Score {c.score}</Pill> : <button className="text-[11.5px] text-[#0B5E5B] cursor-pointer bg-transparent border-0 p-0 whitespace-nowrap" onClick={() => { const v = prompt("Screening score (0–100)"); if (v !== null && v !== "") run(() => scoreCandidate(c.id, Number(v))); }}>Add score</button>}</div><div className="text-[#64748B]">{c.role}{c.referredBy ? ` · referred by ${c.referredBy}` : ""}</div>
+        <div className="flex gap-1 flex-wrap mt-1"><Pill tone={c.source === "linkedin" ? "blue" : "gray"}>{srcLabel(c.source)}</Pill>{c.verifiedBy ? <Pill tone="green">✓ {c.verifiedBy === "linkedin" ? "LinkedIn" : "Google"}</Pill> : null}{c.experience ? <Pill tone="gray">{c.experience}</Pill> : null}</div>
+        {c.email || c.phone ? <div className="text-[11.5px] text-[#94A3B8] mt-1 break-all">{c.email} {c.phone}</div> : null}
+        <div className="flex gap-1 mt-1.5 flex-wrap">{c.hasResume ? <a className={btnCls} href={`/staff/hrms/resume/${c.id}`} target="_blank" rel="noreferrer">Résumé</a> : null}{c.linkedin ? <a className={btnCls} href={c.linkedin} target="_blank" rel="noreferrer">LinkedIn ↗</a> : null}</div>
         <div className="flex gap-1 mt-1.5 flex-wrap">{s.id !== "hired" ? <button className={btnCls} onClick={() => run(() => moveCandidate(c.id, CAND_STAGES[CAND_STAGES.findIndex((x) => x.id === s.id) + 1].id))}>Move to {CAND_STAGES[CAND_STAGES.findIndex((x) => x.id === s.id) + 1].label} →</button> : null}
           {s.id === "offer" || s.id === "interview" ? <button className={btnCls} onClick={() => (c.offer ? setView({ id: c.id, name: c.name, o: c.offer }) : setOffer({ id: c.id, name: c.name, position: c.role, empType: "Full-time", pay: "", joinDate: "", mode: "On-site", terms: "" }))}>{c.offer ? "View offer" : "Offer letter"}</button> : null}
           {s.id === "offer" && c.offer ? <button className={btnCls} onClick={() => setOffer({ id: c.id, name: c.name, ...c.offer! })}>Edit</button> : null}<button className={dangerCls} onClick={() => run(() => moveCandidate(c.id, "rejected"))}>Reject</button></div></div>)}</Card>)}</Grid>
+    {edit ? <JobEditor id={edit.id} init={edit.init} depts={depts} onClose={() => setEdit(null)} /> : null}
+    {share ? <ShareLinks job={share} site={d.site} onClose={() => setShare(null)} /> : null}
+    {cv ? <Modal title={`${cv.name} · ${cv.role}`} onClose={() => setCv(null)}><div className="flex flex-col gap-2 text-[13.5px]">
+      <div className="flex gap-1.5 flex-wrap"><Pill tone="gray">Applied {dayLabel(cv.at)}</Pill><Pill tone={cv.source === "linkedin" ? "blue" : "gray"}>via {srcLabel(cv.source)}</Pill>{cv.verifiedBy ? <Pill tone="green">Email verified with {cv.verifiedBy === "linkedin" ? "LinkedIn" : "Google"}</Pill> : null}</div>
+      <div><strong>Email:</strong> {cv.email || "—"} · <strong>Phone:</strong> {cv.phone || "—"}</div>
+      <div><strong>City:</strong> {cv.location || "—"} · <strong>Experience:</strong> {cv.experience || "—"}</div>
+      {cv.cover ? <div><strong>Why this role</strong><p className="whitespace-pre-line m-0 mt-1 text-[#334155]">{cv.cover}</p></div> : null}
+      {cv.note ? <div><strong>Note</strong><p className="whitespace-pre-line m-0 mt-1 text-[#334155]">{cv.note}</p></div> : null}
+      <div className="flex gap-2 mt-1">{cv.hasResume ? <a className={primaryCls} href={`/staff/hrms/resume/${cv.id}`} target="_blank" rel="noreferrer">Open résumé</a> : null}{cv.linkedin ? <a className={btnCls} href={cv.linkedin} target="_blank" rel="noreferrer">LinkedIn profile ↗</a> : null}</div>
+    </div></Modal> : null}
     {offer ? <Modal title={`Offer letter · ${offer.name}`} onClose={() => setOffer(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => saveOffer(offer.id, offer), () => { setOffer(null); }); }}>
       <Grid n={3}><Field label="Position"><input className={inputCls} value={offer.position} onChange={(e) => setOffer({ ...offer, position: e.target.value })} required /></Field><Field label="Type"><select className={inputCls} value={offer.empType} onChange={(e) => setOffer({ ...offer, empType: e.target.value })}>{EMP_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field><Field label="Pay"><input className={inputCls} value={offer.pay} onChange={(e) => setOffer({ ...offer, pay: e.target.value })} placeholder="₹ 4,80,000 per year" required /></Field><Field label="Joining date"><input className={inputCls} type="date" value={offer.joinDate} onChange={(e) => setOffer({ ...offer, joinDate: e.target.value })} required /></Field><Field label="Mode"><select className={inputCls} value={offer.mode} onChange={(e) => setOffer({ ...offer, mode: e.target.value })}><option>On-site</option><option>Hybrid</option><option>Remote</option></select></Field></Grid>
       <Field label="Other terms"><textarea className={inputCls} rows={3} value={offer.terms} onChange={(e) => setOffer({ ...offer, terms: e.target.value })} /></Field><button className={primaryCls} disabled={busy}>Save offer letter</button></form></Modal> : null}

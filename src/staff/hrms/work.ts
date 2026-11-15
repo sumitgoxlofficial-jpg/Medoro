@@ -6,7 +6,7 @@ import { log } from "@/server/log";
 import { nextSeq } from "@/server/sequence";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, notify, type Me } from "./auth";
-import { COL_IDS, JOB_TYPES, PRIORITIES, PROJECT_STATUS, TICKET_TOPICS, type ColId } from "./constants";
+import { COL_IDS, PRIORITIES, PROJECT_STATUS, TICKET_TOPICS, type ColId } from "./constants";
 import { nameMap } from "./people";
 import { pushMeeting, removeEvent } from "./gcal";
 
@@ -315,21 +315,17 @@ export async function tickets(me: Me) {
   return rows.map((t) => ({ id: t.id, code: t.code, by: names.get(t.staffId) ?? "", mine: t.staffId === me.id, category: t.category, subject: t.subject, body: t.body, status: t.status, reply: t.reply, at: t.createdAt.toISOString() }));
 }
 
-// ── Recruitment
-const jobSchema = z.object({ title: z.string().trim().min(3, "Enter the job title.").max(100), dept: z.string().trim().min(1, "Choose a department.").max(60), location: z.string().trim().min(2, "Enter the location.").max(60), type: z.enum(JOB_TYPES) });
-export async function postJob(me: Me, raw: z.input<typeof jobSchema>) {
-  need(me, "recruitment");
-  const i = jobSchema.parse(raw);
-  await db.hrJob.create({ data: i });
-  await audit(me, "Job posted", i.title);
-}
+// ── Recruitment (posting and editing openings lives in ./careers)
 export async function setJobOpen(me: Me, id: string, open: boolean) {
   need(me, "recruitment");
   await db.hrJob.update({ where: { id }, data: { status: open ? "active" : "closed" } }).catch(() => { throw new UserError("Job not found."); });
 }
 export async function jobs(activeOnly = false) {
   const rows = await db.hrJob.findMany({ where: activeOnly ? { status: "active" } : {}, include: { _count: { select: { candidates: true } } }, orderBy: [{ status: "asc" }, { createdAt: "desc" }] });
-  return rows.map((j) => ({ id: j.id, title: j.title, dept: j.dept, location: j.location, type: j.type, status: j.status, applicants: j._count.candidates }));
+  return rows.map((j) => ({
+    id: j.id, slug: j.slug, title: j.title, dept: j.dept, location: j.location, type: j.type, mode: j.mode, experience: j.experience, salary: j.salary, openings: j.openings,
+    skills: j.skills, description: j.description, requirements: j.requirements, benefits: j.benefits, status: j.status, applicants: j._count.candidates, postedAt: j.createdAt.toISOString(),
+  }));
 }
 const candSchema = z.object({
   jobId: z.string().min(1, "Choose the opening."), name: z.string().trim().min(3, "Enter the candidate’s name.").max(80), email: z.string().trim().toLowerCase().regex(/^$|^[^@\s]+@[^@\s]+\.[^@\s]+$/, "Enter a valid email.").default(""),
@@ -342,7 +338,7 @@ export async function addCandidate(me: Me, raw: z.input<typeof candSchema>, refe
   const job = await db.hrJob.findUnique({ where: { id: i.jobId } });
   if (!job || job.status !== "active") throw new UserError("That opening is closed.");
   if (!i.email && !i.phone) throw new UserError("Add an email or a phone number for the candidate.");
-  await db.hrCandidate.create({ data: { jobId: job.id, name: i.name, email: i.email, phone: i.phone, role: job.title, note: i.note, score: referral ? null : i.score ?? null, referredBy: referral ? me.id : null } });
+  await db.hrCandidate.create({ data: { jobId: job.id, name: i.name, email: i.email, phone: i.phone, role: job.title, note: i.note, score: referral ? null : i.score ?? null, referredBy: referral ? me.id : null, source: referral ? "referral" : "hr" } });
   if (referral) await notify((await holders("recruitment")).filter((x) => x !== me.id), `${me.name} referred ${i.name} for ${job.title}.`, "recruit");
 }
 export async function moveCandidate(me: Me, id: string, stage: string) {
@@ -369,5 +365,5 @@ export async function saveOffer(me: Me, id: string, raw: z.input<typeof offerSch
 export async function candidates(me: Me) {
   need(me, "recruitment");
   const [rows, names] = await Promise.all([db.hrCandidate.findMany({ where: { stage: { not: "rejected" } }, orderBy: { createdAt: "desc" }, take: 300 }), nameMap()]);
-  return rows.map((c) => ({ id: c.id, jobId: c.jobId, name: c.name, email: c.email, phone: c.phone, role: c.role, note: c.note, score: c.score, stage: c.stage, offer: c.offer as (z.infer<typeof offerSchema> & { by: string; on: string; sentOn?: string }) | null, referredBy: c.referredBy ? names.get(c.referredBy) ?? "" : "" }));
+  return rows.map((c) => ({ id: c.id, jobId: c.jobId, name: c.name, email: c.email, phone: c.phone, role: c.role, note: c.note, score: c.score, stage: c.stage, source: c.source, verifiedBy: c.verifiedBy, linkedin: c.linkedin, experience: c.experience, location: c.location, cover: c.cover, hasResume: !!c.resumeKey, at: c.createdAt.toISOString(), offer: c.offer as (z.infer<typeof offerSchema> & { by: string; on: string; sentOn?: string }) | null, referredBy: c.referredBy ? names.get(c.referredBy) ?? "" : "" }));
 }

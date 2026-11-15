@@ -2,16 +2,16 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeftRight, Boxes, Handshake, HelpCircle, IndianRupee, LogIn, Menu, ShieldCheck, Sparkles, UserRound, X, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, Boxes, BriefcaseBusiness, Handshake, HelpCircle, IndianRupee, LogIn, Menu, ShieldCheck, Sparkles, UserRound, X, type LucideIcon } from "lucide-react";
 import { useLang, useT } from "@/lib/i18n-client";
 import type { Lang } from "@/lib/tr";
 import { setLang } from "@/app/app/actions";
 import { Wordmark } from "./brand";
 
 /** Icons shown beside the header links (same order as NAV). */
-const NAV_ICONS: LucideIcon[] = [Boxes, ArrowLeftRight, ShieldCheck, IndianRupee, HelpCircle, Handshake];
+const NAV_ICONS: LucideIcon[] = [Boxes, ArrowLeftRight, ShieldCheck, IndianRupee, HelpCircle, Handshake, BriefcaseBusiness];
 
-export const NAV: [string, string][] = [["Product", "/#product"], ["Switching", "/#switching"], ["Security", "/#security"], ["Pricing", "/#pricing"], ["FAQ", "/#faq"], ["Become a partner", "/partners"]];
+export const NAV: [string, string][] = [["Product", "/#product"], ["Switching", "/#switching"], ["Security", "/#security"], ["Pricing", "/#pricing"], ["FAQ", "/#faq"], ["Become a partner", "/partners"], ["Careers", "/careers"]];
 
 /**
  * EN / हिंदी for the public site. Sets the same `medoro_lang` cookie as the app's switch (works without signing in),

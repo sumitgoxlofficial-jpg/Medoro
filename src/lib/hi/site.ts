@@ -20,6 +20,7 @@ export const hi: Record<string, string> = {
   "Pharmacy inventory software@site": "फ़ार्मेसी इन्वेंटरी सॉफ़्टवेयर",
   FAQ: "सवाल-जवाब",
   "Become a partner": "पार्टनर बनें",
+  Careers: "करियर",
   "Log in": "लॉग इन",
   "Start 7-day free trial": "7 दिन का मुफ़्त ट्रायल",
   "Back to home": "होम पर वापस",
