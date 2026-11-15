@@ -5,7 +5,7 @@ import { Aurora, FloatingShapes } from "@/components/site/decor";
 import { ApplicantBar, CareersBoard } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
-import { publicJobs } from "@/staff/hrms/careers";
+import { publicJobs, lastApplication } from "@/staff/hrms/careers";
 import { careersJsonLd } from "./seo";
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ const SIGNIN_MSG: Record<string, string> = {
 export default async function Careers({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const [jobs, who] = await Promise.all([publicJobs().catch(() => []), readApplicant()]);
-  const applicant = who ? { name: who.name, email: who.email, via: who.via } : null;
+  const applicant = who ? { name: who.name, email: who.email, via: who.via, prefill: await lastApplication(who.email) } : null;
   const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured() };
   const src = (q.src ?? q.utm_source ?? "").slice(0, 40);
   const perks = [

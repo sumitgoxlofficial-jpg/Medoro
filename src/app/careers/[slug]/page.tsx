@@ -6,7 +6,7 @@ import { SiteFooter, SiteHeader } from "@/components/site/chrome";
 import { ApplicantBar, JobDetail } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
-import { publicJob, publicJobs } from "@/staff/hrms/careers";
+import { publicJob, publicJobs, lastApplication } from "@/staff/hrms/careers";
 import { jobPostingLd } from "../seo";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const [job, who] = await Promise.all([publicJob(slug), readApplicant()]);
   if (!job) notFound();
   const more = job.open ? (await publicJobs().catch(() => [])).filter((j) => j.slug !== job.slug).slice(0, 4) : (await publicJobs().catch(() => [])).slice(0, 4);
-  const applicant = who ? { name: who.name, email: who.email, via: who.via } : null;
+  const applicant = who ? { name: who.name, email: who.email, via: who.via, prefill: await lastApplication(who.email) } : null;
   const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured() };
   const src = (q.src ?? q.utm_source ?? "").slice(0, 40);
   const here = `/careers/${job.slug}${src ? `?src=${encodeURIComponent(src)}` : ""}`;
