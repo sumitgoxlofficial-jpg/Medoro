@@ -1,13 +1,14 @@
 import { Client } from "pg";
 import { compareMigrations, isMissingTable, MIGRATIONS_SQL, shippedMigrations, type MigrationRow } from "./migrations";
 import { log } from "./log";
+import { pgConnectionString } from "./pg-url";
 
 /** Throws when the database is behind (or ahead of a failed) migration set, so production never runs on a mismatched schema. */
 export async function assertMigrationsApplied() {
   if (process.env.SKIP_MIGRATION_CHECK === "1") { log.warn("Migration check skipped (SKIP_MIGRATION_CHECK=1)."); return; }
   const shipped = await shippedMigrations();
   if (!shipped) { log.warn("Migration check skipped: prisma/migrations isn't deployed with this build.", { dir: process.env.MIGRATIONS_DIR ?? "prisma/migrations" }); return; }
-  const c = new Client({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL, connectionTimeoutMillis: 10_000 });
+  const c = new Client({ connectionString: pgConnectionString(process.env.DIRECT_URL || process.env.DATABASE_URL), connectionTimeoutMillis: 10_000 });
   let rows: MigrationRow[] | null = null;
   try {
     await c.connect();

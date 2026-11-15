@@ -33,11 +33,16 @@ export function useLive(): LiveState {
       es.addEventListener("signedout", () => { closed = true; es?.close(); window.location.href = "/signin"; });
       es.onerror = () => {
         setState(navigator.onLine ? "connecting" : "offline");
-        if (es?.readyState === EventSource.CLOSED && !closed) { retry = setTimeout(open, 5000); }
+        if (es?.readyState === EventSource.CLOSED && !closed) { retry = setTimeout(open, 30_000); }
       };
     };
     open();
-    const vis = () => { if (document.visibilityState === "visible") router.refresh(); };
+    // Coming back to the tab refreshes the screen only after a real absence, not on every tab switch.
+    let hiddenAt = 0;
+    const vis = () => {
+      if (document.visibilityState === "hidden") { hiddenAt = Date.now(); return; }
+      if (hiddenAt && Date.now() - hiddenAt > 60_000) router.refresh();
+    };
     const off = () => setState("offline"), on = () => setState("connecting");
     document.addEventListener("visibilitychange", vis);
     window.addEventListener("offline", off); window.addEventListener("online", on);

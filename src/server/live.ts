@@ -1,6 +1,7 @@
 import "server-only";
 import { EventEmitter } from "node:events";
 import { Client } from "pg";
+import { pgConnectionString } from "./pg-url";
 
 /**
  * Live change feed. One LISTEN connection per app server receives `medoro_change` notifications
@@ -18,7 +19,7 @@ async function connect() {
   if (hub.client) return;
   if (hub.connecting) return hub.connecting;
   hub.connecting = (async () => {
-    const c = new Client({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL });
+    const c = new Client({ connectionString: pgConnectionString(process.env.DIRECT_URL || process.env.DATABASE_URL), connectionTimeoutMillis: 10_000 });
     c.on("notification", (n) => {
       if (n.channel !== "medoro_change" || !n.payload) return;
       try { const ch = JSON.parse(n.payload) as Change; if (ch.tenant) hub.emitter.emit(ch.tenant, ch); } catch { /* ignore malformed */ }

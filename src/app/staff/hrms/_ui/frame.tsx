@@ -84,7 +84,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             <div key={g} className="flex flex-col gap-px">
               {g ? <div className="text-[10px] tracking-[.12em] font-bold text-white/40 px-2.5 pt-3 pb-1">{g}</div> : null}
               {items.map((n) => (
-                <Link key={n.id} href={`/staff/hrms/${n.id}`} onClick={() => setNavOpen(false)} aria-current={n.id === screen ? "page" : undefined}
+                <Link key={n.id} href={`/staff/hrms/${n.id}`} prefetch={false} onClick={() => setNavOpen(false)} aria-current={n.id === screen ? "page" : undefined}
                   className={cx("flex items-center gap-2.5 px-2.5 py-[7px] rounded-[9px] text-[12.5px] font-medium", n.id === screen ? "bg-white/[.16] text-white font-semibold shadow-[inset_3px_0_0_#14B8A6]" : "text-white/70 hover:bg-white/10 hover:text-white")}>
                   <Ico n={n.icon} s={15} />{n.label}{n.id === "chat" && sh.chatUnread ? <span className="ml-auto bg-[#14B8A6] text-white text-[10px] font-bold rounded-full min-w-[17px] h-[17px] px-1 flex items-center justify-center" aria-label={`${sh.chatUnread} unread`}>{sh.chatUnread}</span> : null}
                 </Link>

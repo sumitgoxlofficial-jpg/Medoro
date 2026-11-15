@@ -10,8 +10,11 @@ export async function register() {
         log.error("Configuration problems.", { problems });
         throw new Error("Medoro is not configured correctly.");
       }
-      const { assertMigrationsApplied } = await import("./server/startup-check");
-      await assertMigrationsApplied();
+      // On Vercel the build applies migrations (scripts/vercel-build.sh), so a cold start doesn't wait on a database check.
+      if (!process.env.VERCEL) {
+        const { assertMigrationsApplied } = await import("./server/startup-check");
+        await assertMigrationsApplied();
+      }
     } catch (e) {
       // Next.js keeps serving 500s after a failed instrumentation hook, so stop the process instead.
       log.error("Medoro will not start.", { reason: e instanceof Error ? e.message : String(e) });
