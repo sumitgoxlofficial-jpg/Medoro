@@ -5,7 +5,7 @@ import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
 import type { Data } from "@/staff/hrms/screens";
 import {
   chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendImage, chatSetAvatar,
-  chatTyping, chatUpdateGroup, chatVote, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
+  chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
 import { Card, Empty, Field, Modal, Tabs, btnCls, cx, dangerCls, dayLong, inputCls, primaryCls, timeLabel, useRun } from "./kit";
@@ -400,7 +400,8 @@ function AvatarModal({ avatars, me, current, onClose, onPick }: { avatars: strin
 
 function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: string; people: Person[]; onClose: () => void; onLeft: () => void; onChanged: () => void }) {
   const [info, setInfo] = useState<Info | null>(null), [edit, setEdit] = useState(false), [adding, setAdding] = useState(false), [picked, setPicked] = useState<Set<string>>(new Set());
-  const [about, setAbout] = useState(""), [photo, setPhoto] = useState<string | null | undefined>(undefined), [saving, setSaving] = useState(false);
+  const [about, setAbout] = useState(""), [name, setName] = useState(""), [photo, setPhoto] = useState<string | null | undefined>(undefined), [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null), [deleting, setDeleting] = useState(false);
   const { toast } = useRun();
   const dp = useRef<HTMLInputElement>(null);
   const load = useCallback(() => { void chatGroupInfo(chatId).then((r) => { if (r.ok) setInfo(r.data as Info); }); }, [chatId]);
@@ -411,7 +412,7 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
   const pickPhoto = async (f: File | undefined) => { if (!f) return; try { setPhoto(await toDataUrl(await shrink(f, 256, true))); } catch (e) { toast(e instanceof Error ? e.message : "Couldn’t read that picture.", "red"); } };
   const save = async () => {
     setSaving(true);
-    const r = await chatUpdateGroup(chatId, { about, ...(photo !== undefined ? { photo } : {}) });
+    const r = await chatUpdateGroup(chatId, { about, ...(info?.canRename ? { name } : {}), ...(photo !== undefined ? { photo } : {}) });
     setSaving(false);
     if (!r.ok) { toast(r.error, "red"); return; }
     setInfo(r.data as Info); setEdit(false); setPhoto(undefined); onChanged(); toast("Group updated.", "green");
@@ -420,7 +421,7 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
   if (edit) {
     return (
       <Modal title="Group settings" onClose={() => { setEdit(false); setPhoto(undefined); }}>
-        <p className="text-[12px] text-[#334155] -mt-2">{info.name}</p>
+        {info.canRename ? <Field label="Group name"><input className={inputCls} maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></Field> : <p className="text-[12px] text-[#334155] -mt-2">{info.name}</p>}
         <input ref={dp} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Group photo" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
         <div className="flex items-center gap-3"><Face name={info.name} photo={shownPhoto} size={64} square /><button className={btnCls} onClick={() => dp.current?.click()}>📷 Upload group photo</button>{shownPhoto ? <button className={btnCls} onClick={() => setPhoto(null)}>Remove</button> : null}</div>
         <Field label="About this group"><textarea className={inputCls} rows={3} maxLength={300} value={about} onChange={(e) => setAbout(e.target.value)} placeholder="What is this group for?" /></Field>
@@ -441,8 +442,9 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
         {info.members.map((m) => (
           <li key={m.id} className="flex items-center gap-2.5 py-1.5 border-b border-[#F1F5F9]">
             <Face name={m.name} photo={m.photo} avatar={m.avatar} size={30} status={m.presence} />
-            <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold truncate">{m.name}{m.you ? <span className="ml-1.5 text-[10px] bg-[#D6F3EF] text-[#0B5E5B] rounded-full px-1.5 py-0.5">You</span> : null}{m.id === info.owner ? <span className="ml-1.5 text-[10px] text-[#64748B]">made the group</span> : null}</div><div className="text-[11.5px] text-[#64748B] truncate">{m.empNo}{m.designation ? ` · ${m.designation}` : ""}</div></div>
+            <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold truncate">{m.name}{m.you ? <span className="ml-1.5 text-[10px] bg-[#D6F3EF] text-[#0B5E5B] rounded-full px-1.5 py-0.5">You</span> : null}{m.id === info.owner ? <span className="ml-1.5 text-[10px] font-semibold bg-[#E7F2F0] text-[#0B5E5B] rounded-full px-1.5 py-0.5">Group admin</span> : null}</div><div className="text-[11.5px] text-[#64748B] truncate">{m.empNo}{m.designation ? ` · ${m.designation}` : ""}</div></div>
             <span className="text-[11px] text-[#64748B]">{statusText(m.presence)}</span>
+            {info.canRemove && !m.you && (m.id !== info.owner || info.superAdmin) ? <button className="text-[11.5px] font-semibold text-[#B3261E] bg-transparent border border-[#F3C5C0] rounded-lg px-2 py-0.5 cursor-pointer hover:bg-[#FDECEA]" aria-label={`Remove ${m.name}`} onClick={() => setRemoving({ id: m.id, name: m.name })}>Remove</button> : null}
           </li>
         ))}
       </ul>
@@ -453,11 +455,27 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
         </>
       ) : null}
       <div className="flex gap-2 flex-wrap">
-        {info.canEdit ? <button className={btnCls} onClick={() => { setAbout(info.about); setPhoto(undefined); setEdit(true); }}>✎ Edit group</button> : null}
+        {info.canEdit ? <button className={btnCls} onClick={() => { setAbout(info.about); setName(info.name); setPhoto(undefined); setEdit(true); }}>✎ Edit group</button> : null}
         {info.canAdd && !adding ? <button className={btnCls} onClick={() => setAdding(true)}>+ Add people</button> : null}
         {!info.sys ? <button className="text-[#B3261E] bg-transparent border-0 cursor-pointer text-[13px]" onClick={async () => { const r = await chatLeave(chatId); if (!r.ok) toast(r.error, "red"); else onLeft(); }}>Leave group</button> : null}
+        {info.canDelete ? <button className="text-[#B3261E] bg-transparent border-0 cursor-pointer text-[13px] font-semibold" onClick={() => setDeleting(true)}>Delete group</button> : null}
         <button className={cx(btnCls, "ml-auto")} onClick={onClose}>Close</button>
       </div>
+      {info.superAdmin && info.owner !== info.members.find((m) => m.you)?.id && info.canEdit ? <p className="text-[11.5px] text-[#64748B] -mt-1">You manage this group as the super admin. Changes you make are written to the audit log.</p> : null}
+      {removing ? (
+        <Modal title={`Remove ${removing.name}?`} onClose={() => setRemoving(null)}>
+          <p className="text-[13.5px]">{removing.name} will leave “{info.name}” and won’t see new messages. You can add them back later.</p>
+          <div className="flex gap-2 justify-end"><button className={btnCls} onClick={() => setRemoving(null)}>Cancel</button>
+            <button className={dangerCls} onClick={async () => { const r = await chatRemoveMember(chatId, removing.id); if (!r.ok) { toast(r.error, "red"); return; } setInfo(r.data as Info); setRemoving(null); onChanged(); toast(`${removing.name} was removed.`, "green"); }}>Remove</button></div>
+        </Modal>
+      ) : null}
+      {deleting ? (
+        <Modal title={`Delete “${info.name}”?`} onClose={() => setDeleting(false)}>
+          <p className="text-[13.5px]">The group and all its messages, pictures and polls are deleted for all {info.members.length} members. This can’t be undone.</p>
+          <div className="flex gap-2 justify-end"><button className={btnCls} onClick={() => setDeleting(false)}>Cancel</button>
+            <button className={dangerCls} onClick={async () => { const r = await chatDeleteGroup(chatId); if (!r.ok) { toast(r.error, "red"); return; } setDeleting(false); toast("Group deleted.", "green"); onLeft(); }}>Delete for everyone</button></div>
+        </Modal>
+      ) : null}
     </Modal>
   );
 }

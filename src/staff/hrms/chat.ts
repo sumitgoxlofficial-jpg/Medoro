@@ -71,6 +71,12 @@ async function membership(me: Pick<Me, "id">, chatId: string) {
   if (!m) throw new UserError("That conversation isn’t available.");
   return m;
 }
+/** Who runs a group: the person who made it, or the super admin (in any group, company channels included). */
+const canManage = (me: Pick<Me, "id" | "role">, chat: { createdById: string }) => chat.createdById === me.id || me.role === "admin";
+/** The super admin changing someone else's group is written to the audit log. */
+async function adminNote(me: Me, chat: { name: string; createdById: string }, what: string) {
+  if (me.role === "admin" && chat.createdById !== me.id) await audit(me, "Chat group managed", `“${chat.name}” · ${what}`);
+}
 const activeStaff = (ids: string[]) => db.staffUser.findMany({ where: { id: { in: ids }, kind: "team", status: "active", role: { not: "partner" }, hr: { isNot: null } }, select: { id: true, name: true, email: true } });
 const liveStatus = (presence: string, at: Date | null) => (presence !== "offline" && at && Date.now() - at.getTime() < 5 * 60_000 ? presence : "offline");
 
@@ -322,19 +328,29 @@ export async function groupInfo(me: Me, chatId: string) {
   const users = await db.staffUser.findMany({ where: { id: { in: mem.map((m) => m.staffId) } }, select: { id: true, name: true, empNo: true, hr: { select: { designation: true, photo: true, chatAvatar: true, presence: true, presenceAt: true } } } });
   return {
     id: chat.id, name: chat.name, about: chat.about, photo: chat.photo, sys: !!chat.sysKey, owner: chat.createdById,
-    canEdit: chat.createdById === me.id || (!!chat.sysKey && me.role === "admin"), canAdd: chat.createdById === me.id && !chat.sysKey,
+    canEdit: canManage(me, chat), canAdd: canManage(me, chat) && !chat.sysKey,
+    // WhatsApp-style admin tools: the person who made the group, and the super admin in any group they are in.
+    canRename: canManage(me, chat) && !chat.sysKey, canRemove: canManage(me, chat) && !chat.sysKey, canDelete: canManage(me, chat) && !chat.sysKey,
+    superAdmin: me.role === "admin",
     members: users.sort((a, b) => a.name.localeCompare(b.name)).map((u) => ({
       id: u.id, name: u.name, empNo: u.empNo, designation: u.hr?.designation ?? "", photo: u.hr?.photo ?? null, avatar: u.hr?.chatAvatar ?? "",
       presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id,
     })),
   };
 }
-export async function updateGroup(me: Me, chatId: string, input: { about?: unknown; photo?: unknown }) {
+export async function updateGroup(me: Me, chatId: string, input: { name?: unknown; about?: unknown; photo?: unknown }) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
   if (!chat || chat.kind !== "group") throw new UserError("That isn’t a group.");
   await membership(me, chatId);
-  if (!(chat.createdById === me.id || (chat.sysKey && me.role === "admin"))) throw new UserError("Only the person who made the group can change it.");
-  const data: { about?: string; photo?: string | null } = {};
+  if (!canManage(me, chat)) throw new UserError("Only the person who made the group can change it.");
+  const data: { name?: string; about?: string; photo?: string | null } = {};
+  if (input.name !== undefined) {
+    if (chat.sysKey) throw new UserError("A company channel is named after its team.");
+    const n = typeof input.name === "string" ? input.name.trim() : "";
+    if (!n) throw new UserError("Give the group a name.");
+    if (n.length > 60) throw new UserError("A group name can be up to 60 characters.");
+    data.name = n;
+  }
   if (input.about !== undefined) {
     const a = typeof input.about === "string" ? input.about.trim() : "";
     if (a.length > 300) throw new UserError("The description can be up to 300 characters.");
@@ -346,12 +362,14 @@ export async function updateGroup(me: Me, chatId: string, input: { about?: unkno
     else throw new UserError("Choose a JPG or PNG picture. It is resized to a small square first.");
   }
   await db.hrChat.update({ where: { id: chatId }, data });
+  await adminNote(me, chat, data.name !== undefined && data.name !== chat.name ? `renamed to “${data.name}”` : "details changed");
   return groupInfo(me, chatId);
 }
 export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
   if (chat?.sysKey) throw new UserError("This channel’s members follow the team automatically.");
-  if (!chat || chat.kind !== "group" || chat.createdById !== me.id) throw new UserError("Only the person who made the group can add people.");
+  if (!chat || chat.kind !== "group" || !canManage(me, chat)) throw new UserError("Only the person who made the group can add people.");
+  await membership(me, chatId);
   const ids = [...new Set(Array.isArray(memberIds) ? memberIds.filter((x): x is string => typeof x === "string") : [])];
   const have = await db.hrChatMember.count({ where: { chatId } });
   if (have + ids.length > MAX_GROUP) throw new UserError(`A group can have up to ${MAX_GROUP} people.`);
@@ -360,7 +378,41 @@ export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   // A new member starts at the latest message: they don't see what was said before they joined.
   const top = (await db.hrChatMessage.aggregate({ where: { chatId }, _max: { seq: true } }))._max.seq ?? 0;
   await db.hrChatMember.createMany({ data: ok.map((u) => ({ chatId, staffId: u.id, lastReadSeq: top, fromSeq: top })), skipDuplicates: true });
+  await adminNote(me, chat, `added ${ok.map((u) => u.name).join(", ")}`);
   return { added: ok.length };
+}
+/** Takes someone out of a group (they keep nothing new from it). Only the super admin can remove the person who made it. */
+export async function removeFromGroup(me: Me, chatId: string, staffId: string) {
+  const chat = await db.hrChat.findUnique({ where: { id: chatId } });
+  if (!chat || chat.kind !== "group") throw new UserError("That isn’t a group.");
+  if (chat.sysKey) throw new UserError("This channel’s members follow the team automatically.");
+  await membership(me, chatId);
+  if (!canManage(me, chat)) throw new UserError("Only the person who made the group can remove people.");
+  if (staffId === me.id) throw new UserError("To go yourself, use Leave group.");
+  if (staffId === chat.createdById && me.role !== "admin") throw new UserError("Only the super admin can remove the person who made the group.");
+  const gone = await db.hrChatMember.deleteMany({ where: { chatId, staffId } });
+  if (!gone.count) throw new UserError("That person isn’t in this group.");
+  const who = await db.staffUser.findUnique({ where: { id: staffId }, select: { name: true } });
+  await adminNote(me, chat, `removed ${who?.name ?? staffId}`);
+  return groupInfo(me, chatId);
+}
+/** Deletes a group for everyone: its messages, pictures, reactions and votes go with it. Company channels can't be deleted. */
+export async function deleteGroup(me: Me, chatId: string) {
+  const chat = await db.hrChat.findUnique({ where: { id: chatId } });
+  if (!chat || chat.kind !== "group") throw new UserError("That isn’t a group.");
+  if (chat.sysKey) throw new UserError("A company channel can’t be deleted. It follows the team.");
+  await membership(me, chatId);
+  if (!canManage(me, chat)) throw new UserError("Only the person who made the group can delete it.");
+  const ids = (await db.hrChatMessage.findMany({ where: { chatId }, select: { id: true } })).map((m) => m.id);
+  await db.$transaction([
+    db.hrChatReaction.deleteMany({ where: { messageId: { in: ids } } }),
+    db.hrChatVote.deleteMany({ where: { messageId: { in: ids } } }),
+    db.hrChatMessage.deleteMany({ where: { chatId } }),
+    db.hrChatMember.deleteMany({ where: { chatId } }),
+    db.hrChat.delete({ where: { id: chatId } }),
+  ]);
+  await audit(me, "Chat group deleted", `“${chat.name}”${chat.createdById !== me.id ? " · as super admin" : ""}`);
+  return { deleted: true };
 }
 export async function leaveGroup(me: Me, chatId: string) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
