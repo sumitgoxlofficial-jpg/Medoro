@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { SiteFooter, WA } from "@/components/site/chrome";
 import { PageHeader } from "@/components/site/page-header";
+import { company } from "@/lib/company";
 import { UDYAM } from "@/lib/udyam";
 import { Toc } from "./toc";
 
@@ -13,19 +14,6 @@ export const metadata: Metadata = { title: "Company, help and legal · Medoro", 
 type Sec = { id: string; icon: typeof Shield; kicker: string; title: string; intro: string; points: string[]; cta?: [string, string, typeof Shield] };
 
 export const dynamic = "force-dynamic";
-
-/** Company and grievance-officer details come from the environment, so each deployment shows its own. */
-function company() {
-  const e = process.env;
-  return {
-    name: e.MEDORO_COMPANY_NAME?.trim() || "Medoro Technologies",
-    address: e.MEDORO_COMPANY_ADDRESS?.trim() || "Bokaro, Jharkhand, India",
-    officer: e.MEDORO_GRIEVANCE_NAME?.trim() || "The Grievance Officer",
-    email: e.MEDORO_GRIEVANCE_EMAIL?.trim() || "grievance@medoro.in",
-    phone: e.MEDORO_GRIEVANCE_PHONE?.trim() || "",
-    configured: !!(e.MEDORO_COMPANY_NAME && e.MEDORO_COMPANY_ADDRESS && e.MEDORO_GRIEVANCE_NAME),
-  };
-}
 
 const sections = (c: ReturnType<typeof company>): Sec[] => [
   { id: "about", icon: Building2, kicker: "Company", title: "About Medoro", intro: "Medoro builds pharmacy software for Indian medical stores and pharmacy chains: billing, batch inventory, expiry control, purchases, accounts and an AI assistant, all running on a database the pharmacy controls.", points: [`${c.name}, ${c.address}`, `Udyam-registered MSME (${UDYAM.type}, ${UDYAM.activity}): ${UDYAM.number}, registered ${UDYAM.registered}. Anyone can verify it at udyamregistration.gov.in`, "Built for MRP-inclusive GST, FEFO batches and Schedule H and H1 registers", "We never hold your pharmacy’s operational records"] },

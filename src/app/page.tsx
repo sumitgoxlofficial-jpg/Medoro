@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import {
-  ArrowRight, Check, CloudOff, Download, Eye, FileCheck, HardDriveUpload, Headset, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, Plus,
+  ArrowRight, Check, Cloud, CloudOff, Download, Eye, FileCheck, HardDriveUpload, Headset, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, PackageSearch, Plus,
   ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database,
 } from "lucide-react";
 import { cookies } from "next/headers";
@@ -8,15 +8,19 @@ import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/comp
 import { SiteLangCarryOver } from "@/components/site/header";
 import { FeatureTabs, Hero, Marquee, Pricing, ProductTour } from "@/components/site/interactive";
 import { PRODUCTS } from "@/staff/constants";
+import { BRAND_FAQ, WHY_SWITCH_HEADING } from "@/data/brand";
+import { JsonLd } from "@/components/seo/json-ld";
+import { SOFTWARE_ID, WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
 import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
 import { Aurora, FloatingShapes, SavingsArt } from "@/components/site/decor";
 import { MotivationArt } from "@/components/site/motivation-art";
 
-const SITE = process.env.APP_URL ?? "https://medoro.in";
-const TITLE = "Pharmacy Billing & Accounting Software for Medical Stores | Medoro";
-const DESC = "Pharmacy billing and accounting software for Indian medical stores: FEFO batch billing, expiry alerts, purchases, GST returns, Tally export, WhatsApp invoices and offline billing. 7-day free trial.";
+// The brand name first, then the category phrases people search for.
+const TITLE = "Medoro — #1 Medical Billing SaaS & Pharmacy Stock Management Software in India";
+const DESC = "Medoro (medoro.in) is an AI-powered Medical Billing SaaS, Pharmacy Inventory, Batch & Expiry Tracking, and GST Billing Software for Indian medical stores, clinics, and pharmacy chains. Start your free trial.";
+const KEYWORDS = ["Medoro", "Medoro billing", "Medoro pharmacy", "Medoro SaaS", "medical billing saas", "pharmacy billing software india", "medical store stock management saas", "chemist billing software", "pharmacy stock management software", "GST billing software for medical store"];
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLang();
@@ -25,7 +29,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: { absolute: title },
     description,
+    keywords: KEYWORDS,
+    applicationName: "Medoro",
     alternates: { canonical: "/" },
+    robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
     openGraph: { type: "website", url: "/", siteName: "Medoro", title, description, locale: lang === "hi" ? "hi_IN" : "en_IN" },
     twitter: { card: "summary_large_image", title, description },
   };
@@ -49,6 +56,25 @@ const LEAKS: [string, string, string][] = [
 ];
 
 const KEYS: [string, string, string][] = [["F2", "Search", "dolo"], ["Enter", "Add to bill", "Dolo 650 · batch {batch} · exp {exp}"], ["F9", "Complete sale", "INV/25-26/0418 · ₹67.20 · UPI"]];
+
+/**
+ * The three product pillars, each a section with its own H2 and a link to its pillar page. The link text names the
+ * product and the page's subject. Claims are the same facts as the feature tabs. [icon, heading, text, points, link text, link]
+ */
+const PILLARS: [typeof Check, string, string, string[], string, string][] = [
+  [Cloud, "Cloud Medical Billing SaaS for Retail & Hospital Pharmacies",
+    "Medoro is a medical billing SaaS for the pharmacy counter: open it in a browser on any PC, tablet or phone, or install the desktop app. Retail chemists bill walk-in customers in three keys; hospital and clinic pharmacies add the prescriber, B2B tax invoices and credit accounts on the same screen.",
+    ["Brand, salt and barcode search with FEFO batch picking", "Cash, UPI, card, split payments and customer credit", "Thermal and A4 invoices, or a PDF on WhatsApp"],
+    "Medoro Medical Billing SaaS", "/medical-billing-saas"],
+  [PackageSearch, "Real-Time Pharmacy Stock, Batch & Near-Expiry Management",
+    "Every sale, purchase, return and transfer updates stock as it happens, batch by batch. Medoro lists the batches expiring in the next 30 to 180 days with the loss they will cause, early enough to return them to the distributor or move them to another branch.",
+    ["Batch, expiry, rack and cost on every item", "Low-stock list from reorder levels and 28 days of sales", "Expired, quarantined and recalled batches blocked at billing"],
+    "Medoro Pharmacy Stock Software", "/medical-store-stock-management-software"],
+  [ReceiptIndianRupee, "Automated GST Billing, Schedule H1 Register & AI Purchase CSV/PDF Import",
+    "GST is worked out from the MRP on every line and split into CGST and SGST, or IGST, so GSTR-1 and GSTR-3B summaries are ready at month-end. Prescription medicines ask for the prescriber and fill the Schedule H1 register. Distributor bills come in from CSV, Excel or a scanned PDF instead of being typed.",
+    ["GSTR-1 and GSTR-3B summaries with Tally export", "Schedule H1 register for any date range", "Supplier e-bill import and AI invoice scanning"],
+    "Medoro GST Billing", "/features/gst-billing"],
+];
 
 const COMPARE: [string, string, string][] = [
   ["Where you can use it", "Usually one PC in the shop", "Every counter, a tablet and your phone"],
@@ -99,6 +125,8 @@ const trustBadges = (google: boolean): Trust[] => [
 ];
 
 const FAQ: { title: string; items: [string, string][] }[] = [
+  // The questions people search about the brand itself (shared with /about-medoro).
+  { title: "About Medoro", items: BRAND_FAQ },
   { title: "Product", items: [
     ["Does Medoro handle GST billing?", "Yes. Prices are MRP-inclusive and Medoro works out the taxable value with the CGST and SGST split, or IGST for out-of-state parties, on every line. Invoices are numbered per branch and financial year. Month-end GST summaries and exports are ready for your CA. Have your CA confirm the setup for your business."],
     ["Can it stop expired medicines from being sold?", "Yes. Billing picks the earliest-expiring sellable batch automatically. Expired, quarantined and recalled batches are blocked on the server, even if someone tries to add them by hand."],
@@ -120,30 +148,22 @@ const h2 = "site-display m-0 text-[clamp(34px,4.4vw,56px)] text-[var(--s-ink)]";
 const lead = "m-0 text-[clamp(17px,1.4vw,19px)] leading-[1.6] text-[var(--s-ink-2)]";
 const wrap = "max-w-[1200px] mx-auto px-6 max-[640px]:px-4";
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Medoro",
-  applicationCategory: "BusinessApplication",
-  applicationSubCategory: "Pharmacy billing, inventory and accounting software",
-  operatingSystem: "Windows, macOS, Linux, Web browser",
+// The homepage as a WebPage about the product. The Organization, WebSite and SoftwareApplication it points to are
+// in the site-wide brand graph (root layout), so they are not repeated here.
+const pageLd = {
+  "@type": "WebPage",
+  "@id": `${absoluteUrl("/")}/#webpage`,
+  url: absoluteUrl("/"),
+  name: TITLE,
   description: DESC,
-  url: SITE,
   inLanguage: ["en-IN", "hi-IN"],
-  offers: {
-    "@type": "AggregateOffer", priceCurrency: "INR", offerCount: 3,
-    lowPrice: Math.min(...PRODUCTS.filter((p) => ["starter", "pro", "multi"].includes(p.id)).map((p) => p.m)),
-    highPrice: Math.max(...PRODUCTS.filter((p) => ["starter", "pro", "multi"].includes(p.id)).map((p) => p.m)),
-  },
-  publisher: { "@type": "Organization", name: "Medoro", url: SITE, email: "hello@medoro.in", areaServed: "IN" },
+  isPartOf: { "@id": WEBSITE_ID },
+  about: { "@id": ORG_ID },
+  mainEntity: { "@id": SOFTWARE_ID },
 };
 
 // The FAQ below, for Google's question-and-answer results.
-const faqLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQ.flatMap((g) => g.items).map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
-};
+const faqLd = faqSchema(FAQ.flatMap((g) => g.items));
 
 // The four figures under the product tabs: [number, prefix, suffix, line].
 const FACTS = [["7", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const;
@@ -162,8 +182,7 @@ export default async function Home() {
       <SiteMotion />
       <div aria-hidden className="site-progress" />
       {carryOver ? <SiteLangCarryOver /> : null}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd).replace(/</g, "\\u003c") }} />
+      <JsonLd data={[pageLd, faqLd]} />
 
       <main id="main">
         <Hero />
@@ -264,10 +283,30 @@ export default async function Home() {
           </div>
         </section>
 
+        <div className={`${wrap} pt-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
+          <div data-reveal className="flex flex-col gap-4 max-w-[760px]">
+            <span className={eyebrow}>{t("The Medoro product suite")}</span>
+            <p className={lead}>{t("Medoro is one medical and pharmacy billing SaaS with three jobs: bill at the counter, keep stock honest, and keep GST and the registers ready.")}</p>
+          </div>
+          <div className="grid gap-x-10 gap-y-12 grid-cols-1 min-[1000px]:grid-cols-3">
+            {PILLARS.map(([Icon, title, d, points, linkText, href], i) => (
+              <section key={href} aria-labelledby={`pillar-${i}-title`} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-4 border-t-2 border-[var(--s-brand)] pt-6">
+                <span className="size-10 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={20} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} /></span>
+                <h2 id={`pillar-${i}-title`} className="site-display m-0 text-[clamp(24px,2.2vw,30px)] leading-[1.12] text-[var(--s-ink)]">{t(title)}</h2>
+                <p className="m-0 text-[16.5px] leading-[1.6] text-[var(--s-ink-2)]">{t(d)}</p>
+                <ul className="m-0 p-0 list-none flex flex-col gap-2">
+                  {points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[15.5px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="flex-none mt-[4px] text-[var(--s-brand)]" />{t(p)}</li>)}
+                </ul>
+                <a href={href} className="site-link-arrow mt-auto self-start inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--s-brand)] underline underline-offset-4 decoration-[var(--s-brand)]/30 hover:decoration-[var(--s-brand)]">{t(linkText, { ctx: "site" })}<ArrowRight size={16} aria-hidden /></a>
+              </section>
+            ))}
+          </div>
+        </div>
+
         <section aria-labelledby="compare-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Compared")}</span>
-            <h2 id="compare-title" className={h2}>{t("What changes from the usual desktop billing software.")}</h2>
+            <h2 id="compare-title" className={h2}>{t(WHY_SWITCH_HEADING)}</h2>
             <p className={lead}>{t("Desktop software has served pharmacies well for years. This is what a store gets on top when billing, stock and accounts are connected.")}</p>
           </div>
           <div data-reveal className="max-[719px]:hidden">

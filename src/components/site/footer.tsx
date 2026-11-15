@@ -11,6 +11,9 @@ import { Aurora } from "./decor";
 type FootCol = { t: string; icon: LucideIcon; links: [string, string][]; all?: [string, string] };
 
 /**
+ * Link text names the product and what the page is about ("Medoro Medical Billing SaaS", not "Billing"), since search
+ * engines read a link's words as a description of its target.
+ *
  * Internal linking matrix: every feature, comparison, tool and solution page, the top cities and each hub, so search
  * engines reach every public page within two clicks of the homepage (all cities and states are on HUBS.locations).
  */
@@ -23,9 +26,9 @@ const MATRIX: FootCol[] = [
 ];
 
 const FOOT: FootCol[] = [
-  { t: "Product", icon: Boxes, links: [["Billing & POS", "/#product"], ["Inventory & expiry", "/#product"], ["GST & accounts", "/#product"], ["WhatsApp & refills", "/#product"], ["Offline & branches", "/#product"], ["Pricing", "/#pricing"]] },
+  { t: "Product", icon: Boxes, links: [["Medoro Medical Billing SaaS", "/medical-billing-saas"], ["Medoro Pharmacy Billing Software", "/pharmacy-billing-software"], ["Medoro Pharmacy Stock Software", "/medical-store-stock-management-software"], ["Medoro GST Billing", "/features/gst-billing"], ["Medoro Batch & Expiry Management", "/features/expiry-management"], ["Medoro Pricing", "/#pricing"]] },
   { t: "Pharmacy software", icon: Store, links: LANDING_LINKS },
-  { t: "Company", icon: Building2, links: [["About Medoro", "/legal#about"], ["Blog", "/blog"], ["Become a reference partner", "/partners"], ["Careers", "/careers"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
+  { t: "Company", icon: Building2, links: [["About Medoro", "/about-medoro"], ["Blog", "/blog"], ["Become a reference partner", "/partners"], ["Careers", "/careers"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
   { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/employee"], ["Start 7-day free trial", "/trial"]] },
   { t: "Legal", icon: Scale, links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
@@ -62,7 +65,7 @@ export function SiteFooter() {
         <div className="grid gap-x-8 gap-y-10 grid-cols-2 min-[720px]:grid-cols-3 min-[1040px]:grid-cols-5">
           <div className="flex flex-col gap-4 col-span-full">
             <Link href="/" aria-label={t("Medoro home")} className="site-logo self-start"><Wordmark size={20} /></Link>
-            <p className="m-0 text-[15px] text-[var(--s-muted)] max-w-[320px]">{t("Billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.")}</p>
+            <p className="m-0 text-[15px] text-[var(--s-muted)] max-w-[320px]">{t("Medoro is a medical and pharmacy billing SaaS: billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.")}</p>
             <div className="flex flex-col gap-1.5 text-[15px]">
               <a href={WA_DEMO} className="group text-[var(--s-ink)] flex gap-2.5 items-center hover:text-[var(--s-brand)]">
                 <span className="relative size-8 rounded-lg bg-[#DCF2E7] flex items-center justify-center"><MessageCircle size={16} aria-hidden className="site-nav-ico text-[#146C43]" /><span aria-hidden className="site-ping absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-[#22A06B]" /></span>WhatsApp +91 62077 74673

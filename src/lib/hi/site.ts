@@ -468,4 +468,55 @@ export const hi: Record<string, string> = {
   "Decide": "फ़ैसला करें",
   "Pay by UPI, card or netbanking only if you continue. Plans never renew on their own.": "आगे जारी रखें तभी UPI, कार्ड या नेटबैंकिंग से भुगतान करें। प्लान अपने-आप रिन्यू नहीं होते।",
   "From {amount} / month": "{amount} / महीना से शुरू",
+
+  // Brand and category search: homepage title, H1 line, product pillars, branded FAQ and footer link text
+  "Medoro — #1 Medical Billing SaaS & Pharmacy Stock Management Software in India": "Medoro — भारत में #1 मेडिकल बिलिंग SaaS और फ़ार्मेसी स्टॉक मैनेजमेंट सॉफ़्टवेयर",
+  "Medoro (medoro.in) is an AI-powered Medical Billing SaaS, Pharmacy Inventory, Batch & Expiry Tracking, and GST Billing Software for Indian medical stores, clinics, and pharmacy chains. Start your free trial.":
+    "Medoro (medoro.in) भारतीय मेडिकल स्टोर, क्लिनिक और फ़ार्मेसी चेन के लिए AI वाला मेडिकल बिलिंग SaaS, फ़ार्मेसी इन्वेंटरी, बैच और एक्सपायरी ट्रैकिंग और GST बिलिंग सॉफ़्टवेयर है। मुफ़्त ट्रायल शुरू करें।",
+  "Medoro: Medical & Pharmacy Billing SaaS for Indian medical stores": "Medoro: भारतीय मेडिकल स्टोर के लिए मेडिकल और फ़ार्मेसी बिलिंग SaaS",
+  "Medoro is a medical and pharmacy billing SaaS: billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.": "Medoro एक मेडिकल और फ़ार्मेसी बिलिंग SaaS है: भारतीय मेडिकल स्टोर और छोटी फ़ार्मेसी चेन के लिए बिलिंग, स्टॉक, GST और अकाउंट्स।",
+  "The Medoro product suite": "Medoro में क्या-क्या है",
+  "Medoro is one medical and pharmacy billing SaaS with three jobs: bill at the counter, keep stock honest, and keep GST and the registers ready.": "Medoro एक ही मेडिकल और फ़ार्मेसी बिलिंग SaaS है जो तीन काम करता है: काउंटर पर बिल बनाना, स्टॉक सही रखना, और GST व रजिस्टर तैयार रखना।",
+  "Cloud Medical Billing SaaS for Retail & Hospital Pharmacies": "रिटेल और हॉस्पिटल फ़ार्मेसी के लिए क्लाउड मेडिकल बिलिंग SaaS",
+  "Medoro is a medical billing SaaS for the pharmacy counter: open it in a browser on any PC, tablet or phone, or install the desktop app. Retail chemists bill walk-in customers in three keys; hospital and clinic pharmacies add the prescriber, B2B tax invoices and credit accounts on the same screen.":
+    "Medoro फ़ार्मेसी काउंटर के लिए मेडिकल बिलिंग SaaS है: इसे किसी भी PC, टैबलेट या फ़ोन के ब्राउज़र में खोलें, या डेस्कटॉप ऐप इंस्टॉल करें। रिटेल केमिस्ट तीन बटन में ग्राहक का बिल बनाते हैं; हॉस्पिटल और क्लिनिक की फ़ार्मेसी उसी स्क्रीन पर डॉक्टर का नाम, B2B टैक्स इनवॉइस और उधार खाते जोड़ती हैं।",
+  "Brand, salt and barcode search with FEFO batch picking": "ब्रांड, सॉल्ट और बारकोड से खोज, FEFO से बैच का चुनाव",
+  "Cash, UPI, card, split payments and customer credit": "नकद, UPI, कार्ड, बँटा हुआ भुगतान और ग्राहक उधार",
+  "Thermal and A4 invoices, or a PDF on WhatsApp": "थर्मल और A4 बिल, या WhatsApp पर PDF",
+  "Real-Time Pharmacy Stock, Batch & Near-Expiry Management": "रियल-टाइम फ़ार्मेसी स्टॉक, बैच और नज़दीकी एक्सपायरी मैनेजमेंट",
+  "Every sale, purchase, return and transfer updates stock as it happens, batch by batch. Medoro lists the batches expiring in the next 30 to 180 days with the loss they will cause, early enough to return them to the distributor or move them to another branch.":
+    "हर बिक्री, खरीद, वापसी और ट्रांसफ़र होते ही स्टॉक बैच-दर-बैच अपडेट होता है। Medoro अगले 30 से 180 दिन में एक्सपायर होने वाले बैच और उनसे होने वाला नुकसान दिखाता है, इतना पहले कि आप उन्हें डिस्ट्रीब्यूटर को लौटा सकें या दूसरी ब्रांच भेज सकें।",
+  "Batch, expiry, rack and cost on every item": "हर आइटम पर बैच, एक्सपायरी, रैक और लागत",
+  "Low-stock list from reorder levels and 28 days of sales": "रीऑर्डर लेवल और 28 दिन की बिक्री से कम-स्टॉक की सूची",
+  "Expired, quarantined and recalled batches blocked at billing": "एक्सपायर, रोके गए और रिकॉल हुए बैच बिलिंग में ब्लॉक",
+  "Automated GST Billing, Schedule H1 Register & AI Purchase CSV/PDF Import": "ऑटोमैटिक GST बिलिंग, शेड्यूल H1 रजिस्टर और AI से खरीद का CSV/PDF इम्पोर्ट",
+  "GST is worked out from the MRP on every line and split into CGST and SGST, or IGST, so GSTR-1 and GSTR-3B summaries are ready at month-end. Prescription medicines ask for the prescriber and fill the Schedule H1 register. Distributor bills come in from CSV, Excel or a scanned PDF instead of being typed.":
+    "हर लाइन पर MRP से GST निकलता है और CGST व SGST, या IGST में बँटता है, इसलिए महीने के अंत में GSTR-1 और GSTR-3B के सारांश तैयार रहते हैं। पर्चे वाली दवाओं पर डॉक्टर का नाम पूछा जाता है और शेड्यूल H1 रजिस्टर अपने आप भरता है। डिस्ट्रीब्यूटर के बिल टाइप करने की जगह CSV, Excel या स्कैन की हुई PDF से आ जाते हैं।",
+  "GSTR-1 and GSTR-3B summaries with Tally export": "GSTR-1 और GSTR-3B के सारांश, Tally एक्सपोर्ट के साथ",
+  "Schedule H1 register for any date range": "किसी भी तारीख़ के लिए शेड्यूल H1 रजिस्टर",
+  "Supplier e-bill import and AI invoice scanning": "सप्लायर के ई-बिल का इम्पोर्ट और AI से इनवॉइस स्कैन",
+  "Why 1,000+ Pharmacies Choose Medoro Over Legacy Desktop ERPs": "1,000+ फ़ार्मेसी पुराने डेस्कटॉप ERP की जगह Medoro क्यों चुनती हैं",
+  "Medoro Medical Billing SaaS@site": "Medoro मेडिकल बिलिंग SaaS",
+  "Medoro Pharmacy Billing Software@site": "Medoro फ़ार्मेसी बिलिंग सॉफ़्टवेयर",
+  "Medoro Pharmacy Stock Software@site": "Medoro फ़ार्मेसी स्टॉक सॉफ़्टवेयर",
+  "Medoro GST Billing@site": "Medoro GST बिलिंग",
+  "Medoro Batch & Expiry Management@site": "Medoro बैच और एक्सपायरी मैनेजमेंट",
+  "Medoro Pricing@site": "Medoro की कीमतें",
+  "Medical billing SaaS@site": "मेडिकल बिलिंग SaaS",
+  "Medical store stock management software@site": "मेडिकल स्टोर स्टॉक मैनेजमेंट सॉफ़्टवेयर",
+  "What is Medoro (medoro.in)?": "Medoro (medoro.in) क्या है?",
+  "Medoro (medoro.in) is a medical and pharmacy billing SaaS made in India for medical stores, chemists, clinic and hospital pharmacies and small pharmacy chains. It covers counter billing, batch-wise stock, expiry tracking, purchases, GST and accounts in one system, in English and हिंदी.":
+    "Medoro (medoro.in) भारत में बना मेडिकल और फ़ार्मेसी बिलिंग SaaS है, जो मेडिकल स्टोर, केमिस्ट, क्लिनिक और हॉस्पिटल की फ़ार्मेसी और छोटी फ़ार्मेसी चेन के लिए है। इसमें काउंटर बिलिंग, बैच के हिसाब से स्टॉक, एक्सपायरी ट्रैकिंग, खरीद, GST और अकाउंट्स एक ही सिस्टम में हैं, English और हिंदी में।",
+  "How does Medoro Medical Billing SaaS work for pharmacies and clinics?": "फ़ार्मेसी और क्लिनिक के लिए Medoro मेडिकल बिलिंग SaaS कैसे काम करता है?",
+  "Start the 7-day free trial, import your medicines and batches from Excel or CSV, and bill in a browser or the desktop app. At the counter you search by brand, salt or barcode; Medoro picks the earliest-expiring batch and works out GST on every line. Clinic and hospital pharmacies record the prescriber on the bill, which fills the Schedule H1 register, and can raise B2B tax invoices on credit.":
+    "7 दिन का मुफ़्त ट्रायल शुरू करें, Excel या CSV से अपनी दवाएँ और बैच इम्पोर्ट करें, और ब्राउज़र या डेस्कटॉप ऐप में बिल बनाएँ। काउंटर पर आप ब्रांड, सॉल्ट या बारकोड से खोजते हैं; Medoro सबसे पहले एक्सपायर होने वाला बैच चुनता है और हर लाइन पर GST निकालता है। क्लिनिक और हॉस्पिटल की फ़ार्मेसी बिल पर डॉक्टर का नाम दर्ज करती हैं, जिससे शेड्यूल H1 रजिस्टर भरता है, और उधार पर B2B टैक्स इनवॉइस बना सकती हैं।",
+  "Is Medoro cloud-based or desktop software?": "Medoro क्लाउड सॉफ़्टवेयर है या डेस्कटॉप?",
+  "Both. Medoro is cloud software you open in Chrome on any PC, tablet or phone, and there is a desktop app for Windows, macOS and Linux. Installed counters keep billing when the internet is down and sync when it is back. Your records stay in a place you control, such as your own Google Drive, a shop PC or your own server.":
+    "दोनों। Medoro क्लाउड सॉफ़्टवेयर है जिसे आप किसी भी PC, टैबलेट या फ़ोन पर Chrome में खोलते हैं, और Windows, macOS और Linux के लिए डेस्कटॉप ऐप भी है। इंस्टॉल किए गए काउंटर इंटरनेट बंद होने पर भी बिल बनाते रहते हैं और वापस आने पर सिंक हो जाते हैं। आपका रिकॉर्ड आपकी अपनी जगह पर रहता है, जैसे आपका Google Drive, दुकान का PC या आपका अपना सर्वर।",
+  "How can I migrate my existing stock from Marg or Vyapar to Medoro?": "Marg या Vyapar से अपना मौजूदा स्टॉक Medoro में कैसे लाऊँ?",
+  "Export your items with batch-wise stock, suppliers and customers to Excel or CSV from Marg or Vyapar, then import the files into Medoro. Every row is checked for expiry, GST rate and MRP against cost, and nothing is imported until the file is clean. Medoro brings in masters and opening stock, not past bills. Assisted stock migration is available as a one-time service from ₹2,999.":
+    "Marg या Vyapar से अपने आइटम, बैच के हिसाब से स्टॉक, सप्लायर और ग्राहक Excel या CSV में एक्सपोर्ट करें, फिर फ़ाइलें Medoro में इम्पोर्ट करें। हर लाइन की एक्सपायरी, GST दर और लागत के मुक़ाबले MRP जाँची जाती है, और फ़ाइल साफ़ होने तक कुछ भी इम्पोर्ट नहीं होता। Medoro मास्टर और ओपनिंग स्टॉक लाता है, पुराने बिल नहीं। स्टॉक लाने में हमारी मदद ₹2,999 से एक बार की सेवा के रूप में मिलती है।",
+  "What is the pricing of Medoro pharmacy billing and stock software?": "Medoro फ़ार्मेसी बिलिंग और स्टॉक सॉफ़्टवेयर की कीमत क्या है?",
+  "Medoro starts at ₹999 a month for one store on the Starter plan. Professional is ₹2,499 a month and Multi-branch is ₹4,499 a month for up to 5 branches. Every plan starts with a 7-day free trial with no card needed, and plans never renew on their own.":
+    "Medoro एक स्टोर के लिए Starter प्लान पर ₹999 महीने से शुरू होता है। Professional ₹2,499 महीना है और 5 ब्रांच तक के लिए Multi-branch ₹4,499 महीना। हर प्लान 7 दिन के मुफ़्त ट्रायल से शुरू होता है, कार्ड की ज़रूरत नहीं, और प्लान अपने आप रिन्यू नहीं होते।",
 };

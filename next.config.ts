@@ -17,7 +17,11 @@ const nextConfig: NextConfig = {
   // The App Router can't put a parameter inside a segment ("pharmacy-software-in-[location]"), so the public address
   // is rewritten to src/app/pharmacy-software-in/[location]. Real routes (e.g. /pharmacy-software-in-india) win first.
   async rewrites() {
-    return [{ source: "/pharmacy-software-in-:location", destination: "/pharmacy-software-in/:location" }];
+    return [
+      { source: "/pharmacy-software-in-:location", destination: "/pharmacy-software-in/:location" },
+      // The logo address published in the site's structured data (Organization.logo): the square brand logo.
+      { source: "/logo.png", destination: "/medoro-logo.png" },
+    ];
   },
   async headers() {
     return [{ source: "/_next/static/:path*", headers: [{ key: "X-Content-Type-Options", value: "nosniff" }] }];

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { JsonLd } from "@/components/seo/json-ld";
 import { SwRegister } from "@/components/sw-register";
 import { LangProvider } from "@/lib/i18n-client";
+import { brandGraph } from "@/lib/seo";
 import { getLang } from "@/server/lang";
 import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
@@ -33,7 +35,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const lang = await getLang();
   return (
     <html lang={lang}>
-      <body><LangProvider lang={lang}>{children}</LangProvider><SwRegister /></body>
+      <body>
+        {/* The brand entity (Organization, WebSite with site search, SoftwareApplication) for search engines, on every page. */}
+        <JsonLd data={brandGraph()} />
+        <LangProvider lang={lang}>{children}</LangProvider><SwRegister />
+      </body>
     </html>
   );
 }
