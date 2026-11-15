@@ -5,6 +5,7 @@ import { Aurora, FloatingShapes } from "@/components/site/decor";
 import { ApplicantBar, CareersBoard } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
 import { publicJobs, lastApplication } from "@/staff/hrms/careers";
 import { careersJsonLd } from "./seo";
 
@@ -28,7 +29,7 @@ export default async function Careers({ searchParams }: { searchParams: Promise<
   const q = await searchParams;
   const [jobs, who] = await Promise.all([publicJobs().catch(() => []), readApplicant()]);
   const applicant = who ? { name: who.name, email: who.email, via: who.via, prefill: await lastApplication(who.email) } : null;
-  const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured() };
+  const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured(), email: mailEnabled() };
   const src = (q.src ?? q.utm_source ?? "").slice(0, 40);
   const perks = [
     { icon: Rocket, t: "Real impact", d: "What you build ships to pharmacies across India within days." },

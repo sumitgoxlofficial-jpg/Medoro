@@ -87,4 +87,19 @@ export function applicationMail(i: { name: string; org: string; title: string; d
   return { subject, ...m };
 }
 
+/** The sign-in code a job seeker asks for on the careers page. */
+export function applicantCodeMail(i: { code: string; org: string }) {
+  const subject = `${i.code} is your ${i.org} careers sign-in code`;
+  const m = compose({
+    greeting: "Hello,",
+    blocks: [
+      { p: `Use this code to sign in on the ${i.org} careers page, apply for jobs and track your applications.` },
+      { code: i.code, note: "Valid for 10 minutes and can be used once." },
+      { note: "If you did not ask for this code, you can ignore this email. Never share this code with anyone." },
+    ],
+    signoff: { name: "Talent Acquisition Team", org: i.org },
+  }, subject);
+  return { subject, ...m };
+}
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

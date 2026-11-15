@@ -3,12 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Banknote, BriefcaseBusiness, Building2, Check, CheckCircle2, Clock, Copy, FileText, LogOut, MapPin, Search, Send, Share2, Sparkles, Users, X } from "lucide-react";
+import { ArrowLeft, Mail, Banknote, BriefcaseBusiness, Building2, Check, CheckCircle2, Clock, Copy, FileText, LogOut, MapPin, Search, Send, Share2, Sparkles, Users, X } from "lucide-react";
 import type { Prefill, PublicJob } from "@/staff/hrms/careers";
-import { applyForJob, signOutApplicant } from "@/app/careers/actions";
+import { applyForJob, sendCareersCode, signOutApplicant, verifyCareersCode } from "@/app/careers/actions";
 
-export type ApplicantView = { name: string; email: string; via: "linkedin" | "google"; prefill?: Prefill | null } | null;
-type Props = { applicant: ApplicantView; src: string; signins: { linkedin: boolean; google: boolean } };
+export type ApplicantView = { name: string; email: string; via: "linkedin" | "google" | "email"; prefill?: Prefill | null } | null;
+const VIA: Record<string, string> = { linkedin: "LinkedIn", google: "Google", email: "an email code" };
+const anySignin = (s: Props["signins"]) => s.linkedin || s.google || s.email;
+type Props = { applicant: ApplicantView; src: string; signins: { linkedin: boolean; google: boolean; email: boolean } };
 
 const LI_BLUE = "#0A66C2";
 const daysAgo = (iso: string) => {
@@ -40,20 +42,23 @@ function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: 
 export function ApplicantBar({ applicant, signins, next }: { applicant: ApplicantView; signins: Props["signins"]; next: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [byEmail, setByEmail] = useState(false);
   if (!applicant) {
-    if (!signins.linkedin && !signins.google) return null;
+    if (!anySignin(signins)) return null;
+    if (byEmail) return <div className="max-w-[440px]"><EmailCodeSignIn onDone={() => { setByEmail(false); router.refresh(); }} onCancel={() => setByEmail(false)} /></div>;
     return (
       <div className="flex flex-wrap items-center gap-2 text-[14px] text-[var(--s-ink-2)]">
         <span>Sign in to apply faster and track your applications:</span>
         {signins.linkedin ? <a href={`/api/careers/linkedin/start?next=${encodeURIComponent(next)}`} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-white text-[14px] font-semibold no-underline hover:text-white hover:opacity-90" style={{ background: LI_BLUE }}><LinkedInMark /> LinkedIn</a> : null}
         {signins.google ? <a href={`/api/auth/google/start?intent=careers&next=${encodeURIComponent(next)}`} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[14px] font-semibold no-underline hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><GoogleMark /> Google</a> : null}
+        {signins.email ? <button type="button" onClick={() => setByEmail(true)} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[14px] font-semibold cursor-pointer hover:border-[var(--s-ink)]"><Mail size={16} aria-hidden /> Email code</button> : null}
       </div>
     );
   }
   return (
     <div className="flex flex-wrap items-center gap-3 text-[14px]">
       <span className="grid place-items-center size-9 rounded-full bg-[var(--s-brand)] text-white font-bold text-[13px]">{initials(applicant.name || applicant.email)}</span>
-      <span className="flex flex-col leading-tight"><strong>{applicant.name || applicant.email}</strong><span className="text-[12.5px] text-[var(--s-muted)]">Signed in with {applicant.via === "linkedin" ? "LinkedIn" : "Google"} · {applicant.email}</span></span>
+      <span className="flex flex-col leading-tight"><strong>{applicant.name || applicant.email}</strong><span className="text-[12.5px] text-[var(--s-muted)]">Signed in with {VIA[applicant.via]} · {applicant.email}</span></span>
       <Link href="/careers/applications" className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-[var(--s-line)] bg-white text-[var(--s-ink)] font-semibold no-underline hover:border-[var(--s-brand)]"><BriefcaseBusiness size={15} aria-hidden /> My applications</Link>
       <button type="button" disabled={pending} onClick={() => start(async () => { await signOutApplicant(); router.refresh(); })} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-transparent border-0 text-[var(--s-muted)] cursor-pointer hover:text-[var(--s-ink)]"><LogOut size={15} aria-hidden /> Sign out</button>
     </div>
@@ -202,7 +207,8 @@ function ShareMenu({ job }: { job: PublicJob }) {
 
 // ── Easy Apply
 function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & { job: PublicJob; onClose: () => void; onDone: (r: { ref: string; emailed: boolean }) => void }) {
-  const [step, setStep] = useState<"choose" | "form" | "sent">(applicant || (!signins.linkedin && !signins.google) ? "form" : "choose");
+  const [step, setStep] = useState<"choose" | "code" | "form" | "sent">(applicant || !anySignin(signins) ? "form" : "choose");
+  const router = useRouter();
   const [err, setErr] = useState(""), [pending, start] = useTransition(), [sent, setSent] = useState<{ ref: string; emailed: boolean; email: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   // Details filled in for the applicant: their last Medoro application (signed in), else what this browser remembers.
@@ -251,9 +257,13 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
             <p className="m-0 text-[15px] text-[var(--s-ink-2)]">Sign in to fill in your verified name and email, then track your application here.</p>
             {signins.linkedin ? <a href={`/api/careers/linkedin/start?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 h-12 rounded-full text-white text-[16px] font-semibold no-underline hover:text-white hover:opacity-90" style={{ background: LI_BLUE }}><LinkedInMark /> Apply with LinkedIn</a> : null}
             {signins.google ? <a href={`/api/auth/google/start?intent=careers&next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 h-12 rounded-full border border-[#C9D1CF] text-[var(--s-ink)] text-[16px] font-semibold no-underline hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><GoogleMark /> Apply with Google</a> : null}
+            {signins.email ? <button type="button" onClick={() => setStep("code")} className="flex items-center justify-center gap-2 h-12 rounded-full border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[16px] font-semibold cursor-pointer hover:border-[var(--s-ink)]"><Mail size={18} aria-hidden /> Sign in with an email code</button> : null}
+            {signins.email ? <span className="text-[13px] text-[var(--s-muted)] text-center -mt-1">Use the email code if you’re on Naukri or don’t use LinkedIn or Google.</span> : null}
             <div className="flex items-center gap-3 text-[13px] text-[var(--s-muted)] my-1"><span className="flex-1 h-px bg-[var(--s-line)]" />or<span className="flex-1 h-px bg-[var(--s-line)]" /></div>
-            <button type="button" onClick={() => setStep("form")} className="h-12 rounded-full border border-[var(--s-brand)] bg-white text-[var(--s-brand)] text-[16px] font-semibold cursor-pointer hover:bg-[var(--s-brand-tint)]">Continue with email</button>
+            <button type="button" onClick={() => setStep("form")} className="h-12 rounded-full border border-[var(--s-brand)] bg-white text-[var(--s-brand)] text-[16px] font-semibold cursor-pointer hover:bg-[var(--s-brand-tint)]">Apply without signing in</button>
           </div>
+        ) : step === "code" ? (
+          <div className="p-5"><EmailCodeSignIn onDone={() => { router.refresh(); setStep("form"); }} onCancel={() => setStep("choose")} /></div>
         ) : step === "sent" && sent ? (
           <div className="p-8 flex flex-col items-center text-center gap-3">
             <span className="grid place-items-center size-16 rounded-full bg-[#E8F5EC] text-[#146C43]"><CheckCircle2 size={34} aria-hidden /></span>
@@ -267,7 +277,7 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
           </div>
         ) : (
           <form onSubmit={submit} className="p-5 flex flex-col gap-4" noValidate={false}>
-            {applicant ? <div className="flex items-center gap-2 rounded-lg bg-[var(--s-brand-tint)] px-3 py-2 text-[13.5px] text-[var(--s-brand)]"><CheckCircle2 size={16} aria-hidden /> Verified with {applicant.via === "linkedin" ? "LinkedIn" : "Google"}: {applicant.email}</div> : null}
+            {applicant ? <div className="flex items-center gap-2 rounded-lg bg-[var(--s-brand-tint)] px-3 py-2 text-[13.5px] text-[var(--s-brand)]"><CheckCircle2 size={16} aria-hidden /> Email verified{applicant.via === "email" ? "" : ` with ${VIA[applicant.via]}`}: {applicant.email}</div> : null}
             <input type="hidden" name="jobId" value={job.id} />
             <input type="hidden" name="src" value={src} />
             <div aria-hidden className="absolute -left-[9999px] w-px h-px overflow-hidden"><label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
@@ -301,7 +311,7 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
             <label className="flex items-start gap-2.5 text-[13.5px] text-[var(--s-ink-2)]"><input type="checkbox" name="consent" required className="mt-1 size-4 accent-[var(--s-brand)]" /><span>I agree that Medoro may store and use these details to assess my application and contact me about it, as described in the <a href="/legal#privacy" target="_blank">privacy policy</a>.</span></label>
             {err ? <p role="alert" className="m-0 rounded-lg bg-[#FDECEA] text-[#B3261E] px-3 py-2 text-[14px]">{err}</p> : null}
             <div className="flex gap-2 justify-end items-center pt-1">
-              {!applicant && (signins.linkedin || signins.google) ? <button type="button" onClick={() => setStep("choose")} className="mr-auto inline-flex items-center gap-1 h-11 px-2 border-0 bg-transparent text-[var(--s-muted)] cursor-pointer text-[14px]"><ArrowLeft size={15} aria-hidden /> Back</button> : null}
+              {!applicant && anySignin(signins) ? <button type="button" onClick={() => setStep("choose")} className="mr-auto inline-flex items-center gap-1 h-11 px-2 border-0 bg-transparent text-[var(--s-muted)] cursor-pointer text-[14px]"><ArrowLeft size={15} aria-hidden /> Back</button> : null}
               <button type="submit" disabled={pending} className="inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[var(--s-brand)] text-white text-[16px] font-semibold border-0 cursor-pointer hover:bg-[var(--s-brand-ink)] disabled:opacity-60 disabled:cursor-wait">{pending ? "Sending…" : <><Send size={16} aria-hidden /> Submit application</>}</button>
             </div>
           </form>
@@ -312,6 +322,32 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
 }
 
 const SAVED_KEY = "medoro-careers-details";
+
+/** Email → 6-digit code → signed in. For Naukri users and anyone without LinkedIn or Google. */
+export function EmailCodeSignIn({ onDone, onCancel }: { onDone: () => void; onCancel?: () => void }) {
+  const [email, setEmail] = useState(""), [code, setCode] = useState(""), [sentTo, setSentTo] = useState<string | null>(null);
+  const [err, setErr] = useState(""), [pending, start] = useTransition();
+  const inp = "w-full h-11 px-3 rounded-lg border border-[#C9D1CF] bg-white text-[15px] outline-none focus:border-[var(--s-brand)] focus:shadow-[0_0_0_3px_var(--s-brand-tint)]";
+  const send = () => start(async () => { setErr(""); const r = await sendCareersCode(email); if (r.ok) { setSentTo(r.data.email); setCode(""); } else setErr(r.error); });
+  const verify = () => start(async () => { setErr(""); const r = await verifyCareersCode(code); if (r.ok) onDone(); else setErr(r.error); });
+  return (
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (sentTo) verify(); else send(); }}>
+      {!sentTo ? <>
+        <label className="flex flex-col gap-1.5 text-[14px] font-semibold">Your email<input type="email" required autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={inp} /></label>
+        <span className="text-[13px] text-[var(--s-muted)] -mt-1">We’ll email you a 6-digit code. No password needed.</span>
+      </> : <>
+        <span className="text-[14px] text-[var(--s-ink-2)]">We sent a 6-digit code to <strong>{sentTo}</strong>. It’s valid for 10 minutes (check spam if you don’t see it).</span>
+        <label className="flex flex-col gap-1.5 text-[14px] font-semibold">Code<input inputMode="numeric" autoComplete="one-time-code" autoFocus required maxLength={6} pattern="\d{6}" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} placeholder="123456" className={`${inp} tracking-[.4em] text-[18px] font-semibold`} /></label>
+      </>}
+      {err ? <p role="alert" className="m-0 rounded-lg bg-[#FDECEA] text-[#B3261E] px-3 py-2 text-[14px]">{err}</p> : null}
+      <div className="flex items-center gap-2 flex-wrap">
+        {onCancel ? <button type="button" onClick={onCancel} className="inline-flex items-center gap-1 h-11 px-2 border-0 bg-transparent text-[var(--s-muted)] cursor-pointer text-[14px]"><ArrowLeft size={15} aria-hidden /> Back</button> : null}
+        {sentTo ? <button type="button" disabled={pending} onClick={() => { setSentTo(null); setErr(""); }} className="h-11 px-2 border-0 bg-transparent text-[var(--s-brand)] font-semibold cursor-pointer text-[14px]">Change email</button> : null}
+        <button type="submit" disabled={pending} className="ml-auto inline-flex items-center gap-2 h-11 px-6 rounded-full bg-[var(--s-brand)] text-white text-[15px] font-semibold border-0 cursor-pointer hover:bg-[var(--s-brand-ink)] disabled:opacity-60">{pending ? "Please wait…" : sentTo ? "Verify and continue" : "Send code"}</button>
+      </div>
+    </form>
+  );
+}
 
 export function LinkedInMark({ color = "#fff" }: { color?: string }) {
   return <svg aria-hidden viewBox="0 0 24 24" width="18" height="18" fill={color}><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" /></svg>;
