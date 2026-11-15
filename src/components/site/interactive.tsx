@@ -33,9 +33,12 @@ export function Hero() {
       <div aria-hidden className="absolute inset-x-0 bottom-0 top-[62%] bg-[var(--s-soft)]/70 border-t border-[var(--s-line)] min-[1000px]:hidden" />
       <div className="relative w-full max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4vw,40px)] pb-[clamp(48px,6vw,56px)] min-[1000px]:py-8 grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] gap-x-12 gap-y-10 items-center max-[640px]:px-4">
         <div className="flex flex-col gap-5">
-          <span className="site-up text-[14px] font-medium text-[var(--s-brand)]">{t("Pharmacy software for Indian medical stores")}</span>
-          <h1 id="hero-title" className="site-display site-up m-0 text-[clamp(40px,5.2vw,64px)] min-[1000px]:text-[clamp(40px,min(4.4vw,7.2vh),62px)] [--d:1]">
-            {H1.map((l, i) => <span key={l} className={`block ${i === 1 ? "site-shine" : ""}`}>{t(l)}</span>)}
+          {/* One H1: the brand and category line (small, where the eyebrow sat) followed by the display lines. */}
+          <h1 id="hero-title" className="m-0 flex flex-col gap-5">
+            <span className="site-up text-[14px] font-medium leading-[1.5] text-[var(--s-brand)]">{t("Medoro: Medical & Pharmacy Billing SaaS for Indian medical stores")}</span>
+            <span className="site-display site-up block text-[clamp(40px,5.2vw,64px)] min-[1000px]:text-[clamp(40px,min(4.4vw,7.2vh),62px)] [--d:1]">
+              {H1.map((l, i) => <span key={l} className={`block ${i === 1 ? "site-shine" : ""}`}>{t(l)}</span>)}
+            </span>
           </h1>
           <p className="site-up m-0 text-[clamp(16px,1.3vw,18px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[520px] [--d:2]">{t("Medoro handles billing, batch stock, purchases, GST and accounts for medical stores and small chains. It runs on a computer you control and keeps billing when the internet drops.")}</p>
           <div className="site-up flex gap-3 flex-wrap pt-1 [--d:3]">

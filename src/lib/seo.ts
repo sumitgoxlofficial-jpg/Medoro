@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { BRAND, brandProfiles } from "@/data/brand";
+import { PRODUCTS } from "@/staff/constants";
 
 /**
  * Search metadata and structured data for the public website. Every public page builds its <head> with
@@ -57,15 +59,112 @@ export function pageMetadata(p: PageSeo): Metadata {
 // Structured data (schema.org JSON-LD). Render with <JsonLd data={...} />.
 
 export type JsonLdObject = { "@context"?: string; "@type": string; [key: string]: unknown };
+/** Several linked entities in one block; they refer to each other by "@id". */
+export type JsonLdGraph = { "@context": "https://schema.org"; "@graph": JsonLdObject[] };
 
-const ORG = { "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: absoluteUrl("/medoro-mark.png"), email: "hello@medoro.in", areaServed: "IN" };
+/** Stable ids of the site-wide entities (brandGraph), so any page's structured data can point at them. */
+export const ORG_ID = `${SITE_URL}/#organization`;
+export const WEBSITE_ID = `${SITE_URL}/#website`;
+export const SOFTWARE_ID = `${SITE_URL}/#software`;
+/** /logo.png is the square Medoro logo (served from public/medoro-logo.png, see next.config.ts). */
+const LOGO_URL = absoluteUrl("/logo.png");
+
+/** The publisher on every page's own structured data: the same entity as the site-wide Organization. */
+const ORG = { "@type": "Organization", "@id": ORG_ID, name: SITE_NAME, url: SITE_URL, logo: LOGO_URL, email: BRAND.email, areaServed: "IN" };
+
+/** The three subscription plans, cheapest first (rupees per month). */
+const PLANS = PRODUCTS.filter((p) => !("addon" in p) && !("once" in p));
+
+/**
+ * The brand entity, on every page (root layout): who Medoro is (Organization), the site and its search (WebSite) and
+ * the product with its price range (SoftwareApplication). One @graph so the three are linked rather than repeated.
+ * `sameAs` lists only the official profiles that are configured (src/data/brand.ts).
+ */
+export function brandGraph(): JsonLdGraph {
+  const sameAs = brandProfiles().map((p) => p.url);
+  const prices = PLANS.map((p) => p.m);
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": ORG_ID,
+        name: BRAND.name,
+        alternateName: [...BRAND.alternateNames],
+        url: SITE_URL,
+        logo: { "@type": "ImageObject", "@id": `${SITE_URL}/#logo`, url: LOGO_URL, contentUrl: LOGO_URL, width: 1254, height: 1254, caption: BRAND.name },
+        image: { "@id": `${SITE_URL}/#logo` },
+        description: BRAND.description,
+        slogan: BRAND.tagline,
+        email: BRAND.email,
+        areaServed: { "@type": "Country", name: "India" },
+        address: { "@type": "PostalAddress", addressRegion: "Jharkhand", addressCountry: "IN" },
+        contactPoint: { "@type": "ContactPoint", contactType: "customer support", telephone: BRAND.phone, email: BRAND.email, areaServed: "IN", availableLanguage: ["en", "hi"] },
+        knowsAbout: ["Medical billing SaaS", "Pharmacy billing software", "Medical store stock management", "Batch and expiry management", "GST billing for pharmacies", "Schedule H1 register"],
+        mainEntityOfPage: absoluteUrl("/about-medoro"),
+        ...(sameAs.length ? { sameAs } : {}),
+      },
+      {
+        "@type": "WebSite",
+        "@id": WEBSITE_ID,
+        name: BRAND.name,
+        alternateName: [...BRAND.alternateNames],
+        url: SITE_URL,
+        description: BRAND.description,
+        inLanguage: ["en-IN", "hi-IN"],
+        publisher: { "@id": ORG_ID },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/search?q={search_term_string}` },
+          "query-input": "required name=search_term_string",
+        },
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": SOFTWARE_ID,
+        name: BRAND.productName,
+        alternateName: [...BRAND.alternateNames],
+        url: SITE_URL,
+        description: BRAND.description,
+        applicationCategory: "BusinessApplication",
+        applicationSubCategory: "Medical billing SaaS, pharmacy billing and stock management software",
+        operatingSystem: BRAND.operatingSystem,
+        inLanguage: ["en-IN", "hi-IN"],
+        image: { "@id": `${SITE_URL}/#logo` },
+        featureList: ["Medical and pharmacy counter billing", "Batch-wise stock and near-expiry management", "GST billing with GSTR-1 and GSTR-3B summaries", "Schedule H1 register", "AI purchase bill import from CSV, Excel and PDF", "Accounts, ledgers and Tally export"],
+        offers: {
+          "@type": "AggregateOffer",
+          priceCurrency: "INR",
+          lowPrice: String(Math.min(...prices)),
+          highPrice: String(Math.max(...prices)),
+          offerCount: PLANS.length,
+          url: absoluteUrl("/#pricing"),
+          offers: PLANS.map((p) => ({ "@type": "Offer", name: `${p.name} plan`, price: String(p.m), priceCurrency: "INR", category: "subscription", url: absoluteUrl("/#pricing") })),
+        },
+        publisher: { "@id": ORG_ID },
+      },
+    ],
+  };
+}
+
+/** The official "about the brand" page, tied to the Organization so it can feed Google's knowledge panel. */
+export function aboutPageSchema(o: { name: string; description: string; path: string }): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "@id": `${absoluteUrl(o.path)}#webpage`,
+    url: absoluteUrl(o.path),
+    name: o.name,
+    description: o.description,
+    inLanguage: "en-IN",
+    isPartOf: { "@id": WEBSITE_ID },
+    about: { "@id": ORG_ID },
+    mainEntity: { "@id": ORG_ID },
+  };
+}
 
 /** Plans as schema.org offers (prices include GST, in rupees per month). */
-const OFFERS = [
-  ["Starter", 999],
-  ["Professional", 2499],
-  ["Multi-branch", 4499],
-].map(([name, price]) => ({ "@type": "Offer", name: `${name} plan`, price: String(price), priceCurrency: "INR", url: absoluteUrl("/#pricing"), category: "subscription" }));
+const OFFERS = PLANS.map((p) => ({ "@type": "Offer", name: `${p.name} plan`, price: String(p.m), priceCurrency: "INR", url: absoluteUrl("/#pricing"), category: "subscription" }));
 
 /** The Medoro product, for feature, comparison, location and solution pages. */
 export function softwareApplicationSchema(o: { name?: string; description: string; path: string; featureList?: string[] }): JsonLdObject {
@@ -129,7 +228,7 @@ export function articleSchema(o: { headline: string; description: string; path: 
     ...(o.section ? { articleSection: o.section } : {}),
     ...(o.keywords?.length ? { keywords: o.keywords.join(", ") } : {}),
     ...(o.wordCount ? { wordCount: o.wordCount } : {}),
-    author: { "@type": "Organization", name: `${SITE_NAME} team`, url: SITE_URL },
+    author: { "@type": "Organization", "@id": ORG_ID, name: `${SITE_NAME} team`, url: SITE_URL },
     publisher: ORG,
   };
 }
