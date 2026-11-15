@@ -314,7 +314,8 @@ export const POSTS: Post[] = [
       "schedule h1 register",
       "schedule h h1 x drugs",
       "schedule h1 drugs list",
-      "prescription register pharmacy"
+      "prescription register pharmacy",
+      "schedule h1 register format"
     ],
     "category": "Compliance",
     "published": "2026-11-15",
@@ -340,7 +341,20 @@ export const POSTS: Post[] = [
         "h2": "Schedule H1"
       },
       {
-        "p": "Schedule H1 was introduced in 2013 for medicines that need closer control, including certain antibiotics, anti-TB drugs and habit-forming medicines. The label carries the Rx symbol in red with a boxed warning."
+        "p": "Schedule H1 was introduced in 2013, in force from March 2014, for medicines that need closer control. The original list has 46 drugs, mainly:"
+      },
+      {
+        "ul": [
+          "Newer antibiotics, such as several third- and fourth-generation cephalosporins (for example cefixime, cefpodoxime and ceftriaxone), carbapenems and newer fluoroquinolones (for example levofloxacin and moxifloxacin)",
+          "Anti-tuberculosis drugs such as isoniazid, rifampicin, ethambutol and pyrazinamide",
+          "Habit-forming drugs such as alprazolam, diazepam, zolpidem, tramadol and codeine"
+        ]
+      },
+      {
+        "p": "The list can be amended by notification, so check the current one rather than relying on a printed chart."
+      },
+      {
+        "p": "To recognise an H1 pack, look for the **Rx symbol in red** and a boxed warning stating that it is dangerous to take the preparation except in accordance with medical advice, and that it must not be sold by retail without the prescription of a Registered Medical Practitioner."
       },
       {
         "p": "For every sale of a Schedule H1 medicine, the pharmacist must record the following in a separate register at the time of supply:"
@@ -354,6 +368,18 @@ export const POSTS: Post[] = [
         ]
       },
       {
+        "p": "Most pharmacies also note the date, invoice number and batch number. They aren't in the list above, but they make it much easier to trace a sale during a recall or answer an inspector's question."
+      },
+      {
+        "table": {
+          "caption": "A practical Schedule H1 register layout",
+          "head": ["Date", "Invoice", "Patient", "Prescriber (name, address)", "Medicine", "Batch", "Qty"],
+          "rows": [
+            ["14/11/2026", "INV/0412", "Ramesh Kumar", "Dr. A. Sinha, Sector 4, Bokaro", "Cefixime 200 mg tablets", "CF2231", "10"]
+          ]
+        }
+      },
+      {
         "p": "These records must be kept for three years and be open to inspection."
       },
       {
@@ -361,6 +387,20 @@ export const POSTS: Post[] = [
       },
       {
         "p": "Schedule X covers medicines with a high risk of abuse, such as certain psychotropic substances. The rules are the strictest: the prescription is needed in duplicate and the pharmacy keeps a copy, the stock must be stored securely, and separate records of purchase and sale must be kept for the period the rules set."
+      },
+      {
+        "h2": "Schedule H, H1 and X at a glance"
+      },
+      {
+        "table": {
+          "caption": "Prescription schedules compared",
+          "head": ["Schedule", "Sold on", "Extra record keeping"],
+          "rows": [
+            ["H", "Prescription of a Registered Medical Practitioner", "Sale records as your licence conditions require"],
+            ["H1", "Prescription", "Separate H1 register: prescriber, patient, medicine, quantity; kept 3 years"],
+            ["X", "Prescription in duplicate, under a separate licence (Form 20-F)", "Copy of the prescription kept, separate purchase and sale records, secure storage"]
+          ]
+        }
       },
       {
         "h2": "Good practice at the counter"
@@ -377,8 +417,14 @@ export const POSTS: Post[] = [
         "h2": "How billing software helps"
       },
       {
-        "p": "In [pharmacy billing software](/pharmacy-billing-software) like Medoro, Schedule H and H1 items ask for the prescriber before the bill closes, and the details are stored with the sale. That gives you the register you need without a separate notebook that someone forgets to fill in."
+        "p": "In [pharmacy billing software](/pharmacy-billing-software) like Medoro, Schedule H and H1 items ask for the prescriber before the bill closes, and the details are stored with the sale. That gives you the register you need without a separate notebook that someone forgets to fill in: see how [Medoro's Schedule H1 register](/features/schedule-h1-compliance) builds it from your bills."
       }
+    ],
+    "faq": [
+      ["Is a separate register compulsory for Schedule H1 drugs?", "Yes. The supply of a Schedule H1 drug has to be recorded in a separate register with the prescriber's name and address, the patient's name, the medicine and the quantity supplied."],
+      ["How long should I keep the Schedule H1 register?", "Three years, open for inspection by the drug inspector."],
+      ["Can the Schedule H1 register be kept on a computer?", "Many pharmacies keep it in software and print it when needed. Check with your State Drugs Control office whether they also expect a printed, signed register."],
+      ["Is cefixime a Schedule H1 drug?", "Cefixime is on the original Schedule H1 list, along with several other cephalosporins. Check the current list, as it can be amended."]
     ],
     "tools": [
       "free-pharmacy-invoice-generator"
