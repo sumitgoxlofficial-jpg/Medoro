@@ -12,6 +12,7 @@ export const hi: Record<string, string> = {
   Security: "सुरक्षा",
   "Pricing@site": "कीमतें",
   Solutions: "समाधान",
+  "Blog@site": "ब्लॉग",
   "Pharmacy billing software@site": "फ़ार्मेसी बिलिंग सॉफ़्टवेयर",
   "Pharmacy accounting software@site": "फ़ार्मेसी अकाउंटिंग सॉफ़्टवेयर",
   "Medical store software@site": "मेडिकल स्टोर सॉफ़्टवेयर",
