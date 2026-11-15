@@ -11,6 +11,7 @@ export const HUBS = {
   tools: "/tools",
   solutions: "/solutions",
   locations: "/pharmacy-software-in-india",
+  blog: "/blog",
 } as const;
 
 export const FEATURE_LINKS: SiteLink[] = [

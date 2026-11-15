@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CtaBand, FaqSection, Hero, LinkGrid, MarketingShell, Section, wrap } from "@/components/seo/blocks";
+import { postsForTool } from "@/data/blog";
 import { featureBySlug } from "@/data/features";
 import { HUBS, TOOL_LINKS } from "@/data/site-links";
 import { toolBySlug, type ToolSlug } from "@/data/tools";
@@ -22,6 +23,7 @@ export function ToolPage({ slug, children }: { slug: ToolSlug; children: React.R
   const crumbs: Crumb[] = [["Free tools", HUBS.tools], [t.name, path]];
   const features = t.features.map((f) => featureBySlug(f)!).map((f) => [f.name, `/features/${f.slug}`, f.description] as [string, string, string]);
   const others = TOOL_LINKS.filter(([, p]) => p !== path);
+  const reading = postsForTool(slug).map((p) => [p.title, `/blog/${p.slug}`, p.description] as [string, string, string]);
   return (
     <MarketingShell crumbs={crumbs} jsonLd={[webApplicationSchema({ name: t.name, description: t.description, path, featureList: t.featureList })]}>
       <Hero crumbs={crumbs} eyebrow="Free pharmacy tool" h1={t.h1} intro={t.intro} note="Free, no sign-up. Runs in your browser; nothing you type is sent anywhere." />
@@ -42,6 +44,11 @@ export function ToolPage({ slug, children }: { slug: ToolSlug; children: React.R
         </div>
       </Section>
       <FaqSection faq={t.faq} />
+      {reading.length ? (
+        <Section id="reading" title="Related guides">
+          <LinkGrid links={reading} cols={2} />
+        </Section>
+      ) : null}
       <Section id="next" title="Do this automatically with Medoro" lead="The free tool handles one calculation at a time. Medoro does it on every bill, purchase and medicine in your store.">
         <LinkGrid links={features} cols={2} />
         <LinkGrid links={others} cols={2} />

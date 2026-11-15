@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CardGrid, CtaBand, FaqSection, Hero, LinkGrid, MarketingShell, ProblemSolution, Section } from "@/components/seo/blocks";
 import { MockupWindow } from "@/components/seo/mockup-window";
+import { postsForFeature } from "@/data/blog";
 import { FEATURES, featureBySlug } from "@/data/features";
 import { FEATURE_LINKS, HUBS } from "@/data/site-links";
 import { toolBySlug } from "@/data/tools";
@@ -25,6 +26,7 @@ export default async function FeaturePage({ params }: Props) {
   const path = `/features/${f.slug}`;
   const crumbs: Crumb[] = [["Features", HUBS.features], [f.name, path]];
   const related = FEATURE_LINKS.filter(([, p]) => f.related.some((r) => p === `/features/${r}`));
+  const reading = postsForFeature(f.slug).map((p) => [p.title, `/blog/${p.slug}`, p.description] as [string, string, string]);
   const tools = f.tools.map((slug) => toolBySlug(slug)!).map((t) => [t.name, `/tools/${t.slug}`, t.description] as [string, string, string]);
   return (
     <MarketingShell crumbs={crumbs} jsonLd={[softwareApplicationSchema({ name: `Medoro: ${f.name}`, description: f.description, path, featureList: f.highlights.flatMap((h) => h.points) })]}>
@@ -46,6 +48,7 @@ export default async function FeaturePage({ params }: Props) {
 
       <Section id="tools" title="Free tools for pharmacies" lead="Work it out now with our free calculators and generators; no sign-up needed.">
         <LinkGrid links={tools} />
+        {reading.length ? <><h3 className="m-0 text-[21px] font-semibold text-[var(--s-ink)]">Guides from the blog</h3><LinkGrid links={reading} /></> : null}
       </Section>
 
       <Section id="related" title="Related features" soft>

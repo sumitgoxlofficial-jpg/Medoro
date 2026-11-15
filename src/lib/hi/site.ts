@@ -18,6 +18,7 @@ export const hi: Record<string, string> = {
   "Top Cities": "प्रमुख शहर",
   "Pharmacy software": "फ़ार्मेसी सॉफ़्टवेयर",
   "All features@site": "सभी फ़ीचर",
+  "Blog@site": "ब्लॉग",
   "All comparisons@site": "सभी तुलनाएँ",
   "All free tools@site": "सभी मुफ़्त टूल",
   "All solutions@site": "सभी समाधान",

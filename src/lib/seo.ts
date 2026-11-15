@@ -30,6 +30,9 @@ export type PageSeo = {
   keywords?: string[];
   /** Keep the page out of the index (it can still be crawled for links). */
   noindex?: boolean;
+  /** For articles: ISO dates of first publication and last update. */
+  published?: string;
+  modified?: string;
 };
 
 /** Title, description, canonical, Open Graph and Twitter card for one public page. */
@@ -42,7 +45,10 @@ export function pageMetadata(p: PageSeo): Metadata {
     keywords: p.keywords,
     alternates: { canonical: url },
     robots: p.noindex ? { index: false, follow: true } : { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
-    openGraph: { type: p.type ?? "website", url, siteName: SITE_NAME, title: p.title, description: p.description, locale: "en_IN", images: [{ url: absoluteUrl(img), alt }] },
+    openGraph: {
+      type: p.type ?? "website", url, siteName: SITE_NAME, title: p.title, description: p.description, locale: "en_IN", images: [{ url: absoluteUrl(img), alt }],
+      ...(p.type === "article" ? { publishedTime: p.published, modifiedTime: p.modified ?? p.published, authors: [`${SITE_NAME} team`] } : {}),
+    },
     twitter: { card: "summary_large_image", title: p.title, description: p.description, images: [absoluteUrl(img)] },
   };
 }
@@ -104,6 +110,27 @@ export function faqSchema(faq: readonly (readonly [q: string, a: string])[]): Js
     "@context": "https://schema.org",
     "@type": "FAQPage",
     mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+  };
+}
+
+/** A blog article. Dates are ISO (YYYY-MM-DD). */
+export function articleSchema(o: { headline: string; description: string; path: string; published: string; modified?: string; keywords?: string[]; section?: string; wordCount?: number }): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: o.headline,
+    description: o.description,
+    url: absoluteUrl(o.path),
+    mainEntityOfPage: { "@type": "WebPage", "@id": absoluteUrl(o.path) },
+    image: absoluteUrl("/opengraph-image"),
+    datePublished: o.published,
+    dateModified: o.modified ?? o.published,
+    inLanguage: "en-IN",
+    ...(o.section ? { articleSection: o.section } : {}),
+    ...(o.keywords?.length ? { keywords: o.keywords.join(", ") } : {}),
+    ...(o.wordCount ? { wordCount: o.wordCount } : {}),
+    author: { "@type": "Organization", name: `${SITE_NAME} team`, url: SITE_URL },
+    publisher: ORG,
   };
 }
 
