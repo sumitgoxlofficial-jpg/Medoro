@@ -1,9 +1,9 @@
 /** Hindi lines for: the public website (homepage, site header and footer). Key = the English text exactly as written in the code (see src/lib/tr.ts). */
 export const hi: Record<string, string> = {
   // Page title and description (search results, link previews)
-  "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores": "Medoro · मेडिकल स्टोर के लिए बिलिंग, बैच स्टॉक और GST सॉफ़्टवेयर",
-  "Billing with FEFO batches, expiry control, purchases, GST and accounts, WhatsApp invoices and offline billing for Indian medical stores and small chains. Runs on infrastructure you control. 7-day free trial.":
-    "FEFO बैच के साथ बिलिंग, एक्सपायरी पर नज़र, खरीद, GST और हिसाब-किताब, WhatsApp पर बिल और बिना इंटरनेट बिलिंग, भारतीय मेडिकल स्टोर और छोटी चेन के लिए। आपके अपने कंप्यूटर या सर्वर पर चलता है। 7 दिन मुफ़्त ट्रायल।",
+  "Pharmacy Billing & Accounting Software for Medical Stores | Medoro": "मेडिकल स्टोर के लिए फ़ार्मेसी बिलिंग और अकाउंटिंग सॉफ़्टवेयर | Medoro",
+  "Pharmacy billing and accounting software for Indian medical stores: FEFO batch billing, expiry alerts, purchases, GST returns, Tally export, WhatsApp invoices and offline billing. 7-day free trial.":
+    "भारतीय मेडिकल स्टोर के लिए फ़ार्मेसी बिलिंग और अकाउंटिंग सॉफ़्टवेयर: FEFO बैच के साथ बिलिंग, एक्सपायरी अलर्ट, खरीद, GST रिटर्न, Tally एक्सपोर्ट, WhatsApp पर बिल और बिना इंटरनेट बिलिंग। 7 दिन मुफ़्त ट्रायल।",
 
   // Header, menu, footer
   "Medoro home": "Medoro होम",
@@ -11,6 +11,12 @@ export const hi: Record<string, string> = {
   "Switching": "Medoro पर आना",
   Security: "सुरक्षा",
   "Pricing@site": "कीमतें",
+  Solutions: "समाधान",
+  "Pharmacy billing software@site": "फ़ार्मेसी बिलिंग सॉफ़्टवेयर",
+  "Pharmacy accounting software@site": "फ़ार्मेसी अकाउंटिंग सॉफ़्टवेयर",
+  "Medical store software@site": "मेडिकल स्टोर सॉफ़्टवेयर",
+  "GST billing software for pharmacy@site": "फ़ार्मेसी के लिए GST बिलिंग सॉफ़्टवेयर",
+  "Pharmacy inventory software@site": "फ़ार्मेसी इन्वेंटरी सॉफ़्टवेयर",
   FAQ: "सवाल-जवाब",
   "Become a partner": "पार्टनर बनें",
   "Log in": "लॉग इन",
