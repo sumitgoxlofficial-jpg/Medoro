@@ -7,10 +7,11 @@ import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { MAX_BYTES, MAX_LABEL, getObject, putObject, sniff } from "@/server/storage";
 import { hit } from "@/server/ratelimit";
-import type { Applicant } from "@/server/applicant";
+import { clearPendingCode, readPendingCode, setApplicant, setPendingCode, type Applicant } from "@/server/applicant";
+import { hashCode, newCode, sameHash } from "@/server/otp";
 import { audit, holders, loadSettings, need, notify, type Me } from "./auth";
 import { JOB_MODES, JOB_SOURCES, JOB_TYPES, type JobSource } from "./constants";
-import { applicationMail } from "./mails";
+import { applicantCodeMail, applicationMail } from "./mails";
 
 // The public careers page (/careers): HR and the super admin post openings in Recruitment, job seekers read them
 // and apply (signed in with LinkedIn or Google, or by typing their details). Every application lands in the ATS
@@ -193,4 +194,34 @@ export async function resumeFile(me: Me, candidateId: string) {
   if (!c?.resumeKey) return null;
   const bytes = await getObject(c.resumeKey);
   return bytes ? { bytes, name: c.resumeName ?? "resume.pdf", type: c.resumeType ?? "application/pdf" } : null;
+}
+
+// ── Sign in with an email code (careers page)
+const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email address.").max(120);
+const CODE_SCOPE = "careers-signin";
+
+/** Emails a 6-digit code. Limited per email and per network so the page can't be used to spam inboxes. */
+export async function sendApplicantCode(rawEmail: string, ip: string | null) {
+  const email = emailSchema.parse(rawEmail);
+  if (!mailEnabled()) throw new UserError("Email sign-in isn’t available right now. You can still apply without signing in.");
+  const perEmail = await hit({ name: "careersCode", limit: 4, windowSec: 900, what: "sign-in codes" }, email);
+  const perIp = ip ? await hit({ name: "careersCodeIp", limit: 15, windowSec: 3600, what: "sign-in codes" }, ip) : { ok: true };
+  if (!perEmail.ok || !perIp.ok) throw new UserError("Too many codes requested. Please wait a few minutes and try again.");
+  const code = newCode();
+  await sendMail({ to: email, ...applicantCodeMail({ code, org: await companyName() }) });
+  await setPendingCode({ email, hash: hashCode(CODE_SCOPE + ":" + email, code) });
+  return { email };
+}
+
+/** Checks the code and signs the applicant in for 7 days. Wrong guesses are counted on the server, per email. */
+export async function verifyApplicantCode(rawCode: string) {
+  const code = String(rawCode ?? "").replace(/\D/g, "");
+  const p = await readPendingCode();
+  if (!p) throw new UserError("That code has expired. Ask for a new one.");
+  const tries = await hit({ name: "careersCodeTry", limit: 6, windowSec: 900, what: "code attempts" }, p.email);
+  if (!tries.ok) { await clearPendingCode(); throw new UserError("Too many wrong codes. Ask for a new code in a few minutes."); }
+  if (code.length !== 6 || !sameHash(hashCode(CODE_SCOPE + ":" + p.email, code), p.hash)) throw new UserError("That code isn’t right. Check the email and try again.");
+  await clearPendingCode();
+  await setApplicant({ email: p.email, name: "", via: "email" });
+  return { email: p.email };
 }

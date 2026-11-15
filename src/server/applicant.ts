@@ -7,10 +7,10 @@ import { safeEqual } from "./google-oidc";
 // A job seeker on the public careers page who signed in with LinkedIn or Google. Nothing is stored in the
 // database for them until they apply: their verified name and email live in a sealed httpOnly cookie for 7 days.
 type Env = Record<string, string | undefined>;
-export type ApplicantVia = "linkedin" | "google";
+export type ApplicantVia = "linkedin" | "google" | "email";
 export type Applicant = { email: string; name: string; via: ApplicantVia; exp: number };
 
-const APPLICANT_COOKIE = "medoro_applicant", LI_FLOW_COOKIE = "medoro_liflow";
+const APPLICANT_COOKIE = "medoro_applicant", LI_FLOW_COOKIE = "medoro_liflow", CODE_COOKIE = "medoro_acode";
 const LI_FLOW_PATH = "/api/careers/linkedin";
 const WEEK = 7 * 86400;
 const cookieOpts = (path: string, maxAge: number) => ({ httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path, maxAge });
@@ -84,3 +84,15 @@ export async function finishLinkedin(url: URL): Promise<{ ok: true; next: string
     return { ok: false, next, why: "error" };
   }
 }
+
+// ── Sign in with an email code: for applicants without LinkedIn or Google (Naukri users and everyone else).
+// The code's hash waits in a sealed cookie for 10 minutes; wrong guesses are counted on the server per email.
+type PendingCode = { email: string; hash: string; exp: number };
+export async function setPendingCode(v: Omit<PendingCode, "exp">) {
+  (await cookies()).set(CODE_COOKIE, sealJson({ ...v, exp: Date.now() + 600_000 }), cookieOpts("/", 600));
+}
+export async function readPendingCode(): Promise<PendingCode | null> {
+  const v = openJson<PendingCode>((await cookies()).get(CODE_COOKIE)?.value);
+  return v && v.exp > Date.now() ? v : null;
+}
+export async function clearPendingCode() { (await cookies()).set(CODE_COOKIE, "", cookieOpts("/", 0)); }

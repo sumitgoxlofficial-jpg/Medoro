@@ -6,6 +6,7 @@ import { SiteFooter, SiteHeader } from "@/components/site/chrome";
 import { ApplicantBar, JobDetail } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
 import { publicJob, publicJobs, lastApplication } from "@/staff/hrms/careers";
 import { jobPostingLd } from "../seo";
 
@@ -30,7 +31,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   if (!job) notFound();
   const more = job.open ? (await publicJobs().catch(() => [])).filter((j) => j.slug !== job.slug).slice(0, 4) : (await publicJobs().catch(() => [])).slice(0, 4);
   const applicant = who ? { name: who.name, email: who.email, via: who.via, prefill: await lastApplication(who.email) } : null;
-  const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured() };
+  const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured(), email: mailEnabled() };
   const src = (q.src ?? q.utm_source ?? "").slice(0, 40);
   const here = `/careers/${job.slug}${src ? `?src=${encodeURIComponent(src)}` : ""}`;
   return (
@@ -47,7 +48,7 @@ export default async function JobPage({ params, searchParams }: { params: Promis
             </div>
           </div>
           <aside className="flex flex-col gap-4 min-[1000px]:sticky min-[1000px]:top-24">
-            <div className="rounded-2xl bg-white border border-[var(--s-line)] p-5"><ApplicantBar applicant={applicant} signins={signins} next={here} />{!applicant && !signins.linkedin && !signins.google ? <span className="text-[14px] text-[var(--s-ink-2)]">Apply with your email: no account needed.</span> : null}</div>
+            <div className="rounded-2xl bg-white border border-[var(--s-line)] p-5"><ApplicantBar applicant={applicant} signins={signins} next={here} />{!applicant && !signins.linkedin && !signins.google && !signins.email ? <span className="text-[14px] text-[var(--s-ink-2)]">Apply with your email: no account needed.</span> : null}</div>
             {more.length ? (
               <div className="rounded-2xl bg-white border border-[var(--s-line)] p-5 flex flex-col gap-3">
                 <strong className="text-[16px]">More jobs at Medoro</strong>

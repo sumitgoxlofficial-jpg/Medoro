@@ -5,6 +5,7 @@ import { SiteFooter, SiteHeader } from "@/components/site/chrome";
 import { ApplicantBar } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
+import { mailEnabled } from "@/server/mail";
 import { myApplications } from "@/staff/hrms/careers";
 
 export const metadata: Metadata = { title: "My applications · Careers at Medoro", robots: { index: false } };
@@ -14,7 +15,7 @@ const TONE: Record<string, string> = { applied: "bg-[var(--s-brand-tint)] text-[
 
 export default async function MyApplications() {
   const who = await readApplicant();
-  const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured() };
+  const signins = { linkedin: !!linkedinLogin(), google: googleLoginConfigured(), email: mailEnabled() };
   const rows = who ? await myApplications(who.email) : [];
   return (
     <div className="site-root bg-white min-h-dvh">
@@ -25,9 +26,9 @@ export default async function MyApplications() {
           <h1 className="site-display m-0 text-[clamp(28px,3.4vw,40px)]">My applications</h1>
           {!who ? (
             <div className="rounded-2xl bg-white border border-[var(--s-line)] p-6 flex flex-col gap-4">
-              <p className="m-0 text-[15px] text-[var(--s-ink-2)]">Sign in with the LinkedIn or Google account you applied with to see where your applications stand.</p>
+              <p className="m-0 text-[15px] text-[var(--s-ink-2)]">Sign in with the email you applied with (LinkedIn, Google or an email code) to see where your applications stand.</p>
               <ApplicantBar applicant={null} signins={signins} next="/careers/applications" />
-              {!signins.linkedin && !signins.google ? <p className="m-0 text-[14px] text-[var(--s-muted)]">Online tracking isn’t switched on yet. Your confirmation email has your application reference: reply to it with any question.</p> : null}
+              {!signins.linkedin && !signins.google && !signins.email ? <p className="m-0 text-[14px] text-[var(--s-muted)]">Online tracking isn’t switched on yet. Your confirmation email has your application reference: reply to it with any question.</p> : null}
             </div>
           ) : (
             <>

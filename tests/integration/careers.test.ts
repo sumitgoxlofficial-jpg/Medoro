@@ -1,9 +1,11 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, set: () => {} }), headers: async () => new Headers() }));
+const jar = new Map<string, string>();
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: (k: string) => (jar.has(k) ? { value: jar.get(k) } : undefined), set: (k: string, v: string) => (v ? jar.set(k, v) : jar.delete(k)) }), headers: async () => new Headers() }));
 
 import { db } from "@/server/db";
-import { apply, lastApplication, myApplications } from "@/staff/hrms/careers";
+import { apply, lastApplication, myApplications, sendApplicantCode, verifyApplicantCode } from "@/staff/hrms/careers";
+import { readApplicant } from "@/server/applicant";
 import { resetDb } from "./helpers";
 
 const pdf = (name: string) => new File([Buffer.from("%PDF-1.4 cv")], name, { type: "application/pdf" });
@@ -43,5 +45,31 @@ describe("careers applications", () => {
 
   it("refuses a second application for the same role", async () => {
     await expect(apply(form({ ...base, jobId: jobA, resume: pdf("again.pdf") }), null, "10.0.0.3")).rejects.toThrow("already applied");
+  });
+});
+
+describe("email code sign-in", () => {
+  const sentCode = async (email: string) => {
+    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
+    try { await sendApplicantCode(email, "10.0.0.9"); return /\b(\d{6})\b/.exec(String(spy.mock.calls.at(-1)?.[0]))![1]; } finally { spy.mockRestore(); }
+  };
+
+  it("signs in with the emailed code and refuses a wrong one", async () => {
+    process.env.MAIL_PROVIDER = "console";
+    jar.clear();
+    const code = await sentCode("Naukri.User@Example.com");
+    const wrong = code === "000000" ? "111111" : "000000";
+    await expect(verifyApplicantCode(wrong)).rejects.toThrow("isn’t right");
+    expect(await readApplicant()).toBeNull();
+    await expect(verifyApplicantCode(code)).resolves.toEqual({ email: "naukri.user@example.com" });
+    expect(await readApplicant()).toMatchObject({ email: "naukri.user@example.com", via: "email" });
+    await expect(verifyApplicantCode(code)).rejects.toThrow("expired"); // single use
+  });
+
+  it("stops guessing after a few wrong codes", async () => {
+    jar.clear();
+    await sentCode("guess@example.com");
+    for (let i = 0; i < 6; i++) await expect(verifyApplicantCode("99999" + i)).rejects.toThrow();
+    await expect(verifyApplicantCode("123456")).rejects.toThrow("Too many wrong codes");
   });
 });
