@@ -15,8 +15,8 @@ import { Aurora, FloatingShapes, SavingsArt } from "@/components/site/decor";
 import { MotivationArt } from "@/components/site/motivation-art";
 
 const SITE = process.env.APP_URL ?? "https://medoro.in";
-const TITLE = "Medoro · Pharmacy billing, batch stock and GST for Indian medical stores";
-const DESC = "Billing with FEFO batches, expiry control, purchases, GST and accounts, WhatsApp invoices and offline billing for Indian medical stores and small chains. Runs on infrastructure you control. 7-day free trial.";
+const TITLE = "Pharmacy Billing & Accounting Software for Medical Stores | Medoro";
+const DESC = "Pharmacy billing and accounting software for Indian medical stores: FEFO batch billing, expiry alerts, purchases, GST returns, Tally export, WhatsApp invoices and offline billing. 7-day free trial.";
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLang();
@@ -125,7 +125,7 @@ const jsonLd = {
   "@type": "SoftwareApplication",
   name: "Medoro",
   applicationCategory: "BusinessApplication",
-  applicationSubCategory: "Pharmacy management software",
+  applicationSubCategory: "Pharmacy billing, inventory and accounting software",
   operatingSystem: "Windows, macOS, Linux, Web browser",
   description: DESC,
   url: SITE,
@@ -136,6 +136,13 @@ const jsonLd = {
     highPrice: Math.max(...PRODUCTS.filter((p) => ["starter", "pro", "multi"].includes(p.id)).map((p) => p.m)),
   },
   publisher: { "@type": "Organization", name: "Medoro", url: SITE, email: "hello@medoro.in", areaServed: "IN" },
+};
+
+// The FAQ below, for Google's question-and-answer results.
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.flatMap((g) => g.items).map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
 };
 
 // The four figures under the product tabs: [number, prefix, suffix, line].
@@ -156,6 +163,7 @@ export default async function Home() {
       <div aria-hidden className="site-progress" />
       {carryOver ? <SiteLangCarryOver /> : null}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd).replace(/</g, "\\u003c") }} />
 
       <main id="main">
         <Hero />

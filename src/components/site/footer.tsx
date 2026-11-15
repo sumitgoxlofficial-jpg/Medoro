@@ -1,13 +1,15 @@
 "use client";
 import Link from "next/link";
-import { Boxes, Building2, ChevronRight, Heart, LogIn, Mail, MessageCircle, Scale, type LucideIcon } from "lucide-react";
+import { Boxes, Building2, Store, ChevronRight, Heart, LogIn, Mail, MessageCircle, Scale, type LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n-client";
 import { UDYAM } from "@/lib/udyam";
 import { WA_DEMO, Wordmark } from "./brand";
+import { LANDING_LINKS } from "./landing-links";
 import { Aurora } from "./decor";
 
 const FOOT: { t: string; icon: LucideIcon; links: [string, string][] }[] = [
   { t: "Product", icon: Boxes, links: [["Billing & POS", "/#product"], ["Inventory & expiry", "/#product"], ["GST & accounts", "/#product"], ["WhatsApp & refills", "/#product"], ["Offline & branches", "/#product"], ["Pricing", "/#pricing"]] },
+  { t: "Solutions", icon: Store, links: LANDING_LINKS },
   { t: "Company", icon: Building2, links: [["About Medoro", "/legal#about"], ["Become a reference partner", "/partners"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
   { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/employee"], ["Start 7-day free trial", "/trial"]] },
   { t: "Legal", icon: Scale, links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
@@ -24,8 +26,8 @@ export function SiteFooter() {
       </svg>
       <Aurora />
       <div className="relative max-w-[1200px] mx-auto px-6 pt-16 pb-8 flex flex-col gap-12 max-[640px]:px-4 max-[640px]:pb-24">
-        <div className="grid gap-x-8 gap-y-10 grid-cols-2 min-[720px]:grid-cols-4 min-[1040px]:grid-cols-12">
-          <div className="flex flex-col gap-4 col-span-full min-[1040px]:col-span-4">
+        <div className="grid gap-x-8 gap-y-10 grid-cols-2 min-[720px]:grid-cols-3 min-[1040px]:grid-cols-5">
+          <div className="flex flex-col gap-4 col-span-full">
             <Link href="/" aria-label={t("Medoro home")} className="site-logo self-start"><Wordmark size={20} /></Link>
             <p className="m-0 text-[15px] text-[var(--s-muted)] max-w-[320px]">{t("Billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.")}</p>
             <div className="flex flex-col gap-1.5 text-[15px]">
@@ -39,7 +41,7 @@ export function SiteFooter() {
             </div>
           </div>
           {FOOT.map((c) => (
-            <nav key={c.t} aria-label={t(c.t)} className="flex flex-col gap-2.5 min-[1040px]:col-span-2">
+            <nav key={c.t} aria-label={t(c.t)} className="flex flex-col gap-2.5">
               <span className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-muted)] mb-1">
                 <span className="size-7 rounded-lg bg-white border border-[var(--s-line)] flex items-center justify-center"><c.icon size={15} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: FOOT.indexOf(c) }} /></span>{t(c.t)}
               </span>
