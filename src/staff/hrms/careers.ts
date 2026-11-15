@@ -132,19 +132,28 @@ export async function apply(form: FormData, who: Applicant | null, ip: string | 
   if (await db.hrCandidate.findFirst({ where: { jobId: job.id, email: i.email }, select: { id: true } })) throw new UserError("You have already applied for this role with this email. We will be in touch.");
 
   const file = form.get("resume");
-  if (!(file instanceof File) || !file.size) throw new UserError("Attach your résumé (PDF).");
-  if (file.size > MAX_BYTES) throw new UserError(`Your résumé is too large (limit ${MAX_LABEL}).`);
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const type = sniff(bytes);
-  if (type !== "application/pdf") throw new UserError("Upload your résumé as a PDF file.");
-  const resumeKey = `_hrms/careers/${randomUUID()}.pdf`;
-  await putObject(resumeKey, bytes, type);
+  let resumeKey: string, resumeName: string;
+  const type = "application/pdf" as const;
+  if (file instanceof File && file.size) {
+    if (file.size > MAX_BYTES) throw new UserError(`Your résumé is too large (limit ${MAX_LABEL}).`);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (sniff(bytes) !== type) throw new UserError("Upload your résumé as a PDF file.");
+    resumeKey = `_hrms/careers/${randomUUID()}.pdf`;
+    resumeName = file.name.replace(/[^\w.\- ]/g, "").slice(0, 80) || "resume.pdf";
+    await putObject(resumeKey, bytes, type);
+  } else {
+    // A signed-in applicant can reuse the résumé from their last application (only their own: matched by verified email).
+    const prev = who && form.get("reuseResume") === "1" ? await lastApplicationRow(who.email) : null;
+    if (!prev?.resumeKey) throw new UserError("Attach your résumé (PDF).");
+    resumeKey = prev.resumeKey;
+    resumeName = prev.resumeName ?? "resume.pdf";
+  }
 
   const source = sourceOf(i.src, who?.via);
   const c = await db.hrCandidate.create({
     data: {
       jobId: job.id, name: i.name, email: i.email, phone: i.phone, role: job.title, location: i.location, experience: i.experience, linkedin: i.linkedin, cover: i.cover,
-      source, verifiedBy: who?.via ?? null, resumeKey, resumeName: (file.name.replace(/[^\w.\- ]/g, "").slice(0, 80) || "resume.pdf"), resumeType: type,
+      source, verifiedBy: who?.via ?? null, resumeKey, resumeName, resumeType: type,
     },
   });
   const ref = applicationRef(c.id);
@@ -159,6 +168,16 @@ export async function apply(form: FormData, who: Applicant | null, ip: string | 
   }
   return { ref, emailed };
 }
+
+const lastApplicationRow = (email: string) =>
+  db.hrCandidate.findFirst({ where: { email: email.toLowerCase(), source: { notIn: ["hr", "referral"] } }, orderBy: { createdAt: "desc" }, select: { phone: true, location: true, experience: true, linkedin: true, resumeKey: true, resumeName: true } });
+
+/** Details from a signed-in applicant's last application, to fill the next form for them. */
+export async function lastApplication(email: string) {
+  const r = await lastApplicationRow(email).catch(() => null);
+  return r ? { phone: r.phone, location: r.location, experience: r.experience, linkedin: r.linkedin, resumeName: r.resumeKey ? r.resumeName ?? "resume.pdf" : null } : null;
+}
+export type Prefill = NonNullable<Awaited<ReturnType<typeof lastApplication>>>;
 
 /** What an applicant sees under "My applications": their own rows only, by verified email. */
 const STAGE_PUBLIC: Record<string, string> = { applied: "Application received", interview: "Interviewing", offer: "Offer stage", hired: "Hired", rejected: "Not moving forward" };

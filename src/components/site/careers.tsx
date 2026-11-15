@@ -1,12 +1,13 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Banknote, BriefcaseBusiness, Building2, Check, CheckCircle2, Clock, Copy, FileText, LogOut, MapPin, Search, Send, Share2, Sparkles, Users, X } from "lucide-react";
-import type { PublicJob } from "@/staff/hrms/careers";
+import type { Prefill, PublicJob } from "@/staff/hrms/careers";
 import { applyForJob, signOutApplicant } from "@/app/careers/actions";
 
-export type ApplicantView = { name: string; email: string; via: "linkedin" | "google" } | null;
+export type ApplicantView = { name: string; email: string; via: "linkedin" | "google"; prefill?: Prefill | null } | null;
 type Props = { applicant: ApplicantView; src: string; signins: { linkedin: boolean; google: boolean } };
 
 const LI_BLUE = "#0A66C2";
@@ -15,8 +16,6 @@ const daysAgo = (iso: string) => {
   return d <= 0 ? "Today" : d === 1 ? "1 day ago" : d < 30 ? `${d} days ago` : d < 60 ? "1 month ago" : `${Math.floor(d / 30)} months ago`;
 };
 const initials = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
-const TILE = ["#0B5E5B", "#7C3AED", "#C2410C", "#0369A1", "#15803D", "#B91C1C", "#A16207"];
-const tileOf = (s: string) => TILE[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % TILE.length];
 
 /** Plain text from HR: blank lines split paragraphs, lines starting with - or • become bullets. */
 export function Rich({ text }: { text: string }) {
@@ -28,8 +27,8 @@ export function Rich({ text }: { text: string }) {
   })}</>;
 }
 
-function CompanyTile({ title, size = 48 }: { title: string; size?: number }) {
-  return <span aria-hidden className="flex-none grid place-items-center rounded-lg text-white font-bold" style={{ width: size, height: size, background: tileOf(title), fontSize: size * 0.36 }}>{initials(title)}</span>;
+function CompanyTile({ size = 48 }: { title?: string; size?: number }) {
+  return <span aria-hidden className="flex-none grid place-items-center rounded-lg bg-white border border-[var(--s-line)] shadow-[0_1px_2px_rgba(14,22,20,.06)]" style={{ width: size, height: size, padding: size * 0.14 }}><Image src="/medoro-mark.png" alt="" width={655} height={530} className="w-full h-auto" /></span>;
 }
 
 function Chip({ children, tone = "plain" }: { children: React.ReactNode; tone?: "plain" | "brand" | "green" }) {
@@ -206,6 +205,12 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
   const [step, setStep] = useState<"choose" | "form" | "sent">(applicant || (!signins.linkedin && !signins.google) ? "form" : "choose");
   const [err, setErr] = useState(""), [pending, start] = useTransition(), [sent, setSent] = useState<{ ref: string; emailed: boolean; email: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  // Details filled in for the applicant: their last Medoro application (signed in), else what this browser remembers.
+  const [saved, setSaved] = useState<Partial<Record<"name" | "email" | "phone" | "location" | "experience" | "linkedin", string>> | null>(null);
+  useEffect(() => { try { const v = localStorage.getItem(SAVED_KEY); if (v) setSaved(JSON.parse(v)); } catch {} }, []);
+  const prev = applicant?.prefill ?? null;
+  const pre = { ...saved, ...Object.fromEntries(Object.entries(prev ?? {}).filter(([, v]) => v)) } as Partial<Record<"name" | "email" | "phone" | "location" | "experience" | "linkedin", string>>;
+  const [reuse, setReuse] = useState(!!prev?.resumeName);
   const next = `/careers/${job.slug}?apply=${job.slug}${src ? `&src=${encodeURIComponent(src)}` : ""}`;
   const box = useRef<HTMLDivElement>(null), closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -226,6 +231,7 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
     start(async () => {
       const r = await applyForJob(fd);
       if (!r.ok) { setErr(r.error); return; }
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify({ name: fd.get("name"), email: fd.get("email"), phone: fd.get("phone"), location: fd.get("location"), experience: fd.get("experience"), linkedin: fd.get("linkedin") })); } catch {}
       setSent({ ...r.data, email: String(fd.get("email")) });
       setStep("sent");
       onDone(r.data);
@@ -265,20 +271,31 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
             <input type="hidden" name="jobId" value={job.id} />
             <input type="hidden" name="src" value={src} />
             <div aria-hidden className="absolute -left-[9999px] w-px h-px overflow-hidden"><label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
-            <div className="grid grid-cols-1 min-[560px]:grid-cols-2 gap-4">
-              <label className={lbl}>Full name *<input name="name" required minLength={3} maxLength={80} autoComplete="name" defaultValue={applicant?.name ?? ""} className={inp} /></label>
-              <label className={lbl}>Email *<input name="email" type="email" required autoComplete="email" defaultValue={applicant?.email ?? ""} disabled={!!applicant} className={inp} /></label>
-              <label className={lbl}>Mobile number *<input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="+91 98xxxxxxxx" pattern="\+?[\d\s\-]{10,16}" className={inp} /></label>
-              <label className={lbl}>Current city<input name="location" maxLength={60} autoComplete="address-level2" className={inp} /></label>
-              <label className={lbl}>Experience<select name="experience" className={inp} defaultValue=""><option value="">Choose…</option>{["Fresher", "Less than 1 year", "1–2 years", "2–4 years", "4–7 years", "7+ years"].map((x) => <option key={x}>{x}</option>)}</select></label>
-              <label className={lbl}>LinkedIn profile<input name="linkedin" type="url" placeholder="https://linkedin.com/in/you" maxLength={200} className={inp} /></label>
+            {prev || saved ? <p className="m-0 -mb-1 text-[13px] text-[var(--s-muted)] inline-flex items-center gap-1.5"><Sparkles size={14} aria-hidden className="text-[var(--s-brand)]" /> We filled in your details from {prev ? "your last application" : "this device"}. Check them before sending.</p> : null}
+            <div key={saved ? "saved" : "blank"} className="grid grid-cols-1 min-[560px]:grid-cols-2 gap-4">
+              <label className={lbl}>Full name *<input name="name" required minLength={3} maxLength={80} autoComplete="name" defaultValue={applicant?.name || pre.name || ""} className={inp} /></label>
+              <label className={lbl}>Email *<input name="email" type="email" required autoComplete="email" defaultValue={applicant?.email ?? pre.email ?? ""} disabled={!!applicant} className={inp} /></label>
+              <label className={lbl}>Mobile number *<input name="phone" type="tel" required inputMode="tel" autoComplete="tel" placeholder="+91 98xxxxxxxx" pattern="\+?[\d\s\-]{10,16}" defaultValue={pre.phone ?? ""} className={inp} /></label>
+              <label className={lbl}>Current city<input name="location" maxLength={60} autoComplete="address-level2" defaultValue={pre.location ?? ""} className={inp} /></label>
+              <label className={lbl}>Experience<select name="experience" className={inp} defaultValue={pre.experience ?? ""}><option value="">Choose…</option>{["Fresher", "Less than 1 year", "1–2 years", "2–4 years", "4–7 years", "7+ years"].map((x) => <option key={x}>{x}</option>)}</select></label>
+              <label className={lbl}>LinkedIn profile<input name="linkedin" type="url" placeholder="https://linkedin.com/in/you" maxLength={200} defaultValue={pre.linkedin ?? ""} className={inp} /></label>
             </div>
             <div className={lbl}>Résumé (PDF) *
-              <label className={`flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-4 cursor-pointer font-normal ${file ? "border-[var(--s-brand)] bg-[var(--s-brand-tint)]" : "border-[#C9D1CF] hover:border-[var(--s-brand)]"}`}>
-                <FileText size={24} aria-hidden className="text-[var(--s-brand)] flex-none" />
-                <span className="flex-1 min-w-0 text-[14px]">{file ? <><strong className="block truncate">{file.name}</strong><span className="text-[var(--s-muted)]">{(file.size / 1024 / 1024).toFixed(1)} MB · tap to change</span></> : <><strong>Upload your résumé</strong><span className="block text-[var(--s-muted)]">PDF, up to 4 MB</span></>}</span>
-                <input name="resume" type="file" accept="application/pdf,.pdf" required className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              </label>
+              {prev?.resumeName && reuse && !file ? (
+                <div className="flex items-center gap-3 rounded-xl border-2 border-[var(--s-brand)] bg-[var(--s-brand-tint)] px-4 py-4 font-normal">
+                  <input type="hidden" name="reuseResume" value="1" />
+                  <FileText size={24} aria-hidden className="text-[var(--s-brand)] flex-none" />
+                  <span className="flex-1 min-w-0 text-[14px]"><strong className="block truncate">{prev.resumeName}</strong><span className="text-[var(--s-muted)]">From your last application</span></span>
+                  <button type="button" onClick={() => setReuse(false)} className="h-9 px-3 rounded-full border border-[var(--s-brand)] bg-white text-[var(--s-brand)] text-[13.5px] font-semibold cursor-pointer">Upload new</button>
+                </div>
+              ) : (
+                <label className={`flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-4 cursor-pointer font-normal ${file ? "border-[var(--s-brand)] bg-[var(--s-brand-tint)]" : "border-[#C9D1CF] hover:border-[var(--s-brand)]"}`}>
+                  <FileText size={24} aria-hidden className="text-[var(--s-brand)] flex-none" />
+                  <span className="flex-1 min-w-0 text-[14px]">{file ? <><strong className="block truncate">{file.name}</strong><span className="text-[var(--s-muted)]">{(file.size / 1024 / 1024).toFixed(1)} MB · tap to change</span></> : <><strong>Upload your résumé</strong><span className="block text-[var(--s-muted)]">PDF, up to 4 MB</span></>}</span>
+                  <input name="resume" type="file" accept="application/pdf,.pdf" required className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                </label>
+              )}
+              {!prev?.resumeName && applicant?.via === "linkedin" && !file ? <span className="font-normal text-[13px] text-[var(--s-muted)] leading-snug">No résumé handy? Use your LinkedIn profile: open <a href="https://www.linkedin.com/in/me/" target="_blank" rel="noopener noreferrer">your profile</a> → <strong>Resources</strong> (or <strong>More</strong>) → <strong>Save to PDF</strong>, then upload that file here.</span> : null}
             </div>
             <label className={lbl}>Why this role? <span className="font-normal text-[var(--s-muted)] text-[13px] -mt-1">Optional. A few lines about you and what you’d like to work on.</span><textarea name="cover" rows={4} maxLength={3000} className={`${inp} h-auto py-2 resize-y`} /></label>
             <label className="flex items-start gap-2.5 text-[13.5px] text-[var(--s-ink-2)]"><input type="checkbox" name="consent" required className="mt-1 size-4 accent-[var(--s-brand)]" /><span>I agree that Medoro may store and use these details to assess my application and contact me about it, as described in the <a href="/legal#privacy" target="_blank">privacy policy</a>.</span></label>
@@ -293,6 +310,8 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
     </div>
   );
 }
+
+const SAVED_KEY = "medoro-careers-details";
 
 export function LinkedInMark({ color = "#fff" }: { color?: string }) {
   return <svg aria-hidden viewBox="0 0 24 24" width="18" height="18" fill={color}><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" /></svg>;
