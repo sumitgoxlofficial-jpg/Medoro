@@ -7,6 +7,7 @@ import type { Shell } from "@/staff/hrms/screens";
 import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
 import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
+import { PhotoEditor } from "./photo-editor";
 import { BriefcaseBusiness, CalendarDays, Camera, FileCheck2, IdCard, Mail, MapPin, ShieldCheck, UserCheck } from "lucide-react";
 import { IdBadge } from "../../employee/art";
 import { Selfie, SelfieModal } from "./monitor";
@@ -68,18 +69,12 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
   const [card, setCard] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   const p = d.p;
+  const [editing, setEditing] = useState<File | null>(null);
   const pick = (f: File | undefined) => {
+    if (file.current) file.current.value = ""; // so picking the same file again still opens the editor
     if (!f) return;
-    const img = new Image(), url = URL.createObjectURL(f);
-    img.onload = () => {
-      const c = document.createElement("canvas"); c.width = c.height = 160;
-      const s = Math.min(img.width, img.height), ctx = c.getContext("2d")!;
-      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 160, 160);
-      URL.revokeObjectURL(url);
-      run(() => savePhoto(c.toDataURL("image/jpeg", 0.8)));
-    };
-    img.onerror = () => toast("That file isn’t an image.", "red");
-    img.src = url;
+    if (!f.type.startsWith("image/")) { toast("That file isn’t an image.", "red"); return; }
+    setEditing(f);
   };
   return (
     <>
@@ -109,6 +104,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
             <p className="text-[12.5px] text-[#64748B] mt-1 flex items-center gap-1.5"><Mail size={13} aria-hidden />{p.email}</p>
           </div>
           <input ref={file} type="file" accept="image/*" hidden onChange={(e) => pick(e.target.files?.[0])} />
+          {editing ? <PhotoEditor file={editing} busy={busy} onCancel={() => setEditing(null)} onSave={(url) => run(() => savePhoto(url), () => setEditing(null))} /> : null}
           <div className="flex gap-2 flex-wrap pb-1">
             <button className={btnCls} onClick={() => setCard(true)}><IdCard size={14} aria-hidden />ID card</button><button className={btnCls} onClick={() => file.current?.click()}><Camera size={14} aria-hidden />Change photo</button>{p.photo ? <button className={btnCls} onClick={() => run(() => savePhoto(null))}>Remove</button> : null}
           </div>
