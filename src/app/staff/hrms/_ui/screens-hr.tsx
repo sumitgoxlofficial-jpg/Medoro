@@ -411,7 +411,7 @@ export function AssignTasksScreen({ d }: { d: Data<"assigntasks"> }) {
 }
 // ── Recruitment
 type JobRow = Data<"recruit">["jobs"][number];
-const blankJob = (dept: string) => ({ title: "", dept, location: "Bokaro", type: "Full-time", mode: "On-site", experience: "", salary: "", openings: "1", skills: "", description: "", requirements: "", benefits: "" });
+const blankJob = (dept: string) => ({ title: "", dept, location: "", type: "Full-time", mode: "On-site", experience: "", salary: "", openings: "1", skills: "", description: "", requirements: "", benefits: "" });
 type JobForm = ReturnType<typeof blankJob>;
 const srcLabel = (id: string) => JOB_SOURCES.find((x) => x.id === id)?.label ?? id;
 

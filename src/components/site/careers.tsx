@@ -179,7 +179,7 @@ export function JobDetail({ job, applicant, src, signins, autoApply = false, ful
         {job.skills.length ? <section><h3 className="m-0 mb-2 text-[19px] text-[var(--s-ink)]">Skills</h3><div className="flex flex-wrap gap-2">{job.skills.map((s) => <Chip key={s}><Check size={13} aria-hidden /> {s}</Chip>)}</div></section> : null}
         {job.benefits ? <section><h3 className="m-0 mb-2 text-[19px] text-[var(--s-ink)]">What you get</h3><Rich text={job.benefits} /></section> : null}
         <section className="rounded-xl bg-[var(--s-soft)] border border-[var(--s-line)] p-4 text-[14px]">
-          <strong className="text-[var(--s-ink)]">About Medoro.</strong> Medoro builds billing, stock, GST and accounting software for Indian pharmacies, made in Bokaro. We are a small team that ships every week and listens to pharmacists. Medoro never asks for money at any stage of hiring.
+          <strong className="text-[var(--s-ink)]">About Medoro.</strong> Medoro builds billing, stock, GST and accounting software for Indian pharmacies. We are a small team that ships every week and listens to pharmacists. Medoro never asks for money at any stage of hiring.
         </section>
       </div>
       {applying && open ? <ApplyModal job={job} applicant={applicant} src={src} signins={signins} onClose={() => setApplying(false)} onDone={(r) => { setDone(r); }} /> : null}
