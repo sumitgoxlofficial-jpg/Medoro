@@ -34,6 +34,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page(HUBS.blog, 0.7, "weekly"),
     ...POSTS.map((p) => ({ ...page(`/blog/${p.slug}`, 0.7, "monthly"), lastModified: p.updated ?? p.published })),
     page("/partners", 0.6, "monthly"),
+    page("/careers", 0.6, "weekly"),
     page("/legal", 0.3, "yearly"),
   ];
 }

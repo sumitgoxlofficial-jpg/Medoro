@@ -31,7 +31,7 @@ test("counter imports a plain stock list from another billing program", async ({
   await page.getByRole("button", { name: "Import", exact: true }).click();
   const csv = `Item Name,Batch,Expiry,Qty,MRP,Rate\n${name},X1,${monthsAhead(18).slash},12,50,30\n`;
   const dlg = await chooseImportFile(page, { name: "stock.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
-  await expect(dlg.getByText(/assumed form Tablet, manufacturer not given, GST 12%/)).toBeVisible();
+  await expect(dlg.getByText(/assumed form Tablet, manufacturer not given, GST 5%/)).toBeVisible();
   await dlg.getByRole("button", { name: /^Import 1 row$/ }).click();
   await expect(dlg.getByText("Import finished")).toBeVisible();
   await dlg.getByRole("button", { name: "Done" }).click();

@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
-import { AVATARS, REACTIONS, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
+import { AVATARS, REACTIONS, deleteGroup, removeFromGroup, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
 import { resetDb } from "./helpers";
 
 let admin: Me, hr: Me, ann: Me, bob: Me, cat: Me;
@@ -198,6 +198,33 @@ describe("team chat", () => {
     expect((await updateGroup(ann, chatId, { photo: null })).photo).toBeNull();
     expect((await chatList(bob)).find((c) => c.id === chatId)).toMatchObject({ about: "All things design", kind: "group" });
     expect(g.members.find((m) => m.id === bob.id)).toMatchObject({ name: "Bob Employee", you: false });
+  });
+
+  it("lets the super admin run any group they are in, like a WhatsApp admin, and logs it", async () => {
+    const { chatId } = await createGroup(ann, "Lunch plans", [bob.id, cat.id, admin.id]);
+    const g = await groupInfo(admin, chatId);
+    expect(g).toMatchObject({ canEdit: true, canAdd: true, canRename: true, canRemove: true, canDelete: true, superAdmin: true });
+    expect(await groupInfo(bob, chatId)).toMatchObject({ canRename: false, canRemove: false, canDelete: false });
+    // Rename, describe, add and remove.
+    expect((await updateGroup(admin, chatId, { name: "  Friday lunch  ", about: "Where we eat" })).name).toBe("Friday lunch");
+    await expect(updateGroup(admin, chatId, { name: "  " })).rejects.toThrow("name");
+    await expect(updateGroup(bob, chatId, { name: "Bob’s group" })).rejects.toThrow("made the group");
+    await addToGroup(admin, chatId, [hr.id]);
+    expect((await removeFromGroup(admin, chatId, bob.id)).members.map((m) => m.id)).not.toContain(bob.id);
+    await expect(chatMessages(bob, chatId, null, false)).rejects.toThrow("isn’t available");
+    // The owner can remove people too, but not the person who made it unless they are the super admin.
+    await expect(removeFromGroup(cat, chatId, hr.id)).rejects.toThrow("made the group");
+    await expect(removeFromGroup(admin, chatId, admin.id)).rejects.toThrow("Leave group");
+    await removeFromGroup(ann, chatId, hr.id);
+    expect((await removeFromGroup(admin, chatId, ann.id)).members.map((m) => m.id).sort()).toEqual([admin.id, cat.id].sort());
+    const log = await db.staffAudit.findMany({ where: { staffId: admin.id, action: "HRMS · Chat group managed" }, orderBy: { at: "asc" } });
+    expect(log.map((l) => l.detail).join(" | ")).toMatch(/renamed to “Friday lunch”.*added Hari Hr.*removed Bob Employee.*removed Ann Employee/);
+    // Deleting takes the messages with it, for everyone.
+    await sendText(cat, chatId, "see you at 1");
+    await expect(deleteGroup(cat, chatId)).rejects.toThrow("made the group");
+    expect(await deleteGroup(admin, chatId)).toEqual({ deleted: true });
+    expect(await db.hrChatMessage.count({ where: { chatId } })).toBe(0);
+    expect((await chatList(cat)).find((c) => c.id === chatId)).toBeUndefined();
   });
 
   it("builds company channels from departments and projects, and keeps them in step", async () => {

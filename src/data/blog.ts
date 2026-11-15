@@ -32,12 +32,498 @@ export type Post = {
   /** Opening paragraph, shown under the title and on the blog index. */
   lede: string;
   body: Block[];
-  faq: [q: string, a: string][];
+  /** Optional FAQ, shown on the page and marked up as FAQPage. */
+  faq?: [q: string, a: string][];
   tools: ToolSlug[];
   features: string[];
 };
 
 export const POSTS: Post[] = [
+  // Published on medoro.in first (keep these slugs: they may already be indexed).
+  {
+    "slug": "reduce-expiry-loss-medical-store",
+    "title": "How to Reduce Expiry Loss in a Medical Store: 8 Practical Steps",
+    "description": "Expired medicines quietly eat a pharmacy’s margin. Eight practical steps to cut expiry loss: FEFO, 90-day reviews, distributor returns, smarter ordering and more.",
+    "keywords": [
+      "reduce expiry loss medical store",
+      "near expiry medicines",
+      "expiry management pharmacy",
+      "expired medicine return to distributor"
+    ],
+    "category": "Stock & expiry",
+    "published": "2026-11-15",
+    "h1": "How to Reduce Expiry Loss in a Medical Store: 8 Practical Steps",
+    "lede": "Ask any medical store owner where money disappears and expired stock is near the top of the list. A strip that expires on the shelf is a full loss at cost, and in a busy store those strips add up to thousands of rupees every month. The good news is that most expiry loss is preventable. It comes from a few habits that are easy to fix.",
+    "body": [
+      {
+        "h2": "1. Sell the earliest expiry first (FEFO)"
+      },
+      {
+        "p": "FEFO means First Expiry, First Out: whenever you sell a medicine, the batch that expires soonest goes first. It sounds obvious, but at a busy counter the staff pick whatever strip is at the front of the rack. If a newer batch was stacked in front of an older one, the older one sits until it expires. Read more in our guide to [FEFO vs FIFO](/blog/fefo-vs-fifo-pharmacy)."
+      },
+      {
+        "ul": [
+          "Arrange racks so older batches are in front",
+          "Pick the batch on the bill, not by hand, so the system chooses the earliest expiry",
+          "Block expired batches from being billed at all"
+        ]
+      },
+      {
+        "h2": "2. Review a 90-day expiry list every week"
+      },
+      {
+        "p": "Most distributors accept near-expiry returns only within a window, often a few months before expiry. If you find out about a batch in the month it expires, it is already too late. Keep a list of every batch expiring in the next 90 days and look at it once a week. For each batch, decide: will it sell in time, or does it need action?"
+      },
+      {
+        "h2": "3. Know the loss in rupees, not just the quantity"
+      },
+      {
+        "p": "Ten strips of a cheap antacid and ten strips of an expensive biologic are not the same problem. Value every near-expiry batch at cost and sort by the loss. Start with the batches that would cost you the most. This turns a long, boring list into three or four decisions that matter."
+      },
+      {
+        "h2": "4. Return to the distributor while you still can"
+      },
+      {
+        "p": "Find out each distributor’s return policy for near-expiry stock: how many months before expiry they accept returns, and whether they give credit or replacement. Note it against the supplier. When a batch enters the return window and is unlikely to sell, send it back instead of waiting."
+      },
+      {
+        "h2": "5. Move stock between branches"
+      },
+      {
+        "p": "If you run more than one store, a medicine that sells slowly in one branch may sell well in another. Transfer near-expiry stock to the branch where it moves fastest, with a proper transfer record so both branches’ stock stays correct."
+      },
+      {
+        "h2": "6. Order by sales, not by habit"
+      },
+      {
+        "p": "Overstocking is the root of most expiry. Instead of reordering the same quantity every time, look at how much actually sold in the last four weeks and set a reorder level from that. Slow movers should be bought in smaller quantities, more often."
+      },
+      {
+        "ul": [
+          "Set a reorder level for each item based on recent sales",
+          "Be careful with schemes like ‘10+1 free’ on slow-moving items: the free strip is not free if it expires",
+          "Check the expiry date on the distributor’s bill before you accept the delivery"
+        ]
+      },
+      {
+        "h2": "7. Tell regular customers"
+      },
+      {
+        "p": "Patients on long-term medicines buy the same thing every month. If you have stock of their medicine that needs to move, a refill reminder brings them back before it expires, and they get their medicine on time."
+      },
+      {
+        "h2": "8. Count stock regularly"
+      },
+      {
+        "p": "Expiry lists are only as good as your stock records. If the system says you have two strips and the rack has twelve, the problem stays hidden. Do a short cycle count of a few racks each week, rather than one painful full count a year."
+      },
+      {
+        "h2": "How software helps"
+      },
+      {
+        "p": "Doing all of this on paper is possible but slow. Good [pharmacy inventory software](/pharmacy-inventory-software) picks the earliest batch on every bill, lists what expires in the next 30, 60, 90 or 180 days with the loss at cost, and suggests whether to return, transfer or push each batch. It turns expiry from a monthly surprise into a weekly ten-minute review."
+      }
+    ],
+    "tools": [
+      "pharma-margin-calculator"
+    ],
+    "features": [
+      "expiry-management",
+      "inventory-management"
+    ]
+  },
+  {
+    "slug": "gst-on-medicines-india",
+    "title": "GST on Medicines in India (2026): Rates, HSN and Billing at MRP",
+    "description": "GST rates on medicines after the September 2025 cut, how to work out GST from the MRP on a pharmacy bill, HSN codes, and common mistakes medical stores make.",
+    "keywords": [
+      "gst on medicines",
+      "gst rate on medicines 2026",
+      "medicine hsn code gst",
+      "gst on mrp calculation"
+    ],
+    "category": "GST",
+    "published": "2026-11-15",
+    "h1": "GST on Medicines in India (2026): Rates, HSN and Billing at MRP",
+    "lede": "GST rates on medicines after the September 2025 cut, how to work out GST from the MRP on a pharmacy bill, HSN codes, and common mistakes medical stores make.",
+    "body": [
+      {
+        "note": "This is a general guide for medical store owners, not tax advice. Rates can change by notification: check the current rate for each product with your CA or on the CBIC website."
+      },
+      {
+        "h2": "GST rates on medicines after September 2025"
+      },
+      {
+        "p": "On 22 September 2025, the GST rate on most medicines came down from 12% to 5% as part of the GST rate rationalisation. A list of life-saving drugs, including several cancer and rare-disease medicines, moved to nil GST. Some products sold in pharmacies that are not medicines, such as many cosmetics and personal-care items, are taxed at their own rates, often 18%."
+      },
+      {
+        "ul": [
+          "Most medicines (HSN 3003 and 3004): 5%",
+          "Notified life-saving drugs: nil",
+          "Non-medicine items in the store: as per their own HSN, check each one"
+        ]
+      },
+      {
+        "p": "Because the rate changed, your item master must carry the correct rate for each product. A store that still bills at the old 12% rate on medicines charges customers the wrong amount and reports the wrong tax."
+      },
+      {
+        "h2": "How GST is calculated when you sell at MRP"
+      },
+      {
+        "p": "Medicines are sold at MRP, and the MRP already includes GST. So the bill must work backwards from the MRP to find the taxable value and the tax. The formula is:"
+      },
+      {
+        "p": "Taxable value = Selling price ÷ (1 + GST rate). Tax = Selling price − Taxable value."
+      },
+      {
+        "p": "Example: a medicine with an MRP of ₹105 at 5% GST. Taxable value = 105 ÷ 1.05 = ₹100. Tax = ₹5. For a sale within your state, that is split into CGST ₹2.50 and SGST ₹2.50. For a sale to a business in another state, it is IGST ₹5."
+      },
+      {
+        "p": "If you give a discount, apply it to the selling price first and then work out the taxable value from the discounted price."
+      },
+      {
+        "h2": "HSN codes pharmacies use most"
+      },
+      {
+        "ul": [
+          "3004: medicaments in measured doses or packed for retail sale (most tablets, capsules, syrups, injections)",
+          "3003: medicaments not in measured doses",
+          "3005: bandages, dressings and similar",
+          "3006: certain pharmaceutical goods such as sterile sutures and first-aid kits"
+        ]
+      },
+      {
+        "p": "Your bills must show the HSN code at the level your turnover requires. Keep it in the item master so it prints on every bill automatically."
+      },
+      {
+        "h2": "Purchases and input tax credit"
+      },
+      {
+        "p": "The GST on your distributor’s bill is your input tax. You claim it as credit against the GST you collect on sales, as long as the distributor has reported the invoice in their GSTR-1. Record purchases with the correct rate and the distributor’s GSTIN, and check them against your GSTR-2B every month."
+      },
+      {
+        "h2": "Common GST mistakes in medical stores"
+      },
+      {
+        "ul": [
+          "Wrong rate in the item master after a rate change",
+          "Adding GST on top of MRP instead of working it out from MRP",
+          "Not issuing credit notes for sales returns, so tax is overpaid",
+          "Missing the buyer’s GSTIN on B2B bills to clinics and hospitals",
+          "Entering purchases late, so input credit does not match GSTR-2B"
+        ]
+      },
+      {
+        "h2": "Let the software do the maths"
+      },
+      {
+        "p": "[GST billing software for pharmacy](/gst-billing-software-for-pharmacy) works out the taxable value from MRP on every line, splits CGST and SGST or IGST, prints the HSN code and keeps output and input tax by slab, so your month-end summaries are ready without a spreadsheet. See also our [GSTR-1 and GSTR-3B checklist for pharmacies](/blog/gst-returns-for-pharmacy)."
+      }
+    ],
+    "tools": [
+      "medicine-hsn-code-finder",
+      "free-pharmacy-invoice-generator"
+    ],
+    "features": [
+      "gst-billing"
+    ]
+  },
+  {
+    "slug": "gst-returns-for-pharmacy",
+    "title": "GSTR-1 and GSTR-3B for Pharmacies: A Monthly Checklist",
+    "description": "A simple monthly GST checklist for medical stores: what goes into GSTR-1 and GSTR-3B, due dates, QRMP, input credit checks and how to avoid late fees.",
+    "keywords": [
+      "gstr-1 for pharmacy",
+      "gstr-3b pharmacy",
+      "gst return checklist medical store",
+      "hsn summary gstr-1"
+    ],
+    "category": "GST",
+    "published": "2026-11-15",
+    "h1": "GSTR-1 and GSTR-3B for Pharmacies: A Monthly Checklist",
+    "lede": "A simple monthly GST checklist for medical stores: what goes into GSTR-1 and GSTR-3B, due dates, QRMP, input credit checks and how to avoid late fees.",
+    "body": [
+      {
+        "note": "Due dates and rules can change by notification. Confirm the current dates on the GST portal or with your CA before filing."
+      },
+      {
+        "h2": "The two returns most pharmacies file"
+      },
+      {
+        "p": "A regular GST-registered medical store files two main returns. GSTR-1 reports your sales. GSTR-3B is the summary return where you pay the tax: GST collected on sales minus the input credit from purchases."
+      },
+      {
+        "h2": "Due dates"
+      },
+      {
+        "ul": [
+          "Monthly filers: GSTR-1 by the 11th and GSTR-3B by the 20th of the next month",
+          "QRMP scheme (turnover up to ₹5 crore, if you opt in): GSTR-1 and GSTR-3B quarterly, with tax paid monthly by the 25th using PMT-06",
+          "Late GSTR-3B attracts a late fee per day plus interest on unpaid tax, so file on time even if the amount is small"
+        ]
+      },
+      {
+        "h2": "Monthly checklist"
+      },
+      {
+        "ol": [
+          "Close the month’s billing: no held or draft bills left open",
+          "Enter every distributor bill received in the month, with GSTIN, invoice number, rate and tax",
+          "Issue credit notes for every sales return and debit notes for purchase returns",
+          "Check B2B bills carry the buyer’s GSTIN and correct place of supply",
+          "Download GSTR-2B and match it with your purchase register; follow up with distributors whose invoices are missing",
+          "Prepare the GSTR-1 summary: B2B invoices, B2C sales by rate, credit notes and the HSN summary",
+          "Prepare the GSTR-3B summary: output tax by rate, eligible input credit, tax payable",
+          "File GSTR-1, then pay and file GSTR-3B",
+          "Keep the exported summaries with the month’s records"
+        ]
+      },
+      {
+        "h2": "Where pharmacies usually go wrong"
+      },
+      {
+        "ul": [
+          "Purchases entered weeks late, so input credit is missed or claimed in the wrong month",
+          "Sales returns handled as cash refunds without a credit note",
+          "Rate changes not updated in the item master",
+          "Rounding differences between bills and the return because the bills were rewritten in Excel"
+        ]
+      },
+      {
+        "p": "The last point is the biggest time sink. If your billing software stores the taxable value and tax split on every bill, the return figures come straight from the bills and there is nothing to reconcile by hand."
+      },
+      {
+        "h2": "Make month-end a non-event"
+      },
+      {
+        "p": "[Pharmacy accounting software](/pharmacy-accounting-software) that posts every sale and purchase as it happens has the GSTR-1 and GSTR-3B summaries ready on the 1st, with exports your CA can use directly. To understand the rates on your bills, read [GST on medicines in India](/blog/gst-on-medicines-india)."
+      }
+    ],
+    "tools": [
+      "medicine-hsn-code-finder"
+    ],
+    "features": [
+      "gst-billing"
+    ]
+  },
+  {
+    "slug": "schedule-h-h1-x-rules-pharmacy",
+    "title": "Schedule H, H1 and X Drugs: What a Medical Store Must Record",
+    "description": "A plain guide to Schedule H, H1 and X medicines for Indian pharmacies: prescription rules, the H1 register, what to record and how long to keep it.",
+    "keywords": [
+      "schedule h1 register",
+      "schedule h h1 x drugs",
+      "schedule h1 drugs list",
+      "prescription register pharmacy"
+    ],
+    "category": "Compliance",
+    "published": "2026-11-15",
+    "h1": "Schedule H, H1 and X Drugs: What a Medical Store Must Record",
+    "lede": "A plain guide to Schedule H, H1 and X medicines for Indian pharmacies: prescription rules, the H1 register, what to record and how long to keep it.",
+    "body": [
+      {
+        "note": "This is a general guide, not legal advice. The schedules and rules are amended from time to time. Check the current Drugs Rules and your state drug control department for the exact requirements."
+      },
+      {
+        "h2": "Why the schedules matter"
+      },
+      {
+        "p": "Under the Drugs and Cosmetics Rules, 1945, many medicines can be sold only on a prescription from a registered medical practitioner. Schedules H, H1 and X set out which medicines these are and what the pharmacist must do when selling them. Inspectors check these records, and gaps can lead to action against your licence."
+      },
+      {
+        "h2": "Schedule H"
+      },
+      {
+        "p": "Schedule H medicines are prescription-only. The label carries the Rx symbol and a warning that the medicine is to be sold by retail on the prescription of a registered medical practitioner only. Sell them only against a valid prescription, and keep sale records as your licence conditions require."
+      },
+      {
+        "h2": "Schedule H1"
+      },
+      {
+        "p": "Schedule H1 was introduced in 2013 for medicines that need closer control, including certain antibiotics, anti-TB drugs and habit-forming medicines. The label carries the Rx symbol in red with a boxed warning."
+      },
+      {
+        "p": "For every sale of a Schedule H1 medicine, the pharmacist must record the following in a separate register at the time of supply:"
+      },
+      {
+        "ul": [
+          "Name and address of the prescriber",
+          "Name of the patient",
+          "Name of the medicine",
+          "Quantity supplied"
+        ]
+      },
+      {
+        "p": "These records must be kept for three years and be open to inspection."
+      },
+      {
+        "h2": "Schedule X"
+      },
+      {
+        "p": "Schedule X covers medicines with a high risk of abuse, such as certain psychotropic substances. The rules are the strictest: the prescription is needed in duplicate and the pharmacy keeps a copy, the stock must be stored securely, and separate records of purchase and sale must be kept for the period the rules set."
+      },
+      {
+        "h2": "Good practice at the counter"
+      },
+      {
+        "ul": [
+          "Make the bill ask for prescriber details automatically when an H1 item is added, so it cannot be skipped on a busy evening",
+          "Keep a list of regular doctors so their details are picked, not typed",
+          "Check the prescription date and that the quantity matches",
+          "Print or export the H1 register for any date range when an inspector asks"
+        ]
+      },
+      {
+        "h2": "How billing software helps"
+      },
+      {
+        "p": "In [pharmacy billing software](/pharmacy-billing-software) like Medoro, Schedule H and H1 items ask for the prescriber before the bill closes, and the details are stored with the sale. That gives you the register you need without a separate notebook that someone forgets to fill in."
+      }
+    ],
+    "tools": [
+      "free-pharmacy-invoice-generator"
+    ],
+    "features": [
+      "schedule-h1-compliance"
+    ]
+  },
+  {
+    "slug": "fefo-vs-fifo-pharmacy",
+    "title": "FEFO vs FIFO: Which Stock Method Should a Pharmacy Use?",
+    "description": "FIFO sells the oldest stock first; FEFO sells the earliest expiry first. Why FEFO is the right method for medical stores, with examples and how to apply it.",
+    "keywords": [
+      "fefo vs fifo",
+      "fefo pharmacy",
+      "first expiry first out",
+      "stock rotation pharmacy"
+    ],
+    "category": "Stock & expiry",
+    "published": "2026-11-15",
+    "h1": "FEFO vs FIFO: Which Stock Method Should a Pharmacy Use?",
+    "lede": "FIFO sells the oldest stock first; FEFO sells the earliest expiry first. Why FEFO is the right method for medical stores, with examples and how to apply it.",
+    "body": [
+      {
+        "h2": "The difference in one line"
+      },
+      {
+        "p": "FIFO (First In, First Out) sells the stock that arrived first. FEFO (First Expiry, First Out) sells the stock that expires first. Most of the time these are the same batch, but not always, and the exceptions are where pharmacies lose money."
+      },
+      {
+        "h2": "An example"
+      },
+      {
+        "p": "In March you receive batch A of a syrup, expiring in December. In April a different distributor sends batch B of the same syrup, expiring in October, because it was older stock in their godown. FIFO sells batch A first, because it came in first. Batch B sits on the shelf and expires in October. FEFO sells batch B first, because it expires first, and both batches sell before they expire."
+      },
+      {
+        "h2": "Why FEFO is right for medicines"
+      },
+      {
+        "ul": [
+          "Medicines have a hard expiry date; once it passes, the stock cannot be sold",
+          "Distributors often send batches with different remaining shelf life",
+          "Returns and exchanges bring older batches back into stock"
+        ]
+      },
+      {
+        "h2": "How to apply FEFO in a busy store"
+      },
+      {
+        "ol": [
+          "Record batch and expiry for every line when you receive stock",
+          "Arrange racks so the earliest expiry is in front",
+          "Let the billing software pick the batch, rather than staff choosing by hand",
+          "Block expired or recalled batches from being billed",
+          "Review a 90-day expiry list weekly"
+        ]
+      },
+      {
+        "p": "The third step is what makes FEFO work in practice. When the bill picks the earliest-expiring batch automatically, nobody has to remember. Learn more steps in [how to reduce expiry loss](/blog/reduce-expiry-loss-medical-store), or see how [Medoro billing](/pharmacy-billing-software) applies FEFO on every line."
+      }
+    ],
+    "tools": [],
+    "features": [
+      "expiry-management",
+      "inventory-management"
+    ]
+  },
+  {
+    "slug": "choose-pharmacy-billing-software",
+    "title": "How to Choose Pharmacy Billing Software: A 12-Point Checklist",
+    "description": "Choosing billing software for your medical store? A 12-point checklist covering speed, batch and expiry, GST, Schedule H1, offline billing, backups, data export and cost.",
+    "keywords": [
+      "best pharmacy billing software",
+      "how to choose pharmacy software",
+      "medical store software checklist",
+      "pharmacy software features"
+    ],
+    "category": "Software",
+    "published": "2026-11-15",
+    "h1": "How to Choose Pharmacy Billing Software: A 12-Point Checklist",
+    "lede": "Pharmacy billing software is something you will use hundreds of times a day for years. Switching later is a hassle, so it is worth checking a few things before you choose. Here is a checklist we would use if we were buying for our own store.",
+    "body": [
+      {
+        "h2": "At the counter"
+      },
+      {
+        "ol": [
+          "Speed: can you bill a common medicine in a few keystrokes, without touching the mouse? Ask for a live demo on a busy-hour scenario.",
+          "Search: does it find medicines by brand, salt (generic name) and barcode?",
+          "Batch and expiry: does it pick the earliest-expiring batch automatically and block expired stock?",
+          "Prescription rules: does it ask for prescriber details on Schedule H and H1 items before the bill closes?",
+          "Payments: cash, UPI, card, split payments and customer credit with limits?"
+        ]
+      },
+      {
+        "h2": "In the back office"
+      },
+      {
+        "ol": [
+          "Purchases: can you import the distributor’s bill instead of typing every line, and does it check your total against the printed bill?",
+          "Expiry and reorder: does it show what expires in the next 90 days and what needs reordering based on recent sales?",
+          "GST and accounts: are GSTR-1 and GSTR-3B summaries ready at month-end, with exports your CA can use (Tally, Excel)?"
+        ]
+      },
+      {
+        "h2": "Reliability and your data"
+      },
+      {
+        "ol": [
+          "Offline: does billing continue when the internet goes down?",
+          "Backups: are backups automatic, encrypted and stored somewhere you control, and has a restore ever been tested?",
+          "Export: can you take all your data out, in a usable format, whenever you want? If not, you are locked in.",
+          "Support and cost: is there real support in your language and working hours, and is the full yearly cost clear, including setup, extra counters and branches?"
+        ]
+      },
+      {
+        "h2": "Questions to ask in the demo"
+      },
+      {
+        "ul": [
+          "Show me a bill for a Schedule H1 medicine from start to finish",
+          "Show me what expires in the next 90 days and what it will cost me",
+          "Turn off the internet and bill",
+          "Show me how I export everything if I leave",
+          "How do I move my current stock and customers in?"
+        ]
+      },
+      {
+        "h2": "Try before you buy"
+      },
+      {
+        "p": "A free trial with your own stock tells you more than any brochure. Medoro offers a 7-day free trial with no card, imports your stock from Excel, and covers every point on this list. See [medical store software](/medical-store-software) for the full picture, or compare plans on the [pricing section](/#pricing)."
+      }
+    ],
+    "tools": [
+      "pharma-margin-calculator",
+      "medicine-hsn-code-finder"
+    ],
+    "features": [
+      "gst-billing",
+      "expiry-management",
+      "ai-invoice-scanner"
+    ]
+  },
+  // Pricing and starting-a-pharmacy guides.
   {
     slug: "how-to-calculate-ptr-pts-from-mrp",
     title: "How to Calculate PTR and PTS from MRP (with Examples)",
@@ -93,149 +579,6 @@ export const POSTS: Post[] = [
     features: ["ai-invoice-scanner", "inventory-management"],
   },
   {
-    slug: "schedule-h1-register-guide",
-    title: "Schedule H1 Register: What Chemists Must Record",
-    description: "A plain guide to the Schedule H1 register for Indian pharmacies: which drugs it covers, what to record for each sale, how long to keep it and how to keep it current.",
-    keywords: ["schedule h1 register format", "schedule h1 drugs list", "schedule h1 register rules", "h1 register in pharmacy", "schedule h vs h1"],
-    category: "Compliance",
-    published: "2026-11-15",
-    h1: "The Schedule H1 register: what chemists must record",
-    lede: "Schedule H1 was added to the Drugs and Cosmetics Rules to curb the over-the-counter sale of certain antibiotics, anti-TB drugs and habit-forming medicines. If you sell any of them, you need a separate register. Here is what goes in it and how to keep it without slowing the counter down.",
-    body: [
-      { note: "This guide summarises the rule for general understanding. It isn't legal advice: check the current rules and any state-specific instructions with your State Drugs Control office." },
-      { h2: "What is Schedule H1?" },
-      { p: "Schedule H1 is a list of prescription drugs under the Drugs and Cosmetics Rules, 1945, notified in 2013 and in force since March 2014. The original list has 46 drugs, mainly:" },
-      { ul: [
-        "Newer antibiotics, such as several third- and fourth-generation cephalosporins (for example cefixime, cefpodoxime and ceftriaxone), carbapenems and newer fluoroquinolones (for example levofloxacin and moxifloxacin)",
-        "Anti-tuberculosis drugs such as isoniazid, rifampicin, ethambutol and pyrazinamide",
-        "Habit-forming drugs such as alprazolam, diazepam, zolpidem, tramadol and codeine",
-      ] },
-      { p: "The list can change by notification, so check the current one rather than relying on a printed chart." },
-      { h2: "How to recognise an H1 drug" },
-      { p: "Packs of Schedule H1 drugs carry the symbol **Rx in red** and a boxed warning stating that the drug is dangerous to take except in accordance with medical advice and must not be sold by retail without the prescription of a Registered Medical Practitioner." },
-      { h2: "What the register must contain" },
-      { p: "The supply of a Schedule H1 drug has to be recorded in a separate register at the time of supply, with:" },
-      { ol: ["The name and address of the prescriber", "The name of the patient", "The name of the drug", "The quantity supplied"] },
-      { p: "Most pharmacies also note the date, invoice number and batch number. These aren't in the list above but make it much easier to trace a sale if there is a recall or an inspection question." },
-      { table: { caption: "A practical Schedule H1 register layout", head: ["Date", "Invoice", "Patient", "Prescriber (name, address)", "Drug", "Batch", "Qty"], rows: [
-        ["14/11/2026", "INV/0412", "Ramesh Kumar", "Dr. A. Sinha, Sector 4, Bokaro", "Cefixime 200 mg tablets", "CF2231", "10"],
-      ] } },
-      { h2: "How long to keep it" },
-      { p: "The register must be kept for **three years** and be open for inspection by the drug inspector." },
-      { h2: "Schedule H, H1 and X: how they differ" },
-      { table: { caption: "Prescription schedules at a glance", head: ["Schedule", "Sold on", "Extra record keeping"], rows: [
-        ["H", "Prescription of a Registered Medical Practitioner", "No separate register required by the H1 rule"],
-        ["H1", "Prescription", "Separate H1 register: prescriber, patient, drug, quantity; kept 3 years"],
-        ["X", "Prescription, under a separate licence (Form 20-F)", "Stricter records, including keeping a copy of the prescription"],
-      ] } },
-      { h2: "Keeping the register without slowing the counter" },
-      { p: "A handwritten register falls behind on busy days, which is exactly when inspectors find gaps. The more reliable approach is to capture the details at billing:" },
-      { ul: [
-        "Mark H1, X and NDPS medicines in your medicine master once.",
-        "Make the bill ask for the prescriber whenever one of them is added, and keep a doctor list so it is a two-key entry.",
-        "Generate the register from bills for any date range when you need it, instead of writing it twice.",
-      ] },
-      { p: "This is how [Medoro's Schedule H1 register](/features/schedule-h1-compliance) works: the prescriber is required before an H1 bill can close, and the register is a report over bills that can't be edited afterwards." },
-    ],
-    faq: [
-      ["Is a separate register compulsory for Schedule H1 drugs?", "Yes. The rule requires the supply of Schedule H1 drugs to be recorded in a separate register with the prescriber's name and address, the patient's name, the drug and the quantity."],
-      ["Can the Schedule H1 register be kept on a computer?", "Many pharmacies keep it in software and print it when needed. Check with your State Drugs Control office whether they expect a printed, signed register as well."],
-      ["How long should I keep the H1 register?", "Three years, available for inspection."],
-      ["Is cefixime a Schedule H1 drug?", "Cefixime is on the original Schedule H1 list, along with several other cephalosporins. Check the current list, as it can be amended."],
-    ],
-    tools: ["free-pharmacy-invoice-generator"],
-    features: ["schedule-h1-compliance", "gst-billing"],
-  },
-  {
-    slug: "reduce-medicine-expiry-loss-in-pharmacy",
-    title: "How to Reduce Medicine Expiry Loss in Your Pharmacy",
-    description: "Practical ways for chemists to cut expiry loss: FEFO billing, a 90-day expiry review, distributor return windows, smarter buying with schemes and branch transfers.",
-    keywords: ["reduce expiry loss pharmacy", "near expiry medicines", "fefo vs fifo pharmacy", "expiry management medical store", "expired medicine return to distributor"],
-    category: "Stock & expiry",
-    published: "2026-11-15",
-    h1: "How to reduce medicine expiry loss in your pharmacy",
-    lede: "Expired stock is money you already paid for and can't get back. Most of it is lost not because medicines expire, but because nobody noticed in time to return, move or sell them. These are the habits that make the difference.",
-    body: [
-      { h2: "1. Sell the earliest expiry first (FEFO, not FIFO)" },
-      { p: "**FIFO** (first in, first out) sells the oldest delivery first. **FEFO** (first expiry, first out) sells the batch that expires first, whenever it arrived. In a pharmacy they aren't the same: a later delivery can carry an earlier expiry date. FEFO is the rule that actually prevents expiry." },
-      { p: "On the shelf, keep the earliest expiry at the front. At the counter, the billing system should pick the earliest-expiring batch for you, so staff don't have to check dates on every strip." },
-      { h2: "2. Review expiry every month, 90 days ahead" },
-      { p: "A yearly clean-out finds stock that is already expired, when it is usually too late to return. A monthly look at what expires in the next 90 days gives you time to act. Sort that list by money at risk, not by date: one box of an expensive injectable matters more than ten strips of an antacid." },
-      { h2: "3. Know each distributor's return window" },
-      { p: "Return and expiry-claim terms differ by company and distributor. Many accept near-expiry or expired returns only within a fixed window and with conditions. Note each distributor's terms against the supplier, and act on near-expiry stock while it is still inside that window." },
-      { h2: "4. Track claims until the credit note arrives" },
-      { p: "Sending stock back is only half the job. Credit notes often arrive weeks later, and sometimes for less than claimed. Keep a list of open claims by distributor and follow up on old ones; an untracked claim is the same as a write-off." },
-      { h2: "5. Buy to sales, not to schemes" },
-      { p: "A \"10+2\" scheme looks like a 17% discount, but if the extra stock expires before it sells, the scheme loses money. Before taking a scheme on a slow mover, check how many units you actually sold in the last month and how long the expiry date gives you to sell them." },
-      { table: { caption: "When a scheme pays off: 12 strips received for the price of 10", head: ["Monthly sales", "Months to sell 12", "Expiry in 4 months", "Result"], rows: [
-        ["6 strips", "2", "Sells in time", "Saves about 17%"],
-        ["2 strips", "6", "4 strips expire", "Loses money"],
-      ] } },
-      { p: "Use the [PTR, PTS and margin calculator](/tools/pharma-margin-calculator) to see your real margin before and after a scheme." },
-      { h2: "6. Move slow stock to where it sells" },
-      { p: "If you have more than one branch, a medicine that sits in one store often sells in another. Transfer near-expiry batches early, while there is time to sell them." },
-      { h2: "7. Offer it to regular customers who use it" },
-      { p: "For chronic medicines, a regular customer on that medicine will use it well before expiry. Recommend it to them first; it moves stock and keeps their refill on time." },
-      { h2: "8. Block expired stock at the counter" },
-      { p: "Last line of defence: an expired or recalled batch must never be billed. Good billing software refuses it outright, even if someone selects it by hand." },
-      { note: "[Medoro's expiry management](/features/expiry-management) lists batches expiring in 30 to 180 days with the projected loss at cost, suggests returning, transferring or offering each one, tracks claims to distributors and blocks expired stock at billing." },
-    ],
-    faq: [
-      ["What is the difference between FIFO and FEFO in a pharmacy?", "FIFO sells the oldest delivery first; FEFO sells the batch with the earliest expiry date first. Pharmacies should use FEFO because a newer delivery can expire earlier."],
-      ["How early should I check for near-expiry medicines?", "Review what expires in the next 90 days every month. That usually leaves time to return, transfer or sell the stock."],
-      ["Can I return expired medicines to the distributor?", "Often yes, but terms vary by company and distributor, including the time window and conditions. Agree them in advance and record them for each supplier."],
-      ["Is it legal to sell medicines close to expiry?", "Medicines can be sold up to their expiry date, but never after it. Many pharmacies avoid selling stock that will expire before the patient finishes the course."],
-    ],
-    tools: ["pharma-margin-calculator"],
-    features: ["expiry-management", "inventory-management"],
-  },
-  {
-    slug: "gst-on-medicines-2025-changes",
-    title: "GST on Medicines After September 2025: Guide for Chemists",
-    description: "What the 22 September 2025 GST changes mean for pharmacies: 12% to 5% on most medicines, exempt life-saving drugs, old MRP stock, input credit and your billing.",
-    keywords: ["gst on medicines 2025", "gst rate on medicines", "medicine gst 5 percent", "gst on ayurvedic medicine", "gst rate change pharmacy"],
-    category: "GST",
-    published: "2026-11-15",
-    h1: "GST on medicines after September 2025: a guide for chemists",
-    lede: "From 22 September 2025 the GST rates on most medicines, medical devices and many everyday pharmacy products came down. Here is what changed and what it means for your billing, your stock and your returns.",
-    body: [
-      { note: "This is a general summary, not tax advice. A product's rate depends on its exact entry in the GST rate notification; confirm specific products and your own position with your CA." },
-      { h2: "What changed" },
-      { table: { caption: "Common pharmacy items: GST before and after 22 September 2025", head: ["Item", "HSN", "Before", "From 22 Sep 2025"], rows: [
-        ["Most medicines (allopathic)", "3003, 3004", "12%", "5%"],
-        ["Ayurvedic, Unani, Siddha, homoeopathic medicines", "3004", "12%", "5%"],
-        ["Notified life-saving drugs", "3004", "12% (some 5%)", "Nil"],
-        ["Bandages, gauze, cotton", "3005", "12%", "5%"],
-        ["Diagnostic kits and test strips", "3822", "12%", "5%"],
-        ["Syringes, needles, catheters", "9018", "12%", "5%"],
-        ["Glucometers", "9027", "12%", "5%"],
-        ["Thermometers", "9025", "18%", "5%"],
-        ["Toothpaste, soap, hair oil", "3306, 3401, 3305", "18%", "5%"],
-      ] } },
-      { p: "Look up any other item in the free [medicine HSN code and GST finder](/tools/medicine-hsn-code-finder)." },
-      { h2: "Update your medicine master first" },
-      { p: "Your billing software works out tax from the GST rate stored on each medicine. If those rates are still 12%, every bill is wrong. Update the rate item by item or by category, then check a few bills before the counter gets busy." },
-      { h2: "Stock with the old MRP" },
-      { p: "MRP includes GST, so a lower rate should mean a lower price for the patient. Manufacturers were asked to pass the reduction on through revised price lists, and stock printed with the old MRP still on the shelf should be sold at the revised price. Check your distributors' revised price lists and update the selling price on old batches." },
-      { h2: "Input tax credit on old purchases" },
-      { p: "Stock bought before the change carries 12% input tax, but you now collect only 5% when you sell it. The extra credit doesn't disappear: it stays in your electronic credit ledger to use against future GST. If it keeps building up, ask your CA about your options under the rules for an inverted tax structure." },
-      { h2: "How GST is worked out on an MRP bill" },
-      { p: "Because MRP includes GST, the tax is back-calculated on each line: **taxable value = amount × 100 ÷ (100 + GST rate)**. For a ₹105 sale at 5%, the taxable value is ₹100 and the GST ₹5, split into ₹2.50 CGST and ₹2.50 SGST inside your state, or ₹5 IGST for an out-of-state buyer." },
-      { p: "You can try this with the free [GST chemist bill generator](/tools/free-pharmacy-invoice-generator)." },
-      { h2: "Returns and HSN summary" },
-      { p: "Your GSTR-1 HSN summary should now show most medicines under the 5% rate from the changeover date. Bills before 22 September 2025 keep the old rate; credit notes for returns of those sales follow the original bill." },
-      { note: "[Medoro's GST billing](/features/gst-billing) works out tax per line from MRP at each item's rate and HSN, and builds the GSTR-1 and GSTR-3B summaries from your bills." },
-    ],
-    faq: [
-      ["What is the GST rate on medicines now?", "Most medicines under HSN 3003 and 3004 are taxed at 5% from 22 September 2025, down from 12%. Notified life-saving drugs are exempt."],
-      ["Is GST on Ayurvedic medicine 5%?", "Yes. Ayurvedic, Unani, Siddha and homoeopathic medicines moved from 12% to 5%."],
-      ["Do I have to reduce the price of old stock?", "MRP includes GST, so the reduction is meant to reach the patient. Follow your distributors' and manufacturers' revised price lists for stock printed with the old MRP."],
-      ["What happens to my extra input tax credit from 12% purchases?", "It stays in your credit ledger to set off against future GST. If it keeps accumulating, ask your CA about the rules for an inverted duty structure."],
-    ],
-    tools: ["medicine-hsn-code-finder", "free-pharmacy-invoice-generator"],
-    features: ["gst-billing"],
-  },
-  {
     slug: "how-to-start-a-medical-store-in-india",
     title: "How to Start a Medical Store in India: Licences Checklist",
     description: "Checklist for opening a medical store in India: retail drug licence (Forms 20 and 21), registered pharmacist, premises, GST registration and local licences.",
@@ -278,7 +621,7 @@ export const POSTS: Post[] = [
         "Open accounts with two or three distributors and agree their credit and return terms",
         "Set up your medicine master with HSN and GST rates (most medicines are 5% since September 2025; see the [HSN and GST finder](/tools/medicine-hsn-code-finder))",
         "Print your GSTIN and drug licence numbers on every bill",
-        "Set up a Schedule H1 register (see our [Schedule H1 register guide](/blog/schedule-h1-register-guide))",
+        "Set up a Schedule H1 register (see our [guide to Schedule H, H1 and X records](/blog/schedule-h-h1-x-rules-pharmacy))",
         "Choose billing software that tracks batch and expiry from day one",
       ] },
       { note: "Starting fresh is the easiest time to set up software. [Medoro](/solutions/retail-pharmacy) starts at ₹999 a month for one store, with a 7-day free trial and no card needed." },
@@ -291,61 +634,6 @@ export const POSTS: Post[] = [
     ],
     tools: ["medicine-hsn-code-finder", "free-pharmacy-invoice-generator"],
     features: ["gst-billing", "schedule-h1-compliance"],
-  },
-  {
-    slug: "how-to-choose-pharmacy-billing-software",
-    title: "How to Choose Pharmacy Billing Software: 12-Point Checklist",
-    description: "A buyer's checklist for pharmacy billing software in India: billing speed, batch and expiry, GST, Schedule H1, distributor bill import, backups and cost.",
-    keywords: ["best pharmacy billing software", "how to choose pharmacy software", "medical store software checklist", "pharmacy software features", "chemist software india"],
-    category: "Software",
-    published: "2026-11-15",
-    h1: "How to choose pharmacy billing software: a 12-point checklist",
-    lede: "Pharmacy software runs your counter all day, every day, so switching later is expensive. Use these twelve questions in every demo, whichever product you are looking at.",
-    body: [
-      { h2: "At the counter" },
-      { ol: [
-        "**How many keys does a bill take?** Time a three-item bill during the demo. Search by brand, salt and barcode should all work, and typos shouldn't stop it.",
-        "**Does it pick the batch for you?** The earliest-expiring batch should be selected automatically, and expired stock should be impossible to bill.",
-        "**Can you sell loose tablets?** Selling 4 tablets from a strip of 15 should reduce stock correctly and price the tablets without going over MRP.",
-        "**Does it ask for the prescriber on Schedule H and H1 items?** And can it print the H1 register for any date range? (See our [Schedule H1 guide](/blog/schedule-h1-register-guide).)",
-      ] },
-      { h2: "Stock and purchases" },
-      { ol: [
-        "**Can it import your distributors' e-bills?** Ask to import a real CSV or Excel bill from one of your distributors during the demo, including free quantity and schemes.",
-        "**Does it warn you about expiry in time?** Look for a 90-day list that shows the money at risk, not just dates. (See [how to reduce expiry loss](/blog/reduce-medicine-expiry-loss-in-pharmacy).)",
-        "**Does it suggest what to reorder?** A reorder list based on recent sales saves both stock-outs and overstock.",
-      ] },
-      { h2: "GST and accounts" },
-      { ol: [
-        "**Is GST worked out per line from MRP?** Check that CGST/SGST and IGST are handled, and that GSTR-1 and GSTR-3B summaries come out of the bills. (See [GST on medicines after September 2025](/blog/gst-on-medicines-2025-changes).)",
-        "**Can your CA use the data?** Tally export and Excel reports save your CA from retyping.",
-      ] },
-      { h2: "Running the business" },
-      { ol: [
-        "**What happens if the PC fails or the internet goes down?** Ask where data is stored, how backups are taken, how a restore works, and whether billing continues offline.",
-        "**Can you see the shop from your phone?** Today's sales, cash, dues and expiring stock, without calling the shop.",
-        "**What does it cost over three years?** Add licence or subscription, renewals, support, extra counters and branches, and any migration fees.",
-      ] },
-      { h2: "Red flags in a demo" },
-      { ul: [
-        "**Only sample data.** If the vendor won't let you try your own stock and a real distributor bill, ask why.",
-        "**No clear export.** You should be able to export all your data (items, stock, customers, bills) in a standard format whenever you want. Data you can't take out locks you in.",
-        "**Backups are \"your responsibility\" with no tool to help.** A pen drive copy taken when someone remembers is not a backup plan.",
-        "**Prices only on a call.** If the total cost can't be written down, it will be hard to compare and easy to grow.",
-        "**Support only through a dealer you haven't met.** Ask who answers when billing stops at 8 pm on a Saturday, and how.",
-      ] },
-      { h2: "Before you decide" },
-      { p: "Ask for a free trial with your own stock, not just a demo with sample data. Import your item master, bill for a day alongside your current system, and check the expiry list and GST summary against what you expect." },
-      { p: "If you are comparing specific products, our comparisons cover [Marg ERP](/compare/marg-erp-alternative), [Vyapar](/compare/vyapar-alternative-for-pharmacy) and [Logic ERP](/compare/logic-erp-alternative), with honest pros and cons for both sides." },
-      { note: "Medoro answers all twelve: try it free for 7 days with your own stock. Start at [the free trial](/trial) or see [all features](/features)." },
-    ],
-    faq: [
-      ["What is the best pharmacy billing software in India?", "The best one is the one that fits your store: fast billing, automatic batch and expiry picking, GST from MRP, a Schedule H1 register, distributor bill import, reliable backups and a clear total cost. Trial two or three with your own data."],
-      ["Should pharmacy software be cloud or desktop?", "Cloud software lets you bill from several devices and see the shop from your phone without maintaining a server. Desktop software keeps working without internet. Some products, including Medoro, offer both: browser access plus offline billing on the shop network."],
-      ["How long does it take to switch pharmacy software?", "If your current software can export items, batch-wise stock, suppliers and customers to Excel, most stores can switch in a day."],
-    ],
-    tools: ["pharma-margin-calculator", "medicine-hsn-code-finder"],
-    features: ["gst-billing", "expiry-management", "ai-invoice-scanner"],
   },
 ];
 

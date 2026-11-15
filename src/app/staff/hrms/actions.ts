@@ -23,6 +23,7 @@ import * as promos from "@/staff/hrms/promotions";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
 import * as kyc from "@/staff/hrms/kyc";
+import * as careers from "@/staff/hrms/careers";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import type { Settings } from "@/staff/hrms/constants";
 
@@ -141,7 +142,8 @@ export const raiseTicket = async (input: In<typeof work.raiseTicket>) => done(aw
 export const resolveTicket = async (id: string, reply: string) => done(await hrRun((me) => work.resolveTicket(me, id, reply), "Ticket resolved."));
 
 // ── Recruitment
-export const postJob = async (input: In<typeof work.postJob>) => done(await hrRun((me) => work.postJob(me, input), "Job posted. Employees can refer candidates."));
+export const postJob = async (input: careers.JobInput) => done(await hrRun((me) => careers.postJob(me, input), "Job posted on the careers page."));
+export const updateJob = async (id: string, input: careers.JobInput) => done(await hrRun((me) => careers.updateJob(me, id, input), "Job updated."));
 export const setJobOpen = async (id: string, on: boolean) => done(await hrRun((me) => work.setJobOpen(me, id, on), on ? "Job reopened." : "Job closed."));
 export const addCandidate = async (input: In<typeof work.addCandidate>) => done(await hrRun((me) => work.addCandidate(me, input), "Candidate added."));
 export const referCandidate = async (input: In<typeof work.addCandidate>) => done(await hrRun((me) => work.addCandidate(me, input, true), "Referral sent to HR. Thank you."));
@@ -193,7 +195,9 @@ export const chatReact = async (messageId: string, emoji: string) => hrRun((me) 
 export const chatPoll = async (chatId: string, q: string, options: string[], multi: boolean) => hrRun((me) => chat.sendPoll(me, chatId, q, options, multi));
 export const chatVote = async (messageId: string, option: number) => hrRun((me) => chat.vote(me, messageId, option));
 export const chatGroupInfo = async (chatId: string) => hrRun((me) => chat.groupInfo(me, chatId));
-export const chatUpdateGroup = async (chatId: string, input: { about?: string; photo?: string | null }) => hrRun((me) => chat.updateGroup(me, chatId, input), "Group updated.");
+export const chatUpdateGroup = async (chatId: string, input: { name?: string; about?: string; photo?: string | null }) => hrRun((me) => chat.updateGroup(me, chatId, input), "Group updated.");
+export const chatRemoveMember = async (chatId: string, staffId: string) => hrRun((me) => chat.removeFromGroup(me, chatId, staffId), "Removed from the group.");
+export const chatDeleteGroup = async (chatId: string) => hrRun((me) => chat.deleteGroup(me, chatId), "Group deleted.");
 export const chatSetAvatar = async (emoji: string) => hrRun((me) => chat.setChatAvatar(me, emoji), "Chat avatar saved.");
 
 // ── Letters (viewing only changes nothing, so these don't refresh the page)

@@ -61,7 +61,7 @@ export default async function BlogPost({ params }: Props) {
         </div>
       </article>
 
-      <FaqSection faq={p.faq} title="Frequently asked questions" />
+      {p.faq?.length ? <FaqSection faq={p.faq} title="Frequently asked questions" /> : null}
 
       <Section id="next" title="Put it into practice">
         <LinkGrid links={next} />

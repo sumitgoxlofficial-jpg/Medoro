@@ -19,6 +19,7 @@ import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
 import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
+import { backfillSlugs } from "./careers";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
@@ -111,7 +112,7 @@ export const loaders = {
     const [depts, staff] = await Promise.all([departments(), roster()]);
     return { depts: depts.map((d) => ({ ...d, count: staff.filter((p) => p.dept === d.name).length, head: staff.find((p) => p.id === d.headId)?.name ?? "" })), people: staff.map((p) => ({ id: p.id, name: p.name })) };
   },
-  recruit: async (me: Me) => ({ jobs: await jobs(), cands: await candidates(me), depts: await departments() }),
+  recruit: async (me: Me) => { await backfillSlugs(); return { jobs: await jobs(), cands: await candidates(me), depts: await departments(), site: (process.env.APP_URL ?? "").replace(/\/+$/, "") }; },
   hrattendance: async (me: Me) => ({ rows: await teamToday(me) }),
   hrleave: async (me: Me) => {
     const s = await loadSettings();

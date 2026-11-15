@@ -6,7 +6,7 @@ import { seal, unsealClient } from "./vault";
 // "Sign in with Google": OpenID Connect authorization code flow with PKCE (S256), state and nonce.
 // Uses the same OAuth client as Google Drive backups, with its own redirect URI.
 type Env = Record<string, string | undefined>;
-export type GoogleIntent = "signin" | "link" | "partner";
+export type GoogleIntent = "signin" | "link" | "partner" | "careers";
 export type GoogleClaims = { sub: string; email: string; name: string | null };
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -37,11 +37,11 @@ function openJson<T>(v: string | undefined): T | null {
 }
 
 /** Starts a flow: binds state, nonce and the PKCE verifier to this browser in a sealed httpOnly cookie. */
-export async function beginGoogle(intent: GoogleIntent) {
+export async function beginGoogle(intent: GoogleIntent, next = "") {
   const g = googleLogin();
   if (!g) throw new GoogleAuthError("Google sign-in isn't configured.");
   const state = b64u(randomBytes(32)), nonce = b64u(randomBytes(32)), verifier = b64u(randomBytes(48));
-  (await cookies()).set(FLOW_COOKIE, sealJson({ state, nonce, verifier, intent, exp: Date.now() + 600_000 }), cookieOpts(FLOW_PATH, 600));
+  (await cookies()).set(FLOW_COOKIE, sealJson({ state, nonce, verifier, intent, next, exp: Date.now() + 600_000 }), cookieOpts(FLOW_PATH, 600));
   const q = new URLSearchParams({
     client_id: g.id, redirect_uri: g.redirect, response_type: "code", scope: "openid email profile",
     state, nonce, code_challenge: pkceChallenge(verifier), code_challenge_method: "S256", prompt: "select_account",
@@ -52,7 +52,7 @@ export async function beginGoogle(intent: GoogleIntent) {
 /** Reads and clears the flow cookie. Single use. */
 export async function takeFlow() {
   const c = await cookies();
-  const f = openJson<{ state: string; nonce: string; verifier: string; intent: GoogleIntent; exp: number }>(c.get(FLOW_COOKIE)?.value);
+  const f = openJson<{ state: string; nonce: string; verifier: string; intent: GoogleIntent; next?: string; exp: number }>(c.get(FLOW_COOKIE)?.value);
   c.set(FLOW_COOKIE, "", cookieOpts(FLOW_PATH, 0));
   return f && f.exp > Date.now() ? f : null;
 }

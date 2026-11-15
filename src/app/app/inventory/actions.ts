@@ -4,6 +4,7 @@ import { run } from "@/server/action";
 import { createMedicine, receiveBatch, setQuarantine, updateMedicine } from "@/domain/inventory/service";
 import { adjustStock, approveTransfer, cancelTransfer, receiveTransfer, rejectTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
 import type { MedicineInput, ReceiveInput } from "@/domain/inventory/contracts";
+import { changeGstRate, medicinesAtRate } from "@/domain/inventory/gst-rates";
 import { assignInternalBarcodes, importSampleSalts, rebuildSaltKeys, setBranchRack } from "@/domain/inventory/catalog";
 
 const done = <T,>(r: T) => { revalidatePath("/app", "layout"); return r; };
@@ -49,6 +50,13 @@ export async function sampleSaltsAction() {
 export async function rebuildSaltsAction() {
   const r = await run((ctx) => rebuildSaltKeys(ctx));
   return done(r.ok ? { ...r, message: `Composition keys rebuilt: ${r.data.changed} of ${r.data.total} medicines updated.` } : r);
+}
+export async function medicinesAtRateAction(rate: number) {
+  return run((ctx) => medicinesAtRate(ctx, rate));
+}
+export async function changeGstRateAction(ids: string[], from: number, to: number) {
+  const r = await run((ctx) => changeGstRate(ctx, { ids, from, to }));
+  return done(r.ok ? { ...r, message: r.data === 1 ? "GST rate changed for 1 medicine." : `GST rate changed for ${r.data} medicines.` } : r);
 }
 /** Gives the selected medicines an internal barcode where they have none, so every label can be scanned at the counter. */
 export async function prepareLabelsAction(medicineIds: string[]) {
