@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search, Plus, X, Pencil, PackageOpen, Upload, ArrowLeftRight, MoreHorizontal, Printer, FlaskConical } from "lucide-react";
+import { Search, Plus, X, Pencil, PackageOpen, Upload, ArrowLeftRight, MoreHorizontal, Printer, FlaskConical, Percent } from "lucide-react";
 import { ImportDialog } from "@/components/import-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import type { listInventory, medicineDetail, InvFilter } from "@/domain/inventor
 import type { listBranchTransfers } from "@/domain/inventory/adjust";
 import { raiseClaimAction } from "../purchases/claims-actions";
 import { CLAIM_REASONS, type ClaimReason } from "@/domain/inventory/claim-types";
-import { addMedicineAction, adjustAction, editMedicineAction, prepareLabelsAction, quarantineAction, rebuildSaltsAction, receiveBatchAction, requestTransferAction, returnAction, sampleSaltsAction, setRackAction, transferAction, writeOffAction } from "./actions";
+import { addMedicineAction, adjustAction, changeGstRateAction, medicinesAtRateAction, editMedicineAction, prepareLabelsAction, quarantineAction, rebuildSaltsAction, receiveBatchAction, requestTransferAction, returnAction, sampleSaltsAction, setRackAction, transferAction, writeOffAction } from "./actions";
 
 type List = Awaited<ReturnType<typeof listInventory>>;
 type Detail = NonNullable<Awaited<ReturnType<typeof medicineDetail>>>;
@@ -41,6 +41,7 @@ export function InventoryView({ list, detail, q, filter, rack, racks, openAdd, t
   const [importing, setImporting] = useState(false);
   const [labels, setLabels] = useState<LabelSel | null>(null);
   const [salts, setSalts] = useState(false);
+  const [gst, setGst] = useState(false);
   const t = useT();
 
   const nav = (patch: Record<string, string | null>) => {
@@ -88,6 +89,7 @@ export function InventoryView({ list, detail, q, filter, rack, racks, openAdd, t
           <span className="text-[12.5px] text-muted">{t("{n} of {total} medicines", { n: list.rows.length, total: list.total })}</span>
           {canEdit && list.rows.length ? <Button onClick={() => setLabels({ medicineIds: list.rows.slice(0, 200).map((r) => r.id), batchIds: [], title: t("{n} medicines in this list", { n: Math.min(list.rows.length, 200) }) })}><Printer size={15} />{t("Labels")}</Button> : null}
           {canEdit ? <Button onClick={() => setSalts(true)}><FlaskConical size={15} />{t("Salts")}</Button> : null}
+          {canEdit ? <Button onClick={() => setGst(true)}><Percent size={15} />{t("GST rates")}</Button> : null}
           {canEdit ? <Button onClick={() => setImporting(true)}><Upload size={15} />{t("Import")}</Button> : null}
           {canEdit ? <Button variant="primary" onClick={() => setModal("add")}><Plus size={16} />{t("Add medicine")}</Button> : null}
         </div>
@@ -128,6 +130,7 @@ export function InventoryView({ list, detail, q, filter, rack, racks, openAdd, t
       {detail ? <Drawer d={detail} onClose={() => nav({ sel: null })} onEdit={() => setModal("edit")} onLabels={setLabels} onOpen={(id) => nav({ sel: id })} canEdit={canEdit} canAdjust={canAdjust} canPurchase={canPurchase} /> : null}
       <LabelDialog sel={labels} onClose={() => setLabels(null)} />
       <SaltsDialog open={salts} onClose={() => setSalts(false)} />
+      {gst ? <GstRatesDialog onClose={() => setGst(false)} /> : null}
       <ImportDialog kind="medicines" open={importing} onClose={() => setImporting(false)} />
       <MedicineModal open={modal !== null} edit={modal === "edit" ? detail?.medicine ?? null : null} onClose={() => setModal(null)} onSaved={(id) => { setModal(null); if (id) nav({ sel: id, q: null, filter: null }); }} />
     </div>
@@ -328,6 +331,75 @@ function SaltsDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
           <div><Button disabled={pending} onClick={() => go(rebuildSaltsAction)}>Rebuild keys</Button></div>
         </div>
         <span className="text-[12px] text-faint">{t("To bring your own list, import a spreadsheet with a “Composition” (or “Salt”) column under Import.")}</span>
+      </div>
+    </Modal>
+  );
+}
+
+type RateRow = { id: string; name: string; strength: string; hsn: string; mrp: number };
+
+/**
+ * Moves medicines from one GST rate to another in one step: most medicines went from 12% to 5% on 22 September 2025,
+ * and medicines added before that keep their old rate. Everything is ticked at first; the owner unticks the exceptions.
+ */
+function GstRatesDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const toastR = useActionToast();
+  const [from, setFrom] = useState(12), [to, setTo] = useState(DEFAULT_GST_RATE);
+  const [rows, setRows] = useState<RateRow[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [q, setQ] = useState("");
+  const [pending, start] = useTransition();
+  useEffect(() => {
+    let live = true;
+    setRows(null);
+    medicinesAtRateAction(from).then((r) => {
+      if (!live) return;
+      if (!r.ok) { toastR(r); onClose(); return; }
+      setRows(r.data); setPicked(new Set(r.data.map((m) => m.id)));
+    });
+    return () => { live = false; };
+  }, [from]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = (rows ?? []).filter((m) => !q || `${m.name} ${m.strength} ${m.hsn}`.toLowerCase().includes(q.toLowerCase()));
+  const allShown = shown.length > 0 && shown.every((m) => picked.has(m.id));
+  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleShown = () => setPicked((p) => { const n = new Set(p); for (const m of shown) if (allShown) n.delete(m.id); else n.add(m.id); return n; });
+  const save = () => start(async () => { const r = await changeGstRateAction([...picked], from, to); toastR(r); if (r.ok) onClose(); });
+  return (
+    <Modal open onClose={onClose} width={620} title="GST rates" sub="Most medicines moved from 12% to 5% GST on 22 September 2025. Medicines added before that keep the rate they were saved with."
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={pending || !picked.size || from === to} onClick={save}>{t("Change {n} to {rate}%", { n: picked.size, rate: to })}</Button></>}>
+      <div className="flex flex-col gap-3 text-[13.5px]">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Medicines now at"><Select value={from} onChange={(e) => setFrom(Number(e.target.value))}>{GST_RATES.map((g) => <option key={g} value={g}>GST {g}%</option>)}</Select></Field>
+          <Field label="Change to"><Select value={to} onChange={(e) => setTo(Number(e.target.value))}>{GST_RATES.map((g) => <option key={g} value={g}>GST {g}%</option>)}</Select></Field>
+        </div>
+        <div className="p-3 rounded-lg bg-[#FDF6E7] border border-[#F1DDB0] text-[13px]">{t("Untick anything that should stay at its rate, such as cosmetics and other non-medicines, or life-saving drugs that are now nil-rated. Check with your CA if unsure. Only new bills use the new rate; past bills don’t change.")}</div>
+        {rows === null ? <div className="py-8 text-center text-muted">{t("Loading…")}</div> : rows.length === 0 ? (
+          <div className="py-8 text-center text-muted">{t("No active medicines at GST {rate}%.", { rate: from })}</div>
+        ) : (
+          <>
+            <div className="flex gap-3 items-center">
+              <Input placeholder={t("Filter by name or HSN")} value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" />
+              <Checkbox label={t("All shown")} checked={allShown} onChange={toggleShown} />
+            </div>
+            <div className="max-h-[340px] overflow-auto border border-line rounded-lg">
+              <table className="w-full border-collapse text-[13px]">
+                <thead><tr><th className={th}></th><th className={th}>{t("Medicine")}</th><th className={th}>HSN</th><th className={cn(th, "text-right")}>MRP</th></tr></thead>
+                <tbody>
+                  {shown.map((m) => (
+                    <tr key={m.id} className="cursor-pointer hover:bg-[#F7F8F9]" onClick={() => toggle(m.id)}>
+                      <td className={cn(td, "w-8")}><input type="checkbox" aria-label={m.name} checked={picked.has(m.id)} onChange={() => toggle(m.id)} onClick={(e) => e.stopPropagation()} /></td>
+                      <td className={td}>{m.name} <span className="text-muted">{m.strength !== "-" ? m.strength : ""}</span></td>
+                      <td className={cn(td, "font-mono text-[12px]")}>{m.hsn}</td>
+                      <td className={cn(td, "text-right tabular-nums")}>{inr(m.mrp)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <span className="text-[12.5px] text-muted">{t("{n} of {total} selected", { n: picked.size, total: rows.length })}</span>
+          </>
+        )}
       </div>
     </Modal>
   );

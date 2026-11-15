@@ -136,4 +136,23 @@ test.describe("inventory", () => {
     const left = await db().batch.findFirstOrThrow({ where: { branchId: { not: kot.id }, batchNo: mainBatch } });
     expect(left.qtyAvailable).toBe(7);
   });
+
+  test("GST rates: move medicines still at 12% to 5%, leaving the unticked one", async ({ page }) => {
+    const t = await tenant();
+    const tag = uid();
+    const make = (name: string, hsn: string) => db().medicine.create({ data: { tenantId: t.id, name: `${name} ${tag}`, generic: "Paracetamol", strength: "500 mg", form: "Tablet", manufacturer: "Test", pack: "10 tabs", mrpPaise: 3000n, gstRate: 12, hsn } });
+    const [a, b, cream] = await Promise.all([make("Old Rate A", "3004"), make("Old Rate B", "3004"), make("Old Rate Cream", "3304")]);
+    await page.goto("/app/inventory");
+    await page.getByRole("button", { name: "GST rates" }).click();
+    const dlg = page.getByRole("dialog").filter({ hasText: "Medicines now at" });
+    await dlg.getByPlaceholder("Filter by name or HSN").fill(tag);
+    await expect(dlg.getByRole("checkbox", { name: cream.name })).toBeChecked();
+    await dlg.getByRole("checkbox", { name: cream.name }).uncheck();
+    await dlg.getByPlaceholder("Filter by name or HSN").fill("");
+    await page.screenshot({ path: "test-results/gst-rates-dialog.png" });
+    await dlg.getByRole("button", { name: /^Change \d+ to 5%$/ }).click();
+    await expectToast(page, /GST rate changed for \d+ medicines?\./);
+    const after = await db().medicine.findMany({ where: { id: { in: [a.id, b.id, cream.id] } }, select: { id: true, gstRate: true } });
+    expect(Object.fromEntries(after.map((m) => [m.id, m.gstRate]))).toEqual({ [a.id]: 5, [b.id]: 5, [cream.id]: 12 });
+  });
 });

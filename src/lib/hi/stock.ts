@@ -549,4 +549,17 @@ export const hi: Record<string, string> = {
   "No supplier (opening stock)": "कोई सप्लायर नहीं (शुरुआती स्टॉक)",
   "No stock in hand.": "हाथ में कोई स्टॉक नहीं।",
   "No sales in the last 30 days.": "पिछले 30 दिन में कोई बिक्री नहीं।",
+  // GST rates dialog (Inventory)
+  "GST rates": "GST दरें",
+  "Most medicines moved from 12% to 5% GST on 22 September 2025. Medicines added before that keep the rate they were saved with.": "22 सितंबर 2025 से ज़्यादातर दवाओं पर GST 12% से घटकर 5% हो गया। उससे पहले जोड़ी गई दवाओं पर वही दर रहती है जिससे वे सेव हुई थीं।",
+  "Medicines now at": "अभी इस दर वाली दवाएँ",
+  "Change to": "इसमें बदलें",
+  "Change {n} to {rate}%": "{n} को {rate}% में बदलें",
+  "Untick anything that should stay at its rate, such as cosmetics and other non-medicines, or life-saving drugs that are now nil-rated. Check with your CA if unsure. Only new bills use the new rate; past bills don’t change.": "जिनकी दर नहीं बदलनी है उनका टिक हटा दें, जैसे कॉस्मेटिक और दूसरी गैर-दवा चीज़ें, या जीवनरक्षक दवाएँ जिन पर अब GST शून्य है। पक्का न हों तो अपने CA से पूछें। नई दर सिर्फ़ नए बिलों पर लगेगी; पुराने बिल नहीं बदलेंगे।",
+  "No active medicines at GST {rate}%.": "GST {rate}% पर कोई सक्रिय दवा नहीं।",
+  "Filter by name or HSN": "नाम या HSN से छाँटें",
+  "All shown": "दिख रही सभी",
+  "{n} of {total} selected": "{total} में से {n} चुनी गईं",
+  "GST rate changed for 1 medicine.": "1 दवा की GST दर बदल दी गई।",
+  "GST rate changed for {n} medicines.": "{n} दवाओं की GST दर बदल दी गई।",
 };
