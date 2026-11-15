@@ -11,7 +11,7 @@ import { careersJsonLd } from "./seo";
 
 export const metadata: Metadata = {
   title: "Careers at Medoro · Jobs in pharmacy software, sales and support",
-  description: "Open jobs at Medoro, the pharmacy billing and accounting software made in Bokaro. Apply in two minutes with LinkedIn, Google or email.",
+  description: "Open jobs at Medoro, the pharmacy billing and accounting software made in India. Apply in two minutes with LinkedIn, Google or email.",
   alternates: { canonical: "/careers" },
   openGraph: { title: "Careers at Medoro", description: "Build software that thousands of Indian pharmacies run on. See open roles and apply with LinkedIn.", url: "/careers", type: "website" },
 };
@@ -35,7 +35,7 @@ export default async function Careers({ searchParams }: { searchParams: Promise<
     { icon: Rocket, t: "Real impact", d: "What you build ships to pharmacies across India within days." },
     { icon: GraduationCap, t: "Learn fast", d: "Small team, real ownership, and mentors who review your work." },
     { icon: HeartHandshake, t: "People first", d: "Fair pay on time, paid leave, and a team that has your back." },
-    { icon: Coffee, t: "Flexible", d: "On-site in Bokaro, hybrid or remote, depending on the role." },
+    { icon: Coffee, t: "Flexible", d: "On-site, hybrid or remote, depending on the role." },
   ];
   return (
     <div className="site-root bg-white min-h-dvh">
@@ -50,7 +50,7 @@ export default async function Careers({ searchParams }: { searchParams: Promise<
           <div className="relative max-w-[1200px] mx-auto px-6 pt-[clamp(36px,6vw,80px)] pb-10 flex flex-col gap-5 max-[640px]:px-4">
             <span className="site-up inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--s-brand)]"><Sparkles size={16} aria-hidden /> Careers at Medoro · {jobs.length} open {jobs.length === 1 ? "role" : "roles"}</span>
             <h1 className="site-display site-up [--d:1] m-0 text-[clamp(36px,5vw,60px)] max-w-[860px]">Build the software India’s pharmacies run on.</h1>
-            <p className="site-up [--d:2] m-0 text-[18px] leading-[1.6] text-[var(--s-ink-2)] max-w-[680px]">Join a small team in Bokaro that ships every week. Find a role below and apply in two minutes with LinkedIn, Google or your email. We reply to every applicant.</p>
+            <p className="site-up [--d:2] m-0 text-[18px] leading-[1.6] text-[var(--s-ink-2)] max-w-[680px]">Join a small team that ships every week. Find a role below and apply in two minutes with LinkedIn, Google or your email. We reply to every applicant.</p>
             <div className="site-up [--d:3]"><ApplicantBar applicant={applicant} signins={signins} next="/careers" /></div>
             {q.signin && SIGNIN_MSG[q.signin] ? <p role="status" className="m-0 rounded-lg bg-[#FFF7E6] border border-[#F5D48A] text-[#7A4B00] px-3 py-2 text-[14px] max-w-[680px]">{SIGNIN_MSG[q.signin]}</p> : null}
           </div>
