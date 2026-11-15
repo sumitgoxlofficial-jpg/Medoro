@@ -69,14 +69,14 @@ export function SiteHeader() {
         ))}
         <div className="site-head-line absolute inset-x-0 bottom-0 h-[2px]" />
       </div>
-      <div className="relative max-w-[1200px] mx-auto h-16 px-6 flex items-center gap-10 max-[1099px]:gap-4 max-[959px]:gap-3 max-[640px]:px-4">
+      <div className="relative max-w-[1200px] min-[1500px]:max-w-[1440px] min-[1800px]:max-w-[1680px] mx-auto h-16 px-6 flex items-center gap-6 max-[1099px]:gap-4 max-[959px]:gap-3 max-[640px]:px-4">
         <Link href="/" aria-label={t("Medoro home")} className="site-logo flex-none"><Wordmark size={21} /></Link>
-        <nav aria-label={t("Main")} className="hidden min-[1180px]:flex gap-1 text-[15px]">
+        <nav aria-label={t("Main")} className="hidden min-[1180px]:flex gap-0.5 text-[15px] min-w-0">
           {NAV.map(([l, h], i) => {
             const Icon = NAV_ICONS[i];
             return (
-              <a key={h} href={h} className="site-nav group relative flex items-center gap-1.5 px-3 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap">
-                <Icon size={16} aria-hidden className="site-nav-ico max-[1499px]:hidden text-[var(--s-brand)]" />{t(l, { ctx: "site" })}
+              <a key={h} href={h} className="site-nav group relative flex items-center gap-1.5 px-2.5 max-[1365px]:px-2 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap">
+                <Icon size={16} aria-hidden className="site-nav-ico max-[1799px]:hidden text-[var(--s-brand)]" />{t(l, { ctx: "site" })}
               </a>
             );
           })}
@@ -84,10 +84,10 @@ export function SiteHeader() {
         <div className="ml-auto flex gap-2 items-center">
           <SiteLangSwitch className="max-[559px]:hidden" />
           <Link href="/staff/employee" title={t("Medoro employee login")} className="group max-[1179px]:hidden flex items-center gap-1.5 h-11 px-3 rounded-lg text-[15px] font-medium text-[var(--s-ink-2)] whitespace-nowrap hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors">
-            <UserRound size={17} aria-hidden className="site-nav-ico text-[var(--s-brand)]" /><span className="max-[1799px]:sr-only">{t("Medoro employee login")}</span>
+            <UserRound size={17} aria-hidden className="site-nav-ico text-[var(--s-brand)]" /><span className="max-[1999px]:sr-only">{t("Medoro employee login")}</span>
           </Link>
           <Link href="/signin" className="group max-[419px]:hidden flex items-center gap-1.5 h-11 px-4 max-[400px]:px-3 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] whitespace-nowrap transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><LogIn size={16} aria-hidden className="site-nav-ico max-[640px]:hidden" />{t("Log in")}</Link>
-          <a href="/trial" className="site-cta group relative overflow-hidden flex items-center gap-1.5 h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><Sparkles size={16} aria-hidden className="site-sparkle max-[400px]:hidden" /><span className="max-[520px]:hidden">{t("Start 7-day free trial")}</span><span className="min-[521px]:hidden">{t("Free trial")}</span></a>
+          <a href="/trial" className="site-cta group relative overflow-hidden flex items-center gap-1.5 h-11 px-4 max-[400px]:px-3 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold whitespace-nowrap transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><Sparkles size={16} aria-hidden className="site-sparkle max-[400px]:hidden" /><span className="max-[520px]:hidden min-[1180px]:max-[1499px]:hidden">{t("Start 7-day free trial")}</span><span className="min-[521px]:max-[1179px]:hidden min-[1500px]:hidden">{t("Free trial")}</span></a>
           <button type="button" onClick={() => setOpen((x) => !x)} aria-label={open ? t("Close menu") : t("Open menu")} aria-expanded={open} aria-controls="site-menu"
             className="min-[1180px]:hidden size-11 rounded-lg border border-[var(--s-line)] bg-white flex items-center justify-center cursor-pointer text-[var(--s-ink)]">
             {open ? <X size={18} aria-hidden /> : <Menu size={18} aria-hidden />}
