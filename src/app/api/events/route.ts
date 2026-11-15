@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       try {
         unsub = await subscribe(ctx.tenantId, (c) => send(`event: change\ndata: ${JSON.stringify(c.d ? { t: c.t, branch: c.branch, d: c.d } : { t: c.t, branch: c.branch })}\n\n`));
       } catch {
-        send("event: down\ndata: {}\n\n");
+        send("retry: 60000\nevent: down\ndata: {}\n\n");
         controller.close();
         return;
       }

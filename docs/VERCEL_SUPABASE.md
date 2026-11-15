@@ -26,6 +26,7 @@ Set these for **Production**. Mark secrets as *Sensitive*. Never prefix a secret
 | Name | Where it comes from | Secret |
 |---|---|---|
 | `DATABASE_URL` | Supabase → Connect → *Transaction pooler* URI, then append `?pgbouncer=true&connection_limit=1&sslmode=require` | Yes |
+| `DB_CONNECTION_LIMIT` | `5`: database connections per server (overrides `connection_limit` above without re-entering the URL) | No |
 | `DIRECT_URL` | Supabase → Connect → *Session pooler* URI, append `?sslmode=require` | Yes |
 | `SUPABASE_URL` | Supabase → Project Settings → API → Project URL | No |
 | `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys → *Secret key* (`sb_secret_…`) | Yes |

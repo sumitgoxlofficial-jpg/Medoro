@@ -32,6 +32,8 @@ test.describe("accounting", () => {
   test("every CSV report downloads with a header row", async ({ page }) => {
     await page.goto("/app/accounts");
     const links = page.getByRole("link", { name: "CSV" });
+    // The screen streams in behind a loading skeleton; count once the reports are on the page.
+    await expect(links.first()).toBeVisible();
     const n = await links.count();
     expect(n).toBeGreaterThan(5);
     for (const period of ["month", "fy"]) {

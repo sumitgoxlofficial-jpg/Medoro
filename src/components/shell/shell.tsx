@@ -173,7 +173,7 @@ function ShellInner(p: ShellProps) {
                   </button>
                 ) : null}
                 {!hidden ? (
-                  <Link href={n.href} title={d[n.id]} aria-current={a ? "page" : undefined} className={cn("relative flex flex-none items-center rounded-lg text-[13.5px] no-underline transition-colors", phone ? "min-h-[44px]" : "min-h-[34px]",
+                  <Link href={n.href} prefetch={false} title={d[n.id]} aria-current={a ? "page" : undefined} className={cn("relative flex flex-none items-center rounded-lg text-[13.5px] no-underline transition-colors", phone ? "min-h-[44px]" : "min-h-[34px]",
                     rail ? "flex-col gap-1 px-1 py-[7px]" : "gap-[11px] px-2.5 py-1.5",
                     a ? "bg-white/[.16] text-white font-semibold shadow-[inset_3px_0_0_#14B8A6]" : "text-white/75 font-medium hover:bg-white/10 hover:text-white")}>
                     <Icon size={17} strokeWidth={a ? 2.1 : 1.8} className="flex-none" />
