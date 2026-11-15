@@ -7,7 +7,7 @@ import { DriveDB } from "./client";
 import { addMedicine, receiveStock, CounterError, type Batch, type Medicine } from "./pharmacy";
 import { cleanNumber, parseExpiry, yes, type Table } from "@/domain/imports/parse";
 import { SheetError, formOf, inferForm, mapColumns, scheduleOf, type Preview, type RowResult } from "@/domain/imports/columns";
-import { GST_RATES, endOfMonthIfMonth } from "@/domain/inventory/contracts";
+import { DEFAULT_GST_RATE, GST_RATES, endOfMonthIfMonth } from "@/domain/inventory/contracts";
 import { todayISO } from "@/lib/dates";
 
 type Planned = RowResult & {
@@ -37,7 +37,7 @@ function plan(db: DriveDB, branchId: string, table: Table, today: string) {
     if (stockSheet) {
       if (!v.form) { v.form = inferForm(v.name ?? ""); assumed.push(`form ${v.form}`); }
       if (!v.manufacturer) { v.manufacturer = "Not given"; assumed.push("manufacturer not given"); }
-      if (!v.gstRate) { v.gstRate = "12"; assumed.push("GST 12%"); }
+      if (!v.gstRate) { v.gstRate = String(DEFAULT_GST_RATE); assumed.push(`GST ${DEFAULT_GST_RATE}%`); }
       if (!v.generic && !v.composition) { v.generic = (v.name ?? "").replace(/\d+[a-z%.]*/gi, " ").replace(/\s+/g, " ").trim() || (v.name ?? ""); assumed.push("salt taken from the name"); }
     }
     const name = (v.name ?? "").trim();

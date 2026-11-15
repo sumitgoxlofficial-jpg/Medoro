@@ -53,7 +53,7 @@ const COLS: Record<ImportKind, { key: string; label: string; required?: boolean;
 
 export const templateHeader = (kind: ImportKind) => COLS[kind].map((c) => c.label);
 export const TEMPLATE_EXAMPLE: Record<ImportKind, string[]> = {
-  medicines: ["Dolo 650", "Paracetamol", "650 mg", "Paracetamol 650mg", "Tablet", "Micro Labs", "15 tabs", "15", "strip", "tab", "yes", "33.60", "12", "", "3004", "8901234567890", "20", "A1", "DL24091", "11/2027", "40", "24.50"],
+  medicines: ["Dolo 650", "Paracetamol", "650 mg", "Paracetamol 650mg", "Tablet", "Micro Labs", "15 tabs", "15", "strip", "tab", "yes", "33.60", "5", "", "3004", "8901234567890", "20", "A1", "DL24091", "11/2027", "40", "24.50"],
   suppliers: ["Mahavir Medical Agencies", "27AABCM1234F1Z5", "9822012345", "30", "2", "0"],
   customers: ["Ramesh Kulkarni", "9890112345", "2000", "0", "yes"],
 };

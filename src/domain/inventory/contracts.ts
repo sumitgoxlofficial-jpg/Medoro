@@ -3,6 +3,8 @@ import { zId } from "@/lib/id";
 
 export const FORMS = ["Tablet", "Capsule", "Syrup", "Suspension", "Injection", "Gel", "Cream", "Ointment", "Drops", "Sachet", "Powder", "Inhaler", "Device", "Other"] as const;
 export const GST_RATES = [0, 5, 12, 18, 28] as const;
+/** The rate on most medicines since 22 September 2025 (it was 12%). Used where a new medicine has no rate given. */
+export const DEFAULT_GST_RATE = 5;
 /** Drug schedules: H, H1 and X (Drugs and Cosmetics Rules), G, and NDPS (narcotic and psychotropic substances). */
 export const SCHEDULES = ["", "H", "H1", "X", "G", "NDPS"] as const;
 

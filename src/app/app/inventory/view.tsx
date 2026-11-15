@@ -15,7 +15,7 @@ import { useT } from "@/lib/i18n-client";
 import { inr } from "@/lib/money";
 import { fmtQty, parseQty } from "@/lib/units";
 import { dayMonth, monthYear, todayISO } from "@/lib/dates";
-import { FORMS, GST_RATES, type MedicineInput, type ReceiveInput } from "@/domain/inventory/contracts";
+import { DEFAULT_GST_RATE, FORMS, GST_RATES, type MedicineInput, type ReceiveInput } from "@/domain/inventory/contracts";
 import type { listInventory, medicineDetail, InvFilter } from "@/domain/inventory/service";
 import type { listBranchTransfers } from "@/domain/inventory/adjust";
 import { raiseClaimAction } from "../purchases/claims-actions";
@@ -452,7 +452,7 @@ function TransfersPanel({ transfers }: { transfers: Transfers }) {
   );
 }
 
-const EMPTY: Record<keyof MedicineInput, string> = { name: "", generic: "", strength: "", form: "Tablet", manufacturer: "", pack: "", mrp: "", gstRate: "12", schedule: "", reorderLevel: "10", barcode: "", hsn: "3004", rack: "",
+const EMPTY: Record<keyof MedicineInput, string> = { name: "", generic: "", strength: "", form: "Tablet", manufacturer: "", pack: "", mrp: "", gstRate: String(DEFAULT_GST_RATE), schedule: "", reorderLevel: "10", barcode: "", hsn: "3004", rack: "",
   composition: "", packSize: "1", packUnit: "strip", looseUnit: "tab", allowLoose: "", caseSize: "1", caseUnit: "box" };
 
 function MedicineModal({ open, edit, onClose, onSaved }: { open: boolean; edit: Detail["medicine"] | null; onClose: () => void; onSaved: (id?: string) => void }) {

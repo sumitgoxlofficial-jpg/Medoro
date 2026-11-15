@@ -97,11 +97,11 @@ describe("data import", () => {
     const p = await previewImport(ctx, "medicines", "old-stock.xlsx", file);
     expect(p.bad).toBe(0);
     expect(p.rows.map((r) => r.action)).toEqual(["create", "create", "create", "create"]);
-    expect(p.rows[0].note).toContain("assumed form Tablet, manufacturer not given, GST 12%");
+    expect(p.rows[0].note).toContain("assumed form Tablet, manufacturer not given, GST 5%");
     const r = await runImport(ctx, "medicines", "old-stock.xlsx", file);
     expect(r).toMatchObject({ created: 4, stocked: 4, failed: [] });
     const m = Object.fromEntries((await db.medicine.findMany({ where: { name: { in: ["COMBIFLAM TAB", "AZEE 500 SYP", "VOLINI GEL 30G", "PAN 40"] } }, include: { batches: true } })).map((x) => [x.name, x]));
-    expect(m["COMBIFLAM TAB"]).toMatchObject({ form: "Tablet", gstRate: 12, manufacturer: "Not given" });
+    expect(m["COMBIFLAM TAB"]).toMatchObject({ form: "Tablet", gstRate: 5, manufacturer: "Not given" });
     expect(m["AZEE 500 SYP"].form).toBe("Syrup"); expect(m["VOLINI GEL 30G"].form).toBe("Gel"); expect(m["PAN 40"].form).toBe("Other");
     expect(m["COMBIFLAM TAB"].batches[0]).toMatchObject({ batchNo: "CF1", qtyAvailable: 30 });
     expect(Number(m["COMBIFLAM TAB"].batches[0].costPaise)).toBe(2700);
