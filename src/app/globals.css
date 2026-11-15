@@ -443,3 +443,10 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .hr-app .hr-fact:hover { box-shadow: 0 16px 32px -20px rgba(11,94,91,.45); border-color: #8FB8B3; }
 .hr-app .hr-fact-ico { transition: transform .3s cubic-bezier(.22,1,.36,1); }
 .hr-app .hr-fact:hover .hr-fact-ico { transform: scale(1.1) rotate(-6deg); }
+/* HRMS HR / super admin dashboard: KPI chips rise in, the "working now" dot pulses, people tiles pop in and lift. */
+.hr-app .hr-kpi { animation: hr-up .55s cubic-bezier(.22,1,.36,1) both; transition: background-color .3s; }
+.hr-app .hr-kpi:hover { background: rgba(255,255,255,.2); }
+@keyframes hr-live { 0% { box-shadow: 0 0 0 0 rgba(94,234,212,.7); } 100% { box-shadow: 0 0 0 7px rgba(94,234,212,0); } }
+.hr-app .hr-live { animation: hr-live 1.6s ease-out infinite; }
+.hr-app .hr-person { animation: hr-up .45s cubic-bezier(.22,1,.36,1) both; transition: border-color .25s, box-shadow .25s, background-color .25s; }
+.hr-app .hr-person:hover { border-color: #8FD3C6; background: #F7FBFA; box-shadow: 0 10px 22px -16px rgba(11,94,91,.45); }

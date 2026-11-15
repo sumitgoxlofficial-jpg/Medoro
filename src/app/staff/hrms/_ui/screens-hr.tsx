@@ -11,6 +11,8 @@ import { STATES } from "@/staff/hrms/states";
 import { scheduleText } from "@/staff/hrms/constants";
 import { LettersPanel, OfferModal } from "./letters";
 import { AnnounceModal, PayslipView } from "./screens-me";
+import { CountUp } from "@/components/welcome-banner";
+import { TeamOrbit } from "../../employee/art";
 
 type P = { sh: Shell };
 
@@ -19,11 +21,35 @@ export function DashboardScreen({ d, sh }: { d: Data<"hrhome"> } & P) {
   const { run } = useRun();
   const [ann, setAnn] = useState(false);
   const away = d.staff.filter((p) => p.presence !== "offline" || p.status === "active").slice(0, 12);
+  const working = d.staff.filter((p) => p.presence === "active").length, onBreak = d.staff.filter((p) => p.presence === "break").length;
+  const pending = d.pending.length + d.claimsWaiting;
+  const ist = new Date(Date.now() + 5.5 * 3600_000), hour = ist.getUTCHours();
   return (
     <>
+      {/* Welcome banner: greeting in India time, live team numbers that count up, and the team circle turning behind. */}
+      <div className="hr-banner relative overflow-hidden rounded-[18px] px-7 py-6 max-[560px]:px-5 text-white flex gap-5 flex-wrap items-center" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F)" }}>
+        <div aria-hidden className="pointer-events-none absolute inset-0">
+          <div className="hr-dots absolute inset-0" />
+          <div className="hr-sheen absolute inset-y-0 -left-1/3 w-1/3" />
+          <TeamOrbit className="absolute right-[2%] -top-24 w-[340px] h-auto opacity-[.12] max-[700px]:hidden" />
+        </div>
+        <div className="relative flex-1 min-w-[240px]">
+          <div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{ist.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })} · {HR_ROLE_LABEL[sh.me.role]}</div>
+          <h1 className="text-[26px] max-[560px]:text-[22px] font-bold leading-tight mt-1">{hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}, {sh.me.first} <span aria-hidden className="hr-wave inline-block">👋</span></h1>
+          <p className="text-[13.5px] text-white/80 mt-1">{pending ? `${pending} request${pending > 1 ? "s" : ""} waiting for you. ` : "Nothing waiting for your approval. "}{working} of {d.staff.length} people are working right now.</p>
+        </div>
+        <div className="relative grid grid-cols-4 max-[700px]:grid-cols-2 gap-2.5">
+          {([["Working now", working, "#5EEAD4"], ["On break", onBreak, "#F5C451"], ["On leave", d.onLeave, "#F28B82"], ["Waiting", pending, "#FFFFFF"]] as const).map(([l, v, c], i) => (
+            <div key={l} className="hr-kpi rounded-xl bg-white/12 border border-white/20 backdrop-blur-[2px] px-3.5 py-2.5 min-w-[96px]" style={{ animationDelay: `${150 + i * 80}ms` }}>
+              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-white/70"><span className={cx("size-2 rounded-full", i === 0 && v ? "hr-live" : "")} style={{ background: c }} />{l}</div>
+              <div className="text-[24px] font-bold leading-tight"><CountUp value={v} format={String} /></div>
+            </div>
+          ))}
+        </div>
+      </div>
       <Card title="Team availability · live" right={<Pill tone="amber">{d.staff.filter((p) => p.presence === "break").length} on break</Pill>} pad>
         <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))" }}>
-          {away.map((p) => <div key={p.id} className="flex items-center gap-2.5 border border-[#E2E8F0] rounded-xl px-3 py-2"><Avatar name={p.name} photo={p.photo} size={34} dot={presenceColor(p.presence)} /><div className="min-w-0 flex-1"><div className="text-[13px] font-semibold truncate">{p.name}</div><div className="text-[11.5px] text-[#64748B] truncate">{p.designation || p.dept || "—"}</div></div><Pill tone={p.presence === "active" ? "green" : p.presence === "break" ? "amber" : "gray"}>{p.presence === "active" ? "Working" : p.presence === "break" ? p.presenceNote || "On break" : "Offline"}</Pill></div>)}
+          {away.map((p, i) => <div key={p.id} className="hr-person flex items-center gap-2.5 border border-[#E2E8F0] rounded-xl px-3 py-2" style={{ animationDelay: `${Math.min(i, 11) * 45}ms` }}><Avatar name={p.name} photo={p.photo} size={34} dot={presenceColor(p.presence)} /><div className="min-w-0 flex-1"><div className="text-[13px] font-semibold truncate">{p.name}</div><div className="text-[11.5px] text-[#64748B] truncate">{p.designation || p.dept || "—"}</div></div><Pill tone={p.presence === "active" ? "green" : p.presence === "break" ? "amber" : "gray"}>{p.presence === "active" ? "Working" : p.presence === "break" ? p.presenceNote || "On break" : "Offline"}</Pill></div>)}
         </div>
       </Card>
       <Grid n={4}><Stat l="Headcount" v={d.staff.length} sub={`${d.depts} departments`} /><Stat l="On leave today" v={d.onLeave} c="#B45309" /><Stat l="Pending approvals" v={d.pending.length + d.claimsWaiting} c="#B45309" /><Stat l="Open positions" v={d.openJobs} c="#0f172a" /></Grid>
