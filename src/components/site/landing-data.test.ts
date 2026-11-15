@@ -20,3 +20,24 @@ describe("search landing pages", () => {
     }
   });
 });
+
+describe("blog", async () => {
+  const { POSTS } = await import("./blog-data");
+  const paths = new Set(["/", "/#pricing", "/blog", ...LANDINGS.map((l) => `/${l.slug}`), ...POSTS.map((p) => `/blog/${p.slug}`)]);
+
+  it("has unique slugs and search-sized titles and descriptions", () => {
+    expect(new Set(POSTS.map((p) => p.slug)).size).toBe(POSTS.length);
+    for (const p of POSTS) {
+      expect(`${p.title} | Medoro`.length, p.slug).toBeLessThanOrEqual(80);
+      expect(p.description.length, p.slug).toBeLessThanOrEqual(170);
+    }
+  });
+
+  it("links only to pages that exist", () => {
+    for (const p of POSTS) {
+      const text = JSON.stringify(p.body);
+      for (const m of text.matchAll(/\]\((\/[^)\s]*)\)/g)) expect(paths.has(m[1]), `${p.slug} → ${m[1]}`).toBe(true);
+      expect(paths.has(p.cta.href), p.slug).toBe(true);
+    }
+  });
+});
