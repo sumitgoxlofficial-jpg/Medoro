@@ -23,6 +23,7 @@ import * as promos from "@/staff/hrms/promotions";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
 import * as kyc from "@/staff/hrms/kyc";
+import * as careers from "@/staff/hrms/careers";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import type { Settings } from "@/staff/hrms/constants";
 
@@ -141,7 +142,8 @@ export const raiseTicket = async (input: In<typeof work.raiseTicket>) => done(aw
 export const resolveTicket = async (id: string, reply: string) => done(await hrRun((me) => work.resolveTicket(me, id, reply), "Ticket resolved."));
 
 // ── Recruitment
-export const postJob = async (input: In<typeof work.postJob>) => done(await hrRun((me) => work.postJob(me, input), "Job posted. Employees can refer candidates."));
+export const postJob = async (input: careers.JobInput) => done(await hrRun((me) => careers.postJob(me, input), "Job posted on the careers page."));
+export const updateJob = async (id: string, input: careers.JobInput) => done(await hrRun((me) => careers.updateJob(me, id, input), "Job updated."));
 export const setJobOpen = async (id: string, on: boolean) => done(await hrRun((me) => work.setJobOpen(me, id, on), on ? "Job reopened." : "Job closed."));
 export const addCandidate = async (input: In<typeof work.addCandidate>) => done(await hrRun((me) => work.addCandidate(me, input), "Candidate added."));
 export const referCandidate = async (input: In<typeof work.addCandidate>) => done(await hrRun((me) => work.addCandidate(me, input, true), "Referral sent to HR. Thank you."));

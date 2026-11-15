@@ -128,6 +128,16 @@ export const PROJECT_STATUS = ["Planning", "In progress", "On hold", "Done"] as 
 export const ASSET_KINDS = ["Laptop", "Monitor", "Phone", "Access card", "Keyboard & mouse", "Headset", "Other"] as const;
 export const EMP_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
 export const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"] as const;
+export const JOB_MODES = ["On-site", "Hybrid", "Remote"] as const;
+/** Where a candidate came from. Job links shared on a job site carry ?src=<id> so the source is recorded. */
+export const JOB_SOURCES = [
+  { id: "website", label: "Careers page" }, { id: "linkedin", label: "LinkedIn" }, { id: "naukri", label: "Naukri" }, { id: "indeed", label: "Indeed" },
+  { id: "google", label: "Google Jobs" }, { id: "instahyre", label: "Instahyre" }, { id: "internshala", label: "Internshala" }, { id: "whatsapp", label: "WhatsApp" },
+  { id: "referral", label: "Employee referral" }, { id: "hr", label: "Added by HR" }, { id: "other", label: "Other site" },
+] as const;
+export type JobSource = (typeof JOB_SOURCES)[number]["id"];
+/** Job sites HR can copy a tracked link for. */
+export const SHARE_SITES = ["linkedin", "naukri", "indeed", "instahyre", "internshala", "whatsapp"] as const;
 export const CAND_STAGES = [{ id: "applied", label: "Applied" }, { id: "interview", label: "Interview" }, { id: "offer", label: "Offer" }, { id: "hired", label: "Hired" }] as const;
 export const DOC_KINDS = ["Aadhaar card", "PAN card", "Passport / photo ID", "Address proof", "Education certificate", "Previous employment (relieving letter)", "Bank proof (cancelled cheque)", "Other"] as const;
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;

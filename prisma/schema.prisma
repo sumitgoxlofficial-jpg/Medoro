@@ -2620,14 +2620,26 @@ model HrPayslip {
 }
 
 model HrJob {
-  id         String        @id @default(uuid())
-  title      String
-  dept       String
-  location   String
-  type       String
-  status     String        @default("active") // active, closed
-  createdAt  DateTime      @default(now())
-  candidates HrCandidate[]
+  id           String        @id @default(uuid())
+  /// Public link on the careers page: /careers/<slug>.
+  slug         String?       @unique
+  title        String
+  dept         String
+  location     String
+  type         String
+  mode         String        @default("On-site") // On-site, Hybrid, Remote
+  experience   String        @default("")
+  salary       String        @default("")
+  openings     Int           @default(1)
+  skills       String        @default("") // comma separated
+  description  String        @default("")
+  requirements String        @default("")
+  benefits     String        @default("")
+  postedBy     String?
+  status       String        @default("active") // active, closed
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now()) @updatedAt
+  candidates   HrCandidate[]
 }
 
 model HrCandidate {
@@ -2643,9 +2655,22 @@ model HrCandidate {
   stage      String   @default("applied") // applied, interview, offer, hired, rejected
   offer      Json? // the offer letter fields once generated
   referredBy String?
+  /// Where the application came from: hr, referral, website, linkedin, naukri, indeed, google, other.
+  source     String   @default("hr")
+  /// How the applicant proved their email on the careers page: linkedin, google, or null (typed).
+  verifiedBy String?
+  linkedin   String   @default("")
+  experience String   @default("")
+  location   String   @default("")
+  cover      String   @default("")
+  resumeKey  String?
+  resumeName String?
+  resumeType String?
   createdAt  DateTime @default(now())
 
   @@index([stage])
+  @@index([email])
+  @@index([jobId, email])
 }
 
 model HrTicket {

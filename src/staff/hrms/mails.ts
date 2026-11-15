@@ -69,4 +69,22 @@ export function offerMail(i: { name: string; org: string; title: string; validDa
   return { subject, ...m };
 }
 
+/** Sent straight after someone applies on the careers page. */
+export function applicationMail(i: { name: string; org: string; title: string; dept: string; location: string; ref: string; statusUrl: string }) {
+  const subject = `Thank you for your interest in the ${i.title} role at ${i.org}`;
+  const m = compose({
+    greeting: `Dear ${first(i.name)},`,
+    blocks: [
+      { p: `Thank you for your interest in the ${i.title} role at ${i.org}. We have received your application, and we truly appreciate the time you took to apply.` },
+      { facts: [["Role", i.title], ["Team", i.dept], ["Location", i.location], ["Application reference", i.ref]] },
+      { p: "Our hiring team reviews every application carefully. If your profile matches what we are looking for, we will contact you by email or phone to arrange the next steps, usually within 7 to 10 working days." },
+      ...(i.statusUrl ? [{ button: { label: "Track your application", url: i.statusUrl } }] : []),
+      { note: "Medoro never asks for any payment at any stage of hiring. If anyone asks you for money in Medoro's name, please do not pay and let us know." },
+      { p: "We wish you the very best, and thank you once again for considering a career with us." },
+    ],
+    signoff: { name: "Talent Acquisition Team", org: i.org },
+  }, subject);
+  return { subject, ...m };
+}
+
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
