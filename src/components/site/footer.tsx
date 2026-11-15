@@ -1,19 +1,52 @@
 "use client";
 import Link from "next/link";
-import { Boxes, Building2, Store, ChevronRight, Heart, LogIn, Mail, MessageCircle, Scale, type LucideIcon } from "lucide-react";
+import { ArrowLeftRight, Boxes, Building2, Calculator, ChevronRight, Heart, LayoutGrid, LogIn, Mail, MapPin, MessageCircle, Scale, Store, type LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n-client";
 import { UDYAM } from "@/lib/udyam";
 import { WA_DEMO, Wordmark } from "./brand";
+import { COMPARE_LINKS, FEATURE_LINKS, HUBS, SOLUTION_LINKS, TOOL_LINKS, TOP_CITY_LINKS } from "@/data/site-links";
 import { LANDING_LINKS } from "./landing-links";
 import { Aurora } from "./decor";
 
-const FOOT: { t: string; icon: LucideIcon; links: [string, string][] }[] = [
+type FootCol = { t: string; icon: LucideIcon; links: [string, string][]; all?: [string, string] };
+
+/**
+ * Internal linking matrix: every feature, comparison, tool and solution page, the top cities and each hub, so search
+ * engines reach every public page within two clicks of the homepage (all cities and states are on HUBS.locations).
+ */
+const MATRIX: FootCol[] = [
+  { t: "Features", icon: LayoutGrid, links: FEATURE_LINKS, all: ["All features", HUBS.features] },
+  { t: "Compare", icon: ArrowLeftRight, links: COMPARE_LINKS, all: ["All comparisons", HUBS.compare] },
+  { t: "Free Pharmacy Tools", icon: Calculator, links: TOOL_LINKS, all: ["All free tools", HUBS.tools] },
+  { t: "Solutions", icon: Store, links: SOLUTION_LINKS, all: ["All solutions", HUBS.solutions] },
+  { t: "Top Cities", icon: MapPin, links: TOP_CITY_LINKS, all: ["All cities and states", HUBS.locations] },
+];
+
+const FOOT: FootCol[] = [
   { t: "Product", icon: Boxes, links: [["Billing & POS", "/#product"], ["Inventory & expiry", "/#product"], ["GST & accounts", "/#product"], ["WhatsApp & refills", "/#product"], ["Offline & branches", "/#product"], ["Pricing", "/#pricing"]] },
-  { t: "Solutions", icon: Store, links: LANDING_LINKS },
+  { t: "Pharmacy software", icon: Store, links: LANDING_LINKS },
   { t: "Company", icon: Building2, links: [["About Medoro", "/legal#about"], ["Blog", "/blog"], ["Become a reference partner", "/partners"], ["Careers", "/careers"], ["Switching to Medoro", "/#switching"], ["Security & data", "/#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
   { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/employee"], ["Start 7-day free trial", "/trial"]] },
   { t: "Legal", icon: Scale, links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
+
+function FootNav({ c, i }: { c: FootCol; i: number }) {
+  const t = useT();
+  const links = c.all ? [...c.links, c.all] : c.links;
+  return (
+    <nav aria-label={t(c.t)} className="flex flex-col gap-2.5 min-w-0">
+      <span className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-muted)] mb-1">
+        <span className="flex-none size-7 rounded-lg bg-white border border-[var(--s-line)] flex items-center justify-center"><c.icon size={15} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} /></span>{t(c.t)}
+      </span>
+      {links.map(([l, h]) => (
+        <a key={l} href={h} className={`site-foot-link group flex items-start gap-1 text-[15px] hover:text-[var(--s-brand)] py-1 ${c.all && h === c.all[1] ? "font-semibold text-[var(--s-brand)]" : "text-[var(--s-ink-2)]"}`}>
+          <ChevronRight size={14} aria-hidden className="flex-none mt-[4px] -ml-[18px] opacity-0 text-[var(--s-brand)] transition-all duration-300 group-hover:ml-0 group-hover:opacity-100" />
+          <span className="transition-transform duration-300">{t(l, { ctx: "site" })}</span>
+        </a>
+      ))}
+    </nav>
+  );
+}
 
 export function SiteFooter() {
   const t = useT();
@@ -40,19 +73,10 @@ export function SiteFooter() {
               <span className="text-[var(--s-muted)] text-[14px] pl-[42px]">{t("Monday to Saturday, 9 am to 9 pm IST")}</span>
             </div>
           </div>
-          {FOOT.map((c) => (
-            <nav key={c.t} aria-label={t(c.t)} className="flex flex-col gap-2.5">
-              <span className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-muted)] mb-1">
-                <span className="size-7 rounded-lg bg-white border border-[var(--s-line)] flex items-center justify-center"><c.icon size={15} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: FOOT.indexOf(c) }} /></span>{t(c.t)}
-              </span>
-              {c.links.map(([l, h]) => (
-                <a key={l} href={h} className="site-foot-link group flex items-start gap-1 text-[15px] text-[var(--s-ink-2)] hover:text-[var(--s-brand)] py-1">
-                  <ChevronRight size={14} aria-hidden className="flex-none mt-[4px] -ml-[18px] opacity-0 text-[var(--s-brand)] transition-all duration-300 group-hover:ml-0 group-hover:opacity-100" />
-                  <span className="transition-transform duration-300">{t(l, { ctx: "site" })}</span>
-                </a>
-              ))}
-            </nav>
-          ))}
+          {FOOT.map((c, i) => <FootNav key={c.t} c={c} i={i} />)}
+        </div>
+        <div className="grid gap-x-8 gap-y-10 grid-cols-2 min-[720px]:grid-cols-3 min-[1040px]:grid-cols-5 border-t border-[var(--s-line)] pt-10">
+          {MATRIX.map((c, i) => <FootNav key={c.t} c={c} i={i} />)}
         </div>
         {/* Heartbeat line in place of the divider */}
         <svg aria-hidden viewBox="0 0 1200 40" preserveAspectRatio="none" className="block w-full h-10 -mb-6">

@@ -1,16 +1,19 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/seo";
 
-const SITE = process.env.APP_URL ?? "https://medoro.in";
-
-/** /robots.txt: the public website is crawlable; the app, staff areas, API and one-off links are not. */
+/**
+ * /robots.txt: the public website (homepage, landing, feature, comparison, tool, solution and location pages) is
+ * crawlable; the app, staff areas, API and one-off links are not. /pharmacy-software-in/ is the internal address of the
+ * location pages, which redirects to /pharmacy-software-in-<place>, so it is kept out too.
+ */
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [{
       userAgent: "*",
       allow: "/",
-      disallow: ["/app", "/staff", "/api", "/print", "/device", "/support", "/offline", "/trial", "/pay", "/setup"],
+      disallow: ["/app", "/staff", "/api", "/print", "/device", "/support", "/offline", "/trial", "/pay", "/setup", "/pharmacy-software-in/"],
     }],
-    sitemap: `${SITE}/sitemap.xml`,
-    host: SITE,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

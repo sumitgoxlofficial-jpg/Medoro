@@ -1,45 +1,49 @@
 import Link from "next/link";
-import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
-import { POSTS } from "@/components/site/blog-data";
-import { BlogShell, SITE, fmtDate } from "@/components/site/blog";
+import { CtaBand, Hero, LinkGrid, MarketingShell, Section } from "@/components/seo/blocks";
+import { POSTS_BY_DATE, fmtDate, readingMinutes } from "@/data/blog";
+import { HUBS, TOOL_LINKS } from "@/data/site-links";
+import { absoluteUrl, itemListSchema, pageMetadata, type Crumb } from "@/lib/seo";
 
-const TITLE = "Pharmacy Guides: GST, Expiry, Billing and Compliance";
-const DESC = "Practical guides for Indian medical store owners: GST on medicines, GST returns, Schedule H1 rules, reducing expiry loss and choosing pharmacy software.";
-
-export const metadata: Metadata = {
-  title: { absolute: `${TITLE} | Medoro Blog` },
-  description: DESC,
-  alternates: { canonical: "/blog" },
-  openGraph: { type: "website", url: "/blog", siteName: "Medoro", title: TITLE, description: DESC, locale: "en_IN" },
+export const metadata = {
+  ...pageMetadata({
+    title: "Pharmacy Blog: Guides for Indian Chemists & Medical Stores | Medoro",
+    description: "Practical guides for Indian pharmacy owners: PTR and PTS, GST on medicines, the Schedule H1 register, expiry loss, starting a medical store and choosing software.",
+    path: HUBS.blog,
+  }),
+  alternates: { canonical: absoluteUrl(HUBS.blog), types: { "application/rss+xml": absoluteUrl(`${HUBS.blog}/rss.xml`) } },
 };
 
+const crumbs: Crumb[] = [["Blog", HUBS.blog]];
+
 export default function BlogIndex() {
-  const jsonLd = {
-    "@context": "https://schema.org", "@type": "Blog", name: "Medoro Blog", url: `${SITE}/blog`, description: DESC,
-    blogPost: POSTS.map((p) => ({ "@type": "BlogPosting", headline: p.title, url: `${SITE}/blog/${p.slug}`, datePublished: p.published, dateModified: p.updated })),
-  };
   return (
-    <BlogShell>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <div className="max-w-[1000px] mx-auto px-6 max-[640px]:px-4 pt-[clamp(32px,6vw,72px)] pb-[clamp(56px,8vw,96px)] flex flex-col gap-10">
-        <header className="flex flex-col gap-4">
-          <span className="text-[14px] font-semibold text-[var(--s-brand)]">Medoro Blog</span>
-          <h1 className="site-display m-0 text-[clamp(34px,4.6vw,54px)] text-[var(--s-ink)]">Guides for medical store owners</h1>
-          <p className="m-0 text-[18px] leading-[1.6] text-[var(--s-ink-2)] max-w-[640px]">GST, expiry, prescriptions and the day-to-day running of an Indian pharmacy, explained plainly.</p>
-        </header>
-        <ul className="m-0 p-0 list-none flex flex-col">
-          {POSTS.map((p) => (
-            <li key={p.slug} className="border-t border-[var(--s-line)] last:border-b">
-              <Link href={`/blog/${p.slug}`} className="group flex flex-col gap-2 py-7 px-3 -mx-3 no-underline transition-colors hover:bg-[var(--s-soft)]">
-                <h2 className="m-0 text-[22px] font-semibold tracking-[-.01em] text-[var(--s-ink)] group-hover:text-[var(--s-brand)]">{p.title}</h2>
-                <p className="m-0 text-[16px] leading-[1.6] text-[var(--s-ink-2)]">{p.description}</p>
-                <span className="flex items-center gap-2 text-[14px] text-[var(--s-muted)]">{fmtDate(p.updated)} · {p.minutes} min read<ArrowRight size={14} aria-hidden className="transition-transform group-hover:translate-x-1" /></span>
-              </Link>
+    <MarketingShell crumbs={crumbs} jsonLd={[itemListSchema("Medoro blog", POSTS_BY_DATE.map((p) => [p.title, `/blog/${p.slug}`]))]}>
+      <Hero crumbs={crumbs} eyebrow="Medoro blog" h1="Guides for pharmacy owners." intro="Practical, plain-language guides on margins, GST, compliance, stock and software for Indian chemists and medical stores, written by the team that builds Medoro." note="" />
+      <Section id="articles" title="Latest articles">
+        <ul className="m-0 p-0 list-none grid gap-5 grid-cols-1 min-[760px]:grid-cols-2 min-[1100px]:grid-cols-3">
+          {POSTS_BY_DATE.map((p, i) => (
+            <li key={p.slug} data-reveal style={{ ["--d" as string]: i % 3 }}>
+              <article className="site-lift group relative h-full flex flex-col gap-3 rounded-xl border border-[var(--s-line)] bg-white p-6 transition-colors hover:border-[var(--s-brand)]">
+                <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-brand)]">{p.category}</span>
+                <h3 className="m-0 text-[20px] font-semibold leading-[1.3] text-[var(--s-ink)] group-hover:text-[var(--s-brand)]">
+                  <Link href={`/blog/${p.slug}`} className="after:absolute after:inset-0">{p.h1}</Link>
+                </h3>
+                <p className="m-0 text-[15px] leading-[1.6] text-[var(--s-ink-2)] flex-1">{p.description}</p>
+                <span className="flex items-center justify-between gap-3 text-[13.5px] text-[var(--s-muted)]">
+                  <span><time dateTime={p.updated ?? p.published}>{fmtDate(p.updated ?? p.published)}</time> · {readingMinutes(p)} min read</span>
+                  <ArrowRight size={16} aria-hidden className="text-[var(--s-brand)]" />
+                </span>
+              </article>
             </li>
           ))}
         </ul>
-      </div>
-    </BlogShell>
+        <p className="m-0 text-[14px] text-[var(--s-muted)]">Follow new articles with the <a href={`${HUBS.blog}/rss.xml`} className="underline underline-offset-4">RSS feed</a>.</p>
+      </Section>
+      <Section id="tools" title="Free pharmacy tools" soft>
+        <LinkGrid links={TOOL_LINKS} />
+      </Section>
+      <CtaBand />
+    </MarketingShell>
   );
 }
