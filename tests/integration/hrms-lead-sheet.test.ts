@@ -47,6 +47,9 @@ const BOOK = [
     ["800020", "Kankarbagh", "Pooja Pharmaceuticals", "+91 93047 98168", "Narayan Market, Ashok Nagar, Kankarbagh, Patna, Bihar 800020", "5", "232", "N/A"],
     ["800020", "Kankarbagh", "Duplicate Shop", "+91 99319 17455", "Somewhere, Patna, Bihar 800020", "4", "1", "N/A"]] },
   { name: "Tamil Nadu", rows: [["Shop Name", "Phone Number", "Full Address"], ["Chennai Meds", "+91 98400 11111", "T Nagar, Chennai, Tamil Nadu 600017"]] },
+  { name: "Jharkhand", rows: [["Jharkhand Retail Medical Shops Directory"], ["PIN Code", "District / Locality", "Medical Shop Name", "Phone Number", "Full Address"],
+    ["834001", "Ranchi (Main Road)", "Ranchi Life Care", "082941 41941", "Main Rd, Ranchi, JH 834001"],
+    ["834002", "Ranchi (Lalpur)", "Lalpur Medicos", "", "Lalpur, Ranchi, JH 834002"]] },
 ];
 
 let body = "", type = "text/csv", status = 200, called: string[] = [], bytes: Uint8Array | null = null;
@@ -189,7 +192,7 @@ describe("master lead sheet", () => {
 
   it("reads a workbook with one tab per state, a title block above the header and the town inside the address", async () => {
     const book = readXlsx(xlsx(BOOK));
-    expect(book.map((t) => t.name)).toEqual(["Summary", "Bihar", "Tamil Nadu"]);
+    expect(book.map((t) => t.name)).toEqual(["Summary", "Bihar", "Tamil Nadu", "Jharkhand"]);
     expect(book[1].rows[4][2]).toBe("Shop Name");
     expect(book[1].rows[5][4]).toContain("Patna, Bihar 800001");
     expect(() => readXlsx(strToU8("not a zip"))).toThrow("isn’t a spreadsheet");
@@ -201,14 +204,16 @@ describe("master lead sheet", () => {
     await saveSheet(hr, { url: `https://docs.google.com/spreadsheets/d/${ID}/edit?usp=sharing`, auto: false, assign: true });
     const r = await syncSheet(hr);
     expect(called[0]).toBe(`https://docs.google.com/spreadsheets/d/${ID}/export?format=xlsx`); // no #gid: every tab
-    expect(r).toMatchObject({ added: 4, assigned: 4, skipped: 1, unmatched: 0 });
+    expect(r).toMatchObject({ added: 5, assigned: 5, skipped: 2, why: { known: 1, noPhone: 1, badPhone: 0, other: 0 }, unmatched: 0 });
     const leads = Object.fromEntries((await db.lead.findMany()).map((l) => [l.name, l]));
     expect(leads["Sona Medical Stores & Co"]).toMatchObject({ phone: "9931917455", city: "Patna", state: "Bihar", staffId: s1.id });
     expect(leads["Chemist Box - Dakbunglow"].phone).toBe("8037016711");
     expect(leads["Chennai Meds"]).toMatchObject({ city: "Chennai", state: "Tamil Nadu", staffId: s2.id });
     expect(leads["Duplicate Shop"]).toBeUndefined();
-    expect(new Set((await db.lead.findMany()).map((l) => l.code)).size).toBe(4); // numbers are unique
+    // "Medical Shop Name" / "District / Locality" headers, and a mobile written with a leading 0.
+    expect(leads["Ranchi Life Care"]).toMatchObject({ phone: "8294141941", city: "Ranchi (Main Road)", state: "Jharkhand", staffId: s1.id });
+    expect(new Set((await db.lead.findMany()).map((l) => l.code)).size).toBe(5); // numbers are unique
     // The next lead made any other way carries on from the reserved numbers.
-    expect((await db.sequence.findFirstOrThrow({ where: { key: "LEAD" } })).next).toBeGreaterThan(4);
+    expect((await db.sequence.findFirstOrThrow({ where: { key: "LEAD" } })).next).toBeGreaterThan(5);
   });
 });

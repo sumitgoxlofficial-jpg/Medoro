@@ -107,9 +107,11 @@ export async function teamBoard(known?: Awaited<ReturnType<typeof incentives>>) 
 }
 
 // ── HR: add, upload and hand out leads
+/** A mobile number as 10 digits. Also accepts the trunk-prefix form "098765 43210" and "+91 098765 43210". */
+export const mobileOf = (s: string) => digits(s).replace(/^(?:91)?0(?=\d{10}$)/, "");
 const leadSchema = z.object({
   name: z.string().trim().min(3, "Enter the pharmacy name.").max(120), owner: z.string().trim().max(80).default(""),
-  phone: z.string().transform(digits).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile."), city: z.string().trim().max(60).default(""),
+  phone: z.string().transform(mobileOf).refine((p) => MOBILE_RE.test(p), "Enter a valid 10-digit mobile."), city: z.string().trim().max(60).default(""),
   plan: z.enum(PLAN_IDS).default("starter"), source: z.string().trim().max(40).default("Field visit"), staffId: z.string().default(""), state: z.string().trim().max(40).default(""),
 });
 const planOf = (v: string) => { const t = v.trim().toLowerCase(); return PLANS.find((p) => p.id === t || p.name.toLowerCase() === t)?.id ?? (t.startsWith("pro") ? "pro" : t.startsWith("multi") ? "multi" : "starter"); };
@@ -151,9 +153,9 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 const HEAD = {
-  name: ["store", "pharmacy", "name", "pharmacy name", "store name", "shop", "shop name", "medical store", "firm name", "medical shop", "chemist"],
+  name: ["store", "pharmacy", "name", "pharmacy name", "store name", "shop", "shop name", "medical store", "firm name", "medical shop", "chemist", "medical shop name", "medical store name", "chemist name", "business name"],
   owner: ["owner", "owner name", "contact person", "proprietor"], phone: ["phone", "mobile", "mobile number", "phone number", "contact", "contact number", "whatsapp", "whatsapp number", "mobile no", "phone no"],
-  city: ["city", "town"], locality: ["locality / area", "locality", "area", "location"], address: ["full address", "address"], state: ["state", "lead state", "province"],
+  city: ["city", "town"], locality: ["locality / area", "locality", "area", "location", "district / locality", "district", "locality / district"], address: ["full address", "address"], state: ["state", "lead state", "province"],
   plan: ["plan", "product", "interested in"], source: ["source", "lead source"],
   assigned: ["assigned to", "assignee", "salesperson", "sales person", "employee", "emp id", "employee id", "assigned"],
 };
@@ -202,6 +204,7 @@ export async function importTabs(tabs: { name: string; rows: string[][] }[], opt
   const known = new Set(have.map((l) => l.phone)), limit = opts.limit ?? Infinity;
   const who = (v: string) => { const t = v.trim().toLowerCase(); return t ? sales.find((u) => u.empNo.toLowerCase() === t || u.name.toLowerCase() === t)?.id ?? "" : ""; };
   const fresh: z.output<typeof leadSchema>[] = []; const skipped: string[] = []; let skippedCount = 0, more = false, tabsRead = 0;
+  const why = { known: 0, noPhone: 0, badPhone: 0, other: 0 };
   for (const tab of tabs) {
     const h = findHeader(tab.rows);
     if (!h) continue;
@@ -216,8 +219,8 @@ export async function importTabs(tabs: { name: string; rows: string[][] }[], opt
         plan: planOf(get(ix.plan)), source: get(ix.source) || "Field visit", staffId: who(get(ix.assigned)),
       });
       const where = `${tab.name ? `${tab.name} · ` : ""}row ${r + 1}`;
-      if (!p.success) { skippedCount++; if (skipped.length < 20) skipped.push(`${where}: ${p.error.issues[0]?.message ?? "invalid"}`); continue; }
-      if (known.has(p.data.phone)) { skippedCount++; if (skipped.length < 20) skipped.push(`${where}: ${p.data.phone} is already a lead`); continue; }
+      if (!p.success) { skippedCount++; why[!get(ix.phone) ? "noPhone" : p.error.issues[0]?.path[0] === "phone" ? "badPhone" : "other"]++; if (skipped.length < 20) skipped.push(`${where}: ${p.error.issues[0]?.message ?? "invalid"}`); continue; }
+      if (known.has(p.data.phone)) { skippedCount++; why.known++; if (skipped.length < 20) skipped.push(`${where}: ${p.data.phone} is already a lead`); continue; }
       if (fresh.length >= limit) { more = true; break; }
       known.add(p.data.phone);
       fresh.push(p.data);
@@ -233,7 +236,7 @@ export async function importTabs(tabs: { name: string; rows: string[][] }[], opt
     for (const l of rows) if (l.staffId) { assigned++; got.set(l.staffId, (got.get(l.staffId) ?? 0) + 1); }
     for (const [id, c] of got) await notify([id], `${c} new lead${c > 1 ? "s" : ""} from HR.`, "slleads");
   }
-  return { added, assigned, more, skipped, skippedCount };
+  return { added, assigned, more, skipped, skippedCount, why };
 }
 /** CSV text with a header row (see importTabs). */
 export async function importText(text: string, opts: { maxChars?: number; limit?: number } = {}) {

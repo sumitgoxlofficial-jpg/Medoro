@@ -11,7 +11,8 @@ import { readXlsx, type Tab } from "./xlsx";
 // "Anyone with the link can view"), adds the leads it doesn't know yet (by phone number) and, if switched on, hands the new ones
 // to the sales team. It runs when HR presses Sync and, if switched on, once a day. No Google sign-in or extra permission is used.
 const KEY = "leadSheet";
-type Last = { at: string; by: string; added: number; assigned: number; skipped: number; more: boolean; unmatched: number; unmatchedLang: string[]; error: string };
+type Why = { known: number; noPhone: number; badPhone: number; other: number };
+type Last = { at: string; by: string; added: number; assigned: number; skipped: number; why?: Why; more: boolean; unmatched: number; unmatchedLang: string[]; error: string };
 type Cfg = { url: string; auto: boolean; assign: boolean; last: Last | null };
 const EMPTY: Cfg = { url: "", auto: false, assign: true, last: null };
 const MAX_BYTES = 25_000_000;
@@ -62,7 +63,7 @@ export async function runSync(by: string) {
   try {
     const r = await importTabs(await fetchBook(c.url), { limit: MAX_NEW_PER_RUN });
     const give = c.assign ? await assignWaiting() : { given: 0, unmatched: 0, unmatchedLang: [] as string[] };
-    const last: Last = { at, by, added: r.added, assigned: r.assigned + give.given, skipped: r.skippedCount, more: r.more, unmatched: give.unmatched, unmatchedLang: give.unmatchedLang, error: "" };
+    const last: Last = { at, by, added: r.added, assigned: r.assigned + give.given, skipped: r.skippedCount, why: r.why, more: r.more, unmatched: give.unmatched, unmatchedLang: give.unmatchedLang, error: "" };
     await save({ ...c, last });
     return { ...last, skippedRows: r.skipped };
   } catch (e) {
