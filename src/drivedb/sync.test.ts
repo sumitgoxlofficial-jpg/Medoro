@@ -258,6 +258,12 @@ describe("Drive tidy-up", () => {
     await ownerSetup(store);
     const names = [...store.files.values()].map((f) => f.name);
     expect(names.filter((n) => !n.startsWith("log-OWNER-")).sort()).toEqual([META, MANIFEST, SNAPSHOT].sort());
-    for (const f of store.files.values()) if (f.name.endsWith(".enc")) expect(Buffer.from(f.bytes).includes(Buffer.from("Dolo"))).toBe(false);
+    // The snapshot is ~1 MB of ciphertext, so a short needle such as "Dolo" turns up by pure coincidence about once in 3,700 runs
+    // (measured: 3 hits in 12,000 random buffers of that size). Use the full plaintext, and the SQLite file header a leaked raw database would start with.
+    for (const f of store.files.values()) if (f.name.endsWith(".enc")) {
+      const bytes = Buffer.from(f.bytes);
+      expect(bytes.includes(Buffer.from("Dolo 650"))).toBe(false);
+      expect(bytes.subarray(0, 15).toString("latin1")).not.toBe("SQLite format 3");
+    }
   });
 });
