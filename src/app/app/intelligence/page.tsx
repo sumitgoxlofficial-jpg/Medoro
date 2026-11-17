@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireCtx, can, entitlementsOf } from "@/server/context";
 import { hasFeature, upgradeMessage } from "@/lib/plans";
@@ -30,7 +31,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   ]);
   return (
     <>
-      <PageHead title={t(ctx.lang).intel} sub="Forecasts, reorder policy, supplier prices and anomaly review" />
+      <PageHead title={t(ctx.lang).intel} sub="Forecasts, reorder policy, supplier prices and anomaly review" right={<Link href="/app/intelligence/suppliers" className="text-[13px] underline" data-testid="supplier-intel-link">Supplier ranking</Link>} />
       <IntelView policy={s.policy} th={s.anomaly} fc={fc} prices={prices} slow={slow} anomalies={an} anomalyLocked={{ message: upgradeMessage(ent, "anomaly"), canUpgrade }} sea={sea} month={month} cur={cur} suppliers={suppliers}
         canPurchase={can(ctx, "purchase")} canReview={can(ctx, "reports")} />
       {ctx.branches.length > 1 && !hasFeature(ent, "central") ? <div className="mt-4 max-w-[1400px]"><UpgradeNote compact message={upgradeMessage(ent, "central")} canUpgrade={canUpgrade} /></div> : null}

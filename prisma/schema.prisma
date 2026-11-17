@@ -2918,3 +2918,31 @@ model HrLetter {
   @@unique([staffId, type, lastDay])
   @@index([staffId, readAt])
 }
+
+// ───────────── Integration health (Medoro 2.0) ─────────────
+
+/// The last explicit test of one integration for one pharmacy. The state shown on the Integration Health screen is
+/// derived from this plus live evidence (see src/domain/system/health-state.ts); "active" is never stored.
+model IntegrationHealth {
+  id            String    @id @default(uuid())
+  tenantId      String
+  key           String // gdrive, whatsapp, ocr, ai
+  lastTestAt    DateTime?
+  lastTestOk    Boolean?
+  lastSuccessAt DateTime? // last test that passed
+  lastError     String?
+  lastErrorAt   DateTime?
+  detail        String?
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([tenantId, key])
+}
+
+/// A platform-level heartbeat of the scheduler tick (not per pharmacy), so "background jobs" can be reported from fact.
+model SystemHeartbeat {
+  key       String    @id
+  lastRunAt DateTime?
+  lastOkAt  DateTime?
+  lastError String?
+  runs      Int       @default(0)
+}

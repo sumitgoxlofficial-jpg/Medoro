@@ -2,7 +2,7 @@ import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
   | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "est" | "att" | "acc"
-  | "wa" | "crm" | "bak" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
+  | "wa" | "crm" | "bak" | "health" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Finance" | "Engagement" | "System"; abbr: string; sub: string };
 
@@ -30,6 +30,7 @@ export const NAV: NavDef[] = [
   { id: "wa", href: "/app/whatsapp", icon: "MessageCircle", perm: "integrations", group: "Engagement", abbr: "WhatsApp", sub: "Meta WhatsApp Business Cloud API" },
   { id: "crm", href: "/app/messaging", icon: "Megaphone", perm: "integrations", group: "Engagement", abbr: "CRM", sub: "Opt-in reminders, campaigns, loyalty and opt-outs" },
   { id: "bak", href: "/app/backup", icon: "CloudUpload", perm: "integrations", group: "System", abbr: "Backup", sub: "Encrypted Google Drive backups" },
+  { id: "health", href: "/app/health", icon: "Activity", perm: "integrations", group: "System", abbr: "Health", sub: "Integration status, last tests and errors" },
   { id: "sync", href: "/app/sync", icon: "RefreshCw", perm: null, group: "System", abbr: "Sync", sub: "Devices, offline queue and conflict reconciliation" },
   { id: "users", href: "/app/users", icon: "ShieldCheck", perm: "users", group: "System", abbr: "Users", sub: "Roles, permissions, branches and audit trail" },
   { id: "plan", href: "/app/plan", icon: "CreditCard", perm: "users", group: "System", abbr: "Plan", sub: "Plan, entitlements, licence and Medoro invoices" },
@@ -38,7 +39,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est", "att", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
+export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est", "att", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
 
 /**
  * A pharmacy whose records live on its counters and in its Google Drive: each screen opens the matching tab of
@@ -50,7 +51,7 @@ export const DRIVE_TAB: Partial<Record<ScreenId, string>> = {
   recall: "recalls", doc: "doctors", chq: "cheques", intel: "insights",
 };
 /** Screens that stay for Drive pharmacies as they are: WhatsApp and customer messaging, account, devices, plan, privacy, help. */
-const DRIVE_KEEP = new Set<ScreenId>(["wa", "crm", "bak", "sync", "users", "plan", "privacy", "help"]);
+const DRIVE_KEEP = new Set<ScreenId>(["wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
 export const driveNav = (n: NavDef): NavDef | null => DRIVE_TAB[n.id] ? { ...n, href: `/app/device-pos?tab=${DRIVE_TAB[n.id]}` } : DRIVE_KEEP.has(n.id) ? n : null;
 
 export const navFor = (perms: string[]) => NAV.filter((n) => READY.has(n.id) && (!n.perm || perms.includes(n.perm)));

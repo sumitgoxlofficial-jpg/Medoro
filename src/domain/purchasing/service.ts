@@ -216,9 +216,9 @@ export async function supplierIsInterState(tx: DbOrTx, tenantId: string, branchI
  * ordered quantity) / units ordered; on time = units received within the lead time (+1 day) of placing the
  * order. Orders still inside their lead time are not counted yet. Null when there's no history.
  */
-export async function supplierPerformance(tx: DbOrTx, tenantId: string) {
+export async function supplierPerformance(tx: DbOrTx, tenantId: string, branchIds?: string[]) {
   const [pos, sups] = await Promise.all([
-    tx.purchaseOrder.findMany({ where: { tenantId, status: { in: ["ordered", "partially_received", "received", "closed"] } }, include: { items: true } }),
+    tx.purchaseOrder.findMany({ where: { tenantId, ...(branchIds ? { branchId: { in: branchIds } } : {}), status: { in: ["ordered", "partially_received", "received", "closed"] } }, include: { items: true } }),
     tx.supplier.findMany({ where: { tenantId }, select: { id: true, leadDays: true } }),
   ]);
   const grnItems = pos.length ? await tx.grnItem.findMany({ where: { poItemId: { in: pos.flatMap((p) => p.items.map((i) => i.id)) } }, include: { grn: { select: { approvedAt: true } } } }) : [];
