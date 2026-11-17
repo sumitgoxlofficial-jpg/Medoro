@@ -3,6 +3,7 @@ import { FileCheck } from "lucide-react";
 import { requireCtx, can } from "@/server/context";
 import { complianceOverview } from "@/domain/system/compliance";
 import { PageHead } from "@/components/page-head";
+import { DriveModeNote } from "@/components/drive-mode-note";
 import { ActiveButton, CloseForm, InspectionForm, ItemForm, SettingsForm, UploadForm } from "./forms";
 
 export const metadata = { title: "Compliance centre" };
@@ -21,6 +22,7 @@ export default async function Page() {
   return (
     <>
       <PageHead icon={FileCheck} title="Compliance centre" sub="Licences, pharmacist registration, inspections and renewal reminders, kept in your own records" />
+      <DriveModeNote moved={ctx.moved} />
       <div className="max-w-[1400px] flex flex-col gap-4">
         <p className="m-0 text-[12.5px] text-slate-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="compliance-disclaimer">
           This is a record-keeping and reminder tool. It does not tell you what the law requires of your pharmacy, it does not check anything with a licensing authority, and its requirements and retention periods are whatever you configure here. Have them confirmed by a qualified regulatory professional.

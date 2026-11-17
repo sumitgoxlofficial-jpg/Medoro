@@ -5,6 +5,7 @@ import { requireCtx, can } from "@/server/context";
 import { db } from "@/server/db";
 import { forecastAccuracy, forecastIntel } from "@/domain/intelligence/forecast-intel";
 import { PageHead } from "@/components/page-head";
+import { DriveModeNote } from "@/components/drive-mode-note";
 import { DraftButton } from "./draft-button";
 
 export const metadata = { title: "Demand forecast" };
@@ -33,6 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ a
   return (
     <>
       <PageHead icon={LineChart} title="Demand forecast" sub={`${f.branch.name} · statistical estimate from your own bills, not a guarantee`} />
+      <DriveModeNote moved={ctx.moved} />
       <div className="max-w-[1400px] flex flex-col gap-4">
         <p className="m-0 text-[12.5px] text-slate-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" data-testid="forecast-disclaimer">
           These are estimates from a simple statistical model (recent level, weekday pattern, and an 80% range), not facts and not machine learning. Seasonal swings are not included (see the seasonal planner on the Insights page). Sales stop when stock runs out, so items that were often out of stock are under-forecast. Always review before ordering.

@@ -8,6 +8,7 @@ import { profitIntel, profitPeriod, COST_WINDOW_DAYS } from "@/domain/reports/pr
 import { COST_VARIATION_FLAG_PCT, DISCOUNT_FLAG, RECON_TOLERANCE } from "@/domain/reports/profit-rules";
 import { UserError } from "@/server/action";
 import { PageHead } from "@/components/page-head";
+import { DriveModeNote } from "@/components/drive-mode-note";
 
 export const metadata = { title: "Profit intelligence" };
 const rs = (p: number) => `${p < 0 ? "−" : ""}₹${Math.abs(Math.round(p / 100)).toLocaleString("en-IN")}`;
@@ -29,6 +30,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   return (
     <>
       <PageHead icon={TrendingUp} title="Profit intelligence" sub={`${d.scope.branchName} · ${period.fromDay} to ${period.toDay} · from the ledger and landed cost`} />
+      <DriveModeNote moved={ctx.moved} />
       <div className="max-w-[1400px] flex flex-col gap-4">
         <form method="get" className="flex gap-2 flex-wrap items-end text-[13px]" data-testid="profit-period">
           {branch ? <input type="hidden" name="branch" value={branch} /> : null}

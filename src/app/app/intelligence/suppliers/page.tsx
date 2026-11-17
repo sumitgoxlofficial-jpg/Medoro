@@ -5,6 +5,7 @@ import { requireCtx, can } from "@/server/context";
 import { supplierIntel, QUOTE_WINDOW_DAYS } from "@/domain/purchasing/supplier-intel";
 import { WEIGHTS } from "@/domain/purchasing/supplier-score";
 import { PageHead } from "@/components/page-head";
+import { DriveModeNote } from "@/components/drive-mode-note";
 
 export const metadata = { title: "Supplier intelligence" };
 const rs = (p: number) => `₹${(p / 100).toFixed(2)}`;
@@ -20,6 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   return (
     <>
       <PageHead icon={Truck} title="Supplier intelligence" sub={`Ranking from your own purchase orders and GRNs · ${d.scope.branchName}`} />
+      <DriveModeNote moved={ctx.moved} />
       <div className="max-w-[1400px] flex flex-col gap-4">
         {ctx.branches.length > 1 ? (
           <nav aria-label="Branch" className="flex gap-2 flex-wrap text-[13px]" data-testid="supplier-branches">

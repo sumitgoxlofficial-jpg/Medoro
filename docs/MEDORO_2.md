@@ -15,8 +15,8 @@ This document records what was inspected, what was built in this increment, what
 | 7 Forecasting | **Built, tested.** A transparent statistical baseline, labelled as an estimate (not machine learning) | `src/domain/intelligence/forecast-{model,intel}.ts`, `/app/intelligence/forecast`, migration `20261211` |
 | 8 Chain Benchmarking | **Built, tested** | `src/domain/reports/benchmark*.ts`, `/app/intelligence/benchmark` |
 | 9 Integration Health Centre | **Built, tested** | `src/domain/system/health*.ts`, `/app/health`, migration `20261208` |
-| 10 Cloud architecture review | **Reviewed; one decision needed** (section 4). No deployment change made | this file |
-| 11 Security hardening | **Partly done** (section 5): scheduled audit-integrity verification, database-level immutability for four more record types, a security regression suite, a DB security report script. **Not done:** non-owner DB role, transaction-scoped tenant context, tenant RLS policies | `src/domain/system/audit-integrity.ts`, `tests/integration/security.test.ts`, `scripts/db-security-report.sql`, migration `20261213` |
+| 10 Cloud architecture review | **Reviewed, migration plan written; decision needed.** No deployment change made | section 4, `docs/HOSTED_DATA_MIGRATION_PLAN.md` |
+| 11 Security hardening | **Partly done** (section 5): scheduled audit-integrity verification, database-level immutability for four more record types, a security regression suite, a DB security report script. **RLS is built and proven but not enabled** (generator, tenant-context helper and a test that confines a real non-owner role); turning it on in production is a staged ops change that has not been done | `src/domain/system/audit-integrity.ts`, `src/server/rls.ts`, `src/server/tenant-context.ts`, `scripts/rls-policies.ts`, `tests/integration/{security,rls-readiness}.test.ts`, `scripts/db-security-report.sql`, migration `20261213` |
 
 All eleven modules have working code, but only 1-9 are complete features; 10 is a review and 11 is partial. This is **not** a production-readiness claim (section 10).
 
@@ -71,6 +71,10 @@ Within each mode there is exactly one authoritative store, so nothing is being s
 
 Your instruction forbids changing the deployment model without a documented migration plan, and a move of hosted pharmacies from Drive/SQLite to a server database is a data-migration and a privacy-promise change (`DATA_OWNERSHIP.md` says Medoro keeps no pharmacy records). It is a product decision, not an implementation detail.
 
+### The migration plan
+
+`docs/HOSTED_DATA_MIGRATION_PLAN.md` documents option B in full (target model, preconditions, conflict rules reusing the existing offline-queue design, a verifiable per-pharmacy migration with rollback, phases, risks). It is a plan only: no pharmacy is migrated and no code switches the model.
+
 ### The decision
 
 Pick one for the **default hosted SaaS**:
@@ -95,14 +99,15 @@ Reviewed `docs/SECURITY.md` against the requirement list, then checked the live 
 | Data export controls, backup restoration validation | Exist (audited, rate-limited exports; masked phones in strict mode; test-restore before swap). Unchanged. The new screens offer **no export**, and show customer phones only through the existing masking |
 | System-service authorization | Reviewed the cross-tenant paths (scheduler tick: HMAC or `CRON_SECRET`; webhooks: provider signatures; staff console: staff session + role). `security.test.ts` proves the scheduler endpoints refuse missing, malformed and wrongly-signed credentials. Not redesigned |
 | Security testing | **Added** `tests/integration/security.test.ts` (11 tests): RLS enabled on every public table (so a future unprotected table fails the build), no hosted-API-role grants, immutable-table triggers present and actually blocking, scheduler credential checks, a permission matrix over every 2.0 service, branch limits, audit tamper detection. The two-tenant isolation suite now also covers 12 of the new read services |
-| **Non-owner application database role** | **Not implemented** |
-| **Transaction-scoped tenant context** | **Not implemented** |
-| **Tenant-aware RLS policies** | **Not implemented**. RLS is enabled on all 174 tables with no policies, which closes hosted REST/GraphQL APIs but does not stop the application's own role (the table owner, a superuser in the test database; production depends on your `DATABASE_URL`) |
+| Non-owner application database role | **Built as a template and proven, not enabled** (`roleSql`; data access only, no DDL, no BYPASSRLS) |
+| Transaction-scoped tenant context | **Built and proven, not used by the app yet** (`withTenant`: `set_config(…, true)` inside the transaction; the test shows the setting does not survive to the next query on the same connection) |
+| Tenant-aware RLS policies | **Generator built and proven, not enabled.** `readCatalog`/`policySql` derive policies from the live catalogue: 68 tenant tables by `tenantId`, plus 9 child tables (SaleItem, Payment, LedgerLine, GrnItem, PurchaseOrderItem, DeliveryOrderItem, Session, RecoveryCode, AuthCode) through their parent's foreign key, which a plain `tenantId` rule would have missed. 96 platform tables (staff, HR, growth, catalogue, rate limits, `Tenant` itself) are deliberately left uncovered and listed. `tests/integration/rls-readiness.test.ts` proves, with a real non-owner role, that with no tenant it sees nothing, with a tenant only that tenant's rows (children included), that it cannot write or move rows across tenants, and that the generated SQL applies cleanly to every real table (rolled back). It also fails if a NEW table is not classified. RLS is still enabled on all 174 tables with **no policies in production**, which closes hosted REST/GraphQL APIs but does not stop the app's own role (the table owner; check yours with `scripts/db-security-report.sql`) |
 
-### Why the last three are not done, and a staged plan
+### Why enabling it is not done, and the staged plan
 
-They change how every query runs and cannot be verified inside this kind of change. The app uses interactive transactions, advisory locks and several legitimately cross-tenant paths (sign-in before the tenant is known, the scheduler, backups, the staff console). A wrong policy either breaks the app or, worse, silently returns empty results. Do it as its own project, with `tests/integration/tenant-isolation.test.ts` and `security.test.ts` as the gate:
+Turning it on changes how every query runs, so it is an operations rollout, not a code change. The app uses interactive transactions, advisory locks and several legitimately cross-tenant paths (sign-in before the tenant is known, the scheduler, backups, the staff console). A wrong policy either breaks the app or, worse, silently returns empty results. Do it as its own project, with `tests/integration/tenant-isolation.test.ts` and `security.test.ts` as the gate:
 
+0. **Generate:** `DATABASE_URL=… npx tsx scripts/rls-policies.ts > rls.sql` prints the role template, the list of uncovered tables and the policies (read-only; applies nothing).
 1. **Measure.** Run `scripts/db-security-report.sql` as the app role. If it is a superuser or owner, RLS cannot protect you from the app yet.
 2. **Two roles.** Create a non-owner `medoro_app` (DML only, no DDL, no `BYPASSRLS`) and keep migrations on a separate owner URL (`DIRECT_URL`). Create a narrow `medoro_system` role for the scheduler, backups and the staff console.
 3. **Tenant context.** Wrap each authenticated request's database work in a transaction that runs `SET LOCAL app.tenant_id = …` first (a Prisma client extension). Verify interactive transactions and the advisory-lock paths still behave.
@@ -255,7 +260,7 @@ Run in this environment (PostgreSQL 16, Node 22) against the code as committed, 
 | `pnpm test` | **1098 passed, 0 failed, 177 files** (baseline before any change: 955 / 158; +143 tests) |
 | `pnpm build` | succeeds |
 | `pnpm test:e2e` | **Only the 11 spec files that CI runs were executed: 34 tests, all passed**, including the new `e2e/31-medoro2.spec.ts` (10 tests). The other ~20 specs (device/Drive/AI/live etc.) were **not** run: per `docs/TEST_PLAN.md` they need extra setup. So "every e2e spec passes" is **not** claimed |
-| GitHub CI | `docker`, `test` (lint, typecheck, migrate, `pnpm test`, build) and `e2e` passed on the checkpoint commits `3a2dd05`, `8e549f6` and `846da74` (the last one contains all eleven modules' code). The `security` job fails on every commit, including `origin/main`, on a `picomatch` ReDoS advisory in dev tooling (`eslint-config-next`) that has no patched version; this work changes no dependency. CI's e2e job lists its spec files explicitly and does not include `31-medoro2.spec.ts` |
+| GitHub CI | `docker`, `test` (lint, typecheck, migrate, `pnpm test`, build) and `e2e` passed on the checkpoint commits `3a2dd05`, `8e549f6` and `846da74` (the last one contains all eleven modules' code). The `security` job fails on every commit, including `origin/main`, on a `picomatch` ReDoS advisory in dev tooling (`eslint-config-next`) that has no patched version; this work changes no dependency. CI's e2e job now includes `31-medoro2.spec.ts` (added after these runs; its first CI result is not yet recorded here) |
 
 Things the runs found and that were fixed (kept for honesty): the 19 restore/backup tests failing until two new tables were classified for backup (and later the readiness check refusing an unapplied migration, which is correct behaviour); a hydration mismatch in the health screen (locale-dependent dates); a false positive in the Hindi-coverage test caused by a helper named `t`; a `-0` in the recall trace; a history rule that discarded valid sales when stock was recorded after the sales; a duplicate-detection threshold too strict to catch a transposed letter; my own test arithmetic in several places.
 
@@ -266,11 +271,11 @@ Things the runs found and that were fixed (kept for honesty): the 19 restore/bac
 ## 10. Outstanding work and decisions for you
 
 1. **Module 10 (decision):** the hosted default stores each pharmacy's records on its devices and in Google Drive, not in PostgreSQL, which conflicts with your "single authoritative transactional database" requirement and leaves Modules 1-8 without data for those pharmacies (section 4). Choose A or B; a migration plan is needed before any change.
-2. **Module 11:** non-owner database role, transaction-scoped tenant context and tenant RLS policies (staged plan in section 5). Until then, tenant isolation rests on the service layer and its test suite.
+2. **Module 11:** enabling RLS in production (the machinery is built and proven; the staged rollout in section 5 is an operations task). Until then, tenant isolation rests on the service layer and its test suite.
 3. **Regulatory review:** the Compliance Centre's suggested requirements, the recall and Schedule H1 wording, and any retention periods must be reviewed by a qualified Indian regulatory professional before reliance. Nothing here asserts a legal requirement.
 4. **Catalogue content:** the central catalogue is empty and Medoro must decide its sources, who may verify, and the process. No government or manufacturer feed is connected for medicines or recalls.
 5. **Thresholds are my defaults, not validated on real data and not yet configurable:** customer segments (30/90 days, 6+ visits), profit reconciliation tolerance (₹1 or 0.1%), discount flag (1.5x over 20 bills), cost-variation flag (10%), supplier score weights (40/20/20/10/10), forecast confidence rules, duplicate similarity (65%).
 6. **The `security` CI job** is red on a dev-tooling advisory with no fix; decide whether to override, wait, or accept.
-7. **Add `e2e/31-medoro2.spec.ts` to the CI spec list** if you want it run there.
+7. Confirm the first CI run of `e2e/31-medoro2.spec.ts` (now in the CI list).
 8. **Performance at scale** (forecast, audit-chain verification, customer and profit queries over very large histories) has not been measured.
 9. **Not production-readiness:** a passing build and tests are necessary, not sufficient. Review the items above first.

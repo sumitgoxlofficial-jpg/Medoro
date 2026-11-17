@@ -5,6 +5,7 @@ import { requireCtx, can } from "@/server/context";
 import { customerIntel } from "@/domain/sales/customer-intel";
 import { SEGMENT_HELP } from "@/domain/sales/customer-segments";
 import { PageHead } from "@/components/page-head";
+import { DriveModeNote } from "@/components/drive-mode-note";
 
 export const metadata = { title: "Customer intelligence" };
 const rs = (p: number | null) => (p == null ? "–" : `₹${Math.round(p / 100).toLocaleString("en-IN")}`);
@@ -20,6 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   return (
     <>
       <PageHead icon={Users} title="Customer intelligence" sub={`From real bills, with voids removed and returns netted off · ${d.scope.branchName}`} />
+      <DriveModeNote moved={ctx.moved} />
       <div className="max-w-[1400px] flex flex-col gap-4">
         {ctx.branches.length > 1 ? (
           <nav aria-label="Branch" className="flex gap-2 flex-wrap text-[13px]">

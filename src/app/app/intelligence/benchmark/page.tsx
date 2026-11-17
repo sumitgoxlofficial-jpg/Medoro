@@ -5,6 +5,7 @@ import { benchmark } from "@/domain/reports/benchmark";
 import { profitPeriod } from "@/domain/reports/profit";
 import { UserError } from "@/server/action";
 import { PageHead } from "@/components/page-head";
+import { DriveModeNote } from "@/components/drive-mode-note";
 
 export const metadata = { title: "Chain benchmarking" };
 const rs = (p: number) => `₹${Math.round(p / 100).toLocaleString("en-IN")}`;
@@ -23,6 +24,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ f
   return (
     <>
       <PageHead icon={BarChart3} title="Chain benchmarking" sub={`${period.fromDay} to ${period.toDay} against ${d.previous.fromDay} to ${d.previous.toDay} · only branches you can access`} />
+      <DriveModeNote moved={ctx.moved} />
       <div className="max-w-[1400px] flex flex-col gap-4">
         <form method="get" className="flex gap-2 flex-wrap items-end text-[13px]" data-testid="bench-period">
           <label className="flex flex-col gap-0.5">From<input type="date" name="from" defaultValue={period.fromDay} className="border border-line rounded-lg px-2 py-1" /></label>
