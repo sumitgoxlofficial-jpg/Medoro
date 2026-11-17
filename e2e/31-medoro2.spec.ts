@@ -45,4 +45,14 @@ test.describe("medoro 2.0 screens", () => {
     await expect(page.getByTestId("cust-refills")).toContainText("Nothing is sent from this screen");
     await expect(page.getByRole("button", { name: /send/i })).toHaveCount(0);
   });
+
+  test("profit intelligence states its basis and reconciliation, and rejects a bad period", async ({ page }) => {
+    await page.goto("/app/intelligence/profit");
+    await expect(page.getByRole("heading", { name: "Profit intelligence" }).first()).toBeVisible();
+    await expect(page.getByTestId("profit-basis")).toContainText("not MRP minus purchase price");
+    await expect(page.getByTestId("profit-branches")).toContainText(/Reconciled|Differs by/);
+    await expect(page.getByTestId("profit-leakage")).toContainText("Sold below landed cost");
+    await page.goto("/app/intelligence/profit?from=2026-11-10&to=2026-11-01");
+    await expect(page.getByText(/start date is after the end date/)).toBeVisible();
+  });
 });

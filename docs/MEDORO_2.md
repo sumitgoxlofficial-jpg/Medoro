@@ -8,12 +8,13 @@ This document records what was inspected, what was built in this increment, what
 |---|---|---|
 | 9 Integration Health Centre | **Built, tested** | `src/domain/system/health*.ts`, `/app/health`, migration `20261208000000_integration_health` |
 | 2 Supplier Intelligence | **Built, tested** (extends existing supplier performance) | `src/domain/purchasing/supplier-score.ts`, `supplier-intel.ts`, `/app/intelligence/suppliers` |
+| 4 Profit Intelligence | **Built, tested** (ledger-reconciled; some requested items partial, see below) | `src/domain/reports/profit-rules.ts`, `profit.ts`, `/app/intelligence/profit` |
 | 3 Customer Intelligence | **Built, tested** (analytics only; adds no sending path) | `src/domain/sales/customer-segments.ts`, `customer-intel.ts`, `/app/intelligence/customers` |
 | 10 Cloud architecture review | **Reviewed and documented; one decision needed** (section 4). No deployment change made | this file |
 | 11 Security hardening | **Reviewed; not changed** (section 5). Two new read paths added to the tenant-isolation suite | this file |
-| 1, 4, 5, 6, 7, 8 | **Not built in this increment** (section 3 lists what already exists and the real gap) | n/a |
+| 1, 5, 6, 7, 8 | **Not built in this increment** (section 3 lists what already exists and the real gap) | n/a |
 
-This is a first increment, not a completed 2.0. Six of eleven modules are untouched beyond the audit below.
+This is a first increment, not a completed 2.0. Five of eleven modules are untouched beyond the audit below.
 
 ## 2. What was inspected first
 
@@ -28,7 +29,7 @@ This is a first increment, not a completed 2.0. Six of eleven modules are untouc
 | 1 Central medicine catalogue | Per-pharmacy `Medicine` (name, generic, strength, form, manufacturer, pack, barcode, HSN, GST, schedule, `composition`/`saltKey`), `catalog.ts`, `salts.ts`, `hsn-codes.ts`, a catalogue counter migration | No cross-pharmacy (central) catalogue, global IDs, verification source/date, catalogue versions, duplicate detection across tenants, correction requests or sync. A central catalogue is a **platform-level** dataset and must not mix with tenant data; it needs its own schema and governance. |
 | 2 Supplier intelligence | `supplierPerformance` (fill %, on-time %), `priceComparison`, `Supplier` credit/lead/return terms, landed cost on `GrnItem.costPaise` | **Built now**: scoring, ranking, recommendation with explanation, price history, branch scoping |
 | 3 Customer intelligence | `Customer`, `ConsentRecord`, `WaOptOut`, loyalty, refill reminders, campaigns (`comms/crm.ts`), consent-aware sending (separate marketing consent, tested in `messaging.test.ts`) | **Built now**: segmentation, repeat/lapsed, average basket, monthly spend, retention, 12-month value estimate, refill follow-up list, campaign performance |
-| 4 Profit intelligence | `reports/margins.ts` (item, category, supplier margins from batch cost), double-entry `Voucher`/`LedgerLine`, `slowStock`, expiry rows, discount anomalies | Branch-wise profit from ledger, free-goods analysis, leakage detection, a margin dashboard. Margins today use batch cost, not a full ledger/landed-cost reconciliation; that must be reconciled before it is called "profit". |
+| 4 Profit intelligence | `reports/margins.ts` (item, category, supplier margins from landed cost on sale lines), double-entry `Voucher`/`LedgerLine`, `accountsOverview` P&L, `slowStock`, `writeOff`, discount anomalies | **Built now**: branch-wise profit tied to the ledger with a visible reconciliation, leakage, free goods, cost variation, discount flags. Partial items listed in section 6. |
 | 5 Recall | `Recall` + `inventory/recalls.ts`: manual verified notice entry, batch matching, quarantine with stock movements, supplier return, audit, `/app/recalls` | Manufacturer matching, affected-quantity report, disposal tracking, resolution report, notifications. **No automated government feed exists and none is claimed.** |
 | 6 Compliance centre | `Tenant` DL/pharmacist fields, schedule on medicines, retention (`system/retention.ts`), expiry digest | Licence/registration tracking with expiry reminders, inspection reports, document storage UI, branch compliance status. All requirements must be configurable and reviewed by qualified Indian regulatory professionals. |
 | 7 Forecasting | `intelligence/service.ts` (velocity forecast, reorder policy cover/safety, seasonal, draft POs, central buying) | Daily/weekly/monthly forecasts with confidence, forecast-accuracy tracking, stockout prediction. Existing output is a rule, not a statistical model, and should be labelled as such. |
@@ -40,7 +41,7 @@ This is a first increment, not a completed 2.0. Six of eleven modules are untouc
 ## 3. Not built, and why
 
 These are explicitly **outstanding**. None has a screen, endpoint or table in this increment, and nothing in the UI pretends otherwise.
-Modules 1, 3, 4, 5 (extensions), 6, 7 (extensions) and 8 each need schema design, domain rules and review that deserve their own increment. Two need an input only the owner can give: the authoritative source and governance for the central catalogue (Module 1), and Indian regulatory review of compliance rules (Module 6). Recalls must keep using verified, manually entered notices until a real data source is connected.
+Modules 1, 5 (extensions), 6, 7 (extensions) and 8 each need schema design, domain rules and review that deserve their own increment. Two need an input only the owner can give: the authoritative source and governance for the central catalogue (Module 1), and Indian regulatory review of compliance rules (Module 6). Recalls must keep using verified, manually entered notices until a real data source is connected.
 
 ## 4. Module 10: transactional data ownership (decision needed)
 
@@ -121,6 +122,15 @@ Limits stated plainly: OCR and AI tests prove reachability and credentials, not 
 - Scoring (`supplier-score.ts`): price 40%, fulfilment 20%, delivery 20%, credit 10%, expiry-return policy 10%; missing factors are dropped and the rest re-scaled; confidence is low with fewer than two orders. Landed cost is `GrnItem.costPaise` (documented in `PURCHASING.md`); lines without it are excluded and counted on screen. Credit is scored separately, not netted into cost.
 - `supplierPerformance` gained an optional `branchIds` argument; existing callers are unchanged.
 
+**Profit Intelligence (`src/domain/reports/profit.ts`)**, permission `reports`
+- `profitIntel(ctx, branchId|null, period)` and `profitPeriod(from, to)` (default last 30 IST days, max one year, start must not be after end).
+- Definitions (`profit-rules.ts`): net sales = ledger *Sales* less *Sales returns* (a void is a reversal entry, and also sets the line's returned quantity, so both sides drop it); cost = the landed cost on each sale line (GRN landed cost: rate less scheme/trade/cash discounts, spread over free goods, plus non-claimable GST; `PURCHASING.md`); branch expenses = ledger debits to expense, stock-loss, claim-loss, cash-difference, loyalty and round-off accounts on vouchers carrying that branch. Vouchers with no branch are not attributed and are excluded. Profit is **never** MRP minus purchase price.
+- **Reconciliation:** each branch shows sale-line sales against ledger sales. "Reconciled" means they agree within ₹1 or 0.1%; otherwise the screen says "Differs by ₹x" instead of presenting a clean number. The tolerance is my choice, not an accounting standard.
+- Leakage: sold below landed cost (computed per line on net units); write-offs at cost (the StockOut free-text reason is not a validated category, so expiry cannot be separated from damage or loss); damaged-return refunds; expired stock still on the shelf at cost (an exposure, not a booked loss).
+- Free goods: free vs paid packs and value at list rate per supplier. Purchase-cost variation: 180-day landed-cost spread per medicine, flagged at 10%+ (flag threshold is a default, not configurable).
+- Unusual discounts: cashier discount rate ≥ 1.5× the pharmacy-wide rate over 20+ bills. The flag table is shown only with the existing `anomaly` plan feature; the overall discount rate is always shown.
+- **Partial or not done under Module 4:** slow-moving stock is not repeated here (it is capital tied up, not a realised loss; see the Insights page); supplier-wise margin uses the supplier on the batch sold, so opening stock has none; profit is not yet split by customer or doctor; no export; no scheduled or alerting job.
+
 **Customer Intelligence (`src/domain/sales/customer-intel.ts`)**, permission `reports`
 - `customerIntel(ctx, branchId|null)`: totals, segments, 12-month spend and retention, lapsed list, top customers with value estimate, refill follow-ups, campaign performance. Branch outside `ctx.branches` is refused. Phone numbers go through the existing `phoneMasker` (strict-mode masking).
 - `campaignPerformance(ctx)`: from `WaMessage` status counts; "buyers" = recipients with a non-voided bill within 14 days **after** their message. This is an association, not proof of cause, and the screen says so.
@@ -151,9 +161,9 @@ Run on PostgreSQL 16, Node 22, against the code as committed:
 |---|---|
 | `pnpm lint` | clean |
 | `pnpm typecheck` | clean |
-| `pnpm test` | **1006 passed, 0 failed, 164 files** (baseline before any change: 955 / 158) |
+| `pnpm test` | **1018 passed, 0 failed, 166 files** (baseline before any change: 955 / 158) |
 | `pnpm build` | succeeds |
-| `pnpm test:e2e` | **Only the 11 spec files CI runs were executed (28 tests, all passed)**, including new `e2e/31-medoro2.spec.ts`. The other ~20 specs (drive/device/AI/live etc.) were not run: per `docs/TEST_PLAN.md` they need extra setup. So "all e2e passes" is **not** claimed. |
+| `pnpm test:e2e` | **Only the 11 spec files CI runs were executed (29 tests, all passed)**, including new `e2e/31-medoro2.spec.ts`. The other ~20 specs (drive/device/AI/live etc.) were not run: per `docs/TEST_PLAN.md` they need extra setup. So "all e2e passes" is **not** claimed. |
 
 Problems found and fixed by these runs (kept for honesty):
 1. The restore tests failed (19 tests) because the two new tables were unclassified for backup/restore. Fixed: `IntegrationHealth` is kept as-is on restore, `SystemHeartbeat` is global.
@@ -164,4 +174,4 @@ Not verified: the Google Drive, WhatsApp, OCR and AI **explicit tests were exerc
 
 ## 10. Outstanding work
 
-Modules 1, 4, 5 (extensions), 6, 7 (extensions) and 8 are not built. Module 10 needs the owner's decision (section 4). Module 11's RLS / non-owner role / audit-verification work is not done (section 5). This increment is **not** a production-readiness claim.
+Modules 1, 5 (extensions), 6, 7 (extensions) and 8 are not built. Module 10 needs the owner's decision (section 4). Module 11's RLS / non-owner role / audit-verification work is not done (section 5). This increment is **not** a production-readiness claim.

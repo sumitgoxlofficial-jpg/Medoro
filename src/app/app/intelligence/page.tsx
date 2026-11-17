@@ -31,7 +31,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   ]);
   return (
     <>
-      <PageHead title={t(ctx.lang).intel} sub="Forecasts, reorder policy, supplier prices and anomaly review" right={<span className="flex gap-3"><Link href="/app/intelligence/suppliers" className="text-[13px] underline" data-testid="supplier-intel-link">Supplier ranking</Link><Link href="/app/intelligence/customers" className="text-[13px] underline" data-testid="customer-intel-link">Customer intelligence</Link></span>} />
+      <PageHead title={t(ctx.lang).intel} sub="Forecasts, reorder policy, supplier prices and anomaly review" right={<span className="flex gap-3"><Link href="/app/intelligence/suppliers" className="text-[13px] underline" data-testid="supplier-intel-link">Supplier ranking</Link><Link href="/app/intelligence/customers" className="text-[13px] underline" data-testid="customer-intel-link">Customer intelligence</Link><Link href="/app/intelligence/profit" className="text-[13px] underline" data-testid="profit-intel-link">Profit intelligence</Link></span>} />
       <IntelView policy={s.policy} th={s.anomaly} fc={fc} prices={prices} slow={slow} anomalies={an} anomalyLocked={{ message: upgradeMessage(ent, "anomaly"), canUpgrade }} sea={sea} month={month} cur={cur} suppliers={suppliers}
         canPurchase={can(ctx, "purchase")} canReview={can(ctx, "reports")} />
       {ctx.branches.length > 1 && !hasFeature(ent, "central") ? <div className="mt-4 max-w-[1400px]"><UpgradeNote compact message={upgradeMessage(ent, "central")} canUpgrade={canUpgrade} /></div> : null}
