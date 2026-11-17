@@ -36,4 +36,13 @@ test.describe("medoro 2.0 screens", () => {
     await expect(page.getByTestId("supplier-ranking")).toBeVisible();
     await expect(page.getByTestId("supplier-recommendations")).toContainText(/Not enough history yet|→/);
   });
+
+  test("customer intelligence shows honest empties and never offers messaging", async ({ page }) => {
+    await page.goto("/app/intelligence/customers");
+    await expect(page.getByRole("heading", { name: "Customer intelligence" }).first()).toBeVisible();
+    await expect(page.getByTestId("cust-totals")).toBeVisible();
+    await expect(page.getByTestId("cust-segments")).toContainText("Lapsed");
+    await expect(page.getByTestId("cust-refills")).toContainText("Nothing is sent from this screen");
+    await expect(page.getByRole("button", { name: /send/i })).toHaveCount(0);
+  });
 });

@@ -110,10 +110,11 @@ export async function refillReminders(ctx: Ctx) {
   return rows.map((r) => ({ ...r, phone: mask(r.phone), reminder: msgs.find((m) => m.idempotencyKey === r.key)?.status ?? null }));
 }
 
-async function refillDue(tenantId: string) {
-  const rows = await db.$queryRaw<{ customerId: string; medicineId: string; ats: Date[] }[]>`
-    SELECT s."customerId", si."medicineId", array_agg(s.at ORDER BY s.at) ats FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" JOIN "Customer" c ON c.id = s."customerId"
-    WHERE s."tenantId" = ${tenantId} AND (c."waOptIn" OR c."smsOptIn") AND c."erasedAt" IS NULL AND s.at >= ${new Date(Date.now() - 365 * 86400_000)}
+/** `anyone`: include customers who haven't agreed to messages (for the owner's own follow-up); each row says whether messaging is allowed. */
+export async function refillDue(tenantId: string, anyone = false) {
+  const rows = await db.$queryRaw<{ customerId: string; medicineId: string; ats: Date[]; consent: boolean }[]>`
+    SELECT s."customerId", si."medicineId", array_agg(s.at ORDER BY s.at) ats, bool_or(c."waOptIn" OR c."smsOptIn") consent FROM "SaleItem" si JOIN "Sale" s ON s.id = si."saleId" JOIN "Customer" c ON c.id = s."customerId"
+    WHERE s."tenantId" = ${tenantId} ${anyone ? Prisma.empty : Prisma.sql`AND (c."waOptIn" OR c."smsOptIn")`} AND c."erasedAt" IS NULL AND s.at >= ${new Date(Date.now() - 365 * 86400_000)}
       AND NOT EXISTS (SELECT 1 FROM "SaleVoid" sv WHERE sv."saleId" = s.id)
     GROUP BY 1, 2 HAVING COUNT(DISTINCT (s.at + interval '330 minutes')::date) >= 2`;
   const [cs, ms] = await Promise.all([
@@ -129,7 +130,7 @@ async function refillDue(tenantId: string) {
     const due = addDays(last, interval);
     const c = cs.find((x) => x.id === r.customerId)!, m = ms.find((x) => x.id === r.medicineId)!;
     // One reminder per refill cycle: the cycle is identified by the last purchase it follows.
-    return { key: `refill:${c.id}:${m.id}:${last}`, customerId: c.id, customer: c.name, phone: c.phone, medicineId: m.id, medicine: m.name, interval, last, due, inDays: Math.round((Date.parse(due) - Date.parse(today)) / 86400_000) };
+    return { key: `refill:${c.id}:${m.id}:${last}`, customerId: c.id, customer: c.name, phone: c.phone, medicineId: m.id, medicine: m.name, consent: r.consent, interval, last, due, inDays: Math.round((Date.parse(due) - Date.parse(today)) / 86400_000) };
   }).filter((r) => r.interval >= 5 && r.inDays >= -7 && r.inDays <= 7).sort((a, b) => a.inDays - b.inDays);
 }
 
