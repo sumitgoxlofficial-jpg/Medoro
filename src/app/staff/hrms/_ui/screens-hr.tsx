@@ -141,7 +141,7 @@ function PromoteModal({ p, d, onClose, onDone, onLetter }: { p: Person; d: Data<
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const [v, setV] = useState({ toDesig: "", toDept: p.dept, toManagerId: p.managerId ?? "", toCtc: String(p.ctc), effective: today, responsibilities: p.responsibilities, note: "" });
   const [email, setEmail] = useState(d.mail), [busy, setBusy] = useState(false);
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: cleanNum(k, e.target.value) });
   const mine = d.promotions.filter((x) => x.staffId === p.id), pending = mine.find((x) => !x.applied);
   const ctc = Number(v.toCtc) || 0, hike = p.ctc > 0 && ctc !== p.ctc ? Math.round(((ctc - p.ctc) / p.ctc) * 1000) / 10 : 0;
   const bump = (pct: number) => setV({ ...v, toCtc: String(Math.round((p.ctc * (1 + pct / 100)) / 100) * 100) });
@@ -181,12 +181,16 @@ function PromoteModal({ p, d, onClose, onDone, onLetter }: { p: Person; d: Data<
     {mine.length ? <div className="text-[12.5px] text-[#64748B]"><strong className="text-[#0f172a]">Promotion history</strong>{mine.map((x) => <div key={x.id} className="flex gap-2 items-center flex-wrap py-0.5">{dayLabel(x.effective)}: {x.fromDesig || "—"} → <strong className="text-[#0f172a]">{x.toDesig}</strong>{x.toCtc !== x.fromCtc ? ` · ${inr(x.fromCtc)} → ${inr(x.toCtc)}` : ""}{x.applied ? null : <Pill tone="amber">Pending</Pill>}<button className="underline bg-transparent border-0 cursor-pointer text-[#0B5E5B] font-semibold" onClick={() => onLetter(x.effective)}>Letter</button></div>)}</div> : null}
   </Modal>;
 }
+// Number fields: strip commas, "₹", "CTC" etc. as the user types so the server never gets NaN.
+const NUM_FIELDS: Record<string, "int" | "dec"> = { ctc: "int", taxDeclared: "int", monthlyTarget: "int", payCycleDay: "int", incentivePct: "dec" };
+const cleanNum = (k: string, x: string) => { const t = NUM_FIELDS[k]; if (!t) return x; if (t === "int") return x.replace(/\D/g, ""); const [a, ...b] = x.replace(/[^\d.]/g, "").split("."); return b.length ? `${a}.${b.join("")}` : a; };
+const toNum = (x: string) => { const n = Number(String(x).replace(/[^\d.]/g, "")); return Number.isFinite(n) ? n : 0; };
 function EditModal({ p, d, onClose, run, busy }: { p: Person; d: Data<"hremployees">; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
   const [v, setV] = useState({ dept: p.dept, designation: p.designation, role: p.role === "admin" ? "employee" : p.role, empType: p.empType, location: p.location, managerId: p.managerId ?? "", joinDate: p.joinDate ?? "", payCycleDay: String(p.payCycleDay), shiftStart: p.shiftStart, taxRegime: p.taxRegime as string, taxDeclared: String(p.taxDeclared), esiNo: p.esiNo, ctc: String(p.ctc), incentivePct: String(p.incentivePct), monthlyTarget: String(p.monthlyTarget), homeState: p.homeState, responsibilities: p.responsibilities });
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: e.target.value });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: cleanNum(k, e.target.value) });
   const isAdmin = p.role === "admin";
   return <Modal title={`Edit ${p.name}`} onClose={onClose} wide>
-    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", taxRegime: v.taxRegime as "new", taxDeclared: Number(v.taxDeclared) || 0, ctc: Number(v.ctc), incentivePct: Number(v.incentivePct), monthlyTarget: Number(v.monthlyTarget), joinDate: v.joinDate || null, payCycleDay: Number(v.payCycleDay) || 0, managerId: v.managerId || null }), () => { onClose(); }); }}>
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => updateEmployee(p.id, { ...v, role: v.role as "employee", empType: v.empType as "Full-time", taxRegime: v.taxRegime as "new", taxDeclared: toNum(v.taxDeclared), ctc: toNum(v.ctc), incentivePct: toNum(v.incentivePct), monthlyTarget: toNum(v.monthlyTarget), joinDate: v.joinDate || null, payCycleDay: Number(v.payCycleDay) || 0, managerId: v.managerId || null }), () => { onClose(); }); }}>
       <Grid n={3}>
         <Field label="Department"><select className={inputCls} value={v.dept} onChange={set("dept")}><option value="">—</option>{d.depts.map((x) => <option key={x.id}>{x.name}</option>)}</select></Field>
         <Field label="Designation"><input className={inputCls} value={v.designation} onChange={set("designation")} required /></Field>
@@ -220,7 +224,7 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
   const { run, busy } = useRun();
   const blank = { homeState: "", name: "", personalEmail: "", phone: "", dept: d.depts[0]?.name ?? "", designation: "", role: "employee", empType: "Full-time", joinDate: "", ctc: "", location: "", managerId: "", incentivePct: "0" };
   const [v, setV] = useState(blank), [email, setEmail] = useState(""), [made, setMade] = useState<{ id: string; empNo: string; email: string; temp: string; mailed: boolean; name: string; firstSalary: string } | null>(null), [letters, setLetters] = useState<{ id: string; name: string } | null>(null);
-  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: e.target.value });
+  const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setV({ ...v, [k]: cleanNum(k, e.target.value) });
   // Username for the official email: suggested from the name until HR types their own, then checked live like a social handle.
   const [user, setUser] = useState(""), [custom, setCustom] = useState(false), [avail, setAvail] = useState<{ user: string; ok: boolean; reason: string; suggestion: string } | null>(null);
   const seq = useRef(0);
@@ -236,7 +240,7 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
     <>
       <div className="grid gap-3.5 grid-cols-[minmax(0,2fr)_minmax(0,1fr)] max-[1000px]:grid-cols-1">
         <Card title="Employee details" sub={`Official email, employee ID and password are generated for you · @${d.domain}`} pad>
-          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (avail && avail.user === user && !avail.ok) return; run(() => createEmployee({ ...v, emailUser: user, role: v.role as "employee", empType: v.empType as "Full-time", ctc: Number(v.ctc || 0), incentivePct: Number(v.incentivePct || 0), managerId: v.managerId || null }), (r) => { setMade({ ...r, name: v.name }); setV(blank); setEmail(""); setUser(""); setCustom(false); setAvail(null); }); }}>
+          <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (avail && avail.user === user && !avail.ok) return; run(() => createEmployee({ ...v, emailUser: user, role: v.role as "employee", empType: v.empType as "Full-time", ctc: toNum(v.ctc), incentivePct: toNum(v.incentivePct), managerId: v.managerId || null }), (r) => { setMade({ ...r, name: v.name }); setV(blank); setEmail(""); setUser(""); setCustom(false); setAvail(null); }); }}>
             <Grid n={3}>
               <Field label="Full name *"><input className={inputCls} value={v.name} onChange={(e) => { set("name")(e); void preview(e.target.value); }} required /></Field>
               <Field label="Personal email *" hint="Welcome details are sent here"><input className={inputCls} type="email" value={v.personalEmail} onChange={set("personalEmail")} required /></Field>
@@ -253,7 +257,7 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
               <Field label="System access"><select className={inputCls} value={v.role} onChange={set("role")}><option value="employee">Employee</option><option value="sales">Sales</option>{d.isAdmin ? <><option value="hr">HR Admin</option><option value="finance">Finance</option></> : null}</select></Field>
               <Field label="Employment type"><select className={inputCls} value={v.empType} onChange={set("empType")}>{EMP_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
               <Field label="Date of joining *"><input className={inputCls} type="date" value={v.joinDate} onChange={set("joinDate")} required /></Field>
-              <Field label="Annual CTC (₹) *"><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} required /></Field>
+              <Field label="Annual CTC (₹) *" hint={v.ctc ? `${inr(toNum(v.ctc))} a year` : "Numbers only, e.g. 120000"}><input className={inputCls} inputMode="numeric" value={v.ctc} onChange={set("ctc")} required /></Field>
               <Field label="Work location"><input className={inputCls} value={v.location} onChange={set("location")} /></Field>
               <Field label="Home state" hint="Sales leads match this state’s language"><select className={inputCls} value={v.homeState} onChange={set("homeState")}><option value="">—</option>{STATES.map((x) => <option key={x}>{x}</option>)}</select></Field>
               <Field label="Reporting manager"><select className={inputCls} value={v.managerId} onChange={set("managerId")}><option value="">—</option>{d.managers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Field>

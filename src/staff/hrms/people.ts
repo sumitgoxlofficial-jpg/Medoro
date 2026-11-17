@@ -133,12 +133,14 @@ export function tempPassword() {
   return chars.join("");
 }
 
+/** Rupee amount typed by a person: "1,20,000", "₹120000" or "120000 CTC" all mean 120000. */
+const rupees = z.preprocess((v) => (typeof v === "string" ? Number(v.replace(/[^\d.]/g, "") || "x") : v), z.number({ error: "Enter the annual CTC as a number, e.g. 120000." }).int("Enter the annual CTC in rupees.").min(0).max(100_000_000));
 export const newEmployeeSchema = z.object({
   name: z.string().trim().min(3, "Enter the full name.").max(80),
   personalEmail: z.string().trim().toLowerCase().regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, "Enter a valid personal email."),
   phone: mobile, dept: z.string().trim().min(1, "Choose a department.").max(60), designation: z.string().trim().min(2, "Enter the designation.").max(80),
   role: z.enum(["employee", "hr", "finance", "sales"]), empType: z.enum(EMP_TYPES), joinDate: iso,
-  ctc: z.coerce.number().int("Enter the annual CTC in rupees.").min(0).max(100_000_000), location: z.string().trim().max(60).default(""),
+  ctc: rupees, location: z.string().trim().max(60).default(""),
   managerId: z.string().nullish(), incentivePct: z.coerce.number().min(0).max(5, "Sales incentive can’t be more than 5%.").default(0),
   homeState: z.string().trim().default("").refine((v) => !v || !!stateName(v), "Choose the state from the list.").transform(stateName),
   /** Optional username for the official email (the part before @). Generated from the name when blank. */
