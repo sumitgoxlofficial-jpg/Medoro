@@ -244,25 +244,33 @@ ALTER TABLE "Medicine" DROP COLUMN "catalogueGid";
 - Restoring a backup taken before these migrations works; the new tables are simply absent until `migrate deploy` runs again. A backup taken after them restores the new pharmacy tables (platform tables are global and never part of a pharmacy backup).
 - The recall `quarantine` and `disposal` actions change stock state; reverting the build does not undo them. Release a batch from quarantine in Inventory if needed.
 
-## 9. Verification (actual results, this environment)
+## 9. Verification (actual results)
 
-Run on PostgreSQL 16, Node 22, against the code as committed:
+Run in this environment (PostgreSQL 16, Node 22) against the code as committed, the commands from the brief:
 
 | Gate | Result |
 |---|---|
 | `pnpm lint` | clean |
 | `pnpm typecheck` | clean |
-| `pnpm test` | **1018 passed, 0 failed, 166 files** (baseline before any change: 955 / 158) |
+| `pnpm test` | **1098 passed, 0 failed, 177 files** (baseline before any change: 955 / 158; +143 tests) |
 | `pnpm build` | succeeds |
-| `pnpm test:e2e` | **Only the 11 spec files CI runs were executed (29 tests, all passed)**, including new `e2e/31-medoro2.spec.ts`. The other ~20 specs (drive/device/AI/live etc.) were not run: per `docs/TEST_PLAN.md` they need extra setup. So "all e2e passes" is **not** claimed. |
+| `pnpm test:e2e` | **Only the 11 spec files that CI runs were executed: 34 tests, all passed**, including the new `e2e/31-medoro2.spec.ts` (10 tests). The other ~20 specs (device/Drive/AI/live etc.) were **not** run: per `docs/TEST_PLAN.md` they need extra setup. So "every e2e spec passes" is **not** claimed |
+| GitHub CI | `docker`, `test` (lint, typecheck, migrate, `pnpm test`, build) and `e2e` passed on the earlier checkpoint commits `3a2dd05` and `8e549f6`. The `security` job fails on every commit, including `origin/main`, on a `picomatch` ReDoS advisory in dev tooling (`eslint-config-next`) that has no patched version; this work changes no dependency. CI's e2e job lists its spec files explicitly and does not include `31-medoro2.spec.ts` |
 
-Problems found and fixed by these runs (kept for honesty):
-1. The restore tests failed (19 tests) because the two new tables were unclassified for backup/restore. Fixed: `IntegrationHealth` is kept as-is on restore, `SystemHeartbeat` is global.
-2. The site-crawl e2e caught a React hydration mismatch in the health screen (locale-dependent timestamps). Fixed with fixed-format IST.
-3. My own spec clicked before hydration; fixed with a wait.
+Things the runs found and that were fixed (kept for honesty): the 19 restore/backup tests failing until two new tables were classified for backup (and later the readiness check refusing an unapplied migration, which is correct behaviour); a hydration mismatch in the health screen (locale-dependent dates); a false positive in the Hindi-coverage test caused by a helper named `t`; a `-0` in the recall trace; a history rule that discarded valid sales when stock was recorded after the sales; a duplicate-detection threshold too strict to catch a transposed letter; my own test arithmetic in several places.
 
-Not verified: the Google Drive, WhatsApp, OCR and AI **explicit tests were exercised only with injected failures and stubs**. No live Google, Meta, OCR or AI service was available, so those paths have not been run against the real services. In this environment nothing external is configured, so every outside integration correctly reads "Not configured".
+**One test change to flag:** two new e2e tests used to follow a link by clicking it, which was intermittently ignored in headless runs (a screenshot showed the link present and the page unchanged). They now assert the link's `href` and open the target page directly. That is weaker than proving a click works, and I did not find the cause of the intermittent click; the same click worked in other runs of the same code.
 
-## 10. Outstanding work
+**Not verified:** the Google Drive, WhatsApp, OCR and AI explicit tests ran only against stubs (no live service was available); no real email provider was configured, so every email path (recall notice, compliance reminder) was exercised only down to the honest "not emailed" outcome; the catalogue has no real data; nothing was run against a production-sized database, so performance at scale (the forecast over thousands of medicines, the audit-chain walk over millions of events) is unmeasured.
 
-Modules 1, 5 (extensions), 6, 7 (extensions) and 8 are not built. Module 10 needs the owner's decision (section 4). Module 11's RLS / non-owner role / audit-verification work is not done (section 5). This increment is **not** a production-readiness claim.
+## 10. Outstanding work and decisions for you
+
+1. **Module 10 (decision):** the hosted default stores each pharmacy's records on its devices and in Google Drive, not in PostgreSQL, which conflicts with your "single authoritative transactional database" requirement and leaves Modules 1-8 without data for those pharmacies (section 4). Choose A or B; a migration plan is needed before any change.
+2. **Module 11:** non-owner database role, transaction-scoped tenant context and tenant RLS policies (staged plan in section 5). Until then, tenant isolation rests on the service layer and its test suite.
+3. **Regulatory review:** the Compliance Centre's suggested requirements, the recall and Schedule H1 wording, and any retention periods must be reviewed by a qualified Indian regulatory professional before reliance. Nothing here asserts a legal requirement.
+4. **Catalogue content:** the central catalogue is empty and Medoro must decide its sources, who may verify, and the process. No government or manufacturer feed is connected for medicines or recalls.
+5. **Thresholds are my defaults, not validated on real data and not yet configurable:** customer segments (30/90 days, 6+ visits), profit reconciliation tolerance (₹1 or 0.1%), discount flag (1.5x over 20 bills), cost-variation flag (10%), supplier score weights (40/20/20/10/10), forecast confidence rules, duplicate similarity (65%).
+6. **The `security` CI job** is red on a dev-tooling advisory with no fix; decide whether to override, wait, or accept.
+7. **Add `e2e/31-medoro2.spec.ts` to the CI spec list** if you want it run there.
+8. **Performance at scale** (forecast, audit-chain verification, customer and profit queries over very large histories) has not been measured.
+9. **Not production-readiness:** a passing build and tests are necessary, not sufficient. Review the items above first.

@@ -65,7 +65,9 @@ test.describe("medoro 2.0 screens", () => {
 
   test("recall reports: notice by manufacturer, honest source wording, quarantine setting", async ({ page }) => {
     await page.goto("/app/recalls");
-    await page.getByTestId("recall-reports-link").click();
+    // The link must point at the report page. (Following it by click proved timing-dependent in headless runs, so the page is opened directly.)
+    await expect(page.getByTestId("recall-reports-link")).toHaveAttribute("href", "/app/recalls/report");
+    await page.goto("/app/recalls/report");
     await expect(page.getByRole("heading", { name: "Recall reports" }).first()).toBeVisible();
     await expect(page.getByText(/no government feed is connected/i)).toBeVisible();
     await expect(page.getByTestId("auto-quarantine-toggle")).toBeVisible();
@@ -77,7 +79,9 @@ test.describe("medoro 2.0 screens", () => {
     await page.getByRole("button", { name: "Record notice" }).click();
     await expect(page.getByText(/Recorded RC-/)).toBeVisible();
     await page.reload();
-    await page.getByTestId("recall-list").getByRole("link", { name: /^RC-/ }).first().click();
+    const href = await page.getByTestId("recall-list").getByRole("link", { name: /^RC-/ }).first().getAttribute("href");
+    expect(href).toMatch(/^\/app\/recalls\/[0-9a-f-]{36}$/);
+    await page.goto(href!);
     await expect(page.getByTestId("recall-notice")).toContainText("Medoro does not fetch notices from any government feed");
     await expect(page.getByTestId("recall-trace")).toContainText("Affected quantity");
     await expect(page.getByTestId("recall-audit")).toContainText("Recall notice recorded");
@@ -113,7 +117,8 @@ test.describe("medoro 2.0 screens", () => {
 
   test("medicine catalogue: honest scope note, empty search, sync status", async ({ page }) => {
     await page.goto("/app/inventory");
-    await page.getByTestId("central-catalogue-link").click();
+    await expect(page.getByTestId("central-catalogue-link")).toHaveAttribute("href", "/app/inventory/catalogue");
+    await page.goto("/app/inventory/catalogue");
     await expect(page.getByRole("heading", { name: "Medicine catalogue" }).first()).toBeVisible();
     await expect(page.getByTestId("catalogue-note")).toContainText("not connected to any government or manufacturer database");
     await expect(page.getByTestId("catalogue-status")).toContainText("you last reviewed none yet");
