@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireCtx, can } from "@/server/context";
 import { listInventory, medicineDetail, type InvFilter } from "@/domain/inventory/service";
 import { listBranchTransfers } from "@/domain/inventory/adjust";
@@ -17,7 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const [list, detail, transfers, racks] = await Promise.all([listInventory(ctx, sp.q ?? "", filter, sp.rack ?? ""), sp.sel ? medicineDetail(ctx, sp.sel) : null, listBranchTransfers(ctx), racksInUse(ctx)]);
   return (
     <>
-      <PageHead title={t(ctx.lang).inv} sub={tFor(ctx.lang)("Catalogue, batches and stock ledger · {branch}", { branch: ctx.branchName })} />
+      <PageHead title={t(ctx.lang).inv} sub={tFor(ctx.lang)("Catalogue, batches and stock ledger · {branch}", { branch: ctx.branchName })} right={<Link href="/app/inventory/catalogue" className="text-[13px] underline" data-testid="central-catalogue-link">Medicine catalogue</Link>} />
       <InventoryView
         list={list} detail={detail} q={sp.q ?? ""} filter={filter} rack={sp.rack ?? ""} racks={racks} openAdd={sp.add === "1"} tab={tab} transfers={transfers}
         canEdit={can(ctx, "adjust") || can(ctx, "purchase")} canAdjust={can(ctx, "adjust")} canPurchase={can(ctx, "purchase")}

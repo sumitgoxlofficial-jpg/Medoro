@@ -266,10 +266,12 @@ model Medicine {
   active       Boolean        @default(true)
   version      Int            @default(0)
   createdAt    DateTime       @default(now())
+  catalogueGid String? // link to the central catalogue (CatalogueMedicine.gid); null for this pharmacy's own custom records
   batches      Batch[]
   racks        MedicineRack[]
 
   @@unique([tenantId, barcode])
+  @@index([tenantId, catalogueGid])
   @@index([tenantId, name])
   @@index([tenantId, generic])
   @@index([tenantId, saltKey])
@@ -3051,4 +3053,106 @@ model ComplianceReminder {
   sentAt    DateTime @default(now())
 
   @@unique([itemId, threshold, forExpiry])
+}
+
+// ───────────── Forecast accuracy tracking (Medoro 2.0) ─────────────
+
+/// A weekly demand forecast as it was made, kept so it can later be compared with what actually sold. Written once, never edited.
+model ForecastSnapshot {
+  id          String   @id @default(uuid())
+  tenantId    String
+  branchId    String
+  medicineId  String
+  generatedOn DateTime @db.Date
+  horizonDays Int
+  predicted   Float // packs over the horizon
+  lo          Float // 80% interval
+  hi          Float
+  confidence  String // high, medium, low
+  method      String // statistical-v1: see src/domain/intelligence/forecast-model.ts
+  createdAt   DateTime @default(now())
+
+  @@unique([branchId, medicineId, generatedOn, horizonDays])
+  @@index([tenantId, branchId, generatedOn])
+}
+
+// ───────────── Central medicine catalogue (Medoro 2.0) ─────────────
+// Platform-level, curated by Medoro staff, shared read-only with every pharmacy. It holds no pharmacy data and no prices.
+// A pharmacy's own Medicine rows keep their MRP, supplier rates, racks and custom records; linking only offers catalogue
+// field updates that the pharmacy applies itself. The catalogue starts empty: nothing is imported from any external dataset.
+
+model CatalogueMedicine {
+  id              String             @id @default(uuid())
+  gid             String             @unique // global identifier, CM-000001
+  brand           String
+  generic         String
+  composition     String             @default("")
+  saltKey         String?
+  strength        String
+  form            String
+  manufacturer    String
+  packSize        Int                @default(1) // stock units in one MRP pack
+  packLabel       String             @default("")
+  hsn             String
+  gstRate         Int
+  schedule        String             @default("") // H, H1, X, NDPS or empty
+  dedupeKey       String
+  status          String // draft, verified, deprecated
+  source          String
+  sourceRef       String?
+  verifiedOn      DateTime?          @db.Date
+  verifiedBy      String?
+  supersededByGid String?
+  version         Int                @default(1)
+  createdBy       String
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  barcodes        CatalogueBarcode[]
+
+  @@index([saltKey])
+  @@index([dedupeKey])
+}
+
+model CatalogueBarcode {
+  id         String            @id @default(uuid())
+  medicineId String
+  medicine   CatalogueMedicine @relation(fields: [medicineId], references: [id])
+  barcode    String            @unique
+  verified   Boolean           @default(false)
+  source     String
+  verifiedOn DateTime?         @db.Date
+  createdAt  DateTime          @default(now())
+}
+
+/// Every catalogue edit, in order. `seq` is the catalogue version: a pharmacy that last looked at seq 120 can be told what changed since.
+model CatalogueChange {
+  seq     BigInt   @id @default(autoincrement())
+  gid     String
+  action  String // create, update, verify, deprecate, barcode_add, barcode_verify, correction_accepted
+  version Int
+  data    Json
+  by      String
+  at      DateTime @default(now())
+
+  @@index([gid])
+}
+
+/// A pharmacy telling Medoro a catalogue entry is wrong. Staff accept (which edits the entry) or reject with a note.
+model CatalogueCorrection {
+  id             String    @id @default(uuid())
+  tenantId       String
+  gid            String
+  field          String
+  proposed       String
+  reason         String
+  status         String    @default("open") // open, accepted, rejected
+  createdBy      String
+  createdByName  String
+  createdAt      DateTime  @default(now())
+  resolvedBy     String?
+  resolvedAt     DateTime?
+  resolutionNote String?
+
+  @@index([tenantId, status])
+  @@index([status, createdAt])
 }

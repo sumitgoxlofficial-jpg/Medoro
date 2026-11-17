@@ -101,4 +101,24 @@ test.describe("medoro 2.0 screens", () => {
     await expect(page.getByTestId("compliance-items")).toContainText("Renewal due");
     await expect(page.getByTestId("compliance-retention")).toContainText("Medoro does not assume any");
   });
+
+  test("demand forecast labels itself an estimate and reports its own accuracy honestly", async ({ page }) => {
+    await page.goto("/app/intelligence/forecast");
+    await expect(page.getByRole("heading", { name: "Demand forecast" }).first()).toBeVisible();
+    await expect(page.getByTestId("forecast-disclaimer")).toContainText("not facts and not machine learning");
+    await expect(page.getByTestId("forecast-accuracy")).toContainText("How accurate is it?");
+    await expect(page.getByTestId("forecast-accuracy")).toContainText(/No forecast has been made and then checked yet|item-weeks/);
+    await expect(page.getByTestId("forecast-table")).toContainText("left out rather than forecast as zero");
+  });
+
+  test("medicine catalogue: honest scope note, empty search, sync status", async ({ page }) => {
+    await page.goto("/app/inventory");
+    await page.getByTestId("central-catalogue-link").click();
+    await expect(page.getByRole("heading", { name: "Medicine catalogue" }).first()).toBeVisible();
+    await expect(page.getByTestId("catalogue-note")).toContainText("not connected to any government or manufacturer database");
+    await expect(page.getByTestId("catalogue-status")).toContainText("you last reviewed none yet");
+    await page.getByLabel("Search").fill("zzzz-no-such");
+    await page.getByRole("button", { name: "Search" }).click();
+    await expect(page.getByTestId("catalogue-search")).toContainText("Nothing found");
+  });
 });

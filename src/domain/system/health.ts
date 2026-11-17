@@ -23,7 +23,7 @@ import { aiStatus } from "@/domain/ai/settings";
  *    presses "Run test", and the result is stored. A stored pass older than 24 hours no longer counts as fresh.
  * Nothing here ever invents a pass: no test, no "Tested", and no "Active" without a passing test.
  */
-export const LIVE_KEYS = ["database", "backup", "whatsapp_delivery", "razorpay_webhooks", "jobs", "offline_sync"] as const;
+export const LIVE_KEYS = ["database", "backup", "whatsapp_delivery", "razorpay_webhooks", "jobs", "offline_sync", "audit_integrity"] as const;
 export const EXPLICIT_KEYS = ["gdrive", "whatsapp", "ocr", "ai"] as const;
 export type HealthKey = (typeof LIVE_KEYS)[number] | (typeof EXPLICIT_KEYS)[number];
 export const isExplicit = (k: string): k is (typeof EXPLICIT_KEYS)[number] => (EXPLICIT_KEYS as readonly string[]).includes(k);
@@ -37,9 +37,9 @@ export type HealthRow = {
 
 const LABEL: Record<HealthKey, string> = {
   database: "Database connectivity", gdrive: "Google Drive connection", backup: "Backups", whatsapp: "WhatsApp connection",
-  whatsapp_delivery: "WhatsApp delivery", razorpay_webhooks: "Razorpay webhooks", ocr: "OCR service", ai: "AI service", jobs: "Background jobs", offline_sync: "Offline device synchronisation",
+  whatsapp_delivery: "WhatsApp delivery", razorpay_webhooks: "Razorpay webhooks", ocr: "OCR service", ai: "AI service", jobs: "Background jobs", offline_sync: "Offline device synchronisation", audit_integrity: "Audit trail integrity",
 };
-export const ORDER: HealthKey[] = ["database", "backup", "gdrive", "whatsapp", "whatsapp_delivery", "razorpay_webhooks", "ocr", "ai", "jobs", "offline_sync"];
+export const ORDER: HealthKey[] = ["database", "backup", "gdrive", "whatsapp", "whatsapp_delivery", "razorpay_webhooks", "ocr", "ai", "jobs", "offline_sync", "audit_integrity"];
 
 const DAY = 86400_000;
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 300);
@@ -126,6 +126,15 @@ async function offlineSync(tenantId: string): Promise<Probe> {
   if (oldConflict) return { configured: true, test: posted ? "pass" : "not_run", testedAt: posted?.receivedAt, runFailed: true, error: `${conflicts} offline change(s) have been in conflict for over a day. Resolve them in Sync.`, lastSuccessAt: posted?.receivedAt ?? null, detail };
   if (!posted) return { configured: true, test: "not_run", detail: `${detail} · nothing has synced yet` };
   return { configured: true, test: "pass", testedAt: posted.receivedAt, lastSuccessAt: posted.receivedAt, inUse: Date.now() - posted.receivedAt.getTime() <= 7 * DAY, detail };
+}
+
+/** The daily integrity walk of the audit chain (audit-integrity.ts). Until it has run, the state is "Not configured": no pass is assumed. */
+async function auditIntegrity(tenantId: string): Promise<Probe> {
+  const r = await db.integrationHealth.findUnique({ where: { tenantId_key: { tenantId, key: "audit_integrity" } } });
+  if (!r?.lastTestAt) return { configured: false, test: "not_run", detail: "The daily audit-trail check has not run yet." };
+  const fresh = Date.now() - r.lastTestAt.getTime() <= 36 * 3600_000;
+  if (r.lastTestOk === false) return { configured: true, test: "fail", testedAt: r.lastTestAt, runFailed: true, error: `Audit trail check failed: ${r.lastError}`, lastSuccessAt: r.lastSuccessAt, lastError: r.lastError, lastErrorAt: r.lastErrorAt, detail: "Treat the records around this event as untrusted until it is explained." };
+  return { configured: true, test: "pass", testedAt: r.lastTestAt, inUse: fresh, lastSuccessAt: r.lastSuccessAt, detail: r.detail };
 }
 
 // ───────────── Explicit checks (outside services) ─────────────
@@ -221,6 +230,7 @@ async function probe(ctx: Ctx, key: HealthKey): Promise<Probe> {
       case "razorpay_webhooks": return await razorpayWebhooks(ctx.tenantId);
       case "jobs": return await jobs();
       case "offline_sync": return await offlineSync(ctx.tenantId);
+      case "audit_integrity": return await auditIntegrity(ctx.tenantId);
       default: return await explicit(ctx, key);
     }
   } catch (e) {

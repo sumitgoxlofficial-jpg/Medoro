@@ -2,19 +2,23 @@
 
 This document records what was inspected, what was built in this increment, what was **not** built, and the decisions that need an owner. It is written against the repository as it stands; nothing here describes behaviour that is not in the code.
 
-## 1. Summary of this increment
+## 1. Summary
 
 | Module | Status | Where |
 |---|---|---|
-| 9 Integration Health Centre | **Built, tested** | `src/domain/system/health*.ts`, `/app/health`, migration `20261208000000_integration_health` |
-| 2 Supplier Intelligence | **Built, tested** (extends existing supplier performance) | `src/domain/purchasing/supplier-score.ts`, `supplier-intel.ts`, `/app/intelligence/suppliers` |
-| 4 Profit Intelligence | **Built, tested** (ledger-reconciled; some requested items partial, see below) | `src/domain/reports/profit-rules.ts`, `profit.ts`, `/app/intelligence/profit` |
-| 3 Customer Intelligence | **Built, tested** (analytics only; adds no sending path) | `src/domain/sales/customer-segments.ts`, `customer-intel.ts`, `/app/intelligence/customers` |
-| 10 Cloud architecture review | **Reviewed and documented; one decision needed** (section 4). No deployment change made | this file |
-| 11 Security hardening | **Reviewed; not changed** (section 5). Two new read paths added to the tenant-isolation suite | this file |
-| 1, 5, 6, 7, 8 | **Not built in this increment** (section 3 lists what already exists and the real gap) | n/a |
+| 1 Central medicine catalogue | **Built, tested.** Platform-level, starts empty, staff-curated; pharmacies link and apply updates themselves. No external dataset or sync feed is connected | `src/staff/catalogue.ts`, `src/domain/inventory/catalogue-{rules,sync}.ts`, `/staff/catalogue`, `/app/inventory/catalogue`, migration `20261212` |
+| 2 Supplier Intelligence | **Built, tested** (extends existing supplier performance) | `src/domain/purchasing/supplier-{score,intel}.ts`, `/app/intelligence/suppliers` |
+| 3 Customer Intelligence | **Built, tested** (analytics only; adds no sending path) | `src/domain/sales/customer-{segments,intel}.ts`, `/app/intelligence/customers` |
+| 4 Profit Intelligence | **Built, tested** (ledger-reconciled; some requested items partial, see 6) | `src/domain/reports/profit*.ts`, `/app/intelligence/profit` |
+| 5 Drug Recall Intelligence | **Extended, tested.** Manual, attested notices only: no government feed is connected or claimed | `src/domain/inventory/recall{s,-match,-report}.ts`, `/app/recalls/report`, `/app/recalls/[id]`, migration `20261209` |
+| 6 Compliance Centre | **Built, tested.** Record-keeping and reminders; requirements and retention are the pharmacy's own configuration, not reviewed by a regulatory professional | `src/domain/system/compliance*.ts`, `/app/compliance`, migration `20261210` |
+| 7 Forecasting | **Built, tested.** A transparent statistical baseline, labelled as an estimate (not machine learning) | `src/domain/intelligence/forecast-{model,intel}.ts`, `/app/intelligence/forecast`, migration `20261211` |
+| 8 Chain Benchmarking | **Built, tested** | `src/domain/reports/benchmark*.ts`, `/app/intelligence/benchmark` |
+| 9 Integration Health Centre | **Built, tested** | `src/domain/system/health*.ts`, `/app/health`, migration `20261208` |
+| 10 Cloud architecture review | **Reviewed; one decision needed** (section 4). No deployment change made | this file |
+| 11 Security hardening | **Partly done** (section 5): scheduled audit-integrity verification, database-level immutability for four more record types, a security regression suite, a DB security report script. **Not done:** non-owner DB role, transaction-scoped tenant context, tenant RLS policies | `src/domain/system/audit-integrity.ts`, `tests/integration/security.test.ts`, `scripts/db-security-report.sql`, migration `20261213` |
 
-This is a first increment, not a completed 2.0. Five of eleven modules are untouched beyond the audit below.
+All eleven modules have working code, but only 1-9 are complete features; 10 is a review and 11 is partial. This is **not** a production-readiness claim (section 10).
 
 ## 2. What was inspected first
 
@@ -38,10 +42,18 @@ This is a first increment, not a completed 2.0. Five of eleven modules are untou
 | 10 Architecture | `DATA_OWNERSHIP.md`, `DRIVEDB_PLAN.md`, `BACKUP_AND_RECOVERY.md`, `ARCHITECTURE.md` | Decision needed (section 4) |
 | 11 Security | See `SECURITY.md`: Argon2id, mandatory TOTP for Owner/Manager, hash-chained audit, append-only triggers, rate limits, CSP, two-tenant isolation suite | RLS policies, non-owner DB role (section 5) |
 
-## 3. Not built, and why
+*The "Already in the repo" and "Real gap" columns describe the repository before this work started; section 1 says what is now built.*
 
-These are explicitly **outstanding**. None has a screen, endpoint or table in this increment, and nothing in the UI pretends otherwise.
-Modules 1, 5 (extensions), 6, 7 (extensions) and 8 each need schema design, domain rules and review that deserve their own increment. Two need an input only the owner can give: the authoritative source and governance for the central catalogue (Module 1), and Indian regulatory review of compliance rules (Module 6). Recalls must keep using verified, manually entered notices until a real data source is connected.
+## 3. What is not built or only partial
+
+- **Module 11:** non-owner application database role, transaction-scoped tenant context and tenant-aware RLS policies. See section 5 for why, and the staged plan.
+- **Module 10:** nothing implemented; it needs your decision.
+- **Module 1:** no central data exists yet (the catalogue starts empty by design); there is no automatic synchronisation feed from any external source, only pharmacy-initiated linking and applying; "catalogue synchronization" means the version/diff/apply mechanism between the central catalogue and a pharmacy.
+- **Module 5:** no automated government or manufacturer recall feed. Notices are typed in by a person who attests they checked the authority's own publication.
+- **Module 6:** nothing here has been reviewed by a regulatory professional, and no requirement is asserted.
+- **Module 7:** no machine learning, no seasonality inside the forecast, no demand sensing for stocked-out items.
+- **Hosted Drive-mode pharmacies** have no server-side data for Modules 1-8, 6 and 7 to analyse (section 4).
+- Smaller gaps are listed per module in section 6.
 
 ## 4. Module 10: transactional data ownership (decision needed)
 
@@ -70,21 +82,33 @@ My recommendation is **B** for Modules 2-8 to be useful, **after** an explicit m
 
 Conflict resolution that already exists and is kept: optimistic `version` on master data; offline operations carry a ULID, device id and base version, are re-validated on sync and become `conflict` rows for manual resolution. Backup and recovery (`docs/BACKUP_AND_RECOVERY.md`) is unchanged: AES-256-GCM, test restore, optional Drive upload.
 
-## 5. Module 11: security review (nothing weakened)
+## 5. Module 11: security hardening (nothing weakened)
 
-Reviewed `SECURITY.md` against the requirement list.
+Reviewed `docs/SECURITY.md` against the requirement list, then checked the live database (`scripts/db-security-report.sql`).
 
 | Requirement | State |
 |---|---|
-| MFA | Exists: TOTP mandatory for Owner/Manager |
-| Append-only accounting, immutable stock movements | Exist: triggers (`staff_append_only`, posted tables). Not re-verified here beyond the passing existing tests |
-| Audit integrity | Hash chain exists (`lib/audit-hash.ts`); no verification screen or job was added |
-| Branch-level permissions | `ctx.branches` filters; the new supplier-intelligence service rejects a branch the user cannot access (tested) |
-| Non-owner DB role, transaction-scoped tenant context, tenant-aware RLS | **Not implemented.** The app connects as the table owner, which bypasses RLS; `SECURITY.md` already says so. `lock_data_api` only closes hosted REST/GraphQL. A correct change needs an explicit "system" role for the legitimately cross-tenant paths (sign-in, scheduler, backups, staff console) and a transaction wrapper that sets `app.tenant_id`; it changes transaction semantics across services and must be done as its own migration with the isolation suite as the gate. I did not attempt it as part of a broad pass. |
-| Data export controls, backup restore validation | Exist (audited exports, `testRestore`) |
-| System-service authorization | Not changed |
+| MFA | Exists: TOTP mandatory for Owner/Manager. Unchanged |
+| Branch-level permissions | Exist (`ctx.branches`); every new branch-aware service refuses a branch the user can't access, proven in `security.test.ts` |
+| Append-only accounting, immutable stock movements | Exist and **extended**: sales, sale lines, payments, voids, vouchers, ledger lines, stock movements and the audit trail were already immutable; migration `20261213` adds `SalesReturn`, `StockOut`, `Grn`, `GrnItem` (no code ever updated or deleted them). New history tables (`RecallDisposal`, `ComplianceReminder`, `ComplianceDocument`, `ForecastSnapshot`, `CatalogueChange`) are immutable from creation |
+| Audit integrity verification | Existed as a manual, plan-gated check. **Added:** a daily job walks every pharmacy's whole hash chain in pages, stores the result, shows it in Integration Health ("Audit trail integrity": Not configured until it has run, Active only after a pass) and raises an alert and badge on failure. Tested with an edited event and a removed event; the failure names the first broken event |
+| Data export controls, backup restoration validation | Exist (audited, rate-limited exports; masked phones in strict mode; test-restore before swap). Unchanged. The new screens offer **no export**, and show customer phones only through the existing masking |
+| System-service authorization | Reviewed the cross-tenant paths (scheduler tick: HMAC or `CRON_SECRET`; webhooks: provider signatures; staff console: staff session + role). `security.test.ts` proves the scheduler endpoints refuse missing, malformed and wrongly-signed credentials. Not redesigned |
+| Security testing | **Added** `tests/integration/security.test.ts` (11 tests): RLS enabled on every public table (so a future unprotected table fails the build), no hosted-API-role grants, immutable-table triggers present and actually blocking, scheduler credential checks, a permission matrix over every 2.0 service, branch limits, audit tamper detection. The two-tenant isolation suite now also covers 12 of the new read services |
+| **Non-owner application database role** | **Not implemented** |
+| **Transaction-scoped tenant context** | **Not implemented** |
+| **Tenant-aware RLS policies** | **Not implemented**. RLS is enabled on all 174 tables with no policies, which closes hosted REST/GraphQL APIs but does not stop the application's own role (the table owner, a superuser in the test database; production depends on your `DATABASE_URL`) |
 
-Added in this increment: both new read services (`supplierIntel`, `healthOverview`) are in `tests/integration/tenant-isolation.test.ts`, which fails if either leaks any id or marker name of another pharmacy. The new tables have RLS enabled like the rest.
+### Why the last three are not done, and a staged plan
+
+They change how every query runs and cannot be verified inside this kind of change. The app uses interactive transactions, advisory locks and several legitimately cross-tenant paths (sign-in before the tenant is known, the scheduler, backups, the staff console). A wrong policy either breaks the app or, worse, silently returns empty results. Do it as its own project, with `tests/integration/tenant-isolation.test.ts` and `security.test.ts` as the gate:
+
+1. **Measure.** Run `scripts/db-security-report.sql` as the app role. If it is a superuser or owner, RLS cannot protect you from the app yet.
+2. **Two roles.** Create a non-owner `medoro_app` (DML only, no DDL, no `BYPASSRLS`) and keep migrations on a separate owner URL (`DIRECT_URL`). Create a narrow `medoro_system` role for the scheduler, backups and the staff console.
+3. **Tenant context.** Wrap each authenticated request's database work in a transaction that runs `SET LOCAL app.tenant_id = …` first (a Prisma client extension). Verify interactive transactions and the advisory-lock paths still behave.
+4. **Policies** on the ~120 tenant tables: `USING ("tenantId" = current_setting('app.tenant_id', true))`, then `FORCE ROW LEVEL SECURITY`. Start with the new 2.0 tables and a canary pharmacy.
+5. **Shadow first:** log (do not block) rows read outside the current tenant, fix the findings, then enforce.
+6. Keep the two-tenant suite running against the non-owner role.
 
 ## 6. API and contracts
 
@@ -140,18 +164,85 @@ Limits stated plainly: OCR and AI tests prove reachability and credentials, not 
 - **Consent:** this module adds no way to send anything. `refillDue` (`comms/crm.ts`) gained an `anyone` flag so the owner can see everyone due for a refill; each row carries `consent`, the UI marks non-consented customers "call or visit only", and the automatic reminder path still calls it with the default (opted-in only), unchanged and still tested. Marketing campaigns remain gated by the existing separate marketing consent.
 - Not built under Module 3: customer segments as saved audiences for campaigns, and a configurable threshold UI.
 
+**Chain Benchmarking (`src/domain/reports/benchmark.ts`)**, permission `reports`
+- `benchmark(ctx, period)`: one row per branch the user can access (never others): net sales and growth against the previous period of equal length (null when there is nothing to compare, never infinite), gross margin, stock turnover (COGS annualised over today's stock at cost: an approximation because past stock levels aren't recorded), write-off loss %, stockout % (items with a reorder level and nothing sellable now), customer retention (mean of the monthly rates), and per-employee activity (bills, net sales, average basket, discount rate, voids, returns: activity, not a quality rating). Ranks (#1 best) appear only with two or more branches.
+
+**Recall intelligence (`recalls.ts`, `recall-match.ts`, `recall-report.ts`)**
+- `addRecall` now accepts a notice naming a **manufacturer and product** instead of one catalogue medicine, plus the authority's notice number and an https link. A batch is affected only when its batch number is on the notice **and** the product matches (same medicine, or manufacturer and product text; `recall-match.ts`). The recorder is stored as having checked the notice at its source. **Medoro fetches nothing from any authority.**
+- **Automatic quarantine:** on recording, affected sellable batches are blocked in **every** branch (a recall is pharmacy-wide, quarantine is reversible), even when recorded by a branch-limited user. It is a setting (`recallSettings`, owner only), default **on**, which changes the earlier manual-only behaviour; turn it off under Recall reports.
+- `recallReport(ctx, id)`: traced quantities from the stock-movement ledger (on hand + sold + returned to supplier + destroyed = traced, per batch and branch), customers who bought an affected batch (for **you** to contact; "can message" means transactional consent only and nothing is sent from the screen), disposals, the audit trail, and whether the recall can be closed.
+- `disposeRecalled`: records destruction or return to the manufacturer as a normal write-off plus an append-only disposal record with the certificate reference. `setRecallStatus(… "resolved")` is refused while affected stock is still held in any branch unless a reason is recorded; the closing time and note are kept.
+- Notification: an email to the owner-chosen report recipients when email is set up; the outcome, including "not emailed: email isn't set up", is written to the audit trail. The Recalls badge works regardless.
+
+**Compliance Centre (`src/domain/system/compliance.ts`)**, view: `adjust`/`users`/`reports`; write: `adjust`/`users`; settings: `users`
+- Licences, registrations and certificates per branch or pharmacy-wide, with documents (PDF/JPG/PNG/WebP verified by file signature, size-limited, stored in the pharmacy's file store, served only to users who can see the branch), inspections with outcomes and closing notes, and a per-branch status that says why (missing required item, expired, expiring, inspection findings open or overdue).
+- **Required items and retention periods are configured by the pharmacy.** Until the owner saves a list the screen shows suggested starting requirements, flagged as suggestions; no retention period is assumed. The system's own retention behaviour (what its daily clean-up touches) is shown for reference.
+- Schedule H/H1/X check: counts the last 90 days of H1/X/NDPS sale lines lacking prescriber, prescriber registration or patient. Billing already refuses such a sale, so a gap means an older, imported or offline record. The Rx number is not checked because Medoro does not require it.
+- Reminders: the daily job sends one reminder per item, threshold and expiry date (a renewal re-arms it) to the report-email recipients, recording `emailed` or `not_emailed` honestly. The in-app badge and alert work regardless. Medoro does not check any licence with an authority.
+
+**Forecasting (`src/domain/intelligence/forecast-model.ts`, `forecast-intel.ts`)**, view: `reports` or `purchase`; drafts: `purchase`
+- Model: level = last-28-day mean; weekday factors from 8 weeks (shrunk to 1 with few observations); 80% interval from the residual spread; no seasonality (needs 12+ months; the seasonal planner covers it). A forecast needs 28+ history days and 5+ days with sales; otherwise the item is **left out and counted**, never forecast as zero.
+- Per medicine: tomorrow, 7 days, 30 days with intervals, the last weeks' actuals, a rolling backtest (error, bias, interval coverage) that sets a high/medium/low confidence (high also needs 90+ days), safety stock (95% service level over the supplier's lead time; lead time is "observed" only with 3+ past orders), reorder point, stockout day with an early/late range (counting open purchase orders), FEFO expiry risk, and a recommendation that states its reasoning.
+- **Accuracy tracking:** `snapshotForecasts` stores each branch's weekly forecast once per 7 days (append-only; daily job); `forecastAccuracy` scores completed weeks against what sold (error, bias, coverage) and reports weeks still pending. Nothing is back-filled.
+- `draftForecastOrders`: draft purchase orders (never placed) from recommendations, one per supplier, **low-confidence items excluded unless asked**; the order's source shows "from forecast" and the audit trail keeps the "statistical estimate, review before placing" note (the order itself has no note column).
+- Limits: sales stop when stock runs out, so frequently stocked-out items are under-forecast; all history is per branch; units are packs.
+
+**Central medicine catalogue (`src/staff/catalogue.ts`, `src/domain/inventory/catalogue-rules.ts`, `catalogue-sync.ts`)**
+- **Platform data, not pharmacy data:** `CatalogueMedicine` (global id `CM-000001`), `CatalogueBarcode`, `CatalogueChange` (append-only; its sequence number is the **catalogue version**). A pharmacy's `Medicine` gains one nullable `catalogueGid`. The catalogue carries **no prices**.
+- **Curation (Medoro super admin only):** entries start as **drafts**, invisible to pharmacies; **verified** needs a named source reference and date by a named staff member; editing a verified entry needs the source again. Edits are optimistic-versioned. Duplicates of a live entry (brand, salt, strength, form, manufacturer and pack size, ignoring case and punctuation) are blocked by a partial unique index and by a pre-check; likely typo duplicates are listed for review (same details, brand name 65%+ alike), never merged automatically. Barcodes must be GS1 numbers with a correct check digit and unique across the catalogue; pharmacy-internal "29…" labels are refused. Bulk import (500 rows) creates drafts and reports duplicates and invalid rows without overwriting.
+- **Pharmacy side:** only verified entries are visible. `linkSuggestions` proposes links (verified barcode, identical identity, or a near match marked "please check") and never links by itself. `catalogueDiff` shows differences for linked medicines without changing anything. `applyCatalogue` updates **only the chosen fields**, one medicine at a time, from `SYNC_FIELDS` (generic, composition, strength, form, manufacturer, HSN, GST rate, schedule); it can never touch MRP, prices, supplier rates, rack, reorder level, pack size or loose-sale setup, barcode or the pharmacy's brand name. HSN/GST/schedule are flagged as affecting how new bills are taxed or controlled; past bills keep the rate they were billed at (proven in a test). Unlinked (custom) medicines are never touched. `addFromCatalogue` creates a medicine with the pharmacy's own MRP and the verified barcode.
+- **Corrections:** a pharmacy can report a mistake (a field and value with a reason; one open per field, 50 open at most); staff accept (which edits the entry, bumps the version, logs `correction_accepted`) or decline with a reason. A pharmacy sees only its own requests.
+- **Synchronisation:** `syncStatus` gives the catalogue version, what the pharmacy last reviewed, and how many of its linked entries changed since; `markCatalogueReviewed` records it. A withdrawn (deprecated) entry is reported with its replacement and never silently altered in the pharmacy.
+- **The catalogue is empty on deployment.** Medoro must populate it from sources it has the right to use; nothing is imported automatically and the ~60-brand sample list of the existing "Import sample" feature is not treated as verified.
+- Duplicate detection across **pharmacies' own medicines** is the existing per-pharmacy duplicate check; central duplicate detection is for catalogue entries.
+
+**Security (`src/domain/system/audit-integrity.ts`)**: `verifyAuditChain(tenantId)` (paged, returns the first broken event and why); `recordAuditCheck(tenantId)` stores the outcome as Integration Health key `audit_integrity` and writes a failure to the audit trail; called by the daily job.
+
 ## 7. Deployment
 
-1. Deploy the new app build and run `pnpm prisma migrate deploy`. Migration `20261208000000_integration_health` only **creates** two tables (`IntegrationHealth`, `SystemHeartbeat`) and enables RLS on them. It alters no existing table and rewrites no data.
-2. No new environment variables.
-3. The scheduler writes its heartbeat on the next tick; until then "Background jobs" reads Not configured.
+1. Back up the database (take a verified in-app backup, or `pg_dump`; see `docs/DATA_OWNERSHIP.md`).
+2. Deploy the new build and run `pnpm prisma migrate deploy`. Six forward-only migrations, applied in order:
+
+| Migration | What it does |
+|---|---|
+| `20261208000000_integration_health` | creates `IntegrationHealth`, `SystemHeartbeat` |
+| `20261209000000_recall_intelligence` | adds 7 nullable columns to `Recall`; creates `RecallDisposal` (append-only) |
+| `20261210000000_compliance_centre` | creates `ComplianceItem`, `ComplianceDocument`, `ComplianceInspection`, `ComplianceReminder` |
+| `20261211000000_forecast_snapshots` | creates `ForecastSnapshot` (append-only) |
+| `20261212000000_central_catalogue` | adds nullable `Medicine.catalogueGid`; creates the catalogue tables, a sequence and a partial unique index |
+| `20261213000000_immutable_records` | adds append-only triggers to `SalesReturn`, `StockOut`, `Grn`, `GrnItem` |
+
+   None rewrites existing data. Every new table has row-level security enabled like the rest. `/api/ready` reports not-ready until all are applied.
+3. No new environment variables. Email-based reminders and recall notices use the existing `MAIL_PROVIDER` and the report-email recipient list; without them the system records "not emailed" and relies on in-app alerts.
+4. After deploying: a Medoro super admin opens **Staff console → Medicine catalogue** to start populating the catalogue (it is empty); an owner opens **Recall reports** to confirm the quarantine-on-recording setting, **Compliance** to set required items, and **Integration health** to run tests.
+5. The scheduler (existing `/api/cron/tick`, daily on Vercel) now also writes its heartbeat, snapshots forecasts weekly, sends compliance reminders and verifies the audit chain.
+6. Run `scripts/db-security-report.sql` as the application's database role and keep the output.
+
+**Behaviour changes to tell users:** recording a recall notice now blocks the affected batches in every branch immediately (setting, default on); resolving a recall is refused while affected stock remains; the PO source "forecast" appears in the purchase-order list.
 
 ## 8. Rollback
 
-- Migrations are forward-only. To roll back, redeploy the previous app build. The two new tables are unused by older builds and can stay. Older builds also ignore the new nav entry and routes.
-- To remove the tables after rolling back (only if wanted), run manually, never from a migration:
-  `DROP TABLE "IntegrationHealth"; DROP TABLE "SystemHeartbeat";` The data is a cache of test outcomes and heartbeats; no business data is lost.
-- Restoring a backup taken before the migration works; the tables are simply absent until `migrate deploy` is run again.
+Migrations are forward-only. **Rolling back = redeploying the previous build.** Older builds ignore the new tables, the nullable columns and the new routes; the triggers only block updates and deletes the old code never makes. Exceptions to check:
+
+- Redeploying a build **older than the Medoro 2.0 work** and then **recording a recall** works (the new `Recall` columns are nullable); but automatic quarantine on recording is a feature of the new build only.
+- If a rollback must also remove database objects (only if you want them gone; no business data is lost, because they hold derived or 2.0-only records), run manually, never from a migration:
+
+```sql
+DROP TRIGGER sales_return_append_only ON "SalesReturn";
+DROP TRIGGER stock_out_append_only ON "StockOut";
+DROP TRIGGER grn_append_only ON "Grn";
+DROP TRIGGER grn_item_append_only ON "GrnItem";
+DROP TABLE "ForecastSnapshot", "ComplianceReminder", "ComplianceDocument", "ComplianceInspection", "ComplianceItem",
+           "RecallDisposal", "CatalogueCorrection", "CatalogueBarcode", "CatalogueMedicine", "CatalogueChange",
+           "IntegrationHealth", "SystemHeartbeat";
+DROP SEQUENCE "catalogue_gid_seq";
+ALTER TABLE "Recall" DROP COLUMN "manufacturer", DROP COLUMN "noticeNo", DROP COLUMN "sourceUrl", DROP COLUMN "verifiedBy",
+                     DROP COLUMN "verifiedAt", DROP COLUMN "resolvedAt", DROP COLUMN "resolutionNote";
+ALTER TABLE "Medicine" DROP COLUMN "catalogueGid";
+```
+  Dropping `ComplianceDocument` rows leaves the uploaded files in storage; they are only orphaned.
+- Restoring a backup taken before these migrations works; the new tables are simply absent until `migrate deploy` runs again. A backup taken after them restores the new pharmacy tables (platform tables are global and never part of a pharmacy backup).
+- The recall `quarantine` and `disposal` actions change stock state; reverting the build does not undo them. Release a batch from quarantine in Inventory if needed.
 
 ## 9. Verification (actual results, this environment)
 

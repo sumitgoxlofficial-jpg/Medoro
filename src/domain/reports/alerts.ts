@@ -93,6 +93,10 @@ export async function badgesAndAlerts(tenantId: string, branchId: string, perms:
       if (c.expiring) alerts.push(`${c.expiring} licence or registration${c.expiring > 1 ? "s" : ""} due for renewal`);
     }
   }
+  if (perms.includes("users") || perms.includes("integrations")) {
+    const a = await db.integrationHealth.findUnique({ where: { tenantId_key: { tenantId, key: "audit_integrity" } }, select: { lastTestOk: true, lastError: true } });
+    if (a?.lastTestOk === false) { badges.health = [1, "red"]; alerts.unshift(`Audit trail integrity check failed: ${a.lastError ?? "see Integration health"}`); }
+  }
   if (perms.includes("integrations")) {
     const backup = await backupHealth(tenantId);
     if (backup.length) { badges.bak = [backup.length, "red"]; alerts.unshift(...backup); }
