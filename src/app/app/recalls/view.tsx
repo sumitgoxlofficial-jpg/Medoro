@@ -37,7 +37,7 @@ export function RecallsView({ recalls, canAdjust, canPurchase, branchName, canRe
         return (
           <div key={r.id} className="bg-white border border-line rounded-xl px-4 py-3.5 flex flex-col gap-1.5 shadow-[0_1px_2px_rgba(16,24,40,.04)]">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="font-mono text-[12.5px] text-muted">{r.ref}</span><strong className="text-[15px]">{r.product}</strong><Badge tone={tone}>{t(label)}</Badge>
+              <a href={`/app/recalls/${r.id}`} className="font-mono text-[12.5px] text-muted underline" data-testid="recall-report-link">{r.ref}</a><strong className="text-[15px]">{r.product}</strong><Badge tone={tone}>{t(label)}</Badge>
               {canRecord ? (
                 <select value={r.status} aria-label={t("Status")} onChange={(e) => {
                   const s = e.target.value as R["status"];

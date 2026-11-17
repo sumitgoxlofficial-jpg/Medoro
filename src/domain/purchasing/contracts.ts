@@ -54,7 +54,7 @@ export const poSchema = z.object({
     medicineId: zId(), qty: int("Quantity must be at least 1."), rate: money("Enter the rate."),
     freeQty: int("Free quantity can’t be negative.", 0).default(0), mrp: optMoney("MRP must be above zero."), ...pricingFields,
   })).min(1, "Add at least one item."),
-  source: z.enum(["manual", "intel", "ai", "seasonal"]).default("manual"),
+  source: z.enum(["manual", "intel", "ai", "seasonal", "forecast"]).default("manual"),
   note: z.string().trim().max(200).default(""),
 });
 export type PoInput = z.input<typeof poSchema>;

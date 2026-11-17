@@ -16,11 +16,11 @@ import { readDocument, restoreFile } from "@/server/storage";
 
 export const BACKUP_FORMAT = "medoro-backup-v2";
 /** Tenant tables kept as they are on this server. FileObject only indexes storage; file contents travel as `files`. */
-const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "OnlinePayment", "LicenceOutbox", "RestoreRun", "FileObject"]);
+const KEEP = new Set(["Integration", "BackupManifest", "SubscriptionMeta", "OnlinePayment", "LicenceOutbox", "RestoreRun", "FileObject", "IntegrationHealth"]);
 /** Tenant rows that are cleared, not restored: everyone signs in again after a restore, and pending reset codes die. */
 const CLEAR = new Set(["Session", "AiConfirmation", "AuthCode", "DiscountApproval"]);
 /** Tables that don't belong to any pharmacy. */
-const GLOBAL = new Set(["Tenant", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffPayout", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest", "CpBillingEvent", "Coupon", "CpOnlinePayment",
+const GLOBAL = new Set(["Tenant", "SystemHeartbeat", "CatalogueMedicine", "CatalogueBarcode", "CatalogueChange", "LoginAttempt", "AiAsk", "RateLimit", "OtpCode", "StaffUser", "StaffSession", "StaffBank", "StaffPayout", "StaffAudit", "CpSetting", "CpCustomer", "CpNote", "Lead", "LeadLog", "CpSale", "Ticket", "TicketMessage", "RemoteAccessRequest", "CpBillingEvent", "Coupon", "CpOnlinePayment",
   // Growth Intelligence (Medoro's own prospecting data): platform-owned, never part of a pharmacy's backup or restore.
   "GrowthTeam", "GrowthMember", "EmployeeTerritory", "EmployeeCallingTarget", "EmployeeDailyPerformance", "LeadSource", "PharmacyLead", "PharmacyContact",
   "LeadEvidence", "LeadScore", "LeadImportJob", "LeadDuplicateCandidate", "LeadAssignment", "LeadAssignmentHistory", "LeadNote", "LeadActivity", "CallSession",

@@ -11,6 +11,7 @@ export const RULES = {
   campaign: { limit: 5, windowSec: 60 * 60, what: "campaign starts" },
   campaignBatch: { limit: 120, windowSec: 60 * 60, what: "campaign batches from counters" },
   fullExport: { limit: 3, windowSec: 60 * 60, what: "full data exports" },
+  healthTest: { limit: 12, windowSec: 10 * 60, what: "integration tests" },
   report: { limit: 60, windowSec: 10 * 60, what: "report downloads" },
   backupDownload: { limit: 10, windowSec: 60 * 60, what: "backup downloads" },
   invoiceDownload: { limit: 60, windowSec: 60 * 60, what: "invoice downloads" },

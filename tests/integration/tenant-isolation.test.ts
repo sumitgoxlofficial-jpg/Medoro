@@ -18,6 +18,14 @@ import { listCampaigns, optInCount, optOuts, refillReminders } from "@/domain/co
 import { messageLog } from "@/domain/comms/whatsapp";
 import { auditTrail, listBranches, listTeam, listTransfers, roleMatrix } from "@/domain/identity/admin";
 import { supportStatus } from "@/domain/identity/support";
+import { supplierIntel } from "@/domain/purchasing/supplier-intel";
+import { catalogueDiff, linkSuggestions, myCorrections, syncStatus } from "@/domain/inventory/catalogue-sync";
+import { forecastIntel, forecastAccuracy } from "@/domain/intelligence/forecast-intel";
+import { complianceOverview } from "@/domain/system/compliance";
+import { benchmark } from "@/domain/reports/benchmark";
+import { profitIntel, profitPeriod } from "@/domain/reports/profit";
+import { customerIntel } from "@/domain/sales/customer-intel";
+import { healthOverview } from "@/domain/system/health";
 import { anomalies, expiryRows, forecast, priceComparison, slowStock } from "@/domain/intelligence/service";
 import { fullExport } from "@/domain/system/privacy";
 import { addDays, todayISO } from "@/lib/dates";
@@ -90,6 +98,7 @@ function readers(me: Seed, other: Seed): [string, () => Promise<unknown>][] {
     ["listTeam", () => listTeam(ctx)], ["roleMatrix", () => roleMatrix(ctx)], ["listBranches", () => listBranches(ctx)], ["listTransfers", () => listTransfers(ctx)], ["auditTrail", () => auditTrail(ctx)], ["supportStatus", () => supportStatus(ctx)],
     ["expiryRows", () => expiryRows(ctx, 365)], ["forecast", () => forecast(ctx, { cover: 21, safety: 2 })], ["priceComparison", () => priceComparison(ctx)], ["slowStock", () => slowStock(ctx)],
     ["anomalies", () => anomalies(ctx, { disc: 5, refunds: 2, cash: 200 })],
+    ["supplierIntel", () => supplierIntel(ctx)], ["healthOverview", () => healthOverview(ctx)], ["customerIntel", () => customerIntel(ctx)], ["profitIntel", () => profitIntel(ctx, null, profitPeriod(undefined, undefined))], ["benchmark", () => benchmark(ctx, profitPeriod(undefined, undefined))], ["complianceOverview", () => complianceOverview(ctx)], ["catalogueDiff", () => catalogueDiff(ctx)], ["linkSuggestions", () => linkSuggestions(ctx)], ["myCorrections", () => myCorrections(ctx)], ["syncStatus", () => syncStatus(ctx)], ["forecastIntel", () => forecastIntel(ctx)], ["forecastAccuracy", () => forecastAccuracy(ctx)],
     ["fullExport", () => fullExport(ctx)],
   ];
 }

@@ -10,6 +10,7 @@ import * as sales from "@/staff/sales";
 import * as support from "@/staff/support";
 import * as licence from "@/staff/licence";
 import * as coupons from "@/staff/coupons";
+import * as catalogue from "@/staff/catalogue";
 import * as partners from "@/staff/partners";
 import { log } from "@/server/log";
 
@@ -94,3 +95,13 @@ export const payPartnerRazorpay = async (staffId: string) => done(await staffRun
 export const recordPartnerTransfer = async (staffId: string, utr: string) => done(await staffRun((s) => partners.recordBankTransfer(s, staffId, utr)));
 export const partnerBankDetails = async (staffId: string) => staffRun((s) => partners.payoutBankDetails(s, staffId));
 export const refreshPartnerPayout = async (id: string) => done(await staffRun((s) => partners.refreshPayout(s, id)));
+
+// ── Medicine catalogue (super admin)
+export const catalogueCreate = async (input: Parameters<typeof catalogue.createEntry>[1]) => done(await staffRun((s) => catalogue.createEntry(s, input), "Entry created as a draft."));
+export const catalogueUpdate = async (gid: string, input: Parameters<typeof catalogue.updateEntry>[2], version: number) => done(await staffRun((s) => catalogue.updateEntry(s, gid, input, version), "Entry saved."));
+export const catalogueVerify = async (gid: string, sourceRef: string) => done(await staffRun((s) => catalogue.verifyEntry(s, gid, { sourceRef }), "Entry verified. Pharmacies can now see it."));
+export const catalogueDeprecate = async (gid: string, reason: string, replacement: string) => done(await staffRun((s) => catalogue.deprecateEntry(s, gid, reason, replacement.trim() || undefined), "Entry withdrawn."));
+export const catalogueBarcodeAdd = async (gid: string, code: string, source: string, verified: boolean) => done(await staffRun((s) => catalogue.addBarcode(s, gid, code, source, verified), "Barcode added."));
+export const catalogueBarcodeVerify = async (code: string) => done(await staffRun((s) => catalogue.verifyBarcode(s, code), "Barcode verified."));
+export const catalogueImport = async (rows: Parameters<typeof catalogue.importEntries>[1]) => done(await staffRun((s) => catalogue.importEntries(s, rows)));
+export const catalogueResolve = async (id: string, accept: boolean, note: string) => done(await staffRun((s) => catalogue.resolveCorrection(s, id, accept, note), accept ? "Correction applied." : "Correction declined."));
