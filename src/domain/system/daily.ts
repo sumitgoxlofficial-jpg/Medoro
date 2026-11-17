@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { istDate } from "@/lib/dates";
 import { applyRetention } from "./retention";
 import { sendUsagePing } from "./telemetry";
+import { complianceReminders } from "./compliance";
 
 /**
  * Once-a-day jobs per pharmacy: retention clean-up and, when allowed, the anonymous usage ping. Called from the scheduler
@@ -10,7 +11,7 @@ import { sendUsagePing } from "./telemetry";
  */
 export async function dailyJobs(now = new Date()) {
   const day = istDate(now);
-  const out: { tenantId: string; retention?: unknown; ping?: boolean; error?: string }[] = [];
+  const out: { tenantId: string; retention?: unknown; ping?: boolean; compliance?: unknown; error?: string }[] = [];
   for (const t of await db.tenant.findMany({ select: { id: true } })) {
     const claimed = await db.$executeRaw`
       UPDATE "Tenant" SET settings = jsonb_set(CASE WHEN jsonb_typeof(settings) = 'object' THEN settings ELSE '{}'::jsonb END, '{jobs}',
@@ -20,6 +21,7 @@ export async function dailyJobs(now = new Date()) {
     const r: (typeof out)[number] = { tenantId: t.id };
     try { r.retention = await applyRetention(t.id, now); } catch (e) { r.error = e instanceof Error ? e.message : String(e); console.error("[retention]", r.error); }
     r.ping = await sendUsagePing(t.id, now).catch(() => false);
+    r.compliance = await complianceReminders(t.id, now).catch((e) => { console.error("[compliance]", e instanceof Error ? e.message : e); return { error: true }; });
     out.push(r);
   }
   return out;

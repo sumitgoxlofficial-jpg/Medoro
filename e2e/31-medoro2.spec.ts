@@ -55,4 +55,50 @@ test.describe("medoro 2.0 screens", () => {
     await page.goto("/app/intelligence/profit?from=2026-11-10&to=2026-11-01");
     await expect(page.getByText(/start date is after the end date/)).toBeVisible();
   });
+
+  test("chain benchmarking states its definitions and the single-branch case", async ({ page }) => {
+    await page.goto("/app/intelligence/benchmark");
+    await expect(page.getByRole("heading", { name: "Chain benchmarking" }).first()).toBeVisible();
+    await expect(page.getByTestId("bench-table")).toContainText("Stock turnover is cost of goods sold, annualised");
+    await expect(page.getByTestId("bench-table")).toContainText("not recorded, so this is an approximation");
+  });
+
+  test("recall reports: notice by manufacturer, honest source wording, quarantine setting", async ({ page }) => {
+    await page.goto("/app/recalls");
+    await page.getByTestId("recall-reports-link").click();
+    await expect(page.getByRole("heading", { name: "Recall reports" }).first()).toBeVisible();
+    await expect(page.getByText(/no government feed is connected/i)).toBeVisible();
+    await expect(page.getByTestId("auto-quarantine-toggle")).toBeVisible();
+    await page.getByLabel("Manufacturer").fill("Acme Pharma");
+    await page.getByLabel("Product", { exact: true }).fill("Testamol");
+    await page.getByLabel("Batch numbers").fill("E2E-77");
+    await page.getByLabel("Source").fill("CDSCO alert E2E");
+    await page.getByLabel("Published on").fill(new Date().toISOString().slice(0, 10));
+    await page.getByRole("button", { name: "Record notice" }).click();
+    await expect(page.getByText(/Recorded RC-/)).toBeVisible();
+    await page.reload();
+    await page.getByTestId("recall-list").getByRole("link", { name: /^RC-/ }).first().click();
+    await expect(page.getByTestId("recall-notice")).toContainText("Medoro does not fetch notices from any government feed");
+    await expect(page.getByTestId("recall-trace")).toContainText("Affected quantity");
+    await expect(page.getByTestId("recall-audit")).toContainText("Recall notice recorded");
+  });
+
+  test("compliance centre: disclaimer, requirement gaps, add a licence, status changes", async ({ page }) => {
+    await page.goto("/app/compliance");
+    await expect(page.getByRole("heading", { name: "Compliance centre" }).first()).toBeVisible();
+    await expect(page.getByTestId("compliance-disclaimer")).toContainText("does not tell you what the law requires");
+    await expect(page.getByTestId("compliance-branches")).toContainText("Missing:");
+    await page.getByText("Add a licence or registration").click();
+    const f = page.getByTestId("item-form");
+    await f.getByLabel("Title").fill("E2E retail licence");
+    await f.getByLabel("Number").fill("E2E-RL-1");
+    const soon = new Date(Date.now() + 20 * 86400_000).toISOString().slice(0, 10);
+    await f.getByLabel("Expires on").fill(soon);
+    await f.getByRole("button", { name: "Add item" }).click();
+    await expect(page.getByText("Saved.").first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("compliance-items")).toContainText("E2E retail licence");
+    await expect(page.getByTestId("compliance-items")).toContainText("Renewal due");
+    await expect(page.getByTestId("compliance-retention")).toContainText("Medoro does not assume any");
+  });
 });

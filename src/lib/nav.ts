@@ -1,7 +1,7 @@
 import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
-  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "est" | "att" | "acc"
+  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "comp" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "est" | "att" | "acc"
   | "wa" | "crm" | "bak" | "health" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Finance" | "Engagement" | "System"; abbr: string; sub: string };
@@ -18,6 +18,7 @@ export const NAV: NavDef[] = [
   { id: "inv", href: "/app/inventory", icon: "Package", perm: null, group: "Operations", abbr: "Stock", sub: "Catalogue, batches and stock ledger" },
   { id: "count", href: "/app/count", icon: "ClipboardCheck", perm: "adjust", group: "Operations", abbr: "Count", sub: "Physical count against system stock" },
   { id: "recall", href: "/app/recalls", icon: "ShieldAlert", perm: null, group: "Operations", abbr: "Recall", sub: "Verified recall notices matched to your batches" },
+  { id: "comp", href: "/app/compliance", icon: "FileCheck", perm: "adjust", group: "Operations", abbr: "Comply", sub: "Licences, pharmacist registration, inspections and renewal reminders" },
   { id: "exp", href: "/app/expiry", icon: "Hourglass", perm: null, group: "Intelligence", abbr: "Expiry", sub: "Batch exposure, projected loss and recovery actions" },
   { id: "intel", href: "/app/intelligence", icon: "ChartLine", perm: "reports", group: "Intelligence", abbr: "Insights", sub: "Forecasts, reorder policy, supplier prices and anomaly review" },
   { id: "pur", href: "/app/purchases", icon: "Truck", perm: "purchase", group: "Business", abbr: "Buy", sub: "Purchase orders, GRNs and invoice scanning" },
@@ -39,7 +40,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est", "att", "ret", "inv", "count", "recall", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
+export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est", "att", "ret", "inv", "count", "recall", "comp", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
 
 /**
  * A pharmacy whose records live on its counters and in its Google Drive: each screen opens the matching tab of

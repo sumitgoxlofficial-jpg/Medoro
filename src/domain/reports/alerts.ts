@@ -84,6 +84,15 @@ export async function badgesAndAlerts(tenantId: string, branchId: string, perms:
   if (cheques) alerts.push(`${cheques} cheque${cheques > 1 ? "s" : ""} to deposit or clear`);
   if (recalls) alerts.push(`${recalls} open recall${recalls > 1 ? "s" : ""}`);
   if (waFailed) alerts.push(`${waFailed} WhatsApp message${waFailed > 1 ? "s" : ""} failed and won’t be retried`);
+  if (perms.some((p) => p === "adjust" || p === "users" || p === "reports")) {
+    const { complianceCounts } = await import("@/domain/system/compliance");
+    const c = await complianceCounts(tenantId);
+    if (c.expired + c.expiring) {
+      badges.comp = [c.expired + c.expiring, c.expired ? "red" : "amber"];
+      if (c.expired) alerts.push(`${c.expired} licence or registration${c.expired > 1 ? "s" : ""} expired`);
+      if (c.expiring) alerts.push(`${c.expiring} licence or registration${c.expiring > 1 ? "s" : ""} due for renewal`);
+    }
+  }
   if (perms.includes("integrations")) {
     const backup = await backupHealth(tenantId);
     if (backup.length) { badges.bak = [backup.length, "red"]; alerts.unshift(...backup); }

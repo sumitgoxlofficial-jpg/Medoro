@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/server/db";
 import { createMedicine, receiveBatch, setQuarantine } from "@/domain/inventory/service";
 import { approveTransfer, cancelTransfer, postCount, receiveTransfer, rejectTransfer, requestTransfer, returnToSupplier, writeOff } from "@/domain/inventory/adjust";
-import { addRecall, listRecalls, quarantineRecall } from "@/domain/inventory/recalls";
+import { addRecall, listRecalls, quarantineRecall, saveRecallSettings } from "@/domain/inventory/recalls";
 import { anomalies, draftSeasonal, expiryRows, forecast } from "@/domain/intelligence/service";
 import { commitSale } from "@/domain/sales/service";
 import { listSuppliers, saveSupplier } from "@/domain/parties/service";
@@ -94,6 +94,7 @@ describe("stock operations and intelligence", () => {
     const ctx = await ctxFor();
     const other = await createMedicine(ctx, { name: "Dolo", generic: "Paracetamol", strength: "650 mg", form: "Tablet", manufacturer: "Micro", pack: "15", mrp: "30", gstRate: 12, schedule: "", reorderLevel: 0, barcode: "", hsn: "3004", rack: "" });
     await receiveBatch(ctx, { medicineId: other, batchNo: "OK2", expiry: addDays(todayISO(), 300).slice(0, 10), qty: 5, cost: "10", mrp: "30", supplierId: null, invoiceNo: "" });
+    await saveRecallSettings(ctx, { autoQuarantine: false }); // this test covers the manual path; automatic quarantine (the default) is in recall-intel.test.ts
     await expect(addRecall(ctx, { medicineId: "", batches: "OK2", source: "Manufacturer notice", publishedAt: todayISO() })).rejects.toThrow(/medicine/);
     await addRecall(ctx, { medicineId: med, batches: "ok2, ZZ9", source: "Manufacturer notice 12/2026", publishedAt: todayISO(), reason: "Labelling" });
     let r = (await listRecalls(ctx))[0];
@@ -103,6 +104,7 @@ describe("stock operations and intelligence", () => {
     expect(r.matches.every((m) => m.status === "quarantine")).toBe(true);
     expect(r.status).toBe("investigating");
     expect((await db.batch.findFirstOrThrow({ where: { medicineId: other } })).status).toBe("ok");
+    await saveRecallSettings(ctx, { autoQuarantine: true });
   });
 
   it("forecasts reorders, projects expiry loss and flags big discounts", async () => {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireCtx, can } from "@/server/context";
 import { db } from "@/server/db";
 import { listRecalls } from "@/domain/inventory/recalls";
@@ -13,7 +14,7 @@ export default async function Page() {
   const meds = await db.medicine.findMany({ where: { tenantId: ctx.tenantId, active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, strength: true } });
   return (
     <>
-      <PageHead title={t(ctx.lang).recall} sub="Verified recall notices matched to your batches in every branch" />
+      <PageHead title={t(ctx.lang).recall} sub="Verified recall notices matched to your batches in every branch" right={<Link href="/app/recalls/report" className="text-[13px] underline" data-testid="recall-reports-link">Recall reports</Link>} />
       <RecallsView recalls={await listRecalls(ctx)} canAdjust={can(ctx, "adjust")} canPurchase={can(ctx, "purchase")} branchName={ctx.branchName} canRecord={can(ctx, "adjust") || can(ctx, "users")} today={todayISO()} medicines={meds.map((m) => ({ id: m.id, label: `${m.name} ${m.strength}`.trim() }))} />
     </>
   );

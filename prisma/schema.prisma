@@ -503,6 +503,33 @@ model Recall {
   status      String // open, quarantined, returned, resolved
   createdBy   String
   createdAt   DateTime @default(now())
+  // Medoro 2.0: notice details as published, who attested them, and how the recall ended.
+  manufacturer   String? // set when the notice names a manufacturer and product instead of one catalogue medicine
+  noticeNo       String? // the authority's own reference
+  sourceUrl      String? // https link to the notice
+  verifiedBy     String? // user who checked the notice at its source and recorded it
+  verifiedAt     DateTime?
+  resolvedAt     DateTime?
+  resolutionNote String?
+}
+
+/// Stock of a recalled batch that was destroyed or otherwise disposed of, kept as history (append-only). Destruction also
+/// posts a normal write-off (stockOutNo); supplier returns are read from StockOut.
+model RecallDisposal {
+  id          String   @id @default(uuid())
+  tenantId    String
+  recallId    String
+  branchId    String
+  batchId     String
+  qty         Int
+  method      String // destroyed, returned_manufacturer
+  reference   String? // destruction certificate, manufacturer return note
+  stockOutNo  String?
+  note        String?
+  userId      String
+  at          DateTime @default(now())
+
+  @@index([tenantId, recallId])
 }
 
 // ───────────── Parties ─────────────
@@ -2945,4 +2972,83 @@ model SystemHeartbeat {
   lastOkAt  DateTime?
   lastError String?
   runs      Int       @default(0)
+}
+
+// ───────────── Compliance centre (Medoro 2.0) ─────────────
+
+/// A licence, registration or certificate the pharmacy or one branch holds. Which items are required, and when to be
+/// reminded, are the pharmacy's own configuration; Medoro states no legal requirement. Never deleted: switch it off.
+model ComplianceItem {
+  id         String    @id @default(uuid())
+  tenantId   String
+  branchId   String? // null: pharmacy-wide
+  kind       String // retail_licence, pharmacist_registration, … (labels in compliance-rules.ts)
+  title      String
+  number     String?
+  holder     String? // for example the registered pharmacist
+  authority  String?
+  issuedOn   DateTime? @db.Date
+  expiresOn  DateTime? @db.Date
+  notes      String?
+  remindDays Int[] // days before expiry to remind, e.g. 60, 30, 7
+  active     Boolean   @default(true)
+  version    Int       @default(0)
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([tenantId, branchId])
+}
+
+/// A scanned licence, certificate or inspection report. The file lives in the pharmacy's chosen file store.
+model ComplianceDocument {
+  id           String   @id @default(uuid())
+  tenantId     String
+  itemId       String?
+  inspectionId String?
+  kind         String // licence_copy, inspection_report, other
+  title        String
+  fileName     String
+  storagePath  String
+  mime         String
+  sha256       String
+  sizeBytes    Int
+  createdBy    String
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, itemId])
+  @@index([tenantId, inspectionId])
+}
+
+/// A visit by an inspector and what came of it.
+model ComplianceInspection {
+  id              String    @id @default(uuid())
+  tenantId        String
+  branchId        String
+  inspectedOn     DateTime  @db.Date
+  authority       String
+  inspector       String?
+  outcome         String // no_findings, observations, non_compliance
+  findings        String
+  actionDue       DateTime? @db.Date
+  actionsClosedOn DateTime? @db.Date
+  closingNote     String?
+  createdBy       String
+  createdAt       DateTime  @default(now())
+
+  @@index([tenantId, branchId, inspectedOn])
+}
+
+/// One reminder per item, threshold and expiry date, so a reminder is sent once and a renewal re-arms it.
+model ComplianceReminder {
+  id        String   @id @default(uuid())
+  tenantId  String
+  itemId    String
+  threshold Int // days before expiry; 0 = expired
+  forExpiry DateTime @db.Date
+  outcome   String // emailed, not_emailed
+  detail    String?
+  sentAt    DateTime @default(now())
+
+  @@unique([itemId, threshold, forExpiry])
 }
