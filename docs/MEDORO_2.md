@@ -133,6 +133,25 @@ Limits stated plainly: OCR and AI tests prove reachability and credentials, not 
   `DROP TABLE "IntegrationHealth"; DROP TABLE "SystemHeartbeat";` The data is a cache of test outcomes and heartbeats; no business data is lost.
 - Restoring a backup taken before the migration works; the tables are simply absent until `migrate deploy` is run again.
 
-## 9. Verification
+## 9. Verification (actual results, this environment)
 
-See section 10 for the results of the final run.
+Run on PostgreSQL 16, Node 22, against the code as committed:
+
+| Gate | Result |
+|---|---|
+| `pnpm lint` | clean |
+| `pnpm typecheck` | clean |
+| `pnpm test` | **986 passed, 0 failed, 162 files** (baseline before changes: 955 / 158; +31 tests: health state, scoring, health integration, supplier integration, tenant-isolation readers) |
+| `pnpm build` | succeeds |
+| `pnpm test:e2e` | **Only the 11 spec files CI runs were executed (27 tests, all passed)**, including new `e2e/31-medoro2.spec.ts`. The other ~20 specs (drive/device/AI/live etc.) were not run: per `docs/TEST_PLAN.md` they need extra setup. So "all e2e passes" is **not** claimed. |
+
+Problems found and fixed by these runs (kept for honesty):
+1. The restore tests failed (19 tests) because the two new tables were unclassified for backup/restore. Fixed: `IntegrationHealth` is kept as-is on restore, `SystemHeartbeat` is global.
+2. The site-crawl e2e caught a React hydration mismatch in the health screen (locale-dependent timestamps). Fixed with fixed-format IST.
+3. My own spec clicked before hydration; fixed with a wait.
+
+Not verified: the Google Drive, WhatsApp, OCR and AI **explicit tests were exercised only with injected failures and stubs**. No live Google, Meta, OCR or AI service was available, so those paths have not been run against the real services. In this environment nothing external is configured, so every outside integration correctly reads "Not configured".
+
+## 10. Outstanding work
+
+Modules 1, 3, 4, 5 (extensions), 6, 7 (extensions) and 8 are not built. Module 10 needs the owner's decision (section 4). Module 11's RLS / non-owner role / audit-verification work is not done (section 5). This increment is **not** a production-readiness claim.

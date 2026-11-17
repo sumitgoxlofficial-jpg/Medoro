@@ -13,7 +13,12 @@ const TONE: Record<HealthState, string> = {
   active: "bg-emerald-50 text-emerald-800 border-emerald-200",
   error: "bg-red-50 text-red-800 border-red-200",
 };
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "never");
+/** Fixed IST, built by hand so the server render and the browser render are identical (no locale or time-zone differences). */
+const when = (iso: string | null) => {
+  if (!iso) return "never";
+  const d = new Date(new Date(iso).getTime() + 330 * 60_000), p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} IST`;
+};
 
 export function HealthView({ rows, canTest }: { rows: HealthRow[]; canTest: boolean }) {
   const router = useRouter();

@@ -29,6 +29,7 @@ test.describe("medoro 2.0 screens", () => {
 
   test("supplier intelligence explains an empty history instead of inventing a ranking", async ({ page }) => {
     await page.goto("/app/intelligence");
+    await page.waitForLoadState("networkidle"); // let the page hydrate before clicking
     await page.getByTestId("supplier-intel-link").click();
     await expect(page).toHaveURL(/\/app\/intelligence\/suppliers/);
     await expect(page.getByRole("heading", { name: "Supplier intelligence" }).first()).toBeVisible();
