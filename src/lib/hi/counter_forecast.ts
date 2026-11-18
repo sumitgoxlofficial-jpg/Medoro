@@ -1,0 +1,28 @@
+/** Hindi lines for: counter_forecast. Key = the English text exactly as written in the code (see src/lib/tr.ts). */
+export const hi: Record<string, string> = {
+  // Screen (src/components/device/forecast-card.tsx)
+  "Working out the statistical forecast…": "सांख्यिकीय अनुमान निकाला जा रहा है…",
+  "Statistical demand forecast": "सांख्यिकीय माँग का अनुमान",
+  "Next week and next month with a range and a confidence for each medicine, from this counter’s own bills.": "हर दवा के लिए अगले हफ़्ते और अगले महीने का अनुमान, रेंज और भरोसे के साथ, इसी काउंटर के बिलों से।",
+  "Include {n} low-confidence": "{n} कम भरोसे वाले भी जोड़ें",
+  "Add {n} to order list": "{n} को ऑर्डर लिस्ट में जोड़ें",
+  "These are estimates from a simple statistical model (recent level, weekday pattern and an 80% range), not facts and not machine learning. Seasonal swings are not included. Sales stop when stock runs out, so items that were often out of stock are under-forecast. Review before ordering.": "ये एक सरल सांख्यिकीय मॉडल (हाल का स्तर, हफ़्ते के दिनों का पैटर्न और 80% रेंज) के अनुमान हैं, तथ्य नहीं और मशीन लर्निंग भी नहीं। मौसमी उतार-चढ़ाव शामिल नहीं हैं। स्टॉक ख़त्म होने पर बिक्री रुक जाती है, इसलिए जो आइटम अक्सर ख़त्म रहे उनका अनुमान कम आता है। ऑर्डर से पहले जाँच लें।",
+  "How accurate is it?": "यह कितना सही है?",
+  "Tested on this counter’s own history: average error {wape} of units sold, actual inside the range {cov} of the time, over {n} items.": "इसी काउंटर के अपने इतिहास पर जाँचा गया: बिकी मात्रा का औसत अंतर {wape}, असली बिक्री {cov} बार रेंज के अंदर रही, {n} आइटम पर।",
+  "Forecasts this counter made and then checked against sales: {n} item-weeks, error {wape}, in range {cov}.": "इस काउंटर ने जो अनुमान बनाए और फिर बिक्री से मिलाए: {n} आइटम-हफ़्ते, अंतर {wape}, रेंज के अंदर {cov}।",
+  "No forecast has been made and then checked yet. This week’s is saved when you open this screen, and scored once its week is over ({n} waiting).": "अभी तक कोई अनुमान बनकर जाँचा नहीं गया। इस हफ़्ते का अनुमान इस स्क्रीन को खोलने पर सेव होता है और हफ़्ता पूरा होने पर जाँचा जाता है ({n} इंतज़ार में)।",
+  "Next 7 d": "अगले 7 दिन",
+  "Range": "रेंज",
+  "Next 30 d": "अगले 30 दिन",
+  "Stock": "स्टॉक",
+  "Runs out": "ख़त्म होगा",
+  "Confidence": "भरोसा",
+  "Order": "ऑर्डर",
+  "Not within 120 d": "120 दिन में नहीं",
+  "in {n} d": "{n} दिन में",
+  "high": "ज़्यादा",
+  "medium": "मध्यम",
+  "low": "कम",
+  "No medicine has enough history yet (about 4 weeks of bills with sales on 5 days). Until then the reorder list above uses the 28-day sales rate.": "अभी किसी दवा का इतिहास काफ़ी नहीं है (लगभग 4 हफ़्ते के बिल, जिनमें 5 दिन बिक्री हो)। तब तक ऊपर की दोबारा मंगाने की लिस्ट 28 दिन की बिक्री दर पर चलती है।",
+  "{n} medicine(s) have too little history for a forecast and are left out, not shown as zero. The counter has no supplier lead times or purchase orders, so 1 day is used for delivery and nothing is counted as on order.": "{n} दवा(ओं) का इतिहास अनुमान के लिए बहुत कम है, इन्हें छोड़ा गया है, शून्य नहीं दिखाया गया। काउंटर पर सप्लायर का डिलीवरी समय या परचेज़ ऑर्डर नहीं होते, इसलिए डिलीवरी के लिए 1 दिन माना गया है और कुछ भी ऑर्डर पर नहीं गिना गया।",
+};
