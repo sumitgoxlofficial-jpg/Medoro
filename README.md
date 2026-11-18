@@ -7,6 +7,15 @@
 ## Stack
 Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind 4 · Prisma 6 · PostgreSQL 16 · Zod · Vitest · lucide-react.
 
+## MEDORO Distribution (wholesale ERP)
+A second product in the same codebase for pharmaceutical distributors, stockists, super stockists and C&F agents:
+`/dist` for the distributor's team (orders with credit control and batch-wise stock reservation, mobile picking and
+dispatch, wholesale GST invoicing, schemes, credit notes, expiry claims, purchases/GRN across godowns, collections,
+books, GST returns, MIS and business intelligence) and `/portal` for chemists (register, connect, order, track,
+invoices, dues). Create a distributor at `/distributor-signup`. Pharmacy tenants are unaffected. See
+[docs/distribution](docs/distribution/README.md) for the audit, design, module status, real integration status, tests
+and deployment.
+
 ## Run it locally
 ```bash
 cp .env.example .env              # set DATABASE_URL and SESSION_SECRET (32+ random chars); never commit .env
