@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import {
   ArrowRight, Check, Cloud, CloudOff, Download, Eye, FileCheck, HardDriveUpload, Headset, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, PackageSearch, Plus,
-  ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database,
+  ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database, ScanBarcode, Warehouse,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
 import { SiteLangCarryOver } from "@/components/site/header";
 import { FeatureTabs, Hero, Marquee, Pricing, ProductTour } from "@/components/site/interactive";
 import { PRODUCTS } from "@/staff/constants";
+import { DIST_PLANS } from "@/domain/distribution/plans";
 import { BRAND_FAQ, WHY_SWITCH_HEADING } from "@/data/brand";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SOFTWARE_ID, WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
@@ -54,6 +55,14 @@ const LEAKS: [string, string, string][] = [
   ["Month-end GST and the CA’s calls", "Every bill already carries its taxable value and tax split. Summaries are ready on the 1st, and your CA gets exports in the format they use.", "/#product"],
   ["Not knowing the numbers when you’re away", "Sales, cash, margin and dues for every branch on your phone, with the expiry and low-stock lists that need your attention.", "/#product"],
 ];
+
+// The two MEDORO products. "From" prices are read from the same tables the licence server and the app use.
+const FAMILY = [
+  { id: "pharmacy", Icon: ScanBarcode, name: "Medoro Pharmacy", for: "Medical stores, pharmacy chains and hospital pharmacies", from: PRODUCTS.find((p) => p.id === "starter")!.m, cta: "Start 7-day free trial", href: "/trial", pricing: "/#pharmacy-pricing",
+    points: ["Fast GST billing with FEFO batches and barcode search", "Expiry, low-stock and reorder alerts", "Purchases, suppliers, credit and accounts", "WhatsApp invoices and customer reminders", "Billing on the shop network when the internet drops"] },
+  { id: "distribution", Icon: Warehouse, name: "Medoro Distribution", for: "Pharma distributors, wholesalers, stockists and C&F agents", from: Math.round(DIST_PLANS.dist_std.priceMonthly / 100), cta: "Book a distribution demo", href: "https://wa.me/917320001062?text=" + encodeURIComponent("Hi Medoro, I'd like a demo of Medoro Distribution for my distribution business."), pricing: "/#distribution-pricing",
+    points: ["Orders with credit control and batch-wise stock reservation", "Wholesale GST invoices, schemes and free goods", "Mobile picking, dispatch and proof of delivery", "Expiry claims to companies, collections and ageing", "A chemist ordering portal with your own rates"] },
+] as const;
 
 const KEYS: [string, string, string][] = [["F2", "Search", "dolo"], ["Enter", "Add to bill", "Dolo 650 · batch {batch} · exp {exp}"], ["F9", "Complete sale", "INV/25-26/0418 · ₹67.20 · UPI"]];
 
@@ -186,6 +195,38 @@ export default async function Home() {
 
       <main id="main">
         <Hero />
+
+        <section id="products" aria-labelledby="products-title" className={`${wrap} pt-[clamp(56px,8vw,96px)] pb-[clamp(40px,6vw,72px)] flex flex-col gap-10`}>
+          <div className="grid grid-cols-12 gap-x-6 gap-y-5 items-end">
+            <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
+              <span className={eyebrow}>{t("Two products, one Medoro")}</span>
+              <h2 id="products-title" className={h2}>{t("From the medical store counter to the distributor’s godown.")}</h2>
+            </div>
+            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("The same Medoro quality, security and हिंदी support for retail pharmacies and for the distributors who supply them.")}</p>
+          </div>
+          <div className="grid gap-5 min-[900px]:grid-cols-2">
+            {FAMILY.map((f, i) => (
+              <article key={f.id} data-reveal style={{ ["--d" as string]: i }} className={`site-lift relative overflow-hidden rounded-2xl p-[clamp(22px,3vw,36px)] flex flex-col gap-5 ${i === 0 ? "bg-white border border-[var(--s-line)]" : "site-dark bg-[var(--s-dark)] text-white"}`}>
+                {i === 1 ? <div aria-hidden className="absolute inset-0"><Aurora dark /></div> : null}
+                <div className="relative flex items-center gap-3">
+                  <span className={`size-12 rounded-xl flex items-center justify-center ${i === 0 ? "bg-[var(--s-brand-tint)] text-[var(--s-brand)]" : "bg-white/10 text-[#8FD3C6]"}`}><f.Icon size={24} aria-hidden className="site-breathe" /></span>
+                  <div className="flex flex-col">
+                    <h3 className="m-0 text-[24px] font-semibold tracking-[-.01em]">{t(f.name)}</h3>
+                    <span className={`text-[15px] ${i === 0 ? "text-[var(--s-muted)]" : "text-[#B5C7C3]"}`}>{t(f.for)}</span>
+                  </div>
+                </div>
+                <div className="relative flex items-baseline gap-1.5"><span className="text-[15px] font-medium">{t("From")}</span><span className={`site-display text-[40px] leading-none ${i === 0 ? "text-[var(--s-brand)]" : "text-white"}`}>₹{f.from.toLocaleString("en-IN")}</span><span className={`text-[15px] ${i === 0 ? "text-[var(--s-muted)]" : "text-[#B5C7C3]"}`}>{t("/ month")}</span></div>
+                <ul className="relative m-0 p-0 list-none flex flex-col gap-2.5">
+                  {f.points.map((x) => <li key={x} className={`flex gap-2.5 items-start text-[15.5px] ${i === 0 ? "text-[var(--s-ink-2)]" : "text-[#D3E2DF]"}`}><Check size={17} aria-hidden className={`${i === 0 ? "text-[var(--s-brand)]" : "text-[#4ADE80]"} mt-[3px] flex-none`} />{t(x)}</li>)}
+                </ul>
+                <div className="relative mt-auto flex flex-wrap gap-3 pt-2">
+                  <a href={f.href} className={`site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg text-[15.5px] font-semibold transition-colors ${i === 0 ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "bg-white text-[var(--s-brand-ink)] hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]"}`}>{t(f.cta)}<ArrowRight size={16} aria-hidden /></a>
+                  <a href={f.pricing} className={`inline-flex items-center h-12 px-4 rounded-lg text-[15.5px] font-semibold border transition-colors ${i === 0 ? "border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]" : "border-white/40 text-white hover:bg-white/10 hover:text-white"}`}>{t("See pricing")}</a>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
 
         <section aria-labelledby="standards-title" className="border-b border-[var(--s-line)]">
           <div className={`${wrap} py-14 flex flex-col gap-10`}>
@@ -421,6 +462,7 @@ export default async function Home() {
             <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
               <span className={eyebrow}>{t("Pricing", { ctx: "site" })}</span>
               <h2 id="pricing-title" className={h2}>{t("Plain prices in rupees. 7 days free.")}</h2>
+              <span id="pharmacy-pricing" aria-hidden className="block scroll-mt-28" /><span id="distribution-pricing" aria-hidden className="block scroll-mt-28" />
             </div>
             <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("No GST is charged on these prices. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.")}</p>
           </div>

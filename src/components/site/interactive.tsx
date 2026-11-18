@@ -5,8 +5,9 @@ import {
   ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, CreditCard, Gift, HardDriveUpload, MessageCircle, Minus, Pause, Play, RefreshCcw, ScanBarcode, ShieldCheck, Sparkles, Truck, Warehouse,
 } from "lucide-react";
 import { PRODUCTS } from "@/staff/constants";
+import { DIST_PLANS } from "@/domain/distribution/plans";
 import { useLang, useT } from "@/lib/i18n-client";
-import { WA_DEMO } from "./brand";
+import { WA, WA_DEMO } from "./brand";
 import { Aurora, FloatingShapes } from "./decor";
 
 // ───────────── Hero ─────────────
@@ -282,6 +283,13 @@ const AFTER: [string, string, string][] = [
 export function Pricing() {
   const t = useT();
   const [yearly, setYearly] = useState(false);
+  // Two products, one price list: MEDORO Pharmacy (retail) and MEDORO Distribution (wholesale). "#distribution-pricing" opens Distribution.
+  const [product, setProduct] = useState<"pharmacy" | "distribution">("pharmacy");
+  useEffect(() => {
+    const on = () => { if (window.location.hash === "#distribution-pricing") setProduct("distribution"); else if (window.location.hash === "#pharmacy-pricing") setProduct("pharmacy"); };
+    on(); window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
   const [compare, setCompare] = useState(false);
   const [ans, setAns] = useState<{ b: number; c: number; u: number } | null>(null);
   const fit = ans ? fitPlan(ans) : null;
@@ -305,6 +313,17 @@ export function Pricing() {
           </li>
         ))}
       </ul>
+      <div className="flex flex-wrap items-center gap-3">
+        <div role="group" aria-label={t("Product")} className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
+          <button type="button" onClick={() => setProduct("pharmacy")} aria-pressed={product === "pharmacy"} className={seg(product === "pharmacy")}><ScanBarcode size={16} aria-hidden />{t("Medoro Pharmacy")}</button>
+          <button type="button" onClick={() => setProduct("distribution")} aria-pressed={product === "distribution"} className={seg(product === "distribution")}><Warehouse size={16} aria-hidden />{t("Medoro Distribution")}</button>
+        </div>
+        <div role="group" aria-label={t("Billing period")} className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
+          <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>{t("Monthly")}</button>
+          <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className={`text-[12.5px] font-semibold rounded-full px-2 py-0.5 ${yearly ? "bg-[var(--s-brand)] text-white" : "bg-[var(--s-brand-tint)] text-[var(--s-brand)] site-breathe"}`}>{t("2 months free")}</span></button>
+        </div>
+      </div>
+      {product === "distribution" ? <DistPricing yearly={yearly} /> : <>
       <div data-reveal className="rounded-2xl border border-[var(--s-line)] bg-[var(--s-soft)] p-[clamp(16px,2.4vw,24px)] flex flex-col gap-4">
         <div className="flex items-center gap-2.5"><span className="size-8 rounded-lg bg-white border border-[var(--s-line)] flex items-center justify-center"><Sparkles size={16} aria-hidden className="site-sparkle text-[var(--s-brand)]" /></span><h3 className="m-0 text-[17px] font-semibold">{t("Find your plan in 3 taps")}</h3></div>
         <div className="grid gap-4 min-[900px]:grid-cols-3">
@@ -328,10 +347,6 @@ export function Pricing() {
             </p>
           ) : <p className="m-0 text-[14.5px] text-[var(--s-muted)]">{t("Pick your answers and we’ll highlight the plan that fits.")}</p>}
         </div>
-      </div>
-      <div role="group" aria-label={t("Billing period")} className="self-start inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
-        <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>{t("Monthly")}</button>
-        <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className={`text-[12.5px] font-semibold rounded-full px-2 py-0.5 ${yearly ? "bg-[var(--s-brand)] text-white" : "bg-[var(--s-brand-tint)] text-[var(--s-brand)] site-breathe"}`}>{t("2 months free")}</span></button>
       </div>
       <div className="grid gap-5 items-stretch min-[900px]:grid-cols-3 min-[900px]:pt-4">
         {PLANS.map((p, i) => {
@@ -390,7 +405,8 @@ export function Pricing() {
           </table>
         </div>
       </div>
-      <div className="flex flex-col gap-4">
+      </>}
+      {product === "pharmacy" ? <div className="flex flex-col gap-4">
         <h3 data-reveal className="m-0 text-[20px] font-semibold">{t("What happens after you click “Start free trial”")}</h3>
         <ol className="site-steps relative m-0 p-0 list-none grid gap-4 min-[900px]:grid-cols-3">
           {AFTER.map(([when, title, d], i) => (
@@ -401,7 +417,7 @@ export function Pricing() {
             </li>
           ))}
         </ol>
-      </div>
+      </div> : null}
       <div aria-hidden={!inView} className={`min-[641px]:hidden fixed inset-x-0 bottom-0 z-[25] border-t border-[var(--s-line)] bg-white/95 backdrop-blur px-4 pr-20 py-2.5 flex items-center gap-3 transition-transform duration-300 ${inView ? "translate-y-0" : "translate-y-full"}`}>
         <span className="flex flex-col leading-tight min-w-0"><strong className="text-[15px]">{t("From {amount} / month", { amount: inr(yearly ? Math.round((price("starter") * 10) / 12) : price("starter")) })}</strong><span className="text-[12.5px] text-[var(--s-muted)] truncate">{t("7 days free, no card")}</span></span>
         <a href="/trial" tabIndex={inView ? 0 : -1} className="site-cta relative overflow-hidden ml-auto flex-none inline-flex items-center h-11 px-4 rounded-lg bg-[var(--s-brand)] text-white text-[15px] font-semibold hover:text-white">{t("Start free trial")}</a>
@@ -409,12 +425,68 @@ export function Pricing() {
       <div data-reveal className="site-pan relative overflow-hidden rounded-2xl text-white p-[clamp(22px,4vw,40px)] flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center min-[900px]:justify-between">
         <div className="relative flex flex-col gap-2 max-w-[640px]">
           <h3 className="m-0 text-[clamp(22px,2.6vw,30px)] font-semibold">{t("Not sure which plan fits?")}</h3>
-          <p className="m-0 text-[16px] text-[#D3EAE6]">{t("Start the 7-day trial now and choose a plan only if you continue. Or tell us about your store on WhatsApp and we’ll suggest one.")}</p>
+          <p className="m-0 text-[16px] text-[#D3EAE6]">{product === "distribution" ? t("Tell us your godowns, team and number of chemists on WhatsApp. We’ll show you Medoro Distribution on your own kind of data and suggest a plan.") : t("Start the 7-day trial now and choose a plan only if you continue. Or tell us about your store on WhatsApp and we’ll suggest one.")}</p>
         </div>
-        <div className="relative flex gap-3 flex-wrap">
+        {product === "distribution" ? <div className="relative flex gap-3 flex-wrap">
+          <a href={WA_DIST} className="site-link-arrow inline-flex items-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]"><MessageCircle size={17} aria-hidden />{t("Book a distribution demo")}<ArrowRight size={17} aria-hidden /></a>
+        </div> : <div className="relative flex gap-3 flex-wrap">
           <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
           <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/40 text-white text-[16px] font-semibold hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />{t("Ask on WhatsApp")}</a>
-        </div>
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+
+// ───────────── Distribution pricing ─────────────
+// Plans, prices and limits come from src/domain/distribution/plans.ts: the same table the server enforces.
+
+const WA_DIST = `${WA}?text=${encodeURIComponent("Hi Medoro, I'd like a demo of Medoro Distribution for my distribution business.")}`;
+const DIST_CARDS: { id: keyof typeof DIST_PLANS; short: string; rec: boolean; for: string; feats: string[] }[] = [
+  { id: "dist_std", short: "Standard", rec: false, for: "A distributor with one godown", feats: ["Orders with credit control and stock reservation", "Wholesale GST invoices, schemes and free goods", "Batch and expiry tracking, supplier claims", "Purchases, GRN and supplier ledger", "Collections, credit notes, accounts and GST returns", "Mobile picking, packing and dispatch"] },
+  { id: "dist_pro", short: "Professional", rec: true, for: "Growing distributors and stockists", feats: ["Everything in Standard", "Chemist ordering portal with your own rates", "Salesman field app: orders and collections", "Business intelligence: reorder, expiry risk, credit risk", "Up to 3 godowns", "MIS reports for every team"] },
+  { id: "dist_ent", short: "Enterprise", rec: false, for: "Super stockists and C&F agents", feats: ["Everything in Professional", "Up to 20 godowns with stock transfers", "150 users across godowns and the field", "Up to 20,000 chemists", "Godown-wise stock and claims", "Help moving from your current software"] },
+];
+
+export function DistPricing({ yearly }: { yearly: boolean }) {
+  const t = useT();
+  return (
+    <div className="flex flex-col gap-8">
+      <p data-reveal className="m-0 text-[16px] text-[var(--s-ink-2)] max-w-[760px]">{t("For pharmaceutical distributors, wholesalers, stockists, super stockists and C&F agents. Chemists order from you on their own portal at no cost to them.")}</p>
+      <div className="grid gap-5 items-stretch min-[900px]:grid-cols-3 min-[900px]:pt-4">
+        {DIST_CARDS.map((c, i) => {
+          const p = DIST_PLANS[c.id], m = Math.round(p.priceMonthly / 100);
+          const monthly = yearly ? Math.round((m * 10) / 12) : m;
+          const lim = (n: number) => n.toLocaleString("en-IN");
+          return (
+            <div key={c.id} data-reveal style={{ ["--d" as string]: i }} className={`site-lift relative rounded-2xl p-7 flex flex-col gap-5 max-[640px]:p-5 ${c.rec ? "site-plan-rec bg-white min-[900px]:-mt-4 min-[900px]:mb-[-16px] shadow-[0_30px_60px_-30px_rgba(11,94,91,.55)]" : "bg-white border border-[var(--s-line)]"}`}>
+              {c.rec ? <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-[var(--s-brand)] text-white text-[12.5px] font-semibold px-3 py-1 shadow-[0_8px_18px_-8px_rgba(11,94,91,.8)] whitespace-nowrap"><Sparkles size={13} aria-hidden className="site-sparkle" />{t("Most distributors pick this")}</span> : null}
+              <div className="flex flex-col gap-1">
+                <h3 className="m-0 text-[20px] font-semibold">{t(c.short)}</h3>
+                <span className="text-[15px] text-[var(--s-muted)]">{t(c.for)}</span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-baseline gap-1.5"><span key={`${c.id}-${yearly}`} className={`site-swap site-display text-[48px] leading-none ${c.rec ? "text-[var(--s-brand)]" : "text-[var(--s-ink)]"}`}>{inr(monthly)}</span><span className="text-[15px] text-[var(--s-muted)]">{t("/ month")}</span></div>
+                <span className="text-[14px] text-[var(--s-muted)]">{yearly ? t("{amount} billed yearly", { amount: inr(m * 10) }) : t("Billed monthly after the free trial")}</span>
+                {yearly ? <span className="flex pt-1"><span key={`save-${c.id}`} className="site-swap text-[12.5px] font-semibold rounded-full bg-[#DCF2E7] text-[#146C43] px-2.5 py-0.5">{t("Save {amount} a year", { amount: inr(m * 2) })}</span></span> : null}
+              </div>
+              <a href={WA_DIST} className={`site-link-arrow flex items-center justify-center gap-2 h-12 rounded-lg text-[15.5px] font-semibold transition-colors ${c.rec ? "site-cta relative overflow-hidden bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "border border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]"}`}><MessageCircle size={16} aria-hidden />{t("Book a demo")}</a>
+              <span className="text-[14px] font-medium text-[var(--s-ink)]">{t("{g} godowns · {u} users · {c} chemists", { g: lim(p.limits.godowns), u: lim(p.limits.users), c: lim(p.limits.chemists) })}</span>
+              <ul className="m-0 p-0 list-none flex flex-col gap-2.5 border-t border-[var(--s-line)] pt-5">
+                {c.feats.map((f, j) => <li key={f} data-reveal style={{ ["--d" as string]: j }} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><span className="size-[18px] mt-[2px] rounded-full bg-[var(--s-brand-tint)] flex items-center justify-center flex-none"><Check size={12} strokeWidth={3} aria-hidden className="text-[var(--s-brand)]" /></span>{t(f)}</li>)}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+      <div data-reveal className="site-lift bg-white border border-[var(--s-line)] rounded-xl p-7 flex flex-col gap-3 max-[640px]:p-5">
+        <h3 className="m-0 text-[17px] font-semibold">{t("Good to know")}</h3>
+        <ul className="m-0 p-0 list-none grid gap-2.5 min-[900px]:grid-cols-2">
+          {["Every plan includes encrypted backups, roles and permissions, an audit trail and English and हिंदी.", "Your records stay in your own database: your server, your shop network or your own cloud.", "E-invoice (IRN) and e-way bills are made on the government portals for now.", "Moving from another software? We help bring your products, chemists and opening balances across."].map((x) => (
+            <li key={x} className="flex gap-2.5 items-start text-[15px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="text-[var(--s-brand)] mt-[3px] flex-none" />{t(x)}</li>
+          ))}
+        </ul>
       </div>
     </div>
   );
