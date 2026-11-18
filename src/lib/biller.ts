@@ -12,7 +12,7 @@ export function biller(env: Record<string, string | undefined> = process.env): B
     legalName: v("MEDORO_LEGAL_NAME") || "Medoro",
     address: v("MEDORO_ADDRESS").split("|").map((s) => s.trim()).filter(Boolean),
     email: v("MEDORO_BILLING_EMAIL") || "billing@medoro.in",
-    phone: v("MEDORO_PHONE") || "+91 62077 74673",
+    phone: v("MEDORO_PHONE") || "+91 73200 01062",
     website: v("MEDORO_WEBSITE") || "medoro.in",
   };
 }
