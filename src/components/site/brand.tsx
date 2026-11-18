@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-export const WA = "https://wa.me/916207774673";
+export const WA = "https://wa.me/917320001062";
 export const WA_DEMO = `${WA}?text=${encodeURIComponent("Hi Medoro, I'd like a demo for my pharmacy.")}`;
 
 export function Wordmark({ size = 24 }: { size?: number }) {

@@ -15,7 +15,7 @@ export const BRAND = {
   operatingSystem: "Web, Cloud, Windows, Android, iOS",
   email: "hello@medoro.in",
   /** The WhatsApp and support number shown in the site footer. */
-  phone: "+91-6207774673",
+  phone: "+91-7320001062",
   phoneDisplay: "+91 62077 74673",
   supportHours: "Monday to Saturday, 9 am to 9 pm IST",
 } as const;
