@@ -5,6 +5,7 @@ import { applyRetention } from "./retention";
 import { sendUsagePing } from "./telemetry";
 import { complianceReminders } from "./compliance";
 import { recordAuditCheck } from "./audit-integrity";
+import { dataInDrive } from "./drive-state";
 import { snapshotForecasts } from "@/domain/intelligence/forecast-intel";
 
 /**
@@ -14,7 +15,7 @@ import { snapshotForecasts } from "@/domain/intelligence/forecast-intel";
 export async function dailyJobs(now = new Date()) {
   const day = istDate(now);
   const out: { tenantId: string; retention?: unknown; ping?: boolean; compliance?: unknown; forecast?: unknown; audit?: boolean; error?: string }[] = [];
-  for (const t of await db.tenant.findMany({ select: { id: true } })) {
+  for (const t of await db.tenant.findMany({ select: { id: true, settings: true } })) {
     const claimed = await db.$executeRaw`
       UPDATE "Tenant" SET settings = jsonb_set(CASE WHEN jsonb_typeof(settings) = 'object' THEN settings ELSE '{}'::jsonb END, '{jobs}',
         COALESCE(CASE WHEN jsonb_typeof(settings->'jobs') = 'object' THEN settings->'jobs' END, '{}'::jsonb) || jsonb_build_object('daily', ${day}::text))
@@ -23,6 +24,9 @@ export async function dailyJobs(now = new Date()) {
     const r: (typeof out)[number] = { tenantId: t.id };
     try { r.retention = await applyRetention(t.id, now); } catch (e) { r.error = e instanceof Error ? e.message : String(e); console.error("[retention]", r.error); }
     r.ping = await sendUsagePing(t.id, now).catch(() => false);
+    // A pharmacy whose records live in its Google Drive has nothing on Medoro's server to analyse: skip the server-side
+    // jobs rather than write health or snapshot rows for it (retention above still redacts delivered messages).
+    if (dataInDrive(t.settings)) { out.push(r); continue; }
     r.compliance = await complianceReminders(t.id, now).catch((e) => { console.error("[compliance]", e instanceof Error ? e.message : e); return { error: true }; });
     // Once a week per branch, save the forecast as it was made so it can be scored against what sold (idempotent).
     r.forecast = await (async () => { let n = 0; for (const b of await db.branch.findMany({ where: { tenantId: t.id }, select: { id: true } })) n += await snapshotForecasts(t.id, b.id, now).catch((e) => { console.error("[forecast]", e instanceof Error ? e.message : e); return 0; }); return n; })();
