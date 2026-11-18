@@ -198,7 +198,7 @@ test("chemist registers on the portal, distributor approves, chemist orders", as
   const o = await own.newPage();
   await o.goto("/dist/portal-admin");
   await o.getByRole("button", { name: "Approve" }).first().click();
-  await expect(o.getByText("Chemist approved for portal ordering.")).toBeVisible({ timeout: 20_000 });
+  await expect(o.getByRole("cell", { name: "approved", exact: true })).toBeVisible({ timeout: 20_000 });
 
   // Chemist orders; stock is shown as a band, never as exact packs (default setting)
   await p.goto(`/portal/${D.code}`);
