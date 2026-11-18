@@ -19,7 +19,10 @@ import { hi as counter_money } from "./counter_money";
 import { hi as server } from "./server";
 import { hi as site } from "./site";
 import { hi as estimates } from "./estimates";
+import { hi as distribution } from "./distribution";
 export const HI: Record<string, string> = {
+  // First, so the pharmacy screens' own wording always wins for a line both products use.
+  ...distribution,
   ...server,
   ...common,
   ...shell,
