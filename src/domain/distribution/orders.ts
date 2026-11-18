@@ -128,7 +128,7 @@ export async function placeOrder(actor: Actor, raw: OrderInput) {
   for (const l of i.lines) { if (dupLines.has(l.medicineId)) throw new UserError("A product appears twice. Combine the lines."); dupLines.add(l.medicineId); }
 
   const existing = await db.distOrder.findUnique({ where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: i.idempotencyKey } } });
-  if (existing) return { orderId: existing.id, no: existing.no, status: existing.status, replayed: true };
+  if (existing) return replayOf(existing);
 
   const settings = await distSettings(tenantId);
   const branchId = i.branchId || (actor.kind === "user" ? actor.ctx.branchId : (await db.branch.findFirstOrThrow({ where: { tenantId, active: true }, orderBy: { createdAt: "asc" } })).id);
@@ -164,11 +164,16 @@ export async function placeOrder(actor: Actor, raw: OrderInput) {
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const o = await db.distOrder.findUnique({ where: { tenantId_idempotencyKey: { tenantId, idempotencyKey: i.idempotencyKey } } });
-      if (o) return { orderId: o.id, no: o.no, status: o.status, replayed: true };
+      if (o) return replayOf(o);
     }
     throw e;
   }
 }
+
+const replayOf = (o: { id: string; no: string; status: string; creditCheck: Prisma.JsonValue }) => {
+  const c = o.creditCheck as { ok?: boolean; reasons?: string[] } | null;
+  return { orderId: o.id, no: o.no, status: o.status, replayed: true, creditOk: c?.ok ?? true, reasons: c?.reasons ?? [] };
+};
 
 export async function isInterState(q: DbOrTx, tenantId: string, branchId: string, customerId: string) {
   const [b, t, c] = await Promise.all([

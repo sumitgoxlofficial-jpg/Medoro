@@ -196,3 +196,30 @@ describe("analytics", () => {
     expect(nextMonthTrend([100, 200, 300])?.next).toBe(400);
   });
 });
+
+import { stockBand } from "../portal-rules";
+import { distEntitlements, distPlanOf } from "../plans";
+import { distPerms } from "../perms";
+
+describe("portal stock visibility", () => {
+  it("never reveals exact stock unless the distributor allows it", () => {
+    expect(stockBand(250, "band")).toEqual({ label: "In stock", tone: "green", packs: null });
+    expect(stockBand(4, "band").packs).toBeNull();
+    expect(stockBand(0, "band").label).toBe("Out of stock");
+    expect(stockBand(250, "none")).toMatchObject({ packs: null, label: "Ask distributor" });
+    expect(stockBand(250, "exact").packs).toBe(250);
+  });
+});
+
+describe("distribution plans and permissions", () => {
+  it("maps plan names and opens everything in trial", () => {
+    expect(distPlanOf("Distribution Professional")).toBe("dist_pro");
+    expect(distPlanOf("Professional")).toBeNull();
+    expect(distEntitlements({ plan: "Distribution Standard", status: "active", unlicensed: false }).features).toEqual(["warehouse"]);
+    expect(distEntitlements({ plan: "Distribution Standard", status: "trial", unlicensed: false }).open).toBe("trial");
+    expect(distEntitlements({ plan: "Distribution Standard", status: "active", unlicensed: false }).limits.godowns).toBe(1);
+  });
+  it("applies grants and revokes, ignoring unknown keys", () => {
+    expect(distPerms(["order", "sale", "bogus"], ["approve"], ["order"])).toEqual(["approve"]);
+  });
+});
