@@ -13,6 +13,7 @@ import { todayISO } from "@/lib/dates";
 import { deviceDb } from "@/drivedb/device";
 import { waLink } from "@/drivedb/share";
 import { COVERS, SAFETIES, draftCsv, orderText, type Anomaly, type DraftGroup, type DraftLine, type ForecastRow, type Insights as Data, type MarginBy, type SeasonalRow, type seasonal } from "@/drivedb/insights";
+import { ForecastCard } from "./forecast-card";
 import { card, errText, type Cfg, type Who } from "./ui";
 
 const th = "text-left text-[12px] font-medium text-muted px-2.5 py-2 border-b border-line whitespace-nowrap";
@@ -63,6 +64,7 @@ export function Insights({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: n
       </div>
       <OrderList cfg={cfg} draft={draft} setDraft={setDraft} />
       <Forecast d={d} who={who} onAdd={addLines} onSaved={() => setTick((x) => x + 1)} />
+      <ForecastCard cfg={cfg} refresh={refresh + tick} onAdd={async (items) => addLines(await dev.call("intelLinesFor", cfg.branchId, items))} />
       <SeasonalCard sea={sea} months={months} onAdd={async (items) => addLines(await dev.call("intelLinesFor", cfg.branchId, items))} />
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))]">
         <Prices rows={d.prices} />

@@ -5,6 +5,7 @@ import { writeAudit } from "@/server/audit";
 import { authorize, authorizeView, type Ctx } from "@/server/context";
 import { customerBalances } from "@/domain/parties/balances";
 import { anonymiseCustomer, getPrivacy } from "./privacy";
+import { dataInDrive } from "./drive-state";
 
 const DAY = 86400_000;
 
@@ -17,7 +18,7 @@ const DAY = 86400_000;
  */
 export const RETENTION_RULES = [
   { key: "customers", label: "Customers with no purchase for longer than the retention period", action: "Name and mobile removed (anonymised); invoices kept" },
-  { key: "whatsapp", label: "WhatsApp delivery log older than 1 year", action: "Recipient number removed; invoice no. and status kept" },
+  { key: "whatsapp", label: "WhatsApp delivery log older than 1 year (7 days when the pharmacy’s records live in its Google Drive)", action: "Recipient number and message removed; invoice no. and status kept" },
   { key: "sessions", label: "Sign-in sessions ended over 30 days ago", action: "Deleted" },
   { key: "invites", label: "Invite and reset codes expired or used over 90 days ago", action: "Deleted" },
   { key: "supportGrants", label: "Medoro support access links ended over 1 year ago", action: "Deleted (the audit trail keeps the record)" },
@@ -30,9 +31,16 @@ export const RETENTION_RULES = [
 export type RetentionKey = (typeof RETENTION_RULES)[number]["key"];
 export type RetentionCounts = Record<RetentionKey, number>;
 
-function windows(now: Date, years: number) {
+/** Pharmacies whose records live in Google Drive keep no customer contact on Medoro's server beyond delivery. */
+export const DRIVE_MESSAGE_DAYS = 7;
+
+function windows(now: Date, years: number, inDrive = false) {
   const ago = (days: number) => new Date(now.getTime() - days * DAY);
-  return { customers: ago(Math.round(years * 365.25)), whatsapp: ago(365), sessions: ago(30), invites: ago(90), supportGrants: ago(365), heldCarts: ago(7), offlineOps: ago(90), aiConfirmations: ago(7), loginAttempts: ago(30), otpCodes: ago(1) };
+  return { customers: ago(Math.round(years * 365.25)), whatsapp: ago(inDrive ? DRIVE_MESSAGE_DAYS : 365), sessions: ago(30), invites: ago(90), supportGrants: ago(365), heldCarts: ago(7), offlineOps: ago(90), aiConfirmations: ago(7), loginAttempts: ago(30), otpCodes: ago(1) };
+}
+
+async function tenantInDrive(tenantId: string) {
+  return dataInDrive((await db.tenant.findUnique({ where: { id: tenantId }, select: { settings: true } }))?.settings);
 }
 
 /** Inactive customers: created and last bought (and last changed consent) before the cutoff, with nothing outstanding. */
@@ -47,9 +55,10 @@ async function inactiveCustomers(tenantId: string, cutoff: Date) {
   return rows.filter((r) => (bal.get(r.id) ?? 0) === 0);
 }
 
-function wheres(tenantId: string, w: ReturnType<typeof windows>, now: Date) {
+function wheres(tenantId: string, w: ReturnType<typeof windows>, now: Date, inDrive = false) {
   return {
-    whatsapp: { tenantId, createdAt: { lt: w.whatsapp }, recipient: { notIn: ["erased", "redacted"] } } satisfies Prisma.WaMessageWhereInput,
+    // A message still waiting to be sent keeps its number and text; only finished ones are redacted (7 days in Drive mode).
+    whatsapp: { tenantId, createdAt: { lt: w.whatsapp }, recipient: { notIn: ["erased", "redacted"] }, ...(inDrive ? { status: { not: "queued" as const } } : {}) } satisfies Prisma.WaMessageWhereInput,
     sessions: { user: { tenantId }, OR: [{ expiresAt: { lt: w.sessions } }, { revokedAt: { lt: w.sessions } }] } satisfies Prisma.SessionWhereInput,
     invites: { tenantId, OR: [{ expiresAt: { lt: w.invites } }, { usedAt: { lt: w.invites } }] } satisfies Prisma.InviteWhereInput,
     supportGrants: { tenantId, expiresAt: { lt: w.supportGrants } } satisfies Prisma.SupportGrantWhereInput,
@@ -64,7 +73,8 @@ function wheres(tenantId: string, w: ReturnType<typeof windows>, now: Date) {
 /** Dry run: how many rows each rule would change now. Nothing is modified. */
 export async function retentionPreview(tenantId: string, now = new Date()) {
   const { retentionYears } = await getPrivacy(tenantId);
-  const w = windows(now, retentionYears), q = wheres(tenantId, w, now);
+  const inDrive = await tenantInDrive(tenantId);
+  const w = windows(now, retentionYears, inDrive), q = wheres(tenantId, w, now, inDrive);
   const [customers, whatsapp, sessions, invites, supportGrants, heldCarts, offlineOps, aiConfirmations, loginAttempts, otpCodes] = await Promise.all([
     inactiveCustomers(tenantId, w.customers).then((r) => r.length),
     db.waMessage.count({ where: q.whatsapp }), db.session.count({ where: q.sessions }), db.invite.count({ where: q.invites }),
@@ -78,7 +88,8 @@ export async function retentionPreview(tenantId: string, now = new Date()) {
 /** Applies the retention rules for one pharmacy (and the server-wide sign-in tables). Writes one audit event. */
 export async function applyRetention(tenantId: string, now = new Date(), by?: { id: string; name: string }) {
   const { retentionYears } = await getPrivacy(tenantId);
-  const w = windows(now, retentionYears), q = wheres(tenantId, w, now);
+  const inDrive = await tenantInDrive(tenantId);
+  const w = windows(now, retentionYears, inDrive), q = wheres(tenantId, w, now, inDrive);
   const whatsapp = (await db.waMessage.updateMany({ where: q.whatsapp, data: { recipient: "redacted", payload: Prisma.DbNull } })).count;
   let customers = 0;
   for (const c of await inactiveCustomers(tenantId, w.customers)) {

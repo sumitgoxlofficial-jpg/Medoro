@@ -29,6 +29,7 @@ import * as recalls from "./recalls";
 import * as cheques from "./cheques";
 import * as ptools from "./purchase-tools";
 import * as intel from "./insights";
+import * as fcast from "./forecast";
 // @@IMPORTS (one line per counter feature module)
 import type { DeviceKeys, Keyring } from "./keyring";
 import { WrongKeyError } from "./crypto";
@@ -330,6 +331,8 @@ const handlers = {
   // Stock intelligence: forecasts, reorder draft list, prices, anomalies, margins (src/drivedb/insights.ts).
   intelligence: (branchId: string, branches?: { id: string; name: string }[]) => intel.insights(need(), branchId, { branches }),
   intelSeasonal: (branchId: string) => intel.seasonal(need(), branchId),
+  // Statistical demand forecast with ranges, confidence and tracked accuracy (src/drivedb/forecast.ts); saves this week's snapshot.
+  intelForecast: (branchId: string) => fcast.forecastScreen(need(), branchId),
   intelSaveSettings: (patch: Partial<intel.IntelSettings>) => intel.saveIntelSettings(need(), patch),
   intelReview: (key: string, label: string, by: string) => intel.markReviewed(need(), key, label, by),
   intelDraft: () => intel.draftView(need()),

@@ -88,3 +88,22 @@ Then every server-side module must run on-device or on aggregates the device cho
 ## 9. Decision needed from the owner
 
 Choose **A** (keep) or **B** (this plan) for the hosted default. Recommendation: **B**, but only after phase 0, because every server module in Medoro 2.0 (and any future one) depends on it, and B is what the "single authoritative database" requirement describes. B is a change to a promise made to customers; it must not be made silently.
+
+## 9. Audit of what stays on Medoro's server for a Drive-mode pharmacy (option A in practice)
+
+Method: read the code (`drive-move.ts`, `restore.ts`, `retention.ts`, `daily.ts`, `customer-pay.ts`) and the table list of a freshly migrated database. **No production data was queried**, so this says what the code allows, not what the live database holds today.
+
+**Deleted 7 days after the move** (once Drive holds a full copy saved after the move): every pharmacy-owned table except the control plane below: bills, stock, customers, suppliers, accounts, audit trail, messages, compliance, forecasts, recalls, stored files.
+
+**Stays by design (control plane):** the `Tenant` row (code, name, legal name, GSTIN, phone, `settings`), `User`, `Role`, `Invite`, `RecoveryCode`, `SupportGrant`, `Branch`, `Counter`, `Device`, `DriveDevice`, `SubscriptionMeta`, `OnlinePayment` (Medoro's own subscription invoices, incl. buyer email), `Integration` (connection config and encrypted secrets), `BackupManifest` (metadata), `RestoreRun`, `LicenceOutbox`, `IntegrationHealth` (status only), `Session` (IP and user agent, ended sessions deleted after 30 days).
+
+**Gaps found, and what was done:**
+
+| Finding | Action |
+|---|---|
+| `WaMessage` keeps a customer's mobile number and message text; the old rule redacted them only after 1 year, and the one-time purge does not cover rows created afterwards | Drive-mode pharmacies: finished messages are redacted after **7 days** (`DRIVE_MESSAGE_DAYS`); a message still queued keeps its number until sent. Tested. |
+| Daily compliance, forecast and audit-check jobs ran for Drive pharmacies | They are skipped for them. Tested. |
+| `PaymentInbox` holds customer payments until the device collects them | Not a gap: rows are sealed to the device's key and deleted when the device acknowledges them (`customer-pay.ts`). Left as is. |
+| `Tenant.settings` is free-form | Checked every key present in the test databases and every write in code: thresholds, templates, loyalty and CRM switches, report-mail recipients, UPI id, Tally names, pharmacist name/registration, language. Configuration, not bills, stock or customer records. Not enforced by a schema, so a future key could add data. |
+
+**Partly done:** the demand forecast now runs on the counter too (see `docs/MEDORO_2.md` section 11). The other Medoro 2.0 analysis screens still run only on PostgreSQL, so a Drive pharmacy sees an explanatory note instead of numbers. Each needs a device version (several older ones exist in `src/drivedb/`; the counter already has demand forecast, reorder drafts, supplier price comparison and margins in `insights.ts`). That is a separate piece of work per module.
