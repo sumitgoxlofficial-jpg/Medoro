@@ -4,6 +4,7 @@ import { ForbiddenError } from "@/domain/identity/permissions";
 import { getCtx, ReadOnlyError, requireSubscription, type Ctx } from "@/server/context";
 import { db } from "@/server/db";
 import { DIST_BUSINESS, DIST_PERM_LABEL, distPerms, type DistPerm } from "./perms";
+import { distMustMove } from "./hosting";
 
 export type DistCtx = Ctx & { product: "distribution" };
 
@@ -11,7 +12,8 @@ export type DistCtx = Ctx & { product: "distribution" };
 export async function distCtxFrom(ctx: Ctx): Promise<DistCtx | null> {
   const u = await db.user.findUnique({ where: { id: ctx.userId }, include: { role: true, tenant: { select: { product: true } } } });
   if (!u || u.tenant.product !== "distribution") return null;
-  return { ...ctx, perms: distPerms(u.role.permissions, u.permGrants, u.permRevokes), product: "distribution" };
+  // Distribution records live in the server database (see hosting.ts); there is no Drive move for a distributor.
+  return { ...ctx, perms: distPerms(u.role.permissions, u.permGrants, u.permRevokes), product: "distribution", moved: false, mustMove: distMustMove() };
 }
 
 export async function getDistCtx(): Promise<DistCtx | null> {

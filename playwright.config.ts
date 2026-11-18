@@ -37,6 +37,8 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"], storageState: "e2e/.auth/owner.json" },
     },
+    // MEDORO Distribution (e2e/dist): creates its own distributor tenant, so it runs without the pharmacy setup.
+    { name: "dist", testMatch: /dist\/.*\.dist\.ts$/, use: { ...devices["Desktop Chrome"] } },
     // Website screenshots (e2e/screenshots.capture.ts), only with CAPTURE=1.
     ...(process.env.CAPTURE ? [{
       name: "capture",

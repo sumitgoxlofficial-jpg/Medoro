@@ -26,6 +26,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     db.session.count({ where: { user: { tenantId: ctx.tenantId }, revokedAt: null, lastSeenAt: { gt: new Date(Date.now() - 5 * 60_000) } } }),
   ]);
   if (!user || !tenant) redirect("/signin");
+  // MEDORO Distribution tenants use the wholesale ERP (/dist), not the pharmacy screens.
+  if (tenant.product === "distribution") redirect("/dist");
   // Backups every few hours (if chosen) run after the page is sent, while the pharmacy is using Medoro.
   if (!ctx.readOnly) after(() => maybeBackup(ctx.tenantId).catch(() => {}));
   const { badges, alerts } = await badgesAndAlerts(ctx.tenantId, ctx.branchId, ctx.perms);

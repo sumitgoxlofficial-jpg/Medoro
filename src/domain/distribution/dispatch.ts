@@ -137,7 +137,8 @@ export async function dispatchBoard(ctx: Ctx) {
 /** The signed-in delivery person's run for today. */
 export async function myDeliveries(ctx: Ctx) {
   distAuthorizeAny(ctx, "delivery", "dispatch");
-  const trips = await db.distDispatch.findMany({ where: { tenantId: ctx.tenantId, status: { in: ["planned", "out"] }, ...(distCan(ctx, "dispatch") ? {} : { deliveryUser: ctx.userId }) }, orderBy: { createdAt: "asc" } });
+  // Open trips, plus trips closed in the last 12 hours so the run's results stay visible after the last drop.
+  const trips = await db.distDispatch.findMany({ where: { tenantId: ctx.tenantId, OR: [{ status: { in: ["planned", "out"] } }, { closedAt: { gte: new Date(Date.now() - 12 * 3600000) } }], ...(distCan(ctx, "dispatch") ? {} : { deliveryUser: ctx.userId }) }, orderBy: { createdAt: "asc" } });
   const board = await dispatchBoard(ctx);
   return board.trips.filter((t) => trips.some((x) => x.id === t.id));
 }

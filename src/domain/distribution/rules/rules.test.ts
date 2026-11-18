@@ -223,3 +223,12 @@ describe("distribution plans and permissions", () => {
     expect(distPerms(["order", "sale", "bogus"], ["approve"], ["order"])).toEqual(["approve"]);
   });
 });
+
+import { distHostingAllowed } from "../hosting";
+describe("hosting policy", () => {
+  it("keeps MEDORO's hosted Drive-only policy unless the operator opts in", () => {
+    expect(distHostingAllowed({})).toBe(true); // own server
+    expect(distHostingAllowed({ PUBLIC_SIGNUP: "1" })).toBe(false);
+    expect(distHostingAllowed({ PUBLIC_SIGNUP: "1", DIST_HOSTED: "1" })).toBe(true);
+  });
+});
