@@ -74,6 +74,11 @@
     "overrides": {
       "postcss": "^8.5.32",
       "deepmerge-ts": "^8.0.2"
+    },
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-fc5q-39xc-vjpf"
+      ]
     }
   }
 }

@@ -68,7 +68,7 @@ export function SiteFooter() {
             <p className="m-0 text-[15px] text-[var(--s-muted)] max-w-[320px]">{t("Medoro is a medical and pharmacy billing SaaS: billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.")}</p>
             <div className="flex flex-col gap-1.5 text-[15px]">
               <a href={WA_DEMO} className="group text-[var(--s-ink)] flex gap-2.5 items-center hover:text-[var(--s-brand)]">
-                <span className="relative size-8 rounded-lg bg-[#DCF2E7] flex items-center justify-center"><MessageCircle size={16} aria-hidden className="site-nav-ico text-[#146C43]" /><span aria-hidden className="site-ping absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-[#22A06B]" /></span>WhatsApp +91 62077 74673
+                <span className="relative size-8 rounded-lg bg-[#DCF2E7] flex items-center justify-center"><MessageCircle size={16} aria-hidden className="site-nav-ico text-[#146C43]" /><span aria-hidden className="site-ping absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-[#22A06B]" /></span>WhatsApp +91 73200 01062
               </a>
               <a href="mailto:hello@medoro.in" className="group text-[var(--s-ink)] flex gap-2.5 items-center hover:text-[var(--s-brand)]">
                 <span className="size-8 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center"><Mail size={16} aria-hidden className="site-nav-ico text-[var(--s-brand)]" /></span>hello@medoro.in
