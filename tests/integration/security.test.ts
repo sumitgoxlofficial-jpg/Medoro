@@ -40,7 +40,8 @@ describe("security regression suite", () => {
   });
 
   it("records of what happened are immutable at the database level: sales, returns, stock, money, receipts and write-offs", async () => {
-    const tables = ["Sale", "SaleItem", "Payment", "SaleVoid", "SalesReturn", "Voucher", "LedgerLine", "StockMovement", "StockOut", "Grn", "GrnItem", "AuditEvent", "ConsentRecord", "RecallDisposal", "ForecastSnapshot", "ComplianceReminder", "ComplianceDocument", "CatalogueChange"];
+    const tables = ["Sale", "SaleItem", "Payment", "SaleVoid", "SalesReturn", "Voucher", "LedgerLine", "StockMovement", "StockOut", "Grn", "GrnItem", "AuditEvent", "ConsentRecord", "RecallDisposal", "ForecastSnapshot", "ComplianceReminder", "ComplianceDocument", "CatalogueChange",
+      "DistInvoice", "DistInvoiceLine", "DistInvoiceCancel", "DistReturn", "DistReturnLine", "DistCollection"];
     const have = await db.$queryRaw<{ relname: string }[]>`
       SELECT DISTINCT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid WHERE NOT t.tgisinternal AND (t.tgname LIKE '%append_only%' OR t.tgname LIKE '%guard%')`;
     expect(tables.filter((t) => !have.some((h) => h.relname === t))).toEqual([]);
