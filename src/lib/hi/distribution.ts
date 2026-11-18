@@ -211,6 +211,14 @@ export const hi: Record<string, string> = {
   "I have copied this key somewhere safe. Encrypted backups can’t be restored without it.": "मैंने यह कुंजी सुरक्षित जगह पर कॉपी कर ली है। इसके बिना एन्क्रिप्टेड बैकअप वापस नहीं लाए जा सकते।",
   "Create distributor account": "डिस्ट्रीब्यूटर खाता बनाएँ",
 
+  // Shell
+  "{n} godown": "{n} गोदाम",
+  "{n} godowns": "{n} गोदाम",
+  "Your distribution records stay in your own database. Integrations show their real status under Settings.": "आपके डिस्ट्रीब्यूशन रिकॉर्ड आपके अपने डेटाबेस में रहते हैं। इंटीग्रेशन की असली स्थिति सेटिंग में दिखती है।",
+  "Data stays in your database": "डेटा आपके डेटाबेस में रहता है",
+  "Bill a chemist…": "केमिस्ट का बिल बनाएँ…",
+  "Insights": "इनसाइट्स",
+
   // Shared
   "Working…": "काम हो रहा है…",
 };

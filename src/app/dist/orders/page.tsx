@@ -16,7 +16,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const rows = await listOrders(ctx, { status: st as OrderStatus });
   return (
     <>
-      <PageHead title="Customer orders" sub="Portal, salesman, phone and office orders. Approval checks credit and reserves stock batch-wise." actions={<Link href="/dist/orders/new" className="h-[36px] inline-flex items-center px-3.5 rounded-lg bg-[#0B2545] text-white text-[13px] font-semibold hover:text-white">+ Book order</Link>} />
+      <PageHead title="Customer orders" sub="Portal, salesman, phone and office orders. Approval checks credit and reserves stock batch-wise." actions={<Link href="/dist/orders/new" className="h-[36px] inline-flex items-center px-3.5 rounded-lg bg-teal text-white text-[13px] font-semibold hover:text-white">+ Book order</Link>} />
       <Tabs active={st} tabs={TABS.map(([k, l]) => ({ key: k, label: l, href: `?status=${k}` }))} />
       <Panel pad={false}>
         <DataTable cols={[{ label: "Order" }, { label: "Chemist" }, { label: "Source" }, { label: "Placed" }, { label: "Lines", num: true }, { label: "Value", num: true }, { label: "Credit" }, { label: "Status" }]}

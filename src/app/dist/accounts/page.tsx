@@ -25,7 +25,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
 async function Tb({ ctx, asOf }: { ctx: Awaited<ReturnType<typeof requireDistCtx>>; asOf?: string }) {
   const tb = await trialBalance(ctx, asOf);
   return (
-    <Panel pad={false} title={`As of ${dateIN(tb.asOf)}`} right={<form><input type="date" name="asof" defaultValue={tb.asOf} className="h-8 border border-[#C9D2DE] rounded px-1 text-[12px]" /><input type="hidden" name="tab" value="tb" /><button className="h-8 px-2 ml-1 border border-[#C9D2DE] rounded text-[12px]">Show</button></form>}>
+    <Panel pad={false} title={`As of ${dateIN(tb.asOf)}`} right={<form><input type="date" name="asof" defaultValue={tb.asOf} className="h-8 border border-input rounded px-1 text-[12px]" /><input type="hidden" name="tab" value="tb" /><button className="h-8 px-2 ml-1 border border-input rounded text-[12px]">Show</button></form>}>
       <DataTable cols={[{ label: "Account" }, { label: "Debit", num: true }, { label: "Credit", num: true }]} rows={tb.rows.map((r) => [r.account, r.dr ? inr(r.dr) : "", r.cr ? inr(r.cr) : ""])} footer={["Total", inr(tb.dr), inr(tb.cr)]} />
       {tb.dr !== tb.cr ? <div className="p-3 text-[#B3261E] font-semibold">Debits and credits differ — contact support.</div> : null}
     </Panel>
@@ -36,7 +36,7 @@ async function Day({ ctx, period }: { ctx: Awaited<ReturnType<typeof requireDist
   const p = periodOf(period ?? "month");
   const rows = await dayBook(ctx, p, undefined, 300);
   return (
-    <Panel pad={false} title={`Day book · ${p.label}`} right={<form className="flex gap-1"><input type="hidden" name="tab" value="day" /><select name="period" defaultValue={period ?? "month"} className="h-8 border border-[#C9D2DE] rounded px-1 text-[12.5px]"><option value="month">This month</option><option value="last">Last month</option><option value="fy">This financial year</option></select><button className="h-8 px-2 border border-[#C9D2DE] rounded text-[12px]">Show</button></form>}>
+    <Panel pad={false} title={`Day book · ${p.label}`} right={<form className="flex gap-1"><input type="hidden" name="tab" value="day" /><select name="period" defaultValue={period ?? "month"} className="h-8 border border-input rounded px-1 text-[12.5px]"><option value="month">This month</option><option value="last">Last month</option><option value="fy">This financial year</option></select><button className="h-8 px-2 border border-input rounded text-[12px]">Show</button></form>}>
       <DataTable dense cols={[{ label: "Date" }, { label: "Voucher" }, { label: "Type" }, { label: "Narration" }, { label: "Debit" }, { label: "Credit" }, { label: "Amount", num: true }]}
         rows={rows.map((v) => [dateIN(v.date), v.no, v.type.replace("_", " "), <span key="n">{v.narration}{v.reversed ? <Pill tone="gray">reversed</Pill> : null}</span>, v.dr, v.cr, inr(v.amount)])} empty="No vouchers in this period." />
     </Panel>
@@ -57,7 +57,7 @@ async function Bank({ ctx }: { ctx: Awaited<ReturnType<typeof requireDistCtx>> }
       </Panel>
       <Panel pad={false} title="Unmatched statement lines">
         <DataTable cols={[{ label: "Date" }, { label: "Description" }, { label: "Ref" }, { label: "Amount", num: true }, { label: "Possible book entries" }]}
-          rows={r.statement.map((b) => [dateIN(b.date), b.description, b.ref ?? "", inr(b.amount), b.candidates.length ? <span key="c" className="flex flex-col gap-1">{b.candidates.slice(0, 3).map((c) => <ActButton key={c.id} size="sm" label={`Match ${c.no} (${c.date})`} action={async () => { "use server"; return bankMatchAction(b.id, c.id); }} />)}</span> : <span key="n" className="text-[12px] text-[#5B6B82]">No entry with this amount. Post the receipt or payment first.</span>])} empty="Everything imported is reconciled." />
+          rows={r.statement.map((b) => [dateIN(b.date), b.description, b.ref ?? "", inr(b.amount), b.candidates.length ? <span key="c" className="flex flex-col gap-1">{b.candidates.slice(0, 3).map((c) => <ActButton key={c.id} size="sm" label={`Match ${c.no} (${c.date})`} action={async () => { "use server"; return bankMatchAction(b.id, c.id); }} />)}</span> : <span key="n" className="text-[12px] text-muted">No entry with this amount. Post the receipt or payment first.</span>])} empty="Everything imported is reconciled." />
       </Panel>
     </>
   );

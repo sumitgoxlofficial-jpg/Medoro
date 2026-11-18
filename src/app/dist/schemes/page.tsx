@@ -41,7 +41,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
           rows={rows.map((s) => {
             const live = s.active && s.validFrom <= today && s.validTo >= today;
             const end = endSchemeAction.bind(null, s.id);
-            return [<span key="c" className="font-medium">{s.code} <span className="font-normal text-[#5B6B82]">{s.name}</span></span>, s.target, s.kind === "free" ? `${s.buyQty} + ${s.freeQty} free` : `${s.discPct}% off`, s.minQty, `${s.validFrom} → ${s.validTo}`,
+            return [<span key="c" className="font-medium">{s.code} <span className="font-normal text-muted">{s.name}</span></span>, s.target, s.kind === "free" ? `${s.buyQty} + ${s.freeQty} free` : `${s.discPct}% off`, s.minQty, `${s.validFrom} → ${s.validTo}`,
               <Pill key="p" tone={live ? "green" : s.active && s.validFrom > today ? "blue" : "gray"}>{live ? "Running" : s.active && s.validFrom > today ? "Upcoming" : "Ended"}</Pill>,
               <span key="a" className="flex gap-2 justify-end"><Link href={`?edit=${s.id}`}>Edit</Link>{s.active ? <ActButton size="sm" label="End" confirm="End this scheme now?" action={async () => { "use server"; return end(); }} /> : null}</span>];
           })} empty="No schemes yet." />

@@ -5,10 +5,10 @@ import type { DistInvoiceView } from "@/domain/distribution/billing";
 /** A4 wholesale GST tax invoice. Printed with the browser (Ctrl+P). */
 export function InvoiceDoc({ v }: { v: DistInvoiceView }) {
   return (
-    <article className="bg-white border border-[#E3E7ED] rounded-[10px] p-6 print:border-0 print:p-0 text-[12px] text-[#111]">
-      <header className="flex flex-wrap justify-between gap-4 border-b-2 border-[#0B2545] pb-3">
+    <article className="bg-white border border-line rounded-[10px] p-6 print:border-0 print:p-0 text-[12px] text-[#111]">
+      <header className="flex flex-wrap justify-between gap-4 border-b-2 border-teal pb-3">
         <div>
-          <div className="text-[18px] font-bold text-[#0B2545]">{v.seller.name}</div>
+          <div className="text-[18px] font-bold text-teal">{v.seller.name}</div>
           <div>{v.seller.address}</div>
           <div>GSTIN {v.seller.gstin ?? "—"} · DL {v.seller.dl ?? "—"}{v.seller.phone ? ` · ${v.seller.phone}` : ""}</div>
         </div>

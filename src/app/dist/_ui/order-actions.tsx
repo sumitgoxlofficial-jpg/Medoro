@@ -15,7 +15,7 @@ export function ApproveForm({ orderId, held, canOverride, reasons }: { orderId: 
   return (
     <div className="flex flex-col gap-2 min-w-[260px]">
       {held ? <div className="text-[12.5px] text-[#94570A] bg-[#FDF2E1] rounded-md px-2.5 py-2">{t("Credit hold")}: {reasons.map((r) => t(r)).join(" ")}</div> : null}
-      {held && canOverride ? <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("Reason to override (audited)")} className="h-9 rounded-md border border-[#C9D2DE] px-2 text-[13px]" /> : null}
+      {held && canOverride ? <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("Reason to override (audited)")} className="h-9 rounded-md border border-input px-2 text-[13px]" /> : null}
       <label className="flex items-center gap-2 text-[12.5px]"><input type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} />{t("Cut short lines to available stock")}</label>
       <Btn variant="primary" disabled={pending || (held && !canOverride)} onClick={() => start(async () => {
         const r = await approveOrderAction(orderId, reason, partial);

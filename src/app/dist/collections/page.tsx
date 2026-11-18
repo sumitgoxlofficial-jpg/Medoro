@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
           </ActForm>
         </Panel>
         <div className="flex flex-col gap-4">
-          <Panel title={`Collections on ${dateIN(day)}`} pad={false} right={<form><input type="date" name="day" defaultValue={day} className="h-8 border border-[#C9D2DE] rounded px-1 text-[12px]" /><button className="h-8 px-2 ml-1 border border-[#C9D2DE] rounded text-[12px]">Show</button></form>}>
+          <Panel title={`Collections on ${dateIN(day)}`} pad={false} right={<form><input type="date" name="day" defaultValue={day} className="h-8 border border-input rounded px-1 text-[12px]" /><button className="h-8 px-2 ml-1 border border-input rounded text-[12px]">Show</button></form>}>
             <DataTable cols={[{ label: "Receipt" }, { label: "Chemist" }, { label: "Mode" }, { label: "Ref" }, { label: "By" }, { label: "Amount", num: true }]}
               rows={rows.map((r) => [r.voucherNo, r.customer, r.mode, r.ref ?? "", r.salesman ?? (r.deliveryId ? "Delivery" : "Office"), inr(r.amount)])} footer={["Total", "", "", "", "", inr(rows.reduce((a, r) => a + r.amount, 0))]} empty="No collections on this day." />
           </Panel>

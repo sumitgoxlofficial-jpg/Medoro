@@ -34,15 +34,15 @@ export default async function Page() {
             </Grid>
           </ActForm>
           {team.invites.length ? <ul className="mt-3 text-[12.5px] list-none p-0 m-0">{team.invites.map((i) => <li key={i.id}>{i.name} · {i.roleName} · code <strong>{i.code}</strong></li>)}</ul> : null}
-          <p className="text-[12px] text-[#5B6B82] mt-2">They join at /signin → “I have an invite code”.</p>
+          <p className="text-[12px] text-muted mt-2">They join at /signin → “I have an invite code”.</p>
         </Panel>
       </div>
       <Panel title="Role permissions" sub="Click to grant or remove. Owner is locked." pad={false} className="mb-4">
         <div className="overflow-x-auto">
           <table className="w-full text-[12.5px] border-collapse">
-            <thead><tr className="bg-[#F6F8FA]"><th className="text-left px-3 py-2">Permission</th>{team.roles.map((r) => <th key={r.id} className="px-2 py-2">{r.name}</th>)}</tr></thead>
+            <thead><tr className="bg-subtle"><th className="text-left px-3 py-2">Permission</th>{team.roles.map((r) => <th key={r.id} className="px-2 py-2">{r.name}</th>)}</tr></thead>
             <tbody>{DIST_PERMS.map((p) => (
-              <tr key={p} className="border-b border-[#EEF1F5]"><td className="px-3 py-1.5">{DIST_PERM_LABEL[p]}</td>
+              <tr key={p} className="border-b border-line-soft"><td className="px-3 py-1.5">{DIST_PERM_LABEL[p]}</td>
                 {team.roles.map((r) => <td key={r.id} className="text-center">{r.locked ? "✓" : <ActButton size="sm" variant={r.perms.includes(p) ? "primary" : "outline"} label={r.perms.includes(p) ? "✓" : "—"} action={async () => { "use server"; return rolePermAction(r.id, p); }} />}</td>)}
               </tr>
             ))}</tbody>

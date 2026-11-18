@@ -50,7 +50,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
               </Panel>
             </div>
           ) : null}
-          <Panel pad={false} title={`${batches.length} batches`} right={<form><input data-search name="q" defaultValue={q} placeholder="Product or batch" className="h-8 w-[200px] border border-[#C9D2DE] rounded px-2 text-[13px]" /></form>}>
+          <Panel pad={false} title={`${batches.length} batches`} right={<form><input data-search name="q" defaultValue={q} placeholder="Product or batch" className="h-8 w-[200px] border border-input rounded px-2 text-[13px]" /></form>}>
             <DataTable dense cols={[{ label: "Product" }, { label: "Batch" }, { label: "Expiry" }, { label: "Rack" }, { label: "Packs", num: true }, { label: "Quarantined", num: true }, { label: "Cost", num: true }, { label: "MRP", num: true }, { label: "Status" }]}
               rows={batches.map((b) => { const p = Math.max(1, b.medicine.packSize), d = daysTo(b.expiryDate); return [b.medicine.name, b.batchNo, <span key="e" className={d <= 0 ? "text-[#B3261E] font-semibold" : d <= 90 ? "text-[#94570A]" : ""}>{isoOf(b.expiryDate)}</span>, racks.find((r) => r.medicineId === b.medicineId)?.rack ?? b.medicine.rack ?? "—", b.qtyAvailable / p, b.qtyQuarantined ? b.qtyQuarantined / p : "", inr(Number(b.costPaise)), inr(Number(b.mrpPaise)), <Pill key="s" tone={b.status === "ok" ? "green" : "amber"}>{b.status}</Pill>]; })} empty="No stock in this godown. Receive stock with a GRN under Purchases." />
           </Panel>

@@ -23,15 +23,15 @@ export default async function Page() {
       <div className="grid gap-4 md:grid-cols-3">
         {Object.entries(v.plans).map(([id, p]) => (
           <Panel key={id} title={p.name} right={v.ent.plan === id ? <Pill tone="green">Current</Pill> : null}>
-            <div className="text-[22px] font-semibold">{inr(p.priceMonthly)}<span className="text-[13px] font-normal text-[#5B6B82]"> / month + GST</span></div>
+            <div className="text-[22px] font-semibold">{inr(p.priceMonthly)}<span className="text-[13px] font-normal text-muted"> / month + GST</span></div>
             <ul className="text-[13px] mt-2 pl-4">
               <li>{p.limits.godowns} godown(s), {p.limits.users} users, {p.limits.chemists.toLocaleString("en-IN")} chemists</li>
-              {Object.entries(v.features).map(([f, label]) => <li key={f} className={p.features.includes(f as never) ? "" : "text-[#9AA7B8] line-through"}>{label}</li>)}
+              {Object.entries(v.features).map(([f, label]) => <li key={f} className={p.features.includes(f as never) ? "" : "text-faint line-through"}>{label}</li>)}
             </ul>
           </Panel>
         ))}
       </div>
-      <p className="text-[12.5px] text-[#5B6B82] mt-4">To change plan or pay, contact MEDORO sales; payment reporting and invoices use the same licence server as MEDORO Pharmacy. Prices shown are list prices configured in this build.</p>
+      <p className="text-[12.5px] text-muted mt-4">To change plan or pay, contact MEDORO sales; payment reporting and invoices use the same licence server as MEDORO Pharmacy. Prices shown are list prices configured in this build.</p>
     </>
   );
 }

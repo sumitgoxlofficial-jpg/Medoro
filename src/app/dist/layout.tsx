@@ -21,9 +21,14 @@ export default async function DistLayout({ children }: { children: React.ReactNo
   ]);
   const b = subscriptionBanner(access);
   const banner = ctx.readOnly ? { text: "Medoro support has read-only access.", tone: "amber" as const } : b ? { text: b.text, tone: (b.tone === "red" ? "red" : "amber") as "red" | "amber" } : null;
+  const alerts = [
+    ...(orders ? [`${orders} order(s) awaiting approval.`] : []),
+    ...(expiry ? [`${expiry} batch(es) expire within 30 days.`] : []),
+    ...(portal ? [`${portal} chemist(s) asked to connect on the portal.`] : []),
+  ];
   return (
-    <DistShell tenant={ctx.tenantName} user={ctx.userName} role={ctx.role} perms={ctx.perms} branches={ctx.branches} branchId={ctx.branchId} lang={ctx.lang}
-      badges={{ orders, picks, dispatch, expiry, portal }} banner={banner}>
+    <DistShell tenant={ctx.tenantName} user={ctx.userName} email={ctx.userEmail} role={ctx.role} perms={ctx.perms} branches={ctx.branches} branchId={ctx.branchId} lang={ctx.lang}
+      badges={{ orders, picks, dispatch, expiry, portal }} alerts={alerts} banner={banner}>
       {children}
     </DistShell>
   );

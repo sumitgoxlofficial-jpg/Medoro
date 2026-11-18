@@ -45,11 +45,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
         </ActForm>
       </Drawer>
       <Panel pad={false} title={`${rows.length} products`} right={
-        <form className="flex gap-2"><input data-search name="q" defaultValue={sp.q} placeholder="Search name, generic, barcode  ( / )" className="h-8 w-[240px] max-w-full rounded-md border border-[#C9D2DE] px-2 text-[13px]" />
-          <select name="company" defaultValue={sp.company ?? ""} className="h-8 rounded-md border border-[#C9D2DE] px-1 text-[13px]"><option value="">All companies</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></form>}>
+        <form className="flex gap-2"><input data-search name="q" defaultValue={sp.q} placeholder="Search name, generic, barcode  ( / )" className="h-8 w-[240px] max-w-full rounded-md border border-input px-2 text-[13px]" />
+          <select name="company" defaultValue={sp.company ?? ""} className="h-8 rounded-md border border-input px-1 text-[13px]"><option value="">All companies</option>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></form>}>
         <DataTable cols={[{ label: "Product" }, { label: "Company" }, { label: "HSN / GST" }, { label: "MRP", num: true }, { label: "PTR", num: true }, { label: "PTS", num: true }, { label: "Retail margin", num: true }, { label: "Stock (packs)", num: true }, { label: "" }]}
           rows={rows.map((p) => [
-            <div key="n"><div className="font-medium">{p.name}</div><div className="text-[12px] text-[#5B6B82]">{[p.generic !== p.name ? p.generic : "", p.pack].filter(Boolean).join(" · ")}</div></div>,
+            <div key="n"><div className="font-medium">{p.name}</div><div className="text-[12px] text-muted">{[p.generic !== p.name ? p.generic : "", p.pack].filter(Boolean).join(" · ")}</div></div>,
             p.company || "—", `${p.hsn} · ${p.gstRate}%`, inr(p.mrp), p.distReady ? inr(p.ptr) : <Pill key="x" tone="amber">Set PTR</Pill>, p.pts ? inr(p.pts) : "—",
             p.ptr ? `${retailerMarginPct(p.mrp, p.ptr, p.gstRate)}%` : "—", Math.floor(p.stockUnits / Math.max(1, p.packSize)),
             <span key="a" className="flex gap-2 items-center justify-end">{p.discontinued ? <Pill tone="gray">Discontinued</Pill> : !p.portalVisible ? <Pill tone="gray">Hidden</Pill> : null}<Link href={`?edit=${p.id}`}>Edit</Link></span>,

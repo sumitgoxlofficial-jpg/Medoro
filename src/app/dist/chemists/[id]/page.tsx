@@ -31,7 +31,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           {!c.kycVerified ? <ActButton action={async () => { "use server"; return verify(); }} label="Mark licence verified" confirm="Have you checked the licence copy against these numbers?" /> : <Pill tone="green">Licence verified</Pill>}
           {c.status !== "active" ? <ActButton action={async (r) => { "use server"; return chemistStatusAction(id, "active", r); }} label="Release hold" ask="Note (optional)" /> : <ActButton action={async (r) => { "use server"; return chemistStatusAction(id, "hold", r); }} label="Put on hold" ask="Why is this account on hold?" />}
           {c.status !== "blocked" ? <ActButton variant="danger" action={async (r) => { "use server"; return chemistStatusAction(id, "blocked", r); }} label="Block" ask="Why is this account blocked?" /> : null}
-          <Link href={`/dist/chemists?edit=${id}`} className="h-[36px] inline-flex items-center px-3 border border-[#C9D2DE] rounded-lg text-[13px] font-semibold">Edit</Link>
+          <Link href={`/dist/chemists?edit=${id}`} className="h-[36px] inline-flex items-center px-3 border border-input rounded-lg text-[13px] font-semibold">Edit</Link>
         </> : null} />
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-5 mb-4">
         <Stat label="Balance" value={inr(rec?.balance ?? 0)} />
@@ -50,7 +50,7 @@ export default async function Page({ params, searchParams }: { params: Promise<{
             rows={orders.map((o) => [<Link key="o" href={`/dist/orders/${o.id}`}>{o.no}</Link>, dateIN(o.placedAt), o.source, inr(o.estimate), <Pill key="s" tone={STATUS_TONE[o.status]}>{o.status}</Pill>])} empty="No orders yet." />
         </Panel>
       </div>
-      <Panel title="Ledger statement" sub={`Opening ${inr(st.opening)} · closing ${inr(st.closing)}`} pad={false} right={<form className="flex gap-1.5"><input type="date" name="from" defaultValue={sp.from} className="h-8 border border-[#C9D2DE] rounded px-1 text-[12px]" /><input type="date" name="to" defaultValue={sp.to} className="h-8 border border-[#C9D2DE] rounded px-1 text-[12px]" /><button className="h-8 px-2 border border-[#C9D2DE] rounded text-[12px]">Show</button></form>} className="mb-4">
+      <Panel title="Ledger statement" sub={`Opening ${inr(st.opening)} · closing ${inr(st.closing)}`} pad={false} right={<form className="flex gap-1.5"><input type="date" name="from" defaultValue={sp.from} className="h-8 border border-input rounded px-1 text-[12px]" /><input type="date" name="to" defaultValue={sp.to} className="h-8 border border-input rounded px-1 text-[12px]" /><button className="h-8 px-2 border border-input rounded text-[12px]">Show</button></form>} className="mb-4">
         <DataTable dense cols={[{ label: "Date" }, { label: "Voucher" }, { label: "Particulars" }, { label: "Debit", num: true }, { label: "Credit", num: true }, { label: "Balance", num: true }]}
           rows={st.rows.map((r) => [dateIN(r.date), r.no, r.narration, r.dr ? inr(r.dr) : "", r.cr ? inr(r.cr) : "", inr(r.balance)])} empty="No entries in this period." />
       </Panel>

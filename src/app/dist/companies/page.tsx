@@ -35,7 +35,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
           </Drawer>
           <Panel title="Companies" pad={false}>
             <DataTable cols={[{ label: "Company" }, { label: "GSTIN" }, { label: "Products", num: true }, { label: "" }]}
-              rows={companies.map((c) => [<span key="n" className="font-medium">{c.name}{c.shortName ? <span className="text-[#5B6B82] font-normal"> ({c.shortName})</span> : null}</span>, c.gstin ?? "—", c.products, <span key="a" className="flex gap-2 justify-end">{!c.active ? <Pill>Inactive</Pill> : null}<Link href={`?edit=${c.id}`}>Edit</Link></span>])} empty="No companies yet." />
+              rows={companies.map((c) => [<span key="n" className="font-medium">{c.name}{c.shortName ? <span className="text-muted font-normal"> ({c.shortName})</span> : null}</span>, c.gstin ?? "—", c.products, <span key="a" className="flex gap-2 justify-end">{!c.active ? <Pill>Inactive</Pill> : null}<Link href={`?edit=${c.id}`}>Edit</Link></span>])} empty="No companies yet." />
           </Panel>
         </div>
         <div>

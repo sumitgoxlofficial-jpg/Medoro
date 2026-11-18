@@ -53,7 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
               <S label="Rack" name="rack" options={racks.map((r) => ({ value: r.code, label: `${r.code}${r.zone ? " · " + r.zone : ""}` }))} />
             </Grid>
           </ActForm>
-          <p className="text-[12.5px] text-[#5B6B82] mt-3">Pick lists are walked in rack pick order, so pickers never double back.</p>
+          <p className="text-[12.5px] text-muted mt-3">Pick lists are walked in rack pick order, so pickers never double back.</p>
         </Panel>
       </div>
     </>

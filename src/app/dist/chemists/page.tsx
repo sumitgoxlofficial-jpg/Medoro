@@ -43,15 +43,15 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
         </ActForm>
       </Drawer>
       <Panel pad={false} title={`${rows.length} chemists`} right={
-        <form className="flex gap-2"><input data-search name="q" defaultValue={sp.q} placeholder="Search name, mobile, GSTIN" className="h-8 w-[220px] rounded-md border border-[#C9D2DE] px-2 text-[13px]" />
-          <select name="status" defaultValue={sp.status ?? ""} className="h-8 rounded-md border border-[#C9D2DE] px-1 text-[13px]"><option value="">All</option><option value="active">Active</option><option value="hold">On hold</option><option value="blocked">Blocked</option></select></form>}>
+        <form className="flex gap-2"><input data-search name="q" defaultValue={sp.q} placeholder="Search name, mobile, GSTIN" className="h-8 w-[220px] rounded-md border border-input px-2 text-[13px]" />
+          <select name="status" defaultValue={sp.status ?? ""} className="h-8 rounded-md border border-input px-1 text-[13px]"><option value="">All</option><option value="active">Active</option><option value="hold">On hold</option><option value="blocked">Blocked</option></select></form>}>
         <DataTable cols={[{ label: "Chemist" }, { label: "Licence" }, { label: "GSTIN" }, { label: "Territory / salesman" }, { label: "Limit", num: true }, { label: "Terms", num: true }, { label: "Status" }, { label: "" }]}
           rows={rows.map((c) => {
             const expired = c.dlExpiry && c.dlExpiry < todayISO();
             return [
-              <div key="n"><Link href={`/dist/chemists/${c.id}`} className="font-medium">{c.name}</Link><div className="text-[12px] text-[#5B6B82]">{[c.ownerName, c.phone, c.pincode].filter(Boolean).join(" · ")}</div></div>,
-              <div key="l" className="text-[12px]"><div>{c.dl20b} / {c.dl21b}</div><div className={expired ? "text-[#B3261E] font-semibold" : "text-[#5B6B82]"}>{expired ? "Expired " : "Valid to "}{c.dlExpiry}{c.kycVerified ? " · verified" : ""}</div></div>,
-              c.gstin ?? <span className="text-[#5B6B82]">Unregistered</span>, [c.territory, c.salesman].filter(Boolean).join(" · ") || "—", inr(c.creditLimit), `${c.creditDays} d`,
+              <div key="n"><Link href={`/dist/chemists/${c.id}`} className="font-medium">{c.name}</Link><div className="text-[12px] text-muted">{[c.ownerName, c.phone, c.pincode].filter(Boolean).join(" · ")}</div></div>,
+              <div key="l" className="text-[12px]"><div>{c.dl20b} / {c.dl21b}</div><div className={expired ? "text-[#B3261E] font-semibold" : "text-muted"}>{expired ? "Expired " : "Valid to "}{c.dlExpiry}{c.kycVerified ? " · verified" : ""}</div></div>,
+              c.gstin ?? <span className="text-muted">Unregistered</span>, [c.territory, c.salesman].filter(Boolean).join(" · ") || "—", inr(c.creditLimit), `${c.creditDays} d`,
               <span key="s" className="flex gap-1">{<Pill tone={STATUS_TONE[c.status]}>{c.status}</Pill>}{c.portal ? <Pill tone="blue">Portal</Pill> : null}</span>,
               <Link key="e" href={`?edit=${c.id}`}>Edit</Link>,
             ];

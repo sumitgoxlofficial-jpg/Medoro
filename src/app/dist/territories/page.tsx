@@ -46,7 +46,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
                 <S label="Signs in as (field app)" name="userId" defaultValue={e?.userId ?? ""} options={[{ value: "", label: "— not a user" }, ...users.map((u) => ({ value: u.id, label: `${u.name} (${u.role.name})` }))]} />
                 <F label="Monthly target ₹" name="monthlyTarget" inputMode="decimal" defaultValue={e ? String(Number(e.monthlyTargetPaise) / 100) : "0"} />
               </Grid>
-              <fieldset className="border border-[#E3E7ED] rounded-md p-2 flex flex-wrap gap-3"><legend className="text-[12px] text-[#4A5A73] px-1">Territories</legend>
+              <fieldset className="border border-line rounded-md p-2 flex flex-wrap gap-3"><legend className="text-[12px] text-muted px-1">Territories</legend>
                 {terr.map((x) => <label key={x.id} className="flex items-center gap-1.5 text-[13px]"><input type="checkbox" name="territoryIds" value={x.id} defaultChecked={e?.territoryIds.includes(x.id)} />{x.name}</label>)}
               </fieldset>
               <Check name="inactive" label="Inactive" defaultChecked={e ? !e.active : false} />

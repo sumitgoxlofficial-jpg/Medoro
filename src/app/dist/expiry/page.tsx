@@ -34,7 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               <ActForm action={raiseClaimAction} submit="Raise claim" inline redirectTo="/dist/expiry?tab=claims">
                 <input type="hidden" name="batchId" value={sel.batchId} />
                 <F label="Packs" name="qty" type="number" min={1} max={sel.onShelf + sel.quarantined} defaultValue={sel.onShelf + sel.quarantined} className="w-[100px]" />
-                <label className="flex flex-col gap-1 text-[12px] font-medium text-[#4A5A73]">Reason<select name="reason" defaultValue={sel.daysLeft <= 0 ? "expiry" : "near_expiry"} className="h-[36px] rounded-md border border-[#C9D2DE] px-2 text-[13px]"><option value="expiry">Expired</option><option value="near_expiry">Near expiry</option><option value="breakage">Breakage</option></select></label>
+                <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">Reason<select name="reason" defaultValue={sel.daysLeft <= 0 ? "expiry" : "near_expiry"} className="h-[36px] rounded-md border border-input px-2 text-[13px]"><option value="expiry">Expired</option><option value="near_expiry">Near expiry</option><option value="breakage">Breakage</option></select></label>
                 <F label="Note" name="note" className="w-[220px]" />
               </ActForm>
             </Panel>
@@ -42,7 +42,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
           <Panel pad={false}>
             <DataTable cols={[{ label: "Product" }, { label: "Company" }, { label: "Batch" }, { label: "Expiry" }, { label: "Band" }, { label: "On shelf", num: true }, { label: "Returned (quarantine)", num: true }, { label: "Value", num: true }, { label: "Claim" }, { label: "" }]}
               rows={w.map((x) => [x.medicine, x.company, x.batchNo, dateIN(x.expiry), <Pill key="b" tone={BAND[x.band][1]}>{BAND[x.band][0]}</Pill>, x.onShelf, x.quarantined || "", inr(x.value),
-                x.eligible ? <span key="e" className="text-[12px] text-[#1E7F4F]">Eligible · expect {inr(x.expectedCredit)} ({x.creditPct}%)</span> : <span key="e" className="text-[12px] text-[#5B6B82]">{x.why}</span>,
+                x.eligible ? <span key="e" className="text-[12px] text-[#1E7F4F]">Eligible · expect {inr(x.expectedCredit)} ({x.creditPct}%)</span> : <span key="e" className="text-[12px] text-muted">{x.why}</span>,
                 x.eligible && distCan(ctx, "purchase") ? <a key="c" href={`?claim=${x.batchId}`}>Claim</a> : ""])} empty="Nothing expires in the next 180 days." />
           </Panel>
         </>
@@ -53,7 +53,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
               r.open > 0 && distCan(ctx, "purchase") ? (
                 <div key="a" className="flex flex-col gap-1 min-w-[220px]">
                   {r.status === "raised" ? <ActButton size="sm" label="Supplier acknowledged" action={async () => { "use server"; return ackClaimAction(r.id); }} /> : null}
-                  <details><summary className="cursor-pointer text-[12.5px] text-[#0B2545] font-semibold">Record credit note</summary>
+                  <details><summary className="cursor-pointer text-[12.5px] text-teal font-semibold">Record credit note</summary>
                     <ActForm action={creditClaimAction} submit="Save" className="mt-1">
                       <input type="hidden" name="id" value={r.id} />
                       <Grid cols={2}><F label="CN no." name="ref" /><F label="Amount ₹" name="amount" inputMode="decimal" /></Grid>

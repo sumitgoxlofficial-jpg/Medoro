@@ -22,7 +22,7 @@ export default async function Page() {
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <Panel title="Requests & connected chemists" pad={false}>
           <DataTable cols={[{ label: "Pharmacy" }, { label: "Licence" }, { label: "GSTIN" }, { label: "Contact" }, { label: "Requested" }, { label: "Status" }, { label: "" }]}
-            rows={conns.map((c) => [<div key="n"><div className="font-medium">{c.firmName}</div><div className="text-[12px] text-[#5B6B82]">{c.ownerName} · {c.address}, {c.pincode}</div></div>, <span key="l" className="text-[12px]">{c.dl20b} / {c.dl21b}<br />valid to {c.dlExpiry}</span>, c.gstin ?? "—", <span key="c" className="text-[12px]">{c.phone}<br />{c.email}</span>, dateIN(c.requestedAt), <Pill key="s" tone={STATUS_TONE[c.status]}>{c.status}</Pill>,
+            rows={conns.map((c) => [<div key="n"><div className="font-medium">{c.firmName}</div><div className="text-[12px] text-muted">{c.ownerName} · {c.address}, {c.pincode}</div></div>, <span key="l" className="text-[12px]">{c.dl20b} / {c.dl21b}<br />valid to {c.dlExpiry}</span>, c.gstin ?? "—", <span key="c" className="text-[12px]">{c.phone}<br />{c.email}</span>, dateIN(c.requestedAt), <Pill key="s" tone={STATUS_TONE[c.status]}>{c.status}</Pill>,
               c.status === "requested" ? (
                 <div key="a" className="flex flex-col gap-1.5 min-w-[240px]">
                   <ActForm action={approveConnAction} submit="Approve">

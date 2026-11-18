@@ -14,15 +14,15 @@ export default async function Page() {
   const b = await dispatchBoard(ctx);
   return (
     <>
-      <PageHead title="Dispatch planning" sub="Group invoiced orders into van / route trips, assign the delivery person, and track proof of delivery." actions={<Link href="/dist/deliveries" className="h-[36px] inline-flex items-center px-3 border border-[#C9D2DE] rounded-lg text-[13px] font-semibold">Delivery app →</Link>} />
+      <PageHead title="Dispatch planning" sub="Group invoiced orders into van / route trips, assign the delivery person, and track proof of delivery." actions={<Link href="/dist/deliveries" className="h-[36px] inline-flex items-center px-3 border border-input rounded-lg text-[13px] font-semibold">Delivery app →</Link>} />
       <Panel title={`Ready to dispatch · ${b.pending.length}`} className="mb-4">
         {b.pending.length ? (
           <ActForm action={createDispatchAction} submit="Plan trip" resetOnOk>
-            <div className="max-h-[320px] overflow-y-auto border border-[#EEF1F5] rounded-md">
+            <div className="max-h-[320px] overflow-y-auto border border-line-soft rounded-md">
               {b.pending.map((d) => (
-                <label key={d.invoiceId} className="flex items-center gap-3 px-3 py-2 border-b border-[#EEF1F5] last:border-0 text-[13px] cursor-pointer hover:bg-[#FAFBFC]">
+                <label key={d.invoiceId} className="flex items-center gap-3 px-3 py-2 border-b border-line-soft last:border-0 text-[13px] cursor-pointer hover:bg-subtle">
                   <input type="checkbox" name="invoiceIds" value={d.invoiceId} className="size-4" />
-                  <span className="w-[130px] font-medium">{d.no}</span><span className="flex-1">{d.customer} <span className="text-[#5B6B82]">{d.address}</span></span><span className="tnum">{inr(d.total)}</span>
+                  <span className="w-[130px] font-medium">{d.no}</span><span className="flex-1">{d.customer} <span className="text-muted">{d.address}</span></span><span className="tnum">{inr(d.total)}</span>
                   {d.failReason ? <Pill tone="red">Retry: {d.failReason}</Pill> : null}
                 </label>
               ))}
@@ -34,7 +34,7 @@ export default async function Page() {
               <F label="Route" name="route" placeholder="Kothrud – Karve Nagar" />
             </Grid>
           </ActForm>
-        ) : <div className="text-[13px] text-[#5B6B82]">Nothing waiting. Invoices appear here as soon as they are raised.</div>}
+        ) : <div className="text-[13px] text-muted">Nothing waiting. Invoices appear here as soon as they are raised.</div>}
       </Panel>
       <div className="flex flex-col gap-4">
         {b.trips.map((t) => (

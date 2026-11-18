@@ -21,11 +21,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   return (
     <>
       <PageHead title="GST reports & returns" sub="GSTR-1 and GSTR-3B from posted wholesale invoices, credit notes and GRNs. Download the JSON for the GSTN offline tool; filing is done on the GST portal." actions={<>
-        <a href={`/api/dist/gst?kind=gstr1&${q}`} className="h-[36px] inline-flex items-center px-3 border border-[#C9D2DE] rounded-lg text-[13px] font-semibold">GSTR-1 JSON</a>
-        <a href={`/api/dist/gst?kind=gstr3b&${q}`} className="h-[36px] inline-flex items-center px-3 border border-[#C9D2DE] rounded-lg text-[13px] font-semibold">GSTR-3B JSON</a>
-        <a href={`/api/dist/gst?kind=hsn&${q}`} className="h-[36px] inline-flex items-center px-3 border border-[#C9D2DE] rounded-lg text-[13px] font-semibold">HSN CSV</a>
+        <a href={`/api/dist/gst?kind=gstr1&${q}`} className="h-[36px] inline-flex items-center px-3 border border-input rounded-lg text-[13px] font-semibold">GSTR-1 JSON</a>
+        <a href={`/api/dist/gst?kind=gstr3b&${q}`} className="h-[36px] inline-flex items-center px-3 border border-input rounded-lg text-[13px] font-semibold">GSTR-3B JSON</a>
+        <a href={`/api/dist/gst?kind=hsn&${q}`} className="h-[36px] inline-flex items-center px-3 border border-input rounded-lg text-[13px] font-semibold">HSN CSV</a>
       </>} />
-      <form className="flex gap-2 mb-4 flex-wrap"><select name="gstin" defaultValue={gstin} className="h-9 border border-[#C9D2DE] rounded px-2 text-[13px]">{regs.list.map((r) => <option key={r.gstin} value={r.gstin}>{r.gstin} · {r.state}</option>)}</select><input type="month" name="month" defaultValue={month} className="h-9 border border-[#C9D2DE] rounded px-2 text-[13px]" /><button className="h-9 px-3 border border-[#C9D2DE] rounded text-[13px]">Show</button></form>
+      <form className="flex gap-2 mb-4 flex-wrap"><select name="gstin" defaultValue={gstin} className="h-9 border border-input rounded px-2 text-[13px]">{regs.list.map((r) => <option key={r.gstin} value={r.gstin}>{r.gstin} · {r.state}</option>)}</select><input type="month" name="month" defaultValue={month} className="h-9 border border-input rounded px-2 text-[13px]" /><button className="h-9 px-3 border border-input rounded text-[13px]">Show</button></form>
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-4">
         <Stat label="Invoices" value={inv.length} note={`${inv.filter((d) => d.ctin).length} B2B · ${g1.cancelled.length} cancelled`} />
         <Stat label="Taxable value" value={inr(sum(inv, "taxable") - sum(cn, "taxable"))} note="after credit notes" />

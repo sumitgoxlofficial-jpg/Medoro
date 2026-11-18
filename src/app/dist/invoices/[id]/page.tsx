@@ -23,7 +23,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <PageHead title={`Invoice ${v.no}`} back={{ href: "/dist/invoices", label: "Invoices" }} sub={`${v.buyer.name} · ${inr(v.total)}`}
           actions={<>
             <PrintButton />
-            <Link href={`/dist/chemists/${v.buyer.id}`} className="h-[36px] inline-flex items-center px-3 border border-[#C9D2DE] rounded-lg text-[13px] font-semibold">Chemist ledger</Link>
+            <Link href={`/dist/chemists/${v.buyer.id}`} className="h-[36px] inline-flex items-center px-3 border border-input rounded-lg text-[13px] font-semibold">Chemist ledger</Link>
             {!v.cancelled && v.date === todayISO() && distCan(ctx, "cancelBill") && !v.returns.length ? <ActButton variant="danger" label="Cancel invoice" ask="Reason for cancelling (audited)" confirm="Cancel this invoice and put the stock back?" action={async (r) => { "use server"; return cancelInvoiceAction(id, r); }} /> : null}
           </>} />
       </div>
