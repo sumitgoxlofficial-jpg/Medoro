@@ -66,6 +66,8 @@ model Tenant {
   legalName String?
   gstin     String?
   phone     String?
+  /// Which MEDORO product this tenant runs: "pharmacy" (retail, /app) or "distribution" (wholesale ERP, /dist).
+  product   String   @default("pharmacy")
   createdAt DateTime @default(now())
   branches  Branch[]
   users     User[]
@@ -493,18 +495,18 @@ model BankLine {
 }
 
 model Recall {
-  id          String   @id @default(uuid())
-  tenantId    String
-  source      String
-  sourceRef   String
-  publishedAt DateTime @db.Date
-  product     String
-  medicineId  String? // null on notices recorded before recalls were tied to a medicine
-  batchNos    String[]
-  reason      String
-  status      String // open, quarantined, returned, resolved
-  createdBy   String
-  createdAt   DateTime @default(now())
+  id             String    @id @default(uuid())
+  tenantId       String
+  source         String
+  sourceRef      String
+  publishedAt    DateTime  @db.Date
+  product        String
+  medicineId     String? // null on notices recorded before recalls were tied to a medicine
+  batchNos       String[]
+  reason         String
+  status         String // open, quarantined, returned, resolved
+  createdBy      String
+  createdAt      DateTime  @default(now())
   // Medoro 2.0: notice details as published, who attested them, and how the recall ended.
   manufacturer   String? // set when the notice names a manufacturer and product instead of one catalogue medicine
   noticeNo       String? // the authority's own reference
@@ -518,18 +520,18 @@ model Recall {
 /// Stock of a recalled batch that was destroyed or otherwise disposed of, kept as history (append-only). Destruction also
 /// posts a normal write-off (stockOutNo); supplier returns are read from StockOut.
 model RecallDisposal {
-  id          String   @id @default(uuid())
-  tenantId    String
-  recallId    String
-  branchId    String
-  batchId     String
-  qty         Int
-  method      String // destroyed, returned_manufacturer
-  reference   String? // destruction certificate, manufacturer return note
-  stockOutNo  String?
-  note        String?
-  userId      String
-  at          DateTime @default(now())
+  id         String   @id @default(uuid())
+  tenantId   String
+  recallId   String
+  branchId   String
+  batchId    String
+  qty        Int
+  method     String // destroyed, returned_manufacturer
+  reference  String? // destruction certificate, manufacturer return note
+  stockOutNo String?
+  note       String?
+  userId     String
+  at         DateTime @default(now())
 
   @@index([tenantId, recallId])
 }
@@ -2617,32 +2619,32 @@ model HrPromotion {
 }
 
 model HrPayslip {
-  id        String    @id @default(uuid())
-  staffId   String
-  month     String // YYYY-MM: the month the salary is paid in
+  id         String    @id @default(uuid())
+  staffId    String
+  month      String // YYYY-MM: the month the salary is paid in
   periodFrom DateTime? @db.Date // the days it pays for (a payslip from before pay cycles has none: the whole month)
   periodTo   DateTime? @db.Date
   payDate    DateTime? @db.Date // the day the salary is due in the bank
-  workDays  Int
-  lopDays   Float     @default(0)
-  basic     Int
-  hra       Int
-  special   Int
-  incentive Int       @default(0)
-  reimburse Int       @default(0)
-  encash    Int       @default(0) // final settlement: unused privilege leave paid out (part of gross)
-  gratuity  Int       @default(0) // final settlement: gratuity after five years (added to net pay)
-  gross     Int
-  pf        Int
-  esi       Int
-  pt        Int
-  tds       Int
-  lop       Int       @default(0)
-  net       Int
-  status    String    @default("pending") // pending, paid
-  paidOn    DateTime? @db.Date
-  runBy     String
-  createdAt DateTime  @default(now())
+  workDays   Int
+  lopDays    Float     @default(0)
+  basic      Int
+  hra        Int
+  special    Int
+  incentive  Int       @default(0)
+  reimburse  Int       @default(0)
+  encash     Int       @default(0) // final settlement: unused privilege leave paid out (part of gross)
+  gratuity   Int       @default(0) // final settlement: gratuity after five years (added to net pay)
+  gross      Int
+  pf         Int
+  esi        Int
+  pt         Int
+  tds        Int
+  lop        Int       @default(0)
+  net        Int
+  status     String    @default("pending") // pending, paid
+  paidOn     DateTime? @db.Date
+  runBy      String
+  createdAt  DateTime  @default(now())
 
   @@unique([staffId, month])
   @@index([month])
@@ -2890,10 +2892,10 @@ model HrChat {
 model HrChatMember {
   chatId      String
   staffId     String
-  lastReadSeq Int      @default(0)
-  fromSeq     Int      @default(0) // a person added to a group later doesn't see messages sent before
+  lastReadSeq Int       @default(0)
+  fromSeq     Int       @default(0) // a person added to a group later doesn't see messages sent before
   typingAt    DateTime?
-  joinedAt    DateTime @default(now())
+  joinedAt    DateTime  @default(now())
 
   @@id([chatId, staffId])
   @@index([staffId])
@@ -3155,4 +3157,456 @@ model CatalogueCorrection {
 
   @@index([tenantId, status])
   @@index([status, createdAt])
+}
+
+// ═════════════ MEDORO Distribution (wholesale ERP, /dist) ═════════════
+// A distribution tenant reuses the shared core: Branch = godown, Medicine = product master, Batch/StockMovement = stock,
+// Supplier/PurchaseOrder/Grn = purchasing, Customer = chemist ledger party, Voucher/LedgerLine = books, SupplierClaim,
+// Cheque, BankStatement, Transfer, AuditEvent, Sequence. The tables below hold what wholesale adds. See docs/distribution.
+
+/// Manufacturer / marketing company (Cipla, Sun Pharma…).
+model DistCompany {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  shortName String?
+  gstin     String?
+  contact   String?
+  phone     String?
+  email     String?
+  address   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+}
+
+/// A company whose stock this distributor holds under a stockist agreement, with its terms.
+model DistPrincipal {
+  id              String    @id @default(uuid())
+  tenantId        String
+  companyId       String
+  supplierId      String? // the party purchases are booked against (company depot / C&F agent)
+  agreementNo     String?
+  divisions       String[]  @default([])
+  startDate       DateTime? @db.Date
+  endDate         DateTime? @db.Date
+  marginPct       Decimal   @default(10) @db.Decimal(5, 2)
+  claimBeforeDays Int       @default(90) // near-expiry stock accepted back this many days before expiry
+  claimAfterDays  Int       @default(180) // expired stock accepted back up to this many days after expiry
+  claimCreditPct  Decimal   @default(100) @db.Decimal(5, 2) // credit given on claims, % of purchase value
+  active          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  @@unique([tenantId, companyId])
+}
+
+/// Wholesale terms of a product (1:1 with Medicine). PTR = price to retailer, PTS = price to stockist (per pack, ex-GST).
+model DistProduct {
+  medicineId    String   @id
+  tenantId      String
+  companyId     String?
+  principalId   String?
+  division      String?
+  ptrPaise      BigInt
+  ptsPaise      BigInt   @default(0)
+  minOrderQty   Int      @default(1)
+  portalVisible Boolean  @default(true)
+  discontinued  Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, companyId])
+}
+
+/// Chemist-specific net rate for a product (overrides PTR).
+model DistSpecialRate {
+  id         String    @id @default(uuid())
+  tenantId   String
+  customerId String
+  medicineId String
+  ratePaise  BigInt
+  validTo    DateTime? @db.Date
+  createdBy  String
+  createdAt  DateTime  @default(now())
+
+  @@unique([tenantId, customerId, medicineId])
+}
+
+/// Trade scheme: "free" = buy X get Y free (e.g. 10+1); "discount" = extra % off the rate.
+model DistScheme {
+  id          String   @id @default(uuid())
+  tenantId    String
+  code        String
+  name        String
+  kind        String // free, discount
+  medicineId  String? // a product, or…
+  companyId   String? // …every product of a company
+  buyQty      Int      @default(0)
+  freeQty     Int      @default(0)
+  discPct     Decimal  @default(0) @db.Decimal(5, 2)
+  minQty      Int      @default(1)
+  customerIds String[] @default([]) // empty = every chemist
+  validFrom   DateTime @db.Date
+  validTo     DateTime @db.Date
+  portal      Boolean  @default(true) // shown to chemists on the ordering portal
+  active      Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, code])
+  @@index([tenantId, medicineId])
+}
+
+model DistTerritory {
+  id       String   @id @default(uuid())
+  tenantId String
+  code     String
+  name     String
+  parentId String?
+  pincodes String[] @default([])
+  active   Boolean  @default(true)
+
+  @@unique([tenantId, code])
+}
+
+model DistSalesman {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  userId             String? // signs in to the field app
+  code               String
+  name               String
+  phone              String?
+  territoryIds       String[] @default([])
+  monthlyTargetPaise BigInt   @default(0)
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, userId])
+}
+
+/// Wholesale profile of a chemist / retailer. The ledger party is the Customer row with the same id.
+model DistChemist {
+  customerId      String    @id
+  tenantId        String
+  ownerName       String?
+  dl20b           String? // drug licence, Form 20B (retail sale other than Schedule C/C1/X)
+  dl21b           String? // drug licence, Form 21B (Schedule C/C1)
+  dlExpiry        DateTime? @db.Date
+  creditDays      Int       @default(21)
+  graceDays       Int       @default(7) // bills older than creditDays + graceDays put new orders on hold
+  territoryId     String?
+  salesmanId      String?
+  priceTier       String    @default("ptr") // ptr, pts
+  status          String    @default("active") // active, hold, blocked
+  statusNote      String?
+  kycVerifiedAt   DateTime?
+  kycVerifiedBy   String?
+  portalAccountId String?
+  createdAt       DateTime  @default(now())
+
+  @@index([tenantId, territoryId])
+  @@index([tenantId, salesmanId])
+}
+
+/// Storage location inside a godown (godown = Branch). Products are placed on racks through MedicineRack.
+model DistRack {
+  id        String  @id @default(uuid())
+  tenantId  String
+  branchId  String
+  code      String
+  zone      String?
+  seq       Int     @default(0) // picking walk order
+  coldChain Boolean @default(false)
+  active    Boolean @default(true)
+
+  @@unique([branchId, code])
+}
+
+/// Customer order: portal, salesman, phone or office. Approved → picked → packed → invoiced → dispatched → delivered.
+model DistOrder {
+  id             String          @id @default(uuid())
+  tenantId       String
+  branchId       String
+  no             String
+  customerId     String
+  source         String // portal, salesman, phone, office
+  salesmanId     String?
+  status         String          @default("pending") // pending, approved, picking, packed, invoiced, dispatched, delivered, cancelled, rejected
+  placedByType   String // user, chemist
+  placedById     String
+  placedAt       DateTime        @default(now())
+  note           String?
+  estimatePaise  BigInt          @default(0)
+  creditCheck    Json?
+  overrideBy     String?
+  overrideReason String?
+  decidedBy      String?
+  decidedAt      DateTime?
+  rejectReason   String?
+  invoiceId      String?
+  idempotencyKey String
+  version        Int             @default(0)
+  lines          DistOrderLine[]
+
+  @@unique([tenantId, no])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+}
+
+model DistOrderLine {
+  id         String    @id @default(uuid())
+  orderId    String
+  order      DistOrder @relation(fields: [orderId], references: [id])
+  medicineId String
+  qty        Int // packs
+  freeQty    Int       @default(0)
+  ratePaise  BigInt
+  discPct    Decimal   @default(0) @db.Decimal(5, 2)
+  schemeId   String?
+}
+
+/// Batch-wise picking instruction for an approved order. Open pick lines reserve stock.
+model DistPickList {
+  id        String         @id @default(uuid())
+  tenantId  String
+  branchId  String
+  no        String
+  orderId   String         @unique
+  status    String         @default("open") // open, picked, packed, invoiced, cancelled
+  pickerId  String?
+  boxes     Int            @default(0)
+  createdAt DateTime       @default(now())
+  pickedAt  DateTime?
+  packedAt  DateTime?
+  packedBy  String?
+  lines     DistPickLine[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, status])
+}
+
+model DistPickLine {
+  id          String       @id @default(uuid())
+  pickListId  String
+  pickList    DistPickList @relation(fields: [pickListId], references: [id])
+  orderLineId String
+  medicineId  String
+  batchId     String
+  rack        String?
+  units       Int // stock units reserved (paid + free)
+  paidUnits   Int
+  pickedUnits Int?
+  pickedAt    DateTime?
+  pickedBy    String?
+}
+
+/// Wholesale GST tax invoice. Append-only: cancellation is a DistInvoiceCancel row plus reversing entries.
+model DistInvoice {
+  id             String            @id @default(uuid())
+  tenantId       String
+  branchId       String
+  no             String
+  orderId        String?
+  customerId     String
+  salesmanId     String?
+  date           DateTime          @db.Date
+  dueDate        DateTime          @db.Date
+  placeOfSupply  String?
+  customerGstin  String?
+  igst           Boolean           @default(false)
+  grossPaise     BigInt
+  discPaise      BigInt
+  taxablePaise   BigInt
+  cgstPaise      BigInt
+  sgstPaise      BigInt
+  igstPaise      BigInt
+  roundOffPaise  BigInt
+  totalPaise     BigInt
+  costPaise      BigInt
+  voucherId      String
+  idempotencyKey String
+  createdBy      String
+  at             DateTime          @default(now())
+  lines          DistInvoiceLine[]
+
+  @@unique([tenantId, no])
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, customerId, date])
+  @@index([tenantId, date])
+}
+
+model DistInvoiceLine {
+  id           String      @id @default(uuid())
+  invoiceId    String
+  invoice      DistInvoice @relation(fields: [invoiceId], references: [id])
+  medicineId   String
+  batchId      String
+  qty          Int // paid packs
+  freeQty      Int         @default(0)
+  ratePaise    BigInt // per pack, ex-GST
+  mrpPaise     BigInt
+  discPct      Decimal     @default(0) @db.Decimal(5, 2)
+  discPaise    BigInt
+  schemeId     String?
+  taxablePaise BigInt
+  gstRate      Int
+  taxPaise     BigInt
+  costPaise    BigInt // landed cost of every unit that left (paid + free)
+}
+
+model DistInvoiceCancel {
+  invoiceId String   @id
+  tenantId  String
+  reason    String
+  voucherId String
+  by        String
+  at        DateTime @default(now())
+}
+
+/// Sales return / credit note against a wholesale invoice. Append-only.
+model DistReturn {
+  id           String           @id @default(uuid())
+  tenantId     String
+  branchId     String
+  no           String
+  invoiceId    String
+  customerId   String
+  reason       String
+  taxablePaise BigInt
+  taxPaise     BigInt
+  totalPaise   BigInt
+  voucherId    String
+  createdBy    String
+  at           DateTime         @default(now())
+  lines        DistReturnLine[]
+
+  @@unique([tenantId, no])
+  @@index([tenantId, invoiceId])
+}
+
+model DistReturnLine {
+  id            String     @id @default(uuid())
+  returnId      String
+  ret           DistReturn @relation(fields: [returnId], references: [id])
+  invoiceLineId String
+  batchId       String
+  qty           Int // packs (paid + free) coming back
+  condition     String // saleable, expired, damaged
+  creditPct     Decimal    @db.Decimal(5, 2)
+  taxablePaise  BigInt
+  taxPaise      BigInt
+}
+
+/// A van / route trip carrying invoices out.
+model DistDispatch {
+  id           String    @id @default(uuid())
+  tenantId     String
+  branchId     String
+  no           String
+  vehicleNo    String?
+  driverName   String?
+  deliveryUser String?
+  route        String?
+  status       String    @default("planned") // planned, out, closed
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  dispatchedAt DateTime?
+  closedAt     DateTime?
+
+  @@unique([tenantId, no])
+}
+
+model DistDelivery {
+  id             String    @id @default(uuid())
+  tenantId       String
+  invoiceId      String    @unique
+  dispatchId     String?
+  status         String    @default("pending") // pending, out, delivered, failed
+  receiverName   String?
+  podNote        String?
+  failReason     String?
+  collectedPaise BigInt    @default(0)
+  collectMode    String?
+  receiptNo      String?
+  deliveredAt    DateTime?
+  updatedBy      String?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([dispatchId])
+}
+
+/// Payment collected by a salesman or delivery person, linked to the receipt voucher it posted.
+model DistCollection {
+  id          String   @id @default(uuid())
+  tenantId    String
+  customerId  String
+  voucherNo   String
+  amountPaise BigInt
+  mode        String
+  ref         String?
+  salesmanId  String?
+  deliveryId  String?
+  byUser      String
+  at          DateTime @default(now())
+
+  @@index([tenantId, customerId])
+}
+
+// ───────────── Chemist ordering portal (accounts are global; distributors see only connected chemists) ─────────────
+
+model DistChemistAccount {
+  id             String    @id @default(uuid())
+  firmName       String
+  ownerName      String
+  email          String    @unique
+  phone          String    @unique
+  passwordHash   String
+  gstin          String?
+  dl20b          String
+  dl21b          String
+  dlExpiry       DateTime  @db.Date
+  address        String
+  pincode        String
+  stateCode      String
+  status         String    @default("pending") // pending (licence not yet checked by any distributor), verified, suspended
+  consentAt      DateTime
+  consentVersion String
+  failedLogins   Int       @default(0)
+  lockedUntil    DateTime?
+  tokenVersion   Int       @default(0)
+  createdAt      DateTime  @default(now())
+}
+
+model DistPortalSession {
+  id           String    @id // sha256 of the cookie token
+  accountId    String
+  tokenVersion Int
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  @@index([accountId])
+}
+
+/// A chemist asking to buy from a distributor. Approval links the account to the distributor's Customer ledger party.
+model DistConnection {
+  id          String    @id @default(uuid())
+  tenantId    String
+  accountId   String
+  customerId  String?
+  status      String    @default("requested") // requested, approved, rejected, suspended
+  shareKyc    Boolean   @default(true) // chemist agreed to share licence/GST details with this distributor
+  requestedAt DateTime  @default(now())
+  decidedBy   String?
+  decidedAt   DateTime?
+  note        String?
+
+  @@unique([tenantId, accountId])
+  @@index([accountId])
 }

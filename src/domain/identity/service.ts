@@ -10,6 +10,8 @@ import { DEFAULT_GRANTS, ROLE_NAMES } from "./permissions";
 import { inviteContact, setupSchema, type SetupInput } from "./contracts";
 import { deploymentMismatch } from "./deployment";
 import { TRIAL_DAYS } from "@/domain/system/subscription";
+import { DIST_GRANTS, DIST_ROLES } from "@/domain/distribution/perms";
+import { DIST_DEFAULT_SETTINGS } from "@/domain/distribution/settings-shape";
 
 export const isSetupDone = async () => (await db.tenant.count()) > 0;
 
@@ -42,7 +44,7 @@ export async function nextEmployeeNo(tx: Tx, tenantId: string) {
  * First-run setup allows only one pharmacy per installation; `signup` (self-service sign-up on a
  * hosted multi-pharmacy server) allows more, as long as the code and the owner's sign-in are free.
  */
-export async function createPharmacy(raw: SetupInput, opts: { signup?: boolean } = {}) {
+export async function createPharmacy(raw: SetupInput, opts: { signup?: boolean; product?: "pharmacy" | "distribution" } = {}) {
   try {
     return await create(raw, opts);
   } catch (e) {
@@ -51,7 +53,8 @@ export async function createPharmacy(raw: SetupInput, opts: { signup?: boolean }
   }
 }
 
-async function create(raw: SetupInput, { signup = false }: { signup?: boolean }) {
+async function create(raw: SetupInput, { signup = false, product = "pharmacy" }: { signup?: boolean; product?: "pharmacy" | "distribution" }) {
+  const dist = product === "distribution";
   const input = setupSchema.parse(raw);
   const mismatch = deploymentMismatch(input.deployment, process.env.DATABASE_URL);
   if (mismatch) throw new UserError(mismatch);
@@ -77,8 +80,9 @@ async function create(raw: SetupInput, { signup = false }: { signup?: boolean })
 
     const tenant = await tx.tenant.create({
       data: {
-        code: p.code, name: p.name, gstin: p.gstin || null, phone: input.owner.phone,
+        code: p.code, name: p.name, gstin: p.gstin || null, phone: input.owner.phone, product,
         settings: {
+          ...(dist ? { dist: DIST_DEFAULT_SETTINGS } : {}),
           lang: p.lang, pharmacist: p.pharmacist, deployment: input.deployment,
           policy: { cover: 21, safety: 2 }, anomaly: { disc: 5, refunds: 2, cash: 200 },
           privacy: { strict: true, remoteAi: false, telemetry: false, crash: false, retentionYears: 8 },
@@ -95,8 +99,10 @@ async function create(raw: SetupInput, { signup = false }: { signup?: boolean })
       branches.push(br);
     }
     const roles: Record<string, string> = {};
-    for (const name of ROLE_NAMES) {
-      const r = await tx.role.create({ data: { tenantId: tenant.id, name, permissions: DEFAULT_GRANTS[name], locked: name === "Owner" } });
+    // A distributor gets the distribution roles (src/domain/distribution/perms.ts) instead of the pharmacy ones.
+    const roleSet: [string, readonly string[]][] = dist ? DIST_ROLES.map((n) => [n, DIST_GRANTS[n]]) : ROLE_NAMES.map((n) => [n, DEFAULT_GRANTS[n]]);
+    for (const [name, permissions] of roleSet) {
+      const r = await tx.role.create({ data: { tenantId: tenant.id, name, permissions: [...permissions], locked: name === "Owner" } });
       roles[name] = r.id;
     }
     const owner = await tx.user.create({
@@ -110,13 +116,14 @@ async function create(raw: SetupInput, { signup = false }: { signup?: boolean })
     const created = [];
     for (const i of invites) {
       const br = i.branch ? branches.find((b) => b.name === i.branch) : branches[0];
+      if (dist && !roles[i.role]) throw new UserError(`“${i.role}” isn’t a distribution role.`);
       const inv = await tx.invite.create({
         data: { tenantId: tenant.id, code: newInviteCode(), contact: i.c!.phone ?? i.c!.email!, roleName: i.role, branchId: br?.id ?? null, createdBy: owner.id, expiresAt: new Date(Date.now() + 48 * 3600_000) },
       });
       created.push({ contact: inv.contact, role: inv.roleName, code: inv.code });
     }
-    await tx.subscriptionMeta.create({ data: { tenantId: tenant.id, plan: input.branches.length > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + TRIAL_DAYS * 86400_000) } });
-    await writeAudit(tx, { tenantId: tenant.id, userId: owner.id, userName: owner.name, action: "Pharmacy set up", entity: "tenant", entityId: tenant.id, detail: `${branches.length} branch(es) · ${created.length} invite(s) · ${input.deployment}${signup ? " · self sign-up" : ""}` });
+    await tx.subscriptionMeta.create({ data: { tenantId: tenant.id, plan: dist ? "Distribution Professional" : input.branches.length > 1 ? "Multi-branch" : "Professional", addons: [], status: "trial", renewsAt: new Date(Date.now() + TRIAL_DAYS * 86400_000) } });
+    await writeAudit(tx, { tenantId: tenant.id, userId: owner.id, userName: owner.name, action: dist ? "Distributor set up" : "Pharmacy set up", entity: "tenant", entityId: tenant.id, detail: `${branches.length} branch(es) · ${created.length} invite(s) · ${input.deployment}${signup ? " · self sign-up" : ""}` });
     return { tenantCode: tenant.code, ownerId: owner.id, invites: created };
   });
 }
