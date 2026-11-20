@@ -27,7 +27,7 @@ export default function Page() {
             <label className="flex flex-col gap-1 text-[12.5px] font-medium text-muted">State<select aria-label="State" name="stateCode" required className="h-11 rounded-lg border border-input px-2 text-[15px] bg-white">{GST_STATES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select></label>
             <PF label="Password (10+ characters)" name="password" type="password" required minLength={10} autoComplete="new-password" />
           </div>
-          <label className="flex gap-2 text-[13px] items-start"><input type="checkbox" name="consent" required className="mt-1" /><span>I agree to the <Link href="/legal/terms">terms</Link> and <Link href="/legal/privacy">privacy notice</Link> (version {CONSENT_VERSION}). My licence and GST details are shared only with distributors I choose.</span></label>
+          <label className="flex gap-2 text-[13px] items-start"><input type="checkbox" name="consent" required className="mt-1" /><span>I agree to the <Link href="/legal#terms">terms</Link> and <Link href="/legal#privacy">privacy notice</Link> (version {CONSENT_VERSION}). My licence and GST details are shared only with distributors I choose.</span></label>
         </PForm>
       </div>
       <p className="text-[14px] mt-4">Already registered? <Link href="/portal/signin" className="font-semibold">Sign in</Link></p>
