@@ -88,10 +88,10 @@ Full module and route inventory: section 5.
 | Applications discovered | 9 (+ backend/database) |
 | Modules tested | 24 (see feature report) |
 | Unit + integration tests | Before: 1,177 in 185 files, all pass. After: 1,189 in 189 files, all pass |
-| End-to-end tests (browser) | 75 in the full suite (73 + 2 new): 72 pass in the CI configuration, the other 3 pass with email configured; plus 10 repetitions of the live-update spec (7/10) |
+| End-to-end tests (browser) | 75 in the full suite (73 + 2 new): 72 pass in the CI configuration, the other 3 pass with email configured; plus repetitions of the live-update spec (7/10 before the BUG-08 fix, 30/30 after) |
 | Live security probes | 23 endpoints, all refused or safe |
-| Bugs found | 9 defects (1 HIGH, 4 MEDIUM, 4 LOW) + 1 test-coverage gap (see bug log) |
-| Bugs fixed and retested | 7 fixed and retested, gap closed with a new spec; 2 open (1 MEDIUM, 1 LOW), each documented with evidence |
+| Bugs found | 10 defects (1 HIGH, 5 MEDIUM, 4 LOW) + 1 test-coverage gap (see bug log) |
+| Bugs fixed and retested | 8 fixed and retested, gap closed with a new spec; 2 open (1 MEDIUM, 1 LOW), each documented with evidence |
 | Critical/high security vulnerabilities found | 0 in the code paths tested; the AI clinical-refusal gap (HIGH, patient safety) is fixed |
 
 ## 5. Inventory
@@ -117,7 +117,7 @@ WhatsApp Cloud API (Embedded Signup, signed webhooks) and a built-in WhatsApp We
 
 ## 6. Final regression results
 
-On the final code: lint and typecheck clean; **Vitest 1,189/1,189 passed**; production build succeeded; **Playwright 72 passed / 2 skipped / 1 failed** in the CI configuration, where the failure and skips need the email sink and pass with it; live-update spec 7/10 (BUG-08, open). Details: [bug log, final regression run](MEDORO_BUG_FIX_LOG.md#final-regression-run).
+On the final code: lint and typecheck clean; **Vitest 1,189/1,189 passed**; production build succeeded; **Playwright 72 passed / 2 skipped / 1 failed** in the CI configuration, where the failure and skips need the email sink and pass with it; live-update spec 30/30 after the BUG-08 fix; spec 31's supplier link fails ~1 in 3 with or without it (BUG-10, open). Details: [bug log, final regression run](MEDORO_BUG_FIX_LOG.md#final-regression-run).
 
 ## 7. Production readiness verdict
 
@@ -125,6 +125,6 @@ On the final code: lint and typecheck clean; **Vitest 1,189/1,189 passed**; prod
 
 1. **Integrations that need real credentials were not exercised end to end** (WhatsApp Cloud API with a test number, Google Drive OAuth, Razorpay test mode, SMS OTP, e-invoice sandbox): BLOCKED, see the readiness report for exactly what is needed.
 2. **Device and browser matrix:** only Chromium (desktop and phone emulation) was available; Windows 10/11, real Android/iPhone, Safari, Firefox and Edge were not tested.
-3. **Two open defects:** the live dashboard occasionally misses one update (Medium, evidence in the bug log) and the tour's CSP console noise (Low).
+3. **Two open defects:** a link click occasionally doesn't navigate (BUG-10, Medium) and the tour's CSP console noise (Low). The live-dashboard bug (BUG-08) is fixed.
 
 Recommended before launch: run the blocked integration checks with test credentials, a short real-device pass, and decide on enabling RLS (defence in depth for multi-tenant hosting).

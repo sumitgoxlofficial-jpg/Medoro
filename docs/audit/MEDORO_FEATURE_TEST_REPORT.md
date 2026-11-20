@@ -14,9 +14,10 @@ Column "Defect / fix / retest" refers to the bug log ids.
 |---|---|---|---|---|
 | Today's sales, bills, margin, purchases, expenses, receivables, payables (E2E setup, 08, 28-drive-dashboard) | KPIs render from the database | Render; figures change after sales | PASS | – |
 | Dashboard numbers equal database records (AUDIT: direct server fetches after each sale) | `bills` in the rendered payload = sales count in DB | Matched in every one of 13 sampled refreshes, including 70 ms after commit | PASS | – |
-| Real-time update on another open screen (E2E 12, repeated 10×) | Updates within ~1 s without reload | 7/10 passed; 3/10 the open dashboard kept the old figure until the next change/navigation, although the server had already returned the new one | PARTIAL | BUG-08 (open) |
+| Real-time update on another open screen (E2E 12) | Updates within seconds without reload | Before: 7/10 (the router dropped some refreshes). After the fix: 30/30 | PASS after fix | BUG-08 fixed |
 | 14-day sales chart, collections by mode, branch performance, low stock, expiring batches, backup status | Shown with data | Shown | PASS | – |
 | Date filters Today / 7D / 30D | Switch range | Switch (E2E 15 owner navigation) | PASS | – |
+| Link navigation inside Intelligence (E2E 31, repeated 12×) | Opens on first click | 8/12; 4/12 the click did not navigate | PARTIAL | BUG-10 (open) |
 
 ## B. Medicine management
 | Test case | Expected | Actual | Status | Defect |

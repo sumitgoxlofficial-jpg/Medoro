@@ -11,8 +11,9 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 | BUG-05 | MEDIUM | Distributor sign-up | Dead end on setup-token servers with email configured | FIXED |
 | BUG-06 | MEDIUM | Database | Missing indexes on hot paths (every sale commit, WhatsApp webhooks) | FIXED |
 | BUG-07 | LOW | Docs | README says the trial is 14 days; the app enforces 7 | FIXED |
-| BUG-08 | MEDIUM | Live updates | An open dashboard sometimes misses a live update (~3 in 10) | OPEN |
+| BUG-08 | MEDIUM | Live updates | An open dashboard sometimes misses a live update (~3 in 10) | FIXED |
 | BUG-09 | LOW | Website tour | 394 CSP console errors per load of the embedded tour | OPEN |
+| BUG-10 | MEDIUM | App navigation | A link click occasionally doesn't navigate (Intelligence → Supplier intelligence, ~1 in 3) | OPEN |
 | GAP-01 | – | Tests | No browser test of the email-confirmed sign-up (the production path) | FIXED (new spec) |
 
 ---
@@ -61,20 +62,28 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 ### BUG-07 · Trial length in the README
 - README said the licence server starts "a 14-day trial"; `src/staff/licence.ts` has `TRIAL_DAYS = 7`, matching the website, legal terms and the app. README corrected.
 
-### BUG-08 · Live dashboard sometimes misses an update (OPEN)
-- **Found by:** e2e spec 12 failed in the first full run, passed in the second. Repeated: **3 failures in 10 runs**.
-- **What was established (instrumented runs):**
-  1. The database `NOTIFY` → server → SSE path works every time: the sale's three `change` events reach the open dashboard within ~100 ms of the commit.
-  2. The dashboard calls `router.refresh()` ~700 ms later every time; the request returns 200.
-  3. The server is never stale: reading the router's own refresh payloads (intercepted) showed the new bill count in 8 of 8 runs; direct fetches 70 ms after the commit also had it.
-  4. In failing runs the DOM never changes (MutationObserver), yet a second `refresh()` 12 s later applies the new figures at once.
-  5. When the refresh response is delivered in one piece instead of streamed (interception), the failure does not occur.
-- **Conclusion so far:** the Next.js client router occasionally does not apply a streamed refresh response. A second, delayed refresh did not fix it (still 3 of 10), so that change was reverted rather than left in the code.
-- **Impact:** a screen left open can show the previous figures until the next change, a tab return after 60 s, or any navigation. Data is never wrong; only the live view lags.
-- **Next steps:** reproduce in a minimal Next.js 15.5 app; try upgrading Next; alternatively make the dashboard KPIs a small client component that re-fetches its numbers on the SSE event instead of relying on `router.refresh()`.
+### BUG-08 · Live dashboard sometimes missed an update (FIXED)
+- **Found by:** e2e spec 12 failed in the first full run; repeated, **3 failures in 10**.
+- **Diagnosis (instrumented runs):**
+  1. The database `NOTIFY` → server → SSE path works every time: a sale's three `change` events reach the open dashboard within ~100 ms of the commit.
+  2. The dashboard calls `router.refresh()` ~700 ms later every time, and the server answers with the new figures. Intercepting the router's own refresh payloads showed the new bill count in 8 of 8 runs.
+  3. In failing runs the refreshed result is never applied (a MutationObserver saw no DOM change), and the drops come in runs: up to 3 consecutive refreshes dropped, then one applies. When one applies, the layout and the page update together.
+  4. The drop happens inside the Next.js 15.5 client router after a complete, fresh response. Its cause inside the framework was not traced, and no minimal reproduction was attempted. The same symptom on navigations is BUG-10.
+- **Fix: the screen checks that it caught up.**
+  - `/api/events` adds `at` to each change: when the server relayed it, which is after the commit.
+  - `src/app/app/layout.tsx` passes `renderedAt` (taken before any data is read) to the shell. It only advances when a refresh is really applied.
+  - `src/components/shell/use-live.ts`: after a refresh, if `renderedAt` is still older than the newest `at`, it refreshes again after 1, 1, 2, 2, 4, 4 s (at most 7 attempts per burst, only while behind).
+  - Also fixed in the same hook: a change that arrives while the tab is hidden now reaches the screen when the tab is shown (it used to wait for a 60 s absence), and changes made while the event stream was reconnecting are fetched when it reconnects.
+- **Retest:** the unmodified spec 12 passed **30 of 30**, against 7 of 10 before. Full e2e suite on the fix: no new failures (the two failures are spec 02's mail-sink test and BUG-10, which fails at the same rate without this change).
 
 ### BUG-09 · Tour CSP console noise (OPEN)
 - `/tour/index.html` (embedded on the homepage in a sandboxed iframe) logs ~394 "Executing inline event handler violates … CSP" errors per load. The tour still renders and responds to clicks (verified). The handlers come from the design prototype's runtime (`design/support.js`), which `scripts/build-tour.mjs` copies. Fix belongs in that runtime (use `addEventListener`), or accept as noise.
+
+### BUG-10 · A link click occasionally doesn't navigate (OPEN)
+- **Found by:** the full e2e run for BUG-08: spec 31 "supplier intelligence" clicks the Supplier intelligence link on `/app/intelligence` and the URL never changes.
+- **Measured:** 4 of 12 runs fail **with and without** the BUG-08 change (the same build otherwise), so it predates it. The navigation request goes out and is answered; no live events or refreshes happen on that page; the result is not applied. This is the same router symptom as BUG-08.
+- **Impact:** a user occasionally has to click a second time.
+- **Next steps:** reproduce in a minimal Next.js 15.5 app and report upstream, or try the current Next.js release; the spec's single click could also retry, but that would hide the problem rather than fix it.
 
 ### GAP-01 · No e2e test for email-confirmed sign-up
 - CI runs without email, so the page skips the code step and no browser test covered the path production uses. `e2e/33-signup-email.spec.ts` covers it when the mail sink is configured (skipped otherwise, so CI is unaffected).
@@ -94,6 +103,8 @@ On the final code (all fixes, new migration applied), 20–21 Nov 2026:
 | Playwright, full suite, fresh database | CI configuration (no email) | **72 passed, 2 skipped, 1 failed** (7.0 min). Skipped: spec 33 (needs the mail sink). Failed: spec 02 "forgot password" (needs the mail sink by design; passes below) |
 | Playwright: setup, 02, 16, 33 | Email to the HTTPS mail sink | 10 passed, 1 skipped, 1 failed. Spec 02 all 8 pass including the emailed reset code; spec 33 setup-token test passes. Spec 16 fails because, with email configured, a partner must confirm their email with a code ("Tap 'Send code' and enter the code we email you"), which the spec doesn't do; correct product behaviour, and it passes in the CI configuration |
 | Playwright: spec 33 | Email + `PUBLIC_SIGNUP=1 DIST_HOSTED=1` | 1 passed (code required, wrong code refused, right code opens the form) |
-| Playwright: spec 12 repeated ×10 | CI configuration | 7 passed, 3 failed: BUG-08 (open) |
+| Playwright: spec 12 repeated ×10 (before the BUG-08 fix) | CI configuration | 7 passed, 3 failed |
+| Playwright: spec 12 repeated ×30 (after the BUG-08 fix) | CI configuration | **30 passed** |
+| Playwright: full suite with the BUG-08 fix | CI configuration | 71 passed, 2 skipped, 2 failed: spec 02 mail-sink test, and spec 31 supplier link (BUG-10, fails 4/12 without the fix too) |
 
 Every test passes in at least one of the environments it was written for; the two environment-dependent failures are listed above with the reason.

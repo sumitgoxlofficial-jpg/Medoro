@@ -44,7 +44,7 @@ Before the fix these costs grew linearly with the data of **all** pharmacies on 
 | Full e2e suite (73 browser tests, production build) | ~7 minutes |
 
 ## 4. Other observations
-- Live updates use one `LISTEN` connection per app server and SSE per browser; a sale's three change events arrive within ~100 ms of the commit and the screen refreshes ~700 ms later. See BUG-08 for the intermittent missed refresh (a client-side issue, not a performance one).
+- Live updates use one `LISTEN` connection per app server and SSE per browser; a sale's three change events arrive within ~100 ms of the commit and the screen refreshes ~700 ms later. A dropped refresh in the Next.js router (BUG-08) is now detected and retried: at most 7 refreshes per burst of changes, and only while the screen is provably behind.
 - 141 `@@index` and 121 unique declarations in the schema; 21 tenant tables have no tenant-leading index. The four that sit on hot paths were fixed; the rest (`Counter`, `Invite`, `HeldCart`, `Recall`, `StockCount`, …) are small per pharmacy and were left as they are.
 
 ## 5. Not tested

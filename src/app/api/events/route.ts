@@ -22,7 +22,9 @@ export async function GET(req: Request) {
       const send = (s: string) => { try { controller.enqueue(enc.encode(s)); } catch { cleanup(); } };
       let unsub: () => void = () => {};
       try {
-        unsub = await subscribe(ctx.tenantId, (c) => send(`event: change\ndata: ${JSON.stringify(c.d ? { t: c.t, branch: c.branch, d: c.d } : { t: c.t, branch: c.branch })}\n\n`));
+        // `at`: when this server relayed the change, which is after its commit (Postgres delivers NOTIFY on commit). A page
+        // rendered at or after `at` shows the change; the browser uses it to check that its refresh really applied.
+        unsub = await subscribe(ctx.tenantId, (c) => send(`event: change\ndata: ${JSON.stringify(c.d ? { t: c.t, branch: c.branch, d: c.d, at: Date.now() } : { t: c.t, branch: c.branch, at: Date.now() })}\n\n`));
       } catch {
         send("retry: 60000\nevent: down\ndata: {}\n\n");
         controller.close();
