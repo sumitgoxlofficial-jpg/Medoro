@@ -25,5 +25,7 @@ export async function GET(req: Request) {
     const ctx = await getCtx();
     if (!ctx || ctx.readOnly) return to("/signin");
   } else if (await readSession()) return to("/app");
-  return Response.redirect(await beginGoogle(intent), 302);
+  // From distributor sign-up (?next=dist): a new Google account comes back to /distributor-signup, not /signup.
+  const next = intent === "signin" && new URL(req.url).searchParams.get("next") === "dist" ? "dist" : "";
+  return Response.redirect(await beginGoogle(intent, next), 302);
 }

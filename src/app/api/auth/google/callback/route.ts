@@ -29,5 +29,6 @@ export async function GET(req: Request) {
     await setApplicant({ email: claims.email, name: claims.name ?? "", via: "google" });
     return to(careers);
   }
-  return to(await googleSignIn(claims));
+  const dest = await googleSignIn(claims);
+  return to(flow.next === "dist" && dest.startsWith("/signup") ? "/distributor-signup" : dest);
 }

@@ -9,7 +9,7 @@ import { sendSignupEmailCode, verifySignupEmailCode } from "../actions";
 const inp = "border border-input rounded-[10px] px-3.5 py-3 text-[15px] text-ink outline-none focus:border-teal bg-white w-full";
 
 /** Sign-up with email: confirm the address with a 6-digit code, then the pharmacy form opens. */
-export function EmailStep({ back }: { back: string | null }) {
+export function EmailStep({ back, then = "Then you add your pharmacy details." }: { back: string | null; then?: string }) {
   const router = useRouter();
   const t = useT();
   const [email, setEmail] = useState(""), [code, setCode] = useState(""), [sent, setSent] = useState(false);
@@ -41,7 +41,7 @@ export function EmailStep({ back }: { back: string | null }) {
             <input className={inp + " font-mono text-[18px] tracking-[.3em]"} value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }} inputMode="numeric" autoComplete="one-time-code" autoFocus />
           </label>
         </>
-      ) : <div className="text-[13px] text-muted">{t("We’ll send a code to confirm it’s yours. Then you add your pharmacy details.")}</div>}
+      ) : <div className="text-[13px] text-muted">{t("We’ll send a code to confirm it’s yours.")} {t(then)}</div>}
       {err ? <div role="alert" className="text-[13px] text-[#B3261E]">{t(err)}</div> : null}
       <button type="submit" disabled={busy || (sent && code.length !== 6)} className="bg-teal text-white rounded-[10px] p-3 text-[15px] font-semibold cursor-pointer disabled:opacity-60">{t(busy ? "Please wait…" : sent ? "Confirm and continue" : "Send code")}</button>
       {sent ? <button type="button" onClick={() => { setSent(false); setCode(""); setErr(""); }} className="self-center min-h-10 text-[13px] text-teal cursor-pointer">{t("Use a different email or resend")}</button> : null}
