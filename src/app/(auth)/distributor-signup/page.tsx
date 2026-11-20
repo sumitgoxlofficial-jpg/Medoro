@@ -23,7 +23,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   const sp = await searchParams;
   const choose = open && !google && googleLoginConfigured() && sp.with !== "email";
   const verifiedEmail = google ? null : await readVerifiedEmail();
-  const needCode = !choose && !google && !verifiedEmail && mailEnabled();
+  // The email code is the public sign-up gate (sendSignupEmailCode refuses unless sign-up is open). On a server opened with the
+  // setup token instead, the form opens directly, as its action allows; asking for a code there was a dead end.
+  const needCode = open && !choose && !google && !verifiedEmail && mailEnabled();
   const t = await getT();
   return (
     <div className="flex flex-col items-center gap-4 w-full">
