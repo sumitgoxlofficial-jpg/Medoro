@@ -14,7 +14,7 @@ export default async function Page() {
       <div className="max-w-[760px] mx-auto px-4 py-10">
         <div className="text-[12px] font-semibold tracking-[0.14em] text-muted">MEDORO DISTRIBUTION</div>
         <h1 className="text-[26px] font-semibold m-0">Wholesale ERP for pharma distributors, stockists and C&F agents</h1>
-        <p className="text-[14px] text-muted">Orders, batch-wise stock, GST billing, schemes, expiry claims, dispatch, collections and a chemist ordering portal. Free trial; your data stays in your own database.</p>
+        <p className="text-[14px] text-muted">Orders, batch-wise stock, GST billing, schemes, expiry claims, dispatch, collections and a chemist ordering portal. 7 days free with every feature, no card needed.</p>
         <DistributorSignup />
         <p className="text-[13px] mt-4">Retail pharmacy? <Link href="/signup">MEDORO Pharmacy</Link> · Already have an account? <Link href="/signin">Sign in</Link></p>
       </div>

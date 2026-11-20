@@ -230,7 +230,7 @@ export const hi: Record<string, string> = {
   "Medical stores, pharmacy chains and hospital pharmacies": "मेडिकल स्टोर, फ़ार्मेसी चेन और अस्पताल फ़ार्मेसी",
   "Pharma distributors, wholesalers, stockists and C&F agents": "फ़ार्मा डिस्ट्रीब्यूटर, होलसेलर, स्टॉकिस्ट और C&F एजेंट",
   "Book a distribution demo": "डिस्ट्रीब्यूशन डेमो बुक करें",
-  "Tell us your godowns, team and number of chemists on WhatsApp. We’ll show you Medoro Distribution on your own kind of data and suggest a plan.": "WhatsApp पर अपने गोदाम, टीम और केमिस्टों की संख्या बताइए। हम आपके जैसे डेटा पर Medoro Distribution दिखाएँगे और सही प्लान सुझाएँगे।",
+  "Start the 7-day trial with every feature and choose a plan only if you continue. Or tell us your godowns, team and chemists on WhatsApp and we’ll suggest one.": "7 दिन का ट्रायल हर फ़ीचर के साथ शुरू करें और आगे चलाना हो तभी प्लान चुनें। या WhatsApp पर अपने गोदाम, टीम और केमिस्ट बताइए, हम सही प्लान सुझाएँगे।",
   "Fast GST billing with FEFO batches and barcode search": "FEFO बैच और बारकोड सर्च के साथ तेज़ GST बिलिंग",
   "Expiry, low-stock and reorder alerts": "एक्सपायरी, कम स्टॉक और रीऑर्डर अलर्ट",
   "Purchases, suppliers, credit and accounts": "खरीद, सप्लायर, उधार और खाते",
@@ -268,7 +268,7 @@ export const hi: Record<string, string> = {
   "Godown-wise stock and claims": "गोदाम के हिसाब से स्टॉक और क्लेम",
   "Help moving from your current software": "मौजूदा सॉफ़्टवेयर से आने में मदद",
   "Every plan includes encrypted backups, roles and permissions, an audit trail and English and हिंदी.": "हर प्लान में एन्क्रिप्टेड बैकअप, भूमिकाएँ और अनुमतियाँ, ऑडिट ट्रेल और English व हिंदी शामिल हैं।",
-  "Your records stay in your own database: your server, your shop network or your own cloud.": "आपके रिकॉर्ड आपके अपने डेटाबेस में रहते हैं: आपका सर्वर, आपकी दुकान का नेटवर्क या आपका अपना क्लाउड।",
+  "Start on Medoro’s cloud, or run it on your own server or database.": "Medoro के क्लाउड पर शुरू करें, या अपने सर्वर या डेटाबेस पर चलाएँ।",
   "E-invoice (IRN) and e-way bills are made on the government portals for now.": "अभी ई-इनवॉइस (IRN) और ई-वे बिल सरकारी पोर्टल पर बनते हैं।",
   "Moving from another software? We help bring your products, chemists and opening balances across.": "दूसरे सॉफ़्टवेयर से आ रहे हैं? हम आपके प्रोडक्ट, केमिस्ट और ओपनिंग बैलेंस लाने में मदद करते हैं।",
 
