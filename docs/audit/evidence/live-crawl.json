@@ -1,0 +1,1876 @@
+{
+ "base": "https://medoro.in",
+ "crawledAt": "2026-11-20",
+ "pages": [
+  {
+   "path": "/",
+   "desktop": {
+    "status": 200,
+    "loadMs": 2758,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medoro — #1 Medical Billing SaaS & Pharmacy Stock Management Software in India",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 2161,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/medical-billing-saas",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1426,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medical Billing SaaS & Cloud Healthcare Billing Software | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1129,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-billing-software",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1298,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing Software & Chemist POS in India | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1445,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-accounting-software",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1164,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Accounting Software with GST and Tally Export | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1347,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/medical-store-software",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1215,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medical Store Software: Billing, Stock, Expiry and GST | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1160,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/gst-billing-software-for-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1178,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "GST Billing Software for Pharmacy and Medical Stores | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1177,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-inventory-software",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1130,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Inventory and Expiry Management Software | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1198,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/medical-store-stock-management-software",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1036,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medical Store Stock, Batch & Inventory Management SaaS | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1833,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/about-medoro",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1234,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "About Medoro (medoro.in): Medical & Pharmacy Billing SaaS | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1106,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/features",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1145,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Software Features: Billing, Expiry, Stock & GST | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1235,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/features/gst-billing",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1232,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy GST Billing Software & Fast Counter POS | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1399,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/features/expiry-management",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1088,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Expiry Management & Batch Tracking Software | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1158,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/features/inventory-management",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1218,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Inventory Software: Stock, Reorder & Racks | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1626,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/features/schedule-h1-compliance",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1249,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Schedule H1 Register Software for Pharmacies | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1702,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/features/ai-invoice-scanner",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1196,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "AI Purchase Bill Import for Pharmacies: CSV, Excel, PDF | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1002,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/compare",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1052,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Software Comparisons: Marg, Vyapar & More | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1031,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/compare/marg-erp-alternative",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1164,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Marg ERP Alternative for Pharmacy: Medoro vs Marg | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1301,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/compare/vyapar-alternative-for-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1241,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Vyapar Alternative for Pharmacy: Medoro vs Vyapar | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 898,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/compare/redbook-alternative",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1164,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "RedBook Alternative for Pharmacy Billing: Medoro | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1069,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/compare/logic-erp-alternative",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1126,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Logic ERP Alternative for Pharmacy: Medoro vs Logic | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1185,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/tools",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1250,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Free Pharmacy Tools: PTR Calculator, HSN Finder, Bill Maker | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1037,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/tools/pharma-margin-calculator",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1179,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medicine PTR, PTS & Retail Margin Calculator (Free) | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1200,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/tools/medicine-hsn-code-finder",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1120,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medicine & Surgical HSN Code and GST Rate Finder | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1514,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/tools/free-pharmacy-invoice-generator",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1276,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Free GST Chemist Bill & Pharmacy Invoice Generator | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1220,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/solutions",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1035,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Software Solutions by Store Type | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1188,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/solutions/retail-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1176,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Software for Retail Pharmacy & Chemist Shops in India | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1057,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/solutions/pharmacy-chains",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1216,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Chain Software: Multi-Branch Billing & Stock | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1100,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/solutions/hospital-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1148,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Hospital Pharmacy Software for Clinics & Nursing Homes | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1137,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/solutions/ayurvedic-stores",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1276,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Ayurvedic Store Billing Software with GST & Stock | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1084,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-india",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1204,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Software in India: Cities & States | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1123,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-mumbai",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1232,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Mumbai | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1150,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-delhi",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1261,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Delhi | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1090,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-bangalore",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1133,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Bangalore | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1170,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-hyderabad",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1190,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Hyderabad | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1090,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-patna",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1186,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Patna | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1073,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-ranchi",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1131,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Ranchi | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1084,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-kolkata",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1285,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Kolkata | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 904,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-chennai",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1098,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Chennai | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1306,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-pune",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1023,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Pune | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1092,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-ahmedabad",
+   "desktop": {
+    "status": 200,
+    "loadMs": 979,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Ahmedabad | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1061,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-lucknow",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1226,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Lucknow | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1088,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-jaipur",
+   "desktop": {
+    "status": 200,
+    "loadMs": 990,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Jaipur | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1053,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-bokaro",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1142,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Bokaro | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1143,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-jamshedpur",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1092,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Jamshedpur | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1269,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-dhanbad",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1182,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Dhanbad | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 950,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-maharashtra",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1122,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Maharashtra | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1168,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-jharkhand",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1211,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Jharkhand | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1188,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-bihar",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1199,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Bihar | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1072,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-uttar-pradesh",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1175,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Uttar Pradesh | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1091,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-gujarat",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1492,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Gujarat | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1070,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pharmacy-software-in-karnataka",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1251,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Best Pharmacy Billing & Medical Store Software in Karnataka | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1095,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1005,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pharmacy Blog: Guides for Indian Chemists & Medical Stores | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1333,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/reduce-expiry-loss-medical-store",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1097,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "How to Reduce Expiry Loss in a Medical Store: 8 Practical Steps | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 989,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/gst-on-medicines-india",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1420,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "GST on Medicines in India (2026): Rates, HSN and Billing at MRP | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1077,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/gst-returns-for-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1190,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "GSTR-1 and GSTR-3B for Pharmacies: A Monthly Checklist | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1004,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/schedule-h-h1-x-rules-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1166,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Schedule H, H1 and X Drugs: What a Medical Store Must Record | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1092,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/fefo-vs-fifo-pharmacy",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1034,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "FEFO vs FIFO: Which Stock Method Should a Pharmacy Use? | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1067,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/choose-pharmacy-billing-software",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1129,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "How to Choose Pharmacy Billing Software: A 12-Point Checklist | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1054,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/how-to-calculate-ptr-pts-from-mrp",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1565,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "How to Calculate PTR and PTS from MRP (with Examples) | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1067,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/how-to-start-a-medical-store-in-india",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1123,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "How to Start a Medical Store in India: Licences Checklist | Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1056,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/partners",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1860,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Reference partner programme · Medoro · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1605,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/careers",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1215,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Careers at Medoro · Jobs in pharmacy software, sales and support · Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1161,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/legal",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1025,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Company, help and legal · Medoro · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 980,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/signin",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1126,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Sign in · Medoro",
+    "h1": 0,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1026,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/signup",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1278,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Create your pharmacy account · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1062,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/start",
+   "desktop": {
+    "status": 200,
+    "loadMs": 957,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Start your free trial · Medoro · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 893,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/staff/login",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1129,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Reference partner sign in · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 980,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/distributor-signup",
+   "desktop": {
+    "status": 200,
+    "loadMs": 961,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Create your distributor account · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 931,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/portal/signin",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1198,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Sign in · MEDORO Chemist Portal",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1265,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/portal/register",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1015,
+    "consoleErrors": 2,
+    "scrollW": 1366,
+    "title": "Register your pharmacy · MEDORO Chemist Portal",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 948,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/trial",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1609,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Create your pharmacy account · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1277,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/pay",
+   "desktop": {
+    "status": 200,
+    "loadMs": 976,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Pay for Medoro · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 910,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/offline",
+   "desktop": {
+    "status": 200,
+    "loadMs": 808,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Offline billing · Medoro",
+    "h1": 0,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 840,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/staff/employee",
+   "desktop": {
+    "status": 200,
+    "loadMs": 935,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Medoro HRMS sign in · Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 978,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/tour/index.html",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1230,
+    "consoleErrors": 394,
+    "scrollW": 1366,
+    "title": "Medoro product tour",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1246,
+    "consoleErrors": 394,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/blog/rss.xml",
+   "desktop": {
+    "status": 200,
+    "loadMs": 803,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "",
+    "h1": 0,
+    "canonical": false
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 537,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/careers/marketing-manager",
+   "desktop": {
+    "status": 200,
+    "loadMs": 1142,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Marketing Manager · WFH · Careers at Medoro · Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 1150,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/legal/terms",
+   "desktop": {
+    "status": 404,
+    "loadMs": 838,
+    "consoleErrors": 1,
+    "scrollW": 1366,
+    "title": "Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 404,
+    "loadMs": 821,
+    "consoleErrors": 1,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/legal/privacy",
+   "desktop": {
+    "status": 404,
+    "loadMs": 826,
+    "consoleErrors": 1,
+    "scrollW": 1366,
+    "title": "Medoro",
+    "h1": 1,
+    "canonical": false
+   },
+   "phone": {
+    "status": 404,
+    "loadMs": 824,
+    "consoleErrors": 1,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  },
+  {
+   "path": "/careers/marketing-manager-bokaro-cd4b3f",
+   "desktop": {
+    "status": 200,
+    "loadMs": 909,
+    "consoleErrors": 0,
+    "scrollW": 1366,
+    "title": "Marketing Manager · WFH · Careers at Medoro · Medoro",
+    "h1": 1,
+    "canonical": true
+   },
+   "phone": {
+    "status": 200,
+    "loadMs": 898,
+    "consoleErrors": 0,
+    "scrollW": 375,
+    "innerW": 375
+   }
+  }
+ ],
+ "links": {
+  "/": {
+   "from": "/",
+   "status": 200
+  },
+  "/partners": {
+   "from": "/",
+   "status": 200
+  },
+  "/careers": {
+   "from": "/",
+   "status": 200
+  },
+  "/staff/employee": {
+   "from": "/",
+   "status": 200
+  },
+  "/signin": {
+   "from": "/",
+   "status": 200
+  },
+  "/trial": {
+   "from": "/",
+   "status": 307,
+   "location": "https://medoro.in/signup"
+  },
+  "https://wa.me/917320001062?text=Hi%20Medoro%2C%20I%27d%20like%20a%20demo%20for%20my%20pharmacy.": {
+   "from": "/",
+   "external": true,
+   "status": "ERR fetch failed"
+  },
+  "/distributor-signup": {
+   "from": "/",
+   "status": 200
+  },
+  "/tour/index.html": {
+   "from": "/",
+   "status": 200
+  },
+  "/medical-billing-saas": {
+   "from": "/",
+   "status": 200
+  },
+  "/medical-store-stock-management-software": {
+   "from": "/",
+   "status": 200
+  },
+  "/features/gst-billing": {
+   "from": "/",
+   "status": 200
+  },
+  "/legal": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-billing-software": {
+   "from": "/",
+   "status": 200
+  },
+  "/features/expiry-management": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-accounting-software": {
+   "from": "/",
+   "status": 200
+  },
+  "/medical-store-software": {
+   "from": "/",
+   "status": 200
+  },
+  "/gst-billing-software-for-pharmacy": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-inventory-software": {
+   "from": "/",
+   "status": 200
+  },
+  "/about-medoro": {
+   "from": "/",
+   "status": 200
+  },
+  "/blog": {
+   "from": "/",
+   "status": 200
+  },
+  "/features/inventory-management": {
+   "from": "/",
+   "status": 200
+  },
+  "/features/schedule-h1-compliance": {
+   "from": "/",
+   "status": 200
+  },
+  "/features/ai-invoice-scanner": {
+   "from": "/",
+   "status": 200
+  },
+  "/features": {
+   "from": "/",
+   "status": 200
+  },
+  "/compare/marg-erp-alternative": {
+   "from": "/",
+   "status": 200
+  },
+  "/compare/vyapar-alternative-for-pharmacy": {
+   "from": "/",
+   "status": 200
+  },
+  "/compare/redbook-alternative": {
+   "from": "/",
+   "status": 200
+  },
+  "/compare/logic-erp-alternative": {
+   "from": "/",
+   "status": 200
+  },
+  "/compare": {
+   "from": "/",
+   "status": 200
+  },
+  "/tools/pharma-margin-calculator": {
+   "from": "/",
+   "status": 200
+  },
+  "/tools/medicine-hsn-code-finder": {
+   "from": "/",
+   "status": 200
+  },
+  "/tools/free-pharmacy-invoice-generator": {
+   "from": "/",
+   "status": 200
+  },
+  "/tools": {
+   "from": "/",
+   "status": 200
+  },
+  "/solutions/retail-pharmacy": {
+   "from": "/",
+   "status": 200
+  },
+  "/solutions/pharmacy-chains": {
+   "from": "/",
+   "status": 200
+  },
+  "/solutions/hospital-pharmacy": {
+   "from": "/",
+   "status": 200
+  },
+  "/solutions/ayurvedic-stores": {
+   "from": "/",
+   "status": 200
+  },
+  "/solutions": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-mumbai": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-delhi": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-bangalore": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-hyderabad": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-kolkata": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-chennai": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-pune": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-patna": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-ranchi": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-lucknow": {
+   "from": "/",
+   "status": 200
+  },
+  "/pharmacy-software-in-india": {
+   "from": "/",
+   "status": 200
+  },
+  "https://udyamregistration.gov.in/Udyam_Verify.aspx": {
+   "from": "/",
+   "external": true,
+   "status": "ERR fetch failed"
+  },
+  "/blog/gst-on-medicines-india": {
+   "from": "/features/gst-billing",
+   "status": 200
+  },
+  "/blog/gst-returns-for-pharmacy": {
+   "from": "/features/gst-billing",
+   "status": 200
+  },
+  "/blog/choose-pharmacy-billing-software": {
+   "from": "/features/gst-billing",
+   "status": 200
+  },
+  "/blog/how-to-start-a-medical-store-in-india": {
+   "from": "/features/gst-billing",
+   "status": 200
+  },
+  "/blog/fefo-vs-fifo-pharmacy": {
+   "from": "/features/expiry-management",
+   "status": 200
+  },
+  "/blog/reduce-expiry-loss-medical-store": {
+   "from": "/features/expiry-management",
+   "status": 200
+  },
+  "/blog/how-to-calculate-ptr-pts-from-mrp": {
+   "from": "/features/inventory-management",
+   "status": 200
+  },
+  "/blog/schedule-h-h1-x-rules-pharmacy": {
+   "from": "/features/schedule-h1-compliance",
+   "status": 200
+  },
+  "/pharmacy-software-in-ahmedabad": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-jaipur": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-bokaro": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-jamshedpur": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-dhanbad": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-maharashtra": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-jharkhand": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-bihar": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-uttar-pradesh": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-gujarat": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/pharmacy-software-in-karnataka": {
+   "from": "/pharmacy-software-in-india",
+   "status": 200
+  },
+  "/blog/rss.xml": {
+   "from": "/blog",
+   "status": 200
+  },
+  "/staff/login": {
+   "from": "/partners",
+   "status": 200
+  },
+  "https://wa.me/917320001062?text=Hi%20Medoro%2C%20I%27m%20interested%20in%20the%20reference%20partner%20programme.": {
+   "from": "/partners",
+   "external": true,
+   "status": "ERR fetch failed"
+  },
+  "/api/careers/linkedin/start": {
+   "from": "/careers",
+   "status": 302,
+   "location": "https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=77x4uororjx6u2&redirect_uri=https%3A%2F%2Fmedoro.in%2Fapi%2Fcareers%2Flinkedin%2Fcallback&state=2dhYKLyMdrmW7GCbTyAp7MCeLfTFOtm4-bU4o2yk-9U&nonce=8gsqnXgfwEi5SDcLJzLEA--JTV1fEYa9&scope=openid+profile+email"
+  },
+  "/api/auth/google/start": {
+   "from": "/careers",
+   "status": 302,
+   "location": "https://accounts.google.com/o/oauth2/v2/auth?client_id=193914695188-svjia0mrfburuh84pdbqf1e9uukuc6el.apps.googleusercontent.com&redirect_uri=https%3A%2F%2Fmedoro.in%2Fapi%2Fauth%2Fgoogle%2Fcallback&response_type=code&scope=openid+email+profile&state=GYTTqcgPVZgxwD_c6mJNdUso6X-qJ5rNzlXl2F-qdGo&nonce=rRoLm18Mcogoa2L4Tf73_GQqrqkPIEQgDzqdQDqII3s&code_challenge=dqIvy6Jjjl8LNA_bqDcJmMuvg4ctMUhhO4oJIdVhS3c&code_challenge_method=S256&prompt=select_account"
+  },
+  "/careers/marketing-manager": {
+   "from": "/careers",
+   "status": 200
+  },
+  "https://wa.me/917320001062": {
+   "from": "/legal",
+   "external": true,
+   "status": "ERR fetch failed"
+  },
+  "/start": {
+   "from": "/legal",
+   "status": 200
+  },
+  "/signup": {
+   "from": "/signup",
+   "status": 200
+  },
+  "/portal/register": {
+   "from": "/portal/signin",
+   "status": 200
+  },
+  "/legal/terms": {
+   "from": "/portal/register",
+   "status": 404
+  },
+  "/legal/privacy": {
+   "from": "/portal/register",
+   "status": 404
+  },
+  "/portal/signin": {
+   "from": "/portal/register",
+   "status": 200
+  },
+  "/app": {
+   "from": "/offline",
+   "status": 307,
+   "location": "/signin"
+  },
+  "/careers/marketing-manager-bokaro-cd4b3f": {
+   "from": "/careers/marketing-manager",
+   "status": 200
+  }
+ }
+}
