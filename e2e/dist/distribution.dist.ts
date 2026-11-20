@@ -26,27 +26,35 @@ test.beforeAll(async () => {
 
 test("distributor signs up and the owner enrols two-step verification", async ({ page }) => {
   await page.goto("/distributor-signup");
+  // The same steps as pharmacy sign-up: business, owner account, godowns, backups.
+  await expect(page.getByRole("heading", { name: "Create your distributor account" })).toBeVisible();
   await page.getByLabel("Business name", { exact: true }).fill(D.name);
-  await page.getByLabel(/Business code/).fill(D.code);
   await page.getByLabel("GSTIN", { exact: true }).fill("27AAKFS3192P1Z6");
-  await page.getByLabel(/Wholesale drug licence/).fill("MH-PZ-20B-55501");
+  await page.getByLabel("Wholesale drug licence", { exact: true }).fill("MH-PZ-20B-55501");
   await page.getByLabel("Address", { exact: true }).fill("Plot 7, Market Yard, Pune");
-  await page.getByLabel(/Godowns/).fill("Main godown, Bhosari");
-  await page.getByLabel("Owner name", { exact: true }).fill("Rajesh Shah");
-  await page.getByLabel("Owner email", { exact: true }).fill(D.email);
-  await page.getByLabel("Owner mobile", { exact: true }).fill(D.phone);
-  await page.getByLabel(/Password/).fill(D.password);
-  await page.getByLabel(/copied this key/).check();
-  await page.getByRole("button", { name: "Create distributor account" }).click();
-  await expect(page.getByText("Distributor created")).toBeVisible({ timeout: 30_000 });
+  await page.getByLabel("Business code", { exact: true }).fill(D.code);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Full name", { exact: true }).fill("Rajesh Shah");
+  await page.getByLabel("Email", { exact: true }).fill(D.email);
+  await page.getByLabel("Mobile number", { exact: true }).fill(D.phone);
+  await page.getByLabel("Password", { exact: true }).fill(D.password);
+  await page.getByLabel("Confirm password", { exact: true }).fill(D.password);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("New godown", { exact: true }).fill("Bhosari");
+  await page.getByRole("button", { name: "Add godown" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download & print" }).click();
+  await download;
+  await page.getByLabel(/stored the recovery kit/).check();
+  await page.getByRole("button", { name: "Create my distributor account" }).click();
+  await expect(page.getByText("Your 7-day free trial has started")).toBeVisible({ timeout: 30_000 });
   const t = await db().tenant.findUniqueOrThrow({ where: { code: D.code }, include: { branches: true } });
   expect(t.product).toBe("distribution");
   expect(t.branches.map((b) => b.name).sort()).toEqual(["Bhosari", "Main godown"]);
 
-  await page.goto("/signin");
-  await page.getByLabel("Email", { exact: true }).fill(D.email);
-  await page.getByLabel("Password", { exact: true }).fill(D.password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  // Signed in by sign-up, like a new pharmacy owner: straight on to two-step verification.
+  await page.getByRole("button", { name: "Set up two-step verification" }).click();
   await expect(page).toHaveURL(/\/signin\/mfa/);
   secret = (await page.locator("code").first().innerText()).replace(/\s+/g, "");
   await page.getByLabel("6-digit code", { exact: true }).fill(totp(secret));

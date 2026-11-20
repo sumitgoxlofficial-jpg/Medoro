@@ -12,7 +12,7 @@ A second product in the same codebase for pharmaceutical distributors, stockists
 `/dist` for the distributor's team (orders with credit control and batch-wise stock reservation, mobile picking and
 dispatch, wholesale GST invoicing, schemes, credit notes, expiry claims, purchases/GRN across godowns, collections,
 books, GST returns, MIS and business intelligence) and `/portal` for chemists (register, connect, order, track,
-invoices, dues). Create a distributor at `/distributor-signup`. Pharmacy tenants are unaffected. See
+invoices, dues). Create a distributor at `/distributor-signup` (same sign-up flow as pharmacies: Google or a confirmed email, then the details). Pharmacy tenants are unaffected. See
 [docs/distribution](docs/distribution/README.md) for the audit, design, module status, real integration status, tests
 and deployment.
 
