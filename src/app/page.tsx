@@ -60,7 +60,7 @@ const LEAKS: [string, string, string][] = [
 const FAMILY = [
   { id: "pharmacy", Icon: ScanBarcode, name: "Medoro Pharmacy", for: "Medical stores, pharmacy chains and hospital pharmacies", from: PRODUCTS.find((p) => p.id === "starter")!.m, cta: "Start 7-day free trial", href: "/trial", pricing: "/#pharmacy-pricing",
     points: ["Fast GST billing with FEFO batches and barcode search", "Expiry, low-stock and reorder alerts", "Purchases, suppliers, credit and accounts", "WhatsApp invoices and customer reminders", "Billing on the shop network when the internet drops"] },
-  { id: "distribution", Icon: Warehouse, name: "Medoro Distribution", for: "Pharma distributors, wholesalers, stockists and C&F agents", from: Math.round(DIST_PLANS.dist_std.priceMonthly / 100), cta: "Book a distribution demo", href: "https://wa.me/917320001062?text=" + encodeURIComponent("Hi Medoro, I'd like a demo of Medoro Distribution for my distribution business."), pricing: "/#distribution-pricing",
+  { id: "distribution", Icon: Warehouse, name: "Medoro Distribution", for: "Pharma distributors, wholesalers, stockists and C&F agents", from: Math.round(DIST_PLANS.dist_std.priceMonthly / 100), cta: "Start 7-day free trial", href: "/distributor-signup", pricing: "/#distribution-pricing",
     points: ["Orders with credit control and batch-wise stock reservation", "Wholesale GST invoices, schemes and free goods", "Mobile picking, dispatch and proof of delivery", "Expiry claims to companies, collections and ageing", "A chemist ordering portal with your own rates"] },
 ] as const;
 
