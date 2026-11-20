@@ -36,6 +36,39 @@ export const HELP: Record<ReplyLang, string> = {
 };
 
 const CLINICAL = /(dose|dosage|how much .*(take|give)|treat|bimari|ilaj|side.?effect|safe (for|in|during)|pregnan|interaction|substitute for|kitni goli|खुराक|डोज़?|इलाज|बीमारी|साइड ?इफेक्ट|दुष्प्रभाव|गर्भ|कितनी गोली)/;
+
+/**
+ * Clinical questions the single pattern above misses: how much / how often to take, who can take it, what to give for
+ * a symptom, and mixing medicines. Each rule needs a clinical signal (a patient, a symptom, a unit or a frequency), so
+ * business questions with the same verbs ("how many days does Mahaveer take to deliver", "how much do we give the
+ * supplier", "Benadryl Cough stock") still get answered.
+ */
+const PATIENT = /\b(child|children|kids?|bab(y|ies)|infants?|toddlers?|adults?|elderly|old (man|woman|people)|\d+ ?(year|yr|month)s?[ -]old|patients?|diabetics?|diabetes|pregnant|breast ?feeding|lactating|bp patients?)\b|bachch?(a|e|i|on)|baby ko|बच्च|शिशु|मरीज|गर्भवती/;
+const SYMPTOM = /\b(fever|headache|head ache|migraine|cold|flu|cough|sore throat|throat pain|infection|body ?ache|pain|acidity|gas|ulcer|diarrh?o?ea|loose motions?|vomit(ing)?|nausea|constipation|bp|blood pressure|sugar|asthma|allerg(y|ies)|rash|itching|uti|toothache|period pain|cramps?|insomnia|sleep|anxiety|depression)\b|bukhar|sir ?dard|sar ?dard|khansi|khaansi|zukam|jukam|sardi|pet ?dard|ulti|dast|bukhaar|बुखार|सिर ?दर्द|सर्दी|खांसी|ज़ुकाम|जुकाम|दर्द|उल्टी|दस्त|एलर्जी|शुगर/;
+const MED_ASK = /\b(medicines?|meds|drugs?|antibiotics?|tablets?|tabs?|pills?|capsules?|syrups?|injections?|ointment|cream|best|recommend|suggest|prescribe|should (i|we|he|she|they) (give|take|use)|what (to|can i|should i) (give|take|use)|instead of)\b|dawa|dawai|dawaai|goli|kya (de|du|dun|doon|lena)|kaun ?si|konsi|दवा|दवाई|गोली|कौन ?सी/;
+const UNIT = /\b(tablets?|tabs?|pills?|capsules?|caps?|doses?|mg|mcg|ml|spoons?|teaspoons?|drops?|puffs?|units?|times|a day|per day|in a day|daily|at once|together)\b|goli|chammach|बार|गोली|चम्मच/;
+const INTAKE = /\b(take|taken|taking|inject(ed)?|consume[d]?|swallow(ed)?|apply|applied|drink)\b|leni|lena|lene|khani|khana|khaye|pilana|deni|dena|dene|लेनी|लेना|लें|खानी|खाना|पिलाना|देनी|देना|दें/;
+const RULES: RegExp[] = [
+  /\bmg\s*(\/|per)\s*kg\b/,
+  /\b(max(imum)?|safe) (daily )?(limit|dose|amount|quantity)\b|\bdaily (limit|maximum|max)\b|\bhow much is (too much|safe)\b|\boverdose\b/,
+  // "is it ok to take ibuprofen with alcohol", "Is Pan-D safe with Dolo", "can I mix X and Y"
+  /\b(ok|okay|fine|safe|alright)\b.*\b(to (take|give|use|mix|combine)|with|together|and alcohol)\b/,
+  /\b(take|give|mix|combine)\b.*\bwith (alcohol|beer|wine|drinks?|milk|food|other medicines?)\b|\b(alcohol|sharab|daru)\b.*\b(take|tablet|medicine|dawa|goli)\b/,
+];
+
+/** True when the question asks for clinical advice in English, Hinglish or Hindi. */
+export function isClinical(l: string): boolean {
+  if (CLINICAL.test(l) || RULES.some((r) => r.test(l))) return true;
+  // How much / how often to take it: a quantity question with an intake verb and a unit or frequency.
+  if (/\bhow (many|much|often)\b|\bhow many times\b|kitn[aei]|kitni (baar|bar)|कितन|कितनी बार/.test(l) && INTAKE.test(l) && UNIT.test(l)) return true;
+  if (/\bhow often\b|\bhow many times\b|kitni (baar|bar)|कितनी बार/.test(l) && INTAKE.test(l)) return true;
+  // Who can take it: a patient with an intake verb ("can I give azithromycin to a 5 year old", "bachche ko kitna syrup dena hai").
+  if (PATIENT.test(l) && (INTAKE.test(l) || /\b(give|use|safe|okay|ok)\b/.test(l))) return true;
+  // What to give for a symptom ("which medicine is best for fever", "bukhar ke liye kaunsi dawai", "sir dard ki dawa").
+  if (SYMPTOM.test(l) && MED_ASK.test(l) && !/\b(stock|sold|sales?|batch(es)?|expir\w*|purchase[sd]?|margin|profit|report|supplier|distributor|order(ed|s)?|invoice|bill(ed|s)?|reorder)\b|स्टॉक|बिक्री|बैच/.test(l)) return true;
+  if (SYMPTOM.test(l) && /\b(best|recommend|suggest|prescribe|should (i|we) give|what (to|should i|can i) (give|use))\b|kaun ?si dawa|konsi dawa|kya de|कौन सी दवा/.test(l)) return true;
+  return false;
+}
 const BLOCKED = /(delete|\bvoid\b|cancel (the )?(bill|invoice|sale)|write.?off|edit (the )?(bill|invoice)|डिलीट|रद्द|मिटा)/;
 
 export const REPORT_IDS = ["sales-register", "stock-valuation", "expiry-exposure", "low-stock", "supplier-dues", "customer-dues", "gst-summary", "day-book", "trial-balance", "stock-movements"] as const;
@@ -75,7 +108,7 @@ export function rulePlan(raw: string, lang: "en" | "hi", month: number, year = n
   const L = replyLang(raw, lang);
   const ask = (en: string, hinglish: string, hi: string): Plan => ({ kind: "reply", text: say(L, en, hinglish, hi) });
 
-  if (CLINICAL.test(l))
+  if (isClinical(l))
     return { kind: "reply", refusal: true, text: say(L, "I can’t give clinical advice. Please check with the pharmacist on duty or the prescriber.", "Main clinical salah nahi de sakta. Kripya pharmacist ya doctor se poochhein.", "मैं चिकित्सा सलाह नहीं दे सकता। कृपया ड्यूटी पर मौजूद फार्मासिस्ट या डॉक्टर से पूछें।") };
   if (BLOCKED.test(l))
     return { kind: "reply", refusal: true, text: say(L, "Voids, deletions and write-offs need the right screen and role. Open Returns & shift or Inventory to do it. I won’t make those changes from chat.", "Void, delete aur write-off chat se nahi hote. Returns & shift ya Inventory screen par karein.", "बिल रद्द करना, मिटाना या राइट-ऑफ़ चैट से नहीं होता। Returns & shift या Inventory स्क्रीन पर करें।") };
