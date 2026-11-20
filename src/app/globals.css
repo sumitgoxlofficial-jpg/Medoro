@@ -270,8 +270,8 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 /* ───── HRMS sign-in page motion (src/app/staff/employee) ───── */
 .hr-motion .hr-dots { background-image: radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.2px); background-size: 22px 22px; opacity: .25; mask-image: radial-gradient(ellipse 80% 70% at 50% 50%, #000 30%, transparent 80%); }
 @keyframes hr-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
-.hr-up { animation: hr-up .8s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--d, 0) * 110ms); }
-.hr-form { animation: hr-up .9s cubic-bezier(.22,1,.36,1) .15s both; }
+.hr-up { animation: hr-up .8s cubic-bezier(.22,1,.36,1) backwards; animation-delay: calc(var(--d, 0) * 110ms); }
+.hr-form { animation: hr-up .9s cubic-bezier(.22,1,.36,1) .15s backwards; }
 @keyframes hr-shine { to { background-position: 200% center; } }
 .hr-shine { background: linear-gradient(90deg, #D6F3EF 0%, #5EEAD4 25%, #D6F3EF 50%, #F5C451 75%, #D6F3EF 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: hr-shine 8s linear infinite; }
 @keyframes hr-spin { to { transform: rotate(360deg); } }
@@ -326,8 +326,10 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 @media (max-width: 1099px) { .site-steps::before { display: none; } }
 
 /* ───── Pharmacy app dashboard: gentle, work-friendly motion (off with reduced motion) ───── */
+/* Entrance animations use fill-mode "backwards", not "both": a kept end transform (even translateY(0)) makes the element the
+   containing block for position:fixed descendants, so a Modal inside a card or page wrapper was trapped inside it. */
 @keyframes app-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.app-motion .app-up { animation: app-up .55s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--d, 0) * 60ms); }
+.app-motion .app-up { animation: app-up .55s cubic-bezier(.22,1,.36,1) backwards; animation-delay: calc(var(--d, 0) * 60ms); }
 @keyframes app-bar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .app-motion .app-bar { transform-origin: bottom; animation: app-bar .7s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(200ms + var(--d, 0) * 35ms); }
 .app-motion .app-tile { transition: background-color .25s; }
@@ -374,7 +376,7 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .app-kpi:hover::before { transform: scaleX(1); }
 /* Counter tabs: cards rise in and lift on hover, new bill lines slide in, the total pulses when it changes, a light
    sweep crosses Complete bill, twinkles in the tab header. All inside .app-motion, so off with reduced motion. */
-.app-motion .app-card { animation: app-up .5s cubic-bezier(.22,1,.36,1) both; }
+.app-motion .app-card { animation: app-up .5s cubic-bezier(.22,1,.36,1) backwards; }
 @keyframes app-line { from { opacity: 0; transform: translateX(-12px); background: #E1F1EF; } to { opacity: 1; transform: none; background: transparent; } }
 .app-motion .app-line { animation: app-line .6s cubic-bezier(.22,1,.36,1) both; }
 @keyframes app-bump { 0% { transform: scale(1); } 40% { transform: scale(1.12); color: #0B5E5B; } 100% { transform: scale(1); } }
@@ -384,9 +386,9 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 .app-motion .app-twinkle { animation: app-twinkle 2.8s ease-in-out infinite; }
 
 /* ───── HRMS app screens (src/app/staff/hrms): scoped to .hr-app, off with reduced motion via .hr-motion ───── */
-.hr-app .hr-title { animation: hr-up .5s cubic-bezier(.22,1,.36,1) both; }
+.hr-app .hr-title { animation: hr-up .5s cubic-bezier(.22,1,.36,1) backwards; }
 .hr-app .hr-tile-ico { animation: hr-bob 4s ease-in-out infinite; }
-.hr-app .hr-main > * { animation: hr-up .55s cubic-bezier(.22,1,.36,1) both; }
+.hr-app .hr-main > * { animation: hr-up .55s cubic-bezier(.22,1,.36,1) backwards; }
 .hr-app .hr-main > :nth-child(2) { animation-delay: 70ms; }
 .hr-app .hr-main > :nth-child(3) { animation-delay: 140ms; }
 .hr-app .hr-main > :nth-child(4) { animation-delay: 210ms; }
@@ -439,16 +441,16 @@ html:has(.site-root) { scroll-behavior: smooth; background: #fff; }
 /* HRMS profile card: the photo's dashed ring turns, fact tiles rise in and their icons lift on hover. */
 @keyframes hr-ring-spin { to { transform: rotate(360deg); } }
 .hr-app .hr-ring-spin { animation: hr-ring-spin 18s linear infinite; }
-.hr-app .hr-fact { animation: hr-up .55s cubic-bezier(.22,1,.36,1) both; transition: box-shadow .3s, border-color .3s; }
+.hr-app .hr-fact { animation: hr-up .55s cubic-bezier(.22,1,.36,1) backwards; transition: box-shadow .3s, border-color .3s; }
 .hr-app .hr-fact:hover { box-shadow: 0 16px 32px -20px rgba(11,94,91,.45); border-color: #8FB8B3; }
 .hr-app .hr-fact-ico { transition: transform .3s cubic-bezier(.22,1,.36,1); }
 .hr-app .hr-fact:hover .hr-fact-ico { transform: scale(1.1) rotate(-6deg); }
 /* HRMS HR / super admin dashboard: KPI chips rise in, the "working now" dot pulses, people tiles pop in and lift. */
-.hr-app .hr-kpi { animation: hr-up .55s cubic-bezier(.22,1,.36,1) both; transition: background-color .3s; }
+.hr-app .hr-kpi { animation: hr-up .55s cubic-bezier(.22,1,.36,1) backwards; transition: background-color .3s; }
 .hr-app .hr-kpi:hover { background: rgba(255,255,255,.2); }
 @keyframes hr-live { 0% { box-shadow: 0 0 0 0 rgba(94,234,212,.7); } 100% { box-shadow: 0 0 0 7px rgba(94,234,212,0); } }
 .hr-app .hr-live { animation: hr-live 1.6s ease-out infinite; }
-.hr-app .hr-person { animation: hr-up .45s cubic-bezier(.22,1,.36,1) both; transition: border-color .25s, box-shadow .25s, background-color .25s; }
+.hr-app .hr-person { animation: hr-up .45s cubic-bezier(.22,1,.36,1) backwards; transition: border-color .25s, box-shadow .25s, background-color .25s; }
 .hr-app .hr-person:hover { border-color: #8FD3C6; background: #F7FBFA; box-shadow: 0 10px 22px -16px rgba(11,94,91,.45); }
 
 /* Free invoice generator print (src/components/tools/invoice-generator.tsx): while printing, the bill is rendered
