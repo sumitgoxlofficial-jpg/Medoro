@@ -16,7 +16,8 @@
     "build:tour": "node scripts/build-tour.mjs",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset --force",
-    "postinstall": "node scripts/copy-sqlite.mjs || true"
+    "postinstall": "node scripts/copy-sqlite.mjs || true",
+    "test:load": "vitest run --config vitest.load.config.mts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
