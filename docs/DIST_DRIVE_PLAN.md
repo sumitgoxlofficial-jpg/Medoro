@@ -22,7 +22,13 @@ records stay on the hosted server) is turned off.
 | D3 | Credit notes (saleable back to stock; expired / damaged wait to be claimed; credit % and proportional GST), principals and expiry / breakage claims on companies (returned goods first, then shelf; claim window and expected credit; expiry workbench), van trips and proof of delivery (cash, UPI or cheque collected at the door; failed drops back to the desk; orders follow: dispatched, delivered), collections (salesmen for their own chemists), receivables with ageing and credit risk, chemist statements, wholesale invoices and credit notes in the device's GSTR-1 / GSTR-3B / HSN (cancelled invoices listed as cancelled). | **Built** (`src/drivedb/dist-trade.ts`) |
 | D4 | Screens: the distribution app on the device (like Billing (device) for pharmacies), and staff devices (warehouse, salesman, delivery) through the existing relay. | |
 | D5 | Chemist ordering portal in Drive mode (option 1): the device publishes the catalogue (products, PTR / PTS, MRP if shown, stock as the distributor chose to show it, schemes open to every chemist, each portal chemist's tier); a chemist's order is sealed for the distributor's devices and deleted once a device takes it in (it then waits for approval like any order, same credit rules); the device reports each portal order's status (order no, invoice no and total); cancelling while unapproved; approving a portal chemist adds them on the device and Medoro keeps only the link. Account statements and invoice copies stay with the distributor. | **Built** (`src/drivedb/dist-portal.ts`, `src/domain/distribution/drive-portal.ts`, migration `20261221000000_dist_portal_drive`, device migration 18) |
-| D6 | Moving existing distributors from Medoro's database to their Drive (the pharmacy move, extended), Drive sign-up for distributors, then `DIST_HOSTED` off. | |
+| D6 | **Move:** a distributor's records come across in the device's form (companies, product terms, chemist profiles, special rates, schemes, principals, invoices and cancellations, credit notes, proof of delivery, collections, settings); chemists' opening balances count wholesale invoices and credit notes; each batch's returned-goods pool starts equal to Medoro's quarantined stock; new checks (row counts of every table, returned goods per batch). Open orders and deliveries out on a van must be finished first. **Sign-up:** with `DIST_DRIVE=1` on the hosted server, a new distributor's records live in its Drive (off until D4). **Then:** turn `DIST_HOSTED` off once every distributor has moved. | **Built**, switch-on waits for D4 |
+
+## Switching it on (owner, in this order)
+1. Ship D4 (the distribution screens on the device).
+2. Set `DIST_DRIVE=1` on the hosted server: new distributors sign up into Drive mode.
+3. Existing distributors move (*Move all my data from Medoro*; open orders and deliveries out first finished).
+4. When none is left on Medoro's copy, remove `DIST_HOSTED`: Medoro's database then holds no distributor records.
 
 ## Decided for D5: the chemist portal (option 1, chosen by the owner on 21 Nov 2026)
 Chemists across many distributors use one portal on medoro.in. To show a chemist a distributor's products, rates and
@@ -58,6 +64,10 @@ copy to sync is kept.
   published catalogue, order (sealed: Medoro can't read it), the device takes it in and invoices it, the chemist sees
   the status and invoice number; Medoro's database holds no medicines, stock, chemists, orders or invoices for the
   distributor.
+- `tests/integration/dist-drive-move.test.ts`: a distributor with invoices (one cancelled), expired and saleable credit
+  notes, a claim from returned goods, a delivered invoice with cash collected and an office collection moves to a device:
+  every check passes, the chemist's balance and the returned-goods pool equal Medoro's, and the device carries on (new
+  bill at the special rate, credit note on a moved invoice, a delivered invoice can't be cancelled). Open orders block the move.
 - `tests/integration/dist-drive.test.ts`: the same bills on Medoro's server and on a device loaded from the server's
   records give identical invoices (every total and every line: batch, packs, free goods, rate, discount, taxable, tax), and an
   order taken through approval, a short pick, packing and invoicing reserves the same batches and invoices the same.

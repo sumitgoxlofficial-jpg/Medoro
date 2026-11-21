@@ -12,7 +12,7 @@ import { mailEnabled } from "@/server/mail";
 import { clearPendingSignup, clearVerifiedEmail, readPendingSignup, readVerifiedEmail } from "@/server/google-oidc";
 import { log } from "@/server/log";
 import { signupDeployment } from "@/domain/identity/deployment";
-import { distHostingAllowed } from "@/domain/distribution/hosting";
+import { distDriveSignup, distSignupAllowed } from "@/domain/distribution/hosting";
 
 type R<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -32,7 +32,7 @@ export type DistSignupInput = {
 export async function createDistributorAction(input: DistSignupInput): Promise<R<{ code: string; google: boolean }>> {
   const open = signupOpen();
   if (!open && !(await setupUnlocked())) return { ok: false, error: "Sign-up is closed on this server." };
-  if (!distHostingAllowed()) return { ok: false, error: "MEDORO Distribution isn’t offered on this hosted server. Run it on your own server or database." };
+  if (!distSignupAllowed()) return { ok: false, error: "MEDORO Distribution isn’t offered on this hosted server. Run it on your own server or database." };
   if (open && input.agree !== true) return { ok: false, error: "Accept the Terms and Privacy Policy to continue." };
   try {
     const { ip } = await clientInfo();
@@ -51,6 +51,12 @@ export async function createDistributorAction(input: DistSignupInput): Promise<R
       branches: (godowns.length ? godowns : ["Main godown"]).map((name) => ({ name, counters: 1 })), invites: [],
       backupKey: input.backupKey, kitAck: input.kitAck,
     } as never, { signup: true, product: "distribution" });
+    if (distDriveSignup()) {
+      // The distributor keeps its records on its devices and in its own Google Drive; Medoro keeps only the account.
+      const t = await db.tenant.findUniqueOrThrow({ where: { code: r.tenantCode } });
+      await db.tenant.update({ where: { id: t.id }, data: { settings: { ...((t.settings as object) ?? {}), driveMode: true, driveOnly: true } as object } });
+      await writeAudit(db, { tenantId: t.id, userName: "Sign-up", action: "Data kept in the distributor’s Google Drive", entity: "tenant", entityId: t.id, detail: "Set at sign-up: invoices, stock and chemists live on the devices and in the owner’s Google Drive" });
+    }
     if (viaGoogle) {
       const linked = await db.user.update({ where: { id: r.ownerId }, data: { googleSub: g.sub, googleEmail: g.email } });
       await writeAudit(db, { tenantId: linked.tenantId, userId: linked.id, userName: linked.name, action: "Google sign-in connected", entity: "user", entityId: linked.id, detail: `${g.email} · signed up with Google` });

@@ -259,6 +259,7 @@ export const TABLES = {
   // and distClaimSource records how much of a claim came from them); principals (a company's stockist terms: who to
   // claim from, claim window, credit %); van trips and each invoice's delivery steps (fixed ids, so a step taken on
   // two devices offline is kept once); collections from chemists (the money is the customerReceipt / cheque row).
+  // A distClaimSource row without a claim is an opening adjustment from a move off Medoro's server.
   distReturn: {
     kind: "append",
     columns: ["id", "branchId", "deviceId", "no", "invoiceId", "customerId", "reason", "taxablePaise", "taxPaise", "totalPaise", "userId", "at"],
@@ -773,7 +774,7 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX distPrincipal_company ON distPrincipal(companyId);
   CREATE TABLE distClaimSource (
-    id TEXT PRIMARY KEY, claimId TEXT NOT NULL UNIQUE REFERENCES supplierClaim(id), batchId TEXT NOT NULL, fromReturnsUnits INTEGER NOT NULL CHECK (fromReturnsUnits >= 0), at TEXT NOT NULL
+    id TEXT PRIMARY KEY, claimId TEXT UNIQUE REFERENCES supplierClaim(id), batchId TEXT NOT NULL, fromReturnsUnits INTEGER NOT NULL CHECK (fromReturnsUnits >= 0), at TEXT NOT NULL
   );
   CREATE INDEX distClaimSource_batch ON distClaimSource(batchId);
   CREATE TABLE distDispatch (

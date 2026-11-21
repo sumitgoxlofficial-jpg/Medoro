@@ -224,11 +224,17 @@ describe("distribution plans and permissions", () => {
   });
 });
 
-import { distHostingAllowed } from "../hosting";
+import { distDriveSignup, distHostingAllowed, distSignupAllowed } from "../hosting";
 describe("hosting policy", () => {
   it("keeps MEDORO's hosted Drive-only policy unless the operator opts in", () => {
     expect(distHostingAllowed({})).toBe(true); // own server
     expect(distHostingAllowed({ PUBLIC_SIGNUP: "1" })).toBe(false);
     expect(distHostingAllowed({ PUBLIC_SIGNUP: "1", DIST_HOSTED: "1" })).toBe(true);
+    // Drive mode: sign-up opens on the hosted server only when the operator turns it on; records go to the Drive.
+    expect(distDriveSignup({ PUBLIC_SIGNUP: "1" })).toBe(false);
+    expect(distDriveSignup({ PUBLIC_SIGNUP: "1", DIST_DRIVE: "1" })).toBe(true);
+    expect(distDriveSignup({ DIST_DRIVE: "1" })).toBe(false); // own server: its own database
+    expect(distSignupAllowed({ PUBLIC_SIGNUP: "1", DIST_DRIVE: "1" })).toBe(true);
+    expect(distHostingAllowed({ PUBLIC_SIGNUP: "1", DIST_DRIVE: "1" })).toBe(false); // records still not kept on the server
   });
 });

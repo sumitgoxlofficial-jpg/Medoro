@@ -12,5 +12,14 @@ import { driveRequired } from "@/domain/system/drive-state";
  */
 export const distHostingAllowed = (env: Record<string, string | undefined> = process.env) => env.PUBLIC_SIGNUP !== "1" || env.DIST_HOSTED === "1";
 
+/**
+ * MEDORO Distribution in Drive mode (docs/DIST_DRIVE_PLAN.md): on the hosted server, a new distributor keeps its
+ * records on its devices and in its own Google Drive, as a pharmacy does. Off until the operator sets DIST_DRIVE=1,
+ * which waits for the distribution screens on the device (phase D4).
+ */
+export const distDriveSignup = (env: Record<string, string | undefined> = process.env) => env.PUBLIC_SIGNUP === "1" && env.DIST_DRIVE === "1";
+/** Distributor sign-up is open: on its own server, where the operator allows records here, or in Drive mode. */
+export const distSignupAllowed = (env: Record<string, string | undefined> = process.env) => distHostingAllowed(env) || distDriveSignup(env);
+
 /** A distribution context is exempt from the pharmacy "move to Google Drive" lock only where hosting is allowed. */
 export const distMustMove = (env: Record<string, string | undefined> = process.env) => driveRequired() && !distHostingAllowed(env);

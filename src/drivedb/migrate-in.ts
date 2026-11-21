@@ -10,6 +10,7 @@ import { customerBalance } from "./trade";
 import { supplierDues } from "./books";
 import { validSeries } from "@/lib/docno";
 import { INTEL_DEFAULTS, saveIntelSettings } from "./insights";
+import { returnedPool } from "./dist-trade";
 import type { MoneyRow, MoveBase, MovePart } from "@/domain/system/drive-move";
 
 type Row = Record<string, string | number | boolean | null>;
@@ -38,8 +39,16 @@ export function beginMove(db: DriveDB, base: MoveBase) {
       const rows = (base.extras?.tables[t] ?? []) as Row[];
       if (rows.length) db.from(t).insert(rows);
     }
+    // A distributor: its wholesale records (src/drivedb/dist*.ts).
+    for (const t of DIST_ORDER) {
+      const rows = (base.dist?.tables[t] ?? []) as Row[];
+      if (rows.length) db.from(t).insert(rows);
+    }
   });
 }
+/** A distributor's tables, each after the ones it points to. */
+const DIST_ORDER = ["distCompany", "distProduct", "distChemist", "distSpecialRate", "distScheme", "distPrincipal", "distInvoice", "distInvoiceLine", "distInvoiceCancel",
+  "distReturn", "distReturnLine", "distDeliveryEvent", "distCollection", "distClaimSource"] as const satisfies readonly (TableName & keyof NonNullable<MoveBase["dist"]>["tables"])[];
 /** The moved tables beyond the core ones, each after the ones it points to. */
 const EXTRA_ORDER = ["doctor", "recall", "supplierTerms", "supplierItemMap", "purchaseSetting", "supplierClaim", "claimEvent", "cheque", "chequeEvent"] as const satisfies readonly (TableName & keyof MoveBase["extras"]["tables"])[];
 
@@ -129,6 +138,7 @@ export function finishMove(db: DriveDB, base: MoveBase, userId: string, pilot?: 
     db.setMeta("userName", s.userName ?? "Owner");
     db.setMeta("movedFromMedoro", base.exportedAt);
     applyIntel(db, base.extras?.intel);
+    if (base.dist) db.setMeta("dist", JSON.stringify(base.dist.settings ?? {}));
     db.setMeta(IN_PROGRESS, "0");
     db.setMeta("moveChecked", "0");
   });
@@ -178,6 +188,11 @@ export function verifyMove(db: DriveDB, summary: MoveBase["summary"]): MoveResul
   compare("Customer dues", summary.customerDues, new Map(custIds.map((id) => [id, customerBalance(db, id)])));
   compare("Supplier dues", summary.supplierDues, new Map(supplierDues(db).map((s) => [s.id, s.duePaise])));
   compare("Loyalty points", summary.points, grouped("SELECT customerId AS id, SUM(points) AS v FROM loyaltyLedger GROUP BY customerId"));
+  // A distributor: goods chemists returned that wait to be claimed, per batch (Medoro's quarantined stock).
+  if (summary.returnedPool) {
+    const ids = new Set([...Object.keys(summary.returnedPool), ...db.engine.all<{ id: string }>("SELECT DISTINCT batchId AS id FROM distReturnLine").map((r) => r.id)]);
+    compare("Returned goods to claim", summary.returnedPool, new Map([...ids].map((id) => [id, returnedPool(db, id)])));
+  }
   return { ok: checks.every((c) => c.ok), checks };
 }
 
