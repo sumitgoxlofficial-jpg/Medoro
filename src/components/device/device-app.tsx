@@ -27,7 +27,10 @@ import { ReceiptModal } from "./receipt";
 import type { SaleDetail } from "@/drivedb/reports";
 import { card, input, errText, type Cfg, type Who } from "./ui";
 
-import { HIDDEN_TABS, TABS, type Tab } from "./tabs";
+import { DIST_TAB_KEYS, DIST_TABS, HIDDEN_TABS, TABS, type Tab } from "./tabs";
+import { Wholesale, DistOrders } from "./dist/sales";
+import { DistInvoices, Dispatch, Receivables } from "./dist/money";
+import { Chemists, DistSettingsCard, ExpiryClaims, Products } from "./dist/masters";
 import { TabHero } from "./tab-hero";
 import { useOnChange } from "@/lib/react-state";
 export type { Tab };
@@ -59,7 +62,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
   const [state, setState] = useState<"opening" | "empty" | "locked" | "ready" | "error">("opening");
   const [err, setErr] = useState("");
   const [cfg, setCfg] = useState<Cfg | null>(null);
-  const [tab, setTabState] = useState<Tab>(initialTab);
+  const [tabState, setTabState] = useState<Tab>(initialTab);
   // The sidebar opens a tab with ?tab=…; switching tabs here updates the address so the sidebar follows.
   useOnChange([initialTab], () => { setTabState(initialTab); });
   const setTab = useCallback((k: Tab) => {
@@ -80,7 +83,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
   useEffect(() => {
     if (state !== "ready" || !cfg) return;
     dev.call("negativeStock", cfg.branchId).then((r) => setNegative(r.length), () => setNegative(0));
-  }, [dev, state, cfg, tick, tab]);
+  }, [dev, state, cfg, tick, tabState]);
   const [receipt, setReceipt] = useState<SaleDetail | null>(null);
   const [receiptWa, setReceiptWa] = useState(false);
 
@@ -134,12 +137,18 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
   }
 
   const bump = () => setTick((t) => t + 1);
+  // A distributor's device shows the wholesale screens (and the shared ones that fit a distributor).
+  const distMode = cfg.product === "distribution";
+  const shownTabs: readonly (readonly [Tab, string])[] = distMode ? DIST_TABS : TABS;
+  const mapped: Tab = distMode && !DIST_TAB_KEYS.has(tabState) ? "wholesale" : !distMode && DIST_TAB_KEYS.has(tabState) && !TABS.some(([k]) => k === tabState) ? "bill" : tabState;
+  // A distribution role sees only its own screens, even when one is opened by address.
+  const tab: Tab = distMode && online?.tabs && !online.tabs.includes(mapped) ? ((online.tabs[0] as Tab | undefined) ?? "settings") : mapped;
   return (
     <div className="app-motion flex flex-col gap-4">
       {/* Signed in, the sidebar opens each screen, so no screen shows the counter's tab row (the Dashboard lists the few tools the
           sidebar doesn't have). Unlocked by PIN without signing in there is no sidebar, so the row stays for that. */}
       {!online && <div className="flex gap-1 flex-wrap border-b border-line" role="tablist">
-        {TABS.filter(([k]) => !HIDDEN_TABS.includes(k)).filter(([k]) => k !== "settings" && k !== "activity" && k !== "insights").map(([k, name]) => (
+        {shownTabs.filter(([k]) => !HIDDEN_TABS.includes(k)).filter(([k]) => k !== "settings" && k !== "activity" && k !== "insights").map(([k, name]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-3 h-9 text-sm -mb-px border-b-2 cursor-pointer ${tab === k ? "border-teal text-teal font-medium" : "border-transparent text-muted hover:text-ink"}`}>{t(name)}{k === "stock" && negative > 0 && <span className="ml-1.5 inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-bad text-white text-[11px] font-semibold" title={t(negative === 1 ? "{n} batch below zero" : "{n} batches below zero", { n: negative })}>{negative}</span>}</button>
         ))}
         {!online && <button onClick={() => { sessionStorage.removeItem("medoro-device-unlocked"); setState("locked"); }} className="ml-auto px-3 h-9 text-sm text-muted cursor-pointer">{t("Lock")}</button>}
@@ -163,7 +172,15 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
       {tab === "reports" && <ReportsGst cfg={cfg} />}
       {tab === "insights" && online?.owner && <Insights cfg={cfg} who={who} refresh={tick} />}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
-      {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{settingsExtra}</div>}
+      {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{distMode && <DistSettingsCard />}{settingsExtra}</div>}
+      {tab === "wholesale" && <Wholesale cfg={cfg} who={who} />}
+      {tab === "dorders" && <DistOrders cfg={cfg} who={who} />}
+      {tab === "dinvoices" && <DistInvoices who={who} />}
+      {tab === "dispatch" && <Dispatch cfg={cfg} who={who} />}
+      {tab === "receivables" && <Receivables who={who} />}
+      {tab === "chemists" && <Chemists who={who} />}
+      {tab === "products" && <Products cfg={cfg} />}
+      {tab === "expiry" && <ExpiryClaims cfg={cfg} who={who} />}
       </div>
       <ReceiptModal d={receipt} pharmacy={cfg.pharmacy} onClose={() => { setReceipt(null); setReceiptWa(false); }} who={who} sendWhatsApp={receiptWa} />
     </div>

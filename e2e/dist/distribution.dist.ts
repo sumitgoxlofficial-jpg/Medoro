@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { db, totp, uid } from "../helpers";
+import { db, monthsAhead, totp, uid } from "../helpers";
 
 /**
  * MEDORO Distribution, end to end through the UI: distributor sign-up → owner sign-in with TOTP → masters → GRN →
@@ -223,4 +223,100 @@ test("chemist registers on the portal, distributor approves, chemist orders", as
   await o.goto("/dist/orders?status=pending");
   await expect(o.getByRole("cell", { name: CHEM.name })).toBeVisible();
   await chem.close(); await own.close();
+});
+
+// Phase D4 (docs/DIST_DRIVE_PLAN.md): the same distributor on its own device database, as one whose records live in its Drive.
+test.describe("on its own device (Drive mode)", () => {
+  test.use({ storageState: "e2e/.auth/dist-owner.json" });
+
+  test("masters, a wholesale bill with a scheme, and a collection, all on the device", async ({ page }) => {
+    const t = await db().tenant.findUniqueOrThrow({ where: { code: D.code }, select: { id: true, settings: true } });
+    await db().tenant.update({ where: { id: t.id }, data: { settings: { ...(t.settings as object), driveMode: true } } });
+    const tab = (k: string) => page.goto(`/dist/device?tab=${k}`);
+    const toast = (s: string | RegExp) => expect(page.getByText(s).first()).toBeVisible({ timeout: 20_000 });
+    await tab("wholesale");
+    await page.getByRole("button", { name: "Load catalogue onto this device" }).click();
+    await expect(page.getByText(/Loaded \d+ medicines/)).toBeVisible({ timeout: 30_000 });
+
+    // A new product with wholesale terms, made on the device.
+    const prod = `Pantocid 40 ${U}`;
+    await tab("products");
+    await page.getByPlaceholder("Company name").fill(`Sun Pharma ${U}`);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await toast("Company added.");
+    await page.getByPlaceholder("Name", { exact: true }).fill(prod);
+    await page.getByPlaceholder("MRP (₹)").fill("150");
+    await page.getByPlaceholder("Units per pack").fill("15");
+    await page.getByRole("button", { name: "Add product" }).click();
+    await toast("Product added. Set its wholesale terms.");
+    await page.getByPlaceholder("Search products").fill(prod);
+    await page.getByRole("button", { name: new RegExp(prod) }).click();
+    await page.getByLabel("PTR (₹)").fill("100");
+    await page.getByLabel("Company", { exact: true }).selectOption({ label: `Sun Pharma ${U}` });
+    await page.getByRole("button", { name: "Save terms" }).click();
+    await toast("Terms saved.");
+    // 10+1 on it.
+    await page.getByPlaceholder("Code").fill(`P${U.slice(0, 5)}`);
+    await page.getByLabel("For", { exact: true }).selectOption({ label: prod });
+    await page.getByPlaceholder("Buy").fill("10");
+    await page.getByPlaceholder("Free").fill("1");
+    await page.getByRole("button", { name: "Save scheme" }).click();
+    await toast("Scheme saved.");
+
+    // Stock in through the shared Purchases screen.
+    await tab("purchases");
+    await page.getByText("Type the bill", { exact: true }).click();
+    await page.getByLabel("New supplier").fill(`Sun Depot ${U}`);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await page.getByLabel("Bill number").fill(`SB-${U}`);
+    await page.getByLabel("Add item").fill(prod);
+    await page.getByRole("button", { name: new RegExp(prod) }).click();
+    await page.getByLabel("Batch", { exact: true }).fill(`PB${U.slice(0, 5)}`);
+    await page.getByLabel("Expiry", { exact: true }).fill(monthsAhead(24).iso);
+    await page.getByLabel("Packs", { exact: true }).fill("50");
+    await page.getByLabel("Rate", { exact: true }).fill("80");
+    await page.getByRole("button", { name: "Save bill and add stock" }).click();
+    await toast(/entered: 1 item\(s\)/);
+
+    // A chemist with a wholesale profile.
+    const firm = `Om Medicals ${U}`;
+    await tab("chemists");
+    await page.getByLabel("Firm name").fill(firm);
+    await page.getByLabel("Mobile").fill("98" + String(Date.now()).slice(-8));
+    await page.getByLabel("Credit limit (₹)").fill("50000");
+    await page.getByLabel("State code").fill("27");
+    await page.getByLabel("Drug licence 20B").fill("MH-PZ-20B-77001");
+    await page.getByLabel("Licence valid till").fill("2030-03-31");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await toast("Chemist saved.");
+
+    // Wholesale bill: 20 packs at ₹100 + 12% GST = ₹2,240, with 2 free by the scheme.
+    await tab("wholesale");
+    await page.getByLabel("Chemist", { exact: true }).fill(firm);
+    await page.getByRole("button", { name: new RegExp(firm) }).click();
+    await page.getByLabel("Product", { exact: true }).fill(prod);
+    await page.getByRole("button", { name: new RegExp(prod) }).click();
+    await page.getByLabel(`Packs of ${prod}`).fill("20");
+    await expect(page.getByText(/\+ 2 free/)).toBeVisible();
+    await expect(page.getByText("₹2,240.00").first()).toBeVisible();
+    await page.getByRole("button", { name: "Save invoice" }).click();
+    await toast(/Invoice .* saved: ₹2,240\.00\./);
+    await expect(page.getByRole("dialog")).toContainText(prod);
+    await page.keyboard.press("Escape");
+
+    // Collect part of it; the chemist then owes ₹1,240.
+    await tab("receivables");
+    await page.getByLabel("Chemist", { exact: true }).fill(firm);
+    await page.getByRole("button", { name: new RegExp(firm) }).click();
+    await page.getByPlaceholder("Amount (₹)").fill("1000");
+    await page.getByRole("button", { name: "Record payment" }).click();
+    await toast(/now owes ₹1,240\.00/);
+
+    // The distribution menu opens these device screens when the records live in Drive.
+    await db().tenant.update({ where: { id: t.id }, data: { settings: { ...(t.settings as object), driveMode: true, driveOnly: true } } });
+    await page.goto("/dist");
+    await expect(page).toHaveURL(/\/dist\/device\?tab=wholesale/);
+    await expect(page.getByRole("link", { name: "Receivables" }).first()).toHaveAttribute("href", "/dist/device?tab=receivables");
+    await db().tenant.update({ where: { id: t.id }, data: { settings: t.settings ?? {} } });
+  });
 });

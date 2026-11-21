@@ -9,6 +9,8 @@ import { validSeries } from "@/lib/docno";
 export type Pharmacy = { name: string; tradeName: string; gstin: string; dl: string; address: string; phone: string };
 export type Seed = {
   branch: { id: string; code: string; name: string };
+  /** MEDORO Pharmacy (default) or MEDORO Distribution: which screens this device shows. */
+  product?: "pharmacy" | "distribution";
   pharmacy?: Pharmacy;
   userName?: string;
   loyalty?: { enabled: boolean; earnPer100: number; pointValuePaise: number; minRedeem: number };
@@ -21,7 +23,7 @@ export type Seed = {
   customers: { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number }[];
 };
 
-export type CounterConfig = { branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty; branches: { id: string; name: string; code: string }[]; movedFromMedoro: string | null };
+export type CounterConfig = { product: "pharmacy" | "distribution"; branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty; branches: { id: string; name: string; code: string }[]; movedFromMedoro: string | null };
 
 /** A counter series for this device: "D" + 4 letters/digits from its id, e.g. DK3F9 (fits the GST 16-character limit). */
 export const seriesFor = (device: string) => ("D" + device.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(-4)).padEnd(5, "0");
@@ -39,6 +41,7 @@ export function importSeed(db: DriveDB, seed: Seed, userId: string): CounterConf
     }
     if (seed.customers.length) db.from("customer").insert(seed.customers);
     db.setMeta("branchId", seed.branch.id);
+    db.setMeta("product", seed.product === "distribution" ? "distribution" : "pharmacy");
     db.setMeta("branchName", seed.branch.name);
     db.setMeta("series", series);
     db.setMeta("maxDiscountPct", String(seed.maxDiscountPct));
@@ -58,6 +61,7 @@ export function counterConfig(db: DriveDB): CounterConfig | null {
   if (!branchId || !series) return null;
   const ph = db.getMeta("pharmacy");
   return {
+    product: db.getMeta("product") === "distribution" ? "distribution" : "pharmacy",
     branchId, series, branchName: db.getMeta("branchName") ?? "", maxDiscountPct: Number(db.getMeta("maxDiscountPct") ?? 100),
     pharmacy: ph ? (JSON.parse(ph) as Pharmacy) : null, userId: db.getMeta("userId"), userName: db.getMeta("userName") ?? "", pinSet: !!db.getMeta("pinHash"), loyalty: loyaltyOf(db),
     branches: JSON.parse(db.getMeta("branches") ?? "[]"), movedFromMedoro: db.getMeta("movedFromMedoro"),

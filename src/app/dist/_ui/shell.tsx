@@ -19,6 +19,7 @@ import type { Lang } from "@/lib/i18n";
 import { setBranch, setLang } from "@/app/app/actions";
 import { signOut } from "@/app/(auth)/actions";
 import { useOnChange } from "@/lib/react-state";
+import { DIST_TAB_PERMS } from "@/components/device/tabs";
 
 type Icon = React.ComponentType<{ size?: number; strokeWidth?: number; className?: string; style?: React.CSSProperties }>;
 type Item = { href: string; label: string; abbr: string; icon: Icon; perms: string[]; group: string; badge?: string };
@@ -54,11 +55,38 @@ const NAV: Item[] = [
   { href: "/dist/settings", label: "Settings", abbr: "Settings", icon: Settings, perms: ["users", "integrations"], group: "System" },
 ];
 
+/**
+ * A distributor whose records live in its own Google Drive works on its devices (docs/DIST_DRIVE_PLAN.md): the menu
+ * opens the device screens instead of the server pages, which hold none of its records.
+ */
+const dev = (tab: string) => `/dist/device?tab=${tab}`;
+const DRIVE_NAV: Item[] = [
+  { href: dev("wholesale"), label: "Wholesale bill", abbr: "Bill", icon: Receipt, perms: [...DIST_TAB_PERMS.wholesale], group: "Sales" },
+  { href: dev("dorders"), label: "Orders", abbr: "Orders", icon: ClipboardList, perms: [...DIST_TAB_PERMS.dorders], group: "Sales" },
+  { href: dev("dinvoices"), label: "Invoices & credit notes", abbr: "Invoices", icon: FileText, perms: [...DIST_TAB_PERMS.dinvoices], group: "Sales" },
+  { href: dev("dispatch"), label: "Dispatch", abbr: "Dispatch", icon: Truck, perms: [...DIST_TAB_PERMS.dispatch], group: "Warehouse" },
+  { href: dev("stock"), label: "Stock", abbr: "Stock", icon: Boxes, perms: [...DIST_TAB_PERMS.stock], group: "Warehouse" },
+  { href: dev("expiry"), label: "Expiry & claims", abbr: "Expiry", icon: CalendarClock, perms: [...DIST_TAB_PERMS.expiry], group: "Warehouse" },
+  { href: dev("purchases"), label: "Purchases", abbr: "Buy", icon: ShoppingCart, perms: [...DIST_TAB_PERMS.purchases], group: "Purchase" },
+  { href: dev("supplier"), label: "Supplier tools", abbr: "Suppliers", icon: Building2, perms: [...DIST_TAB_PERMS.supplier], group: "Purchase" },
+  { href: dev("receivables"), label: "Receivables", abbr: "Collect", icon: BadgeIndianRupee, perms: [...DIST_TAB_PERMS.receivables], group: "Finance" },
+  { href: dev("cheques"), label: "Cheques", abbr: "Cheques", icon: CreditCard, perms: [...DIST_TAB_PERMS.cheques], group: "Finance" },
+  { href: dev("money"), label: "UPI & Bank", abbr: "Bank", icon: Landmark, perms: [...DIST_TAB_PERMS.money], group: "Finance" },
+  { href: dev("reports"), label: "Reports & GST", abbr: "GST", icon: Percent, perms: [...DIST_TAB_PERMS.reports], group: "Finance" },
+  { href: dev("chemists"), label: "Chemists", abbr: "Chemists", icon: Store, perms: [...DIST_TAB_PERMS.chemists], group: "Masters" },
+  { href: dev("products"), label: "Products & schemes", abbr: "Products", icon: Package, perms: [...DIST_TAB_PERMS.products], group: "Masters" },
+  { href: "/dist/users", label: "Users & roles", abbr: "Users", icon: Users, perms: ["users"], group: "System" },
+  { href: "/dist/plan", label: "Subscription", abbr: "Plan", icon: ShieldCheck, perms: ["users"], group: "System" },
+  { href: dev("settings"), label: "This device", abbr: "Device", icon: Settings, perms: [...DIST_TAB_PERMS.settings], group: "System" },
+];
+
 const BADGE = { amber: ["#FDF2E1", "#94570A"], red: ["#FDECEC", "#C0362C"] } as const;
 
 export type DistShellProps = {
   children: React.ReactNode; tenant: string; user: string; email: string; role: string; perms: string[]; branches: { id: string; name: string }[]; branchId: string; lang: Lang;
   badges: Record<string, number>; alerts: string[]; banner: { text: string; tone: "amber" | "red" } | null;
+  /** The distributor's records live in its own Google Drive: the menu opens the device screens. */
+  drive?: boolean;
 };
 
 export function DistShell(p: DistShellProps) {
@@ -103,7 +131,7 @@ function Inner(p: DistShellProps) {
     return () => window.removeEventListener("keydown", k);
   });
 
-  const allowed = NAV.filter((n) => !n.perms.length || n.perms.some((x) => p.perms.includes(x)));
+  const allowed = (p.drive ? DRIVE_NAV : NAV).filter((n) => !n.perms.length || n.perms.some((x) => p.perms.includes(x)));
   const finding = find.trim().toLowerCase();
   const shown = finding ? allowed.filter((n) => `${t(n.label)} ${n.label}`.toLowerCase().includes(finding)) : allowed;
   const isActive = (href: string) => (href === "/dist" ? path === "/dist" : path === href || path.startsWith(href + "/"));

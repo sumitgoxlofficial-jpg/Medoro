@@ -21,9 +21,11 @@ import { hi as site } from "./site";
 import { hi as estimates } from "./estimates";
 import { hi as distribution } from "./distribution";
 import { hi as landing } from "./landing";
+import { hi as dist_device } from "./dist_device";
 export const HI: Record<string, string> = {
   // First, so the pharmacy screens' own wording always wins for a line both products use.
   ...distribution,
+  ...dist_device,
   ...server,
   ...common,
   ...shell,

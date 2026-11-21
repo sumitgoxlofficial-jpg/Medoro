@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { accessFor } from "@/domain/system/access";
 import { subscriptionBanner } from "@/domain/system/subscription";
 import { DistShell } from "./_ui/shell";
+import { dataInDrive } from "@/domain/system/drive-state";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: { default: "MEDORO Distribution", template: "%s · MEDORO Distribution" }, robots: { index: false } };
@@ -20,6 +21,7 @@ export default async function DistLayout({ children }: { children: React.ReactNo
     accessFor(ctx.tenantId),
   ]);
   const b = subscriptionBanner(access);
+  const drive = dataInDrive((await db.tenant.findUnique({ where: { id: ctx.tenantId }, select: { settings: true } }))?.settings);
   const banner = ctx.readOnly ? { text: "Medoro support has read-only access.", tone: "amber" as const } : b ? { text: b.text, tone: (b.tone === "red" ? "red" : "amber") as "red" | "amber" } : null;
   const alerts = [
     ...(orders ? [`${orders} order(s) awaiting approval.`] : []),
@@ -28,7 +30,7 @@ export default async function DistLayout({ children }: { children: React.ReactNo
   ];
   return (
     <DistShell tenant={ctx.tenantName} user={ctx.userName} email={ctx.userEmail} role={ctx.role} perms={ctx.perms} branches={ctx.branches} branchId={ctx.branchId} lang={ctx.lang}
-      badges={{ orders, picks, dispatch, expiry, portal }} alerts={alerts} banner={banner}>
+      badges={{ orders, picks, dispatch, expiry, portal }} alerts={drive ? [] : alerts} banner={banner} drive={drive}>
       {children}
     </DistShell>
   );
