@@ -58,7 +58,7 @@ if (preview) { rmSync(frames, { recursive: true, force: true }); console.log("wr
 
 const input = ["-y", "-framerate", String(FPS), "-i", join(frames, "f%04d.png")];
 execFileSync("ffmpeg", [...input, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "slow", "-crf", "26", "-movflags", "+faststart", "-an", join(out, "hero-loop.mp4")], { stdio: "inherit" });
-execFileSync("ffmpeg", [...input, "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "38", "-row-mt", "1", "-an", join(out, "hero-loop.webm")], { stdio: "inherit" });
+execFileSync("ffmpeg", [...input, "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "44", "-row-mt", "1", "-an", join(out, "hero-loop.webm")], { stdio: "inherit" });
 execFileSync("ffmpeg", ["-y", "-i", join(frames, "f0000.png"), "-vf", "scale=1280:-1", "-quality", "75", join(out, "hero-poster.webp")], { stdio: "inherit" });
 rmSync(frames, { recursive: true, force: true });
 console.log("wrote public/site/hero-loop.mp4, hero-loop.webm, hero-poster.webp");

@@ -18,8 +18,8 @@ export function HeroVideo() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <video ref={ref} className="absolute inset-0 w-full h-full object-cover" poster="/site/hero-poster.webp" muted loop playsInline preload="auto" disablePictureInPicture tabIndex={-1}>
-        <source src="/site/hero-loop.webm" type="video/webm" />
         <source src="/site/hero-loop.mp4" type="video/mp4" />
+        <source src="/site/hero-loop.webm" type="video/webm" />
       </video>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_52%_48%_at_50%_45%,rgba(255,255,255,.88),rgba(255,255,255,.6)_55%,rgba(255,255,255,.12)_85%)] max-[640px]:bg-white/70" />
     </div>
