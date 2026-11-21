@@ -138,7 +138,7 @@ export function finishMove(db: DriveDB, base: MoveBase, userId: string, pilot?: 
     db.setMeta("userName", s.userName ?? "Owner");
     db.setMeta("movedFromMedoro", base.exportedAt);
     applyIntel(db, base.extras?.intel);
-    if (base.dist) db.setMeta("dist", JSON.stringify(base.dist.settings ?? {}));
+    if (base.dist) { db.setMeta("dist", JSON.stringify(base.dist.settings ?? {})); db.setMeta("product", "distribution"); }
     db.setMeta(IN_PROGRESS, "0");
     db.setMeta("moveChecked", "0");
   });

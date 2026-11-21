@@ -117,3 +117,10 @@ export async function inviteAction(fd: FormData) { return distRun((c) => U.invit
 export async function memberAction(userId: string, patch: { role?: string; active?: boolean }) { return distRun((c) => U.updateDistMember(c, userId, patch), "User updated."); }
 export async function rolePermAction(roleId: string, perm: string) { return distRun((c) => U.toggleDistPermission(c, roleId, perm), "Role updated."); }
 export async function distSettingsAction(fd: FormData) { return distRun((c) => U.saveDistSettings(c, formObject(fd) as never), "Settings saved."); }
+
+/** Drive mode: the chemists who asked to connect on the portal (the distributor approves them on its device). */
+export async function portalRequestsAction() {
+  return distRun(async (c) => (await P.listConnections(c)).filter((x) => x.status === "requested").map((x) => ({
+    id: x.id, accountId: x.accountId, firmName: x.firmName, ownerName: x.ownerName, phone: x.phone, gstin: x.gstin, dl20b: x.dl20b, dl21b: x.dl21b, dlExpiry: x.dlExpiry, address: x.address, pincode: x.pincode, stateCode: x.stateCode,
+  })));
+}

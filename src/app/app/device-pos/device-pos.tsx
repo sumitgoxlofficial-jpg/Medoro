@@ -17,7 +17,7 @@ import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrn
 import { useOnChange } from "@/lib/react-state";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
-export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
+export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab, tabs }: { tabs?: readonly string[]; userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
   const conn = useDriveConnect(drive);
   const t = useT();
   const [paying, setPaying] = useState(false);
@@ -31,7 +31,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     void aiGatewayStatusAction().then((r) => setAi(r.ok && r.data.enabled && r.data.model ? { remote: r.data.model === "remote", remoteNames: r.data.remoteNames } : null), () => {});
   }, []);
   useDeliveryStatus(!!wa);
-  const who: Who = { userId, userName, owner, canCredit, discCap, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null, whatsapp: wa ? { via: wa, send: sendCounterBillAction, campaign: sendCounterCampaignAction } : null };
+  const who: Who = { userId, userName, owner, canCredit, discCap, tabs, payLink: paying ? payLinkAction : undefined, ai: ai ? { ...ai, step: aiStepAction } : null, einvoice: einv ? { irn: counterIrnAction, cancel: counterCancelIrnAction } : null, whatsapp: wa ? { via: wa, send: sendCounterBillAction, campaign: sendCounterCampaignAction } : null };
   return (
     <DriveGate fresh={fresh || mustMove} move={mustMove} drive={drive} owner={owner} access={conn.access} driveResult={driveResult}>
     {mustMove && owner && drive && conn.access?.status === "approved" && <PilotDeviceMove userId={userId} />}

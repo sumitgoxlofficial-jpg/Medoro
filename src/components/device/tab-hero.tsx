@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/lib/i18n-client";
 import type { Tab } from "./tabs";
-import { TABS } from "./tabs";
+import { DIST_TABS, TABS } from "./tabs";
 
 /** Icon and one-line purpose for each counter tab (the Dashboard has its own welcome banner). */
 const HERO: Partial<Record<Tab, [LucideIcon, string]>> = {
@@ -37,7 +37,7 @@ export function TabHero({ tab }: { tab: Tab }) {
   const h = HERO[tab];
   if (!h) return null;
   const [Icon, sub] = h;
-  const name = TABS.find(([k]) => k === tab)?.[1] ?? "";
+  const name = [...TABS, ...DIST_TABS].find(([k]) => k === tab)?.[1] ?? "";
   const slim = tab === "bill";
   return (
     <div key={tab} className={`app-up app-welcome relative overflow-hidden rounded-xl text-white flex items-center gap-3 ${slim ? "px-4 py-2.5" : "px-[clamp(16px,2.4vw,22px)] py-3.5"}`}>

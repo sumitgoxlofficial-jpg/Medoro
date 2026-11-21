@@ -16,6 +16,8 @@ import type { SendResult } from "@/drivedb/campaigns";
 export type CampaignBatch = { campaignId: string; first: boolean; message: string; recipients: { id: string; name: string; phone: string; consentAt: string }[] };
 export type Who = {
   userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number;
+  /** Signed in to MEDORO Distribution: the device screens this user's role may open (all of them when absent). */
+  tabs?: readonly string[];
   /** When the pharmacy takes online payments (signed in, Razorpay connected): makes a payment link through Medoro. */
   payLink?: (i: PayLinkInput) => Promise<{ ok: true; data: { url: string } } | { ok: false; error: string }>;
   /** Signed in with an AI model set up: one step of the model conversation through Medoro's gateway. */

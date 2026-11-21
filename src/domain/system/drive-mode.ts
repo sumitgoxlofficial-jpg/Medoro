@@ -50,8 +50,10 @@ export async function deviceSeed(ctx: Ctx) {
     counterSettings(ctx),
   ]);
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Catalogue copied to a device", entity: "tenant", entityId: ctx.tenantId, detail: `${meds.length} medicines, ${batches.length} batches, ${customers.length} customers (${settings.branch.name})` });
+  const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { product: true } });
   return {
     ...settings,
+    product: t.product === "distribution" ? "distribution" as const : "pharmacy" as const,
     medicines: meds.map(deviceMedicine),
     batches: batches.map((b) => ({
       id: b.id, medicineId: b.medicineId, batchNo: b.batchNo, expiryDate: isoOf(b.expiryDate), costPaise: big(b.costPaise), mrpPaise: big(b.mrpPaise),

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { db } from "@/server/db";
+import { dataInDrive } from "@/domain/system/drive-state";
 import { BadgeIndianRupee, CalendarRange, IndianRupee, PackageCheck, Wallet } from "lucide-react";
 import { requireDistCtx } from "@/domain/distribution/context";
 import { distDashboard } from "@/domain/distribution/reports";
@@ -12,6 +15,8 @@ export const metadata = { title: "Dashboard" };
 
 export default async function Page() {
   const ctx = await requireDistCtx();
+  // A distributor whose records live in its own Drive has none here: it works on its devices.
+  if (dataInDrive((await db.tenant.findUnique({ where: { id: ctx.tenantId }, select: { settings: true } }))?.settings)) redirect("/dist/device?tab=wholesale");
   const d = await distDashboard(ctx);
   const money = ctx.perms.includes("payments") || ctx.perms.includes("reports");
   const ag = ageingTotals(d.receivable.top);

@@ -18,6 +18,10 @@ import type { MoveBase, MovePart } from "@/domain/system/drive-move";
 import type { DriveStore } from "./drive";
 import { relayDistPortal, relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
 import * as distPortal from "./dist-portal";
+import * as dist from "./dist";
+import * as distOrders from "./dist-orders";
+import * as distTrade from "./dist-trade";
+import * as distViews from "./dist-views";
 import * as inbox from "./inbox";
 import * as assistant from "./assistant";
 import * as einv from "./einvoice";
@@ -214,7 +218,7 @@ function pushSoon() {
   pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
 }
 /** Calls that only read, or run the sync themselves: no push needed after them. */
-const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "previewStockSheet", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages"]);
+const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "previewStockSheet", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages", "distSettings", "distCompanies", "distProducts", "distChemists", "distSchemes", "distQuote", "distCreditFor", "distInvoices", "distInvoiceView", "distOrders", "distPickList", "distReturns", "distExpiry", "distDispatchBoard", "distDeliveryOf", "distReceivables", "distStatement", "distCollections", "distPortalStatuses"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -234,6 +238,57 @@ const PILOT_FILE = "/pilot.db";
 const need = () => { if (!db) throw new Error("The device database isn’t open."); return db; };
 
 const handlers = {
+  // ---- MEDORO Distribution (src/drivedb/dist*.ts) ----
+  distSettings: () => dist.distSettings(need()),
+  saveDistSettings: (patch: Parameters<typeof dist.saveDistSettings>[1]) => dist.saveDistSettings(need(), patch),
+  distCompanies: () => distViews.listCompanies(need()),
+  saveDistCompany: (id: string | null, input: Parameters<typeof dist.saveCompany>[2]) => dist.saveCompany(need(), id, input),
+  distProducts: (branchId: string, q?: string) => distViews.listProducts(need(), branchId, q),
+  saveDistProduct: (input: Parameters<typeof dist.saveProduct>[1]) => dist.saveProduct(need(), input),
+  distChemists: (q?: string) => distViews.listChemists(need(), q),
+  saveDistChemist: (input: Parameters<typeof dist.saveChemist>[1]) => dist.saveChemist(need(), input),
+  setDistChemistStatus: (customerId: string, status: "active" | "hold" | "blocked", note: string) => dist.setChemistStatus(need(), customerId, status, note),
+  distSchemes: () => distViews.listSchemes(need()),
+  saveDistScheme: (input: Parameters<typeof dist.saveScheme>[1]) => dist.saveScheme(need(), input),
+  endDistScheme: (id: string) => dist.endScheme(need(), id),
+  setDistSpecialRate: (customerId: string, medicineId: string, ratePaise: number, validTo: string | null) => dist.setSpecialRate(need(), customerId, medicineId, ratePaise, validTo),
+  distQuote: (customerId: string, lines: { medicineId: string; qty: number }[]) => distViews.quote(need(), customerId, lines),
+  distCreditFor: (customerId: string, value: number) => dist.creditFor(need(), customerId, value),
+  distDirectInvoice: (input: dist.DistDirectInput) => dist.directInvoice(need(), input),
+  distCancelInvoice: (input: Parameters<typeof dist.cancelInvoice>[1]) => dist.cancelInvoice(need(), input),
+  distInvoices: (opts?: Parameters<typeof dist.listInvoices>[1]) => dist.listInvoices(need(), opts),
+  distInvoiceView: (id: string) => dist.invoiceView(need(), id),
+  distPlaceOrder: (input: Parameters<typeof distOrders.placeOrder>[1]) => distOrders.placeOrder(need(), input),
+  distApproveOrder: (input: Parameters<typeof distOrders.approveOrder>[1]) => distOrders.approveOrder(need(), input),
+  distRejectOrder: (input: Parameters<typeof distOrders.rejectOrder>[1]) => distOrders.rejectOrder(need(), input),
+  distCancelOrder: (input: Parameters<typeof distOrders.cancelOrder>[1]) => distOrders.cancelOrder(need(), input),
+  distStartPicking: (input: Parameters<typeof distOrders.startPicking>[1]) => distOrders.startPicking(need(), input),
+  distConfirmPick: (input: Parameters<typeof distOrders.confirmPickLine>[1]) => distOrders.confirmPickLine(need(), input),
+  distPackOrder: (input: Parameters<typeof distOrders.packOrder>[1]) => distOrders.packOrder(need(), input),
+  distInvoiceOrder: (input: Parameters<typeof distOrders.invoiceOrder>[1]) => distOrders.invoiceOrder(need(), input),
+  distOrders: (opts?: Parameters<typeof distOrders.listOrders>[1]) => distOrders.listOrders(need(), opts),
+  distPickList: (orderId: string) => distOrders.pickList(need(), orderId),
+  distCreateReturn: (input: Parameters<typeof distTrade.createReturn>[1]) => distTrade.createReturn(need(), input),
+  distReturns: () => distTrade.listReturns(need()),
+  distSavePrincipal: (input: Parameters<typeof distTrade.savePrincipal>[1]) => distTrade.savePrincipal(need(), input),
+  distExpiry: (branchId: string, days?: number) => distTrade.expiryWorkbench(need(), branchId, days),
+  distRaiseClaim: (input: Parameters<typeof distTrade.raiseDistClaim>[1]) => distTrade.raiseDistClaim(need(), input),
+  distCreateDispatch: (input: Parameters<typeof distTrade.createDispatch>[1]) => distTrade.createDispatch(need(), input),
+  distStartDispatch: (input: Parameters<typeof distTrade.startDispatch>[1]) => distTrade.startDispatch(need(), input),
+  distRecordDelivery: (input: Parameters<typeof distTrade.recordDelivery>[1]) => distTrade.recordDelivery(need(), input),
+  distDispatchBoard: (branchId: string) => distTrade.dispatchBoard(need(), branchId),
+  distDeliveryOf: (invoiceId: string) => distTrade.deliveryOf(need(), invoiceId),
+  distCollect: (input: Parameters<typeof distTrade.collectPayment>[1]) => distTrade.collectPayment(need(), input),
+  distCollections: (day?: string) => distTrade.collectionsOn(need(), day),
+  distReceivables: () => distTrade.receivables(need()),
+  distStatement: (customerId: string, from?: string, to?: string) => distTrade.chemistStatement(need(), customerId, from, to),
+  distPortalStatuses: () => distPortal.portalStatuses(need()),
+  /** Approves a chemist's portal request: adds (or links) the chemist here, then Medoro records the link (owner device). */
+  distApprovePortalChemist: async (connectionId: string, input: Parameters<typeof distPortal.addPortalChemist>[1]) => {
+    const customerId = distPortal.addPortalChemist(need(), input);
+    await relayDistPortal(deviceName).link(connectionId, customerId);
+    return customerId;
+  },
   open,
   addMedicine: (input: pharmacy.MedicineInput) => pharmacy.addMedicine(need(), input),
   receiveStock: (input: Parameters<typeof pharmacy.receiveStock>[1]) => pharmacy.receiveStock(need(), input),
