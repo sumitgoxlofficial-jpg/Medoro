@@ -16,7 +16,8 @@ import * as sync from "./sync";
 import * as move from "./migrate-in";
 import type { MoveBase, MovePart } from "@/domain/system/drive-move";
 import type { DriveStore } from "./drive";
-import { relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
+import { relayDistPortal, relayInbox, relayStore, registerDevice, reportHealth, RelayRefusedError } from "./relay";
+import * as distPortal from "./dist-portal";
 import * as inbox from "./inbox";
 import * as assistant from "./assistant";
 import * as einv from "./einvoice";
@@ -150,6 +151,41 @@ async function pickUpPayments() {
     const opened: inbox.InboxPayment[] = [];
     for (const w of waiting) { try { opened.push(await inbox.openForDevice(mine.privateKey, w.sealed)); } catch { /* sealed for an older key of this device */ } }
     await box.ack(inbox.applyPayments(db, opened));
+  } catch { /* offline: next time */ }
+  await distPortalTick();
+}
+
+/**
+ * A distributor (its records in this Drive): take in chemists' portal orders sealed for this device, and publish the
+ * portal catalogue (when it changed, or every 10 minutes for stock) and the portal orders' statuses (when they changed).
+ */
+let lastCatalogue = { hash: "", at: 0 }, lastStatuses = "";
+async function distPortalTick() {
+  if (!db || access?.status !== "approved" || !db.from("distProduct").count()) return;
+  const cfg = seed.counterConfig(db);
+  if (!cfg?.userId) return;
+  try {
+    const box = relayDistPortal(deviceName);
+    const waiting = await box.list();
+    let refused: distPortal.PortalStatus[] = [];
+    if (waiting.length) {
+      const mine = await keys.get();
+      if (mine) {
+        const opened: distPortal.PortalMessage[] = [];
+        for (const w of waiting) { try { opened.push(await inbox.openJson<distPortal.PortalMessage>(mine.privateKey, w.sealed, inbox.DIST_ORDER_AAD)); } catch { /* sealed for an older key */ } }
+        const r = distPortal.ingestPortal(db, cfg.branchId, cfg.userId, opened);
+        refused = r.statuses;
+        await box.ack(r.done);
+      }
+    }
+    const cat = distPortal.buildCatalogue(db, cfg.branchId);
+    const hash = JSON.stringify(cat), statuses = [...refused, ...distPortal.portalStatuses(db)].slice(0, 500), sHash = JSON.stringify(statuses);
+    const sendCat = hash !== lastCatalogue.hash || Date.now() - lastCatalogue.at > 10 * 60_000;
+    if (sendCat || sHash !== lastStatuses || refused.length) {
+      await box.publish({ ...(sendCat ? { catalogue: cat } : {}), statuses });
+      if (sendCat) lastCatalogue = { hash, at: Date.now() };
+      lastStatuses = sHash;
+    }
   } catch { /* offline: next time */ }
 }
 

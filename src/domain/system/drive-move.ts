@@ -64,6 +64,8 @@ export async function startMove(ctx: Ctx) {
   const { move } = await stateOf(ctx.tenantId);
   if (move && move.state !== "moving") throw new UserError("This pharmacy’s data has already moved to Google Drive.");
   if (move) return moveStatus(ctx); // resuming an interrupted move
+  const tenant = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { product: true } });
+  if (tenant.product === "distribution") await distReadyToMove(ctx.tenantId);
   await save(ctx, { state: "moving", startedAt: new Date().toISOString(), by: ctx.userName }, "Move to Google Drive started", "Medoro’s copy is read-only while it is copied");
   return moveStatus(ctx);
 }
@@ -487,6 +489,84 @@ async function moveExtras(ctx: Ctx, movedMoney: Set<string>, tenantSettings: Rec
 }
 export type MoveExtras = Awaited<ReturnType<typeof moveExtras>>;
 
+// ---------- MEDORO Distribution (docs/DIST_DRIVE_PLAN.md, phase D6) ----------
+
+/** Open orders and deliveries out on a van must be finished first: their reservations and trips don't move. */
+async function distReadyToMove(tenantId: string) {
+  const [open, out] = await Promise.all([
+    db.distOrder.count({ where: { tenantId, status: { in: ["pending", "approved", "picking", "packed"] } } }),
+    db.distDelivery.count({ where: { tenantId, status: "out" } }),
+  ]);
+  if (open) throw new UserError(`${open} order(s) are still open. Invoice, cancel or reject them before moving to Google Drive.`);
+  if (out) throw new UserError(`${out} delivery(ies) are out on a van. Record them as delivered or failed before moving to Google Drive.`);
+}
+
+/**
+ * A distributor's records in the device's own form (src/drivedb/dist*.ts): companies, product terms, chemist profiles,
+ * special rates, schemes, principals, wholesale invoices (and cancellations), credit notes, proof of delivery and
+ * collections; its settings; what each chemist was billed and credited (for the opening balances); and an opening
+ * adjustment so each batch's returned-goods pool equals the quarantined stock on Medoro.
+ */
+async function moveDist(ctx: Ctx, tenantSettings: Record<string, unknown>, movedMoney: Set<string>) {
+  const t = ctx.tenantId;
+  const [cos, products, chems, custs, specials, schemes, principals, invs, cancels, rets, deliveries, collections, batches] = await Promise.all([
+    db.distCompany.findMany({ where: { tenantId: t } }),
+    db.distProduct.findMany({ where: { tenantId: t } }),
+    db.distChemist.findMany({ where: { tenantId: t } }),
+    db.customer.findMany({ where: { tenantId: t }, select: { id: true, stateCode: true } }),
+    db.distSpecialRate.findMany({ where: { tenantId: t } }),
+    db.distScheme.findMany({ where: { tenantId: t } }),
+    db.distPrincipal.findMany({ where: { tenantId: t } }),
+    db.distInvoice.findMany({ where: { tenantId: t }, include: { lines: true }, orderBy: { at: "asc" } }),
+    db.distInvoiceCancel.findMany({ where: { tenantId: t } }),
+    db.distReturn.findMany({ where: { tenantId: t }, include: { lines: true }, orderBy: { at: "asc" } }),
+    db.distDelivery.findMany({ where: { tenantId: t, status: "delivered" } }),
+    db.distCollection.findMany({ where: { tenantId: t } }),
+    db.batch.findMany({ where: { tenantId: t }, select: { id: true, qtyQuarantined: true, medicine: { select: { packSize: true } } } }),
+  ]);
+  const state = new Map(custs.map((c) => [c.id, c.stateCode]));
+  const principalCo = new Map(principals.map((p) => [p.id, p.companyId]));
+  const cancelled = new Set(cancels.map((c) => c.invoiceId));
+  const billed = new Map<string, number>(), credited = new Map<string, number>();
+  for (const i of invs) if (!cancelled.has(i.id)) billed.set(i.customerId, (billed.get(i.customerId) ?? 0) + big(i.totalPaise));
+  for (const r of rets) credited.set(r.customerId, (credited.get(r.customerId) ?? 0) + big(r.totalPaise));
+  // Each batch's returned-goods pool on the device must equal its quarantined stock here.
+  const restocked = new Set((await db.stockMovement.findMany({ where: { tenantId: t, refType: "dist_return", type: "return" }, select: { refId: true, batchId: true } })).map((m) => `${m.refId}:${m.batchId}`));
+  const pack = new Map(batches.map((b) => [b.id, Math.max(1, b.medicine.packSize)]));
+  const returned = new Map<string, number>();
+  for (const r of rets) for (const l of r.lines) if (l.condition !== "saleable" || !restocked.has(`${r.id}:${l.batchId}`)) returned.set(l.batchId, (returned.get(l.batchId) ?? 0) + l.qty * (pack.get(l.batchId) ?? 1));
+  const openingPool = batches.flatMap((b) => {
+    const extra = (returned.get(b.id) ?? 0) - b.qtyQuarantined;
+    return extra > 0 ? [{ id: `open-${b.id}`, claimId: null, batchId: b.id, fromReturnsUnits: extra, at: OPENING_AT }] : [];
+  });
+  const vouchers = new Map((await db.voucher.findMany({ where: { tenantId: t, no: { in: collections.map((c) => c.voucherNo) } }, select: { id: true, no: true } })).map((v) => [v.no, v.id]));
+  const iso = (d: Date | null) => (d ? isoOf(d) : null);
+  const tables = {
+    distCompany: cos.map((c) => ({ id: c.id, name: c.name, shortName: c.shortName, gstin: c.gstin, phone: c.phone, active: c.active ? 1 : 0 })),
+    distProduct: products.map((p) => ({ id: p.medicineId, companyId: p.companyId ?? (p.principalId ? principalCo.get(p.principalId) ?? null : null), division: p.division, ptrPaise: big(p.ptrPaise), ptsPaise: big(p.ptsPaise), minOrderQty: p.minOrderQty, portalVisible: p.portalVisible ? 1 : 0, discontinued: p.discontinued ? 1 : 0 })),
+    distChemist: chems.map((c) => ({ id: c.customerId, ownerName: c.ownerName, stateCode: state.get(c.customerId) ?? null, dl20b: c.dl20b, dl21b: c.dl21b, dlExpiry: iso(c.dlExpiry), creditDays: c.creditDays, graceDays: c.graceDays,
+      territoryId: c.territoryId, salesmanId: c.salesmanId, priceTier: c.priceTier === "pts" ? "pts" : "ptr", status: ["active", "hold", "blocked"].includes(c.status) ? c.status : "active", statusNote: c.statusNote, portalAccountId: c.portalAccountId })),
+    distSpecialRate: specials.map((r) => ({ id: `${r.customerId}:${r.medicineId}`, customerId: r.customerId, medicineId: r.medicineId, ratePaise: big(r.ratePaise), validTo: iso(r.validTo) })),
+    distScheme: schemes.map((x) => ({ id: x.id, code: x.code, name: x.name, kind: x.kind, medicineId: x.medicineId, companyId: x.companyId, buyQty: x.buyQty, freeQty: x.freeQty, discPct: Number(x.discPct), minQty: x.minQty,
+      customerIds: JSON.stringify(x.customerIds), validFrom: isoOf(x.validFrom), validTo: isoOf(x.validTo), active: x.active ? 1 : 0 })),
+    distPrincipal: principals.map((p) => ({ id: p.id, companyId: p.companyId, supplierId: p.supplierId, marginPct: Number(p.marginPct), claimBeforeDays: p.claimBeforeDays, claimAfterDays: p.claimAfterDays, claimCreditPct: Number(p.claimCreditPct), active: p.active ? 1 : 0 })),
+    distInvoice: invs.map((i) => ({ id: i.id, branchId: i.branchId, deviceId: MOVED_FROM, no: i.no, orderId: null, customerId: i.customerId, salesmanId: i.salesmanId, date: isoOf(i.date), dueDate: isoOf(i.dueDate), placeOfSupply: i.placeOfSupply,
+      customerGstin: i.customerGstin, igst: i.igst ? 1 : 0, grossPaise: big(i.grossPaise), discPaise: big(i.discPaise), taxablePaise: big(i.taxablePaise), cgstPaise: big(i.cgstPaise), sgstPaise: big(i.sgstPaise), igstPaise: big(i.igstPaise),
+      roundOffPaise: big(i.roundOffPaise), totalPaise: big(i.totalPaise), costPaise: big(i.costPaise), idempotencyKey: i.idempotencyKey, userId: i.createdBy, at: i.at.toISOString() })),
+    distInvoiceLine: invs.flatMap((i) => i.lines.map((l) => ({ id: l.id, invoiceId: i.id, medicineId: l.medicineId, batchId: l.batchId, qty: l.qty, freeQty: l.freeQty, ratePaise: big(l.ratePaise), mrpPaise: big(l.mrpPaise),
+      discPct: Number(l.discPct), discPaise: big(l.discPaise), schemeId: l.schemeId, taxablePaise: big(l.taxablePaise), gstRate: l.gstRate, taxPaise: big(l.taxPaise), costPaise: big(l.costPaise) }))),
+    distInvoiceCancel: cancels.map((c) => ({ id: `${c.invoiceId}-cancel`, invoiceId: c.invoiceId, reason: c.reason, userId: c.by, at: c.at.toISOString() })),
+    distReturn: rets.map((r) => ({ id: r.id, branchId: r.branchId, deviceId: MOVED_FROM, no: r.no, invoiceId: r.invoiceId, customerId: r.customerId, reason: r.reason, taxablePaise: big(r.taxablePaise), taxPaise: big(r.taxPaise), totalPaise: big(r.totalPaise), userId: r.createdBy, at: r.at.toISOString() })),
+    distReturnLine: rets.flatMap((r) => r.lines.map((l) => ({ id: l.id, returnId: r.id, invoiceLineId: l.invoiceLineId, batchId: l.batchId, qty: l.qty, condition: l.condition, creditPct: Number(l.creditPct), taxablePaise: big(l.taxablePaise), taxPaise: big(l.taxPaise) }))),
+    distDeliveryEvent: deliveries.map((d) => ({ id: `${d.invoiceId}-delivered`, invoiceId: d.invoiceId, dispatchId: null, kind: "delivered", receiverName: d.receiverName, note: d.podNote, collectedPaise: big(d.collectedPaise), collectMode: d.collectMode, receiptId: null, userId: d.updatedBy ?? ctx.userId, at: (d.deliveredAt ?? d.updatedAt).toISOString() })),
+    // A collection moves with its receipt (a reversed receipt stays behind, and so does its collection).
+    distCollection: collections.flatMap((c) => { const v = vouchers.get(c.voucherNo); return v && movedMoney.has(v) ? [{ id: c.id, customerId: c.customerId, receiptId: v, amountPaise: big(c.amountPaise), mode: c.mode.toLowerCase(), ref: c.ref, salesmanId: c.salesmanId, invoiceId: null, userId: c.byUser, at: c.at.toISOString() }] : []; }),
+    distClaimSource: openingPool,
+  };
+  const settings = (tenantSettings.dist ?? {}) as Record<string, unknown>;
+  return { tables, settings, billed, credited };
+}
+
 /**
  * Catalogue, stock batches, customers, suppliers and counter settings; the opening rows that make the device's
  * balances equal Medoro's (stock, customer dues, supplier dues); and the summary the device checks itself against.
@@ -503,8 +583,9 @@ async function moveBase(ctx: Ctx) {
     supplierBalances(db, t),
     moneyTotals(ctx),
   ]);
-  const tenant = await db.tenant.findUniqueOrThrow({ where: { id: t }, select: { settings: true } });
+  const tenant = await db.tenant.findUniqueOrThrow({ where: { id: t }, select: { settings: true, product: true } });
   const extras = await moveExtras(ctx, money.ids, (tenant.settings ?? {}) as Record<string, unknown>);
+  const dist = tenant.product === "distribution" ? await moveDist(ctx, (tenant.settings ?? {}) as Record<string, unknown>, money.ids) : null;
   // Bounced cheques' reversals change dues like any receipt or payment.
   for (const r of extras.money.receipts) money.received.set(r.customerId, (money.received.get(r.customerId) ?? 0) + r.amountPaise);
   for (const r of extras.money.payments) money.paid.set(r.supplierId, (money.paid.get(r.supplierId) ?? 0) + r.amountPaise);
@@ -546,7 +627,8 @@ async function moveBase(ctx: Ctx) {
     return d ? [{ id: randomUUID(), branchId: b.branchId, batchId: b.id, qty: d, type: "opening", refType: "opening", refId: b.id, userId: ctx.userId, at: OPENING_AT, note: "Opening stock, moved from Medoro" }] : [];
   });
   const openingDues = customers.flatMap((c) => {
-    const d = (creditOf.get(c.id) ?? 0) - (backOf.get(c.id) ?? 0) - (money.received.get(c.id) ?? 0) - (custBal.get(c.id) ?? 0);
+    // A distributor's chemists also owe for wholesale invoices, less credit notes (the device counts both).
+    const d = (creditOf.get(c.id) ?? 0) + (dist?.billed.get(c.id) ?? 0) - (dist?.credited.get(c.id) ?? 0) - (backOf.get(c.id) ?? 0) - (money.received.get(c.id) ?? 0) - (custBal.get(c.id) ?? 0);
     return d ? [{ id: randomUUID(), customerId: c.id, amountPaise: d, mode: "cash", ref: "Opening balance, moved from Medoro", userId: ctx.userId, at: OPENING_AT }] : [];
   });
   const openingPayables = suppliers.flatMap((s) => {
@@ -565,17 +647,20 @@ async function moveBase(ctx: Ctx) {
       supplierPayment: money.count.payment + openingPayables.length + extras.money.payments.length,
       expense: money.count.expense + extras.money.expenses.length,
       ...Object.fromEntries(Object.entries(extras.tables).map(([k, rows]) => [k, rows.length])),
+      ...(dist ? Object.fromEntries(Object.entries(dist.tables).map(([k, rows]) => [k, rows.length])) : {}),
     },
     totals: { salesPaise: num(totals[0].sales), returnsPaise: num(totals[0].returns), purchasesPaise: num(totals[0].purchases), expensesPaise: money.spent + extras.money.expenses.reduce((a, e) => a + e.amountPaise, 0) },
     stock: Object.fromEntries(batches.filter((b) => b.qtyAvailable).map((b) => [b.id, b.qtyAvailable])),
     customerDues: nonZero(custBal),
+    // Returned goods waiting to be claimed, per batch (a distributor's quarantined stock).
+    returnedPool: Object.fromEntries(dist ? (await db.batch.findMany({ where: { tenantId: t, qtyQuarantined: { gt: 0 } }, select: { id: true, qtyQuarantined: true } })).map((b) => [b.id, b.qtyQuarantined]) : []),
     supplierDues: nonZero(suppBal),
     points: nonZero(map(points)),
   };
   const warnings = [
     num(c.voided) ? `${num(c.voided)} cancelled bills stay only in Medoro’s copy (they don’t count anywhere).` : "",
     open ? `${open} delivery orders are still open. Finish or re-enter them on the device.` : "",
-    num(quarantined._sum.qtyQuarantined) ? `${num(quarantined._sum.qtyQuarantined)} units set aside in quarantine aren’t moved as stock.` : "",
+    num(quarantined._sum.qtyQuarantined) && !dist ? `${num(quarantined._sum.qtyQuarantined)} units set aside in quarantine aren’t moved as stock.` : "",
     ...extras.warnings,
     "Other account entries (opening balances, journal entries) come across as one opening balance per customer and supplier.",
   ].filter(Boolean);
@@ -595,6 +680,7 @@ async function moveBase(ctx: Ctx) {
     // Doctors, recalls, cheques, claims, supplier terms and pricing rules (loaded with the base), bounced cheques'
     // reversing rows (loaded with the openings) and the intelligence settings (this device's own).
     extras: { tables: extras.tables, money: extras.money, intel: extras.intel },
+    dist: dist ? { tables: dist.tables, settings: dist.settings } : null,
     summary, warnings,
   };
 }

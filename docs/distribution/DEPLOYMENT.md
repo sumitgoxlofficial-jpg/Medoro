@@ -15,6 +15,7 @@ No new variable is required. One optional variable:
 | Variable | Default | Meaning |
 |---|---|---|
 | `DIST_HOSTED` | unset | On MEDORO's own hosted server (`PUBLIC_SIGNUP=1`), where each tenant's records must live in its Google Drive, distributor sign-up is **closed** and distributor records are read-only unless this is `1`. Set it only after deciding to keep distributor records on that server and updating the privacy notice. |
+| `DIST_DRIVE` | unset | On MEDORO's hosted server (`PUBLIC_SIGNUP=1`): `1` opens distributor sign-up with records kept on the distributor's devices and in its own Google Drive, as for pharmacies (docs/DIST_DRIVE_PLAN.md). Turn it on only once the distribution screens on the device (phase D4) are live. Existing distributors on Medoro's copy move with *Move all my data from Medoro*. |
 
 Everything else is shared with Pharmacy: `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, `HOST_KEY`, licence and mail settings.
 

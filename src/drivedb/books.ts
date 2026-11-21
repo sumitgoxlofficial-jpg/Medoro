@@ -171,7 +171,33 @@ export function gstDocs(db: DriveDB, month: string, gstin: string): GstDoc[] {
     docs.push({ kind: "cn", no: r.creditNoteNo, date: istDate(new Date(r.at)), value: n(r.amountPaise), pos: (inter && s?.pos) || home, ctin: s?.ctin || null, inter, branchId: r.branchId,
       lines: split(raw, Math.floor(tax / 2), inter), orig: { no: s?.invoiceNo ?? "", date: s ? istDate(new Date(s.at)) : "", value: n(s?.totalPaise), inter, ctin: s?.ctin || null } });
   }
+  // Wholesale (MEDORO Distribution) invoices and credit notes: rates exclude GST; free goods carry no value. Cancelled
+  // invoices are left out here and reported as cancelled documents (distCancelled).
+  type WL = { id: string; medicineId: string; qty: number; freeQty: number; taxablePaise: number; taxPaise: number; gstRate: number };
+  const wLines = (invoiceId: string) => db.engine.all<WL>("SELECT id, medicineId, qty, freeQty, taxablePaise, taxPaise, gstRate FROM distInvoiceLine WHERE invoiceId = ? ORDER BY rowid", [invoiceId]);
+  type WI = { id: string; no: string; at: string; totalPaise: number; cgstPaise: number; igst: number; pos: string | null; ctin: string | null; branchId: string };
+  const wInv = (where: string, args: string[]) => db.engine.all<WI>(`SELECT id, no, at, totalPaise, cgstPaise, igst, placeOfSupply AS pos, customerGstin AS ctin, branchId FROM distInvoice ${where}`, args);
+  for (const i of wInv("WHERE at >= ? AND at < ? AND NOT EXISTS (SELECT 1 FROM distInvoiceCancel x WHERE x.invoiceId = distInvoice.id) ORDER BY at, no", [from, to])) {
+    const inter = !!n(i.igst);
+    const raw = wLines(i.id).filter((l) => n(l.qty) > 0).map((l) => lineOf(l.medicineId, n(l.gstRate), n(l.qty) + n(l.freeQty), n(l.taxablePaise), n(l.taxPaise)));
+    docs.push({ kind: "inv", no: i.no, date: istDate(new Date(i.at)), value: n(i.totalPaise), pos: i.pos || home, ctin: i.ctin || null, inter, branchId: i.branchId, lines: split(raw, n(i.cgstPaise), inter) });
+  }
+  for (const r of db.engine.all<{ id: string; no: string; at: string; totalPaise: number; taxPaise: number; invoiceId: string; branchId: string }>(
+    "SELECT id, no, at, totalPaise, taxPaise, invoiceId, branchId FROM distReturn WHERE at >= ? AND at < ? ORDER BY at, no", [from, to])) {
+    const o = wInv("WHERE id = ?", [r.invoiceId])[0], ol = new Map(wLines(r.invoiceId).map((l) => [l.id, l])), inter = !!n(o?.igst);
+    const raw = db.engine.all<{ invoiceLineId: string; qty: number; taxablePaise: number; taxPaise: number }>("SELECT invoiceLineId, qty, taxablePaise, taxPaise FROM distReturnLine WHERE returnId = ?", [r.id])
+      .map((l) => { const x = ol.get(l.invoiceLineId)!; return lineOf(x.medicineId, n(x.gstRate), n(l.qty), n(l.taxablePaise), n(l.taxPaise)); });
+    docs.push({ kind: "cn", no: r.no, date: istDate(new Date(r.at)), value: n(r.totalPaise), pos: o?.pos || home, ctin: o?.ctin || null, inter, branchId: r.branchId,
+      lines: split(raw, Math.floor(n(r.taxPaise) / 2), inter), orig: { no: o?.no ?? "", date: o ? istDate(new Date(o.at)) : "", value: n(o?.totalPaise), inter, ctin: o?.ctin || null } });
+  }
   return docs;
+}
+
+/** Wholesale invoices of the month that were cancelled (GSTR-1 lists them as cancelled documents). */
+export function distCancelled(db: DriveDB, month: string) {
+  const first = `${month}-01`, next = addDays(`${month}-28`, 7).slice(0, 7) + "-01";
+  return db.engine.all<{ no: string }>("SELECT i.no FROM distInvoice i JOIN distInvoiceCancel x ON x.invoiceId = i.id WHERE i.at >= ? AND i.at < ? ORDER BY i.no",
+    [istMidnight(first).toISOString(), istMidnight(next).toISOString()]).map((r) => r.no);
 }
 
 /** Input tax on purchase bills of the month: intra-state suppliers CGST/SGST, other states IGST. */
@@ -190,7 +216,7 @@ export function itcOf(db: DriveDB, month: string, gstin: string) {
 export function gstReturns(db: DriveDB, month: string, gstin: string) {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new CounterError("Pick a month.");
   const docs = gstDocs(db, month, gstin), fp = fpOf(month);
-  const gstr1 = buildGstr1({ gstin, fp, docs });
+  const gstr1 = buildGstr1({ gstin, fp, docs, cancelled: distCancelled(db, month) });
   const gstr3b = buildGstr3b({ gstin, fp, docs, itc: itcOf(db, month, gstin) });
   return { month, gstin, gstr1, gstr1Summary: gstr1Summary(gstr1), gstr1Csv: gstr1Csv(gstr1), gstr3b, gstr3bRows: gstr3bRows(gstr3b), hsnCsv: hsnCsv(hsnRows(docs)), invoices: docs.filter((d) => d.kind === "inv").length, creditNotes: docs.filter((d) => d.kind === "cn").length };
 }
