@@ -32,6 +32,8 @@ export type ShellProps = {
   perms: string[]; branchId: string; branchName: string; branches: { id: string; name: string }[]; lang: Lang;
   /** The pharmacy's records live on its counters (Drive): screens open the matching Billing (device) tab. */
   driveNav?: boolean;
+  /** Server time this layout was rendered; useLive compares it with change events to confirm a refresh applied. */
+  renderedAt?: number;
   mfa: boolean; deployment: string; strict: boolean; liveDevices: number;
   badges: Partial<Record<ScreenId, [number, "amber" | "red"]>>; alerts: string[]; ai: AiShell; supportUntil: string | null;
   subscription: { tone: "amber" | "red"; text: string; renew: boolean } | null;
@@ -64,7 +66,7 @@ function ShellInner(p: ShellProps) {
   const [profile, setProfile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const showAi = !p.ai.globalOff && (p.ai.enabled || p.ai.canManage);
-  const live = useLive();
+  const live = useLive(p.renderedAt);
   const offlineReady = useOfflineAgent(p.branchId);
   const [, start] = useTransition();
 

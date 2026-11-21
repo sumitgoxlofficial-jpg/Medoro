@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   serverExternalPackages: ["@node-rs/argon2", "pg", "baileys"],
   poweredByHeader: false,
+  // Builds type-check app code only (tsconfig.build.json): the Docker image has no tests/, and `pnpm typecheck` covers the rest.
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   experimental: { serverActions: { bodySizeLimit: "11mb", allowedOrigins: process.env.ALLOWED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) } },
   outputFileTracingIncludes: { "/api/ready": ["./prisma/migrations/**/*"] },
   // Short addresses for the team sign-in pages. They are not linked from the public site: staff use these directly.

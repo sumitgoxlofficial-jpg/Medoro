@@ -838,6 +838,8 @@ model Shift {
   expectedPaise BigInt?
   countedPaise  BigInt?
   closedAt      DateTime?
+
+  @@index([tenantId, branchId, closedAt])
 }
 
 // ───────────── Accounting ─────────────
@@ -919,6 +921,8 @@ model WaMessage {
   updatedAt      DateTime  @updatedAt
 
   @@index([status, nextAttemptAt])
+  @@index([tenantId, wamid])
+  @@index([tenantId, invoiceId])
 }
 
 model Integration {
@@ -972,6 +976,8 @@ model OfflineOp {
   resolution  String?
   createdAt   DateTime
   receivedAt  DateTime @default(now())
+
+  @@index([tenantId, status])
 }
 
 model Campaign {

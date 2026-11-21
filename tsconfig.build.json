@@ -1,0 +1,15 @@
+{
+  "//": "Type-check scope for `next build` (next.config.ts → typescript.tsconfigPath). Test code is left out: the Docker image doesn't contain tests/ (.dockerignore), and `pnpm typecheck` checks everything with tsconfig.json.",
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "design",
+    "desktop",
+    "tests",
+    "e2e",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "vitest.config.mts",
+    "playwright.config.ts"
+  ]
+}

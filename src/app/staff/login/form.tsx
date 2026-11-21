@@ -180,7 +180,7 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
                     <div key={k} className="flex flex-col gap-2">
                       <label className={label}>Email
                         <div className="flex gap-2">
-                          <input className={input + (codeSent ? " bg-[#F7F8F9] text-muted" : "")} type="email" autoComplete="email" value={su.email} readOnly={codeSent} onChange={(e) => { setSu((x) => ({ ...x, email: e.target.value })); setErr(""); }} placeholder="you@gmail.com" />
+                          <input aria-label="Email" className={input + (codeSent ? " bg-[#F7F8F9] text-muted" : "")} type="email" autoComplete="email" value={su.email} readOnly={codeSent} onChange={(e) => { setSu((x) => ({ ...x, email: e.target.value })); setErr(""); }} placeholder="you@gmail.com" />
                           <button type="button" disabled={busy || !su.email.includes("@")} onClick={() => (codeSent ? (setCodeSent(false), setEcode("")) : sendCode())} className="flex-none border border-input rounded-lg px-3 text-[13px] font-semibold text-teal cursor-pointer whitespace-nowrap disabled:opacity-50">{codeSent ? "Change" : "Send code"}</button>
                         </div>
                       </label>

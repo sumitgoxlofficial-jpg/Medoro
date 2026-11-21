@@ -1,0 +1,34 @@
+PostgreSQL 16, database migrated from prisma/migrations, synthetic volume from perf-indexes.sql
+(400,000 Shift rows and 600,000 WaMessage rows over 1,000 tenants). Output trimmed to the plan nodes and times.
+
+=== BEFORE: open-shift lookup (every sale commit)
+SELECT id FROM "Shift" WHERE "tenantId" = 't42' AND "branchId" = 'b42' AND "closedAt" IS NULL AND counter = 'c1' LIMIT 1;
+  ->  Parallel Seq Scan on "Shift" (actual time=16.698..16.699 rows=0 loops=3)
+        Rows Removed by Filter: 133333
+Execution Time: 24.494 ms
+
+=== BEFORE: WhatsApp status webhook lookup
+SELECT id FROM "WaMessage" WHERE "tenantId" = 't42' AND wamid = 'wamid.123042' LIMIT 1;
+  ->  Parallel Seq Scan on "WaMessage" (actual time=22.830..22.830 rows=0 loops=3)
+        Rows Removed by Filter: 199904
+Execution Time: 38.430 ms
+
+=== BEFORE: messages for an invoice
+SELECT id FROM "WaMessage" WHERE "tenantId" = 't42' AND "invoiceId" = 'inv123042';
+  ->  Parallel Seq Scan on "WaMessage" (actual time=14.298..19.371 rows=0 loops=3)
+        Rows Removed by Filter: 200000
+Execution Time: 27.756 ms
+
+(prisma migrate deploy → 20261215000000_hot_path_indexes; ANALYZE)
+
+=== AFTER: open-shift lookup
+  ->  Index Scan using "Shift_tenantId_branchId_closedAt_idx" on "Shift" (actual time=0.041..0.041 rows=1 loops=1)
+Execution Time: 0.061 ms
+
+=== AFTER: WhatsApp status webhook lookup
+  ->  Index Scan using "WaMessage_tenantId_wamid_idx" on "WaMessage" (actual time=0.016..0.016 rows=1 loops=1)
+Execution Time: 0.022 ms
+
+=== AFTER: messages for an invoice
+Index Scan using "WaMessage_tenantId_invoiceId_idx" on "WaMessage" (actual time=0.014..0.015 rows=1 loops=1)
+Execution Time: 0.018 ms

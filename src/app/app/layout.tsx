@@ -19,6 +19,8 @@ import { localeOf, tFor } from "@/lib/tr";
 export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  // Taken before any data is read, so everything on this render is at least this new (see useLive).
+  const renderedAt = Date.now();
   const ctx = await requireCtx();
   const [user, tenant, live] = await Promise.all([
     db.user.findUnique({ where: { id: ctx.userId }, include: { role: true } }),
@@ -67,6 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       subscription={banner ? { ...banner, renew: ctx.perms.includes("users") } : null}
       deletionOn={deletionOn}
       driveNav={!!ctx.moved && ctx.perms.includes("sale") && !ctx.readOnly}
+      renderedAt={renderedAt}
     >
       {children}
     </Shell>

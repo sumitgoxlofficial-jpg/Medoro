@@ -1,0 +1,23 @@
+  ✓   1 [setup] › e2e/setup.e2e.ts:9:1 › first-run setup wizard → MFA enrolment → dashboard (4.5s)
+  ✓   2 [app] › e2e/02-auth.spec.ts:9:3 › sign-in › Google sign-in is hidden when it isn't configured (1.1s)
+  ✓   3 [app] › e2e/02-auth.spec.ts:21:3 › sign-in › a recovery code works once at the two-step step (5.1s)
+  ✓   4 [app] › e2e/02-auth.spec.ts:45:3 › sign-in › owner: wrong password, then password + TOTP, then trusted PC skips the code (5.1s)
+  ✓   5 [app] › e2e/02-auth.spec.ts:66:3 › sign-in › owner: without trusting the PC, the next sign-in asks for the code again (3.8s)
+  ✓   6 [app] › e2e/02-auth.spec.ts:77:3 › sign-in › five wrong passwords lock the account (2.7s)
+  ✓   7 [app] › e2e/02-auth.spec.ts:92:3 › counter staff › forgot password: a manager resets it with a code sent by email (8.6s)
+  ✓   8 [app] › e2e/02-auth.spec.ts:132:3 › counter staff › cashier created in Users signs in with pharmacy code, employee ID, PIN and counter
+  ✓   9 [app] › e2e/02-auth.spec.ts:155:3 › counter staff › accountant lands on the dashboard (the Accounts tab is hidden from every menu) (6.
+  ✘  10 [app] › e2e/16-staff.spec.ts:23:1 › bootstrap super admin, a partner joins without approval, and a lead (17.8s)
+  ✓  11 [app] › e2e/33-signup-email.spec.ts:19:1 › setup-token server with email configured: the distributor form opens directly (723ms)
+  -  12 [app] › e2e/33-signup-email.spec.ts:27:1 › public sign-up confirms the email with a code before the business form
+    Error: expect(page).toHaveURL(expected) failed
+    test-results/16-staff-bootstrap-super-a-de00d-without-approval-and-a-lead-app/test-failed-1.png
+    test-results/16-staff-bootstrap-super-a-de00d-without-approval-and-a-lead-app/test-failed-2.png
+  1 failed
+  1 skipped
+  10 passed (1.2m)
+== public sign-up mode
+  -  1 [app] › e2e/33-signup-email.spec.ts:19:1 › setup-token server with email configured: the distributor form opens directly
+  ✓  2 [app] › e2e/33-signup-email.spec.ts:27:1 › public sign-up confirms the email with a code before the business form (1.3s)
+  1 skipped
+  1 passed (6.1s)
