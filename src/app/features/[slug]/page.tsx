@@ -53,7 +53,7 @@ export default async function FeaturePage({ params }: Props) {
 
       <Section id="related" title="Related features" soft>
         <LinkGrid links={related} />
-        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href={HUBS.features} className="underline underline-offset-4">all features</Link>, <Link href={HUBS.compare} className="underline underline-offset-4">how Medoro compares</Link> or <Link href="/#pricing" className="underline underline-offset-4">pricing</Link>.</p>
+        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href={HUBS.features} className="underline underline-offset-4">all features</Link>, <Link href={HUBS.compare} className="underline underline-offset-4">how Medoro compares</Link> or <Link href="/pharmacy#pricing" className="underline underline-offset-4">pricing</Link>.</p>
       </Section>
 
       <CtaBand />

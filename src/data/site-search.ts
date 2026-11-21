@@ -14,7 +14,7 @@ export type SearchHit = { name: string; path: string; description: string; kind:
 
 const STATIC: SearchHit[] = [
   { kind: "Company", name: "About Medoro", path: "/about-medoro", description: "What Medoro (medoro.in) is, its mission, product suite, security and company details." },
-  { kind: "Pricing", name: "Medoro pricing and plans", path: "/#pricing", description: "Starter, Professional and Multi-branch plans in rupees, with a 7-day free trial." },
+  { kind: "Pricing", name: "Medoro pricing and plans", path: "/pharmacy#pricing", description: "Starter, Professional and Multi-branch plans in rupees, with a 7-day free trial." },
   { kind: "Company", name: "Become a reference partner", path: "/partners", description: "Refer pharmacies to Medoro and earn on every plan they buy." },
   { kind: "Company", name: "Careers at Medoro", path: "/careers", description: "Open roles at Medoro." },
   { kind: "Help", name: "Help, contact, privacy and terms", path: "/legal", description: "Contact Medoro, help and setup, backup and recovery, privacy policy, terms, refunds and grievance officer." },

@@ -65,7 +65,7 @@ export default function AboutMedoro() {
     ["MSME registration", <span key="u">{UDYAM.number} ({UDYAM.type}, registered {UDYAM.registered}). <a href={UDYAM.verifyUrl} target="_blank" rel="noopener noreferrer" className="text-[var(--s-brand)] underline underline-offset-4">Verify on the Udyam portal</a></span>],
     ["Runs on", "Chrome on any PC, tablet or phone; desktop app for Windows, macOS and Linux"],
     ["Languages", "English and हिंदी"],
-    ["Pricing", <span key="p">From ₹{from.toLocaleString("en-IN")} a month, with a 7-day free trial. <Link href="/#pricing" className="text-[var(--s-brand)] underline underline-offset-4">Medoro pricing</Link></span>],
+    ["Pricing", <span key="p">From ₹{from.toLocaleString("en-IN")} a month, with a 7-day free trial. <Link href="/pharmacy#pricing" className="text-[var(--s-brand)] underline underline-offset-4">Medoro pricing</Link></span>],
     ["Contact", <span key="c"><a href={`mailto:${BRAND.email}`} className="text-[var(--s-brand)] underline underline-offset-4">{BRAND.email}</a> · WhatsApp {BRAND.phoneDisplay} · {BRAND.supportHours}</span>],
     ...(profiles.length ? [["Official profiles", <span key="s" className="flex flex-wrap gap-x-4 gap-y-1">{profiles.map((p) => <a key={p.url} href={p.url} target="_blank" rel="noopener noreferrer me" className="text-[var(--s-brand)] underline underline-offset-4">{p.platform}</a>)}</span>] as [string, React.ReactNode]] : []),
   ];

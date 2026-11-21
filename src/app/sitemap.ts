@@ -20,6 +20,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const page = (path: string, priority: number, changeFrequency: Freq): MetadataRoute.Sitemap[number] => ({ url: absoluteUrl(path), changeFrequency, priority });
   return [
     page("/", 1, "weekly"),
+    // The two product landing pages.
+    page("/pharmacy", 1, "weekly"),
+    page("/distribution", 0.9, "weekly"),
     // The category pillar pages (/medical-billing-saas, /pharmacy-billing-software,
     // /medical-store-stock-management-software and the other search landing pages).
     ...LANDING_LINKS.map(([, path]) => page(path, 0.9, "monthly")),

@@ -81,7 +81,7 @@ export default async function ComparePage({ params }: Props) {
 
       <Section id="more" title="Explore Medoro">
         <LinkGrid links={[...FEATURE_LINKS.slice(0, 3), ...others]} />
-        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href={HUBS.compare} className="underline underline-offset-4">all comparisons</Link> or <Link href="/#pricing" className="underline underline-offset-4">pricing</Link>.</p>
+        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href={HUBS.compare} className="underline underline-offset-4">all comparisons</Link> or <Link href="/pharmacy#pricing" className="underline underline-offset-4">pricing</Link>.</p>
       </Section>
 
       <CtaBand title={`Try Medoro alongside ${c.competitor} for 7 days.`} text="Import your stock, bill a few customers on Medoro and keep your current software running until you're sure. No card needed." />
