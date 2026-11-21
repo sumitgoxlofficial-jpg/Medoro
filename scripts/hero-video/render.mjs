@@ -7,7 +7,7 @@ import { createReadStream, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { extname, join, resolve } from "node:path";
+import { extname, join, resolve, sep } from "node:path";
 
 // require() so a globally installed Playwright (NODE_PATH) is found too.
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -16,15 +16,26 @@ const preview = process.argv.includes("--preview");
 const root = resolve(import.meta.dirname, "../..");
 const out = join(root, "public/site");
 
-// ES modules don't load from file://, so serve the scene and three.js over a local port.
+// ES modules don't load from file://, so serve the scene and three.js over a local port (localhost only). Only
+// scene3d.html and .js files inside the three package are served; anything that resolves elsewhere is a 404.
 const types = { ".html": "text/html", ".js": "text/javascript" };
+const SCENE = join(root, "scripts/hero-video/scene3d.html");
+const THREE_DIR = join(root, "node_modules/three") + sep;
+function servedFile(url) {
+  let path;
+  try { path = decodeURIComponent(new URL(url, "http://localhost").pathname); } catch { return null; }
+  if (path === "/scene3d.html") return SCENE;
+  if (!path.startsWith("/three/")) return null;
+  const file = resolve(THREE_DIR, "." + path.slice("/three".length));
+  return file.startsWith(THREE_DIR) && extname(file) === ".js" && existsSync(file) ? file : null;
+}
 const server = createServer((req, res) => {
-  const url = decodeURIComponent(req.url.split("?")[0]);
-  const file = url.startsWith("/three/") ? join(root, "node_modules", url) : join(root, "scripts/hero-video", url);
-  if (!existsSync(file)) { res.writeHead(404).end(); return; }
-  res.writeHead(200, { "content-type": types[extname(file)] ?? "application/octet-stream" });
+  const file = servedFile(req.url ?? "/");
+  if (!file) { res.writeHead(404).end(); return; }
+  res.writeHead(200, { "content-type": types[extname(file)] });
   createReadStream(file).pipe(res);
-}).listen(0);
+});
+await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
 const port = server.address().port;
 
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
