@@ -21,6 +21,15 @@ import { addMedicine, createSale, receiveStock, stockOf, pointsBalance as device
 import { customerBalance } from "@/drivedb/trade";
 import { supplierDues, gstReturns } from "@/drivedb/books";
 import { addDays, todayISO } from "@/lib/dates";
+import { createDoctor } from "@/domain/doctors/service";
+import { addRecall } from "@/domain/inventory/recalls";
+import { bounceCheque, clearCheque, depositCheque } from "@/domain/parties/cheques";
+import { acknowledgeClaim, creditClaim, raiseClaim } from "@/domain/inventory/claims";
+import { listCheques, clearCheque as clearOnDevice } from "@/drivedb/cheques";
+import { listClaims, pricingRules, supplierTerms } from "@/drivedb/purchase-tools";
+import { listRecalls } from "@/drivedb/recalls";
+import { listDoctors } from "@/drivedb/doctors";
+import { intelSettings } from "@/drivedb/insights";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
 const key = () => "k_" + randomUUID().replace(/-/g, "");
@@ -263,6 +272,85 @@ describe("Moving a pharmacy that ran the Drive mode pilot", () => {
     expect(bad.ok).toBe(false);
     expect(bad.checks.find((c) => c.name === "Pilot records")?.detail).toMatch(/X\/1 was entered both/);
     expect(counterConfig(again)).toBeNull();
+    await undoMove(ctx);
+  });
+});
+
+describe("Moving doctors, recalls, cheques, supplier claims and settings", () => {
+  it("they come across as the counter keeps them, and every balance still equals Medoro's", async () => {
+    await resetDb(); await makePharmacy();
+    const ctx = await ctxFor();
+    await setDriveMode(ctx, true);
+    const t = ctx.tenantId;
+    const med = await createMedicine(ctx, { name: "Pan 40", generic: "Pantoprazole", strength: "40 mg", form: "Tablet", manufacturer: "Alkem", pack: "15", mrp: "155", gstRate: 12, schedule: "", reorderLevel: 5, barcode: "", hsn: "3004", rack: "" });
+    const cust = await saveCustomer(ctx, null, { name: "Pawar Clinic", phone: "9823077015", waOptIn: false, creditLimit: "100000", opening: "5000" });
+    const sup = await saveSupplier(ctx, null, { name: "Kalyan Distributors", creditDays: "15", acceptsReturns: false, returnWindowDays: 60 });
+    await postGrnTx(ctx, { supplierId: sup, invoiceNo: "KD/1", invoiceDate: todayISO(), statedTotal: null, poId: null, scanDocId: null,
+      lines: [{ medicineId: med, batchNo: "P2", expiry: addDays(todayISO(), 400), qty: 50, freeQty: "", scheme: "", rate: "100", pts: "", mrp: "155", tradePct: "", cashPct: "", poItemId: null }] });
+    const p2 = (await db.batch.findFirstOrThrow({ where: { batchNo: "P2" } })).id;
+    await createDoctor(ctx, { name: "Dr Asha Kulkarni", qualification: "MBBS", regNo: "MMC 2011/123", clinic: "Asha Clinic", phone: "9822012345" });
+    await addRecall(ctx, { medicineId: med, batches: "P9, P10", source: "CDSCO monthly alert", publishedAt: todayISO(), reason: "Not of standard quality", noticeNo: "CDSCO/NSQ/11" });
+
+    // Cheques: one received and cleared, one received and bounced (charge recovered, bank deducted), one issued and
+    // still pending, one issued and bounced (supplier's penalty).
+    const chq = (no: string) => ({ chequeNo: no, bank: "HDFC Bank", chequeDate: todayISO() });
+    await receiveFromCustomer(ctx, { partyId: cust, amount: "1000", method: "Cheque", ...chq("100001") });
+    await receiveFromCustomer(ctx, { partyId: cust, amount: "800", method: "Cheque", ...chq("100002") });
+    await paySupplier(ctx, { partyId: sup, amount: "1500", method: "Cheque", ...chq("200001") });
+    await paySupplier(ctx, { partyId: sup, amount: "700", method: "Cheque", ...chq("200002") });
+    const byNo = (no: string) => db.cheque.findFirstOrThrow({ where: { tenantId: t, no } });
+    await depositCheque(ctx, (await byNo("100001")).id); await clearCheque(ctx, (await byNo("100001")).id);
+    await depositCheque(ctx, (await byNo("100002")).id);
+    await bounceCheque(ctx, (await byNo("100002")).id, { reason: "Funds insufficient", charge: "150", bankCharge: "59" });
+    await bounceCheque(ctx, (await byNo("200002")).id, { reason: "Signature differs", charge: "200" });
+
+    // A breakage claim, acknowledged, part credited and the rest written off.
+    await saveSupplier(ctx, sup, { name: "Kalyan Distributors", creditDays: "15", acceptsReturns: true, returnWindowDays: 60 }, (await db.supplier.findUniqueOrThrow({ where: { id: sup } })).version);
+    await raiseClaim(ctx, { batchId: p2, qty: 30, reason: "breakage", note: "Crushed carton" });
+    const claim = await db.supplierClaim.findFirstOrThrow({ where: { tenantId: t } });
+    await acknowledgeClaim(ctx, claim.id);
+    await creditClaim(ctx, claim.id, { ref: "CN-77", amount: "100", close: true, reason: "Supplier credited part only" });
+    await db.supplier.update({ where: { id: sup }, data: { acceptsReturns: false } });
+
+    // Pricing rules and intelligence settings.
+    const cur = (await db.tenant.findUniqueOrThrow({ where: { id: t } })).settings as object;
+    await db.tenant.update({ where: { id: t }, data: { settings: { ...cur, purchasing: { gstBase: "gross", itc: false }, policy: { cover: 30, safety: 3 }, anomaly: { disc: 8, refunds: 4, cash: 500 } } } });
+
+    await startMove(ctx);
+    const base = (await moveExport(ctx, "base")) as MoveBase;
+    expect(base.summary.counts).toMatchObject({ doctor: 1, recall: 1, cheque: 4, chequeEvent: 5, supplierClaim: 1, claimEvent: 3, supplierTerms: 1, purchaseSetting: 1 });
+    expect(base.warnings.join(" ")).not.toMatch(/cheques that bounced/);
+    const dev = await memoryDb("DMOVE20");
+    beginMove(dev, base);
+    for (const part of MOVE_PARTS) { let next: string | null = null; do { const page = (await moveExport(ctx, part, next)) as { rows: unknown[]; next: string | null }; importPart(dev, part, page.rows); next = page.next; } while (next); }
+    const res = finishMove(dev, base, ctx.userId);
+    expect(res.checks.filter((c) => !c.ok)).toEqual([]);
+    expect(res.ok).toBe(true);
+
+    // Balances equal Medoro's books, with bounced cheques and claim credits as the counter's own rows.
+    expect(customerBalance(dev, cust)).toBe((await customerBalances(db, t)).get(cust));
+    expect(supplierDues(dev).find((s) => s.id === sup)!.duePaise).toBe((await supplierBalances(db, t)).get(sup));
+    expect(dev.engine.all("SELECT 1 FROM customerReceipt WHERE ref LIKE 'Opening%'")).toHaveLength(1); // only the customer's real opening balance
+
+    const cheques = new Map(listCheques(dev).map((c) => [c.chequeNo, c]));
+    expect(Object.fromEntries([...cheques].map(([no, c]) => [no, c.status]))).toEqual({ 100001: "cleared", 100002: "bounced", 200001: "pending", 200002: "bounced" });
+    expect(cheques.get("100002")).toMatchObject({ reason: "Funds insufficient", chargePaise: 15000, bankChargePaise: 5900, conflict: false });
+    expect(cheques.get("200002")).toMatchObject({ chargePaise: 20000, bankChargePaise: 0 });
+    expect(dev.engine.all<{ mode: string }>("SELECT DISTINCT mode FROM customerReceipt WHERE ref NOT LIKE 'Opening%'").map((r) => r.mode)).toEqual(["cheque"]);
+    expect(dev.engine.all<{ category: string; amountPaise: number }>("SELECT category, amountPaise FROM expense")).toEqual([{ category: "Bank charges", amountPaise: 5900 }]);
+    // The counter carries on: the pending cheque to the supplier clears there.
+    clearOnDevice(dev, (cheques.get("200001"))!.id, undefined, ctx.userId);
+    expect(listCheques(dev).find((c) => c.chequeNo === "200001")!.status).toBe("cleared");
+
+    const [cl] = listClaims(dev).rows;
+    expect(cl).toMatchObject({ no: claim.no, qty: 30, reason: "breakage", status: "credited", claim: Number(claim.claimPaise), credit: 10000, writeOff: Number(claim.claimPaise) - 10000, writeOffReason: "Supplier credited part only" });
+    expect(dev.engine.all<{ taxPaise: number; claimPaise: number }>("SELECT taxPaise, claimPaise FROM supplierClaim")[0].taxPaise).toBeGreaterThan(0);
+
+    expect(listDoctors(dev)).toMatchObject([{ name: "Asha Kulkarni", regNo: "MMC 2011/123", clinic: "Asha Clinic" }]);
+    expect(listRecalls(dev)).toMatchObject([{ ref: "CDSCO/NSQ/11", source: "CDSCO monthly alert", batchNos: ["P9", "P10"], status: "open" }]);
+    expect(supplierTerms(dev, sup)).toMatchObject({ acceptsReturns: false, returnWindowDays: 60 });
+    expect(pricingRules(dev)).toMatchObject({ gstBase: "gross", itc: false });
+    expect(intelSettings(dev)).toEqual({ policy: { cover: 30, safety: 3 }, anomaly: { disc: 8, refunds: 4 } });
     await undoMove(ctx);
   });
 });
