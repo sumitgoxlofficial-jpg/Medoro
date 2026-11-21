@@ -65,7 +65,7 @@ export function SiteFooter() {
         <div className="grid gap-x-8 gap-y-10 grid-cols-2 min-[720px]:grid-cols-3 min-[1040px]:grid-cols-5">
           <div className="flex flex-col gap-4 col-span-full">
             <Link href="/" aria-label={t("Medoro home")} className="site-logo self-start"><Wordmark size={20} /></Link>
-            <p className="m-0 text-[15px] text-[var(--s-muted)] max-w-[320px]">{t("Medoro is a medical and pharmacy billing SaaS: billing, stock, GST and accounts for Indian medical stores and small pharmacy chains.")}</p>
+            <p className="m-0 text-[15px] text-[var(--s-muted)] max-w-[320px]">{t("Medoro builds business software for India’s pharma trade: Medoro Pharmacy for medical stores and chains, and Medoro Distribution for distributors and stockists.")}</p>
             <div className="flex flex-col gap-1.5 text-[15px]">
               <a href={WA_DEMO} className="group text-[var(--s-ink)] flex gap-2.5 items-center hover:text-[var(--s-brand)]">
                 <span className="relative size-8 rounded-lg bg-[#DCF2E7] flex items-center justify-center"><MessageCircle size={16} aria-hidden className="site-nav-ico text-[#146C43]" /><span aria-hidden className="site-ping absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-[#22A06B]" /></span>WhatsApp +91 73200 01062
