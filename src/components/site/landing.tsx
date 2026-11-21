@@ -105,7 +105,7 @@ export function LandingPage({ slug }: { slug: string }) {
               <li key={path}><Link href={path} className="flex items-center justify-between gap-3 h-full rounded-lg border border-[var(--s-line)] px-4 py-4 text-[16px] font-semibold text-[var(--s-ink)] transition-colors hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]">{name}<ArrowRight size={16} aria-hidden /></Link></li>
             ))}
           </ul>
-          <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href="/#pricing" className="underline underline-offset-4">pricing</Link>, how <Link href="/#switching" className="underline underline-offset-4">switching from your current software</Link> works, or <Link href="/" className="underline underline-offset-4">the full product tour</Link>.</p>
+          <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href="/pharmacy#pricing" className="underline underline-offset-4">pricing</Link>, how <Link href="/#switching" className="underline underline-offset-4">switching from your current software</Link> works, or <Link href="/" className="underline underline-offset-4">the full product tour</Link>.</p>
         </section>
       </main>
       <SiteFooter />
