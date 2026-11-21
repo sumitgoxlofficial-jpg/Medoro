@@ -18,7 +18,7 @@ Live site `https://medoro.in`, crawled 20 November 2026 (Vercel, `bom1`) with Pl
 | Become a Partner | `/partners` | PASS |
 | About Medoro | `/about-medoro`, `/legal#about` | PASS |
 | Contact, Help & Setup, Backup & Recovery, Privacy Policy, Terms, Cancellation & Refund, Cookie Policy, DPDP Rights, Grievance Officer | `/legal#contact`, `#help`, `#backup`, `#privacy`, `#terms`, `#refund`, `#cookies`, `#dpdp`, `#grievance` (one page with sections) | PASS; note `/legal/terms` and `/legal/privacy` do not exist (see BUG-01) |
-| Login | `/signin` | PASS (no H1 on the sign-in card, see SEO notes) |
+| Login | `/signin` | PASS (H1 added after the crawl, see SEO notes) |
 | Pharmacy Staff Login | `/signin?view=employee` (footer link) | PASS |
 | Free Trial Registration | `/trial`, `/signup`, `/start`, `/distributor-signup` | PASS (page); the email-code flow is tested end to end in e2e spec 33 |
 | WhatsApp demo CTA | `https://wa.me/917320001062?...` | NOT TESTED: `wa.me` is not reachable from this sandbox's network policy; the link format is correct |
@@ -117,11 +117,11 @@ Live site `https://medoro.in`, crawled 20 November 2026 (Vercel, `bom1`) with Pl
 | Id | Page | Defect | Status |
 |---|---|---|---|
 | BUG-01 | `/portal/register` | Links to `/legal/terms` and `/legal/privacy`, which return 404 (the legal page uses `/legal#terms` and `/legal#privacy`) | FIXED; regression test `src/data/internal-links.test.ts` checks every static internal link in the source |
-| BUG-09 | `/tour/index.html` (embedded on the homepage) | The prototype runtime's inline event handlers are blocked by the tour's own CSP: 394 console errors per desktop load. The tour still renders and navigates (verified by clicking 6 navigation items) | OPEN, LOW (console noise; vendored prototype runtime) |
+| BUG-09 | `/tour/index.html` (embedded on the homepage) | The prototype runtime's inline event handlers are blocked by the tour's own CSP: 394 console errors per desktop load. The tour still renders and navigates (verified by clicking 6 navigation items) | FIXED: handler attributes written in the runtime's encoded form at build time; 0 console errors (bug log) |
 
 ## SEO notes (not defects)
-- Every marketing page has a title, description and exactly one H1. All have a canonical URL except `/partners` and `/legal` (LOW: worth adding, both are indexable). Titles are unique except `/signup` and `/trial` (the same sign-up page) and two career postings for the same role.
-- Auth and app entry pages (`/signin`, `/signup`, `/start`, `/trial`, `/pay`, `/staff/*`, `/portal/*`) have no canonical; `/signin` and `/offline` have no H1. These are excluded in `robots.txt` or are utility pages; adding an `<h1>` to the sign-in card would help screen-reader users more than SEO.
+- Every marketing page has a title, description and exactly one H1. `/partners` and `/legal` lacked a canonical URL; both now have one (fixed after the crawl). Titles are unique except `/signup` and `/trial` (the same sign-up page) and two career postings for the same role.
+- Auth and app entry pages (`/signin`, `/signup`, `/start`, `/trial`, `/pay`, `/staff/*`, `/portal/*`) have no canonical; `/offline` has no H1 (utility page). Each sign-in view's title is now an `<h1>` (fixed after the crawl; it mainly helps screen-reader users).
 - `robots.txt` disallows `/app`, `/staff`, `/api`, `/print`, `/device`, `/support`, `/offline`, `/trial`, `/pay`, `/setup` and `/pharmacy-software-in/` (the location pages are linked as `/pharmacy-software-in-<state>` instead).
 
 ## Responsiveness and accessibility

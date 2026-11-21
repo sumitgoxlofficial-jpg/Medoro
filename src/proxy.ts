@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { securityHeaders } from "@/server/security-headers";
 
 /** Per-request CSP nonce plus security headers. Authentication is enforced in pages and handlers, not here. */
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
   const https = req.nextUrl.protocol === "https:" || req.headers.get("x-forwarded-proto")?.split(",")[0].trim() === "https";
   const headers = securityHeaders({ nonce, https, path: req.nextUrl.pathname, dev: process.env.NODE_ENV === "development" });

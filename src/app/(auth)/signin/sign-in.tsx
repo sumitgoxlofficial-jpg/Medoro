@@ -53,7 +53,7 @@ function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: bo
   return (
     <AuthCard>
       <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <div className="text-[22px] font-semibold">{t("Sign in")}</div>
+        <h1 className="m-0 text-[22px] font-semibold">{t("Sign in")}</h1>
         {linkEmail ? <div role="status" className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">{t("Google confirmed")} <strong>{linkEmail}</strong>. {t("Enter your Medoro password once to connect Google sign-in to this account.")}</div>
           : notice && GOOGLE_NOTICE[notice] ? <div role="status" className="text-[13px] bg-chip rounded-lg p-3">{t(GOOGLE_NOTICE[notice])}</div> : null}
         <AuthLabel label="Email"><input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@pharmacy.in" autoComplete="username" autoFocus={!linkEmail} /></AuthLabel>
@@ -107,7 +107,7 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
       <form onSubmit={submit} className="flex flex-col gap-3.5">
         <div className="flex gap-2.5 items-center">
           <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><IdCard size={18} /></span>
-          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">{t("Pharmacy staff login")}</span><span className="text-[13px] text-muted">{t("For pharmacists, cashiers and accountants")}</span></div>
+          <div className="flex flex-col leading-tight"><h1 className="m-0 text-[20px] font-semibold">{t("Pharmacy staff login")}</h1><span className="text-[13px] text-muted">{t("For pharmacists, cashiers and accountants")}</span></div>
         </div>
         <AuthLabel label="Pharmacy code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus={!prefill} /></AuthLabel>
         <AuthLabel label="Employee ID"><input className={cn(authInput, authMono)} value={emp} onChange={(e) => setEmp(e.target.value.toUpperCase())} placeholder="E-104" /></AuthLabel>
@@ -184,7 +184,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
     <AuthCard width={440}>
       <div className="flex gap-2.5 items-center">
         <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><UserPlus size={18} /></span>
-        <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">{t("Create employee account")}</span><span className="text-[13px] text-muted">{t("Use the invite code your owner or manager sent you")}</span></div>
+        <div className="flex flex-col leading-tight"><h1 className="m-0 text-[20px] font-semibold">{t("Create employee account")}</h1><span className="text-[13px] text-muted">{t("Use the invite code your owner or manager sent you")}</span></div>
       </div>
       <Steps labels={["Invite", "Verify", manager ? "Password" : "PIN"]} step={Math.min(step, 3)} />
       {step === 1 ? (
@@ -271,7 +271,7 @@ function Forgot({ recovery, onBack }: { recovery: Recovery; onBack: () => void }
       <form onSubmit={submit} className="flex flex-col gap-3.5">
         <div className="flex gap-2.5 items-center">
           <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><KeyRound size={18} /></span>
-          <div className="flex flex-col leading-tight"><span className="text-[20px] font-semibold">{t("Reset your password")}</span><span className="text-[13px] text-muted">{t("For owners and managers")}</span></div>
+          <div className="flex flex-col leading-tight"><h1 className="m-0 text-[20px] font-semibold">{t("Reset your password")}</h1><span className="text-[13px] text-muted">{t("For owners and managers")}</span></div>
         </div>
         {!recovery.email && !recovery.sms ? (
           <div className="text-[13px] text-muted bg-chip rounded-lg p-3">{t("Password reset needs email or SMS, and neither is set up on this server. The person who runs the server can set MAIL_PROVIDER or OTP_PROVIDER (see docs/SECURITY.md). Managers can also ask the owner for a reset code from Users.")}</div>

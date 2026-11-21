@@ -12,7 +12,7 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 | BUG-06 | MEDIUM | Database | Missing indexes on hot paths (every sale commit, WhatsApp webhooks) | FIXED |
 | BUG-07 | LOW | Docs | README says the trial is 14 days; the app enforces 7 | FIXED |
 | BUG-08 | MEDIUM | Live updates | An open dashboard sometimes misses a live update (~3 in 10) | FIXED |
-| BUG-09 | LOW | Website tour | 394 CSP console errors per load of the embedded tour | OPEN |
+| BUG-09 | LOW | Website tour | 394 CSP console errors per load of the embedded tour | FIXED |
 | BUG-10 | MEDIUM | App navigation | A link click occasionally doesn't navigate (Intelligence → Supplier intelligence, ~1 in 3) | FIXED (Next.js 16) |
 | GAP-01 | – | Tests | No browser test of the email-confirmed sign-up (the production path) | FIXED (new spec) |
 
@@ -76,8 +76,12 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
   - Also fixed in the same hook: a change that arrives while the tab is hidden now reaches the screen when the tab is shown (it used to wait for a 60 s absence), and changes made while the event stream was reconnecting are fetched when it reconnects.
 - **Retest:** the unmodified spec 12 passed **30 of 30**, against 7 of 10 before. Full e2e suite on the fix: no new failures (the two failures are spec 02's mail-sink test and BUG-10, which fails at the same rate without this change).
 
-### BUG-09 · Tour CSP console noise (OPEN)
-- `/tour/index.html` (embedded on the homepage in a sandboxed iframe) logs ~394 "Executing inline event handler violates … CSP" errors per load. The tour still renders and responds to clicks (verified). The handlers come from the design prototype's runtime (`design/support.js`), which `scripts/build-tour.mjs` copies. Fix belongs in that runtime (use `addEventListener`), or accept as noise.
+### BUG-09 · Tour CSP console noise (FIXED)
+- **Found by:** the live crawl: `/tour/index.html` (embedded on the homepage in a sandboxed iframe) logs 394 "Executing inline event handler violates … CSP" errors per load (reproduced on medoro.in). The tour still worked.
+- **Root cause:** the prototype runtime (`design/support.js`) reads its template from the live `<x-dc>` element, so the browser parses the template's 197 `onClick="{{ … }}"` / `onChange` / `onKeyDown` attributes as real inline event handlers, which the tour's CSP (`script-src 'self' 'unsafe-eval'`) blocks, two reports each. The runtime itself never uses them as DOM handlers: it rewrites camelCase attributes to `sc-camel-on-click` and turns them into React props.
+- **Fix:** `scripts/build-tour.mjs` writes the template's handler attributes in that encoded form (only inside `<x-dc>`; the build fails if any inline handler is left), then `public/tour/` is rebuilt. Only those 192 lines of `index.html` change; the runtime and the CSP are untouched (no `'unsafe-inline'` added).
+- **Regression test:** `src/data/tour-csp.test.ts` checks the built template has no inline handler attributes and keeps the encoded ones.
+- **Retest:** the old and new tour served with the production tour CSP in Chromium: console errors 394 → **0**; the same 8 sidebar clicks land on the same screens in both builds.
 
 ### BUG-10 · A link click occasionally doesn't navigate (FIXED by upgrading to Next.js 16.4.6)
 - **Found by:** the full e2e run for BUG-08: spec 31 "supplier intelligence" clicks the Supplier intelligence link on `/app/intelligence` and the URL never changes. It fails at the same rate with and without the BUG-08 change.
@@ -101,7 +105,7 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 - **Fix:** upgrade `next` and `eslint-config-next` from 15.5.29 to 16.4.6 (approved by the owner). No application code changed.
   - `eslint.config.mjs`: eslint-config-next 16 is flat config. It also enables new React Compiler rules (`react-hooks/set-state-in-effect`, `refs`, `static-components`, `purity`, `immutability`, `preserve-manual-memoization`) with 209 findings in code written before them; these are warnings for now (lint: 0 errors, 215 warnings). Reworking those call sites is follow-up work.
   - `tsconfig.json`: `jsx: react-jsx` and `.next/dev/types`, written by Next.js 16.
-  - Build uses Turbopack (Next.js 16's default); `src/middleware.ts` works but the file name is deprecated in favour of `proxy.ts` (follow-up).
+  - Build uses Turbopack (Next.js 16's default); `src/middleware.ts` works but the file name is deprecated in favour of `proxy.ts` (since renamed: `src/proxy.ts`).
 - **Retest on 16.4.6:** spec 31 supplier link **30/30** (4/12 failed on 15.5.29 with the same code); spec 12 live update 20/20; full e2e 72 passed, 2 skipped, 1 failed (spec 02's mail-sink test, as before); Vitest 1,189/1,189; typecheck clean; CSP and X-Frame-Options headers still set.
 - **Impact before the fix:** a user occasionally had to click a link a second time. Data was never affected.
 

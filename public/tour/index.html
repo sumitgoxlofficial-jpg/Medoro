@@ -26,7 +26,7 @@ input,select,button,textarea{font-family:inherit}
 
 <aside style="background:#FBFBFC;border-right:1px solid #E6E8EB;display:flex;flex-direction:column;min-height:0">
   <div style="height:56px;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid #EEF0F2;flex:none">
-    <button onClick="{{ onWorkspace }}" title="Switch pharmacy" style="display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;padding:6px;border-radius:8px;cursor:pointer;text-align:left;color:inherit" style-hover="background:#F0F2F4">
+    <button sc-camel-on-click="{{ onWorkspace }}" title="Switch pharmacy" style="display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;padding:6px;border-radius:8px;cursor:pointer;text-align:left;color:inherit" style-hover="background:#F0F2F4">
       <span style="width:28px;height:28px;border-radius:7px;background:#fff;border:1px solid #E6E8EB;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 1px 2px rgba(16,24,40,.05)"><img src="assets/medoro-mark.png" alt="Medoro" style="width:20px;height:auto;display:block"></span>
       <sc-if value="{{ showLabels }}" hint-placeholder-val="{{ true }}">
         <span style="display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.2">
@@ -40,12 +40,12 @@ input,select,button,textarea{font-family:inherit}
   <nav data-md-nav="1" style="display:flex;flex-direction:column;gap:1px;padding:8px;flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#DCE0E3 transparent">
     <sc-for list="{{ nav }}" as="n" hint-placeholder-count="12">
       <sc-if value="{{ n.hasHead }}">
-        <button onClick="{{ n.onToggleGroup }}" style="display:flex;align-items:center;gap:4px;border:0;background:transparent;padding:14px 8px 5px;font-size:11px;font-weight:600;letter-spacing:.04em;color:#8A929A;cursor:pointer;text-align:left;flex:none" style-hover="color:#3D454D">
+        <button sc-camel-on-click="{{ n.onToggleGroup }}" style="display:flex;align-items:center;gap:4px;border:0;background:transparent;padding:14px 8px 5px;font-size:11px;font-weight:600;letter-spacing:.04em;color:#8A929A;cursor:pointer;text-align:left;flex:none" style-hover="color:#3D454D">
           <i class="{{ n.groupIcon }}" style="font-size:12px"></i>{{ n.head }}
         </button>
       </sc-if>
       <sc-if value="{{ n.visible }}" hint-placeholder-val="{{ true }}">
-        <button onClick="{{ n.onClick }}" title="{{ n.label }}" style="position:relative;display:flex;flex-direction:{{ navDir }};align-items:center;gap:{{ navGap }};border:0;background:{{ n.bg }};color:{{ n.fg }};font-weight:{{ n.fw }};font-size:13px;padding:{{ navPad }};border-radius:6px;cursor:pointer;text-align:left;min-height:30px;flex:none;box-shadow:{{ n.sh }}" style-hover="background:{{ n.hov }}">
+        <button sc-camel-on-click="{{ n.onClick }}" title="{{ n.label }}" style="position:relative;display:flex;flex-direction:{{ navDir }};align-items:center;gap:{{ navGap }};border:0;background:{{ n.bg }};color:{{ n.fg }};font-weight:{{ n.fw }};font-size:13px;padding:{{ navPad }};border-radius:6px;cursor:pointer;text-align:left;min-height:30px;flex:none;box-shadow:{{ n.sh }}" style-hover="background:{{ n.hov }}">
           <i class="{{ n.icon }}" style="font-size:16px;width:18px;text-align:center;flex:none;color:{{ n.ic }}"></i>
           <sc-if value="{{ showLabels }}" hint-placeholder-val="{{ true }}"><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.label }}</span></sc-if>
           <sc-if value="{{ n.hasBadge }}"><span style="min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:{{ n.badgeBg }};color:{{ n.badgeFg }};font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums">{{ n.badge }}</span></sc-if>
@@ -55,13 +55,13 @@ input,select,button,textarea{font-family:inherit}
     </sc-for>
   </nav>
   <sc-if value="{{ showLabels }}" hint-placeholder-val="{{ true }}">
-    <button onClick="{{ goPrivacy }}" title="Live database: your server (Kothrud LAN). Medoro only holds licence data." style="margin:6px 8px;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid #E6E8EB;background:#fff;border-radius:7px;cursor:pointer;flex:none;font-size:12px;color:#3D454D;text-align:left" style-hover="border-color:#CDD2D7">
+    <button sc-camel-on-click="{{ goPrivacy }}" title="Live database: your server (Kothrud LAN). Medoro only holds licence data." style="margin:6px 8px;display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;border:1px solid #E6E8EB;background:#fff;border-radius:7px;cursor:pointer;flex:none;font-size:12px;color:#3D454D;text-align:left" style-hover="border-color:#CDD2D7">
       <i class="icon-shield-check" style="font-size:14px;color:#18794E"></i><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Strict mode · data on your server</span>
     </button>
   </sc-if>
   <div style="position:relative;border-top:1px solid #EEF0F2;padding:6px 8px">
     <sc-if value="{{ menuOpen }}">
-      <div onClick="{{ closeMenu }}" style="position:fixed;inset:0;z-index:70"></div>
+      <div sc-camel-on-click="{{ closeMenu }}" style="position:fixed;inset:0;z-index:70"></div>
       <div style="position:absolute;left:8px;bottom:calc(100% + 6px);width:256px;background:#fff;border:1px solid #E6E8EB;border-radius:10px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 12px 32px -4px rgba(16,24,40,.16);z-index:71;padding:4px;display:flex;flex-direction:column">
         <div style="display:flex;align-items:center;gap:10px;padding:10px 10px 10px">
           <div style="position:relative;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2459C9,#0A9A80);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none">{{ userInitials }}<span style="position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:#22A06B;border:2px solid #fff"></span></div>
@@ -82,13 +82,13 @@ input,select,button,textarea{font-family:inherit}
             <div style="display:flex;align-items:center;gap:10px;height:34px;padding:0 6px 0 10px;font-size:13px;color:#1F2328">
               <i class="icon-languages" style="font-size:15px;width:16px;text-align:center;color:#6B737B"></i><span style="flex:1">Language</span>
               <div style="display:inline-flex;gap:1px;background:#F2F4F5;padding:2px;border-radius:6px">
-                <button onClick="{{ setEn }}" style="border:0;background:{{ enBg }};box-shadow:{{ enSh }};color:#1F2328;height:22px;padding:0 8px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer">EN</button>
-                <button onClick="{{ setHi }}" style="border:0;background:{{ hiBg }};box-shadow:{{ hiSh }};color:#1F2328;height:22px;padding:0 8px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer">हिंदी</button>
+                <button sc-camel-on-click="{{ setEn }}" style="border:0;background:{{ enBg }};box-shadow:{{ enSh }};color:#1F2328;height:22px;padding:0 8px;border-radius:4px;font-size:11.5px;font-weight:600;cursor:pointer">EN</button>
+                <button sc-camel-on-click="{{ setHi }}" style="border:0;background:{{ hiBg }};box-shadow:{{ hiSh }};color:#1F2328;height:22px;padding:0 8px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer">हिंदी</button>
               </div>
             </div>
           </sc-if>
           <sc-if value="{{ mi.isItem }}" hint-placeholder-val="{{ true }}">
-            <button onClick="{{ mi.onClick }}" style="display:flex;align-items:center;gap:10px;height:34px;border:0;background:transparent;padding:0 10px;border-radius:6px;font-size:13px;color:{{ mi.fg }};cursor:pointer;text-align:left" style-hover="background:{{ mi.hov }}">
+            <button sc-camel-on-click="{{ mi.onClick }}" style="display:flex;align-items:center;gap:10px;height:34px;border:0;background:transparent;padding:0 10px;border-radius:6px;font-size:13px;color:{{ mi.fg }};cursor:pointer;text-align:left" style-hover="background:{{ mi.hov }}">
               <i class="{{ mi.icon }}" style="font-size:15px;width:16px;text-align:center;color:{{ mi.ic }}"></i>
               <span style="flex:1">{{ mi.label }}</span>
               <sc-if value="{{ mi.hasKbd }}"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A929A;border:1px solid #E6E8EB;border-radius:4px;padding:0 5px;line-height:18px">{{ mi.kbd }}</span></sc-if>
@@ -98,7 +98,7 @@ input,select,button,textarea{font-family:inherit}
         <div style="padding:6px 10px 6px;font-size:11px;color:#A3AAB1;border-top:1px solid #EEF0F2;margin:4px -4px 0;padding-left:14px">Medoro 2.14.0 · Kothrud LAN</div>
       </div>
     </sc-if>
-    <button onClick="{{ toggleMenu }}" title="Account menu" style="display:flex;align-items:center;gap:9px;padding:6px;width:100%;border:0;background:{{ menuBtnBg }};border-radius:8px;cursor:pointer;text-align:left;color:inherit" style-hover="background:#F0F2F4">
+    <button sc-camel-on-click="{{ toggleMenu }}" title="Account menu" style="display:flex;align-items:center;gap:9px;padding:6px;width:100%;border:0;background:{{ menuBtnBg }};border-radius:8px;cursor:pointer;text-align:left;color:inherit" style-hover="background:#F0F2F4">
       <div style="position:relative;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#2459C9,#0A9A80);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11.5px;flex:none">{{ userInitials }}<span style="position:absolute;right:-1px;bottom:-1px;width:9px;height:9px;border-radius:50%;background:#22A06B;border:2px solid #FBFBFC"></span></div>
       <sc-if value="{{ showLabels }}" hint-placeholder-val="{{ true }}">
         <div style="display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.25">
@@ -116,14 +116,14 @@ input,select,button,textarea{font-family:inherit}
       <div style="display:flex;flex-direction:column;gap:2px">
         <div style="font-size:12.5px;color:#5B636B;font-weight:500;margin-bottom:4px">Active sessions</div>
         <sc-for list="{{ sessions }}" as="se">
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F1F3F4;font-size:13.5px"><i class="{{ se.icon }}" style="color:#5B636B"></i><div style="display:flex;flex-direction:column;flex:1"><span style="font-weight:500">{{ se.device }}</span><span style="font-size:12px;color:#5B636B">{{ se.meta }}</span></div><sc-if value="{{ se.canRevoke }}"><button onClick="{{ se.onRevoke }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">Revoke</button></sc-if><sc-if value="{{ se.isThis }}"><span style="font-size:12px;color:#1E7F4F">This device</span></sc-if></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F1F3F4;font-size:13.5px"><i class="{{ se.icon }}" style="color:#5B636B"></i><div style="display:flex;flex-direction:column;flex:1"><span style="font-weight:500">{{ se.device }}</span><span style="font-size:12px;color:#5B636B">{{ se.meta }}</span></div><sc-if value="{{ se.canRevoke }}"><button sc-camel-on-click="{{ se.onRevoke }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">Revoke</button></sc-if><sc-if value="{{ se.isThis }}"><span style="font-size:12px;color:#1E7F4F">This device</span></sc-if></div>
         </sc-for>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button onClick="{{ onRevokeAll }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Sign out all other devices</button>
-        <button onClick="{{ onResetMfa }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Reset authenticator</button>
+        <button sc-camel-on-click="{{ onRevokeAll }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Sign out all other devices</button>
+        <button sc-camel-on-click="{{ onResetMfa }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Reset authenticator</button>
       </div>
-      <div style="display:flex;justify-content:flex-end"><button onClick="{{ closeProfile }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Done</button></div>
+      <div style="display:flex;justify-content:flex-end"><button sc-camel-on-click="{{ closeProfile }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Done</button></div>
     </div>
   </div>
 </sc-if>
@@ -135,7 +135,7 @@ input,select,button,textarea{font-family:inherit}
       <span style="color:#6B737B;white-space:nowrap">Sanjeevani</span>
       <i class="icon-chevron-right" style="font-size:14px;color:#A3AAB1"></i>
       <div style="position:relative;display:flex;align-items:center">
-        <select value="{{ branch }}" onChange="{{ onBranch }}" style="appearance:none;-webkit-appearance:none;border:0;background:transparent;padding:4px 20px 4px 6px;border-radius:6px;font-size:13.5px;color:#3D454D;font-weight:500;cursor:pointer;outline:none" style-hover="background:#F2F4F5">
+        <select value="{{ branch }}" sc-camel-on-change="{{ onBranch }}" style="appearance:none;-webkit-appearance:none;border:0;background:transparent;padding:4px 20px 4px 6px;border-radius:6px;font-size:13.5px;color:#3D454D;font-weight:500;cursor:pointer;outline:none" style-hover="background:#F2F4F5">
           <option value="Kothrud">Kothrud</option>
           <option value="Baner">Baner</option>
           <option value="Aundh">Aundh</option>
@@ -145,19 +145,19 @@ input,select,button,textarea{font-family:inherit}
       <i class="icon-chevron-right" style="font-size:14px;color:#A3AAB1"></i>
       <span style="color:#1F2328;font-weight:600;white-space:nowrap">{{ title }}</span>
     </div>
-    <button onClick="{{ onCmd }}" style="margin:0 auto;display:flex;align-items:center;gap:8px;width:min(380px,32vw);min-width:140px;height:34px;padding:0 10px;border:1px solid #E6E8EB;background:#F7F8F9;border-radius:8px;color:#8A929A;font-size:13px;cursor:pointer;text-align:left" style-hover="border-color:#CDD2D7;background:#fff">
+    <button sc-camel-on-click="{{ onCmd }}" style="margin:0 auto;display:flex;align-items:center;gap:8px;width:min(380px,32vw);min-width:140px;height:34px;padding:0 10px;border:1px solid #E6E8EB;background:#F7F8F9;border-radius:8px;color:#8A929A;font-size:13px;cursor:pointer;text-align:left" style-hover="border-color:#CDD2D7;background:#fff">
       <i class="icon-search" style="font-size:15px"></i><span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Search medicines, invoices…</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid #E3E6E9;background:#fff;border-radius:4px;padding:1px 5px;color:#6B737B">F2</span>
     </button>
     <div style="display:flex;align-items:center;gap:6px;flex:none">
       <div title="Live sync · 3 devices connected to your server" style="display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;border-radius:7px;color:#1E7F4F;font-size:12.5px;font-weight:500;white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:#22A06B;box-shadow:0 0 0 3px #DCF2E7"></span><sc-if value="{{ showLabels }}" hint-placeholder-val="{{ true }}">Synced</sc-if></div>
       <div style="width:1px;height:20px;background:#E6E8EB"></div>
       <div style="display:inline-flex;gap:1px;background:#F2F4F5;padding:2px;border-radius:7px">
-        <button onClick="{{ setEn }}" style="border:0;background:{{ enBg }};color:#1F2328;width:30px;height:26px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:{{ enSh }}">EN</button>
-        <button onClick="{{ setHi }}" style="border:0;background:{{ hiBg }};color:#1F2328;width:30px;height:26px;border-radius:5px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:{{ hiSh }}">हि</button>
+        <button sc-camel-on-click="{{ setEn }}" style="border:0;background:{{ enBg }};color:#1F2328;width:30px;height:26px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:{{ enSh }}">EN</button>
+        <button sc-camel-on-click="{{ setHi }}" style="border:0;background:{{ hiBg }};color:#1F2328;width:30px;height:26px;border-radius:5px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:{{ hiSh }}">हि</button>
       </div>
       <div title="Demo: preview the app as another role" style="position:relative;display:flex;align-items:center">
         <i class="icon-user-round-cog" style="position:absolute;left:9px;font-size:14px;color:#6B737B;pointer-events:none"></i>
-        <select value="{{ role }}" onChange="{{ onRole }}" style="appearance:none;-webkit-appearance:none;height:30px;border:1px solid #E6E8EB;border-radius:7px;padding:0 24px 0 28px;font-size:12.5px;background:#fff;color:#3D454D;font-weight:500;cursor:pointer;outline:none" style-hover="border-color:#CDD2D7">
+        <select value="{{ role }}" sc-camel-on-change="{{ onRole }}" style="appearance:none;-webkit-appearance:none;height:30px;border:1px solid #E6E8EB;border-radius:7px;padding:0 24px 0 28px;font-size:12.5px;background:#fff;color:#3D454D;font-weight:500;cursor:pointer;outline:none" style-hover="border-color:#CDD2D7">
           <option value="Owner">Owner</option>
           <option value="Manager">Manager</option>
           <option value="Pharmacist">Pharmacist</option>
@@ -166,8 +166,8 @@ input,select,button,textarea{font-family:inherit}
         </select>
         <i class="icon-chevron-down" style="position:absolute;right:7px;font-size:13px;color:#8A929A;pointer-events:none"></i>
       </div>
-      <button onClick="{{ onBell }}" title="Notifications" style="position:relative;width:32px;height:32px;border:0;background:transparent;border-radius:7px;color:#5B636B;cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:#F2F4F5"><i class="icon-bell" style="font-size:17px"></i><span style="position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:#D64545;border:1.5px solid #fff"></span></button>
-      <button onClick="{{ toggleAi }}" style="display:flex;align-items:center;gap:6px;height:32px;border:0;background:{{ aiBtnBg }};color:{{ aiBtnFg }};padding:0 12px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(16,24,40,.08)" style-hover="filter:brightness(1.08)"><i class="icon-sparkles" style="font-size:15px"></i>{{ t.ask }}</button>
+      <button sc-camel-on-click="{{ onBell }}" title="Notifications" style="position:relative;width:32px;height:32px;border:0;background:transparent;border-radius:7px;color:#5B636B;cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:#F2F4F5"><i class="icon-bell" style="font-size:17px"></i><span style="position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:#D64545;border:1.5px solid #fff"></span></button>
+      <button sc-camel-on-click="{{ toggleAi }}" style="display:flex;align-items:center;gap:6px;height:32px;border:0;background:{{ aiBtnBg }};color:{{ aiBtnFg }};padding:0 12px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(16,24,40,.08)" style-hover="filter:brightness(1.08)"><i class="icon-sparkles" style="font-size:15px"></i>{{ t.ask }}</button>
     </div>
   </header>
   <main style="flex:1;overflow:auto;padding:24px 28px 48px;min-height:0;background:#F7F8F9">
@@ -179,9 +179,9 @@ input,select,button,textarea{font-family:inherit}
     <sc-if value="{{ is_dash }}" hint-placeholder-val="{{ true }}">
       <div style="display:flex;gap:8px;align-items:center">
         <div style="display:inline-flex;gap:1px;background:#fff;border:1px solid #E6E8EB;padding:2px;border-radius:8px">
-          <sc-for list="{{ rangeTabs }}" as="rt"><button onClick="{{ rt.onClick }}" style="border:0;background:{{ rt.bg }};color:{{ rt.fg }};height:28px;padding:0 11px;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer">{{ rt.label }}</button></sc-for>
+          <sc-for list="{{ rangeTabs }}" as="rt"><button sc-camel-on-click="{{ rt.onClick }}" style="border:0;background:{{ rt.bg }};color:{{ rt.fg }};height:28px;padding:0 11px;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer">{{ rt.label }}</button></sc-for>
         </div>
-        <button onClick="{{ onDashExport }}" style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #E6E8EB;background:#fff;border-radius:8px;font-size:13px;font-weight:500;color:#1F2328;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05)" style-hover="background:#F7F8F9"><i class="icon-download" style="font-size:15px"></i>Export</button>
+        <button sc-camel-on-click="{{ onDashExport }}" style="display:flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #E6E8EB;background:#fff;border-radius:8px;font-size:13px;font-weight:500;color:#1F2328;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.05)" style-hover="background:#F7F8F9"><i class="icon-download" style="font-size:15px"></i>Export</button>
       </div>
     </sc-if>
   </div>
@@ -237,7 +237,7 @@ input,select,button,textarea{font-family:inherit}
           <div style="font-size:13.5px;color:#3D454D;text-wrap:pretty">{{ ins.body }}</div>
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px">
             <div style="font-size:12px;color:#6B737B">Basis: {{ ins.basis }}</div>
-            <button onClick="{{ ins.onCta }}" style="margin-left:auto;border:0;background:transparent;color:#0B5E5B;font-weight:600;font-size:13px;cursor:pointer;padding:2px 0">{{ ins.cta }} →</button>
+            <button sc-camel-on-click="{{ ins.onCta }}" style="margin-left:auto;border:0;background:transparent;color:#0B5E5B;font-weight:600;font-size:13px;cursor:pointer;padding:2px 0">{{ ins.cta }} →</button>
           </div>
         </div>
       </sc-for>
@@ -245,9 +245,9 @@ input,select,button,textarea{font-family:inherit}
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:15px">{{ t.low }}</div><button onClick="{{ goInvLow }}" style="border:0;background:transparent;color:#0B5E5B;font-size:13px;font-weight:600;cursor:pointer">View all</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:15px">{{ t.low }}</div><button sc-camel-on-click="{{ goInvLow }}" style="border:0;background:transparent;color:#0B5E5B;font-size:13px;font-weight:600;cursor:pointer">View all</button></div>
       <sc-for list="{{ lowStock }}" as="ls" hint-placeholder-count="4">
-        <button onClick="{{ ls.onClick }}" style="display:flex;flex-direction:column;gap:5px;border:0;background:transparent;padding:6px 0;text-align:left;cursor:pointer;color:inherit">
+        <button sc-camel-on-click="{{ ls.onClick }}" style="display:flex;flex-direction:column;gap:5px;border:0;background:transparent;padding:6px 0;text-align:left;cursor:pointer;color:inherit">
           <div style="display:flex;justify-content:space-between;width:100%;font-size:13.5px"><span style="font-weight:500">{{ ls.name }}</span><span style="font-variant-numeric:tabular-nums;color:#5B636B">{{ ls.stock }}</span></div>
           <div style="width:100%;height:5px;background:#EEF0F2;border-radius:3px;overflow:hidden"><div style="width:{{ ls.w }};height:100%;background:#C27B12"></div></div>
           <div style="font-size:12px;color:#94570A">{{ ls.cover }}</div>
@@ -255,7 +255,7 @@ input,select,button,textarea{font-family:inherit}
       </sc-for>
     </div>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:6px">
-      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:15px">{{ t.expiring }}</div><button onClick="{{ goExp }}" style="border:0;background:transparent;color:#0B5E5B;font-size:13px;font-weight:600;cursor:pointer">Prevent loss</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:15px">{{ t.expiring }}</div><button sc-camel-on-click="{{ goExp }}" style="border:0;background:transparent;color:#0B5E5B;font-size:13px;font-weight:600;cursor:pointer">Prevent loss</button></div>
       <sc-for list="{{ expiring }}" as="e" hint-placeholder-count="5">
         <div style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #F1F3F4">
           <div style="display:flex;flex-direction:column;min-width:0"><span style="font-size:13.5px;font-weight:500">{{ e.name }}</span><span style="font-size:12px;color:#5B636B">{{ e.batch }}</span></div>
@@ -275,7 +275,7 @@ input,select,button,textarea{font-family:inherit}
       <div style="margin-top:auto;padding-top:12px;border-top:1px solid #EEF0F2;display:flex;align-items:center;gap:10px">
         <i class="icon-cloud-check" style="font-size:20px;color:#1E7F4F"></i>
         <div style="display:flex;flex-direction:column;flex:1"><span style="font-size:13px;font-weight:600">Last verified backup</span><span style="font-size:12.5px;color:#5B636B">{{ bakLast }} · {{ bakConnLabel }}</span></div>
-        <button onClick="{{ goBak }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;cursor:pointer">Open</button>
+        <button sc-camel-on-click="{{ goBak }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;cursor:pointer">Open</button>
       </div>
     </div>
   </div>
@@ -297,12 +297,12 @@ input,select,button,textarea{font-family:inherit}
     <div style="position:relative;display:flex;gap:8px">
       <div style="flex:1;position:relative">
         <i class="icon-search" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#8A929A;font-size:18px"></i>
-        <input ref="{{ searchRef }}" value="{{ posQ }}" onChange="{{ onPosQ }}" onKeyDown="{{ onPosKey }}" placeholder="{{ t.search }}" autofocus style="width:100%;border:1.5px solid #0B5E5B;border-radius:10px;padding:13px 14px 13px 42px;font-size:16px;outline:none;background:#fff">
+        <input ref="{{ searchRef }}" value="{{ posQ }}" sc-camel-on-change="{{ onPosQ }}" sc-camel-on-key-down="{{ onPosKey }}" placeholder="{{ t.search }}" autofocus style="width:100%;border:1.5px solid #0B5E5B;border-radius:10px;padding:13px 14px 13px 42px;font-size:16px;outline:none;background:#fff">
         <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#8A929A;border:1px solid #E3E6E9;border-radius:4px;padding:1px 5px">F2</span>
         <sc-if value="{{ hasResults }}">
           <div style="position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #CDD2D7;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.12);z-index:20;overflow:hidden">
             <sc-for list="{{ posResults }}" as="r">
-              <button onClick="{{ r.onAdd }}" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;width:100%;border:0;border-bottom:1px solid #F1F3F4;background:{{ r.bg }};padding:10px 14px;text-align:left;cursor:pointer;color:inherit" style-hover="background:#F0F7F6">
+              <button sc-camel-on-click="{{ r.onAdd }}" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;width:100%;border:0;border-bottom:1px solid #F1F3F4;background:{{ r.bg }};padding:10px 14px;text-align:left;cursor:pointer;color:inherit" style-hover="background:#F0F7F6">
                 <div style="display:flex;flex-direction:column;min-width:0">
                   <div style="display:flex;gap:6px;align-items:center"><span style="font-weight:600;font-size:14.5px">{{ r.name }}</span><sc-if value="{{ r.hasRx }}"><span style="font-size:11px;font-weight:600;color:#B3261E;border:1px solid #F0B8B2;border-radius:4px;padding:0 4px">{{ r.rx }}</span></sc-if></div>
                   <span style="font-size:12.5px;color:#5B636B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.meta }}</span>
@@ -318,12 +318,12 @@ input,select,button,textarea{font-family:inherit}
           <div style="position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #CDD2D7;border-radius:10px;padding:14px;z-index:20;font-size:13.5px;color:#5B636B">No medicine matches. Check spelling or try the generic name.</div>
         </sc-if>
       </div>
-      <button onClick="{{ scanDemo }}" title="Simulate barcode scan" style="display:flex;align-items:center;gap:7px;border:1px solid #CDD2D7;background:#fff;border-radius:10px;padding:0 14px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap"><i class="icon-scan-barcode" style="font-size:18px"></i>Scan</button>
+      <button sc-camel-on-click="{{ scanDemo }}" title="Simulate barcode scan" style="display:flex;align-items:center;gap:7px;border:1px solid #CDD2D7;background:#fff;border-radius:10px;padding:0 14px;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap"><i class="icon-scan-barcode" style="font-size:18px"></i>Scan</button>
     </div>
     <sc-if value="{{ hasHeld }}">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <span style="font-size:12.5px;color:#5B636B">Held carts:</span>
-        <sc-for list="{{ held }}" as="h"><button onClick="{{ h.onClick }}" style="border:1px dashed #2459C9;background:#EAF0FC;color:#2459C9;border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer">{{ h.label }}</button></sc-for>
+        <sc-for list="{{ held }}" as="h"><button sc-camel-on-click="{{ h.onClick }}" style="border:1px dashed #2459C9;background:#EAF0FC;color:#2459C9;border-radius:999px;padding:4px 10px;font-size:12.5px;cursor:pointer">{{ h.label }}</button></sc-for>
       </div>
     </sc-if>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden">
@@ -345,19 +345,19 @@ input,select,button,textarea{font-family:inherit}
             <span style="font-size:12px;color:#5B636B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ln.sub }}</span>
             <sc-if value="{{ ln.hasExpNote }}"><span style="font-size:12px;color:#94570A">{{ ln.expNote }}</span></sc-if>
           </div>
-          <select value="{{ ln.batchId }}" onChange="{{ ln.onBatch }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:12.5px;background:#fff;min-width:0;width:100%">
+          <select value="{{ ln.batchId }}" sc-camel-on-change="{{ ln.onBatch }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:12.5px;background:#fff;min-width:0;width:100%">
             <sc-for list="{{ ln.opts }}" as="o"><option value="{{ o.value }}" disabled="{{ o.disabled }}">{{ o.label }}</option></sc-for>
           </select>
           <div style="display:flex;align-items:center;border:1px solid #CDD2D7;border-radius:7px;overflow:hidden">
-            <button onClick="{{ ln.dec }}" style="border:0;background:#F5F6F7;width:30px;height:32px;cursor:pointer;font-size:16px">−</button>
-            <input value="{{ ln.qty }}" onChange="{{ ln.onQty }}" style="width:40px;border:0;text-align:center;font-size:14px;font-weight:600;outline:none;font-variant-numeric:tabular-nums">
-            <button onClick="{{ ln.inc }}" style="border:0;background:#F5F6F7;width:30px;height:32px;cursor:pointer;font-size:16px">+</button>
+            <button sc-camel-on-click="{{ ln.dec }}" style="border:0;background:#F5F6F7;width:30px;height:32px;cursor:pointer;font-size:16px">−</button>
+            <input value="{{ ln.qty }}" sc-camel-on-change="{{ ln.onQty }}" style="width:40px;border:0;text-align:center;font-size:14px;font-weight:600;outline:none;font-variant-numeric:tabular-nums">
+            <button sc-camel-on-click="{{ ln.inc }}" style="border:0;background:#F5F6F7;width:30px;height:32px;cursor:pointer;font-size:16px">+</button>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;min-width:86px">
             <span style="font-weight:600;font-variant-numeric:tabular-nums">{{ ln.amt }}</span>
             <span style="font-size:11.5px;color:#6B737B">{{ ln.mrp }} · {{ ln.gst }}</span>
           </div>
-          <button onClick="{{ ln.remove }}" title="Remove" style="border:0;background:transparent;color:#8A929A;cursor:pointer;padding:4px;border-radius:6px" style-hover="color:#B3261E;background:#FBEAE8"><i class="icon-trash-2" style="font-size:16px"></i></button>
+          <button sc-camel-on-click="{{ ln.remove }}" title="Remove" style="border:0;background:transparent;color:#8A929A;cursor:pointer;padding:4px;border-radius:6px" style-hover="color:#B3261E;background:#FBEAE8"><i class="icon-trash-2" style="font-size:16px"></i></button>
         </div>
       </sc-for>
     </div>
@@ -367,7 +367,7 @@ input,select,button,textarea{font-family:inherit}
   <div style="display:flex;flex-direction:column;gap:12px;position:sticky;top:0">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:14px 16px;display:flex;flex-direction:column;gap:8px">
       <label style="font-size:12.5px;color:#5B636B;font-weight:500">{{ t.customer }}</label>
-      <select value="{{ posCust }}" onChange="{{ onCust }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 10px;font-size:14px;background:#fff">
+      <select value="{{ posCust }}" sc-camel-on-change="{{ onCust }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 10px;font-size:14px;background:#fff">
         <option value="walkin">Walk-in customer (no details stored)</option>
         <sc-for list="{{ custOpts }}" as="co"><option value="{{ co.value }}">{{ co.label }}</option></sc-for>
       </select>
@@ -375,14 +375,14 @@ input,select,button,textarea{font-family:inherit}
       <sc-if value="{{ needsRx }}">
         <div style="display:flex;flex-direction:column;gap:6px;padding:10px;background:#FBEAE8;border-radius:8px;margin-top:4px">
           <div style="font-size:12.5px;font-weight:600;color:#B3261E;display:flex;gap:6px;align-items:center"><i class="icon-file-text" style="font-size:14px"></i>Schedule H/H1: prescription required</div>
-          <input value="{{ posDoctor }}" onChange="{{ onDoctor }}" placeholder="Prescriber name *" style="border:1px solid #E5B4AE;border-radius:7px;padding:8px 10px;font-size:13.5px;background:#fff;outline:none">
-          <input value="{{ posRxNo }}" onChange="{{ onRxNo }}" placeholder="Rx / register entry no." style="border:1px solid #E5B4AE;border-radius:7px;padding:8px 10px;font-size:13.5px;background:#fff;outline:none">
+          <input value="{{ posDoctor }}" sc-camel-on-change="{{ onDoctor }}" placeholder="Prescriber name *" style="border:1px solid #E5B4AE;border-radius:7px;padding:8px 10px;font-size:13.5px;background:#fff;outline:none">
+          <input value="{{ posRxNo }}" sc-camel-on-change="{{ onRxNo }}" placeholder="Rx / register entry no." style="border:1px solid #E5B4AE;border-radius:7px;padding:8px 10px;font-size:13.5px;background:#fff;outline:none">
         </div>
       </sc-if>
     </div>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:14px 16px;display:flex;flex-direction:column;gap:7px;font-size:13.5px">
       <div style="display:flex;justify-content:space-between"><span style="color:#5B636B">MRP total</span><span style="font-variant-numeric:tabular-nums">{{ tMrp }}</span></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="color:#5B636B">Discount % <span style="font-size:11.5px">({{ discCap }})</span></span><div style="display:flex;align-items:center;gap:8px"><input value="{{ posDisc }}" onChange="{{ onDisc }}" style="width:54px;border:1px solid #CDD2D7;border-radius:6px;padding:4px 6px;text-align:right;font-size:13.5px"><span style="font-variant-numeric:tabular-nums;min-width:70px;text-align:right">{{ tDisc }}</span></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="color:#5B636B">Discount % <span style="font-size:11.5px">({{ discCap }})</span></span><div style="display:flex;align-items:center;gap:8px"><input value="{{ posDisc }}" sc-camel-on-change="{{ onDisc }}" style="width:54px;border:1px solid #CDD2D7;border-radius:6px;padding:4px 6px;text-align:right;font-size:13.5px"><span style="font-variant-numeric:tabular-nums;min-width:70px;text-align:right">{{ tDisc }}</span></div></div>
       <div style="display:flex;justify-content:space-between"><span style="color:#5B636B">Taxable value</span><span style="font-variant-numeric:tabular-nums">{{ tTxb }}</span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:#5B636B">CGST</span><span style="font-variant-numeric:tabular-nums">{{ tCgst }}</span></div>
       <div style="display:flex;justify-content:space-between"><span style="color:#5B636B">SGST</span><span style="font-variant-numeric:tabular-nums">{{ tSgst }}</span></div>
@@ -392,17 +392,17 @@ input,select,button,textarea{font-family:inherit}
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
       <label style="font-size:12.5px;color:#5B636B;font-weight:500">{{ t.payment }}</label>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <sc-for list="{{ payTabs }}" as="pt"><button onClick="{{ pt.onClick }}" style="flex:1;min-width:58px;border:1px solid {{ pt.bd }};background:{{ pt.bg }};color:{{ pt.fg }};border-radius:8px;padding:8px 6px;font-size:13.5px;font-weight:600;cursor:pointer">{{ pt.label }}</button></sc-for>
+        <sc-for list="{{ payTabs }}" as="pt"><button sc-camel-on-click="{{ pt.onClick }}" style="flex:1;min-width:58px;border:1px solid {{ pt.bd }};background:{{ pt.bg }};color:{{ pt.fg }};border-radius:8px;padding:8px 6px;font-size:13.5px;font-weight:600;cursor:pointer">{{ pt.label }}</button></sc-for>
       </div>
-      <sc-if value="{{ isPayCash }}"><div style="display:flex;flex-direction:column;gap:5px"><input value="{{ posTender }}" onChange="{{ onTender }}" placeholder="Cash tendered (₹)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"><span style="font-size:12.5px;color:#1E7F4F">{{ changeDue }}</span></div></sc-if>
-      <sc-if value="{{ isPayUpi }}"><div style="display:flex;flex-direction:column;gap:5px"><div style="font-size:12.5px;color:#5B636B">Dynamic QR shown on customer display. Confirm credit in your bank app, then enter the UTR.</div><input value="{{ posRef }}" onChange="{{ onRef }}" placeholder="UPI UTR / reference (optional)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></div></sc-if>
-      <sc-if value="{{ isPayCard }}"><input value="{{ posRef }}" onChange="{{ onRef }}" placeholder="Card terminal approval code" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></sc-if>
-      <sc-if value="{{ isPaySplit }}"><div style="display:flex;flex-direction:column;gap:5px"><input value="{{ posSplit }}" onChange="{{ onSplit }}" placeholder="Cash part (₹)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"><span style="font-size:12.5px;color:#2459C9">{{ splitUpi }}</span></div></sc-if>
+      <sc-if value="{{ isPayCash }}"><div style="display:flex;flex-direction:column;gap:5px"><input value="{{ posTender }}" sc-camel-on-change="{{ onTender }}" placeholder="Cash tendered (₹)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"><span style="font-size:12.5px;color:#1E7F4F">{{ changeDue }}</span></div></sc-if>
+      <sc-if value="{{ isPayUpi }}"><div style="display:flex;flex-direction:column;gap:5px"><div style="font-size:12.5px;color:#5B636B">Dynamic QR shown on customer display. Confirm credit in your bank app, then enter the UTR.</div><input value="{{ posRef }}" sc-camel-on-change="{{ onRef }}" placeholder="UPI UTR / reference (optional)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></div></sc-if>
+      <sc-if value="{{ isPayCard }}"><input value="{{ posRef }}" sc-camel-on-change="{{ onRef }}" placeholder="Card terminal approval code" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"></sc-if>
+      <sc-if value="{{ isPaySplit }}"><div style="display:flex;flex-direction:column;gap:5px"><input value="{{ posSplit }}" sc-camel-on-change="{{ onSplit }}" placeholder="Cash part (₹)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none"><span style="font-size:12.5px;color:#2459C9">{{ splitUpi }}</span></div></sc-if>
       <sc-if value="{{ isPayCredit }}"><div style="font-size:12.5px;color:#94570A;background:#FDF2E1;padding:8px 10px;border-radius:7px">{{ creditInfo }}</div></sc-if>
-      <button onClick="{{ onComplete }}" style="background:{{ completeBg }};color:#fff;border:0;border-radius:10px;padding:14px;font-size:15.5px;font-weight:700;cursor:pointer;display:flex;justify-content:center;gap:8px;align-items:center">{{ completeLabel }}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.8;border:1px solid rgba(255,255,255,.5);border-radius:4px;padding:0 4px">F9</span></button>
+      <button sc-camel-on-click="{{ onComplete }}" style="background:{{ completeBg }};color:#fff;border:0;border-radius:10px;padding:14px;font-size:15.5px;font-weight:700;cursor:pointer;display:flex;justify-content:center;gap:8px;align-items:center">{{ completeLabel }}<span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.8;border:1px solid rgba(255,255,255,.5);border-radius:4px;padding:0 4px">F9</span></button>
       <div style="display:flex;gap:8px">
-        <button onClick="{{ onHold }}" style="flex:1;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;font-weight:500;cursor:pointer">{{ t.hold }} (F4)</button>
-        <button onClick="{{ onClear }}" style="flex:1;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;font-weight:500;cursor:pointer;color:#B3261E">Clear</button>
+        <button sc-camel-on-click="{{ onHold }}" style="flex:1;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;font-weight:500;cursor:pointer">{{ t.hold }} (F4)</button>
+        <button sc-camel-on-click="{{ onClear }}" style="flex:1;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;font-weight:500;cursor:pointer;color:#B3261E">Clear</button>
       </div>
     </div>
   </div>
@@ -423,14 +423,14 @@ input,select,button,textarea{font-family:inherit}
           <span style="color:#5B636B">Idempotency key</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px">{{ sv.idem }}</span>
         </div>
         <div style="display:flex;gap:8px">
-          <button onClick="{{ onPrintThermal }}" style="flex:1;display:flex;gap:6px;align-items:center;justify-content:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;cursor:pointer"><i class="icon-printer"></i>Thermal 80mm</button>
-          <button onClick="{{ onPrintA4 }}" style="flex:1;display:flex;gap:6px;align-items:center;justify-content:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;cursor:pointer"><i class="icon-file-down"></i>A4 PDF</button>
+          <button sc-camel-on-click="{{ onPrintThermal }}" style="flex:1;display:flex;gap:6px;align-items:center;justify-content:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;cursor:pointer"><i class="icon-printer"></i>Thermal 80mm</button>
+          <button sc-camel-on-click="{{ onPrintA4 }}" style="flex:1;display:flex;gap:6px;align-items:center;justify-content:center;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px;font-size:13.5px;cursor:pointer"><i class="icon-file-down"></i>A4 PDF</button>
         </div>
         <div style="border:1px solid #CFE6D8;background:#F6FBF8;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px">
           <div style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px"><i class="icon-message-circle" style="color:#1E7F4F;font-size:18px"></i>Send invoice on WhatsApp</div>
-          <input value="{{ sv.phone }}" onChange="{{ onWaPhone }}" placeholder="Customer mobile (10 digits)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:15px;font-variant-numeric:tabular-nums;outline:none;background:#fff">
-          <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" checked="{{ sv.verified }}" onChange="{{ onWaVerify }}" style="width:16px;height:16px;accent-color:#0B5E5B">I read the number back to the customer and they consent</label>
-          <button onClick="{{ onWaSend }}" style="background:{{ waBtnBg }};color:#fff;border:0;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer">{{ waBtnLabel }}</button>
+          <input value="{{ sv.phone }}" sc-camel-on-change="{{ onWaPhone }}" placeholder="Customer mobile (10 digits)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:15px;font-variant-numeric:tabular-nums;outline:none;background:#fff">
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" checked="{{ sv.verified }}" sc-camel-on-change="{{ onWaVerify }}" style="width:16px;height:16px;accent-color:#0B5E5B">I read the number back to the customer and they consent</label>
+          <button sc-camel-on-click="{{ onWaSend }}" style="background:{{ waBtnBg }};color:#fff;border:0;border-radius:8px;padding:10px;font-size:14px;font-weight:600;cursor:pointer">{{ waBtnLabel }}</button>
           <div style="display:flex;gap:4px;align-items:center">
             <sc-for list="{{ waSteps }}" as="ws">
               <div style="flex:1;display:flex;flex-direction:column;gap:4px;align-items:center"><div style="width:100%;height:4px;border-radius:2px;background:{{ ws.dot }}"></div><span style="font-size:11.5px;color:{{ ws.fg }}">{{ ws.label }}</span></div>
@@ -439,7 +439,7 @@ input,select,button,textarea{font-family:inherit}
           <sc-if value="{{ waFailed }}"><div style="font-size:12.5px;color:#B3261E;display:flex;gap:6px;align-items:center"><i class="icon-circle-alert"></i>Failed: {{ waErr }}. Fix the number and retry (max 3).</div></sc-if>
           <div style="font-size:11.5px;color:#6B737B">PDF generated from the committed invoice on your server. Not stored by Medoro.</div>
         </div>
-        <button onClick="{{ onNewSale }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">New sale</button>
+        <button sc-camel-on-click="{{ onNewSale }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer">New sale</button>
       </div>
       <div style="background:#F5F6F7;padding:22px;display:flex;justify-content:center;align-items:flex-start">
         <div style="width:300px;background:#fff;padding:18px 16px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.5;color:#1F2328;box-shadow:0 2px 8px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:6px">
@@ -462,12 +462,12 @@ input,select,button,textarea{font-family:inherit}
   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
     <div style="position:relative;flex:1;min-width:240px;max-width:420px">
       <i class="icon-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#8A929A;font-size:16px"></i>
-      <input value="{{ invQ }}" onChange="{{ onInvQ }}" placeholder="Search name, generic, manufacturer or barcode" style="width:100%;border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px 9px 34px;font-size:14px;outline:none;background:#fff">
+      <input value="{{ invQ }}" sc-camel-on-change="{{ onInvQ }}" placeholder="Search name, generic, manufacturer or barcode" style="width:100%;border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px 9px 34px;font-size:14px;outline:none;background:#fff">
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <sc-for list="{{ invFilters }}" as="f"><button onClick="{{ f.onClick }}" style="border:1px solid {{ f.bd }};background:{{ f.bg }};color:{{ f.fg }};border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer">{{ f.label }}</button></sc-for>
+      <sc-for list="{{ invFilters }}" as="f"><button sc-camel-on-click="{{ f.onClick }}" style="border:1px solid {{ f.bd }};background:{{ f.bg }};color:{{ f.fg }};border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer">{{ f.label }}</button></sc-for>
     </div>
-    <div style="margin-left:auto;display:flex;gap:10px;align-items:center"><span style="font-size:12.5px;color:#5B636B">{{ invCount }}</span><button onClick="{{ openAddMed }}" style="display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-plus"></i>Add medicine</button></div>
+    <div style="margin-left:auto;display:flex;gap:10px;align-items:center"><span style="font-size:12.5px;color:#5B636B">{{ invCount }}</span><button sc-camel-on-click="{{ openAddMed }}" style="display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-plus"></i>Add medicine</button></div>
   </div>
   <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:auto">
     <table style="width:100%;border-collapse:collapse;min-width:860px">
@@ -484,7 +484,7 @@ input,select,button,textarea{font-family:inherit}
       </tr></thead>
       <tbody>
         <sc-for list="{{ invRows }}" as="r" hint-placeholder-count="8">
-          <tr onClick="{{ r.onOpen }}" style="cursor:pointer;background:{{ r.bg }}" style-hover="background:#F7FAFA">
+          <tr sc-camel-on-click="{{ r.onOpen }}" style="cursor:pointer;background:{{ r.bg }}" style-hover="background:#F7FAFA">
             <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4"><div style="font-weight:600">{{ r.name }}</div><div style="font-size:12px;color:#5B636B">{{ r.meta }}</div></td>
             <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;color:#3D454D">{{ r.mfr }}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-weight:600;color:{{ r.stockFg }};font-variant-numeric:tabular-nums">{{ r.stock }}</td>
@@ -501,11 +501,11 @@ input,select,button,textarea{font-family:inherit}
   </div>
 </div>
 <sc-if value="{{ hasSel }}">
-  <div onClick="{{ closeSel }}" style="position:fixed;inset:0;background:rgba(20,28,32,.3);z-index:50"></div>
+  <div sc-camel-on-click="{{ closeSel }}" style="position:fixed;inset:0;background:rgba(20,28,32,.3);z-index:50"></div>
   <div style="position:fixed;right:0;top:0;bottom:0;width:min(620px,100vw);background:#fff;z-index:51;box-shadow:-12px 0 32px rgba(0,0,0,.15);display:flex;flex-direction:column">
     <div style="display:flex;align-items:flex-start;gap:12px;padding:18px 22px;border-bottom:1px solid #E3E6E9">
       <div style="flex:1;display:flex;flex-direction:column;gap:2px"><div style="font-size:18px;font-weight:600">{{ sm.name }}</div><div style="font-size:13px;color:#5B636B">{{ sm.generic }} · {{ sm.strength }} · {{ sm.form }} · {{ sm.pack }}</div></div>
-      <button onClick="{{ closeSel }}" style="border:0;background:transparent;cursor:pointer;padding:6px;color:#5B636B"><i class="icon-x" style="font-size:20px"></i></button>
+      <button sc-camel-on-click="{{ closeSel }}" style="border:0;background:transparent;cursor:pointer;padding:6px;color:#5B636B"><i class="icon-x" style="font-size:20px"></i></button>
     </div>
     <div style="flex:1;overflow:auto;padding:18px 22px;display:flex;flex-direction:column;gap:18px">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px 16px;font-size:13px">
@@ -525,7 +525,7 @@ input,select,button,textarea{font-family:inherit}
               <div style="display:flex;flex-direction:column"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500">{{ b.batch }}</span><span style="font-size:12px;color:#5B636B">Exp {{ b.exp }} · {{ b.sup }} · cost {{ b.cost }}</span></div>
               <span style="font-weight:600;font-variant-numeric:tabular-nums">{{ b.qty }}</span>
               <span style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:500;background:{{ b.bg }};color:{{ b.fg }};white-space:nowrap">{{ b.status }}</span>
-              <sc-if value="{{ b.canQ }}"><button onClick="{{ b.onQ }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">{{ b.qLabel }}</button></sc-if>
+              <sc-if value="{{ b.canQ }}"><button sc-camel-on-click="{{ b.onQ }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">{{ b.qLabel }}</button></sc-if>
             </div>
           </sc-for>
         </div>
@@ -533,12 +533,12 @@ input,select,button,textarea{font-family:inherit}
       <div style="display:flex;flex-direction:column;gap:8px;padding:14px;background:#F7FAFA;border:1px solid #E3E6E9;border-radius:10px">
         <div style="font-weight:600;font-size:14.5px">Receive a batch</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">
-          <input value="{{ rBatch }}" onChange="{{ onRBatch }}" placeholder="Batch no." style="border:1px solid #CDD2D7;border-radius:7px;padding:8px 10px;font-size:13.5px;outline:none">
-          <input type="date" value="{{ rExp }}" onChange="{{ onRExp }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:7px 9px;font-size:13.5px;outline:none">
-          <input value="{{ rQty }}" onChange="{{ onRQty }}" placeholder="Qty (packs)" style="border:1px solid #CDD2D7;border-radius:7px;padding:8px 10px;font-size:13.5px;outline:none">
-          <input value="{{ rCost }}" onChange="{{ onRCost }}" placeholder="Cost / pack ₹" style="border:1px solid #CDD2D7;border-radius:7px;padding:8px 10px;font-size:13.5px;outline:none">
+          <input value="{{ rBatch }}" sc-camel-on-change="{{ onRBatch }}" placeholder="Batch no." style="border:1px solid #CDD2D7;border-radius:7px;padding:8px 10px;font-size:13.5px;outline:none">
+          <input type="date" value="{{ rExp }}" sc-camel-on-change="{{ onRExp }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:7px 9px;font-size:13.5px;outline:none">
+          <input value="{{ rQty }}" sc-camel-on-change="{{ onRQty }}" placeholder="Qty (packs)" style="border:1px solid #CDD2D7;border-radius:7px;padding:8px 10px;font-size:13.5px;outline:none">
+          <input value="{{ rCost }}" sc-camel-on-change="{{ onRCost }}" placeholder="Cost / pack ₹" style="border:1px solid #CDD2D7;border-radius:7px;padding:8px 10px;font-size:13.5px;outline:none">
         </div>
-        <button onClick="{{ onReceive }}" style="align-self:flex-start;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Post GRN</button>
+        <button sc-camel-on-click="{{ onReceive }}" style="align-self:flex-start;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Post GRN</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-weight:600;font-size:14.5px">Stock movement ledger</div>
@@ -560,20 +560,20 @@ input,select,button,textarea{font-family:inherit}
       <div style="font-size:17px;font-weight:600">Add medicine</div>
       <div style="font-size:12.5px;color:#5B636B">Enter details from the pack or the supplier invoice. Medoro does not autofill medicine data.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <input value="{{ am.name }}" onChange="{{ amSet.name }}" placeholder="Brand name *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-        <input value="{{ am.generic }}" onChange="{{ amSet.generic }}" placeholder="Generic / salt *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-        <input value="{{ am.strength }}" onChange="{{ amSet.strength }}" placeholder="Strength *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-        <select value="{{ am.form }}" onChange="{{ amSet.form }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Injection</option><option>Gel</option><option>Drops</option><option>Sachet</option></select>
-        <input value="{{ am.mfr }}" onChange="{{ amSet.mfr }}" placeholder="Manufacturer *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-        <input value="{{ am.pack }}" onChange="{{ amSet.pack }}" placeholder="Pack (e.g. 10 tabs)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-        <input value="{{ am.mrp }}" onChange="{{ amSet.mrp }}" placeholder="MRP per pack ₹ *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-        <select value="{{ am.gst }}" onChange="{{ amSet.gst }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option value="5">GST 5%</option><option value="12">GST 12%</option><option value="18">GST 18%</option></select>
-        <select value="{{ am.rx }}" onChange="{{ amSet.rx }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option value="">OTC</option><option value="H">Schedule H</option><option value="H1">Schedule H1</option><option value="X">Schedule X</option></select>
-        <input value="{{ am.reorder }}" onChange="{{ amSet.reorder }}" placeholder="Reorder level" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <input value="{{ am.name }}" sc-camel-on-change="{{ amSet.name }}" placeholder="Brand name *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <input value="{{ am.generic }}" sc-camel-on-change="{{ amSet.generic }}" placeholder="Generic / salt *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <input value="{{ am.strength }}" sc-camel-on-change="{{ amSet.strength }}" placeholder="Strength *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <select value="{{ am.form }}" sc-camel-on-change="{{ amSet.form }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option>Tablet</option><option>Capsule</option><option>Syrup</option><option>Injection</option><option>Gel</option><option>Drops</option><option>Sachet</option></select>
+        <input value="{{ am.mfr }}" sc-camel-on-change="{{ amSet.mfr }}" placeholder="Manufacturer *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <input value="{{ am.pack }}" sc-camel-on-change="{{ amSet.pack }}" placeholder="Pack (e.g. 10 tabs)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <input value="{{ am.mrp }}" sc-camel-on-change="{{ amSet.mrp }}" placeholder="MRP per pack ₹ *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+        <select value="{{ am.gst }}" sc-camel-on-change="{{ amSet.gst }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option value="5">GST 5%</option><option value="12">GST 12%</option><option value="18">GST 18%</option></select>
+        <select value="{{ am.rx }}" sc-camel-on-change="{{ amSet.rx }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;background:#fff"><option value="">OTC</option><option value="H">Schedule H</option><option value="H1">Schedule H1</option><option value="X">Schedule X</option></select>
+        <input value="{{ am.reorder }}" sc-camel-on-change="{{ amSet.reorder }}" placeholder="Reorder level" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onClick="{{ closeAddMed }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button>
-        <button onClick="{{ onAddMed }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Save medicine</button>
+        <button sc-camel-on-click="{{ closeAddMed }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button>
+        <button sc-camel-on-click="{{ onAddMed }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Save medicine</button>
       </div>
     </div>
   </div>
@@ -585,7 +585,7 @@ input,select,button,textarea{font-family:inherit}
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
     <span style="font-size:13px;color:#5B636B">Window</span>
     <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px">
-      <sc-for list="{{ expWins }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
+      <sc-for list="{{ expWins }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
     </div>
     <span style="margin-left:auto;font-size:12.5px;color:#5B636B">Projections assume FEFO and the 28-day average sales rate. Expired stock is always blocked at POS.</span>
   </div>
@@ -618,8 +618,8 @@ input,select,button,textarea{font-family:inherit}
             <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;font-size:13px">{{ r.rec }}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right">
               <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
-                <sc-if value="{{ r.hasAct }}"><button onClick="{{ r.onAct }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ r.actLabel }}</button></sc-if>
-                <sc-if value="{{ r.showQ }}"><button onClick="{{ r.onQ }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;cursor:pointer">Quarantine</button></sc-if>
+                <sc-if value="{{ r.hasAct }}"><button sc-camel-on-click="{{ r.onAct }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:6px 10px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ r.actLabel }}</button></sc-if>
+                <sc-if value="{{ r.showQ }}"><button sc-camel-on-click="{{ r.onQ }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;cursor:pointer">Quarantine</button></sc-if>
                 <sc-if value="{{ r.isDone }}"><span style="font-size:12.5px;color:#1E7F4F;display:flex;gap:5px;align-items:center"><i class="icon-circle-check"></i>{{ r.doneLabel }}</span></sc-if>
               </div>
             </td>
@@ -643,9 +643,9 @@ input,select,button,textarea{font-family:inherit}
 <div data-screen-label="Purchases" style="display:flex;flex-direction:column;gap:14px;max-width:1400px">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px">
-      <sc-for list="{{ purTabs }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
+      <sc-for list="{{ purTabs }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
     </div>
-    <button onClick="{{ goScan }}" style="margin-left:auto;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-scan-text"></i>Scan supplier invoice</button>
+    <button sc-camel-on-click="{{ goScan }}" style="margin-left:auto;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-scan-text"></i>Scan supplier invoice</button>
   </div>
   <sc-if value="{{ isPoTab }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:auto">
@@ -680,8 +680,8 @@ input,select,button,textarea{font-family:inherit}
         <div style="font-size:16px;font-weight:600">Upload a supplier invoice PDF, photo or scan</div>
         <div style="font-size:13.5px;color:#5B636B;max-width:520px">Fields are extracted and matched to your catalogue. Nothing touches stock or accounts until you review and approve.</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-          <label style="display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-upload"></i>Choose file<input type="file" accept=".pdf,image/*" onChange="{{ onScanFile }}" style="display:none"></label>
-          <button onClick="{{ startSample }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Use sample: Mahavir MMA/2627/1183</button>
+          <label style="display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-upload"></i>Choose file<input type="file" accept=".pdf,image/*" sc-camel-on-change="{{ onScanFile }}" style="display:none"></label>
+          <button sc-camel-on-click="{{ startSample }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Use sample: Mahavir MMA/2627/1183</button>
         </div>
         <div style="font-size:12px;color:#94570A">Demo: OCR engine not connected. Any file shows the sample extraction.</div>
       </div>
@@ -716,13 +716,13 @@ input,select,button,textarea{font-family:inherit}
               <sc-for list="{{ scanLines }}" as="l">
                 <tr style="background:{{ l.rowBg }}">
                   <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4;max-width:220px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#3D454D">{{ l.raw }}</div><sc-if value="{{ l.hasFlags }}"><div style="font-size:12px;color:#B3261E;margin-top:4px;font-weight:500">{{ l.flagText }}</div></sc-if></td>
-                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><select value="{{ l.medId }}" onChange="{{ l.onMed }}" style="border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;background:#fff;max-width:180px"><option value="">— Select —</option><sc-for list="{{ medOpts }}" as="mo"><option value="{{ mo.value }}">{{ mo.label }}</option></sc-for></select></td>
-                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input value="{{ l.batch }}" onChange="{{ l.onBatch }}" style="width:90px;border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;font-family:'IBM Plex Mono',monospace"></td>
-                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input type="date" value="{{ l.exp }}" onChange="{{ l.onExp }}" style="border:1px solid #CDD2D7;border-radius:6px;padding:5px;font-size:13px"></td>
-                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input value="{{ l.qty }}" onChange="{{ l.onQty }}" style="width:56px;border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;text-align:right"></td>
-                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input value="{{ l.cost }}" onChange="{{ l.onCost }}" style="width:74px;border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;text-align:right"></td>
+                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><select value="{{ l.medId }}" sc-camel-on-change="{{ l.onMed }}" style="border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;background:#fff;max-width:180px"><option value="">— Select —</option><sc-for list="{{ medOpts }}" as="mo"><option value="{{ mo.value }}">{{ mo.label }}</option></sc-for></select></td>
+                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input value="{{ l.batch }}" sc-camel-on-change="{{ l.onBatch }}" style="width:90px;border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;font-family:'IBM Plex Mono',monospace"></td>
+                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input type="date" value="{{ l.exp }}" sc-camel-on-change="{{ l.onExp }}" style="border:1px solid #CDD2D7;border-radius:6px;padding:5px;font-size:13px"></td>
+                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input value="{{ l.qty }}" sc-camel-on-change="{{ l.onQty }}" style="width:56px;border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;text-align:right"></td>
+                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><input value="{{ l.cost }}" sc-camel-on-change="{{ l.onCost }}" style="width:74px;border:1px solid #CDD2D7;border-radius:6px;padding:6px;font-size:13px;text-align:right"></td>
                   <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ l.amtText }}</td>
-                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start"><span style="padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ l.confBg }};color:{{ l.confFg }}">{{ l.confLabel }}</span><sc-if value="{{ l.showOk }}"><label style="display:flex;gap:4px;align-items:center;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" checked="{{ l.ok }}" onChange="{{ l.onOk }}" style="accent-color:#0B5E5B">Verified</label></sc-if></div></td>
+                  <td style="padding:9px 12px;border-bottom:1px solid #F1F3F4"><div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start"><span style="padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ l.confBg }};color:{{ l.confFg }}">{{ l.confLabel }}</span><sc-if value="{{ l.showOk }}"><label style="display:flex;gap:4px;align-items:center;font-size:12px;cursor:pointer;white-space:nowrap"><input type="checkbox" checked="{{ l.ok }}" sc-camel-on-change="{{ l.onOk }}" style="accent-color:#0B5E5B">Verified</label></sc-if></div></td>
                 </tr>
               </sc-for>
             </tbody>
@@ -739,8 +739,8 @@ input,select,button,textarea{font-family:inherit}
             <span style="align-self:flex-start;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:{{ scanDiffBg }};color:{{ scanDiffFg }}">{{ scanDiff }}</span>
             <span style="font-size:13px;color:#5B636B">{{ scanFlagText }}</span>
             <div style="display:flex;gap:8px">
-              <button onClick="{{ scanReset }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Discard</button>
-              <button onClick="{{ onApprove }}" style="background:{{ approveBg }};color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">{{ approveLabel }}</button>
+              <button sc-camel-on-click="{{ scanReset }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Discard</button>
+              <button sc-camel-on-click="{{ onApprove }}" style="background:{{ approveBg }};color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">{{ approveLabel }}</button>
             </div>
           </div>
         </div>
@@ -749,7 +749,7 @@ input,select,button,textarea{font-family:inherit}
     <sc-if value="{{ scanDone }}">
       <div style="background:#fff;border:1px solid #CFE6D8;border-radius:12px;padding:24px;display:flex;gap:14px;align-items:flex-start;max-width:720px">
         <i class="icon-circle-check" style="font-size:28px;color:#1E7F4F"></i>
-        <div style="display:flex;flex-direction:column;gap:8px"><div style="font-weight:600;font-size:16px">Goods receipt posted</div><div style="font-size:14px;color:#3D454D">{{ scanDoneText }}</div><button onClick="{{ scanReset }}" style="align-self:flex-start;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 13px;font-size:13.5px;cursor:pointer">Scan another invoice</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><div style="font-weight:600;font-size:16px">Goods receipt posted</div><div style="font-size:14px;color:#3D454D">{{ scanDoneText }}</div><button sc-camel-on-click="{{ scanReset }}" style="align-self:flex-start;border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 13px;font-size:13.5px;cursor:pointer">Scan another invoice</button></div>
       </div>
     </sc-if>
   </sc-if>
@@ -759,7 +759,7 @@ input,select,button,textarea{font-family:inherit}
 <sc-if value="{{ is_parties }}" hint-placeholder-val="{{ false }}">
 <div data-screen-label="Suppliers and customers" style="display:flex;flex-direction:column;gap:14px;max-width:1400px">
   <div style="display:inline-flex;align-self:flex-start;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px">
-    <sc-for list="{{ partyTabs }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
+    <sc-for list="{{ partyTabs }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
   </div>
   <sc-if value="{{ isSupTab }}" hint-placeholder-val="{{ true }}">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:auto">
@@ -782,7 +782,7 @@ input,select,button,textarea{font-family:inherit}
               <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;font-weight:600;color:{{ r.accFg }}">{{ r.acc }}</td>
               <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ r.bal }}</td>
               <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4"><span style="padding:2px 8px;border-radius:999px;font-size:12px;font-weight:500;background:{{ r.dbg }};color:{{ r.dfg }};white-space:nowrap">{{ r.due }}</span></td>
-              <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ r.canPay }}"><button onClick="{{ r.onPay }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:13px;cursor:pointer;white-space:nowrap">Record payment</button></sc-if></td>
+              <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ r.canPay }}"><button sc-camel-on-click="{{ r.onPay }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:13px;cursor:pointer;white-space:nowrap">Record payment</button></sc-if></td>
             </tr>
           </sc-for>
         </tbody>
@@ -808,7 +808,7 @@ input,select,button,textarea{font-family:inherit}
               <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ r.limit }}</td>
               <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-weight:600;color:{{ r.dueFg }};font-variant-numeric:tabular-nums">{{ r.due }}</td>
               <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;color:#5B636B">{{ r.last }}</td>
-              <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ r.canPay }}"><button onClick="{{ r.onPay }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:13px;cursor:pointer;white-space:nowrap">Receive payment</button></sc-if></td>
+              <td style="padding:10px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ r.canPay }}"><button sc-camel-on-click="{{ r.onPay }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:13px;cursor:pointer;white-space:nowrap">Receive payment</button></sc-if></td>
             </tr>
           </sc-for>
         </tbody>
@@ -823,12 +823,12 @@ input,select,button,textarea{font-family:inherit}
     <div style="background:#fff;border-radius:14px;width:min(440px,100%);padding:22px 24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 64px rgba(0,0,0,.25)">
       <div style="font-size:17px;font-weight:600">{{ pm.title }}</div>
       <div style="font-size:13.5px;color:#3D454D">{{ pm.name }} · outstanding <strong>{{ pm.bal }}</strong></div>
-      <input value="{{ pm.amount }}" onChange="{{ onPmAmt }}" placeholder="Amount ₹" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:15px;outline:none">
-      <select value="{{ pm.mode }}" onChange="{{ onPmMode }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff"><option>Cash</option><option>UPI</option><option>Bank transfer (NEFT)</option><option>Cheque</option></select>
+      <input value="{{ pm.amount }}" sc-camel-on-change="{{ onPmAmt }}" placeholder="Amount ₹" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:15px;outline:none">
+      <select value="{{ pm.mode }}" sc-camel-on-change="{{ onPmMode }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff"><option>Cash</option><option>UPI</option><option>Bank transfer (NEFT)</option><option>Cheque</option></select>
       <div style="font-size:12px;color:#6B737B">Posts a {{ pm.voucher }}. Posted vouchers can only be reversed, not edited.</div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onClick="{{ closePm }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button>
-        <button onClick="{{ onPmSubmit }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Post voucher</button>
+        <button sc-camel-on-click="{{ closePm }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button>
+        <button sc-camel-on-click="{{ onPmSubmit }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Post voucher</button>
       </div>
     </div>
   </div>
@@ -847,7 +847,7 @@ input,select,button,textarea{font-family:inherit}
       <sc-for list="{{ cashRows }}" as="c" hint-placeholder-count="3">
         <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F3F4;font-size:13.5px"><span>{{ c.l }}</span><span style="font-weight:600;font-variant-numeric:tabular-nums">{{ c.v }}</span></div>
       </sc-for>
-      <button onClick="{{ openExpense }}" style="margin-top:auto;align-self:flex-start;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600;cursor:pointer"><i class="icon-plus"></i>Record expense</button>
+      <button sc-camel-on-click="{{ openExpense }}" style="margin-top:auto;align-self:flex-start;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600;cursor:pointer"><i class="icon-plus"></i>Record expense</button>
     </div>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:8px">
       <div style="font-weight:600;font-size:15px">GST summary (output)</div>
@@ -877,7 +877,7 @@ input,select,button,textarea{font-family:inherit}
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;font-size:13px">{{ e.dr }}</td>
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;font-size:13px">{{ e.cr }}</td>
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-weight:600;font-variant-numeric:tabular-nums">{{ e.amt }}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right;white-space:nowrap"><sc-if value="{{ e.canRev }}"><button onClick="{{ e.onRev }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12.5px;cursor:pointer">Reverse</button></sc-if><span style="font-size:12px;color:#5B636B">{{ e.rev }}</span></td>
+            <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right;white-space:nowrap"><sc-if value="{{ e.canRev }}"><button sc-camel-on-click="{{ e.onRev }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12.5px;cursor:pointer">Reverse</button></sc-if><span style="font-size:12px;color:#5B636B">{{ e.rev }}</span></td>
           </tr>
         </sc-for>
       </tbody>
@@ -889,7 +889,7 @@ input,select,button,textarea{font-family:inherit}
       <sc-for list="{{ reports }}" as="rp" hint-placeholder-count="9">
         <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:12px 14px;display:flex;align-items:center;gap:10px">
           <div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:600;font-size:13.5px">{{ rp.name }}</span><span style="font-size:12px;color:#5B636B">{{ rp.desc }}</span></div>
-          <button onClick="{{ rp.onCsv }}" style="display:flex;gap:5px;align-items:center;border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;cursor:pointer"><i class="icon-download"></i>CSV</button>
+          <button sc-camel-on-click="{{ rp.onCsv }}" style="display:flex;gap:5px;align-items:center;border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 10px;font-size:12.5px;cursor:pointer"><i class="icon-download"></i>CSV</button>
         </div>
       </sc-for>
     </div>
@@ -899,13 +899,13 @@ input,select,button,textarea{font-family:inherit}
   <div style="position:fixed;inset:0;background:rgba(20,28,32,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
     <div style="background:#fff;border-radius:14px;width:min(440px,100%);padding:22px 24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 64px rgba(0,0,0,.25)">
       <div style="font-size:17px;font-weight:600">Record expense</div>
-      <select value="{{ em.cat }}" onChange="{{ onEmCat }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff"><option>Electricity</option><option>Rent</option><option>Salaries</option><option>Delivery</option><option>Staff welfare</option><option>Repairs</option><option>Other</option></select>
-      <input value="{{ em.amt }}" onChange="{{ onEmAmt }}" placeholder="Amount ₹" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:15px;outline:none">
-      <select value="{{ em.mode }}" onChange="{{ onEmMode }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff"><option>Cash</option><option>Bank</option><option>UPI</option></select>
-      <input value="{{ em.note }}" onChange="{{ onEmNote }}" placeholder="Note (optional)" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none">
+      <select value="{{ em.cat }}" sc-camel-on-change="{{ onEmCat }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff"><option>Electricity</option><option>Rent</option><option>Salaries</option><option>Delivery</option><option>Staff welfare</option><option>Repairs</option><option>Other</option></select>
+      <input value="{{ em.amt }}" sc-camel-on-change="{{ onEmAmt }}" placeholder="Amount ₹" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:15px;outline:none">
+      <select value="{{ em.mode }}" sc-camel-on-change="{{ onEmMode }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;background:#fff"><option>Cash</option><option>Bank</option><option>UPI</option></select>
+      <input value="{{ em.note }}" sc-camel-on-change="{{ onEmNote }}" placeholder="Note (optional)" style="border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none">
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onClick="{{ closeEm }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button>
-        <button onClick="{{ onEmSubmit }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Post voucher</button>
+        <button sc-camel-on-click="{{ closeEm }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Cancel</button>
+        <button sc-camel-on-click="{{ onEmSubmit }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Post voucher</button>
       </div>
     </div>
   </div>
@@ -927,17 +927,17 @@ input,select,button,textarea{font-family:inherit}
           <span style="color:#5B636B">Access token</span><span>Stored in server vault · rotated 12 Oct · never sent to browsers</span>
           <span style="color:#5B636B">Webhook</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px">https://kothrud.sanjeevani.local/api/wa/webhook</span><span style="color:#1E7F4F;font-size:12px;font-weight:600">Verified</span></span>
         </div>
-        <div style="display:flex;gap:8px"><button onClick="{{ onWaRotate }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Rotate token</button><button onClick="{{ onWaDisconnect }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Disconnect</button></div>
+        <div style="display:flex;gap:8px"><button sc-camel-on-click="{{ onWaRotate }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Rotate token</button><button sc-camel-on-click="{{ onWaDisconnect }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Disconnect</button></div>
       </sc-if>
       <sc-if value="{{ waNotConn }}">
         <div style="font-size:13.5px;color:#3D454D">Connect through Meta's embedded signup. You'll need a verified Meta Business account and a number not already in use on the WhatsApp app.</div>
-        <button onClick="{{ onWaConnect }}" style="align-self:flex-start;background:#1E7F4F;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Connect with Meta</button>
+        <button sc-camel-on-click="{{ onWaConnect }}" style="align-self:flex-start;background:#1E7F4F;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Connect with Meta</button>
       </sc-if>
     </div>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px;display:flex;flex-direction:column;gap:12px">
       <div style="font-weight:600;font-size:15px">Invoice delivery</div>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ waAuto }}" onChange="{{ onWaAuto }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Auto-send after sale</span><span style="font-size:12.5px;color:#5B636B">Only for customers with recorded WhatsApp consent. Others still need the cashier to confirm.</span></span></label>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ waPdf }}" onChange="{{ onWaPdf }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Attach PDF as document</span><span style="font-size:12.5px;color:#5B636B">Generated on your server from the committed invoice. Prescriber details are left out of the message body.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ waAuto }}" sc-camel-on-change="{{ onWaAuto }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Auto-send after sale</span><span style="font-size:12.5px;color:#5B636B">Only for customers with recorded WhatsApp consent. Others still need the cashier to confirm.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ waPdf }}" sc-camel-on-change="{{ onWaPdf }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Attach PDF as document</span><span style="font-size:12.5px;color:#5B636B">Generated on your server from the committed invoice. Prescriber details are left out of the message body.</span></span></label>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
         <div style="font-size:12.5px;color:#5B636B;font-weight:500">Message templates</div>
         <sc-for list="{{ waTemplates }}" as="tp"><div style="display:flex;gap:10px;align-items:center;font-size:13px;padding:5px 0;border-bottom:1px solid #F1F3F4"><span style="font-family:'IBM Plex Mono',monospace;flex:1">{{ tp.name }}</span><span style="color:#5B636B">{{ tp.lang }} · {{ tp.cat }}</span><span style="padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ tp.bg }};color:{{ tp.fg }}">{{ tp.status }}</span></div></sc-for>
@@ -966,7 +966,7 @@ input,select,button,textarea{font-family:inherit}
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;font-variant-numeric:tabular-nums">{{ w.to }}</td>
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4"><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ w.bg }};color:{{ w.fg }}">{{ w.status }}</span><div style="font-size:12px;color:#B3261E;margin-top:3px">{{ w.err }}</div></td>
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;color:#5B636B">{{ w.attempts }}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ w.canRetry }}"><button onClick="{{ w.onRetry }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 10px;font-size:12.5px;cursor:pointer">Retry</button></sc-if></td>
+            <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ w.canRetry }}"><button sc-camel-on-click="{{ w.onRetry }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 10px;font-size:12.5px;cursor:pointer">Retry</button></sc-if></td>
           </tr>
         </sc-for>
       </tbody>
@@ -986,11 +986,11 @@ input,select,button,textarea{font-family:inherit}
           <span style="color:#5B636B">Folder</span><span>/Medoro Backups/Kothrud</span>
           <span style="color:#5B636B">OAuth scope</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px">drive.file</span>
         </div>
-        <button onClick="{{ onBakDisconnect }}" style="align-self:flex-start;border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">Disconnect & revoke</button>
+        <button sc-camel-on-click="{{ onBakDisconnect }}" style="align-self:flex-start;border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer">Disconnect & revoke</button>
       </sc-if>
       <sc-if value="{{ bakNotConn }}">
         <div style="font-size:13.5px;color:#3D454D">Medoro asks only for access to files it creates. It cannot read the rest of your Drive.</div>
-        <button onClick="{{ onBakConnect }}" style="align-self:flex-start;background:#2459C9;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Connect Google Drive</button>
+        <button sc-camel-on-click="{{ onBakConnect }}" style="align-self:flex-start;background:#2459C9;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Connect Google Drive</button>
       </sc-if>
     </div>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px;display:flex;flex-direction:column;gap:10px">
@@ -1000,9 +1000,9 @@ input,select,button,textarea{font-family:inherit}
     </div>
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px;display:flex;flex-direction:column;gap:10px">
       <div style="font-weight:600;font-size:15px">Schedule & retention</div>
-      <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Daily at<input type="time" value="{{ bakSchedule }}" onChange="{{ onSchedule }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px"></label>
-      <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Keep backups for<select value="{{ bakRetention }}" onChange="{{ onRetention }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px;background:#fff"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option></select></label>
-      <button onClick="{{ onBackupNow }}" style="margin-top:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Back up now</button>
+      <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Daily at<input type="time" value="{{ bakSchedule }}" sc-camel-on-change="{{ onSchedule }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px"></label>
+      <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Keep backups for<select value="{{ bakRetention }}" sc-camel-on-change="{{ onRetention }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px;background:#fff"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option></select></label>
+      <button sc-camel-on-click="{{ onBackupNow }}" style="margin-top:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Back up now</button>
     </div>
   </div>
   <sc-if value="{{ bakRunning }}">
@@ -1030,7 +1030,7 @@ input,select,button,textarea{font-family:inherit}
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;font-variant-numeric:tabular-nums">{{ h.size }}</td>
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;font-family:'IBM Plex Mono',monospace;font-size:12.5px">{{ h.hash }}</td>
             <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4"><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ h.bg }};color:{{ h.fg }}">{{ h.status }}</span><div style="font-size:12px;color:#B3261E;margin-top:3px">{{ h.err }}</div></td>
-            <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ h.canRestore }}"><button onClick="{{ h.onRestore }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 10px;font-size:12.5px;cursor:pointer">Test restore</button></sc-if></td>
+            <td style="padding:9px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><sc-if value="{{ h.canRestore }}"><button sc-camel-on-click="{{ h.onRestore }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 10px;font-size:12.5px;cursor:pointer">Test restore</button></sc-if></td>
           </tr>
         </sc-for>
       </tbody>
@@ -1044,8 +1044,8 @@ input,select,button,textarea{font-family:inherit}
       <sc-for list="{{ rsteps }}" as="st"><div style="display:flex;gap:10px;align-items:center;font-size:14px;color:{{ st.fg }}"><i class="{{ st.icon }}" style="font-size:18px;animation:{{ st.anim }}"></i>{{ st.label }}</div></sc-for>
       <sc-if value="{{ rsDone }}"><div style="font-size:13.5px;background:#E6F4EC;color:#1E7F4F;padding:10px 12px;border-radius:8px">Verified in staging: 21 batches, 1,204 invoices, 412 vouchers match the manifest. Live data has not been changed.</div></sc-if>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onClick="{{ closeRestore }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Close</button>
-        <sc-if value="{{ rsDone }}"><button onClick="{{ onPromote }}" style="background:#B3261E;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Promote to live (owner)</button></sc-if>
+        <button sc-camel-on-click="{{ closeRestore }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer">Close</button>
+        <sc-if value="{{ rsDone }}"><button sc-camel-on-click="{{ onPromote }}" style="background:#B3261E;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Promote to live (owner)</button></sc-if>
       </div>
     </div>
   </div>
@@ -1055,29 +1055,29 @@ input,select,button,textarea{font-family:inherit}
 <div data-screen-label="Users and branches" style="display:flex;flex-direction:column;gap:14px;max-width:1400px">
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px;flex-wrap:wrap">
-      <sc-for list="{{ userTabs }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
+      <sc-for list="{{ userTabs }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:6px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer">{{ tb.label }}</button></sc-for>
     </div>
-    <button onClick="{{ inviteUser }}" style="margin-left:auto;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-user-plus"></i>Add employee</button>
+    <button sc-camel-on-click="{{ inviteUser }}" style="margin-left:auto;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-user-plus"></i>Add employee</button>
   </div>
   <sc-if value="{{ empFormOpen }}">
     <div style="background:#fff;border:1px solid #CFE6E3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px;display:flex;flex-direction:column;gap:14px">
-      <div style="display:flex;align-items:center;gap:10px"><i class="icon-user-plus" style="font-size:18px;color:#0B5E5B"></i><strong style="font-size:15px">Create employee account</strong><button onClick="{{ empClose }}" aria-label="Close" style="margin-left:auto;border:0;background:transparent;cursor:pointer;color:#5B636B;font-size:18px;display:flex"><i class="icon-x"></i></button></div>
+      <div style="display:flex;align-items:center;gap:10px"><i class="icon-user-plus" style="font-size:18px;color:#0B5E5B"></i><strong style="font-size:15px">Create employee account</strong><button sc-camel-on-click="{{ empClose }}" aria-label="Close" style="margin-left:auto;border:0;background:transparent;cursor:pointer;color:#5B636B;font-size:18px;display:flex"><i class="icon-x"></i></button></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Full name<input value="{{ empName }}" onChange="{{ onEmpName }}" placeholder="Sneha Kulkarni" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;outline:none"></label>
-        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Mobile number<input value="{{ empPhone }}" onChange="{{ onEmpPhone }}" placeholder="98220 41736" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;outline:none"></label>
-        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Role<select value="{{ empRole }}" onChange="{{ onEmpRole }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;background:#fff"><option>Cashier</option><option>Pharmacist</option><option>Accountant</option><option>Manager</option></select></label>
-        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Branch<select value="{{ empBranch }}" onChange="{{ onEmpBranch }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;background:#fff"><option>Kothrud</option><option>Baner</option><option>Aundh</option></select></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Full name<input value="{{ empName }}" sc-camel-on-change="{{ onEmpName }}" placeholder="Sneha Kulkarni" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;outline:none"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Mobile number<input value="{{ empPhone }}" sc-camel-on-change="{{ onEmpPhone }}" placeholder="98220 41736" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;outline:none"></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Role<select value="{{ empRole }}" sc-camel-on-change="{{ onEmpRole }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;background:#fff"><option>Cashier</option><option>Pharmacist</option><option>Accountant</option><option>Manager</option></select></label>
+        <label style="display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:#5B636B">Branch<select value="{{ empBranch }}" sc-camel-on-change="{{ onEmpBranch }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;color:#1F2328;background:#fff"><option>Kothrud</option><option>Baner</option><option>Aundh</option></select></label>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <span style="font-size:12.5px;color:#5B636B">Employee ID will be <strong style="font-family:'IBM Plex Mono',monospace;color:#1F2328">{{ empNextId }}</strong> · {{ empMfaNote }}</span>
-        <button onClick="{{ empCreate }}" style="margin-left:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Create &amp; get invite code</button>
+        <button sc-camel-on-click="{{ empCreate }}" style="margin-left:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600;cursor:pointer">Create &amp; get invite code</button>
       </div>
       <sc-if value="{{ empHasInvite }}">
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;background:#F2F9F8;border:1px dashed #9FCFC9;border-radius:10px;padding:14px">
           <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:#5B636B">Invite for {{ empInvName }} · valid 48 hours</span><span style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;letter-spacing:.08em;color:#0B5E5B">{{ empInvCode }}</span><span style="font-size:12px;color:#5B636B">Pharmacy code SANJ-PUNE · Employee ID {{ empInvId }}</span></div>
           <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-            <button onClick="{{ empCopy }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center"><i class="icon-copy"></i>Copy</button>
-            <button onClick="{{ empShareWa }}" style="border:0;background:#18794E;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center"><i class="icon-message-circle"></i>Send on WhatsApp</button>
+            <button sc-camel-on-click="{{ empCopy }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center"><i class="icon-copy"></i>Copy</button>
+            <button sc-camel-on-click="{{ empShareWa }}" style="border:0;background:#18794E;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;display:flex;gap:6px;align-items:center"><i class="icon-message-circle"></i>Send on WhatsApp</button>
           </div>
         </div>
       </sc-if>
@@ -1117,7 +1117,7 @@ input,select,button,textarea{font-family:inherit}
       <sc-for list="{{ permRows }}" as="pr">
         <div style="display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(5,minmax(90px,1fr));min-width:720px;border-bottom:1px solid #F1F3F4">
           <div style="padding:9px 14px;font-size:13.5px">{{ pr.label }}</div>
-          <sc-for list="{{ pr.cells }}" as="c"><div style="display:flex;justify-content:center;align-items:center"><button onClick="{{ c.onClick }}" style="width:24px;height:24px;border-radius:6px;border:1.5px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font-size:14px;font-weight:700;cursor:{{ c.cur }};display:flex;align-items:center;justify-content:center;padding:0">{{ c.mark }}</button></div></sc-for>
+          <sc-for list="{{ pr.cells }}" as="c"><div style="display:flex;justify-content:center;align-items:center"><button sc-camel-on-click="{{ c.onClick }}" style="width:24px;height:24px;border-radius:6px;border:1.5px solid {{ c.bd }};background:{{ c.bg }};color:{{ c.fg }};font-size:14px;font-weight:700;cursor:{{ c.cur }};display:flex;align-items:center;justify-content:center;padding:0">{{ c.mark }}</button></div></sc-for>
         </div>
       </sc-for>
       <div style="padding:10px 14px;font-size:12.5px;color:#5B636B">Enforced on the server for every request, including AI tool calls. Use “View as” in the header to try a role.</div>
@@ -1143,7 +1143,7 @@ input,select,button,textarea{font-family:inherit}
           <span style="color:#3D454D">{{ tr.item }}</span>
           <span style="text-align:right;font-weight:600">× {{ tr.qty }}</span>
           <span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ tr.bg }};color:{{ tr.fg }};white-space:nowrap">{{ tr.status }}</span>
-          <span><sc-if value="{{ tr.canApprove }}"><button onClick="{{ tr.onApprove }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer">Approve</button></sc-if></span>
+          <span><sc-if value="{{ tr.canApprove }}"><button sc-camel-on-click="{{ tr.onApprove }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer">Approve</button></sc-if></span>
         </div>
       </sc-for>
     </div>
@@ -1166,7 +1166,7 @@ input,select,button,textarea{font-family:inherit}
 <div data-screen-label="Returns and shift" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px;max-width:1400px;align-items:start">
   <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:12px">
     <div style="font-weight:600;font-size:15px">Sales return & refund</div>
-    <select value="{{ retSel }}" onChange="{{ onRetSel }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 10px;font-size:14px;background:#fff">
+    <select value="{{ retSel }}" sc-camel-on-change="{{ onRetSel }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 10px;font-size:14px;background:#fff">
       <option value="">Select a committed invoice…</option>
       <sc-for list="{{ retInvOpts }}" as="o"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
     </select>
@@ -1176,18 +1176,18 @@ input,select,button,textarea{font-family:inherit}
           <div style="display:grid;grid-template-columns:minmax(0,1fr) auto 70px;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid #F1F3F4;font-size:13.5px">
             <div style="display:flex;flex-direction:column"><strong style="font-weight:600">{{ l.name }}</strong><span style="font-size:12px;color:#5B636B">{{ l.batch }} · sold {{ l.sold }} · returned {{ l.done }} · {{ l.mrp }}</span></div>
             <span style="font-size:12px;color:#6B737B">{{ l.maxText }}</span>
-            <input value="{{ l.val }}" onChange="{{ l.onQty }}" disabled="{{ l.locked }}" placeholder="0" style="border:1px solid #CDD2D7;border-radius:6px;padding:6px;text-align:right;font-size:13.5px;width:100%">
+            <input value="{{ l.val }}" sc-camel-on-change="{{ l.onQty }}" disabled="{{ l.locked }}" placeholder="0" style="border:1px solid #CDD2D7;border-radius:6px;padding:6px;text-align:right;font-size:13.5px;width:100%">
           </div>
         </sc-for>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <select value="{{ retCond }}" onChange="{{ onRetCond }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option>Sealed, resaleable</option><option>Opened or damaged</option></select>
-        <select value="{{ retMode }}" onChange="{{ onRetMode }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option>Cash</option><option>UPI refund</option><option>Adjust customer credit</option></select>
+        <select value="{{ retCond }}" sc-camel-on-change="{{ onRetCond }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option>Sealed, resaleable</option><option>Opened or damaged</option></select>
+        <select value="{{ retMode }}" sc-camel-on-change="{{ onRetMode }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option>Cash</option><option>UPI refund</option><option>Adjust customer credit</option></select>
       </div>
-      <input value="{{ retReason }}" onChange="{{ onRetReason }}" placeholder="Reason (required, kept in audit trail)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+      <input value="{{ retReason }}" sc-camel-on-change="{{ onRetReason }}" placeholder="Reason (required, kept in audit trail)" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:14px">Refund <strong style="font-size:18px;font-variant-numeric:tabular-nums">{{ refundText }}</strong></span>
-        <button onClick="{{ onReturn }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Issue credit note</button>
+        <button sc-camel-on-click="{{ onReturn }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Issue credit note</button>
       </div>
       <sc-if value="{{ noRefund }}"><div style="font-size:12.5px;color:#B3261E">Your role cannot approve refunds. A manager must process this.</div></sc-if>
       <div style="font-size:12px;color:#6B737B">Sealed returns go back to the same batch. Opened or damaged items are not restocked. Expired stock can never be resold.</div>
@@ -1201,11 +1201,11 @@ input,select,button,textarea{font-family:inherit}
   </div>
   <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
     <div style="font-weight:600;font-size:15px">Shift close · Counter 1</div>
-    <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Opening float (₹)<input value="{{ shOpen }}" onChange="{{ onShOpen }}" style="width:120px;border:1px solid #CDD2D7;border-radius:7px;padding:7px 9px;text-align:right;font-size:14px"></label>
+    <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Opening float (₹)<input value="{{ shOpen }}" sc-camel-on-change="{{ onShOpen }}" style="width:120px;border:1px solid #CDD2D7;border-radius:7px;padding:7px 9px;text-align:right;font-size:14px"></label>
     <sc-for list="{{ shRows }}" as="r" hint-placeholder-count="5"><div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F1F3F4;font-size:13.5px"><span>{{ r.l }}</span><span style="font-variant-numeric:tabular-nums">{{ r.v }}</span></div></sc-for>
-    <label style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;gap:10px">Counted cash (₹)<input value="{{ shCounted }}" onChange="{{ onShCounted }}" placeholder="0.00" style="width:140px;border:1.5px solid #0B5E5B;border-radius:7px;padding:8px 10px;text-align:right;font-size:15px"></label>
+    <label style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600;gap:10px">Counted cash (₹)<input value="{{ shCounted }}" sc-camel-on-change="{{ onShCounted }}" placeholder="0.00" style="width:140px;border:1.5px solid #0B5E5B;border-radius:7px;padding:8px 10px;text-align:right;font-size:15px"></label>
     <div style="font-size:13.5px;font-weight:600;color:{{ shDiffFg }}">{{ shDiff }}</div>
-    <sc-if value="{{ shNotClosed }}" hint-placeholder-val="{{ true }}"><button onClick="{{ onCloseShift }}" style="align-self:flex-start;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Close shift & post</button></sc-if>
+    <sc-if value="{{ shNotClosed }}" hint-placeholder-val="{{ true }}"><button sc-camel-on-click="{{ onCloseShift }}" style="align-self:flex-start;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Close shift & post</button></sc-if>
     <sc-if value="{{ shClosed }}"><div style="font-size:13px;background:#E6F4EC;color:#1E7F4F;padding:9px 11px;border-radius:8px">{{ shClosedText }}</div></sc-if>
     <div style="font-size:12px;color:#6B737B">Any difference is posted to Cash short/excess and flagged for review above the threshold set in Stock intelligence.</div>
   </div>
@@ -1219,8 +1219,8 @@ input,select,button,textarea{font-family:inherit}
     <span style="font-size:13px;color:#5B636B">{{ cCount }}</span>
     <span style="font-size:13px;font-weight:600;color:{{ cVarFg }}">{{ cVar }}</span>
     <div style="margin-left:auto;display:flex;gap:8px">
-      <button onClick="{{ fillSystem }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Prefill system qty</button>
-      <button onClick="{{ onPostCount }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Post adjustments</button>
+      <button sc-camel-on-click="{{ fillSystem }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Prefill system qty</button>
+      <button sc-camel-on-click="{{ onPostCount }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Post adjustments</button>
     </div>
   </div>
   <sc-if value="{{ cPosted }}"><div style="font-size:13px;background:#E6F4EC;color:#1E7F4F;padding:9px 12px;border-radius:8px">{{ cPostedText }}</div></sc-if>
@@ -1240,7 +1240,7 @@ input,select,button,textarea{font-family:inherit}
             <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4"><strong style="font-weight:600">{{ r.name }}</strong> <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#5B636B">{{ r.batch }}</span></td>
             <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4;font-size:13px;color:#5B636B">{{ r.exp }}</td>
             <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-variant-numeric:tabular-nums">{{ r.sys }}</td>
-            <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><input value="{{ r.val }}" onChange="{{ r.onVal }}" style="width:70px;border:1px solid #CDD2D7;border-radius:6px;padding:5px 7px;text-align:right;font-size:13.5px"></td>
+            <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4;text-align:right"><input value="{{ r.val }}" sc-camel-on-change="{{ r.onVal }}" style="width:70px;border:1px solid #CDD2D7;border-radius:6px;padding:5px 7px;text-align:right;font-size:13.5px"></td>
             <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-weight:600;color:{{ r.vfg }}">{{ r.vt }}</td>
             <td style="padding:8px 14px;border-bottom:1px solid #F1F3F4;text-align:right;font-size:13px">{{ r.vv }}</td>
           </tr>
@@ -1257,26 +1257,26 @@ input,select,button,textarea{font-family:inherit}
   <sc-for list="{{ rcRows }}" as="r" hint-placeholder-count="2">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#5B636B">{{ r.id }}</span><strong style="font-size:15px">{{ r.product }}</strong><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ r.bg }};color:{{ r.fg }}">{{ r.status }}</span>
-        <select value="{{ r.status }}" onChange="{{ r.onStatus }}" style="margin-left:auto;border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13px;background:#fff"><sc-for list="{{ stOpts }}" as="so"><option value="{{ so }}">{{ so }}</option></sc-for></select>
+        <select value="{{ r.status }}" sc-camel-on-change="{{ r.onStatus }}" style="margin-left:auto;border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13px;background:#fff"><sc-for list="{{ stOpts }}" as="so"><option value="{{ so }}">{{ so }}</option></sc-for></select>
       </div>
       <div style="font-size:13px;color:#3D454D">{{ r.reason }} · batches {{ r.batches }}</div>
       <div style="font-size:12.5px;color:#5B636B">Source: {{ r.source }} · published {{ r.pub }}</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:6px;border-top:1px solid #F1F3F4">
         <span style="font-size:13px;font-weight:600;color:{{ r.affFg }}">{{ r.affected }}</span>
-        <sc-if value="{{ r.canQ }}"><button onClick="{{ r.onQ }}" style="margin-left:auto;background:#B3261E;color:#fff;border:0;border-radius:7px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer">Quarantine affected stock</button></sc-if>
+        <sc-if value="{{ r.canQ }}"><button sc-camel-on-click="{{ r.onQ }}" style="margin-left:auto;background:#B3261E;color:#fff;border:0;border-radius:7px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer">Quarantine affected stock</button></sc-if>
       </div>
     </div>
   </sc-for>
   <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
     <div style="font-weight:600;font-size:15px">Record a verified notice</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
-      <input value="{{ rcf.product }}" onChange="{{ rcSet.product }}" placeholder="Product & strength *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-      <input value="{{ rcf.batches }}" onChange="{{ rcSet.batches }}" placeholder="Affected batches, comma separated *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-      <input value="{{ rcf.source }}" onChange="{{ rcSet.source }}" placeholder="Source & reference no. *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
-      <input type="date" value="{{ rcf.pub }}" onChange="{{ rcSet.pub }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px 10px;font-size:14px;outline:none">
-      <input value="{{ rcf.reason }}" onChange="{{ rcSet.reason }}" placeholder="Reason as stated in notice" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+      <input value="{{ rcf.product }}" sc-camel-on-change="{{ rcSet.product }}" placeholder="Product & strength *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+      <input value="{{ rcf.batches }}" sc-camel-on-change="{{ rcSet.batches }}" placeholder="Affected batches, comma separated *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+      <input value="{{ rcf.source }}" sc-camel-on-change="{{ rcSet.source }}" placeholder="Source & reference no. *" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
+      <input type="date" value="{{ rcf.pub }}" sc-camel-on-change="{{ rcSet.pub }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px 10px;font-size:14px;outline:none">
+      <input value="{{ rcf.reason }}" sc-camel-on-change="{{ rcSet.reason }}" placeholder="Reason as stated in notice" style="border:1px solid #CDD2D7;border-radius:8px;padding:9px 11px;font-size:14px;outline:none">
     </div>
-    <button onClick="{{ onAddRecall }}" style="align-self:flex-start;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Record & match stock</button>
+    <button sc-camel-on-click="{{ onAddRecall }}" style="align-self:flex-start;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer">Record & match stock</button>
   </div>
 </div>
 </sc-if>
@@ -1290,7 +1290,7 @@ input,select,button,textarea{font-family:inherit}
         <div style="font-size:12.5px;color:#6B737B">AI finds items that sell above average in a coming month, so you can stock up before the rush.</div>
       </div>
       <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px">
-        <sc-for list="{{ seaTabs }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap">{{ tb.label }}</button></sc-for>
+        <sc-for list="{{ seaTabs }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap">{{ tb.label }}</button></sc-for>
       </div>
     </div>
     <sc-if value="{{ hasSea }}" hint-placeholder-val="{{ true }}">
@@ -1300,7 +1300,7 @@ input,select,button,textarea{font-family:inherit}
         </div>
         <sc-for list="{{ seaRows }}" as="r" hint-placeholder-count="5">
           <div style="display:grid;grid-template-columns:28px minmax(180px,1.5fr) 150px 80px 90px 90px 100px minmax(120px,1fr);gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid #F1F3F4;font-size:13.5px;min-width:1000px">
-            <input type="checkbox" checked="{{ r.checked }}" disabled="{{ r.noCheck }}" onChange="{{ r.onCheck }}" style="width:16px;height:16px;accent-color:#0B5E5B">
+            <input type="checkbox" checked="{{ r.checked }}" disabled="{{ r.noCheck }}" sc-camel-on-change="{{ r.onCheck }}" style="width:16px;height:16px;accent-color:#0B5E5B">
             <div style="display:flex;flex-direction:column;min-width:0"><strong style="font-weight:600">{{ r.name }}</strong><span style="font-size:12px;color:#6B737B">{{ r.why }} · {{ r.peaks }}</span></div>
             <div style="display:flex;align-items:flex-end;gap:2px;height:30px">
               <sc-for list="{{ r.bars }}" as="b"><div title="{{ b.tip }}" style="flex:1;height:{{ b.h }};background:{{ b.bg }};border-radius:2px"></div></sc-for>
@@ -1316,7 +1316,7 @@ input,select,button,textarea{font-family:inherit}
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 18px;background:#FAFBFB">
         <span style="font-size:12px;color:#6B737B;flex:1;min-width:260px">Basis: same month last year compared with the 12-month average, adjusted to current sales, stock and supplier lead time. Weather and outbreaks can shift real demand, so review before ordering.</span>
         <span style="font-size:13px">{{ seaCount }} selected · <strong>{{ seaTotal }}</strong> at cost</span>
-        <button onClick="{{ onSeaPo }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Create draft PO for {{ seaMonthName }}</button>
+        <button sc-camel-on-click="{{ onSeaPo }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:600;cursor:pointer">Create draft PO for {{ seaMonthName }}</button>
       </div>
     </sc-if>
     <sc-if value="{{ noSea }}"><div style="padding:24px 18px;font-size:13.5px;color:#5B636B">No items sell noticeably above average in {{ seaMonthName }}. Normal reorder rules are enough.</div></sc-if>
@@ -1324,9 +1324,9 @@ input,select,button,textarea{font-family:inherit}
   <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:auto">
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid #E3E6E9">
       <div style="font-weight:600;font-size:15px">Demand forecast & reorder policy</div>
-      <div style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:#5B636B">Cover <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px"><sc-for list="{{ polCover }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:4px 9px;border-radius:6px;font-size:12.5px;cursor:pointer">{{ tb.label }}</button></sc-for></div></div>
-      <div style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:#5B636B">Safety <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px"><sc-for list="{{ polSafety }}" as="tb"><button onClick="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:4px 9px;border-radius:6px;font-size:12.5px;cursor:pointer">{{ tb.label }}</button></sc-for></div></div>
-      <button onClick="{{ onDraftIntel }}" style="margin-left:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600;cursor:pointer">Draft PO · {{ fcNeed }}</button>
+      <div style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:#5B636B">Cover <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px"><sc-for list="{{ polCover }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:4px 9px;border-radius:6px;font-size:12.5px;cursor:pointer">{{ tb.label }}</button></sc-for></div></div>
+      <div style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:#5B636B">Safety <div style="display:inline-flex;gap:2px;background:#EEF0F2;padding:3px;border-radius:9px"><sc-for list="{{ polSafety }}" as="tb"><button sc-camel-on-click="{{ tb.onClick }}" style="border:0;background:{{ tb.bg }};color:{{ tb.fg }};box-shadow:{{ tb.sh }};padding:4px 9px;border-radius:6px;font-size:12.5px;cursor:pointer">{{ tb.label }}</button></sc-for></div></div>
+      <button sc-camel-on-click="{{ onDraftIntel }}" style="margin-left:auto;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600;cursor:pointer">Draft PO · {{ fcNeed }}</button>
     </div>
     <table style="width:100%;border-collapse:collapse;min-width:980px">
       <thead><tr style="background:#FAFBFB">
@@ -1381,15 +1381,15 @@ input,select,button,textarea{font-family:inherit}
       <div style="font-weight:600;font-size:15px">Audit anomalies</div>
       <span style="font-size:12.5px;color:#5B636B">These are signals to review, not proof of wrongdoing. Visible to Owner and Manager only.</span>
       <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px;color:#5B636B">
-        <label style="display:flex;gap:5px;align-items:center">Discount ><input value="{{ thDisc }}" onChange="{{ onThDisc }}" style="width:40px;border:1px solid #CDD2D7;border-radius:5px;padding:3px 5px;text-align:right">%</label>
-        <label style="display:flex;gap:5px;align-items:center">Refunds/day ><input value="{{ thRef }}" onChange="{{ onThRef }}" style="width:40px;border:1px solid #CDD2D7;border-radius:5px;padding:3px 5px;text-align:right"></label>
-        <label style="display:flex;gap:5px;align-items:center">Cash diff > ₹<input value="{{ thCash }}" onChange="{{ onThCash }}" style="width:54px;border:1px solid #CDD2D7;border-radius:5px;padding:3px 5px;text-align:right"></label>
+        <label style="display:flex;gap:5px;align-items:center">Discount ><input value="{{ thDisc }}" sc-camel-on-change="{{ onThDisc }}" style="width:40px;border:1px solid #CDD2D7;border-radius:5px;padding:3px 5px;text-align:right">%</label>
+        <label style="display:flex;gap:5px;align-items:center">Refunds/day ><input value="{{ thRef }}" sc-camel-on-change="{{ onThRef }}" style="width:40px;border:1px solid #CDD2D7;border-radius:5px;padding:3px 5px;text-align:right"></label>
+        <label style="display:flex;gap:5px;align-items:center">Cash diff > ₹<input value="{{ thCash }}" sc-camel-on-change="{{ onThCash }}" style="width:54px;border:1px solid #CDD2D7;border-radius:5px;padding:3px 5px;text-align:right"></label>
       </div>
     </div>
     <sc-for list="{{ anomRows }}" as="a" hint-placeholder-count="3">
       <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid #F1F3F4">
         <div style="display:flex;flex-direction:column;gap:2px"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:{{ a.bg }};color:{{ a.fg }}">{{ a.rule }}</span><span style="font-size:13px;font-weight:500">{{ a.who }}</span></div><span style="font-size:13px;color:#3D454D">{{ a.detail }}</span></div>
-        <div><sc-if value="{{ a.open }}"><button onClick="{{ a.onReview }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer">Mark reviewed</button></sc-if><sc-if value="{{ a.reviewed }}"><span style="font-size:12px;color:#1E7F4F">{{ a.revText }}</span></sc-if></div>
+        <div><sc-if value="{{ a.open }}"><button sc-camel-on-click="{{ a.onReview }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer">Mark reviewed</button></sc-if><sc-if value="{{ a.reviewed }}"><span style="font-size:12px;color:#1E7F4F">{{ a.revText }}</span></sc-if></div>
       </div>
     </sc-for>
   </div>
@@ -1401,9 +1401,9 @@ input,select,button,textarea{font-family:inherit}
   <div style="display:flex;flex-direction:column;gap:16px">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:600;font-size:15px">Programs</div><span style="font-size:12.5px;color:#5B636B">{{ crmOpted }}</span></div>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ crmRefill }}" onChange="{{ onCrmRefill }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Refill reminders</span><span style="font-size:12.5px;color:#5B636B">Based only on how often a customer buys an item. Medoro does not infer conditions or target by health.</span></span></label>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ crmLoyalty }}" onChange="{{ onCrmLoyalty }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Loyalty points (opt-in)</span><span style="font-size:12.5px;color:#5B636B">1 point per ₹100 on non-prescription items. Points are shown on the receipt.</span></span></label>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ crmFeedback }}" onChange="{{ onCrmFeedback }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Feedback request</span><span style="font-size:12.5px;color:#5B636B">One message, 2 days after purchase, at most once a month per customer.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ crmRefill }}" sc-camel-on-change="{{ onCrmRefill }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Refill reminders</span><span style="font-size:12.5px;color:#5B636B">Based only on how often a customer buys an item. Medoro does not infer conditions or target by health.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ crmLoyalty }}" sc-camel-on-change="{{ onCrmLoyalty }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Loyalty points (opt-in)</span><span style="font-size:12.5px;color:#5B636B">1 point per ₹100 on non-prescription items. Points are shown on the receipt.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ crmFeedback }}" sc-camel-on-change="{{ onCrmFeedback }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Feedback request</span><span style="font-size:12.5px;color:#5B636B">One message, 2 days after purchase, at most once a month per customer.</span></span></label>
     </div>
     <sc-if value="{{ showReminders }}" hint-placeholder-val="{{ true }}">
       <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:16px 18px;display:flex;flex-direction:column;gap:6px">
@@ -1417,9 +1417,9 @@ input,select,button,textarea{font-family:inherit}
       <div style="font-weight:600;font-size:15px">Campaigns</div>
       <sc-for list="{{ campaigns }}" as="c"><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #F1F3F4"><div style="display:flex;flex-direction:column"><strong style="font-weight:600;font-size:13.5px">{{ c.name }}</strong><span style="font-size:12px;color:#5B636B">{{ c.tpl }} · {{ c.aud }} · {{ c.when }}</span></div><span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ c.bg }};color:{{ c.fg }};white-space:nowrap">{{ c.status }}</span></div></sc-for>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input value="{{ crmName }}" onChange="{{ onCrmName }}" placeholder="New campaign name" style="flex:1;min-width:160px;border:1px solid #CDD2D7;border-radius:8px;padding:8px 10px;font-size:13.5px;outline:none">
-        <select value="{{ crmTpl }}" onChange="{{ onCrmTpl }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option value="store_update">store_update</option><option value="payment_reminder">payment_reminder</option><option value="feedback_request">feedback_request</option></select>
-        <button onClick="{{ onCrmCreate }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600;cursor:pointer">Save draft</button>
+        <input value="{{ crmName }}" sc-camel-on-change="{{ onCrmName }}" placeholder="New campaign name" style="flex:1;min-width:160px;border:1px solid #CDD2D7;border-radius:8px;padding:8px 10px;font-size:13.5px;outline:none">
+        <select value="{{ crmTpl }}" sc-camel-on-change="{{ onCrmTpl }}" style="border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option value="store_update">store_update</option><option value="payment_reminder">payment_reminder</option><option value="feedback_request">feedback_request</option></select>
+        <button sc-camel-on-click="{{ onCrmCreate }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:8px 13px;font-size:13.5px;font-weight:600;cursor:pointer">Save draft</button>
       </div>
       <div style="font-size:12px;color:#6B737B">Sends only to opted-in customers through approved templates. Every message includes "Reply STOP to opt out".</div>
     </div>
@@ -1443,8 +1443,8 @@ input,select,button,textarea{font-family:inherit}
       <div style="display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid #F1F3F4">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5B636B">{{ q.id }}</span><strong style="font-weight:600">{{ q.op }}</strong><span style="color:#5B636B">{{ q.device }}</span><span style="margin-left:auto;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ q.bg }};color:{{ q.fg }}">{{ q.status }}</span></div>
         <div style="font-size:13px;color:#3D454D">{{ q.detail }}</div>
-        <sc-if value="{{ q.isConflict }}"><div style="display:flex;gap:8px;flex-wrap:wrap"><button onClick="{{ q.onPartial }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer">Post 1 unit, refund 2</button><button onClick="{{ q.onVoid }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer">Void offline sale</button></div></sc-if>
-        <sc-if value="{{ q.isPending }}"><button onClick="{{ q.onRetry }}" style="align-self:flex-start;border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer">Retry now</button></sc-if>
+        <sc-if value="{{ q.isConflict }}"><div style="display:flex;gap:8px;flex-wrap:wrap"><button sc-camel-on-click="{{ q.onPartial }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer">Post 1 unit, refund 2</button><button sc-camel-on-click="{{ q.onVoid }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer">Void offline sale</button></div></sc-if>
+        <sc-if value="{{ q.isPending }}"><button sc-camel-on-click="{{ q.onRetry }}" style="align-self:flex-start;border:1px solid #CDD2D7;background:#fff;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer">Retry now</button></sc-if>
       </div>
     </sc-for>
     <div style="font-size:12px;color:#6B737B;border-top:1px solid #F1F3F4;padding-top:10px">Each offline operation has a unique ID. Price, permission and stock are rechecked before anything posts to the shared database. Until then an offline sale is not final. Selling shared stock offline is capped at the device's reserved quantity.</div>
@@ -1459,9 +1459,9 @@ input,select,button,textarea{font-family:inherit}
     <div style="font-size:13.5px">{{ planStatus }} · renews {{ planRenews }} · billed yearly</div>
     <sc-for list="{{ ent }}" as="e" hint-placeholder-count="6"><div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F1F3F4;font-size:13.5px"><span style="color:#5B636B">{{ e.l }}</span><span style="font-weight:500">{{ e.v }}</span></div></sc-for>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-      <button onClick="{{ onChangePlan }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Change plan</button>
-      <button onClick="{{ onToggleAiAddon }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">{{ aiAddonLabel }}</button>
-      <button onClick="{{ onCancelPlan }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Cancel subscription</button>
+      <button sc-camel-on-click="{{ onChangePlan }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Change plan</button>
+      <button sc-camel-on-click="{{ onToggleAiAddon }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">{{ aiAddonLabel }}</button>
+      <button sc-camel-on-click="{{ onCancelPlan }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Cancel subscription</button>
     </div>
   </div>
   <div style="display:flex;flex-direction:column;gap:16px">
@@ -1484,20 +1484,20 @@ input,select,button,textarea{font-family:inherit}
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:16px;align-items:start">
     <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px;display:flex;flex-direction:column;gap:12px">
       <div style="font-weight:600;font-size:15px">Data controls</div>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privStrict }}" onChange="{{ onPrivStrict }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Strict customer-controlled mode</span><span style="font-size:12.5px;color:#5B636B">Transactions, analytics, reports and AI all stay on your server. Nothing operational is copied to Medoro.</span></span></label>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privRemoteAi }}" onChange="{{ onPrivRemoteAi }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Allow remote AI provider</span><span style="font-size:12.5px;color:#5B636B">Sends minimised context (aggregates, no names or phone numbers) for better answers. Never used for training.</span></span></label>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privTelemetry }}" onChange="{{ onPrivTelemetry }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Anonymous usage telemetry</span><span style="font-size:12.5px;color:#5B636B">Feature counts only. No invoice contents, patient details or credentials.</span></span></label>
-      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privCrash }}" onChange="{{ onPrivCrash }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Crash reports</span><span style="font-size:12.5px;color:#5B636B">Personal and invoice data is stripped on your server before upload.</span></span></label>
-      <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Keep sales & prescription records for<select value="{{ privRetention }}" onChange="{{ onPrivRetention }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px;background:#fff"><option value="3">3 years</option><option value="5">5 years</option><option value="8">8 years</option><option value="10">10 years</option></select></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privStrict }}" sc-camel-on-change="{{ onPrivStrict }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Strict customer-controlled mode</span><span style="font-size:12.5px;color:#5B636B">Transactions, analytics, reports and AI all stay on your server. Nothing operational is copied to Medoro.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privRemoteAi }}" sc-camel-on-change="{{ onPrivRemoteAi }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Allow remote AI provider</span><span style="font-size:12.5px;color:#5B636B">Sends minimised context (aggregates, no names or phone numbers) for better answers. Never used for training.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privTelemetry }}" sc-camel-on-change="{{ onPrivTelemetry }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Anonymous usage telemetry</span><span style="font-size:12.5px;color:#5B636B">Feature counts only. No invoice contents, patient details or credentials.</span></span></label>
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" checked="{{ privCrash }}" sc-camel-on-change="{{ onPrivCrash }}" style="width:17px;height:17px;margin-top:2px;accent-color:#0B5E5B"><span style="display:flex;flex-direction:column"><span style="font-size:14px;font-weight:500">Crash reports</span><span style="font-size:12.5px;color:#5B636B">Personal and invoice data is stripped on your server before upload.</span></span></label>
+      <label style="display:flex;justify-content:space-between;align-items:center;font-size:13.5px;gap:10px">Keep sales & prescription records for<select value="{{ privRetention }}" sc-camel-on-change="{{ onPrivRetention }}" style="border:1px solid #CDD2D7;border-radius:7px;padding:6px 8px;font-size:13.5px;background:#fff"><option value="3">3 years</option><option value="5">5 years</option><option value="8">8 years</option><option value="10">10 years</option></select></label>
       <div style="font-size:12px;color:#6B737B">Check retention periods with your CA and the drug licensing authority before shortening them.</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:16px">
       <div style="background:#fff;border:1px solid #E6E8EB;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);padding:18px;display:flex;flex-direction:column;gap:10px">
         <div style="font-weight:600;font-size:15px">Export & erase</div>
-        <button onClick="{{ onExportAll }}" style="align-self:flex-start;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-download"></i>Export all pharmacy data (CSV)</button>
+        <button sc-camel-on-click="{{ onExportAll }}" style="align-self:flex-start;display:flex;gap:6px;align-items:center;background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer"><i class="icon-download"></i>Export all pharmacy data (CSV)</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid #F1F3F4;padding-top:10px">
-          <select value="{{ privErase }}" onChange="{{ onPrivErase }}" style="flex:1;min-width:180px;border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option value="">Customer erasure request…</option><sc-for list="{{ eraseOpts }}" as="o"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select>
-          <button onClick="{{ onErase }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Erase personal data</button>
+          <select value="{{ privErase }}" sc-camel-on-change="{{ onPrivErase }}" style="flex:1;min-width:180px;border:1px solid #CDD2D7;border-radius:8px;padding:8px;font-size:13.5px;background:#fff"><option value="">Customer erasure request…</option><sc-for list="{{ eraseOpts }}" as="o"><option value="{{ o.value }}">{{ o.label }}</option></sc-for></select>
+          <button sc-camel-on-click="{{ onErase }}" style="border:1px solid #F0C8C3;background:#fff;color:#B3261E;border-radius:8px;padding:8px 12px;font-size:13.5px;cursor:pointer">Erase personal data</button>
         </div>
         <div style="font-size:12px;color:#6B737B">Erasure removes the name and phone number. Tax invoices are kept with an anonymised party as the law requires.</div>
       </div>
@@ -1526,7 +1526,7 @@ input,select,button,textarea{font-family:inherit}
         <span style="color:#3D454D">{{ x.dep }}</span>
         <span style="font-size:12.5px;color:#5B636B">{{ x.lic }}</span>
         <span style="padding:2px 9px;border-radius:999px;font-size:12px;font-weight:500;background:{{ x.bg }};color:{{ x.fg }};white-space:nowrap">{{ x.status }}</span>
-        <span style="display:flex;gap:6px"><sc-if value="{{ x.isTrial }}"><button onClick="{{ x.onExtend }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">Extend trial</button></sc-if><sc-if value="{{ x.isGrace }}"><button onClick="{{ x.onVerify }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">Verify payment</button></sc-if></span>
+        <span style="display:flex;gap:6px"><sc-if value="{{ x.isTrial }}"><button sc-camel-on-click="{{ x.onExtend }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">Extend trial</button></sc-if><sc-if value="{{ x.isGrace }}"><button sc-camel-on-click="{{ x.onVerify }}" style="border:1px solid #CDD2D7;background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer">Verify payment</button></sc-if></span>
       </div>
     </sc-for>
   </div>
@@ -1552,7 +1552,7 @@ input,select,button,textarea{font-family:inherit}
       <div style="font-weight:600;font-size:15px">Medoro AI</div>
       <div style="font-size:12px;color:#5B636B">Read-only by default · asks before acting</div>
     </div>
-    <button onClick="{{ toggleAi }}" style="border:0;background:transparent;cursor:pointer;color:#5B636B;padding:6px;border-radius:6px" style-hover="background:#EEF0F2"><i class="icon-x" style="font-size:18px"></i></button>
+    <button sc-camel-on-click="{{ toggleAi }}" style="border:0;background:transparent;cursor:pointer;color:#5B636B;padding:6px;border-radius:6px" style-hover="background:#EEF0F2"><i class="icon-x" style="font-size:18px"></i></button>
   </div>
   <div ref="{{ aiRef }}" style="flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#FAFBFB">
     <sc-for list="{{ aiMsgs }}" as="m" hint-placeholder-count="1">
@@ -1579,12 +1579,12 @@ input,select,button,textarea{font-family:inherit}
             <div style="display:flex;flex-direction:column;gap:8px;padding:10px;background:#FDF2E1;border-radius:8px">
               <div style="font-size:12.5px;color:#94570A;font-weight:600;display:flex;gap:6px;align-items:center"><i class="icon-shield-alert" style="font-size:14px"></i>Needs your confirmation</div>
               <div style="display:flex;gap:8px">
-                <button onClick="{{ m.onConfirm }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer">{{ m.confirmLabel }}</button>
-                <button onClick="{{ m.onCancel }}" style="background:#fff;color:#1F2328;border:1px solid #CDD2D7;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer">Cancel</button>
+                <button sc-camel-on-click="{{ m.onConfirm }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:7px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer">{{ m.confirmLabel }}</button>
+                <button sc-camel-on-click="{{ m.onCancel }}" style="background:#fff;color:#1F2328;border:1px solid #CDD2D7;border-radius:7px;padding:7px 12px;font-size:13px;cursor:pointer">Cancel</button>
               </div>
             </div>
           </sc-if>
-          <sc-if value="{{ m.hasAction }}"><button onClick="{{ m.onAction }}" style="align-self:flex-start;background:#fff;color:#0B5E5B;border:1px solid #9FCFC9;border-radius:7px;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer">{{ m.actionLabel }}</button></sc-if>
+          <sc-if value="{{ m.hasAction }}"><button sc-camel-on-click="{{ m.onAction }}" style="align-self:flex-start;background:#fff;color:#0B5E5B;border:1px solid #9FCFC9;border-radius:7px;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer">{{ m.actionLabel }}</button></sc-if>
         </div>
       </sc-if>
     </sc-for>
@@ -1592,12 +1592,12 @@ input,select,button,textarea{font-family:inherit}
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 0">
     <sc-for list="{{ aiSuggest }}" as="sg" hint-placeholder-count="4">
-      <button onClick="{{ sg.onClick }}" style="border:1px solid #E3E6E9;background:#fff;color:#3D454D;border-radius:999px;padding:5px 10px;font-size:12.5px;cursor:pointer" style-hover="border-color:#9FCFC9;color:#0B5E5B">{{ sg.label }}</button>
+      <button sc-camel-on-click="{{ sg.onClick }}" style="border:1px solid #E3E6E9;background:#fff;color:#3D454D;border-radius:999px;padding:5px 10px;font-size:12.5px;cursor:pointer" style-hover="border-color:#9FCFC9;color:#0B5E5B">{{ sg.label }}</button>
     </sc-for>
   </div>
   <div style="display:flex;gap:8px;padding:12px 16px 8px">
-    <input value="{{ aiQ }}" onChange="{{ onAiQ }}" onKeyDown="{{ onAiKey }}" placeholder="{{ t.aiPh }}" style="flex:1;border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;min-width:0">
-    <button onClick="{{ onAiSend }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:0 14px;cursor:pointer"><i class="icon-send-horizontal" style="font-size:17px"></i></button>
+    <input value="{{ aiQ }}" sc-camel-on-change="{{ onAiQ }}" sc-camel-on-key-down="{{ onAiKey }}" placeholder="{{ t.aiPh }}" style="flex:1;border:1px solid #CDD2D7;border-radius:8px;padding:10px 12px;font-size:14px;outline:none;min-width:0">
+    <button sc-camel-on-click="{{ onAiSend }}" style="background:#0B5E5B;color:#fff;border:0;border-radius:8px;padding:0 14px;cursor:pointer"><i class="icon-send-horizontal" style="font-size:17px"></i></button>
   </div>
   <div style="padding:0 16px 14px;font-size:11.5px;color:#6B737B;display:flex;gap:6px;align-items:center"><i class="icon-hard-drive" style="font-size:13px"></i>Local model on your server. Nothing sent to external AI. Not clinical advice.</div>
 </aside>

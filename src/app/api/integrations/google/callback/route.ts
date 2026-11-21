@@ -10,7 +10,7 @@ import { DriveScopeMissing, exchangeCode, saveDriveToken } from "@/domain/system
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
 /** The setup wizard opens consent in a popup and hears back over a BroadcastChannel (Google's pages cut window.opener).
- * The inline script carries the CSP nonce that middleware puts on the request (`x-nonce`). */
+ * The inline script carries the CSP nonce that the proxy (src/proxy.ts) puts on the request (`x-nonce`). */
 const popup = (q: string, nonce: string | null) => new Response(
   `<!doctype html><meta charset="utf-8"><title>Google Drive</title><body style="font:15px system-ui;padding:24px">${q === "ok" ? "Google Drive connected." : "Google Drive wasn’t connected."} You can close this window and go back to Medoro.<script${nonce && /^[A-Za-z0-9+/=]+$/.test(nonce) ? ` nonce="${nonce}"` : ""}>try{new BroadcastChannel("medoro-drive").postMessage(${JSON.stringify(q)})}catch(e){}setTimeout(function(){window.close()},300)</script>`,
   { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },

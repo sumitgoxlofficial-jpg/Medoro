@@ -91,7 +91,7 @@ Full module and route inventory: section 5.
 | End-to-end tests (browser) | 75 in the full suite (73 + 2 new): 72 pass in the CI configuration, the other 3 pass with email configured; plus repetitions of the live-update spec (7/10 before the BUG-08 fix, 30/30 after) |
 | Live security probes | 23 endpoints, all refused or safe |
 | Bugs found | 10 defects (1 HIGH, 5 MEDIUM, 4 LOW) + 1 test-coverage gap (see bug log) |
-| Bugs fixed and retested | 9 fixed and retested, gap closed with a new spec; 1 open (LOW), documented with evidence |
+| Bugs fixed and retested | All 10 fixed and retested (BUG-09 after the audit), gap closed with a new spec |
 | Critical/high security vulnerabilities found | 0 in the code paths tested; the AI clinical-refusal gap (HIGH, patient safety) is fixed |
 
 ## 5. Inventory
