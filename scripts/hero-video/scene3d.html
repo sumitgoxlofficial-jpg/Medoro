@@ -20,12 +20,13 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
 const W = innerWidth, H = innerHeight, LOOP = 12, TAU = Math.PI * 2;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = .82;
+renderer.toneMappingExposure = .72;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
@@ -34,8 +35,15 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xEFF3F1);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(4, 7, 9); key.castShadow = true;
+// Reflections: a room plus three big studio softboxes, so glossy shells show crisp window-like highlights.
+const studio = new RoomEnvironment();
+for (const [w, h, pos, i] of [[7, 12, [-11, 3, 7], 5], [12, 3.5, [0, 12, 5], 3.5], [4, 9, [12, 1, -1], 2.5], [10, 2, [0, -10, 6], 1]]) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(i, i, i * .97), side: THREE.DoubleSide }));
+  m.position.set(...pos); m.lookAt(0, 0, 0); studio.add(m);
+}
+scene.environment = pmrem.fromScene(studio, 0.02).texture;
+scene.environmentIntensity = .55;
+const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(4, 7, 9); key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6; key.shadow.bias = -.0005; key.shadow.normalBias = .02;
 Object.assign(key.shadow.camera, { left: -12, right: 12, top: 9, bottom: -9, near: 1, far: 40 }); scene.add(key);
 const rim = new THREE.DirectionalLight(0x9fe7dc, 1.4); rim.position.set(-6, 2, -4); scene.add(rim);
@@ -62,16 +70,44 @@ const faceBump = canvasTex(512, (ctx, n) => {
 // Gelatin shells: almost smooth, with tiny variation so highlights break up like a real surface.
 const shellRough = canvasTex(256, (ctx, n) => { ctx.fillStyle = "#3a3a3a"; ctx.fillRect(0, 0, n, n); for (let i = 0; i < 900; i++) { const v = 40 + rnd() * 50; ctx.fillStyle = `rgba(${v},${v},${v},.5)`; ctx.beginPath(); ctx.arc(rnd() * n, rnd() * n, 2 + rnd() * 8, 0, Math.PI * 2); ctx.fill(); } });
 
+// Capsule imprints, printed along the capsule's length like real pharma capsules.
+const printTex = (txt) => canvasTex(512, (ctx, n) => {
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, n, n);
+  ctx.save(); ctx.translate(n * .25, n * .55); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = "#3d3d3d"; ctx.font = `bold ${n * .07}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, 0);
+  ctx.restore();
+  ctx.save(); ctx.translate(n * .75, n * .55); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = "#3d3d3d"; ctx.font = `bold ${n * .07}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, 0);
+  ctx.restore();
+}, true);
+const PRINT = { cap: printTex("MDR"), body: printTex("250") };
+// Tablet face colour: powder grain with the debossed mark just a shade darker.
+const faceColor = canvasTex(512, (ctx, n) => {
+  speckle(ctx, n, "#F7F6F1", [200, 55]);
+  ctx.fillStyle = "rgba(150,148,140,.55)"; ctx.fillRect(n * .1, n * .488, n * .8, n * .024);
+  ctx.font = `bold ${n * .26}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("M", n / 2, n * .3);
+}, true);
+// Printed foil: repeated product text between the blisters.
+const foilPrint = canvasTex(512, (ctx, n) => {
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, n, n);
+  ctx.fillStyle = "#4A7F7A"; ctx.font = `bold ${n * .045}px sans-serif`;
+  for (let r = 0; r < 12; r++) for (let c = 0; c < 3; c++) ctx.fillText(r % 2 ? "Paracip 500" : "Medoro Rx", c * n / 3 + (r % 2) * 40, r * n / 12 + 26);
+}, true);
+
 // ── Materials ──
-const glossy = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: .3, roughnessMap: shellRough, clearcoat: 1, clearcoatRoughness: .06, sheen: .25, sheenRoughness: .5 });
+// Gelatin shells: glossy, a little translucent when coloured (light glows through the colour), opaque when white.
+const glossy = (color, print) => new THREE.MeshPhysicalMaterial({
+  color, map: print, roughness: .2, roughnessMap: shellRough, clearcoat: .9, clearcoatRoughness: .05, sheen: .2, sheenRoughness: .5,
+  ...(color === 0xF4F6F5 ? {} : { transmission: .22, thickness: .6, ior: 1.5, attenuationColor: new THREE.Color(color), attenuationDistance: .5 }),
+});
 const MAT = {
-  teal: glossy(0x14B8A6), deep: glossy(0x0B5E5B), coral: glossy(0xF07A70), gold: glossy(0xF2B93B), white: glossy(0xF4F6F5),
+  teal: glossy(0x1FAE9C), deep: glossy(0x0E5753), coral: glossy(0xE4675C), gold: glossy(0xE9B23F), white: glossy(0xF4F6F5),
   tablet: new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: grainColor, roughness: .7, bumpMap: grainBump, bumpScale: .6, sheen: .6, sheenColor: new THREE.Color(0xffffff) }),
-  tabletFace: new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: grainColor, roughness: .7, bumpMap: faceBump, bumpScale: 1.4, sheen: .6 }),
+  tabletFace: new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: faceColor, roughness: .7, bumpMap: faceBump, bumpScale: 1.4, sheen: .6 }),
   tabletY: new THREE.MeshPhysicalMaterial({ color: 0xF6D27A, map: grainColor, roughness: .62, bumpMap: grainBump, bumpScale: .6, sheen: .4 }),
   tabletYFace: new THREE.MeshPhysicalMaterial({ color: 0xF6D27A, map: grainColor, roughness: .62, bumpMap: faceBump, bumpScale: 1.4, sheen: .4 }),
   groove: new THREE.MeshStandardMaterial({ color: 0xC9CCC4, roughness: .8 }),
-  foil: new THREE.MeshStandardMaterial({ color: 0xF2F4F5, metalness: 1, roughness: .18 }),
+  foil: new THREE.MeshStandardMaterial({ color: 0xF2F4F5, map: foilPrint, metalness: 1, roughness: .2, bumpMap: shellRough, bumpScale: .4 }),
   bubble: new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: .04, thickness: .15, ior: 1.45, clearcoat: 1, transparent: true }),
 };
 
@@ -85,10 +121,12 @@ function halfCapsule(r, len, top) {
   if (top) geo.rotateZ(Math.PI);
   return geo;
 }
+const printedCache = {};
+const printed = (mat, part) => (printedCache[mat + part] ??= Object.assign(MAT[mat].clone(), { map: PRINT[part] }));
 function capsule(a, b, s = 1) {
   const grp = new THREE.Group();
-  const body = new THREE.Mesh(halfCapsule(.34, .5, false), MAT[a]);
-  const cap = new THREE.Mesh(halfCapsule(.355, .5, true), MAT[b]);
+  const body = new THREE.Mesh(halfCapsule(.34, .5, false), printed(a, "body"));
+  const cap = new THREE.Mesh(halfCapsule(.355, .5, true), printed(b, "cap"));
   // The ridge where the cap closes over the body.
   const seam = new THREE.Mesh(new THREE.TorusGeometry(.355, .012, 12, 96), MAT[b]); seam.rotation.x = Math.PI / 2; seam.position.y = -.11;
   grp.add(body, cap, seam); grp.scale.setScalar(s); return grp;
@@ -123,7 +161,7 @@ function shop() {
   const WALL_Z = -20, FLOOR_Y = -7;
   const plain = (color, rough = .8, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
   // Walls and floor.
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), plain(0xE6E0D6, .9)); wall.position.set(0, 4, WALL_Z); grp.add(wall);
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), plain(0xCFC6B8, .9)); wall.position.set(0, 4, WALL_Z); grp.add(wall);
   const tiles = canvasTex(512, (ctx, n) => { ctx.fillStyle = "#E9ECEA"; ctx.fillRect(0, 0, n, n); ctx.strokeStyle = "#CDD3D1"; ctx.lineWidth = 3; for (let i = 0; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(i * n / 4, 0); ctx.lineTo(i * n / 4, n); ctx.moveTo(0, i * n / 4); ctx.lineTo(n, i * n / 4); ctx.stroke(); } }, true);
   tiles.repeat.set(10, 8);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), new THREE.MeshPhysicalMaterial({ map: tiles, roughness: .18, clearcoat: .6 }));
@@ -131,18 +169,30 @@ function shop() {
   // Ceiling light panels.
   for (let i = -2; i <= 2; i++) { const lp = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.2), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })); lp.rotation.x = Math.PI / 2; lp.position.set(i * 7, 12.5, WALL_Z + 6); grp.add(lp); }
 
-  // Medicine box labels: a white carton with a coloured band, a stripe and a little text block.
-  const BANDS = ["#14B8A6", "#0B5E5B", "#F07A70", "#F2B93B", "#3B82F6", "#8B5CF6", "#16A34A", "#E11D48"];
-  const labels = BANDS.map((c, k) => canvasTex(128, (ctx, n) => {
-    ctx.fillStyle = k % 3 === 2 ? "#F8F1E4" : "#FAFAF8"; ctx.fillRect(0, 0, n, n);
-    ctx.fillStyle = c; ctx.fillRect(0, n * (.55 + (k % 2) * .1), n, n * .22);
-    ctx.fillRect(n * .1, n * .12, n * .5, n * .1);
-    ctx.fillStyle = "#9AA3A1"; for (let r = 0; r < 3; r++) ctx.fillRect(n * .1, n * (.28 + r * .07), n * (.3 + rnd() * .4), n * .03);
+  // Medicine cartons: printed packs with a brand name, strength, pack size, a colour design, and Rx marks or barcodes.
+  const BRANDS = [["Paracip", "500 mg"], ["Azithral", "500"], ["Cetrizin", "10 mg"], ["Pantop", "40"], ["Dolonex", "650"], ["Amoxyclav", "625"], ["Metfor", "500 SR"], ["Telmis", "40"],
+    ["Vitacal", "D3"], ["Montek", "LC"], ["Omez", "20"], ["Allegrix", "120"], ["Rosuva", "10"], ["Glimy", "M2"], ["Neurobion", "Forte"], ["Calpol", "250"], ["Levocet", "5"], ["Zincovit", "Tab"]];
+  const PALETTE = [["#FFFFFF", "#0E7C70"], ["#FDFBF6", "#C8402F"], ["#EEF5FB", "#1F5FAE"], ["#FFFFFF", "#6B3FA0"], ["#F4FAF3", "#2E8B3E"], ["#0F3D68", "#F2C14E"],
+    ["#FFFFFF", "#E07B1A"], ["#FCEFF2", "#B3264B"], ["#1E5C4B", "#FFFFFF"], ["#FFFFFF", "#12355B"], ["#FFF7E3", "#B36B00"], ["#FFFFFF", "#D12E5E"]];
+  const labels = BRANDS.map(([name, dose], k) => canvasTex(256, (ctx, n) => {
+    const [bg, ink] = PALETTE[k % PALETTE.length];
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, n, n);
+    // A sweeping colour band, as on most Indian pharma cartons.
+    ctx.fillStyle = ink; ctx.globalAlpha = .9; ctx.beginPath(); ctx.moveTo(0, n * .62); ctx.bezierCurveTo(n * .35, n * (.5 + rnd() * .1), n * .65, n * .78, n, n * .6); ctx.lineTo(n, n); ctx.lineTo(0, n); ctx.fill(); ctx.globalAlpha = 1;
+    const dark = bg === "#0F3D68" || bg === "#1E5C4B";
+    ctx.fillStyle = dark ? "#FFFFFF" : ink; ctx.font = `bold ${n * .17}px Arial, sans-serif`; ctx.fillText(name, n * .07, n * .24);
+    ctx.fillStyle = dark ? "#E8E8E8" : "#333"; ctx.font = `bold ${n * .1}px Arial, sans-serif`; ctx.fillText(dose, n * .07, n * .38);
+    ctx.font = `${n * .055}px Arial, sans-serif`; ctx.fillStyle = dark ? "#D8D8D8" : "#666"; ctx.fillText("10 x 10 Tablets", n * .07, n * .48);
+    if (k % 3 === 0) { ctx.strokeStyle = "#C8102E"; ctx.lineWidth = 3; ctx.strokeRect(n * .76, n * .07, n * .17, n * .12); ctx.fillStyle = "#C8102E"; ctx.font = `bold ${n * .08}px Arial`; ctx.fillText("Rx", n * .79, n * .165); }
+    if (k % 2 === 1) { ctx.fillStyle = "#FFFFFF"; ctx.fillRect(n * .62, n * .78, n * .32, n * .15); ctx.fillStyle = "#111"; for (let b = 0; b < 26; b++) ctx.fillRect(n * (.64 + b * .011), n * .8, n * (.003 + rnd() * .006), n * .1); }
+    ctx.fillStyle = dark || k % 4 !== 0 ? "#FFFFFF" : "#333"; ctx.font = `${n * .045}px Arial`; ctx.fillText("MRP ₹" + (40 + Math.floor(rnd() * 300)) + ".00", n * .07, n * .9);
   }, true));
+  // Bottle labels: white paper with a brand line and small print.
+  const bottleLabel = canvasTex(256, (ctx, n) => { ctx.fillStyle = "#FBFAF6"; ctx.fillRect(0, 0, n, n); ctx.fillStyle = "#0E7C70"; ctx.fillRect(0, n * .1, n, n * .16); ctx.fillStyle = "#222"; ctx.font = `bold ${n * .14}px Arial`; for (let c = 0; c < 4; c++) ctx.fillText("Syrup", c * n / 4 + 4, n * .55); ctx.font = `${n * .07}px Arial`; ctx.fillStyle = "#666"; for (let c = 0; c < 4; c++) ctx.fillText("100 ml", c * n / 4 + 6, n * .75); }, true);
   const shelfMat = plain(0xFFFFFF, .5), sideMat = plain(0xE2E6E4, .6);
   const units = [[-15.5, 9], [-5, 9], [5.5, 9], [16, 9]]; // [centre x, width]
   const boxGeo = new THREE.BoxGeometry(1, 1, 1), bottleGeo = new THREE.CylinderGeometry(.5, .5, 1, 24), capGeo = new THREE.CylinderGeometry(.35, .35, .25, 24);
-  const boxSets = labels.map((tex) => ({ mat: new THREE.MeshStandardMaterial({ map: tex, roughness: .55 }), mats: [] }));
+  const boxSets = labels.map((tex) => ({ mat: new THREE.MeshPhysicalMaterial({ map: tex, roughness: .42, clearcoat: .35, clearcoatRoughness: .3 }), mats: [] }));
   const bottles = [], caps = [];
   for (const [cx, w] of units) {
     // Upright sides, back panel and shelves.
@@ -172,8 +222,15 @@ function shop() {
     }
   }
   for (const set of boxSets) { const im = new THREE.InstancedMesh(boxGeo, set.mat, set.mats.length); set.mats.forEach((m, i) => im.setMatrixAt(i, m)); grp.add(im); }
-  const bm = new THREE.InstancedMesh(bottleGeo, new THREE.MeshPhysicalMaterial({ roughness: .15, clearcoat: 1 }), bottles.length);
-  bottles.forEach(([m, c], i) => { bm.setMatrixAt(i, m); bm.setColorAt(i, new THREE.Color(c)); }); grp.add(bm);
+  // Amber glass bottles and white plastic ones, each with a paper label around the middle.
+  const amber = bottles.filter(([, c]) => c !== 0xF4F4F2), white = bottles.filter(([, c]) => c === 0xF4F4F2);
+  const am = new THREE.InstancedMesh(bottleGeo, new THREE.MeshPhysicalMaterial({ color: 0xB56A22, roughness: .06, transmission: .55, thickness: .8, ior: 1.52, attenuationColor: new THREE.Color(0x6B3508), attenuationDistance: .6, clearcoat: 1 }), amber.length);
+  amber.forEach(([m], i) => am.setMatrixAt(i, m)); grp.add(am);
+  const wm = new THREE.InstancedMesh(bottleGeo, new THREE.MeshPhysicalMaterial({ color: 0xF6F6F3, roughness: .35, clearcoat: .6 }), white.length);
+  white.forEach(([m], i) => wm.setMatrixAt(i, m)); grp.add(wm);
+  const labelGeo = new THREE.CylinderGeometry(.51, .51, .5, 24, 1, true);
+  const lm = new THREE.InstancedMesh(labelGeo, new THREE.MeshStandardMaterial({ map: bottleLabel, roughness: .7 }), bottles.length);
+  bottles.forEach(([m], i) => lm.setMatrixAt(i, m)); grp.add(lm);
   const cm = new THREE.InstancedMesh(capGeo, plain(0xFFFFFF, .4), caps.length); caps.forEach((m, i) => cm.setMatrixAt(i, m)); grp.add(cm);
 
   // The dispensing counter in front of the shelves: white body, teal kick strip, a glass top.
@@ -191,15 +248,19 @@ function shop() {
   const cross = new THREE.Group();
   const bar1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, .8, .3), glow), bar2 = new THREE.Mesh(new THREE.BoxGeometry(.8, 2.4, .3), glow);
   const halo = new THREE.Mesh(new THREE.CircleGeometry(2.4, 48), new THREE.MeshBasicMaterial({ color: 0x9FF5CB, transparent: true, opacity: .35, toneMapped: false })); halo.position.z = -.2;
-  cross.add(bar1, bar2, halo); cross.position.set(10.5, 8.7, WALL_Z + 1.9); grp.add(cross);
+  cross.add(bar1, bar2, halo); cross.position.set(10.5, 8.1, WALL_Z + 1.9); grp.add(cross);
   const signTex = canvasTex(512, (ctx, n) => { ctx.fillStyle = "#0B5E5B"; ctx.fillRect(0, 0, n, n); ctx.fillStyle = "#FFFFFF"; ctx.font = `bold ${n * .2}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("PHARMACY", n / 2, n / 2); }, true);
   signTex.repeat.set(1, .35); signTex.offset.set(0, .325);
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(9, 1.6, .3), new THREE.MeshBasicMaterial({ map: signTex, toneMapped: false })); sign.position.set(-9, 8.7, WALL_Z + 1.9); grp.add(sign);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(9, 1.6, .3), new THREE.MeshBasicMaterial({ map: signTex, toneMapped: false })); sign.position.set(-9, 8.1, WALL_Z + 1.9); grp.add(sign);
   return grp;
 }
 scene.add(shop());
 // Warm store lighting on the shelves.
-const shopLight = new THREE.DirectionalLight(0xFFE9C9, .9); shopLight.position.set(0, 12, -2); shopLight.target.position.set(0, 0, -20); scene.add(shopLight, shopLight.target);
+const shopLight = new THREE.DirectionalLight(0xFFE9C9, .55); shopLight.position.set(0, 12, -2); shopLight.target.position.set(0, 0, -20); scene.add(shopLight, shopLight.target);
+// Downlights over each shelf unit leave warm pools of light, like a real store.
+for (const x of [-15.5, -5, 5.5, 16]) {
+  const sp = new THREE.SpotLight(0xFFE2B8, 45, 26, .55, .85, 1.6); sp.position.set(x, 11, -15); sp.target.position.set(x, 0, -20); scene.add(sp, sp.target);
+}
 
 // ── Cast: [object, base position, drift amplitude, spin turns per loop (x, y, z), phase] ──
 const items = [];
@@ -227,8 +288,10 @@ add(tablet("tabletY", 1), [7, 0, -4], [0, 0, 0], [1, 1, 0], 4.4, 1);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bokeh = new BokehPass(scene, camera, { focus: 13, aperture: .0026, maxblur: .008 });
+const bokeh = new BokehPass(scene, camera, { focus: 13, aperture: .003, maxblur: .009 });
 composer.addPass(bokeh);
+// A soft glow on the brightest highlights, as a real lens gives.
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), .14, .5, .95));
 composer.addPass(new OutputPass());
 // A real lens and sensor: slight colour fringing towards the edges, a soft vignette, and fine film grain.
 const lens = new ShaderPass({
@@ -241,6 +304,12 @@ const lens = new ShaderPass({
       vec2 d = vUv - .5; float r = dot(d, d);
       vec3 c = vec3(texture2D(tDiffuse, vUv + d * r * .012).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * r * .012).b);
       c *= mix(1.0, .82, smoothstep(.15, .65, r * 1.6));
+      // Grade: a gentle S-curve for contrast, warm highlights, slightly cool shadows, a touch less saturation.
+      c = clamp(c, 0.0, 1.0);
+      c = mix(c, c * c * (3.0 - 2.0 * c), .55);
+      float l = dot(c, vec3(.299, .587, .114));
+      c += vec3(.025, .008, -.02) * smoothstep(.45, 1.0, l) + vec3(-.012, .0, .014) * (1.0 - smoothstep(.0, .45, l));
+      c = mix(vec3(l), c, .93);
       c += (hash(vUv * 1000.0) - .5) * .035;
       gl_FragColor = vec4(c, 1.0);
     }`,
@@ -259,6 +328,8 @@ window.renderAt = (t) => {
       it.pos.z + it.amp.z * Math.cos(u * TAU + p * .7));
     it.obj.rotation.set(it.rot0.x + it.spin[0] * u * TAU, it.rot0.y + it.spin[1] * u * TAU, it.rot0.z + it.spin[2] * u * TAU);
   });
+  // A slow focus pull between the nearer and farther medicines.
+  bokeh.uniforms.focus.value = 13 + Math.sin(u * TAU) * 1.4;
   lens.uniforms.time.value = (t * 37.0) % 101.0;
   composer.render();
 };
