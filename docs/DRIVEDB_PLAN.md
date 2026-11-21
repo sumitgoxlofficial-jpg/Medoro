@@ -27,9 +27,6 @@ delivered. In short:
 - **Self-hosted servers** (Docker / LAN) keep their data in their own PostgreSQL and are not affected.
 
 Still open:
-- The move from Medoro's copy doesn't yet carry doctors, recall notices, supplier claims and terms, or insights
-  settings, and moves cheques as plain receipts (Phase 5 notes). Pharmacies that signed up in Drive mode aren't
-  affected.
 - Speed numbers from real Android phones and counter PCs (Phase 0 notes).
 - Publishing the Google OAuth consent screen (section 6).
 
@@ -356,8 +353,7 @@ working with me; they overlap a little.
   take stock out and credit notes that reduce supplier dues. **Insights** (`insights.ts`, no tables): reorder
   forecast, central buying, seasonal pre-stock, supplier prices, slow stock, anomalies, margins, and a draft order to
   print, export or send on WhatsApp. Its settings and reviews are kept per device (not synced).
-  Not yet carried by the Medoro→Drive move: doctors, recall notices, cheques (moved as plain receipts), supplier
-  claims and terms, intelligence settings. Tests: `doctors.test.ts`, `recalls.test.ts`, `cheques.test.ts`,
+  The Medoro→Drive move carries all of these too (Phase 7, slice 4). Tests: `doctors.test.ts`, `recalls.test.ts`, `cheques.test.ts`,
   `purchase-tools.test.ts`, `insights.test.ts`.
 
 ### Phase 6 progress (slice 1 built: customer payments by link, with an offline inbox)
@@ -444,6 +440,19 @@ working with me; they overlap a little.
   where the move is required. Tests: `drive-move.test.ts`, `sync.test.ts`.
   A pilot batch merged into one of Medoro's is remembered in the database file (`batchAlias`, carried by every full
   copy): bills other counters made against it, during the move or before they rebuilt, go to Medoro's batch.
+- Slice 4: **the rest of a pharmacy's records** (`moveExtras` in `drive-move.ts`, loaded by `beginMove` / `finishMove`):
+  doctors; recall notices (older status words mapped); each supplier's return terms, e-bill column mapping and item
+  codes; the pricing rules; supplier claims with their acknowledgement, every credit note and the write-off on closing
+  (the claim's GST from its debit note); and cheques with their steps (deposited, cleared, bounced). Cheque receipts
+  keep the mode "cheque". A bounce, one journal entry on Medoro, becomes the counter's own rows with its fixed ids:
+  the reversing receipt / payment (`<cheque>-rev`), the charge recovered or the supplier's penalty (`-chg`), and our
+  bank's charge as a Bank charges expense (`-bank`), so later steps on the counter see the cheque as bounced. Claim
+  credits and bounce reversals are counted before the opening balances are worked out, so every customer's and
+  supplier's dues still equal Medoro's ledger; the checks cover every new table's row count. The reorder policy and
+  anomaly thresholds become the moving device's own (the counter keeps them per device; values outside the counter's
+  range are brought into it). Left behind, with a warning: cheques whose receipt or payment was reversed, and recall
+  disposal records (the stock they took out is moved). Test: `drive-move.test.ts` ("Moving doctors, recalls, cheques,
+  supplier claims and settings").
 
 ### Phase 8 progress (slice 1 built: Drive sign-up, sync monitoring, privacy pages)
 - **Sign-up** asks where the pharmacy's records live: "In my own Google Drive (recommended)" or Medoro's server.

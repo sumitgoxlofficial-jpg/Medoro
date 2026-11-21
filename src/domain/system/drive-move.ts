@@ -6,7 +6,7 @@ import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
 import { big, shareOf } from "@/lib/money";
-import { isoOf } from "@/lib/dates";
+import { isoOf, todayISO } from "@/lib/dates";
 import { customerBalances, supplierBalances } from "@/domain/parties/balances";
 import { ACC } from "@/domain/accounting/accounts";
 import { layout } from "./restore";
@@ -16,6 +16,7 @@ import { deleteObject } from "@/server/storage";
 import { log } from "@/server/log";
 import { counterSettings, deviceMedicine, driveModeOn, ownerOnly } from "./drive-mode";
 import { driveRequired } from "./drive-state";
+import { rulesOf } from "@/domain/purchasing/pricing";
 
 /**
  * Phase 7: moving a pharmacy's data out of Medoro into its own Google Drive.
@@ -329,8 +330,8 @@ function moneyRow(v: MoneyVoucher, ctx: Ctx): MoneyRow[] {
     const party = v.lines.find((l) => l.account === ACC.debtors && l.partyType === "customer" && l.partyId);
     if (!party) return [];
     const m = via(v.lines.find((l) => big(l.debitPaise) > 0)?.account, upi);
-    // The device takes cash, UPI or card from customers; bank transfers and cheques come in as UPI with the voucher number.
-    return [{ kind: "receipt", row: { id: v.id, customerId: party.partyId!, amountPaise: big(party.creditPaise) - big(party.debitPaise), mode: m === "cash" ? "cash" : "upi", ref: m === "cash" || m === "upi" ? ref : `${ref} · ${m === "cheque" ? "cheque" : "bank"}`, userId, at } }];
+    // Cash, UPI and cheques keep their mode (the device takes cheque receipts and tracks the cheque itself); bank transfers come in as UPI with the voucher number.
+    return [{ kind: "receipt", row: { id: v.id, customerId: party.partyId!, amountPaise: big(party.creditPaise) - big(party.debitPaise), mode: m === "cash" ? "cash" : m === "cheque" ? "cheque" : "upi", ref: m === "bank" ? `${ref} · bank` : ref, userId, at } }];
   }
   if (v.refType === "supplier_payment" || v.refType === "cheque_payment") {
     const party = v.lines.find((l) => l.account === ACC.creditors && l.partyType === "supplier" && l.partyId);
@@ -347,7 +348,7 @@ function moneyRow(v: MoneyVoucher, ctx: Ctx): MoneyRow[] {
 /** Totals of the moving receipts per customer and payments per supplier, and how many of each kind move. */
 async function moneyTotals(ctx: Ctx) {
   const reversed = await reversedIds(ctx.tenantId);
-  const received = new Map<string, number>(), paid = new Map<string, number>(), count = { receipt: 0, payment: 0, expense: 0 };
+  const received = new Map<string, number>(), paid = new Map<string, number>(), count = { receipt: 0, payment: 0, expense: 0 }, ids = new Set<string>();
   let spent = 0;
   let cursor: string | undefined;
   for (;;) {
@@ -356,6 +357,7 @@ async function moneyTotals(ctx: Ctx) {
       if (reversed.has(v.id)) continue;
       for (const r of moneyRow(v, ctx)) {
         count[r.kind]++;
+        ids.add(r.row.id);
         if (r.kind === "receipt") received.set(r.row.customerId, (received.get(r.row.customerId) ?? 0) + r.row.amountPaise);
         if (r.kind === "payment") paid.set(r.row.supplierId, (paid.get(r.row.supplierId) ?? 0) + r.row.amountPaise);
         if (r.kind === "expense") spent += r.row.amountPaise;
@@ -364,8 +366,126 @@ async function moneyTotals(ctx: Ctx) {
     if (page.length < 2000) break;
     cursor = page[page.length - 1].id;
   }
-  return { received, paid, count, spent };
+  return { received, paid, count, spent, ids };
 }
+
+// ---------- doctors, recalls, cheques, supplier claims and terms, settings ----------
+
+const RECALL_STATES = new Set(["open", "investigating", "supplier_return", "resolved"]);
+/** Older notices used other words for the same steps. */
+const recallStatus = (s: string) => (RECALL_STATES.has(s) ? s : s === "quarantined" ? "investigating" : s === "returned" ? "supplier_return" : "open");
+const dayOf = (d: Date) => todayISO(d);
+type ClaimCredit = { ref: string; amount: number; at: string; voucherNo?: string };
+
+/**
+ * Everything else the counter keeps, in the device's own form (src/drivedb: doctors, recalls, cheques, purchase-tools,
+ * insights), so the counter carries on where Medoro left off:
+ * - Cheques with their steps. A bounce on Medoro is one journal entry; on the device it is the cheque's reversing
+ *   receipt / payment (and any charge) plus a Bank charges expense, with the same fixed ids the device uses
+ *   (`<cheque>-rev`, `-chg`, `-bank`), so a later step on the counter sees the cheque as bounced.
+ * - Supplier claims with their acknowledgement, each credit note, and the write-off on closing.
+ * Balances stay equal to Medoro's: the rows that change dues are counted before the opening balances are worked out.
+ */
+async function moveExtras(ctx: Ctx, movedMoney: Set<string>, tenantSettings: Record<string, unknown>) {
+  const t = ctx.tenantId;
+  const [doctors, recalls, disposals, cheques, claims, suppliers, maps] = await Promise.all([
+    db.doctor.findMany({ where: { tenantId: t }, orderBy: { createdAt: "asc" } }),
+    db.recall.findMany({ where: { tenantId: t }, orderBy: { createdAt: "asc" } }),
+    db.recallDisposal.count({ where: { tenantId: t } }),
+    db.cheque.findMany({ where: { tenantId: t }, orderBy: { createdAt: "asc" } }),
+    db.supplierClaim.findMany({ where: { tenantId: t }, orderBy: { raisedAt: "asc" } }),
+    db.supplier.findMany({ where: { tenantId: t }, select: { id: true, acceptsReturns: true, returnWindowDays: true, ebillMapping: true } }),
+    db.supplierItemMap.findMany({ where: { tenantId: t } }),
+  ]);
+  const vouchers = async (refType: string, refIds: string[]) => refIds.length
+    ? db.voucher.findMany({ where: { tenantId: t, refType, refId: { in: refIds } }, include: { lines: true } }) : [];
+  const [bounces, claimVouchers, batches] = await Promise.all([
+    vouchers("cheque_bounce", cheques.filter((c) => c.status === "bounced").map((c) => c.id)),
+    vouchers("supplier_claim", claims.map((c) => c.stockOutId)),
+    claims.length ? db.batch.findMany({ where: { tenantId: t, id: { in: [...new Set(claims.map((c) => c.batchId))] } }, select: { id: true, medicineId: true } }) : [],
+  ]);
+
+  // Cheques: only those whose receipt / payment moves (a reversed one stays behind with its cheque).
+  const cheque: Record<string, string | number | null>[] = [], chequeEvent: typeof cheque = [];
+  const receipts: { id: string; customerId: string; amountPaise: number; mode: string; ref: string; userId: string; at: string }[] = [];
+  const payments: { id: string; supplierId: string; amountPaise: number; mode: string; ref: string; userId: string; at: string }[] = [];
+  const expenses: { id: string; branchId: string; category: string; amountPaise: number; mode: string; note: string; userId: string; at: string }[] = [];
+  let chequesLeft = 0;
+  for (const c of cheques) {
+    if (!movedMoney.has(c.voucherId)) { chequesLeft++; continue; }
+    const recv = c.direction === "received", amt = big(c.amountPaise), userId = c.createdBy;
+    cheque.push({ id: c.id, direction: c.direction, customerId: recv ? c.partyId : null, supplierId: recv ? null : c.partyId, chequeNo: c.no, bank: c.bank,
+      chequeDate: isoOf(c.chequeDate), amountPaise: amt, linkId: c.voucherId, note: c.note, userId, at: c.createdAt.toISOString() });
+    const step = (id: string, kind: string, at: Date, more: { reason?: string | null; chargePaise?: number; bankChargePaise?: number } = {}) =>
+      chequeEvent.push({ id, chequeId: c.id, kind, day: dayOf(at), reason: more.reason ?? null, chargePaise: more.chargePaise ?? 0, bankChargePaise: more.bankChargePaise ?? 0, userId, at: at.toISOString() });
+    if (c.depositedAt) step(`${c.id}-dep`, "deposited", c.depositedAt);
+    if (c.status === "cleared" && c.clearedAt) step(`${c.id}-end`, "cleared", c.clearedAt);
+    if (c.status === "bounced") {
+      const at = c.bouncedAt ?? c.createdAt, charge = big(c.chargePaise), reason = c.bounceReason ?? "Returned unpaid";
+      // Our bank's deduction is the Bank account credit in the bounce entry.
+      const v = bounces.find((b) => b.refId === c.id);
+      const bankCharge = v ? v.lines.filter((l) => l.account === ACC.bank).reduce((a, l) => a + big(l.creditPaise) - big(l.debitPaise), 0) : 0;
+      step(`${c.id}-end`, "bounced", at, { reason, chargePaise: charge, bankChargePaise: bankCharge });
+      const why = `Cheque ${c.no} bounced · ${reason}`.slice(0, 120), when = at.toISOString();
+      if (recv) {
+        receipts.push({ id: `${c.id}-rev`, customerId: c.partyId, amountPaise: -amt, mode: "cheque", ref: why, userId, at: when });
+        if (charge) receipts.push({ id: `${c.id}-chg`, customerId: c.partyId, amountPaise: -charge, mode: "cheque", ref: `Cheque ${c.no} return charges`, userId, at: when });
+      } else {
+        payments.push({ id: `${c.id}-rev`, supplierId: c.partyId, amountPaise: -amt, mode: "cheque", ref: why, userId, at: when });
+        if (charge) payments.push({ id: `${c.id}-chg`, supplierId: c.partyId, amountPaise: -charge, mode: "cheque", ref: `Cheque ${c.no} return charges (supplier’s penalty)`, userId, at: when });
+      }
+      if (bankCharge > 0) expenses.push({ id: `${c.id}-bank`, branchId: c.branchId, category: "Bank charges", amountPaise: bankCharge, mode: "bank", note: `Cheque ${c.no} returned`, userId, at: when });
+    }
+  }
+
+  // Supplier claims: the claim, then its steps. GST on the claim is what the debit note took off input GST.
+  const medicineOf = new Map(batches.map((b) => [b.id, b.medicineId]));
+  const supplierClaim: Record<string, string | number | null>[] = [], claimEvent: typeof supplierClaim = [];
+  const credited = new Map<string, number>();
+  for (const c of claims) {
+    const medicineId = medicineOf.get(c.batchId);
+    if (!medicineId) continue;
+    const claimPaise = big(c.claimPaise), v = claimVouchers.find((x) => x.refId === c.stockOutId);
+    const taxable = v ? v.lines.filter((l) => l.account === ACC.purchases).reduce((a, l) => a + big(l.creditPaise) - big(l.debitPaise), 0) : claimPaise;
+    supplierClaim.push({ id: c.id, claimNo: c.no, branchId: c.branchId, supplierId: c.supplierId, batchId: c.batchId, medicineId, qty: c.qty, reason: c.reason, note: c.note,
+      claimPaise, taxPaise: Math.max(0, claimPaise - taxable), userId: c.raisedBy, at: c.raisedAt.toISOString() });
+    const ev = (id: string, kind: string, at: string, amountPaise: number, ref: string | null, note: string | null) =>
+      claimEvent.push({ id, claimId: c.id, supplierId: c.supplierId, kind, amountPaise, ref, note, userId: c.raisedBy, at });
+    const credits = ((c.credits ?? []) as ClaimCredit[]).filter((x) => Number(x.amount) > 0);
+    // An acknowledgement of its own. A credit note on a raised claim sets ackAt too, at or after the credit's time.
+    if (c.ackAt && (!credits.length || c.ackAt.getTime() < Date.parse(credits[0].at))) ev(`${c.id}-ack`, "ack", c.ackAt.toISOString(), 0, null, null);
+    credits.forEach((x, i) => {
+      ev(`${c.id}-cr${i + 1}`, "credit", x.at, Math.round(Number(x.amount)), (x.ref || "").slice(0, 40) || null, null);
+      credited.set(c.supplierId, (credited.get(c.supplierId) ?? 0) + Math.round(Number(x.amount)));
+    });
+    const writeOff = big(c.writeOffPaise);
+    if (writeOff > 0) ev(`${c.id}-close`, "close", (c.settledAt ?? c.raisedAt).toISOString(), writeOff, null, c.writeOffReason ?? "Written off");
+  }
+
+  // Each supplier's return terms and e-bill mapping (only where they differ from the device's defaults), item codes, pricing rules.
+  const supplierTerms = suppliers.filter((s) => !s.acceptsReturns || s.returnWindowDays !== 90 || s.ebillMapping != null)
+    .map((s) => ({ id: s.id, acceptsReturns: s.acceptsReturns ? 1 : 0, returnWindowDays: s.returnWindowDays, ebillMapping: s.ebillMapping == null ? null : JSON.stringify(s.ebillMapping) }));
+  const supplierItemMap = maps.map((m) => ({ id: m.id, supplierId: m.supplierId, code: m.code, medicineId: m.medicineId, userId: ctx.userId, at: m.updatedAt.toISOString() }));
+  const rules = rulesOf(tenantSettings);
+  const purchaseSetting = tenantSettings.purchasing ? [{ id: "rules", gstBase: rules.gstBase, itc: rules.itc ? 1 : 0, minMarginPct: 0 }] : [];
+  // Intelligence settings: the counter keeps them on each device.
+  const intel = { policy: (tenantSettings.policy as { cover: number; safety: number } | undefined) ?? null, anomaly: (tenantSettings.anomaly as { disc: number; refunds: number } | undefined) ?? null };
+
+  const warnings = [
+    chequesLeft ? `${chequesLeft} cheques whose receipt or payment was reversed stay only in Medoro’s copy.` : "",
+    disposals ? `${disposals} recall disposal records (stock destroyed or returned) stay only in Medoro’s copy; the stock they took out is moved.` : "",
+  ].filter(Boolean);
+
+  return {
+    tables: { doctor: doctors.map((d) => ({ id: d.id, name: d.name, qualification: d.qualification, regNo: d.regNo, clinic: d.clinic, phone: d.phone, address: d.address, active: d.active ? 1 : 0 })),
+      recall: recalls.map((r) => ({ id: r.id, ref: r.noticeNo || r.sourceRef || r.id.slice(0, 8), source: r.source, publishedAt: isoOf(r.publishedAt), product: r.product, medicineId: r.medicineId,
+        batchNos: JSON.stringify(r.batchNos), reason: r.reason || "Not specified", status: recallStatus(r.status), userId: r.createdBy, createdAt: r.createdAt.toISOString() })),
+      cheque, chequeEvent, supplierClaim, claimEvent, supplierTerms, supplierItemMap, purchaseSetting },
+    money: { receipts, payments, expenses },
+    credited, intel, warnings,
+  };
+}
+export type MoveExtras = Awaited<ReturnType<typeof moveExtras>>;
 
 /**
  * Catalogue, stock batches, customers, suppliers and counter settings; the opening rows that make the device's
@@ -383,6 +503,11 @@ async function moveBase(ctx: Ctx) {
     supplierBalances(db, t),
     moneyTotals(ctx),
   ]);
+  const tenant = await db.tenant.findUniqueOrThrow({ where: { id: t }, select: { settings: true } });
+  const extras = await moveExtras(ctx, money.ids, (tenant.settings ?? {}) as Record<string, unknown>);
+  // Bounced cheques' reversals change dues like any receipt or payment.
+  for (const r of extras.money.receipts) money.received.set(r.customerId, (money.received.get(r.customerId) ?? 0) + r.amountPaise);
+  for (const r of extras.money.payments) money.paid.set(r.supplierId, (money.paid.get(r.supplierId) ?? 0) + r.amountPaise);
   const num = (v: bigint | number | null | undefined) => Number(v ?? 0);
   const [moved, credit, creditBack, grnTotals, points, counts, totals, open, quarantined] = await Promise.all([
     db.$queryRaw<{ id: string; q: bigint }[]>`SELECT "batchId" AS id, SUM(qty) AS q FROM "StockMovement" WHERE "tenantId" = ${t} GROUP BY "batchId"`,
@@ -425,7 +550,7 @@ async function moveBase(ctx: Ctx) {
     return d ? [{ id: randomUUID(), customerId: c.id, amountPaise: d, mode: "cash", ref: "Opening balance, moved from Medoro", userId: ctx.userId, at: OPENING_AT }] : [];
   });
   const openingPayables = suppliers.flatMap((s) => {
-    const d = (billedOf.get(s.id) ?? 0) - (money.paid.get(s.id) ?? 0) - (suppBal.get(s.id) ?? 0);
+    const d = (billedOf.get(s.id) ?? 0) - (money.paid.get(s.id) ?? 0) - (extras.credited.get(s.id) ?? 0) - (suppBal.get(s.id) ?? 0);
     return d ? [{ id: randomUUID(), supplierId: s.id, amountPaise: d, mode: "bank", ref: "Opening balance, moved from Medoro", userId: ctx.userId, at: OPENING_AT }] : [];
   });
 
@@ -435,9 +560,13 @@ async function moveBase(ctx: Ctx) {
     counts: {
       medicine: meds.length, batch: batches.length, customer: customers.length, supplier: suppliers.length,
       sale: num(c.sales), saleItem: num(c.items), payment: num(c.payments), salesReturn: num(c.returns), purchase: num(c.purchases), purchaseItem: num(c.purchaseItems),
-      stockMovement: num(c.movements) + openingStock.length, loyaltyLedger: num(c.loyalty), customerReceipt: money.count.receipt + openingDues.length, supplierPayment: money.count.payment + openingPayables.length, expense: money.count.expense,
+      stockMovement: num(c.movements) + openingStock.length, loyaltyLedger: num(c.loyalty),
+      customerReceipt: money.count.receipt + openingDues.length + extras.money.receipts.length,
+      supplierPayment: money.count.payment + openingPayables.length + extras.money.payments.length,
+      expense: money.count.expense + extras.money.expenses.length,
+      ...Object.fromEntries(Object.entries(extras.tables).map(([k, rows]) => [k, rows.length])),
     },
-    totals: { salesPaise: num(totals[0].sales), returnsPaise: num(totals[0].returns), purchasesPaise: num(totals[0].purchases), expensesPaise: money.spent },
+    totals: { salesPaise: num(totals[0].sales), returnsPaise: num(totals[0].returns), purchasesPaise: num(totals[0].purchases), expensesPaise: money.spent + extras.money.expenses.reduce((a, e) => a + e.amountPaise, 0) },
     stock: Object.fromEntries(batches.filter((b) => b.qtyAvailable).map((b) => [b.id, b.qtyAvailable])),
     customerDues: nonZero(custBal),
     supplierDues: nonZero(suppBal),
@@ -447,7 +576,8 @@ async function moveBase(ctx: Ctx) {
     num(c.voided) ? `${num(c.voided)} cancelled bills stay only in Medoro’s copy (they don’t count anywhere).` : "",
     open ? `${open} delivery orders are still open. Finish or re-enter them on the device.` : "",
     num(quarantined._sum.qtyQuarantined) ? `${num(quarantined._sum.qtyQuarantined)} units set aside in quarantine aren’t moved as stock.` : "",
-    "Other account entries (opening balances, journal entries, cheques that bounced) come across as one opening balance per customer and supplier.",
+    ...extras.warnings,
+    "Other account entries (opening balances, journal entries) come across as one opening balance per customer and supplier.",
   ].filter(Boolean);
 
   await writeAudit(db, { tenantId: t, userId: ctx.userId, userName: ctx.userName, action: "Data copied to a device for the move to Google Drive", entity: "tenant", entityId: t, detail: `${meds.length} medicines, ${num(c.sales)} bills, ${customers.length} customers` });
@@ -462,6 +592,9 @@ async function moveBase(ctx: Ctx) {
       offers: x.waOptIn && x.marketingWa && x.phone ? { at: (x.optInAt ?? new Date()).toISOString(), method: x.optInMethod ?? "Recorded on Medoro" } : null }),
     suppliers: suppliers.map((s) => ({ id: s.id, name: s.name, phone: s.phone, gstin: s.gstin, dl: null, address: null })),
     opening: { stock: openingStock, receipts: openingDues, supplierPayments: openingPayables },
+    // Doctors, recalls, cheques, claims, supplier terms and pricing rules (loaded with the base), bounced cheques'
+    // reversing rows (loaded with the openings) and the intelligence settings (this device's own).
+    extras: { tables: extras.tables, money: extras.money, intel: extras.intel },
     summary, warnings,
   };
 }

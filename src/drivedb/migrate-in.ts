@@ -9,6 +9,7 @@ import { seriesFor } from "./seed";
 import { customerBalance } from "./trade";
 import { supplierDues } from "./books";
 import { validSeries } from "@/lib/docno";
+import { INTEL_DEFAULTS, saveIntelSettings } from "./insights";
 import type { MoneyRow, MoveBase, MovePart } from "@/domain/system/drive-move";
 
 type Row = Record<string, string | number | boolean | null>;
@@ -32,8 +33,15 @@ export function beginMove(db: DriveDB, base: MoveBase) {
     const offers = base.customers.flatMap((c) => ("offers" in c && c.offers && !c.erased ? [{ customerId: c.id, purpose: "offers", channel: "whatsapp", granted: 1, method: `Moved from Medoro: ${c.offers.method}`.slice(0, 80), userId: "medoro-move", at: c.offers.at }] : []));
     if (offers.length) db.from("customerConsent").insert(offers);
     if (base.suppliers.length) db.from("supplier").insert(base.suppliers);
+    // Doctors, recall notices, supplier terms and item codes, pricing rules, supplier claims and cheques with their steps.
+    for (const t of EXTRA_ORDER) {
+      const rows = (base.extras?.tables[t] ?? []) as Row[];
+      if (rows.length) db.from(t).insert(rows);
+    }
   });
 }
+/** The moved tables beyond the core ones, each after the ones it points to. */
+const EXTRA_ORDER = ["doctor", "recall", "supplierTerms", "supplierItemMap", "purchaseSetting", "supplierClaim", "claimEvent", "cheque", "chequeEvent"] as const satisfies readonly (TableName & keyof MoveBase["extras"]["tables"])[];
 
 /** Step 2: one page of a part, as moveExport returned it. Parts must come in order: sales, returns, purchases, movements, loyalty, money. */
 export function importPart(db: DriveDB, part: Exclude<MovePart, "base">, rows: unknown[]) {
@@ -88,6 +96,11 @@ export function finishMove(db: DriveDB, base: MoveBase, userId: string, pilot?: 
       if (base.opening.stock.length) db.from("stockMovement").insert(base.opening.stock);
       if (base.opening.receipts.length) db.from("customerReceipt").insert(base.opening.receipts);
       if (base.opening.supplierPayments.length) db.from("supplierPayment").insert(base.opening.supplierPayments);
+      // Bounced cheques: the reversing receipt / payment, the charge, and our bank's charge.
+      const m = base.extras?.money;
+      if (m?.receipts.length) db.from("customerReceipt").insert(m.receipts);
+      if (m?.payments.length) db.from("supplierPayment").insert(m.payments);
+      if (m?.expenses.length) db.from("expense").insert(m.expenses);
       db.setMeta("moveChecked", "1");
     });
   }
@@ -115,6 +128,7 @@ export function finishMove(db: DriveDB, base: MoveBase, userId: string, pilot?: 
     db.setMeta("userId", userId);
     db.setMeta("userName", s.userName ?? "Owner");
     db.setMeta("movedFromMedoro", base.exportedAt);
+    applyIntel(db, base.extras?.intel);
     db.setMeta(IN_PROGRESS, "0");
     db.setMeta("moveChecked", "0");
   });
@@ -122,6 +136,19 @@ export function finishMove(db: DriveDB, base: MoveBase, userId: string, pilot?: 
   db.markPushed(Number(last));
   db.pruneChanges(db.clock.current);
   return result;
+}
+
+/**
+ * Medoro's reorder policy and anomaly thresholds become this device's (the counter keeps them per device). Values the
+ * counter doesn't offer (Medoro allows a wider range) are brought into its range; anything unusable keeps the default.
+ */
+function applyIntel(db: DriveDB, intel: MoveBase["extras"]["intel"] | undefined) {
+  if (!intel) return;
+  if (intel.policy) { try { saveIntelSettings(db, { policy: intel.policy }); } catch { /* not one of the counter's choices: default stays */ } }
+  if (intel.anomaly) {
+    const clamp = (v: unknown, max: number, dflt: number) => (Number.isFinite(Number(v)) ? Math.min(max, Math.max(0, Math.round(Number(v)))) : dflt);
+    try { saveIntelSettings(db, { anomaly: { disc: clamp(intel.anomaly.disc, 100, INTEL_DEFAULTS.anomaly.disc), refunds: clamp(intel.anomaly.refunds, 1000, INTEL_DEFAULTS.anomaly.refunds) } }); } catch { /* default stays */ }
+  }
 }
 
 /** Compares this device's data with Medoro's summary: row counts, money totals, stock per batch, dues and points. */
