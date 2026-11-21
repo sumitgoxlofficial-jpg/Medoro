@@ -44,13 +44,15 @@ export function findCustomers(db: DriveDB, text: string, limit = 20): Customer[]
 
 /** What a customer owes: credit bills, less payments received and returns credited to their account. */
 export function customerBalance(db: DriveDB, customerId: string): number {
-  const r = db.engine.all<{ credit: number; paid: number; returned: number }>(
+  const r = db.engine.all<{ credit: number; paid: number; returned: number; billed: number }>(
     `SELECT
        (SELECT COALESCE(SUM(p.amountPaise), 0) FROM payment p JOIN sale s ON s.id = p.saleId WHERE s.customerId = ?1 AND p.mode = 'credit') AS credit,
        (SELECT COALESCE(SUM(amountPaise), 0) FROM customerReceipt WHERE customerId = ?1) AS paid,
-       (SELECT COALESCE(SUM(r.amountPaise - r.pointsValuePaise), 0) FROM salesReturn r JOIN sale s ON s.id = r.saleId WHERE s.customerId = ?1 AND r.refundMode = 'credit') AS returned`,
+       (SELECT COALESCE(SUM(r.amountPaise - r.pointsValuePaise), 0) FROM salesReturn r JOIN sale s ON s.id = r.saleId WHERE s.customerId = ?1 AND r.refundMode = 'credit') AS returned,
+       -- A distributor's wholesale invoices (all on credit; cash is a receipt), less those cancelled.
+       (SELECT COALESCE(SUM(i.totalPaise), 0) FROM distInvoice i WHERE i.customerId = ?1 AND NOT EXISTS (SELECT 1 FROM distInvoiceCancel c WHERE c.invoiceId = i.id)) AS billed`,
     [customerId])[0];
-  return one(r.credit) - one(r.paid) - one(r.returned);
+  return one(r.credit) + one(r.billed) - one(r.paid) - one(r.returned);
 }
 
 export const receiptInput = z.object({

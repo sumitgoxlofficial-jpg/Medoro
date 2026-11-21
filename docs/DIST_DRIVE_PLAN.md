@@ -1,0 +1,40 @@
+# MEDORO Distribution in Google Drive — plan and status
+
+**Goal:** every account on Medoro's hosted server keeps its business records in its own Google Drive, distributors
+included, exactly as pharmacies do (docs/DRIVEDB_PLAN.md). Medoro's database then holds only sign-in, subscription and
+the short-lived relays between a tenant's own devices. When this is done, `DIST_HOSTED` (which today lets distributor
+records stay on the hosted server) is turned off.
+
+## What is reused as it is
+- **The device database, Drive storage, encryption, keys and sync** (`src/drivedb`: engine, client, sync, relay, keyring,
+  device worker). A distributor's records are more tables in the same kind of file; nothing new on that side.
+- **The distribution rules** (`src/domain/distribution/rules`): wholesale pricing and GST, schemes, FEFO allocation with
+  reservations, credit control, expiry eligibility, licences, the order state machine, ageing, analytics. They are pure
+  functions, so the device runs the very same code as the server.
+- **Device modules a distributor needs too:** catalogue and batches, purchases from suppliers, supplier claims, cheques,
+  receipts and payments, expenses, bank matching, GST helpers, the AI gateway, WhatsApp sending.
+
+## Phases
+| Phase | What | Status |
+|---|---|---|
+| D1 | Device tables for distribution (migration 15); companies, product terms (PTR / PTS), chemist profiles, schemes, special rates; **direct wholesale invoices** (rate, scheme, FEFO, credit control with override, CGST/SGST or IGST, round-off) and same-day cancellation. Chemist balances include wholesale invoices. | **Built** (`src/drivedb/dist.ts`) |
+| D2 | Orders: placing, credit hold and release, approval with stock reservation (pick lists), picking and packing, invoicing an order; godown transfers. | Next |
+| D3 | Credit notes (saleable / expired / damaged), collections, receivables and ageing, principals and expiry returns to companies, wholesale GST returns (GSTR-1 B2B, HSN), reports. | |
+| D4 | Screens: the distribution app on the device (like Billing (device) for pharmacies), and staff devices (warehouse, salesman, delivery) through the existing relay. | |
+| D5 | Chemist ordering portal in Drive mode: what chemists may see is published by the distributor's device, and their orders reach the distributor's devices through a sealed inbox (as customer payments do for pharmacies). | Needs a decision (below) |
+| D6 | Moving existing distributors from Medoro's database to their Drive (the pharmacy move, extended), Drive sign-up for distributors, then `DIST_HOSTED` off. | |
+
+## Decision needed before D5: the chemist portal
+Chemists across many distributors use one portal on medoro.in. To show a chemist a distributor's products, rates and
+stock, that list has to be readable by Medoro's server (the chemist isn't one of the distributor's devices). Options:
+1. **Publish a portal catalogue** (recommended): the distributor's device sends Medoro only what chemists are meant to
+   see — product names, rates for the tier, stock as a band (In stock / Low / Out), active schemes — and refreshes it
+   after changes. No bills, ledgers, chemists' balances or purchase prices. Orders come back sealed to the
+   distributor's devices and are deleted once collected.
+2. **No hosted portal in Drive mode**: chemists order through the salesman or WhatsApp only.
+
+## Tests
+- `src/drivedb/dist.test.ts`: pricing, FEFO in whole packs, IGST, price tiers, special rates, schemes, credit holds and
+  overrides, hard stops, block mode, short stock, minimum shelf life, cancellation, append-only invoices.
+- `tests/integration/dist-drive.test.ts`: the same bills on Medoro's server and on a device loaded from the server's
+  records give identical invoices (every total and every line: batch, packs, free goods, rate, discount, taxable, tax).

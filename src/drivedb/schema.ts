@@ -191,6 +191,44 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "claimId", "supplierId", "kind", "amountPaise", "ref", "note", "userId", "at"],
   },
+  // @@TABLES distribution (migration 15)
+  // MEDORO Distribution on the device (a distributor's records in its own Drive). Same names and meaning as the server's
+  // Dist* tables. Products, chemists and stock reuse medicine / batch / customer / stockMovement; each godown is a
+  // branchId. Wholesale invoices are append-only; a same-day cancellation is its own row (the stock comes back as
+  // "return" movements). Schemes list chemist ids as a JSON array.
+  distCompany: {
+    kind: "mutable",
+    columns: ["id", "name", "shortName", "gstin", "phone", "active", ...MUTABLE],
+  },
+  distProduct: {
+    kind: "mutable",
+    columns: ["id", "companyId", "division", "ptrPaise", "ptsPaise", "minOrderQty", "portalVisible", "discontinued", ...MUTABLE],
+  },
+  distChemist: {
+    kind: "mutable",
+    columns: ["id", "ownerName", "stateCode", "dl20b", "dl21b", "dlExpiry", "creditDays", "graceDays", "territoryId", "salesmanId", "priceTier", "status", "statusNote", ...MUTABLE],
+  },
+  distSpecialRate: {
+    kind: "mutable",
+    columns: ["id", "customerId", "medicineId", "ratePaise", "validTo", ...MUTABLE],
+  },
+  distScheme: {
+    kind: "mutable",
+    columns: ["id", "code", "name", "kind", "medicineId", "companyId", "buyQty", "freeQty", "discPct", "minQty", "customerIds", "validFrom", "validTo", "active", ...MUTABLE],
+  },
+  distInvoice: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "orderId", "customerId", "salesmanId", "date", "dueDate", "placeOfSupply", "customerGstin", "igst",
+      "grossPaise", "discPaise", "taxablePaise", "cgstPaise", "sgstPaise", "igstPaise", "roundOffPaise", "totalPaise", "costPaise", "idempotencyKey", "userId", "at"],
+  },
+  distInvoiceLine: {
+    kind: "append",
+    columns: ["id", "invoiceId", "medicineId", "batchId", "qty", "freeQty", "ratePaise", "mrpPaise", "discPct", "discPaise", "schemeId", "taxablePaise", "gstRate", "taxPaise", "costPaise"],
+  },
+  distInvoiceCancel: {
+    kind: "append",
+    columns: ["id", "invoiceId", "reason", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -558,6 +596,63 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX claimEvent_claim ON claimEvent(claimId);
   CREATE INDEX claimEvent_supplier ON claimEvent(supplierId, kind);
   ` + ["supplierItemMap", "ebillImport", "supplierClaim", "claimEvent"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 15 distribution
+  // 15: MEDORO Distribution masters and wholesale invoices (see TABLES). Invoice numbers are unique per pharmacy file;
+  // an idempotency key stops a retried bill from being entered twice. One cancellation per invoice.
+  `
+  CREATE TABLE distCompany (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, shortName TEXT, gstin TEXT, phone TEXT, active INTEGER NOT NULL DEFAULT 1,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE TABLE distProduct (
+    id TEXT PRIMARY KEY REFERENCES medicine(id), companyId TEXT, division TEXT,
+    ptrPaise INTEGER NOT NULL CHECK (ptrPaise >= 0), ptsPaise INTEGER NOT NULL DEFAULT 0 CHECK (ptsPaise >= 0),
+    minOrderQty INTEGER NOT NULL DEFAULT 1, portalVisible INTEGER NOT NULL DEFAULT 1, discontinued INTEGER NOT NULL DEFAULT 0,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX distProduct_company ON distProduct(companyId);
+  CREATE TABLE distChemist (
+    id TEXT PRIMARY KEY REFERENCES customer(id), ownerName TEXT, stateCode TEXT, dl20b TEXT, dl21b TEXT, dlExpiry TEXT,
+    creditDays INTEGER NOT NULL DEFAULT 21, graceDays INTEGER NOT NULL DEFAULT 7, territoryId TEXT, salesmanId TEXT,
+    priceTier TEXT NOT NULL DEFAULT 'ptr' CHECK (priceTier IN ('ptr', 'pts')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hold', 'blocked')), statusNote TEXT,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE TABLE distSpecialRate (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL, medicineId TEXT NOT NULL, ratePaise INTEGER NOT NULL CHECK (ratePaise > 0), validTo TEXT,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX distSpecialRate_customer ON distSpecialRate(customerId, medicineId);
+  CREATE TABLE distScheme (
+    id TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('free', 'discount')),
+    medicineId TEXT, companyId TEXT, buyQty INTEGER NOT NULL DEFAULT 0, freeQty INTEGER NOT NULL DEFAULT 0,
+    discPct REAL NOT NULL DEFAULT 0 CHECK (discPct >= 0 AND discPct <= 100), minQty INTEGER NOT NULL DEFAULT 1,
+    customerIds TEXT NOT NULL DEFAULT '[]', validFrom TEXT NOT NULL, validTo TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+    updatedAt TEXT NOT NULL, deletedAt TEXT, CHECK (validTo >= validFrom)
+  );
+  CREATE TABLE distInvoice (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, orderId TEXT,
+    customerId TEXT NOT NULL REFERENCES customer(id), salesmanId TEXT, date TEXT NOT NULL, dueDate TEXT NOT NULL,
+    placeOfSupply TEXT, customerGstin TEXT, igst INTEGER NOT NULL DEFAULT 0,
+    grossPaise INTEGER NOT NULL, discPaise INTEGER NOT NULL, taxablePaise INTEGER NOT NULL, cgstPaise INTEGER NOT NULL,
+    sgstPaise INTEGER NOT NULL, igstPaise INTEGER NOT NULL, roundOffPaise INTEGER NOT NULL, totalPaise INTEGER NOT NULL,
+    costPaise INTEGER NOT NULL, idempotencyKey TEXT NOT NULL UNIQUE, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distInvoice_customer ON distInvoice(customerId, date);
+  CREATE INDEX distInvoice_date ON distInvoice(date);
+  CREATE TABLE distInvoiceLine (
+    id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL REFERENCES distInvoice(id), medicineId TEXT NOT NULL, batchId TEXT NOT NULL REFERENCES batch(id),
+    qty INTEGER NOT NULL CHECK (qty >= 0), freeQty INTEGER NOT NULL DEFAULT 0 CHECK (freeQty >= 0), ratePaise INTEGER NOT NULL, mrpPaise INTEGER NOT NULL,
+    discPct REAL NOT NULL DEFAULT 0, discPaise INTEGER NOT NULL, schemeId TEXT, taxablePaise INTEGER NOT NULL, gstRate INTEGER NOT NULL,
+    taxPaise INTEGER NOT NULL, costPaise INTEGER NOT NULL
+  );
+  CREATE INDEX distInvoiceLine_invoice ON distInvoiceLine(invoiceId);
+  CREATE TABLE distInvoiceCancel (
+    id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL UNIQUE REFERENCES distInvoice(id), reason TEXT NOT NULL, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  ` + ["distInvoice", "distInvoiceLine", "distInvoiceCancel"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];
