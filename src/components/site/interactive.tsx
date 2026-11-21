@@ -69,6 +69,36 @@ export function Hero() {
   );
 }
 
+// Distribution hero: the real distributor dashboard (Shah Pharma Distributors, Pune) with the same frame, chips and
+// phone as the pharmacy hero. Screenshots are captured from the running /dist app with sample data.
+const DIST_CHIPS: [string, string, string][] = [
+  ["✓", "Order SO-1042 approved · credit OK", "-left-6 top-[14%] min-[1248px]:-left-10"],
+  ["🎁", "Scheme applied · 10+2 free", "left-[16%] -bottom-6"],
+  ["₹", "₹1,85,735 collected today", "right-[12%] -top-5"],
+];
+
+export function DistHeroShot() {
+  const t = useT();
+  const lang = useLang();
+  return (
+    <div className="relative">
+      <BrowserFrame label={t("Distributor dashboard · Shah Pharma Distributors, Pune")}>
+        <Image src={lang === "hi" ? "/site/dist-dashboard-hi.webp" : "/site/dist-dashboard.webp"} alt={t("Medoro Distribution dashboard for Shah Pharma Distributors: sales today and this month, collections, receivables, a 30-day sales chart, the order pipeline, top outstanding chemists and ageing")} width={2000} height={1250} priority sizes="(min-width: 1248px) 600px, (min-width: 1000px) 46vw, calc(100vw - 32px)" className="block w-full h-auto" />
+      </BrowserFrame>
+      <ul aria-hidden className="m-0 p-0 list-none max-[560px]:hidden">
+        {DIST_CHIPS.map(([icon, text, pos], i) => (
+          <li key={text} style={{ ["--d" as string]: i }} className={`site-chip absolute ${pos} flex items-center gap-2 rounded-xl bg-white/95 backdrop-blur border border-[var(--s-line)] shadow-[0_12px_28px_-12px_rgba(14,22,20,.35)] px-3 py-2 text-[13px] font-semibold text-[var(--s-ink)] whitespace-nowrap`}>
+            <span className="size-7 rounded-lg flex items-center justify-center text-[15px]" style={{ background: HERO_CHIP_BG[i] }}>{icon}</span>{t(text)}
+          </li>
+        ))}
+      </ul>
+      <div className="site-bob absolute -right-2 min-[1248px]:-right-8 -bottom-8 w-[clamp(96px,10vw,136px)] max-[560px]:hidden">
+        <div className="site-phone"><div><Image src="/site/dist-mobile-dashboard.webp" alt={t("The distributor dashboard on a phone")} width={600} height={1409} sizes="136px" className="block w-full h-auto" /></div></div>
+      </div>
+    </div>
+  );
+}
+
 export function BrowserFrame({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="site-browser">

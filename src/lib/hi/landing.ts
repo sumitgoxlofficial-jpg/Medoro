@@ -280,4 +280,11 @@ export const hi: Record<string, string> = {
   "Let’s talk about your business.": "आइए आपके बिज़नेस की बात करें।",
   "Tell us how you work today. We’ll show you Medoro with your own workflow, and help you move across when you’re ready.": "हमें बताइए आप आज कैसे काम करते हैं। हम आपके अपने काम के तरीके से Medoro दिखाएँगे, और जब आप तैयार हों तो आने में मदद करेंगे।",
   "Medoro builds business software for India’s pharma trade: Medoro Pharmacy for medical stores and chains, and Medoro Distribution for distributors and stockists.": "Medoro भारत के फ़ार्मा व्यापार के लिए बिज़नेस सॉफ़्टवेयर बनाता है: मेडिकल स्टोर और चेन के लिए Medoro Pharmacy, और डिस्ट्रीब्यूटर व स्टॉकिस्ट के लिए Medoro Distribution।",
+  // Distribution hero shot
+  "Distributor dashboard · Shah Pharma Distributors, Pune": "डिस्ट्रीब्यूटर डैशबोर्ड · Shah Pharma Distributors, पुणे",
+  "Medoro Distribution dashboard for Shah Pharma Distributors: sales today and this month, collections, receivables, a 30-day sales chart, the order pipeline, top outstanding chemists and ageing": "Shah Pharma Distributors का Medoro Distribution डैशबोर्ड: आज और इस महीने की बिक्री, वसूली, बकाया, 30 दिन की बिक्री का चार्ट, ऑर्डर पाइपलाइन, सबसे ज़्यादा बकाया वाले केमिस्ट और एजिंग",
+  "The distributor dashboard on a phone": "फ़ोन पर डिस्ट्रीब्यूटर डैशबोर्ड",
+  "Order SO-1042 approved · credit OK": "ऑर्डर SO-1042 मंज़ूर · क्रेडिट ठीक",
+  "Scheme applied · 10+2 free": "स्कीम लगी · 10+2 फ़्री",
+  "₹1,85,735 collected today": "आज ₹1,85,735 की वसूली",
 };
