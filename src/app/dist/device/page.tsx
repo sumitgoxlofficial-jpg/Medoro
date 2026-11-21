@@ -18,6 +18,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   const ctx = await requireDistCtx();
   const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { settings: true } });
   const settings = (t.settings ?? {}) as { driveMode?: boolean; driveOnly?: boolean };
+  // Where the hosted server keeps no distributor records, a distributor still on Medoro's copy moves it from here.
+  if (ctx.mustMove && !settings.driveMode) {
+    settings.driveMode = true;
+    await db.tenant.update({ where: { id: ctx.tenantId }, data: { settings: { ...((t.settings ?? {}) as object), driveMode: true } } });
+  }
   if (!settings.driveMode && !dataInDrive(settings)) redirect("/dist");
   const sp = await searchParams, tr = await getT();
   return (

@@ -26,9 +26,15 @@ records stay on the hosted server) is turned off.
 
 ## Switching it on (owner, in this order)
 1. Ship D4 (the distribution screens on the device). **Done.**
-2. Set `DIST_DRIVE=1` on the hosted server: new distributors sign up into Drive mode.
-3. Existing distributors move (*Move all my data from Medoro*; open orders and deliveries out first finished).
-4. When none is left on Medoro's copy, remove `DIST_HOSTED`: Medoro's database then holds no distributor records.
+2. Set `DIST_DRIVE=1` on the hosted server: new distributors sign up into Drive mode. **Done (21 Nov 2026).**
+3. Remove `DIST_HOSTED`. A distributor still on Medoro's copy is then read-only there, exactly like a pharmacy that hasn't
+   moved: `/dist` opens the device screen, which turns Drive mode on and offers *Move all my data from Medoro* to the owner
+   (open orders and deliveries out on a van must be finished first). A distributor already in Drive is not affected.
+4. Each such distributor's owner signs in, connects Google Drive and moves. Medoro's database then holds no distributor records.
+
+Loading the catalogue onto a device (Drive mode before moving) brings a distributor's wholesale masters too: companies,
+product terms, chemist profiles, special rates, schemes, principals, suppliers and settings, with the same ids, so the
+later move skips them.
 
 ## Decided for D5: the chemist portal (option 1, chosen by the owner on 21 Nov 2026)
 Chemists across many distributors use one portal on medoro.in. To show a chemist a distributor's products, rates and

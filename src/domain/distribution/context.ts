@@ -5,15 +5,18 @@ import { getCtx, ReadOnlyError, requireSubscription, type Ctx } from "@/server/c
 import { db } from "@/server/db";
 import { DIST_BUSINESS, DIST_PERM_LABEL, distPerms, type DistPerm } from "./perms";
 import { distMustMove } from "./hosting";
+import { dataInDrive } from "@/domain/system/drive-state";
 
 export type DistCtx = Ctx & { product: "distribution" };
 
 /** Distribution context: the shared session context with distribution permissions in place of pharmacy ones. */
 export async function distCtxFrom(ctx: Ctx): Promise<DistCtx | null> {
-  const u = await db.user.findUnique({ where: { id: ctx.userId }, include: { role: true, tenant: { select: { product: true } } } });
+  const u = await db.user.findUnique({ where: { id: ctx.userId }, include: { role: true, tenant: { select: { product: true, settings: true } } } });
   if (!u || u.tenant.product !== "distribution") return null;
-  // Distribution records live in the server database (see hosting.ts); there is no Drive move for a distributor.
-  return { ...ctx, perms: distPerms(u.role.permissions, u.permGrants, u.permRevokes), product: "distribution", moved: false, mustMove: distMustMove() };
+  // Where the hosted server keeps no distributor records (hosting.ts), a distributor still on Medoro's copy must move
+  // it to its own Google Drive; one that signed up into Drive or has moved works on its devices (docs/DIST_DRIVE_PLAN.md).
+  const moved = dataInDrive(u.tenant.settings);
+  return { ...ctx, perms: distPerms(u.role.permissions, u.permGrants, u.permRevokes), product: "distribution", moved, mustMove: distMustMove() && !moved };
 }
 
 export async function getDistCtx(): Promise<DistCtx | null> {
