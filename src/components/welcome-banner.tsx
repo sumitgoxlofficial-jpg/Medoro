@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, ScanBarcode } from "lucide-react";
 import { useT } from "@/lib/i18n-client";
+import { useBrowserValue } from "@/lib/react-state";
 
 /**
  * Greeting banner at the top of both pharmacy dashboards (server mode /app and counter mode): "Good morning, Asha 👋",
@@ -11,8 +12,7 @@ import { useT } from "@/lib/i18n-client";
 export function WelcomeBanner({ name, branch, newBill }: { name: string; branch: string; newBill: { href: string } | { onClick: () => void } | null }) {
   const t = useT();
   // The greeting follows the viewer's own clock, so it is set after the page loads (no server/browser mismatch).
-  const [part, setPart] = useState<"morning" | "afternoon" | "evening" | null>(null);
-  useEffect(() => { const h = new Date().getHours(); setPart(h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"); }, []);
+  const part = useBrowserValue<"morning" | "afternoon" | "evening" | null>(() => { const h = new Date().getHours(); return h < 12 ? "morning" : h < 17 ? "afternoon" : "evening"; }, null);
   const first = name.trim().split(/\s+/)[0] ?? "";
   const hello = part === "morning" ? t("Good morning, {name}", { name: first }) : part === "afternoon" ? t("Good afternoon, {name}", { name: first }) : part === "evening" ? t("Good evening, {name}", { name: first }) : t("Welcome, {name}", { name: first });
   const btn = "app-sweep relative overflow-hidden flex-none inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-white text-[#0B5E5B] text-[14px] font-semibold no-underline transition-transform duration-300 hover:-translate-y-0.5 hover:text-[#0B5E5B] max-[420px]:px-3";
@@ -66,12 +66,13 @@ export function DashBackdrop() {
 /** Counts a rupee amount up from zero when it first shows (instantly with reduced motion). */
 export function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
   const [shown, setShown] = useState(value);
+  const reduced = useBrowserValue(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches, false);
   useEffect(() => {
-    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)").matches || !value) { setShown(value); return; }
+    if (reduced || !value) return;
     let raf = 0; const t0 = performance.now(), dur = 900;
     const step = (t: number) => { const p = Math.min(1, (t - t0) / dur); setShown(Math.round(value * (1 - Math.pow(1 - p, 3)))); if (p < 1) raf = requestAnimationFrame(step); };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [value]);
-  return <>{format(shown)}</>;
+  }, [value, reduced]);
+  return <>{format(reduced || !value ? value : shown)}</>;
 }

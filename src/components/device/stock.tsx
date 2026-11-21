@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Boxes, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -19,7 +19,7 @@ const qtyText = (r: Row, lang: Lang, t: TFn) => (r.packSize > 1 ? `${unitsOf(lan
 export function Stock({ cfg, owner, userId, refresh }: { cfg: Cfg; owner: boolean; userId: string; refresh: number }) {
   const t = useT();
   const lang = useLang();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [lowOnly, setLowOnly] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
@@ -145,6 +145,8 @@ function BatchPanel({ med, cfg, userId, onClose }: { med: Row; cfg: Cfg; userId:
   const [count, setCount] = useState<Record<string, string>>({});
   const others = cfg.branches.filter((b) => b.id !== cfg.branchId);
   const [move, setMove] = useState<Record<string, { to: string; qty: string }>>({});
+  const load = useCallback(() => dev.call("batchesFor", med.id, cfg.branchId).then((r) => setRows(r as BatchRow[])), [dev, med.id, cfg.branchId]);
+  useEffect(() => { void load(); }, [load]);
   const doMove = async (b: BatchRow) => {
     const m = move[b.id] ?? { to: others[0]?.id ?? "", qty: "" };
     const n = Math.floor(Number(m.qty) || 0);
@@ -154,8 +156,6 @@ function BatchPanel({ med, cfg, userId, onClose }: { med: Row; cfg: Cfg; userId:
       toast(`Sent ${n} to ${others.find((o) => o.id === m.to)?.name}. ${r.left} left here.`, "green"); setMove({ ...move, [b.id]: { ...m, qty: "" } }); void load();
     } catch (e) { toast(errText(e), "red"); }
   };
-  const load = useCallback(() => dev.call("batchesFor", med.id, cfg.branchId).then((r) => setRows(r as BatchRow[])), [dev, med.id, cfg.branchId]);
-  useEffect(() => { void load(); }, [load]);
   const unit = med.packSize > 1 ? med.looseUnit : med.packUnit;
   const doAdjust = async (b: BatchRow) => {
     const a = adj[b.id] ?? { qty: "", reason: "damaged" };

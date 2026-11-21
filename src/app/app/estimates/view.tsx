@@ -13,6 +13,7 @@ import { dayMonth } from "@/lib/dates";
 import { useT } from "@/lib/i18n-client";
 import type { EstimateRow } from "@/domain/sales/estimate";
 import { createEstimateAction, estimateStatusAction, searchEstimateMedsAction } from "./actions";
+import { useOnChange } from "@/lib/react-state";
 
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
 const td = "px-3.5 py-2.5 border-b border-row";
@@ -69,8 +70,9 @@ function NewEstimate({ onClose, onDone }: { onClose: () => void; onDone: (id: st
   const t = useT(), toast = useToast();
   const [name, setName] = useState(""), [phone, setPhone] = useState(""), [days, setDays] = useState("7"), [notes, setNotes] = useState("");
   const [term, setTerm] = useState(""), [hits, setHits] = useState<Hit[]>([]), [picked, setPicked] = useState<Pick[]>([]), [pending, start] = useTransition();
+  useOnChange([term.trim().length < 2], () => { if (term.trim().length < 2) setHits([]); });
   useEffect(() => {
-    if (term.trim().length < 2) { setHits([]); return; }
+    if (term.trim().length < 2) return;
     const h = setTimeout(() => { void searchEstimateMedsAction(term).then(setHits); }, 200);
     return () => clearTimeout(h);
   }, [term]);

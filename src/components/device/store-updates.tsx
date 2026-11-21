@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Megaphone, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -18,7 +18,7 @@ const BATCH = 25;
  */
 export function StoreUpdates({ who, refresh }: { who: Who; refresh: number }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [list, setList] = useState<Camp[]>([]);
   const [audience, setAudience] = useState(0);
   const [f, setF] = useState({ name: "", message: "" });
@@ -29,7 +29,7 @@ export function StoreUpdates({ who, refresh }: { who: Who; refresh: number }) {
     setList(await dev.call("listCampaigns"));
     setAudience(await dev.call("campaignAudienceCount"));
   }, [dev]);
-  useEffect(() => { void load().catch(() => undefined); }, [load, refresh]);
+  useEffect(() => { void (async () => { await load().catch(() => undefined); })(); }, [load, refresh]);
 
   /** Sends to everyone not yet reached, in batches of 25, recording each result on this counter as it goes. */
   const run = async (id: string, message: string, first: boolean) => {

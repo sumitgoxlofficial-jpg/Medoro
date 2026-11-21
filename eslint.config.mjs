@@ -6,17 +6,10 @@ const config = [
   ...nextVitals,
   ...nextTs,
   {
-    // React Compiler rules that arrived with eslint-config-next 16 (eslint-plugin-react-hooks 7). The code predates them
-    // and passed lint under Next.js 15; they are reported as warnings until the call sites are reworked (see
-    // docs/audit/MEDORO_BUG_FIX_LOG.md, BUG-10), so they stay visible without blocking CI.
-    rules: {
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/static-components": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/preserve-manual-memoization": "warn",
-    },
+    // Pages and layouts here are server components (none is "use client"): they render once per request on the server,
+    // so reading the clock (e.g. "sessions seen in the last 5 minutes") is correct and there is no hydration to mismatch.
+    files: ["src/app/**/page.tsx", "src/app/**/layout.tsx"],
+    rules: { "react-hooks/purity": "off" },
   },
 ];
 

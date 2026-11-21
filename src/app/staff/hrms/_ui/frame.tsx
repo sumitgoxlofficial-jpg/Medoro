@@ -16,6 +16,8 @@ import { Screen } from "./screens";
 import { ScreenHero } from "./hero";
 import { Check, FileSignature, KeyRound, ShieldCheck, UserRound } from "lucide-react";
 import { IdBadge, SideIcons } from "../../employee/art";
+import { useNow } from "@/lib/use-now";
+import { useLocalStorage } from "@/lib/react-state";
 
 const ICONS: Record<string, string> = {
   home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
@@ -42,8 +44,8 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const [navOpen, setNavOpen] = useState(false);
   const router = useRouter();
   const { run } = useRun();
-  const [night, setNight] = useState(false);
-  useEffect(() => { try { setNight(localStorage.getItem("hrms.night") === "1"); } catch { /* default light */ } }, []);
+  const [nightPref, setNightPref] = useLocalStorage("hrms.night");
+  const night = nightPref === "1";
   // Night mode inverts the page (and turns pictures back) like the design does; it is a per-browser choice.
   useEffect(() => {
     const el = document.documentElement;
@@ -54,13 +56,14 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
     st.textContent = night ? "html img{filter:invert(1.075) hue-rotate(180deg)} @media print{html{filter:none !important}}" : "";
     return () => { el.style.filter = ""; el.style.background = ""; };
   }, [night]);
-  const toggleNight = () => setNight((n) => { try { localStorage.setItem("hrms.night", n ? "0" : "1"); } catch { /* private window */ } return !n; });
+  const toggleNight = () => setNightPref(night ? "0" : "1");
   // Keep presence fresh and pick up new notifications.
   useEffect(() => { const t = setInterval(() => router.refresh(), 60_000); return () => clearInterval(t); }, [router]);
+  const now = useNow(60_000);
   useEffect(() => { const open = () => setAlly(true); window.addEventListener("hrms:ally", open); return () => window.removeEventListener("hrms:ally", open); }, []);
   if (gate) return <Gate gate={gate} sh={sh} />;
   const unread = sh.notes.filter((n) => n.unread).length;
-  const lunchNow = (() => { const ist = new Date(Date.now() + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes(); return m >= toMin(sh.lunch.from) && m < toMin(sh.lunch.to); })();
+  const lunchNow = (() => { const ist = new Date(now + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes(); return m >= toMin(sh.lunch.from) && m < toMin(sh.lunch.to); })();
   const to12 = (hhmm: string) => { const h = Number(hhmm.slice(0, 2)); return `${h % 12 || 12}:${hhmm.slice(3, 5)} ${h < 12 ? "AM" : "PM"}`; };
   const groups: [string, typeof sh.nav][] = [];
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
@@ -68,7 +71,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const def = SCREENS.find((x) => x.id === screen);
   const hero = !!def && !NO_TITLE_SCREENS.includes(screen) && screen !== "slhome";
   // India time on both the server and the browser, so the greeting is the same in both renders.
-  const istHour = new Date(Date.now() + 5.5 * 3600_000).getUTCHours();
+  const istHour = new Date(now + 5.5 * 3600_000).getUTCHours();
   const greet = screen === sh.home && screen === "slhome" ? `${istHour < 12 ? "Good morning" : istHour < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
   const subtitle = screen === sh.home && screen === "slhome" ? `${HR_ROLE_LABEL[sh.me.role]} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" })}` : sub;
   return (

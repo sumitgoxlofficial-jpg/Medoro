@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Banknote, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import type { Cheque, ChequeStatus } from "@/drivedb/cheques";
 import { inr } from "@/lib/money";
 import { addDays, dayMonth, todayISO } from "@/lib/dates";
 import { card, input, label, errText, toPaise, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 const TONE: Record<ChequeStatus, Tone> = { pending: "amber", deposited: "blue", cleared: "green", bounced: "red", cancelled: "gray" };
 const STATUS: Record<ChequeStatus, string> = { pending: "Pending", deposited: "Deposited", cleared: "Cleared", bounced: "Bounced", cancelled: "Cancelled" };
@@ -26,7 +27,7 @@ type Tab = "open" | "received" | "issued" | "all";
 export function Cheques({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: number }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [rows, setRows] = useState<Cheque[]>([]);
   const [tab, setTab] = useState<Tab>("open");
   const [adding, setAdding] = useState(false);
@@ -134,8 +135,9 @@ function RecordCheque({ who, onClose, onDone }: { who: Who; onClose: () => void;
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { void dev.call("supplierDues").then((d) => setSuppliers(d.filter((s) => s.duePaise > 0).map((s) => ({ id: s.id, name: s.name, duePaise: s.duePaise })))); }, [dev]);
+  useOnChange([direction !== "received" || q.trim().length < 2], () => { if (direction !== "received" || q.trim().length < 2) setFound([]); });
   useEffect(() => {
-    if (direction !== "received" || q.trim().length < 2) { setFound([]); return; }
+    if (direction !== "received" || q.trim().length < 2) return;
     let live = true;
     void dev.call("findCustomers", q).then((r) => { if (live) setFound(r.filter((c) => c.balancePaise > 0).map((c) => ({ id: c.id, name: c.phone ? `${c.name} · ${c.phone}` : c.name, duePaise: c.balancePaise }))); });
     return () => { live = false; };

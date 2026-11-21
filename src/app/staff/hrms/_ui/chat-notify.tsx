@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ChatRow } from "@/staff/hrms/chat";
+import { useBrowserValue, useLocalStorage } from "@/lib/react-state";
 
 /**
  * New-message alerts, like WhatsApp Web: a short two-note sound, a banner at the top of the page while you are in the HRMS,
@@ -40,7 +41,9 @@ export function ChatNotifier({ screen }: { screen: string }) {
   const prev = useRef<Map<string, number> | null>(null);
   const baseTitle = useRef("");
   const [banner, setBanner] = useState<Fresh | null>(null);
-  const [ask, setAsk] = useState(false);
+  const canAsk = useBrowserValue(() => "Notification" in window && Notification.permission === "default" && !get(ASKED_KEY), false);
+  const [dismissed, setDismissed] = useState(false);
+  const ask = canAsk && !dismissed;
   const hideT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const onChat = screen === "chat";
 
@@ -102,8 +105,7 @@ export function ChatNotifier({ screen }: { screen: string }) {
     return () => { document.removeEventListener("visibilitychange", vis); window.removeEventListener("pointerdown", gesture); window.removeEventListener("keydown", gesture); };
   }, []);
 
-  useEffect(() => { if ("Notification" in window && Notification.permission === "default" && !get(ASKED_KEY)) setAsk(true); }, []);
-  const allow = async () => { put(ASKED_KEY, "1"); setAsk(false); unlock(); try { await Notification.requestPermission(); } catch { /* ignore */ } ding(); };
+  const allow = async () => { put(ASKED_KEY, "1"); setDismissed(true); unlock(); try { await Notification.requestPermission(); } catch { /* ignore */ } ding(); };
 
   return (
     <>
@@ -118,7 +120,7 @@ export function ChatNotifier({ screen }: { screen: string }) {
           <div className="font-bold text-[13.5px]">🔔 Get notified of new chat messages?</div>
           <div className="text-[12.5px] text-[#475569]">A pop-up and a sound when someone messages you, even while you are in another tab.</div>
           <div className="flex gap-2 justify-end">
-            <button className="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[13px] cursor-pointer" onClick={() => { put(ASKED_KEY, "1"); setAsk(false); }}>Not now</button>
+            <button className="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[13px] cursor-pointer" onClick={() => { put(ASKED_KEY, "1"); setDismissed(true); }}>Not now</button>
             <button className="px-3 py-1.5 rounded-lg bg-[#0B5E5B] text-white text-[13px] font-semibold border-0 cursor-pointer" onClick={() => void allow()}>Turn on</button>
           </div>
         </div>
@@ -129,11 +131,11 @@ export function ChatNotifier({ screen }: { screen: string }) {
 
 /** A bell in the chat list: sound on or off (the banner and pop-up stay). */
 export function SoundToggle() {
-  const [on, setOn] = useState(true);
-  useEffect(() => { setOn(soundOn()); }, []);
+  const [pref, setPref] = useLocalStorage(SOUND_KEY);
+  const on = pref !== "off";
   return (
     <button type="button" title={on ? "Message sound is on" : "Message sound is off"} aria-label={on ? "Turn message sound off" : "Turn message sound on"} aria-pressed={on}
-      onClick={() => { const n = !on; put(SOUND_KEY, n ? "on" : "off"); setOn(n); if (n) { unlock(); ding(); } }}
+      onClick={() => { const n = !on; setPref(n ? "on" : "off"); if (n) { unlock(); ding(); } }}
       className="flex-none px-2.5 rounded-lg border border-[#CBD5E1] bg-white text-[15px] cursor-pointer">{on ? "🔔" : "🔕"}</button>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n-client";
 import { Plus, Download, BookOpen } from "lucide-react";
@@ -15,6 +15,8 @@ import { voucherLabel } from "./ledger";
 import { dayMonth } from "@/lib/dates";
 import type { accountsOverview, dayBook } from "@/domain/accounting/service";
 import { dayBookAction, expenseAction, reverseAction } from "./actions";
+import { hardNavigate } from "@/lib/hard-nav";
+import { useOnChange } from "@/lib/react-state";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] px-[18px] py-4 flex flex-col gap-2";
 const th = "text-left text-[12px] font-medium text-muted px-3.5 py-2.5 border-b border-[#E3E6E9] whitespace-nowrap";
@@ -28,6 +30,11 @@ export function PeriodPicker({ value }: { value: string }) {
 
 type Entry = Awaited<ReturnType<typeof dayBook>>[number];
 
+/** One label/amount line in the overview cards. */
+const Row = ({ l, v, b, neg }: { l: string; v: number; b?: boolean; neg?: boolean }) => (
+  <div className={"flex justify-between gap-3 text-[13.5px] " + (b ? "font-semibold border-t border-line-soft pt-2" : "")}><span className={"min-w-0 " + (b ? "" : "text-ink-2")}>{l}</span><span className="tnum whitespace-nowrap shrink-0 text-right" style={{ color: (neg ? -v : v) < 0 ? "#B3261E" : undefined }}>{neg ? inr0(-v) : inr0(v)}</span></div>
+);
+
 export function AccountsView({ ov, book: firstPage, pageSize, reports, branchName, expenseAccounts, canPay, periodKey }: {
   ov: Awaited<ReturnType<typeof accountsOverview>>; book: Entry[]; pageSize: number; reports: { id: string; name: string; desc: string; pharmacy: boolean }[]; branchName: string | null;
   expenseAccounts: string[]; canPay: boolean; periodKey: string;
@@ -36,7 +43,7 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
   const [exp, setExp] = useState(false);
   const [scope, setScope] = useState<"branch" | "all">("branch");
   const [book, setBook] = useState(firstPage), [more, setMore] = useState(firstPage.length >= pageSize), [loading, startLoad] = useTransition();
-  useEffect(() => { setBook(firstPage); setMore(firstPage.length >= pageSize); }, [firstPage, pageSize]);
+  useOnChange([firstPage, pageSize], () => { setBook(firstPage); setMore(firstPage.length >= pageSize); });
   const loadMore = () => startLoad(async () => {
     const r = await dayBookAction(periodKey, book[book.length - 1].id);
     if (!r.ok) return toast(r.error, "red");
@@ -47,9 +54,6 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
   /** Account names joined by ", " (day book columns), each in the chosen language. */
   const accounts = (names: string) => names.split(", ").map((n) => t(n)).join(", ");
   const pl = ov.pl;
-  const Row = ({ l, v, b, neg }: { l: string; v: number; b?: boolean; neg?: boolean }) => (
-    <div className={"flex justify-between gap-3 text-[13.5px] " + (b ? "font-semibold border-t border-line-soft pt-2" : "")}><span className={"min-w-0 " + (b ? "" : "text-ink-2")}>{l}</span><span className="tnum whitespace-nowrap shrink-0 text-right" style={{ color: (neg ? -v : v) < 0 ? "#B3261E" : undefined }}>{neg ? inr0(-v) : inr0(v)}</span></div>
-  );
   return (
     <div className="flex flex-col gap-4 max-w-[1400px]">
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))]">
@@ -114,7 +118,7 @@ export function AccountsView({ ov, book: firstPage, pageSize, reports, branchNam
               <div className="flex flex-col flex-1 min-w-0"><span className="text-[13.5px] font-semibold">{r.name}</span><span className="text-[12px] text-faint">{r.desc}{r.pharmacy && branchName ? ` · ${t("all branches")}` : ""}</span></div>
               <a href={`/api/reports/${r.id}?period=${periodKey}${scope === "all" && !r.pharmacy ? "&scope=all" : ""}`} className="flex items-center gap-1 border border-input rounded-md px-2 py-1 text-[12.5px] text-ink hover:border-teal no-underline"><Download size={13} />CSV</a>
               {r.id === "customer-dues" ? <button type="button" title={t("In strict mode, mobile numbers need a reason (kept in the audit trail)")} className="text-[12px] text-teal cursor-pointer"
-                onClick={() => { const why = prompt(t("Why do you need customer mobile numbers in this export?"), ""); if (why && why.trim().length >= 5) window.location.href = `/api/reports/${r.id}?period=${periodKey}&reason=${encodeURIComponent(why.trim())}`; }}>{t("+ phones")}</button> : null}
+                onClick={() => { const why = prompt(t("Why do you need customer mobile numbers in this export?"), ""); if (why && why.trim().length >= 5) hardNavigate(`/api/reports/${r.id}?period=${periodKey}&reason=${encodeURIComponent(why.trim())}`); }}>{t("+ phones")}</button> : null}
               {r.id === "h1-register" ? <a href={`/app/accounts?view=h1&period=${periodKey}`} className="text-[12px] text-teal no-underline">{t("View")}</a> : null}
             </div>
           ))}

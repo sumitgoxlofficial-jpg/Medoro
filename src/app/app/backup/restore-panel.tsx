@@ -8,6 +8,7 @@ import type { RestoreSummary } from "@/domain/system/restore";
 import { applyRestoreAction, discardRestoreAction } from "./actions";
 import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf, type Lang } from "@/lib/tr";
+import { hardNavigate } from "@/lib/hard-nav";
 
 export type PendingRestore = { runId: string; manifestId: string; createdBy: string; createdAt: string; summary: RestoreSummary };
 
@@ -33,7 +34,7 @@ export function RestorePanel({ p, code }: { p: PendingRestore; code: string }) {
   const apply = () => start(async () => {
     const r = await applyRestoreAction(p.runId, typed);
     if (!r.ok) { toast(r.error, "red"); return; }
-    window.location.href = "/signin?restored=1";
+    hardNavigate("/signin?restored=1");
   });
 
   return (

@@ -6,6 +6,8 @@ import { cn } from "@/components/ui/cn";
 import { useT } from "@/lib/i18n-client";
 import { WA } from "@/components/site/brand";
 import { AuthButton, AuthCard, AuthError, AuthLabel, Steps, authInput, authMono } from "@/components/auth-ui";
+import { hardNavigate } from "@/lib/hard-nav";
+import { useOnChange } from "@/lib/react-state";
 import {
   checkInviteContact, completeInvite, countersFor, employeeSignIn, findInvite, forgotPassword, passwordSignIn, resetPassword,
 } from "../actions";
@@ -84,8 +86,9 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
   const [counter, setCounter] = useState("");
   const [err, setErr] = useState(""), [pending, start] = useTransition();
 
+  useOnChange([code.trim().length < 4], () => { if (code.trim().length < 4) setCounters([]); });
   useEffect(() => {
-    if (code.trim().length < 4) { setCounters([]); return; }
+    if (code.trim().length < 4) return;
     const timer = setTimeout(() => countersFor(code, emp).then((c) => { setCounters(c); setCounter((x) => (c.some((y) => y.id === x) ? x : c[0]?.id ?? "")); }), 350);
     return () => clearTimeout(timer);
   }, [code, emp]);
@@ -228,7 +231,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
         </div>
       ) : null}
       <AuthError>{err}</AuthError>
-      <AuthButton onClick={step === 4 ? () => (done?.manager ? location.assign("/signin") : onDone(done!.tenantCode, done!.employeeNo)) : next} disabled={pending}>
+      <AuthButton onClick={step === 4 ? () => (done?.manager ? hardNavigate("/signin") : onDone(done!.tenantCode, done!.employeeNo)) : next} disabled={pending}>
         {pending ? "Please wait…" : step === 1 ? "Find my invite" : step === 2 ? (otpSent ? "Verify OTP" : "Continue") : step === 3 ? "Create account" : done?.manager ? "Go to sign-in" : "Go to employee login"}
       </AuthButton>
       {step < 4 ? (

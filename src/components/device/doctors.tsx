@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FileDown, Pencil, Plus, Stethoscope, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { downloadCsv } from "@/lib/csv";
 import { inr } from "@/lib/money";
 import { todayISO } from "@/lib/dates";
 import { card, input, label, errText, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 type Report = ReturnType<typeof doctorSales>;
 
@@ -36,7 +37,7 @@ export function Doctors({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: nu
 function Master({ who, refresh }: { who: Who; refresh: number }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Doctor[]>([]);
   const [edit, setEdit] = useState<Doctor | "new" | null>(null);
@@ -107,7 +108,7 @@ function SalesReport({ cfg, refresh }: { cfg: Cfg; refresh: number }) {
   const t = useT();
   const lang = useLang();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const today = todayISO();
   const [from, setFrom] = useState(today.slice(0, 8) + "01");
   const [to, setTo] = useState(today);
@@ -170,7 +171,7 @@ function SalesReport({ cfg, refresh }: { cfg: Cfg; refresh: number }) {
 export function DoctorPicker({ value, onChange, stacked = false }: { value: { name: string; reg: string }; onChange: (v: { name: string; reg: string }) => void; stacked?: boolean }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [open, setOpen] = useState(false);
   const [hl, setHl] = useState(0);
   const [matches, setMatches] = useState<Doctor[]>([]);
@@ -184,8 +185,9 @@ export function DoctorPicker({ value, onChange, stacked = false }: { value: { na
     return () => clearTimeout(h);
   }, [q, open, dev]);
   // Whether the typed doctor is already on the list (by reg. no., else by name), to offer saving a new one.
+  useOnChange([!q], () => { if (!q) setKnown(true); });
   useEffect(() => {
-    if (!q) { setKnown(true); return; }
+    if (!q) return;
     const h = setTimeout(() => dev.call("listDoctors", { q: value.reg.trim() || q, all: true })
       .then((r) => setKnown(r.some((d) => (value.reg.trim() ? (d.regNo ?? "").toUpperCase() === value.reg.trim().toUpperCase() : d.name.toLowerCase() === q.replace(/^dr\.?\s*/i, "").toLowerCase()))))
       .catch(() => setKnown(true)), 200);

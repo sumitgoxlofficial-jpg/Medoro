@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DRIVEDB_EVENT, LIVE_EVENT } from "@/drivedb/live-events";
+import { hardNavigate } from "@/lib/hard-nav";
 
 export type LiveState = "connecting" | "live" | "offline";
 
@@ -74,7 +75,7 @@ export function useLive(renderedAt?: number): LiveState {
         wanted.current = Math.max(wanted.current, typeof c.at === "number" ? c.at : Date.now());
         schedule(700);
       });
-      es.addEventListener("signedout", () => { closed = true; es?.close(); window.location.href = "/signin"; });
+      es.addEventListener("signedout", () => { closed = true; es?.close(); hardNavigate("/signin"); });
       es.onerror = () => {
         setState(navigator.onLine ? "connecting" : "offline");
         if (es?.readyState === EventSource.CLOSED && !closed) { retry = setTimeout(open, 30_000); }

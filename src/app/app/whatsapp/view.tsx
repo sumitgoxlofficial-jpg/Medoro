@@ -11,6 +11,7 @@ import { dayMonth, hhmm } from "@/lib/dates";
 import type { messageLog, waStatus, WaSettings } from "@/domain/comms/whatsapp";
 import type { PhoneLink } from "@/domain/comms/whatsapp";
 import { connectAction, disconnectAction, linkPhoneAction, retryAction, settingsAction, signupAction, templatesAction } from "./actions";
+import { useBrowserValue } from "@/lib/react-state";
 
 const card = "app-card bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)] p-4 flex flex-col gap-3";
 const ST: Record<string, Tone> = { queued: "gray", sent: "blue", delivered: "teal", read: "green", failed: "red", approved: "green", pending: "amber", rejected: "red", paused: "amber", disabled: "red" };
@@ -23,16 +24,17 @@ type Session = { waba_id?: string; phone_number_id?: string };
 /** Loads Meta's JavaScript SDK once, so the Embedded Signup popup can open straight from the click. */
 function useFacebookSdk(cfg: Signup) {
   const [ready, setReady] = useState(false);
+  const loaded = useBrowserValue(() => !!window.FB, false);
   useEffect(() => {
     if (!cfg) return;
-    if (window.FB) { setReady(true); return; }
+    if (window.FB) return;
     window.fbAsyncInit = () => { window.FB!.init({ appId: cfg.appId, autoLogAppEvents: true, xfbml: true, version: cfg.version }); setReady(true); };
     if (document.getElementById("facebook-jssdk")) return;
     const s = document.createElement("script");
     s.id = "facebook-jssdk"; s.src = "https://connect.facebook.net/en_US/sdk.js"; s.async = true; s.defer = true; s.crossOrigin = "anonymous";
     document.body.appendChild(s);
   }, [cfg]);
-  return ready;
+  return ready || (!!cfg && loaded);
 }
 
 /**

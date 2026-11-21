@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -10,6 +10,7 @@ import { todayISO } from "@/lib/dates";
 import { Segmented } from "@/components/ui/segmented";
 import { EbillImport } from "./purchase-tools";
 import { card, input, label, errText, toPaise, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 type Sup = { id: string; name: string; gstin: string | null };
 type Med = { id: string; name: string; mrpPaise: number; gstRate: number; packUnit: string };
@@ -31,7 +32,7 @@ export function Purchases({ cfg, who, onSaved }: { cfg: Cfg; who: Who; onSaved: 
 function TypedBill({ cfg, who, onSaved }: { cfg: Cfg; who: Who; onSaved: () => void }) {
   const toast = useToast();
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [sups, setSups] = useState<Sup[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [newSup, setNewSup] = useState("");
@@ -43,8 +44,9 @@ function TypedBill({ cfg, who, onSaved }: { cfg: Cfg; who: Who; onSaved: () => v
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { dev.call("supplierList").then(setSups); }, [dev]);
+  useOnChange([!q.trim()], () => { if (!q.trim()) setFound([]); });
   useEffect(() => {
-    if (!q.trim()) { setFound([]); return; }
+    if (!q.trim()) return;
     const t = setTimeout(() => dev.call("search", q, cfg.branchId).then((r) => setFound(r as Med[])), 120);
     return () => clearTimeout(t);
   }, [q, dev, cfg.branchId]);

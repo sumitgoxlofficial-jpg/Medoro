@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
@@ -11,6 +11,7 @@ import { inr, inr0 } from "@/lib/money";
 import type { anomalies, forecast, priceComparison, seasonal, slowStock } from "@/domain/intelligence/service";
 import { useT } from "@/lib/i18n-client";
 import { draftAction, policyAction, reviewAction, seasonalPoAction, thresholdsAction } from "./actions";
+import { useOnChange } from "@/lib/react-state";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
@@ -31,7 +32,7 @@ export function IntelView({ policy, th: thr, fc, prices, slow, anomalies: an, an
   const [fallback, setFallback] = useState(suppliers[0]?.id ?? "");
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [seaSup, setSeaSup] = useState<Record<string, string>>({});
-  useEffect(() => setSel({}), [month]);
+  useOnChange([month], () => setSel({}));
   const need = fc.filter((r) => r.suggestion > 0);
   const setPolicy = (cover: number, safety: number) => start(async () => { const r = await policyAction(cover, safety); if (!r.ok) toast(r.error, "red"); });
   const seaRows = sea.ready ? sea.plan : [];

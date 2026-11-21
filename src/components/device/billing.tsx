@@ -9,6 +9,7 @@ import { useLang, useT } from "@/lib/i18n-client";
 import type { Lang, TFn } from "@/lib/tr";
 import { card, input, errText, unitsOf, type Cfg, type Who } from "./ui";
 import { DoctorPicker } from "./doctors";
+import { useOnChange } from "@/lib/react-state";
 
 type Med = { id: string; name: string; generic: string; mrpPaise: number; packSize: number; packUnit: string; looseUnit: string; allowLoose: number; schedule: string | null; stock: number };
 type Line = { med: Med; qty: number; unit: "pack" | "loose" };
@@ -41,7 +42,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
   const toast = useToast();
   const t = useT();
   const lang = useLang();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [meds, setMeds] = useState<Med[]>([]);
   const [cart, setCart] = useState<Line[]>([]);
@@ -61,16 +62,17 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
   const cap = Math.min(who.discCap, cfg.maxDiscountPct);
 
   const search = useCallback((text: string) => dev.call("search", text, cfg.branchId).then((r) => setMeds(r as Med[])), [dev, cfg.branchId]);
+  const pick = (c: Cust) => { setCust(c); setCusts([]); setPhone(""); setName(""); };
   useEffect(() => { const t = setTimeout(() => search(q), 120); return () => clearTimeout(t); }, [q, search]);
+  useOnChange([custQ.trim().length < 2], () => { if (custQ.trim().length < 2) setCusts([]); });
   useEffect(() => {
-    if (custQ.trim().length < 2) { setCusts([]); return; }
+    if (custQ.trim().length < 2) return;
     const t = setTimeout(() => dev.call("findCustomers", custQ).then((r) => {
       const found = r as Cust[], exact = MOBILE.test(phone) ? found.find((c) => c.phone === phone) : undefined;
       if (exact) pick(exact); else setCusts(found);
     }), 150);
     return () => clearTimeout(t);
   }, [custQ, dev]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pick = (c: Cust) => { setCust(c); setCusts([]); setPhone(""); setName(""); };
   const clearCust = () => { setCust(null); setRedeem(0); if (mode === "credit") setMode("cash"); };
 
   const add = (m: Med) => {

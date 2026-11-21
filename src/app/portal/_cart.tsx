@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n-client";
 import { inr } from "@/lib/money";
 import { placePortalOrderAction, quotePortalAction } from "./actions";
+import { useOnChange } from "@/lib/react-state";
 
 type Item = { medicineId: string; name: string; generic: string; pack: string; company: string; gstRate: number; rate: number; mrp: number | null; minOrderQty: number; stock: { label: string; tone: string }; schemes: string[] };
 type Quote = { medicineId: string; qty: number; freeQty: number; rate: number; discPct: number; scheme: string | null; gstRate: number; problem: string | null; stock: { label: string } };
@@ -26,12 +27,15 @@ export function Shop({ code, items, preset }: { code: string; items: Item[]; pre
     let saved: Record<string, number> = {};
     try { saved = JSON.parse(localStorage.getItem(storeKey) ?? "{}"); } catch { /* storage unavailable */ }
     for (const p of preset) saved[p.medicineId] = p.qty;
+    // Restoring the saved cart into editable state can only happen after hydration (the server has no localStorage).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCart(saved);
   }, [storeKey, preset]);
   useEffect(() => { try { localStorage.setItem(storeKey, JSON.stringify(cart)); } catch { /* ignore */ } }, [cart, storeKey]);
   const lines = useMemo(() => Object.entries(cart).filter(([, q]) => q > 0).map(([medicineId, qty]) => ({ medicineId, qty })), [cart]);
+  useOnChange([!lines.length], () => { if (!lines.length) setQuote([]); });
   useEffect(() => {
-    if (!lines.length) { setQuote([]); return; }
+    if (!lines.length) return;
     const h = setTimeout(async () => { const r = await quotePortalAction(code, lines); if (r.ok) setQuote(r.data as Quote[]); }, 250);
     return () => clearTimeout(h);
   }, [lines, code]);

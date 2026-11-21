@@ -13,6 +13,8 @@ import { isH1 } from "@/lib/rx";
 import { searchTokens } from "@/domain/inventory/salts";
 import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf, type Lang } from "@/lib/tr";
+import { useNow } from "@/lib/use-now";
+import { useBrowserValue } from "@/lib/react-state";
 
 type Line = { key: string; medicineId: string; batchId: string; qty: number; unit?: SaleUnit };
 type Pay = "cash" | "upi" | "card";
@@ -35,8 +37,7 @@ function useOnline() {
 export function OfflinePos() {
   const t = useT(), lang = useLang();
   // Set by the Drive mode counter once this browser holds a pharmacy (see components/device/device-app.tsx).
-  const [driveMode, setDriveMode] = useState(false);
-  useEffect(() => { try { setDriveMode(localStorage.getItem("medoro-drivedb-ready") === "1"); } catch { /* private window */ } }, []);
+  const driveMode = useBrowserValue(() => { try { return localStorage.getItem("medoro-drivedb-ready") === "1"; } catch { return false; } }, false);
   const online = useOnline();
   const [ready, setReady] = useState(false);
   const [dev, setDev] = useState<Device | null>(null);
@@ -63,7 +64,7 @@ export function OfflinePos() {
     const [d, s, qu] = await Promise.all([getDevice(), getSnapshot(), getQueue()]);
     setDev(d ?? null); setSnap(s ?? null); setQueue(qu); setReady(true);
   }, []);
-  useEffect(() => { load().catch(() => setReady(true)); }, [load]);
+  useEffect(() => { void (async () => { try { await load(); } catch { setReady(true); } })(); }, [load]);
 
   const say = (text: string, tone: "red" | "green" | "amber" = "red") => setMsg({ text, tone });
   const left = useMemo(() => (snap ? remaining(snap, queue) : {}), [snap, queue]);
@@ -101,13 +102,14 @@ export function OfflinePos() {
   const dec = (key: string) => setLines(lines.map((x) => (x.key === key ? { ...x, qty: x.qty - 1 } : x)).filter((x) => x.qty > 0));
 
   const d = parseFloat(disc) || 0;
+  const now = useNow(60_000);
   const priceOf = useCallback((l: Line) => unitPrice(batchById.get(l.batchId)?.mrpPaise ?? 0, l.unit, medById.get(l.medicineId)?.packSize ?? 1), [batchById, medById]);
   const totals = useMemo(() => cartTotals(lines.map((l) => ({ mrpPaise: priceOf(l), qty: l.qty, gstRate: medById.get(l.medicineId)?.gstRate ?? 0 })), d), [lines, d, priceOf, medById]);
   const packDef = (medicineId: string) => { const m = medById.get(medicineId); return { packSize: m?.packSize ?? 1, packUnit: m?.packUnit ?? "pack", looseUnit: m?.looseUnit ?? "unit" }; };
   const needsRx = lines.some((l) => medById.get(l.medicineId)?.schedule);
   const needsH1 = lines.some((l) => isH1(medById.get(l.medicineId)?.schedule));
   const pickedReg = snap?.doctors?.find((x) => x.id === doctorId)?.regNo ?? "";
-  const stale = snap ? Date.now() - new Date(snap.takenAt).getTime() > snap.validDays * 86_400_000 : false;
+  const stale = snap ? now - new Date(snap.takenAt).getTime() > snap.validDays * 86_400_000 : false;
   const pending = queue.filter((b) => b.state === "pending");
   const conflicts = queue.filter((b) => b.state === "conflict");
 
@@ -152,6 +154,8 @@ export function OfflinePos() {
   };
   // Send automatically when the connection comes back.
   useEffect(() => {
+    // Starting the sync when the connection comes back is this effect's job (it sets the syncing flag at once).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (online && ready && dev && pending.length && !syncing) sync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, ready, dev]);

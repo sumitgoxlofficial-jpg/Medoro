@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { LineChart, ListPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n-client";
@@ -20,7 +20,7 @@ const CONF: Record<string, string> = { high: "bg-green-50 text-green-800 border-
  */
 export function ForecastCard({ cfg, refresh, onAdd }: { cfg: Cfg; refresh: number; onAdd: (items: { medicineId: string; qty: number }[]) => void }) {
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [f, setF] = useState<ForecastScreen | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [low, setLow] = useState(false);

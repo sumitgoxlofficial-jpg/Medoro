@@ -7,6 +7,7 @@ import { inr } from "@/lib/money";
 import { useT } from "@/lib/i18n-client";
 import type { SaleMedicine, substitutesForSale } from "@/domain/sales/service";
 import { substitutesAction } from "./catalog-actions";
+import { useOnChange } from "@/lib/react-state";
 
 type Subs = Awaited<ReturnType<typeof substitutesForSale>>;
 
@@ -17,10 +18,10 @@ export function SubstitutesPanel({ medicine, reason, onAdd, onClose }: { medicin
   const [data, setData] = useState<Subs | null>(null);
   const [hl, setHl] = useState(0);
   const box = useRef<HTMLDivElement>(null);
+  useOnChange([medicine, sort], () => { if (medicine) { setData(null); setHl(0); } });
   useEffect(() => {
     if (!medicine) return;
     let live = true;
-    setData(null); setHl(0);
     substitutesAction(medicine.id, sort).then((d) => { if (live) setData(d); }, () => live && setData({ of: null, rows: [] }));
     return () => { live = false; };
   }, [medicine, sort]);

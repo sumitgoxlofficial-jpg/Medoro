@@ -4,14 +4,18 @@ import Link from "next/link";
 import { toMin } from "@/staff/hrms/constants";
 import { checkIn, idleEnd, idleStart } from "../actions";
 import { Modal, btnCls, primaryCls, useRun } from "./kit";
+import { useNow } from "@/lib/use-now";
+import { useBrowserValue } from "@/lib/react-state";
 
 /** Opens the camera, takes one small JPEG and hands it back. The picture is only sent when the person presses the button. */
 export function SelfieModal({ title, busy, onClose, onDone, note }: { title: string; busy: boolean; onClose: () => void; onDone: (dataUrl: string) => void; note?: string }) {
   const video = useRef<HTMLVideoElement>(null);
-  const [shot, setShot] = useState<string | null>(null), [err, setErr] = useState(""), [ready, setReady] = useState(false);
+  const [shot, setShot] = useState<string | null>(null), [camErr, setErr] = useState(""), [ready, setReady] = useState(false);
+  const noCamera = useBrowserValue(() => !navigator.mediaDevices?.getUserMedia, false);
+  const err = noCamera ? "This browser can’t use the camera. Use Chrome, Edge or Safari on a secure (https) page." : camErr;
   useEffect(() => {
     let stream: MediaStream | null = null, stopped = false;
-    if (!navigator.mediaDevices?.getUserMedia) { setErr("This browser can’t use the camera. Use Chrome, Edge or Safari on a secure (https) page."); return; }
+    if (!navigator.mediaDevices?.getUserMedia) return;
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false })
       .then((s) => { if (stopped) { s.getTracks().forEach((t) => t.stop()); return; } stream = s; if (video.current) { video.current.srcObject = s; void video.current.play().then(() => setReady(true)).catch(() => setReady(true)); } })
       .catch(() => setErr("The camera isn’t available. Allow camera access for this site in your browser, then try again, or ask HR to mark your attendance."));
@@ -49,9 +53,9 @@ export function SelfieModal({ title, busy, onClose, onDone, note }: { title: str
  */
 export function PhotoCheckin({ lateAfter }: { lateAfter: string }) {
   const { run, busy } = useRun();
-  const [until, setUntil] = useState(0), [, tick] = useState(0);
-  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 30_000); return () => clearInterval(t); }, []);
-  if (Date.now() < until) return null;
+  const [until, setUntil] = useState(0);
+  const now = useNow(30_000);
+  if (now < until) return null;
   return (
     <SelfieModal title="Check in: take your photo" busy={busy} note={`Take a photo to check in for today. Check-in after ${lateAfter} counts as late. If your camera isn’t working, ask HR to mark your attendance.`}
       onClose={() => setUntil(Date.now() + 10 * 60_000)} onDone={(img) => run(() => checkIn(img), (x) => (x.status === "late" ? `Checked in (late: after ${lateAfter}).` : "Checked in. Have a great day."))} />
@@ -80,10 +84,11 @@ const inLunch = (lunch: { from: string; to: string }) => {
  * (work in another window is invisible to us), nothing is typed or captured, and no other app is watched.
  */
 export function IdleWatcher({ minutes, active, lunch }: { minutes: number; active: boolean; lunch: { from: string; to: string } }) {
-  const last = useRef(Date.now()), idle = useRef(false), asked = useRef(0), audio = useRef<AudioContext | null>(null);
+  const last = useRef(0), idle = useRef(false), asked = useRef(0), audio = useRef<AudioContext | null>(null);
   const [ask, setAsk] = useState<{ left: number } | null>(null), [since, setSince] = useState<number | null>(null);
   useEffect(() => {
     if (!active || minutes <= 0) return;
+    last.current = Date.now(); // activity is measured from when monitoring starts
     const resume = () => { last.current = Date.now(); if (idle.current) { idle.current = false; setSince(null); void idleEnd(); } if (asked.current) { asked.current = 0; setAsk(null); } };
     const onVis = () => { if (document.visibilityState === "visible") last.current = Date.now(); };
     const events = ["mousemove", "mousedown", "keydown", "scroll", "wheel", "touchstart"] as const;

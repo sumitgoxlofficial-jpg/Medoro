@@ -119,6 +119,8 @@ export function InvoiceGenerator() {
   const [printing, setPrinting] = useState(false);
 
   // The date is filled in on the device, so the server-rendered page doesn't carry the build or request date.
+  // Filling the editable date field from the device's clock after hydration keeps the server render date-free.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHead((h) => (h.date ? h : { ...h, date: today() })); }, []);
 
   useEffect(() => {

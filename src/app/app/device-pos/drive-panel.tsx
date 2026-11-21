@@ -57,7 +57,7 @@ export function DrivePanel({ access, error }: { access: Access; error: string | 
       setSt(s);
     } catch { /* shown via lastError next time */ }
   }, [dev]);
-  useEffect(() => { if (access) void load(); }, [access, load]);
+  useEffect(() => { if (access) void (async () => { await load(); })(); }, [access, load]);
   useEffect(() => { if (access?.status !== "approved") return; const t = setInterval(load, 10_000); return () => clearInterval(t); }, [access?.status, load]);
 
   const head = (icon: React.ReactNode) => <div className="flex items-center gap-2 font-semibold text-[15px]">{icon}Google Drive</div>;
@@ -146,7 +146,7 @@ export function DevicesPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const t = useT();
   const load = useCallback(async () => { const r = await driveDevicesAction(); if (r.ok) setRows(r.data); else toast(r.error, "red"); }, [toast]);
-  useEffect(() => { void load(); const t = setInterval(load, 20_000); return () => clearInterval(t); }, [load]);
+  useEffect(() => { void (async () => { await load(); })(); const t = setInterval(load, 20_000); return () => clearInterval(t); }, [load]);
 
   const approve = async (d: Device) => {
     setBusy(d.deviceId);

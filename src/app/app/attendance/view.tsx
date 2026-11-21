@@ -11,6 +11,7 @@ import { useT } from "@/lib/i18n-client";
 import { hm } from "@/domain/identity/attendance-format";
 import type { monthOf, teamMonth, today } from "@/domain/identity/attendance";
 import { fixDayAction, punchInAction, punchOutAction } from "./actions";
+import { istDay } from "@/lib/use-now";
 
 type Mine = Awaited<ReturnType<typeof monthOf>>;
 type Team = Awaited<ReturnType<typeof teamMonth>>;
@@ -60,7 +61,7 @@ export function AttendanceView({ ym, now, mine, team, all, multiBranch, readOnly
 
 function Fix({ who, onClose }: { who: { userId: string; name: string }; onClose: () => void }) {
   const t = useT(), toast = useToast(), router = useRouter();
-  const [day, setDay] = useState(new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10)), [inT, setIn] = useState("09:00"), [outT, setOut] = useState("18:00"), [reason, setReason] = useState(""), [pending, start] = useTransition();
+  const [day, setDay] = useState(() => istDay(Date.now())), [inT, setIn] = useState("09:00"), [outT, setOut] = useState("18:00"), [reason, setReason] = useState(""), [pending, start] = useTransition();
   const save = () => start(async () => { const r = await fixDayAction({ userId: who.userId, day, in: inT, out: outT, reason }); if (!r.ok) return toast(r.error, "red"); router.refresh(); onClose(); });
   return (
     <Modal open title={`${t("Fix a day")} · ${who.name}`} onClose={onClose}>

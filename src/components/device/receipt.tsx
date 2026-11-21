@@ -25,6 +25,12 @@ function IrnQr({ text }: { text: string }) {
 
 const exp = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(2, 4)}`;
 
+// Receipt layout pieces (module level, so they aren't re-created on every render).
+const Row = ({ k, v, b }: { k: React.ReactNode; v: React.ReactNode; b?: boolean }) => (
+  <div className={`flex justify-between gap-3 ${b ? "font-bold" : ""}`}><span>{k}</span><span className="tabular-nums whitespace-nowrap">{v}</span></div>
+);
+const Rule = ({ solid }: { solid?: boolean }) => <div className={`my-1.5 border-t border-black ${solid ? "" : "border-dashed"}`} />;
+
 /** A GST tax invoice for a device bill, ready for an 80 mm thermal printer. Stays in English: it is a legal document. */
 export function ReceiptView({ d, pharmacy }: { d: SaleDetail; pharmacy: Pharmacy | null }) {
   const s = d.sale as Record<string, string | number | null>;
@@ -37,10 +43,6 @@ export function ReceiptView({ d, pharmacy }: { d: SaleDetail; pharmacy: Pharmacy
     slabs.set(l.gstRate, { taxable: x.taxable + l.taxablePaise, tax: x.tax + amt - l.taxablePaise });
   }
   const units = d.lines.reduce((n, l) => n + l.qty, 0);
-  const Row = ({ k, v, b }: { k: React.ReactNode; v: React.ReactNode; b?: boolean }) => (
-    <div className={`flex justify-between gap-3 ${b ? "font-bold" : ""}`}><span>{k}</span><span className="tabular-nums whitespace-nowrap">{v}</span></div>
-  );
-  const Rule = ({ solid }: { solid?: boolean }) => <div className={`my-1.5 border-t border-black ${solid ? "" : "border-dashed"}`} />;
   return (
     <div className="receipt-print font-sans text-[11.5px] leading-[1.45] text-black bg-white tabular-nums">
       {/* Seller */}
@@ -191,6 +193,8 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
     } catch (e) { toast(errText(e), "red"); } finally { setBusy(false); }
   };
   /** Sends the bill's PDF through the pharmacy's WhatsApp (via Medoro, which keeps nothing). */
+  const [sent, setSent] = useState<{ status: string; error: string | null; sentAt: string }[]>([]);
+  const loadSent = async () => { if (id) setSent(await dev.call("billMessages", id).catch(() => [])); };
   const sendPdf = async () => {
     if (!who?.whatsapp || !d) return;
     const phone = (d.sale.customerPhone as string | null) || prompt(t("Customer’s WhatsApp number (10 digits):"))?.trim();
@@ -212,9 +216,7 @@ export function ReceiptModal({ d: given, pharmacy, onClose, autoPrint = false, w
     void sendPdf();
   }, [sendWhatsApp, given, id]); // eslint-disable-line react-hooks/exhaustive-deps
   // This bill's WhatsApp sends and how far the latest got (updated by the counter's minute check).
-  const [sent, setSent] = useState<{ status: string; error: string | null; sentAt: string }[]>([]);
-  const loadSent = async () => { if (id) setSent(await dev.call("billMessages", id).catch(() => [])); };
-  useEffect(() => { void loadSent(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void (async () => { await loadSent(); })(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const b2b = !!d?.sale.customerGstin;
   const close = () => { setFresh(null); onClose(); };
   const sale = d?.sale as Record<string, string | number | null> | undefined;

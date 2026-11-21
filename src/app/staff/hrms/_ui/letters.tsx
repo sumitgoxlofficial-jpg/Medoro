@@ -4,6 +4,7 @@ import type { Letter } from "@/staff/hrms/letters";
 import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, PROMOTION_LETTER, letterLabel, type LetterType } from "@/staff/hrms/letters";
 import { emailOffer, getLetter, getOfferLetter, sendLetters } from "../actions";
 import { Empty, Field, Modal, Pill, Tabs, btnCls, cx, inputCls, primaryCls, useRun } from "./kit";
+import { useOnChange } from "@/lib/react-state";
 
 /** The letter as it prints: letterhead with the logo, reference and date, the terms, numbered clauses, tables and signature boxes. */
 export function LetterSheet({ l }: { l: Letter }) {
@@ -106,9 +107,9 @@ export function LettersPanel({ staffId, name, mail = false, onClose, promotions 
   const [pick, setPick] = useState<Set<LetterType>>(new Set(JOINING_LETTERS)), [email, setEmail] = useState(mail), [sendOpen, setSendOpen] = useState(false);
   const promo = type === PROMOTION_LETTER, exit = EXIT_LETTERS.includes(type), anyExit = [...pick].some((t) => EXIT_LETTERS.includes(t));
   const forDay = promo ? promoDay : exit ? day : undefined;
+  useOnChange([staffId, type, forDay], () => { setLetter(null); setErr(""); });
   useEffect(() => {
     let live = true;
-    setLetter(null); setErr("");
     getLetter(staffId, type, forDay)
       .then((r) => { if (!live) return; if (r.ok) setLetter(r.data); else setErr(r.error); })
       .catch(() => { if (live) setErr(LOAD_FAILED); });

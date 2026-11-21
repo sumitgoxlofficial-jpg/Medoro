@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useBrowserValue } from "@/lib/react-state";
 
 /** Sticky table of contents that highlights the section in view. */
 export function Toc({ items }: { items: { id: string; title: string }[] }) {
-  const [active, setActive] = useState(items[0]?.id);
+  const [seen, setActive] = useState<string | null>(null);
+  const hash = useBrowserValue(() => location.hash.slice(1), "");
+  // Until a section scrolls into view: the one in the address (#…), else the first.
+  const active = seen ?? (hash || items[0]?.id);
   useEffect(() => {
-    const h = location.hash.slice(1); if (h) setActive(h);
     const io = new IntersectionObserver((es) => { const v = es.find((e) => e.isIntersecting); if (v) setActive(v.target.id); }, { rootMargin: "-20% 0px -70% 0px" });
     items.forEach((i) => { const el = document.getElementById(i.id); if (el) io.observe(el); });
     return () => io.disconnect();

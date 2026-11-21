@@ -18,6 +18,7 @@ import { isMasked } from "@/lib/mask";
 import { mapsLink, ORDER_PAY, ORDER_SOURCES, PAY_LABEL, SOURCE_LABEL, STATUS_LABEL, type OrderPay, type OrderStatus } from "@/domain/orders/contracts";
 import type { OrderView, recentSettlements, riderCash, riders } from "@/domain/orders/service";
 import type { NotifyEvent } from "@/domain/orders/notify";
+import { useOnChange } from "@/lib/react-state";
 import {
   cancelAction, confirmAction, createOrderAction, deliverAction, dispatchAction, packAction, reassignAction, returnAction, saveTemplatesAction, searchMedsAction, settleAction, uploadRxAction,
 } from "./actions";
@@ -202,7 +203,8 @@ function NewOrder({ open, onClose, customers, canCredit }: { open: boolean; onCl
   const [q, setQ] = useState(""), [hits, setHits] = useState<Med[]>([]);
   const [rx, setRx] = useState<File | null>(null);
   const [cq, setCq] = useState("");
-  useEffect(() => { if (!q.trim()) { setHits([]); return; } const h = setTimeout(() => searchMedsAction(q).then(setHits), 250); return () => clearTimeout(h); }, [q]);
+  useOnChange([!q.trim()], () => { if (!q.trim()) setHits([]); });
+  useEffect(() => { if (!q.trim()) return; const h = setTimeout(() => searchMedsAction(q).then(setHits), 250); return () => clearTimeout(h); }, [q]);
   const custHits = useMemo(() => {
     const s = cq.trim().toLowerCase();
     return s.length < 2 ? [] : customers.filter((c) => c.name.toLowerCase().includes(s) || (isMasked(c.phone) ? s.replace(/\D/g, "").length >= 4 && s.replace(/\D/g, "").endsWith(c.phone!.replace(/\D/g, "")) : (c.phone ?? "").includes(s))).slice(0, 6);

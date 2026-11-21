@@ -26,6 +26,7 @@ import {
 } from "@/app/app/actions";
 import { Input } from "@/components/ui/field";
 import { signOut } from "@/app/(auth)/actions";
+import { useOnChange } from "@/lib/react-state";
 
 export type ShellProps = {
   tenantName: string; branchCount: number; userName: string; userEmail: string; role: string; realRole: string; canViewAs: boolean;
@@ -70,6 +71,7 @@ function ShellInner(p: ShellProps) {
   const offlineReady = useOfflineAgent(p.branchId);
   const [, start] = useTransition();
 
+  const showShortcuts = () => { setMenu(false); toast("F2 search · F4 hold · F9 complete sale · Ctrl+J Ask AI · Esc close · ? shortcuts", "gray"); };
   useEffect(() => {
     const on = () => { setNarrow(window.innerWidth < 1180); setPhone(window.innerWidth < 768); };
     on(); window.addEventListener("resize", on);
@@ -79,7 +81,7 @@ function ShellInner(p: ShellProps) {
     return () => { window.removeEventListener("resize", on); window.removeEventListener("medoro:ai", ask); };
   }, []);
 
-  useEffect(() => { setDrawer(false); setMenu(false); }, [path]);
+  useOnChange([path], () => { setDrawer(false); setMenu(false); });
 
   // Result of Profile → Connect Google (the OAuth callback lands on /app?google=…).
   useEffect(() => {
@@ -111,7 +113,6 @@ function ShellInner(p: ShellProps) {
     return () => window.removeEventListener("keydown", k);
   });
 
-  const showShortcuts = () => { setMenu(false); toast("F2 search · F4 hold · F9 complete sale · Ctrl+J Ask AI · Esc close · ? shortcuts", "gray"); };
 
   const search = useSearchParams();
   const base = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));

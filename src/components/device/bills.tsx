@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Printer, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -11,6 +11,7 @@ import { useT } from "@/lib/i18n-client";
 import { hhmm, todayISO } from "@/lib/dates";
 import { ReceiptModal, printReceipt } from "./receipt";
 import { card, input, errText, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 type Bill = { id: string; invoiceNo: string; totalPaise: number; payMode: string; at: string; customer: string | null; items: number; returned: number };
 
@@ -18,7 +19,7 @@ type Bill = { id: string; invoiceNo: string; totalPaise: number; payMode: string
 export function Bills({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: number }) {
   const toast = useToast();
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [day, setDay] = useState(todayISO());
   const [q, setQ] = useState("");
   const [bills, setBills] = useState<Bill[]>([]);
@@ -106,7 +107,7 @@ function ReturnModal({ d, cfg, who, onClose, onDone }: { d: SaleDetail | null; c
   const [condition, setCondition] = useState<"sealed" | "opened" | "damaged">("sealed");
   const [mode, setMode] = useState<"cash" | "upi" | "credit">("cash");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setQty({}); setReason(""); setCondition("sealed"); setMode("cash"); }, [d]);
+  useOnChange([d], () => { setQty({}); setReason(""); setCondition("sealed"); setMode("cash"); });
   if (!d) return null;
   const lines = Object.entries(qty).filter(([, n]) => n > 0).map(([saleItemId, n]) => ({ saleItemId, qty: n }));
   const go = async () => {
