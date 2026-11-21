@@ -96,7 +96,7 @@ export default async function LocationPage({ params }: Props) {
 
       <Section id="nearby" title="Nearby and related">
         <LinkGrid links={[...nearby, ...TOOL_LINKS.slice(0, 2), COMPARE_LINKS[0]]} />
-        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href={HUBS.locations} className="underline underline-offset-4">every city and state</Link> or <Link href="/#pricing" className="underline underline-offset-4">pricing</Link>.</p>
+        <p className="m-0 text-[16px] text-[var(--s-ink-2)]">See <Link href={HUBS.locations} className="underline underline-offset-4">every city and state</Link> or <Link href="/pharmacy#pricing" className="underline underline-offset-4">pricing</Link>.</p>
       </Section>
 
       <CtaBand title={`Start billing on Medoro in ${l.name} tomorrow.`} text="Import your stock today, set up your counters this evening and bill on Medoro from opening time. 7 days free, no card needed." />

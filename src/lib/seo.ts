@@ -138,8 +138,8 @@ export function brandGraph(): JsonLdGraph {
           lowPrice: String(Math.min(...prices)),
           highPrice: String(Math.max(...prices)),
           offerCount: PLANS.length,
-          url: absoluteUrl("/#pricing"),
-          offers: PLANS.map((p) => ({ "@type": "Offer", name: `${p.name} plan`, price: String(p.m), priceCurrency: "INR", category: "subscription", url: absoluteUrl("/#pricing") })),
+          url: absoluteUrl("/pharmacy#pricing"),
+          offers: PLANS.map((p) => ({ "@type": "Offer", name: `${p.name} plan`, price: String(p.m), priceCurrency: "INR", category: "subscription", url: absoluteUrl("/pharmacy#pricing") })),
         },
         publisher: { "@id": ORG_ID },
       },
@@ -164,7 +164,7 @@ export function aboutPageSchema(o: { name: string; description: string; path: st
 }
 
 /** Plans as schema.org offers (prices include GST, in rupees per month). */
-const OFFERS = PLANS.map((p) => ({ "@type": "Offer", name: `${p.name} plan`, price: String(p.m), priceCurrency: "INR", url: absoluteUrl("/#pricing"), category: "subscription" }));
+const OFFERS = PLANS.map((p) => ({ "@type": "Offer", name: `${p.name} plan`, price: String(p.m), priceCurrency: "INR", url: absoluteUrl("/pharmacy#pricing"), category: "subscription" }));
 
 /** The Medoro product, for feature, comparison, location and solution pages. */
 export function softwareApplicationSchema(o: { name?: string; description: string; path: string; featureList?: string[] }): JsonLdObject {

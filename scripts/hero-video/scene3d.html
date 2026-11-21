@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Medoro hero video scene (3D)</title>
+<!--
+  Photoreal source of public/site/hero-loop.mp4 / .webm: glossy capsules, tablets and a foil blister pack floating in a
+  studio light, with reflections and depth of field. Rendered frame by frame by render.mjs (window.renderAt(t)).
+  Every motion is periodic in LOOP seconds, so the video loops without a seam.
+-->
+<style>html, body { margin: 0; overflow: hidden; background: #F4FAF9; } canvas { display: block; }</style>
+<script type="importmap">{ "imports": { "three": "/three/build/three.module.js", "three/addons/": "/three/examples/jsm/" } }</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+const W = innerWidth, H = innerHeight, LOOP = 12, TAU = Math.PI * 2;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// Studio backdrop: soft teal on the left, warm on the right, bright in the middle.
+const bg = document.createElement("canvas"); bg.width = 1024; bg.height = 576;
+const g = bg.getContext("2d");
+const lin = g.createLinearGradient(0, 0, 1024, 0);
+lin.addColorStop(0, "#CFF3EC"); lin.addColorStop(.45, "#FFFFFF"); lin.addColorStop(1, "#FFF1D6");
+g.fillStyle = lin; g.fillRect(0, 0, 1024, 576);
+const rad = g.createRadialGradient(512, 250, 40, 512, 250, 520);
+rad.addColorStop(0, "rgba(255,255,255,.9)"); rad.addColorStop(1, "rgba(255,255,255,0)");
+g.fillStyle = rad; g.fillRect(0, 0, 1024, 576);
+const bgTex = new THREE.CanvasTexture(bg); bgTex.colorSpace = THREE.SRGBColorSpace;
+// On an unlit plane behind everything (not scene.background) so tone mapping doesn't grey it.
+const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: bgTex, toneMapped: false, depthWrite: false }));
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(4, 6, 8); scene.add(key);
+const rim = new THREE.DirectionalLight(0x9fe7dc, 1.4); rim.position.set(-6, 2, -4); scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffffff, .35));
+
+const camera = new THREE.PerspectiveCamera(32, W / H, .1, 100);
+{ const d = 40, h = 2 * d * Math.tan(THREE.MathUtils.degToRad(16)) * 1.15; backdrop.scale.set(h * W / H, h, 1); backdrop.position.z = -d; backdrop.renderOrder = -1; camera.add(backdrop); scene.add(camera); }
+
+// ── Materials ──
+const glossy = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: .22, clearcoat: 1, clearcoatRoughness: .08, sheen: .2 });
+const MAT = {
+  teal: glossy(0x14B8A6), deep: glossy(0x0B5E5B), coral: glossy(0xF07A70), gold: glossy(0xF2B93B), white: glossy(0xF4F6F5),
+  tablet: new THREE.MeshPhysicalMaterial({ color: 0xF7F7F2, roughness: .62, sheen: .6, sheenColor: new THREE.Color(0xffffff) }),
+  tabletY: new THREE.MeshPhysicalMaterial({ color: 0xF6D27A, roughness: .55, sheen: .4 }),
+  groove: new THREE.MeshStandardMaterial({ color: 0xC9CCC4, roughness: .8 }),
+  foil: new THREE.MeshStandardMaterial({ color: 0xF2F4F5, metalness: 1, roughness: .18 }),
+  bubble: new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: .04, thickness: .15, ior: 1.45, clearcoat: 1, transparent: true }),
+};
+
+// ── Shapes ──
+function halfCapsule(r, len, top) {
+  // Lathe profile: a hemispherical end and a straight body; the cap half is a touch wider and overlaps the body.
+  const pts = [], n = 24;
+  for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 + (i / n) * (Math.PI / 2); pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r - len)); }
+  pts.push(new THREE.Vector2(r, top ? .12 : -.02)); pts.push(new THREE.Vector2(r * .9, top ? .12 : -.02));
+  const geo = new THREE.LatheGeometry(pts, 64);
+  if (top) geo.rotateZ(Math.PI);
+  return geo;
+}
+function capsule(a, b, s = 1) {
+  const grp = new THREE.Group();
+  const body = new THREE.Mesh(halfCapsule(.34, .5, false), MAT[a]);
+  const cap = new THREE.Mesh(halfCapsule(.355, .5, true), MAT[b]);
+  grp.add(body, cap); grp.scale.setScalar(s); return grp;
+}
+function tablet(mat = "tablet", s = 1) {
+  const pts = [new THREE.Vector2(0, -.16)];
+  for (let i = 0; i <= 12; i++) { const a = -Math.PI / 2 + (i / 12) * Math.PI; pts.push(new THREE.Vector2(.48 + Math.cos(a) * .16, Math.sin(a) * .16)); }
+  pts.push(new THREE.Vector2(0, .16));
+  const grp = new THREE.Group();
+  const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 64), MAT[mat]);
+  const groove = new THREE.Mesh(new THREE.BoxGeometry(.62, .03, .05), MAT.groove); groove.position.y = .155;
+  grp.add(m, groove); grp.scale.setScalar(s); return grp;
+}
+function blister(s = 1) {
+  const grp = new THREE.Group();
+  const foil = new THREE.Mesh(new THREE.BoxGeometry(2.6, .04, 1.3), MAT.foil); grp.add(foil);
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 2; j++) {
+    const x = -1.04 + i * .52, z = -.3 + j * .6;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(.22, 32, 16, 0, TAU, 0, Math.PI / 2), MAT.bubble);
+    dome.scale.y = .7; dome.position.set(x, .02, z); grp.add(dome);
+    if (!(i === 3 && j === 1)) { const tb = tablet("tablet", .34); tb.position.set(x, .07, z); grp.add(tb); }
+  }
+  grp.scale.setScalar(s); return grp;
+}
+
+// ── Cast: [object, base position, drift amplitude, spin turns per loop (x, y, z), phase] ──
+const items = [];
+const add = (obj, pos, amp, spin, phase = 0, rise = 0, rot0 = new THREE.Euler(phase, phase * 1.7, phase * .6)) => { scene.add(obj); items.push({ obj, pos: new THREE.Vector3(...pos), amp: new THREE.Vector3(...amp), spin, phase, rise, rot0 }); };
+// Foil packs always show their face to the camera (tilted up, turning flat), never their plain back.
+const facing = (phase) => new THREE.Euler(1.2, phase, .15);
+
+// Hero objects framing the headline (left and right), in focus.
+add(capsule("white", "teal", 1.5), [-5.2, 1.6, 0], [.25, .35, .2], [1, 0, 1], .4);
+add(capsule("white", "coral", 1.25), [5.4, 2.1, -.5], [.3, .3, .2], [0, 1, 1], 1.7);
+add(blister(1.2), [5.0, -1.9, .2], [.2, .25, .15], [0, 1, 0], 2.4, 0, facing(2.4));
+add(tablet("tablet", 1.25), [-4.8, -2.1, .6], [.2, .3, .2], [1, 1, 0], .9);
+add(tablet("tabletY", .9), [-2.6, 3.1, -1.5], [.2, .2, .2], [1, 0, 1], 3.1);
+add(capsule("deep", "gold", 1), [2.9, 3.4, -2], [.2, .25, .2], [1, 1, 0], 4.2);
+// Far background, soft.
+add(capsule("white", "teal", 1), [-8, -.5, -7], [.3, .4, .3], [0, 1, 1], 2.2);
+add(tablet("tablet", 1), [8.5, .4, -8], [.3, .4, .3], [1, 1, 0], 5.1);
+add(capsule("white", "gold", 1), [.5, -3.8, -6], [.4, .3, .3], [1, 0, 1], 1.1);
+add(blister(1), [-3.5, -4.2, -9], [.3, .3, .3], [0, 1, 0], 3.6, 0, facing(3.6));
+// Foreground, blurred: drift up through the frame once per loop.
+add(capsule("white", "teal", 2.4), [-2.2, 0, 4.5], [0, 0, 0], [1, 1, 0], .3, 1);
+add(tablet("tablet", 2.2), [3.6, 0, 4], [0, 0, 0], [1, 0, 1], 2.1, 1);
+add(capsule("white", "coral", 1.4), [-6.5, 0, -3], [0, 0, 0], [0, 1, 1], 3.3, 1);
+add(tablet("tabletY", 1), [7, 0, -4], [0, 0, 0], [1, 1, 0], 4.4, 1);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bokeh = new BokehPass(scene, camera, { focus: 13, aperture: .0042, maxblur: .012 });
+composer.addPass(bokeh);
+composer.addPass(new OutputPass());
+
+window.renderAt = (t) => {
+  const u = (t % LOOP) / LOOP;
+  camera.position.set(Math.sin(u * TAU) * .6, Math.cos(u * TAU) * .25 + .2, 13);
+  camera.lookAt(0, .2, 0);
+  items.forEach((it, i) => {
+    const p = it.phase;
+    it.obj.position.set(
+      it.pos.x + it.amp.x * Math.sin(u * TAU + p),
+      it.pos.y + it.amp.y * Math.sin(u * TAU * 2 + p * 1.3) + (it.rise ? (((u + p / TAU) % 1) * 16 - 8) : 0),
+      it.pos.z + it.amp.z * Math.cos(u * TAU + p * .7));
+    it.obj.rotation.set(it.rot0.x + it.spin[0] * u * TAU, it.rot0.y + it.spin[1] * u * TAU, it.rot0.z + it.spin[2] * u * TAU);
+  });
+  composer.render();
+};
+window.renderAt(0);
+window.ready = true;
+</script>
+</body>
+</html>

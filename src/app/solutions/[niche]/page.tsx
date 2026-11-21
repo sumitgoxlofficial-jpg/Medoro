@@ -48,7 +48,7 @@ export default async function SolutionPage({ params }: Props) {
         <div className="rounded-xl border border-[var(--s-brand)] bg-[var(--s-brand-tint)]/40 p-6 flex flex-col gap-1.5">
           <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-brand)]">Plan that usually fits</span>
           <p className="m-0 text-[18px] font-semibold text-[var(--s-ink)]">{s.plan[0]}</p>
-          <p className="m-0 text-[15.5px] leading-[1.55] text-[var(--s-ink-2)]">{s.plan[1]} <Link href="/#pricing" className="underline underline-offset-4">Compare plans</Link>.</p>
+          <p className="m-0 text-[15.5px] leading-[1.55] text-[var(--s-ink-2)]">{s.plan[1]} <Link href="/pharmacy#pricing" className="underline underline-offset-4">Compare plans</Link>.</p>
         </div>
       </Section>
 

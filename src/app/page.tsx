@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import {
-  ArrowRight, Check, Cloud, CloudOff, Download, Eye, FileCheck, HardDriveUpload, Headset, KeyRound, Languages, Layers, Lock, MessageCircle, Monitor, PackageSearch, Plus,
-  ReceiptIndianRupee, ScrollText, Server, ShieldCheck, Stethoscope, UserCheck, Users, Database, ScanBarcode, Warehouse,
+  ArrowRight, Check, CloudOff, Database, FileCheck, Flag, HeartPulse, IndianRupee, Languages, Layers, Lock, MessageCircle, Plus, ReceiptIndianRupee,
+  ScanBarcode, ShieldCheck, Sparkles, Stethoscope, Store, Truck, UserCheck, Warehouse, X,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
 import { SiteLangCarryOver } from "@/components/site/header";
-import { FeatureTabs, Hero, Marquee, Pricing, ProductTour } from "@/components/site/interactive";
+import { Marquee } from "@/components/site/interactive";
 import { PRODUCTS } from "@/staff/constants";
 import { DIST_PLANS } from "@/domain/distribution/plans";
-import { BRAND_FAQ, WHY_SWITCH_HEADING } from "@/data/brand";
+import { BRAND_FAQ } from "@/data/brand";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SOFTWARE_ID, WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
+import { WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
-import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
-import { Aurora, FloatingShapes, SavingsArt } from "@/components/site/decor";
-import { MotivationArt } from "@/components/site/motivation-art";
+import { Aurora } from "@/components/site/decor";
+import { HeroVideo } from "@/components/site/hero-video";
 
-// The brand name first, then the category phrases people search for.
-const TITLE = "Medoro — #1 Medical Billing SaaS & Pharmacy Stock Management Software in India";
-const DESC = "Medoro (medoro.in) is an AI-powered Medical Billing SaaS, Pharmacy Inventory, Batch & Expiry Tracking, and GST Billing Software for Indian medical stores, clinics, and pharmacy chains. Start your free trial.";
-const KEYWORDS = ["Medoro", "Medoro billing", "Medoro pharmacy", "Medoro SaaS", "medical billing saas", "pharmacy billing software india", "medical store stock management saas", "chemist billing software", "pharmacy stock management software", "GST billing software for medical store"];
+/**
+ * The main Medoro page: what Medoro is, why it is built only for Indian pharma, what makes it different, and the
+ * two products. Each product has its own landing page: /pharmacy (retail) and /distribution (wholesale).
+ */
+const TITLE = "Medoro — Pharma Software Made in India for Indian Pharmacies & Distributors";
+const DESC = "Medoro (medoro.in) is Indian pharma software built only for Indian pharma: Medoro Pharmacy for medical stores and chains, and Medoro Distribution for pharma distributors, stockists and C&F agents. GST, batches, expiry, Schedule H1 and हिंदी built in.";
+const KEYWORDS = ["Medoro", "Medoro software", "Indian pharma software", "pharmacy software india", "pharma distribution software", "medical store software", "pharma ERP india", "Medoro Pharmacy", "Medoro Distribution"];
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLang();
@@ -39,117 +41,52 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const STANDARDS: [typeof Check, string, string][] = [
-  [ReceiptIndianRupee, "GST", "MRP-inclusive, CGST, SGST and IGST"],
-  [Stethoscope, "Schedule H & H1", "Prescriber captured on the bill"],
-  [Layers, "FEFO", "Earliest expiry sells first"],
-  [UserCheck, "DPDP", "Customer consent on record"],
-  [CloudOff, "Offline", "Billing on the shop network"],
-  [Languages, "हिंदी", "Full Hindi interface"],
-];
-const WORKS_WITH = ["WhatsApp Business API", "Google Drive", "UPI", "Tally", "Excel and CSV", "80 mm thermal printers", "Barcode scanners", "Windows", "macOS", "Linux", "Chrome on any device"];
-
-const LEAKS: [string, string, string][] = [
-  ["Stock that expires on the shelf", "Batches expiring in the next 90 days are listed with the loss they will cause, early enough to return them to the distributor or move them to a branch that sells them.", "/#product"],
-  ["A queue at the counter", "Keyboard-first billing with brand, salt and barcode search. The batch is picked for you and prescription details are asked only when the medicine needs them.", "/#product"],
-  ["Month-end GST and the CA’s calls", "Every bill already carries its taxable value and tax split. Summaries are ready on the 1st, and your CA gets exports in the format they use.", "/#product"],
-  ["Not knowing the numbers when you’re away", "Sales, cash, margin and dues for every branch on your phone, with the expiry and low-stock lists that need your attention.", "/#product"],
-];
-
-// The two MEDORO products. "From" prices are read from the same tables the licence server and the app use.
-const FAMILY = [
-  { id: "pharmacy", Icon: ScanBarcode, name: "Medoro Pharmacy", for: "Medical stores, pharmacy chains and hospital pharmacies", from: PRODUCTS.find((p) => p.id === "starter")!.m, cta: "Start 7-day free trial", href: "/trial", pricing: "/#pharmacy-pricing",
-    points: ["Fast GST billing with FEFO batches and barcode search", "Expiry, low-stock and reorder alerts", "Purchases, suppliers, credit and accounts", "WhatsApp invoices and customer reminders", "Billing on the shop network when the internet drops"] },
-  { id: "distribution", Icon: Warehouse, name: "Medoro Distribution", for: "Pharma distributors, wholesalers, stockists and C&F agents", from: Math.round(DIST_PLANS.dist_std.priceMonthly / 100), cta: "Start 7-day free trial", href: "/distributor-signup", pricing: "/#distribution-pricing",
-    points: ["Orders with credit control and batch-wise stock reservation", "Wholesale GST invoices, schemes and free goods", "Mobile picking, dispatch and proof of delivery", "Expiry claims to companies, collections and ageing", "A chemist ordering portal with your own rates"] },
+// "From" prices are read from the same tables the licence server and the app use.
+const PRODUCTS_LIST = [
+  { id: "pharmacy", Icon: ScanBarcode, name: "Medoro Pharmacy", for: "Medical stores, pharmacy chains, clinic and hospital pharmacies", from: PRODUCTS.find((p) => p.id === "starter")!.m, href: "/pharmacy", trial: "/trial",
+    line: "The counter, the stock room and the books of a medical store in one place.",
+    points: ["Three-key GST billing with FEFO batch picking", "Expiry, low-stock and reorder alerts", "Purchases, supplier bills and claims", "Accounts, GST returns and Tally export", "WhatsApp invoices and billing when the internet drops"] },
+  { id: "distribution", Icon: Warehouse, name: "Medoro Distribution", for: "Pharma distributors, wholesalers, stockists, super stockists and C&F agents", from: Math.round(DIST_PLANS.dist_std.priceMonthly / 100), href: "/distribution", trial: "/distributor-signup",
+    line: "Order to cash for a pharma wholesaler, from the chemist’s order to the collection.",
+    points: ["Orders with credit control and batch-wise stock reservation", "Wholesale GST invoices, schemes and free goods", "Mobile picking, dispatch and delivery", "Expiry claims to companies, collections and ageing", "A chemist ordering portal with your own rates"] },
 ] as const;
 
-const KEYS: [string, string, string][] = [["F2", "Search", "dolo"], ["Enter", "Add to bill", "Dolo 650 · batch {batch} · exp {exp}"], ["F9", "Complete sale", "INV/25-26/0418 · ₹67.20 · UPI"]];
+/** What "built for Indian pharma" means in the product. Each line is something both products do today. */
+const INDIA: [typeof Check, string, string][] = [
+  [ReceiptIndianRupee, "GST the Indian way", "MRP-inclusive pricing, CGST + SGST or IGST by place of supply, HSN codes, GSTR-1 and GSTR-3B."],
+  [Stethoscope, "Drug schedules", "Schedule H, H1, X and NDPS medicines ask for the prescriber and fill the register."],
+  [Layers, "Batch and expiry first", "Every strip has a batch and an expiry. The earliest expiry goes out first; expired stock is blocked."],
+  [IndianRupee, "PTR, PTS and schemes", "Trade rates, free goods like “10+2”, trade and cash discounts, worked into landed cost."],
+  [UserCheck, "Drug licences and DPDP", "Licence numbers and validity on parties; customer consent recorded under India’s DPDP Act."],
+  [Languages, "English and हिंदी", "Every screen in both languages, switchable per person. The assistant understands Hinglish."],
+];
 
-/**
- * The three product pillars, each a section with its own H2 and a link to its pillar page. The link text names the
- * product and the page's subject. Claims are the same facts as the feature tabs. [icon, heading, text, points, link text, link]
- */
-const PILLARS: [typeof Check, string, string, string[], string, string][] = [
-  [Cloud, "Cloud Medical Billing SaaS for Retail & Hospital Pharmacies",
-    "Medoro is a medical billing SaaS for the pharmacy counter: open it in a browser on any PC, tablet or phone, or install the desktop app. Retail chemists bill walk-in customers in three keys; hospital and clinic pharmacies add the prescriber, B2B tax invoices and credit accounts on the same screen.",
-    ["Brand, salt and barcode search with FEFO batch picking", "Cash, UPI, card, split payments and customer credit", "Thermal and A4 invoices, or a PDF on WhatsApp"],
-    "Medoro Medical Billing SaaS", "/medical-billing-saas"],
-  [PackageSearch, "Real-Time Pharmacy Stock, Batch & Near-Expiry Management",
-    "Every sale, purchase, return and transfer updates stock as it happens, batch by batch. Medoro lists the batches expiring in the next 30 to 180 days with the loss they will cause, early enough to return them to the distributor or move them to another branch.",
-    ["Batch, expiry, rack and cost on every item", "Low-stock list from reorder levels and 28 days of sales", "Expired, quarantined and recalled batches blocked at billing"],
-    "Medoro Pharmacy Stock Software", "/medical-store-stock-management-software"],
-  [ReceiptIndianRupee, "Automated GST Billing, Schedule H1 Register & AI Purchase CSV/PDF Import",
-    "GST is worked out from the MRP on every line and split into CGST and SGST, or IGST, so GSTR-1 and GSTR-3B summaries are ready at month-end. Prescription medicines ask for the prescriber and fill the Schedule H1 register. Distributor bills come in from CSV, Excel or a scanned PDF instead of being typed.",
-    ["GSTR-1 and GSTR-3B summaries with Tally export", "Schedule H1 register for any date range", "Supplier e-bill import and AI invoice scanning"],
-    "Medoro GST Billing", "/features/gst-billing"],
+/** What makes Medoro different from general billing software. [icon, title, text] */
+const DIFFERENT: [typeof Check, string, string][] = [
+  [HeartPulse, "Only pharma, nothing else", "Medoro is not a general billing app with a medicine template. Batches, salts, schedules, expiry returns and distributor schemes are the core of the product, not add-ons."],
+  [Database, "Your data stays with you", "Invoices, stock, customers and prescriptions live on infrastructure you control. Medoro’s servers hold only your account and licence. Export everything, any time."],
+  [CloudOff, "Keeps working when the internet doesn’t", "Counters on the shop network keep billing during an outage, and installed counters can bill offline and sync later."],
+  [Truck, "One family for the whole supply chain", "The same Medoro for the medical store and for the distributor who supplies it, with a free ordering portal for chemists."],
+  [Lock, "Security that is switched on", "Two-step sign-in for owners, roles and permissions, a tamper-evident audit trail and encrypted backups only your key opens."],
+  [IndianRupee, "Honest pricing in rupees", "Plain monthly prices, a 7-day free trial with no card, no automatic renewals. If you stop paying, your data turns read-only; it is never held back."],
 ];
 
 const COMPARE: [string, string, string][] = [
-  ["Where you can use it", "Usually one PC in the shop", "Every counter, a tablet and your phone"],
-  ["Backups", "A pen drive, if someone remembers", "Encrypted daily to your own Google Drive, with test restores"],
-  ["Expiry", "A report to print and go through", "90-day warning with projected loss and a return or transfer suggestion"],
-  ["Customer invoices", "Printed only", "Printed, or a PDF on WhatsApp with delivery status"],
-  ["GST month-end", "Exported and reworked in Excel", "Summaries ready on the 1st, exports for Tally"],
-  ["Owner away from the shop", "Call the shop and ask", "Live sales, cash and dues on your phone"],
-  ["Language", "English", "English and हिंदी; the assistant understands Hinglish"],
-  ["Your data", "On that PC, in the vendor’s format", "On infrastructure you control, full export any time"],
+  ["Built for", "Any shop that sells anything", "Indian pharmacies and pharma distributors only"],
+  ["Batches and expiry", "A column you fill in, if at all", "Batch-wise stock, FEFO picking and expiry blocked at billing"],
+  ["Regulation", "Left to you", "Schedule H1 register, drug licences, GST returns ready"],
+  ["Distributor bills", "Typed in line by line", "Imported from CSV, Excel or a scanned PDF"],
+  ["Internet outage", "Billing stops", "Billing carries on over the shop network"],
+  ["Language", "English only", "English and हिंदी on every screen"],
+  ["Your data", "In the vendor’s cloud and format", "On your infrastructure, full export any time"],
 ];
 
-const STEPS: [string, string, string][] = [
-  ["Day 1, morning", "Export from your current software", "Most pharmacy software can export stock, batches, suppliers and customers to Excel. Send us the file on WhatsApp or keep it for the next step."],
-  ["Day 1, afternoon", "Import and check", "Medoro checks every row: expiry, GST rate, MRP against cost. Problems are listed by row and nothing is imported until the file is clean."],
-  ["Day 1, evening", "Set up the counters", "Connect the thermal printer and barcode scanner, add your staff with PINs and roles, and do a few test bills."],
-  ["Day 2", "Go live", "Bill on Medoro from opening time. Keep the old software for reference as long as you like. We are on WhatsApp from 9 am to 9 pm."],
-];
+const WORKS_WITH = ["GST and e-invoice", "Tally", "WhatsApp Business API", "UPI", "Google Drive", "Excel and CSV", "80 mm thermal printers", "Barcode scanners", "Windows", "macOS", "Linux", "Android"];
 
-const ENV: [typeof Check, string][] = [[Monitor, "Counters, tablets and phones"], [Server, "Medoro app"], [Database, "Your database"]];
-const OUTSIDE: [typeof Check, string, string][] = [[HardDriveUpload, "Your Google Drive", "Encrypted backups Google can’t read"], [MessageCircle, "WhatsApp", "The customer’s number and invoice PDF, when you send one"], [KeyRound, "Medoro", "Your account, plan and licence check-ins"]];
-const SEC: [typeof Check, string, string][] = [
-  [Users, "Roles and permissions", "Cashiers bill. Managers approve discounts and refunds. Owners see everything."],
-  [ShieldCheck, "Two-step sign-in", "Required for owners and managers. Lost devices can be signed out remotely."],
-  [ScrollText, "Tamper-evident audit trail", "Every void, discount, refund and stock adjustment is logged with who and when."],
-  [Lock, "Encrypted backups", "Encrypted before they leave your computer. Only your recovery key opens them."],
-  [FileCheck, "Consent records", "WhatsApp opt-in and opt-out recorded per customer, with the date and method."],
-  [Download, "Leave any time", "Full JSON export, CSV reports for your CA, and backups only your key opens."],
-];
-
-/**
- * Trust badges in the Security section. Every status is a fact the product enforces today (see the comment on each),
- * not a plan: keep it that way when editing. [icon, title, status, detail, link?]
- */
-type Trust = [typeof Check, string, string, string, string?];
-const trustBadges = (google: boolean): Trust[] => [
-  // src/server/security-headers.ts: HSTS (2 years) and upgrade-insecure-requests on every HTTPS response.
-  [Lock, "SSL / HTTPS secure", "HTTPS only", "Medoro’s website and hosted app load only over an encrypted connection, enforced with HSTS."],
-  // Roles and permission matrix, two-step sign-in for owners and managers, audit trail.
-  [ShieldCheck, "Data protection", "Built in", "Role-based access, two-step sign-in for owners and managers, and a log of every sensitive action."],
-  [Database, "Secure infrastructure", "You choose where", "Records live in your Google Drive, a shop PC, your server or your cloud. Backups are encrypted before upload."],
-  // Shown only when Google sign-in is set up on this deployment (same check as the sign-in page).
-  google
-    ? [UserCheck, "Google sign-in", "Available", "Continue with Google, or sign in with your mobile or email and a second step."]
-    : [KeyRound, "Two-step sign-in", "Owners and managers", "A one-time code on top of the password. Lost devices can be signed out remotely."],
-  [Eye, "Privacy first", "Policy published", "We never hold your invoices, stock or patient details. DPDP rights and a grievance officer.", "/legal#privacy"],
-  [Headset, "Customer support", "Mon to Sat, 9 am to 9 pm", "Real people on WhatsApp and email for setup, switching and day-to-day help.", "/legal#contact"],
-];
-
-const FAQ: { title: string; items: [string, string][] }[] = [
-  // The questions people search about the brand itself (shared with /about-medoro).
-  { title: "About Medoro", items: BRAND_FAQ },
-  { title: "Product", items: [
-    ["Does Medoro handle GST billing?", "Yes. Prices are MRP-inclusive and Medoro works out the taxable value with the CGST and SGST split, or IGST for out-of-state parties, on every line. Invoices are numbered per branch and financial year. Month-end GST summaries and exports are ready for your CA. Have your CA confirm the setup for your business."],
-    ["Can it stop expired medicines from being sold?", "Yes. Billing picks the earliest-expiring sellable batch automatically. Expired, quarantined and recalled batches are blocked on the server, even if someone tries to add them by hand."],
-    ["Does it work without internet?", "Yes, when Medoro runs on a PC in your shop: every counter on the shop network keeps billing while the internet is down, and WhatsApp messages and backups go out when it is back. Installed counters can also bill offline and sync when they reconnect."],
-    ["Do I need to install anything?", "Install the desktop app for Windows, macOS or Linux on the shop PC, or open Medoro in Chrome on any PC, tablet or phone."],
-    ["Can my staff use it in Hindi?", "Yes. Each person can switch the interface between English and हिंदी. The assistant understands English, Hindi and Hinglish."]] },
-  { title: "Data and privacy", items: [
-    ["Where is my data stored?", "In a database you control: a PC in your shop, your own server or your own cloud account. Medoro’s servers hold only your account, plan, licence and the support tickets you send. You can export everything, any time."],
-    ["What leaves my server?", "Only what you turn on. Medoro’s licence server gets your pharmacy name and owner contact once, then the app version and branch and counter counts at each check-in. WhatsApp gets the customer number and the invoice PDF. Google Drive gets encrypted backup files it cannot read. Outside AI is off unless you switch it on, and the settings show exactly what would be sent."],
-    ["Does the AI give medical advice?", "No. It answers business questions about sales, stock, expiry and dues. It refuses dosage or treatment questions and refers them to the pharmacist."]] },
-  { title: "Switching and pricing", items: [
-    ["Can I move my data from my current software?", "Yes. Export medicines, batches, suppliers and customers to Excel or CSV from your current software and import them into Medoro. Every row is checked and nothing is imported until the file is clean. Assisted migration is available as a one-time service."],
-    ["How long is the free trial?", "7 days, no card needed. After that there are 7 days of grace, then Medoro turns read-only until you pay: your data stays where it is, and viewing, exports and backups keep working. Pay online by UPI, card or netbanking from the Subscription page. Plans never renew on their own."],
-    ["How do I cancel?", "In the app, open Subscription and choose Cancel subscription, any time. The plan stays active until the end of the paid period, then the software goes read-only. Your data stays on your server and can always be exported."]] },
+const FLOW: [typeof Check, string, string][] = [
+  [Warehouse, "Distributor", "Stocks from the company, offers schemes and rates, delivers to chemists on credit."],
+  [Store, "Chemist", "Orders on the distributor’s portal, receives with batch and expiry, sells at the counter."],
+  [HeartPulse, "Patient", "Gets the right medicine, in date, with a proper GST bill on paper or WhatsApp."],
 ];
 
 const eyebrow = "text-[14px] font-semibold text-[var(--s-brand)]";
@@ -157,8 +94,6 @@ const h2 = "site-display m-0 text-[clamp(34px,4.4vw,56px)] text-[var(--s-ink)]";
 const lead = "m-0 text-[clamp(17px,1.4vw,19px)] leading-[1.6] text-[var(--s-ink-2)]";
 const wrap = "max-w-[1200px] mx-auto px-6 max-[640px]:px-4";
 
-// The homepage as a WebPage about the product. The Organization, WebSite and SoftwareApplication it points to are
-// in the site-wide brand graph (root layout), so they are not repeated here.
 const pageLd = {
   "@type": "WebPage",
   "@id": `${absoluteUrl("/")}/#webpage`,
@@ -168,16 +103,14 @@ const pageLd = {
   inLanguage: ["en-IN", "hi-IN"],
   isPartOf: { "@id": WEBSITE_ID },
   about: { "@id": ORG_ID },
-  mainEntity: { "@id": SOFTWARE_ID },
 };
 
-// The FAQ below, for Google's question-and-answer results.
-const faqLd = faqSchema(FAQ.flatMap((g) => g.items));
-
-// The four figures under the product tabs: [number, prefix, suffix, line].
-const FACTS = [["7", "", "-day free trial", "No card. Your data stays if you leave."], ["999", "₹", " / month", "Starter plan for one store, GST included"], ["0", "", " records", "of your pharmacy kept on Medoro’s servers"], ["2", "", " languages", "English and हिंदी, Hinglish for the assistant"]] as const;
-
-const MOTIVATION = ["Fewer expired strips", "Faster evening rush", "Calmer month-ends", "More time for patients"] as const;
+const FAQ: [string, string][] = [
+  ...BRAND_FAQ,
+  ["What is the difference between Medoro Pharmacy and Medoro Distribution?", "Medoro Pharmacy is for retail: medical stores, chains and hospital pharmacies that sell to patients at a counter. Medoro Distribution is for wholesale: distributors, stockists and C&F agents that sell to chemists on credit, with orders, picking, dispatch, schemes and collections. They are separate products with separate plans."],
+  ["Is Medoro made in India?", "Yes. Medoro is designed and built in India, only for the Indian pharma trade: GST, drug schedules, batch and expiry rules, PTR and PTS, distributor schemes, UPI and Hindi are part of the product, not settings you add later."],
+];
+const faqLd = faqSchema(FAQ);
 
 export default async function Home() {
   const lang = await getLang();
@@ -194,340 +127,229 @@ export default async function Home() {
       <JsonLd data={[pageLd, faqLd]} />
 
       <main id="main">
-        <Hero />
+        {/* Hero: who Medoro is, and the two doors. */}
+        <section aria-labelledby="hero-title" className="relative overflow-hidden min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
+          <HeroVideo />
+          <div className={`relative w-full ${wrap} pt-[clamp(40px,5vw,64px)] pb-[clamp(64px,8vw,104px)] flex flex-col items-center text-center gap-6`}>
+            <span className="site-up inline-flex items-center gap-2 rounded-full bg-white/90 border border-[var(--s-line)] px-3.5 py-1.5 text-[14px] font-semibold text-[var(--s-brand)]"><Flag size={15} aria-hidden />{t("Made in India, for Indian pharma")}</span>
+            <h1 id="hero-title" className="m-0 flex flex-col gap-4 items-center">
+              <span className="site-up text-[15px] font-medium text-[var(--s-ink-2)] [--d:1]">{t("Medoro: pharma software for Indian pharmacies and distributors")}</span>
+              <span className="site-display site-up block text-[clamp(40px,6vw,76px)] leading-[1.04] max-w-[980px] [--d:1]">
+                <span className="block">{t("Software that speaks")}</span>
+                <span className="block site-shine">{t("the language of Indian pharma.")}</span>
+              </span>
+            </h1>
+            <p className="site-up m-0 text-[clamp(17px,1.5vw,20px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[760px] [--d:2]">{t("Batches, expiry, GST, Schedule H1, PTR and schemes are not add-ons for us. They are the product. Medoro runs the medical store counter and the distributor’s godown, on infrastructure you control.")}</p>
+            <div className="site-up flex gap-3 flex-wrap justify-center pt-1 [--d:3]">
+              <a href="/pharmacy" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><ScanBarcode size={18} aria-hidden />{t("Medoro Pharmacy")}<ArrowRight size={18} aria-hidden /></a>
+              <a href="/distribution" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-dark)] text-white text-[16px] font-semibold transition-colors hover:text-white hover:opacity-90"><Warehouse size={18} aria-hidden />{t("Medoro Distribution")}<ArrowRight size={18} aria-hidden /></a>
+            </div>
+            <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{t("7-day free trial on both. No card needed.")}</p>
+          </div>
+        </section>
 
-        <section id="products" aria-labelledby="products-title" className={`${wrap} pt-[clamp(56px,8vw,96px)] pb-[clamp(40px,6vw,72px)] flex flex-col gap-10`}>
+        {/* What is Medoro */}
+        <section id="about" aria-labelledby="about-title" className="border-y border-[var(--s-line)] bg-[var(--s-soft)]">
+          <div className={`${wrap} py-[clamp(64px,9vw,112px)] grid grid-cols-12 gap-x-6 gap-y-10 items-start`}>
+            <div data-reveal className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
+              <span className={eyebrow}>{t("What is Medoro")}</span>
+              <h2 id="about-title" className={h2}>{t("One Indian company. One job: pharma.")}</h2>
+            </div>
+            <div data-reveal className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 flex flex-col gap-5">
+              <p className={lead}>{t("Medoro is a family of business software for the Indian pharmaceutical trade. Medoro Pharmacy runs the medical store: billing, batch stock, purchases, GST and accounts. Medoro Distribution runs the wholesaler: orders, godowns, dispatch, schemes, claims and collections.")}</p>
+              <p className={lead}>{t("Both are designed and built in India, around Indian law and the way Indian chemists and distributors actually work, in English and हिंदी.")}</p>
+              <a href="/about-medoro" className="site-link-arrow self-start inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--s-brand)] underline underline-offset-4 decoration-[var(--s-brand)]/30 hover:decoration-[var(--s-brand)]">{t("More about Medoro")}<ArrowRight size={16} aria-hidden /></a>
+            </div>
+          </div>
+        </section>
+
+        {/* The two products */}
+        <section id="products" aria-labelledby="products-title" className={`${wrap} py-[clamp(64px,9vw,112px)] flex flex-col gap-10`}>
           <div className="grid grid-cols-12 gap-x-6 gap-y-5 items-end">
             <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
               <span className={eyebrow}>{t("Two products, one Medoro")}</span>
               <h2 id="products-title" className={h2}>{t("From the medical store counter to the distributor’s godown.")}</h2>
             </div>
-            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("The same Medoro quality, security and हिंदी support for retail pharmacies and for the distributors who supply them.")}</p>
+            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("Pick the one that fits your business. Each has its own page with features, plans and a free trial.")}</p>
           </div>
           <div className="grid gap-5 min-[900px]:grid-cols-2">
-            {FAMILY.map((f, i) => (
-              <article key={f.id} data-reveal style={{ ["--d" as string]: i }} className={`site-lift relative overflow-hidden rounded-2xl p-[clamp(22px,3vw,36px)] flex flex-col gap-5 ${i === 0 ? "bg-white border border-[var(--s-line)]" : "site-dark bg-[var(--s-dark)] text-white"}`}>
-                {i === 1 ? <div aria-hidden className="absolute inset-0"><Aurora dark /></div> : null}
-                <div className="relative flex items-center gap-3">
-                  <span className={`size-12 rounded-xl flex items-center justify-center ${i === 0 ? "bg-[var(--s-brand-tint)] text-[var(--s-brand)]" : "bg-white/10 text-[#8FD3C6]"}`}><f.Icon size={24} aria-hidden className="site-breathe" /></span>
-                  <div className="flex flex-col">
-                    <h3 className="m-0 text-[24px] font-semibold tracking-[-.01em]">{t(f.name)}</h3>
-                    <span className={`text-[15px] ${i === 0 ? "text-[var(--s-muted)]" : "text-[#B5C7C3]"}`}>{t(f.for)}</span>
+            {PRODUCTS_LIST.map((f, i) => {
+              const dark = i === 1;
+              return (
+                <article key={f.id} data-reveal style={{ ["--d" as string]: i }} className={`site-lift relative overflow-hidden rounded-2xl p-[clamp(22px,3vw,36px)] flex flex-col gap-5 ${dark ? "site-dark bg-[var(--s-dark)] text-white" : "bg-white border border-[var(--s-line)]"}`}>
+                  {dark ? <div aria-hidden className="absolute inset-0"><Aurora dark /></div> : null}
+                  <div className="relative flex items-center gap-3">
+                    <span className={`size-12 rounded-xl flex items-center justify-center ${dark ? "bg-white/10 text-[#8FD3C6]" : "bg-[var(--s-brand-tint)] text-[var(--s-brand)]"}`}><f.Icon size={24} aria-hidden className="site-breathe" /></span>
+                    <div className="flex flex-col">
+                      <h3 className="m-0 text-[24px] font-semibold tracking-[-.01em]">{t(f.name)}</h3>
+                      <span className={`text-[15px] ${dark ? "text-[#B5C7C3]" : "text-[var(--s-muted)]"}`}>{t(f.for)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="relative flex items-baseline gap-1.5"><span className="text-[15px] font-medium">{t("From")}</span><span className={`site-display text-[40px] leading-none ${i === 0 ? "text-[var(--s-brand)]" : "text-white"}`}>₹{f.from.toLocaleString("en-IN")}</span><span className={`text-[15px] ${i === 0 ? "text-[var(--s-muted)]" : "text-[#B5C7C3]"}`}>{t("/ month")}</span></div>
-                <ul className="relative m-0 p-0 list-none flex flex-col gap-2.5">
-                  {f.points.map((x) => <li key={x} className={`flex gap-2.5 items-start text-[15.5px] ${i === 0 ? "text-[var(--s-ink-2)]" : "text-[#D3E2DF]"}`}><Check size={17} aria-hidden className={`${i === 0 ? "text-[var(--s-brand)]" : "text-[#4ADE80]"} mt-[3px] flex-none`} />{t(x)}</li>)}
-                </ul>
-                <div className="relative mt-auto flex flex-wrap gap-3 pt-2">
-                  <a href={f.href} className={`site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg text-[15.5px] font-semibold transition-colors ${i === 0 ? "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white" : "bg-white text-[var(--s-brand-ink)] hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]"}`}>{t(f.cta)}<ArrowRight size={16} aria-hidden /></a>
-                  <a href={f.pricing} className={`inline-flex items-center h-12 px-4 rounded-lg text-[15.5px] font-semibold border transition-colors ${i === 0 ? "border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]" : "border-white/40 text-white hover:bg-white/10 hover:text-white"}`}>{t("See pricing")}</a>
-                </div>
-              </article>
-            ))}
+                  <p className={`relative m-0 text-[17px] ${dark ? "text-[#D3E2DF]" : "text-[var(--s-ink-2)]"}`}>{t(f.line)}</p>
+                  <div className="relative flex items-baseline gap-1.5"><span className="text-[15px] font-medium">{t("From")}</span><span className={`site-display text-[40px] leading-none ${dark ? "text-white" : "text-[var(--s-brand)]"}`}>₹{f.from.toLocaleString("en-IN")}</span><span className={`text-[15px] ${dark ? "text-[#B5C7C3]" : "text-[var(--s-muted)]"}`}>{t("/ month")}</span></div>
+                  <ul className="relative m-0 p-0 list-none flex flex-col gap-2.5">
+                    {f.points.map((x) => <li key={x} className={`flex gap-2.5 items-start text-[15.5px] ${dark ? "text-[#D3E2DF]" : "text-[var(--s-ink-2)]"}`}><Check size={17} aria-hidden className={`${dark ? "text-[#4ADE80]" : "text-[var(--s-brand)]"} mt-[3px] flex-none`} />{t(x)}</li>)}
+                  </ul>
+                  <div className="relative mt-auto flex flex-wrap gap-3 pt-2">
+                    <a href={f.href} className={`site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg text-[15.5px] font-semibold transition-colors ${dark ? "bg-white text-[var(--s-ink)] hover:text-[var(--s-ink)]" : "bg-[var(--s-brand)] text-white hover:bg-[var(--s-brand-ink)] hover:text-white"}`}>{t("Explore {name}", { name: f.name })}<ArrowRight size={18} aria-hidden /></a>
+                    <a href={f.trial} className={`inline-flex items-center h-12 px-4 rounded-lg text-[15.5px] font-semibold border transition-colors ${dark ? "border-white/30 text-white hover:border-white hover:text-white" : "border-[#C9D1CF] text-[var(--s-ink)] hover:border-[var(--s-brand)] hover:text-[var(--s-brand)]"}`}>{t("Start free trial")}</a>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
-        <section aria-labelledby="standards-title" className="border-b border-[var(--s-line)]">
-          <div className={`${wrap} py-14 flex flex-col gap-10`}>
-            <h2 id="standards-title" className="m-0 text-[15px] font-semibold text-[var(--s-ink)]">{t("Built for how Indian pharmacies work")}</h2>
-            <ul className="m-0 p-0 list-none grid gap-x-8 gap-y-6 border-y border-[var(--s-line)] py-7 grid-cols-2 min-[720px]:grid-cols-3 min-[1100px]:grid-cols-6">
-              {STANDARDS.map(([Icon, name, d], i) => (
-                <li key={name} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-1.5">
-                  <span className="flex items-center gap-2 text-[17px] font-semibold text-[var(--s-ink)]"><Icon size={18} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} />{t(name)}</span>
-                  <span className="text-[15px] text-[var(--s-muted)]">{t(d)}</span>
+        {/* Built for Indian pharma */}
+        <section id="india" aria-labelledby="india-title" className="site-dark bg-[var(--s-dark)] text-white relative overflow-hidden">
+          <Aurora dark />
+          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+            <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
+              <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
+                <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("Dedicated to Indian pharma")}</span>
+                <h2 id="india-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("Indian rules are built in, not bolted on.")}</h2>
+              </div>
+              <p data-reveal className="col-span-12 min-[1000px]:col-span-5 m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">{t("Foreign and general-purpose software treats a medicine like any other item. Indian pharma has its own taxes, schedules, rates and paperwork, and Medoro starts from them.")}</p>
+            </div>
+            <ul className="m-0 p-0 list-none grid gap-5 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
+              {INDIA.map(([Icon, title, d], i) => (
+                <li key={title} data-reveal style={{ ["--d" as string]: i % 3 }} className="site-lift rounded-xl border border-white/12 bg-white/[.03] p-6 flex flex-col gap-3 hover:border-[#14B8A6]/60">
+                  <span className="size-11 rounded-lg bg-white/10 flex items-center justify-center"><Icon size={22} aria-hidden className="site-breathe text-[#8FD3C6]" /></span>
+                  <h3 className="m-0 text-[19px] font-semibold">{t(title)}</h3>
+                  <p className="m-0 text-[15.5px] text-[#B5C7C3]">{t(d)}</p>
                 </li>
               ))}
             </ul>
             <div className="flex items-center gap-6 max-[720px]:flex-col max-[720px]:items-stretch max-[720px]:gap-3">
-              <span className="text-[14px] text-[var(--s-muted)] whitespace-nowrap">{t("Works with")}</span>
+              <span className="text-[14px] text-[#9FB5B1] whitespace-nowrap">{t("Works with")}</span>
               <div className="flex-1 min-w-0"><Marquee items={WORKS_WITH.map((w) => t(w))} /></div>
             </div>
           </div>
         </section>
 
-        <section aria-labelledby="leaks-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
-          <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
-            <span className={eyebrow}>{t("Why owners switch")}</span>
-            <h2 id="leaks-title" className={h2}>{t("Where a medical store quietly loses money.")}</h2>
-            <p className={lead}>{t("Most of it is not theft or bad luck. It is stock nobody noticed, a slow counter on a busy evening, and hours lost to GST every month.")}</p>
-            <SavingsArt className="w-full max-w-[420px] h-auto mt-2 max-[999px]:hidden" />
+        {/* What makes Medoro different */}
+        <section id="different" aria-labelledby="different-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+          <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
+            <span className={eyebrow}>{t("What makes Medoro different")}</span>
+            <h2 id="different-title" className={h2}>{t("Six things you won’t find together anywhere else.")}</h2>
           </div>
-          <ol className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 m-0 p-0 list-none flex flex-col">
-            {LEAKS.map(([title, d], i) => (
-              <li key={title} data-reveal className="group grid grid-cols-[56px_minmax(0,1fr)] max-[640px]:grid-cols-1 gap-x-4 gap-y-2 py-8 px-3 -mx-3 border-t border-[var(--s-line)] last:border-b transition-colors duration-300 hover:bg-[var(--s-soft)]">
-                <span className="site-num text-[15px] text-[var(--s-brand)] pt-1 transition-transform duration-300 group-hover:translate-x-1 group-hover:scale-125 origin-left">{String(i + 1).padStart(2, "0")}</span>
-                <div className="flex flex-col gap-2">
-                  <h3 className="m-0 text-[22px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t(title)}</h3>
-                  <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t(d)}</p>
-                </div>
+          <ol className="m-0 p-0 list-none grid gap-x-10 gap-y-12 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-3">
+            {DIFFERENT.map(([Icon, title, d], i) => (
+              <li key={title} data-reveal style={{ ["--d" as string]: i % 3 }} className="flex flex-col gap-3 border-t-2 border-[var(--s-brand)] pt-6">
+                <span className="flex items-center justify-between">
+                  <span className="size-10 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={20} aria-hidden className="site-breathe text-[var(--s-brand)]" /></span>
+                  <span className="site-num text-[14px] text-[var(--s-brand)]">{String(i + 1).padStart(2, "0")}</span>
+                </span>
+                <h3 className="m-0 text-[21px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t(title)}</h3>
+                <p className="m-0 text-[16px] leading-[1.6] text-[var(--s-ink-2)]">{t(d)}</p>
               </li>
             ))}
           </ol>
-        </section>
 
-        <section aria-labelledby="keys-title" className="site-dark bg-[var(--s-dark)] text-white relative overflow-hidden">
-          <Aurora dark />
-          <div className={`relative ${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
-            <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
-              <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("At the counter")}</span>
-              <h2 id="keys-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("A bill in three keys.")}</h2>
-              <p className="m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">{t("Your staff never reach for the mouse. Search, add, finish. Medoro picks the batch that expires first and skips anything expired or quarantined.")}</p>
-            </div>
-            <div data-play className="site-keys col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7">
-              <ol className="m-0 p-0 list-none flex flex-col gap-3">
-                {KEYS.map(([k, label, out], i) => (
-                  <li key={k} data-step style={{ ["--step" as string]: i }} className="site-lift grid grid-cols-[88px_minmax(0,1fr)] items-center gap-5 bg-white/[.04] border border-white/10 rounded-xl px-5 py-4 hover:border-[#14B8A6]/60 max-[480px]:grid-cols-1 max-[480px]:gap-2">
-                    <kbd data-step style={{ ["--step" as string]: i }} className="site-num justify-self-start inline-flex items-center justify-center min-w-[64px] h-11 px-3 rounded-lg bg-white text-[var(--s-ink)] text-[16px] font-medium border border-[#C9D1CF] shadow-[0_2px_0_#C9D1CF]">{k}</kbd>
-                    <span className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-[14px] text-[#9FB5B1]">{t(label)}</span>
-                      <span className="site-num text-[16px] text-white break-words">{t(out, { batch: "DL24091", exp: "05/2027" })}</span>
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
-
-        <section id="product" aria-labelledby="product-title" className={`${wrap} pt-[clamp(72px,10vw,128px)] pb-[clamp(56px,8vw,96px)] flex flex-col gap-12`}>
-          <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
-            <span className={eyebrow}>{t("The product")}</span>
-            <h2 id="product-title" className={h2}>{t("One system for the counter, the godown and your CA.")}</h2>
-            <p className={lead}>{t("Real screens from a pharmacy’s working day, not mock-ups. Pick an area to see how it works.")}</p>
-          </div>
-          <FeatureTabs />
-        </section>
-
-        <section id="tour" aria-labelledby="tour-title" className="bg-[var(--s-soft)] border-t border-[var(--s-line)]">
-          <div className={`${wrap} py-[clamp(56px,8vw,96px)] flex flex-col gap-10`}>
-            <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
-              <span className={eyebrow}>{t("Product tour")}</span>
-              <h2 id="tour-title" className={h2}>{t("Don’t take our word for it. Use it.")}</h2>
-              <p className={lead}>{t("This is a working demo with a three-branch pharmacy’s sample data. Bill a sale with F2 and F9, check what expires this quarter, receive a purchase or ask the AI. Nothing you do here is saved.")}</p>
-            </div>
-            <ProductTour />
-          </div>
-        </section>
-
-        <section aria-labelledby="facts-title" className="border-y border-[var(--s-line)] bg-[var(--s-soft)]">
-          <h2 id="facts-title" className="sr-only">{t("Medoro in numbers")}</h2>
-          <div className={wrap}>
-            <dl className="m-0 -mx-6 max-[640px]:-mx-4 grid grid-cols-2 min-[900px]:grid-cols-4">
-              {FACTS.map(([n, pre, suf, d], i) => (
-                <div key={d} className={`flex flex-col gap-2 py-10 px-6 transition-colors duration-300 hover:bg-white max-[640px]:px-4 max-[640px]:py-8 border-[var(--s-line)] ${i > 0 ? "min-[900px]:border-l" : ""} ${i % 2 ? "max-[899px]:border-l" : ""} ${i > 1 ? "max-[899px]:border-t" : ""}`}>
-                  <dt className="flex items-baseline text-[var(--s-ink)]"><span className="site-display text-[clamp(40px,4.4vw,56px)] leading-none" data-count={n} data-prefix={pre}>{pre}{Number(n).toLocaleString("en-IN")}</span><span className={`text-[17px] font-medium ${t(suf).startsWith("-") ? "" : "ml-1.5"}`}>{t(suf)}</span></dt>
-                  <dd className="m-0 text-[15px] text-[var(--s-muted)]">{t(d)}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </section>
-
-        <div className={`${wrap} pt-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
-          <div data-reveal className="flex flex-col gap-4 max-w-[760px]">
-            <span className={eyebrow}>{t("The Medoro product suite")}</span>
-            <p className={lead}>{t("Medoro is one medical and pharmacy billing SaaS with three jobs: bill at the counter, keep stock honest, and keep GST and the registers ready.")}</p>
-          </div>
-          <div className="grid gap-x-10 gap-y-12 grid-cols-1 min-[1000px]:grid-cols-3">
-            {PILLARS.map(([Icon, title, d, points, linkText, href], i) => (
-              <section key={href} aria-labelledby={`pillar-${i}-title`} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-4 border-t-2 border-[var(--s-brand)] pt-6">
-                <span className="size-10 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={20} aria-hidden className="site-breathe text-[var(--s-brand)]" style={{ ["--d" as string]: i }} /></span>
-                <h2 id={`pillar-${i}-title`} className="site-display m-0 text-[clamp(24px,2.2vw,30px)] leading-[1.12] text-[var(--s-ink)]">{t(title)}</h2>
-                <p className="m-0 text-[16.5px] leading-[1.6] text-[var(--s-ink-2)]">{t(d)}</p>
-                <ul className="m-0 p-0 list-none flex flex-col gap-2">
-                  {points.map((p) => <li key={p} className="flex gap-2.5 items-start text-[15.5px] text-[var(--s-ink-2)]"><Check size={16} aria-hidden className="flex-none mt-[4px] text-[var(--s-brand)]" />{t(p)}</li>)}
-                </ul>
-                <a href={href} className="site-link-arrow mt-auto self-start inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--s-brand)] underline underline-offset-4 decoration-[var(--s-brand)]/30 hover:decoration-[var(--s-brand)]">{t(linkText, { ctx: "site" })}<ArrowRight size={16} aria-hidden /></a>
-              </section>
-            ))}
-          </div>
-        </div>
-
-        <section aria-labelledby="compare-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
-          <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
-            <span className={eyebrow}>{t("Compared")}</span>
-            <h2 id="compare-title" className={h2}>{t(WHY_SWITCH_HEADING)}</h2>
-            <p className={lead}>{t("Desktop software has served pharmacies well for years. This is what a store gets on top when billing, stock and accounts are connected.")}</p>
-          </div>
-          <div data-reveal className="max-[719px]:hidden">
-            <table className="w-full border-collapse text-[16px]">
-              <caption className="sr-only">{t("Typical desktop pharmacy software compared with Medoro")}</caption>
-              <thead>
-                <tr className="text-left">
-                  <th scope="col" className="w-[24%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]"><span className="sr-only">{t("Area")}</span></th>
-                  <th scope="col" className="w-[33%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]">{t("Typical desktop software")}</th>
-                  <th scope="col" className="py-4 font-semibold text-[15px] text-[var(--s-brand)] border-b-2 border-[var(--s-brand)]">Medoro</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARE.map(([a, typical, m]) => (
-                  <tr key={a} className="align-top transition-colors duration-300 hover:bg-[var(--s-soft)]">
-                    <th scope="row" className="py-4 pr-6 text-left font-semibold text-[var(--s-ink)] border-b border-[var(--s-line)]">{t(a)}</th>
-                    <td className="py-4 pr-6 text-[var(--s-muted)] border-b border-[var(--s-line)]">{t(typical, { ctx: "site" })}</td>
-                    <td className="py-4 text-[var(--s-ink)] border-b border-[var(--s-line)]"><span className="flex gap-2.5 items-start"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" />{t(m)}</span></td>
+          <div data-reveal className="flex flex-col gap-6 pt-6">
+            <h3 className="m-0 text-[24px] font-semibold text-[var(--s-ink)]">{t("General billing software compared with Medoro")}</h3>
+            <div className="max-[719px]:hidden">
+              <table className="w-full border-collapse text-[16px]">
+                <caption className="sr-only">{t("General billing software compared with Medoro")}</caption>
+                <thead>
+                  <tr className="text-left">
+                    <th scope="col" className="w-[22%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]"><span className="sr-only">{t("Area")}</span></th>
+                    <th scope="col" className="w-[34%] py-4 pr-6 font-medium text-[14px] text-[var(--s-muted)] border-b-2 border-[var(--s-ink)]">{t("General billing software")}</th>
+                    <th scope="col" className="py-4 font-semibold text-[15px] text-[var(--s-brand)] border-b-2 border-[var(--s-brand)]">Medoro</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <ul className="min-[720px]:hidden m-0 p-0 list-none flex flex-col border-t-2 border-[var(--s-ink)]">
-            {COMPARE.map(([a, typical, m]) => (
-              <li key={a} className="py-5 border-b border-[var(--s-line)] flex flex-col gap-2">
-                <span className="text-[17px] font-semibold text-[var(--s-ink)]">{t(a)}</span>
-                <span className="text-[15px] text-[var(--s-muted)]"><span className="font-medium">{`${t("Typical:")} `}</span>{t(typical, { ctx: "site" })}</span>
-                <span className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink)]"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" /><span><span className="sr-only">Medoro: </span>{t(m)}</span></span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section id="switching" aria-labelledby="switching-title" className="bg-[var(--s-soft)] border-y border-[var(--s-line)]">
-          <div className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-14`}>
-            <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
-              <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
-                <span className={eyebrow}>{t("Switching")}</span>
-                <h2 id="switching-title" className={h2}>{t("Switch in an afternoon. Bill on Medoro the next morning.")}</h2>
-              </div>
-              <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("No re-typing your catalogue. Bring your stock across from Excel, or let us do it with assisted migration.")}</p>
+                </thead>
+                <tbody>
+                  {COMPARE.map(([a, other, m]) => (
+                    <tr key={a} className="align-top transition-colors duration-300 hover:bg-[var(--s-soft)]">
+                      <th scope="row" className="py-4 pr-6 text-left font-semibold text-[var(--s-ink)] border-b border-[var(--s-line)]">{t(a)}</th>
+                      <td className="py-4 pr-6 text-[var(--s-muted)] border-b border-[var(--s-line)]"><span className="flex gap-2.5 items-start"><X size={17} aria-hidden className="text-[#B4534B] mt-[4px] flex-none" />{t(other)}</span></td>
+                      <td className="py-4 text-[var(--s-ink)] border-b border-[var(--s-line)]"><span className="flex gap-2.5 items-start"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" />{t(m)}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <ol className="m-0 p-0 list-none grid gap-x-6 gap-y-10 min-[720px]:grid-cols-2 min-[1100px]:grid-cols-4">
-              {STEPS.map(([when, title, d], i) => (
-                <li key={title} data-reveal style={{ ["--d" as string]: i }} className="flex flex-col gap-3 border-t-2 border-[var(--s-brand)] pt-5">
-                  <span className="site-num text-[13.5px] text-[var(--s-brand)]">{String(i + 1).padStart(2, "0")} · {t(when)}</span>
-                  <h3 className="m-0 text-[21px] font-semibold tracking-[-.01em] text-[var(--s-ink)]">{t(title)}</h3>
-                  <p className="m-0 text-[16px] text-[var(--s-ink-2)]">{t(d)}</p>
-                </li>
-              ))}
-            </ol>
-            <div data-reveal className="flex gap-4 flex-wrap items-center">
-              <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{t("Start the free trial")}<ArrowRight size={17} aria-hidden /></a>
-              <span className="text-[15px] text-[var(--s-muted)]">{t("Assisted setup and training: {amount} once. Stock migration from ₹2,999.", { amount: "₹" + PRODUCTS.find((p) => p.id === "setup")!.m.toLocaleString("en-IN") })}</span>
-            </div>
-          </div>
-        </section>
-
-        <section id="security" aria-labelledby="security-title" className="site-dark bg-[var(--s-dark)] text-white relative overflow-hidden">
-          <Aurora dark />
-          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-16`}>
-            <div className="grid grid-cols-12 gap-x-6 gap-y-12 items-center">
-              <div data-reveal className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
-                <span className="text-[14px] font-semibold text-[#8FD3C6]">{t("Security and data ownership")}</span>
-                <h2 id="security-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("Your data, your Drive.")}</h2>
-                <p className="m-0 text-[18px] leading-[1.6] text-[#C3D3D0]">{t("Medoro runs on infrastructure you control: a PC in your shop, your own server or your own cloud account. Invoices, stock, customers and prescriptions stay there. Medoro sees your account and licence, nothing more.")}</p>
-                <a href="#faq" className="site-link-arrow self-start text-[16px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white flex gap-1.5 items-center">{t("What exactly leaves my server?")}<ArrowRight size={16} aria-hidden /></a>
-              </div>
-              <div data-reveal className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 flex flex-col gap-4" role="img" aria-label={t("Diagram: counters, the Medoro app and your database run in your environment. Only encrypted backups go to your Google Drive, invoice PDFs to WhatsApp when you send them, and account and licence details to Medoro.")}>
-                <div className="rounded-xl border border-[#2C5A55] bg-white/[.03] p-5 flex flex-col gap-4">
-                  <span className="text-[13px] font-semibold uppercase tracking-[.08em] text-[#8FD3C6] flex gap-2 items-center"><Lock size={14} aria-hidden />{t("Your environment")}</span>
-                  <div className="grid grid-cols-3 gap-3">
-                    {ENV.map(([Icon, l], i) => <div key={l} className="site-lift rounded-lg bg-white/[.06] border border-white/10 px-3 py-4 flex flex-col items-center gap-2 text-center text-[14px]"><Icon size={22} aria-hidden className="site-breathe text-[#8FD3C6]" style={{ ["--d" as string]: i }} />{t(l)}</div>)}
-                  </div>
-                </div>
-                <div aria-hidden className="grid grid-cols-3 gap-3 justify-items-center max-[559px]:hidden">{[0, 1, 2].map((i) => <span key={i} className="site-flow w-[2px] h-7 rounded-full" style={{ animationDelay: `${-i * .3}s` }} />)}</div>
-                <div className="grid gap-3 min-[560px]:grid-cols-3">
-                  {OUTSIDE.map(([Icon, l, d]) => <div key={l} className="site-lift rounded-lg border border-white/10 p-4 hover:border-[#14B8A6]/60 flex flex-col gap-1.5"><span className="text-[15px] font-semibold flex gap-2 items-center"><Icon size={16} aria-hidden className="text-[#9FB5B1]" />{t(l)}</span><span className="text-[14px] text-[#9FB5B1]">{t(d)}</span></div>)}
-                </div>
-              </div>
-            </div>
-            <div data-reveal className="rounded-2xl border border-white/12 bg-white/[.03] p-[clamp(20px,3vw,32px)] flex flex-col gap-6">
-              <h3 id="trust-title" className="m-0 text-[20px] font-semibold">{t("Medoro trust & security")}</h3>
-              <ul aria-labelledby="trust-title" className="m-0 p-0 list-none grid gap-x-10 gap-y-8 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
-                {trustBadges(googleLoginConfigured()).map(([Icon, title, status, d, href]) => (
-                  <li key={title} className="flex flex-col gap-2.5">
-                    <Icon size={24} aria-hidden className="site-breathe text-[#4ADE80]" />
-                    <span className="text-[17px] font-semibold">{t(title)}</span>
-                    <span className="self-start rounded-md bg-[#4ADE80]/12 px-2 py-0.5 text-[13px] font-semibold text-[#4ADE80]">{t(status)}</span>
-                    <span className="text-[15px] text-[#B5C7C3]">
-                      {t(d)}
-                      {href ? <> <a href={href} className="text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Read more")}</a></> : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <ul className="m-0 p-0 list-none grid gap-x-10 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-3">
-              {SEC.map(([Icon, title, d], i) => (
-                <li key={title} data-reveal style={{ ["--d" as string]: i % 3 }} className="border-t border-white/15 py-7 flex flex-col gap-2">
-                  <span className="flex gap-2.5 items-center text-[17px] font-semibold"><Icon size={18} aria-hidden className="text-[#8FD3C6]" />{t(title)}</span>
-                  <span className="text-[15.5px] text-[#B5C7C3]">{t(d)}</span>
+            <ul className="min-[720px]:hidden m-0 p-0 list-none flex flex-col border-t-2 border-[var(--s-ink)]">
+              {COMPARE.map(([a, other, m]) => (
+                <li key={a} className="py-5 border-b border-[var(--s-line)] flex flex-col gap-2">
+                  <span className="text-[17px] font-semibold text-[var(--s-ink)]">{t(a)}</span>
+                  <span className="text-[15px] text-[var(--s-muted)]"><span className="font-medium">{`${t("General software:")} `}</span>{t(other)}</span>
+                  <span className="flex gap-2.5 items-start text-[16px] text-[var(--s-ink)]"><Check size={17} aria-hidden className="text-[var(--s-brand)] mt-[4px] flex-none" /><span><span className="sr-only">Medoro: </span>{t(m)}</span></span>
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section id="pricing" aria-labelledby="pricing-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
-          <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
-            <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
-              <span className={eyebrow}>{t("Pricing", { ctx: "site" })}</span>
-              <h2 id="pricing-title" className={h2}>{t("Plain prices in rupees. 7 days free.")}</h2>
-              <span id="pharmacy-pricing" aria-hidden className="block scroll-mt-28" /><span id="distribution-pricing" aria-hidden className="block scroll-mt-28" />
+        {/* The supply chain Medoro serves */}
+        <section aria-labelledby="chain-title" className="bg-[var(--s-soft)] border-y border-[var(--s-line)]">
+          <div className={`${wrap} py-[clamp(64px,9vw,112px)] flex flex-col gap-12`}>
+            <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
+              <span className={eyebrow}>{t("The whole chain")}</span>
+              <h2 id="chain-title" className={h2}>{t("Every medicine passes through two businesses before it reaches a patient.")}</h2>
+              <p className={lead}>{t("Medoro is built for both of them.")}</p>
             </div>
-            <p data-reveal className={`${lead} col-span-12 min-[1000px]:col-span-5`}>{t("No GST is charged on these prices. Pay by UPI, card or netbanking. Cancel any time and your data stays where it is.")}</p>
+            <ol className="m-0 p-0 list-none grid gap-4 min-[900px]:grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch">
+              {FLOW.map(([Icon, title, d], i) => (
+                <li key={title} className="contents">
+                  <div data-reveal style={{ ["--d" as string]: i }} className="site-lift rounded-xl bg-white border border-[var(--s-line)] p-6 flex flex-col gap-3">
+                    <span className="flex items-center gap-3"><span className="size-11 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center"><Icon size={22} aria-hidden className="text-[var(--s-brand)]" /></span><span className="text-[19px] font-semibold text-[var(--s-ink)]">{t(title)}</span></span>
+                    <p className="m-0 text-[15.5px] text-[var(--s-ink-2)]">{t(d)}</p>
+                    <span className="mt-auto text-[14px] font-semibold text-[var(--s-brand)]">{i === 0 ? t("Medoro Distribution") : i === 1 ? t("Medoro Pharmacy and the chemist portal") : t("A GST bill from Medoro Pharmacy")}</span>
+                  </div>
+                  {i < FLOW.length - 1 ? <span aria-hidden className="flex items-center justify-center text-[var(--s-brand)] max-[899px]:rotate-90"><ArrowRight size={26} /></span> : null}
+                </li>
+              ))}
+            </ol>
           </div>
-          <Pricing />
-          <p className="m-0 text-[13.5px] text-[var(--s-muted)] max-w-[820px]">{t("Launch prices in Indian rupees. No GST is charged. Yearly plans are billed upfront. WhatsApp messages are subject to Meta’s conversation charges. Hosting your own server or cloud is billed separately by your provider.")}</p>
         </section>
 
+        {/* Trust */}
+        <section aria-labelledby="trust-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
+          <div data-reveal className="col-span-12 min-[1000px]:col-span-6 flex flex-col gap-5">
+            <span className={eyebrow}>{t("Security and data ownership")}</span>
+            <h2 id="trust-title" className={h2}>{t("Your business data is yours. Full stop.")}</h2>
+            <p className={lead}>{t("Medoro runs on infrastructure you control: a PC in your shop, your own server or your cloud account. Medoro’s servers see your account and plan, never your invoices, stock or patients.")}</p>
+            <a href="/pharmacy#security" className="site-link-arrow self-start inline-flex items-center gap-1.5 text-[16px] font-semibold text-[var(--s-brand)] underline underline-offset-4 decoration-[var(--s-brand)]/30 hover:decoration-[var(--s-brand)]">{t("How Medoro keeps your data safe")}<ArrowRight size={16} aria-hidden /></a>
+          </div>
+          <ul className="col-span-12 min-[1000px]:col-span-5 min-[1000px]:col-start-8 m-0 p-0 list-none grid gap-3 min-[560px]:grid-cols-2">
+            {([[ShieldCheck, "Two-step sign-in"], [Lock, "Encrypted backups"], [FileCheck, "Audit trail"], [UserCheck, "DPDP consent records"], [Sparkles, "AI that never gives medical advice"], [MessageCircle, "Real people on WhatsApp"]] as [typeof Check, string][]).map(([Icon, l], i) => (
+              <li key={l} data-reveal style={{ ["--d" as string]: i % 2 }} className="site-lift flex items-center gap-3 rounded-xl border border-[var(--s-line)] bg-white px-4 py-4 text-[15.5px] font-medium text-[var(--s-ink)]"><Icon size={20} aria-hidden className="text-[var(--s-brand)] flex-none" />{t(l)}</li>
+            ))}
+          </ul>
+        </section>
+
+        {/* FAQ */}
         <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
               <span className={eyebrow}>{t("FAQ")}</span>
-              <h2 id="faq-title" className={h2}>{t("Questions owners ask us.")}</h2>
-              <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t("Something else? Message us on WhatsApp and someone who knows pharmacy billing will reply.")}</p>
-              <a href={WA_DEMO} className="self-start inline-flex items-center gap-2 h-11 px-4 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={16} aria-hidden className="text-[#146C43]" />{t("Ask on WhatsApp")}</a>
+              <h2 id="faq-title" className={h2}>{t("About Medoro")}</h2>
+              <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t("Questions about a product? Each product page has its own FAQ, or message us on WhatsApp.")}</p>
+              <a href={WA_DEMO} className="self-start inline-flex items-center gap-2 h-11 px-4 rounded-lg border border-[#C9D1CF] text-[15px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={16} aria-hidden />{t("Ask on WhatsApp")}</a>
             </div>
-            <div className="site-faq col-span-12 min-[1000px]:col-span-7 min-[1000px]:col-start-6 flex flex-col gap-10">
-              {FAQ.map((g) => (
-                <div key={g.title} className="flex flex-col">
-                  <h3 className="m-0 pb-3 text-[13px] font-semibold uppercase tracking-[.08em] text-[var(--s-muted)]">{t(g.title)}</h3>
-                  {g.items.map(([q, a]) => (
-                    <details key={q} name="faq" className="border-t border-[var(--s-line)] last:border-b">
-                      <summary className="flex justify-between items-center gap-6 py-5 text-[18px] font-semibold text-[var(--s-ink)] rounded-md">
-                        {t(q)}<Plus size={20} aria-hidden className="site-plus flex-none text-[var(--s-brand)]" />
-                      </summary>
-                      <p className="m-0 pb-6 pr-10 text-[16.5px] text-[var(--s-ink-2)]">{t(a)}</p>
-                    </details>
-                  ))}
-                </div>
+            <div className="site-faq col-span-12 min-[1000px]:col-span-7 min-[1000px]:col-start-6 flex flex-col">
+              {FAQ.map(([q, a]) => (
+                <details key={q} name="faq" className="border-t border-[var(--s-line)] last:border-b">
+                  <summary className="flex justify-between items-center gap-6 py-5 text-[18px] font-semibold text-[var(--s-ink)] rounded-md">
+                    {t(q)}<Plus size={20} aria-hidden className="site-plus flex-none text-[var(--s-brand)]" />
+                  </summary>
+                  <p className="m-0 pb-6 pr-10 text-[16.5px] text-[var(--s-ink-2)]">{t(a)}</p>
+                </details>
               ))}
             </div>
           </div>
         </section>
 
-        <section aria-labelledby="motivation-title" className="bg-[var(--s-soft)] border-y border-[var(--s-line)] mb-[clamp(72px,10vw,128px)]">
-          <div className={`${wrap} py-[clamp(64px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-10 items-center`}>
-            <div data-reveal className="col-span-12 min-[1000px]:col-span-6 flex justify-center">
-              <MotivationArt className="w-full max-w-[520px] h-auto" />
-            </div>
-            <div className="col-span-12 min-[1000px]:col-span-6 flex flex-col gap-5">
-              <span className={eyebrow}>{t("For the people behind the counter")}</span>
-              <h2 id="motivation-title" className={h2}>{t("You keep your town healthy. Let Medoro keep the books.")}</h2>
-              <p className={lead}>{t("Every strip you hand over is someone’s good night’s sleep. You deserve software that keeps up with you, so the evening rush feels calm and month-end feels light.")}</p>
-              <figure data-reveal className="m-0 border-l-[3px] border-[#14B8A6] pl-5 py-1">
-                <blockquote className="m-0 text-[clamp(19px,1.7vw,23px)] leading-[1.45] font-medium text-[var(--s-ink)]">“{t("Small steps at the counter every day build a bigger, stronger store every year.")}”</blockquote>
-                <figcaption className="mt-2 text-[14px] text-[var(--s-muted)]">{t("Keep going. Your store is growing.")}</figcaption>
-              </figure>
-              <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
-                {MOTIVATION.map((m) => (
-                  <li key={m} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[var(--s-line)] px-3.5 py-1.5 text-[14.5px] font-medium text-[var(--s-ink-2)]"><Check size={15} aria-hidden className="text-[var(--s-brand)]" />{t(m)}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section aria-labelledby="cta-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
-          <div data-reveal className="site-pan relative overflow-hidden rounded-2xl text-white px-[clamp(24px,6vw,72px)] py-[clamp(48px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end">
-            <div aria-hidden className="absolute inset-0 opacity-35"><FloatingShapes /></div>
-            <div className="relative col-span-12 min-[1000px]:col-span-8 flex flex-col gap-4">
-              <h2 id="cta-title" className="site-display m-0 text-[clamp(34px,4.4vw,56px)]">{t("Set up your counter this afternoon.")}</h2>
-              <p className="m-0 text-[18px] text-[#D3EAE6] max-w-[600px]">{t("Start the 7-day trial, import your stock from Excel, and bill on Medoro tomorrow. We help on WhatsApp all the way.")}</p>
-            </div>
-            <div className="relative col-span-12 min-[1000px]:col-span-4 flex flex-col gap-3 min-[1000px]:justify-self-end min-[1000px]:w-[280px]">
-              <a href="/trial" className="site-link-arrow w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg bg-white text-[var(--s-brand-ink)] text-[16px] font-semibold transition-colors hover:bg-[#E7F2F0] hover:text-[var(--s-brand-ink)]">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
-              <a href={WA_DEMO} className="w-full inline-flex items-center justify-center gap-2 h-12 px-6 rounded-lg border border-white/40 text-white text-[16px] font-semibold transition-colors hover:bg-white/10 hover:text-white"><MessageCircle size={17} aria-hidden />{t("Get a demo on WhatsApp")}</a>
+        {/* Choose */}
+        <section aria-labelledby="choose-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
+          <div data-reveal className="site-dark relative overflow-hidden rounded-2xl bg-[var(--s-dark)] text-white p-[clamp(28px,5vw,64px)] flex flex-col items-center text-center gap-6">
+            <Aurora dark />
+            <h2 id="choose-title" className="relative site-display m-0 text-[clamp(30px,3.8vw,48px)] max-w-[760px]">{t("Which Medoro is right for you?")}</h2>
+            <p className="relative m-0 text-[18px] text-[#C3D3D0] max-w-[620px]">{t("Sell to patients at a counter? Choose Medoro Pharmacy. Sell to chemists on credit? Choose Medoro Distribution.")}</p>
+            <div className="relative flex gap-3 flex-wrap justify-center">
+              <a href="/pharmacy" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-white text-[var(--s-ink)] text-[16px] font-semibold hover:text-[var(--s-ink)]"><ScanBarcode size={18} aria-hidden />{t("I run a medical store")}<ArrowRight size={18} aria-hidden /></a>
+              <a href="/distribution" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/40 text-white text-[16px] font-semibold hover:border-white hover:text-white"><Warehouse size={18} aria-hidden />{t("I run a distribution business")}<ArrowRight size={18} aria-hidden /></a>
             </div>
           </div>
         </section>

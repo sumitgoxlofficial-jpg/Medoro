@@ -280,16 +280,18 @@ const AFTER: [string, string, string][] = [
   ["Day 7", "Decide", "Pay by UPI, card or netbanking only if you continue. Plans never renew on their own."],
 ];
 
-export function Pricing() {
+/** The price list. `only` shows one product without the product switch (its own landing page); without it, both. */
+export function Pricing({ only }: { only?: "pharmacy" | "distribution" } = {}) {
   const t = useT();
   const [yearly, setYearly] = useState(false);
   // Two products, one price list: MEDORO Pharmacy (retail) and MEDORO Distribution (wholesale). "#distribution-pricing" opens Distribution.
-  const [product, setProduct] = useState<"pharmacy" | "distribution">("pharmacy");
+  const [product, setProduct] = useState<"pharmacy" | "distribution">(only ?? "pharmacy");
   useEffect(() => {
+    if (only) return;
     const on = () => { if (window.location.hash === "#distribution-pricing") setProduct("distribution"); else if (window.location.hash === "#pharmacy-pricing") setProduct("pharmacy"); };
     on(); window.addEventListener("hashchange", on);
     return () => window.removeEventListener("hashchange", on);
-  }, []);
+  }, [only]);
   const [compare, setCompare] = useState(false);
   const [ans, setAns] = useState<{ b: number; c: number; u: number } | null>(null);
   const fit = ans ? fitPlan(ans) : null;
@@ -314,10 +316,10 @@ export function Pricing() {
         ))}
       </ul>
       <div className="flex flex-wrap items-center gap-3">
-        <div role="group" aria-label={t("Product")} className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
+        {only ? null : <div role="group" aria-label={t("Product")} className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
           <button type="button" onClick={() => setProduct("pharmacy")} aria-pressed={product === "pharmacy"} className={seg(product === "pharmacy")}><ScanBarcode size={16} aria-hidden />{t("Medoro Pharmacy")}</button>
           <button type="button" onClick={() => setProduct("distribution")} aria-pressed={product === "distribution"} className={seg(product === "distribution")}><Warehouse size={16} aria-hidden />{t("Medoro Distribution")}</button>
-        </div>
+        </div>}
         <div role="group" aria-label={t("Billing period")} className="inline-flex gap-0.5 p-[3px] rounded-lg bg-[var(--s-soft)] border border-[var(--s-line)]">
           <button type="button" onClick={() => setYearly(false)} aria-pressed={!yearly} className={seg(!yearly)}>{t("Monthly")}</button>
           <button type="button" onClick={() => setYearly(true)} aria-pressed={yearly} className={seg(yearly)}>{t("Yearly")}<span className={`text-[12.5px] font-semibold rounded-full px-2 py-0.5 ${yearly ? "bg-[var(--s-brand)] text-white" : "bg-[var(--s-brand-tint)] text-[var(--s-brand)] site-breathe"}`}>{t("2 months free")}</span></button>
