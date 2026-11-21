@@ -9,7 +9,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { openCheckout } from "@/components/razorpay";
 import { WA } from "@/components/site/chrome";
-import { PRODUCTS } from "@/staff/constants";
+import type { PayItem } from "@/lib/pay-catalog";
 import type { planView } from "@/domain/system/licence";
 import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf, type Lang, type TFn } from "@/lib/tr";
@@ -35,9 +35,8 @@ const inr = (paise: number) => "₹" + (paise / 100).toLocaleString("en-IN", { m
 /** Rupees with paise shown as two digits when there are any: ₹1,999.20, ₹2,499. */
 const rs = (r: number) => "₹" + r.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(r) ? 0 : 2, maximumFractionDigits: 2 });
 const today = () => new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
-const PLANS = PRODUCTS.filter((p) => !("once" in p));
-/** List price including GST, in rupees. Yearly is 10 months. */
-const price = (id: string, cycle: string) => { const p = PLANS.find((x) => x.id === id) ?? PLANS[1]; return cycle === "y" ? p.m * 10 : p.m; };
+/** List price including GST, in rupees, of one of `items` (else the middle plan). Yearly is 10 months. */
+const price = (items: PayItem[], id: string, cycle: string) => { const plans = items.filter((x) => !x.addon); const p = items.find((x) => x.id === id) ?? plans[Math.min(1, plans.length - 1)]; return cycle === "y" ? p.m * 10 : p.m; };
 const KIND: Record<string, string> = { payment: "Payment reported", addon_add: "Add AI add-on", addon_remove: "Remove AI add-on", cancel: "Cancel plan", trial_extended: "Trial extended", payment_claim: "Payment reported" };
 const STATUS: Record<string, [string, Tone]> = { queued: ["Waiting to send", "gray"], open: ["With Medoro", "blue"], done: ["Done", "green"], rejected: ["Declined", "red"] };
 
@@ -52,7 +51,12 @@ function phaseOf(v: V, t: TFn, day: (iso: string) => string): [string, Tone, str
   }
 }
 
-export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { branches: number; counters: number; users: number }; pay: { upi: string | null; payee: string; bank: string | null }; reference: string; online: Online }) {
+/**
+ * The Subscription screen, shared by MEDORO Pharmacy (/app/plan) and MEDORO Distribution (/dist/plan): `items` are the
+ * plans (and add-on) this product sells, `rows` what the current-plan card lists, and `payLink` whether Medoro's
+ * hosted pay page (for self-hosted installs) sells these plans.
+ */
+export function PlanView({ v, items, rows, pay, reference, online, payLink = true }: { v: V; items: PayItem[]; rows: [string, string][]; pay: { upi: string | null; payee: string; bank: string | null }; reference: string; online: Online; payLink?: boolean }) {
   const toast = useToast();
   const t = useT(), lang = useLang();
   const day = dayIn(lang), when = whenIn(lang);
@@ -64,10 +68,12 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
     toast(t("Invoice emailed to {email}.", { email: r.data.to }), "green");
     router.refresh();
   });
-  const current = PLANS.find((p) => p.name === v.plan)?.id ?? "pro";
-  const [product, setProduct] = useState<"starter" | "pro" | "multi" | "ai">(current as "starter" | "pro" | "multi");
+  const plans = items.filter((p) => !p.addon);
+  const addon = items.find((p) => p.addon);
+  const current = plans.find((p) => p.name === v.plan)?.id ?? plans[Math.min(1, plans.length - 1)].id;
+  const [product, setProduct] = useState<string>(current);
   const [cycle, setCycle] = useState("m");
-  const amount = price(product, cycle);
+  const amount = price(items, product, cycle);
   const [paid, setPaid] = useState<null | { reference: string; paidOn: string; amountRupees: string; payer: string }>(null);
   const [cancel, setCancel] = useState<string | null>(null);
   const [key, setKey] = useState("");
@@ -93,7 +99,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
     if (product === "ai" || !code.trim()) return;
     setCouponErr("");
     start(async () => {
-      const r = await couponAction({ plan: product, cycle: cycle as "m" | "y", coupon: code });
+      const r = await couponAction({ plan: product as "starter", cycle: cycle as "m" | "y", coupon: code });
       if (!r.ok) { setCoupon(null); return setCouponErr(t(r.error)); }
       setCoupon(r.data.coupon ? { code: r.data.coupon.code, label: r.data.coupon.label, total: r.data.total } : null);
     });
@@ -102,12 +108,12 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const [aiCycle, setAiCycle] = useState<"m" | "y">("m");
   const [aiConsent, setAiConsent] = useState(false);
   const [aiCode, setAiCode] = useState("");
-  const aiPrice = PRODUCTS.find((p) => p.id === "ai")!.m;
+  const aiPrice = addon?.m ?? 0;
   const payOnline = async (what?: { plan: "ai"; cycle: "m" | "y" }) => {
     if (!what && product === "ai") return;
     setPaying(true);
     try {
-      const r = await payOnlineAction(what ? { plan: "ai", cycle: what.cycle, coupon: aiCode.trim(), aiConsent } : { plan: product as "starter" | "pro" | "multi", cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
+      const r = await payOnlineAction(what ? { plan: "ai", cycle: what.cycle, coupon: aiCode.trim(), aiConsent } : { plan: product as "starter", cycle: cycle as "m" | "y", coupon: coupon?.code ?? "" });
       if (!r.ok) return toast(r.error, "red");
       if (r.data.free) { toast(r.message ?? "Your plan is active.", "green"); return router.refresh(); }
       await openCheckout(r.data,
@@ -132,8 +138,8 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           <div className="flex items-center gap-2"><span className="text-[12.5px] text-muted font-medium">{t("Current plan")}</span><Badge tone={tone} className="ml-auto">{label}</Badge></div>
           <div className="text-[22px] font-semibold">{v.plan ?? "—"}{hasAi ? ` + ${t("AI add-on")}` : ""}</div>
           <div className="text-[13px] text-muted">{line}</div>
-          {[["Branches", String(usage.branches)], ["Counters", String(usage.counters)], ["Active users", String(usage.users)], ["WhatsApp invoices", t("Included (your own Meta account)")], ["Backups", t("Included")]].map(([k, val]) => (
-            <div key={k} className="flex justify-between gap-4 text-[13.5px] py-1 border-b border-row last:border-0"><span className="text-ink-2 shrink-0">{t(k)}</span><span className="tnum text-right">{val}</span></div>
+          {rows.map(([k, val]) => (
+            <div key={k} className="flex justify-between gap-4 text-[13.5px] py-1 border-b border-row last:border-0"><span className="text-ink-2 shrink-0">{t(k)}</span><span className="tnum text-right">{t(val)}</span></div>
           ))}
         </div>
 
@@ -144,7 +150,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           ) : online.enabled ? (
             <>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Plan"><Select value={product} onChange={(e) => { setProduct(e.target.value as typeof product); setCoupon(null); }}>{PLANS.filter((p) => !("addon" in p)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+                <Field label="Plan"><Select value={product} onChange={(e) => { setProduct(e.target.value); setCoupon(null); }}>{plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
                 <Field label="Billing"><Select value={cycle} onChange={(e) => { setCycle(e.target.value); setCoupon(null); }}><option value="m">{t("Monthly")}</option><option value="y">{t("Yearly (2 months free)")}</option></Select></Field>
               </div>
               <form onSubmit={(e) => { e.preventDefault(); applyCoupon(); }} className="flex gap-2 items-end">
@@ -162,7 +168,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
                 { terms: <a href="/legal#terms" target="_blank" className="underline">{t("Terms")}</a>, refund: <a href="/legal#refund" target="_blank" className="underline">{t("Cancellation & refund policy")}</a> })}</span>
             </>
           ) : null}
-          {connected && !online.enabled ? (
+          {connected && !online.enabled && payLink ? (
             <div className="flex flex-col gap-1.5">
               <Button variant="primary" className="self-start" disabled={busy} onClick={() => start(async () => {
                 const r = await payLinkAction();
@@ -176,13 +182,13 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
               {pay.upi || pay.bank ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">{t("Or pay by UPI or bank transfer and report it:")}</div> : null}
             </div>
           ) : null}
-          {online.enabled && !manual ? null : connected && !online.enabled && !pay.upi && !pay.bank ? null : !pay.upi && !pay.bank ? (
+          {online.enabled && !manual ? null : connected && !online.enabled && payLink && !pay.upi && !pay.bank ? null : !pay.upi && !pay.bank ? (
             <div className="text-[13px] text-ink-2">{rich(t(connected ? "Payment details aren’t set up on this server. {wa} for UPI or bank details, then report the payment below." : "Payment details aren’t set up on this server. {wa} for UPI or bank details."), { wa: <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-semibold underline">{t("Message Medoro on WhatsApp")}</a> })}</div>
           ) : (
             <>
               {online.enabled ? <div className="text-[12.5px] text-muted pt-1 border-t border-row">{t("Or pay by UPI or bank transfer and report it:")}</div> : (
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Plan"><Select value={product} onChange={(e) => setProduct(e.target.value as typeof product)}>{PLANS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+                  <Field label="Plan"><Select value={product} onChange={(e) => setProduct(e.target.value)}>{items.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
                   <Field label="Billing"><Select value={cycle} onChange={(e) => setCycle(e.target.value)}><option value="m">{t("Monthly")}</option><option value="y">{t("Yearly (2 months free)")}</option></Select></Field>
                 </div>
               )}
@@ -201,7 +207,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
             </>
           )}
           {connected && (pay.upi || pay.bank) ? (paid ? (
-            <form onSubmit={(e) => { e.preventDefault(); act(() => paidAction({ product, cycle: cycle as "m" | "y", ...paid }), () => setPaid(null)); }} className="flex flex-col gap-2 bg-page border border-line rounded-lg p-3">
+            <form onSubmit={(e) => { e.preventDefault(); act(() => paidAction({ product: product as "starter", cycle: cycle as "m" | "y", ...paid }), () => setPaid(null)); }} className="flex flex-col gap-2 bg-page border border-line rounded-lg p-3">
               <strong className="text-[13.5px]">{t("Report your payment")}</strong>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="UPI reference (UTR) or bank transaction no."><Input value={paid.reference} onChange={(e) => setPaid({ ...paid, reference: e.target.value })} required /></Field>
@@ -216,7 +222,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           )) : null}
         </div>
 
-        <div className={card}>
+        {addon ? <div className={card}>
           <div className="flex items-center gap-2"><span className="font-semibold text-[15px]">{t("AI Pharmacy Manager add-on")}</span>{online.enabled && !connected ? <Badge tone={online.billing.ai.active ? "green" : "gray"} className="ml-auto">{online.billing.ai.active ? t("Active") : t("Not added")}</Badge> : null}</div>
           {online.enabled && !connected ? (
             <>
@@ -237,7 +243,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
           ) : <div className="text-[13px] text-ink-2">{hasAi ? t("Included in your plan.") : t("₹{price}/month on top of your plan.", { price: aiPrice })}</div>}
           {pendingAddon ? <div className="text-[12.5px] text-muted">{t(KIND[pendingAddon.kind])} · {t("{name} since {time}", { name: t(STATUS[pendingAddon.status][0]).toLowerCase(), time: when(pendingAddon.at) })}</div> : null}
           {connected ? <Button className="self-start" disabled={busy || !!pendingAddon} onClick={() => act(() => addonAction(!hasAi))}>{hasAi ? t("Remove add-on") : t("Add AI add-on")}</Button> : null}
-        </div>
+        </div> : null}
 
         {online.enabled && !connected && online.billing.status === "cancelled" ? (
           <div className={card}>

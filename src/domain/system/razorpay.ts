@@ -6,7 +6,7 @@ import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
 import type { Ctx } from "@/server/context";
 import { sendInvoiceQuietly } from "./invoice";
-import { PRODUCTS } from "@/staff/constants";
+import { DIST_PAY_IDS, isDistPlan, payItem } from "@/lib/pay-catalog";
 import { claimCoupon, couponLabel, discountOf, usableCoupon, type CouponBuyer } from "./coupons";
 
 /**
@@ -33,8 +33,11 @@ const cfg = () => ({
 });
 export const razorpayEnabled = () => { const c = cfg(); return !!(c.keyId && c.secret); };
 
-/** What can be bought online: the three plans, and the AI Pharmacy Manager add-on ("ai") on top of any of them. */
-export const PAY_PLANS = ["starter", "pro", "multi", "ai"] as const;
+/**
+ * What can be bought online: the three Pharmacy plans and the AI Pharmacy Manager add-on ("ai") on top of any of them,
+ * and the three Distribution plans. A tenant can only buy its own product's plans.
+ */
+export const PAY_PLANS = ["starter", "pro", "multi", "ai", ...DIST_PAY_IDS] as const;
 export const orderSchema = z.object({ plan: z.enum(PAY_PLANS), cycle: z.enum(["m", "y"]), coupon: z.string().max(40).optional().default(""), aiConsent: z.boolean().optional() });
 const isAi = (plan: string) => plan === "ai";
 
@@ -44,7 +47,7 @@ export const aiAddonActive = (meta: { addons: string[]; aiUntil: Date | null } |
 
 /** Price including 18% GST, in paise: list price, coupon discount, what is charged and the GST in it. Yearly is 10 months. */
 export function planPrice(plan: (typeof PAY_PLANS)[number], cycle: "m" | "y", off: number | { percentOff: number; payPaise?: number | null } = 0) {
-  const p = PRODUCTS.find((x) => x.id === plan)!;
+  const p = payItem(plan)!;
   const list = (cycle === "y" ? p.m * 10 : p.m) * 100;
   const discount = discountOf(list, typeof off === "number" ? { percentOff: off } : off);
   const total = list - discount;
@@ -124,7 +127,11 @@ const day = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: 
 export async function createOrder(ctx: Ctx, raw: z.input<typeof orderSchema>) {
   if (!razorpayEnabled()) throw new UserError("Online payments aren’t set up on this server.");
   const { plan, cycle, aiConsent } = orderSchema.parse(raw);
-  const meta = await db.subscriptionMeta.findUnique({ where: { tenantId: ctx.tenantId } });
+  const [meta, owner] = await Promise.all([
+    db.subscriptionMeta.findUnique({ where: { tenantId: ctx.tenantId } }),
+    db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { product: true } }),
+  ]);
+  if ((owner.product === "distribution") !== isDistPlan(plan)) throw new UserError("That plan isn’t available for this account. Choose one of the plans listed.");
   if (isAi(plan)) {
     // The add-on rides on a plan, and sends business questions to an outside AI provider, which needs the owner's consent.
     if (!meta || meta.status === "cancelled" || (meta.renewsAt && meta.renewsAt < new Date())) throw new UserError("Your plan has ended. Renew it first, then add the AI add-on.");
@@ -196,7 +203,7 @@ export async function applyPaid(orderId: string, paymentId: string, by: string):
     }
     // A trial or plan that is still running keeps its remaining days; a cancelled plan restarts today.
     const { from, to } = extendPeriod(meta && meta.status !== "cancelled" ? meta.renewsAt : null, p.cycle as "m" | "y");
-    const name = PRODUCTS.find((x) => x.id === p.plan)!.name;
+    const name = payItem(p.plan)!.name;
     await tx.onlinePayment.update({ where: { orderId }, data: { status: "paid", paymentId, paidAt: new Date(), periodFrom: from, periodTo: to, note: null, prevStatus: meta?.status ?? null, prevRenewsAt: meta?.renewsAt ?? null } });
     await useCoupon(tx, p, by);
     await tx.subscriptionMeta.upsert({
@@ -321,7 +328,7 @@ export async function onlinePayments(tenantId: string) {
     orderBy: { createdAt: "desc" }, take: 30,
   });
   return rows.map((r) => ({
-    id: r.id, status: r.status, plan: PRODUCTS.find((x) => x.id === r.plan)?.name ?? r.plan, cycle: r.cycle, amountPaise: r.amountPaise, gstPaise: r.gstPaise, coupon: r.couponCode,
+    id: r.id, status: r.status, plan: payItem(r.plan)?.name ?? r.plan, cycle: r.cycle, amountPaise: r.amountPaise, gstPaise: r.gstPaise, coupon: r.couponCode,
     paymentId: r.provider === "coupon" ? null : r.paymentId, at: (r.paidAt ?? r.createdAt).toISOString(), periodTo: r.periodTo?.toISOString() ?? null,
     note: r.note, refunded: !!r.refundedAt, invoiceNo: r.invoiceNo, invoiceEmailedAt: r.invoiceSentAt?.toISOString() ?? null,
   }));

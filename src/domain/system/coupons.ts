@@ -4,7 +4,7 @@ import { db, type Tx } from "@/server/db";
 import { UserError } from "@/server/action";
 
 /** Subscription coupons: a percentage off the GST-inclusive plan price, made in the staff console. */
-export const COUPON_PLANS = ["starter", "pro", "multi"] as const;
+export const COUPON_PLANS = ["starter", "pro", "multi", "dist_std", "dist_pro", "dist_ent"] as const;
 export const normCode = (s: string) => String(s ?? "").toUpperCase().replace(/\s+/g, "");
 
 export const couponSchema = z.object({
