@@ -106,3 +106,110 @@ export function ReferralArt({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/**
+ * Homepage "About": the medicine supply chain Medoro serves. Factory → distributor's godown → medical store, joined by a
+ * road that trucks drive along, with ₹ coming back the other way.
+ */
+export function SupplyChainArt({ className }: { className?: string }) {
+  const road = "M70 250C150 250 160 172 240 172S330 250 410 250";
+  const back = "M410 250C330 250 320 172 240 172S150 250 70 250";
+  return (
+    <svg viewBox="0 0 480 300" className={className} aria-hidden focusable="false">
+      <rect x="0" y="0" width="480" height="300" rx="28" fill="#F2F9F8" />
+      {/* sky */}
+      <circle cx="404" cy="62" r="22" fill={GOLD} opacity=".9" className="site-breathe" style={{ transformBox: "fill-box" }} />
+      <g className="site-float [--dur:12s]"><ellipse cx="90" cy="64" rx="34" ry="12" fill="#fff" /><ellipse cx="108" cy="56" rx="18" ry="12" fill="#fff" /></g>
+      <g className="site-float [--dur:14s]" style={{ animationDelay: "-5s" }}><ellipse cx="300" cy="44" rx="26" ry="9" fill="#fff" /><ellipse cx="314" cy="38" rx="14" ry="9" fill="#fff" /></g>
+      {/* road */}
+      <path d={road} stroke="#DCEDEA" strokeWidth="16" fill="none" strokeLinecap="round" />
+      <path d={road} stroke="#fff" strokeWidth="2" fill="none" strokeDasharray="6 8" className="site-dash" />
+      {/* factory */}
+      <g>
+        <rect x="88" y="176" width="13" height="34" fill={T} />
+        <circle cx="96" cy="164" r="6" fill="#DCEDEA" className="site-twinkle" />
+        <circle cx="106" cy="150" r="8" fill="#E7F2F0" className="site-twinkle [animation-delay:-1.2s]" />
+        <path d="M30 250V204l20-14v14l20-14v14l20-14v14l20-14v60z" fill="#fff" stroke={T3} strokeWidth="2.5" strokeLinejoin="round" />
+        <rect x="40" y="216" width="14" height="12" rx="2" fill={T3} /><rect x="62" y="216" width="14" height="12" rx="2" fill={T3} />
+        <rect x="84" y="226" width="16" height="24" rx="2" fill={T} />
+        <g transform="translate(46 236) rotate(-20)"><rect x="-10" y="-4" width="20" height="8" rx="4" fill="#fff" stroke={T2} strokeWidth="1.5" /><path d="M0 -4h6a4 4 0 0 1 0 8H0z" fill={T2} /></g>
+      </g>
+      {/* distributor's godown */}
+      <g>
+        <path d="M186 124L240 92l54 32z" fill={T} />
+        <rect x="194" y="122" width="92" height="50" fill="#fff" stroke={T3} strokeWidth="2.5" />
+        <rect x="222" y="136" width="36" height="36" fill="#E7F2F0" stroke={T3} strokeWidth="2" />
+        {[143, 150, 157, 164].map((y) => <path key={y} d={`M222 ${y}h36`} stroke={T3} strokeWidth="1.5" />)}
+        <g className="site-bob"><rect x="200" y="152" width="16" height="16" rx="2" fill={GOLD} /><path d="M200 160h16" stroke="#D9A93A" strokeWidth="1.5" /></g>
+        <g className="site-bob [animation-delay:-2s]"><rect x="264" y="150" width="16" height="18" rx="2" fill={T2} /><path d="M272 154v10M267 159h10" stroke="#fff" strokeWidth="2" strokeLinecap="round" /></g>
+      </g>
+      {/* medical store */}
+      <g>
+        <rect x="372" y="200" width="76" height="50" fill="#fff" stroke={T3} strokeWidth="2.5" />
+        {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} x={366 + i * 14.67} y="190" width="14.67" height="14" fill={i % 2 ? "#fff" : T2} />)}
+        <path d="M366 204h88" stroke={T3} strokeWidth="2" />
+        <rect x="380" y="214" width="20" height="16" rx="2" fill="#E7F2F0" stroke={T3} strokeWidth="1.5" />
+        <rect x="412" y="216" width="22" height="34" rx="2" fill={T} />
+        <g className="site-breathe" style={{ transformBox: "fill-box" }}>
+          <circle cx="410" cy="168" r="14" fill={T2} />
+          <path d="M410 160v16M402 168h16" stroke="#fff" strokeWidth="4" strokeLinecap="round" />
+        </g>
+        <g className="site-float [--dur:6s]">
+          <path d="M448 150c-9-6-12-10-12-15 0-4 3-7 6-7 3 0 5 1 6 4 1-3 3-4 6-4 3 0 6 3 6 7 0 5-3 9-12 15z" fill={ROSE} />
+        </g>
+      </g>
+      {/* trucks heading to the store */}
+      {[0, 3.5].map((d) => (
+        <g key={d}>
+          <animateMotion dur="7s" begin={`${d}s`} repeatCount="indefinite" rotate="auto" path={road} />
+          <rect x="-18" y="-17" width="24" height="14" rx="2" fill={T} />
+          <path d="M-6 -14v8M-10 -10h8" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+          <path d="M6 -13h7l5 5v5H6z" fill={T2} />
+          <circle cx="-11" cy="-2" r="3.5" fill="#0E1614" /><circle cx="11" cy="-2" r="3.5" fill="#0E1614" />
+        </g>
+      ))}
+      {/* ₹ coming back */}
+      <g>
+        <animateMotion dur="7s" begin="1.75s" repeatCount="indefinite" path={back} />
+        <circle cx="0" cy="-16" r="9" fill={GOLD} stroke="#D9A93A" strokeWidth="1.5" />
+        <text x="0" y="-12" textAnchor="middle" fontSize="10" fontWeight="700" fill="#94570A">₹</text>
+      </g>
+      <path className="site-twinkle" d="M150 120l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill={T2} />
+      <path className="site-twinkle [animation-delay:-1.4s]" d="M330 120l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill={GOLD} />
+    </svg>
+  );
+}
+
+/** Homepage FAQ: a phone with a chat, a question answered by a person. */
+export function HelpArt({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 320 220" className={className} aria-hidden focusable="false">
+      <rect x="0" y="0" width="320" height="220" rx="24" fill="#F2F9F8" />
+      <circle cx="250" cy="60" r="40" fill="#E7F2F0" />
+      <rect x="110" y="24" width="100" height="180" rx="16" fill={T} />
+      <rect x="118" y="38" width="84" height="152" rx="8" fill="#fff" />
+      <g className="site-up">
+        <rect x="126" y="50" width="52" height="24" rx="10" fill="#E7F2F0" />
+        <text x="152" y="67" textAnchor="middle" fontSize="15" fontWeight="700" fill={T}>?</text>
+      </g>
+      <g className="site-up [--d:2]">
+        <rect x="142" y="84" width="52" height="34" rx="10" fill={T2} />
+        <path d="M150 95h36M150 103h26" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+      </g>
+      <g className="site-up [--d:3]">
+        <rect x="126" y="128" width="40" height="20" rx="10" fill="#E7F2F0" />
+        {[138, 146, 154].map((x, i) => <circle key={x} cx={x} cy="138" r="2.6" fill={T} className="site-twinkle" style={{ animationDelay: `${-i * .4}s` }} />)}
+      </g>
+      <g className="site-float [--dur:7s] [--r:-8deg]">
+        <circle cx="62" cy="76" r="26" fill={GOLD} />
+        <text x="62" y="86" textAnchor="middle" fontSize="28" fontWeight="700" fill="#94570A">?</text>
+      </g>
+      <g className="site-float [--dur:8s] [--r:6deg]" style={{ animationDelay: "-3s" }}>
+        <circle cx="262" cy="150" r="24" fill={T2} />
+        <path d="M251 150l8 8 14-16" stroke="#fff" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <path className="site-twinkle" d="M54 160l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill={T2} />
+      <path className="site-twinkle [animation-delay:-1.4s]" d="M270 26l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill={GOLD} />
+    </svg>
+  );
+}
