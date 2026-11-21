@@ -120,7 +120,7 @@ export function setSpecialRate(db: DriveDB, customerId: string, medicineId: stri
   db.from("distSpecialRate").upsert({ id: `${customerId}:${medicineId}`, customerId, medicineId, ratePaise, validTo });
 }
 
-function activeSchemes(db: DriveDB, today: string): Scheme[] {
+export function activeSchemes(db: DriveDB, today: string): Scheme[] {
   return db.engine.all<Record<string, string | number | null>>("SELECT * FROM distScheme WHERE deletedAt IS NULL AND active = 1 AND validFrom <= ?1 AND validTo >= ?1", [today])
     .map((s) => ({ id: String(s.id), code: String(s.code), name: String(s.name), kind: s.kind as Scheme["kind"], medicineId: (s.medicineId as string) ?? null, companyId: (s.companyId as string) ?? null,
       buyQty: n(s.buyQty), freeQty: n(s.freeQty), discPct: n(s.discPct), minQty: n(s.minQty), customerIds: JSON.parse(String(s.customerIds ?? "[]")) as string[],
@@ -129,8 +129,8 @@ function activeSchemes(db: DriveDB, today: string): Scheme[] {
 
 // ---------- credit ----------
 
-type ChemistRow = { id: string; name: string; gstin: string | null; creditLimitPaise: number; stateCode: string | null; dlExpiry: string | null; creditDays: number; graceDays: number; priceTier: string; status: string; salesmanId: string | null };
-function chemist(db: DriveDB, customerId: string): ChemistRow {
+export type ChemistRow = { id: string; name: string; gstin: string | null; creditLimitPaise: number; stateCode: string | null; dlExpiry: string | null; creditDays: number; graceDays: number; priceTier: string; status: string; salesmanId: string | null };
+export function chemist(db: DriveDB, customerId: string): ChemistRow {
   const c = db.engine.all<ChemistRow>(
     `SELECT c.id, c.name, c.gstin, c.creditLimitPaise, d.stateCode, d.dlExpiry, d.creditDays, d.graceDays, d.priceTier, d.status, d.salesmanId
        FROM customer c JOIN distChemist d ON d.id = c.id WHERE c.id = ? AND c.deletedAt IS NULL AND d.deletedAt IS NULL`, [customerId])[0];
@@ -139,7 +139,7 @@ function chemist(db: DriveDB, customerId: string): ChemistRow {
 }
 
 /** Credit control for a chemist and a new bill of `value` paise (same rules as the server's creditFor). */
-export function creditFor(db: DriveDB, customerId: string, value: number, today = todayISO()): CreditDecision & { balance: number; limit: number } {
+export function creditFor(db: DriveDB, customerId: string, value: number, today = todayISO(), exceptOrderId?: string): CreditDecision & { balance: number; limit: number } {
   const c = chemist(db, customerId);
   const balance = customerBalance(db, customerId);
   const invoices = db.engine.all<{ id: string; no: string; date: string; dueDate: string; total: number }>(
@@ -149,9 +149,25 @@ export function creditFor(db: DriveDB, customerId: string, value: number, today 
   const since = addDays(today, -90);
   const bounces = n(db.engine.all<{ v: number }>(
     `SELECT COUNT(*) AS v FROM chequeEvent e JOIN cheque q ON q.id = e.chequeId WHERE q.customerId = ? AND e.kind = 'bounced' AND e.day >= ?`, [customerId, since])[0]?.v);
-  const d = creditCheck({ limit: n(c.creditLimitPaise), balance, orderValue: value, pendingOrders: 0, oldestOpenDays: open[0] ? open[0].ageDays : null,
+  const d = creditCheck({ limit: n(c.creditLimitPaise), balance, orderValue: value, pendingOrders: pendingOrdersOf(db, customerId, exceptOrderId), oldestOpenDays: open[0] ? open[0].ageDays : null,
     creditDays: n(c.creditDays), graceDays: n(c.graceDays), status: c.status, dlExpiry: c.dlExpiry, bouncedCheques90d: bounces, today });
   return { ...d, balance, limit: n(c.creditLimitPaise) };
+}
+
+/** Value of the chemist's approved orders not yet invoiced (what they will owe soon). */
+function pendingOrdersOf(db: DriveDB, customerId: string, exceptOrderId?: string) {
+  return n(db.engine.all<{ v: number }>(
+    `SELECT COALESCE(SUM(o.estimatePaise), 0) AS v FROM distOrder o
+      WHERE o.customerId = ? AND o.id <> ? AND EXISTS (SELECT 1 FROM distOrderEvent e WHERE e.orderId = o.id AND e.kind = 'approved')
+        AND NOT EXISTS (SELECT 1 FROM distOrderEvent e WHERE e.orderId = o.id AND e.kind IN ('invoiced', 'cancelled'))`, [customerId, exceptOrderId ?? ""])[0]?.v);
+}
+
+/** Stock units promised to approved orders not yet invoiced or cancelled, per batch (open pick lines). */
+export function reservedUnits(db: DriveDB, exceptOrderId?: string): Record<string, number> {
+  return Object.fromEntries(db.engine.all<{ id: string; u: number }>(
+    `SELECT pl.batchId AS id, SUM(pl.units) AS u FROM distPickLine pl
+      WHERE pl.orderId <> ? AND NOT EXISTS (SELECT 1 FROM distOrderEvent e WHERE e.orderId = pl.orderId AND e.kind IN ('invoiced', 'cancelled'))
+      GROUP BY pl.batchId`, [exceptOrderId ?? ""]).map((r) => [r.id, n(r.u)]));
 }
 
 // ---------- invoicing ----------
@@ -168,11 +184,11 @@ export const directInput = z.object({
   })).min(1, "Add at least one product.").max(300),
 });
 export type DistDirectInput = z.input<typeof directInput>;
-type PostLine = { medicineId: string; batchId: string; paidUnits: number; units: number; rate: number; discPct: number; schemeId: string | null };
-type Med = { id: string; name: string; gstRate: number; packSize: number };
-type BatchRow = { id: string; branchId: string; medicineId: string; batchNo: string; expiryDate: string; costPaise: number; mrpPaise: number; status: string };
+export type PostLine = { medicineId: string; batchId: string; paidUnits: number; units: number; rate: number; discPct: number; schemeId: string | null };
+export type Med = { id: string; name: string; gstRate: number; packSize: number };
+export type BatchRow = { id: string; branchId: string; medicineId: string; batchNo: string; expiryDate: string; costPaise: number; mrpPaise: number; status: string };
 
-const stockOf = (db: DriveDB, ids: string[]) => new Map(ids.length ? db.engine.all<{ id: string; q: number }>(
+export const stockOf = (db: DriveDB, ids: string[]) => new Map(ids.length ? db.engine.all<{ id: string; q: number }>(
   `SELECT batchId AS id, COALESCE(SUM(qty), 0) AS q FROM stockMovement WHERE batchId IN (${ids.map(() => "?").join(", ")}) GROUP BY batchId`, ids).map((r) => [r.id, n(r.q)]) : []);
 
 /**
@@ -197,7 +213,8 @@ export function directInvoice(db: DriveDB, raw: DistDirectInput, today = todayIS
     const batches = db.engine.all<BatchRow>(q("SELECT id, branchId, medicineId, batchNo, expiryDate, costPaise, mrpPaise, status FROM batch WHERE deletedAt IS NULL AND medicineId IN (?)"), ids).filter((b) => b.branchId === i.branchId);
     const stock = stockOf(db, batches.map((b) => b.id));
     const alloc: AllocBatch[] = batches.map((b) => ({ id: b.id, medicineId: b.medicineId, batchNo: b.batchNo, expiry: b.expiryDate, qtyAvailable: stock.get(b.id) ?? 0, status: b.status }));
-    const reserved: Record<string, number> = {};
+    // Stock promised to approved orders isn't free for a counter bill.
+    const reserved = reservedUnits(db);
     const lines: PostLine[] = [], overrides: string[] = [];
     for (const l of i.lines) {
       const m = meds.get(l.medicineId), d = terms.get(l.medicineId), name = m?.name ?? "Product";
@@ -243,12 +260,12 @@ export function directInvoice(db: DriveDB, raw: DistDirectInput, today = todayIS
   });
 }
 
-const isInterState = (own: string | null, chem: { stateCode: string | null; gstin: string | null }) => {
+export const isInterState = (own: string | null, chem: { stateCode: string | null; gstin: string | null }) => {
   const theirs = chem.stateCode ?? chem.gstin?.slice(0, 2) ?? own;
   return !!own && !!theirs && own !== theirs;
 };
 
-function postInvoice(db: DriveDB, a: { branchId: string; chem: ChemistRow; inter: boolean; lines: PostLine[]; meds: Map<string, Med>; batches: BatchRow[]; stock: Map<string, number>; userId: string; idempotencyKey: string; today: string; note: string | null }) {
+export function postInvoice(db: DriveDB, a: { orderId?: string | null; branchId: string; chem: ChemistRow; inter: boolean; lines: PostLine[]; meds: Map<string, Med>; batches: BatchRow[]; stock: Map<string, number>; userId: string; idempotencyKey: string; today: string; note: string | null }) {
   const priced = a.lines.map((l) => {
     const m = a.meds.get(l.medicineId)!, b = a.batches.find((x) => x.id === l.batchId);
     if (!b || b.branchId !== a.branchId || b.medicineId !== m.id) throw new CounterError(`${m.name}: batch not found in this godown.`);
@@ -268,7 +285,7 @@ function postInvoice(db: DriveDB, a: { branchId: string; chem: ChemistRow; inter
   const no = gstDocNo(distSeries(db), fy, db.nextSeq(`DINV:${fy}`), 5);
   const at = new Date().toISOString();
   const inv = db.from<{ id: string }>("distInvoice").insert({
-    branchId: a.branchId, deviceId: db.device, no, orderId: null, customerId: a.chem.id, salesmanId: a.chem.salesmanId, date: a.today, dueDate: addDays(a.today, n(a.chem.creditDays)),
+    branchId: a.branchId, deviceId: db.device, no, orderId: a.orderId ?? null, customerId: a.chem.id, salesmanId: a.chem.salesmanId, date: a.today, dueDate: addDays(a.today, n(a.chem.creditDays)),
     placeOfSupply: a.chem.stateCode ?? a.chem.gstin?.slice(0, 2) ?? null, customerGstin: a.chem.gstin, igst: a.inter ? 1 : 0,
     grossPaise: t.gross, discPaise: t.disc, taxablePaise: t.taxable, cgstPaise: t.cgst, sgstPaise: t.sgst, igstPaise: t.igst, roundOffPaise: t.roundOff, totalPaise: t.total,
     costPaise: cost, idempotencyKey: a.idempotencyKey, userId: a.userId, at,

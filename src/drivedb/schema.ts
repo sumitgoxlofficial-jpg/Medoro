@@ -229,6 +229,31 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "invoiceId", "reason", "userId", "at"],
   },
+  // @@TABLES distribution orders (migration 16)
+  // Orders and picking. Everything is added, never edited: an order and its lines as placed; each step (approved,
+  // picking, packed, invoiced, rejected, cancelled) as an event with a fixed id (order id + step), so a step taken on two
+  // devices offline is kept once; the stock reserved for an approved order as pick lines (fixed ids per order); what was
+  // actually picked as a pick event per line. An order's status is worked out from its events (dist-orders.ts).
+  distOrder: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "customerId", "source", "salesmanId", "placedByType", "placedById", "note", "estimatePaise", "creditOk", "creditReasons", "idempotencyKey", "at"],
+  },
+  distOrderLine: {
+    kind: "append",
+    columns: ["id", "orderId", "medicineId", "qty", "freeQty", "ratePaise", "discPct", "schemeId"],
+  },
+  distOrderEvent: {
+    kind: "append",
+    columns: ["id", "orderId", "kind", "reason", "overrideReason", "boxes", "invoiceId", "userId", "at"],
+  },
+  distPickLine: {
+    kind: "append",
+    columns: ["id", "orderId", "orderLineId", "medicineId", "batchId", "units", "paidUnits"],
+  },
+  distPickEvent: {
+    kind: "append",
+    columns: ["id", "pickLineId", "orderId", "pickedUnits", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -653,6 +678,41 @@ export const MIGRATIONS: readonly string[] = [
     id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL UNIQUE REFERENCES distInvoice(id), reason TEXT NOT NULL, userId TEXT NOT NULL, at TEXT NOT NULL
   );
   ` + ["distInvoice", "distInvoiceLine", "distInvoiceCancel"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 16 distribution orders
+  // 16: orders, their steps, stock reserved by pick lines, and what was picked (see TABLES). All append-only.
+  `
+  CREATE TABLE distOrder (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, customerId TEXT NOT NULL REFERENCES customer(id),
+    source TEXT NOT NULL CHECK (source IN ('portal', 'salesman', 'phone', 'office')), salesmanId TEXT,
+    placedByType TEXT NOT NULL CHECK (placedByType IN ('user', 'chemist')), placedById TEXT NOT NULL, note TEXT,
+    estimatePaise INTEGER NOT NULL, creditOk INTEGER NOT NULL, creditReasons TEXT NOT NULL DEFAULT '[]', idempotencyKey TEXT NOT NULL UNIQUE, at TEXT NOT NULL
+  );
+  CREATE INDEX distOrder_customer ON distOrder(customerId);
+  CREATE TABLE distOrderLine (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES distOrder(id), medicineId TEXT NOT NULL, qty INTEGER NOT NULL CHECK (qty > 0),
+    freeQty INTEGER NOT NULL DEFAULT 0 CHECK (freeQty >= 0), ratePaise INTEGER NOT NULL, discPct REAL NOT NULL DEFAULT 0, schemeId TEXT
+  );
+  CREATE INDEX distOrderLine_order ON distOrderLine(orderId);
+  CREATE TABLE distOrderEvent (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES distOrder(id),
+    kind TEXT NOT NULL CHECK (kind IN ('approved', 'rejected', 'cancelled', 'picking', 'packed', 'invoiced')),
+    reason TEXT, overrideReason TEXT, boxes INTEGER, invoiceId TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distOrderEvent_order ON distOrderEvent(orderId);
+  CREATE TABLE distPickLine (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES distOrder(id), orderLineId TEXT NOT NULL, medicineId TEXT NOT NULL,
+    batchId TEXT NOT NULL REFERENCES batch(id), units INTEGER NOT NULL CHECK (units > 0), paidUnits INTEGER NOT NULL CHECK (paidUnits >= 0)
+  );
+  CREATE INDEX distPickLine_order ON distPickLine(orderId);
+  CREATE INDEX distPickLine_batch ON distPickLine(batchId);
+  CREATE TABLE distPickEvent (
+    id TEXT PRIMARY KEY, pickLineId TEXT NOT NULL REFERENCES distPickLine(id), orderId TEXT NOT NULL,
+    pickedUnits INTEGER NOT NULL CHECK (pickedUnits >= 0), userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distPickEvent_order ON distPickEvent(orderId);
+  ` + ["distOrder", "distOrderLine", "distOrderEvent", "distPickLine", "distPickEvent"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];

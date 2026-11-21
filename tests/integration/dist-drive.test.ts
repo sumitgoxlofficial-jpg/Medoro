@@ -1,10 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { directInvoice as serverInvoice } from "@/domain/distribution/billing";
+import { directInvoice as serverInvoice, invoiceOrder as serverInvoiceOrder } from "@/domain/distribution/billing";
+import { approveOrder as serverApprove, confirmPickLine as serverPick, packOrder as serverPack, placeOrder as serverPlace } from "@/domain/distribution/orders";
 import { saveChemist as serverChemist, saveScheme as serverScheme, setSpecialRate as serverSpecial } from "@/domain/distribution/masters";
 import { memoryDb } from "@/drivedb/node";
 import type { DriveDB } from "@/drivedb/client";
 import { directInvoice as deviceInvoice, invoiceView, saveChemist, saveCompany, saveProduct, saveScheme, setSpecialRate } from "@/drivedb/dist";
+import { approveOrder, confirmPickLine, invoiceOrder, packOrder, pickList, placeOrder } from "@/drivedb/dist-orders";
 import { big } from "@/lib/money";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { resetDb } from "./helpers";
@@ -80,5 +82,30 @@ describe("Distribution on the device gives the same invoices as the server", () 
     const r = await compare(other, [{ medicineId: s.medicineId, qty: 3 }]);
     expect(r.server.igst).toBe(true);
     expect(Number(r.device.lines[0].ratePaise)).toBe(4800);
+  });
+
+  it("an order: placed, approved (FEFO reservation, scheme), picked with one short line, packed and invoiced the same way", async () => {
+    const ctx = await distCtx();
+    const lines = [{ medicineId: s.medicineId, qty: 22 }];
+    // Server
+    const so = await serverPlace({ kind: "user", ctx }, { customerId: s.customerId, idempotencyKey: key(), lines });
+    await serverApprove(ctx, so.orderId);
+    const pick = await db.distPickList.findUniqueOrThrow({ where: { orderId: so.orderId }, include: { lines: { orderBy: { units: "asc" } } } });
+    for (const [k, l] of pick.lines.entries()) await serverPick(ctx, l.id, k === 0 ? l.units - (await db.medicine.findUniqueOrThrow({ where: { id: l.medicineId } })).packSize : l.units);
+    await serverPack(ctx, pick.id, 1);
+    const sInv = await db.distInvoice.findUniqueOrThrow({ where: { id: (await serverInvoiceOrder(ctx, so.orderId)).invoiceId }, include: { lines: true } });
+    // Device
+    const dor = placeOrder(dev, { branchId: ctx.branchId, customerId: s.customerId, userId: ctx.userId, idempotencyKey: key(), lines }, today);
+    approveOrder(dev, { orderId: dor.orderId, userId: ctx.userId }, today);
+    const picks = pickList(dev, dor.orderId).sort((a, b) => a.units - b.units);
+    const pack = (await db.medicine.findUniqueOrThrow({ where: { id: s.medicineId } })).packSize;
+    for (const [k, p] of picks.entries()) confirmPickLine(dev, { pickLineId: p.id, pickedUnits: k === 0 ? p.units - pack : p.units, userId: ctx.userId });
+    packOrder(dev, { orderId: dor.orderId, boxes: 1, userId: ctx.userId });
+    const d = invoiceView(dev, invoiceOrder(dev, { orderId: dor.orderId, userId: ctx.userId }, today).invoiceId)!;
+    const head = (x: Record<string, unknown>) => ["grossPaise", "discPaise", "taxablePaise", "cgstPaise", "sgstPaise", "igstPaise", "roundOffPaise", "totalPaise", "costPaise"].map((k) => Number(x[k] as never));
+    expect(head(d as unknown as Record<string, unknown>)).toEqual(head(sInv as unknown as Record<string, unknown>));
+    const lineOf = (l: { batchId: unknown; qty: unknown; freeQty: unknown; taxablePaise: unknown; taxPaise: unknown }) => [String(l.batchId), Number(l.qty), Number(l.freeQty), Number(l.taxablePaise), Number(l.taxPaise)];
+    expect(d.lines.map((l) => lineOf(l as never)).sort()).toEqual(sInv.lines.map((l) => lineOf(l)).sort());
+    expect(pick.lines.map((l) => [l.batchId, l.units]).sort()).toEqual(picks.map((p) => [p.batchId, p.units]).sort());
   });
 });
