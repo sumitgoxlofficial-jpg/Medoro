@@ -213,3 +213,42 @@ export function HelpArt({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** Small pharmacy icons used by WhiteDecor. */
+const ICONS: Record<string, React.ReactNode> = {
+  capsule: <svg viewBox="0 0 64 28" className="w-12"><rect x="1" y="1" width="62" height="26" rx="13" fill="#fff" stroke={T3} strokeWidth="2" /><path d="M32 1h18a13 13 0 0 1 0 26H32z" fill={T2} /></svg>,
+  plus: <svg viewBox="0 0 32 32" className="w-7"><path d="M12 2h8v10h10v8H20v10h-8V20H2v-8h10z" fill={T2} opacity=".7" /></svg>,
+  tablet: <svg viewBox="0 0 36 36" className="w-8"><circle cx="18" cy="18" r="16" fill="#fff" stroke={GOLD} strokeWidth="3" /><path d="M8 18h20" stroke={GOLD} strokeWidth="3" strokeLinecap="round" /></svg>,
+  heart: <svg viewBox="0 0 48 44" className="w-9"><path d="M24 42C8 31 2 23 2 14 2 7 7 2 14 2c4 0 8 2 10 6 2-4 6-6 10-6 7 0 12 5 12 12 0 9-6 17-22 28z" fill={ROSE} opacity=".85" /><path d="M8 22h8l3-6 5 12 3-6h12" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  leaf: <svg viewBox="0 0 40 40" className="w-8"><path d="M6 34C6 14 18 4 36 4c0 20-12 30-30 30z" fill={T} opacity=".85" /><path d="M8 32L30 10" stroke={T3} strokeWidth="2" strokeLinecap="round" /></svg>,
+  coin: <svg viewBox="0 0 36 36" className="w-7"><circle cx="18" cy="18" r="16" fill={GOLD} /><circle cx="18" cy="18" r="12" fill="#F8D57E" /><text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="700" fill="#94570A">₹</text></svg>,
+  bottle: <svg viewBox="0 0 32 44" className="w-7"><rect x="9" y="2" width="14" height="7" rx="2" fill={T} /><rect x="4" y="9" width="24" height="33" rx="6" fill="#fff" stroke={T3} strokeWidth="2" /><rect x="8" y="20" width="16" height="12" rx="2" fill="#E7F2F0" /><path d="M16 22v8M12 26h8" stroke={T2} strokeWidth="2.4" strokeLinecap="round" /></svg>,
+};
+
+/** Four layouts so neighbouring sections don't look the same: [glow positions, icons with their spots]. */
+const LAYOUTS: { glows: [string, string][]; icons: [keyof typeof ICONS, string][] }[] = [
+  { glows: [["-left-40 -top-40", "rgba(20,184,166,.13)"], ["-right-40 bottom-[-12rem]", "rgba(245,196,81,.16)"]],
+    icons: [["capsule", "left-[2.5%] top-[18%] [--r:-24deg]"], ["plus", "right-[3%] top-[12%] [--r:10deg]"], ["coin", "right-[4%] bottom-[16%]"]] },
+  { glows: [["-right-40 -top-32", "rgba(143,211,198,.22)"], ["-left-40 bottom-[-10rem]", "rgba(245,196,81,.13)"]],
+    icons: [["heart", "right-[2.5%] top-[20%] [--r:8deg]"], ["leaf", "left-[3%] bottom-[18%] [--r:-14deg]"], ["tablet", "left-[3.5%] top-[14%]"]] },
+  { glows: [["left-[20%] -top-48", "rgba(245,196,81,.13)"], ["-right-40 bottom-[-10rem]", "rgba(20,184,166,.12)"]],
+    icons: [["bottle", "left-[2.5%] top-[24%] [--r:-8deg]"], ["capsule", "right-[2.5%] bottom-[20%] [--r:20deg]"], ["plus", "right-[4%] top-[10%]"]] },
+  { glows: [["-left-48 top-[30%]", "rgba(143,211,198,.2)"], ["right-[10%] -top-48", "rgba(242,139,130,.09)"]],
+    icons: [["coin", "left-[3%] top-[14%]"], ["heart", "left-[2.5%] bottom-[16%] [--r:-8deg]"], ["bottle", "right-[3%] top-[30%] [--r:10deg]"]] },
+];
+
+/**
+ * Background graphics for a plain white section: soft colour glows, a faded dot grid and a few pharmacy icons floating
+ * in the side margins (wide screens only, so they never sit on text). Put it first inside a `relative isolate`
+ * section: it spans the full viewport width even when the section itself is a centred column, and sits behind the content.
+ */
+export function WhiteDecor({ v = 0 }: { v?: number }) {
+  const l = LAYOUTS[((v % LAYOUTS.length) + LAYOUTS.length) % LAYOUTS.length];
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 -z-10 overflow-hidden">
+      <div className="site-dots absolute inset-0 opacity-50" />
+      {l.glows.map(([pos, c]) => <div key={pos} className={`absolute ${pos} size-[34rem] max-w-[80vw] max-h-[80vw] rounded-full`} style={{ background: `radial-gradient(closest-side, ${c}, transparent)` }} />)}
+      {l.icons.map(([k, pos], i) => <div key={k + pos} className={`site-float absolute ${pos} opacity-80 max-[1279px]:hidden`} style={{ ["--dur" as string]: `${8 + i * 1.5}s`, animationDelay: `${-i * 1.7 - v}s` }}>{ICONS[k]}</div>)}
+    </div>
+  );
+}

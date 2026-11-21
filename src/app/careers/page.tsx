@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BadgeCheck, Coffee, GraduationCap, HeartHandshake, Rocket, Sparkles } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion } from "@/components/site/chrome";
-import { Aurora, FloatingShapes } from "@/components/site/decor";
+import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
 import { ApplicantBar, CareersBoard } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
@@ -62,7 +62,8 @@ export default async function Careers({ searchParams }: { searchParams: Promise<
           </div>
         </section>
 
-        <section className="max-w-[1200px] mx-auto px-6 py-16 flex flex-col gap-8 max-[640px]:px-4">
+        <section className="relative isolate max-w-[1200px] mx-auto px-6 py-16 flex flex-col gap-8 max-[640px]:px-4">
+          <WhiteDecor v={0} />
           <h2 className="site-display m-0 text-[clamp(28px,3.4vw,40px)]">Why work at Medoro</h2>
           <div className="grid gap-4 grid-cols-1 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-4">
             {perks.map((p) => (

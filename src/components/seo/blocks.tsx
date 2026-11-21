@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Check, MessageCircle, X } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
-import { Aurora, FloatingShapes } from "@/components/site/decor";
+import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
 import { breadcrumbSchema, faqSchema, type Crumb, type JsonLdObject } from "@/lib/seo";
 import type { SiteLink } from "@/data/site-links";
 import { JsonLd } from "./json-ld";
@@ -89,7 +89,7 @@ export function Section({ id, title, lead, soft = false, children }: { id: strin
   );
   return soft
     ? <section aria-labelledby={`${id}-title`} className="bg-[var(--s-soft)] border-y border-[var(--s-line)]">{inner}</section>
-    : <section aria-labelledby={`${id}-title`}>{inner}</section>;
+    : <section aria-labelledby={`${id}-title`} className="relative isolate"><WhiteDecor v={[...id].reduce((n, c) => n + c.charCodeAt(0), 0)} />{inner}</section>;
 }
 
 /** Problem → Medoro's answer, one row per pain point. */

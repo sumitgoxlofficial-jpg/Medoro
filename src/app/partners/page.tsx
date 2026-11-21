@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { BadgeIndianRupee, BarChart3, CheckCircle2, Handshake, Link2, MessageCircle, ShieldCheck, Store, Wallet } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WA, WhatsAppFab } from "@/components/site/chrome";
-import { Aurora, FloatingShapes, ReferralArt } from "@/components/site/decor";
+import { Aurora, FloatingShapes, ReferralArt, WhiteDecor } from "@/components/site/decor";
 import { getRates } from "@/staff/sales";
 import { PRODUCTS, TDS_PCT, amountPaise } from "@/staff/constants";
 import { getT } from "@/server/lang";
@@ -92,7 +92,8 @@ export default async function Partners() {
           </div>
         </section>
 
-        <section className="max-w-[1200px] mx-auto px-6 py-16 flex flex-col gap-6 max-[640px]:px-4">
+        <section className="relative isolate max-w-[1200px] mx-auto px-6 py-16 flex flex-col gap-6 max-[640px]:px-4">
+          <WhiteDecor v={0} />
           <h2 data-reveal className="site-display m-0 text-[clamp(28px,3.4vw,40px)]">{t("What you earn")}</h2>
           <p className="m-0 text-[16px] text-[var(--s-ink-2)] max-w-[720px]">{t("A percentage of what the pharmacy pays (before GST). You earn the first-payment rate on their first purchase of a plan, and the renewal rate every time they renew.")}</p>
           <div data-reveal className="overflow-auto border border-[var(--s-line)] rounded-xl">
@@ -131,7 +132,8 @@ export default async function Partners() {
           </div>
         </section>
 
-        <section className="max-w-[1200px] mx-auto px-6 py-16 grid grid-cols-12 gap-x-6 gap-y-8 max-[640px]:px-4">
+        <section className="relative isolate max-w-[1200px] mx-auto px-6 py-16 grid grid-cols-12 gap-x-6 gap-y-8 max-[640px]:px-4">
+          <WhiteDecor v={1} />
           <div className="col-span-12 min-[960px]:col-span-5 flex flex-col gap-4">
             <h2 className="site-display m-0 text-[clamp(28px,3.4vw,40px)]">{t("Simple, fair rules")}</h2>
             <ul className="m-0 p-0 list-none flex flex-col gap-3 text-[15px] text-[var(--s-ink-2)]">
@@ -155,7 +157,8 @@ export default async function Partners() {
           </div>
         </section>
 
-        <section className="max-w-[1200px] mx-auto px-6 pb-20 max-[640px]:px-4">
+        <section className="relative isolate max-w-[1200px] mx-auto px-6 pb-20 max-[640px]:px-4">
+          <WhiteDecor v={2} />
           <div data-reveal className="site-pan relative overflow-hidden text-white rounded-2xl p-[clamp(24px,4vw,48px)] flex flex-col gap-4 min-[960px]:flex-row min-[960px]:items-center min-[960px]:justify-between">
             <div aria-hidden className="absolute inset-0 opacity-35"><FloatingShapes /></div>
             <div className="relative flex flex-col gap-2">

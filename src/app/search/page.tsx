@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WhiteDecor } from "@/components/site/decor";
 import { ArrowRight, Search } from "lucide-react";
 import { Breadcrumbs, CtaBand, LinkGrid, MarketingShell, wrap } from "@/components/seo/blocks";
 import { LANDING_LINKS } from "@/components/site/landing-links";
@@ -24,7 +25,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const hits = searchSite(q);
   return (
     <MarketingShell crumbs={crumbs}>
-      <section className={`${wrap} pt-[clamp(28px,5vw,72px)] pb-[clamp(56px,8vw,104px)] flex flex-col gap-8`}>
+      <section className={`relative isolate ${wrap} pt-[clamp(28px,5vw,72px)] pb-[clamp(56px,8vw,104px)] flex flex-col gap-8`}>
+        <WhiteDecor v={0} />
         <Breadcrumbs crumbs={crumbs} />
         <h1 className="site-display m-0 text-[clamp(34px,4.6vw,56px)]">{q ? `Results for “${q}”` : "Search Medoro"}</h1>
         <form action="/search" method="get" role="search" className="flex gap-3 max-w-[720px] max-[520px]:flex-col">

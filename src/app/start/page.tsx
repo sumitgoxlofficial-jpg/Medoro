@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { setupGate, signupOpen } from "@/server/setup-gate";
 import { WA_DEMO } from "@/components/site/chrome";
 import { PageHeader } from "@/components/site/page-header";
+import { WhiteDecor } from "@/components/site/decor";
 import { StartForm } from "./form";
 import { getT } from "@/server/lang";
 
@@ -35,7 +36,8 @@ export default async function Start() {
   return (
     <div className="site-root bg-white min-h-dvh">
       <PageHeader cta={false} />
-      <main className="max-w-[1200px] mx-auto px-6 pt-[clamp(40px,6vw,80px)] pb-24 grid grid-cols-12 gap-x-6 gap-y-10 min-[960px]:gap-y-6 min-[960px]:grid-rows-[auto_1fr] items-start max-[640px]:px-4">
+      <main className="relative isolate max-w-[1200px] mx-auto px-6 pt-[clamp(40px,6vw,80px)] pb-24 grid grid-cols-12 gap-x-6 gap-y-10 min-[960px]:gap-y-6 min-[960px]:grid-rows-[auto_1fr] items-start max-[640px]:px-4">
+        <WhiteDecor v={3} />
         <div className="col-span-12 min-[960px]:col-span-6 min-[960px]:row-start-1 flex flex-col gap-6">
           <div className="flex items-center justify-between gap-3 flex-wrap"><span className="text-[14px] font-semibold text-[var(--s-brand)]">{t("7-day free trial · No card needed")}</span></div>
           <h1 className="site-display m-0 text-[clamp(40px,5vw,64px)]">{t("Start your Medoro trial.")}</h1>

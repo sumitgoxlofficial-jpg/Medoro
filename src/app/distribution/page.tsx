@@ -10,7 +10,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
-import { Aurora, FloatingShapes } from "@/components/site/decor";
+import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
 
 /**
  * Landing page for MEDORO Distribution, the wholesale ERP (/dist for the distributor's team, /portal for chemists).
@@ -144,7 +144,8 @@ export default async function DistributionHome() {
         </section>
 
         {/* Who it's for */}
-        <section aria-labelledby="who-title" className="border-b border-[var(--s-line)]">
+        <section aria-labelledby="who-title" className="relative isolate border-b border-[var(--s-line)]">
+          <WhiteDecor v={0} />
           <div className={`${wrap} py-10 flex items-center gap-6 flex-wrap`}>
             <h2 id="who-title" className="m-0 text-[15px] font-semibold text-[var(--s-ink)]">{t("Built for")}</h2>
             <ul className="m-0 p-0 list-none flex flex-wrap gap-2.5">
@@ -154,7 +155,8 @@ export default async function DistributionHome() {
         </section>
 
         {/* Pains */}
-        <section aria-labelledby="pains-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
+        <section aria-labelledby="pains-title" className={`relative isolate ${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
+          <WhiteDecor v={1} />
           <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
             <span className={eyebrow}>{t("Why distributors switch")}</span>
             <h2 id="pains-title" className={h2}>{t("Where a distribution business quietly loses money.")}</h2>
@@ -193,7 +195,8 @@ export default async function DistributionHome() {
         </section>
 
         {/* Order to cash */}
-        <section id="workflow" aria-labelledby="flow-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+        <section id="workflow" aria-labelledby="flow-title" className={`relative isolate ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+          <WhiteDecor v={2} />
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Order to cash")}</span>
             <h2 id="flow-title" className={h2}>{t("One order, followed all the way to the money.")}</h2>
@@ -234,7 +237,8 @@ export default async function DistributionHome() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" aria-labelledby="pricing-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+        <section id="pricing" aria-labelledby="pricing-title" className={`relative isolate ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+          <WhiteDecor v={3} />
           <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
             <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
               <span className={eyebrow}>{t("Pricing", { ctx: "site" })}</span>
@@ -258,7 +262,8 @@ export default async function DistributionHome() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" aria-labelledby="faq-title">
+        <section className="relative isolate" id="faq" aria-labelledby="faq-title">
+          <WhiteDecor v={4} />
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
               <span className={eyebrow}>{t("FAQ")}</span>
@@ -279,7 +284,8 @@ export default async function DistributionHome() {
         </section>
 
         {/* CTA */}
-        <section aria-labelledby="cta-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
+        <section aria-labelledby="cta-title" className={`relative isolate ${wrap} pb-[clamp(72px,10vw,128px)]`}>
+          <WhiteDecor v={5} />
           <div data-reveal className="site-dark relative overflow-hidden rounded-2xl bg-[var(--s-dark)] text-white p-[clamp(28px,5vw,64px)] flex flex-col items-center text-center gap-6">
             <Aurora dark />
             <h2 id="cta-title" className="relative site-display m-0 text-[clamp(30px,3.8vw,48px)] max-w-[760px]">{t("Try Medoro Distribution free for 7 days.")}</h2>
