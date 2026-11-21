@@ -7,6 +7,8 @@ import { memoryDb } from "@/drivedb/node";
 import type { DriveDB } from "@/drivedb/client";
 import { directInvoice as deviceInvoice, invoiceView, saveChemist, saveCompany, saveProduct, saveScheme, setSpecialRate } from "@/drivedb/dist";
 import { approveOrder, confirmPickLine, invoiceOrder, packOrder, pickList, placeOrder } from "@/drivedb/dist-orders";
+import { createReturn } from "@/drivedb/dist-trade";
+import { createReturn as serverReturn } from "@/domain/distribution/returns";
 import { big } from "@/lib/money";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { resetDb } from "./helpers";
@@ -107,5 +109,17 @@ describe("Distribution on the device gives the same invoices as the server", () 
     const lineOf = (l: { batchId: unknown; qty: unknown; freeQty: unknown; taxablePaise: unknown; taxPaise: unknown }) => [String(l.batchId), Number(l.qty), Number(l.freeQty), Number(l.taxablePaise), Number(l.taxPaise)];
     expect(d.lines.map((l) => lineOf(l as never)).sort()).toEqual(sInv.lines.map((l) => lineOf(l)).sort());
     expect(pick.lines.map((l) => [l.batchId, l.units]).sort()).toEqual(picks.map((p) => [p.batchId, p.units]).sort());
+  });
+
+  it("a credit note (part return, expired, 80% credit) credits the same taxable value and GST", async () => {
+    const ctx = await distCtx();
+    const r = await compare(s.customerId, [{ medicineId: s.medicineId, qty: 9 }]);
+    const sl = [...r.server.lines].sort((a, b) => b.qty - a.qty)[0];
+    const dl = r.device.lines.find((l) => String(l.batchId) === sl.batchId)!;
+    const sv = await serverReturn(ctx, { invoiceId: r.server.id, reason: "Expired on arrival", lines: [{ invoiceLineId: sl.id, qty: 3, condition: "expired", creditPct: 80 }] });
+    const dv = createReturn(dev, { invoiceId: String(r.device.id), userId: ctx.userId, reason: "Expired on arrival", lines: [{ invoiceLineId: String(dl.id), qty: 3, condition: "expired", creditPct: 80 }] }, today);
+    const so = await db.distReturn.findUniqueOrThrow({ where: { id: sv.returnId } });
+    const d = dev.engine.all<{ taxablePaise: number; taxPaise: number; totalPaise: number }>("SELECT taxablePaise, taxPaise, totalPaise FROM distReturn WHERE id = ?", [dv.returnId])[0];
+    expect([Number(d.taxablePaise), Number(d.taxPaise), Number(d.totalPaise)]).toEqual([Number(so.taxablePaise), Number(so.taxPaise), Number(so.totalPaise)]);
   });
 });

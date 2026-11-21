@@ -254,6 +254,39 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "pickLineId", "orderId", "pickedUnits", "userId", "at"],
   },
+  // @@TABLES distribution delivery, credit notes, claims (migration 17)
+  // Credit notes to chemists (expired / damaged goods don't go back to stock: they wait to be claimed on the company,
+  // and distClaimSource records how much of a claim came from them); principals (a company's stockist terms: who to
+  // claim from, claim window, credit %); van trips and each invoice's delivery steps (fixed ids, so a step taken on
+  // two devices offline is kept once); collections from chemists (the money is the customerReceipt / cheque row).
+  distReturn: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "invoiceId", "customerId", "reason", "taxablePaise", "taxPaise", "totalPaise", "userId", "at"],
+  },
+  distReturnLine: {
+    kind: "append",
+    columns: ["id", "returnId", "invoiceLineId", "batchId", "qty", "condition", "creditPct", "taxablePaise", "taxPaise"],
+  },
+  distPrincipal: {
+    kind: "mutable",
+    columns: ["id", "companyId", "supplierId", "marginPct", "claimBeforeDays", "claimAfterDays", "claimCreditPct", "active", ...MUTABLE],
+  },
+  distClaimSource: {
+    kind: "append",
+    columns: ["id", "claimId", "batchId", "fromReturnsUnits", "at"],
+  },
+  distDispatch: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "vehicleNo", "driverName", "deliveryUser", "route", "userId", "at"],
+  },
+  distDeliveryEvent: {
+    kind: "append",
+    columns: ["id", "invoiceId", "dispatchId", "kind", "receiverName", "note", "collectedPaise", "collectMode", "receiptId", "userId", "at"],
+  },
+  distCollection: {
+    kind: "append",
+    columns: ["id", "customerId", "receiptId", "amountPaise", "mode", "ref", "salesmanId", "invoiceId", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -713,6 +746,53 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX distPickEvent_order ON distPickEvent(orderId);
   ` + ["distOrder", "distOrderLine", "distOrderEvent", "distPickLine", "distPickEvent"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 17 distribution delivery, credit notes, claims
+  // 17: credit notes, principals, claim sources, van trips, delivery steps and collections (see TABLES).
+  `
+  CREATE TABLE distReturn (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, invoiceId TEXT NOT NULL REFERENCES distInvoice(id),
+    customerId TEXT NOT NULL REFERENCES customer(id), reason TEXT NOT NULL, taxablePaise INTEGER NOT NULL, taxPaise INTEGER NOT NULL, totalPaise INTEGER NOT NULL,
+    userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distReturn_invoice ON distReturn(invoiceId);
+  CREATE INDEX distReturn_customer ON distReturn(customerId);
+  CREATE TABLE distReturnLine (
+    id TEXT PRIMARY KEY, returnId TEXT NOT NULL REFERENCES distReturn(id), invoiceLineId TEXT NOT NULL REFERENCES distInvoiceLine(id), batchId TEXT NOT NULL,
+    qty INTEGER NOT NULL CHECK (qty > 0), condition TEXT NOT NULL CHECK (condition IN ('saleable', 'expired', 'damaged')),
+    creditPct REAL NOT NULL CHECK (creditPct >= 0 AND creditPct <= 100), taxablePaise INTEGER NOT NULL, taxPaise INTEGER NOT NULL
+  );
+  CREATE INDEX distReturnLine_line ON distReturnLine(invoiceLineId);
+  CREATE INDEX distReturnLine_batch ON distReturnLine(batchId, condition);
+  CREATE TABLE distPrincipal (
+    id TEXT PRIMARY KEY, companyId TEXT NOT NULL, supplierId TEXT, marginPct REAL NOT NULL DEFAULT 10,
+    claimBeforeDays INTEGER NOT NULL DEFAULT 90, claimAfterDays INTEGER NOT NULL DEFAULT 180,
+    claimCreditPct REAL NOT NULL DEFAULT 100 CHECK (claimCreditPct >= 0 AND claimCreditPct <= 100), active INTEGER NOT NULL DEFAULT 1,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX distPrincipal_company ON distPrincipal(companyId);
+  CREATE TABLE distClaimSource (
+    id TEXT PRIMARY KEY, claimId TEXT NOT NULL UNIQUE REFERENCES supplierClaim(id), batchId TEXT NOT NULL, fromReturnsUnits INTEGER NOT NULL CHECK (fromReturnsUnits >= 0), at TEXT NOT NULL
+  );
+  CREATE INDEX distClaimSource_batch ON distClaimSource(batchId);
+  CREATE TABLE distDispatch (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, vehicleNo TEXT, driverName TEXT, deliveryUser TEXT, route TEXT,
+    userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE TABLE distDeliveryEvent (
+    id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL REFERENCES distInvoice(id), dispatchId TEXT,
+    kind TEXT NOT NULL CHECK (kind IN ('planned', 'out', 'delivered', 'failed')), receiverName TEXT, note TEXT,
+    collectedPaise INTEGER NOT NULL DEFAULT 0, collectMode TEXT, receiptId TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distDeliveryEvent_invoice ON distDeliveryEvent(invoiceId);
+  CREATE INDEX distDeliveryEvent_dispatch ON distDeliveryEvent(dispatchId);
+  CREATE TABLE distCollection (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL REFERENCES customer(id), receiptId TEXT NOT NULL, amountPaise INTEGER NOT NULL CHECK (amountPaise > 0),
+    mode TEXT NOT NULL, ref TEXT, salesmanId TEXT, invoiceId TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distCollection_at ON distCollection(at);
+  ` + ["distReturn", "distReturnLine", "distClaimSource", "distDispatch", "distDeliveryEvent", "distCollection"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
 ];

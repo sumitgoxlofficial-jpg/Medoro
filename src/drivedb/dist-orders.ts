@@ -12,6 +12,7 @@ import { z } from "zod";
 import { DriveDB } from "./client";
 import { CounterError } from "./pharmacy";
 import { activeSchemes, chemist, creditFor, distSeries, distSettings, isInterState, postInvoice, reservedUnits, stockOf, type BatchRow, type Med, type PostLine } from "./dist";
+import { deliveryOf } from "./dist-trade";
 import { fiscalYear, todayISO } from "@/lib/dates";
 import { invoiceTotals, rateFor } from "@/domain/distribution/rules/pricing";
 import { bestScheme } from "@/domain/distribution/rules/schemes";
@@ -39,7 +40,11 @@ export function statusOf(db: DriveDB, orderId: string, events?: EventRow[]): Ord
   const ev = events ?? db.engine.all<EventRow>("SELECT * FROM distOrderEvent WHERE orderId = ?", [orderId]);
   const has = (k: string) => ev.some((e) => e.kind === k);
   const inv = ev.find((e) => e.kind === "invoiced");
-  if (inv && !db.engine.all("SELECT 1 FROM distInvoiceCancel WHERE invoiceId = ?", [inv.invoiceId ?? ""]).length) return "invoiced";
+  if (inv && !db.engine.all("SELECT 1 FROM distInvoiceCancel WHERE invoiceId = ?", [inv.invoiceId ?? ""]).length) {
+    // After the invoice, the order follows its delivery: out on a van, then delivered (a failed drop is invoiced again).
+    const d = deliveryOf(db, inv.invoiceId ?? "");
+    return d.status === "delivered" ? "delivered" : d.status === "out" ? "dispatched" : "invoiced";
+  }
   if (has("cancelled") || inv) return "cancelled";
   if (has("rejected")) return "rejected";
   if (has("packed")) return "packed";

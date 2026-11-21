@@ -19,7 +19,7 @@ records stay on the hosted server) is turned off.
 |---|---|---|
 | D1 | Device tables for distribution (migration 15); companies, product terms (PTR / PTS), chemist profiles, schemes, special rates; **direct wholesale invoices** (rate, scheme, FEFO, credit control with override, CGST/SGST or IGST, round-off) and same-day cancellation. Chemist balances include wholesale invoices. | **Built** (`src/drivedb/dist.ts`) |
 | D2 | Orders: placing (salesmen for their own chemists), credit hold and release, approval with FEFO stock reservation (pick lines; short lines refused or cut with free goods in proportion), picking (short picks), packing, invoicing exactly what was picked; cancelling or rejecting; counter bills and credit exposure respect reservations. Godown transfers use the existing device transfer (`ops.transferStock`). | **Built** (`src/drivedb/dist-orders.ts`) |
-| D3 | Dispatch and delivery (trips, proof of delivery, cash collected), credit notes (saleable / expired / damaged), collections, receivables and ageing, principals and expiry returns to companies, wholesale GST returns (GSTR-1 B2B, HSN), reports. | |
+| D3 | Credit notes (saleable back to stock; expired / damaged wait to be claimed; credit % and proportional GST), principals and expiry / breakage claims on companies (returned goods first, then shelf; claim window and expected credit; expiry workbench), van trips and proof of delivery (cash, UPI or cheque collected at the door; failed drops back to the desk; orders follow: dispatched, delivered), collections (salesmen for their own chemists), receivables with ageing and credit risk, chemist statements, wholesale invoices and credit notes in the device's GSTR-1 / GSTR-3B / HSN (cancelled invoices listed as cancelled). | **Built** (`src/drivedb/dist-trade.ts`) |
 | D4 | Screens: the distribution app on the device (like Billing (device) for pharmacies), and staff devices (warehouse, salesman, delivery) through the existing relay. | |
 | D5 | Chemist ordering portal in Drive mode: what chemists may see is published by the distributor's device, and their orders reach the distributor's devices through a sealed inbox (as customer payments do for pharmacies). | Decided: option 1 (below) |
 | D6 | Moving existing distributors from Medoro's database to their Drive (the pharmacy move, extended), Drive sign-up for distributors, then `DIST_HOSTED` off. | |
@@ -48,6 +48,10 @@ copy to sync is kept.
   overrides, hard stops, block mode, short stock, minimum shelf life, cancellation, append-only invoices.
 - `src/drivedb/dist-orders.test.ts`: the whole order flow, reservations blocking counter bills, credit holds and
   override, partial approval with schemes, short picks, reject / cancel rules, idempotent retries, salesman limits.
+- `src/drivedb/dist-trade.test.ts`: credit notes and the returned-goods pool, claims within the principal's window,
+  trips with delivery, failure and re-dispatch, cheque collected at the door, salesman collections, ageing,
+  statements, and GSTR-1 with wholesale B2B invoices, credit notes, cancelled documents and HSN.
 - `tests/integration/dist-drive.test.ts`: the same bills on Medoro's server and on a device loaded from the server's
   records give identical invoices (every total and every line: batch, packs, free goods, rate, discount, taxable, tax), and an
   order taken through approval, a short pick, packing and invoicing reserves the same batches and invoices the same.
+  A credit note (part return, expired, 80% credit) credits the same taxable value and GST on both.

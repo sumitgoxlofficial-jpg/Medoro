@@ -308,6 +308,8 @@ export function cancelInvoice(db: DriveDB, input: { invoiceId: string; reason: s
     if (!inv) throw new CounterError("Invoice not found.");
     if (db.engine.all("SELECT 1 FROM distInvoiceCancel WHERE invoiceId = ?", [inv.id]).length) throw new CounterError(`${inv.no} is already cancelled.`);
     if (inv.date !== today) throw new CounterError("Only today’s invoices can be cancelled. Raise a credit note instead.");
+    if (db.engine.all("SELECT 1 FROM distReturn WHERE invoiceId = ?", [inv.id]).length) throw new CounterError("This invoice has a credit note. It can’t be cancelled.");
+    if (db.engine.all("SELECT 1 FROM distDeliveryEvent WHERE invoiceId = ? AND kind = 'delivered'", [inv.id]).length) throw new CounterError("Delivered invoices can’t be cancelled. Raise a credit note.");
     const at = new Date().toISOString();
     const moved = db.engine.all<{ batchId: string; qty: number }>("SELECT batchId, qty FROM stockMovement WHERE refType = 'dist_invoice' AND refId = ?", [inv.id]);
     db.from("stockMovement").insert(moved.map((m) => ({ branchId: inv.branchId, batchId: m.batchId, qty: -n(m.qty), type: "return", refType: "dist_invoice_cancel", refId: inv.id, userId: input.userId, at, note: `Cancelled ${inv.no}` })));
