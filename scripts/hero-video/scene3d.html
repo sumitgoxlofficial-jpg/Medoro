@@ -19,43 +19,57 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
 const W = innerWidth, H = innerHeight, LOOP = 12, TAU = Math.PI * 2;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setSize(W, H);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = .82;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-// Studio backdrop: soft teal on the left, warm on the right, bright in the middle.
-const bg = document.createElement("canvas"); bg.width = 1024; bg.height = 576;
-const g = bg.getContext("2d");
-const lin = g.createLinearGradient(0, 0, 1024, 0);
-lin.addColorStop(0, "#CFF3EC"); lin.addColorStop(.45, "#FFFFFF"); lin.addColorStop(1, "#FFF1D6");
-g.fillStyle = lin; g.fillRect(0, 0, 1024, 576);
-const rad = g.createRadialGradient(512, 250, 40, 512, 250, 520);
-rad.addColorStop(0, "rgba(255,255,255,.9)"); rad.addColorStop(1, "rgba(255,255,255,0)");
-g.fillStyle = rad; g.fillRect(0, 0, 1024, 576);
-const bgTex = new THREE.CanvasTexture(bg); bgTex.colorSpace = THREE.SRGBColorSpace;
-// On an unlit plane behind everything (not scene.background) so tone mapping doesn't grey it.
-const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: bgTex, toneMapped: false, depthWrite: false }));
+scene.background = new THREE.Color(0xEFF3F1);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(4, 6, 8); scene.add(key);
+const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(4, 7, 9); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6; key.shadow.bias = -.0005; key.shadow.normalBias = .02;
+Object.assign(key.shadow.camera, { left: -12, right: 12, top: 9, bottom: -9, near: 1, far: 40 }); scene.add(key);
 const rim = new THREE.DirectionalLight(0x9fe7dc, 1.4); rim.position.set(-6, 2, -4); scene.add(rim);
-scene.add(new THREE.AmbientLight(0xffffff, .35));
+scene.add(new THREE.AmbientLight(0xffffff, .15));
 
 const camera = new THREE.PerspectiveCamera(32, W / H, .1, 100);
-{ const d = 40, h = 2 * d * Math.tan(THREE.MathUtils.degToRad(16)) * 1.15; backdrop.scale.set(h * W / H, h, 1); backdrop.position.z = -d; backdrop.renderOrder = -1; camera.add(backdrop); scene.add(camera); }
+
+// ── Surface textures (seeded, so every render is identical) ──
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+function canvasTex(size, draw, color = false) {
+  const c = document.createElement("canvas"); c.width = c.height = size; draw(c.getContext("2d"), size);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (color) t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const speckle = (ctx, n, base, dots) => { ctx.fillStyle = base; ctx.fillRect(0, 0, n, n); for (let i = 0; i < n * n / 6; i++) { const v = dots[0] + rnd() * dots[1]; ctx.fillStyle = `rgba(${v},${v},${v},${.25 + rnd() * .35})`; ctx.fillRect(rnd() * n, rnd() * n, 1 + rnd() * 1.6, 1 + rnd() * 1.6); } };
+// Compressed powder: fine light and dark grains.
+const grainColor = canvasTex(512, (ctx, n) => speckle(ctx, n, "#F7F6F1", [200, 55]), true);
+const grainBump = canvasTex(512, (ctx, n) => speckle(ctx, n, "#808080", [60, 140]));
+// The tablet face: grain plus an embossed "M" and the break line, as a bump map on the top cap.
+const faceBump = canvasTex(512, (ctx, n) => {
+  speckle(ctx, n, "#808080", [60, 140]);
+  ctx.fillStyle = "#4a4a4a"; ctx.fillRect(n * .1, n * .485, n * .8, n * .03);
+  ctx.fillStyle = "#c8c8c8"; ctx.font = `bold ${n * .26}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("M", n / 2, n * .3);
+});
+// Gelatin shells: almost smooth, with tiny variation so highlights break up like a real surface.
+const shellRough = canvasTex(256, (ctx, n) => { ctx.fillStyle = "#3a3a3a"; ctx.fillRect(0, 0, n, n); for (let i = 0; i < 900; i++) { const v = 40 + rnd() * 50; ctx.fillStyle = `rgba(${v},${v},${v},.5)`; ctx.beginPath(); ctx.arc(rnd() * n, rnd() * n, 2 + rnd() * 8, 0, Math.PI * 2); ctx.fill(); } });
 
 // ── Materials ──
-const glossy = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: .22, clearcoat: 1, clearcoatRoughness: .08, sheen: .2 });
+const glossy = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: .3, roughnessMap: shellRough, clearcoat: 1, clearcoatRoughness: .06, sheen: .25, sheenRoughness: .5 });
 const MAT = {
   teal: glossy(0x14B8A6), deep: glossy(0x0B5E5B), coral: glossy(0xF07A70), gold: glossy(0xF2B93B), white: glossy(0xF4F6F5),
-  tablet: new THREE.MeshPhysicalMaterial({ color: 0xF7F7F2, roughness: .62, sheen: .6, sheenColor: new THREE.Color(0xffffff) }),
-  tabletY: new THREE.MeshPhysicalMaterial({ color: 0xF6D27A, roughness: .55, sheen: .4 }),
+  tablet: new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: grainColor, roughness: .7, bumpMap: grainBump, bumpScale: .6, sheen: .6, sheenColor: new THREE.Color(0xffffff) }),
+  tabletFace: new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: grainColor, roughness: .7, bumpMap: faceBump, bumpScale: 1.4, sheen: .6 }),
+  tabletY: new THREE.MeshPhysicalMaterial({ color: 0xF6D27A, map: grainColor, roughness: .62, bumpMap: grainBump, bumpScale: .6, sheen: .4 }),
+  tabletYFace: new THREE.MeshPhysicalMaterial({ color: 0xF6D27A, map: grainColor, roughness: .62, bumpMap: faceBump, bumpScale: 1.4, sheen: .4 }),
   groove: new THREE.MeshStandardMaterial({ color: 0xC9CCC4, roughness: .8 }),
   foil: new THREE.MeshStandardMaterial({ color: 0xF2F4F5, metalness: 1, roughness: .18 }),
   bubble: new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: .04, thickness: .15, ior: 1.45, clearcoat: 1, transparent: true }),
@@ -66,7 +80,7 @@ function halfCapsule(r, len, top) {
   // Lathe profile: a hemispherical end and a straight body; the cap half is a touch wider and overlaps the body.
   const pts = [], n = 24;
   for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 + (i / n) * (Math.PI / 2); pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r - len)); }
-  pts.push(new THREE.Vector2(r, top ? .12 : -.02)); pts.push(new THREE.Vector2(r * .9, top ? .12 : -.02));
+  pts.push(new THREE.Vector2(r, top ? .11 : -.02)); pts.push(new THREE.Vector2(r * .9, top ? .11 : -.02));
   const geo = new THREE.LatheGeometry(pts, 64);
   if (top) geo.rotateZ(Math.PI);
   return geo;
@@ -75,16 +89,20 @@ function capsule(a, b, s = 1) {
   const grp = new THREE.Group();
   const body = new THREE.Mesh(halfCapsule(.34, .5, false), MAT[a]);
   const cap = new THREE.Mesh(halfCapsule(.355, .5, true), MAT[b]);
-  grp.add(body, cap); grp.scale.setScalar(s); return grp;
+  // The ridge where the cap closes over the body.
+  const seam = new THREE.Mesh(new THREE.TorusGeometry(.355, .012, 12, 96), MAT[b]); seam.rotation.x = Math.PI / 2; seam.position.y = -.11;
+  grp.add(body, cap, seam); grp.scale.setScalar(s); return grp;
 }
 function tablet(mat = "tablet", s = 1) {
+  // A bevelled disc (lathe) with a slightly domed top face that carries the break line and imprint.
   const pts = [new THREE.Vector2(0, -.16)];
   for (let i = 0; i <= 12; i++) { const a = -Math.PI / 2 + (i / 12) * Math.PI; pts.push(new THREE.Vector2(.48 + Math.cos(a) * .16, Math.sin(a) * .16)); }
   pts.push(new THREE.Vector2(0, .16));
   const grp = new THREE.Group();
-  const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 64), MAT[mat]);
-  const groove = new THREE.Mesh(new THREE.BoxGeometry(.62, .03, .05), MAT.groove); groove.position.y = .155;
-  grp.add(m, groove); grp.scale.setScalar(s); return grp;
+  const body = new THREE.Mesh(new THREE.LatheGeometry(pts, 96), MAT[mat]);
+  const faceGeo = new THREE.CircleGeometry(.47, 96); faceGeo.rotateX(-Math.PI / 2);
+  const face = new THREE.Mesh(faceGeo, MAT[mat + "Face"] ?? MAT.tabletFace); face.position.y = .162;
+  grp.add(body, face); grp.scale.setScalar(s); return grp;
 }
 function blister(s = 1) {
   const grp = new THREE.Group();
@@ -98,9 +116,94 @@ function blister(s = 1) {
   grp.scale.setScalar(s); return grp;
 }
 
+
+// ── The retail pharmacy behind the medicines (out of focus, like a shallow-depth product shot in a store) ──
+function shop() {
+  const grp = new THREE.Group();
+  const WALL_Z = -20, FLOOR_Y = -7;
+  const plain = (color, rough = .8, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
+  // Walls and floor.
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 30), plain(0xE6E0D6, .9)); wall.position.set(0, 4, WALL_Z); grp.add(wall);
+  const tiles = canvasTex(512, (ctx, n) => { ctx.fillStyle = "#E9ECEA"; ctx.fillRect(0, 0, n, n); ctx.strokeStyle = "#CDD3D1"; ctx.lineWidth = 3; for (let i = 0; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(i * n / 4, 0); ctx.lineTo(i * n / 4, n); ctx.moveTo(0, i * n / 4); ctx.lineTo(n, i * n / 4); ctx.stroke(); } }, true);
+  tiles.repeat.set(10, 8);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), new THREE.MeshPhysicalMaterial({ map: tiles, roughness: .18, clearcoat: .6 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(0, FLOOR_Y, WALL_Z + 20); grp.add(floor);
+  // Ceiling light panels.
+  for (let i = -2; i <= 2; i++) { const lp = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.2), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })); lp.rotation.x = Math.PI / 2; lp.position.set(i * 7, 12.5, WALL_Z + 6); grp.add(lp); }
+
+  // Medicine box labels: a white carton with a coloured band, a stripe and a little text block.
+  const BANDS = ["#14B8A6", "#0B5E5B", "#F07A70", "#F2B93B", "#3B82F6", "#8B5CF6", "#16A34A", "#E11D48"];
+  const labels = BANDS.map((c, k) => canvasTex(128, (ctx, n) => {
+    ctx.fillStyle = k % 3 === 2 ? "#F8F1E4" : "#FAFAF8"; ctx.fillRect(0, 0, n, n);
+    ctx.fillStyle = c; ctx.fillRect(0, n * (.55 + (k % 2) * .1), n, n * .22);
+    ctx.fillRect(n * .1, n * .12, n * .5, n * .1);
+    ctx.fillStyle = "#9AA3A1"; for (let r = 0; r < 3; r++) ctx.fillRect(n * .1, n * (.28 + r * .07), n * (.3 + rnd() * .4), n * .03);
+  }, true));
+  const shelfMat = plain(0xFFFFFF, .5), sideMat = plain(0xE2E6E4, .6);
+  const units = [[-15.5, 9], [-5, 9], [5.5, 9], [16, 9]]; // [centre x, width]
+  const boxGeo = new THREE.BoxGeometry(1, 1, 1), bottleGeo = new THREE.CylinderGeometry(.5, .5, 1, 24), capGeo = new THREE.CylinderGeometry(.35, .35, .25, 24);
+  const boxSets = labels.map((tex) => ({ mat: new THREE.MeshStandardMaterial({ map: tex, roughness: .55 }), mats: [] }));
+  const bottles = [], caps = [];
+  for (const [cx, w] of units) {
+    // Upright sides, back panel and shelves.
+    const back = new THREE.Mesh(new THREE.BoxGeometry(w, 13.2, .2), plain(0xE9EEEC, .7)); back.position.set(cx, .7, WALL_Z + .2); grp.add(back);
+    for (const sx of [-1, 1]) { const side = new THREE.Mesh(new THREE.BoxGeometry(.3, 13.2, 1.6), sideMat); side.position.set(cx + sx * w / 2, .7, WALL_Z + .9); grp.add(side); }
+    for (let r = 0; r < 6; r++) {
+      const y = -5.6 + r * 2.5;
+      const board = new THREE.Mesh(new THREE.BoxGeometry(w, .18, 1.6), shelfMat); board.position.set(cx, y, WALL_Z + .9); grp.add(board);
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(w, .22, .05), plain(0x14B8A6, .4)); edge.position.set(cx, y, WALL_Z + 1.72); grp.add(edge);
+      if (r === 5) continue;
+      // Fill the shelf, left to right, with cartons and the odd bottle.
+      let x = cx - w / 2 + .35;
+      while (x < cx + w / 2 - .6) {
+        if (rnd() < .18) {
+          const h = .9 + rnd() * .6, rr = .28 + rnd() * .1;
+          const m = new THREE.Matrix4().compose(new THREE.Vector3(x + rr, y + .09 + h / 2, WALL_Z + 1.1), new THREE.Quaternion(), new THREE.Vector3(rr * 2, h, rr * 2));
+          bottles.push([m, rnd() < .5 ? 0xB8732E : 0xF4F4F2]);
+          caps.push(new THREE.Matrix4().compose(new THREE.Vector3(x + rr, y + .09 + h + .1, WALL_Z + 1.1), new THREE.Quaternion(), new THREE.Vector3(rr * 2.4, 1, rr * 2.4)));
+          x += rr * 2 + .12;
+        } else {
+          const bw = .45 + rnd() * .55, bh = .9 + rnd() * 1.1, bd = .7 + rnd() * .5;
+          const m = new THREE.Matrix4().compose(new THREE.Vector3(x + bw / 2, y + .09 + bh / 2, WALL_Z + .5 + bd / 2), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (rnd() - .5) * .12, 0)), new THREE.Vector3(bw, bh, bd));
+          boxSets[Math.floor(rnd() * boxSets.length)].mats.push(m);
+          x += bw + .05;
+        }
+      }
+    }
+  }
+  for (const set of boxSets) { const im = new THREE.InstancedMesh(boxGeo, set.mat, set.mats.length); set.mats.forEach((m, i) => im.setMatrixAt(i, m)); grp.add(im); }
+  const bm = new THREE.InstancedMesh(bottleGeo, new THREE.MeshPhysicalMaterial({ roughness: .15, clearcoat: 1 }), bottles.length);
+  bottles.forEach(([m, c], i) => { bm.setMatrixAt(i, m); bm.setColorAt(i, new THREE.Color(c)); }); grp.add(bm);
+  const cm = new THREE.InstancedMesh(capGeo, plain(0xFFFFFF, .4), caps.length); caps.forEach((m, i) => cm.setMatrixAt(i, m)); grp.add(cm);
+
+  // The dispensing counter in front of the shelves: white body, teal kick strip, a glass top.
+  const COUNTER_Z = -12;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(22, 3.2, 2.6), plain(0xFBFBFA, .35)); body.position.set(0, FLOOR_Y + 1.6, COUNTER_Z); grp.add(body);
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(22.02, .5, 2.62), plain(0x14B8A6, .3)); strip.position.set(0, FLOOR_Y + 2.6, COUNTER_Z); grp.add(strip);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(22.4, .12, 2.9), new THREE.MeshPhysicalMaterial({ color: 0xDDEFEC, roughness: .05, metalness: 0, clearcoat: 1, transparent: true, opacity: .55 })); top.position.set(0, FLOOR_Y + 3.27, COUNTER_Z); grp.add(top);
+  // A billing screen on the counter.
+  const mon = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.15, .1), plain(0x1F2A28, .3)); mon.position.set(-6, FLOOR_Y + 4.1, COUNTER_Z); mon.rotation.y = .35; grp.add(mon);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.65, 1), new THREE.MeshBasicMaterial({ color: 0xBFEFE7, toneMapped: false })); scr.position.set(-5.97, FLOOR_Y + 4.1, COUNTER_Z + .06); scr.rotation.y = .35; grp.add(scr);
+  const stand = new THREE.Mesh(new THREE.BoxGeometry(.15, .5, .15), plain(0x1F2A28, .3)); stand.position.set(-6, FLOOR_Y + 3.5, COUNTER_Z); grp.add(stand);
+
+  // The glowing green pharmacy cross and a "PHARMACY" lightbox.
+  const glow = new THREE.MeshBasicMaterial({ color: 0x2BD48A, toneMapped: false });
+  const cross = new THREE.Group();
+  const bar1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, .8, .3), glow), bar2 = new THREE.Mesh(new THREE.BoxGeometry(.8, 2.4, .3), glow);
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(2.4, 48), new THREE.MeshBasicMaterial({ color: 0x9FF5CB, transparent: true, opacity: .35, toneMapped: false })); halo.position.z = -.2;
+  cross.add(bar1, bar2, halo); cross.position.set(10.5, 8.7, WALL_Z + 1.9); grp.add(cross);
+  const signTex = canvasTex(512, (ctx, n) => { ctx.fillStyle = "#0B5E5B"; ctx.fillRect(0, 0, n, n); ctx.fillStyle = "#FFFFFF"; ctx.font = `bold ${n * .2}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("PHARMACY", n / 2, n / 2); }, true);
+  signTex.repeat.set(1, .35); signTex.offset.set(0, .325);
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(9, 1.6, .3), new THREE.MeshBasicMaterial({ map: signTex, toneMapped: false })); sign.position.set(-9, 8.7, WALL_Z + 1.9); grp.add(sign);
+  return grp;
+}
+scene.add(shop());
+// Warm store lighting on the shelves.
+const shopLight = new THREE.DirectionalLight(0xFFE9C9, .9); shopLight.position.set(0, 12, -2); shopLight.target.position.set(0, 0, -20); scene.add(shopLight, shopLight.target);
+
 // ── Cast: [object, base position, drift amplitude, spin turns per loop (x, y, z), phase] ──
 const items = [];
-const add = (obj, pos, amp, spin, phase = 0, rise = 0, rot0 = new THREE.Euler(phase, phase * 1.7, phase * .6)) => { scene.add(obj); items.push({ obj, pos: new THREE.Vector3(...pos), amp: new THREE.Vector3(...amp), spin, phase, rise, rot0 }); };
+const add = (obj, pos, amp, spin, phase = 0, rise = 0, rot0 = new THREE.Euler(phase, phase * 1.7, phase * .6)) => { obj.traverse((m) => { if (m.isMesh && m.material !== MAT.bubble) { m.castShadow = true; m.receiveShadow = true; } }); scene.add(obj); items.push({ obj, pos: new THREE.Vector3(...pos), amp: new THREE.Vector3(...amp), spin, phase, rise, rot0 }); };
 // Foil packs always show their face to the camera (tilted up, turning flat), never their plain back.
 const facing = (phase) => new THREE.Euler(1.2, phase, .15);
 
@@ -124,9 +227,25 @@ add(tablet("tabletY", 1), [7, 0, -4], [0, 0, 0], [1, 1, 0], 4.4, 1);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bokeh = new BokehPass(scene, camera, { focus: 13, aperture: .0042, maxblur: .012 });
+const bokeh = new BokehPass(scene, camera, { focus: 13, aperture: .0026, maxblur: .008 });
 composer.addPass(bokeh);
 composer.addPass(new OutputPass());
+// A real lens and sensor: slight colour fringing towards the edges, a soft vignette, and fine film grain.
+const lens = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 } },
+  vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float time; varying vec2 vUv;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + time) * 43758.5453); }
+    void main() {
+      vec2 d = vUv - .5; float r = dot(d, d);
+      vec3 c = vec3(texture2D(tDiffuse, vUv + d * r * .012).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * r * .012).b);
+      c *= mix(1.0, .82, smoothstep(.15, .65, r * 1.6));
+      c += (hash(vUv * 1000.0) - .5) * .035;
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+});
+composer.addPass(lens);
 
 window.renderAt = (t) => {
   const u = (t % LOOP) / LOOP;
@@ -140,6 +259,7 @@ window.renderAt = (t) => {
       it.pos.z + it.amp.z * Math.cos(u * TAU + p * .7));
     it.obj.rotation.set(it.rot0.x + it.spin[0] * u * TAU, it.rot0.y + it.spin[1] * u * TAU, it.rot0.z + it.spin[2] * u * TAU);
   });
+  lens.uniforms.time.value = (t * 37.0) % 101.0;
   composer.render();
 };
 window.renderAt(0);
