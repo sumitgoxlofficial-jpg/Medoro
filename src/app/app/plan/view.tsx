@@ -14,6 +14,7 @@ import type { planView } from "@/domain/system/licence";
 import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf, type Lang, type TFn } from "@/lib/tr";
 import { addonAction, cancelAction, checkNowAction, confirmOnlineAction, connectKeyAction, couponAction, emailInvoiceAction, failedOnlineAction, paidAction, payLinkAction, payOnlineAction, resumeOnlineAction } from "./actions";
+import { useNow } from "@/lib/use-now";
 
 type Online = {
   enabled: boolean;
@@ -83,6 +84,7 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
   const [paying, setPaying] = useState(false);
   const [payUrl, setPayUrl] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  const now = useNow(60_000);
   const [coupon, setCoupon] = useState<{ code: string; label: string; total: number } | null>(null);
   const [couponErr, setCouponErr] = useState("");
   // The server's price for the plan with the coupon; it is checked again before charging.
@@ -240,8 +242,8 @@ export function PlanView({ v, usage, pay, reference, online }: { v: V; usage: { 
         {online.enabled && !connected && online.billing.status === "cancelled" ? (
           <div className={card}>
             <div className="font-semibold text-[15px]">{t("Subscription cancelled")}</div>
-            <div className="text-[13px] text-ink-2">{online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? rich(t("Access continues until {date}."), { date: <strong>{day(online.billing.renewsAt)}</strong> }) : t("Pay again any time to continue.")} {t("Your records, exports and backups stay available.")}</div>
-            {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > Date.now() ? <Button className="self-start" disabled={busy} onClick={() => act(() => resumeOnlineAction())}>Undo cancellation</Button> : null}
+            <div className="text-[13px] text-ink-2">{online.billing.renewsAt && Date.parse(online.billing.renewsAt) > now ? rich(t("Access continues until {date}."), { date: <strong>{day(online.billing.renewsAt)}</strong> }) : t("Pay again any time to continue.")} {t("Your records, exports and backups stay available.")}</div>
+            {online.billing.renewsAt && Date.parse(online.billing.renewsAt) > now ? <Button className="self-start" disabled={busy} onClick={() => act(() => resumeOnlineAction())}>Undo cancellation</Button> : null}
           </div>
         ) : online.enabled && !connected && online.billing.status === "active" ? (
           <div className={card}>

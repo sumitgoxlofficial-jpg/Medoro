@@ -1,10 +1,11 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/toast";
 import { initials } from "@/staff/hrms/constants";
 import { CountUp } from "@/components/welcome-banner";
+import { useBrowserValue } from "@/lib/react-state";
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 export const inputCls = "border border-[#CDD2D7] rounded-lg px-3 py-2 text-[13.5px] outline-none bg-white focus:border-[#0B5E5B] w-full disabled:bg-[#F1F5F9]";
@@ -83,8 +84,7 @@ export const presenceColor = (p: string) => (p === "active" ? "#14B8A6" : p === 
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   // Rendered on <body> so a parent card's transform, filter or overflow can't trap the window inside the card.
-  const [host, setHost] = useState<HTMLElement | null>(null);
-  useEffect(() => setHost(document.body), []);
+  const host = useBrowserValue<HTMLElement | null>(() => document.body, null);
   if (!host) return null;
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black/40 flex items-start justify-center overflow-auto py-8 px-4 text-[#0f172a]" style={{ fontFamily: "Inter, system-ui, sans-serif" }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { FileUp, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { DEFAULT_GST_RATE, FORMS, GST_RATES } from "@/domain/inventory/contracts
 import { useT } from "@/lib/i18n-client";
 import { addMedicineAction } from "../inventory/actions";
 import { parseEbillAction } from "./pricing-actions";
+import { useOnChange } from "@/lib/react-state";
 
 export type EbillApply = { invoiceNo: string; invoiceDate: string; lines: MatchedLine[] };
 type Cat = { id: string; label: string; pack: string; gstRate: number; mrp: number };
@@ -34,7 +35,7 @@ export function EbillImport({ open, supplierId, supplier, catalogue, onClose, on
   const [picks, setPicks] = useState<Record<number, string>>({});
   const [creating, setCreating] = useState<MatchedLine | null>(null);
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { if (open) { setFile(null); setRes(null); setErr(""); setPicks({}); setMapOpen(false); } }, [open]);
+  useOnChange([open], () => { if (open) { setFile(null); setRes(null); setErr(""); setPicks({}); setMapOpen(false); } });
 
   const read = (f: File, m?: EbillMapping) => start(async () => {
     setErr("");
@@ -145,13 +146,13 @@ function QuickMedicine({ line, onClose, onCreated }: { line: MatchedLine | null;
   const [f, setF] = useState({ name: "", generic: "", strength: "", form: "Tablet", manufacturer: "", pack: "", mrp: "", gstRate: String(DEFAULT_GST_RATE), hsn: "3004", barcode: "" });
   const t = useT();
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => {
+  useOnChange([line], () => {
     if (!line) return;
     setErr("");
     const name = title(line.name.replace(/\b(tab|tabs|tablet|cap|caps|syp|inj)\b\.?/gi, "").replace(/\s+/g, " ").trim());
     setF({ name, generic: "", strength: line.name.match(/\d+(\.\d+)?\s?(mg|ml|mcg|g|iu|%)/i)?.[0] ?? "", form: guessForm(line.name), manufacturer: "", pack: line.pack, mrp: line.mrp ? (line.mrp / 100).toFixed(2) : "",
       gstRate: String(line.gst != null && (GST_RATES as readonly number[]).includes(line.gst) ? line.gst : DEFAULT_GST_RATE), hsn: /^\d{4,8}$/.test(line.hsn) ? line.hsn : "3004", barcode: line.barcode });
-  }, [line]);
+});
   if (!line) return null;
   const save = () => start(async () => {
     const r = await addMedicineAction({ ...f, form: f.form as (typeof FORMS)[number], schedule: "", reorderLevel: 0, rack: "" });

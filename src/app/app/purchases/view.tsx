@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Upload, FileText, Printer, ChevronDown, ChevronRight, CircleCheck, CircleAlert, ScanLine } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
@@ -20,6 +20,7 @@ import { EbillImport, type EbillApply } from "./ebill";
 import { ClaimsPanel } from "./claims";
 import { PricingRulesButton } from "./pricing";
 import { useT } from "@/lib/i18n-client";
+import { useOnChange } from "@/lib/react-state";
 
 type Order = Awaited<ReturnType<typeof listOrders>>[number];
 type Cat = Awaited<ReturnType<typeof purchaseCatalogue>>[number];
@@ -145,7 +146,7 @@ function NewPo({ open, onClose, catalogue, suppliers }: { open: boolean; onClose
   const toast = useToast();
   const [sup, setSup] = useState(""), [lines, setLines] = useState<PoLine[]>([]);
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { if (open) { setSup(suppliers[0]?.id ?? ""); setLines([poBlank()]); setErr(""); } }, [open, suppliers]);
+  useOnChange([open, suppliers], () => { if (open) { setSup(suppliers[0]?.id ?? ""); setLines([poBlank()]); setErr(""); } });
   const tot = grnTotals(lines.map((l) => ({ qty: parseInt(l.qty) || 0, rate: toPaise(l.rate), gstRate: 0, tradePct: parseFloat(l.tradePct) || 0, cashPct: parseFloat(l.cashPct) || 0 })));
   const save = () => start(async () => {
     const r = await createPoAction({ supplierId: sup, lines: lines.filter((l) => l.medicineId).map((l) => ({ ...l, freeQty: l.freeQty || "0" })) });

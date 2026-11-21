@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Sparkles, Download, Printer, MessageCircle, Trash2, ListPlus, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { waLink } from "@/drivedb/share";
 import { COVERS, SAFETIES, draftCsv, orderText, type Anomaly, type DraftGroup, type DraftLine, type ForecastRow, type Insights as Data, type MarginBy, type SeasonalRow, type seasonal } from "@/drivedb/insights";
 import { ForecastCard } from "./forecast-card";
 import { card, errText, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 const th = "text-left text-[12px] font-medium text-muted px-2.5 py-2 border-b border-line whitespace-nowrap";
 const td = "px-2.5 py-2 border-b border-line align-top";
@@ -32,7 +33,7 @@ export function Insights({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: n
   const t = useT();
   const lang = useLang();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [d, setD] = useState<Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [sea, setSea] = useState<Seasonal | null>(null);
@@ -48,7 +49,7 @@ export function Insights({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: n
       setSea(await dev.call("intelSeasonal", cfg.branchId));
     } catch (e) { setErr(errText(e)); }
   }, [dev, cfg.branchId, cfg.branches]);
-  useEffect(() => { void load(); }, [load, refresh, tick]);
+  useEffect(() => { void (async () => { await load(); })(); }, [load, refresh, tick]);
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => { try { await fn(); if (ok) toast(ok, "green"); } catch (e) { toast(errText(e), "red"); } };
   const addLines = (lines: DraftLine[]) => act(async () => { setDraft(await dev.call("intelAddToDraft", lines)); }, t("{n} item(s) added to the order list.", { n: lines.length }));
@@ -82,7 +83,7 @@ export function Insights({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: n
 function OrderList({ cfg, draft, setDraft }: { cfg: Cfg; draft: Draft; setDraft: (d: Draft) => void }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [sups, setSups] = useState<{ id: string; name: string }[]>([]);
   useEffect(() => { if (draft.groups.some((g) => !g.supplierId)) void dev.call("supplierList").then(setSups); }, [dev, draft.groups]);
   const lines = draft.groups.flatMap((g) => g.lines);
@@ -169,7 +170,7 @@ function printOrder(groups: DraftGroup[], cfg: Cfg) {
 function Forecast({ d, who, onAdd, onSaved }: { d: Data; who: Who; onAdd: (l: DraftLine[]) => void; onSaved: () => void }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const p = d.settings.policy, f = d.forecast;
   const setPolicy = async (cover: number, safety: number) => { try { await dev.call("intelSaveSettings", { policy: { cover, safety } }); onSaved(); } catch (e) { toast(errText(e), "red"); } };
   const why = (r: ForecastRow) => r.why === "out" ? t("Out of stock (reorder level {rl}). Orders enough for {cover} days.", { rl: r.reorderLevel, cover: p.cover })
@@ -221,7 +222,7 @@ function SeasonalCard({ sea, months, onAdd }: { sea: Seasonal | null; months: (m
   const [month, setMonth] = useState<number | null>(null);
   const [off, setOff] = useState<Record<string, boolean>>({});
   const m = month ?? sea?.targets[0] ?? 0;
-  useEffect(() => setOff({}), [m]);
+  useOnChange([m], () => setOff({}));
   const rows: SeasonalRow[] = sea?.ready ? sea.plans[m] ?? [] : [];
   const chosen = rows.filter((r) => r.need > 0 && !off[r.id]);
   return (
@@ -301,9 +302,9 @@ function Slow({ rows }: { rows: Data["slow"] }) {
 function Anomalies({ rows, th: thr, who, onChange }: { rows: Anomaly[]; th: { disc: number; refunds: number }; who: Who; onChange: () => void }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [v, setV] = useState({ disc: String(thr.disc), refunds: String(thr.refunds) });
-  useEffect(() => setV({ disc: String(thr.disc), refunds: String(thr.refunds) }), [thr.disc, thr.refunds]);
+  useOnChange([thr.disc, thr.refunds], () => setV({ disc: String(thr.disc), refunds: String(thr.refunds) }));
   const text = (a: Anomaly): [string, string] => {
     const x = a.vars;
     switch (a.rule) {

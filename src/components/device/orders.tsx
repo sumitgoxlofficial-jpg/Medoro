@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2, Package, Bike, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -11,6 +11,7 @@ import { useLang, useT } from "@/lib/i18n-client";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { ReceiptModal } from "./receipt";
 import { card, input, label, errText, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 type Order = { id: string; orderNo: string; customer: string; phone: string | null; address: string; note: string | null; payment: string; status: string; rider: string | null; total: number | null; invoiceNo: string | null; createdAt: string; saleId: string | null; items: { name: string; qty: number; unit: string }[] };
 const STATUS: Record<string, string> = { new: "New", packed: "Packed & billed", out: "Out for delivery", delivered: "Delivered", cancelled: "Cancelled" };
@@ -19,7 +20,7 @@ const STATUS: Record<string, string> = { new: "New", packed: "Packed & billed", 
 export function Orders({ cfg, who, onBilled }: { cfg: Cfg; who: Who; onBilled: () => void }) {
   const toast = useToast();
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [rows, setRows] = useState<Order[]>([]);
   const [done, setDone] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -87,8 +88,10 @@ function NewOrder({ cfg, onClose, onSaved }: { cfg: Cfg; onClose: () => void; on
   const [q, setQ] = useState("");
   const [meds, setMeds] = useState<Med[]>([]);
   const [items, setItems] = useState<{ med: Med; qty: number }[]>([]);
-  useEffect(() => { if (custQ.trim().length < 2) { setCusts([]); return; } const t = setTimeout(() => dev.call("findCustomers", custQ).then(setCusts), 150); return () => clearTimeout(t); }, [custQ, dev]);
-  useEffect(() => { if (!q.trim()) { setMeds([]); return; } const t = setTimeout(() => dev.call("search", q, cfg.branchId).then((r) => setMeds(r as Med[])), 120); return () => clearTimeout(t); }, [q, dev, cfg.branchId]);
+  useOnChange([custQ.trim().length < 2], () => { if (custQ.trim().length < 2) setCusts([]); });
+  useEffect(() => { if (custQ.trim().length < 2) return; const t = setTimeout(() => dev.call("findCustomers", custQ).then(setCusts), 150); return () => clearTimeout(t); }, [custQ, dev]);
+  useOnChange([!q.trim()], () => { if (!q.trim()) setMeds([]); });
+  useEffect(() => { if (!q.trim()) return; const t = setTimeout(() => dev.call("search", q, cfg.branchId).then((r) => setMeds(r as Med[])), 120); return () => clearTimeout(t); }, [q, dev, cfg.branchId]);
 
   const save = async () => {
     try {

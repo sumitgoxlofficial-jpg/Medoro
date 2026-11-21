@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { deviceDb } from "@/drivedb/device";
 import { inr } from "@/lib/money";
 import { useT } from "@/lib/i18n-client";
@@ -11,7 +11,7 @@ type Row = { at: string; who: string; kind: string; what: string; amountPaise: n
 /** Who did what on this pharmacy's counters, newest first (bills, returns, money, stock changes, orders). */
 export function Activity({ refresh }: { refresh: number }) {
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   useEffect(() => { const t = setTimeout(() => dev.call("activityLog", { text: q, limit: 300 }).then(setRows), 150); return () => clearTimeout(t); }, [dev, q, refresh]);

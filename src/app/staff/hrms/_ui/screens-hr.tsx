@@ -13,6 +13,8 @@ import { LettersPanel, OfferModal } from "./letters";
 import { AnnounceModal, PayslipView } from "./screens-me";
 import { CountUp } from "@/components/welcome-banner";
 import { TeamOrbit } from "../../employee/art";
+import { istDay, useNow } from "@/lib/use-now";
+import { useOnChange } from "@/lib/react-state";
 
 type P = { sh: Shell };
 
@@ -20,10 +22,11 @@ type P = { sh: Shell };
 export function DashboardScreen({ d, sh }: { d: Data<"hrhome"> } & P) {
   const { run } = useRun();
   const [ann, setAnn] = useState(false);
+  const now = useNow(60_000);
   const away = d.staff.filter((p) => p.presence !== "offline" || p.status === "active").slice(0, 12);
   const working = d.staff.filter((p) => p.presence === "active").length, onBreak = d.staff.filter((p) => p.presence === "break").length;
   const pending = d.pending.length + d.claimsWaiting;
-  const ist = new Date(Date.now() + 5.5 * 3600_000), hour = ist.getUTCHours();
+  const ist = new Date(now + 5.5 * 3600_000), hour = ist.getUTCHours();
   return (
     <>
       {/* Welcome banner: greeting in India time, live team numbers that count up, and the team circle turning behind. */}
@@ -106,7 +109,7 @@ function DocsModal({ p, onClose }: { p: Person; onClose: () => void }) {
   const [rows, setRows] = useState<{ id: string; kind: string; name: string; verified: boolean; at: string }[] | null>(null), [busy, setBusy] = useState(false);
   const [k, setK] = useState<{ aadhaar: { masked: string; entered: boolean; digilocker: boolean; verifiedBy: string; doc: string; verified: boolean }; pan: { masked: string; entered: boolean; doc: string; verified: boolean }; submitted: boolean; verified: boolean } | null>(null);
   const load = useCallback(async () => { const [r, kr] = await Promise.all([employeeDocs(p.id), employeeKyc(p.id)]); if (r.ok) setRows(r.data); else toast(r.error, "red"); if (kr.ok) setK(kr.data); }, [p.id, toast]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void (async () => { await load(); })(); }, [load]);
   const act = async (fn: () => Promise<{ ok: boolean; error?: string }>) => { setBusy(true); const r = await fn(); setBusy(false); if (!r.ok) toast(r.error ?? "That didn’t work.", "red"); await load(); };
   const [full, setFull] = useState<{ aadhaar: string; pan: string } | null>(null);
   const reveal = async () => { setBusy(true); const r = await revealKyc(p.id); setBusy(false); if (r.ok) setFull(r.data); else toast(r.error, "red"); };
@@ -125,9 +128,10 @@ function DocsModal({ p, onClose }: { p: Person; onClose: () => void }) {
   </Modal>;
 }
 function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; run: ReturnType<typeof useRun>["run"]; busy: boolean }) {
-  const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const now = useNow();
+  const today = istDay(now);
   const [day, setDay] = useState(today);
-  const max = new Date(Date.now() + 5.5 * 3600_000 + 180 * 86_400_000).toISOString().slice(0, 10), later = day > today;
+  const max = istDay(now, 180), later = day > today;
   return <Modal title={`${p.name} is leaving`} onClose={onClose}>
     <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => setEmployeeActive(p.id, false, day), () => { onClose(); }); }}>
       <Field label="Last working day" hint="Today or earlier deactivates them now. A later day (notice period) keeps them working until then."><input className={inputCls} type="date" value={day} min={p.joinDate ?? undefined} max={max} onChange={(e) => setDay(e.target.value)} required /></Field>
@@ -138,7 +142,7 @@ function ExitModal({ p, onClose, run, busy }: { p: Person; onClose: () => void; 
 /** HR promotes someone: new designation, department, manager, pay and responsibilities from an effective date, and the Letter of Promotion. */
 function PromoteModal({ p, d, onClose, onDone, onLetter }: { p: Person; d: Data<"hremployees">; onClose: () => void; onDone: (day: string) => void; onLetter: (day: string) => void }) {
   const { toast } = useRun();
-  const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const today = istDay(useNow());
   const [v, setV] = useState({ toDesig: "", toDept: p.dept, toManagerId: p.managerId ?? "", toCtc: String(p.ctc), effective: today, responsibilities: p.responsibilities, note: "" });
   const [email, setEmail] = useState(d.mail), [busy, setBusy] = useState(false);
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setV({ ...v, [k]: cleanNum(k, e.target.value) });
@@ -229,8 +233,9 @@ export function NewEmployeeScreen({ d }: { d: Data<"hrnewemp"> }) {
   const [user, setUser] = useState(""), [custom, setCustom] = useState(false), [avail, setAvail] = useState<{ user: string; ok: boolean; reason: string; suggestion: string } | null>(null);
   const seq = useRef(0);
   const preview = async (name: string) => { if (custom) return; if (name.trim().split(/\s+/).length < 2) { setUser(""); setEmail(""); return; } const r = await previewOfficialEmail(name); if (r.ok) { setUser(r.data.split("@")[0]); setEmail(r.data); } };
+  useOnChange([!user], () => { if (!user) setAvail(null); });
   useEffect(() => {
-    if (!user) { setAvail(null); return; }
+    if (!user) return;
     const n = ++seq.current;
     const t = setTimeout(async () => { const r = await checkOfficialUsername(user); if (n === seq.current && r.ok) { setAvail({ user, ok: r.data.available, reason: r.data.reason, suggestion: r.data.suggestion.split("@")[0] }); setEmail(r.data.email); } }, 350);
     return () => clearTimeout(t);

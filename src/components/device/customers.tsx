@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus, IndianRupee, MessageCircle, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -18,7 +18,7 @@ type C = { id: string; name: string; phone: string | null; gstin: string | null;
 export function Customers({ who, refresh, pharmacy }: { who: Who; refresh: number; pharmacy: Pharmacy | null }) {
   const toast = useToast();
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<C[]>([]);
   const [adding, setAdding] = useState(false);

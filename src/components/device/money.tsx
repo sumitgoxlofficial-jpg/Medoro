@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, Download, FileUp, Link2, Printer, QrCode, RefreshCw, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -69,7 +69,7 @@ function Tile({ k, v, sub, tone }: { k: string; v: React.ReactNode; sub?: string
 }
 
 function Overview({ refresh, go }: { refresh: number; go: (v: View) => void }) {
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [o, setO] = useState<R<"finOverview"> | null>(null);
   const t = useT();
   const lang = useLang();
@@ -108,7 +108,7 @@ function Overview({ refresh, go }: { refresh: number; go: (v: View) => void }) {
 
 function Import({ who, onDone }: { who: Who; onDone: () => void }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [bank, setBank] = useState("");
   const [last4, setLast4] = useState("");
   const [file, setFile] = useState<{ name: string; bytes: Uint8Array } | null>(null);
@@ -122,7 +122,7 @@ function Import({ who, onDone }: { who: Who; onDone: () => void }) {
     try { const r = await dev.call("statementPreview", f.name, f.bytes, bank || "OTHER", m ?? undefined); setP(r); setMapping(r.mapping); }
     catch (e) { setP(null); toast(errText(e), "red"); }
   }, [dev, bank, toast]);
-  useEffect(() => { if (file) void preview(file); }, [file, preview]);
+  useEffect(() => { if (file) void (async () => { await preview(file); })(); }, [file, preview]);
 
   const run = async () => {
     if (!file || !mapping) return;
@@ -195,7 +195,7 @@ function Import({ who, onDone }: { who: Who; onDone: () => void }) {
 const STATE_FILTER: [string, string][] = [["", "All"], ["unmatched", "Unmatched"], ["partial", "Part matched"], ["matched", "Matched"], ["review", "Possible duplicates"], ["debit", "Money out"], ["not_payment", "Not bill payments"], ["ignored", "Set aside"], ["duplicate", "Duplicates"]];
 
 function Transactions({ who, refresh, onChange }: { who: Who; refresh: number; onChange: () => void }) {
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [state, setState] = useState("");
   const [rows, setRows] = useState<Txn[]>([]);
@@ -236,7 +236,7 @@ function Transactions({ who, refresh, onChange }: { who: Who; refresh: number; o
 
 function TxnModal({ id, who, onClose, onChange }: { id: string; who: Who; onClose: () => void; onChange: () => void }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [x, setT] = useState<R<"finTransaction"> | null>(null);
   const [match, setMatch] = useState(false);
   const t = useT();
@@ -304,7 +304,7 @@ function Suggestions({ txnId, list, who, act }: { txnId: string; list: R<"finTra
 
 function ManualMatch({ txnId, leftPaise, who, onClose, onDone }: { txnId: string; leftPaise: number; who: Who; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [r, setR] = useState<Recon | null>(null);
   const [q, setQ] = useState("");
   const [pick, setPick] = useState<{ target: "bill" | "counter" | "receipt"; id: string; label: string; max: number } | null>(null);
@@ -342,22 +342,26 @@ function ManualMatch({ txnId, leftPaise, who, onClose, onDone }: { txnId: string
   );
 }
 
+function Section({ title, n, children, note }: { title: string; n: number; children: React.ReactNode; note?: string }) {
+  const t = useT();
+  return (
+    <div className={card}><div className="flex justify-between items-center gap-2 flex-wrap"><div className="font-semibold">{title} <span className="text-muted font-normal">({n})</span></div></div>{note && <div className="text-[12.5px] text-muted">{note}</div>}{n ? children : <div className="text-sm text-muted">{t("Nothing here.")}</div>}</div>
+  );
+}
+
 function Reconcile({ who, cfg, refresh, onChange }: { who: Who; cfg: Cfg; refresh: number; onChange: () => void }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [r, setR] = useState<Recon | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [qr, setQr] = useState<{ title: string; uri: string; note: string } | null>(null);
   const [settings, setSettings] = useState<R<"finSettings"> | null>(null);
   const t = useT();
   const load = useCallback(async () => { setR(await dev.call("finReconciliation")); setSettings(await dev.call("finSettings")); }, [dev]);
-  useEffect(() => { void load(); }, [load, refresh]);
+  useEffect(() => { void (async () => { await load(); })(); }, [load, refresh]);
   const act = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); toast(ok, "green"); onChange(); await load(); } catch (e) { toast(errText(e), "red"); } };
   if (!r) return <div className={card}>{t("Loading…")}</div>;
   const unique = r.suggested.filter((x) => x.suggestions.some((p) => p.rule === 4)).length;
-  const Section = ({ title, n, children, note }: { title: string; n: number; children: React.ReactNode; note?: string }) => (
-    <div className={card}><div className="flex justify-between items-center gap-2 flex-wrap"><div className="font-semibold">{title} <span className="text-muted font-normal">({n})</span></div></div>{note && <div className="text-[12.5px] text-muted">{note}</div>}{n ? children : <div className="text-sm text-muted">{t("Nothing here.")}</div>}</div>
-  );
   const row = (x: Txn | Recon["unmatched"][number], extra?: React.ReactNode) => (
     <li key={x.id} className="py-2 flex justify-between gap-2 flex-wrap">
       <button className="text-left cursor-pointer hover:text-teal" onClick={() => setOpen(x.id)}>{amt(x)} <span className="text-muted">{x.date} · {t(CHANNEL_LABEL[x.channel as Channel])}{x.utr ? ` · ${x.utr}` : ""}</span><span className="block text-[12.5px] text-muted max-w-[520px] truncate">{x.description}</span></button>
@@ -398,7 +402,7 @@ function Reconcile({ who, cfg, refresh, onChange }: { who: Who; cfg: Cfg; refres
 }
 
 function History({ refresh }: { refresh: number }) {
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [rows, setRows] = useState<R<"importHistory">>([]);
   const t = useT();
   const lang = useLang();
@@ -416,9 +420,19 @@ function History({ refresh }: { refresh: number }) {
   );
 }
 
+function Block({ title, rows, first }: { title: string; rows: R<"finReports">["daily"]; first: string }) {
+  const t = useT();
+  return (
+    <div className={`${card} break-inside-avoid`}><div className="font-semibold">{title}</div>
+      <table className={table}><thead><tr><th>{first}</th><th>{t("Credits")}</th><th>{t("Total")}</th><th>UPI</th><th>{t("Matched")}</th></tr></thead>
+        <tbody>{rows.map((x) => <tr key={x.key}><td>{CHANNEL_LABEL[x.key as Channel] ? t(CHANNEL_LABEL[x.key as Channel]) : x.key}</td><td>{x.count}</td><td className="tabular-nums">{inr(x.totalPaise)}</td><td className="tabular-nums">{inr(x.upiPaise)}</td><td className="tabular-nums">{inr(x.matchedPaise)}</td></tr>)}
+          {!rows.length && <tr><td colSpan={5} className="text-muted">{t("No credits in this period.")}</td></tr>}</tbody></table></div>
+  );
+}
+
 function Reports() {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [from, setFrom] = useState(addDays(todayISO(), -29));
   const [to, setTo] = useState(todayISO());
   const [r, setR] = useState<R<"finReports"> | null>(null);
@@ -432,12 +446,6 @@ function Reports() {
     { name: "By bank account", rows: [["Account", ...head.slice(1)], ...g(r.byAccount)] }, { name: "By channel", rows: [["Channel", ...head.slice(1)], ...g(r.byChannel).map((x) => [CHANNEL_LABEL[x[0] as Channel] ?? x[0], ...x.slice(1)])] },
     { name: "Unmatched", rows: txnRows(r.unmatched) }, { name: "Reconciliation", rows: txnRows(r.reconciliation) },
   ]);
-  const Block = ({ title, rows, first }: { title: string; rows: R<"finReports">["daily"]; first: string }) => (
-    <div className={`${card} break-inside-avoid`}><div className="font-semibold">{title}</div>
-      <table className={table}><thead><tr><th>{first}</th><th>{t("Credits")}</th><th>{t("Total")}</th><th>UPI</th><th>{t("Matched")}</th></tr></thead>
-        <tbody>{rows.map((x) => <tr key={x.key}><td>{CHANNEL_LABEL[x.key as Channel] ? t(CHANNEL_LABEL[x.key as Channel]) : x.key}</td><td>{x.count}</td><td className="tabular-nums">{inr(x.totalPaise)}</td><td className="tabular-nums">{inr(x.upiPaise)}</td><td className="tabular-nums">{inr(x.matchedPaise)}</td></tr>)}
-          {!rows.length && <tr><td colSpan={5} className="text-muted">{t("No credits in this period.")}</td></tr>}</tbody></table></div>
-  );
   return (
     <div className="flex flex-col gap-4">
       <div className={`${card} print:hidden`}>
@@ -475,7 +483,7 @@ function Reports() {
 
 function Connections({ owner }: { owner: boolean }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [s, setS] = useState<R<"finSettings"> | null>(null);
   const t = useT();
   useEffect(() => { void dev.call("finSettings").then(setS); }, [dev]);

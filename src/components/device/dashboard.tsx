@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { IndianRupee, Percent, Truck, Receipt, Users, CalendarClock, Hourglass, PackageMinus, Download, CloudCheck } from "lucide-react";
 import { PageHead } from "@/components/page-head";
 import { Segmented } from "@/components/ui/segmented";
@@ -20,12 +20,27 @@ const tile = "relative overflow-hidden bg-white p-4 flex flex-col gap-1";
 const dm = (iso: string, lang: Lang) => new Date(iso + "T00:00:00").toLocaleDateString(localeOf(lang), { day: "numeric", month: "short" });
 const weekday = (lang: Lang) => (lang === "en" ? weekdayLong() : new Date(todayISO() + "T00:00:00Z").toLocaleDateString(localeOf(lang), { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }));
 
+// Each tile: a coloured icon badge, a large faint copy of the icon floating in the corner, an accent line on hover
+// and the rupee figure counting up from zero.
+// `d` is its position, for the staggered entrance.
+function Tile({ d, Icon, bg, fg, label, value, paise, sub, onClick }: { d: number; Icon: LucideIcon; bg: string; fg: string; label: string; value?: string; paise?: number; sub: React.ReactNode; onClick?: () => void }) {
+  const t = useT();
+  return (
+    <div style={{ ["--d" as string]: d, ["--accent" as string]: fg }} className={`app-up app-tile app-kpi group ${tile} ${onClick ? "cursor-pointer hover:bg-page" : ""}`} onClick={onClick}>
+      <Icon aria-hidden size={64} strokeWidth={1.4} className="app-drift pointer-events-none absolute -right-2 -bottom-3 opacity-[.07]" style={{ color: fg, ["--dur" as string]: `${11 + ((d + 1) % 3) * 2}s` }} />
+      <div className="relative flex items-center gap-2 text-[13px] text-muted"><span className="app-ico size-[26px] rounded-[7px] flex items-center justify-center flex-none" style={{ background: bg, color: fg }}><Icon size={14} /></span>{t(label)}</div>
+      <div className="relative text-[24px] font-semibold tabular-nums">{paise !== undefined ? <CountUp value={paise} format={inr} /> : value}</div>
+      <div className="relative text-[12.5px] text-faint">{sub}</div>
+    </div>
+  );
+}
+
 /** The owner's dashboard, from this device's own data: sales, margin, purchases, dues, the last 14 days, and stock to act on. */
 export function Dashboard({ cfg, owner, refresh, go, userName = "" }: { cfg: Cfg; owner: boolean; refresh: number; go: (tab: "bill" | "stock" | "reports" | "customers" | "supplier" | "ask" | "activity" | "settings") => void; userName?: string }) {
   const toast = useToast();
   const t = useT();
   const lang = useLang();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [range, setRange] = useState<DashRange>("today");
   const [d, setD] = useState<Dash | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -58,27 +73,17 @@ export function Dashboard({ cfg, owner, refresh, go, userName = "" }: { cfg: Cfg
   const coll = [["Cash", d.collections.cash, "bg-teal"], ["UPI", d.collections.upi, "bg-blue-600"], ["Card", d.collections.card, "bg-teal/50"], ["Credit", d.collections.credit, "bg-amber-500"]] as const;
   const collTotal = coll.reduce((a, c) => a + c[1], 0);
   let n = 0; // stagger the tiles in the order they render
-  // Each tile: a coloured icon badge, a large faint copy of the icon floating in the corner, an accent line on hover
-  // and the rupee figure counting up from zero.
-  const Tile = ({ Icon, bg, fg, label, value, paise, sub, onClick }: { Icon: LucideIcon; bg: string; fg: string; label: string; value?: string; paise?: number; sub: React.ReactNode; onClick?: () => void }) => (
-    <div style={{ ["--d" as string]: n++, ["--accent" as string]: fg }} className={`app-up app-tile app-kpi group ${tile} ${onClick ? "cursor-pointer hover:bg-page" : ""}`} onClick={onClick}>
-      <Icon aria-hidden size={64} strokeWidth={1.4} className="app-drift pointer-events-none absolute -right-2 -bottom-3 opacity-[.07]" style={{ color: fg, ["--dur" as string]: `${11 + (n % 3) * 2}s` }} />
-      <div className="relative flex items-center gap-2 text-[13px] text-muted"><span className="app-ico size-[26px] rounded-[7px] flex items-center justify-center flex-none" style={{ background: bg, color: fg }}><Icon size={14} /></span>{t(label)}</div>
-      <div className="relative text-[24px] font-semibold tabular-nums">{paise !== undefined ? <CountUp value={paise} format={inr} /> : value}</div>
-      <div className="relative text-[12.5px] text-faint">{sub}</div>
-    </div>
-  );
   return (
     <div className="app-motion flex flex-col gap-4 max-w-[1400px]" data-testid="device-dashboard">
       {head}
       {userName ? <WelcomeBanner name={userName} branch={cfg.branchName} newBill={{ onClick: () => go("bill") }} /> : null}
       <div className="grid gap-px bg-line border border-line rounded-xl overflow-hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <Tile Icon={IndianRupee} bg="#E1F1EF" fg="#0B5E5B" label={range === "today" ? "Sales today" : "Sales"} paise={d.sales.paise} sub={t(d.sales.bills === 1 ? "{n} bill" : "{n} bills", { n: d.sales.bills })} />
-        {owner && <Tile Icon={Percent} bg="#EAF0FC" fg="#2459C9" label="Gross margin" value={d.margin.pct === null ? "—" : `${(d.margin.pct * 100).toFixed(1)}%`} sub={pts === null ? t("Before GST, after returns") : <span className={pts >= 0 ? "text-ok" : "text-bad"}>{t("{pts} pts vs the 7 days before", { pts: `${pts >= 0 ? "+" : ""}${pts}` })}</span>} />}
-        <Tile Icon={Truck} bg="#F1EEFB" fg="#5B45B0" label="Purchases" paise={d.purchases.paise} sub={t(d.purchases.count === 1 ? "{n} supplier bill" : "{n} supplier bills", { n: d.purchases.count })} />
-        {owner && <Tile Icon={Receipt} bg="#F2F4F5" fg="#4B535B" label="Expenses" paise={d.expenses.paise} sub={t(d.expenses.count === 1 ? "{n} entry" : "{n} entries", { n: d.expenses.count })} />}
-        <Tile Icon={Users} bg="#FDF2E1" fg="#94570A" label="Receivables" paise={d.receivables.paise} sub={t(d.receivables.customers === 1 ? "{n} customer on credit" : "{n} customers on credit", { n: d.receivables.customers })} onClick={() => go("customers")} />
-        {owner && <Tile Icon={CalendarClock} bg="#FDECEC" fg="#C0362C" label="Payables" paise={d.payables.paise} sub={t(d.payables.suppliers === 1 ? "{n} supplier" : "{n} suppliers", { n: d.payables.suppliers })} />}
+        <Tile d={n++} Icon={IndianRupee} bg="#E1F1EF" fg="#0B5E5B" label={range === "today" ? "Sales today" : "Sales"} paise={d.sales.paise} sub={t(d.sales.bills === 1 ? "{n} bill" : "{n} bills", { n: d.sales.bills })} />
+        {owner && <Tile d={n++} Icon={Percent} bg="#EAF0FC" fg="#2459C9" label="Gross margin" value={d.margin.pct === null ? "—" : `${(d.margin.pct * 100).toFixed(1)}%`} sub={pts === null ? t("Before GST, after returns") : <span className={pts >= 0 ? "text-ok" : "text-bad"}>{t("{pts} pts vs the 7 days before", { pts: `${pts >= 0 ? "+" : ""}${pts}` })}</span>} />}
+        <Tile d={n++} Icon={Truck} bg="#F1EEFB" fg="#5B45B0" label="Purchases" paise={d.purchases.paise} sub={t(d.purchases.count === 1 ? "{n} supplier bill" : "{n} supplier bills", { n: d.purchases.count })} />
+        {owner && <Tile d={n++} Icon={Receipt} bg="#F2F4F5" fg="#4B535B" label="Expenses" paise={d.expenses.paise} sub={t(d.expenses.count === 1 ? "{n} entry" : "{n} entries", { n: d.expenses.count })} />}
+        <Tile d={n++} Icon={Users} bg="#FDF2E1" fg="#94570A" label="Receivables" paise={d.receivables.paise} sub={t(d.receivables.customers === 1 ? "{n} customer on credit" : "{n} customers on credit", { n: d.receivables.customers })} onClick={() => go("customers")} />
+        {owner && <Tile d={n++} Icon={CalendarClock} bg="#FDECEC" fg="#C0362C" label="Payables" paise={d.payables.paise} sub={t(d.payables.suppliers === 1 ? "{n} supplier" : "{n} suppliers", { n: d.payables.suppliers })} />}
       </div>
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))]">
         <div className={`${card} app-up app-card`} style={{ ["--d" as string]: 3 }}>

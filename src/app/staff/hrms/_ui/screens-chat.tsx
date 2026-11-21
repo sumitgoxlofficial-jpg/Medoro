@@ -9,6 +9,7 @@ import {
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
 import { Card, Empty, Field, Modal, Tabs, btnCls, cx, dangerCls, dayLong, inputCls, primaryCls, timeLabel, useRun } from "./kit";
+import { useLocalStorage, useOnChange } from "@/lib/react-state";
 
 type D = Data<"chat">;
 type Person = D["people"][number];
@@ -136,7 +137,7 @@ export function ChatScreen({ d }: { d: D }) {
   const [modal, setModal] = useState<"" | "new" | "info" | "poll" | "avatar" | "backup">(d.backup.notice ? "backup" : ""), [showList, setShowList] = useState(!d.open);
   const [viewer, setViewer] = useState<string | null>(null), [incoming, setIncoming] = useState<ChatMsg | null>(null), [avatar, setAvatar] = useState(d.me.avatar);
   const log = useRef<HTMLDivElement>(null), file = useRef<HTMLInputElement>(null), top = useRef(0), pinned = useRef(true), activeRef = useRef(active), tickN = useRef(0), lastTyped = useRef(0), first = useRef(true);
-  activeRef.current = active;
+  useEffect(() => { activeRef.current = active; }, [active]);
   const byId = useMemo(() => new Map<string, { name: string; photo: string | null; avatar: string }>([...d.people.map((p) => [p.id, { name: p.name, photo: p.photo, avatar: p.avatar }] as const), [d.me.id, { name: d.me.name, photo: d.me.photo, avatar }]]), [d.people, d.me, avatar]);
   const chat = chats.find((c) => c.id === active);
   const online = Object.keys(pres).filter((id) => id !== d.me.id).length;
@@ -184,7 +185,8 @@ export function ChatScreen({ d }: { d: D }) {
     return () => { stop = true; clearTimeout(t); document.removeEventListener("visibilitychange", onVis); };
   }, [poll]);
   // Opening a conversation loads it fresh.
-  useEffect(() => { top.current = 0; setMsgs([]); setTyping([]); setFind(""); setFindOpen(false); pinned.current = true; first.current = true; if (active) void poll(true); }, [active, poll]);
+  useOnChange([active, poll], () => { setMsgs([]); setTyping([]); setFind(""); setFindOpen(false); });
+  useEffect(() => { top.current = 0; pinned.current = true; first.current = true; if (active) void poll(true); }, [active, poll]);
   useEffect(() => { const el = log.current; if (el && pinned.current) el.scrollTop = el.scrollHeight; }, [msgs, typing]);
 
   const pick = (id: string) => { setActive(id); setShowList(false); window.history.replaceState(null, "", `/staff/hrms/chat?c=${id}`); };
@@ -565,14 +567,14 @@ function BackupModal({ b, onClose }: { b: Backup; onClose: () => void }) {
 const BACKUP_ASKED = "hrms.chat.backup.asked";
 /** WhatsApp-style first-time offer: one tap to turn on the daily Google Drive backup. Google needs each person's own OK once; after that it runs by itself. */
 function BackupPrompt({ b }: { b: Backup }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => { try { setShow(b.configured && !b.connected && !localStorage.getItem(BACKUP_ASKED)); } catch { setShow(false); } }, [b.configured, b.connected]);
+  const [asked, setAsked] = useLocalStorage(BACKUP_ASKED);
+  const show = b.configured && !b.connected && !asked;
   if (!show) return null;
   return (
     <div role="region" aria-label="Chat backup" className="flex items-center gap-3 flex-wrap bg-[#F2F9F8] border border-[#CFE6E3] rounded-xl px-4 py-3">
       <span className="text-[20px]" aria-hidden>☁</span>
       <span className="flex-1 min-w-[220px] text-[13px]"><strong>Back up your chats automatically</strong><span className="block text-[12px] text-[#475569]">Choose your Google account once. Your chats are then saved, encrypted, to your own Google Drive every day.</span></span>
-      <button className={btnCls} onClick={() => { try { localStorage.setItem(BACKUP_ASKED, "1"); } catch { /* ignore */ } setShow(false); }}>Not now</button>
+      <button className={btnCls} onClick={() => setAsked("1")}>Not now</button>
       {/* A real browser navigation to a route that redirects to Google, so deliberately not next/link. */}
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a className={primaryCls} href="/staff/hrms/google/start?for=backup">Turn on</a>

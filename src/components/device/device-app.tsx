@@ -29,9 +29,15 @@ import { card, input, errText, type Cfg, type Who } from "./ui";
 
 import { HIDDEN_TABS, TABS, type Tab } from "./tabs";
 import { TabHero } from "./tab-hero";
+import { useOnChange } from "@/lib/react-state";
 export type { Tab };
 /** Set once this browser has a pharmacy loaded, so the offline page can offer the device screen. */
 export const READY_KEY = "medoro-drivedb-ready";
+
+/** Renders the caller's set-up screen with the `ready` callback (passed as a prop, so it's only called from events). */
+function EmptyState({ render, ready }: { render: (ready: (cfg: Cfg) => void) => React.ReactNode; ready: (cfg: Cfg) => void }) {
+  return <>{render(ready)}</>;
+}
 
 /**
  * The whole Drive mode counter, on the device's own database. Online (signed in) it gets `who` from the
@@ -49,13 +55,13 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
 }) {
   const toast = useToast();
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [state, setState] = useState<"opening" | "empty" | "locked" | "ready" | "error">("opening");
   const [err, setErr] = useState("");
   const [cfg, setCfg] = useState<Cfg | null>(null);
   const [tab, setTabState] = useState<Tab>(initialTab);
   // The sidebar opens a tab with ?tab=…; switching tabs here updates the address so the sidebar follows.
-  useEffect(() => { setTabState(initialTab); }, [initialTab]);
+  useOnChange([initialTab], () => { setTabState(initialTab); });
   const setTab = useCallback((k: Tab) => {
     setTabState(k);
     if (online) { try { const u = new URL(window.location.href); u.searchParams.set("tab", k); window.history.replaceState(null, "", u); } catch { /* not in a browser */ } }
@@ -80,7 +86,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
 
   // Kept in a ref so a page refresh (a new `who` object) doesn't re-run the first-open check below.
   const signedIn = useRef(!!online);
-  signedIn.current = !!online;
+  useEffect(() => { signedIn.current = !!online; }, [online]);
   const ready = useCallback((c: Cfg) => {
     setCfg(c);
     try { localStorage.setItem(READY_KEY, "1"); } catch { /* private window */ }
@@ -100,7 +106,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
 
   if (state === "opening") return <div className={card}>{t("Opening this device’s database…")}</div>;
   if (state === "error") return <div className={card}><div className="text-bad text-sm">{t("This browser can’t run the device database: {err}", { err })}</div><div className="text-sm text-muted">{t("Use a current Chrome or Edge.")}</div></div>;
-  if (state === "empty") return empty ? <>{empty(ready)}</> : <div className={card}>{t("This device has no pharmacy data yet. Connect to the internet and sign in to Medoro to set it up.")}</div>;
+  if (state === "empty") return empty ? <EmptyState render={empty} ready={ready} /> : <div className={card}>{t("This device has no pharmacy data yet. Connect to the internet and sign in to Medoro to set it up.")}</div>;
   if (!cfg) return null;
 
   const who: Who = online ?? { userId: cfg.userId ?? "device", userName: cfg.userName || "Counter", owner: false, canCredit: true, discCap: cfg.maxDiscountPct };

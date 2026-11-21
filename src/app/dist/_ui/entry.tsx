@@ -6,6 +6,7 @@ import { inr } from "@/lib/money";
 import { invoiceTotals } from "@/domain/distribution/rules/pricing";
 import { Btn } from "./forms";
 import { searchProductsAction, quoteAction, placeOrderAction, directInvoiceAction } from "../actions";
+import { useOnChange } from "@/lib/react-state";
 
 type Chemist = { id: string; name: string; status: string; dlExpiry: string | null; stateCode: string | null; balance?: number; limit: number };
 type Hit = { id: string; name: string; pack: string; company: string; ptr: number; mrp: number; gstRate: number; stockUnits: number; packSize: number; distReady: boolean; discontinued: boolean };
@@ -35,8 +36,9 @@ export function LineEntry({ chemists, mode, ownState, canOverride, initialChemis
   const qtyRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const chem = chemists.find((c) => c.id === customerId);
 
+  useOnChange([q.trim().length < 2], () => { if (q.trim().length < 2) setHits([]); });
   useEffect(() => {
-    if (q.trim().length < 2) { setHits([]); return; }
+    if (q.trim().length < 2) return;
     const h = setTimeout(async () => { const r = await searchProductsAction(q); if (r.ok) { setHits((r.data as Hit[]).filter((x) => x.distReady && !x.discontinued)); setHi(0); } }, 180);
     return () => clearTimeout(h);
   }, [q]);

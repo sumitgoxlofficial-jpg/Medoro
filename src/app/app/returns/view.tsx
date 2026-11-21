@@ -11,6 +11,7 @@ import { dayMonth, hhmm } from "@/lib/dates";
 import { REFUND_MODES } from "@/domain/sales/contracts";
 import type { currentShift, recentInvoices, returnableLines, todaysCreditNotes } from "@/domain/sales/returns";
 import { closeShiftAction, findInvoicesAction, linesAction, openShiftAction, returnAction, sendCreditNoteAction, uploadSaleRxAction, voidAction } from "./actions";
+import { useOnChange } from "@/lib/react-state";
 
 type Inv = Awaited<ReturnType<typeof recentInvoices>>[number];
 type Lines = NonNullable<Awaited<ReturnType<typeof returnableLines>>>;
@@ -31,9 +32,11 @@ export function ReturnsView({ invoices: initial, creditNotes, shift, canRefund, 
   const [voidReason, setVoidReason] = useState("");
   const [issued, setIssued] = useState<{ id: string; creditNote: string; amount: number; mode: string; money?: number; pointsBack?: number; pointsTaken?: number; phone?: string | null } | null>(null);
 
-  useEffect(() => { setInvoices(initial); }, [initial]);
-  useEffect(() => { if (!q.trim()) { setInvoices(initial); return; } const h = setTimeout(() => findInvoicesAction(q).then(setInvoices), 250); return () => clearTimeout(h); }, [q, initial]);
-  useEffect(() => { setQty({}); setLines(null); setVoidReason(""); if (sel) linesAction(sel).then((l) => { setLines(l); if (l?.payMode === "credit") setMode("Adjust customer credit"); }); }, [sel]);
+  useOnChange([initial], () => { setInvoices(initial); });
+  useOnChange([!q.trim()], () => { if (!q.trim()) setInvoices(initial); });
+  useEffect(() => { if (!q.trim()) return; const h = setTimeout(() => findInvoicesAction(q).then(setInvoices), 250); return () => clearTimeout(h); }, [q, initial]);
+  useOnChange([sel], () => { setQty({}); setLines(null); setVoidReason(""); });
+  useEffect(() => { if (sel) linesAction(sel).then((l) => { setLines(l); if (l?.payMode === "credit") setMode("Adjust customer credit"); }); }, [sel]);
 
   const refund = lines ? lines.lines.reduce((a, l) => a + Math.round(l.unitNet * Math.min(Number(qty[l.itemId] || 0), l.sold - l.returned)), 0) : 0;
   const submit = () => start(async () => {

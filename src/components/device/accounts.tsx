@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { IndianRupee, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -30,7 +30,7 @@ function cashLine(t: TFn, what: string) {
 /** Money: what suppliers are owed (and paying them), expenses, and the day's cash book. */
 export function Accounts({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: number }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [dues, setDues] = useState<Due[]>([]);
   const [pay, setPay] = useState<Due | null>(null);
   const [ledger, setLedger] = useState<{ d: Due; rows: { at: string; kind: string; ref: string; amount: number; balancePaise: number }[] } | null>(null);
@@ -44,7 +44,7 @@ export function Accounts({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: n
     const [d, b] = await Promise.all([dev.call("supplierDues"), dev.call("cashBook", cfg.branchId, day)]);
     setDues(d); setBook(b);
   }, [dev, cfg.branchId, day]);
-  useEffect(() => { void load(); }, [load, refresh, tick]);
+  useEffect(() => { void (async () => { await load(); })(); }, [load, refresh, tick]);
 
   const addExp = async () => {
     try {

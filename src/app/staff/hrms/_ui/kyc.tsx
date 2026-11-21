@@ -21,11 +21,13 @@ export function KycStep() {
   const [notice, setNotice] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
   const aFile = useRef<HTMLInputElement>(null), pFile = useRef<HTMLInputElement>(null);
   const load = useCallback(async () => { const r = await kycStatus(); if (r.ok) setSt(r.data); }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void (async () => { await load(); })(); }, [load]);
   // DigiLocker sends the person back with ?digilocker=…
   useEffect(() => {
     const q = new URLSearchParams(window.location.search), r = q.get("digilocker");
     if (!r) return;
+    // One-time read of DigiLocker's return parameter, which is then removed from the address bar.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotice(r === "verified" ? { tone: "ok", text: "Your Aadhaar is verified through DigiLocker." } : r === "review" ? { tone: "warn", text: (q.get("why") || "We couldn’t match your DigiLocker Aadhaar.") + " Upload your Aadhaar card below and HR will check it." } : r === "denied" ? { tone: "warn", text: "You didn’t allow DigiLocker access. You can try again, or upload your Aadhaar card." } : { tone: "warn", text: q.get("why") || "DigiLocker didn’t work this time. Try again, or upload your Aadhaar card." });
     window.history.replaceState(null, "", window.location.pathname);
   }, []);

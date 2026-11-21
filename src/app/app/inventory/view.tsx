@@ -21,6 +21,7 @@ import type { listBranchTransfers } from "@/domain/inventory/adjust";
 import { raiseClaimAction } from "../purchases/claims-actions";
 import { CLAIM_REASONS, type ClaimReason } from "@/domain/inventory/claim-types";
 import { addMedicineAction, adjustAction, changeGstRateAction, medicinesAtRateAction, editMedicineAction, prepareLabelsAction, quarantineAction, rebuildSaltsAction, receiveBatchAction, requestTransferAction, returnAction, sampleSaltsAction, setRackAction, transferAction, writeOffAction } from "./actions";
+import { useOnChange } from "@/lib/react-state";
 
 type List = Awaited<ReturnType<typeof listInventory>>;
 type Detail = NonNullable<Awaited<ReturnType<typeof medicineDetail>>>;
@@ -151,7 +152,7 @@ function Drawer({ d, onClose, onEdit, onLabels, onOpen, canEdit, canAdjust, canP
   const [rcv, setRcv] = useState(blank);
   const [acceptShort, setAcceptShort] = useState(false);
   const [rack, setRack] = useState(d.branchRack);
-  useEffect(() => { setRcv({ ...blank, mrp: (m.mrp / 100).toFixed(2) }); setRack(d.branchRack); }, [m.id, m.mrp, d.branchRack]); // eslint-disable-line react-hooks/exhaustive-deps
+  useOnChange([m.id, m.mrp, d.branchRack], () => { setRcv({ ...blank, mrp: (m.mrp / 100).toFixed(2) }); setRack(d.branchRack); });
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
 
   const receive = () => start(async () => {
@@ -350,9 +351,9 @@ function GstRatesDialog({ onClose }: { onClose: () => void }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
   const [pending, start] = useTransition();
+  useOnChange([from], () => { setRows(null); });
   useEffect(() => {
     let live = true;
-    setRows(null);
     medicinesAtRateAction(from).then((r) => {
       if (!live) return;
       if (!r.ok) { toastR(r); onClose(); return; }
@@ -424,7 +425,7 @@ function BatchActions({ batch: b, medicine: m, branches, canAdjust, canPurchase,
           : a === "transfer" ? canAdjust && b.status === "ok" && b.days > 0 && b.qty > 0 && branches.length > 0
             : a === "quarantine" ? canAdjust && b.status === "ok"
               : canAdjust && b.status === "quarantine");
-  useEffect(() => { if (b) { setF({ action: avail[0] ?? "adjust", dir: "remove", qty: "", reason: "", kind: b.days <= 0 ? "Expired" : "Damaged", to: branches[0]?.id ?? "" }); setErr(""); } }, [b?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useOnChange([b?.id], () => { if (b) { setF({ action: avail[0] ?? "adjust", dir: "remove", qty: "", reason: "", kind: b.days <= 0 ? "Expired" : "Damaged", to: branches[0]?.id ?? "" }); setErr(""); } });
   if (!b) return null;
   // Quantities are typed in packs, or "packs+loose" (2+5) for medicines kept in loose units.
   const qty = parseQty(f.qty, m.packSize) ?? 0;
@@ -533,12 +534,12 @@ function MedicineModal({ open, edit, onClose, onSaved }: { open: boolean; edit: 
   const [f, setF] = useState(EMPTY);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
-  useEffect(() => {
+  useOnChange([open, edit], () => {
     if (!open) return;
     setErr("");
     setF(edit ? { name: edit.name, generic: edit.generic, strength: edit.strength, form: edit.form, manufacturer: edit.manufacturer, pack: edit.pack, mrp: (edit.mrp / 100).toFixed(2), gstRate: String(edit.gstRate), schedule: edit.schedule, reorderLevel: String(edit.reorderLevel), barcode: edit.barcode ?? "", hsn: edit.hsn, rack: edit.rack,
       composition: edit.composition, packSize: String(edit.packSize), packUnit: edit.packUnit, looseUnit: edit.looseUnit, allowLoose: edit.allowLoose ? "true" : "", caseSize: String(edit.caseSize), caseUnit: edit.caseUnit } : EMPTY);
-  }, [open, edit]);
+});
   const set = (k: keyof MedicineInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
   const save = () => start(async () => {
     const input = f as unknown as MedicineInput;

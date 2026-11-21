@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n-client";
 import { Download, FileJson, Receipt, Truck, Save } from "lucide-react";
@@ -16,6 +16,7 @@ import { TALLY_GROUPS } from "@/domain/gst/tally";
 import type { gstRollup, einvoiceQueue, einvoiceState, registrations, tallyMapping } from "@/domain/gst/service";
 import type { gstr1Summary } from "@/domain/gst/gstr1";
 import { cancelIrnAction, gstSettingsAction, irnAction, saleEwbAction, transferEwbAction } from "./gst-actions";
+import { useOnChange } from "@/lib/react-state";
 
 const card = "bg-white border border-line rounded-xl shadow-[0_1px_2px_rgba(16,24,40,.04)]";
 const th = "text-left text-[12px] font-medium text-muted px-3 py-2 border-b border-[#E3E6E9] whitespace-nowrap";
@@ -171,7 +172,7 @@ function EinvoicePanel({ queue, einv, canRefund }: { queue: Props["queue"]; einv
 function EwbModal({ target, onClose }: { target: { kind: "sale" | "transfer"; id: string; no: string } | null; onClose: () => void }) {
   const toast = useToast(), t = useT();
   const [f, setF] = useState(blankTransport), [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { setF(blankTransport); setErr(""); }, [target]);
+  useOnChange([target], () => { setF(blankTransport); setErr(""); });
   if (!target) return null;
   const set = (k: keyof Transport) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const submit = () => start(async () => {
@@ -199,7 +200,7 @@ function EwbModal({ target, onClose }: { target: { kind: "sale" | "transfer"; id
 function CancelModal({ target, onClose }: { target: { id: string; no: string } | null; onClose: () => void }) {
   const toast = useToast(), t = useT();
   const [reason, setReason] = useState<keyof typeof CANCEL_REASONS>("2"), [remark, setRemark] = useState(""), [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { setReason("2"); setRemark(""); setErr(""); }, [target]);
+  useOnChange([target], () => { setReason("2"); setRemark(""); setErr(""); });
   if (!target) return null;
   const submit = () => start(async () => {
     const r = await cancelIrnAction(target.id, reason, remark);
@@ -221,7 +222,7 @@ function TallyPanel({ tally, gstins, month, today }: { tally: Props["tally"]; gs
   const [from, setFrom] = useState(`${month}-01`), [to, setTo] = useState(() => { const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10); return last > today ? today : last; });
   const [scope, setScope] = useState("all");
   const [company, setCompany] = useState(tally.company), [rows, setRows] = useState(tally.rows), [pending, start] = useTransition();
-  useEffect(() => { setCompany(tally.company); setRows(tally.rows); }, [tally]);
+  useOnChange([tally], () => { setCompany(tally.company); setRows(tally.rows); });
   const save = () => start(async () => {
     const r = await gstSettingsAction({ tallyCompany: company, tallyMap: Object.fromEntries(rows.map((x) => [x.account, { ledger: x.ledger, group: x.group as (typeof TALLY_GROUPS)[number] }])) });
     toast(r.ok ? r.message! : r.error, r.ok ? "green" : "red");
@@ -264,7 +265,7 @@ function TallyPanel({ tally, gstins, month, today }: { tally: Props["tally"]; gs
 function SettingsPanel({ einv, canIntegrations }: { einv: Props["einv"]; canIntegrations: boolean }) {
   const toast = useToast(), t = useT();
   const [on, setOn] = useState(einv.applicable), [pending, start] = useTransition();
-  useEffect(() => setOn(einv.applicable), [einv.applicable]);
+  useOnChange([einv.applicable], () => setOn(einv.applicable));
   const toggle = (v: boolean) => start(async () => {
     setOn(v);
     const r = await gstSettingsAction({ einvoicing: v });

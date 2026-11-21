@@ -19,6 +19,7 @@ import { isH1 } from "@/lib/rx";
 import { isMasked } from "@/lib/mask";
 import { SubstitutesPanel } from "./substitutes";
 import { DoctorPicker, type DoctorOpt } from "./doctor-picker";
+import { useOnChange } from "@/lib/react-state";
 
 type Customer = { id: string; name: string; phone: string | null; optIn: boolean; limit: number; due: number; gstin?: string | null; igst?: boolean; points?: number };
 // qty is in `unit`: whole packs, or loose units for medicines sold loose. Batches hold stock units.
@@ -67,14 +68,16 @@ export function Pos({ dict, customers: initialCustomers, held: initialHeld, canC
 
   // Restore the cart after a reload or crash; save it on every change.
   useEffect(() => {
+    // Restoring the saved cart into editable state can only happen after hydration (the server has no localStorage).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     try { const s = localStorage.getItem(storageKey); if (s) setCart({ ...empty(), ...JSON.parse(s) }); } catch {}
     setLoaded(true);
   }, [storageKey]);
   useEffect(() => { if (loaded) try { localStorage.setItem(storageKey, JSON.stringify(cart)); } catch {} }, [cart, loaded, storageKey]);
   useEffect(() => { if (sp.get("focus")) searchRef.current?.focus(); }, [sp]);
   // Customers and held carts change on other counters; take fresh server data without touching the cart.
-  useEffect(() => setCustomers(initialCustomers), [initialCustomers]);
-  useEffect(() => setHeld(initialHeld), [initialHeld]);
+  useOnChange([initialCustomers], () => setCustomers(initialCustomers));
+  useOnChange([initialHeld], () => setHeld(initialHeld));
 
   const set = (p: Partial<Cart>) => setCart((c) => ({ ...c, ...p }));
   const used = (c: Cart, batchId: string, except?: string) => c.lines.filter((l) => l.batchId === batchId && l.key !== except).reduce((a, l) => a + baseOf(c, l), 0);
@@ -82,9 +85,10 @@ export function Pos({ dict, customers: initialCustomers, held: initialHeld, canC
   const batchOf = (c: Cart, l: Line) => c.meds[l.medicineId]?.batches.find((b) => b.id === l.batchId);
 
   // Search (debounced). A full barcode followed by Enter adds the item directly.
+  useOnChange([!q.trim()], () => { if (!q.trim()) setResults(null); });
   useEffect(() => {
     const term = q.trim();
-    if (!term) { setResults(null); return; }
+    if (!term) return;
     const h = setTimeout(() => searchAction(term).then((r) => { setResults(r); setHl(0); }), 120);
     return () => clearTimeout(h);
   }, [q]);
@@ -478,8 +482,8 @@ function SaleModal({ sale, waConnected, onNew }: { sale: Invoice | null; waConne
   const [phone, setPhone] = useState(""), [verified, setVerified] = useState(false);
   const [msg, setMsg] = useState<{ status: string; attempts: number; error: string | null; to?: string; retryable?: boolean } | null>(null);
   const [sending, setSending] = useState(false);
+  useOnChange([sale], () => { setPhone(sale?.customer?.phone ?? ""); setVerified(false); setMsg(null); });
   useEffect(() => {
-    setPhone(sale?.customer?.phone ?? ""); setVerified(false); setMsg(null);
     if (!sale) return;
     // Auto-send may already have queued a message for this sale.
     let live = true;
@@ -586,7 +590,7 @@ function NewCustomer({ open, canCredit, onClose, onSaved }: { open: boolean; can
   const [f, setF] = useState({ name: "", phone: "", waOptIn: false, marketingWa: false, creditLimit: "", gstin: "" });
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
-  useEffect(() => { if (open) { setF({ name: "", phone: "", waOptIn: false, marketingWa: false, creditLimit: "", gstin: "" }); setErr(""); } }, [open]);
+  useOnChange([open], () => { if (open) { setF({ name: "", phone: "", waOptIn: false, marketingWa: false, creditLimit: "", gstin: "" }); setErr(""); } });
   const save = () => start(async () => {
     const r = await addCustomerAction(f);
     if (!r.ok) return setErr(r.error);
@@ -611,7 +615,7 @@ function ApproveDiscount({ open, disc, total, lines, onClose, onApproved }: { op
   const [f, setF] = useState({ approver: "", secret: "" });
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
-  useEffect(() => { if (open) { setF({ approver: "", secret: "" }); setErr(""); } }, [open]);
+  useOnChange([open], () => { if (open) { setF({ approver: "", secret: "" }); setErr(""); } });
   const approve = () => start(async () => {
     const r = await approveDiscountAction({ ...f, discountPct: disc, lines: lines.map((l) => ({ medicineId: l.medicineId, batchId: l.batchId, qty: l.qty })) });
     if (!r.ok) { setF((x) => ({ ...x, secret: "" })); return setErr(r.error); }

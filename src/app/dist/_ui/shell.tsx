@@ -18,6 +18,7 @@ import { useT } from "@/lib/i18n-client";
 import type { Lang } from "@/lib/i18n";
 import { setBranch, setLang } from "@/app/app/actions";
 import { signOut } from "@/app/(auth)/actions";
+import { useOnChange } from "@/lib/react-state";
 
 type Icon = React.ComponentType<{ size?: number; strokeWidth?: number; className?: string; style?: React.CSSProperties }>;
 type Item = { href: string; label: string; abbr: string; icon: Icon; perms: string[]; group: string; badge?: string };
@@ -78,12 +79,13 @@ function Inner(p: DistShellProps) {
   const [, start] = useTransition();
   const rail = narrow && !phone;
 
+  const shortcuts = () => { setMenu(false); toast("/ search · g then o orders, b new invoice, i invoices, w pick & pack, s stock, c chemists, p products, m collections, r reports · ? shortcuts", "gray"); };
   useEffect(() => {
     const on = () => { setNarrow(window.innerWidth < 1180); setPhone(window.innerWidth < 768); };
     on(); window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
   }, []);
-  useEffect(() => { setDrawer(false); setMenu(false); }, [path]);
+  useOnChange([path], () => { setDrawer(false); setMenu(false); });
   // "/" focuses the screen's search box; "g" then a letter jumps to a screen; "?" lists the shortcuts.
   useEffect(() => {
     let g = false, timer: ReturnType<typeof setTimeout> | undefined;
@@ -100,7 +102,6 @@ function Inner(p: DistShellProps) {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   });
-  const shortcuts = () => { setMenu(false); toast("/ search · g then o orders, b new invoice, i invoices, w pick & pack, s stock, c chemists, p products, m collections, r reports · ? shortcuts", "gray"); };
 
   const allowed = NAV.filter((n) => !n.perms.length || n.perms.some((x) => p.perms.includes(x)));
   const finding = find.trim().toLowerCase();

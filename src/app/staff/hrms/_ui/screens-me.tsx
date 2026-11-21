@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
@@ -12,6 +12,7 @@ import { BriefcaseBusiness, CalendarDays, Camera, FileCheck2, IdCard, Mail, MapP
 import { IdBadge } from "../../employee/art";
 import { Selfie, SelfieModal } from "./monitor";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
+import { useLocalStorage } from "@/lib/react-state";
 
 type P = { sh: Shell };
 
@@ -148,11 +149,12 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
 // ── Home
 export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
   const [tab, setTab] = useState<"tasks" | "assigned" | "reminders">("tasks");
-  const [show, setShow] = useState(false), [rem, setRem] = useState(""), [ann, setAnn] = useState(false), [custom, setCustom] = useState(false), [hid, setHid] = useState<string[]>([]);
+  const [show, setShow] = useState(false), [rem, setRem] = useState(""), [ann, setAnn] = useState(false), [custom, setCustom] = useState(false);
+  const [hidRaw, setHidRaw] = useLocalStorage("hrms.home.hide");
+  const hid = useMemo(() => { try { const v = JSON.parse(hidRaw ?? "[]"); return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []; } catch { return []; } }, [hidRaw]);
   const { run, busy } = useRun();
   // Which home sections to show is a per-person, per-browser choice.
-  useEffect(() => { try { const v = JSON.parse(localStorage.getItem("hrms.home.hide") ?? "[]"); if (Array.isArray(v)) setHid(v.filter((x) => typeof x === "string")); } catch { /* none saved */ } }, []);
-  const toggleSection = (id: string) => setHid((h) => { const n = h.includes(id) ? h.filter((x) => x !== id) : [...h, id]; try { localStorage.setItem("hrms.home.hide", JSON.stringify(n)); } catch { /* private window */ } return n; });
+  const toggleSection = (id: string) => setHidRaw(JSON.stringify(hid.includes(id) ? hid.filter((x) => x !== id) : [...hid, id]));
   const open = d.tasks.filter((t) => t.kind === "task" && !t.done), rems = d.tasks.filter((t) => t.kind === "reminder" && !t.done);
   const doneToday = d.tasks.filter((t) => t.kind === "task" && t.done && t.doneAt && t.doneAt.slice(0, 10) === sh.today).length;
   const total = open.length + doneToday;

@@ -6,6 +6,7 @@ import { rupees, TDS_PCT } from "@/staff/constants";
 import { partnerBankDetails, payPartnerRazorpay, recordPartnerTransfer, refreshPartnerPayout, setEmployeeStatus, verifyBank } from "../../actions";
 import { Leaderboard, type Boards } from "../leaderboard";
 import { Empty, Kpi, Panel, Pill, btn, btnPrimary, fieldCls, fmtDay, fmtTime, td, th, useRun } from "../ui";
+import { useOnChange } from "@/lib/react-state";
 
 type Row = {
   id: string; empNo: string; name: string; email: string; phone: string; area: string; status: string; code: string | null; google: boolean; joined: string;
@@ -24,8 +25,8 @@ export function PartnersView({ rows, boards, history, razorpay, month }: { rows:
   const toast = useToast();
   // Full bank details for paying by bank transfer or UPI; loaded (and audited) when the pay dialog opens.
   const [acct, setAcct] = useState<{ holder: string; account: string; ifsc: string; bank: string } | { error: string } | null>(null);
+  useOnChange([pay], () => { setAcct(null); });
   useEffect(() => {
-    setAcct(null);
     if (!pay) return;
     let live = true;
     partnerBankDetails(pay.id).then((r) => { if (live) setAcct(r.ok ? r.data : { error: r.error }); });

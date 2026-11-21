@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Sparkles, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deviceDb } from "@/drivedb/device";
@@ -16,7 +16,7 @@ const SUGGEST = ["Sales today", "Stock of Dolo 650", "What expires in 30 days?",
 export function Assistant({ who, cfg }: { who: Who; cfg: Cfg }) {
   const t = useT();
   const lang = useLang();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<{ q: string; a: AskReply | { error: string } }[]>([]);

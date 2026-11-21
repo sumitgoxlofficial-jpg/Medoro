@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClipboardList, FileUp, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { DEFAULT_GST_RATE } from "@/domain/inventory/contracts";
 import { inr, inr0 } from "@/lib/money";
 import { dayMonth, monthYear, todayISO } from "@/lib/dates";
 import { card, input, label, errText, toPaise, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 type R<K extends keyof DeviceHandlers> = Awaited<ReturnType<DeviceHandlers[K]>>;
 type View = "ebill" | "pricing" | "claims";
@@ -48,7 +49,7 @@ const MATCH: Record<MatchedBy, [string, Tone]> = { barcode: ["Barcode", "green"]
 
 export function EbillImport({ cfg, who, refresh, onSaved }: { cfg: Cfg; who: Who; refresh: number; onSaved: () => void }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [sups, setSups] = useState<R<"supplierList">>([]);
   const [supplierId, setSupplierId] = useState("");
   const [newSup, setNewSup] = useState("");
@@ -247,11 +248,12 @@ export function EbillImport({ cfg, who, refresh, onSaved }: { cfg: Cfg; who: Who
 
 function PickMedicine({ open, branchId, initial, onClose, onPick }: { open: boolean; branchId: string; initial: string; onClose: () => void; onPick: (m: Med) => void }) {
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState(""), [found, setFound] = useState<Med[]>([]);
-  useEffect(() => { if (open) setQ(initial.replace(/\b(tab|tabs|tablet|cap|caps|syp|inj)\b\.?/gi, "").split(/\s+/).filter(Boolean).slice(0, 2).join(" ")); }, [open, initial]);
+  useOnChange([open, initial], () => { if (open) setQ(initial.replace(/\b(tab|tabs|tablet|cap|caps|syp|inj)\b\.?/gi, "").split(/\s+/).filter(Boolean).slice(0, 2).join(" ")); });
+  useOnChange([!open || !q.trim()], () => { if (!open || !q.trim()) setFound([]); });
   useEffect(() => {
-    if (!open || !q.trim()) { setFound([]); return; }
+    if (!open || !q.trim()) return;
     const h = setTimeout(() => dev.call("search", q, branchId).then((r) => setFound(r.map((m) => ({ id: m.id, name: `${m.name}${m.strength ? " " + m.strength : ""}`, gstRate: m.gstRate, mrpPaise: m.mrpPaise, packSize: m.packSize })))).catch(() => undefined), 120);
     return () => clearTimeout(h);
   }, [q, open, dev, branchId]);
@@ -272,10 +274,10 @@ const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.to
 /** Adds a medicine from a bill line, with what the bill tells us filled in. */
 function QuickMedicine({ line, onClose, onCreated }: { line: Line | null; onClose: () => void; onCreated: (m: Med) => void }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [f, setF] = useState({ name: "", generic: "", strength: "", manufacturer: "", packSize: "1", mrp: "", gstRate: String(DEFAULT_GST_RATE), hsn: "3004", barcode: "" });
   const [busy, setBusy] = useState(false);
-  useEffect(() => {
+  useOnChange([line], () => {
     if (!line) return;
     setF({
       name: titleCase(line.name.replace(/\b(tab|tabs|tablet|cap|caps|syp|inj)\b\.?/gi, "").replace(/\s+/g, " ").trim()), generic: "",
@@ -283,7 +285,7 @@ function QuickMedicine({ line, onClose, onCreated }: { line: Line | null; onClos
       mrp: line.mrp ? (line.mrp / 100).toFixed(2) : "", gstRate: String(line.gst != null && (GST_RATES as readonly number[]).includes(line.gst) ? line.gst : DEFAULT_GST_RATE),
       hsn: /^\d{4,8}$/.test(line.hsn) ? line.hsn : "3004", barcode: line.barcode,
     });
-  }, [line]);
+});
   if (!line) return null;
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   const save = async () => {
@@ -325,7 +327,7 @@ const BASES: [GstBase, string, string][] = [
 
 function Pricing({ who, refresh }: { who: Who; refresh: number }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [rules, setRules] = useState<R<"pricingRules"> | null>(null);
   const [minPct, setMinPct] = useState("");
   const [q, setQ] = useState(""), [lowOnly, setLowOnly] = useState(false);
@@ -429,7 +431,7 @@ const TONE: Record<Claim["status"], Tone> = { raised: "amber", acknowledged: "bl
 
 function Claims({ cfg, who, refresh, onChange }: { cfg: Cfg; who: Who; refresh: number; onChange: () => void }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [claims, setClaims] = useState<R<"claimList">>({ rows: [], aging: [] });
   const [near, setNear] = useState<R<"claimSuggestions">>([]);
   const [credit, setCredit] = useState<{ c: Claim; close: boolean } | null>(null);
@@ -525,10 +527,10 @@ function Claims({ cfg, who, refresh, onChange }: { cfg: Cfg; who: Who; refresh: 
 
 function CreditModal({ state, who, onClose, onDone }: { state: { c: Claim; close: boolean } | null; who: Who; onClose: () => void; onDone: () => void }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [f, setF] = useState({ ref: "", amount: "", close: false, reason: "" });
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (state) setF({ ref: "", amount: state.close ? "" : (state.c.open / 100).toFixed(2), close: state.close, reason: "" }); }, [state]);
+  useOnChange([state], () => { if (state) setF({ ref: "", amount: state.close ? "" : (state.c.open / 100).toFixed(2), close: state.close, reason: "" }); });
   if (!state) return null;
   const amt = toPaise(f.amount), left = Math.max(0, state.c.open - amt);
   const save = async () => {
@@ -556,10 +558,10 @@ function CreditModal({ state, who, onClose, onDone }: { state: { c: Claim; close
 
 function RaiseClaimModal({ batch, cfg, who, onClose, onDone }: { batch: Raise | null; cfg: Cfg; who: Who; onClose: () => void; onDone: () => void }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [f, setF] = useState({ qty: "", reason: "near_expiry" as ClaimReason, note: "" });
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (batch) setF({ qty: String(batch.qty), reason: batch.days <= 0 ? "expiry" : batch.days <= 120 ? "near_expiry" : "breakage", note: "" }); }, [batch]);
+  useOnChange([batch], () => { if (batch) setF({ qty: String(batch.qty), reason: batch.days <= 0 ? "expiry" : batch.days <= 120 ? "near_expiry" : "breakage", note: "" }); });
   if (!batch) return null;
   const save = async () => {
     setBusy(true);
@@ -586,11 +588,12 @@ function RaiseClaimModal({ batch, cfg, who, onClose, onDone }: { batch: Raise | 
 /** Raise a claim by hand: find the medicine, then the batch (any reason, e.g. breakage or a wrong item). */
 function PickBatch({ cfg, onClose, onPick }: { cfg: Cfg; onClose: () => void; onPick: (b: Raise) => void }) {
   const t = useT();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [q, setQ] = useState(""), [found, setFound] = useState<Med[]>([]);
   const [med, setMed] = useState<Med | null>(null), [batches, setBatches] = useState<R<"claimBatches">>([]);
+  useOnChange([!q.trim()], () => { if (!q.trim()) setFound([]); });
   useEffect(() => {
-    if (!q.trim()) { setFound([]); return; }
+    if (!q.trim()) return;
     const h = setTimeout(() => dev.call("search", q, cfg.branchId).then((r) => setFound(r.map((m) => ({ id: m.id, name: `${m.name}${m.strength ? " " + m.strength : ""}`, gstRate: m.gstRate, mrpPaise: m.mrpPaise, packSize: m.packSize })))).catch(() => undefined), 120);
     return () => clearTimeout(h);
   }, [q, dev, cfg.branchId]);
@@ -623,7 +626,7 @@ function PickBatch({ cfg, onClose, onPick }: { cfg: Cfg; onClose: () => void; on
 /** Which suppliers take expiry returns, and up to how many days before expiry. */
 function ReturnTerms({ who, onClose }: { who: Who; onClose: () => void }) {
   const t = useT(), toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [rows, setRows] = useState<(R<"supplierTermsList">[number] & { days: string; dirty?: boolean })[]>([]);
   useEffect(() => { dev.call("supplierTermsList").then((r) => setRows(r.map((x) => ({ ...x, days: String(x.returnWindowDays) })))).catch(() => undefined); }, [dev]);
   const set = (i: number, patch: Partial<(typeof rows)[number]>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch, dirty: true } : r)));

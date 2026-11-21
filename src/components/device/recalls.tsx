@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type Tone } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { deviceDb } from "@/drivedb/device";
 import type { listRecalls, RecallStatus } from "@/drivedb/recalls";
 import { dayMonth, todayISO } from "@/lib/dates";
 import { card, input, label, errText, type Cfg, type Who } from "./ui";
+import { useOnChange } from "@/lib/react-state";
 
 type R = ReturnType<typeof listRecalls>[number];
 type Med = { id: string; name: string; strength?: string };
@@ -22,7 +23,7 @@ const BATCH_ST: Record<string, string> = { ok: "SELLABLE", quarantine: "quaranti
 export function Recalls({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: number }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [rows, setRows] = useState<R[]>([]);
   const [busy, setBusy] = useState(false);
   const load = useCallback(() => dev.call("listRecalls").then(setRows).catch((e) => toast(errText(e), "red")), [dev, toast]);
@@ -88,14 +89,15 @@ export function Recalls({ cfg, who, refresh }: { cfg: Cfg; who: Who; refresh: nu
 function RecordNotice({ cfg, who, onSaved }: { cfg: Cfg; who: Who; onSaved: (ref: string) => void }) {
   const t = useT();
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const blank = { medicineId: "", medicine: "", batches: "", source: "", publishedAt: "", reason: "" };
   const [f, setF] = useState(blank);
   const [meds, setMeds] = useState<Med[]>([]);
   const [busy, setBusy] = useState(false);
   const today = todayISO();
+  useOnChange([f.medicineId || !f.medicine.trim()], () => { if (f.medicineId || !f.medicine.trim()) setMeds([]); });
   useEffect(() => {
-    if (f.medicineId || !f.medicine.trim()) { setMeds([]); return; }
+    if (f.medicineId || !f.medicine.trim()) return;
     const h = setTimeout(() => dev.call("search", f.medicine, cfg.branchId).then((r) => setMeds(r as Med[])).catch(() => setMeds([])), 120);
     return () => clearTimeout(h);
   }, [f.medicine, f.medicineId, dev, cfg.branchId]);

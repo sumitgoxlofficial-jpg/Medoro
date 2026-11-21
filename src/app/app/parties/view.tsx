@@ -20,6 +20,7 @@ import type { consentHistory } from "@/domain/parties/consent";
 import { useT } from "@/lib/i18n-client";
 import type { TFn } from "@/lib/tr";
 import { consentsAction, paySupplierAction, pointsAction, receiveAction, remindAction, saveCustomerAction, saveSupplierAction } from "./actions";
+import { useOnChange } from "@/lib/react-state";
 
 type Sup = Awaited<ReturnType<typeof listSuppliers>>[number];
 type Cus = Awaited<ReturnType<typeof listCustomers>>[number];
@@ -140,11 +141,11 @@ function SupplierModal({ edit, canPay, onClose }: { edit: Sup | null | "new"; ca
   const isNew = edit === "new";
   const [f, setF] = useState({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", returnWindowDays: "90", opening: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => {
+  useOnChange([edit], () => {
     setErr("");
     if (edit && edit !== "new") setF({ name: edit.name, gstin: edit.gstin ?? "", phone: edit.phone ?? "", creditDays: String(edit.creditDays), leadDays: String(edit.leadDays), acceptsReturns: edit.acceptsReturns, stateCode: edit.stateCode, returnWindowDays: String(edit.returnWindowDays), opening: "" });
     else setF({ name: "", gstin: "", phone: "", creditDays: "30", leadDays: "1", acceptsReturns: true, stateCode: "", returnWindowDays: "90", opening: "" });
-  }, [edit]);
+});
   const save = () => start(async () => {
     const r = await saveSupplierAction(isNew ? null : (edit as Sup).id, f, isNew ? undefined : (edit as Sup).version);
     if (!r.ok) return setErr(t(r.error));
@@ -178,13 +179,12 @@ function CustomerModal({ edit, canCredit, canPay, onClose }: { edit: Cus | null 
   const [f, setF] = useState(BLANK_CUS);
   const [history, setHistory] = useState<ConsentRow[] | null>(null);
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => {
+  useOnChange([edit], () => {
     setErr(""); setHistory(null);
-    if (edit && edit !== "new") {
-      setF({ ...BLANK_CUS, name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, smsOptIn: edit.smsOptIn, marketingWa: edit.marketingWa, marketingSms: edit.marketingSms, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", gstin: edit.gstin ?? "", stateCode: edit.stateCode, address: edit.address, pincode: edit.pincode });
-      void consentsAction(edit.id).then((r) => setHistory(r.ok ? r.data : []));
-    } else setF(BLANK_CUS);
-  }, [edit]);
+    if (edit && edit !== "new") setF({ ...BLANK_CUS, name: edit.name, phone: edit.phone ?? "", waOptIn: edit.optIn, smsOptIn: edit.smsOptIn, marketingWa: edit.marketingWa, marketingSms: edit.marketingSms, creditLimit: edit.limit ? (edit.limit / 100).toFixed(0) : "", gstin: edit.gstin ?? "", stateCode: edit.stateCode, address: edit.address, pincode: edit.pincode });
+    else setF(BLANK_CUS);
+  });
+  useEffect(() => { if (edit && edit !== "new") void consentsAction(edit.id).then((r) => setHistory(r.ok ? r.data : [])); }, [edit]);
   const save = () => start(async () => {
     const r = await saveCustomerAction(isNew ? null : (edit as Cus).id, f, isNew ? undefined : (edit as Cus).version);
     if (!r.ok) return setErr(t(r.error));
@@ -237,7 +237,7 @@ function PayModal({ pay, onClose }: { pay: { kind: "sup" | "cus"; id: string; na
   const [amount, setAmount] = useState(""), [method, setMethod] = useState<(typeof PAY_METHODS)[number]>("Cash"), [ref, setRef] = useState("");
   const [chq, setChq] = useState({ chequeNo: "", bank: "", chequeDate: "" });
   const [err, setErr] = useState(""), [pending, start] = useTransition();
-  useEffect(() => { setAmount(""); setRef(""); setErr(""); setChq({ chequeNo: "", bank: "", chequeDate: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10) }); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); }, [pay]);
+  useOnChange([pay], () => { setAmount(""); setRef(""); setErr(""); setChq({ chequeNo: "", bank: "", chequeDate: new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10) }); setMethod(pay?.kind === "sup" ? "Bank transfer (NEFT)" : "Cash"); });
   if (!pay) return null;
   const submit = () => start(async () => {
     const input = { partyId: pay.id, amount, method, ref, ...(method === "Cheque" ? chq : {}) };
@@ -272,7 +272,8 @@ const KIND: Record<string, string> = { earn: "Earned", redeem: "Redeemed", rever
 function PointsModal({ customer, onClose }: { customer: Cus | null; onClose: () => void }) {
   const t = useT();
   const [data, setData] = useState<Awaited<ReturnType<typeof pointsAction>> | null>(null);
-  useEffect(() => { setData(null); if (customer) pointsAction(customer.id).then(setData, () => setData(null)); }, [customer]);
+  useOnChange([customer], () => setData(null));
+  useEffect(() => { if (customer) pointsAction(customer.id).then(setData, () => setData(null)); }, [customer]);
   if (!customer) return null;
   return (
     <Modal open onClose={onClose} title={t("Loyalty points · {name}", { name: customer.name })} sub={data ? <>{t("Balance")} <strong>{data.balance}</strong> {t("points (worth {amount})", { amount: inr(data.value) })}</> : "Loading…"} width={560}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Mail, Banknote, BriefcaseBusiness, Building2, Check, CheckCircle2, Clock, Copy, FileText, LogOut, MapPin, Search, Send, Share2, Sparkles, Users, X } from "lucide-react";
 import type { Prefill, PublicJob } from "@/staff/hrms/careers";
 import { applyForJob, sendCareersCode, signOutApplicant, verifyCareersCode } from "@/app/careers/actions";
+import { useLocalStorage } from "@/lib/react-state";
 
 export type ApplicantView = { name: string; email: string; via: "linkedin" | "google" | "email"; prefill?: Prefill | null } | null;
 const VIA: Record<string, string> = { linkedin: "LinkedIn", google: "Google", email: "an email code" };
@@ -212,14 +213,14 @@ function ApplyModal({ job, applicant, src, signins, onClose, onDone }: Props & {
   const [err, setErr] = useState(""), [pending, start] = useTransition(), [sent, setSent] = useState<{ ref: string; emailed: boolean; email: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   // Details filled in for the applicant: their last Medoro application (signed in), else what this browser remembers.
-  const [saved, setSaved] = useState<Partial<Record<"name" | "email" | "phone" | "location" | "experience" | "linkedin", string>> | null>(null);
-  useEffect(() => { try { const v = localStorage.getItem(SAVED_KEY); if (v) setSaved(JSON.parse(v)); } catch {} }, []);
+  const [savedRaw] = useLocalStorage(SAVED_KEY);
+  const saved = useMemo<Partial<Record<"name" | "email" | "phone" | "location" | "experience" | "linkedin", string>> | null>(() => { try { return savedRaw ? JSON.parse(savedRaw) : null; } catch { return null; } }, [savedRaw]);
   const prev = applicant?.prefill ?? null;
   const pre = { ...saved, ...Object.fromEntries(Object.entries(prev ?? {}).filter(([, v]) => v)) } as Partial<Record<"name" | "email" | "phone" | "location" | "experience" | "linkedin", string>>;
   const [reuse, setReuse] = useState(!!prev?.resumeName);
   const next = `/careers/${job.slug}?apply=${job.slug}${src ? `&src=${encodeURIComponent(src)}` : ""}`;
   const box = useRef<HTMLDivElement>(null), closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") closeRef.current(); };
     window.addEventListener("keydown", k); document.body.style.overflow = "hidden";

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -24,7 +24,7 @@ function save(name: string, body: string, type = "text/csv") {
 /** Reports (sales and profit, best sellers, expiring stock) and GST returns from this device's data. */
 export function ReportsGst({ cfg }: { cfg: Cfg }) {
   const toast = useToast();
-  const dev = useRef(deviceDb()).current;
+  const dev = deviceDb();
   const [from, setFrom] = useState(addDays(todayISO(), -29));
   const [to, setTo] = useState(todayISO());
   const [days, setDays] = useState<Day[]>([]);

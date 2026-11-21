@@ -11,6 +11,7 @@ import type { DriveState } from "@/domain/system/gdrive";
 import { backupNowAction, disconnectAction, driveBackupsAction, prepareRestoreAction, reenterKitAction, restoreAction, restoreFromDriveAction, settingsAction } from "./actions";
 import { RestorePanel, type PendingRestore } from "./restore-panel";
 import { useT } from "@/lib/i18n-client";
+import { hardNavigate } from "@/lib/hard-nav";
 
 type H = { id: string; at: string; kind: string; size: number; sha: string | null; status: string; error: string | null; drive: boolean; local: boolean };
 const ST: Record<string, [string, Tone]> = { verified: ["Verified", "green"], partial: ["Partial", "amber"], failed: ["Failed", "red"], running: ["Running", "blue"], expired: ["Expired", "gray"] };
@@ -124,7 +125,7 @@ export function BackupView({ history, drive, folder, driveApp, fingerprint, keyD
             const v = e.target.value as "server" | "gdrive";
             // Choosing Drive before it's connected takes the owner straight to Google's connect screen.
             if (v === "gdrive" && !connected && settings.files !== "gdrive") {
-              if (driveApp) { toast("Connect your Google Drive first. Opening Google…", "blue"); window.location.href = "/api/integrations/google/start"; }
+              if (driveApp) { toast("Connect your Google Drive first. Opening Google…", "blue"); hardNavigate("/api/integrations/google/start"); }
               else toast("Google Drive isn’t set up on this server yet.", "red");
               return;
             }

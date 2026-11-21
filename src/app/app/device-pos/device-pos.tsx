@@ -14,6 +14,7 @@ import { FinishMove, MoveFromMedoro } from "./move";
 import { PaymentsPanel } from "./payments-panel";
 import { DriveGate } from "./drive-gate";
 import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrnAction, counterMessageStatusAction, counterWhatsAppAction, einvoiceStatusAction, payLinkAction, payStatusAction, sendCounterBillAction, sendCounterCampaignAction } from "../lab/actions";
+import { useOnChange } from "@/lib/react-state";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
 export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab }: { userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
@@ -123,7 +124,7 @@ function Setup({ owner, userId, drive, access, ready, fresh, mustMove }: { owner
   const [moveOffered, setMoveOffered] = useState(false);
   // Where the move is required, Drive may already hold the pilot's data (vault): the move keeps it and adds it on top.
   const canMove = moveOffered || (!fresh && owner && drive && access?.status === "approved" && access.role === "owner" && (vault === false || (mustMove && vault === true)));
-  useEffect(() => { if (canMove) setMoveOffered(true); }, [canMove]);
+  useOnChange([canMove], () => { if (canMove) setMoveOffered(true); });
   return (
     <div className="flex flex-col gap-3">
     {canMove && <MoveFromMedoro userId={userId} ready={ready} />}

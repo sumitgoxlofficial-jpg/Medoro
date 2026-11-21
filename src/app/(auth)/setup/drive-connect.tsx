@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { setupDriveForget, setupDriveStatus } from "./restore-actions";
+import { hardNavigate } from "@/lib/hard-nav";
 
 const START = "/api/integrations/google/start?setup=1";
 const MSG: Record<string, string> = { scope: "Not all Drive access was allowed on Google’s screen. Connect again and tick both Google Drive boxes.", denied: "Google access was not granted.", state: "The Google sign-in expired. Try again.", error: "Couldn’t connect Google Drive. Try again.", forbidden: "Setup is closed." };
@@ -19,7 +20,7 @@ export function useSetupDrive(initial: string | null) {
   }, [refresh]);
   const connect = () => {
     setMsg("");
-    if (!window.open(START, "medoro-google", "popup,width=520,height=680")) window.location.href = START;
+    if (!window.open(START, "medoro-google", "popup,width=520,height=680")) hardNavigate(START);
   };
   const forget = async () => { await setupDriveForget(); setAccount(null); };
   return { account, msg, connect, forget };

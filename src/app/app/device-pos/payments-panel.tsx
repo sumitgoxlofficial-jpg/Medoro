@@ -18,7 +18,7 @@ export function PaymentsPanel({ onChange }: { onChange?: (connected: boolean) =>
   const [busy, setBusy] = useState(false);
   const t = useT();
   const load = useCallback(async () => { const r = await payStatusAction(); if (r.ok) { setSt(r.data); onChange?.(r.data.connected); } }, [onChange]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void (async () => { await load(); })(); }, [load]);
   if (!st) return null;
   const save = async () => {
     setBusy(true);
