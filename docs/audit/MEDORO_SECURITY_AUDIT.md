@@ -55,8 +55,8 @@ Result: refusals are "not found" from the tenant check for 33 calls; `commitSale
 | SEC-1 (BUG-02) | HIGH (patient safety) | AI rule gate let dosage/frequency/patient/symptom questions through ("How many tablets of Dolo 650 can an adult take in a day?", "Is Pan-D safe with Dolo?", "बुखार के लिए कौन सी दवा दें?"). With a local or remote model configured they would reach the model, whose only guard was a system prompt. | FIXED: `isClinical()` in `src/domain/ai/planner.ts`; refusals are decided before any model call (`src/domain/ai/service.ts:170`); test `src/domain/ai/clinical-refusal.test.ts` |
 | SEC-2 | MEDIUM (defence in depth) | RLS not enabled: one missed `tenantId` filter in a future change would leak data. The write and read suites now guard the main paths. | OPEN: recommendation: enable the RLS kit for hosted multi-tenant deployments (plan in `docs/MEDORO_2.md` §5), or at least run `tenant-isolation` and `tenant-writes` in CI (they already run with `pnpm test`) |
 | SEC-3 (BUG-04) | LOW (accessibility) | Partner join email input's accessible name included the "Send code" button text | FIXED |
-| SEC-4 | LOW | Tour page CSP blocks the prototype's inline handlers (console noise); the tour is sandboxed in an opaque origin with no cookies | OPEN (BUG-09) |
-| SEC-5 | LOW | 1 moderate dev-only advisory (minimatch via eslint) | OPEN: update when `eslint-config-next` updates |
+| SEC-4 | LOW | Tour page CSP blocks the prototype's inline handlers (console noise); the tour is sandboxed in an opaque origin with no cookies | FIXED (BUG-09): the template no longer has inline handlers; the CSP was not loosened |
+| SEC-5 | LOW | 1 moderate dev-only advisory (minimatch via eslint) | FIXED: `pnpm audit` reports 0 advisories after the Next.js 16 / eslint-config-next 16 upgrade |
 | SEC-6 | INFO | `/api/wa/webhook` answers 200 to unsigned payloads that match no account. Correct for Meta; listed so nobody "fixes" it into retries | – |
 
 ## 4. Areas reviewed and not changed

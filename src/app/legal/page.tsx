@@ -9,7 +9,7 @@ import { company } from "@/lib/company";
 import { UDYAM } from "@/lib/udyam";
 import { Toc } from "./toc";
 
-export const metadata: Metadata = { title: "Company, help and legal · Medoro", description: "About Medoro, contact, help, backup and recovery, privacy policy, terms of service, cancellation and refund policy, cookies, DPDP rights and grievance officer." };
+export const metadata: Metadata = { title: "Company, help and legal · Medoro", description: "About Medoro, contact, help, backup and recovery, privacy policy, terms of service, cancellation and refund policy, cookies, DPDP rights and grievance officer.", alternates: { canonical: "/legal" } };
 
 type Sec = { id: string; icon: typeof Shield; kicker: string; title: string; intro: string; points: string[]; cta?: [string, string, typeof Shield] };
 

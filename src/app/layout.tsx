@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#0B5E5B" };
 
 // Reading the request headers renders every page per request, so Next.js can stamp the CSP nonce
-// from middleware.ts on its scripts (a prerendered page would carry no nonce and be blocked).
+// from proxy.ts on its scripts (a prerendered page would carry no nonce and be blocked).
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await headers();
   const lang = await getLang();

@@ -12,6 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t("Reference partner programme · Medoro"),
     description: t("Medical representatives, distributors and pharmacy consultants: recommend Medoro to pharmacies you visit and earn commission on every plan they buy."),
+    alternates: { canonical: "/partners" },
   };
 }
 export const dynamic = "force-dynamic";

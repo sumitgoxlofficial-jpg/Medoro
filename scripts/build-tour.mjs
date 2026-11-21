@@ -76,6 +76,18 @@ swap('<script src="./support.js"></script>', '<title>Medoro product tour</title>
 html = html.replace(/<link rel="preconnect" href="https:\/\/fonts\.googleapis\.com">\n?/, "");
 html = html.replace(/<link href="https:\/\/fonts\.googleapis\.com\/css2[^"]*" rel="stylesheet">/, '<link href="fonts.css" rel="stylesheet">');
 html = html.replace(/<link href="https:\/\/cdn\.jsdelivr\.net\/npm\/lucide-static@[^"]*" rel="stylesheet">/, '<link href="icons.css" rel="stylesheet">');
+// The runtime reads the template from the live <x-dc> element, so the browser parses `onClick="{{ … }}"` into real
+// inline event handler attributes, which the tour's CSP blocks (2 console errors each, ~400 per load). Write them in the
+// runtime's own encoded form (`sc-camel-on-click`, what its encodeCamelAttrs produces) so they are plain attributes to
+// the browser and the same React props to the runtime. Only inside <x-dc>: the component script is left alone.
+{
+  const open = html.indexOf("<x-dc>"), close = html.indexOf("</x-dc>");
+  if (open < 0 || close < open) throw new Error("Prototype has no <x-dc> template");
+  const tpl = html.slice(open, close).replace(/(\s)(on[A-Z][A-Za-z0-9]*)(\s*=)/g,
+    (_, sp, name, eq) => sp + "sc-camel-" + name.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase()) + eq);
+  if (/\son[a-z]+\s*=/i.test(tpl)) throw new Error("Tour template still has inline event handler attributes");
+  html = html.slice(0, open) + tpl + html.slice(close);
+}
 const external = html.match(/(?:src|href)="https?:\/\/[^"]+"/g);
 if (external) throw new Error(`Prototype still loads from other origins: ${external.join(", ")}`);
 writeFileSync(join(out, "index.html"), html);

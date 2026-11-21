@@ -1,6 +1,6 @@
 # Medoro: production readiness
 
-**Verdict: NOT YET SIGNED OFF.** The core product that could be tested here works and holds up under concurrency, isolation and accounting checks. Sign-off needs the blocked integration checks below run with test credentials, a short real-device pass, and a decision on the two open defects. Nothing here was deployed; no production data or configuration was changed.
+**Verdict: NOT YET SIGNED OFF.** The core product that could be tested here works and holds up under concurrency, isolation and accounting checks. Sign-off needs the blocked integration checks below run with test credentials, a short real-device pass, and a decision on the two open database items (RLS, foreign keys). Nothing here was deployed; no production data or configuration was changed.
 
 ## Quality gate (from the audit brief)
 | Gate | Status | Evidence |
@@ -21,12 +21,10 @@
 ## Open issues
 | Id | Severity | Issue | Recommended action |
 |---|---|---|---|
-| LINT | LOW | 215 lint warnings from React Compiler rules introduced with Next.js 16 (code predates them); `middleware.ts` should be renamed `proxy.ts` | Rework the flagged effects/refs over time; run the Next.js codemod for the rename |
 | SEC-2 / DB-3 | MEDIUM | RLS not enabled; isolation depends on the service layer | Enable the existing RLS kit for hosted multi-tenant servers |
 | DB-2 | LOW | Few foreign keys (55/198 tables) | Orphan check on production, then add FKs `NOT VALID` → `VALIDATE` |
-| BUG-09 | LOW | Tour CSP console noise | Fix the prototype runtime's inline handlers |
-| SEC-5 | LOW | 1 moderate dev-only advisory | Routine dependency update |
-| SEO | LOW | `/partners`, `/legal` lack a canonical URL; `/signin` has no H1 | Small markup changes |
+
+**Fixed since the audit:** the 215 React Compiler lint warnings (all fixed; the rules are errors again), `middleware.ts` renamed `proxy.ts`, BUG-09 (tour console errors 394 → 0), canonical URLs on `/partners` and `/legal`, an `<h1>` on each sign-in view, and SEC-5 (`pnpm audit` now reports 0 advisories after the Next.js 16 upgrade).
 
 ## BLOCKED: what is needed to finish
 | Integration | What to provide | What to run |
