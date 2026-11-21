@@ -79,11 +79,26 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 ### BUG-09 · Tour CSP console noise (OPEN)
 - `/tour/index.html` (embedded on the homepage in a sandboxed iframe) logs ~394 "Executing inline event handler violates … CSP" errors per load. The tour still renders and responds to clicks (verified). The handlers come from the design prototype's runtime (`design/support.js`), which `scripts/build-tour.mjs` copies. Fix belongs in that runtime (use `addEventListener`), or accept as noise.
 
-### BUG-10 · A link click occasionally doesn't navigate (OPEN)
-- **Found by:** the full e2e run for BUG-08: spec 31 "supplier intelligence" clicks the Supplier intelligence link on `/app/intelligence` and the URL never changes.
-- **Measured:** 4 of 12 runs fail **with and without** the BUG-08 change (the same build otherwise), so it predates it. The navigation request goes out and is answered; no live events or refreshes happen on that page; the result is not applied. This is the same router symptom as BUG-08.
-- **Impact:** a user occasionally has to click a second time.
-- **Next steps:** reproduce in a minimal Next.js 15.5 app and report upstream, or try the current Next.js release; the spec's single click could also retry, but that would hide the problem rather than fix it.
+### BUG-10 · A link click occasionally doesn't navigate (OPEN; investigated)
+- **Found by:** the full e2e run for BUG-08: spec 31 "supplier intelligence" clicks the Supplier intelligence link on `/app/intelligence` and the URL never changes. It fails at the same rate with and without the BUG-08 change.
+- **What happens in a failing click (instrumented):** Next.js intercepts the click, fetches the new page (HTTP 200, body complete and byte-identical to a passing run apart from per-request ids), loads the page's script chunk, and updates its router state (the next request carries a different router-state hash), but React never commits: no `history.pushState`, the old screen stays. A later click or refresh usually completes it.
+- **Experiments (30 clicks each unless noted, worst case = service worker off):**
+
+| Condition | Clicks that hung |
+|---|---|
+| Normal (live stream on) | ~1 in 10; 16/30 with the service worker off |
+| Page's live stream blocked | 0/24 |
+| Page's stream blocked, 3 real streams held open by another process for the same session | 0/30 (so not server-side) |
+| Page's EventSource blocked, a raw `fetch` stream held open by the page but not processed by the app | 0/30 |
+| Live hook rewritten to read the stream with `fetch()` instead of EventSource | 8/30 (not a fix; reverted) |
+| Hook forced to report "Live" with no stream | 0/30 |
+| HTTP/2 through a TLS proxy | 11/30 (not connection limits) |
+| All CSS animations disabled | 14/30 |
+| Next.js streaming metadata off (`htmlLimitedBots: /.*/`) | 3/24 |
+| Click 6 s after load instead of ~1 s | still fails (not a start-up race) |
+
+- **Conclusion so far:** it needs the page's own live stream open *and* processed by the app's live hook; the hang is inside the Next.js 15.5 client router / React commit, with a complete, correct server response. Next.js 15.5.29 is the newest 15.x; the next step is a minimal reproduction and/or trying Next.js 16 (a major upgrade, not done without approval). A navigation watchdog (repeat a link navigation that hasn't committed after ~2 s) would hide the symptom and was not added.
+- **Impact:** a user occasionally has to click a link a second time. Data is never affected.
 
 ### GAP-01 · No e2e test for email-confirmed sign-up
 - CI runs without email, so the page skips the code step and no browser test covered the path production uses. `e2e/33-signup-email.spec.ts` covers it when the mail sink is configured (skipped otherwise, so CI is unaffected).
