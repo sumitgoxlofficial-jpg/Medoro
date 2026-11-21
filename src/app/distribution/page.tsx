@@ -4,7 +4,7 @@ import {
   ReceiptIndianRupee, RotateCcw, ScanBarcode, ShieldCheck, Smartphone, Store, Truck, Users, Warehouse,
 } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
-import { Pricing } from "@/components/site/interactive";
+import { DistHeroShot, Pricing } from "@/components/site/interactive";
 import { DIST_PLANS } from "@/domain/distribution/plans";
 import { JsonLd } from "@/components/seo/json-ld";
 import { WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
@@ -122,10 +122,10 @@ export default async function DistributionHome() {
           <Aurora dark />
           <FloatingShapes />
           <div className={`relative ${wrap} pt-[clamp(56px,8vw,112px)] pb-[clamp(56px,8vw,104px)] grid grid-cols-12 gap-x-6 gap-y-12 items-center`}>
-            <div className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-6">
+            <div className="col-span-12 min-[1000px]:col-span-6 flex flex-col gap-6">
               <h1 id="hero-title" className="m-0 flex flex-col gap-5">
                 <span className="site-up inline-flex self-start items-center gap-2 text-[14px] font-semibold text-[#8FD3C6]"><Warehouse size={16} aria-hidden />{t("Medoro Distribution: pharma wholesale ERP")}</span>
-                <span className="site-display site-up block text-[clamp(40px,5.4vw,68px)] leading-[1.05] [--d:1]">
+                <span className="site-display site-up block text-[clamp(38px,4.6vw,60px)] leading-[1.05] [--d:1]">
                   <span className="block">{t("Run your pharma distribution")}</span>
                   <span className="block text-[#5EEAD4]">{t("from order to collection.")}</span>
                 </span>
@@ -137,13 +137,8 @@ export default async function DistributionHome() {
               </div>
               <p className="site-up m-0 text-[14px] text-[#9FB5B1] [--d:4]">{t("From {amount} a month. Every feature during the trial.", { amount: `₹${from.toLocaleString("en-IN")}` })}</p>
             </div>
-            <div className="site-up [--d:3] col-span-12 min-[1000px]:col-span-5 flex flex-col gap-3" aria-hidden>
-              {([[ClipboardList, "Order SO-1042 · Shree Medicals", "Credit OK · stock reserved"], [Gift, "Scheme applied", "Azithral 500 · 10+2 free"], [Truck, "Out for delivery", "12 invoices · Route 3"], [IndianRupee, "Collected today", "₹1,84,250 · 23 chemists"]] as [typeof Check, string, string][]).map(([Icon, a, b], i) => (
-                <div key={a} style={{ ["--d" as string]: i }} className="site-chip site-lift flex items-center gap-4 rounded-xl bg-white/[.06] border border-white/12 px-5 py-4">
-                  <span className="size-10 rounded-lg bg-white/10 flex items-center justify-center flex-none"><Icon size={20} className="text-[#8FD3C6]" /></span>
-                  <span className="flex flex-col min-w-0"><span className="text-[15.5px] font-semibold truncate">{a}</span><span className="text-[14px] text-[#9FB5B1] truncate">{b}</span></span>
-                </div>
-              ))}
+            <div className="site-up [--d:3] col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7">
+              <DistHeroShot />
             </div>
           </div>
         </section>

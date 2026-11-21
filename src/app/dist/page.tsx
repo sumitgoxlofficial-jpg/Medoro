@@ -24,7 +24,7 @@ export default async function Page() {
         <Stat d={2} icon={BadgeIndianRupee} tone="green" label="Collected today" paise={d.today.collections} href="/dist/collections" />
         {money ? <Stat d={3} icon={Wallet} tone={d.receivable.overdue ? "amber" : "navy"} label="Receivable" paise={d.receivable.total} note={`${inrShort(d.receivable.overdue)} overdue`} href="/dist/credit" /> : <Stat d={3} icon={PackageCheck} label="Open pick lists" value={d.pipeline.openPicks} href="/dist/warehouse" />}
       </div>
-      <div className="grid gap-4 lg:grid-cols-3 mb-4">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 mb-4">
         <Panel d={3} title="Sales, last 30 days" sub="Incl. GST · cancelled invoices excluded" className="lg:col-span-2"><TrendChart data={d.trend} /></Panel>
         <Panel d={4} title="Order pipeline">
           <ul className="m-0 p-0 list-none flex flex-col gap-2.5 text-[13.5px]">
@@ -42,7 +42,7 @@ export default async function Page() {
         </Panel>
       </div>
       {money ? (
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
           <Panel title="Top outstanding" className="lg:col-span-2" pad={false} right={<Link href="/dist/credit" className="text-[12.5px]">Credit control →</Link>}>
             <DataTable cols={[{ label: "Chemist" }, { label: "Balance", num: true }, { label: "Overdue", num: true }, { label: "Oldest", num: true }, { label: "Risk" }]}
               rows={d.receivable.top.filter((r) => r.balance > 0).map((r) => [<Link key="n" href={`/dist/chemists/${r.customerId}`}>{r.name}</Link>, inr(r.balance), inr(r.overdue), `${r.oldestDays} d`, <Pill key="r" tone={STATUS_TONE[r.risk.level]}>{r.risk.level}</Pill>])} empty="No dues. Every chemist is paid up." />
