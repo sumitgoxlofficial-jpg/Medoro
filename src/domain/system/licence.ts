@@ -169,7 +169,7 @@ export async function requestCancel(ctx: Ctx, reason: string) {
 }
 
 export const paymentSchema = z.object({
-  product: z.enum(["starter", "pro", "multi", "ai"]), cycle: z.enum(["m", "y"]),
+  product: z.enum(["starter", "pro", "multi", "ai", "dist_std", "dist_pro", "dist_ent"]), cycle: z.enum(["m", "y"]),
   reference: z.string().trim().min(6, "Enter the UPI reference (UTR) or bank transaction number.").max(60),
   paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the payment date."),
   amountRupees: z.coerce.number<string | number>().positive("Enter the amount you paid.").max(10_000_000),

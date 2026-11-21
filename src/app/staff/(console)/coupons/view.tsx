@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
-import { PRODUCTS } from "@/staff/constants";
+import { DIST_PAY, PHARMACY_PAY } from "@/lib/pay-catalog";
 import { createCoupon, setCouponActive } from "../../actions";
 import { Empty, Panel, Pill, btn, btnPrimary, fieldCls, fmtDay, lbl, td, th, useRun } from "../ui";
 
 type C = { id: string; code: string; percentOff: number; payPaise: number | null; plans: string[]; maxUses: number | null; uses: number; expiresAt: string | null; active: boolean; note: string | null; createdBy: string; createdAt: string };
-const PLANS = PRODUCTS.filter((p) => !("addon" in p) && !("once" in p));
+const PLANS = [...PHARMACY_PAY.filter((p) => !p.addon), ...DIST_PAY];
 const planName = (id: string) => PLANS.find((p) => p.id === id)?.name ?? id;
 
 function state(c: C): [string, string, string] {

@@ -5,7 +5,7 @@ import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { compose } from "@/server/mail-template";
 import { biller } from "@/lib/biller";
-import { PRODUCTS } from "@/staff/constants";
+import { payItem } from "@/lib/pay-catalog";
 import { subscriptionInvoicePdf, rs, type SubscriptionInvoice } from "./invoice-pdf";
 
 /** Subscription invoices: one per paid payment, numbered MED-2026-00001, with no GST (none is charged). */
@@ -38,7 +38,7 @@ export async function invoiceOf(tenantId: string, id: string): Promise<(Subscrip
     db.branch.findFirst({ where: { tenantId, address: { not: null } }, orderBy: { createdAt: "asc" }, select: { address: true } }),
     buyerEmail(tenantId, p.buyerEmail),
   ]);
-  const product = PRODUCTS.find((x) => x.id === p.plan)?.name ?? p.plan;
+  const product = payItem(p.plan)?.name ?? p.plan;
   return {
     rowId: p.id, invoiceSentAt: p.invoiceSentAt?.toISOString() ?? null,
     invoiceNo, paidAt: (p.paidAt ?? p.createdAt).toISOString(), status: p.refundedAt || p.status === "refunded" ? "refunded" : "paid", refundedAt: p.refundedAt?.toISOString() ?? null,
