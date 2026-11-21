@@ -3601,6 +3601,53 @@ model DistPortalSession {
 }
 
 /// A chemist asking to buy from a distributor. Approval links the account to the distributor's Customer ledger party.
+/// MEDORO Distribution in Drive mode: what the distributor's device publishes for the chemist portal (option 1 of
+/// docs/DIST_DRIVE_PLAN.md). Only what chemists are meant to see: products, PTR / PTS, MRP if shown, stock as the
+/// distributor chose to show it, schemes open to every chemist, and each connected chemist's price tier. No bills,
+/// balances, purchase prices or chemist-specific rates.
+model DistPortalCatalog {
+  tenantId    String   @id
+  items       Json
+  tiers       Json     @default("{}") // { accountId: "ptr" | "pts" }
+  deviceId    String
+  publishedAt DateTime @default(now())
+}
+
+/// A chemist's portal order (or cancellation) for a Drive-mode distributor, sealed for each approved device of the
+/// distributor (only those devices can read it). Deleted as soon as a device takes it in.
+model DistOrderInbox {
+  id        String   @id @default(uuid())
+  tenantId  String
+  deviceId  String
+  orderKey  String
+  sealed    String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, deviceId, orderKey])
+  @@index([tenantId, orderKey])
+}
+
+/// The chemist's own view of a portal order to a Drive-mode distributor: what they asked for and the status the
+/// distributor's device reports back (order no, invoice no and total). No other business data.
+model DistPortalOrder {
+  id                String   @id @default(uuid())
+  tenantId          String
+  accountId         String
+  orderKey          String
+  lines             Json // [{ name, pack, qty }]
+  estimatePaise     BigInt
+  status            String   @default("sent") // sent, pending, approved, picking, packed, invoiced, dispatched, delivered, cancelled, rejected
+  orderNo           String?
+  invoiceNo         String?
+  invoiceTotalPaise BigInt?
+  reason            String?
+  placedAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, orderKey])
+  @@index([tenantId, accountId])
+}
+
 model DistConnection {
   id          String    @id @default(uuid())
   tenantId    String

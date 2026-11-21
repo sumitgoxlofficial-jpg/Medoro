@@ -47,7 +47,27 @@ Before the fix these costs grew linearly with the data of **all** pharmacies on 
 - Live updates use one `LISTEN` connection per app server and SSE per browser; a sale's three change events arrive within ~100 ms of the commit and the screen refreshes ~700 ms later. A dropped refresh in the Next.js router (BUG-08) is now detected and retried: at most 7 refreshes per burst of changes, and only while the screen is provably behind.
 - 141 `@@index` and 121 unique declarations in the schema; 21 tenant tables have no tenant-leading index. The four that sit on hot paths were fixed; the rest (`Counter`, `Invite`, `HeldCart`, `Recall`, `StockCount`, …) are small per pharmacy and were left as they are.
 
-## 5. Not tested
-- Load test at 20+ concurrent counters with k6 (the test plan's p95 < 300 ms gate): NOT TESTED here.
+## 5. Load test: 20 concurrent counters (test plan gate: p95 sale commit < 300 ms)
+`pnpm test:load` (`tests/load/sale-commit.load.ts`). Each scenario: 500 bills of 3–4 lines, cash / UPI / credit, against
+PostgreSQL 16 in a 4-CPU sandbox, one database connection per counter. The full sale commit was measured (stock locks,
+invoice number, bill, payments, stock movements, ledger voucher, audit entry); the HTTP layer was not.
+
+| Scenario | p50 | p95 | p99 | Bills / s | Result |
+|---|---|---|---|---|---|
+| A. 20 counters of **one** pharmacy, **no pause** between bills (saturation) | 139 ms | 921 ms | 1,408 ms | 67 | Correct; slower than 300 ms (see below) |
+| A2. 20 counters of one pharmacy, a bill every ~1.5 s each | 26 ms | **41 ms** | 53 ms | 12 | PASS |
+| B. 20 pharmacies, one counter each, no pause | 108 ms | **148 ms** | 180 ms | 176 | PASS |
+| C. Drive-mode counter (bill saved in the device's own database) | 2 ms | **2.8 ms** | 3.7 ms | 487 | PASS |
+
+After every scenario: each batch's stock equals the sum of its movements, invoice numbers have no gaps or repeats,
+and the trial balance balances. No sale failed.
+
+Scenario A queues by design: a branch's GST invoice numbers must be consecutive, so each bill takes the next number
+under a lock held until it commits (~15 ms). That caps one branch at about 65 bills a second, far above a real
+pharmacy (20 counters billing every 30 s is under 1 bill a second). A2 shows counters at a still unrealistic rate
+stay far under the target. Drive-mode pharmacies (every new sign-up on the hosted server) don't go through the
+server to bill at all (C); their changes go to the owner's Drive in the background.
+
+## 6. Not tested
 - Memory/CPU profiling of the Node process under load, large-inventory (100k+ medicines) UI rendering, and offline sync of large queues: NOT TESTED.
 - Real-device performance (low-end Android, Windows counters): NOT TESTED.

@@ -191,6 +191,103 @@ export const TABLES = {
     kind: "append",
     columns: ["id", "claimId", "supplierId", "kind", "amountPaise", "ref", "note", "userId", "at"],
   },
+  // @@TABLES distribution (migration 15)
+  // MEDORO Distribution on the device (a distributor's records in its own Drive). Same names and meaning as the server's
+  // Dist* tables. Products, chemists and stock reuse medicine / batch / customer / stockMovement; each godown is a
+  // branchId. Wholesale invoices are append-only; a same-day cancellation is its own row (the stock comes back as
+  // "return" movements). Schemes list chemist ids as a JSON array.
+  distCompany: {
+    kind: "mutable",
+    columns: ["id", "name", "shortName", "gstin", "phone", "active", ...MUTABLE],
+  },
+  distProduct: {
+    kind: "mutable",
+    columns: ["id", "companyId", "division", "ptrPaise", "ptsPaise", "minOrderQty", "portalVisible", "discontinued", ...MUTABLE],
+  },
+  distChemist: {
+    kind: "mutable",
+    columns: ["id", "ownerName", "stateCode", "dl20b", "dl21b", "dlExpiry", "creditDays", "graceDays", "territoryId", "salesmanId", "priceTier", "status", "statusNote", "portalAccountId", ...MUTABLE],
+  },
+  distSpecialRate: {
+    kind: "mutable",
+    columns: ["id", "customerId", "medicineId", "ratePaise", "validTo", ...MUTABLE],
+  },
+  distScheme: {
+    kind: "mutable",
+    columns: ["id", "code", "name", "kind", "medicineId", "companyId", "buyQty", "freeQty", "discPct", "minQty", "customerIds", "validFrom", "validTo", "active", ...MUTABLE],
+  },
+  distInvoice: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "orderId", "customerId", "salesmanId", "date", "dueDate", "placeOfSupply", "customerGstin", "igst",
+      "grossPaise", "discPaise", "taxablePaise", "cgstPaise", "sgstPaise", "igstPaise", "roundOffPaise", "totalPaise", "costPaise", "idempotencyKey", "userId", "at"],
+  },
+  distInvoiceLine: {
+    kind: "append",
+    columns: ["id", "invoiceId", "medicineId", "batchId", "qty", "freeQty", "ratePaise", "mrpPaise", "discPct", "discPaise", "schemeId", "taxablePaise", "gstRate", "taxPaise", "costPaise"],
+  },
+  distInvoiceCancel: {
+    kind: "append",
+    columns: ["id", "invoiceId", "reason", "userId", "at"],
+  },
+  // @@TABLES distribution orders (migration 16)
+  // Orders and picking. Everything is added, never edited: an order and its lines as placed; each step (approved,
+  // picking, packed, invoiced, rejected, cancelled) as an event with a fixed id (order id + step), so a step taken on two
+  // devices offline is kept once; the stock reserved for an approved order as pick lines (fixed ids per order); what was
+  // actually picked as a pick event per line. An order's status is worked out from its events (dist-orders.ts).
+  distOrder: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "customerId", "source", "salesmanId", "placedByType", "placedById", "note", "estimatePaise", "creditOk", "creditReasons", "idempotencyKey", "at"],
+  },
+  distOrderLine: {
+    kind: "append",
+    columns: ["id", "orderId", "medicineId", "qty", "freeQty", "ratePaise", "discPct", "schemeId"],
+  },
+  distOrderEvent: {
+    kind: "append",
+    columns: ["id", "orderId", "kind", "reason", "overrideReason", "boxes", "invoiceId", "userId", "at"],
+  },
+  distPickLine: {
+    kind: "append",
+    columns: ["id", "orderId", "orderLineId", "medicineId", "batchId", "units", "paidUnits"],
+  },
+  distPickEvent: {
+    kind: "append",
+    columns: ["id", "pickLineId", "orderId", "pickedUnits", "userId", "at"],
+  },
+  // @@TABLES distribution delivery, credit notes, claims (migration 17)
+  // Credit notes to chemists (expired / damaged goods don't go back to stock: they wait to be claimed on the company,
+  // and distClaimSource records how much of a claim came from them); principals (a company's stockist terms: who to
+  // claim from, claim window, credit %); van trips and each invoice's delivery steps (fixed ids, so a step taken on
+  // two devices offline is kept once); collections from chemists (the money is the customerReceipt / cheque row).
+  // A distClaimSource row without a claim is an opening adjustment from a move off Medoro's server.
+  distReturn: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "invoiceId", "customerId", "reason", "taxablePaise", "taxPaise", "totalPaise", "userId", "at"],
+  },
+  distReturnLine: {
+    kind: "append",
+    columns: ["id", "returnId", "invoiceLineId", "batchId", "qty", "condition", "creditPct", "taxablePaise", "taxPaise"],
+  },
+  distPrincipal: {
+    kind: "mutable",
+    columns: ["id", "companyId", "supplierId", "marginPct", "claimBeforeDays", "claimAfterDays", "claimCreditPct", "active", ...MUTABLE],
+  },
+  distClaimSource: {
+    kind: "append",
+    columns: ["id", "claimId", "batchId", "fromReturnsUnits", "at"],
+  },
+  distDispatch: {
+    kind: "append",
+    columns: ["id", "branchId", "deviceId", "no", "vehicleNo", "driverName", "deliveryUser", "route", "userId", "at"],
+  },
+  distDeliveryEvent: {
+    kind: "append",
+    columns: ["id", "invoiceId", "dispatchId", "kind", "receiverName", "note", "collectedPaise", "collectMode", "receiptId", "userId", "at"],
+  },
+  distCollection: {
+    kind: "append",
+    columns: ["id", "customerId", "receiptId", "amountPaise", "mode", "ref", "salesmanId", "invoiceId", "userId", "at"],
+  },
 } as const satisfies Record<string, TableSpec>;
 
 export type TableName = keyof typeof TABLES;
@@ -560,6 +657,151 @@ export const MIGRATIONS: readonly string[] = [
   ` + ["supplierItemMap", "ebillImport", "supplierClaim", "claimEvent"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 15 distribution
+  // 15: MEDORO Distribution masters and wholesale invoices (see TABLES). Invoice numbers are unique per pharmacy file;
+  // an idempotency key stops a retried bill from being entered twice. One cancellation per invoice.
+  `
+  CREATE TABLE distCompany (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, shortName TEXT, gstin TEXT, phone TEXT, active INTEGER NOT NULL DEFAULT 1,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE TABLE distProduct (
+    id TEXT PRIMARY KEY REFERENCES medicine(id), companyId TEXT, division TEXT,
+    ptrPaise INTEGER NOT NULL CHECK (ptrPaise >= 0), ptsPaise INTEGER NOT NULL DEFAULT 0 CHECK (ptsPaise >= 0),
+    minOrderQty INTEGER NOT NULL DEFAULT 1, portalVisible INTEGER NOT NULL DEFAULT 1, discontinued INTEGER NOT NULL DEFAULT 0,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX distProduct_company ON distProduct(companyId);
+  CREATE TABLE distChemist (
+    id TEXT PRIMARY KEY REFERENCES customer(id), ownerName TEXT, stateCode TEXT, dl20b TEXT, dl21b TEXT, dlExpiry TEXT,
+    creditDays INTEGER NOT NULL DEFAULT 21, graceDays INTEGER NOT NULL DEFAULT 7, territoryId TEXT, salesmanId TEXT,
+    priceTier TEXT NOT NULL DEFAULT 'ptr' CHECK (priceTier IN ('ptr', 'pts')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'hold', 'blocked')), statusNote TEXT,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE TABLE distSpecialRate (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL, medicineId TEXT NOT NULL, ratePaise INTEGER NOT NULL CHECK (ratePaise > 0), validTo TEXT,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX distSpecialRate_customer ON distSpecialRate(customerId, medicineId);
+  CREATE TABLE distScheme (
+    id TEXT PRIMARY KEY, code TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('free', 'discount')),
+    medicineId TEXT, companyId TEXT, buyQty INTEGER NOT NULL DEFAULT 0, freeQty INTEGER NOT NULL DEFAULT 0,
+    discPct REAL NOT NULL DEFAULT 0 CHECK (discPct >= 0 AND discPct <= 100), minQty INTEGER NOT NULL DEFAULT 1,
+    customerIds TEXT NOT NULL DEFAULT '[]', validFrom TEXT NOT NULL, validTo TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+    updatedAt TEXT NOT NULL, deletedAt TEXT, CHECK (validTo >= validFrom)
+  );
+  CREATE TABLE distInvoice (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, orderId TEXT,
+    customerId TEXT NOT NULL REFERENCES customer(id), salesmanId TEXT, date TEXT NOT NULL, dueDate TEXT NOT NULL,
+    placeOfSupply TEXT, customerGstin TEXT, igst INTEGER NOT NULL DEFAULT 0,
+    grossPaise INTEGER NOT NULL, discPaise INTEGER NOT NULL, taxablePaise INTEGER NOT NULL, cgstPaise INTEGER NOT NULL,
+    sgstPaise INTEGER NOT NULL, igstPaise INTEGER NOT NULL, roundOffPaise INTEGER NOT NULL, totalPaise INTEGER NOT NULL,
+    costPaise INTEGER NOT NULL, idempotencyKey TEXT NOT NULL UNIQUE, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distInvoice_customer ON distInvoice(customerId, date);
+  CREATE INDEX distInvoice_date ON distInvoice(date);
+  CREATE TABLE distInvoiceLine (
+    id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL REFERENCES distInvoice(id), medicineId TEXT NOT NULL, batchId TEXT NOT NULL REFERENCES batch(id),
+    qty INTEGER NOT NULL CHECK (qty >= 0), freeQty INTEGER NOT NULL DEFAULT 0 CHECK (freeQty >= 0), ratePaise INTEGER NOT NULL, mrpPaise INTEGER NOT NULL,
+    discPct REAL NOT NULL DEFAULT 0, discPaise INTEGER NOT NULL, schemeId TEXT, taxablePaise INTEGER NOT NULL, gstRate INTEGER NOT NULL,
+    taxPaise INTEGER NOT NULL, costPaise INTEGER NOT NULL
+  );
+  CREATE INDEX distInvoiceLine_invoice ON distInvoiceLine(invoiceId);
+  CREATE TABLE distInvoiceCancel (
+    id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL UNIQUE REFERENCES distInvoice(id), reason TEXT NOT NULL, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  ` + ["distInvoice", "distInvoiceLine", "distInvoiceCancel"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 16 distribution orders
+  // 16: orders, their steps, stock reserved by pick lines, and what was picked (see TABLES). All append-only.
+  `
+  CREATE TABLE distOrder (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, customerId TEXT NOT NULL REFERENCES customer(id),
+    source TEXT NOT NULL CHECK (source IN ('portal', 'salesman', 'phone', 'office')), salesmanId TEXT,
+    placedByType TEXT NOT NULL CHECK (placedByType IN ('user', 'chemist')), placedById TEXT NOT NULL, note TEXT,
+    estimatePaise INTEGER NOT NULL, creditOk INTEGER NOT NULL, creditReasons TEXT NOT NULL DEFAULT '[]', idempotencyKey TEXT NOT NULL UNIQUE, at TEXT NOT NULL
+  );
+  CREATE INDEX distOrder_customer ON distOrder(customerId);
+  CREATE TABLE distOrderLine (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES distOrder(id), medicineId TEXT NOT NULL, qty INTEGER NOT NULL CHECK (qty > 0),
+    freeQty INTEGER NOT NULL DEFAULT 0 CHECK (freeQty >= 0), ratePaise INTEGER NOT NULL, discPct REAL NOT NULL DEFAULT 0, schemeId TEXT
+  );
+  CREATE INDEX distOrderLine_order ON distOrderLine(orderId);
+  CREATE TABLE distOrderEvent (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES distOrder(id),
+    kind TEXT NOT NULL CHECK (kind IN ('approved', 'rejected', 'cancelled', 'picking', 'packed', 'invoiced')),
+    reason TEXT, overrideReason TEXT, boxes INTEGER, invoiceId TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distOrderEvent_order ON distOrderEvent(orderId);
+  CREATE TABLE distPickLine (
+    id TEXT PRIMARY KEY, orderId TEXT NOT NULL REFERENCES distOrder(id), orderLineId TEXT NOT NULL, medicineId TEXT NOT NULL,
+    batchId TEXT NOT NULL REFERENCES batch(id), units INTEGER NOT NULL CHECK (units > 0), paidUnits INTEGER NOT NULL CHECK (paidUnits >= 0)
+  );
+  CREATE INDEX distPickLine_order ON distPickLine(orderId);
+  CREATE INDEX distPickLine_batch ON distPickLine(batchId);
+  CREATE TABLE distPickEvent (
+    id TEXT PRIMARY KEY, pickLineId TEXT NOT NULL REFERENCES distPickLine(id), orderId TEXT NOT NULL,
+    pickedUnits INTEGER NOT NULL CHECK (pickedUnits >= 0), userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distPickEvent_order ON distPickEvent(orderId);
+  ` + ["distOrder", "distOrderLine", "distOrderEvent", "distPickLine", "distPickEvent"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 17 distribution delivery, credit notes, claims
+  // 17: credit notes, principals, claim sources, van trips, delivery steps and collections (see TABLES).
+  `
+  CREATE TABLE distReturn (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, invoiceId TEXT NOT NULL REFERENCES distInvoice(id),
+    customerId TEXT NOT NULL REFERENCES customer(id), reason TEXT NOT NULL, taxablePaise INTEGER NOT NULL, taxPaise INTEGER NOT NULL, totalPaise INTEGER NOT NULL,
+    userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distReturn_invoice ON distReturn(invoiceId);
+  CREATE INDEX distReturn_customer ON distReturn(customerId);
+  CREATE TABLE distReturnLine (
+    id TEXT PRIMARY KEY, returnId TEXT NOT NULL REFERENCES distReturn(id), invoiceLineId TEXT NOT NULL REFERENCES distInvoiceLine(id), batchId TEXT NOT NULL,
+    qty INTEGER NOT NULL CHECK (qty > 0), condition TEXT NOT NULL CHECK (condition IN ('saleable', 'expired', 'damaged')),
+    creditPct REAL NOT NULL CHECK (creditPct >= 0 AND creditPct <= 100), taxablePaise INTEGER NOT NULL, taxPaise INTEGER NOT NULL
+  );
+  CREATE INDEX distReturnLine_line ON distReturnLine(invoiceLineId);
+  CREATE INDEX distReturnLine_batch ON distReturnLine(batchId, condition);
+  CREATE TABLE distPrincipal (
+    id TEXT PRIMARY KEY, companyId TEXT NOT NULL, supplierId TEXT, marginPct REAL NOT NULL DEFAULT 10,
+    claimBeforeDays INTEGER NOT NULL DEFAULT 90, claimAfterDays INTEGER NOT NULL DEFAULT 180,
+    claimCreditPct REAL NOT NULL DEFAULT 100 CHECK (claimCreditPct >= 0 AND claimCreditPct <= 100), active INTEGER NOT NULL DEFAULT 1,
+    updatedAt TEXT NOT NULL, deletedAt TEXT
+  );
+  CREATE INDEX distPrincipal_company ON distPrincipal(companyId);
+  CREATE TABLE distClaimSource (
+    id TEXT PRIMARY KEY, claimId TEXT UNIQUE REFERENCES supplierClaim(id), batchId TEXT NOT NULL, fromReturnsUnits INTEGER NOT NULL CHECK (fromReturnsUnits >= 0), at TEXT NOT NULL
+  );
+  CREATE INDEX distClaimSource_batch ON distClaimSource(batchId);
+  CREATE TABLE distDispatch (
+    id TEXT PRIMARY KEY, branchId TEXT NOT NULL, deviceId TEXT NOT NULL, no TEXT NOT NULL UNIQUE, vehicleNo TEXT, driverName TEXT, deliveryUser TEXT, route TEXT,
+    userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE TABLE distDeliveryEvent (
+    id TEXT PRIMARY KEY, invoiceId TEXT NOT NULL REFERENCES distInvoice(id), dispatchId TEXT,
+    kind TEXT NOT NULL CHECK (kind IN ('planned', 'out', 'delivered', 'failed')), receiverName TEXT, note TEXT,
+    collectedPaise INTEGER NOT NULL DEFAULT 0, collectMode TEXT, receiptId TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distDeliveryEvent_invoice ON distDeliveryEvent(invoiceId);
+  CREATE INDEX distDeliveryEvent_dispatch ON distDeliveryEvent(dispatchId);
+  CREATE TABLE distCollection (
+    id TEXT PRIMARY KEY, customerId TEXT NOT NULL REFERENCES customer(id), receiptId TEXT NOT NULL, amountPaise INTEGER NOT NULL CHECK (amountPaise > 0),
+    mode TEXT NOT NULL, ref TEXT, salesmanId TEXT, invoiceId TEXT, userId TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX distCollection_at ON distCollection(at);
+  ` + ["distReturn", "distReturnLine", "distClaimSource", "distDispatch", "distDeliveryEvent", "distCollection"].map((t) =>
+    `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
+     CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 18 distribution portal link
+  // 18: the chemist portal account a chemist is linked to (orders from the portal arrive with that account).
+  `
+  ALTER TABLE distChemist ADD COLUMN portalAccountId TEXT;
+  CREATE INDEX distChemist_portal ON distChemist(portalAccountId);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

@@ -4,7 +4,7 @@ import { readSession } from "@/server/auth";
 import { setupUnlocked, signupOpen } from "@/server/setup-gate";
 import { googleLoginConfigured, readPendingSignup, readVerifiedEmail } from "@/server/google-oidc";
 import { mailEnabled } from "@/server/mail";
-import { distHostingAllowed } from "@/domain/distribution/hosting";
+import { distSignupAllowed } from "@/domain/distribution/hosting";
 import { getT } from "@/server/lang";
 import { EmailStep } from "../signup/email-step";
 import { GoogleMark } from "../signup/google-mark";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 /** MEDORO Distribution sign-up: the same steps as pharmacy sign-up (Google or a confirmed email, then the details). */
 export default async function Page({ searchParams }: { searchParams: Promise<{ with?: string }> }) {
   const open = signupOpen();
-  if ((!open && !(await setupUnlocked())) || !distHostingAllowed()) notFound();
+  if ((!open && !(await setupUnlocked())) || !distSignupAllowed()) notFound();
   if (await readSession()) redirect("/app");
   const g = await readPendingSignup();
   const google = g ? { name: g.name ?? "", email: g.email } : null;
