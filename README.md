@@ -5,7 +5,7 @@
 > **Status:** every screen in the design handoff ([`design/`](design/HANDOFF.md)) is built. The app ships with **no demo data**: a fresh install opens the setup wizard, where you create your pharmacy, branches and owner account. Integrations that need outside accounts (WhatsApp Cloud API, Google Drive, SMS OTP, remote OCR, a local LLM) work once you add your own credentials in `.env` or in the app; until then the screens say they're not connected.
 
 ## Stack
-Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind 4 · Prisma 6 · PostgreSQL 16 · Zod · Vitest · lucide-react.
+Next.js 16 (App Router) · React 19 · TypeScript strict · Tailwind 4 · Prisma 6 · PostgreSQL 16 · Zod · Vitest · lucide-react.
 
 ## MEDORO Distribution (wholesale ERP)
 A second product in the same codebase for pharmaceutical distributors, stockists, super stockists and C&F agents:

@@ -17,7 +17,7 @@ Column "Defect / fix / retest" refers to the bug log ids.
 | Real-time update on another open screen (E2E 12) | Updates within seconds without reload | Before: 7/10 (the router dropped some refreshes). After the fix: 30/30 | PASS after fix | BUG-08 fixed |
 | 14-day sales chart, collections by mode, branch performance, low stock, expiring batches, backup status | Shown with data | Shown | PASS | – |
 | Date filters Today / 7D / 30D | Switch range | Switch (E2E 15 owner navigation) | PASS | – |
-| Link navigation inside Intelligence (E2E 31, repeated 12×) | Opens on first click | 8/12; 4/12 the click did not navigate | PARTIAL | BUG-10 (open) |
+| Link navigation inside Intelligence (E2E 31) | Opens on first click | Next.js 15.5.29: 8/12. After upgrading to Next.js 16.4.6: 30/30 | PASS after fix | BUG-10 fixed |
 
 ## B. Medicine management
 | Test case | Expected | Actual | Status | Defect |

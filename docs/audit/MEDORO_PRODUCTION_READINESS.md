@@ -15,13 +15,13 @@
 | Offline synchronization verified | PASS (browser) / NOT TESTED (real devices) | e2e 13, 20, 21; integration `offline.test.ts` |
 | Backup restoration verified | PASS (fake Drive) / BLOCKED (real Google Drive) | e2e 11, 19, 25; integration backup/restore |
 | Subscription lifecycle verified | PARTIAL | Trial → banner → grace → read-only (e2e 17), plan limits (integration); real Razorpay payment BLOCKED |
-| All regression tests passed | PARTIAL | Vitest 1,189/1,189; e2e 72 passed + 3 that pass with the email sink; live-update spec 30/30 after the BUG-08 fix; spec 31's supplier link fails ~1 in 3 (BUG-10, open, also without the fix). Bug log: final regression run |
+| All regression tests passed | PASS | On Next.js 16.4.6: Vitest 1,189/1,189; e2e 72 passed + the 3 that need the email sink pass with it; live-update spec 20/20; supplier link 30/30. Bug log: BUG-08, BUG-10 |
 | Production deployment configuration reviewed | PASS | `vercel.json` (bom1, cron), `scripts/vercel-build.sh` (migrations on production only, previews isolated), startup refuses pending migrations, `/api/ready` ok on production |
 
 ## Open issues
 | Id | Severity | Issue | Recommended action |
 |---|---|---|---|
-| BUG-10 | MEDIUM | A link click occasionally doesn't navigate (~1 in 3 on Intelligence → Supplier intelligence; the second click works). Same router symptom that BUG-08 worked around | Reproduce in a minimal Next.js app; try the current Next.js release |
+| LINT | LOW | 215 lint warnings from React Compiler rules introduced with Next.js 16 (code predates them); `middleware.ts` should be renamed `proxy.ts` | Rework the flagged effects/refs over time; run the Next.js codemod for the rename |
 | SEC-2 / DB-3 | MEDIUM | RLS not enabled; isolation depends on the service layer | Enable the existing RLS kit for hosted multi-tenant servers |
 | DB-2 | LOW | Few foreign keys (55/198 tables) | Orphan check on production, then add FKs `NOT VALID` → `VALIDATE` |
 | BUG-09 | LOW | Tour CSP console noise | Fix the prototype runtime's inline handlers |

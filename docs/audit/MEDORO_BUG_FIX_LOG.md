@@ -13,7 +13,7 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 | BUG-07 | LOW | Docs | README says the trial is 14 days; the app enforces 7 | FIXED |
 | BUG-08 | MEDIUM | Live updates | An open dashboard sometimes misses a live update (~3 in 10) | FIXED |
 | BUG-09 | LOW | Website tour | 394 CSP console errors per load of the embedded tour | OPEN |
-| BUG-10 | MEDIUM | App navigation | A link click occasionally doesn't navigate (Intelligence → Supplier intelligence, ~1 in 3) | OPEN |
+| BUG-10 | MEDIUM | App navigation | A link click occasionally doesn't navigate (Intelligence → Supplier intelligence, ~1 in 3) | FIXED (Next.js 16) |
 | GAP-01 | – | Tests | No browser test of the email-confirmed sign-up (the production path) | FIXED (new spec) |
 
 ---
@@ -79,7 +79,7 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 ### BUG-09 · Tour CSP console noise (OPEN)
 - `/tour/index.html` (embedded on the homepage in a sandboxed iframe) logs ~394 "Executing inline event handler violates … CSP" errors per load. The tour still renders and responds to clicks (verified). The handlers come from the design prototype's runtime (`design/support.js`), which `scripts/build-tour.mjs` copies. Fix belongs in that runtime (use `addEventListener`), or accept as noise.
 
-### BUG-10 · A link click occasionally doesn't navigate (OPEN; investigated)
+### BUG-10 · A link click occasionally doesn't navigate (FIXED by upgrading to Next.js 16.4.6)
 - **Found by:** the full e2e run for BUG-08: spec 31 "supplier intelligence" clicks the Supplier intelligence link on `/app/intelligence` and the URL never changes. It fails at the same rate with and without the BUG-08 change.
 - **What happens in a failing click (instrumented):** Next.js intercepts the click, fetches the new page (HTTP 200, body complete and byte-identical to a passing run apart from per-request ids), loads the page's script chunk, and updates its router state (the next request carries a different router-state hash), but React never commits: no `history.pushState`, the old screen stays. A later click or refresh usually completes it.
 - **Experiments (30 clicks each unless noted, worst case = service worker off):**
@@ -97,8 +97,13 @@ Each entry: how it was found and reproduced, root cause, fix, the test that guar
 | Next.js streaming metadata off (`htmlLimitedBots: /.*/`) | 3/24 |
 | Click 6 s after load instead of ~1 s | still fails (not a start-up race) |
 
-- **Conclusion so far:** it needs the page's own live stream open *and* processed by the app's live hook; the hang is inside the Next.js 15.5 client router / React commit, with a complete, correct server response. Next.js 15.5.29 is the newest 15.x; the next step is a minimal reproduction and/or trying Next.js 16 (a major upgrade, not done without approval). A navigation watchdog (repeat a link navigation that hasn't committed after ~2 s) would hide the symptom and was not added.
-- **Impact:** a user occasionally has to click a link a second time. Data is never affected.
+- **Conclusion so far:** it needs the page's own live stream open *and* processed by the app's live hook; the hang is inside the Next.js 15.5 client router / React commit, with a complete, correct server response. Next.js 15.5.29 was the newest 15.x, so the fix is the major upgrade below. No navigation watchdog was added.
+- **Fix:** upgrade `next` and `eslint-config-next` from 15.5.29 to 16.4.6 (approved by the owner). No application code changed.
+  - `eslint.config.mjs`: eslint-config-next 16 is flat config. It also enables new React Compiler rules (`react-hooks/set-state-in-effect`, `refs`, `static-components`, `purity`, `immutability`, `preserve-manual-memoization`) with 209 findings in code written before them; these are warnings for now (lint: 0 errors, 215 warnings). Reworking those call sites is follow-up work.
+  - `tsconfig.json`: `jsx: react-jsx` and `.next/dev/types`, written by Next.js 16.
+  - Build uses Turbopack (Next.js 16's default); `src/middleware.ts` works but the file name is deprecated in favour of `proxy.ts` (follow-up).
+- **Retest on 16.4.6:** spec 31 supplier link **30/30** (4/12 failed on 15.5.29 with the same code); spec 12 live update 20/20; full e2e 72 passed, 2 skipped, 1 failed (spec 02's mail-sink test, as before); Vitest 1,189/1,189; typecheck clean; CSP and X-Frame-Options headers still set.
+- **Impact before the fix:** a user occasionally had to click a link a second time. Data was never affected.
 
 ### GAP-01 · No e2e test for email-confirmed sign-up
 - CI runs without email, so the page skips the code step and no browser test covered the path production uses. `e2e/33-signup-email.spec.ts` covers it when the mail sink is configured (skipped otherwise, so CI is unaffected).

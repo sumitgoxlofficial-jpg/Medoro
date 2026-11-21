@@ -36,7 +36,7 @@ What could not be run is listed as BLOCKED with the reason; nothing was marked P
 
 ## 2. Applications discovered
 
-All of them are one Next.js 15 codebase on one PostgreSQL database, verified in the code (not assumed from the website):
+All of them are one Next.js 16 codebase (15.5 at the start of the audit) on one PostgreSQL database, verified in the code (not assumed from the website):
 
 | # | Application | Entry | What it is | Tested |
 |---|---|---|---|---|
@@ -56,7 +56,7 @@ There is no separate "super-admin of pharmacies" UI: Medoro's platform administr
 ## 3. Architecture
 
 ```
-Browser / PWA / Tauri ──HTTPS──▶ Next.js 15 (App Router, React 19)
+Browser / PWA / Tauri ──HTTPS──▶ Next.js 16 (App Router, React 19)
                                    ├─ 167 pages (server components)          src/app
                                    ├─ 322 server actions (Origin-checked)     src/app/**/actions.ts
                                    ├─ 41 API route handlers                   src/app/api
@@ -91,7 +91,7 @@ Full module and route inventory: section 5.
 | End-to-end tests (browser) | 75 in the full suite (73 + 2 new): 72 pass in the CI configuration, the other 3 pass with email configured; plus repetitions of the live-update spec (7/10 before the BUG-08 fix, 30/30 after) |
 | Live security probes | 23 endpoints, all refused or safe |
 | Bugs found | 10 defects (1 HIGH, 5 MEDIUM, 4 LOW) + 1 test-coverage gap (see bug log) |
-| Bugs fixed and retested | 8 fixed and retested, gap closed with a new spec; 2 open (1 MEDIUM, 1 LOW), each documented with evidence |
+| Bugs fixed and retested | 9 fixed and retested, gap closed with a new spec; 1 open (LOW), documented with evidence |
 | Critical/high security vulnerabilities found | 0 in the code paths tested; the AI clinical-refusal gap (HIGH, patient safety) is fixed |
 
 ## 5. Inventory
@@ -125,6 +125,6 @@ On the final code: lint and typecheck clean; **Vitest 1,189/1,189 passed**; prod
 
 1. **Integrations that need real credentials were not exercised end to end** (WhatsApp Cloud API with a test number, Google Drive OAuth, Razorpay test mode, SMS OTP, e-invoice sandbox): BLOCKED, see the readiness report for exactly what is needed.
 2. **Device and browser matrix:** only Chromium (desktop and phone emulation) was available; Windows 10/11, real Android/iPhone, Safari, Firefox and Edge were not tested.
-3. **Two open defects:** a link click occasionally doesn't navigate (BUG-10, Medium) and the tour's CSP console noise (Low). The live-dashboard bug (BUG-08) is fixed.
+3. **One open defect:** the tour's CSP console noise (Low). The live-dashboard bug (BUG-08) and the dropped link navigations (BUG-10, fixed by upgrading to Next.js 16.4.6) are fixed.
 
 Recommended before launch: run the blocked integration checks with test credentials, a short real-device pass, and decide on enabling RLS (defence in depth for multi-tenant hosting).
