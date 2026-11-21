@@ -2,9 +2,8 @@
 import { useEffect, useRef } from "react";
 
 /**
- * The main page hero's background video: a looping, muted 3D render of medicines (made by
- * scripts/hero-video/render.mjs). The poster shows first and stays for visitors who ask for reduced motion.
- * A soft white wash on top keeps the headline easy to read.
+ * The main page hero's background video: a looping, muted street of Indian medical stores at dusk with medicines
+ * swirling through it. The poster shows first and stays for visitors who ask for reduced motion.
  */
 export function HeroVideo() {
   const ref = useRef<HTMLVideoElement>(null);
@@ -21,7 +20,9 @@ export function HeroVideo() {
         <source src="/site/hero-loop.mp4" type="video/mp4" />
         <source src="/site/hero-loop.webm" type="video/webm" />
       </video>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_52%_48%_at_50%_45%,rgba(255,255,255,.88),rgba(255,255,255,.6)_55%,rgba(255,255,255,.12)_85%)] max-[640px]:bg-white/70" />
+      {/* The footage is a street at dusk: a dark wash, deepest behind the headline, keeps the white text readable. */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_45%,rgba(6,20,18,.72),rgba(6,20,18,.5)_60%,rgba(6,20,18,.3)_100%)] max-[640px]:bg-[rgba(6,20,18,.6)]" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-[rgba(6,20,18,.55)]" />
     </div>
   );
 }

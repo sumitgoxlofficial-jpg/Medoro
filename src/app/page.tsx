@@ -128,23 +128,23 @@ export default async function Home() {
 
       <main id="main">
         {/* Hero: who Medoro is, and the two doors. */}
-        <section aria-labelledby="hero-title" className="relative overflow-hidden min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
+        <section aria-labelledby="hero-title" className="site-dark relative overflow-hidden bg-[#061412] text-white min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
           <HeroVideo />
           <div className={`relative w-full ${wrap} pt-[clamp(40px,5vw,64px)] pb-[clamp(64px,8vw,104px)] flex flex-col items-center text-center gap-6`}>
-            <span className="site-up inline-flex items-center gap-2 rounded-full bg-white/90 border border-[var(--s-line)] px-3.5 py-1.5 text-[14px] font-semibold text-[var(--s-brand)]"><Flag size={15} aria-hidden />{t("Made in India, for Indian pharma")}</span>
+            <span className="site-up inline-flex items-center gap-2 rounded-full bg-white/12 backdrop-blur border border-white/25 px-3.5 py-1.5 text-[14px] font-semibold text-[#8FF0DD]"><Flag size={15} aria-hidden />{t("Made in India, for Indian pharma")}</span>
             <h1 id="hero-title" className="m-0 flex flex-col gap-4 items-center">
-              <span className="site-up text-[15px] font-medium text-[var(--s-ink-2)] [--d:1]">{t("Medoro: pharma software for Indian pharmacies and distributors")}</span>
+              <span className="site-up text-[15px] font-medium text-[#D3E2DF] [--d:1]">{t("Medoro: pharma software for Indian pharmacies and distributors")}</span>
               <span className="site-display site-up block text-[clamp(40px,6vw,76px)] leading-[1.04] max-w-[980px] [--d:1]">
                 <span className="block">{t("Software that speaks")}</span>
-                <span className="block site-shine">{t("the language of Indian pharma.")}</span>
+                <span className="block text-[#5EEAD4]">{t("the language of Indian pharma.")}</span>
               </span>
             </h1>
-            <p className="site-up m-0 text-[clamp(17px,1.5vw,20px)] leading-[1.6] text-[var(--s-ink-2)] max-w-[760px] [--d:2]">{t("Batches, expiry, GST, Schedule H1, PTR and schemes are not add-ons for us. They are the product. Medoro runs the medical store counter and the distributor’s godown, on infrastructure you control.")}</p>
+            <p className="site-up m-0 text-[clamp(17px,1.5vw,20px)] leading-[1.6] text-[#E2ECEA] max-w-[760px] [--d:2] [text-shadow:0_1px_12px_rgba(0,0,0,.5)]">{t("Batches, expiry, GST, Schedule H1, PTR and schemes are not add-ons for us. They are the product. Medoro runs the medical store counter and the distributor’s godown, on infrastructure you control.")}</p>
             <div className="site-up flex gap-3 flex-wrap justify-center pt-1 [--d:3]">
               <a href="/pharmacy" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white"><ScanBarcode size={18} aria-hidden />{t("Medoro Pharmacy")}<ArrowRight size={18} aria-hidden /></a>
-              <a href="/distribution" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-dark)] text-white text-[16px] font-semibold transition-colors hover:text-white hover:opacity-90"><Warehouse size={18} aria-hidden />{t("Medoro Distribution")}<ArrowRight size={18} aria-hidden /></a>
+              <a href="/distribution" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:text-[var(--s-ink)] hover:opacity-90"><Warehouse size={18} aria-hidden />{t("Medoro Distribution")}<ArrowRight size={18} aria-hidden /></a>
             </div>
-            <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{t("7-day free trial on both. No card needed.")}</p>
+            <p className="site-up m-0 text-[14px] text-[#D3E2DF] [--d:4] [text-shadow:0_1px_8px_rgba(0,0,0,.6)]">{t("7-day free trial on both. No card needed.")}</p>
           </div>
         </section>
 

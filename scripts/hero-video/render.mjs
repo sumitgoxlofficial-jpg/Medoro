@@ -1,5 +1,5 @@
-// Renders the main page's hero background video from scripts/hero-video/scene3d.html (three.js, photoreal) into
-// public/site/hero-loop.mp4 (H.264), public/site/hero-loop.webm (VP9) and public/site/hero-poster.webp.
+// Renders the 3D medicines-in-a-pharmacy scene (scripts/hero-video/scene3d.html) into public/site/hero-3d.mp4,
+// hero-3d.webm and hero-3d-poster.webp. The live hero plays hero-loop.* (supplied footage), so this never overwrites it.
 // Each frame calls window.renderAt(t) and is screenshotted, then ffmpeg encodes the loop.
 // Usage: node scripts/hero-video/render.mjs [--preview]   (needs Playwright's Chromium, ffmpeg, and `three` installed)
 import { execFileSync } from "node:child_process";
@@ -57,8 +57,8 @@ server.close();
 if (preview) { rmSync(frames, { recursive: true, force: true }); console.log("wrote scripts/hero-video/preview-*.png"); process.exit(0); }
 
 const input = ["-y", "-framerate", String(FPS), "-i", join(frames, "f%04d.png")];
-execFileSync("ffmpeg", [...input, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "slow", "-crf", "26", "-movflags", "+faststart", "-an", join(out, "hero-loop.mp4")], { stdio: "inherit" });
-execFileSync("ffmpeg", [...input, "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "44", "-row-mt", "1", "-an", join(out, "hero-loop.webm")], { stdio: "inherit" });
-execFileSync("ffmpeg", ["-y", "-i", join(frames, "f0000.png"), "-vf", "scale=1280:-1", "-quality", "75", join(out, "hero-poster.webp")], { stdio: "inherit" });
+execFileSync("ffmpeg", [...input, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "slow", "-crf", "26", "-movflags", "+faststart", "-an", join(out, "hero-3d.mp4")], { stdio: "inherit" });
+execFileSync("ffmpeg", [...input, "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "44", "-row-mt", "1", "-an", join(out, "hero-3d.webm")], { stdio: "inherit" });
+execFileSync("ffmpeg", ["-y", "-i", join(frames, "f0000.png"), "-vf", "scale=1280:-1", "-quality", "75", join(out, "hero-3d-poster.webp")], { stdio: "inherit" });
 rmSync(frames, { recursive: true, force: true });
-console.log("wrote public/site/hero-loop.mp4, hero-loop.webm, hero-poster.webp");
+console.log("wrote public/site/hero-3d.mp4, hero-3d.webm, hero-3d-poster.webp");
