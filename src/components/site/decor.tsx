@@ -215,40 +215,93 @@ export function HelpArt({ className }: { className?: string }) {
 }
 
 /** Small pharmacy icons used by WhiteDecor. */
-const ICONS: Record<string, React.ReactNode> = {
-  capsule: <svg viewBox="0 0 64 28" className="w-12"><rect x="1" y="1" width="62" height="26" rx="13" fill="#fff" stroke={T3} strokeWidth="2" /><path d="M32 1h18a13 13 0 0 1 0 26H32z" fill={T2} /></svg>,
-  plus: <svg viewBox="0 0 32 32" className="w-7"><path d="M12 2h8v10h10v8H20v10h-8V20H2v-8h10z" fill={T2} opacity=".7" /></svg>,
-  tablet: <svg viewBox="0 0 36 36" className="w-8"><circle cx="18" cy="18" r="16" fill="#fff" stroke={GOLD} strokeWidth="3" /><path d="M8 18h20" stroke={GOLD} strokeWidth="3" strokeLinecap="round" /></svg>,
-  heart: <svg viewBox="0 0 48 44" className="w-9"><path d="M24 42C8 31 2 23 2 14 2 7 7 2 14 2c4 0 8 2 10 6 2-4 6-6 10-6 7 0 12 5 12 12 0 9-6 17-22 28z" fill={ROSE} opacity=".85" /><path d="M8 22h8l3-6 5 12 3-6h12" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-  leaf: <svg viewBox="0 0 40 40" className="w-8"><path d="M6 34C6 14 18 4 36 4c0 20-12 30-30 30z" fill={T} opacity=".85" /><path d="M8 32L30 10" stroke={T3} strokeWidth="2" strokeLinecap="round" /></svg>,
-  coin: <svg viewBox="0 0 36 36" className="w-7"><circle cx="18" cy="18" r="16" fill={GOLD} /><circle cx="18" cy="18" r="12" fill="#F8D57E" /><text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="700" fill="#94570A">₹</text></svg>,
-  bottle: <svg viewBox="0 0 32 44" className="w-7"><rect x="9" y="2" width="14" height="7" rx="2" fill={T} /><rect x="4" y="9" width="24" height="33" rx="6" fill="#fff" stroke={T3} strokeWidth="2" /><rect x="8" y="20" width="16" height="12" rx="2" fill="#E7F2F0" /><path d="M16 22v8M12 26h8" stroke={T2} strokeWidth="2.4" strokeLinecap="round" /></svg>,
-};
-
-/** Four layouts so neighbouring sections don't look the same: [glow positions, icons with their spots]. */
-const LAYOUTS: { glows: [string, string][]; icons: [keyof typeof ICONS, string][] }[] = [
-  { glows: [["-left-40 -top-40", "rgba(20,184,166,.13)"], ["-right-40 bottom-[-12rem]", "rgba(245,196,81,.16)"]],
-    icons: [["capsule", "left-[2.5%] top-[18%] [--r:-24deg]"], ["plus", "right-[3%] top-[12%] [--r:10deg]"], ["coin", "right-[4%] bottom-[16%]"]] },
-  { glows: [["-right-40 -top-32", "rgba(143,211,198,.22)"], ["-left-40 bottom-[-10rem]", "rgba(245,196,81,.13)"]],
-    icons: [["heart", "right-[2.5%] top-[20%] [--r:8deg]"], ["leaf", "left-[3%] bottom-[18%] [--r:-14deg]"], ["tablet", "left-[3.5%] top-[14%]"]] },
-  { glows: [["left-[20%] -top-48", "rgba(245,196,81,.13)"], ["-right-40 bottom-[-10rem]", "rgba(20,184,166,.12)"]],
-    icons: [["bottle", "left-[2.5%] top-[24%] [--r:-8deg]"], ["capsule", "right-[2.5%] bottom-[20%] [--r:20deg]"], ["plus", "right-[4%] top-[10%]"]] },
-  { glows: [["-left-48 top-[30%]", "rgba(143,211,198,.2)"], ["right-[10%] -top-48", "rgba(242,139,130,.09)"]],
-    icons: [["coin", "left-[3%] top-[14%]"], ["heart", "left-[2.5%] bottom-[16%] [--r:-8deg]"], ["bottle", "right-[3%] top-[30%] [--r:10deg]"]] },
+const ICONS: React.ReactNode[] = [
+  // capsule
+  <svg key="capsule" viewBox="0 0 64 28" className="w-full"><rect x="1" y="1" width="62" height="26" rx="13" fill="#fff" stroke={T3} strokeWidth="2" /><path d="M32 1h18a13 13 0 0 1 0 26H32z" fill={T2} /></svg>,
+  // plus
+  <svg key="plus" viewBox="0 0 32 32" className="w-full"><path d="M12 2h8v10h10v8H20v10h-8V20H2v-8h10z" fill={T2} opacity=".75" /></svg>,
+  // tablet
+  <svg key="tablet" viewBox="0 0 36 36" className="w-full"><circle cx="18" cy="18" r="16" fill="#fff" stroke={GOLD} strokeWidth="3" /><path d="M8 18h20" stroke={GOLD} strokeWidth="3" strokeLinecap="round" /></svg>,
+  // heart pulse
+  <svg key="heart" viewBox="0 0 48 44" className="w-full"><path d="M24 42C8 31 2 23 2 14 2 7 7 2 14 2c4 0 8 2 10 6 2-4 6-6 10-6 7 0 12 5 12 12 0 9-6 17-22 28z" fill={ROSE} opacity=".85" /><path d="M8 22h8l3-6 5 12 3-6h12" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  // leaf
+  <svg key="leaf" viewBox="0 0 40 40" className="w-full"><path d="M6 34C6 14 18 4 36 4c0 20-12 30-30 30z" fill={T} opacity=".85" /><path d="M8 32L30 10" stroke={T3} strokeWidth="2" strokeLinecap="round" /></svg>,
+  // rupee coin
+  <svg key="coin" viewBox="0 0 36 36" className="w-full"><circle cx="18" cy="18" r="16" fill={GOLD} /><circle cx="18" cy="18" r="12" fill="#F8D57E" /><text x="18" y="24" textAnchor="middle" fontSize="16" fontWeight="700" fill="#94570A">₹</text></svg>,
+  // medicine bottle
+  <svg key="bottle" viewBox="0 0 32 44" className="w-full"><rect x="9" y="2" width="14" height="7" rx="2" fill={T} /><rect x="4" y="9" width="24" height="33" rx="6" fill="#fff" stroke={T3} strokeWidth="2" /><rect x="8" y="20" width="16" height="12" rx="2" fill="#E7F2F0" /><path d="M16 22v8M12 26h8" stroke={T2} strokeWidth="2.4" strokeLinecap="round" /></svg>,
+  // bill
+  <svg key="bill" viewBox="0 0 32 40" className="w-full"><path d="M3 2h26v36l-4-3-4 3-5-3-5 3-4-3-4 3z" fill="#fff" stroke={T3} strokeWidth="2" strokeLinejoin="round" /><path d="M9 11h14M9 17h14M9 23h8" stroke={T2} strokeWidth="2.4" strokeLinecap="round" /></svg>,
+  // carton
+  <svg key="box" viewBox="0 0 40 36" className="w-full"><path d="M2 10L20 2l18 8v18l-18 8-18-8z" fill="#F8D57E" stroke="#D9A93A" strokeWidth="2" strokeLinejoin="round" /><path d="M2 10l18 8 18-8M20 18v18" stroke="#D9A93A" strokeWidth="2" /></svg>,
+  // blister strip
+  <svg key="strip" viewBox="0 0 48 28" className="w-full"><rect x="1" y="1" width="46" height="26" rx="5" fill="#fff" stroke={T3} strokeWidth="2" />{[10, 24, 38].map((x) => <g key={x}><circle cx={x} cy="9" r="4.5" fill={T2} opacity=".8" /><circle cx={x} cy="19" r="4.5" fill={T2} opacity=".8" /></g>)}</svg>,
+  // delivery truck
+  <svg key="truck" viewBox="0 0 48 30" className="w-full"><rect x="1" y="4" width="28" height="18" rx="3" fill={T} /><path d="M11 9v8M7 13h8" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" /><path d="M29 9h9l8 7v6H29z" fill={T2} /><circle cx="10" cy="24" r="4.5" fill="#0E1614" /><circle cx="37" cy="24" r="4.5" fill="#0E1614" /></svg>,
 ];
 
+/** Deterministic pseudo-random numbers, so a section looks the same on the server and in the browser. */
+function rng(seed: number) {
+  let x = (Math.abs(Math.floor(seed)) * 9301 + 49297) % 233280 || 1;
+  return () => { x = (x * 9301 + 49297) % 233280; return x / 233280; };
+}
+
+const GLOWS = ["rgba(20,184,166,.14)", "rgba(245,196,81,.17)", "rgba(143,211,198,.24)", "rgba(242,139,130,.10)"];
+const HEARTBEAT = "M0 30H160l10-14 10 28 10-40 10 44 10-18h170l8-10 8 20 8-30 8 34 8-14H700l10-14 10 28 10-40 10 44 10-18h170l8-10 8 20 8-30 8 34 8-14H1200";
+const STAR = "M0-8l2.2 5.8L8 0l-5.8 2.2L0 8l-2.2-5.8L-8 0l5.8-2.2z";
+
 /**
- * Background graphics for a plain white section: soft colour glows, a faded dot grid and a few pharmacy icons floating
- * in the side margins (wide screens only, so they never sit on text). Put it first inside a `relative isolate`
- * section: it spans the full viewport width even when the section itself is a centred column, and sits behind the content.
+ * Background graphics and motion for a plain white section: drifting colour glows, a faded dot grid, a heartbeat line
+ * that pulses across, a slowly turning dashed ring, twinkling sparkles, bubbles rising in the margins, and pharmacy
+ * icons floating at the sides (big ones in the margins on wide screens, small faint ones in the corners on narrower
+ * ones). Put it first inside a `relative isolate` section: it spans the full viewport width even when the section is
+ * a centred column, and sits behind the content. `v` picks the arrangement, so neighbouring sections differ.
  */
 export function WhiteDecor({ v = 0 }: { v?: number }) {
-  const l = LAYOUTS[((v % LAYOUTS.length) + LAYOUTS.length) % LAYOUTS.length];
+  const r = rng(v * 7 + 3);
+  const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)];
+  const side = (i: number) => (i % 2 ? "right" : "left");
+  const glows = [0, 1, 2].map((i) => ({
+    pos: [["-left-40 -top-40"], ["-right-40 top-[20%]"], ["left-[30%] bottom-[-14rem]"]][i][0],
+    c: GLOWS[(v + i) % GLOWS.length], dur: 18 + i * 5, delay: -(v * 3 + i * 6),
+  }));
+  const startIcon = Math.floor(r() * ICONS.length);
+  const big = [0, 1, 2, 3, 4, 5].map((i) => ({
+    icon: ICONS[(startIcon + i * 3) % ICONS.length], side: side(i + v),
+    x: 1.5 + r() * 3.5, y: 8 + i * 14 + r() * 8, size: 30 + r() * 20, rot: Math.round(r() * 40 - 20), dur: 7 + r() * 5,
+  }));
+  const small = [["left-3 top-3"], ["right-3 bottom-3"], ["right-[12%] top-2"]].map(([pos], i) => ({ pos, icon: ICONS[(startIcon + 1 + i * 4) % ICONS.length], rot: Math.round(r() * 30 - 15) }));
+  const stars = [0, 1, 2, 3, 4, 5].map((i) => ({ x: i % 2 ? 70 + r() * 27 : 3 + r() * 27, y: 5 + r() * 90, s: .8 + r() * .8, c: pick([T2, GOLD, T3]), d: -r() * 3 }));
+  const bubbles = [0, 1, 2, 3, 4, 5].map((i) => ({ side: side(i), x: r() * 7, y: 30 + r() * 65, s: 6 + r() * 10, dur: 7 + r() * 6, d: -r() * 10, c: pick([T3, "#F8D57E", "#CFE6E3"]) }));
+  const ecgTop = v % 2 === 0;
+  const ring = v % 3;
   return (
     <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 -z-10 overflow-hidden">
       <div className="site-dots absolute inset-0 opacity-50" />
-      {l.glows.map(([pos, c]) => <div key={pos} className={`absolute ${pos} size-[34rem] max-w-[80vw] max-h-[80vw] rounded-full`} style={{ background: `radial-gradient(closest-side, ${c}, transparent)` }} />)}
-      {l.icons.map(([k, pos], i) => <div key={k + pos} className={`site-float absolute ${pos} opacity-80 max-[1279px]:hidden`} style={{ ["--dur" as string]: `${8 + i * 1.5}s`, animationDelay: `${-i * 1.7 - v}s` }}>{ICONS[k]}</div>)}
+      {glows.map((g) => <div key={g.pos} className={`site-glow absolute ${g.pos} size-[36rem] max-w-[85vw] max-h-[85vw] rounded-full`} style={{ background: `radial-gradient(closest-side, ${g.c}, transparent)`, ["--dur" as string]: `${g.dur}s`, animationDelay: `${g.delay}s` }} />)}
+      {/* a dashed ring turning slowly in one corner */}
+      <svg viewBox="0 0 200 200" className={`site-rot absolute size-[220px] opacity-60 ${["-right-16 -top-16", "-left-20 bottom-[-4rem]", "right-[8%] bottom-[-5rem]"][ring]}`} style={{ ["--dur" as string]: `${40 + ring * 10}s` }}>
+        <circle cx="100" cy="100" r="96" fill="none" stroke={T3} strokeWidth="1.5" strokeDasharray="4 10" />
+        <circle cx="100" cy="100" r="70" fill="none" stroke="#F8D57E" strokeWidth="1.5" strokeDasharray="2 12" />
+        <circle cx="100" cy="4" r="5" fill={T2} /><circle cx="170" cy="100" r="4" fill={GOLD} />
+      </svg>
+      {/* heartbeat line with a pulse running along it */}
+      <svg viewBox="0 0 1200 60" preserveAspectRatio="none" className={`absolute inset-x-0 h-[60px] w-full opacity-60 ${ecgTop ? "top-1" : "bottom-1"}`}>
+        <path d={HEARTBEAT} fill="none" stroke="#E3F0EE" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        <path d={HEARTBEAT} fill="none" stroke={T2} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" pathLength={1000} className="site-ecg" style={{ animationDelay: `${-v * 1.3}s` }} />
+      </svg>
+      {stars.map((st, i) => (
+        <svg key={`s${i}`} viewBox="-10 -10 20 20" className="site-twinkle absolute size-4" style={{ left: `${st.x}%`, top: `${st.y}%`, scale: st.s, animationDelay: `${st.d}s` }}><path d={STAR} fill={st.c} /></svg>
+      ))}
+      {bubbles.map((b, i) => (
+        <span key={`b${i}`} className="site-rise absolute rounded-full" style={{ [b.side]: `${b.x}%`, top: `${b.y}%`, width: b.s, height: b.s, background: b.c, ["--dur" as string]: `${b.dur}s`, animationDelay: `${b.d}s` }} />
+      ))}
+      {big.map((ic, i) => (
+        <div key={`i${i}`} className="site-float absolute max-[1279px]:hidden" style={{ [ic.side]: `${ic.x}%`, top: `${ic.y}%`, width: ic.size, ["--r" as string]: `${ic.rot}deg`, ["--dur" as string]: `${ic.dur}s`, animationDelay: `${-i * 1.3 - v}s` }}>{ic.icon}</div>
+      ))}
+      {small.map((ic, i) => (
+        <div key={`m${i}`} className={`site-float absolute ${ic.pos} w-6 opacity-50 min-[1280px]:hidden`} style={{ ["--r" as string]: `${ic.rot}deg`, animationDelay: `${-i * 2 - v}s` }}>{ic.icon}</div>
+      ))}
     </div>
   );
 }

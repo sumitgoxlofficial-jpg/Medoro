@@ -12,7 +12,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
-import { Aurora, FloatingShapes, HelpArt, SupplyChainArt } from "@/components/site/decor";
+import { Aurora, HelpArt, SupplyChainArt, WhiteDecor } from "@/components/site/decor";
 import { HeroVideo } from "@/components/site/hero-video";
 
 /**
@@ -161,7 +161,8 @@ export default async function Home() {
         </section>
 
         {/* The company's promises. */}
-        <section aria-label={t("Why businesses trust Medoro")} className="border-b border-[var(--s-line)] bg-white">
+        <section aria-label={t("Why businesses trust Medoro")} className="relative isolate border-b border-[var(--s-line)] bg-white">
+          <WhiteDecor v={5} />
           <ul className={`${wrap} m-0 list-none py-7 grid gap-x-6 gap-y-4 grid-cols-2 min-[720px]:grid-cols-3 min-[1100px]:grid-cols-5`}>
             {TRUST.map(([Icon, l], i) => (
               <li key={l} data-reveal style={{ ["--d" as string]: i }} className="flex items-center gap-2.5 text-[15.5px] font-semibold text-[var(--s-ink)]"><span className="size-9 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center flex-none"><Icon size={18} aria-hidden className="text-[var(--s-brand)]" /></span>{t(l)}</li>
@@ -170,8 +171,8 @@ export default async function Home() {
         </section>
 
         {/* About the company */}
-        <section id="about" aria-labelledby="about-title" className="relative overflow-hidden">
-          <Aurora />
+        <section id="about" aria-labelledby="about-title" className="relative isolate">
+          <WhiteDecor v={0} />
           <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10 items-start`}>
           <div data-reveal className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
             <span className={eyebrow}>{t("About Medoro")}</span>
@@ -228,9 +229,8 @@ export default async function Home() {
         </section>
 
         {/* Why Medoro */}
-        <section id="why" aria-labelledby="why-title" className="relative overflow-hidden">
-          <Aurora />
-          <div aria-hidden className="absolute inset-0 opacity-50"><FloatingShapes /></div>
+        <section id="why" aria-labelledby="why-title" className="relative isolate">
+          <WhiteDecor v={1} />
           <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Why Medoro")}</span>
@@ -279,10 +279,8 @@ export default async function Home() {
         </section>
 
         {/* Who we serve */}
-        <section id="serve" aria-labelledby="serve-title" className="relative overflow-hidden">
-          <div aria-hidden className="pointer-events-none absolute inset-0 site-dots opacity-70" />
-          <div aria-hidden className="pointer-events-none absolute -right-24 top-10 size-[340px] rounded-full bg-[#F5C451]/15 blur-[70px]" />
-          <div aria-hidden className="pointer-events-none absolute -left-24 bottom-0 size-[320px] rounded-full bg-[#14B8A6]/12 blur-[70px]" />
+        <section id="serve" aria-labelledby="serve-title" className="relative isolate">
+          <WhiteDecor v={2} />
           <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Who we serve")}</span>
@@ -320,8 +318,8 @@ export default async function Home() {
         </section>
 
         {/* Company */}
-        <section id="company" aria-labelledby="company-title" className="relative overflow-hidden">
-          <Aurora />
+        <section id="company" aria-labelledby="company-title" className="relative isolate">
+          <WhiteDecor v={3} />
           <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Company")}</span>
@@ -343,7 +341,8 @@ export default async function Home() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">
+        <section id="faq" aria-labelledby="faq-title" className="relative isolate border-t border-[var(--s-line)]">
+          <WhiteDecor v={4} />
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
               <span className={eyebrow}>{t("FAQ")}</span>
@@ -365,7 +364,8 @@ export default async function Home() {
         </section>
 
         {/* Contact */}
-        <section id="contact" aria-labelledby="contact-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
+        <section id="contact" aria-labelledby="contact-title" className={`relative isolate ${wrap} pb-[clamp(72px,10vw,128px)]`}>
+          <WhiteDecor v={6} />
           <div data-reveal className="site-dark relative overflow-hidden rounded-2xl bg-[var(--s-dark)] text-white p-[clamp(28px,5vw,64px)] grid grid-cols-12 gap-x-6 gap-y-8 items-center">
             <Aurora dark />
             <div className="relative col-span-12 min-[1000px]:col-span-7 flex flex-col gap-4">
