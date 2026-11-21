@@ -4,7 +4,6 @@ import { db } from "@/server/db";
 import { accessFor } from "@/domain/system/access";
 import { subscriptionBanner } from "@/domain/system/subscription";
 import { DistShell } from "./_ui/shell";
-import { dataInDrive } from "@/domain/system/drive-state";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: { default: "MEDORO Distribution", template: "%s · MEDORO Distribution" }, robots: { index: false } };
@@ -21,7 +20,8 @@ export default async function DistLayout({ children }: { children: React.ReactNo
     accessFor(ctx.tenantId),
   ]);
   const b = subscriptionBanner(access);
-  const drive = dataInDrive((await db.tenant.findUnique({ where: { id: ctx.tenantId }, select: { settings: true } }))?.settings);
+  // Records in its own Drive, or required to move them there: the menu opens the device screens.
+  const drive = !!ctx.moved || !!ctx.mustMove;
   const banner = ctx.readOnly ? { text: "Medoro support has read-only access.", tone: "amber" as const } : b ? { text: b.text, tone: (b.tone === "red" ? "red" : "amber") as "red" | "amber" } : null;
   const alerts = [
     ...(orders ? [`${orders} order(s) awaiting approval.`] : []),

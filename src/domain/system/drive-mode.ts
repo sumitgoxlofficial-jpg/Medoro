@@ -1,4 +1,5 @@
 import "server-only";
+import { distMasters } from "./drive-move";
 import { db } from "@/server/db";
 import { writeAudit } from "@/server/audit";
 import { UserError } from "@/server/action";
@@ -50,10 +51,17 @@ export async function deviceSeed(ctx: Ctx) {
     counterSettings(ctx),
   ]);
   await writeAudit(db, { tenantId: ctx.tenantId, userId: ctx.userId, userName: ctx.userName, action: "Catalogue copied to a device", entity: "tenant", entityId: ctx.tenantId, detail: `${meds.length} medicines, ${batches.length} batches, ${customers.length} customers (${settings.branch.name})` });
-  const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { product: true } });
+  const t = await db.tenant.findUniqueOrThrow({ where: { id: ctx.tenantId }, select: { product: true, settings: true } });
+  // A distributor's device also gets its wholesale masters and suppliers (same ids, so a later move skips them).
+  const dist = t.product === "distribution" ? {
+    tables: await distMasters(ctx.tenantId),
+    settings: ((t.settings ?? {}) as { dist?: Record<string, unknown> }).dist ?? {},
+    suppliers: (await db.supplier.findMany({ where: { tenantId: ctx.tenantId } })).map((s) => ({ id: s.id, name: s.name, phone: s.phone, gstin: s.gstin, dl: null, address: null })),
+  } : undefined;
   return {
     ...settings,
     product: t.product === "distribution" ? "distribution" as const : "pharmacy" as const,
+    dist,
     medicines: meds.map(deviceMedicine),
     batches: batches.map((b) => ({
       id: b.id, medicineId: b.medicineId, batchNo: b.batchNo, expiryDate: isoOf(b.expiryDate), costPaise: big(b.costPaise), mrpPaise: big(b.mrpPaise),

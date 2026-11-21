@@ -7,6 +7,9 @@ import { createReturn, raiseDistClaim } from "@/domain/distribution/returns";
 import { collectPayment, createDispatch, recordDelivery, startDispatch } from "@/domain/distribution/dispatch";
 import { customerBalances } from "@/domain/parties/balances";
 import { MOVE_PARTS, moveExport, startMove, undoMove, type MoveBase } from "@/domain/system/drive-move";
+import { deviceSeed } from "@/domain/system/drive-mode";
+import { importSeed } from "@/drivedb/seed";
+import { quote } from "@/drivedb/dist-views";
 import { memoryDb } from "@/drivedb/node";
 import { beginMove, finishMove, importPart } from "@/drivedb/migrate-in";
 import { customerBalance } from "@/drivedb/trade";
@@ -57,6 +60,19 @@ describe("Moving a distributor's records to Google Drive", () => {
     const o = await placeOrder({ kind: "user", ctx }, { customerId: s.customerId, idempotencyKey: key(), lines: [{ medicineId: s.medicineId, qty: 1 }] });
     await expect(startMove(ctx)).rejects.toThrow(/1 order\(s\) are still open/);
     await db.distOrder.update({ where: { id: o.orderId }, data: { status: "cancelled" } });
+  });
+
+  it("loading the catalogue onto a device brings the wholesale terms, chemist profiles, schemes and principals", async () => {
+    const ctx = await distCtx();
+    const seed = await deviceSeed(ctx);
+    expect(seed.product).toBe("distribution");
+    const dev = await memoryDb("DISTSEED");
+    expect(importSeed(dev, seed, ctx.userId).product).toBe("distribution");
+    const count = (t: string) => Number(dev.engine.all<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t}`)[0].n);
+    expect([count("distProduct"), count("distChemist"), count("distScheme"), count("distSpecialRate"), count("distPrincipal")]).toEqual([1, 1, 1, 1, 1]);
+    expect(count("supplier")).toBeGreaterThan(0);
+    // Billable straight away: the special rate (₹48) and the 10 + 1 scheme apply.
+    expect(quote(dev, s.customerId, [{ medicineId: s.medicineId, qty: 10 }]).lines[0]).toMatchObject({ rate: 4800, freeQty: 1, problem: null });
   });
 
   it("the device loads everything, every check passes, and balances and returned goods equal Medoro's", async () => {

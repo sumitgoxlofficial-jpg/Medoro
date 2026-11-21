@@ -21,7 +21,11 @@ export type Seed = {
   medicines: Record<string, string | number | boolean | null>[];
   batches: { id: string; medicineId: string; batchNo: string; expiryDate: string; costPaise: number; mrpPaise: number; status: string; qty: number }[];
   customers: { id: string; name: string; phone: string | null; gstin: string | null; creditLimitPaise: number }[];
+  /** A distributor: its wholesale masters (companies, product terms, chemist profiles, special rates, schemes, principals), suppliers and settings. */
+  dist?: { tables: Partial<Record<(typeof DIST_MASTERS)[number], Record<string, string | number | boolean | null>[]>>; settings: Record<string, unknown>; suppliers: Record<string, string | number | boolean | null>[] };
 };
+/** The distributor masters a seed may carry, each after the ones it points to. */
+const DIST_MASTERS = ["distCompany", "distProduct", "distChemist", "distSpecialRate", "distScheme", "distPrincipal"] as const;
 
 export type CounterConfig = { product: "pharmacy" | "distribution"; branchId: string; branchName: string; series: string; maxDiscountPct: number; pharmacy: Pharmacy | null; userId: string | null; userName: string; pinSet: boolean; loyalty: Loyalty; branches: { id: string; name: string; code: string }[]; movedFromMedoro: string | null };
 
@@ -40,6 +44,11 @@ export function importSeed(db: DriveDB, seed: Seed, userId: string): CounterConf
       db.from("stockMovement").insert(seed.batches.map((b) => ({ branchId: seed.branch.id, batchId: b.id, qty: b.qty, type: "opening", refType: "opening", refId: b.id, userId, at, note: "Copied from Medoro" })));
     }
     if (seed.customers.length) db.from("customer").insert(seed.customers);
+    if (seed.dist) {
+      if (seed.dist.suppliers.length) db.from("supplier").insert(seed.dist.suppliers);
+      for (const t of DIST_MASTERS) { const rows = seed.dist.tables[t] ?? []; if (rows.length) db.from(t).insert(rows); }
+      db.setMeta("dist", JSON.stringify(seed.dist.settings));
+    }
     db.setMeta("branchId", seed.branch.id);
     db.setMeta("product", seed.product === "distribution" ? "distribution" : "pharmacy");
     db.setMeta("branchName", seed.branch.name);

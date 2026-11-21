@@ -1,4 +1,5 @@
 "use client";
+import { addDays, todayISO } from "@/lib/dates";
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -182,8 +183,9 @@ function Schemes({ cos, products }: { cos: { id: string; name: string }[]; produ
   const t = useT();
   const dev = deviceDb();
   const [rows, setRows] = useState<{ id: string; code: string; name: string; kind: string; target: string | null; buyQty: number; freeQty: number; discPct: number; validTo: string; active: boolean }[]>([]);
-  const today = new Date().toISOString().slice(0, 10);
-  const [s, setS] = useState({ code: "", kind: "free" as "free" | "discount", target: "", buy: "10", free: "1", disc: "", from: today, to: today });
+  // India's date, as billing uses (todayISO); a new scheme runs for 30 days unless changed.
+  const today = todayISO();
+  const [s, setS] = useState({ code: "", kind: "free" as "free" | "discount", target: "", buy: "10", free: "1", disc: "", from: today, to: addDays(today, 30) });
   const load = useCallback(() => dev.call("distSchemes").then(setRows, () => setRows([])), [dev]);
   useEffect(() => { void load(); }, [load]);
   const save = async () => {

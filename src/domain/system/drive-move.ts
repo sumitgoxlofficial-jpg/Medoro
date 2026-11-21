@@ -502,14 +502,11 @@ async function distReadyToMove(tenantId: string) {
 }
 
 /**
- * A distributor's records in the device's own form (src/drivedb/dist*.ts): companies, product terms, chemist profiles,
- * special rates, schemes, principals, wholesale invoices (and cancellations), credit notes, proof of delivery and
- * collections; its settings; what each chemist was billed and credited (for the opening balances); and an opening
- * adjustment so each batch's returned-goods pool equals the quarantined stock on Medoro.
+ * A distributor's masters in the device's form: companies, product terms, chemist profiles, special rates, schemes and
+ * principals. The move carries them, and so does loading the catalogue onto a device (same ids, so a later move skips them).
  */
-async function moveDist(ctx: Ctx, tenantSettings: Record<string, unknown>, movedMoney: Set<string>) {
-  const t = ctx.tenantId;
-  const [cos, products, chems, custs, specials, schemes, principals, invs, cancels, rets, deliveries, collections, batches] = await Promise.all([
+export async function distMasters(t: string) {
+  const [cos, products, chems, custs, specials, schemes, principals] = await Promise.all([
     db.distCompany.findMany({ where: { tenantId: t } }),
     db.distProduct.findMany({ where: { tenantId: t } }),
     db.distChemist.findMany({ where: { tenantId: t } }),
@@ -517,6 +514,32 @@ async function moveDist(ctx: Ctx, tenantSettings: Record<string, unknown>, moved
     db.distSpecialRate.findMany({ where: { tenantId: t } }),
     db.distScheme.findMany({ where: { tenantId: t } }),
     db.distPrincipal.findMany({ where: { tenantId: t } }),
+  ]);
+  const state = new Map(custs.map((c) => [c.id, c.stateCode]));
+  const principalCo = new Map(principals.map((p) => [p.id, p.companyId]));
+  const iso = (d: Date | null) => (d ? isoOf(d) : null);
+  return {
+    distCompany: cos.map((c) => ({ id: c.id, name: c.name, shortName: c.shortName, gstin: c.gstin, phone: c.phone, active: c.active ? 1 : 0 })),
+    distProduct: products.map((p) => ({ id: p.medicineId, companyId: p.companyId ?? (p.principalId ? principalCo.get(p.principalId) ?? null : null), division: p.division, ptrPaise: big(p.ptrPaise), ptsPaise: big(p.ptsPaise), minOrderQty: p.minOrderQty, portalVisible: p.portalVisible ? 1 : 0, discontinued: p.discontinued ? 1 : 0 })),
+    distChemist: chems.map((c) => ({ id: c.customerId, ownerName: c.ownerName, stateCode: state.get(c.customerId) ?? null, dl20b: c.dl20b, dl21b: c.dl21b, dlExpiry: iso(c.dlExpiry), creditDays: c.creditDays, graceDays: c.graceDays,
+      territoryId: c.territoryId, salesmanId: c.salesmanId, priceTier: c.priceTier === "pts" ? "pts" : "ptr", status: ["active", "hold", "blocked"].includes(c.status) ? c.status : "active", statusNote: c.statusNote, portalAccountId: c.portalAccountId })),
+    distSpecialRate: specials.map((r) => ({ id: `${r.customerId}:${r.medicineId}`, customerId: r.customerId, medicineId: r.medicineId, ratePaise: big(r.ratePaise), validTo: iso(r.validTo) })),
+    distScheme: schemes.map((x) => ({ id: x.id, code: x.code, name: x.name, kind: x.kind, medicineId: x.medicineId, companyId: x.companyId, buyQty: x.buyQty, freeQty: x.freeQty, discPct: Number(x.discPct), minQty: x.minQty,
+      customerIds: JSON.stringify(x.customerIds), validFrom: isoOf(x.validFrom), validTo: isoOf(x.validTo), active: x.active ? 1 : 0 })),
+    distPrincipal: principals.map((p) => ({ id: p.id, companyId: p.companyId, supplierId: p.supplierId, marginPct: Number(p.marginPct), claimBeforeDays: p.claimBeforeDays, claimAfterDays: p.claimAfterDays, claimCreditPct: Number(p.claimCreditPct), active: p.active ? 1 : 0 })),
+  };
+}
+
+/**
+ * A distributor's records in the device's own form (src/drivedb/dist*.ts): companies, product terms, chemist profiles,
+ * special rates, schemes, principals, wholesale invoices (and cancellations), credit notes, proof of delivery and
+ * collections; its settings; what each chemist was billed and credited (for the opening balances); and an opening
+ * adjustment so each batch's returned-goods pool equals the quarantined stock on Medoro.
+ */
+async function moveDist(ctx: Ctx, tenantSettings: Record<string, unknown>, movedMoney: Set<string>) {
+  const t = ctx.tenantId;
+  const [masters, invs, cancels, rets, deliveries, collections, batches] = await Promise.all([
+    distMasters(t),
     db.distInvoice.findMany({ where: { tenantId: t }, include: { lines: true }, orderBy: { at: "asc" } }),
     db.distInvoiceCancel.findMany({ where: { tenantId: t } }),
     db.distReturn.findMany({ where: { tenantId: t }, include: { lines: true }, orderBy: { at: "asc" } }),
@@ -524,8 +547,6 @@ async function moveDist(ctx: Ctx, tenantSettings: Record<string, unknown>, moved
     db.distCollection.findMany({ where: { tenantId: t } }),
     db.batch.findMany({ where: { tenantId: t }, select: { id: true, qtyQuarantined: true, medicine: { select: { packSize: true } } } }),
   ]);
-  const state = new Map(custs.map((c) => [c.id, c.stateCode]));
-  const principalCo = new Map(principals.map((p) => [p.id, p.companyId]));
   const cancelled = new Set(cancels.map((c) => c.invoiceId));
   const billed = new Map<string, number>(), credited = new Map<string, number>();
   for (const i of invs) if (!cancelled.has(i.id)) billed.set(i.customerId, (billed.get(i.customerId) ?? 0) + big(i.totalPaise));
@@ -540,16 +561,8 @@ async function moveDist(ctx: Ctx, tenantSettings: Record<string, unknown>, moved
     return extra > 0 ? [{ id: `open-${b.id}`, claimId: null, batchId: b.id, fromReturnsUnits: extra, at: OPENING_AT }] : [];
   });
   const vouchers = new Map((await db.voucher.findMany({ where: { tenantId: t, no: { in: collections.map((c) => c.voucherNo) } }, select: { id: true, no: true } })).map((v) => [v.no, v.id]));
-  const iso = (d: Date | null) => (d ? isoOf(d) : null);
   const tables = {
-    distCompany: cos.map((c) => ({ id: c.id, name: c.name, shortName: c.shortName, gstin: c.gstin, phone: c.phone, active: c.active ? 1 : 0 })),
-    distProduct: products.map((p) => ({ id: p.medicineId, companyId: p.companyId ?? (p.principalId ? principalCo.get(p.principalId) ?? null : null), division: p.division, ptrPaise: big(p.ptrPaise), ptsPaise: big(p.ptsPaise), minOrderQty: p.minOrderQty, portalVisible: p.portalVisible ? 1 : 0, discontinued: p.discontinued ? 1 : 0 })),
-    distChemist: chems.map((c) => ({ id: c.customerId, ownerName: c.ownerName, stateCode: state.get(c.customerId) ?? null, dl20b: c.dl20b, dl21b: c.dl21b, dlExpiry: iso(c.dlExpiry), creditDays: c.creditDays, graceDays: c.graceDays,
-      territoryId: c.territoryId, salesmanId: c.salesmanId, priceTier: c.priceTier === "pts" ? "pts" : "ptr", status: ["active", "hold", "blocked"].includes(c.status) ? c.status : "active", statusNote: c.statusNote, portalAccountId: c.portalAccountId })),
-    distSpecialRate: specials.map((r) => ({ id: `${r.customerId}:${r.medicineId}`, customerId: r.customerId, medicineId: r.medicineId, ratePaise: big(r.ratePaise), validTo: iso(r.validTo) })),
-    distScheme: schemes.map((x) => ({ id: x.id, code: x.code, name: x.name, kind: x.kind, medicineId: x.medicineId, companyId: x.companyId, buyQty: x.buyQty, freeQty: x.freeQty, discPct: Number(x.discPct), minQty: x.minQty,
-      customerIds: JSON.stringify(x.customerIds), validFrom: isoOf(x.validFrom), validTo: isoOf(x.validTo), active: x.active ? 1 : 0 })),
-    distPrincipal: principals.map((p) => ({ id: p.id, companyId: p.companyId, supplierId: p.supplierId, marginPct: Number(p.marginPct), claimBeforeDays: p.claimBeforeDays, claimAfterDays: p.claimAfterDays, claimCreditPct: Number(p.claimCreditPct), active: p.active ? 1 : 0 })),
+    ...masters,
     distInvoice: invs.map((i) => ({ id: i.id, branchId: i.branchId, deviceId: MOVED_FROM, no: i.no, orderId: null, customerId: i.customerId, salesmanId: i.salesmanId, date: isoOf(i.date), dueDate: isoOf(i.dueDate), placeOfSupply: i.placeOfSupply,
       customerGstin: i.customerGstin, igst: i.igst ? 1 : 0, grossPaise: big(i.grossPaise), discPaise: big(i.discPaise), taxablePaise: big(i.taxablePaise), cgstPaise: big(i.cgstPaise), sgstPaise: big(i.sgstPaise), igstPaise: big(i.igstPaise),
       roundOffPaise: big(i.roundOffPaise), totalPaise: big(i.totalPaise), costPaise: big(i.costPaise), idempotencyKey: i.idempotencyKey, userId: i.createdBy, at: i.at.toISOString() })),
