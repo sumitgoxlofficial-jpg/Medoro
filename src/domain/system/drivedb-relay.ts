@@ -1,4 +1,5 @@
 import "server-only";
+import { ackDistInbox, distInboxFor, linkConnection, publishPortal, type PublishInput } from "@/domain/distribution/drive-portal";
 import { ackInbox, inboxFor } from "./customer-pay";
 import { z } from "zod";
 import { db } from "@/server/db";
@@ -150,6 +151,20 @@ export async function relay(ctx: Ctx, deviceId: string, op: string, p: URLSearch
     case "inbox-ack": {
       const ids = (p.get("ids") ?? "").split(",").filter(Boolean);
       return { deleted: await ackInbox(ctx.tenantId, ids) };
+    }
+    // MEDORO Distribution in Drive mode: portal orders sealed for this device, and what it publishes for the portal.
+    case "dist-inbox": return { messages: await distInboxFor(ctx.tenantId, device.deviceId) };
+    case "dist-inbox-ack": return { deleted: await ackDistInbox(ctx.tenantId, (p.get("keys") ?? "").split(",").filter(Boolean)) };
+    case "dist-publish": {
+      if (body.length > 8 * 1024 * 1024) throw new UserError("The catalogue is too big to publish.");
+      let payload: unknown;
+      try { payload = JSON.parse(body.toString("utf8")); } catch { throw new UserError("Bad catalogue."); }
+      return publishPortal(ctx.tenantId, device.deviceId, payload as PublishInput);
+    }
+    case "dist-link": {
+      if (device.role !== "owner") throw new UserError("Only the owner’s device can approve portal chemists.");
+      await linkConnection(ctx.tenantId, ctx.userId, p.get("connection") ?? "", p.get("customer") ?? "");
+      return { ok: true };
     }
     case "health": {
       // The device's own report after a sync: worked, or the error text. No data, only for the owner's alerts.

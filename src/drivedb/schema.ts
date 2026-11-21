@@ -206,7 +206,7 @@ export const TABLES = {
   },
   distChemist: {
     kind: "mutable",
-    columns: ["id", "ownerName", "stateCode", "dl20b", "dl21b", "dlExpiry", "creditDays", "graceDays", "territoryId", "salesmanId", "priceTier", "status", "statusNote", ...MUTABLE],
+    columns: ["id", "ownerName", "stateCode", "dl20b", "dl21b", "dlExpiry", "creditDays", "graceDays", "territoryId", "salesmanId", "priceTier", "status", "statusNote", "portalAccountId", ...MUTABLE],
   },
   distSpecialRate: {
     kind: "mutable",
@@ -795,6 +795,12 @@ export const MIGRATIONS: readonly string[] = [
   ` + ["distReturn", "distReturnLine", "distClaimSource", "distDispatch", "distDeliveryEvent", "distCollection"].map((t) =>
     `CREATE TRIGGER ${t}_no_update BEFORE UPDATE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be changed'); END;
      CREATE TRIGGER ${t}_no_delete BEFORE DELETE ON ${t} BEGIN SELECT RAISE(ABORT, 'Saved records cannot be deleted'); END;`).join("\n"),
+  // @@MIGRATION 18 distribution portal link
+  // 18: the chemist portal account a chemist is linked to (orders from the portal arrive with that account).
+  `
+  ALTER TABLE distChemist ADD COLUMN portalAccountId TEXT;
+  CREATE INDEX distChemist_portal ON distChemist(portalAccountId);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;

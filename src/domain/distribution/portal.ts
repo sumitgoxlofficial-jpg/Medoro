@@ -1,4 +1,6 @@
 import "server-only";
+import { dataInDrive } from "@/domain/system/drive-state";
+import { driveCancelOrder, driveCatalogue, driveOrders, drivePlaceOrder, driveQuote } from "./drive-portal";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { cookies } from "next/headers";
@@ -233,6 +235,8 @@ export async function portalLink(account: PortalAccount, tenantCode: string) {
 
 export async function portalCatalogue(account: PortalAccount, tenantCode: string, q = "", take = 60) {
   const L = await portalLink(account, tenantCode);
+  // A distributor whose records are in its Drive: the catalogue its device published.
+  if (dataInDrive(L.tenant.settings)) return driveCatalogue(L.tenant.id, account.id, q, take);
   const needle = q.trim();
   const dps = await db.distProduct.findMany({ where: { tenantId: L.tenant.id, portalVisible: true, discontinued: false } });
   const meds = await db.medicine.findMany({ where: { tenantId: L.tenant.id, active: true, id: { in: dps.map((d) => d.medicineId) }, ...(needle ? { OR: [{ name: { contains: needle, mode: "insensitive" } }, { generic: { contains: needle, mode: "insensitive" } }] } : {}) }, orderBy: { name: "asc" }, take });
@@ -253,6 +257,7 @@ export async function portalCatalogue(account: PortalAccount, tenantCode: string
 
 export async function portalQuote(account: PortalAccount, tenantCode: string, lines: { medicineId: string; qty: number }[]) {
   const L = await portalLink(account, tenantCode);
+  if (dataInDrive(L.tenant.settings)) return driveQuote(L.tenant.id, account.id, lines);
   const branch = await db.branch.findFirstOrThrow({ where: { tenantId: L.tenant.id, active: true }, orderBy: { createdAt: "asc" } });
   const q = await quote(db, L.tenant.id, branch.id, L.customerId, lines);
   return q.map((l) => ({ ...l, available: undefined, stock: stockBand(l.available, L.settings.portal.stock) }));
@@ -260,6 +265,10 @@ export async function portalQuote(account: PortalAccount, tenantCode: string, li
 
 export async function portalPlaceOrder(account: PortalAccount, tenantCode: string, lines: { medicineId: string; qty: number }[], note: string, idempotencyKey: string) {
   const L = await portalLink(account, tenantCode);
+  if (dataInDrive(L.tenant.settings)) {
+    const r = await drivePlaceOrder(L.tenant.id, account, L.customerId, { lines, note, idempotencyKey });
+    return { orderId: r.orderKey, no: "Sent", status: "pending", replayed: r.replayed, creditOk: true, reasons: [] as string[] };
+  }
   const hidden = await db.distProduct.count({ where: { tenantId: L.tenant.id, medicineId: { in: lines.map((l) => l.medicineId) }, OR: [{ portalVisible: false }, { discontinued: true }] } });
   if (hidden) throw new UserError("A product in your cart is no longer offered on the portal. Remove it and try again.");
   return placeOrder({ kind: "chemist", tenantId: L.tenant.id, accountId: account.id, customerId: L.customerId }, { customerId: L.customerId, source: "portal", note, idempotencyKey, lines });
@@ -267,11 +276,13 @@ export async function portalPlaceOrder(account: PortalAccount, tenantCode: strin
 
 export async function portalCancelOrder(account: PortalAccount, tenantCode: string, orderId: string) {
   const L = await portalLink(account, tenantCode);
+  if (dataInDrive(L.tenant.settings)) return driveCancelOrder(L.tenant.id, account.id, L.customerId, orderId);
   return cancelOrder({ kind: "chemist", tenantId: L.tenant.id, accountId: account.id, customerId: L.customerId }, orderId, "Cancelled by chemist");
 }
 
 export async function portalOrders(account: PortalAccount, tenantCode: string) {
   const L = await portalLink(account, tenantCode);
+  if (dataInDrive(L.tenant.settings)) return driveOrders(L.tenant.id, account.id);
   const orders = await db.distOrder.findMany({ where: { tenantId: L.tenant.id, customerId: L.customerId }, include: { lines: true }, orderBy: { placedAt: "desc" }, take: 100 });
   const meds = await db.medicine.findMany({ where: { id: { in: [...new Set(orders.flatMap((o) => o.lines.map((l) => l.medicineId)))] } }, select: { id: true, name: true, pack: true } });
   const invs = await db.distInvoice.findMany({ where: { id: { in: orders.map((o) => o.invoiceId).filter((x): x is string => !!x) } }, select: { id: true, no: true, totalPaise: true } });
@@ -279,8 +290,12 @@ export async function portalOrders(account: PortalAccount, tenantCode: string) {
     lines: o.lines.map((l) => ({ medicineId: l.medicineId, name: meds.find((m) => m.id === l.medicineId)?.name ?? "—", pack: meds.find((m) => m.id === l.medicineId)?.pack ?? "", qty: l.qty, freeQty: l.freeQty })) }));
 }
 
+/** Shown for a distributor whose records are in its Drive: balances and invoices aren't on Medoro's server. */
+const KEPT_BY_DISTRIBUTOR = "This distributor keeps your account and invoices on its own system, not on Medoro. Ask them for your statement or an invoice copy.";
+
 export async function portalAccountSummary(account: PortalAccount, tenantCode: string) {
   const L = await portalLink(account, tenantCode);
+  if (dataInDrive(L.tenant.settings)) throw new UserError(KEPT_BY_DISTRIBUTOR);
   const [balance, invs, cancels, chem, cust] = await Promise.all([
     customerBalance(db, L.tenant.id, L.customerId),
     db.distInvoice.findMany({ where: { tenantId: L.tenant.id, customerId: L.customerId }, orderBy: { date: "desc" }, take: 200 }),
@@ -302,6 +317,7 @@ export async function portalAccountSummary(account: PortalAccount, tenantCode: s
 /** An invoice of this chemist only (the id alone is not enough). */
 export async function portalInvoice(account: PortalAccount, tenantCode: string, invoiceId: string) {
   const L = await portalLink(account, tenantCode);
+  if (dataInDrive(L.tenant.settings)) throw new UserError(KEPT_BY_DISTRIBUTOR);
   const inv = await db.distInvoice.findFirst({ where: { id: invoiceId, tenantId: L.tenant.id, customerId: L.customerId }, select: { id: true } });
   if (!inv) throw new UserError("Invoice not found.");
   return invoiceView(L.tenant.id, inv.id);

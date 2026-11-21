@@ -60,6 +60,22 @@ export function relayInbox(device: string, base = "/api/drivedb", f: typeof fetc
   };
 }
 
+/** MEDORO Distribution in Drive mode: sealed portal orders for this device, and what it publishes for the chemist portal. */
+export function relayDistPortal(device: string, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
+  const call = async (op: string, extra: Record<string, string> = {}, body?: string) => {
+    const r = await f(`${base}?${new URLSearchParams({ op, device, ...extra })}`, { method: "POST", credentials: "same-origin", ...(body ? { body, headers: { "content-type": "application/json" } } : {}) });
+    const j = (await r.json().catch(() => ({}))) as { messages?: { key: string; sealed: string }[]; error?: string };
+    if (!r.ok) throw r.status === 403 || r.status === 401 ? new RelayRefusedError(j.error ?? `Relay error ${r.status}`) : new Error(j.error ?? `Relay error ${r.status}`);
+    return j;
+  };
+  return {
+    list: async () => (await call("dist-inbox")).messages ?? [],
+    ack: async (keys: string[]) => { if (keys.length) await call("dist-inbox-ack", { keys: keys.join(",") }); },
+    publish: async (payload: unknown) => { await call("dist-publish", {}, JSON.stringify(payload)); },
+    link: async (connection: string, customer: string) => { await call("dist-link", { connection, customer }); },
+  };
+}
+
 /** Tells Medoro whether this device's last sync worked (for the owner's alerts). Never throws. */
 export async function reportHealth(device: string, error: string | null, base = "/api/drivedb", f: typeof fetch = fetch.bind(globalThis)) {
   const q = new URLSearchParams({ op: "health", device, ok: error ? "0" : "1", ...(error ? { error: error.slice(0, 300) } : {}) });

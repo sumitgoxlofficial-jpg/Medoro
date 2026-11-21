@@ -21,7 +21,7 @@ records stay on the hosted server) is turned off.
 | D2 | Orders: placing (salesmen for their own chemists), credit hold and release, approval with FEFO stock reservation (pick lines; short lines refused or cut with free goods in proportion), picking (short picks), packing, invoicing exactly what was picked; cancelling or rejecting; counter bills and credit exposure respect reservations. Godown transfers use the existing device transfer (`ops.transferStock`). | **Built** (`src/drivedb/dist-orders.ts`) |
 | D3 | Credit notes (saleable back to stock; expired / damaged wait to be claimed; credit % and proportional GST), principals and expiry / breakage claims on companies (returned goods first, then shelf; claim window and expected credit; expiry workbench), van trips and proof of delivery (cash, UPI or cheque collected at the door; failed drops back to the desk; orders follow: dispatched, delivered), collections (salesmen for their own chemists), receivables with ageing and credit risk, chemist statements, wholesale invoices and credit notes in the device's GSTR-1 / GSTR-3B / HSN (cancelled invoices listed as cancelled). | **Built** (`src/drivedb/dist-trade.ts`) |
 | D4 | Screens: the distribution app on the device (like Billing (device) for pharmacies), and staff devices (warehouse, salesman, delivery) through the existing relay. | |
-| D5 | Chemist ordering portal in Drive mode: what chemists may see is published by the distributor's device, and their orders reach the distributor's devices through a sealed inbox (as customer payments do for pharmacies). | Decided: option 1 (below) |
+| D5 | Chemist ordering portal in Drive mode (option 1): the device publishes the catalogue (products, PTR / PTS, MRP if shown, stock as the distributor chose to show it, schemes open to every chemist, each portal chemist's tier); a chemist's order is sealed for the distributor's devices and deleted once a device takes it in (it then waits for approval like any order, same credit rules); the device reports each portal order's status (order no, invoice no and total); cancelling while unapproved; approving a portal chemist adds them on the device and Medoro keeps only the link. Account statements and invoice copies stay with the distributor. | **Built** (`src/drivedb/dist-portal.ts`, `src/domain/distribution/drive-portal.ts`, migration `20261221000000_dist_portal_drive`, device migration 18) |
 | D6 | Moving existing distributors from Medoro's database to their Drive (the pharmacy move, extended), Drive sign-up for distributors, then `DIST_HOSTED` off. | |
 
 ## Decided for D5: the chemist portal (option 1, chosen by the owner on 21 Nov 2026)
@@ -51,6 +51,13 @@ copy to sync is kept.
 - `src/drivedb/dist-trade.test.ts`: credit notes and the returned-goods pool, claims within the principal's window,
   trips with delivery, failure and re-dispatch, cheque collected at the door, salesman collections, ageing,
   statements, and GSTR-1 with wholesale B2B invoices, credit notes, cancelled documents and HSN.
+- `src/drivedb/dist-portal.test.ts`: the published catalogue (only portal products; stock net of orders; schemes open to all;
+  MRP and stock view as chosen; nothing of the books), portal orders taken in (idempotent, refused ones reported,
+  waiting for chemists not synced yet), cancellations, statuses through to the invoice, linking portal chemists.
+- `tests/integration/dist-drive-portal.test.ts`: end to end with real keys: connect, approve on the device, browse the
+  published catalogue, order (sealed: Medoro can't read it), the device takes it in and invoices it, the chemist sees
+  the status and invoice number; Medoro's database holds no medicines, stock, chemists, orders or invoices for the
+  distributor.
 - `tests/integration/dist-drive.test.ts`: the same bills on Medoro's server and on a device loaded from the server's
   records give identical invoices (every total and every line: batch, packs, free goods, rate, discount, taxable, tax), and an
   order taken through approval, a short pick, packing and invoicing reserves the same batches and invoices the same.

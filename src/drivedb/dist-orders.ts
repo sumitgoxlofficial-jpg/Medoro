@@ -89,7 +89,9 @@ function quote(db: DriveDB, branchId: string, chem: Chem, lines: { medicineId: s
 
 export const orderInput = z.object({
   branchId: z.string().min(1), customerId: z.string().min(1, "Choose the chemist."), userId: z.string().min(1),
-  source: z.enum(["salesman", "phone", "office"]).default("office"),
+  source: z.enum(["salesman", "phone", "office", "portal"]).default("office"),
+  /** Who placed it: a user of the distributor, or a chemist on the portal (their portal account id). */
+  placedByType: z.enum(["user", "chemist"]).default("user"), placedById: z.string().default(""),
   /** The salesman booking it (only for their own chemists, unless the user may approve orders). */
   salesmanId: z.string().nullable().default(null), canApprove: z.boolean().default(true),
   note: z.string().trim().max(300).default(""),
@@ -113,7 +115,7 @@ export function placeOrder(db: DriveDB, raw: z.input<typeof orderInput>, today =
     const fy = fiscalYear(today);
     const no = `SO-${distSeries(db)}${fy}-${pad(db.nextSeq(`DSO:${fy}`))}`;
     const o = db.from<{ id: string }>("distOrder").insert({
-      branchId: i.branchId, deviceId: db.device, no, customerId: chem.id, source: i.source, salesmanId: i.salesmanId ?? chem.salesmanId, placedByType: "user", placedById: i.userId,
+      branchId: i.branchId, deviceId: db.device, no, customerId: chem.id, source: i.source, salesmanId: i.salesmanId ?? chem.salesmanId, placedByType: i.placedByType, placedById: i.placedById || i.userId,
       note: i.note || null, estimatePaise: est, creditOk: credit.ok ? 1 : 0, creditReasons: JSON.stringify(credit.reasons), idempotencyKey: i.idempotencyKey, at: now(),
     })[0];
     db.from("distOrderLine").insert(lines.map((l) => ({ orderId: o.id, medicineId: l.medicineId, qty: l.qty, freeQty: l.freeQty, ratePaise: l.rate, discPct: l.discPct, schemeId: l.schemeId })));
