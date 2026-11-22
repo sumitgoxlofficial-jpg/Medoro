@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Check, MessageCircle, X } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
-import { Aurora, FloatingShapes } from "@/components/site/decor";
+import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
 import { breadcrumbSchema, faqSchema, type Crumb, type JsonLdObject } from "@/lib/seo";
 import type { SiteLink } from "@/data/site-links";
 import { JsonLd } from "./json-ld";
@@ -59,8 +59,8 @@ export function TrialButtons({ secondary = "demo" }: { secondary?: "demo" | "non
 /** Page hero: breadcrumbs, eyebrow, H1, intro, CTA; an optional visual on the right. */
 export function Hero({ crumbs, eyebrow, h1, intro, aside, note = "7 days free, no card needed. From ₹999 a month, GST included." }: { crumbs: Crumb[]; eyebrow: string; h1: string; intro: string; aside?: React.ReactNode; note?: string }) {
   return (
-    <section className="relative overflow-hidden">
-      <Aurora />
+    <section className="relative isolate overflow-hidden">
+      <WhiteDecor v={7} />
       <FloatingShapes />
       <div className={`relative ${wrap} pt-[clamp(28px,5vw,72px)] pb-14 grid grid-cols-1 ${aside ? "min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""} gap-x-12 gap-y-10 items-center`}>
         <div className="flex flex-col gap-5 max-w-[720px]">
@@ -89,7 +89,7 @@ export function Section({ id, title, lead, soft = false, children }: { id: strin
   );
   return soft
     ? <section aria-labelledby={`${id}-title`} className="bg-[var(--s-soft)] border-y border-[var(--s-line)]">{inner}</section>
-    : <section aria-labelledby={`${id}-title`}>{inner}</section>;
+    : <section aria-labelledby={`${id}-title`} className="relative isolate"><WhiteDecor v={[...id].reduce((n, c) => n + c.charCodeAt(0), 0)} />{inner}</section>;
 }
 
 /** Problem → Medoro's answer, one row per pain point. */

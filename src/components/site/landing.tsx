@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Check, MessageCircle } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
-import { Aurora, FloatingShapes } from "@/components/site/decor";
+import { FloatingShapes, WhiteDecor } from "@/components/site/decor";
 import { LANDING_LINKS } from "@/components/site/landing-links";
 import { landing } from "@/components/site/landing-data";
 
@@ -48,8 +48,8 @@ export function LandingPage({ slug }: { slug: string }) {
       <SiteMotion />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <main id="main">
-        <section className="relative overflow-hidden">
-          <Aurora />
+        <section className="relative isolate overflow-hidden">
+          <WhiteDecor v={8} />
           <FloatingShapes />
           <div className={`relative ${wrap} pt-[clamp(32px,6vw,80px)] pb-14 grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-x-12 gap-y-10 items-center`}>
             <div className="flex flex-col gap-5">
@@ -69,7 +69,8 @@ export function LandingPage({ slug }: { slug: string }) {
           </div>
         </section>
 
-        <section aria-labelledby="features-title" className={`${wrap} py-[clamp(56px,8vw,104px)] flex flex-col gap-10`}>
+        <section aria-labelledby="features-title" className={`relative isolate ${wrap} py-[clamp(56px,8vw,104px)] flex flex-col gap-10`}>
+          <WhiteDecor v={0} />
           <h2 id="features-title" className={h2}>What you get with Medoro</h2>
           <div className="grid gap-x-8 gap-y-10 grid-cols-1 min-[760px]:grid-cols-2 min-[1100px]:grid-cols-3">
             {l.sections.map((s, i) => (
@@ -98,7 +99,8 @@ export function LandingPage({ slug }: { slug: string }) {
           </div>
         </section>
 
-        <section aria-labelledby="more-title" className={`${wrap} py-[clamp(56px,8vw,96px)] flex flex-col gap-8`}>
+        <section aria-labelledby="more-title" className={`relative isolate ${wrap} py-[clamp(56px,8vw,96px)] flex flex-col gap-8`}>
+          <WhiteDecor v={1} />
           <h2 id="more-title" className={h2}>More about Medoro</h2>
           <ul className="m-0 p-0 list-none grid gap-3 grid-cols-1 min-[640px]:grid-cols-2 min-[1000px]:grid-cols-4">
             {related.map(([name, path]) => (

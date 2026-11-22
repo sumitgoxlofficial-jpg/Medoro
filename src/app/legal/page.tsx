@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { SiteFooter, WA } from "@/components/site/chrome";
 import { PageHeader } from "@/components/site/page-header";
+import { WhiteDecor } from "@/components/site/decor";
 import { company } from "@/lib/company";
 import { UDYAM } from "@/lib/udyam";
 import { Toc } from "./toc";
@@ -61,7 +62,8 @@ export default function Legal() {
     <div className="site-root bg-white min-h-dvh">
       <PageHeader />
 
-      <div className="max-w-[1200px] mx-auto px-6 pt-[clamp(40px,6vw,72px)] pb-24 grid gap-14 items-start grid-cols-1 min-[900px]:grid-cols-[240px_minmax(0,1fr)] max-[640px]:px-4">
+      <div className="relative isolate max-w-[1200px] mx-auto px-6 pt-[clamp(40px,6vw,72px)] pb-24 grid gap-14 items-start grid-cols-1 min-[900px]:grid-cols-[240px_minmax(0,1fr)] max-[640px]:px-4">
+        <WhiteDecor v={2} />
         <Toc items={SECTIONS.map((s) => ({ id: s.id, title: s.title }))} />
         <main id="main" className="flex flex-col gap-14 min-w-0 max-w-[760px]">
           <div className="flex flex-col gap-2.5">

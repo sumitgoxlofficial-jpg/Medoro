@@ -12,7 +12,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
-import { Aurora } from "@/components/site/decor";
+import { Aurora, HelpArt, SupplyChainArt, WhiteDecor } from "@/components/site/decor";
 import { HeroVideo } from "@/components/site/hero-video";
 
 /**
@@ -161,7 +161,8 @@ export default async function Home() {
         </section>
 
         {/* The company's promises. */}
-        <section aria-label={t("Why businesses trust Medoro")} className="border-b border-[var(--s-line)] bg-white">
+        <section aria-label={t("Why businesses trust Medoro")} className="relative isolate border-b border-[var(--s-line)] bg-white">
+          <WhiteDecor v={5} />
           <ul className={`${wrap} m-0 list-none py-7 grid gap-x-6 gap-y-4 grid-cols-2 min-[720px]:grid-cols-3 min-[1100px]:grid-cols-5`}>
             {TRUST.map(([Icon, l], i) => (
               <li key={l} data-reveal style={{ ["--d" as string]: i }} className="flex items-center gap-2.5 text-[15.5px] font-semibold text-[var(--s-ink)]"><span className="size-9 rounded-lg bg-[var(--s-brand-tint)] flex items-center justify-center flex-none"><Icon size={18} aria-hidden className="text-[var(--s-brand)]" /></span>{t(l)}</li>
@@ -170,10 +171,13 @@ export default async function Home() {
         </section>
 
         {/* About the company */}
-        <section id="about" aria-labelledby="about-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10 items-start`}>
+        <section id="about" aria-labelledby="about-title" className="relative isolate">
+          <WhiteDecor v={0} />
+          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10 items-start`}>
           <div data-reveal className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5">
             <span className={eyebrow}>{t("About Medoro")}</span>
             <h2 id="about-title" className={h2}>{t("One Indian company. One job: pharma.")}</h2>
+            <SupplyChainArt className="w-full max-w-[460px] h-auto mt-3 drop-shadow-[0_18px_30px_rgba(11,94,91,.10)]" />
           </div>
           <div data-reveal className="col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7 flex flex-col gap-5">
             <p className={lead}>{t("India’s pharma trade runs on thousands of medical stores and the distributors who supply them. Most of them still work with software that was built for any shop, or with paper. Medoro exists to change that.")}</p>
@@ -188,6 +192,7 @@ export default async function Home() {
               </div>
             ))}
           </dl>
+          </div>
         </section>
 
         {/* Products */}
@@ -224,7 +229,9 @@ export default async function Home() {
         </section>
 
         {/* Why Medoro */}
-        <section id="why" aria-labelledby="why-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+        <section id="why" aria-labelledby="why-title" className="relative isolate">
+          <WhiteDecor v={1} />
+          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Why Medoro")}</span>
             <h2 id="why-title" className={h2}>{t("Why businesses choose Medoro.")}</h2>
@@ -241,6 +248,7 @@ export default async function Home() {
               </li>
             ))}
           </ol>
+          </div>
         </section>
 
         {/* Built for Indian pharma */}
@@ -271,7 +279,9 @@ export default async function Home() {
         </section>
 
         {/* Who we serve */}
-        <section id="serve" aria-labelledby="serve-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
+        <section id="serve" aria-labelledby="serve-title" className="relative isolate">
+          <WhiteDecor v={2} />
+          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Who we serve")}</span>
             <h2 id="serve-title" className={h2}>{t("Built for every business in the medicine supply chain.")}</h2>
@@ -287,6 +297,7 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+          </div>
         </section>
 
         {/* Security and data ownership */}
@@ -307,7 +318,9 @@ export default async function Home() {
         </section>
 
         {/* Company */}
-        <section id="company" aria-labelledby="company-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
+        <section id="company" aria-labelledby="company-title" className="relative isolate">
+          <WhiteDecor v={3} />
+          <div className={`relative ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Company")}</span>
             <h2 id="company-title" className={h2}>{t("Get to know Medoro.")}</h2>
@@ -324,15 +337,18 @@ export default async function Home() {
               </li>
             ))}
           </ul>
+          </div>
         </section>
 
         {/* FAQ */}
-        <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">
+        <section id="faq" aria-labelledby="faq-title" className="relative isolate border-t border-[var(--s-line)]">
+          <WhiteDecor v={4} />
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
               <span className={eyebrow}>{t("FAQ")}</span>
               <h2 id="faq-title" className={h2}>{t("About Medoro")}</h2>
               <p className="m-0 text-[16.5px] text-[var(--s-ink-2)]">{t("Questions about a product? Each product page has its own FAQ, or message us on WhatsApp.")}</p>
+              <HelpArt className="w-full max-w-[340px] h-auto mt-2 max-[999px]:hidden" />
             </div>
             <div className="site-faq col-span-12 min-[1000px]:col-span-7 min-[1000px]:col-start-6 flex flex-col">
               {FAQ.map(([q, a]) => (
@@ -348,7 +364,8 @@ export default async function Home() {
         </section>
 
         {/* Contact */}
-        <section id="contact" aria-labelledby="contact-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
+        <section id="contact" aria-labelledby="contact-title" className={`relative isolate ${wrap} pb-[clamp(72px,10vw,128px)]`}>
+          <WhiteDecor v={6} />
           <div data-reveal className="site-dark relative overflow-hidden rounded-2xl bg-[var(--s-dark)] text-white p-[clamp(28px,5vw,64px)] grid grid-cols-12 gap-x-6 gap-y-8 items-center">
             <Aurora dark />
             <div className="relative col-span-12 min-[1000px]:col-span-7 flex flex-col gap-4">

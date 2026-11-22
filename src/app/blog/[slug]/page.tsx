@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs, CtaBand, FaqSection, LinkGrid, MarketingShell, Section, wrap } from "@/components/seo/blocks";
 import { ArticleBody, headingId } from "@/components/seo/article-body";
-import { Aurora } from "@/components/site/decor";
+import { Aurora, WhiteDecor } from "@/components/site/decor";
 import { POSTS, POSTS_BY_DATE, fmtDate, postBySlug, readingMinutes, wordCount } from "@/data/blog";
 import { featureBySlug } from "@/data/features";
 import { HUBS } from "@/data/site-links";
@@ -34,7 +34,8 @@ export default async function BlogPost({ params }: Props) {
   const more = POSTS_BY_DATE.filter((x) => x.slug !== p.slug).slice(0, 3).map((x) => [x.title, `/blog/${x.slug}`, x.description] as [string, string, string]);
   return (
     <MarketingShell crumbs={crumbs} jsonLd={[articleSchema({ headline: p.title, description: p.description, path, published: p.published, modified: p.updated, keywords: p.keywords, section: p.category, wordCount: wordCount(p) })]}>
-      <article>
+      <article className="relative isolate">
+        <WhiteDecor v={1} />
         <header className="relative overflow-hidden border-b border-[var(--s-line)]">
           <Aurora />
           <div className={`relative ${wrap} pt-[clamp(28px,5vw,64px)] pb-10 flex flex-col gap-5 max-w-[880px] min-[1248px]:max-w-[1200px]`}>

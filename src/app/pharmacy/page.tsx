@@ -12,7 +12,7 @@ import { SOFTWARE_ID, WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/s
 import { getLang } from "@/server/lang";
 import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
-import { Aurora, FloatingShapes, SavingsArt } from "@/components/site/decor";
+import { Aurora, FloatingShapes, SavingsArt, WhiteDecor } from "@/components/site/decor";
 import { MotivationArt } from "@/components/site/motivation-art";
 
 // The brand name first, then the category phrases people search for.
@@ -180,7 +180,8 @@ export default async function PharmacyHome() {
       <main id="main">
         <Hero />
 
-        <section aria-labelledby="standards-title" className="border-b border-[var(--s-line)]">
+        <section aria-labelledby="standards-title" className="relative isolate border-b border-[var(--s-line)]">
+          <WhiteDecor v={0} />
           <div className={`${wrap} py-14 flex flex-col gap-10`}>
             <h2 id="standards-title" className="m-0 text-[15px] font-semibold text-[var(--s-ink)]">{t("Built for how Indian pharmacies work")}</h2>
             <ul className="m-0 p-0 list-none grid gap-x-8 gap-y-6 border-y border-[var(--s-line)] py-7 grid-cols-2 min-[720px]:grid-cols-3 min-[1100px]:grid-cols-6">
@@ -198,7 +199,8 @@ export default async function PharmacyHome() {
           </div>
         </section>
 
-        <section aria-labelledby="leaks-title" className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
+        <section aria-labelledby="leaks-title" className={`relative isolate ${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-12`}>
+          <WhiteDecor v={1} />
           <div className="col-span-12 min-[1000px]:col-span-5 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
             <span className={eyebrow}>{t("Why owners switch")}</span>
             <h2 id="leaks-title" className={h2}>{t("Where a medical store quietly loses money.")}</h2>
@@ -242,7 +244,8 @@ export default async function PharmacyHome() {
           </div>
         </section>
 
-        <section id="product" aria-labelledby="product-title" className={`${wrap} pt-[clamp(72px,10vw,128px)] pb-[clamp(56px,8vw,96px)] flex flex-col gap-12`}>
+        <section id="product" aria-labelledby="product-title" className={`relative isolate ${wrap} pt-[clamp(72px,10vw,128px)] pb-[clamp(56px,8vw,96px)] flex flex-col gap-12`}>
+          <WhiteDecor v={2} />
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("The product")}</span>
             <h2 id="product-title" className={h2}>{t("One system for the counter, the godown and your CA.")}</h2>
@@ -296,7 +299,8 @@ export default async function PharmacyHome() {
           </div>
         </div>
 
-        <section aria-labelledby="compare-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
+        <section aria-labelledby="compare-title" className={`relative isolate ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-10`}>
+          <WhiteDecor v={3} />
           <div data-reveal className="flex flex-col gap-5 max-w-[760px]">
             <span className={eyebrow}>{t("Compared")}</span>
             <h2 id="compare-title" className={h2}>{t(WHY_SWITCH_HEADING)}</h2>
@@ -409,7 +413,8 @@ export default async function PharmacyHome() {
           </div>
         </section>
 
-        <section id="pricing" aria-labelledby="pricing-title" className={`${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+        <section id="pricing" aria-labelledby="pricing-title" className={`relative isolate ${wrap} py-[clamp(72px,10vw,128px)] flex flex-col gap-12`}>
+          <WhiteDecor v={4} />
           <div className="grid grid-cols-12 gap-x-6 gap-y-6 items-end">
             <div data-reveal className="col-span-12 min-[1000px]:col-span-7 flex flex-col gap-5">
               <span className={eyebrow}>{t("Pricing", { ctx: "site" })}</span>
@@ -436,7 +441,8 @@ export default async function PharmacyHome() {
           </div>
         </section>
 
-        <section id="faq" aria-labelledby="faq-title" className="border-t border-[var(--s-line)]">
+        <section id="faq" aria-labelledby="faq-title" className="relative isolate border-t border-[var(--s-line)]">
+          <WhiteDecor v={5} />
           <div className={`${wrap} py-[clamp(72px,10vw,128px)] grid grid-cols-12 gap-x-6 gap-y-10`}>
             <div className="col-span-12 min-[1000px]:col-span-4 flex flex-col gap-5 min-[1000px]:sticky min-[1000px]:top-28 self-start">
               <span className={eyebrow}>{t("FAQ")}</span>
@@ -484,7 +490,8 @@ export default async function PharmacyHome() {
           </div>
         </section>
 
-        <section aria-labelledby="cta-title" className={`${wrap} pb-[clamp(72px,10vw,128px)]`}>
+        <section aria-labelledby="cta-title" className={`relative isolate ${wrap} pb-[clamp(72px,10vw,128px)]`}>
+          <WhiteDecor v={6} />
           <div data-reveal className="site-pan relative overflow-hidden rounded-2xl text-white px-[clamp(24px,6vw,72px)] py-[clamp(48px,7vw,88px)] grid grid-cols-12 gap-x-6 gap-y-8 items-end">
             <div aria-hidden className="absolute inset-0 opacity-35"><FloatingShapes /></div>
             <div className="relative col-span-12 min-[1000px]:col-span-8 flex flex-col gap-4">
