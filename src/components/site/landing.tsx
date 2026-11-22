@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Check, MessageCircle } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
-import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
+import { FloatingShapes, WhiteDecor } from "@/components/site/decor";
 import { LANDING_LINKS } from "@/components/site/landing-links";
 import { landing } from "@/components/site/landing-data";
 
@@ -48,8 +48,8 @@ export function LandingPage({ slug }: { slug: string }) {
       <SiteMotion />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <main id="main">
-        <section className="relative overflow-hidden">
-          <Aurora />
+        <section className="relative isolate overflow-hidden">
+          <WhiteDecor v={8} />
           <FloatingShapes />
           <div className={`relative ${wrap} pt-[clamp(32px,6vw,80px)] pb-14 grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-x-12 gap-y-10 items-center`}>
             <div className="flex flex-col gap-5">

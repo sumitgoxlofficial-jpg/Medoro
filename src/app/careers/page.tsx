@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BadgeCheck, Coffee, GraduationCap, HeartHandshake, Rocket, Sparkles } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion } from "@/components/site/chrome";
-import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
+import { FloatingShapes, WhiteDecor } from "@/components/site/decor";
 import { ApplicantBar, CareersBoard } from "@/components/site/careers";
 import { readApplicant, linkedinLogin } from "@/server/applicant";
 import { googleLoginConfigured } from "@/server/google-oidc";
@@ -44,8 +44,8 @@ export default async function Careers({ searchParams }: { searchParams: Promise<
       <div aria-hidden className="site-progress" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(careersJsonLd(jobs)).replace(/</g, "\\u003c") }} />
       <main>
-        <section className="relative overflow-hidden">
-          <Aurora />
+        <section className="relative isolate overflow-hidden">
+          <WhiteDecor v={10} />
           <FloatingShapes />
           <div className="relative max-w-[1200px] mx-auto px-6 pt-[clamp(36px,6vw,80px)] pb-10 flex flex-col gap-5 max-[640px]:px-4">
             <span className="site-up inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--s-brand)]"><Sparkles size={16} aria-hidden /> Careers at Medoro · {jobs.length} open {jobs.length === 1 ? "role" : "roles"}</span>

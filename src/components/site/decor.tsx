@@ -255,9 +255,10 @@ const STAR = "M0-8l2.2 5.8L8 0l-5.8 2.2L0 8l-2.2-5.8L-8 0l5.8-2.2z";
  * that pulses across, a slowly turning dashed ring, twinkling sparkles, bubbles rising in the margins, and pharmacy
  * icons floating at the sides (big ones in the margins on wide screens, small faint ones in the corners on narrower
  * ones). Put it first inside a `relative isolate` section: it spans the full viewport width even when the section is
- * a centred column, and sits behind the content. `v` picks the arrangement, so neighbouring sections differ.
+ * a centred column, and sits behind the content. `v` picks the arrangement, so neighbouring sections differ. `fill`
+ * keeps it inside its box instead, for a panel that is narrower than the screen (the sign-in screen's white half).
  */
-export function WhiteDecor({ v = 0 }: { v?: number }) {
+export function WhiteDecor({ v = 0, fill = false }: { v?: number; fill?: boolean }) {
   const r = rng(v * 7 + 3);
   const pick = <T,>(a: T[]) => a[Math.floor(r() * a.length)];
   const side = (i: number) => (i % 2 ? "right" : "left");
@@ -276,7 +277,7 @@ export function WhiteDecor({ v = 0 }: { v?: number }) {
   const ecgTop = v % 2 === 0;
   const ring = v % 3;
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 w-screen -translate-x-1/2 -z-10 overflow-hidden">
+    <div aria-hidden className={`pointer-events-none absolute -z-10 overflow-hidden ${fill ? "inset-0" : "inset-y-0 left-1/2 w-screen -translate-x-1/2"}`}>
       <div className="site-dots absolute inset-0 opacity-50" />
       {glows.map((g) => <div key={g.pos} className={`site-glow absolute ${g.pos} size-[36rem] max-w-[85vw] max-h-[85vw] rounded-full`} style={{ background: `radial-gradient(closest-side, ${g.c}, transparent)`, ["--dur" as string]: `${g.dur}s`, animationDelay: `${g.delay}s` }} />)}
       {/* a dashed ring turning slowly in one corner */}
@@ -288,7 +289,7 @@ export function WhiteDecor({ v = 0 }: { v?: number }) {
       {/* heartbeat line with a pulse running along it */}
       <svg viewBox="0 0 1200 60" preserveAspectRatio="none" className={`absolute inset-x-0 h-[60px] w-full opacity-60 ${ecgTop ? "top-1" : "bottom-1"}`}>
         <path d={HEARTBEAT} fill="none" stroke="#E3F0EE" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-        <path d={HEARTBEAT} fill="none" stroke={T2} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" pathLength={1000} className="site-ecg" style={{ animationDelay: `${-v * 1.3}s` }} />
+        <path d={HEARTBEAT} fill="none" stroke={T2} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" className="site-beat" style={{ animationDelay: `${-v * 1.3}s` }} />
       </svg>
       {stars.map((st, i) => (
         <svg key={`s${i}`} viewBox="-10 -10 20 20" className="site-twinkle absolute size-4" style={{ left: `${st.x}%`, top: `${st.y}%`, scale: st.s, animationDelay: `${st.d}s` }}><path d={STAR} fill={st.c} /></svg>

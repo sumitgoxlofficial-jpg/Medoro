@@ -8,7 +8,7 @@ import { PRODUCTS } from "@/staff/constants";
 import { DIST_PLANS } from "@/domain/distribution/plans";
 import { useLang, useT } from "@/lib/i18n-client";
 import { WA, WA_DEMO } from "./brand";
-import { Aurora, FloatingShapes } from "./decor";
+import { FloatingShapes, WhiteDecor } from "./decor";
 
 // ───────────── Hero ─────────────
 
@@ -28,8 +28,8 @@ export function Hero() {
   return (
     // Desktop: copy and product shot side by side, sized to fill one screen under the 65px header.
     // Below 1000px the two stack, as before.
-    <section aria-labelledby="hero-title" className="relative overflow-hidden min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
-      <Aurora />
+    <section aria-labelledby="hero-title" className="relative isolate overflow-hidden min-[1000px]:min-h-[calc(100svh-65px)] min-[1000px]:flex min-[1000px]:items-center">
+      <WhiteDecor v={9} />
       <FloatingShapes />
       <div aria-hidden className="absolute inset-x-0 bottom-0 top-[62%] bg-[var(--s-soft)]/70 border-t border-[var(--s-line)] min-[1000px]:hidden" />
       <div className="relative w-full max-w-[1200px] mx-auto px-6 pt-[clamp(28px,4vw,40px)] pb-[clamp(48px,6vw,56px)] min-[1000px]:py-8 grid grid-cols-1 min-[1000px]:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] gap-x-12 gap-y-10 items-center max-[640px]:px-4">

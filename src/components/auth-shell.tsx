@@ -6,6 +6,7 @@ import { Mark, Wordmark } from "@/components/brand";
 import { LangSwitch } from "@/components/lang-switch";
 import { MotivationArt } from "@/components/site/motivation-art";
 import { SideIcons } from "@/app/staff/employee/art";
+import { WhiteDecor } from "@/components/site/decor";
 
 /**
  * Frame for the pharmacy auth pages. Sign-in gets the split design (teal panel with the pharmacy illustration on the
@@ -23,7 +24,8 @@ export function AuthShell({ children, lines, points }: { children: React.ReactNo
   );
   if (!split) {
     return (
-      <div className="hr-motion relative min-h-dvh bg-bg flex flex-col items-center gap-7 px-4 py-10">
+      <div className="hr-motion relative isolate overflow-hidden min-h-dvh bg-bg flex flex-col items-center gap-7 px-4 py-10">
+        <WhiteDecor v={12} fill />
         <LangSwitch className="absolute top-3 right-3" />
         {brand}
         {children}
@@ -51,8 +53,8 @@ export function AuthShell({ children, lines, points }: { children: React.ReactNo
           ))}
         </ul>
       </aside>
-      <div className="relative overflow-hidden flex flex-col items-center justify-center gap-7 px-4 py-10">
-        <div aria-hidden className="pointer-events-none absolute inset-0"><div className="site-blob site-blob-b bg-[#14B8A6]/10" /><div className="site-blob site-blob-c bg-[#F5C451]/12" /></div>
+      <div className="relative isolate overflow-hidden flex flex-col items-center justify-center gap-7 px-4 py-10">
+        <WhiteDecor v={13} fill />
         <SideIcons />
         <LangSwitch className="absolute top-3 right-3 z-10" />
         {brand}

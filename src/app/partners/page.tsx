@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { BadgeIndianRupee, BarChart3, CheckCircle2, Handshake, Link2, MessageCircle, ShieldCheck, Store, Wallet } from "lucide-react";
 import { SiteFooter, SiteHeader, SiteMotion, WA, WhatsAppFab } from "@/components/site/chrome";
-import { Aurora, FloatingShapes, ReferralArt, WhiteDecor } from "@/components/site/decor";
+import { FloatingShapes, ReferralArt, WhiteDecor } from "@/components/site/decor";
 import { getRates } from "@/staff/sales";
 import { PRODUCTS, TDS_PCT, amountPaise } from "@/staff/constants";
 import { getT } from "@/server/lang";
@@ -49,8 +49,8 @@ export default async function Partners() {
       <SiteMotion />
       <div aria-hidden className="site-progress" />
       <main>
-        <section className="relative overflow-hidden">
-        <Aurora />
+        <section className="relative isolate overflow-hidden">
+        <WhiteDecor v={11} />
         <FloatingShapes />
         <div className="relative max-w-[1200px] mx-auto px-6 pt-[clamp(40px,7vw,96px)] pb-14 grid grid-cols-12 gap-x-6 gap-y-10 items-center max-[640px]:px-4">
           <div className="col-span-12 min-[960px]:col-span-7 flex flex-col gap-6">
