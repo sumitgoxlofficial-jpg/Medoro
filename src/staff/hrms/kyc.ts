@@ -58,6 +58,13 @@ export async function saveKycNumbers(me: Me, raw: z.input<typeof numbers>) {
   return refreshKyc(me.id);
 }
 
+/** The employee chooses to finish Aadhaar and PAN later. HR still sees KYC as missing; nothing is marked submitted. */
+export async function skipKyc(me: Me) {
+  await db.hrProfile.update({ where: { staffId: me.id }, data: { kycSkippedAt: new Date() } });
+  await audit(me, "KYC skipped", "Chose to add Aadhaar and PAN later");
+  return { skipped: true };
+}
+
 export type KycState = Awaited<ReturnType<typeof kycState>>;
 /** Where someone's KYC stands, for them and for HR. Numbers are masked. */
 export async function kycState(staffId: string) {
