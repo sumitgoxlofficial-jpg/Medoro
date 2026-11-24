@@ -15,7 +15,7 @@ import { resetDb } from "./helpers";
 let admin: Me, hr: Me, ann: Me, bob: Me, cat: Me;
 const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycSkipped: false, kycVerified: true }; };
 const mk = (n: number, name: string, role: "super_admin" | "employee", hr: "admin" | "hr" | "employee") =>
-  db.staffUser.create({ data: { empNo: `MS-10${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98300000${n}0`, role, status: "active", hr: { create: { role: hr, profileDone: true, docsAcceptedAt: new Date() } } } });
+  db.staffUser.create({ data: { empNo: `MS-10${n}`, name, email: `${name.split(" ")[0].toLowerCase()}@medoro.in`, kind: "team", phone: `98300000${n}0`, role, status: "active", hr: { create: { role: hr, dept: "Ops", profileDone: true, docsAcceptedAt: new Date() } } } });
 const png = () => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(200, 1)]);
 const form = (b: Buffer, name = "p.png", type = "image/png") => { const f = new FormData(); f.set("image", new File([new Uint8Array(b)], name, { type })); return f; };
 
@@ -201,7 +201,9 @@ describe("team chat", () => {
   });
 
   it("lets the super admin run any group they are in, like a WhatsApp admin, and logs it", async () => {
-    const { chatId } = await createGroup(ann, "Lunch plans", [bob.id, cat.id, admin.id]);
+    await expect(createGroup(ann, "Lunch plans", [bob.id, cat.id, admin.id])).rejects.toThrow("isn’t available"); // an employee can't pull in the super admin
+    const { chatId } = await createGroup(ann, "Lunch plans", [bob.id, cat.id]);
+    await db.hrChatMember.create({ data: { chatId, staffId: admin.id } }); // the super admin is in the group (added by themselves)
     const g = await groupInfo(admin, chatId);
     expect(g).toMatchObject({ canEdit: true, canAdd: true, canRename: true, canRemove: true, canDelete: true, superAdmin: true });
     expect(await groupInfo(bob, chatId)).toMatchObject({ canRename: false, canRemove: false, canDelete: false });
@@ -233,7 +235,7 @@ describe("team chat", () => {
     await syncChannels(true);
     const names = (await chatList(ann)).filter((c) => c.sys).map((c) => c.title).sort();
     expect(names).toEqual(["# POS 2.0", "All Hands", "Engineering Team"]);
-    expect((await chatList(cat)).filter((c) => c.sys).map((c) => c.title).sort()).toEqual(["# POS 2.0", "All Hands"]);
+    expect((await chatList(cat)).filter((c) => c.sys).map((c) => c.title).sort()).toEqual(["# POS 2.0", "All Hands", "Ops Team"]);
     const all = (await chatList(ann)).find((c) => c.title === "All Hands")!;
     await expect(leaveGroup(ann, all.id)).rejects.toThrow("company channel");
     await expect(addToGroup(ann, all.id, [cat.id])).rejects.toThrow("automatically");

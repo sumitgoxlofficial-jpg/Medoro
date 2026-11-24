@@ -7,6 +7,7 @@ import { seal, unseal } from "@/server/vault";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { welcomeMail } from "./mails";
+import { ADMIN_LABEL, hideAdmin } from "./visibility";
 import { log } from "@/server/log";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { staffDomain } from "../auth";
@@ -33,9 +34,10 @@ export type Person = {
 const liveStatus = (presence: string, at: Date | null) => (presence !== "offline" && at && Date.now() - at.getTime() < 5 * 60_000 ? presence : "offline");
 
 /** Medoro's own team (not reference partners), with their HR details. */
-export async function roster(opts: { includeInactive?: boolean } = {}): Promise<Person[]> {
+export async function roster(opts: { includeInactive?: boolean; viewer?: Pick<Me, "role"> } = {}): Promise<Person[]> {
   const rows = await db.staffUser.findMany({
-    where: { kind: "team", role: { not: "partner" }, ...(opts.includeInactive ? {} : { status: { in: ["active", "invited"] } }) },
+    where: { kind: "team", role: opts.viewer && hideAdmin(opts.viewer) ? { notIn: ["partner", "super_admin"] } : { not: "partner" }, // nobody but the super admin can see who the super admin is
+    ...(opts.includeInactive ? {} : { status: { in: ["active", "invited"] } }) },
     include: { hr: true }, orderBy: { name: "asc" },
   });
   return rows.map((u) => {
@@ -50,7 +52,8 @@ export async function roster(opts: { includeInactive?: boolean } = {}): Promise<
     };
   });
 }
-export const nameMap = async () => new Map((await db.staffUser.findMany({ where: { kind: "team" }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+/** Names by id. For anyone but the super admin, the super admin reads "Admin". */
+export const nameMap = async (viewer?: Partial<Pick<Me, "role">>) => new Map((await db.staffUser.findMany({ where: { kind: "team" }, select: { id: true, name: true, role: true } })).map((u) => [u.id, viewer && hideAdmin(viewer) && u.role === "super_admin" ? ADMIN_LABEL : u.name]));
 
 // ── Departments
 export async function departments() {

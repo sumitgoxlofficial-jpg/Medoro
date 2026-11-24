@@ -20,12 +20,17 @@ import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
 import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { backfillSlugs } from "./careers";
+import { visibleTo } from "./visibility";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
 const monthArg = (v: string | undefined) => (v && /^\d{4}-(0[1-9]|1[0-2])$/.test(v) ? v : ym());
 const upcomingHolidays = () => holidays(todayISO(), addDays(todayISO(), 365)).then((h) => h.slice(0, 6));
-const people = async () => (await roster()).map((p) => ({ id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, role: p.role }));
+/** People pickers (tasks, meetings, projects): the super admin is never listed for anyone else, and an ordinary employee sees only their team and HR. */
+const people = async (me: Me) => {
+  const all = await roster({ viewer: me }), ok = new Set(await visibleTo(me, all.map((p) => p.id)));
+  return all.filter((p) => ok.has(p.id) || p.id === me.id).map((p) => ({ id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, role: p.role }));
+};
 
 /** The side menu: every screen the person may open, grouped as before (Team Chat included). */
 function navFor(me: Me) {
@@ -50,19 +55,19 @@ export const loaders = {
   home: async (me: Me) => {
     const s = await loadSettings();
     const [tasks, bal, slips, ann, hols, meets, proj] = await Promise.all([
-      myTasks(me), leaveBalances(me.id, s), myPayslips(me.id), announcements(5), upcomingHolidays(),
+      myTasks(me), leaveBalances(me.id, s), myPayslips(me.id), announcements(5, me), upcomingHolidays(),
       meetings(me, new Date(`${todayISO()}T00:00:00+05:30`), new Date(`${addDays(todayISO(), 1)}T00:00:00+05:30`)), myProjects(me),
     ]);
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id) };
   },
   myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
-  assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people() : [] }),
+  assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people(me) : [] }),
   mytasks: async (me: Me) => ({ tasks: await myTasks(me), projects: await myProjects(me) }),
   calendar: async (me: Me, q: Q) => {
     const month = monthArg(q.m), first = month + "-01", last = addDays(addMonths(month, 1) + "-01", -1);
     const [hols, out, meets, all, g] = await Promise.all([
-      holidays(first, last), whosOut(first, last),
-      meetings(me, new Date(`${first}T00:00:00+05:30`), new Date(`${addDays(last, 1)}T00:00:00+05:30`)), people(), gcalStatus(me.id),
+      holidays(first, last), whosOut(first, last, me),
+      meetings(me, new Date(`${first}T00:00:00+05:30`), new Date(`${addDays(last, 1)}T00:00:00+05:30`)), people(me), gcalStatus(me.id),
     ]);
     const upcoming = await meetings(me, new Date(Date.now() - 2 * 3600_000), new Date(Date.now() + 60 * 86400_000));
     // Google events for the month. A Google problem shows as a message; it never breaks the page.
@@ -102,27 +107,27 @@ export const loaders = {
 
   hrhome: async (me: Me) => dashboard(me),
   sahome: async (me: Me) => dashboard(me),
-  perf: async (me: Me, q: Q) => ({ ...(await performance(me, q.p === "week" || q.p === "month" ? q.p : "today")), people: await people() }),
-  assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
-  assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people() }),
+  perf: async (me: Me, q: Q) => ({ ...(await performance(me, q.p === "week" || q.p === "month" ? q.p : "today")), people: await people(me) }),
+  assigntasks: async (me: Me) => ({ tasks: await allTasks(me), people: await people(me), projects: (await projects(me)).map((p) => ({ id: p.id, name: p.name })) }),
+  assignprojects: async (me: Me) => ({ projects: await projects(me), people: await people(me) }),
   hrleads: async (me: Me) => ({ leads: await allLeads(me), team: await teamBoard(), plans: LEAD_PLANS, sheet: await sheetStatus(me) }),
-  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled(), revisions: await salaryRevisions(), promotions: await promotions() }),
-  hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(), isAdmin: me.role === "admin", domain: officialDomain(), mail: mailEnabled() }),
-  departments: async () => {
-    const [depts, staff] = await Promise.all([departments(), roster()]);
+  hremployees: async (me: Me) => ({ people: await roster({ includeInactive: true, viewer: me }), depts: await departments(), isAdmin: me.role === "admin", meId: me.id, mail: mailEnabled(), revisions: await salaryRevisions(), promotions: await promotions() }),
+  hrnewemp: async (me: Me) => ({ depts: await departments(), managers: await people(me), isAdmin: me.role === "admin", domain: officialDomain(), mail: mailEnabled() }),
+  departments: async (me: Me) => {
+    const [depts, staff] = await Promise.all([departments(), roster({ viewer: me })]);
     return { depts: depts.map((d) => ({ ...d, count: staff.filter((p) => p.dept === d.name).length, head: staff.find((p) => p.id === d.headId)?.name ?? "" })), people: staff.map((p) => ({ id: p.id, name: p.name })) };
   },
   recruit: async (me: Me) => { await backfillSlugs(); return { jobs: await jobs(), cands: await candidates(me), depts: await departments(), site: (process.env.APP_URL ?? "").replace(/\/+$/, "") }; },
   hrattendance: async (me: Me) => ({ rows: await teamToday(me) }),
   hrleave: async (me: Me) => {
     const s = await loadSettings();
-    const [pending, out, hrClaims, hols, staff] = await Promise.all([pendingApprovals(me), whosOut(todayISO(), addDays(todayISO(), 14)), claims({ status: ["pending_hr"] }), holidays(todayISO().slice(0, 4) + "-01-01", `${Number(todayISO().slice(0, 4)) + 1}-12-31`), people()]);
+    const [pending, out, hrClaims, hols, staff] = await Promise.all([pendingApprovals(me), whosOut(todayISO(), addDays(todayISO(), 14)), claims({ status: ["pending_hr"] }), holidays(todayISO().slice(0, 4) + "-01-01", `${Number(todayISO().slice(0, 4)) + 1}-12-31`), people(me)]);
     return { pending, out, claims: hrClaims.map((c) => ({ ...c, mine: c.staffId === me.id })), hols, people: staff, year: Number(todayISO().slice(0, 4)), policy: s.leave };
   },
-  credentials: async () => ({ people: await roster() }),
-  onboarding: async () => {
+  credentials: async (me: Me) => ({ people: await roster({ viewer: me }) }),
+  onboarding: async (me: Me) => {
     const cutoff = addDays(todayISO(), -45);
-    return { joiners: (await roster()).filter((p) => (p.joinDate && p.joinDate >= cutoff) || p.onboarding.some((x) => !x) && !!p.joinDate && p.joinDate >= addDays(todayISO(), -120)) };
+    return { joiners: (await roster({ viewer: me })).filter((p) => (p.joinDate && p.joinDate >= cutoff) || p.onboarding.some((x) => !x) && !!p.joinDate && p.joinDate >= addDays(todayISO(), -120)) };
   },
   payroll: async (me: Me, q: Q) => { const month = monthArg(q.m); return { run: await payrollFor(me, month), prev: addMonths(month, -1), next: addMonths(month, 1) }; },
   reports: async (me: Me) => reports(me),
@@ -152,7 +157,7 @@ export type Data<K extends ScreenId> = Awaited<ReturnType<(typeof loaders)[K]>>;
 async function dashboard(me: Me) {
   const today_ = todayISO();
   const [staff, pending, out, openJobs, ann, hrClaims, adminClaims] = await Promise.all([
-    roster(), pendingApprovals(me), whosOut(today_, today_), db.hrJob.count({ where: { status: "active" } }), announcements(5),
+    roster({ viewer: me }), pendingApprovals(me), whosOut(today_, today_, me), db.hrJob.count({ where: { status: "active" } }), announcements(5, me),
     can(me, "attendance") ? db.hrClaim.count({ where: { status: "pending_hr" } }) : 0, me.role === "admin" ? db.hrClaim.count({ where: { status: "pending_admin" } }) : 0,
   ]);
   const soon = addDays(today_, 7);
@@ -166,7 +171,7 @@ async function dashboard(me: Me) {
 async function reports(me: Me) {
   const s = await loadSettings(), month = ym(), first = month + "-01";
   const [staff, slips, leaves, att] = await Promise.all([
-    roster(), db.hrPayslip.findMany({ orderBy: { month: "desc" }, take: 2000 }),
+    roster({ viewer: me }), db.hrPayslip.findMany({ orderBy: { month: "desc" }, take: 2000 }),
     db.hrLeave.findMany({ where: { status: "approved", fromDay: { gte: new Date(first.slice(0, 4) + "-01-01T00:00:00Z") } } }),
     db.hrAttendance.findMany({ where: { day: { gte: new Date(first + "T00:00:00Z") } } }),
   ]);

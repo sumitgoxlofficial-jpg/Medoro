@@ -4,6 +4,7 @@ import { UserError } from "@/server/action";
 import { seal, unseal } from "@/server/vault";
 import { audit, type Me } from "./auth";
 import { instantMeet } from "./gcal";
+import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
 
 // Team Chat. Every message (and picture, and poll) is sealed with HOST_KEY before it is stored, so nothing readable sits in the
 // database, in backups or in logs. The people in a conversation read it normally. Nobody else can: not HR, not Finance.
@@ -17,7 +18,7 @@ export const AVATARS = ["😀", "😎", "🤓", "🥳", "🦊", "🐼", "🦁", 
 export type PollState = { q: string; multi: boolean; options: { text: string; votes: number; mine: boolean }[]; total: number };
 export type ReactionState = { emoji: string; n: number; mine: boolean }[];
 export type ChatMsg = {
-  id: string; seq: number; chatId: string; senderId: string; kind: "text" | "image" | "meet" | "poll"; body: string; hasImage: boolean; deleted: boolean; at: string;
+  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; kind: "text" | "image" | "meet" | "poll"; body: string; hasImage: boolean; deleted: boolean; at: string;
   reactions: ReactionState; poll: PollState | null;
 };
 export type ChatRow = {
@@ -39,14 +40,17 @@ function pollDef(m: Lite): PollDef | null {
 const asMsg = (m: Lite): ChatMsg => {
   const kind = (KINDS as readonly string[]).includes(m.kind) ? (m.kind as ChatMsg["kind"]) : "text";
   const def = pollDef(m);
-  return { id: m.id, seq: m.seq, chatId: m.chatId, senderId: m.senderId, kind, body: m.deletedAt ? "" : def ? def.q : text(m.body), hasImage: kind === "image" && !m.deletedAt, deleted: !!m.deletedAt, at: m.createdAt.toISOString(), reactions: [], poll: null };
+  return { id: m.id, seq: m.seq, chatId: m.chatId, senderId: m.senderId, by: "", kind, body: m.deletedAt ? "" : def ? def.q : text(m.body), hasImage: kind === "image" && !m.deletedAt, deleted: !!m.deletedAt, at: m.createdAt.toISOString(), reactions: [], poll: null };
 };
 const preview = (m: ChatMsg | undefined) => (!m ? "" : m.deleted ? "Message deleted" : m.kind === "image" ? "📷 Photo" : m.kind === "meet" ? "📹 Video call" : m.kind === "poll" ? `📊 ${m.body.slice(0, 70)}` : m.body.slice(0, 80));
 
 /** Adds reactions and poll results for the given messages, as seen by `meId`. */
-async function decorate(rows: Lite[], meId: string): Promise<ChatMsg[]> {
+async function decorate(rows: Lite[], meId: string, hide = false): Promise<ChatMsg[]> {
   const msgs = rows.map(asMsg);
   if (!msgs.length) return msgs;
+  const senders = await db.staffUser.findMany({ where: { id: { in: [...new Set(msgs.map((m) => m.senderId))] } }, select: { id: true, name: true, role: true } });
+  const named = new Map(senders.map((u) => [u.id, hide && u.role === "super_admin" ? ADMIN_LABEL : u.name]));
+  for (const m of msgs) m.by = named.get(m.senderId) ?? "";
   const pollIds = rows.filter((r) => r.kind === "poll" && !r.deletedAt).map((r) => r.id);
   const [rx, votes] = await Promise.all([
     db.hrChatReaction.findMany({ where: { messageId: { in: msgs.map((m) => m.id) } } }),
@@ -86,10 +90,11 @@ export async function presenceMap(): Promise<Presence> {
   return Object.fromEntries(rows.map((r) => [r.staffId, r.presence]));
 }
 
-/** Everyone a person can start a chat with. */
+/** Everyone this person can start a chat with: HR and the super admin see the company; others their team and HR. The super admin is never listed for anyone else. */
 export async function chatPeople(me: Me) {
+  const team = await teamIds(me); // an ordinary employee sees their own team and HR, not the whole company
   const rows = await db.staffUser.findMany({
-    where: { kind: "team", status: "active", role: { not: "partner" }, hr: { isNot: null }, id: { not: me.id } },
+    where: { kind: "team", status: "active", role: hideAdmin(me) ? { notIn: ["partner", "super_admin"] } : { not: "partner" }, hr: { isNot: null }, id: team ? { in: [...team].filter((x) => x !== me.id) } : { not: me.id } },
     select: { id: true, name: true, empNo: true, hr: { select: { dept: true, designation: true, photo: true, chatAvatar: true, presence: true, presenceAt: true } } }, orderBy: { name: "asc" },
   });
   return rows.map((u) => ({
@@ -147,7 +152,8 @@ export async function syncChannels(force = false) {
 }
 
 /** The person's conversations, newest first, with unread counts. */
-export async function chatList(me: Pick<Me, "id">): Promise<ChatRow[]> {
+export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): Promise<ChatRow[]> {
+  const hide = hideAdmin(me); // the review screen passes just an id and sees the real names
   const mine = await db.hrChatMember.findMany({ where: { staffId: me.id }, select: { chatId: true, fromSeq: true } });
   if (!mine.length) return [];
   const from = new Map(mine.map((m) => [m.chatId, m.fromSeq]));
@@ -161,7 +167,7 @@ export async function chatList(me: Pick<Me, "id">): Promise<ChatRow[]> {
       WHERE m.seq > c."lastReadSeq" AND m."senderId" <> ${me.id} AND m."deletedAt" IS NULL GROUP BY m."chatId"`,
   ]);
   const others = [...new Set(members.filter((m) => m.staffId !== me.id).map((m) => m.staffId))];
-  const people = new Map((await db.staffUser.findMany({ where: { id: { in: others } }, select: { id: true, name: true, hr: { select: { photo: true, chatAvatar: true, presence: true, presenceAt: true } } } })).map((u) => [u.id, u]));
+  const people = new Map((await db.staffUser.findMany({ where: { id: { in: others } }, select: { id: true, name: true, role: true, hr: { select: { photo: true, chatAvatar: true, presence: true, presenceAt: true } } } })).map((u) => [u.id, hide && u.role === "super_admin" ? { ...u, name: ADMIN_LABEL, hr: null } : u]));
   const lastOf = new Map(lasts.filter((m) => m.seq > (from.get(m.chatId) ?? 0)).map((m) => [m.chatId, asMsg(m)]));
   const unreadOf = new Map(unread.map((u) => [u.chatId, Number(u.n)]));
   return chats.map((c) => {
@@ -188,12 +194,12 @@ export async function unreadTotal(staffId: string) {
  * With `full`, it also returns the current reactions, poll results and deletions of the latest page, and who is online,
  * so the screen can catch up on changes to messages it already has.
  */
-export async function chatMessages(me: Pick<Me, "id">, chatId: string, after: number | null, markRead: boolean, full = false) {
+export async function chatMessages(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>, chatId: string, after: number | null, markRead: boolean, full = false) {
   const mem = await membership(me, chatId);
   const rows = after === null
     ? (await db.hrChatMessage.findMany({ where: { chatId, seq: { gt: mem.fromSeq } }, orderBy: { seq: "desc" }, take: PAGE, select: LITE })).reverse()
     : await db.hrChatMessage.findMany({ where: { chatId, seq: { gt: Math.max(after, mem.fromSeq) } }, orderBy: { seq: "asc" }, take: 100, select: LITE });
-  const msgs = await decorate(rows, me.id);
+  const msgs = await decorate(rows, me.id, hideAdmin(me));
   const top = msgs.length ? msgs[msgs.length - 1].seq : 0;
   if (markRead && top > mem.lastReadSeq) await db.hrChatMember.update({ where: { chatId_staffId: { chatId, staffId: me.id } }, data: { lastReadSeq: top } });
   const [others, typing] = await Promise.all([
@@ -203,7 +209,7 @@ export async function chatMessages(me: Pick<Me, "id">, chatId: string, after: nu
   let refresh: ChatMsg[] | null = null, presence: Presence | null = null;
   if (full) {
     const win = after === null ? rows : (await db.hrChatMessage.findMany({ where: { chatId, seq: { gt: mem.fromSeq } }, orderBy: { seq: "desc" }, take: PAGE, select: LITE }));
-    [refresh, presence] = await Promise.all([decorate(win, me.id), presenceMap()]);
+    [refresh, presence] = await Promise.all([decorate(win, me.id, hideAdmin(me)), presenceMap()]);
   }
   return { msgs, readUpTo: others.length ? Math.min(...others.map((o) => o.lastReadSeq)) : 0, typing: typing.map((t) => t.staffId), refresh, presence };
 }
@@ -300,6 +306,7 @@ export async function openDm(me: Me, otherId: string) {
   const dmKey = [me.id, otherId].sort().join(":");
   let chat = await db.hrChat.findUnique({ where: { dmKey } });
   if (!chat) {
+    if (!(await visibleTo(me, [otherId])).length) throw new UserError("That colleague isn’t available."); // outside your team (and the super admin) you can only reply to a chat they started
     try { chat = await db.hrChat.create({ data: { kind: "dm", dmKey, createdById: me.id } }); }
     catch { chat = await db.hrChat.findUnique({ where: { dmKey } }); } // the other person opened it at the same moment
     if (!chat) throw new UserError("Couldn’t start the chat. Try again.");
@@ -313,7 +320,7 @@ export async function createGroup(me: Me, nameRaw: unknown, memberIds: unknown) 
   const ids = [...new Set(Array.isArray(memberIds) ? memberIds.filter((x): x is string => typeof x === "string") : [])].filter((x) => x !== me.id);
   if (!ids.length) throw new UserError("Add at least one colleague.");
   if (ids.length + 1 > MAX_GROUP) throw new UserError(`A group can have up to ${MAX_GROUP} people.`);
-  const ok = await activeStaff(ids);
+  const ok = await activeStaff(await visibleTo(me, ids));
   if (ok.length !== ids.length) throw new UserError("One of the people you picked isn’t available.");
   const chat = await db.hrChat.create({ data: { kind: "group", name, createdById: me.id } });
   await db.hrChatMember.createMany({ data: [me.id, ...ids].map((staffId) => ({ chatId: chat.id, staffId })) });
@@ -325,14 +332,19 @@ export async function groupInfo(me: Me, chatId: string) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
   if (!chat || chat.kind !== "group") throw new UserError("That isn’t a group.");
   const mem = await db.hrChatMember.findMany({ where: { chatId }, select: { staffId: true } });
-  const users = await db.staffUser.findMany({ where: { id: { in: mem.map((m) => m.staffId) } }, select: { id: true, name: true, empNo: true, hr: { select: { designation: true, photo: true, chatAvatar: true, presence: true, presenceAt: true } } } });
+  const users = await db.staffUser.findMany({ where: { id: { in: mem.map((m) => m.staffId) } }, select: { id: true, name: true, empNo: true, role: true, hr: { select: { designation: true, photo: true, chatAvatar: true, presence: true, presenceAt: true } } } });
+  // Not everyone is listed: the super admin never is (for others), and an ordinary employee sees only their team and HR.
+  const hide = hideAdmin(me), team = seesAll(me) ? null : await teamIds(me);
+  const shown = users.filter((u) => u.id === me.id || (!(hide && u.role === "super_admin") && (!team || team.has(u.id))));
+  const more = users.filter((u) => !shown.includes(u) && !(hide && u.role === "super_admin")).length;
   return {
     id: chat.id, name: chat.name, about: chat.about, photo: chat.photo, sys: !!chat.sysKey, owner: chat.createdById,
     canEdit: canManage(me, chat), canAdd: canManage(me, chat) && !chat.sysKey,
     // WhatsApp-style admin tools: the person who made the group, and the super admin in any group they are in.
     canRename: canManage(me, chat) && !chat.sysKey, canRemove: canManage(me, chat) && !chat.sysKey, canDelete: canManage(me, chat) && !chat.sysKey,
     superAdmin: me.role === "admin",
-    members: users.sort((a, b) => a.name.localeCompare(b.name)).map((u) => ({
+    more, // members you can't see by name
+    members: shown.sort((a, b) => a.name.localeCompare(b.name)).map((u) => ({
       id: u.id, name: u.name, empNo: u.empNo, designation: u.hr?.designation ?? "", photo: u.hr?.photo ?? null, avatar: u.hr?.chatAvatar ?? "",
       presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id,
     })),
@@ -373,7 +385,7 @@ export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   const ids = [...new Set(Array.isArray(memberIds) ? memberIds.filter((x): x is string => typeof x === "string") : [])];
   const have = await db.hrChatMember.count({ where: { chatId } });
   if (have + ids.length > MAX_GROUP) throw new UserError(`A group can have up to ${MAX_GROUP} people.`);
-  const ok = await activeStaff(ids);
+  const ok = await activeStaff(await visibleTo(me, ids));
   if (!ok.length) throw new UserError("Pick colleagues to add.");
   // A new member starts at the latest message: they don't see what was said before they joined.
   const top = (await db.hrChatMessage.aggregate({ where: { chatId }, _max: { seq: true } }))._max.seq ?? 0;

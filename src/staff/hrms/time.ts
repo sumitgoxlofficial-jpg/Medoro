@@ -6,6 +6,7 @@ import { UserError } from "@/server/action";
 import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/storage";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "./auth";
+import { visibleTo } from "./visibility";
 import { closeIdle, idleToday, parseSelfie, purgeOld, saveSelfie } from "./monitor";
 import { APPLY_IDS, CLAIM_TYPES, LEAVE_IDS, LEAVE_TYPES, UNPAID, daysText, leaveDays, leaveLabel, toMin, type Settings } from "./constants";
 import { applyDuePromotions } from "./promotions";
@@ -361,8 +362,11 @@ export async function myLeaves(me: Me) {
   return rows.map((l) => ({ id: l.id, type: l.type, from: isoOf(l.fromDay), to: isoOf(l.toDay), days: leaveDays(l), half: l.half, reason: l.reason, status: l.status, canCancel: l.status === "pending" || (l.status === "approved" && isoOf(l.fromDay) > todayISO()) }));
 }
 /** Approved leave overlapping the window: who is out. Reasons stay private. */
-export async function whosOut(from: string, to: string) {
-  const rows = await db.hrLeave.findMany({ where: { status: "approved", fromDay: { lte: dateOnly(to) }, toDay: { gte: dateOnly(from) } }, orderBy: { fromDay: "asc" } });
+export async function whosOut(from: string, to: string, viewer?: Pick<Me, "id" | "role">) {
+  const all = await db.hrLeave.findMany({ where: { status: "approved", fromDay: { lte: dateOnly(to) }, toDay: { gte: dateOnly(from) } }, orderBy: { fromDay: "asc" } });
+  // An ordinary employee sees who is out in their own team and HR; nobody but the super admin sees the super admin's leave.
+  const ok = viewer ? new Set(await visibleTo(viewer, [...new Set(all.map((r) => r.staffId))])) : null;
+  const rows = ok ? all.filter((r) => ok.has(r.staffId) || r.staffId === viewer!.id) : all;
   const names = new Map((await db.staffUser.findMany({ where: { id: { in: rows.map((r) => r.staffId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   return rows.map((l) => ({ id: l.id, staffId: l.staffId, name: names.get(l.staffId) ?? "", type: l.type, from: isoOf(l.fromDay), to: isoOf(l.toDay), days: leaveDays(l), half: l.half }));
 }
