@@ -164,7 +164,7 @@ export type Settings = {
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: false, idleMinutes: 5, workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.
@@ -212,6 +212,18 @@ export const monthLabel = (ym: string) => `${MONTHS[Number(ym.slice(5, 7)) - 1]}
 
 /** "13:00" → minutes since midnight. */
 export const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+/**
+ * Minutes worked so far today, live: check-in (or check-out once out) less the lunch break and any breaks. Pure, so the
+ * home page can tick it every second in the browser. `openBreakSince` is the start of a break still running.
+ */
+export function liveWorkedMin(a: { inAt: string; outAt: string | null; breakMin: number }, nowMs: number, lunch: { from: string; to: string }, openBreakSince?: string | null) {
+  const IST_MS = 5.5 * 3600_000, inMs = Date.parse(a.inAt), endMs = a.outAt ? Date.parse(a.outAt) : nowMs;
+  const day0 = Math.floor((inMs + IST_MS) / 86400_000) * 86400_000 - IST_MS; // midnight India time of the check-in day
+  const lunchMs = Math.max(0, Math.min(endMs, day0 + toMin(lunch.to) * 60_000) - Math.max(inMs, day0 + toMin(lunch.from) * 60_000));
+  const openBreakMs = !a.outAt && openBreakSince ? Math.max(0, nowMs - Date.parse(openBreakSince)) : 0;
+  return Math.max(0, (endMs - inMs - lunchMs - openBreakMs) / 60_000 - a.breakMin);
+}
+
 /** The working day in words: "10:00 AM to 7:00 PM, with lunch 1:00 PM to 2:00 PM". Ends = late-after time + work hours + the lunch hour. */
 export function scheduleText(s: Pick<Settings, "lateAfter" | "workHours" | "lunchFrom" | "lunchTo">) {
   const clock = (m: number) => { const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${String(mm).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; };

@@ -62,7 +62,7 @@ export async function runSync(by: string) {
   const at = new Date().toISOString();
   try {
     const r = await importTabs(await fetchBook(c.url), { limit: MAX_NEW_PER_RUN });
-    const give = c.assign ? await assignWaiting() : { given: 0, unmatched: 0, unmatchedLang: [] as string[] };
+    const give = c.assign ? await assignWaiting() : { given: 0, unmatched: 0, unmatchedLang: [] as string[], capped: 0 };
     const last: Last = { at, by, added: r.added, assigned: r.assigned + give.given, skipped: r.skippedCount, why: r.why, more: r.more, unmatched: give.unmatched, unmatchedLang: give.unmatchedLang, error: "" };
     await save({ ...c, last });
     return { ...last, skippedRows: r.skipped };

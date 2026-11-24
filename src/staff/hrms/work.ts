@@ -25,7 +25,7 @@ export type Task = ReturnType<typeof taskOut>;
 export async function myTasks(me: Me) {
   const [rows, names, projects] = await Promise.all([
     db.hrTask.findMany({ where: { assigneeId: me.id, OR: [{ status: "open" }, { doneAt: { gte: new Date(Date.now() - 14 * 86400_000) } }] }, orderBy: [{ status: "desc" }, { due: "asc" }, { createdAt: "desc" }] }),
-    nameMap(), db.hrProject.findMany({ select: { id: true, name: true } }),
+    nameMap(me), db.hrProject.findMany({ select: { id: true, name: true } }),
   ]);
   const pm = new Map(projects.map((p) => [p.id, p.name]));
   return rows.map((t) => taskOut(t, names, pm));
@@ -34,7 +34,7 @@ export async function allTasks(me: Me) {
   need(me, "tasks");
   const [rows, names, projects] = await Promise.all([
     db.hrTask.findMany({ where: { kind: "task" }, orderBy: [{ status: "desc" }, { due: "asc" }, { createdAt: "desc" }], take: 300 }),
-    nameMap(), db.hrProject.findMany({ select: { id: true, name: true } }),
+    nameMap(me), db.hrProject.findMany({ select: { id: true, name: true } }),
   ]);
   const pm = new Map(projects.map((p) => [p.id, p.name]));
   return rows.map((t) => taskOut(t, names, pm));
@@ -110,7 +110,7 @@ export async function deleteProject(me: Me, id: string) {
 export async function projects(me: Me) {
   need(me, "tasks");
   const [rows, names, risks, sprints] = await Promise.all([
-    db.hrProject.findMany({ include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap(),
+    db.hrProject.findMany({ include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap(me),
     db.hrRisk.findMany({ orderBy: { createdAt: "desc" } }), db.hrSprint.findMany({ orderBy: { startOn: "asc" } }),
   ]);
   const today = todayISO();
@@ -178,7 +178,7 @@ export async function setTaskSprint(me: Me, taskId: string, sprintId: string | n
 
 /** The projects the person is a member of, with their tasks in each (for My Projects and the home screen). */
 export async function myProjects(me: Me) {
-  const [rows, names] = await Promise.all([db.hrProject.findMany({ where: { members: { has: me.id }, status: { not: "Done" } }, include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap()]);
+  const [rows, names] = await Promise.all([db.hrProject.findMany({ where: { members: { has: me.id }, status: { not: "Done" } }, include: { tasks: true }, orderBy: { createdAt: "asc" } }), nameMap(me)]);
   return rows.map((p) => {
     const tasks = p.tasks.map((t) => taskOut(t, names));
     return {
@@ -190,8 +190,8 @@ export async function myProjects(me: Me) {
 }
 
 // ── Announcements
-export async function announcements(take = 10) {
-  const [rows, names] = await Promise.all([db.hrAnnouncement.findMany({ orderBy: { createdAt: "desc" }, take }), nameMap()]);
+export async function announcements(take = 10, viewer?: Pick<Me, "role">) {
+  const [rows, names] = await Promise.all([db.hrAnnouncement.findMany({ orderBy: { createdAt: "desc" }, take }), nameMap(viewer)]);
   return rows.map((a) => ({ id: a.id, emoji: a.emoji, title: a.title, body: a.body, by: names.get(a.byId) ?? "", at: a.createdAt.toISOString() }));
 }
 export async function postAnnouncement(me: Me, raw: { emoji?: string; title: string; body: string }) {
@@ -239,7 +239,7 @@ export async function cancelMeeting(me: Me, id: string) {
   await notify(m.attendees.filter((a) => a !== me.id), `“${m.title}” was cancelled.`, "calendar");
 }
 export async function meetings(me: Me, from: Date, to: Date) {
-  const [rows, names] = await Promise.all([db.hrMeeting.findMany({ where: { attendees: { has: me.id }, at: { gte: from, lt: to } }, orderBy: { at: "asc" } }), nameMap()]);
+  const [rows, names] = await Promise.all([db.hrMeeting.findMany({ where: { attendees: { has: me.id }, at: { gte: from, lt: to } }, orderBy: { at: "asc" } }), nameMap(me)]);
   return rows.map((m) => ({ id: m.id, title: m.title, at: m.at.toISOString(), minutes: m.minutes, link: m.link, by: names.get(m.byId) ?? "", mine: m.byId === me.id, attendees: m.attendees.map((a) => names.get(a) ?? "").filter(Boolean), notes: m.notes }));
 }
 
@@ -311,7 +311,7 @@ export async function resolveTicket(me: Me, id: string, reply: string) {
 }
 export async function tickets(me: Me) {
   const all = can(me, "employees");
-  const [rows, names] = await Promise.all([db.hrTicket.findMany({ where: all ? {} : { staffId: me.id }, orderBy: [{ status: "asc" }, { createdAt: "desc" }], take: 100 }), nameMap()]);
+  const [rows, names] = await Promise.all([db.hrTicket.findMany({ where: all ? {} : { staffId: me.id }, orderBy: [{ status: "asc" }, { createdAt: "desc" }], take: 100 }), nameMap(me)]);
   return rows.map((t) => ({ id: t.id, code: t.code, by: names.get(t.staffId) ?? "", mine: t.staffId === me.id, category: t.category, subject: t.subject, body: t.body, status: t.status, reply: t.reply, at: t.createdAt.toISOString() }));
 }
 
@@ -364,6 +364,6 @@ export async function saveOffer(me: Me, id: string, raw: z.input<typeof offerSch
 }
 export async function candidates(me: Me) {
   need(me, "recruitment");
-  const [rows, names] = await Promise.all([db.hrCandidate.findMany({ where: { stage: { not: "rejected" } }, orderBy: { createdAt: "desc" }, take: 300 }), nameMap()]);
+  const [rows, names] = await Promise.all([db.hrCandidate.findMany({ where: { stage: { not: "rejected" } }, orderBy: { createdAt: "desc" }, take: 300 }), nameMap(me)]);
   return rows.map((c) => ({ id: c.id, jobId: c.jobId, name: c.name, email: c.email, phone: c.phone, role: c.role, note: c.note, score: c.score, stage: c.stage, source: c.source, verifiedBy: c.verifiedBy, linkedin: c.linkedin, experience: c.experience, location: c.location, cover: c.cover, hasResume: !!c.resumeKey, at: c.createdAt.toISOString(), offer: c.offer as (z.infer<typeof offerSchema> & { by: string; on: string; sentOn?: string }) | null, referredBy: c.referredBy ? names.get(c.referredBy) ?? "" : "" }));
 }

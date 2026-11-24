@@ -160,7 +160,7 @@ export const addLead = async (input: In<typeof leads.addLead>) => done(await hrR
 export const importLeads = async (text: string) => done(await hrRun((me) => leads.importLeads(me, text)));
 export const assignLead = async (id: string, staffId: string) => done(await hrRun((me) => leads.assignLead(me, id, staffId)));
 export const autoAssignLeads = async () => done(await hrRun((me) => leads.autoAssign(me)));
-export const setSalesTerms = async (staffId: string, input: Parameters<typeof leads.setSalesTerms>[2]) => done(await hrRun((me) => leads.setSalesTerms(me, staffId, input), "Target and incentive saved."));
+export const setSalesTerms = async (staffId: string, input: Parameters<typeof leads.setSalesTerms>[2]) => done(await hrRun((me) => leads.setSalesTerms(me, staffId, input), "Target, incentive and monthly leads saved."));
 
 // ── Accounts
 export const addRecord = async (kind: string, values: string[]) => done(await hrRun((me) => fin.addRecord(me, kind, values), "Saved."));

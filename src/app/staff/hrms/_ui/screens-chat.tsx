@@ -297,7 +297,7 @@ export function ChatScreen({ d }: { d: D }) {
                   return (
                     <div key={m.id} className="flex flex-col gap-1.5">
                       {i === 0 || dayKey(shown[i - 1].at) !== dayKey(m.at) ? <div className="self-center text-[11px] bg-[#E2E8F0] text-[#475569] rounded-full px-3 py-0.5 my-1">{dayLong(m.at)}</div> : null}
-                      <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? "Colleague"} face={who ?? {}} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
+                      <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? {}} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
                         onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />
                     </div>
                   );
@@ -436,10 +436,10 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
       <div className="rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14B8A6] text-white p-5 flex flex-col items-center text-center gap-1">
         <Face name={info.name} photo={info.photo} size={72} square />
         <div className="text-[18px] font-extrabold mt-1">{info.name}</div>
-        <div className="text-[12px] opacity-90">{info.members.length} members · {online} online{info.sys ? " · company channel" : ""}</div>
+        <div className="text-[12px] opacity-90">{info.members.length + info.more} members · {online} online{info.sys ? " · company channel" : ""}</div>
       </div>
       {info.about ? <div><div className="text-[11px] font-bold tracking-[.08em] text-[#64748B]">ABOUT</div><div className="text-[13.5px] whitespace-pre-wrap">{info.about}</div></div> : null}
-      <div className="text-[11px] font-bold tracking-[.08em] text-[#64748B]">{info.members.length} MEMBERS</div>
+      <div className="text-[11px] font-bold tracking-[.08em] text-[#64748B]">{info.members.length + info.more} MEMBERS{info.more ? ` · YOU SEE ${info.members.length}` : ""}</div>
       <ul className="flex flex-col max-h-[260px] overflow-y-auto">
         {info.members.map((m) => (
           <li key={m.id} className="flex items-center gap-2.5 py-1.5 border-b border-[#F1F5F9]">
@@ -450,6 +450,7 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
           </li>
         ))}
       </ul>
+      {info.more ? <p className="text-[12px] text-[#64748B] -mt-1">+ {info.more} more member{info.more === 1 ? "" : "s"} outside your team. You can see your own team and HR.</p> : null}
       {adding ? (
         <>
           <PickList people={people} pres={{}} picked={picked} onToggle={toggle} skip={new Set(info.members.map((p) => p.id))} />

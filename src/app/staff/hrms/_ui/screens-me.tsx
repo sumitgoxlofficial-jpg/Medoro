@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
-import { ASSET_KINDS, BOARD_COLS, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
+import { useNow } from "@/lib/use-now";
+import { ASSET_KINDS, BOARD_COLS, liveWorkedMin, toMin, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
 import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
 import { PhotoEditor } from "./photo-editor";
@@ -147,6 +148,28 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
 }
 
 // ── Home
+/** Live hours worked today against the day's target, ticking every second. Lunch and breaks are not counted. */
+function LiveHours({ sh }: { sh: P["sh"] }) {
+  const now = useNow(1000);
+  if (!sh.checkin) return null;
+  const { inAt, outAt } = sh.att;
+  if (!inAt) return <div className="mt-4 rounded-xl bg-white/10 border border-white/20 px-4 py-3 text-[13px] max-w-[460px]">⏱ Check in to start your working day. Target: {sh.workHours} hours.</div>;
+  const mins = liveWorkedMin({ inAt, outAt, breakMin: sh.att.breakMin }, now, sh.lunch, sh.onBreak?.since), goal = sh.workHours * 60;
+  const ist = new Date(now + 5.5 * 3600_000), nowM = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+  const lunchNow = !outAt && nowM >= toMin(sh.lunch.from) && nowM < toMin(sh.lunch.to);
+  const secs = Math.floor(mins * 60), h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60, done = mins >= goal;
+  return (
+    <div className="mt-4 rounded-xl bg-white/10 border border-white/20 px-4 py-3 max-w-[460px]" aria-live="off">
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">Working today</span>
+        <strong className="text-[26px] leading-none tabular-nums" suppressHydrationWarning>{h}h {String(m).padStart(2, "0")}m {String(s).padStart(2, "0")}s</strong>
+        <span className="text-[12px] text-white/80">of {sh.workHours}h</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-white/20 mt-2"><div className="h-full rounded-full bg-white transition-[width] duration-1000" style={{ width: `${Math.min(100, (mins * 100) / goal)}%` }} /></div>
+      <div className="text-[12px] text-white/80 mt-1.5">{outAt ? "Checked out. Day total." : lunchNow ? "🍽 Lunch break: the clock is paused." : sh.onBreak ? "On a break: the clock is paused." : done ? "Target reached. Nice work." : `${Math.floor((goal - mins) / 60)}h ${String(Math.ceil(goal - mins) % 60).padStart(2, "0")}m to go`}</div>
+    </div>
+  );
+}
 export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
   const [tab, setTab] = useState<"tasks" | "assigned" | "reminders">("tasks");
   const [show, setShow] = useState(false), [rem, setRem] = useState(""), [ann, setAnn] = useState(false), [custom, setCustom] = useState(false);
@@ -168,6 +191,7 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
           <div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
           <div className="text-[26px] font-bold mt-1">{new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, {sh.me.first} 👋</div>
           <div className="text-[13px] text-white/80 mt-1.5 max-w-[460px]">Here’s your day at a glance. Helping Indian pharmacies bill faster and waste less stock.</div>
+          <LiveHours sh={sh} />
           <div className="flex gap-2 mt-4 flex-wrap"><Link href="/staff/hrms/mytasks" className="bg-white text-[#0B5E5B] px-4 py-2 rounded-[10px] font-semibold text-[13px]">View my tasks</Link><button onClick={() => window.dispatchEvent(new Event("hrms:ally"))} className="bg-white/15 border border-white/30 text-white px-4 py-2 rounded-[10px] font-semibold text-[13px] cursor-pointer">✦ Ask Ally</button></div>
         </div>
         <div className="text-right"><div className="text-[40px] font-bold leading-none" suppressHydrationWarning>{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</div><div className="text-[12px] text-white/70">Local time · India</div></div>

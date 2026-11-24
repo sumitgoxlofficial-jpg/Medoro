@@ -15,13 +15,13 @@ const out = (a: { id: string; tag: string; name: string; kind: string; assigneeI
   ({ id: a.id, tag: a.tag, name: a.name, kind: a.kind, assigneeId: a.assigneeId, assignee: a.assigneeId ? names.get(a.assigneeId) ?? "" : "", issuedOn: a.issuedOn ? isoOf(a.issuedOn) : null, status: a.status, note: a.note });
 
 export async function myAssets(me: Me) {
-  const [rows, names] = await Promise.all([db.hrAsset.findMany({ where: { assigneeId: me.id }, orderBy: { issuedOn: "desc" } }), nameMap()]);
+  const [rows, names] = await Promise.all([db.hrAsset.findMany({ where: { assigneeId: me.id }, orderBy: { issuedOn: "desc" } }), nameMap(me)]);
   return rows.map((a) => out(a, names));
 }
 /** Everything the company owns, for HR. */
 export async function allAssets(me: Me) {
   need(me, "employees");
-  const [rows, names] = await Promise.all([db.hrAsset.findMany({ orderBy: { tag: "asc" } }), nameMap()]);
+  const [rows, names] = await Promise.all([db.hrAsset.findMany({ orderBy: { tag: "asc" } }), nameMap(me)]);
   return rows.map((a) => out(a, names));
 }
 const assetSchema = z.object({ name: z.string().trim().min(2, "Name the item.").max(100), kind: z.enum(ASSET_KINDS), note: z.string().trim().max(200).default(""), assigneeId: z.string().nullish() });

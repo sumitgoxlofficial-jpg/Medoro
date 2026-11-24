@@ -90,19 +90,24 @@ export async function salesSummary(me: Me) {
   };
 }
 /** Leaderboard for the month: every salesperson's wins against target. */
+/** New leads a salesperson may be given each calendar month unless HR sets another number. */
+export const DEFAULT_LEAD_QUOTA = 100;
+/** The start of this calendar month, India time: leads given since then count against the monthly quota. */
+const monthStartIST = () => new Date(`${todayISO().slice(0, 7)}-01T00:00:00+05:30`);
 export async function teamBoard(known?: Awaited<ReturnType<typeof incentives>>) {
   const ym = todayISO().slice(0, 7);
-  const [people, inc, counts] = await Promise.all([
-    db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true, hr: { select: { monthlyTarget: true, incentivePct: true, location: true, homeState: true } } }, orderBy: { name: "asc" } }),
+  const [people, inc, counts, givenRows] = await Promise.all([
+    db.staffUser.findMany({ where: { kind: "team", status: "active", hr: { role: "sales" } }, select: { id: true, name: true, empNo: true, hr: { select: { monthlyTarget: true, monthlyLeadQuota: true, incentivePct: true, location: true, homeState: true } } }, orderBy: { name: "asc" } }),
     known ?? incentives(ym),
     db.lead.groupBy({ by: ["staffId", "stage"], _count: true }),
+    db.lead.groupBy({ by: ["staffId"], where: { assignedAt: { gte: monthStartIST() } }, _count: true }),
   ]);
   return people.map((u) => {
     const mineCounts = counts.filter((c) => c.staffId === u.id);
     const total = mineCounts.reduce((a, c) => a + c._count, 0);
     const open = mineCounts.filter((c) => c.stage !== "won" && c.stage !== "lost").reduce((a, c) => a + c._count, 0);
     const i = inc.get(u.id) ?? { won: 0, value: 0, incentive: 0 };
-    return { id: u.id, name: u.name, empNo: u.empNo, area: u.hr?.location ?? "", home: u.hr?.homeState ?? "", target: u.hr?.monthlyTarget ?? 40, pct: Number(u.hr?.incentivePct ?? 0), won: i.won, incentive: i.incentive, assigned: total, open };
+    return { id: u.id, name: u.name, empNo: u.empNo, area: u.hr?.location ?? "", home: u.hr?.homeState ?? "", target: u.hr?.monthlyTarget ?? 40, quota: u.hr?.monthlyLeadQuota ?? DEFAULT_LEAD_QUOTA, givenMonth: givenRows.find((g) => g.staffId === u.id)?._count ?? 0, pct: Number(u.hr?.incentivePct ?? 0), won: i.won, incentive: i.incentive, assigned: total, open };
   }).sort((a, b) => b.won - a.won || a.name.localeCompare(b.name));
 }
 
@@ -119,7 +124,7 @@ const sourceOf = (v: string) => LEAD_SOURCES.find((s) => s.toLowerCase() === v.t
 
 async function insertLead(i: z.output<typeof leadSchema>) {
   const n = await db.$transaction((tx) => nextSeq(tx, CP, "LEAD"));
-  return db.lead.create({ data: { code: `L-${n}`, name: i.name, owner: i.owner || "—", phone: i.phone, city: i.city || "—", source: sourceOf(i.source), product: i.plan, stage: "new", nextOn: i.staffId ? dateOnly(addDays(todayISO(), 1)) : null, staffId: i.staffId, state: stateOf(i.state, i.city) } });
+  return db.lead.create({ data: { code: `L-${n}`, name: i.name, owner: i.owner || "—", phone: i.phone, city: i.city || "—", source: sourceOf(i.source), product: i.plan, stage: "new", nextOn: i.staffId ? dateOnly(addDays(todayISO(), 1)) : null, staffId: i.staffId, assignedAt: i.staffId ? new Date() : null, state: stateOf(i.state, i.city) } });
 }
 export async function addLead(me: Me, raw: z.input<typeof leadSchema>) {
   need(me, "leads");
@@ -258,7 +263,7 @@ export async function assignLead(me: Me, id: string, staffId: string) {
   if (!l) throw new UserError("Lead not found.");
   if (l.stage === "won") throw new UserError("A won pharmacy stays with the salesperson who won it.");
   if (staffId) await salesperson(staffId);
-  await db.lead.update({ where: { id }, data: { staffId, nextOn: staffId && !l.nextOn && l.stage !== "lost" ? dateOnly(addDays(todayISO(), 1)) : l.nextOn } });
+  await db.lead.update({ where: { id }, data: { staffId, ...(staffId && staffId !== l.staffId ? { assignedAt: new Date() } : {}), nextOn: staffId && !l.nextOn && l.stage !== "lost" ? dateOnly(addDays(todayISO(), 1)) : l.nextOn } });
   if (staffId && staffId !== me.id) await notify([staffId], `New lead from HR: ${l.name}`, "slleads");
 }
 /**
@@ -266,19 +271,23 @@ export async function assignLead(me: Me, id: string, staffId: string) {
  * Hindi-speaking states only), choosing the one with the fewest open leads. A lead whose state is unknown, or a salesperson with
  * no home state, is not restricted. A lead nobody can take stays unassigned and is counted in `unmatched`.
  */
-export async function assignWaiting(): Promise<{ given: number; unmatched: number; unmatchedLang: string[] }> {
+export async function assignWaiting(): Promise<{ given: number; unmatched: number; unmatchedLang: string[]; capped: number }> {
   const team = await teamBoard();
-  if (!team.length) return { given: 0, unmatched: 0, unmatchedLang: [] };
+  if (!team.length) return { given: 0, unmatched: 0, unmatchedLang: [], capped: 0 };
   const waiting = await db.lead.findMany({ where: { staffId: "" }, orderBy: { createdAt: "asc" } });
   const load = new Map(team.map((t) => [t.id, t.open]));
   const home = new Map(team.map((t) => [t.id, t.home]));
+  const room = new Map(team.map((t) => [t.id, Math.max(0, t.quota - t.givenMonth)])); // new leads each may still be given this month
   const langs = new Set<string>(), plan = new Map<string, { open: string[]; lost: string[] }>(), states: { id: string; state: string }[] = [];
-  let given = 0, unmatched = 0;
+  let given = 0, unmatched = 0, capped = 0;
   for (const l of waiting) {
     const state = stateOf(l.state, l.city);
-    const eligible = [...load.entries()].filter(([id]) => speaks(home.get(id) ?? "", state)).sort((a, b) => a[1] - b[1]);
-    if (!eligible.length) { unmatched++; const g = langOf(state); if (g) langs.add(langLabel(g)); continue; }
+    const speakers = [...load.entries()].filter(([id]) => speaks(home.get(id) ?? "", state));
+    if (!speakers.length) { unmatched++; const g = langOf(state); if (g) langs.add(langLabel(g)); continue; }
+    const eligible = speakers.filter(([id]) => (room.get(id) ?? 0) > 0).sort((a, b) => a[1] - b[1]);
+    if (!eligible.length) { capped++; continue; } // everyone who could take it has had their monthly quota; it waits for next month or HR raising a quota
     const [id] = eligible[0];
+    room.set(id, room.get(id)! - 1);
     const p = plan.get(id) ?? { open: [], lost: [] };
     (l.stage === "lost" ? p.lost : p.open).push(l.id); plan.set(id, p);
     if (!l.state && state) states.push({ id: l.id, state });
@@ -287,26 +296,26 @@ export async function assignWaiting(): Promise<{ given: number; unmatched: numbe
   // One update per salesperson (and one per state learned from the town), not one per lead.
   const tomorrow = dateOnly(addDays(todayISO(), 1));
   for (const [id, p] of plan) {
-    if (p.open.length) await db.lead.updateMany({ where: { id: { in: p.open } }, data: { staffId: id, nextOn: tomorrow } });
-    if (p.lost.length) await db.lead.updateMany({ where: { id: { in: p.lost } }, data: { staffId: id, nextOn: null } });
+    if (p.open.length) await db.lead.updateMany({ where: { id: { in: p.open } }, data: { staffId: id, nextOn: tomorrow, assignedAt: new Date() } });
+    if (p.lost.length) await db.lead.updateMany({ where: { id: { in: p.lost } }, data: { staffId: id, nextOn: null, assignedAt: new Date() } });
     await notify([id], `${p.open.length + p.lost.length} new lead${p.open.length + p.lost.length > 1 ? "s" : ""} from HR.`, "slleads");
   }
   for (const [state, ids] of Object.entries(states.reduce<Record<string, string[]>>((m, x) => ((m[x.state] ??= []).push(x.id), m), {}))) await db.lead.updateMany({ where: { id: { in: ids } }, data: { state } });
-  return { given, unmatched, unmatchedLang: [...langs] };
+  return { given, unmatched, unmatchedLang: [...langs], capped };
 }
 export async function autoAssign(me: Me) {
   need(me, "leads");
   if (!(await teamBoard()).length) throw new UserError("There are no active sales employees to assign to.");
   const r = await assignWaiting();
-  await audit(me, "Leads auto-assigned", `${r.given} given · ${r.unmatched} waiting for a matching language`);
+  await audit(me, "Leads auto-assigned", `${r.given} given · ${r.unmatched} waiting for a matching language · ${r.capped} held back by the monthly quota`);
   return r;
 }
-export async function setSalesTerms(me: Me, staffId: string, raw: { target: number; pct: number }) {
+export async function setSalesTerms(me: Me, staffId: string, raw: { target: number; pct: number; quota?: number }) {
   need(me, "leads");
-  const i = z.object({ target: z.coerce.number().int().min(0).max(1000), pct: z.coerce.number().min(0).max(5, "Sales incentive can’t be more than 5%.") }).parse(raw);
+  const i = z.object({ target: z.coerce.number().int().min(0).max(1000), pct: z.coerce.number().min(0).max(5, "Sales incentive can’t be more than 5%."), quota: z.coerce.number().int().min(0, "Leads a month can’t be negative.").max(5000, "Leads a month can be at most 5000.").optional() }).parse(raw);
   await salesperson(staffId);
-  await db.hrProfile.update({ where: { staffId }, data: { monthlyTarget: i.target, incentivePct: i.pct } });
-  await audit(me, "Sales target and incentive set", `${staffId} · ${i.target} · ${i.pct}%`);
+  await db.hrProfile.update({ where: { staffId }, data: { monthlyTarget: i.target, incentivePct: i.pct, ...(i.quota !== undefined ? { monthlyLeadQuota: i.quota } : {}) } });
+  await audit(me, "Sales target, incentive and lead quota set", `${staffId} · ${i.target} · ${i.pct}%${i.quota !== undefined ? ` · ${i.quota} leads a month` : ""}`);
 }
 export async function allLeads(me: Me) {
   need(me, "leads");
