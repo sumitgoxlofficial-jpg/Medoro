@@ -16,7 +16,7 @@ import { dateOnly } from "@/lib/dates";
 import { resetDb } from "./helpers";
 
 let hr: Me;
-const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycVerified: true }; };
+const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycSkipped: false, kycVerified: true }; };
 const input = (name: string, n: number, joinDate: string) => ({ name, personalEmail: `p${n}@gmail.com`, phone: `98760000${String(n).padStart(2, "0")}`, dept: "Support", designation: "Executive", role: "employee" as const, empType: "Full-time" as const, joinDate, ctc: 600000, location: "", managerId: null, incentivePct: 0 });
 const bank = (staffId: string, holder: string) => db.hrProfile.update({ where: { staffId }, data: { bankAccountSealed: new Uint8Array(seal("123456789012")), bankLast4: "9012", bankIfsc: "HDFC0001234", bankHolder: holder, bankConfirmedAt: null } });
 const at = (iso: string) => vi.useFakeTimers({ toFake: ["Date"] }) && vi.setSystemTime(new Date(iso));

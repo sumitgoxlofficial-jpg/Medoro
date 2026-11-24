@@ -19,7 +19,7 @@ import { resetDb } from "./helpers";
 
 const body = "23412341234", AADHAAR = body + verhoeffDigit(body), LAST4 = AADHAAR.slice(-4);
 let hr: Me, riya: Me, sam: Me;
-const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: !!u.hr!.kycSubmittedAt, kycVerified: !!u.hr!.kycVerifiedAt }; };
+const mkMe = async (id: string): Promise<Me> => { const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } }); return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: !!u.hr!.kycSubmittedAt, kycSkipped: !!u.hr!.kycSkippedAt, kycVerified: !!u.hr!.kycVerifiedAt }; };
 const mk = (empNo: string, name: string, email: string, role: "hr" | "employee", n: number, dob?: string) =>
   db.staffUser.create({ data: { empNo, name, email, kind: "team", phone: "982000100" + n, role: "employee", status: "active", hr: { create: { role, profileDone: true, ...(dob ? { dob: new Date(dob + "T00:00:00Z") } : {}) } } } });
 const file = (name = "card.pdf", type = "application/pdf") => { const f = new FormData(); f.set("file", new File([new Uint8Array([37, 80, 68, 70, 45])], name, { type })); return f; };
