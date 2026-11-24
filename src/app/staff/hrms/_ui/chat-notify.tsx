@@ -107,7 +107,7 @@ export function ChatNotifier({ screen }: { screen: string }) {
   return (
     <>
       {ask ? (
-        <div role="dialog" aria-label="Message notifications" className="fixed z-[60] bottom-24 right-4 w-[min(92vw,340px)] bg-white border border-[#CBD5E1] rounded-xl shadow-lg p-4 flex flex-col gap-2.5">
+        <div role="dialog" aria-label="Message notifications" className="fixed z-[60] top-[72px] right-4 w-[min(92vw,340px)] bg-white border border-[#CBD5E1] rounded-xl shadow-lg p-4 flex flex-col gap-2.5">
           <div className="font-bold text-[13.5px]">🔔 Get notified of new chat messages?</div>
           <div className="text-[12.5px] text-[#475569]">A pop-up and a sound when someone messages you, even while you are in another tab.</div>
           <div className="flex gap-2 justify-end">

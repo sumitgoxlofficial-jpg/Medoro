@@ -47,11 +47,12 @@ test("a new message pops up on the floating chat bubble and can be answered from
 
   // Ben starts a chat with Ann and writes to her.
   await signIn(ben, BEN.email);
+  await expect(ben).toHaveURL(/\/staff\/hrms/); // sign-in finishes its own redirect first
   await ben.goto("/staff/hrms/chat");
   await ben.getByRole("button", { name: "+ New" }).click();
   await ben.getByRole("button", { name: new RegExp(ANN.name) }).click();
   await ben.getByLabel("Message", { exact: true }).fill("Hello Ann, are you free for a quick call?");
-  await ben.getByRole("button", { name: "Send" }).click();
+  await ben.getByRole("button", { name: "Send", exact: true }).click();
 
   // The pop-up shows who it is from and what they said; the bubble counts it.
   const popup = ann.getByRole("button", { name: new RegExp(`${BEN.name}.*Hello Ann`) });
@@ -63,7 +64,7 @@ test("a new message pops up on the floating chat bubble and can be answered from
   const win = ann.getByRole("dialog", { name: `Chat with ${BEN.name}` });
   await expect(win.getByText("Hello Ann, are you free for a quick call?")).toBeVisible();
   await win.getByLabel("Message", { exact: true }).fill("Yes, calling you now");
-  await win.getByRole("button", { name: "Send" }).click();
+  await win.getByRole("button", { name: "Send", exact: true }).click();
   await expect(win.getByText("Yes, calling you now")).toBeVisible();
   await expect(ann).toHaveURL(/\/staff\/hrms(?!\/chat)/); // still on the same page
 
