@@ -47,9 +47,11 @@ export function ChatHeads({ screen, meId }: { screen: string; meId: string }) {
     return () => { window.removeEventListener("hrms:chatlist", list); window.removeEventListener("hrms:chatnew", fresh); clearTimeout(hideT.current); };
   }, []);
 
-  const unread = chats.reduce((a, c) => a + c.unread, 0);
-  const latest = [...chats].filter((c) => c.unread > 0).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0];
-  const sorted = [...chats].sort((a, b) => (b.unread > 0 ? 1 : 0) - (a.unread > 0 ? 1 : 0) || b.lastAt.localeCompare(a.lastAt)).slice(0, 8);
+  // The conversation you have open is being read right now: show it as read until the next list arrives.
+  const shown = chats.map((c) => (open && c.id === active && c.unread ? { ...c, unread: 0 } : c));
+  const unread = shown.reduce((a, c) => a + c.unread, 0);
+  const latest = [...shown].filter((c) => c.unread > 0).sort((a, b) => b.lastAt.localeCompare(a.lastAt))[0];
+  const sorted = [...shown].sort((a, b) => (b.unread > 0 ? 1 : 0) - (a.unread > 0 ? 1 : 0) || b.lastAt.localeCompare(a.lastAt)).slice(0, 8);
   const current = chats.find((c) => c.id === active) ?? null;
 
   const openChat = useCallback((id: string) => { setPopup(null); setActive(id); setOpen(true); }, []);

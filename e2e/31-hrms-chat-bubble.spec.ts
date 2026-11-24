@@ -69,7 +69,7 @@ test("a new message pops up on the floating chat bubble and can be answered from
   await expect(ann).toHaveURL(/\/staff\/hrms(?!\/chat)/); // still on the same page
 
   // Ben sees the reply on the full chat screen.
-  await expect(ben.getByText("Yes, calling you now")).toBeVisible({ timeout: 30_000 });
+  await expect(ben.getByText("Yes, calling you now").first()).toBeVisible({ timeout: 30_000 });
 
   // On the chat screen itself there is no floating bubble (it is the full version).
   await ann.goto("/staff/hrms/chat");
