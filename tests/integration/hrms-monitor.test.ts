@@ -89,6 +89,7 @@ describe("selfie check-in", () => {
 describe("idle-time monitoring", () => {
   const ago = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
   it("does nothing while it is switched off", async () => {
+    await setting({ idleMonitor: false });
     await checkIn(emp);
     expect(await idleStart(emp, ago(20))).toEqual({ recorded: false });
     expect(await db.hrIdle.count()).toBe(0);
@@ -143,21 +144,21 @@ describe("idle-time monitoring", () => {
   });
 });
 
-describe("an eight-hour day with a one-hour lunch", () => {
+describe("an eight-hour day with a half-hour lunch", () => {
   const ist = (h: number, m = 0) => new Date(Date.UTC(2026, 10, 11, h, m) - 5.5 * 3600_000); // 11 Nov 2026, India time
   it("is the default policy and is written out in words", () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ workHours: 8, lunchFrom: "13:00", lunchTo: "14:00", lateAfter: "10:00" });
-    expect(scheduleText(DEFAULT_SETTINGS)).toMatchObject({ start: "10:00 AM", end: "7:00 PM", lunchFrom: "1:00 PM", lunchTo: "2:00 PM", lunchMin: 60 });
+    expect(DEFAULT_SETTINGS).toMatchObject({ workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", lateAfter: "10:00", idleMonitor: true, idleMinutes: 2 });
+    expect(scheduleText(DEFAULT_SETTINGS)).toMatchObject({ start: "10:00 AM", end: "6:30 PM", lunchFrom: "1:00 PM", lunchTo: "1:30 PM", lunchMin: 30 });
   });
 
-  it("takes the lunch hour off the day, whatever time the person comes and goes", async () => {
+  it("takes the lunch half hour off the day, whatever time the person comes and goes", async () => {
     const s = await loadSettings(), w = (a: Date, b: Date, breakMin = 0) => workedMin({ inAt: a, outAt: b, breakMin }, s);
-    expect(lunchOverlapMin(ist(10), ist(19), s)).toBe(60);
-    expect(w(ist(10), ist(19))).toBe(480); // 10 AM to 7 PM is exactly eight hours of work
+    expect(lunchOverlapMin(ist(10), ist(18, 30), s)).toBe(30);
+    expect(w(ist(10), ist(18, 30))).toBe(480); // 10 AM to 6:30 PM is exactly eight hours of work
     expect(w(ist(10), ist(12, 30))).toBe(150); // left before lunch: nothing taken off
-    expect(lunchOverlapMin(ist(13, 30), ist(18), s)).toBe(30); // came back mid-lunch
-    expect(w(ist(13, 30), ist(18))).toBe(240);
-    expect(w(ist(10), ist(19), 20)).toBe(460); // a 20 minute tea break comes off too
+    expect(lunchOverlapMin(ist(13, 15), ist(18), s)).toBe(15); // came back mid-lunch
+    expect(w(ist(13, 15), ist(18))).toBe(270);
+    expect(w(ist(10), ist(18, 30), 20)).toBe(460); // a 20 minute tea break comes off too
     expect(hm(460)).toBe("7h 40m");
   });
 
@@ -166,8 +167,8 @@ describe("an eight-hour day with a one-hour lunch", () => {
     await setting({ selfie: false, lateAfter: "23:59" });
     await db.hrAttendance.create({ data: { staffId: emp.id, day: dateOnly(todayISO()), inAt: ist(10), outAt: ist(16), status: "present", breakMin: 0 } });
     const row = (await teamToday(hr)).find((r) => r.id === emp.id)!;
-    expect(row).toMatchObject({ worked: "5h 00m", short: true }); // 6 hours there, less lunch
-    await db.hrAttendance.update({ where: { staffId_day: { staffId: emp.id, day: dateOnly(todayISO()) } }, data: { outAt: ist(19) } });
+    expect(row).toMatchObject({ worked: "5h 30m", short: true }); // 6 hours there, less the half-hour lunch
+    await db.hrAttendance.update({ where: { staffId_day: { staffId: emp.id, day: dateOnly(todayISO()) } }, data: { outAt: ist(18, 30) } });
     expect((await teamToday(hr)).find((r) => r.id === emp.id)).toMatchObject({ worked: "8h 00m", short: false });
   });
 

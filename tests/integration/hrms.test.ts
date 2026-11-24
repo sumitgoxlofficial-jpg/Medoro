@@ -385,7 +385,7 @@ describe("HRMS", () => {
       vi.setSystemTime(new Date("2032-05-11T04:00:00Z"));
       expect(await closeOpenDays()).toBeGreaterThan(0);
       const a = await db.hrAttendance.findUniqueOrThrow({ where: { staffId_day: { staffId: nina.id, day: dateOnly("2032-05-10") } } });
-      expect(a.outAt!.toISOString()).toBe("2032-05-10T16:30:00.000Z"); // 8 hours of work + the lunch hour
+      expect(a.outAt!.toISOString()).toBe("2032-05-10T16:00:00.000Z"); // 8 hours of work + the half-hour lunch
       expect(a.note).toMatch(/Auto check-out/);
       expect(await closeOpenDays()).toBe(0);
     } finally { vi.useRealTimers(); }

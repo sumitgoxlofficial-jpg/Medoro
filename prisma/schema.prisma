@@ -1329,6 +1329,7 @@ model Lead {
   discountStatus String? // pending, approved, rejected
   email          String    @default("")
   state          String    @default("") // Indian state, so the lead goes to a salesperson who speaks its language
+  assignedAt     DateTime? // when it was last given to a salesperson; counts against their monthly lead quota
   createdAt      DateTime  @default(now())
   logs           LeadLog[]
 }
@@ -2414,6 +2415,7 @@ model HrProfile {
   ctc                Int       @default(0) // rupees per year
   incentivePct       Decimal   @default(0) @db.Decimal(4, 2)
   monthlyTarget      Int       @default(40) // pharmacies to win per month (sales)
+  monthlyLeadQuota   Int       @default(100) // new leads auto-assign may give this salesperson each calendar month; only HR changes it
   personalEmail      String    @default("")
   mustChangePassword Boolean   @default(false)
   profileDone        Boolean   @default(false)

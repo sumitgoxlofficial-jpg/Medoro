@@ -80,7 +80,7 @@ export async function isWorkDay(staffId: string, day = todayISO()) {
 }
 export async function today(me: Me) {
   const a = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(todayISO()) } } });
-  return { inAt: a?.inAt?.toISOString() ?? null, outAt: a?.outAt?.toISOString() ?? null, status: a?.status ?? null };
+  return { inAt: a?.inAt?.toISOString() ?? null, outAt: a?.outAt?.toISOString() ?? null, status: a?.status ?? null, breakMin: a?.breakMin ?? 0 };
 }
 export async function checkIn(me: Me, selfie?: string) {
   const day = todayISO(), now = new Date();
