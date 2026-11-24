@@ -12,6 +12,7 @@ import { ProfileForm } from "./screens-me";
 import { KycStep } from "./kyc";
 import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { ChatNotifier } from "./chat-notify";
+import { ChatHeads } from "./chat-heads";
 import { Screen } from "./screens";
 import { ScreenHero } from "./hero";
 import { Check, FileSignature, KeyRound, ShieldCheck, UserRound } from "lucide-react";
@@ -154,6 +155,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
         <main key={screen} className="hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12">{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
+      <ChatHeads screen={screen} meId={sh.me.id} />
       <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} lunch={sh.lunch} />
       {sh.needsPhoto ? <PhotoCheckin lateAfter={sh.lateAfter} /> : null}
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}

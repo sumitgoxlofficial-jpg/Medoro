@@ -5,7 +5,7 @@ import type { ChatRow } from "@/staff/hrms/chat";
 import { useBrowserValue, useLocalStorage } from "@/lib/react-state";
 
 /**
- * New-message alerts, like WhatsApp Web: a short two-note sound, a banner at the top of the page while you are in the HRMS,
+ * New-message alerts, like WhatsApp Web: a short two-note sound, a pop-up on the floating chat bubble while you are in the HRMS,
  * a desktop notification when the tab is in the background (after you allow it once), and an unread count in the tab title.
  * Alerts only for messages that arrive while the HRMS is open (a closed tab can't ring), never for a chat you are looking at.
  */
@@ -40,16 +40,15 @@ export function ChatNotifier({ screen }: { screen: string }) {
   const router = useRouter();
   const prev = useRef<Map<string, number> | null>(null);
   const baseTitle = useRef("");
-  const [banner, setBanner] = useState<Fresh | null>(null);
   const canAsk = useBrowserValue(() => "Notification" in window && Notification.permission === "default" && !get(ASKED_KEY), false);
   const [dismissed, setDismissed] = useState(false);
   const ask = canAsk && !dismissed;
-  const hideT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const onChat = screen === "chat";
 
-  const open = useCallback((id: string) => { window.focus(); setBanner(null); router.push(`/staff/hrms/chat?c=${encodeURIComponent(id)}`); }, [router]);
+  const open = useCallback((id: string) => { window.focus(); router.push(`/staff/hrms/chat?c=${encodeURIComponent(id)}`); }, [router]);
 
   const handle = useCallback((chats: ChatRow[], active: string) => {
+    window.dispatchEvent(new CustomEvent("hrms:chatlist", { detail: { chats } })); // the floating chat bubble shows the same list
     const before = prev.current;
     prev.current = new Map(chats.map((c) => [c.id, c.unread]));
     if (!before) return; // the first look only sets the baseline: nothing already waiting rings
@@ -69,10 +68,8 @@ export function ChatNotifier({ screen }: { screen: string }) {
           note.onclick = () => { note.close(); open(n.id); };
         } catch { /* some browsers only allow notifications from a service worker */ }
       }
-    } else if (!(onChat)) {
-      setBanner(n);
-      clearTimeout(hideT.current);
-      hideT.current = setTimeout(() => setBanner(null), 7000);
+    } else if (!onChat) {
+      window.dispatchEvent(new CustomEvent("hrms:chatnew", { detail: { chat: top } })); // the floating bubble pops up a preview with the sender's photo
     }
   }, [open, onChat]);
 
@@ -109,14 +106,8 @@ export function ChatNotifier({ screen }: { screen: string }) {
 
   return (
     <>
-      {banner ? (
-        <button onClick={() => open(banner.id)} aria-live="polite" className="fixed z-[60] top-3 left-1/2 -translate-x-1/2 w-[min(92vw,420px)] flex items-center gap-3 text-left bg-white border border-[#CBD5E1] rounded-xl shadow-lg px-4 py-3 cursor-pointer">
-          <span className="text-[20px]" aria-hidden>💬</span>
-          <span className="min-w-0 flex-1"><span className="block font-bold text-[13.5px] truncate">{banner.count > 1 ? `${banner.count} chats have new messages` : banner.title}</span><span className="block text-[12.5px] text-[#475569] truncate">{banner.count > 1 ? `${banner.title}: ${banner.text}` : banner.text}</span></span>
-        </button>
-      ) : null}
       {ask ? (
-        <div role="dialog" aria-label="Message notifications" className="fixed z-[60] bottom-4 right-4 w-[min(92vw,340px)] bg-white border border-[#CBD5E1] rounded-xl shadow-lg p-4 flex flex-col gap-2.5">
+        <div role="dialog" aria-label="Message notifications" className="fixed z-[60] bottom-24 right-4 w-[min(92vw,340px)] bg-white border border-[#CBD5E1] rounded-xl shadow-lg p-4 flex flex-col gap-2.5">
           <div className="font-bold text-[13.5px]">🔔 Get notified of new chat messages?</div>
           <div className="text-[12.5px] text-[#475569]">A pop-up and a sound when someone messages you, even while you are in another tab.</div>
           <div className="flex gap-2 justify-end">
