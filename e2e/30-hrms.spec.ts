@@ -34,15 +34,11 @@ async function completeKyc(p: Page, withPan: boolean) {
   await p.getByPlaceholder("1234 5678 9012").fill(body + verhoeffDigit(body));
   if (withPan) await p.getByPlaceholder("ABCDE1234F").fill("ABCPS1234K");
   await p.getByRole("checkbox").check();
-  await p.getByRole("button", { name: "Save numbers" }).click();
-  await expect(p.getByText(/Saved: XXXX XXXX \d{4}/)).toBeVisible();
-  await expect(p.getByRole("link", { name: "Verify with DigiLocker" })).toHaveCount(0); // not set up on this server
   const pdf = { name: "card.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") };
+  await expect(p.getByRole("link", { name: "Verify with DigiLocker" })).toHaveCount(0); // not set up on this server
   await p.getByLabel("Aadhaar card file").setInputFiles(pdf);
-  await p.locator("section section").filter({ hasText: "2. Aadhaar proof" }).getByRole("button", { name: "Upload" }).click();
-  await expect(p.getByText("Waiting for HR").first()).toBeVisible();
   await p.getByLabel("PAN card file").setInputFiles(pdf);
-  await p.locator("section section").filter({ hasText: "3. PAN card" }).getByRole("button", { name: "Upload" }).click();
+  await p.getByRole("button", { name: "Save and continue" }).click(); // numbers and both cards in one go
 }
 /** The first weekday on or after `from` (YYYY-MM-DD), so a leave date is never a weekly off. */
 function weekday(from: Date) {

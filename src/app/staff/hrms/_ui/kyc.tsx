@@ -31,12 +31,19 @@ export function KycStep() {
     setNotice(r === "verified" ? { tone: "ok", text: "Your Aadhaar is verified through DigiLocker." } : r === "review" ? { tone: "warn", text: (q.get("why") || "We couldn’t match your DigiLocker Aadhaar.") + " Upload your Aadhaar card below and HR will check it." } : r === "denied" ? { tone: "warn", text: "You didn’t allow DigiLocker access. You can try again, or upload your Aadhaar card." } : { tone: "warn", text: q.get("why") || "DigiLocker didn’t work this time. Try again, or upload your Aadhaar card." });
     window.history.replaceState(null, "", window.location.pathname);
   }, []);
-  // Picking a file uploads it straight away: no second "Upload" tap to forget.
-  const sendDoc = (kind: "Aadhaar card" | "PAN card", ref: React.RefObject<HTMLInputElement | null>) => {
-    const f = ref.current?.files?.[0];
-    if (!f) return;
-    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f);
-    run(() => uploadDoc(fd), () => { if (ref.current) ref.current.value = ""; void load().then(() => router.refresh()); });
+  // One button does it all: saves any numbers typed, then uploads whichever cards were chosen.
+  const submitAll = () => {
+    const af = aFile.current?.files?.[0], pf = pFile.current?.files?.[0];
+    if (!aadhaar && !pan && !af && !pf) return toast("Add your numbers and cards first, or tap Skip for now.", "red");
+    run(async () => {
+      if (aadhaar || pan) { const r = await saveKyc({ aadhaar, pan, consent }); if (!r.ok) return r; }
+      for (const [kind, f] of [["Aadhaar card", af], ["PAN card", pf]] as const) {
+        if (!f) continue;
+        const fd = new FormData(); fd.set("kind", kind); fd.set("file", f);
+        const r = await uploadDoc(fd); if (!r.ok) return r;
+      }
+      return { ok: true as const, data: null, message: "Saved." };
+    }, () => { setAadhaar(""); setPan(""); if (aFile.current) aFile.current.value = ""; if (pFile.current) pFile.current.value = ""; void load().then(() => router.refresh()); });
   };
   if (!st) return <Card title="Aadhaar & PAN" pad><div className="text-[13px] text-[#64748B]">Loading…</div></Card>;
   const needNumbers = !st.aadhaar.entered || !st.pan.entered;
@@ -54,7 +61,6 @@ export function KycStep() {
             <Field label="PAN" hint={st.pan.entered ? `Saved: ${st.pan.masked}. Type a new one only to change it.` : "e.g. ABCDE1234F"}><input className={inputCls} autoComplete="off" placeholder={st.pan.entered ? st.pan.masked : "ABCDE1234F"} value={pan} onChange={(e) => setPan(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))} /></Field>
           </div>
           <label className="flex items-start gap-2 text-[12.5px] text-[#475569]"><input type="checkbox" className="mt-0.5" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>I allow Medoro to keep my Aadhaar and PAN, encrypted, to verify my identity for employment and salary tax. Only HR can open them, and every opening is logged.</span></label>
-          <div><button className={primaryCls} disabled={busy || (!aadhaar && !pan)} onClick={() => run(() => saveKyc({ aadhaar, pan, consent }), () => { setAadhaar(""); setPan(""); void load().then(() => router.refresh()); })}>Save numbers</button></div>
         </section>
 
         <section className="flex flex-col gap-2.5">
@@ -68,7 +74,7 @@ export function KycStep() {
                 <span className="text-[12.5px] text-[#64748B]">You sign in on DigiLocker with your Aadhaar OTP. Medoro checks the last four digits, your name and date of birth, and keeps nothing else from it.{!st.aadhaar.entered ? " Save your Aadhaar number first." : ""}</span>
               </div> : null}
               <div className="flex items-end gap-2 flex-wrap">
-                <Field label={st.digilocker ? "Or choose your Aadhaar card photo or PDF. It uploads by itself." : "Choose your Aadhaar card photo or PDF. It uploads by itself."}><input ref={aFile} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" aria-label="Aadhaar card file" disabled={busy} onChange={() => sendDoc("Aadhaar card", aFile)} /></Field>
+                <Field label={st.digilocker ? "Or choose your Aadhaar card photo or PDF. It uploads by itself." : "Choose your Aadhaar card photo or PDF"}><input ref={aFile} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" aria-label="Aadhaar card file" /></Field>
               </div>
             </>
           ) : <p className="text-[12.5px] text-[#64748B]">Matched against your own DigiLocker Aadhaar. No upload needed.</p>}
@@ -77,13 +83,14 @@ export function KycStep() {
         <section className="flex flex-col gap-2.5">
           <div className="flex items-center gap-2"><Tick done={st.pan.doc !== "none"} /><strong className="text-[14px]">3. PAN card</strong>{st.pan.doc === "verified" ? <Pill tone="green">Verified by HR</Pill> : st.pan.doc === "uploaded" ? <Pill tone="amber">Waiting for HR</Pill> : null}</div>
           <div className="flex items-end gap-2 flex-wrap">
-            <Field label="Choose your PAN card photo or PDF. It uploads by itself."><input ref={pFile} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" aria-label="PAN card file" disabled={busy} onChange={() => sendDoc("PAN card", pFile)} /></Field>
+            <Field label="Choose your PAN card photo or PDF"><input ref={pFile} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" aria-label="PAN card file" /></Field>
           </div>
         </section>
 
-        {needNumbers ? <p className="text-[12px] text-[#64748B]">Save both numbers to continue.</p> : !aadhaarProof || st.pan.doc === "none" ? <p className="text-[12px] text-[#64748B]">Add the proof for each to continue.</p> : null}
+        {needNumbers ? <p className="text-[12px] text-[#64748B]">Type both numbers, then tap Save and continue.</p> : !aadhaarProof || st.pan.doc === "none" ? <p className="text-[12px] text-[#64748B]">Choose a card for each, then tap Save and continue.</p> : null}
         <p className="text-[12px] text-[#64748B]">You don’t wait for HR: once both numbers and proofs are in, you go to the next step. HR checks them later and tells you if anything needs fixing.</p>
         <div className="border-t border-[#E2E8F0] pt-3 flex items-center gap-3 flex-wrap">
+          <button type="button" className={primaryCls} disabled={busy} onClick={submitAll}>Save and continue</button>
           <button type="button" className={btnCls} disabled={busy} onClick={() => run(() => skipKyc(), () => router.refresh())}>Skip for now</button>
           <span className="text-[12px] text-[#64748B]">Don’t have your Aadhaar or PAN card handy? Skip and add them later. HR will remind you.</span>
         </div>
