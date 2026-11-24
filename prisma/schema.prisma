@@ -2404,6 +2404,7 @@ model HrProfile {
   aadhaarVerifiedBy  String    @default("") // "DigiLocker" or the HR person's name
   kycSubmittedAt     DateTime? // Aadhaar and PAN numbers given, and the proof for each uploaded or verified through DigiLocker
   kycVerifiedAt      DateTime? // Aadhaar and PAN both verified
+  kycSkippedAt       DateTime? // the employee chose "Skip for now" on the Aadhaar and PAN step; HR still sees KYC as missing and follows up
   kycNote            String    @default("") // HR's reason for sending an Aadhaar or PAN proof back; cleared when the employee fixes it
   taxRegime          String    @default("new") // new or old income-tax regime, for the monthly TDS estimate
   taxDeclared        Int       @default(0) // old regime: yearly deductions HR accepted (80C, 80D, HRA…), rupees

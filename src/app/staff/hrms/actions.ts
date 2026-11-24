@@ -87,6 +87,7 @@ export const rejectDoc = async (id: string, reason: string) => done(await hrRun(
 export const verifyDoc = async (id: string, ok: boolean) => done(await hrRun((me) => docs.verifyDoc(me, id, ok), ok ? "Marked as verified." : "Verification removed."));
 export const employeeDocs = async (staffId: string) => hrRun((me) => docs.employeeDocs(me, staffId));
 export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved."));
+export const skipKyc = async () => done(await hrRun((me) => kyc.skipKyc(me), "No problem. You can add them later from your profile."));
 export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }));
 export const revealKyc = async (staffId: string) => hrRun((me) => kyc.revealKyc(me, staffId));
 export const employeeKyc = async (staffId: string) => hrRun((me) => kyc.kycStateFor(me, staffId));

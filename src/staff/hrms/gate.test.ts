@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { gateOf } from "./gate";
 
-const base = { mustChangePassword: false, profileDone: true, kycSubmitted: false, docsAccepted: false, role: "employee" as const, staffRole: "employee" as const };
+const base = { mustChangePassword: false, profileDone: true, kycSubmitted: false, kycSkipped: false, docsAccepted: false, role: "employee" as const, staffRole: "employee" as const };
 
 describe("the sign-in steps before the HRMS opens", () => {
   it("asks an employee for their password, details, Aadhaar and PAN, then the joining documents", () => {
@@ -9,6 +9,7 @@ describe("the sign-in steps before the HRMS opens", () => {
     expect(gateOf({ ...base, profileDone: false })).toBe("profile");
     expect(gateOf(base)).toBe("kyc");
     expect(gateOf({ ...base, kycSubmitted: true })).toBe("docs");
+    expect(gateOf({ ...base, kycSkipped: true })).toBe("docs"); // skipped for now: carry on
     expect(gateOf({ ...base, kycSubmitted: true, docsAccepted: true })).toBeNull();
   });
 
