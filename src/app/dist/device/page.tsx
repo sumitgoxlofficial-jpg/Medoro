@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ d
   return (
     <>
       <DeviceHead title="Distribution on this device" sub={tr("Your distribution records live on this device and in your Google Drive, encrypted.")} />
-      <DevicePos userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit discCap={100}
+      <DevicePos pharmacyBranches={(await db.branch.findMany({ where: { tenantId: ctx.tenantId }, select: { id: true } })).map((b) => b.id)} userId={ctx.userId} userName={ctx.userName} owner={ctx.realRole === "Owner" && ctx.role === "Owner"} canCredit discCap={100}
         drive={await deviceDriveEnabled(ctx.tenantId)} fresh={settings.driveOnly === true} mustMove={!!ctx.mustMove} driveResult={sp.drive ?? null}
         tab={DIST_TAB_KEYS.has(sp.tab ?? "") ? (sp.tab as Tab) : "wholesale"} tabs={distTabsFor(ctx.perms)} />
     </>
