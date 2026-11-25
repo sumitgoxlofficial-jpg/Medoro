@@ -16,7 +16,7 @@ type Thread = { msgs: ChatMsg[]; error: string };
 
 const initialsOf = (n: string) => n.split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
 const preview = (c: ChatRow) => (c.kind === "group" && c.lastBy ? `${c.lastBy}: ` : "") + (c.last || "No messages yet");
-const textOf = (m: ChatMsg) => (m.deleted ? "Message deleted" : m.kind === "image" ? "📷 Photo" : m.kind === "meet" ? "📹 Video call" : m.kind === "poll" ? `📊 ${m.body}` : m.body);
+const textOf = (m: ChatMsg) => (m.deleted ? "Message deleted" : m.kind === "image" ? "📷 Photo" : m.kind === "file" ? `📄 ${m.file?.name ?? "Document"}` : m.kind === "meet" ? "📹 Video call" : m.kind === "poll" ? `📊 ${m.body}` : m.body);
 
 function Face({ title, photo, avatar, size }: { title: string; photo: string | null; avatar: string; size: number }) {
   if (avatar) return <span className="rounded-full bg-[#EEF2FF] flex items-center justify-center flex-none" style={{ width: size, height: size, fontSize: size * 0.55 }} aria-hidden>{avatar}</span>;

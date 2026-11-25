@@ -186,6 +186,7 @@ export const chatOpenDm = async (otherId: string) => hrRun((me) => chat.openDm(m
 export const chatCreateGroup = async (name: string, members: string[]) => hrRun((me) => chat.createGroup(me, name, members), "Group created.");
 export const chatSend = async (chatId: string, body: string) => hrRun((me) => chat.sendText(me, chatId, body));
 export const chatSendImage = async (chatId: string, form: FormData) => hrRun((me) => chat.sendImage(me, chatId, form));
+export const chatSendFile = async (chatId: string, form: FormData) => hrRun((me) => chat.sendFile(me, chatId, form));
 export const chatDelete = async (id: string) => hrRun((me) => chat.deleteMessage(me, id), "Message deleted.");
 export const chatMeet = async (chatId: string) => hrRun((me) => chat.startMeet(me, chatId));
 export const chatAddMembers = async (chatId: string, members: string[]) => hrRun((me) => chat.addToGroup(me, chatId, members), "People added.");

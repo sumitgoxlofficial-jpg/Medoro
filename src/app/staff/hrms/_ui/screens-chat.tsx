@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
 import type { Data } from "@/staff/hrms/screens";
 import {
-  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendImage, chatSetAvatar,
+  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
   chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
@@ -24,6 +24,21 @@ const shortTime = (iso: string) => {
 };
 const dot = (p: string | undefined) => (p === "active" ? "#14B8A6" : p === "break" ? "#F59E0B" : "#94A3B8");
 const statusText = (p: string | undefined) => (p === "active" ? "Online" : p === "break" ? "On a break" : "Offline");
+const sizeLabel = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / (1024 * 1024)).toFixed(1)} MB`);
+const DOC_ACCEPT = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/** A PDF or Word document in a chat: its name and size, with a download link through the access-checked route. */
+function FileCard({ m }: { m: ChatMsg }) {
+  if (!m.file) return null;
+  const pdf = m.file.type === "application/pdf";
+  return (
+    <a href={`/staff/hrms/chat/img/${m.id}`} download={m.file.name} className="flex items-center gap-2.5 min-w-[220px] max-w-[300px] bg-white/70 border border-[#CBD5E1] rounded-xl px-3 py-2 mb-1 no-underline text-inherit hover:bg-white">
+      <span aria-hidden className={cx("flex-none w-9 h-10 rounded-md text-white text-[10px] font-bold flex items-center justify-center", pdf ? "bg-[#DC2626]" : "bg-[#2563EB]")}>{pdf ? "PDF" : "DOC"}</span>
+      <span className="flex-1 min-w-0"><span className="block font-semibold text-[13px] truncate">{m.file.name}</span><span className="block text-[11px] text-[#64748B]">{sizeLabel(m.file.size)} · {pdf ? "PDF" : "Word"}</span></span>
+      <span aria-label="Download" className="flex-none text-[16px]">⬇</span>
+    </a>
+  );
+}
 const initialsOf = (n: string) => n.split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
 
 /** Shrinks a picture in the browser so a phone photo is a few hundred KB, not several MB. */
@@ -104,6 +119,7 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
               </div>
             ) : m.kind === "poll" && m.poll ? <PollCard poll={m.poll} onVote={onVote} /> : (
               <>
+                {m.kind === "file" ? <FileCard m={m} /> : null}
                 {m.hasImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <button onClick={onOpenImage} aria-label="Open picture" className="block bg-transparent border-0 p-0 cursor-zoom-in"><img src={`/staff/hrms/chat/img/${m.id}`} alt="Photo in chat" className="rounded-lg max-h-[280px] mb-1" loading="lazy" /></button>
@@ -136,7 +152,7 @@ export function ChatScreen({ d }: { d: D }) {
   const [find, setFind] = useState(""), [findOpen, setFindOpen] = useState(false);
   const [modal, setModal] = useState<"" | "new" | "info" | "poll" | "avatar" | "backup">(d.backup.notice ? "backup" : ""), [showList, setShowList] = useState(!d.open);
   const [viewer, setViewer] = useState<string | null>(null), [incoming, setIncoming] = useState<ChatMsg | null>(null), [avatar, setAvatar] = useState(d.me.avatar);
-  const log = useRef<HTMLDivElement>(null), file = useRef<HTMLInputElement>(null), top = useRef(0), pinned = useRef(true), activeRef = useRef(active), tickN = useRef(0), lastTyped = useRef(0), first = useRef(true);
+  const log = useRef<HTMLDivElement>(null), file = useRef<HTMLInputElement>(null), doc = useRef<HTMLInputElement>(null), top = useRef(0), pinned = useRef(true), activeRef = useRef(active), tickN = useRef(0), lastTyped = useRef(0), first = useRef(true);
   useEffect(() => { activeRef.current = active; }, [active]);
   const byId = useMemo(() => new Map<string, { name: string; photo: string | null; avatar: string }>([...d.people.map((p) => [p.id, { name: p.name, photo: p.photo, avatar: p.avatar }] as const), [d.me.id, { name: d.me.name, photo: d.me.photo, avatar }]]), [d.people, d.me, avatar]);
   const chat = chats.find((c) => c.id === active);
@@ -155,7 +171,7 @@ export function ChatScreen({ d }: { d: D }) {
       const base = reset ? [] : cur, seen = new Set(base.map((m) => m.id));
       const merged = [...base, ...add.filter((m) => !seen.has(m.id))];
       const fresh = new Map((refresh ?? []).map((m) => [m.id, m]));
-      const out = merged.map((m) => { const r = fresh.get(m.id); return r ? { ...m, reactions: r.reactions, poll: r.poll, deleted: r.deleted, body: r.deleted ? "" : m.body, hasImage: r.deleted ? false : m.hasImage } : m; });
+      const out = merged.map((m) => { const r = fresh.get(m.id); return r ? { ...m, reactions: r.reactions, poll: r.poll, deleted: r.deleted, body: r.deleted ? "" : m.body, hasImage: r.deleted ? false : m.hasImage, file: r.deleted ? null : m.file } : m; });
       top.current = out.length ? out[out.length - 1].seq : 0;
       return out;
     });
@@ -212,6 +228,22 @@ export function ChatScreen({ d }: { d: D }) {
     setSending(false);
     if (file.current) file.current.value = "";
   };
+  const sendDocument = async (f: File | undefined) => {
+    if (doc.current) doc.current.value = "";
+    if (!f || !active) return;
+    if (!/\.(pdf|docx?)$/i.test(f.name)) { toast("Only PDF or Word (.doc, .docx) documents can be sent.", "red"); return; }
+    if (f.size > 10_000_000) { toast("That document is too large (10 MB at most).", "red"); return; }
+    setSending(true);
+    try {
+      const form = new FormData();
+      form.set("file", f);
+      const caption = draft.trim();
+      if (caption) form.set("caption", caption);
+      const r = await chatSendFile(active, form);
+      if (!r.ok) toast(r.error, "red"); else { if (caption) setDraft(""); afterSend(r.data); }
+    } catch (e) { toast(e instanceof Error ? e.message : "Couldn’t send the document.", "red"); }
+    setSending(false);
+  };
   const meet = async () => {
     if (!active) return;
     setSending(true);
@@ -224,7 +256,7 @@ export function ChatScreen({ d }: { d: D }) {
   const patch = (id: string, f: (m: ChatMsg) => ChatMsg) => setMsgs((c) => c.map((m) => (m.id === id ? f(m) : m)));
   const react = async (id: string, e: string) => { const r = await chatReact(id, e); if (!r.ok) toast(r.error, "red"); else patch(id, (m) => ({ ...m, reactions: r.data.reactions })); };
   const vote = async (id: string, i: number) => { const r = await chatVote(id, i); if (!r.ok) toast(r.error, "red"); else patch(id, (m) => ({ ...m, poll: r.data.poll })); };
-  const del = (id: string) => run(() => chatDelete(id), () => { patch(id, (m) => ({ ...m, deleted: true, body: "", hasImage: false, poll: null, reactions: [] })); });
+  const del = (id: string) => run(() => chatDelete(id), () => { patch(id, (m) => ({ ...m, deleted: true, body: "", hasImage: false, file: null, poll: null, reactions: [] })); });
   const startDm = async (id: string) => {
     const r = await chatOpenDm(id);
     if (!r.ok) { toast(r.error, "red"); return; }
@@ -307,6 +339,8 @@ export function ChatScreen({ d }: { d: D }) {
               <div className="bg-white border-t border-[#E2E8F0] p-2.5 flex gap-2 items-end">
                 <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose a picture" onChange={(e) => void sendPicture(e.target.files?.[0])} />
                 <button className={btnCls} onClick={() => file.current?.click()} disabled={sending} aria-label="Send a picture">📷</button>
+                <input ref={doc} type="file" accept={DOC_ACCEPT} className="hidden" aria-label="Choose a document" onChange={(e) => void sendDocument(e.target.files?.[0])} />
+                <button className={btnCls} onClick={() => doc.current?.click()} disabled={sending} aria-label="Send a PDF or Word document" title="Send a PDF or Word document (10 MB at most). Text in the box goes with it as a caption.">📎</button>
                 <textarea className={cx(inputCls, "resize-none max-h-[120px]")} rows={1} placeholder="Type a message" aria-label="Message" value={draft} maxLength={4000}
                   onChange={(e) => onType(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} />
                 <button className={primaryCls} onClick={() => void send()} disabled={sending || !draft.trim()}>Send</button>
@@ -524,6 +558,7 @@ export function ChatReviewScreen({ d }: { d: Data<"chatreview"> }) {
                 <div className="whitespace-pre-wrap break-words">
                   {m.deleted ? <i className="text-[#64748B]">deleted</i> : m.kind === "meet" ? <a href={m.body} target="_blank" rel="noopener noreferrer" className="underline">Video call link</a> : m.kind === "poll" ? <>📊 Poll: {m.body}</> : <Linked text={m.body} />}
                   {m.hasImage ? <a href={`/staff/hrms/chat/img/${m.id}`} target="_blank" rel="noopener noreferrer" className="block underline">📷 Photo</a> : null}
+                  {m.file ? <a href={`/staff/hrms/chat/img/${m.id}`} download={m.file.name} className="block underline">📄 {m.file.name} ({sizeLabel(m.file.size)})</a> : null}
                 </div>
               </div>
             )) : <Empty>No messages.</Empty>}

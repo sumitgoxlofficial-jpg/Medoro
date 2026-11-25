@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
-import { AVATARS, REACTIONS, deleteGroup, removeFromGroup, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
+import { AVATARS, REACTIONS, deleteGroup, removeFromGroup, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendFile, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
 import { resetDb } from "./helpers";
 
 let admin: Me, hr: Me, ann: Me, bob: Me, cat: Me;
@@ -103,6 +103,28 @@ describe("team chat", () => {
     expect((await chatImage(admin, m.id))?.type).toBe("image/png");
     await expect(sendImage(ann, chatId, form(Buffer.from("<script>alert(1)</script>"), "x.png", "image/png"))).rejects.toThrow("JPEG, PNG or WebP");
     await expect(sendImage(ann, chatId, form(Buffer.alloc(2_100_000, 1)))).rejects.toThrow("too large");
+  });
+
+  it("sends PDF and Word documents sealed, for the conversation only, and refuses other files", async () => {
+    const { chatId } = await openDm(ann, bob.id);
+    const doc = (b: Buffer, name: string, caption = "") => { const f = new FormData(); f.set("file", new File([new Uint8Array(b)], name)); if (caption) f.set("caption", caption); return f; };
+    const pdf = Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.alloc(300, 0x20)]);
+    const m = await sendFile(ann, chatId, doc(pdf, "Offer letter.pdf", "Please sign"));
+    expect(m).toMatchObject({ kind: "file", body: "Please sign", file: { name: "Offer letter.pdf", type: "application/pdf", size: pdf.length } });
+    const got = await chatImage(bob, m.id);
+    expect(got).toMatchObject({ type: "application/pdf", name: "Offer letter.pdf" });
+    expect(Buffer.from(got!.bytes).equals(pdf)).toBe(true);
+    expect(await chatImage(cat, m.id)).toBeNull();
+    expect((await chatList(bob)).find((c) => c.id === chatId)?.last).toBe("📄 Offer letter.pdf");
+    const docx = Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.from("....word/document.xml"), Buffer.alloc(100)]);
+    expect((await sendFile(ann, chatId, doc(docx, "Policy.docx"))).file?.type).toContain("wordprocessingml");
+    const ole = Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.alloc(100)]);
+    expect((await sendFile(ann, chatId, doc(ole, "old.doc"))).file?.name).toBe("old.doc");
+    await expect(sendFile(ann, chatId, doc(Buffer.from("MZ\x90\x00 not a doc"), "evil.pdf"))).rejects.toThrow("PDF or Word");
+    await expect(sendFile(ann, chatId, doc(ole, "sheet.xls"))).rejects.toThrow("PDF or Word");
+    await expect(sendFile(ann, chatId, doc(Buffer.alloc(10_100_000, 0x20), "big.pdf"))).rejects.toThrow("too large");
+    await deleteMessage(ann, m.id);
+    expect(await chatImage(bob, m.id)).toBeNull();
   });
 
   it("runs groups: owner adds people, newcomers don't see older messages, anyone can leave", async () => {

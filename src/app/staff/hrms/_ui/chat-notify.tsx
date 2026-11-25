@@ -5,7 +5,7 @@ import type { ChatRow } from "@/staff/hrms/chat";
 import { useBrowserValue, useLocalStorage } from "@/lib/react-state";
 
 /**
- * New-message alerts, like WhatsApp Web: a short two-note sound, a pop-up on the floating chat bubble while you are in the HRMS,
+ * New-message alerts, like WhatsApp Web: a loud three-note chime (and a buzz on phones), a pop-up on the floating chat bubble while you are in the HRMS,
  * a desktop notification when the tab is in the background (after you allow it once), and an unread count in the tab title.
  * Alerts only for messages that arrive while the HRMS is open (a closed tab can't ring), never for a chat you are looking at.
  */
@@ -19,16 +19,26 @@ const audio = () => { try { ctx ??= new AudioContext(); return ctx; } catch { re
 /** Browsers only allow sound after the person has clicked or typed on the page once. */
 function unlock() { const c = audio(); if (c && c.state === "suspended") void c.resume(); }
 
-/** Two soft notes. */
+/**
+ * A loud, clear three-note chime: two layered waveforms per note, pushed through a compressor so it is near full volume without
+ * clipping, and a short buzz on phones that can vibrate.
+ */
 export function ding() {
   const c = audio();
   if (!c || !soundOn()) return;
+  try { navigator.vibrate?.([120, 60, 120]); } catch { /* no vibration */ }
   void c.resume().then(() => {
-    ([[0, 988], [0.14, 1319]] as const).forEach(([t, f]) => {
-      const o = c.createOscillator(), g = c.createGain(), at = c.currentTime + t;
-      o.type = "sine"; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.28, at + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
-      o.connect(g).connect(c.destination); o.start(at); o.stop(at + 0.4);
+    const comp = c.createDynamicsCompressor(), out = c.createGain();
+    comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 8; comp.attack.value = 0.002; comp.release.value = 0.15;
+    out.gain.value = 1;
+    comp.connect(out).connect(c.destination);
+    ([[0, 880], [0.16, 1175], [0.32, 1568]] as const).forEach(([t, f]) => {
+      (["triangle", "square"] as const).forEach((type) => {
+        const o = c.createOscillator(), g = c.createGain(), at = c.currentTime + t, peak = type === "triangle" ? 0.9 : 0.18;
+        o.type = type; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.42);
+        o.connect(g).connect(comp); o.start(at); o.stop(at + 0.45);
+      });
     });
   }).catch(() => undefined);
 }
