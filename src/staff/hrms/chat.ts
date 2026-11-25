@@ -11,14 +11,15 @@ import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibilit
 // The one exception is the super admin, who can open a conversation from the review screen; every such opening is
 // written to the audit log, and staff are told about it on the chat screen. (This is encryption at rest with an audited
 // admin key, not end-to-end encryption: the server must be able to open messages for delivery, review and backup.)
-export const MAX_BODY = 4000, MAX_IMAGE_BYTES = 2_000_000, MAX_GROUP = 100, PAGE = 60, RATE_PER_MIN = 40, POLL_MIN = 2, POLL_MAX = 8;
+export const MAX_BODY = 4000, MAX_IMAGE_BYTES = 2_000_000, MAX_FILE_BYTES = 10_000_000, MAX_GROUP = 100, PAGE = 60, RATE_PER_MIN = 40, POLL_MIN = 2, POLL_MAX = 8;
 export const REACTIONS = ["👍", "❤️", "😂", "😮", "👏", "🎉"] as const;
 export const AVATARS = ["😀", "😎", "🤓", "🥳", "🦊", "🐼", "🦁", "🐯", "🐸", "🦄", "🐙", "🦉", "🚀", "⭐", "🌈", "🍀", "🔥", "💡", "🎯", "🎨", "☕", "🍕", "🎧", "🌻"] as const;
 
+export type FileMeta = { name: string; type: string; size: number };
 export type PollState = { q: string; multi: boolean; options: { text: string; votes: number; mine: boolean }[]; total: number };
 export type ReactionState = { emoji: string; n: number; mine: boolean }[];
 export type ChatMsg = {
-  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; kind: "text" | "image" | "meet" | "poll"; body: string; hasImage: boolean; deleted: boolean; at: string;
+  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; kind: "text" | "image" | "meet" | "poll" | "file"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
   reactions: ReactionState; poll: PollState | null;
 };
 export type ChatRow = {
@@ -31,7 +32,13 @@ type Lite = { id: string; seq: number; chatId: string; senderId: string; kind: s
 const LITE = { id: true, seq: true, chatId: true, senderId: true, kind: true, body: true, deletedAt: true, createdAt: true } as const; // never the picture bytes
 
 const text = (b: Uint8Array | Buffer) => unseal(b).toString("utf8");
-const KINDS = ["text", "image", "meet", "poll"] as const;
+const KINDS = ["text", "image", "meet", "poll", "file"] as const;
+/** A file message keeps its name, type and size with the caption in the (sealed) body; the bytes sit in the sealed `image` column. */
+type FileBody = { n: string; t: string; s: number; c: string };
+function fileBody(m: Lite): FileBody | null {
+  if (m.kind !== "file" || m.deletedAt) return null;
+  try { const j = JSON.parse(text(m.body)) as FileBody; return typeof j.n === "string" ? j : null; } catch { return null; }
+}
 type PollDef = { q: string; options: string[]; multi: boolean };
 function pollDef(m: Lite): PollDef | null {
   if (m.kind !== "poll" || m.deletedAt) return null;
@@ -39,10 +46,10 @@ function pollDef(m: Lite): PollDef | null {
 }
 const asMsg = (m: Lite): ChatMsg => {
   const kind = (KINDS as readonly string[]).includes(m.kind) ? (m.kind as ChatMsg["kind"]) : "text";
-  const def = pollDef(m);
-  return { id: m.id, seq: m.seq, chatId: m.chatId, senderId: m.senderId, by: "", kind, body: m.deletedAt ? "" : def ? def.q : text(m.body), hasImage: kind === "image" && !m.deletedAt, deleted: !!m.deletedAt, at: m.createdAt.toISOString(), reactions: [], poll: null };
+  const def = pollDef(m), fb = fileBody(m);
+  return { id: m.id, seq: m.seq, chatId: m.chatId, senderId: m.senderId, by: "", kind, body: m.deletedAt || kind === "file" ? fb?.c ?? "" : def ? def.q : text(m.body), hasImage: kind === "image" && !m.deletedAt, file: fb ? { name: fb.n, type: fb.t, size: fb.s } : null, deleted: !!m.deletedAt, at: m.createdAt.toISOString(), reactions: [], poll: null };
 };
-const preview = (m: ChatMsg | undefined) => (!m ? "" : m.deleted ? "Message deleted" : m.kind === "image" ? "📷 Photo" : m.kind === "meet" ? "📹 Video call" : m.kind === "poll" ? `📊 ${m.body.slice(0, 70)}` : m.body.slice(0, 80));
+const preview = (m: ChatMsg | undefined) => (!m ? "" : m.deleted ? "Message deleted" : m.kind === "image" ? "📷 Photo" : m.kind === "file" ? `📄 ${m.file?.name.slice(0, 70) ?? "Document"}` : m.kind === "meet" ? "📹 Video call" : m.kind === "poll" ? `📊 ${m.body.slice(0, 70)}` : m.body.slice(0, 80));
 
 /** Adds reactions and poll results for the given messages, as seen by `meId`. */
 async function decorate(rows: Lite[], meId: string, hide = false): Promise<ChatMsg[]> {
@@ -223,7 +230,7 @@ async function throttle(staffId: string) {
   const n = await db.hrChatMessage.count({ where: { senderId: staffId, createdAt: { gt: new Date(Date.now() - 60_000) } } });
   if (n >= RATE_PER_MIN) throw new UserError("You’re sending messages very quickly. Wait a moment.");
 }
-async function post(me: Pick<Me, "id">, chatId: string, kind: "text" | "image" | "meet" | "poll", body: string, image?: Buffer) {
+async function post(me: Pick<Me, "id">, chatId: string, kind: ChatMsg["kind"], body: string, image?: Buffer) {
   await membership(me, chatId);
   await throttle(me.id);
   const m = await db.hrChatMessage.create({ data: { chatId, senderId: me.id, kind, body: new Uint8Array(seal(body)), image: image ? new Uint8Array(seal(image)) : null }, select: LITE });
@@ -246,14 +253,40 @@ export async function sendImage(me: Me, chatId: string, form: FormData) {
   if (!imageKind(b)) throw new UserError("Only JPEG, PNG or WebP pictures can be sent.");
   return post(me, chatId, "image", caption, b);
 }
-/** Opens a picture for the people in its conversation (or, through review, the super admin). */
+
+// Documents: PDF and Word only, checked by their first bytes (not just the name), so nothing runnable can be passed around.
+const DOC_TYPES = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" } as const;
+function docKind(b: Buffer, name: string): keyof typeof DOC_TYPES | null {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  if (b.subarray(0, 5).toString("latin1") === "%PDF-") return "pdf";
+  if (ext === "docx" && b.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])) && b.includes("word/")) return "docx";
+  if (ext === "doc" && b.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]))) return "doc";
+  return null;
+}
+const safeName = (raw: string, kind: keyof typeof DOC_TYPES) => {
+  const base = raw.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").trim().replace(/\.(pdf|docx?)$/i, "").slice(0, 120) || "Document";
+  return `${base}.${kind}`;
+};
+export async function sendFile(me: Me, chatId: string, form: FormData) {
+  const f = form.get("file"), caption = String(form.get("caption") ?? "").trim().slice(0, 500);
+  if (!(f instanceof File) || !f.size) throw new UserError("Choose a document to send.");
+  if (f.size > MAX_FILE_BYTES) throw new UserError("That document is too large (10 MB at most).");
+  const b = Buffer.from(await f.arrayBuffer()), kind = docKind(b, f.name);
+  if (!kind) throw new UserError("Only PDF or Word (.doc, .docx) documents can be sent.");
+  const meta: FileBody = { n: safeName(f.name, kind), t: DOC_TYPES[kind], s: b.length, c: caption };
+  return post(me, chatId, "file", JSON.stringify(meta), b);
+}
+
+/** Opens a picture or document for the people in its conversation (or, through review, the super admin). */
 export async function chatImage(me: Me, messageId: string) {
   const m = await db.hrChatMessage.findUnique({ where: { id: messageId } });
   if (!m?.image || m.deletedAt) return null;
   const isMember = await db.hrChatMember.findUnique({ where: { chatId_staffId: { chatId: m.chatId, staffId: me.id } } });
   if (!isMember && me.role !== "admin") return null;
   const b = unseal(m.image);
-  return { bytes: b, type: imageKind(b) || "application/octet-stream" };
+  const fb = fileBody(m);
+  if (fb) return { bytes: b, type: fb.t, name: fb.n };
+  return { bytes: b, type: imageKind(b) || "application/octet-stream", name: null };
 }
 export async function deleteMessage(me: Me, id: string) {
   const m = await db.hrChatMessage.findUnique({ where: { id } });

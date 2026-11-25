@@ -62,15 +62,21 @@ export function PhotoCheckin({ lateAfter }: { lateAfter: string }) {
   );
 }
 
-/** A short warning sound made in the browser (three beeps), so no audio file is needed. */
+/** A loud alarm made in the browser (four two-tone beeps through a compressor, near full volume), so no audio file is needed. */
 function warnBeep(ctx: AudioContext) {
-  [0, 0.4, 0.8].forEach((t) => {
+  void ctx.resume();
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -10; comp.ratio.value = 10; comp.attack.value = 0.002;
+  comp.connect(ctx.destination);
+  [0, 0.35, 0.7, 1.05].forEach((t, i) => {
     const o = ctx.createOscillator(), g = ctx.createGain(), at = ctx.currentTime + t;
-    o.type = "square"; o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.25, at + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
-    o.connect(g).connect(ctx.destination); o.start(at); o.stop(at + 0.32);
+    o.type = "square"; o.frequency.value = i % 2 ? 1320 : 990;
+    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.9, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.28);
+    o.connect(g).connect(comp); o.start(at); o.stop(at + 0.3);
   });
 }
+/** A strong buzz on phones and tablets that can vibrate (desktops ignore it). */
+const buzz = () => { try { navigator.vibrate?.([400, 150, 400, 150, 600]); } catch { /* no vibration */ } };
 const inLunch = (lunch: { from: string; to: string }) => {
   const ist = new Date(Date.now() + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes();
   return m >= toMin(lunch.from) && m < toMin(lunch.to);
@@ -78,8 +84,8 @@ const inLunch = (lunch: { from: string; to: string }) => {
 
 /**
  * Idle-time monitoring, only mounted when the super admin switched it on. It looks at mouse, keyboard, scroll and touch in THIS tab
- * while the person is checked in and not on a break. After `minutes` without activity it asks "still working?" with a warning sound, a browser
- * notification and a flashing title; moving the mouse or pressing a key answers it. If there is no
+ * while the person is checked in and not on a break. After `minutes` (2 by default) without activity it shows a full-screen "You are not active"
+ * warning with a loud alarm, a vibration on phones, a browser notification and a flashing title; moving the mouse or pressing a key answers it. If there is no
  * answer in two minutes the stretch is recorded as idle from the last activity until they come back. A hidden tab isn't counted
  * (work in another window is invisible to us), nothing is typed or captured, and no other app is watched.
  */
@@ -107,7 +113,7 @@ export function IdleWatcher({ minutes, active, lunch }: { minutes: number; activ
         if (left <= 0) { asked.current = 0; idle.current = true; setAsk(null); setSince(last.current); void idleStart(new Date(last.current).toISOString()); } else setAsk({ left });
       } else if (Date.now() - last.current >= minutes * 60_000) {
         asked.current = Date.now(); setAsk({ left: 120 });
-        try { if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("Medoro HRMS: are you still working?", { body: `No activity for ${minutes} minute${minutes > 1 ? "s" : ""}. Move the mouse or press a key within 2 minutes.`, tag: "medoro-idle", requireInteraction: true }); } catch { /* notifications unavailable */ }
+        try { if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification("Medoro HRMS: you are not active", { body: `No activity for ${minutes} minute${minutes > 1 ? "s" : ""}. Move the mouse or press a key within 2 minutes.`, tag: "medoro-idle", requireInteraction: true }); } catch { /* notifications unavailable */ }
       }
     }, 1000);
     return () => { clearInterval(tick); events.forEach((e) => window.removeEventListener(e, onAct)); document.removeEventListener("visibilitychange", onVis); };
@@ -117,15 +123,26 @@ export function IdleWatcher({ minutes, active, lunch }: { minutes: number; activ
   useEffect(() => {
     if (!asking) return;
     const title = document.title; let flip = false;
-    const ring = () => { if (audio.current) { try { warnBeep(audio.current); } catch { /* ignore */ } } };
+    const ring = () => { buzz(); if (audio.current) { try { warnBeep(audio.current); } catch { /* ignore */ } } };
     ring();
-    const r = setInterval(ring, 6000), f = setInterval(() => { flip = !flip; document.title = flip ? "⚠ Still working? · Medoro HRMS" : title; }, 900);
-    return () => { clearInterval(r); clearInterval(f); document.title = title; };
+    const r = setInterval(ring, 4000), f = setInterval(() => { flip = !flip; document.title = flip ? "⚠ You are not active · Medoro HRMS" : title; }, 900);
+    return () => { clearInterval(r); clearInterval(f); document.title = title; try { navigator.vibrate?.(0); } catch { /* ignore */ } };
   }, [asking]);
   if (!active || minutes <= 0) return null;
   const here = () => { last.current = Date.now(); asked.current = 0; idle.current = false; setAsk(null); setSince(null); void idleEnd(); };
   if (since) return <Modal title="You were away" onClose={here}><p className="text-[14px]">No activity was seen since {new Date(since).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true })}, so that time was recorded as idle.</p><div className="flex gap-2"><button className={primaryCls} onClick={here}>I’m back</button></div></Modal>;
-  if (ask) return <Modal title="Still working?" onClose={here}><p className="text-[14px]">You have been inactive for {minutes} minute{minutes > 1 ? "s" : ""}. If you don’t answer in <strong>{ask.left}s</strong>, this time is recorded as idle.</p><div className="flex gap-2 flex-wrap"><button className={primaryCls} onClick={here}>Yes, I’m here</button><Link className={btnCls} href="/staff/hrms/attendance" onClick={here}>Go to attendance</Link></div></Modal>;
+  if (ask) return (
+    // A full-screen warning that can't be missed: red, pulsing, above everything else on the page.
+    <div role="alertdialog" aria-modal="true" aria-labelledby="idle-warn-title" className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#7F1D1D]/85 backdrop-blur-sm">
+      <div className="w-full max-w-[460px] bg-white rounded-2xl shadow-2xl border-4 border-[#DC2626] p-6 flex flex-col gap-3 text-center animate-pulse [animation-duration:1.6s]">
+        <div aria-hidden className="text-[44px] leading-none">⚠️</div>
+        <h2 id="idle-warn-title" className="m-0 text-[24px] font-extrabold text-[#B91C1C]">You are not active</h2>
+        <p className="m-0 text-[14.5px] text-[#334155]">No mouse or keyboard activity for {minutes} minute{minutes > 1 ? "s" : ""}. Move the mouse or press a key now.</p>
+        <p className="m-0 text-[14px] text-[#334155]">If you don’t respond in <strong className="text-[#B91C1C] text-[18px]">{ask.left}s</strong>, this time is recorded as idle.</p>
+        <div className="flex gap-2 flex-wrap justify-center"><button className={primaryCls} onClick={here}>Yes, I’m here</button><Link className={btnCls} href="/staff/hrms/attendance" onClick={here}>Go to attendance</Link></div>
+      </div>
+    </div>
+  );
   return null;
 }
 
