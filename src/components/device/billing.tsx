@@ -64,6 +64,13 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
   const search = useCallback((text: string) => dev.call("search", text, cfg.branchId).then((r) => setMeds(r as Med[])), [dev, cfg.branchId]);
   const pick = (c: Cust) => { setCust(c); setCusts([]); setPhone(""); setName(""); };
   useEffect(() => { const t = setTimeout(() => search(q), 120); return () => clearTimeout(t); }, [q, search]);
+  // Enter adds the first match for exactly what is in the box. A barcode scanner types and presses Enter faster than
+  // the debounced list refreshes, so the shown list can still be the unfiltered one (it added the wrong medicine).
+  const addFirstMatch = async (text: string) => {
+    const r = text.trim() ? ((await dev.call("search", text, cfg.branchId)) as Med[]) : meds;
+    if (text.trim()) setMeds(r);
+    if (r[0]) add(r[0]);
+  };
   useOnChange([custQ.trim().length < 2], () => { if (custQ.trim().length < 2) setCusts([]); });
   useEffect(() => {
     if (custQ.trim().length < 2) return;
@@ -138,7 +145,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
       <div className={card}>
         <div className="relative">
           <Search size={16} className="absolute left-3 top-2.5 text-muted" />
-          <input ref={searchRef} autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && meds[0]) add(meds[0]); }}
+          <input ref={searchRef} autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void addFirstMatch(e.currentTarget.value); } }}
             placeholder={t("Search medicine or scan barcode (F2)")} aria-label={t("Search medicine")} className={`${input} pl-9`} />
         </div>
         <ul className="flex flex-col divide-y divide-line text-sm border border-line rounded-lg max-h-[480px] overflow-auto">
