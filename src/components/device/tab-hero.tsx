@@ -9,7 +9,7 @@ import { DIST_TABS, TABS } from "./tabs";
 
 /** Icon and one-line purpose for each counter tab (the Dashboard has its own welcome banner). */
 const HERO: Partial<Record<Tab, [LucideIcon, string]>> = {
-  bill: [ScanBarcode, "F2 search · F4 hold · F9 complete"],
+  bill: [ScanBarcode, "F2 search · F9 complete"],
   bills: [ReceiptText, "Find bills, take returns and print the day-end."],
   stock: [Boxes, "Batches, expiry dates and shelf counts on this counter."],
   recalls: [ShieldAlert, "Recalled batches: block, quarantine or return them."],
