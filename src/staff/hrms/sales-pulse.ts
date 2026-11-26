@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
-import { seal } from "@/server/vault";
+import { seal, unseal } from "@/server/vault";
+import { humanize, type Brief } from "./sales-pulse-ai";
 import { log } from "@/server/log";
 import { PRODUCTS } from "../constants";
 
@@ -286,6 +287,38 @@ export async function welcomeFromIntro(me: { id: string; role: string }, chat: s
   if (u) await scheduleWelcome([u]);
 }
 
+const slotKey = (senderId: string, at: string | Date) => `${senderId}|${typeof at === "string" ? at : at.toISOString()}`;
+
+/**
+ * Before the tick takes its lock: the bot messages about to go out, rewritten by the AI model in each bot's voice
+ * (see sales-pulse-ai.ts). Network calls stay outside the database transaction. Empty when no model is set up.
+ */
+async function prepareTexts(chat: string, now: Date): Promise<Map<string, string>> {
+  const row = await db.hrSetting.findUnique({ where: { key: STATE_KEY } });
+  const saved = (row?.value ?? {}) as Partial<State>;
+  if (saved.enabled === false) return new Map();
+  const today = istDay(now), posted = saved.day === today ? saved.posted ?? 0 : 0;
+  const briefs: Brief[] = daySchedule(today).slice(posted)
+    .filter((x) => x.at <= now && now.getTime() - x.at.getTime() <= CATCH_UP_MS)
+    .map((x) => ({ key: slotKey(x.senderId, x.at), senderId: x.senderId, name: pulseName(x.senderId), brief: x.body, kind: "daily" }));
+  for (const q of await db.hrSetting.findMany({ where: { key: { startsWith: WELCOME_PREFIX } } })) {
+    const v = q.value as { name?: string; pending?: Pending[] };
+    const first = (v.name ?? "").trim().split(/\s+/)[0] ?? "";
+    for (const x of v.pending ?? []) if (new Date(x.at) <= now && first) {
+      briefs.push({ key: slotKey(x.senderId, x.at), senderId: x.senderId, name: pulseName(x.senderId), brief: x.body.replaceAll(first, "[new colleague]"), kind: "welcome", newName: first });
+    }
+  }
+  if (!briefs.length) return new Map();
+  const midnight = new Date(Date.parse(`${today}T00:00:00Z`) - IST);
+  const [recentRows, lastWin] = await Promise.all([
+    db.hrChatMessage.findMany({ where: { chatId: chat, kind: "pulse", createdAt: { gte: midnight }, deletedAt: null }, orderBy: { seq: "desc" }, take: 8, select: { body: true } }),
+    db.hrChatMessage.findFirst({ where: { chatId: chat, kind: "win", createdAt: { gte: new Date(now.getTime() - 3600_000) }, deletedAt: null }, orderBy: { seq: "desc" }, select: { body: true, senderId: true } }),
+  ]);
+  const winner = lastWin ? await db.staffUser.findUnique({ where: { id: lastWin.senderId }, select: { name: true } }) : null;
+  const win = lastWin && winner ? { body: unseal(lastWin.body).toString("utf8"), firstName: winner.name.trim().split(/\s+/)[0] } : null;
+  return humanize(briefs, recentRows.reverse().map((r) => unseal(r.body).toString("utf8")), win);
+}
+
 let lastRun = 0;
 /** Posts what is due: new real wins, and the bot messages whose time has come. Safe to call often and from many servers. */
 export async function salesPulseTick(now = new Date(), force = false) {
@@ -293,6 +326,7 @@ export async function salesPulseTick(now = new Date(), force = false) {
   lastRun = Date.now();
   const chat = await chatId();
   if (!chat) return; // syncChannels makes the channel
+  const texts = await prepareTexts(chat, now).catch((e) => { log.error("Sales Pulse AI step failed; using templates.", { err: e }); return new Map<string, string>(); });
   try {
     await db.$transaction(async (tx) => {
       const [lock] = await tx.$queryRaw<{ ok: boolean }[]>`SELECT pg_try_advisory_xact_lock(472911) AS ok`;
@@ -325,7 +359,7 @@ export async function salesPulseTick(now = new Date(), force = false) {
       const plan = daySchedule(today);
       while (s.posted < plan.length && plan[s.posted].at <= now) {
         const slot = plan[s.posted++];
-        if (s.enabled && now.getTime() - slot.at.getTime() <= CATCH_UP_MS) await write(slot.senderId, "pulse", slot.body, slot.at);
+        if (s.enabled && now.getTime() - slot.at.getTime() <= CATCH_UP_MS) await write(slot.senderId, "pulse", texts.get(slotKey(slot.senderId, slot.at)) ?? slot.body, slot.at);
       }
 
       // Welcomes that are due. Unlike the daily messages, a late welcome is still sent.
@@ -336,7 +370,7 @@ export async function salesPulseTick(now = new Date(), force = false) {
         if (!pending.length) continue;
         const due = pending.filter((x) => new Date(x.at) <= now), rest = pending.filter((x) => new Date(x.at) > now);
         if (!due.length) continue;
-        if (s.enabled) for (const x of due) { const at = new Date(x.at); await write(x.senderId, "pulse", x.body, now.getTime() - at.getTime() > CATCH_UP_MS ? now : at); }
+        if (s.enabled) for (const x of due) { const at = new Date(x.at); await write(x.senderId, "pulse", texts.get(slotKey(x.senderId, x.at)) ?? x.body, now.getTime() - at.getTime() > CATCH_UP_MS ? now : at); }
         await tx.hrSetting.update({ where: { key: q.key }, data: { value: { name: v.name ?? "", pending: rest } } });
       }
 
