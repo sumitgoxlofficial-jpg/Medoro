@@ -52,6 +52,16 @@ sales employee (Sales role or Sales department) is enrolled automatically; HR ca
     what to improve, a 1–5 rating of their manager, would they recommend Medoro, would they come back). It can be sent once, before
     the last day. Only HR (and the person) can read the answers; the manager cannot.
   * Cancelling an exit (*Employees → Cancel exit / Reactivate*) closes its resignation and checklist.
+## My Team (reporting managers and team leaders)
+
+Anyone who has at least one active direct report ("Reports to" on their profile), in any role, gets **My Team** in the TEAM
+menu. It shows only their direct reports and only work information (no pay, bank, KYC or chat):
+* **Today**: each person's status (present, late, checked out, on leave, day off, not in yet) with check-in and check-out times.
+* **Leave requests from your team**: approve or reject (the same decision HR can make; whoever acts first decides).
+* **Out in the next 2 weeks**, **open tasks** (overdue flagged) and **this month** per person: days checked in, late days, tasks
+  done, on-time %, open and overdue tasks.
+* **Give a task** to a direct report. A manager can assign plain tasks to their own reports without the *Tasks & projects*
+  module; tasks in a project, or for anyone else, still need that module.
 
 ## More screens
 
@@ -120,6 +130,18 @@ connected Google Calendar).
 * People added to a group later don't see earlier messages. You can delete your own messages. Messages are kept until a retention
   rule is added; they are included in database backups (still sealed).
 * Not built: typing indicators, online status, voice notes, Google Drive backups of chats.
+
+## Performance appraisals
+
+* Someone with the **reports** module opens a review cycle on **Appraisals** (name, period, self-assessment and manager-review due
+  dates). Only one cycle can be open at a time. Every active employee except the Super Admin gets a review and is told.
+* Each step happens on **My Review**. The employee rates themselves 1–5 and writes their achievements, challenges and goals. Their reporting
+  manager then rates them and writes what went well and what to improve. Employees with no manager go straight to HR.
+* HR (reports module) sets the final rating and an optional note. Nobody can finalise their own review. Only the Super Admin can finalise
+  one that is still waiting for the manager. The employee sees the manager's and HR's assessment only once it is final, then
+  acknowledges it.
+* The review shows facts from the period next to the form: tasks done, the share done on time, open overdue tasks, days present and late days.
+  HR can export the cycle as CSV and close it.
 
 ## Not built (in the design, not in Medoro yet)
 

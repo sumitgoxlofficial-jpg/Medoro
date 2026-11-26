@@ -3910,3 +3910,44 @@ model TrCertificate {
 
   @@index([staffId])
 }
+
+/// A performance review cycle HR opens (e.g. "H2 2026"): everyone active gets a review in it.
+model HrReviewCycle {
+  id         String     @id @default(uuid())
+  name       String
+  periodFrom DateTime   @db.Date
+  periodTo   DateTime   @db.Date
+  selfDue    DateTime   @db.Date // self-assessments due
+  managerDue DateTime   @db.Date // manager reviews due
+  status     String     @default("open") // open, closed
+  createdBy  String     @default("")
+  createdAt  DateTime   @default(now())
+  reviews    HrReview[]
+}
+
+/// One person's review in a cycle: self-assessment → reporting manager's review → HR's final rating → the person acknowledges.
+model HrReview {
+  id          String        @id @default(uuid())
+  cycleId     String
+  cycle       HrReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  staffId     String
+  managerId   String? // reporting manager when the cycle opened
+  status      String        @default("self") // self, manager, hr, done
+  selfRating  Int?
+  self        Json          @default("{}") // achievements, challenges, goals
+  selfAt      DateTime?
+  mgrRating   Int?
+  mgr         Json          @default("{}") // strengths, improve, comments
+  mgrAt       DateTime?
+  mgrBy       String        @default("")
+  finalRating Int?
+  hrNote      String        @default("")
+  finalAt     DateTime?
+  finalBy     String        @default("")
+  ackAt       DateTime? // the person saw and acknowledged the result
+  createdAt   DateTime      @default(now())
+
+  @@unique([cycleId, staffId])
+  @@index([staffId])
+  @@index([managerId])
+}

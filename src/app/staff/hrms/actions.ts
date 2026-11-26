@@ -25,6 +25,7 @@ import * as docs from "@/staff/hrms/docs";
 import * as kyc from "@/staff/hrms/kyc";
 import * as careers from "@/staff/hrms/careers";
 import * as exits from "@/staff/hrms/exits";
+import * as appraisals from "@/staff/hrms/appraisals";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import type { Settings } from "@/staff/hrms/constants";
 
@@ -181,6 +182,13 @@ export const withdrawResignation = async () => done(await hrRun((me) => exits.wi
 export const decideResignation = async (id: string, input: { accept: boolean; lastDay?: string; note?: string }) => done(await hrRun((me) => exits.decideResignation(me, id, input), input.accept ? "Resignation accepted. The exit is recorded." : "Resignation declined."));
 export const saveExitInterview = async (answers: Record<string, string | number>) => done(await hrRun((me) => exits.saveInterview(me, answers), "Thank you. Your exit interview was sent to HR."));
 export const tickClearance = async (staffId: string, item: string, isDone: boolean) => done(await hrRun((me) => exits.tickClearance(me, staffId, item, isDone)));
+// ── Performance appraisals
+export const submitSelfReview = async (id: string, input: { rating: number; achievements: string; challenges: string; goals: string }) => done(await hrRun((me) => appraisals.submitSelf(me, id, input), "Self-assessment sent."));
+export const submitManagerReview = async (id: string, input: { rating: number; strengths: string; improve: string; comments: string }) => done(await hrRun((me) => appraisals.submitManager(me, id, input), "Review sent to HR."));
+export const acknowledgeReview = async (id: string) => done(await hrRun((me) => appraisals.acknowledgeReview(me, id), "Thank you. Your acknowledgement is recorded."));
+export const openReviewCycle = async (input: { name: string; periodFrom: string; periodTo: string; selfDue: string; managerDue: string }) => done(await hrRun((me) => appraisals.openCycle(me, input), "Review cycle opened. Everyone was told."));
+export const closeReviewCycle = async (id: string) => done(await hrRun((me) => appraisals.closeCycle(me, id), "Review cycle closed."));
+export const finalizeReview = async (id: string, input: { rating: number; note: string }) => done(await hrRun((me) => appraisals.finalizeReview(me, id, input), "Final rating saved. The employee was told."));
 
 // ── Assets and workflows
 export const addAsset = async (input: In<typeof assets.addAsset>) => done(await hrRun((me) => assets.addAsset(me, input), "Asset added."));
