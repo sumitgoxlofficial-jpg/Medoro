@@ -1165,6 +1165,7 @@ model StaffUser {
   inviteExpiresAt DateTime?
   tokenVersion    Int                     @default(0)
   approvedBy      String?
+  deletedAt       DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
   createdAt       DateTime                @default(now())
   sessions        StaffSession[]
   bank            StaffBank?
