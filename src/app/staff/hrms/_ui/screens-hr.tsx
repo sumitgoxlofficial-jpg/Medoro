@@ -8,7 +8,7 @@ import { adminDecideClaim, assignTask, cancelPromotion, promoteEmployee, sendLet
 import { firstSalary } from "@/staff/hrms/cycles";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, presenceColor, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 import { STATES } from "@/staff/hrms/states";
-import { scheduleText } from "@/staff/hrms/constants";
+import { BOARD_COLS, scheduleText } from "@/staff/hrms/constants";
 import { LettersPanel, OfferModal } from "./letters";
 import { AnnounceModal, PayslipView } from "./screens-me";
 import { CountUp } from "@/components/welcome-banner";
@@ -415,7 +415,7 @@ export function AssignTasksScreen({ d }: { d: Data<"assigntasks"> }) {
       <Field label="Project"><select className={inputCls} value={v.projectId} onChange={(e) => setV({ ...v, projectId: e.target.value })}><option value="">None</option>{d.projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
       <button className={primaryCls} disabled={busy}>+ Assign task</button></form></Card>
     <Card title={`All assigned tasks · ${d.tasks.filter((t) => !t.done).length} open`}>
-      <Table head={["Task", "Assigned to", "Due", "Priority", "Status", ""]} empty={d.tasks.length ? undefined : "No tasks yet."}>{d.tasks.map((t) => <tr key={t.id}><td className={tdCls}>{t.title}{t.comment ? <div className="text-[11.5px] italic text-[#64748B]">“{t.comment}”</div> : null}</td><td className={tdCls}>{t.assignee}</td><td className={tdCls}>{t.due ? dayLabel(t.due) : "—"}{t.overdue ? " ⚠" : ""}</td><td className={tdCls}><Pill tone={t.priority === "High" ? "red" : t.priority === "Medium" ? "amber" : "gray"}>{t.priority}</Pill></td><td className={tdCls}><Pill tone={t.done ? "green" : "gray"}>{t.done ? "Done" : "Open"}</Pill></td><td className={tdCls}><button className={dangerCls} onClick={() => run(() => deleteTask(t.id))}>Delete</button></td></tr>)}</Table></Card>
+      <Table head={["Task", "Assigned to", "Due", "Priority", "Status", ""]} empty={d.tasks.length ? undefined : "No tasks yet."}>{d.tasks.map((t) => <tr key={t.id}><td className={tdCls}>{t.title}{t.comment ? <div className="text-[11.5px] italic text-[#64748B]">“{t.comment}”</div> : null}</td><td className={tdCls}>{t.assignee}</td><td className={tdCls}>{t.due ? dayLabel(t.due) : "—"}{t.overdue ? " ⚠" : ""}</td><td className={tdCls}><Pill tone={t.priority === "High" ? "red" : t.priority === "Medium" ? "amber" : "gray"}>{t.priority}</Pill></td><td className={tdCls}><Pill tone={t.done ? "green" : t.projectId && t.col !== "todo" && t.col !== "backlog" ? "amber" : "gray"}>{t.done ? "Done" : t.projectId ? BOARD_COLS.find((c) => c.id === t.col)?.label ?? "Open" : "Open"}</Pill></td><td className={tdCls}><button className={dangerCls} onClick={() => run(() => deleteTask(t.id))}>Delete</button></td></tr>)}</Table></Card>
   </>;
 }
 // ── Recruitment

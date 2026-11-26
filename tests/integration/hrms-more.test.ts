@@ -13,6 +13,7 @@ import { addAsset, allAssets, issueAsset, myAssets, reportIssue, returnAsset, se
 import { addRecord, createInvoice, registers, runOverdue, setWorkflow, workflows } from "@/staff/hrms/finance";
 import { processPayroll } from "@/staff/hrms/pay";
 import { assignTask, deleteSprint, myProjects, projects, saveProject, saveRisk, saveSprint, setTaskSprint } from "@/staff/hrms/work";
+import { requestCorrection } from "@/staff/hrms/time";
 import { addDays, todayISO } from "@/lib/dates";
 import { seal } from "@/server/vault";
 import { resetDb } from "./helpers";
@@ -31,6 +32,16 @@ beforeAll(async () => {
   other = await mkMe((await mk("MS-004", "Omar Other", "omar@medoro.in", "employee", "employee")).id);
 });
 beforeEach(() => jar.clear());
+
+describe("attendance corrections", () => {
+  it("are only for past days on or after the person's joining day", async () => {
+    await db.hrProfile.update({ where: { staffId: other.id }, data: { joinDate: new Date(addDays(todayISO(), -3) + "T00:00:00Z") } });
+    await expect(requestCorrection(other, { day: todayISO(), reason: "Forgot to check in" })).rejects.toThrow(/past days/);
+    await expect(requestCorrection(other, { day: addDays(todayISO(), -5), reason: "Forgot to check in" })).rejects.toThrow(/You joined on/);
+    await requestCorrection(other, { day: addDays(todayISO(), -2), reason: "Was at a pharmacy all day" });
+    expect(await db.hrCorrection.count({ where: { staffId: other.id, status: "pending" } })).toBe(1);
+  });
+});
 
 describe("assets", () => {
   it("HR adds and issues items; the employee sees theirs and nobody else's", async () => {
