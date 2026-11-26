@@ -16,6 +16,7 @@ import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { promotions } from "./promotions";
 import { myDocs } from "./docs";
+import { myTeam, reportCount } from "./team";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
@@ -34,18 +35,18 @@ const people = async (me: Me) => {
 };
 
 /** The side menu: every screen the person may open, grouped as before (Team Chat included). */
-function navFor(me: Me) {
-  return screensFor(me.role, me.perms).filter((x) => !x.hidden).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
+function navFor(me: Me, manages: boolean) {
+  return screensFor(me.role, me.perms).filter((x) => !x.hidden && (x.id !== "myteam" || manages)).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
 }
 
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
 export async function shell(me: Me) {
   const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
   await closeExits().catch(() => {}); // people whose recorded last working day has passed
-  const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
+  const [s, notes, att, brk, chatUnread, manages] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), reportCount(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales", console: me.staffRole === "super_admin" || me.staffRole === "care" },
-    nav: navFor(me), more: [] as { id: string; label: string }[],
+    nav: navFor(me, manages > 0), more: [] as { id: string; label: string }[],
     home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };
 }
@@ -61,6 +62,7 @@ export const loaders = {
     ]);
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id) };
   },
+  myteam: async (me: Me) => myTeam(me),
   myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
   assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people(me) : [] }),
   mytasks: async (me: Me) => ({ tasks: await myTasks(me), projects: await myProjects(me) }),
