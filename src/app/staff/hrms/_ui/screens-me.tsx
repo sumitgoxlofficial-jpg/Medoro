@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
 import { useNow } from "@/lib/use-now";
+import { addDays } from "@/lib/dates";
 import { ASSET_KINDS, BOARD_COLS, liveWorkedMin, toMin, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { setDocExpiry, addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
+import { ExpiryCell } from "./expiry";
+import { ResignCard } from "./screens-exit";
 import { PhotoEditor } from "./photo-editor";
 import { BriefcaseBusiness, CalendarDays, Camera, FileCheck2, IdCard, Mail, MapPin, ShieldCheck, UserCheck } from "lucide-react";
 import { IdBadge } from "../../employee/art";
@@ -134,6 +137,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
       <Card title="My documents" sub="Your offer letter, appointment letter, non-disclosure agreement and any letter HR sends you, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
       <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
+      <ResignCard x={d.exit} />
       {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>
         <div className="print-area mx-auto w-[300px] rounded-2xl overflow-hidden border border-[#CBD5E1] bg-white text-center shadow">
           <div className="bg-[#0B5E5B] text-white py-3"><div className="text-[18px] font-bold">Medoro</div><div className="text-[10px] tracking-[.12em] text-white/70">PHARMACY SOFTWARE</div></div>
@@ -356,7 +360,7 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
       </Card>
       {corr ? <Modal title="Request an attendance correction" onClose={() => setCorr(null)}>
         <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => requestCorrection({ day: corr.day, reason: corr.reason }), () => { setCorr(null); }); }}>
-          <Field label="Which day?"><input className={inputCls} type="date" max={sh.today} value={corr.day} onChange={(e) => setCorr({ ...corr, day: e.target.value })} required /></Field>
+          <Field label="Which day?"><input className={inputCls} type="date" max={addDays(sh.today, -1)} value={corr.day} onChange={(e) => setCorr({ ...corr, day: e.target.value })} required /></Field>
           <Field label="What should HR correct?"><textarea className={inputCls} rows={3} value={corr.reason} onChange={(e) => setCorr({ ...corr, reason: e.target.value })} placeholder="e.g. I forgot to check in; I was at the client site." required /></Field>
           <button className={primaryCls} disabled={busy}>Send to HR</button>
         </form>
@@ -374,21 +378,23 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
 function MyDocs({ docs }: { docs: Data<"profile">["docs"] }) {
   const { run, busy, toast } = useRun();
   const [kind, setKind] = useState<string>(DOC_KINDS[0]);
+  const [exp, setExp] = useState("");
   const file = useRef<HTMLInputElement>(null);
   const send = (e: React.FormEvent) => {
     e.preventDefault();
     const f = file.current?.files?.[0];
     if (!f) return toast("Choose a file to upload.", "red");
-    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f);
-    run(() => uploadDoc(fd), () => { if (file.current) file.current.value = ""; });
+    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f); if (exp) fd.set("expiresOn", exp);
+    run(() => uploadDoc(fd), () => { if (file.current) file.current.value = ""; setExp(""); });
   };
   return <>
     <form className="flex gap-2 flex-wrap items-end" onSubmit={send}>
       <Field label="Document"><select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>{DOC_KINDS.map((k) => <option key={k}>{k}</option>)}</select></Field>
       <Field label="File (PDF, JPG, PNG)"><input ref={file} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" /></Field>
+      <Field label="Expires on (optional)" hint="Passport, visa, contract, licence…"><input className={inputCls} type="date" value={exp} onChange={(e) => setExp(e.target.value)} /></Field>
       <button className={primaryCls} disabled={busy}>Upload</button>
     </form>
-    {docs.length ? <div className="mt-4"><Table head={["Document", "File", "Uploaded", "Status", ""]}>{docs.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified by HR" : "Waiting for HR"}</Pill></td><td className={tdCls}>{x.verified ? null : <button className={dangerCls} disabled={busy} onClick={() => run(() => removeDoc(x.id))}>Remove</button>}</td></tr>)}</Table></div> : <Empty>No documents uploaded yet.</Empty>}
+    {docs.length ? <div className="mt-4"><Table head={["Document", "File", "Uploaded", "Expires", "Status", ""]}>{docs.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><ExpiryCell x={x} disabled={busy} onSave={(v) => run(() => setDocExpiry(x.id, v))} /></td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified by HR" : "Waiting for HR"}</Pill></td><td className={tdCls}>{x.verified ? null : <button className={dangerCls} disabled={busy} onClick={() => run(() => removeDoc(x.id))}>Remove</button>}</td></tr>)}</Table></div> : <Empty>No documents uploaded yet.</Empty>}
   </>;
 }
 
