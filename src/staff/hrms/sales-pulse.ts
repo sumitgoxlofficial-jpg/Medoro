@@ -4,10 +4,12 @@ import { seal, unseal } from "@/server/vault";
 import { humanize, type Brief } from "./sales-pulse-ai";
 import { log } from "@/server/log";
 import { PRODUCTS } from "../constants";
+import { DEMO_MILESTONES, SALE_MILESTONES, TEAM_ID, crossed, demoBody, istDayStart, istWeekStart, milestoneBody, saleBody } from "./sales-wins";
 
 // Sales Pulse: the "Sales" company channel in Team Chat.
 // 1. Real wins: when someone closes a sale (ConversionRecord) or books a demo (DemoBooking), a short announcement is posted
-//    into the channel from that person's own account, as kind "win". The chat shows it with an "auto" tag so nobody thinks
+//    into the channel from that person's own account, as kind "win", with their real streak (see sales-wins.ts). When the
+//    team's real totals for the day pass a threshold, a "milestone" is posted from the Sales team (TEAM_ID). The chat shows it with an "auto" tag so nobody thinks
 //    they typed it.
 // 2. Motivation bots: 45 named personas (20 women, 25 men) each post one sales message every day between 10:00 and
 //    18:30 India time, in English, Hindi and Hinglish, as kind "pulse". They are not staff accounts: they have no login and
@@ -337,7 +339,7 @@ export async function salesPulseTick(now = new Date(), force = false) {
       const s: State = { enabled: saved.enabled !== false, day: saved.day ?? today, posted: saved.posted ?? 0, winsAt: saved.winsAt ?? now.toISOString() };
       if (s.day !== today) { s.day = today; s.posted = 0; }
       let lastAt: Date | null = null;
-      const write = async (senderId: string, kind: "win" | "pulse", body: string, at: Date) => {
+      const write = async (senderId: string, kind: "win" | "pulse" | "milestone", body: string, at: Date) => {
         await tx.hrChatMessage.create({ data: { chatId: chat, senderId, kind, body: new Uint8Array(seal(body)), createdAt: at } });
         lastAt = at;
       };
@@ -348,12 +350,38 @@ export async function salesPulseTick(now = new Date(), force = false) {
         tx.conversionRecord.findMany({ where: { at: { gt: since, lte: now } }, orderBy: { at: "asc" }, take: 50, select: { staffId: true, product: true, at: true } }),
         tx.demoBooking.findMany({ where: { createdAt: { gt: since, lte: now } }, orderBy: { createdAt: "asc" }, take: 50, select: { staffId: true, mode: true, createdAt: true } }),
       ]);
-      const wins = [
-        ...conv.map((c) => ({ staffId: c.staffId, at: c.at, body: `Just closed a sale 🎉${planName(c.product) ? ` Medoro ${planName(c.product)}` : ""}` })),
-        ...demos.map((d) => ({ staffId: d.staffId, at: d.createdAt, body: `Just booked ${MODES[d.mode] ?? "a demo"} call 📅` })),
-      ].sort((a, b) => a.at.getTime() - b.at.getTime());
+      // Each win carries the person's real streak (first sale ever, nth today, n this week), counted up to that win.
+      const dayStart = istDayStart(now);
+      const wins: { staffId: string; at: Date; body: string }[] = [];
+      for (const c of conv) {
+        const [today, week, total] = await Promise.all([
+          tx.conversionRecord.count({ where: { staffId: c.staffId, at: { gte: istDayStart(c.at), lte: c.at } } }),
+          tx.conversionRecord.count({ where: { staffId: c.staffId, at: { gte: istWeekStart(c.at), lte: c.at } } }),
+          tx.conversionRecord.count({ where: { staffId: c.staffId, at: { lte: c.at } } }),
+        ]);
+        wins.push({ staffId: c.staffId, at: c.at, body: saleBody(planName(c.product), { today, week, total }) });
+      }
+      for (const d of demos) {
+        const today = await tx.demoBooking.count({ where: { staffId: d.staffId, createdAt: { gte: istDayStart(d.createdAt), lte: d.createdAt } } });
+        wins.push({ staffId: d.staffId, at: d.createdAt, body: demoBody(MODES[d.mode] ?? "", today) });
+      }
+      wins.sort((a, b) => a.at.getTime() - b.at.getTime());
       for (const w of wins) await write(w.staffId, "win", w.body, w.at);
-      if (wins.length) s.winsAt = wins[wins.length - 1].at.toISOString();
+
+      // Team milestones: when today's real team totals pass a threshold, the "Sales team" posts it once.
+      if (wins.length) {
+        // Totals before this batch: records already announced today (up to `since`); none if `since` was before today.
+        const from = since > dayStart ? since : null, at = wins[wins.length - 1].at;
+        const [salesBefore, salesNow, demosBefore, demosNow] = await Promise.all([
+          from ? tx.conversionRecord.count({ where: { at: { gte: dayStart, lte: from } } }) : 0,
+          tx.conversionRecord.count({ where: { at: { gte: dayStart, lte: at } } }),
+          from ? tx.demoBooking.count({ where: { createdAt: { gte: dayStart, lte: from } } }) : 0,
+          tx.demoBooking.count({ where: { createdAt: { gte: dayStart, lte: at } } }),
+        ]);
+        for (const n of crossed(SALE_MILESTONES, salesBefore, salesNow)) await write(TEAM_ID, "milestone", milestoneBody("sale", n), at);
+        for (const n of crossed(DEMO_MILESTONES, demosBefore, demosNow)) await write(TEAM_ID, "milestone", milestoneBody("demo", n), at);
+        s.winsAt = at.toISOString();
+      }
 
       // Bot messages that are due.
       const plan = daySchedule(today);
