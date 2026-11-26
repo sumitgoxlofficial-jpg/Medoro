@@ -131,13 +131,13 @@ export function ChatNotifier({ screen }: { screen: string }) {
 }
 
 /** A bell in the chat list: sound on or off (the banner and pop-up stay). */
-export function SoundToggle() {
+export function SoundToggle({ light = false }: { light?: boolean }) {
   const [pref, setPref] = useLocalStorage(SOUND_KEY);
   const on = pref !== "off";
   return (
     <button type="button" title={on ? "Message sound is on" : "Message sound is off"} aria-label={on ? "Turn message sound off" : "Turn message sound on"} aria-pressed={on}
       onClick={() => { const n = !on; setPref(n ? "on" : "off"); if (n) { unlock(); ding(); } }}
-      className="flex-none size-10 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-[#54656F] hover:bg-black/[.06]">
+      className={light ? "flex-none size-10 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-white/90 hover:bg-white/15 hover:text-white" : "flex-none size-10 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-[#54656F] hover:bg-black/[.06]"}>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />{on ? null : <path d="m2 2 20 20" />}</svg>
     </button>
   );

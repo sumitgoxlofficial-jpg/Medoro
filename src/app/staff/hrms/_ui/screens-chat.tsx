@@ -118,6 +118,10 @@ const PATHS: Record<string, string> = {
 const Ic = ({ n, s = 20 }: { n: string; s?: number }) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden dangerouslySetInnerHTML={{ __html: PATHS[n] ?? "" }} />;
 /** Round, borderless icon button used across the chat header, list and composer. */
 const iconBtn = "flex-none size-10 max-[560px]:size-9 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-[#54656F] hover:bg-black/[.06] disabled:opacity-40 disabled:cursor-default aria-pressed:bg-black/[.08]";
+/** The same button on the teal WhatsApp-style header bars: white icons. */
+const iconBtnBar = "flex-none size-10 max-[560px]:size-9 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-white/90 hover:bg-white/15 hover:text-white disabled:opacity-40 disabled:cursor-default aria-pressed:bg-white/20";
+/** Teal header bar shared by the chat list and the open conversation, as in WhatsApp. */
+const headerBar = "relative h-[62px] flex-none flex items-center gap-1 bg-gradient-to-r from-[#0B5E5B] to-[#0E6F6A] text-white shadow-[0_1px_3px_rgba(0,0,0,.18)] z-[2]";
 /** Each sender keeps one name colour in groups, as in WhatsApp. */
 const NAME_COLORS = ["#0B7A70", "#C2410C", "#7C3AED", "#BE185D", "#1D4ED8", "#047857", "#B45309", "#0E7490"];
 const nameColor = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return NAME_COLORS[Math.abs(h) % NAME_COLORS.length]; };
@@ -338,14 +342,14 @@ export function ChatScreen({ d }: { d: D }) {
         <div className={cx("relative border-r border-[#E3E8EA] flex-col min-h-0 bg-[#F3F7F5]", showList || !active ? "flex" : "hidden min-[860px]:flex")}>
           {/* The same doodle wallpaper as the conversation, a shade lighter behind the list. */}
           <div aria-hidden className="absolute inset-0 pointer-events-none opacity-70" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
-          <div className="relative px-4 pt-3.5 pb-3 flex flex-col gap-2.5 bg-white/85 backdrop-blur-sm border-b border-[#E3E8EA]">
-            <div className="flex items-center gap-1">
-              <button className="bg-transparent border-0 p-0 mr-2 cursor-pointer rounded-full" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={36} /></button>
-              <div className="min-w-0 mr-auto"><div className="font-bold text-[20px] leading-tight text-[#111B21]">Chats</div><div className="text-[11.5px] text-[#0B8A7A] font-medium flex items-center gap-1"><span className="size-1.5 rounded-full bg-[#14B8A6]" />{online + 1} online</div></div>
-              <SoundToggle />
-              <button type="button" className={iconBtn} title="Back up your chats to your Google Drive" aria-label="Chat backup" onClick={() => setModal("backup")}><Ic n="cloud" /></button>
-              <button type="button" className="flex-none size-10 rounded-full flex items-center justify-center bg-[#0B5E5B] text-white border-0 cursor-pointer hover:bg-[#094A48] shadow-sm" title="New chat or group" aria-label="New chat" onClick={() => setModal("new")}><Ic n="plus" /></button>
-            </div>
+          <div className={cx(headerBar, "pl-4 pr-2")}>
+            <button className="bg-transparent border-0 p-0 mr-3 cursor-pointer rounded-full ring-2 ring-white/30" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={38} /></button>
+            <div className="min-w-0 mr-auto"><div className="font-semibold text-[19px] leading-tight tracking-[-.01em]">Chats</div><div className="text-[12px] text-white/75 flex items-center gap-1"><span className="size-1.5 rounded-full bg-[#5EEAD4]" />{online + 1} online</div></div>
+            <SoundToggle light />
+            <button type="button" className={iconBtnBar} title="Back up your chats to your Google Drive" aria-label="Chat backup" onClick={() => setModal("backup")}><Ic n="cloud" /></button>
+            <button type="button" className="flex-none size-10 ml-0.5 rounded-full flex items-center justify-center bg-white text-[#0B5E5B] border-0 cursor-pointer hover:bg-[#E6F4F1] shadow-sm" title="New chat or group" aria-label="New chat" onClick={() => setModal("new")}><Ic n="plus" /></button>
+          </div>
+          <div className="relative px-3 py-2.5 bg-white/85 backdrop-blur-sm border-b border-[#E3E8EA]">
             <label className="flex items-center gap-2.5 bg-[#F0F2F5] rounded-full px-3.5 h-10 text-[#667781] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0B5E5B]/25">
               <Ic n="search" s={17} />
               <input className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#111B21] placeholder:text-[#8696A0]" placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -366,16 +370,16 @@ export function ChatScreen({ d }: { d: D }) {
           <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
           {chat ? (
             <>
-              <div className="relative bg-[#F7F8F8] border-b border-[#E3E8EA] pl-2 pr-3 min-[860px]:pl-4 h-[62px] flex-none flex items-center gap-1">
-                <button className={cx(iconBtn, "min-[860px]:hidden")} aria-label="Back to chats" onClick={() => setShowList(true)}><Ic n="back" s={22} /></button>
+              <div className={cx(headerBar, "pl-2 pr-2 min-[860px]:pl-4")}>
+                <button className={cx(iconBtnBar, "min-[860px]:hidden")} aria-label="Back to chats" onClick={() => setShowList(true)}><Ic n="back" s={22} /></button>
                 <button className="flex items-center gap-3 bg-transparent border-0 p-0 cursor-pointer text-left min-w-0 mr-auto" onClick={() => chat.kind === "group" && setModal("info")} aria-label={chat.kind === "group" ? "Group info" : chat.title}>
                   <Face name={chat.title} photo={chat.photo} avatar={chat.kind === "dm" ? chat.avatar : ""} size={42} status={chat.kind === "dm" ? (pres[chat.withId ?? ""] ?? "offline") : undefined} />
-                  <span className="min-w-0"><span className="block font-semibold text-[16px] text-[#111B21] truncate leading-tight">{chat.title}</span><span className="block text-[12.5px] text-[#667781] truncate">{typingNames.length ? <span className="text-[#0B8A7A] font-medium">{typingNames.join(", ")} typing…</span> : sub}</span></span>
+                  <span className="min-w-0"><span className="block font-semibold text-[16.5px] truncate leading-tight">{chat.title}</span><span className="block text-[12.5px] text-white/75 truncate">{typingNames.length ? <span className="text-[#A7F3E4] font-medium">{typingNames.join(", ")} typing…</span> : sub}</span></span>
                 </button>
-                <button className={iconBtn} onClick={() => void meet()} disabled={sending} aria-label="Start a video call" title={d.google ? "Start a Google Meet call" : "Connect Google Calendar first"}><Ic n="video" /></button>
-                <button className={iconBtn} onClick={() => setModal("poll")} aria-label="Create a poll" title="Create a poll"><Ic n="poll" /></button>
-                <button className={iconBtn} onClick={() => { setFindOpen((o) => !o); setFind(""); }} aria-label="Search in this chat" title="Search in this chat" aria-pressed={findOpen}><Ic n="search" /></button>
-                {chat.kind === "group" ? <button className={iconBtn} onClick={() => setModal("info")} aria-label="Group info" title="Group info"><Ic n="info" /></button> : null}
+                <button className={iconBtnBar} onClick={() => void meet()} disabled={sending} aria-label="Start a video call" title={d.google ? "Start a Google Meet call" : "Connect Google Calendar first"}><Ic n="video" /></button>
+                <button className={iconBtnBar} onClick={() => setModal("poll")} aria-label="Create a poll" title="Create a poll"><Ic n="poll" /></button>
+                <button className={iconBtnBar} onClick={() => { setFindOpen((o) => !o); setFind(""); }} aria-label="Search in this chat" title="Search in this chat" aria-pressed={findOpen}><Ic n="search" /></button>
+                {chat.kind === "group" ? <button className={iconBtnBar} onClick={() => setModal("info")} aria-label="Group info" title="Group info"><Ic n="info" /></button> : null}
               </div>
               {findOpen ? <div className="relative bg-[#F7F8F8] border-b border-[#E3E8EA] px-4 py-2"><label className="flex items-center gap-2.5 bg-white rounded-full px-3.5 h-9 text-[#667781] ring-1 ring-[#E3E8EA]"><Ic n="search" s={16} /><input className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#111B21]" autoFocus placeholder="Search in this chat" aria-label="Search in this chat" value={find} onChange={(e) => setFind(e.target.value)} /></label></div> : null}
               <div ref={log} onScroll={(e) => { const el = e.currentTarget; pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="relative flex-1 overflow-y-auto px-[4%] max-[560px]:px-2.5 py-3 flex flex-col [scrollbar-width:thin]" aria-live="polite">
