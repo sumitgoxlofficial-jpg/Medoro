@@ -120,16 +120,10 @@ async function chatId() {
 const planName = (id: string) => PRODUCTS.find((p) => p.id === id)?.name ?? "";
 const MODES: Record<string, string> = { phone: "a phone demo", video: "a video demo", visit: "an in-person demo" };
 
-/** Real people who should be in the Sales channel: the sales department, the super admin, and anyone with a recent win. */
+/** Real people in the Sales channel: every active employee (the same people as All Hands). */
 export async function pulseMemberIds(): Promise<string[]> {
-  const since = new Date(Date.now() - 60 * 86400_000);
-  const [staff, conv, demos] = await Promise.all([
-    db.staffUser.findMany({ where: { kind: "team", status: "active", role: { not: "partner" }, hr: { isNot: null } }, select: { id: true, role: true, hr: { select: { dept: true } } } }),
-    db.conversionRecord.findMany({ where: { at: { gt: since } }, select: { staffId: true }, distinct: ["staffId"] }),
-    db.demoBooking.findMany({ where: { createdAt: { gt: since } }, select: { staffId: true }, distinct: ["staffId"] }),
-  ]);
-  const sellers = new Set([...conv, ...demos].map((x) => x.staffId));
-  return staff.filter((s) => s.role === "super_admin" || /sales|business dev/i.test(s.hr?.dept ?? "") || sellers.has(s.id)).map((s) => s.id);
+  const staff = await db.staffUser.findMany({ where: { kind: "team", status: "active", role: { not: "partner" }, hr: { isNot: null } }, select: { id: true } });
+  return staff.map((s) => s.id);
 }
 
 let lastRun = 0;

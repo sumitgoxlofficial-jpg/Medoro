@@ -142,7 +142,7 @@ export async function syncChannels(force = false) {
     const ids = new Set([...p.members, ...(p.leadId ? [p.leadId] : [])].filter((x) => live.has(x)));
     if (ids.size >= 2) wanted.set(`project:${p.id}`, { name: `# ${p.name}`, ids });
   }
-  // Sales: the sales team plus the 45 Sales Pulse bots (see sales-pulse.ts).
+  // Sales: every active employee plus the 45 Sales Pulse bots (see sales-pulse.ts).
   wanted.set(PULSE_KEY, { name: "Sales", ids: new Set([...(await pulseMemberIds()), ...PERSONAS.map((p) => p.id)]) });
   for (const [key, w] of wanted) {
     let chat = existing.find((c) => c.sysKey === key);
