@@ -21,8 +21,8 @@ const href = (q: Record<string, string>) => `/staff/hrms/training?${new URLSearc
 
 export function TrainingScreen({ d }: { d: Data<"training"> }) {
   if (!d.t) return <Card title="My Sales Training" pad><Empty>No training has been assigned to you. HR assigns the Medoro Sales Training Academy to the sales team from Sales Academy.</Empty></Card>;
-  if (d.lesson) return <LessonPlayer t={d.t} l={d.lesson} />;
-  return <TrainingHome t={d.t} tab={(TABS.some((x) => x[0] === d.tab) ? d.tab : "overview") as TabId} />;
+  if (d.lesson) return <LessonPlayer key={d.lesson.id} t={d.t} l={d.lesson} />;
+  return <TrainingHome key={d.tab} t={d.t} tab={(TABS.some((x) => x[0] === d.tab) ? d.tab : "overview") as TabId} />;
 }
 
 function TrainingHome({ t, tab: initial }: { t: T; tab: TabId }) {
@@ -337,16 +337,41 @@ function LessonPlayer({ t, l }: { t: T; l: L }) {
 
 type Prog = L["progress"];
 /** Sends learning heartbeats. The server decides what counts. */
+/**
+ * Sends learning heartbeats; the server decides what counts. `playing` and `visible` describe the stretch since the
+ * previous heartbeat (not this instant), so pausing, the end of a video or switching tabs never throws away the
+ * viewing just before it. A heartbeat that arrives while one is in flight waits and goes next (only the newest waits).
+ */
+type Beat = { mode: "video" | "slides"; pos: number; playing: boolean; duration?: number; visible: boolean };
 function useBeats(lessonId: string, onProgress: (p: Prog) => void) {
-  const busy = useRef(false);
-  return useCallback(async (mode: "video" | "slides", pos: number, playing: boolean, duration?: number) => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      const r = await trBeat({ lessonId, mode, pos: Math.max(0, pos), playing, visible: document.visibilityState === "visible", duration });
-      if (r.ok) onProgress(r.data as Prog);
-    } catch { /* a dropped heartbeat only loses its own few seconds */ } finally { busy.current = false; }
-  }, [lessonId, onProgress]);
+  const latest = useRef({ lessonId, onProgress });
+  useEffect(() => { latest.current = { lessonId, onProgress }; }, [lessonId, onProgress]);
+  const [post] = useState(() => {
+    let busy = false, queued: Beat | null = null;
+    const send = async (b: Beat): Promise<void> => {
+      if (busy) { queued = b; return; }
+      busy = true;
+      try {
+        const r = await trBeat({ lessonId: latest.current.lessonId, mode: b.mode, pos: Math.max(0, b.pos), playing: b.playing, visible: b.visible, duration: b.duration });
+        if (r.ok) latest.current.onProgress(r.data as Prog);
+      } catch { /* a dropped heartbeat only loses its own few seconds */ } finally {
+        busy = false;
+        const next = queued; queued = null;
+        if (next) void send(next);
+      }
+    };
+    return send;
+  });
+  return useCallback((mode: "video" | "slides", pos: number, playing: boolean, duration?: number, visible = document.visibilityState === "visible") => post({ mode, pos, playing, duration, visible }), [post]);
+}
+/** Tracks whether the tab stayed visible over a stretch: true only if it was visible the whole time since `reset`. */
+function useVisibleStretch() {
+  const all = useRef(true);
+  return useMemo(() => ({
+    take: () => { const v = all.current && document.visibilityState === "visible"; all.current = document.visibilityState === "visible"; return v; },
+    hidden: () => { all.current = false; },
+    shown: () => { all.current = true; },
+  }), []);
 }
 
 function VideoBox({ l, onProgress }: { l: L; onProgress: (p: Prog) => void }) {
@@ -372,17 +397,28 @@ function VideoBox({ l, onProgress }: { l: L; onProgress: (p: Prog) => void }) {
 
 function FileBox({ src, poster, start, speed, send, official, onFail }: { src: string; poster: string; start: number; speed: number; send: ReturnType<typeof useBeats>; official: boolean; onFail: () => void }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const stretch = useVisibleStretch();
   useEffect(() => { if (ref.current) ref.current.playbackRate = speed; }, [speed]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const tick = () => send("video", el.currentTime, !el.paused && !el.ended, el.duration || undefined);
-    send("video", start, false);
+    // Was the video playing at any point since the last heartbeat? (A pause or the end reports the stretch before it.)
+    let played = false;
+    const onPlay = () => { played = true; };
+    const tick = () => {
+      const now = !el.paused && !el.ended, was = played || now;
+      played = now;
+      void send("video", el.currentTime, was, el.duration || undefined, stretch.take());
+    };
+    const vis = () => {
+      if (document.visibilityState === "hidden") { tick(); stretch.hidden(); } // report the visible stretch, then start a hidden one
+      else { void send("video", el.currentTime, false, el.duration || undefined, false); stretch.shown(); played = !el.paused && !el.ended; }
+    };
+    void send("video", start, false);
     const id = setInterval(tick, 10_000);
-    const vis = () => tick();
-    el.addEventListener("pause", tick); el.addEventListener("ended", tick); document.addEventListener("visibilitychange", vis);
-    return () => { clearInterval(id); el.removeEventListener("pause", tick); el.removeEventListener("ended", tick); document.removeEventListener("visibilitychange", vis); tick(); };
-  }, [send, start]);
+    el.addEventListener("play", onPlay); el.addEventListener("pause", tick); el.addEventListener("ended", tick); document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(id); el.removeEventListener("play", onPlay); el.removeEventListener("pause", tick); el.removeEventListener("ended", tick); document.removeEventListener("visibilitychange", vis); tick(); };
+  }, [send, start, stretch]);
   return (
     <video ref={ref} src={src} poster={poster || undefined} controls playsInline preload="metadata" className="absolute inset-0 w-full h-full bg-black" controlsList={official ? "nodownload" : undefined}
       onLoadedMetadata={(e) => { const el = e.currentTarget; if (start > 0 && start < el.duration - 5) el.currentTime = start; el.playbackRate = speed; }}
@@ -407,17 +443,24 @@ function loadYT(): Promise<YTNS> {
 }
 function YouTubeBox({ id, start, speed, send, onFail }: { id: string; start: number; speed: number; send: ReturnType<typeof useBeats>; onFail: () => void }) {
   const host = useRef<HTMLDivElement>(null), player = useRef<YTP | null>(null);
+  const stretch = useVisibleStretch();
   useEffect(() => { player.current?.setPlaybackRate(speed); }, [speed]);
   useEffect(() => {
     let dead = false, timer: ReturnType<typeof setInterval> | undefined;
     loadYT().then((YT) => {
       if (dead || !host.current) return;
-      player.current = new YT.Player(host.current, { videoId: id, width: "100%", height: "100%", playerVars: { start: Math.floor(start), rel: 0, modestbranding: 1, playsinline: 1 }, events: { onError: onFail } });
-      send("video", start, false);
-      timer = setInterval(() => { const p = player.current; if (p?.getCurrentTime) send("video", p.getCurrentTime(), p.getPlayerState() === 1, p.getDuration() || undefined); }, 10_000);
+      let played = false; // playing at any point since the last heartbeat (state 1 = playing)
+      const tick = () => { const p = player.current; if (!p?.getCurrentTime) return; const now = p.getPlayerState() === 1, was = played || now; played = now; void send("video", p.getCurrentTime(), was, p.getDuration() || undefined, stretch.take()); };
+      player.current = new YT.Player(host.current, { videoId: id, width: "100%", height: "100%", playerVars: { start: Math.floor(start), rel: 0, modestbranding: 1, playsinline: 1 }, events: {
+        onError: onFail,
+        // Playing marks the stretch; a pause or the end reports it at once.
+        onStateChange: (e: { data: number }) => { if (e.data === 1) played = true; else if (e.data === 2 || e.data === 0) tick(); },
+      } });
+      void send("video", start, false);
+      timer = setInterval(tick, 10_000);
     }).catch(onFail);
     return () => { dead = true; if (timer) clearInterval(timer); player.current?.destroy(); player.current = null; };
-  }, [id, start, send, onFail]);
+  }, [id, start, send, onFail, stretch]);
   return <div className="absolute inset-0 [&>iframe]:w-full [&>iframe]:h-full"><div ref={host} /></div>;
 }
 
@@ -427,12 +470,16 @@ function SlideDeck({ l, prog, track, onProgress }: { l: L; prog: Prog; track: bo
   const [speaking, setSpeaking] = useState(false);
   const s = l.slides[i];
   // Time on a slide counts while the tab is visible: a heartbeat every 10 s, and one for the old slide when moving on.
+  const stretch = useVisibleStretch();
   useEffect(() => {
     if (!track) return;
-    send("slides", i, false);
-    const id = setInterval(() => send("slides", i, true), 10_000);
-    return () => { clearInterval(id); send("slides", i, true); };
-  }, [i, track, send]);
+    void send("slides", i, false);
+    const tick = () => void send("slides", i, true, undefined, stretch.take());
+    const vis = () => { if (document.visibilityState === "hidden") { tick(); stretch.hidden(); } else { void send("slides", i, false, undefined, false); stretch.shown(); } };
+    const id = setInterval(tick, 10_000);
+    document.addEventListener("visibilitychange", vis);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", vis); tick(); };
+  }, [i, track, send, stretch]);
   useEffect(() => () => { if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(); }, []);
   const speak = () => {
     if (typeof speechSynthesis === "undefined") return;
@@ -676,7 +723,15 @@ function ExamModal({ kind, onClose }: { kind: "product" | "final"; onClose: () =
   const { run, busy, toast } = useRun();
   const [qs, setQs] = useState<{ id: string; prompt: string; options: string[] }[] | null>(null);
   const [res, setRes] = useState<QuizResult | null>(null);
-  useEffect(() => { trExam(kind).then((r) => { if (r.ok) setQs(r.data); else { toast(r.error, "red"); onClose(); } }); }, [kind, toast, onClose]);
+  // Questions load once, when the window opens. (The page refreshes after grading; reloading then would ask the server
+  // for a quiz that was just passed, which it rightly refuses, and the result would vanish.)
+  const latest = useRef({ toast, onClose });
+  useEffect(() => { latest.current = { toast, onClose }; }, [toast, onClose]);
+  useEffect(() => {
+    let live = true;
+    trExam(kind).then((r) => { if (!live) return; if (r.ok) setQs(r.data); else { latest.current.toast(r.error, "red"); latest.current.onClose(); } });
+    return () => { live = false; };
+  }, [kind]);
   return (
     <Modal title={kind === "product" ? "Product knowledge quiz" : "Final exam"} onClose={onClose} wide>
       {res ? <><ResultBox r={res} /><button className={primaryCls + " self-start"} onClick={onClose}>Close</button></>

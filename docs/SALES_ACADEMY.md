@@ -2,7 +2,10 @@
 
 A one-day programme that prepares a new Medoro Sales Executive, inside the HRMS (`/staff/hrms`). Same sign-in, same
 employee records, same audit log. Code: `src/staff/hrms/training/`, screens `src/app/staff/hrms/_ui/screens-training.tsx`
-and `screens-academy.tsx`, tests `tests/integration/hrms-training.test.ts` and `src/staff/hrms/training/*.test.ts`.
+and `screens-academy.tsx`, tests `tests/integration/hrms-training.test.ts`, `src/staff/hrms/training/*.test.ts` and the end-to-end
+walkthrough `e2e/34-sales-academy.spec.ts` (every HR, trainer and learner action through the real UI on a production build:
+real video and slide evidence, quizzes, practicals, approvals, certificate PDF and verification, revocation, access rules,
+a broken video, a blocked video host, a fake PDF and phone width; about 5 minutes).
 
 ## Who sees what
 
