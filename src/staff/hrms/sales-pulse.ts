@@ -165,6 +165,127 @@ export async function pulseMemberIds(): Promise<string[]> {
   return staff.map((s) => s.id);
 }
 
+// ── Welcomes: when HR or the super admin adds someone to Sales (or introduces a new employee there), every bot welcomes
+// them once, each at a different minute over roughly the next two hours (only between 10:00 and 18:30; later ones move
+// to the next morning). The queue sits in HrSetting under `salesPulseWelcome:<staffId>`; the row stays once done, so the
+// same person is never welcomed twice.
+const W_EN: ((n: string) => string)[] = [
+  (n) => `Welcome to the team, ${n}! 🎉`,
+  (n) => `Hey ${n}, welcome aboard! Let's close some deals together 💪`,
+  (n) => `Welcome ${n} 🙌 Ping me anytime for demo tips.`,
+  (n) => `Big welcome to ${n}! The Medoro sales family just got stronger 🚀`,
+  (n) => `Welcome ${n}! Your first sale is going to feel amazing 😄`,
+  (n) => `Glad to have you, ${n}. All the best! 👏`,
+  (n) => `Welcome ${n}! Pro tip: show them expiry alerts in the demo, works every time 😉`,
+  (n) => `Hi ${n}, welcome! Looking forward to your first win 🎯`,
+  (n) => `Warm welcome, ${n} 🌟`,
+  (n) => `Welcome to Sales, ${n}! Let's smash the target this month 🔥`,
+  (n) => `Welcome ${n}! Happy to help with your first few demo calls 📞`,
+  (n) => `A very warm welcome to ${n} 🤝`,
+  (n) => `Welcome onboard ${n}! Great things ahead 💯`,
+  (n) => `Hello ${n}, welcome! You'll love this team 😊`,
+  (n) => `Welcome ${n}! Can't wait to see your name in the wins here 🏆`,
+  (n) => `Cheers to new beginnings, welcome ${n} 🥳`,
+];
+const W_HI: ((n: string) => string)[] = [
+  (n) => `${n} जी, टीम में आपका स्वागत है 🙏`,
+  (n) => `स्वागत है ${n}! मिलकर खूब सेल करेंगे 💪`,
+  (n) => `${n}, Medoro सेल्स परिवार में आपका हार्दिक स्वागत है 🎉`,
+  (n) => `वेलकम ${n}! पहली सेल के लिए ढेर सारी शुभकामनाएँ 🌟`,
+  (n) => `${n} का स्वागत है, कोई भी मदद चाहिए तो बताइए 😊`,
+  (n) => `नई शुरुआत की बधाई ${n}! स्वागत है 🥳`,
+  (n) => `${n} जी, स्वागत है! डेमो कॉल में कोई दिक्कत हो तो पूछ लेना 📞`,
+  (n) => `टीम में नया साथी, ${n}! हार्दिक स्वागत 🤝`,
+  (n) => `स्वागत ${n}! इस महीने का टारगेट साथ में पूरा करेंगे 🎯`,
+  (n) => `${n}, आपका स्वागत है। बहुत आगे जाओगे 👏`,
+  (n) => `हार्दिक अभिनंदन ${n} 🌸`,
+  (n) => `${n} जी, Sales टीम में स्वागत है, ऑल द बेस्ट 💯`,
+  (n) => `स्वागत है ${n}! जल्दी ही यहाँ आपकी पहली सेल का मैसेज देखना है 🏆`,
+  (n) => `${n}, आपका बहुत बहुत स्वागत है 🙌`,
+  (n) => `वेलकम ${n} जी, टीम और मज़बूत हो गई 🚀`,
+  (n) => `${n} का दिल से स्वागत 😊`,
+];
+const W_HG: ((n: string) => string)[] = [
+  (n) => `Welcome ${n} bhai/behen, team me swagat hai 🙌`,
+  (n) => `${n} ka swagat hai! Chalo milke sales todte hai 💪`,
+  (n) => `Welcome ${n}! Koi bhi doubt ho toh seedha ping karna 😊`,
+  (n) => `Arre welcome ${n} 🎉 pehli sale jaldi aayegi!`,
+  (n) => `${n}, Medoro sales family me swagat hai 🚀`,
+  (n) => `Welcome welcome ${n} 🥳 team aur strong ho gayi`,
+  (n) => `${n} welcome! Demo me GST billing dikhana, client turant maan jaata hai 😉`,
+  (n) => `Swagat hai ${n}, all the best 👏`,
+  (n) => `${n} ko dil se welcome 🤝`,
+  (n) => `Welcome ${n}! Is mahine target saath me cross karenge 🎯`,
+  (n) => `Hello ${n}, welcome! Pehle demo ke liye best of luck 📞`,
+  (n) => `${n} aa gaye team me, ab toh sales aur badhegi 🔥`,
+  (n) => `Welcome ${n} ji 🙏 kuch bhi help chahiye toh batana`,
+  (n) => `${n}, swagat hai! Jaldi yahan tumhari first win dekhni hai 🏆`,
+  (n) => `Big welcome ${n} 🌟 maza aayega saath kaam karke`,
+  (n) => `${n} welcome to Sales! Chalo shuru karte hai 💯`,
+];
+const W_POOL = W_EN.flatMap((e, i) => [e, W_HI[i], W_HG[i]]);
+const WELCOME_PREFIX = "salesPulseWelcome:";
+type Pending = { at: string; senderId: string; body: string };
+
+/** Moves a time outside 10:00-18:30 India time into the next working window, keeping its offset so the spread survives. */
+function inWindow(t: number, offsetMin: number): number {
+  const day = istDay(new Date(t)), midnight = Date.parse(`${day}T00:00:00Z`) - IST, min = (t - midnight) / 60_000;
+  if (min >= START && min <= END) return t;
+  const base = min < START ? midnight : midnight + 86400_000;
+  return base + (START + offsetMin) * 60_000;
+}
+
+/** Every bot's welcome for one person: different message each, at a different minute (about 2 to 140 minutes on). */
+export function welcomePlan(staffId: string, name: string, from: Date): Pending[] {
+  const r = rng(`medoro-sales-welcome:${staffId}`);
+  const first = name.trim().split(/\s+/)[0] || name;
+  const msgs = [...W_POOL];
+  for (let i = msgs.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [msgs[i], msgs[j]] = [msgs[j], msgs[i]]; }
+  const bots = [...PERSONAS];
+  for (let i = bots.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [bots[i], bots[j]] = [bots[j], bots[i]]; }
+  return bots.map((b, k) => {
+    const offset = 2 + k * 3 + Math.floor(r() * 3); // one bot every ~3 minutes, never two in the same minute
+    const at = inWindow(from.getTime() + offset * 60_000 + Math.floor(r() * 60) * 1000, offset);
+    return { at: new Date(at).toISOString(), senderId: b.id, body: msgs[k](first) };
+  });
+}
+
+/** Queues the bots' welcomes for these people, unless they were welcomed before. */
+export async function scheduleWelcome(people: { id: string; name: string }[], now = new Date()) {
+  for (const p of people) {
+    if (isPulse(p.id)) continue;
+    try { await db.hrSetting.create({ data: { key: WELCOME_PREFIX + p.id, value: { name: p.name, pending: welcomePlan(p.id, p.name, now) } } }); }
+    catch { /* already welcomed (or queued) */ }
+  }
+}
+
+const INTRO = /\b(new (employee|joinee|joiner|member|colleague|team ?mate|hire)|joined|joining|welcome|please welcome|swagat)\b|नया|नई|नए|स्वागत|जॉइन/i;
+/**
+ * HR or the super admin introducing someone in Sales ("Please welcome Rohan, our new employee"): the bots welcome the
+ * member named in the message, or else the most recent member added in the last week who hasn't been welcomed yet.
+ */
+export async function welcomeFromIntro(me: { id: string; role: string }, chat: string, body: string) {
+  if ((me.role !== "hr" && me.role !== "admin") || !INTRO.test(body)) return;
+  const c = await db.hrChat.findUnique({ where: { id: chat }, select: { sysKey: true } });
+  if (c?.sysKey !== PULSE_KEY) return;
+  const mem = await db.hrChatMember.findMany({ where: { chatId: chat, staffId: { not: me.id } }, select: { staffId: true, joinedAt: true }, orderBy: { joinedAt: "desc" } });
+  const ids = mem.map((m) => m.staffId).filter((id) => !isPulse(id));
+  const users = await db.staffUser.findMany({ where: { id: { in: ids }, status: "active" }, select: { id: true, name: true } });
+  const text = body.toLowerCase();
+  const joined = new Map(mem.map((m) => [m.staffId, m.joinedAt.getTime()]));
+  // A full name counts for anyone; a first name only for people added in the last 30 days (so an old Rohan isn't greeted).
+  const named = users.filter((u) => {
+    const parts = u.name.toLowerCase().split(/\s+/).filter((x) => x.length > 2);
+    const fresh = Date.now() - (joined.get(u.id) ?? 0) < 30 * 86400_000;
+    return text.includes(u.name.toLowerCase()) || (fresh && parts[0] && new RegExp(`(^|[^\\p{L}])${parts[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\p{L}]|$)`, "u").test(text));
+  });
+  if (named.length) return scheduleWelcome(named);
+  const done = new Set((await db.hrSetting.findMany({ where: { key: { in: ids.map((id) => WELCOME_PREFIX + id) } }, select: { key: true } })).map((r) => r.key.slice(WELCOME_PREFIX.length)));
+  const recent = mem.find((m) => !isPulse(m.staffId) && !done.has(m.staffId) && Date.now() - m.joinedAt.getTime() < 7 * 86400_000);
+  const u = recent && users.find((x) => x.id === recent.staffId);
+  if (u) await scheduleWelcome([u]);
+}
+
 let lastRun = 0;
 /** Posts what is due: new real wins, and the bot messages whose time has come. Safe to call often and from many servers. */
 export async function salesPulseTick(now = new Date(), force = false) {
@@ -205,6 +326,18 @@ export async function salesPulseTick(now = new Date(), force = false) {
       while (s.posted < plan.length && plan[s.posted].at <= now) {
         const slot = plan[s.posted++];
         if (s.enabled && now.getTime() - slot.at.getTime() <= CATCH_UP_MS) await write(slot.senderId, "pulse", slot.body, slot.at);
+      }
+
+      // Welcomes that are due. Unlike the daily messages, a late welcome is still sent.
+      const queued = await tx.hrSetting.findMany({ where: { key: { startsWith: WELCOME_PREFIX } } });
+      for (const q of queued) {
+        const v = q.value as { name?: string; pending?: Pending[] };
+        const pending = v.pending ?? [];
+        if (!pending.length) continue;
+        const due = pending.filter((x) => new Date(x.at) <= now), rest = pending.filter((x) => new Date(x.at) > now);
+        if (!due.length) continue;
+        if (s.enabled) for (const x of due) { const at = new Date(x.at); await write(x.senderId, "pulse", x.body, now.getTime() - at.getTime() > CATCH_UP_MS ? now : at); }
+        await tx.hrSetting.update({ where: { key: q.key }, data: { value: { name: v.name ?? "", pending: rest } } });
       }
 
       if (lastAt) await tx.hrChat.update({ where: { id: chat }, data: { lastAt } });

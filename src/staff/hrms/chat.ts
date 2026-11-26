@@ -6,7 +6,8 @@ import { audit, type Me } from "./auth";
 import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
 import { pulsePhoto } from "./pulse-shared";
-import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_LABEL, isPulse, pulseMemberIds, pulseName } from "./sales-pulse";
+import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_LABEL, isPulse, pulseMemberIds, pulseName, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
+import { log } from "@/server/log";
 
 // Team Chat. Every message (and picture, and poll) is sealed with HOST_KEY before it is stored, so nothing readable sits in the
 // database, in backups or in logs. The people in a conversation read it normally. Nobody else can: not HR, not Finance.
@@ -265,7 +266,9 @@ export async function sendText(me: Me, chatId: string, raw: unknown) {
   const body = typeof raw === "string" ? raw.replace(/\r\n/g, "\n").trim() : "";
   if (!body) throw new UserError("Type a message first.");
   if (body.length > MAX_BODY) throw new UserError(`Messages can be up to ${MAX_BODY} characters.`);
-  return post(me, chatId, "text", body);
+  const sent = await post(me, chatId, "text", body);
+  await welcomeFromIntro(me, chatId, body).catch((e) => log.error("Sales welcome not scheduled.", { err: e })); // HR introducing a new employee in Sales
+  return sent;
 }
 const imageKind = (b: Buffer) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? "image/jpeg" : b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ? "image/png" : b.subarray(0, 4).toString() === "RIFF" && b.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "");
 export async function sendImage(me: Me, chatId: string, form: FormData) {
@@ -450,6 +453,7 @@ export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   const top = (await db.hrChatMessage.aggregate({ where: { chatId }, _max: { seq: true } }))._max.seq ?? 0;
   await db.hrChatMember.createMany({ data: ok.map((u) => ({ chatId, staffId: u.id, lastReadSeq: top, fromSeq: top })), skipDuplicates: true });
   await adminNote(me, chat, `added ${ok.map((u) => u.name).join(", ")}`);
+  if (chat.sysKey === PULSE_KEY) await scheduleWelcome(ok).catch((e) => log.error("Sales welcome not scheduled.", { err: e })); // the bots welcome them, one by one
   return { added: ok.length };
 }
 /** Takes someone out of a group (they keep nothing new from it). Only the super admin can remove the person who made it. */
