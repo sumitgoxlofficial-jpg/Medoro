@@ -180,12 +180,15 @@ connected Google Calendar).
 * Each person sees only the videos for what their role can open: payroll, finance, recruitment, leads and HR videos need
   that module. The super admin, roles and dashboard-comparison videos are for the super admin only.
 * The sign-in page links to them (`/staff/employee?next=videos` opens the videos right after signing in).
-* The files are static (`public/hrms-videos`), but the proxy serves them only with a **video pass**. The pass is a cookie
-  (path `/hrms-videos`, 4 hours) that the screen asks for at `POST /staff/hrms/videos/pass`. It is an HMAC (from `SESSION_SECRET`)
-  over its expiry and the videos that person may watch (`src/lib/hrms-video-pass.ts`). Without a valid pass that covers
-  the video, the file returns 404.
-* To add a video: put `<slug>.mp4` (H.264, `-crf 30 -tune stillimage`, `+faststart`) in `public/hrms-videos/files` and a 640px
-  `<slug>.jpg` in `thumbs`, then add it to `HR_VIDEOS` in `src/staff/hrms/video-catalog.ts` with who may watch it.
+* The videos are in a **private** Supabase Storage bucket, `hrms-videos`, in the production project. The bucket is never public,
+  so there are no files in this repository (it is public). When the screen opens, it calls `POST /staff/hrms/videos/links`.
+  medoro.in then asks the `hrms-videos` Edge Function for signed links, valid for 4 hours, to only that person's videos
+  (`src/staff/hrms/video-links.ts`). The function and medoro.in share a secret that Postgres generated and keeps in
+  `HrSetting` (key `videoSecret`), so it is in no code, env var or chat. Without the secret (preview and dev), the screen
+  says the videos can't be opened.
+* To add or replace a video: encode it as H.264 (`-crf 30 -tune stillimage`, `+faststart`; at most 50 MB) with a 640px JPEG
+  thumbnail. Upload both to `files/<slug>.mp4` and `thumbs/<slug>.jpg` in the bucket (the dashboard, or the function's
+  `upload` action), then add it to `HR_VIDEOS` in `src/staff/hrms/video-catalog.ts` with who may watch it.
 
 ## Not built (in the design, not in Medoro yet)
 
