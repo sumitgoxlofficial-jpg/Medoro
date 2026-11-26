@@ -11,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [{
       userAgent: "*",
       allow: "/",
-      disallow: ["/app", "/staff", "/api", "/print", "/device", "/support", "/offline", "/trial", "/pay", "/setup", "/pharmacy-software-in/"],
+      disallow: ["/app", "/staff", "/certificate", "/api", "/print", "/device", "/support", "/offline", "/trial", "/pay", "/setup", "/pharmacy-software-in/"],
     }],
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,
