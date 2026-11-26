@@ -334,7 +334,7 @@ export function ChatScreen({ d }: { d: D }) {
           <button onClick={() => setIncoming(null)} className="bg-white/15 text-white border-0 rounded-lg px-3 py-1.5 text-[13px] cursor-pointer">Decline</button>
         </div>
       ) : null}
-      <div className="hr-chat grid bg-white rounded-2xl overflow-hidden border border-[#E3E8EA] shadow-[0_18px_40px_-24px_rgba(11,60,58,.35)] min-h-[480px] h-[calc(100dvh-96px)] max-[560px]:h-[calc(100dvh-84px)] grid-cols-1 min-[860px]:grid-cols-[360px_1fr] min-[1400px]:grid-cols-[400px_1fr]">
+      <div className="hr-chat grid bg-white rounded-2xl overflow-hidden border border-[#E3E8EA] shadow-[0_18px_40px_-24px_rgba(11,60,58,.35)] min-h-[480px] h-[calc(100dvh-76px)] min-[860px]:h-[calc(100dvh-28px)] grid-cols-1 min-[860px]:grid-cols-[360px_1fr] min-[1400px]:grid-cols-[400px_1fr]">
         <div className={cx("relative border-r border-[#E3E8EA] flex-col min-h-0 bg-[#F3F7F5]", showList || !active ? "flex" : "hidden min-[860px]:flex")}>
           {/* The same doodle wallpaper as the conversation, a shade lighter behind the list. */}
           <div aria-hidden className="absolute inset-0 pointer-events-none opacity-70" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
