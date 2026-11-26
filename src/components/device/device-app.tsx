@@ -14,6 +14,7 @@ import { Customers } from "./customers";
 import { Accounts } from "./accounts";
 import { Money } from "./money";
 import { ReportsGst } from "./reports-gst";
+import { Books } from "./books";
 import { Orders } from "./orders";
 import { Activity } from "./activity";
 import { Assistant } from "./assistant";
@@ -187,6 +188,7 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
       {tab === "money" && <Money cfg={cfg} who={who} refresh={tick} />}
       {tab === "reports" && <ReportsGst cfg={cfg} />}
       {tab === "insights" && online?.owner && <Insights cfg={cfg} who={who} refresh={tick} />}
+      {tab === "books" && (online?.owner ? <Books cfg={cfg} /> : <div className={card}>{t("Only the owner can open the books on this counter.")}</div>)}
       {tab === "ask" && <Assistant cfg={cfg} who={who} />}
       {tab === "settings" && online?.owner && <div className="flex flex-col gap-4"><CounterSettings cfg={cfg} onChange={async () => { const c = await dev.call("config"); if (c) setCfg(c); }} />{distMode && <DistSettingsCard />}{settingsExtra}</div>}
       {tab === "wholesale" && <Wholesale cfg={cfg} who={who} />}

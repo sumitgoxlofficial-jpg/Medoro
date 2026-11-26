@@ -14,6 +14,7 @@ import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
 import { Aurora, HelpArt, SupplyChainArt, WhiteDecor } from "@/components/site/decor";
 import { HeroVideo } from "@/components/site/hero-video";
+import { VideoShowcase } from "@/components/site/video-showcase";
 
 /**
  * The main Medoro page, about the company: who Medoro is, its two products (each with its own landing page, /pharmacy
@@ -227,6 +228,8 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <VideoShowcase t={t} />
 
         {/* Why Medoro */}
         <section id="why" aria-labelledby="why-title" className="relative isolate">

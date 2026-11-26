@@ -1,5 +1,5 @@
 /** The tabs of the Drive mode counter (Billing on this device). Plain data, so server pages can read it too. */
-export const TABS = [["dash", "Dashboard"], ["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["recalls", "Recalls"], ["purchases", "Purchases"], ["supplier", "Supplier tools"], ["orders", "Orders"], ["customers", "Customers"], ["doctors", "Doctors"], ["accounts", "Accounts"], ["money", "UPI & Bank"], ["cheques", "Cheques"], ["reports", "Reports & GST"], ["insights", "Insights"], ["ask", "Ask"], ["activity", "Activity"], ["settings", "Counter"]] as const;
+export const TABS = [["dash", "Dashboard"], ["bill", "Billing"], ["bills", "Bills & day-end"], ["stock", "Stock"], ["recalls", "Recalls"], ["purchases", "Purchases"], ["supplier", "Supplier tools"], ["orders", "Orders"], ["customers", "Customers"], ["doctors", "Doctors"], ["accounts", "Accounts"], ["money", "UPI & Bank"], ["cheques", "Cheques"], ["reports", "Reports & GST"], ["books", "Books & registers"], ["insights", "Insights"], ["ask", "Ask"], ["activity", "Activity"], ["settings", "Counter"]] as const;
 /**
  * MEDORO Distribution on the device (docs/DIST_DRIVE_PLAN.md, phase D4): the wholesale screens, plus the shared ones a
  * distributor uses too (stock, purchases, supplier tools, cheques, UPI & bank, GST, counter).

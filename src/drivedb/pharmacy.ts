@@ -126,6 +126,8 @@ export const saleInput = z.object({
   pay: z.object({
     mode: z.enum(["cash", "upi", "card", "split", "credit"]),
     cashPaise: z.number().int().min(0).optional(),
+    /** Split payment: the rest after the cash part is paid by UPI (default) or card. */
+    restMode: z.enum(["upi", "card"]).optional(),
     tenderedPaise: z.number().int().min(0).optional(),
     ref: z.string().trim().max(60).optional(),
   }),
@@ -200,7 +202,7 @@ export function createSale(db: DriveDB, input: SaleInput, today = todayISO()): S
     } else if (s.pay.mode === "split") {
       const cash = s.pay.cashPaise ?? -1;
       if (cash <= 0 || cash >= due) throw new CounterError("Enter a cash part between ₹1 and the amount to pay.");
-      pays.push({ mode: "cash", amountPaise: cash }, { mode: "upi", amountPaise: due - cash });
+      pays.push({ mode: "cash", amountPaise: cash }, { mode: s.pay.restMode ?? "upi", amountPaise: due - cash });
     } else if (s.pay.mode === "credit") {
       if (!customer) throw new CounterError("Select a customer for a credit sale.");
       const owed = customerBalance(db, customer.id);

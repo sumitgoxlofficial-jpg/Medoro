@@ -6,7 +6,7 @@ export function SwRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_SW !== "1") return;
-    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
+    navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(process.env.NEXT_PUBLIC_BUILD_ID ?? "dev")}`, { scope: "/" }).catch(() => undefined);
   }, []);
   return null;
 }

@@ -10,6 +10,7 @@ import { WHY_SWITCH_HEADING } from "@/data/brand";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SOFTWARE_ID, WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
+import { VideoShowcase } from "@/components/site/video-showcase";
 import { googleLoginConfigured } from "@/server/google-oidc";
 import { tFor } from "@/lib/tr";
 import { Aurora, FloatingShapes, SavingsArt, WhiteDecor } from "@/components/site/decor";
@@ -264,6 +265,8 @@ export default async function PharmacyHome() {
             <ProductTour />
           </div>
         </section>
+
+        <VideoShowcase t={t} />
 
         <section aria-labelledby="facts-title" className="border-y border-[var(--s-line)] bg-[var(--s-soft)]">
           <h2 id="facts-title" className="sr-only">{t("Medoro in numbers")}</h2>

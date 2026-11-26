@@ -22,6 +22,11 @@ const DRIVEDB = /^\/drivedb\//;
  */
 const TOUR = /^\/tour\//;
 
+/** The origin of NEXT_PUBLIC_VIDEO_BASE_URL when it is on another host, for media-src. */
+function videoOrigin(): string {
+  try { const u = new URL(process.env.NEXT_PUBLIC_VIDEO_BASE_URL ?? ""); return u.protocol === "https:" ? u.origin : ""; } catch { return ""; }
+}
+
 export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): string {
   if (DRIVEDB.test(path)) {
     return ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'", "connect-src 'self' https://www.googleapis.com", "worker-src 'self'", "base-uri 'none'", "frame-ancestors 'none'"].join("; ");
@@ -40,6 +45,8 @@ export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): 
     ["style-src", "'self' 'unsafe-inline'"],
     ["img-src", `'self' data: blob:${checkout ? " https://*.razorpay.com" : ""}`],
     ["font-src", "'self' data:"],
+    // Product videos (/videos) may be served from a storage bucket or CDN set in NEXT_PUBLIC_VIDEO_BASE_URL.
+    ["media-src", `'self' blob:${videoOrigin() ? ` ${videoOrigin()}` : ""}`],
     ["connect-src", `${dev ? "'self' ws: wss:" : "'self'"}${checkout ? " https://*.razorpay.com" : ""}`],
     ["worker-src", "'self'"],
     ["manifest-src", "'self'"],

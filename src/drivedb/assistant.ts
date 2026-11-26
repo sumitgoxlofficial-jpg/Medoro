@@ -12,6 +12,7 @@ import { batchesOf, searchMedicines, stockOf } from "./pharmacy";
 import { expiringStock, supplierDues } from "./books";
 import { dayReport, customerList } from "./reports";
 import { customerBalance } from "./trade";
+import { profitAndLoss } from "./ledger";
 import { replyLang, rulePlan, type Plan, type ReplyLang } from "@/domain/ai/planner";
 import { Redactor, type ChatMsg, type ToolCall, type ToolSpec } from "@/domain/ai/llm";
 import { addDays, istMidnight, todayISO } from "@/lib/dates";
@@ -43,6 +44,30 @@ export const DEVICE_TOOLS: DeviceTool[] = [
         text: H(hi, `${label}: ${inr(n(t.s))} across ${n(t.c)} ${plural(n(t.c), "bill")}.`, `${label}: ${n(t.c)} बिलों में ${inr(n(t.s))} की बिक्री।`),
         rows: ["cash", "upi", "card", "credit"].map((m) => ({ a: hi ? { cash: "नकद", upi: "UPI", card: "कार्ड", credit: "उधार" }[m]! : m === "upi" ? "UPI" : m[0].toUpperCase() + m.slice(1), b: "", c: inr(pays.get(m) ?? 0) })),
         basis: H(hi, `Bills on this counter’s data incl. GST, ${s.branchName}`, `GST सहित बिल, ${s.branchName}`),
+      };
+    },
+  },
+  {
+    name: "get_profit_summary", description: "Profit for today, yesterday, this week or this month at the current branch: net sales, cost of goods sold, gross profit and margin, expenses and net profit.",
+    params: { period: { type: "string", enum: ["today", "yesterday", "week", "month"] } },
+    input: z.object({ period: z.enum(["today", "yesterday", "week", "month"]).default("month") }), allowed: (s) => s.owner,
+    run: (db, s, { period }: { period: "today" | "yesterday" | "week" | "month" }, hi) => {
+      const today = todayISO();
+      const from = period === "today" ? today : period === "yesterday" ? addDays(today, -1) : period === "week" ? addDays(today, -6) : `${today.slice(0, 7)}-01`;
+      const to = period === "yesterday" ? addDays(today, -1) : today;
+      const p = profitAndLoss(db, s.branchId, from, to);
+      const label = hi ? { today: "आज", yesterday: "कल", week: "पिछले 7 दिन", month: "इस महीने" }[period] : { today: "Today", yesterday: "Yesterday", week: "Last 7 days", month: "This month" }[period];
+      return {
+        text: H(hi, `${label}: gross profit ${inr(p.grossPaise)} (${p.grossMarginPct}% of net sales); after expenses, ${p.netPaise < 0 ? "a net loss of" : "net profit"} ${inr(Math.abs(p.netPaise))}.`,
+          `${label}: सकल मुनाफ़ा ${inr(p.grossPaise)} (शुद्ध बिक्री का ${p.grossMarginPct}%); खर्च के बाद ${p.netPaise < 0 ? "शुद्ध घाटा" : "शुद्ध मुनाफ़ा"} ${inr(Math.abs(p.netPaise))}।`),
+        rows: [
+          { a: H(hi, "Net sales (before GST)", "शुद्ध बिक्री (GST से पहले)"), b: "", c: inr(p.netSalesPaise) },
+          { a: H(hi, "Cost of goods sold", "बिके माल की लागत"), b: "", c: inr(p.cogsPaise) },
+          { a: H(hi, "Gross profit", "सकल मुनाफ़ा"), b: `${p.grossMarginPct}%`, c: inr(p.grossPaise) },
+          { a: H(hi, "Expenses", "खर्च"), b: "", c: inr(p.expensesPaise) },
+          p.netPaise < 0 ? { a: H(hi, "Net loss", "शुद्ध घाटा"), b: "", c: inr(-p.netPaise) } : { a: H(hi, "Net profit", "शुद्ध मुनाफ़ा"), b: "", c: inr(p.netPaise) },
+        ],
+        basis: H(hi, `Bills, returns and expenses on this counter's data, ${s.branchName}; cost is each bill's batch cost`, `इस काउंटर के बिल, रिटर्न और खर्च, ${s.branchName}; लागत हर बिल के बैच की`),
       };
     },
   },
@@ -119,8 +144,8 @@ const toolOf = (name: string) => DEVICE_TOOLS.find((t) => t.name === name);
 const shown = (r: Result): Omit<Result, "names"> => ({ text: r.text, rows: r.rows, basis: r.basis, refused: r.refused });
 
 const ONLY: Record<ReplyLang, string> = {
-  en: "On the counter I can answer about sales, medicines and batches, expiry, low stock, supplier and customer dues, and cash in the drawer.",
-  hinglish: "Counter par main sales, dawaiyon aur batch, expiry, low stock, supplier aur customer bakaya, aur galle ke cash ke baare mein bata sakta hoon.",
+  en: "On the counter I can answer about sales, profit, medicines and batches, expiry, low stock, supplier and customer dues, and cash in the drawer.",
+  hinglish: "Counter par main sales, munaafa, dawaiyon aur batch, expiry, low stock, supplier aur customer bakaya, aur galle ke cash ke baare mein bata sakta hoon.",
   hi: "काउंटर पर मैं बिक्री, दवा और बैच, एक्सपायरी, कम स्टॉक, सप्लायर और ग्राहक बकाया, और गल्ले के नकद के बारे में बता सकता हूँ।",
 };
 

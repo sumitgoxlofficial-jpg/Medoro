@@ -17,6 +17,9 @@ describe("rule planner", () => {
     expect(tool("Kaun se medicines reorder karne hain?")[0]).toBe("get_low_stock_report");
     expect(tool("Which batches are expiring soon?")[0]).toBe("get_expiry_report");
     expect(tool("Batches of Dolo 650")[0]).toBe("get_batch_inventory");
+    expect(tool("Is month ka total profit kitna hua?")).toEqual(["get_profit_summary", { period: "month" }]);
+    expect(tool("What is today's profit?")).toEqual(["get_profit_summary", { period: "today" }]);
+    expect(tool("इस हफ्ते का मुनाफ़ा")).toEqual(["get_profit_summary", { period: "week" }]);
     expect(tool("Supplier payments due this week")[0]).toBe("get_supplier_balances");
     expect(tool("Which customers have udhaar?")[0]).toBe("get_customer_outstanding");
     expect(tool("Check last backup")[0]).toBe("get_backup_status");

@@ -11,6 +11,7 @@ import * as seed from "./seed";
 import * as reports from "./reports";
 import * as stockSheet from "./stock-sheet";
 import * as books from "./books";
+import * as ledger from "./ledger";
 import * as ops from "./ops";
 import * as sync from "./sync";
 import * as move from "./migrate-in";
@@ -244,7 +245,7 @@ function pushSoon() {
   pushTimer = setTimeout(() => { pushTimer = null; void syncNow(); }, 400);
 }
 /** Calls that only read, or run the sync themselves: no push needed after them. */
-const NO_PUSH = new Set(["open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "previewStockSheet", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages", "distSettings", "distCompanies", "distProducts", "distChemists", "distSchemes", "distQuote", "distCreditFor", "distInvoices", "distInvoiceView", "distOrders", "distPickList", "distReturns", "distExpiry", "distDispatchBoard", "distDeliveryOf", "distReceivables", "distStatement", "distCollections", "distPortalStatuses"]);
+const NO_PUSH = new Set(["dayBook", "trialBalance", "profitAndLoss", "customerStatement", "supplierStatement", "h1Register", "tallyExport", "open", "search", "dayTotals", "findCustomers", "config", "checkPin", "saleDetail", "listBills", "dayReport", "dashboard", "stockList", "previewStockSheet", "customerList", "supplierList", "supplierDues", "supplierLedger", "expenses", "cashBook", "salesByDay", "topMedicines", "expiringStock", "gstReturns", "batchesFor", "listOrders", "activityLog", "counts", "driveStatus", "syncNow", "setLive", "connect", "restore", "wipe", "recentSales", "aiNames", "askRules", "aiTool", "einvoiceDoc", "einvoiceCancelCheck", "finSettings", "importHistory", "finOverview", "finTransactions", "finTransaction", "finReconciliation", "finReports", "statementPreview", "negativeStock", "offersConsent", "campaignAudienceCount", "campaignPending", "listCampaigns", "openMessageIds", "billMessages", "distSettings", "distCompanies", "distProducts", "distChemists", "distSchemes", "distQuote", "distCreditFor", "distInvoices", "distInvoiceView", "distOrders", "distPickList", "distReturns", "distExpiry", "distDispatchBoard", "distDeliveryOf", "distReceivables", "distStatement", "distCollections", "distPortalStatuses"]);
 
 /** Registers this device (its public key) with the relay and opens the keys if it can. */
 async function connect(name: string) {
@@ -343,6 +344,14 @@ const handlers = {
   supplierList: () => reports.supplierList(need()),
   supplierDues: () => books.supplierDues(need()),
   supplierLedger: (id: string) => books.supplierLedger(need(), id),
+  // ---- books and registers (src/drivedb/ledger.ts) ----
+  dayBook: (branchId: string, iso?: string) => ledger.dayBook(need(), branchId, iso),
+  trialBalance: (branchId: string, from: string, to: string) => ledger.trialBalance(need(), branchId, from, to),
+  profitAndLoss: (branchId: string, from: string, to: string) => ledger.profitAndLoss(need(), branchId, from, to),
+  customerStatement: (customerId: string, from?: string, to?: string) => ledger.customerStatement(need(), customerId, from, to),
+  supplierStatement: (supplierId: string, from?: string, to?: string) => ledger.supplierStatement(need(), supplierId, from, to),
+  h1Register: (branchId: string, from: string, to: string) => ledger.h1Register(need(), branchId, from, to),
+  tallyExport: (branchId: string, from: string, to: string, company: string) => ledger.tallyExport(need(), branchId, from, to, company),
   paySupplier: (input: Parameters<typeof books.paySupplier>[1]) => books.paySupplier(need(), input),
   addExpense: (input: Parameters<typeof books.addExpense>[1]) => books.addExpense(need(), input),
   expenses: (branchId: string, from: string, to: string) => books.expenses(need(), branchId, from, to),

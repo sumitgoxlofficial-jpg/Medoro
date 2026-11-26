@@ -24,50 +24,49 @@ Pay dabaate hi payment voucher banta hai aur
 bakaaya ghatta hai.
 
 6
-00:00:32,850 --> 00:00:38,943
+00:00:32,862 --> 00:00:38,955
 Supplier tools mein Pricing tab har medicine ki
 supplier-wise khareed dar dikhata hai,
 
 7
-00:00:38,983 --> 00:00:43,934
+00:00:38,995 --> 00:00:43,946
 sabse sasta supplier pehle, saath mein landed
 cost aur MRP par margin.
 
 8
-00:00:43,974 --> 00:00:48,284
+00:00:43,986 --> 00:00:48,296
 Isse pata chalta hai ki agla order kisse lena
 faaydemand hai.
 
 9
-00:00:49,039 --> 00:00:57,171
+00:00:49,047 --> 00:00:57,179
 Claims tab mein expiry ke kareeb ka maal
 supplier ko waapas karne ya credit note lene ka
 hisaab rehta hai: kitne din bache,
 
 10
-00:00:57,211 --> 00:00:59,563
+00:00:57,219 --> 00:00:59,571
 kitna claim kiya, kitna credit mila.
 
 11
-00:01:00,311 --> 00:01:05,271
+00:01:00,333 --> 00:01:05,293
 Aur Cheques screen par suppliers ko diye gaye
 post-dated cheques ka record rehta hai,
 
 12
-00:01:05,311 --> 00:01:07,447
+00:01:05,333 --> 00:01:07,469
 taaki clearing ki taareekh yaad rahe.
 
 13
-00:01:08,195 --> 00:01:13,412
-Dhyan dein: is device counter par supplier ki
-alag profile, poora supplier ledger
+00:01:08,216 --> 00:01:14,814
+Har supplier ka poora ledger 'Books & registers'
+mein Supplier statement par hai: purchase bills,
 
 14
-00:01:13,452 --> 00:01:17,825
-aur statement ki screen abhi nahi hai; supplier
-ka bakaaya, payments
+00:01:14,854 --> 00:01:20,495
+aapke payments aur supplier ke credit notes,
+shuruaati aur aakhri bakaaye ke saath.
 
 15
-00:01:17,865 --> 00:01:21,783
-aur purchase bills upar dikhaaye gaye screens
-par milte hain.
+00:01:20,535 --> 00:01:23,095
+Ise supplier ke statement se milaaiye.

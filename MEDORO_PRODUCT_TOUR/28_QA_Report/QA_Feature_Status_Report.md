@@ -46,13 +46,14 @@ Credentials, the authenticator key, recovery codes, the Drive recovery code and 
 | 1 | High (UX) | **Email sign-up never showed the "Done" step.** Creating the pharmacy clears the confirmed-email cookie inside the server action, so `/signup` re-rendered as the email step. The owner saw "Sign up with email" again instead of invite codes and "Set up two-step verification". Distributor sign-up had the same defect | `fe6a9b8` – a sign-up session from the last 10 minutes keeps the wizard mounted |
 | 2 | High (data isolation) | **A second pharmacy signing in on the same browser opened the first pharmacy's counter data.** It showed the other pharmacy's medicines, bills and customers, skipped its own Drive set-up, and registered the device for Drive sync under the signed-in pharmacy | `e2ba25a` – the counter checks the device database against the signed-in pharmacy's branches. It shows a notice instead of the records, and doesn't register or sync. Hindi strings added |
 | 3 | Medium | Device database opens were not serialised, and a page reload could hit OPFS handles still held by the previous page's worker. The counter could then wrongly show "Set up this device", inviting a fresh start or restore | `bb808c2` – opens queued; pool install retries for ~10 s on `NoModificationAllowedError` |
-| 4 | Low | Billing header advertised **"F4 hold"**, which the device counter doesn't implement | `387abc5` – hint removed |
+| 4 | Low | Billing header advertised **"F4 hold"**, which the device counter doesn't implement | `387abc5` – hint removed; later superseded: hold (F4) was built on the counter (`c13fa26`) and the hint restored |
 | 5 | Low | Stock quantities read "10 **boxs**" | `387abc5` – -es plural for x/ch/sh |
 | 6 | **High** | **Barcode scan added the wrong medicine.** Enter added the first item of the last debounced (120 ms) search. A scanner types and sends Enter faster than that, so scanning an ORS sachet added **Alprazolam (Schedule H1)**, the first item A–Z. The H1 prescription check then blocked the bill, which is how this was found | `4dd2bb6` – Enter searches the exact text in the box first |
 | 7 | Medium | **F2 on the device counter opened the server POS** (`/app/pos`, Medoro's empty server copy for a Drive pharmacy), although the counter says "F2 search" | `1c3d28f` – F2 is left to the counter on counter pages |
 | 8 | Medium | **Ask (built-in rules)** didn't understand "Which medicines are running low?" or "Kaunsi medicines ka stock kam hai?", and read "Which batches are expiring soon?" as a medicine name | `9fe222b` – rules extended, tests added |
+| 9 | **High** | **Service worker served stale code after an update.** Build files (`/_next/static`) were cached first in one cache forever, and Turbopack can keep a chunk's file name when its content changes. After an update, browsers with the service worker kept running old counter code: on the demo, the new Books screen waited forever because the cached worker lacked its handlers | `cb2477e` – the worker is registered as `/sw.js?v=<build id>` and caches build files per release; activation drops older caches |
 
-Fixes 4–8 were made after the demo pharmacy's data was in place. The demo server wasn't restarted for them, because a restart wipes the in-memory test Drive (and with it the encrypted copy the counter syncs to). **The videos therefore show the build before fixes 4–8.** The narration avoids F2 on the counter and types barcodes at hand speed. Part 17 says plainly which questions the assistant didn't understand. All 8 fixes are committed, typechecked, linted and unit-tested, but have not been re-recorded.
+After the first delivery, the demo server was rebuilt with all fixes and the new features (section 3). Parts 09, 10, 11, 13, 14, 15, 17, 22 and 25 were re-recorded on that build, and the compilations rebuilt. Parts not re-recorded don't touch the fixed behaviour; Part 18 types into the search box rather than pressing F2.
 
 ## 3. Feature status (verified on the demo server)
 
@@ -81,22 +82,22 @@ Legend: **Working** = demonstrated end to end · **Partial** = works with the li
 | Invoice import | Distributor e-bill file (CSV/Excel/text) with column mapping and review | Working | |
 | | AI scan of PDF/photo invoices (OCR) | Not connected | Server-side OCR engine (`OCR_ENGINE=remote`) not configured; not on the Drive counter |
 | Billing | Search by brand, salt, barcode; Enter add; F9 complete; FEFO batch; loose units; customer by mobile; role-capped discount; GST (CGST/SGST, IGST for inter-state GSTIN); cash, UPI, card, credit; tax invoice; print / Save as PDF | Working | See bugs 6 and 7 |
-| | Split payment, hold & resume cart | Not available on the device counter | Exist only on the server-mode POS |
+| | Split payment (cash + UPI or card), hold (F4) & resume | **Built and working** | Added in this project (`c13fa26`); shown in Part 09 |
 | | WhatsApp invoice PDF | Not connected | |
 | Schedule H/H1 | Prescriber, registration no., patient (H1) required before billing; printed on invoice; sales by doctor | Working | |
-| | Schedule H1 register report | **Not available on the Drive counter** | Server-mode register reads Medoro's copy, empty for Drive pharmacies. Compliance gap |
+| | Schedule H1 register report | **Built and working** | Books & registers → Schedule H1 register, with CSV and print (`2f668ed`, `c13fa26`); shown in Part 10 |
 | Customers | Add/edit, credit limit, GSTIN, WhatsApp consent, receive payment, remind, pay link | Working (pay link / remind need WhatsApp/payments) | |
-| | Customer ledger and statement screen | Partial | Dues and receipts on Customers; bills searchable by mobile; no statement document on the counter |
+| | Customer statement (opening, bills on account, receipts, credit notes, running balance) | **Built and working** | Books & registers; CSV and print; shown in Part 11 |
 | Returns | Find bill, per-line quantity (same batch), reason, condition sealed/damaged, refund cash/UPI/to account, credit note, day-end | Working | |
 | Suppliers | Dues, payment voucher, pricing comparison | Working | Claims and cheques screens shown, not tested end to end; home-delivery Orders tab not tested |
-| | Supplier profile, ledger and statement screen | Not available on the Drive counter | |
+| | Supplier statement | **Built and working** | Books & registers; shown in Part 13. No separate supplier profile screen |
 | Accounts | Expenses by category, cash book, bank statement import and matching, sales & profit report | Working | |
-| | Day book, ledger, trial balance, P&L statement, cash flow | Not available on the Drive counter | Listed as plan features; present only in server mode |
+| | Day book, trial balance, profit & loss | **Built and working** | Books & registers, from a balanced double-entry journal of the counter's records; shown in Part 14. A separate cash-flow statement is not built (cash book and day book show money in and out) |
 | | Automatic bank sync | Not connected | Needs a bank / Account Aggregator partner |
 | GST | MRP-inclusive tax, HSN, GSTR-1 JSON, HSN summary CSV, GSTR-3B JSON/CSV | Working | Must be reviewed by the pharmacy's CA |
-| | Tally export | Not available on the Drive counter | CSV/JSON exports only |
+| | Tally export | **Built and working** | Tally Prime XML: ledgers (masters) and vouchers; shown in Part 15 |
 | WhatsApp | Link by QR, auto-send invoice PDF, delivery log, refill/feedback/payment reminders, consent, STOP opt-out | Not connected (screens shown) | |
-| AI assistant | Ask (built-in rules, offline): today/month sales, low stock, expiry, dues, cash | Partial | Bug 8 (fixed in code); no profit answer on the counter; "Ask AI" drawer uses the same tools; not a medical advisor |
+| AI assistant | Ask (built-in rules, offline): today/month sales, **profit (owner)**, low stock, expiry, dues, cash; English, Hindi, Hinglish | Working | Bug 8 fixed; profit answers added (gross and net, says "net loss" when negative); not a medical advisor |
 | | Draft purchase order via AI with confirmation | Not demonstrated | Exists in the server-mode assistant |
 | Offline | Counter PIN; billing with the browser offline; changes waiting; sync on reconnect | Working | Demo browser taken offline only |
 | Branches | Two branches, counters, branch transfer, branch performance | Working | Owner view (consolidated) reads the server copy and shows zeros for a Drive pharmacy |
@@ -104,6 +105,15 @@ Legend: **Working** = demonstrated end to end · **Partial** = works with the li
 | Backup/security | Encrypted Google Drive copy, recovery code, restore, privacy controls, strict mode, export, erasure, integration health | Working (test Drive) | Real Google Drive not connected |
 | Subscription | Plan page, plan features, renew/pay | Partial | Demo server isn't licensed ("Self-hosted"); trial/plan comparison shown on the live medoro.in pricing page; no payment made |
 | Language | English ⇄ Hindi interface, Hindi/Hinglish questions | Working | |
+
+## 3a. Features built during this project
+
+Added to the counter that hosted (Google Drive) pharmacies use, with unit tests (`src/drivedb/ledger.test.ts`, assistant and planner tests); 607 unit tests pass:
+
+- **Books & registers** screen (sidebar and counter tab, owner): day book, trial balance, profit & loss, customer statement, supplier statement, Schedule H1 register and Tally Prime export. Each has a date range, CSV and print. Figures come from a balanced double-entry journal built from the counter's own bills, credit notes, receipts, purchase bills, supplier payments and credit notes, and expenses. P&L uses each bill's batch cost.
+- **Split payment** (cash part + UPI or card) and **hold / resume** (F4, a held-bills list kept on the device).
+- **Profit answers** in Ask, on the counter (gross and net, owner only) and on the server (gross, reports permission).
+- Hindi for every new screen.
 
 ## 4. Other observations
 
@@ -115,7 +125,7 @@ Legend: **Working** = demonstrated end to end · **Partial** = works with the li
 
 ## 5. Recording QA
 
-- **38 MP4 files:** 26 chapter videos and 12 compilations (the complete tour runs 44:10). All are 1920×1080, 30 fps, H.264 (CRF 20) with AAC 160 kbps 48 kHz audio, about 1.3 GB in total.
+- **38 MP4 files:** 26 chapter videos and 12 compilations (the complete tour runs 45:37). All are 1920×1080, 30 fps, H.264 (CRF 20) with AAC 160 kbps 48 kHz audio, about 1.3 GB in total.
 - **Recording method:** a real Chromium window on a 1920×1080 virtual display, captured with ffmpeg (x11grab, 30 fps). Every screen is the real Medoro application; nothing is mocked up. An overlay draws a highlighted cursor, click ripples, zoom-ins and callouts.
 - **Voice-over:** Microsoft neural Hindi voice (hi-IN-SwaraNeural), spoken from Devanagari text with English technical terms. Each scene runs at least as long as its narration.
 - **Subtitles:** Hinglish (Roman script), burned in and also supplied as SRT, timed per scene from the same timeline as the audio.
@@ -130,5 +140,6 @@ Legend: **Working** = demonstrated end to end · **Partial** = works with the li
   - The voice is synthetic (neural TTS), not a human voice artist.
   - Subtitle cue timing within a scene is proportional to text length, not word-aligned.
   - Some zooms are brief.
-  - Recordings show the build before fixes 4–8 (see section 2).
+  - In the H1 register, three demo bills show the registration number twice ("JH-DEMO-1101JH-DEMO-1101"). The recording script typed it after the app had already filled it in from the doctor list; bills can't be edited, so it stays in the demo data. It isn't an app bug.
+  - The demo month shows a **net loss**: ₹42,000 of rent and salaries against about ₹31,000 of net sales over 26 days. That's the fictional data, not a calculation error.
 - **Honesty markers in the videos:** "Demo environment · fictional data", "WhatsApp: NOT CONNECTED", "PDF / photo OCR: not connected", "test Google Drive", "No real payment made", and the QA-finding callouts for missing features.

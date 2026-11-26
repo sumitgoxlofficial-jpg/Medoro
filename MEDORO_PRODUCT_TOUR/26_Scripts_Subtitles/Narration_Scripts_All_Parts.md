@@ -283,37 +283,40 @@ _Distributor e-bill import, review aur posting_
 
 ## Part 09 – Billing & POS
 
-_Tez billing: search, FEFO, GST, UPI, card aur credit_
+_Tez billing: F2, barcode, FEFO, hold, split payment, UPI aur credit_
 
-1. **Narration:** अब सबसे ज़रूरी काम, billing। Billing screen keyboard से चलने के लिए बनी है: search box में नाम लिखिए, Enter से पहला item cart में, और F9 से bill complete।
-   **Subtitle:** Ab sabse zaroori kaam, billing. Billing screen keyboard se chalne ke liye bani hai: search box mein naam likhiye, Enter se pehla item cart mein, aur F9 se bill complete.
+1. **Narration:** अब सबसे ज़रूरी काम, billing। Billing screen keyboard से चलने के लिए बनी है: F2 से search, Enter से item cart में, F4 से bill hold, और F9 से bill complete।
+   **Subtitle:** Ab sabse zaroori kaam, billing. Billing screen keyboard se chalne ke liye bani hai: F2 se search, Enter se item cart mein, F4 se bill hold, aur F9 se bill complete.
 
-2. **Narration:** Search box में brand का नाम लिखिए, जैसे Paracip। Enter दबाते ही पहली medicine cart में आ जाती है।
-   **Subtitle:** Search box mein brand ka naam likhiye, jaise Paracip. Enter dabaate hi pehli medicine cart mein aa jaati hai.
+2. **Narration:** F2 दबाइए और brand का नाम लिखिए, जैसे Paracip। Enter दबाते ही पहली medicine cart में आ जाती है।
+   **Subtitle:** F2 dabaaiye aur brand ka naam likhiye, jaise Paracip. Enter dabaate hi pehli medicine cart mein aa jaati hai.
 
-3. **Narration:** Salt से भी खोज सकते हैं। Cetirizine लिखने पर उसी salt वाली medicine मिल जाती है। और pack के barcode number से भी medicine मिल जाती है।
-   **Subtitle:** Salt se bhi khoj sakte hain. Cetirizine likhne par usi salt wali medicine mil jaati hai. Aur pack ke barcode number se bhi medicine mil jaati hai.
+3. **Narration:** Salt से भी खोज सकते हैं: Cetirizine लिखने पर उसी salt की medicine मिलती है। और barcode scanner से scan कीजिए; scanner कितना भी तेज़ हो, वही medicine cart में आती है जिसका barcode है।
+   **Subtitle:** Salt se bhi khoj sakte hain: Cetirizine likhne par usi salt ki medicine milti hai. Aur barcode scanner se scan kijiye; scanner kitna bhi tez ho, wahi medicine cart mein aati hai jiska barcode hai.
 
-4. **Narration:** Cart में quantity plus-minus से बदलिए। Strip की जगह loose tablet भी चुन सकते हैं। Batch आपको चुनना नहीं पड़ता: Medoro FEFO से सबसे पहले expire होने वाला batch लगाता है।
-   **Subtitle:** Cart mein quantity plus-minus se badliye. Strip ki jagah loose tablet bhi chun sakte hain. Batch aapko chunna nahi padta: Medoro FEFO se sabse pehle expire hone wala batch lagaata hai.
+4. **Narration:** Quantity plus-minus से बदलिए, और strip की जगह loose tablet भी चुन सकते हैं। Batch आपको नहीं चुनना पड़ता: Medoro FEFO से सबसे पहले expire होने वाला batch लगाता है।
+   **Subtitle:** Quantity plus-minus se badliye, aur strip ki jagah loose tablet bhi chun sakte hain. Batch aapko nahi chunna padta: Medoro FEFO se sabse pehle expire hone wala batch lagaata hai.
 
-5. **Narration:** अब customer जोड़ते हैं। Mobile number डालते ही पुराना customer पहचान लिया जाता है। Bill WhatsApp पर भेजने का option भी यहीं है।
-   **Subtitle:** Ab customer jodte hain. Mobile number daalte hi purana customer pehchaan liya jaata hai. Bill WhatsApp par bhejne ka option bhi yahin hai.
+5. **Narration:** Customer का mobile number डालते ही पुराना customer पहचान लिया जाता है। Discount उतना ही दे सकते हैं जितनी role को अनुमति है; यहाँ पाँच प्रतिशत।
+   **Subtitle:** Customer ka mobile number daalte hi purana customer pehchaan liya jaata hai. Discount utna hi de sakte hain jitni role ko anumati hai; yahan paanch pratishat.
 
-6. **Narration:** Discount उतना ही दे सकते हैं जितनी आपके role को अनुमति है; यहाँ owner के लिए बीस प्रतिशत तक। पाँच प्रतिशत discount डालते हैं। MRP total, round off और payable amount अपने-आप बदल जाते हैं।
-   **Subtitle:** Discount utna hi de sakte hain jitni aapke role ko anumati hai; yahan owner ke liye bees pratishat tak. Paanch pratishat discount daalte hain. MRP total, round off aur payable amount apne-aap badal jaate hain.
+6. **Narration:** तभी दूसरा customer जल्दी में आता है। F4 दबाइए: यह bill hold हो जाता है, cart खाली, और नीचे Held bills में यह bill इंतज़ार करता है।
+   **Subtitle:** Tabhi doosra customer jaldi mein aata hai. F4 dabaaiye: yeh bill hold ho jaata hai, cart khaali, aur neeche 'Held bills' mein yeh bill intezaar karta hai.
 
-7. **Narration:** Payment mode चुनिए: Cash, UPI, Card, या registered customer के लिए Credit। यह customer UPI से pay कर रहे हैं। F9 दबाइए।
-   **Subtitle:** Payment mode chuniye: Cash, UPI, Card, ya registered customer ke liye Credit. Yeh customer UPI se pay kar rahe hain. F9 dabaaiye.
+7. **Narration:** दूसरे customer का bill: Vitadem C। वह आधा cash और आधा UPI से देना चाहते हैं। Split चुनिए, cash हिस्सा बीस रुपये डालिए; बाकी रकम UPI या card में अपने-आप आ जाती है।
+   **Subtitle:** Doosre customer ka bill: Vitadem C. Woh aadha cash aur aadha UPI se dena chahte hain. Split chuniye, cash hissa bees rupaye daaliye; baaki rakam UPI ya card mein apne-aap aa jaati hai.
 
-8. **Narration:** Bill बन गया। Tax invoice पर pharmacy का GSTIN और drug licence, हर item का batch, expiry, HSN और GST, और नीचे CGST और SGST का हिसाब छपता है। MRP में GST पहले से शामिल होता है।
-   **Subtitle:** Bill ban gaya. Tax invoice par pharmacy ka GSTIN aur drug licence, har item ka batch, expiry, HSN aur GST, aur neeche CGST aur SGST ka hisaab chhapta hai. MRP mein GST pehle se shaamil hota hai.
+8. **Narration:** F9 दबाइए। Invoice पर दोनों भुगतान अलग-अलग छपते हैं: cash और UPI।
+   **Subtitle:** F9 dabaaiye. Invoice par dono bhugtaan alag-alag chhapte hain: cash aur UPI.
 
-9. **Narration:** Print दबाकर receipt printer पर छापिए; browser के print में Save as PDF चुनकर PDF invoice भी बना सकते हैं। WhatsApp जुड़ा हो, तो PDF सीधे customer को जाता है।
-   **Subtitle:** Print dabaakar receipt printer par chhaapiye; browser ke print mein 'Save as PDF' chunkar PDF invoice bhi bana sakte hain. WhatsApp juda ho, to PDF seedhe customer ko jaata hai.
+9. **Narration:** अब पहला bill वापस खोलिए: Held bills में Resume दबाइए। Cart, customer और discount, सब वैसे ही लौट आते हैं। यह customer UPI से pay कर रहे हैं; F9।
+   **Subtitle:** Ab pehla bill waapas kholiye: 'Held bills' mein Resume dabaaiye. Cart, customer aur discount, sab waise hi laut aate hain. Yeh customer UPI se pay kar rahe hain; F9.
 
-10. **Narration:** एक और bill: card payment। और credit customer के लिए Credit चुनने पर रकम उसके खाते में जाती है, credit limit तक। ध्यान दें: इस device counter पर एक bill का भुगतान दो modes में बाँटना, और cart को hold करके बाद में खोलना, अभी उपलब्ध नहीं है।
-   **Subtitle:** Ek aur bill: card payment. Aur credit customer ke liye Credit chunne par rakam uske khaate mein jaati hai, credit limit tak. Dhyan dein: is device counter par ek bill ka bhugtaan do modes mein baantna, aur cart ko hold karke baad mein kholna, abhi uplabdh nahi hai.
+10. **Narration:** Tax invoice पर pharmacy का GSTIN और drug licence, हर item का batch, expiry, HSN और GST, और नीचे CGST और SGST छपते हैं। MRP में GST पहले से शामिल होता है। Print से छापिए, या browser के print में Save as PDF चुनकर PDF बनाइए।
+   **Subtitle:** Tax invoice par pharmacy ka GSTIN aur drug licence, har item ka batch, expiry, HSN aur GST, aur neeche CGST aur SGST chhapte hain. MRP mein GST pehle se shaamil hota hai. Print se chhaapiye, ya browser ke print mein 'Save as PDF' chunkar PDF banaaiye.
+
+11. **Narration:** आख़िर में card और credit। Rakesh जी के पास credit limit है, इसलिए उनके लिए Credit option भी दिखता है; रकम उनके खाते में जाती है। यह bill हम card से ले रहे हैं।
+   **Subtitle:** Aakhir mein card aur credit. Rakesh ji ke paas credit limit hai, isliye unke liye Credit option bhi dikhta hai; rakam unke khaate mein jaati hai. Yeh bill hum card se le rahe hain.
 
 ## Part 10 – Prescription & Schedule H/H1
 
@@ -337,8 +340,11 @@ _Prescriber details, Schedule H aur H1 register_
 6. **Narration:** Doctors screen पर आप prescribing doctors का record रखते हैं: नाम, qualification, registration number और clinic। Sales by doctor में हर doctor की prescriptions से हुई बिक्री दिखती है।
    **Subtitle:** Doctors screen par aap prescribing doctors ka record rakhte hain: naam, qualification, registration number aur clinic. 'Sales by doctor' mein har doctor ki prescriptions se hui bikri dikhti hai.
 
-7. **Narration:** Prescriber और patient की details हर bill के साथ save होती हैं, और invoice पर छपती हैं। एक ज़रूरी बात: अलग Schedule H1 register वाली report इस Google Drive वाले counter पर अभी उपलब्ध नहीं है; हमने इसे अपनी QA report में दर्ज किया है। Medoro legal check को bypass करने का कोई रास्ता नहीं देता।
-   **Subtitle:** Prescriber aur patient ki details har bill ke saath save hoti hain, aur invoice par chhapti hain. Ek zaroori baat: alag Schedule H1 register wali report is Google Drive wale counter par abhi uplabdh nahi hai; humne ise apni QA report mein darj kiya hai. Medoro legal check ko bypass karne ka koi raasta nahi deta.
+7. **Narration:** Schedule H1 का register Books and registers screen पर है। इसमें हर H1 दवा की बिक्री दर्ज है: तारीख़, invoice, patient, doctor, registration number, दवा, batch, expiry और मात्रा। किसी line में जानकारी अधूरी हो, तो वह लाल रंग में दिखती है।
+   **Subtitle:** Schedule H1 ka register 'Books & registers' screen par hai. Ismein har H1 dava ki bikri darj hai: taareekh, invoice, patient, doctor, registration number, dava, batch, expiry aur maatra. Kisi line mein jaankari adhoori ho, to woh laal rang mein dikhti hai.
+
+8. **Narration:** CSV button से पूरा register download कीजिए, या Print से छापिए। Drug inspector के माँगने पर यही register दिखाइए। Medoro legal check को bypass करने का कोई रास्ता नहीं देता।
+   **Subtitle:** CSV button se poora register download kijiye, ya Print se chhaapiye. Drug inspector ke maangne par yahi register dikhaaiye. Medoro legal check ko bypass karne ka koi raasta nahi deta.
 
 ## Part 11 – Customer Management
 
@@ -359,8 +365,11 @@ _Customers, credit limit, udhaar aur WhatsApp consent_
 5. **Narration:** Rakesh जी ने अपने उधार में से पाँच सौ रुपये UPI से जमा किए। Receive दबाकर amount और mode चुनिए और save कीजिए। उनका बकाया तुरंत घट जाता है।
    **Subtitle:** Rakesh ji ne apne udhaar mein se paanch sau rupaye UPI se jama kiye. Receive dabaakar amount aur mode chuniye aur save kijiye. Unka bakaaya turant ghat jaata hai.
 
-6. **Narration:** ध्यान दें: इस device counter पर पूरा customer ledger और statement अलग screen पर नहीं है; बकाया और payments यहीं Customers screen पर, और हर bill Bills screen पर customer के नाम या mobile से मिल जाता है।
-   **Subtitle:** Dhyan dein: is device counter par poora customer ledger aur statement alag screen par nahi hai; bakaaya aur payments yahin Customers screen par, aur har bill Bills screen par customer ke naam ya mobile se mil jaata hai.
+6. **Narration:** Customer का पूरा हिसाब Books and registers में Customer statement पर है। Customer चुनिए: शुरुआती बकाया, खाते में गए हर bill, हर वसूली और credit note, और हर line के बाद चालू बकाया दिखता है।
+   **Subtitle:** Customer ka poora hisaab 'Books & registers' mein Customer statement par hai. Customer chuniye: shuruaati bakaaya, khaate mein gaye har bill, har vasooli aur credit note, aur har line ke baad chaalu bakaaya dikhta hai.
+
+7. **Narration:** यह statement CSV में download करके या print करके customer को दे सकते हैं, ताकि हिसाब में कोई उलझन न रहे।
+   **Subtitle:** Yeh statement CSV mein download karke ya print karke customer ko de sakte hain, taaki hisaab mein koi uljhan na rahe.
 
 ## Part 12 – Sales Returns
 
@@ -403,8 +412,8 @@ _Suppliers, khareed ka itihaas, bakaaya aur pricing_
 5. **Narration:** और Cheques screen पर suppliers को दिए गए post-dated cheques का record रहता है, ताकि clearing की तारीख याद रहे।
    **Subtitle:** Aur Cheques screen par suppliers ko diye gaye post-dated cheques ka record rehta hai, taaki clearing ki taareekh yaad rahe.
 
-6. **Narration:** ध्यान दें: इस device counter पर supplier की अलग profile, पूरा supplier ledger और statement की screen अभी नहीं है; supplier का बकाया, payments और purchase bills ऊपर दिखाए गए screens पर मिलते हैं।
-   **Subtitle:** Dhyan dein: is device counter par supplier ki alag profile, poora supplier ledger aur statement ki screen abhi nahi hai; supplier ka bakaaya, payments aur purchase bills upar dikhaaye gaye screens par milte hain.
+6. **Narration:** हर supplier का पूरा ledger Books and registers में Supplier statement पर है: purchase bills, आपके payments और supplier के credit notes, शुरुआती और आख़िरी बकाये के साथ। इसे supplier के statement से मिलाइए।
+   **Subtitle:** Har supplier ka poora ledger 'Books & registers' mein Supplier statement par hai: purchase bills, aapke payments aur supplier ke credit notes, shuruaati aur aakhri bakaaye ke saath. Ise supplier ke statement se milaaiye.
 
 ## Part 14 – Accounts & Expenses
 
@@ -425,8 +434,14 @@ _Kharch, cash book, bank aur profit_
 5. **Narration:** मुनाफ़ा Reports and GST screen पर Sales and profit में है: तारीख़-वार बिक्री, returns और gross profit। इसे CSV में निकालकर अपने accountant को दे सकते हैं।
    **Subtitle:** Munaafa 'Reports & GST' screen par 'Sales and profit' mein hai: taareekh-vaar bikri, returns aur gross profit. Ise CSV mein nikaalkar apne accountant ko de sakte hain.
 
-6. **Narration:** ध्यान दें: Google Drive वाले counter पर अभी day book, पूरा ledger, trial balance, profit and loss statement और cash flow की अलग reports नहीं हैं। Bank connection अपने-आप sync के लिए bank या Account Aggregator partner चाहिए, जो इस demo में जुड़ा नहीं है।
-   **Subtitle:** Dhyan dein: Google Drive wale counter par abhi day book, poora ledger, trial balance, profit and loss statement aur cash flow ki alag reports nahi hain. Bank connection apne-aap sync ke liye bank ya Account Aggregator partner chahiye, jo is demo mein juda nahi hai.
+6. **Narration:** पूरी किताबें Books and registers screen पर हैं। Day book में किसी भी दिन का हर लेन-देन voucher के रूप में है: बिक्री, credit note, वसूली, खरीद, payment और खर्च, हर एक का नामे और जमा।
+   **Subtitle:** Poori kitaabein 'Books & registers' screen par hain. Day book mein kisi bhi din ka har len-den voucher ke roop mein hai: bikri, credit note, vasooli, khareed, payment aur kharch, har ek ka naame aur jama.
+
+7. **Narration:** Trial balance में हर ledger का नामे और जमा है, और ऊपर Balanced लिखा आता है, यानी दोनों तरफ़ का जोड़ बराबर है।
+   **Subtitle:** Trial balance mein har ledger ka naame aur jama hai, aur upar Balanced likha aata hai, yaani dono taraf ka jod barabar hai.
+
+8. **Narration:** Profit and loss में शुद्ध बिक्री, बिके माल की लागत, सकल मुनाफ़ा, हर तरह का खर्च, और आख़िर में शुद्ध मुनाफ़ा। तारीख़ बदलकर किसी भी अवधि का हिसाब देखिए। Cash flow की अलग report अभी नहीं है; पैसे का आना-जाना cash book और day book में दिखता है।
+   **Subtitle:** Profit & loss mein shuddh bikri, bike maal ki laagat, sakal munaafa, har tarah ka kharch, aur aakhir mein shuddh munaafa. Taareekh badalkar kisi bhi avadhi ka hisaab dekhiye. Cash flow ki alag report abhi nahi hai; paise ka aana-jaana cash book aur day book mein dikhta hai.
 
 ## Part 15 – GST & Tax
 
@@ -444,8 +459,11 @@ _MRP-inclusive GST, CGST/SGST, HSN, GSTR-1 aur GSTR-3B_
 4. **Narration:** यहाँ से GSTR-1 JSON, जो GST portal के offline tool में जाता है, HSN summary CSV, और GSTR-3B के JSON और CSV download होते हैं।
    **Subtitle:** Yahan se GSTR-1 JSON, jo GST portal ke offline tool mein jaata hai, HSN summary CSV, aur GSTR-3B ke JSON aur CSV download hote hain.
 
-5. **Narration:** बहुत ज़रूरी: ये reports filing में मदद के लिए हैं। GST return file करने से पहले इन्हें अपने accountant या CA से ज़रूर check करवाइए। Tally export इस counter पर उपलब्ध नहीं है; CSV और JSON exports आपके CA के काम आते हैं।
-   **Subtitle:** Bahut zaroori: yeh reports filing mein madad ke liye hain. GST return file karne se pehle inhein apne accountant ya CA se zaroor check karvaaiye. Tally export is counter par uplabdh nahi hai; CSV aur JSON exports aapke CA ke kaam aate hain.
+5. **Narration:** आपका CA Tally इस्तेमाल करता है? Books and registers में Tally export से Tally Prime के लिए XML बनता है: पहले ledgers यानी masters, फिर vouchers। Tally में Import करते ही बिक्री, खरीद, payments और खर्च आ जाते हैं, हर customer और supplier के ledger के साथ।
+   **Subtitle:** Aapka CA Tally istemaal karta hai? 'Books & registers' mein Tally export se Tally Prime ke liye XML banta hai: pehle ledgers yaani masters, phir vouchers. Tally mein Import karte hi bikri, khareed, payments aur kharch aa jaate hain, har customer aur supplier ke ledger ke saath.
+
+6. **Narration:** बहुत ज़रूरी: ये reports और exports filing में मदद के लिए हैं। GST return file करने से पहले इन्हें अपने accountant या CA से ज़रूर check करवाइए।
+   **Subtitle:** Bahut zaroori: yeh reports aur exports filing mein madad ke liye hain. GST return file karne se pehle inhein apne accountant ya CA se zaroor check karvaaiye.
 
 ## Part 16 – WhatsApp Integration
 
@@ -479,23 +497,23 @@ _English, Hindi aur Hinglish mein sawaal poochhiye_
 2. **Narration:** English में पूछते हैं: What are today's total sales? जवाब में आज की कुल बिक्री, bills की गिनती, और cash, UPI, card और credit का हिस्सा आता है, साथ में यह भी कि आँकड़े किस data से लिए गए।
    **Subtitle:** English mein poochhte hain: What are today's total sales? Jawaab mein aaj ki kul bikri, bills ki ginti, aur cash, UPI, card aur credit ka hissa aata hai, saath mein yeh bhi ki aankde kis data se liye gaye.
 
-3. **Narration:** अब: Which medicines are running low? इस version के built-in rules ने यह phrasing नहीं समझी, और मदद वाला message दिया। ऐसे में नीचे दिए Low stock button को दबाइए।
-   **Subtitle:** Ab: Which medicines are running low? Is version ke built-in rules ne yeh phrasing nahi samjhi, aur madad wala message diya. Aise mein neeche diye 'Low stock' button ko dabaaiye.
+3. **Narration:** अब: Which medicines are running low? जवाब में reorder level से नीचे वाली medicines और कितना order करना है, यह आता है।
+   **Subtitle:** Ab: Which medicines are running low? Jawaab mein reorder level se neeche wali medicines aur kitna order karna hai, yeh aata hai.
 
-4. **Narration:** Which batches are expiring soon? यह सवाल भी गलत समझा गया, इसे medicine का नाम मान लिया गया। What expires in thirty days button सही list देता है। ये कमियाँ हमने QA report में दर्ज की हैं और code में ठीक कर दी हैं।
-   **Subtitle:** Which batches are expiring soon? Yeh sawaal bhi galat samjha gaya, ise medicine ka naam maan liya gaya. 'What expires in 30 days?' button sahi list deta hai. Yeh kamiyaan humne QA report mein darj ki hain aur code mein theek kar di hain.
+4. **Narration:** और: Which batches are expiring soon? अगले तीस दिन में कोई batch expire नहीं हो रहा, यह साफ़ बताया जाता है। नब्बे दिन पूछें, तो वो batches उनकी मात्रा और लागत के साथ आ जाते हैं।
+   **Subtitle:** Aur: Which batches are expiring soon? Agle tees din mein koi batch expire nahi ho raha, yeh saaf bataaya jaata hai. Nabbe din poochhein, to woh batches unki maatra aur laagat ke saath aa jaate hain.
 
-5. **Narration:** अब हिंदी में: आज की total sale कितनी है? यह सही समझा गया।
-   **Subtitle:** Ab Hindi mein: Aaj ki total sale kitni hai? Yeh sahi samjha gaya.
+5. **Narration:** अब हिंदी में: आज की total sale कितनी है?
+   **Subtitle:** Ab Hindi mein: Aaj ki total sale kitni hai?
 
-6. **Narration:** कौनसी medicines का stock कम है? यहाँ भी इस version में मदद वाला message आता है; Low stock button से वही जानकारी मिलती है।
-   **Subtitle:** Kaunsi medicines ka stock kam hai? Yahan bhi is version mein madad wala message aata hai; 'Low stock' button se wahi jaankari milti hai.
+6. **Narration:** कौनसी medicines का stock कम है?
+   **Subtitle:** Kaunsi medicines ka stock kam hai?
 
-7. **Narration:** Hinglish में: इस month का total profit कितना हुआ? Counter का assistant अभी मुनाफ़ा नहीं बताता; मुनाफ़ा Reports and GST में Gross profit में मिलता है। पर इस month की sale पूछें, तो जवाब मिलता है।
-   **Subtitle:** Hinglish mein: Is month ka total profit kitna hua? Counter ka assistant abhi munaafa nahi batata; munaafa 'Reports & GST' mein Gross profit mein milta hai. Par is month ki sale poochhein, to jawaab milta hai.
+7. **Narration:** Hinglish में: इस month का total profit कितना हुआ? जवाब में शुद्ध बिक्री, बिके माल की लागत, सकल मुनाफ़ा और margin, खर्च, और आख़िर में शुद्ध मुनाफ़ा या घाटा। इस demo महीने में किराया और तनख़्वाह बिक्री से ज़्यादा है, इसलिए घाटा दिख रहा है। मुनाफ़े के आँकड़े सिर्फ़ owner को दिखते हैं।
+   **Subtitle:** Hinglish mein: Is month ka total profit kitna hua? Jawaab mein shuddh bikri, bike maal ki laagat, sakal munaafa aur margin, kharch, aur aakhir mein shuddh munaafa ya ghaata. Is demo mahine mein kiraaya aur tankhwaah bikri se zyaada hai, isliye ghaata dikh raha hai. Munaafe ke aankde sirf owner ko dikhte hain.
 
-8. **Narration:** और: कौन से medicines reorder करने हैं? Reorder शब्द से assistant reorder level से नीचे वाली medicines और सुझाई गई मात्रा बताता है। किसी भी फ़ैसले से पहले आँकड़े ख़ुद check कीजिए।
-   **Subtitle:** Aur: Kaun se medicines reorder karne hain? Reorder shabd se assistant reorder level se neeche wali medicines aur sujhaai gayi maatra batata hai. Kisi bhi faisle se pehle aankde khud check kijiye.
+8. **Narration:** और: कौन से medicines reorder करने हैं? किसी भी फ़ैसले से पहले आँकड़े ख़ुद check कीजिए; हर जवाब के नीचे लिखा होता है कि वह किस data से बना।
+   **Subtitle:** Aur: Kaun se medicines reorder karne hain? Kisi bhi faisle se pehle aankde khud check kijiye; har jawaab ke neeche likha hota hai ki woh kis data se bana.
 
 9. **Narration:** Purchase order बनाने के लिए Insights screen पर reorder की सलाह को Order list में जोड़िए; list आप ख़ुद review करके supplier को भेजते हैं। ऊपर Ask AI वाला assistant भी है। ध्यान रहे: Medoro का AI doctor नहीं है, यह दवा या इलाज की सलाह नहीं देता।
    **Subtitle:** Purchase order banaane ke liye Insights screen par reorder ki salaah ko Order list mein jodiye; list aap khud review karke supplier ko bhejte hain. Upar 'Ask AI' wala assistant bhi hai. Dhyan rahe: Medoro ka AI doctor nahi hai, yeh dava ya ilaaj ki salaah nahi deta.
@@ -601,7 +619,10 @@ _Sales, profit, best sellers, expiry, stock value aur forecast_
 4. **Narration:** Audit anomalies में owner के लिए संकेत हैं, जैसे रात में बने bills, ज़्यादा discount या बहुत refunds। ये गलती का सबूत नहीं, सिर्फ़ जाँचने लायक बातें हैं।
    **Subtitle:** Audit anomalies mein owner ke liye sanket hain, jaise raat mein bane bills, zyaada discount ya bahut refunds. Yeh galti ka saboot nahi, sirf jaanchne laayak baatein hain.
 
-5. **Narration:** Customer outstanding Customers screen पर, supplier outstanding Accounts में, GST reports Reports and GST में, और branch report dashboard के Branch performance में मिलती है।
+5. **Narration:** हिसाब-किताब की reports Books and registers में हैं: profit and loss, trial balance, day book, customer और supplier statements, Schedule H1 register और Tally export, हर एक CSV और print के साथ।
+   **Subtitle:** Hisaab-kitaab ki reports 'Books & registers' mein hain: profit and loss, trial balance, day book, customer aur supplier statements, Schedule H1 register aur Tally export, har ek CSV aur print ke saath.
+
+6. **Narration:** Customer outstanding Customers screen पर, supplier outstanding Accounts में, GST reports Reports and GST में, और branch report dashboard के Branch performance में मिलती है।
    **Subtitle:** Customer outstanding Customers screen par, supplier outstanding Accounts mein, GST reports 'Reports & GST' mein, aur branch report dashboard ke Branch performance mein milti hai.
 
 ## Part 23 – Subscription & Plans
@@ -661,8 +682,8 @@ _Subah se shaam tak: purchase, billing, return aur report_
 6. **Narration:** शाम को एक customer sealed strip वापस करता है। Bills screen से bill ढूँढकर return और refund होता है।
    **Subtitle:** Shaam ko ek customer sealed strip waapas karta hai. Bills screen se bill dhoondhkar return aur refund hota hai.
 
-7. **Narration:** दिन के अंत में owner revenue, मुनाफ़ा और खर्च देखता है, day-end छापता है, और reports अपने accountant को भेजता है। यही है Medoro के साथ एक पूरा दिन।
-   **Subtitle:** Din ke ant mein owner revenue, munaafa aur kharch dekhta hai, day-end chhaapta hai, aur reports apne accountant ko bhejta hai. Yahi hai Medoro ke saath ek poora din.
+7. **Narration:** दिन के अंत में owner day-end देखता है, फिर Books में profit and loss से मुनाफ़ा और खर्च, और reports अपने accountant को भेजता है। यही है Medoro के साथ एक पूरा दिन।
+   **Subtitle:** Din ke ant mein owner day-end dekhta hai, phir Books mein profit and loss se munaafa aur kharch, aur reports apne accountant ko bhejta hai. Yahi hai Medoro ke saath ek poora din.
 
 ## Part 26 – Conclusion
 

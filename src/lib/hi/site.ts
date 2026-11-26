@@ -145,6 +145,13 @@ export const hi: Record<string, string> = {
   "Read more": "और पढ़ें",
   // Live product tour
   "Product tour": "प्रोडक्ट टूर",
+  "Video tutorials": "वीडियो ट्यूटोरियल",
+  "Watch Medoro Pharmacy in action.": "Medoro Pharmacy को काम करते हुए देखिए।",
+  "{n} videos in simple Hindi-English: the full tour, a guide for each job, and every step from sign-up to GST.": "आसान हिंदी-इंग्लिश में {n} वीडियो: पूरा टूर, हर काम की गाइड, और साइन-अप से GST तक हर कदम।",
+  "The complete product tour": "पूरा प्रोडक्ट टूर",
+  "All 26 parts in one video, with chapters you can jump to.": "एक वीडियो में सभी 26 भाग, चैप्टर पर सीधे जा सकते हैं।",
+  "See all {n} videos": "सभी {n} वीडियो देखें",
+  "Videos": "वीडियो",
   "Don’t take our word for it. Use it.": "हमारी बात मत मानिए। ख़ुद चलाकर देखिए।",
   "This is a working demo with a three-branch pharmacy’s sample data. Bill a sale with F2 and F9, check what expires this quarter, receive a purchase or ask the AI. Nothing you do here is saved.":
     "यह चलता हुआ डेमो है, तीन ब्रांच वाली एक फ़ार्मेसी के नमूना डेटा के साथ। F2 और F9 से बिल बनाइए, देखिए इस तिमाही क्या एक्सपायर हो रहा है, खरीद दर्ज कीजिए या AI से पूछिए। यहाँ आप जो भी करेंगे, वह सेव नहीं होता।",

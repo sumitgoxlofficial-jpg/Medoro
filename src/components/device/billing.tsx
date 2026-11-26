@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Banknote, CreditCard, MessageCircle, Minus, NotebookPen, Plus, QrCode, Receipt, Search, ShoppingCart, Stethoscope, Trash2, UserRound } from "lucide-react";
+import { Banknote, CreditCard, MessageCircle, Minus, NotebookPen, Pause, Play, Plus, QrCode, Receipt, Search, ShoppingCart, SplitSquareHorizontal, Stethoscope, Trash2, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { deviceDb } from "@/drivedb/device";
@@ -17,7 +17,16 @@ type Cust = { id: string; name: string; phone: string | null; balancePaise: numb
 const H1 = ["H1", "X", "NDPS"];
 const price = (l: Line) => (l.unit === "loose" && l.med.packSize > 1 ? Math.floor(l.med.mrpPaise / l.med.packSize) : l.med.mrpPaise);
 const MOBILE = /^[6-9]\d{9}$/;
-const PAY = { cash: [Banknote, "Cash"], upi: [QrCode, "UPI"], card: [CreditCard, "Card"], credit: [NotebookPen, "Credit"] } as const;
+const PAY = { cash: [Banknote, "Cash"], upi: [QrCode, "UPI"], card: [CreditCard, "Card"], split: [SplitSquareHorizontal, "Split"], credit: [NotebookPen, "Credit"] } as const;
+/** A cart put on hold (F4) on this device, to serve the next customer; resumed from the list under the cart. */
+type Held = { id: string; at: string; cart: Line[]; cust: Cust | null; phone: string; name: string; disc: number; rx: { prescriber: string; prescriberReg: string; patientName: string } };
+const heldKey = (series: string) => `medoro-held-carts:${series}`;
+function readHeld(series: string): Held[] {
+  try { return JSON.parse(localStorage.getItem(heldKey(series)) ?? "[]") as Held[]; } catch { return []; }
+}
+function writeHeld(series: string, list: Held[]) {
+  try { localStorage.setItem(heldKey(series), JSON.stringify(list)); } catch { /* private window: held carts last until the page closes */ }
+}
 
 /** A titled block of the cart panel (Customer, Prescription, Payment). */
 function Section({ icon, title, aside, children }: { icon: React.ReactNode; title: string; aside?: React.ReactNode; children: React.ReactNode }) {
@@ -53,7 +62,11 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
   const [custs, setCusts] = useState<Cust[]>([]);
   const [cust, setCust] = useState<Cust | null>(null);
   const [disc, setDisc] = useState(0);
-  const [mode, setMode] = useState<"cash" | "upi" | "card" | "credit">("cash");
+  const [mode, setMode] = useState<"cash" | "upi" | "card" | "split" | "credit">("cash");
+  // Split payment: the cash part, and how the rest is paid.
+  const [splitCash, setSplitCash] = useState("");
+  const [restMode, setRestMode] = useState<"upi" | "card">("upi");
+  const [held, setHeld] = useState<Held[]>(() => readHeld(cfg.series));
   const [rx, setRx] = useState({ prescriber: "", prescriberReg: "", patientName: "" });
   const [redeem, setRedeem] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -115,30 +128,50 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
         const same = phone ? found.find((c) => c.phone === phone) : found.find((c) => c.name.toLowerCase() === typedName.toLowerCase());
         customerId = same ? same.id : (await dev.call("addCustomer", { name: typedName, phone: phone || null })).id;
       }
+      const cashPaise = Math.round(Number(splitCash || 0) * 100);
+      if (mode === "split" && (!(cashPaise > 0) || cashPaise >= toPay)) { toast(t("Enter a cash part between ₹1 and the amount to pay."), "red"); setBusy(false); return; }
       const r = await dev.call("createSale", {
         branchId: cfg.branchId, series: cfg.series, userId: who.userId, customerId, discountPct: disc, maxDiscountPct: cap,
-        lines: cart.map((l) => ({ medicineId: l.med.id, qty: l.qty, unit: l.unit })), pay: { mode },
+        lines: cart.map((l) => ({ medicineId: l.med.id, qty: l.qty, unit: l.unit })), pay: mode === "split" ? { mode, cashPaise, restMode } : { mode },
         prescriber: rx.prescriber || undefined, prescriberReg: rx.prescriberReg || undefined, patientName: rx.patientName || undefined,
         redeemPoints: redeemValue ? Math.min(redeem, cust?.points ?? 0) : undefined,
       });
       toast(`Bill ${r.invoiceNo} · ${inr(r.totalPaise)} saved on this device (${Math.round(performance.now() - t0)} ms)${r.pointsEarned ? ` · ${r.pointsEarned} points earned` : ""}.`, "green");
       const sendWa = waSend && !!waPhone;
-      setCart([]); setCust(null); setPhone(""); setName(""); setWaSend(true); setDisc(0); setMode("cash"); setRx({ prescriber: "", prescriberReg: "", patientName: "" }); setRedeem(0);
+      setCart([]); setCust(null); setPhone(""); setName(""); setWaSend(true); setDisc(0); setMode("cash"); setSplitCash(""); setRx({ prescriber: "", prescriberReg: "", patientName: "" }); setRedeem(0);
       void search("");
       onBill(r.saleId, { whatsapp: sendWa });
       searchRef.current?.focus();
     } catch (e) { toast(errText(e) || "The bill wasn’t saved.", "red"); }
     setBusy(false);
-  }, [cart, busy, dev, cfg, who.userId, cust, phone, name, waSend, waPhone, disc, cap, mode, rx, redeem, redeemValue, toast, search, onBill]);
+  }, [cart, busy, dev, cfg, who.userId, cust, phone, name, waSend, waPhone, disc, cap, mode, splitCash, restMode, toPay, t, rx, redeem, redeemValue, toast, search, onBill]);
+
+  // Hold (F4): park this cart to serve someone else; resume it later from the list under the cart.
+  const hold = useCallback(() => {
+    if (!cart.length) return;
+    const list = [...held, { id: globalThis.crypto.randomUUID(), at: new Date().toISOString(), cart, cust, phone, name, disc, rx }];
+    setHeld(list); writeHeld(cfg.series, list);
+    setCart([]); setCust(null); setPhone(""); setName(""); setDisc(0); setMode("cash"); setSplitCash(""); setRx({ prescriber: "", prescriberReg: "", patientName: "" }); setRedeem(0);
+    toast(t("Bill held. Resume it from the list under the cart."), "green");
+    searchRef.current?.focus();
+  }, [cart, held, cust, phone, name, disc, rx, cfg.series, toast, t]);
+  const resume = (h: Held) => {
+    if (cart.length) { toast(t("Finish or hold the current bill first."), "red"); return; }
+    const list = held.filter((x) => x.id !== h.id);
+    setHeld(list); writeHeld(cfg.series, list);
+    setCart(h.cart); setCust(h.cust); setPhone(h.phone); setName(h.name); setDisc(h.disc); setRx(h.rx);
+  };
+  const dropHeld = (id: string) => { const list = held.filter((x) => x.id !== id); setHeld(list); writeHeld(cfg.series, list); };
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === "F2") { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === "F9") { e.preventDefault(); void complete(); }
+      if (e.key === "F4") { e.preventDefault(); hold(); }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
-  }, [complete]);
+  }, [complete, hold]);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
@@ -166,8 +199,23 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="m-0 flex items-center gap-2 text-[15px] font-semibold"><ShoppingCart size={17} className="text-teal" aria-hidden />{t("Cart")}
               {cart.length > 0 && <span className="text-[13px] font-normal text-muted">{t(cart.length === 1 ? "1 item" : "{n} items", { n: cart.length })}</span>}</h2>
-            <span className="text-muted text-xs whitespace-nowrap">{cfg.branchName} · {t("series {s}", { s: cfg.series })}</span>
+            <span className="flex items-center gap-2">
+              {cart.length > 0 && <Button size="sm" onClick={hold} aria-label={t("Hold bill (F4)")}><Pause size={14} /> {t("Hold")} <kbd className="text-[10.5px] text-muted">F4</kbd></Button>}
+              <span className="text-muted text-xs whitespace-nowrap">{cfg.branchName} · {t("series {s}", { s: cfg.series })}</span>
+            </span>
           </div>
+          {held.length > 0 && (
+            <div className="flex flex-col gap-1.5 -mt-1" aria-label={t("Held bills")}>
+              <span className="text-[11.5px] font-semibold tracking-wide text-muted uppercase">{t("Held bills")}</span>
+              {held.map((h) => (
+                <div key={h.id} className="flex items-center gap-2 rounded-lg border border-line bg-page px-2.5 py-1.5 text-[13px]">
+                  <span className="flex-1 min-w-0 truncate">{new Date(h.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} · {t(h.cart.length === 1 ? "1 item" : "{n} items", { n: h.cart.length })}{h.cust ? ` · ${h.cust.name}` : h.name ? ` · ${h.name}` : ""}</span>
+                  <Button size="sm" onClick={() => resume(h)} aria-label={t("Resume held bill")}><Play size={13} /> {t("Resume")}</Button>
+                  <button onClick={() => dropHeld(h.id)} aria-label={t("Discard held bill")} className="p-1 text-muted hover:text-bad cursor-pointer"><X size={14} /></button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {cart.length ? (
             <div className="flex flex-col -mt-1">
@@ -253,7 +301,7 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
 
           <Section icon={<Banknote size={13} aria-hidden />} title={t("Payment")}>
             {(() => {
-              const modes = (["cash", "upi", "card", "credit"] as const).filter((m) => m !== "credit" || (who.canCredit && cust));
+              const modes = (["cash", "upi", "card", "split", "credit"] as const).filter((m) => m !== "credit" || (who.canCredit && cust));
               return (
                 <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${modes.length}, minmax(0, 1fr))` }} role="radiogroup" aria-label={t("Payment")}>
                   {modes.map((m) => {
@@ -268,6 +316,17 @@ export function Billing({ cfg, who, onBill, side }: { cfg: Cfg; who: Who; onBill
                 </div>
               );
             })()}
+            {mode === "split" && (
+              <div className="flex flex-col gap-1.5 rounded-lg border border-teal-line bg-teal-soft/50 p-2.5 text-sm">
+                <label className="flex items-center justify-between gap-2">{t("Cash part (₹)")}
+                  <input inputMode="decimal" value={splitCash} onChange={(e) => setSplitCash(e.target.value.replace(/[^\d.]/g, ""))} className={`${input} w-28 text-right`} aria-label={t("Cash part")} placeholder="0" /></label>
+                <div className="flex items-center justify-between gap-2">
+                  <span>{t("Rest by")}</span>
+                  <select value={restMode} onChange={(e) => setRestMode(e.target.value as "upi" | "card")} className={`${input} w-28`} aria-label={t("Rest paid by")}><option value="upi">UPI</option><option value="card">{t("Card")}</option></select>
+                </div>
+                <div className="flex justify-between text-muted"><span>{restMode === "upi" ? "UPI" : t("Card")}</span><span className="tabular-nums">{inr(Math.max(0, toPay - Math.round(Number(splitCash || 0) * 100)))}</span></div>
+              </div>
+            )}
             <label className="flex items-center justify-between gap-2 text-sm">
               <span>{t("Discount")} <span className="text-muted text-xs">{t("(up to {cap}%)", { cap })}</span></span>
               <span className="flex items-center rounded-lg border border-line bg-white h-8">
