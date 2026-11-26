@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { pulsePhoto } from "@/staff/hrms/pulse-shared";
 import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
 import type { Data } from "@/staff/hrms/screens";
@@ -329,7 +330,7 @@ export function ChatScreen({ d }: { d: D }) {
                   return (
                     <div key={m.id} className="flex flex-col gap-1.5">
                       {i === 0 || dayKey(shown[i - 1].at) !== dayKey(m.at) ? <div className="self-center text-[11px] bg-[#E2E8F0] text-[#475569] rounded-full px-3 py-0.5 my-1">{dayLong(m.at)}</div> : null}
-                      <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? {}} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
+                      <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? { photo: pulsePhoto(m.senderId) }} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
                         onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />
                     </div>
                   );

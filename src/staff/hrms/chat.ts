@@ -5,6 +5,7 @@ import { seal, unseal } from "@/server/vault";
 import { audit, type Me } from "./auth";
 import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
+import { pulsePhoto } from "./pulse-shared";
 import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_LABEL, isPulse, pulseMemberIds, pulseName } from "./sales-pulse";
 
 // Team Chat. Every message (and picture, and poll) is sealed with HOST_KEY before it is stored, so nothing readable sits in the
@@ -384,7 +385,7 @@ export async function groupInfo(me: Me, chatId: string) {
       id: u.id, name: u.name, empNo: u.empNo, designation: u.hr?.designation ?? "", photo: u.hr?.photo ?? null, avatar: u.hr?.chatAvatar ?? "",
       presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id, bot: false,
     })).concat(mem.filter((m) => isPulse(m.staffId) && pulseName(m.staffId)).map((m) => ({
-      id: m.staffId, name: pulseName(m.staffId), empNo: "", designation: PULSE_LABEL, photo: null, avatar: "", presence: "offline", you: false, bot: true,
+      id: m.staffId, name: pulseName(m.staffId), empNo: "", designation: PULSE_LABEL, photo: pulsePhoto(m.staffId) as string | null, avatar: "", presence: "offline", you: false, bot: true,
     })).sort((a, b) => a.name.localeCompare(b.name))),
   };
 }
