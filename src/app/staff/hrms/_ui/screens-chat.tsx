@@ -4,9 +4,10 @@ import { PULSE_COUNT, pulsePhoto } from "@/staff/hrms/pulse-shared";
 import { TEAM_NAME } from "@/staff/hrms/sales-wins";
 import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
+import { EDIT_WINDOW_MS } from "@/staff/hrms/chat-shared";
 import type { Data } from "@/staff/hrms/screens";
 import {
-  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
+  chatAddMembers, chatCreateGroup, chatDelete, chatEdit, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
   chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
@@ -100,18 +101,67 @@ function PollCard({ poll, onVote }: { poll: PollState; onVote: (i: number) => vo
   );
 }
 
-function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDelete, onVote, onOpenImage, onCopy }: {
-  m: ChatMsg; mine: boolean; sender: string; face: { photo?: string | null; avatar?: string }; read: boolean; group: boolean; reactions: readonly string[];
-  onReact: (e: string) => void; onDelete: () => void; onVote: (i: number) => void; onOpenImage: () => void; onCopy: () => void;
+/** Line icons for the chat chrome (emoji render as empty boxes on some Windows machines). */
+const PATHS: Record<string, string> = {
+  search: '<circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4.2-4.2"/>',
+  poll: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  video: '<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2.5"/>',
+  info: '<circle cx="12" cy="12" r="9.5"/><path d="M12 16v-4.5M12 8h.01"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.2"/>',
+  clip: '<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  send: '<path d="M3.4 20.4 21 12 3.4 3.6 3.4 10.2 15 12 3.4 13.8z" fill="currentColor" stroke="none"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+  smile: '<circle cx="12" cy="12" r="9.5"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  pencil: '<path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+};
+const Ic = ({ n, s = 20 }: { n: string; s?: number }) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden dangerouslySetInnerHTML={{ __html: PATHS[n] ?? "" }} />;
+/** Round, borderless icon button used across the chat header, list and composer. */
+const iconBtn = "flex-none size-10 max-[560px]:size-9 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-[#54656F] hover:bg-black/[.06] disabled:opacity-40 disabled:cursor-default aria-pressed:bg-black/[.08]";
+/** The same button on the teal WhatsApp-style header bars: white icons. */
+const iconBtnBar = "flex-none size-10 max-[560px]:size-9 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-white/90 hover:bg-white/15 hover:text-white disabled:opacity-40 disabled:cursor-default aria-pressed:bg-white/20";
+/** Teal header bar shared by the chat list and the open conversation, as in WhatsApp. */
+const headerBar = "relative h-[62px] flex-none flex items-center gap-1 bg-gradient-to-r from-[#0B5E5B] to-[#0E6F6A] text-white shadow-[0_1px_3px_rgba(0,0,0,.18)] z-[2]";
+/** Each sender keeps one name colour in groups, as in WhatsApp. */
+const NAME_COLORS = ["#0B7A70", "#C2410C", "#7C3AED", "#BE185D", "#1D4ED8", "#047857", "#B45309", "#0E7490"];
+const nameColor = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return NAME_COLORS[Math.abs(h) % NAME_COLORS.length]; };
+
+function Bubble({ m, mine, sender, face, read, group, cont, reactions, onReact, onDelete, onEdit, onVote, onOpenImage, onCopy }: {
+  m: ChatMsg; mine: boolean; sender: string; face: { photo?: string | null; avatar?: string }; read: boolean; group: boolean; cont: boolean; reactions: readonly string[];
+  onReact: (e: string) => void; onDelete: () => void; onEdit: (body: string) => Promise<boolean>; onVote: (i: number) => void; onOpenImage: () => void; onCopy: () => void;
 }) {
   const [menu, setMenu] = useState(false);
-  const tick = mine && !m.deleted ? <span className={cx("ml-1 text-[11px]", read ? "text-[#2563EB]" : "text-[#94A3B8]")} aria-label={read ? "Read" : "Sent"}>{read ? "✓✓" : "✓"}</span> : null;
+  const [editing, setEditing] = useState<string | null>(null), [saving, setSaving] = useState(false);
+  // A text message you sent can be edited for 5 minutes; the Edit button goes away by itself when the time is up.
+  const editable = mine && !m.deleted && m.kind === "text";
+  const [expired, setExpired] = useState(() => Date.now() - new Date(m.at).getTime() >= EDIT_WINDOW_MS);
+  useEffect(() => {
+    if (!editable || expired) return;
+    const t = setTimeout(() => setExpired(true), Math.max(0, new Date(m.at).getTime() + EDIT_WINDOW_MS - Date.now()));
+    return () => clearTimeout(t);
+  }, [editable, expired, m.at]);
+  const canEdit = editable && !expired;
+  const save = async () => {
+    const v = (editing ?? "").trim();
+    if (!v || saving) return;
+    if (v === m.body) { setEditing(null); return; }
+    setSaving(true);
+    const ok = await onEdit(v);
+    setSaving(false);
+    if (ok) setEditing(null);
+  };
+  const tick = mine && !m.deleted ? <span className={cx("text-[12px] leading-none", read ? "text-[#53BDEB]" : "text-[#8696A0]")} aria-label={read ? "Read" : "Sent"}>{read ? "✓✓" : "✓"}</span> : null;
+  const showFace = group && !mine;
   return (
-    <div className={cx("flex gap-2 group items-end", mine ? "flex-row-reverse" : "")}>
-      <Face name={sender} photo={face.photo} avatar={face.avatar} size={28} />
-      <div className={cx("max-w-[78%] flex flex-col", mine ? "items-end" : "items-start")}>
-        <div className={cx("rounded-2xl px-3 py-2 text-[13.5px] leading-snug shadow-sm relative", m.kind === "win" && !m.deleted ? cx("bg-gradient-to-br from-[#FFFBEB] to-[#ECFDF5] border border-[#FCD34D]", mine ? "rounded-br-md" : "rounded-bl-md") : mine ? "bg-[#D6F3EF] rounded-br-md" : "bg-white border border-[#E2E8F0] rounded-bl-md")}>
-          {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}</div> : null}
+    <div className={cx("flex gap-1.5 group items-start", mine ? "justify-end" : "", cont ? "mt-0.5" : "mt-2")}>
+      {showFace ? (cont ? <span className="w-8 flex-none" /> : <Face name={sender} photo={face.photo} avatar={face.avatar} size={32} />) : null}
+      <div className={cx("max-w-[min(72%,560px)] max-[560px]:max-w-[85%] flex flex-col", mine ? "items-end" : "items-start")}>
+        <div className={cx("rounded-[10px] px-2.5 pt-1.5 pb-1 text-[14.2px] leading-[1.38] text-[#111B21] shadow-[0_1px_.5px_rgba(11,20,26,.13)] relative",
+          !cont && (mine ? "rounded-tr-[3px]" : "rounded-tl-[3px]"),
+          m.kind === "win" && !m.deleted ? "bg-gradient-to-br from-[#FFFBEB] to-[#E7F8F2] ring-1 ring-[#FCD34D]" : mine ? "bg-[#D7F1EA]" : "bg-white")}>
+          {group && !mine && !cont ? <div className="text-[12.5px] font-semibold mb-0.5" style={{ color: nameColor(m.senderId) }}>{sender}</div> : null}
           {m.deleted ? <span className="italic text-[#64748B]">This message was deleted</span>
             : m.kind === "meet" ? (
               <div className="flex flex-col gap-1.5">
@@ -126,17 +176,27 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
                   // eslint-disable-next-line @next/next/no-img-element
                   <button onClick={onOpenImage} aria-label="Open picture" className="block bg-transparent border-0 p-0 cursor-zoom-in"><img src={`/staff/hrms/chat/img/${m.id}`} alt="Photo in chat" className="rounded-lg max-h-[280px] mb-1" loading="lazy" /></button>
                 ) : null}
-                {m.body ? <div className={cx("whitespace-pre-wrap break-words", m.kind === "win" ? "font-semibold text-[#0F172A]" : "")}><Linked text={m.body} /></div> : null}
+                {editing !== null ? (
+                  <div className="flex flex-col gap-1.5 min-w-[220px]">
+                    <textarea className={cx(inputCls, "resize-none")} rows={2} autoFocus aria-label="Edit message" value={editing} maxLength={4000} onChange={(e) => setEditing(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void save(); } else if (e.key === "Escape") setEditing(null); }} />
+                    <div className="flex gap-1.5 justify-end">
+                      <button className={btnCls} onClick={() => setEditing(null)} disabled={saving}>Cancel</button>
+                      <button className={primaryCls} onClick={() => void save()} disabled={saving || !editing.trim()}>Save</button>
+                    </div>
+                  </div>
+                ) : m.body ? <div className={cx("whitespace-pre-wrap break-words", m.kind === "win" ? "font-semibold text-[#0F172A]" : "")}><Linked text={m.body} /></div> : null}
               </>
             )}
-          <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10.5px] text-[#64748B]">
-            {!m.deleted ? <button onClick={() => setMenu((o) => !o)} aria-label="React" className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 cursor-pointer text-[12px]">😊</button> : null}
-            {mine && !m.deleted ? <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 cursor-pointer text-[#B3261E] text-[10.5px]">Delete</button> : null}
-            {timeLabel(m.at)}{tick}
+          <div className="flex items-center justify-end gap-1 -mt-0.5 text-[11px] text-[#667781] whitespace-nowrap">
+            {!m.deleted ? <button onClick={() => setMenu((o) => !o)} aria-label="React" className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 p-0 cursor-pointer text-[#8696A0] hover:text-[#0B5E5B]"><Ic n="smile" s={15} /></button> : null}
+            {canEdit && editing === null ? <button onClick={() => { setMenu(false); setEditing(m.body); }} aria-label="Edit message" title="Edit (you can edit a message for 5 minutes after sending it)" className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 p-0 cursor-pointer text-[#8696A0] hover:text-[#0B5E5B]"><Ic n="pencil" s={14} /></button> : null}
+            {mine && !m.deleted ? <button onClick={onDelete} aria-label="Delete message" title="Delete" className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 p-0 cursor-pointer text-[#8696A0] hover:text-[#B3261E]"><Ic n="trash" s={14} /></button> : null}
+            {m.edited && !m.deleted ? <span className="italic ml-1">edited</span> : null}<span className="ml-1">{timeLabel(m.at)}</span>{tick}
           </div>
         </div>
-        {menu ? <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-full px-2 py-1 shadow-md mt-1" role="menu">{reactions.map((e) => <button key={e} role="menuitem" onClick={() => { setMenu(false); onReact(e); }} className="bg-transparent border-0 cursor-pointer text-[16px] hover:scale-125 transition-transform">{e}</button>)}</div> : null}
-        {m.reactions.length ? <div className="flex gap-1 mt-1 flex-wrap">{m.reactions.map((r) => <button key={r.emoji} onClick={() => onReact(r.emoji)} aria-pressed={r.mine} className={cx("text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer", r.mine ? "bg-[#D6F3EF] border-[#0B5E5B] text-[#0B5E5B]" : "bg-white border-[#E2E8F0]")}>{r.emoji} {r.n}</button>)}</div> : null}
+        {menu ? <div className="flex gap-1 bg-white rounded-full px-2 py-1 shadow-[0_4px_14px_rgba(11,20,26,.18)] mt-1 z-10" role="menu">{reactions.map((e) => <button key={e} role="menuitem" onClick={() => { setMenu(false); onReact(e); }} className="bg-transparent border-0 cursor-pointer text-[16px] hover:scale-125 transition-transform">{e}</button>)}</div> : null}
+        {m.reactions.length ? <div className="flex gap-1 mt-1 flex-wrap">{m.reactions.map((r) => <button key={r.emoji} onClick={() => onReact(r.emoji)} aria-pressed={r.mine} className={cx("text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer", r.mine ? "bg-[#D7F1EA] border-[#0B5E5B]/40 text-[#0B5E5B]" : "bg-white border-[#E9EDEF] shadow-sm")}>{r.emoji} {r.n}</button>)}</div> : null}
       </div>
     </div>
   );
@@ -190,7 +250,7 @@ export function ChatScreen({ d }: { d: D }) {
       const base = reset ? [] : cur, seen = new Set(base.map((m) => m.id));
       const merged = [...base, ...add.filter((m) => !seen.has(m.id))];
       const fresh = new Map((refresh ?? []).map((m) => [m.id, m]));
-      const out = merged.map((m) => { const r = fresh.get(m.id); return r ? { ...m, reactions: r.reactions, poll: r.poll, deleted: r.deleted, body: r.deleted ? "" : m.body, hasImage: r.deleted ? false : m.hasImage, file: r.deleted ? null : m.file } : m; });
+      const out = merged.map((m) => { const r = fresh.get(m.id); return r ? { ...m, reactions: r.reactions, poll: r.poll, deleted: r.deleted, edited: r.edited, body: r.deleted ? "" : r.edited ? r.body : m.body, hasImage: r.deleted ? false : m.hasImage, file: r.deleted ? null : m.file } : m; });
       top.current = out.length ? out[out.length - 1].seq : 0;
       return out;
     });
@@ -275,6 +335,7 @@ export function ChatScreen({ d }: { d: D }) {
   const patch = (id: string, f: (m: ChatMsg) => ChatMsg) => setMsgs((c) => c.map((m) => (m.id === id ? f(m) : m)));
   const react = async (id: string, e: string) => { const r = await chatReact(id, e); if (!r.ok) toast(r.error, "red"); else patch(id, (m) => ({ ...m, reactions: r.data.reactions })); };
   const vote = async (id: string, i: number) => { const r = await chatVote(id, i); if (!r.ok) toast(r.error, "red"); else patch(id, (m) => ({ ...m, poll: r.data.poll })); };
+  const edit = async (id: string, body: string) => { const r = await chatEdit(id, body); if (!r.ok) { toast(r.error, "red"); return false; } patch(id, (m) => ({ ...m, body: r.data.body, edited: r.data.edited })); return true; };
   const del = (id: string) => run(() => chatDelete(id), () => { patch(id, (m) => ({ ...m, deleted: true, body: "", hasImage: false, file: null, poll: null, reactions: [] })); });
   const startDm = async (id: string) => {
     const r = await chatOpenDm(id);
@@ -288,83 +349,103 @@ export function ChatScreen({ d }: { d: D }) {
   const shown = find.trim() ? msgs.filter((m) => m.body.toLowerCase().includes(find.trim().toLowerCase())) : msgs;
   const typingNames = typing.map((id) => byId.get(id)?.name.split(" ")[0]).filter(Boolean) as string[];
   const row = (c: ChatRow) => (
-    <button key={c.id} role="listitem" onClick={() => pick(c.id)} className={cx("w-full text-left flex gap-2.5 px-3 py-2.5 border-0 border-b border-[#F1F5F9] cursor-pointer items-center", c.id === active ? "bg-[#F0FDFA]" : "bg-white hover:bg-[#F8FAFC]")}>
-      <Face name={c.title} photo={c.photo} avatar={c.kind === "dm" ? c.avatar : ""} size={38} square={c.kind === "group"} status={c.kind === "dm" ? (pres[c.withId ?? ""] ?? "offline") : undefined} />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2"><span className="font-semibold text-[13.5px] truncate">{c.title}</span><span className="ml-auto text-[10.5px] text-[#64748B] flex-none">{shortTime(c.lastAt)}</span></span>
-        <span className="flex items-center gap-2"><span className="text-[12px] text-[#64748B] truncate">{c.last || (c.about || "No messages yet")}</span>
-          {c.unread ? <span className="ml-auto flex-none bg-[#0B5E5B] text-white text-[10.5px] font-bold rounded-full min-w-[18px] h-[18px] px-1.5 flex items-center justify-center">{c.unread}</span> : null}</span>
+    <button key={c.id} role="listitem" onClick={() => pick(c.id)} aria-current={c.id === active ? "true" : undefined} className={cx("w-full text-left flex gap-3 pl-3 pr-0 border-0 cursor-pointer items-center", c.id === active ? "bg-[#D9EAE5]/85" : "bg-transparent hover:bg-white/70")}>
+      <Face name={c.title} photo={c.photo} avatar={c.kind === "dm" ? c.avatar : ""} size={48} status={c.kind === "dm" ? (pres[c.withId ?? ""] ?? "offline") : undefined} />
+      <span className="min-w-0 flex-1 py-3 pr-3 border-b border-[#0B5E5B]/[.07]">
+        <span className="flex items-baseline gap-2"><span className={cx("text-[15.5px] text-[#111B21] truncate", c.unread ? "font-bold" : "font-medium")}>{c.title}</span><span className={cx("ml-auto text-[11.5px] flex-none", c.unread ? "text-[#0B8A7A] font-semibold" : "text-[#667781]")}>{shortTime(c.lastAt)}</span></span>
+        <span className="flex items-center gap-2 mt-0.5"><span className={cx("text-[13.5px] truncate", c.unread ? "text-[#111B21]" : "text-[#667781]")}>{c.last || (c.about || "No messages yet")}</span>
+          {c.unread ? <span className="ml-auto flex-none bg-[#14A38F] text-white text-[11px] font-bold rounded-full min-w-[20px] h-[20px] px-1.5 flex items-center justify-center">{c.unread}</span> : null}</span>
       </span>
     </button>
   );
   const sub = !chat ? "" : chat.kind === "group" ? `${chat.members} members${chat.sys ? " · company channel" : ""}` : statusText(pres[chat.withId ?? ""]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <BackupPrompt b={d.backup} />
+    <div className="flex flex-col">
       {incoming ? (
-        <div role="alert" className="flex items-center gap-3 bg-[#0B5E5B] text-white rounded-xl px-4 py-3">
+        <div role="alert" className="fixed top-4 right-4 z-[90] w-[min(360px,calc(100vw-32px))] flex items-center gap-3 bg-[#0B5E5B] text-white rounded-2xl px-4 py-3 shadow-[0_12px_32px_-8px_rgba(0,0,0,.35)]">
           <span className="text-[20px]" aria-hidden>📞</span>
           <div className="flex-1"><div className="text-[12px] opacity-80">Incoming video call</div><div className="font-bold text-[14px]">{byId.get(incoming.senderId)?.name ?? "A colleague"}</div></div>
           <a href={incoming.body} target="_blank" rel="noopener noreferrer" onClick={() => setIncoming(null)} className="bg-white text-[#0B5E5B] rounded-lg px-3 py-1.5 text-[13px] font-bold no-underline">Join</a>
           <button onClick={() => setIncoming(null)} className="bg-white/15 text-white border-0 rounded-lg px-3 py-1.5 text-[13px] cursor-pointer">Decline</button>
         </div>
       ) : null}
-      <div className="grid bg-white border border-[#E2E8F0] rounded-[14px] overflow-hidden min-h-[560px] h-[calc(100vh-210px)] grid-cols-1 min-[860px]:grid-cols-[320px_1fr]">
-        <div className={cx("border-r border-[#E2E8F0] flex-col min-h-0", showList || !active ? "flex" : "hidden min-[860px]:flex")}>
-          <div className="p-3 flex flex-col gap-2">
-            <div className="flex items-center gap-2"><span className="font-bold text-[14px]">Team chat</span><span className="text-[11px] text-[#0B5E5B] bg-[#D6F3EF] rounded-full px-2 py-0.5 font-semibold">● Live · {online + 1} online</span>
-              <button className="ml-auto bg-transparent border-0 cursor-pointer" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={28} /></button></div>
-            <div className="flex gap-2"><input className={inputCls} placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} /><SoundToggle /><button type="button" title="Back up your chats to your Google Drive" aria-label="Chat backup" onClick={() => setModal("backup")} className="flex-none px-2.5 rounded-lg border border-[#CBD5E1] bg-white text-[15px] cursor-pointer">☁</button><button className={primaryCls} onClick={() => setModal("new")}>+ New</button></div>
+      <div className="hr-chat grid bg-white rounded-2xl overflow-hidden border border-[#E3E8EA] shadow-[0_18px_40px_-24px_rgba(11,60,58,.35)] min-h-[480px] h-[calc(100dvh-76px)] min-[860px]:h-[calc(100dvh-28px)] grid-cols-1 min-[860px]:grid-cols-[360px_1fr] min-[1400px]:grid-cols-[400px_1fr]">
+        <div className={cx("relative border-r border-[#E3E8EA] flex-col min-h-0 bg-[#F3F7F5]", showList || !active ? "flex" : "hidden min-[860px]:flex")}>
+          {/* The same doodle wallpaper as the conversation, a shade lighter behind the list. */}
+          <div aria-hidden className="absolute inset-0 pointer-events-none opacity-70" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
+          <div className={cx(headerBar, "pl-4 pr-2")}>
+            <button className="bg-transparent border-0 p-0 mr-3 cursor-pointer rounded-full ring-2 ring-white/30" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={38} /></button>
+            <div className="min-w-0 mr-auto"><div className="font-semibold text-[19px] leading-tight tracking-[-.01em]">Chats</div><div className="text-[12px] text-white/75 flex items-center gap-1"><span className="size-1.5 rounded-full bg-[#5EEAD4]" />{online + 1} online</div></div>
+            <SoundToggle light />
+            <button type="button" className={iconBtnBar} title="Back up your chats to your Google Drive" aria-label="Chat backup" onClick={() => setModal("backup")}><Ic n="cloud" /></button>
+            <button type="button" className="flex-none size-10 ml-0.5 rounded-full flex items-center justify-center bg-white text-[#0B5E5B] border-0 cursor-pointer hover:bg-[#E6F4F1] shadow-sm" title="New chat or group" aria-label="New chat" onClick={() => setModal("new")}><Ic n="plus" /></button>
           </div>
-          <div className="overflow-y-auto flex-1" role="list">
-            {channels.length ? <div className="px-3 pt-2 pb-1 text-[10.5px] font-bold tracking-[.1em] text-[#94A3B8]">CHANNELS</div> : null}
+          <div className="relative px-3 py-2.5 bg-white/85 backdrop-blur-sm border-b border-[#E3E8EA]">
+            <label className="flex items-center gap-2.5 bg-[#F0F2F5] rounded-full px-3.5 h-10 text-[#667781] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0B5E5B]/25">
+              <Ic n="search" s={17} />
+              <input className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#111B21] placeholder:text-[#8696A0]" placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} />
+            </label>
+          </div>
+          <div className="relative overflow-y-auto flex-1 pt-2 [scrollbar-width:thin]" role="list">
+            <BackupPrompt b={d.backup} />
+            {channels.length ? <div className="px-4 pt-2 pb-1.5 text-[11px] font-semibold tracking-[.08em] text-[#0B8A7A]">CHANNELS</div> : null}
             {channels.map(row)}
-            {dms.length ? <div className="px-3 pt-3 pb-1 text-[10.5px] font-bold tracking-[.1em] text-[#94A3B8]">DIRECT MESSAGES</div> : null}
+            {dms.length ? <div className="px-4 pt-4 pb-1.5 text-[11px] font-semibold tracking-[.08em] text-[#0B8A7A]">DIRECT MESSAGES</div> : null}
             {dms.map(row)}
-            {!channels.length && !dms.length ? <Empty>{chats.length ? "No chats match." : "No chats yet. Press + New to message a colleague."}</Empty> : null}
+            {!channels.length && !dms.length ? <Empty>{chats.length ? "No chats match." : "No chats yet. Press + to message a colleague."}</Empty> : null}
           </div>
         </div>
 
-        <div className={cx("flex-col min-h-0 bg-[#F8FAFC]", !showList && active ? "flex" : "hidden min-[860px]:flex")}>
+        <div className={cx("flex-col min-h-0 bg-[#EAEFEC] relative", !showList && active ? "flex" : "hidden min-[860px]:flex")}>
+          {/* WhatsApp-style doodle wallpaper behind the messages. */}
+          <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
           {chat ? (
             <>
-              <div className="bg-white border-b border-[#E2E8F0] px-3 py-2.5 flex items-center gap-2.5">
-                <button className="min-[860px]:hidden bg-transparent border-0 cursor-pointer text-[18px]" aria-label="Back to chats" onClick={() => setShowList(true)}>←</button>
-                <button className="flex items-center gap-2.5 bg-transparent border-0 p-0 cursor-pointer text-left min-w-0 mr-auto" onClick={() => chat.kind === "group" && setModal("info")} aria-label={chat.kind === "group" ? "Group info" : chat.title}>
-                  <Face name={chat.title} photo={chat.photo} avatar={chat.kind === "dm" ? chat.avatar : ""} size={36} square={chat.kind === "group"} status={chat.kind === "dm" ? (pres[chat.withId ?? ""] ?? "offline") : undefined} />
-                  <span className="min-w-0"><span className="block font-bold text-[14px] truncate">{chat.title}</span><span className="block text-[11.5px] text-[#64748B] truncate">{typingNames.length ? <span className="text-[#0B5E5B]">{typingNames.join(", ")} typing…</span> : sub}</span></span>
+              <div className={cx(headerBar, "pl-2 pr-2 min-[860px]:pl-4")}>
+                <button className={cx(iconBtnBar, "min-[860px]:hidden")} aria-label="Back to chats" onClick={() => setShowList(true)}><Ic n="back" s={22} /></button>
+                <button className="flex items-center gap-3 bg-transparent border-0 p-0 cursor-pointer text-left min-w-0 mr-auto" onClick={() => chat.kind === "group" && setModal("info")} aria-label={chat.kind === "group" ? "Group info" : chat.title}>
+                  <Face name={chat.title} photo={chat.photo} avatar={chat.kind === "dm" ? chat.avatar : ""} size={42} status={chat.kind === "dm" ? (pres[chat.withId ?? ""] ?? "offline") : undefined} />
+                  <span className="min-w-0"><span className="block font-semibold text-[16.5px] truncate leading-tight">{chat.title}</span><span className="block text-[12.5px] text-white/75 truncate">{typingNames.length ? <span className="text-[#A7F3E4] font-medium">{typingNames.join(", ")} typing…</span> : sub}</span></span>
                 </button>
-                <button className={btnCls} onClick={() => { setFindOpen((o) => !o); setFind(""); }} aria-label="Search in this chat" aria-pressed={findOpen}>🔍</button>
-                <button className={btnCls} onClick={() => setModal("poll")} aria-label="Create a poll">📊 Poll</button>
-                <button className={btnCls} onClick={() => void meet()} disabled={sending} title={d.google ? "Start a Google Meet call" : "Connect Google Calendar first"}>📹 Meet</button>
-                {chat.kind === "group" ? <button className={btnCls} onClick={() => setModal("info")}>Info</button> : null}
+                <button className={iconBtnBar} onClick={() => void meet()} disabled={sending} aria-label="Start a video call" title={d.google ? "Start a Google Meet call" : "Connect Google Calendar first"}><Ic n="video" /></button>
+                <button className={iconBtnBar} onClick={() => setModal("poll")} aria-label="Create a poll" title="Create a poll"><Ic n="poll" /></button>
+                <button className={iconBtnBar} onClick={() => { setFindOpen((o) => !o); setFind(""); }} aria-label="Search in this chat" title="Search in this chat" aria-pressed={findOpen}><Ic n="search" /></button>
+                {chat.kind === "group" ? <button className={iconBtnBar} onClick={() => setModal("info")} aria-label="Group info" title="Group info"><Ic n="info" /></button> : null}
               </div>
-              {findOpen ? <div className="bg-white border-b border-[#E2E8F0] px-3 py-2"><input className={inputCls} autoFocus placeholder="Search in this chat" aria-label="Search in this chat" value={find} onChange={(e) => setFind(e.target.value)} /></div> : null}
-              <div ref={log} onScroll={(e) => { const el = e.currentTarget; pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" aria-live="polite">
+              {findOpen ? <div className="relative bg-[#F7F8F8] border-b border-[#E3E8EA] px-4 py-2"><label className="flex items-center gap-2.5 bg-white rounded-full px-3.5 h-9 text-[#667781] ring-1 ring-[#E3E8EA]"><Ic n="search" s={16} /><input className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#111B21]" autoFocus placeholder="Search in this chat" aria-label="Search in this chat" value={find} onChange={(e) => setFind(e.target.value)} /></label></div> : null}
+              <div ref={log} onScroll={(e) => { const el = e.currentTarget; pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="relative flex-1 overflow-y-auto px-[4%] max-[560px]:px-2.5 py-3 flex flex-col [scrollbar-width:thin]" aria-live="polite">
                 {shown.length ? shown.map((m, i) => {
-                  const who = byId.get(m.senderId);
+                  const who = byId.get(m.senderId), prev = shown[i - 1];
+                  const newDay = i === 0 || dayKey(prev.at) !== dayKey(m.at);
+                  const cont = !newDay && prev.senderId === m.senderId && prev.kind !== "milestone" && m.kind !== "milestone" && Date.parse(m.at) - Date.parse(prev.at) < 10 * 60_000;
                   return (
-                    <div key={m.id} className="flex flex-col gap-1.5">
-                      {i === 0 || dayKey(shown[i - 1].at) !== dayKey(m.at) ? <div className="self-center text-[11px] bg-[#E2E8F0] text-[#475569] rounded-full px-3 py-0.5 my-1">{dayLong(m.at)}</div> : null}
-                      {m.kind === "milestone" ? <MilestoneBanner m={m} reactions={d.reactions} onReact={(e) => void react(m.id, e)} /> : <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? { photo: pulsePhoto(m.senderId) }} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
-                        onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />}
+                    <div key={m.id} className="flex flex-col">
+                      {newDay ? <div className="sticky top-0 z-[1] self-center text-[12px] font-medium bg-white/95 text-[#54656F] rounded-lg px-3 py-1 my-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">{dayLong(m.at)}</div> : null}
+                      {m.kind === "milestone" ? <div className="my-2 flex justify-center"><MilestoneBanner m={m} reactions={d.reactions} onReact={(e) => void react(m.id, e)} /></div> : <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? { photo: pulsePhoto(m.senderId) }} read={m.seq <= readUpTo} group={chat.kind === "group"} cont={cont} reactions={d.reactions}
+                        onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onEdit={(b) => edit(m.id, b)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />}
                     </div>
                   );
-                }) : <Empty>{find ? "No messages match your search." : "Say hello 👋"}</Empty>}
-                {typingNames.length ? <div className="text-[12px] text-[#64748B] italic">{typingNames.join(", ")} {typingNames.length > 1 ? "are" : "is"} typing…</div> : null}
+                }) : <div className="m-auto text-[13px] text-[#54656F] bg-white/90 rounded-lg px-4 py-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">{find ? "No messages match your search." : "No messages yet. Say hello 👋"}</div>}
+                {typingNames.length ? <div className="mt-2 self-start text-[12.5px] text-[#54656F] bg-white rounded-[10px] rounded-tl-[3px] px-3 py-1.5 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">{typingNames.join(", ")} {typingNames.length > 1 ? "are" : "is"} typing…</div> : null}
               </div>
-              <div className="bg-white border-t border-[#E2E8F0] p-2.5 flex gap-2 items-end">
+              <div className="relative bg-[#F0F2F5] px-2 min-[860px]:px-4 py-2.5 flex gap-1 items-end flex-none">
                 <input ref={file} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose a picture" onChange={(e) => void sendPicture(e.target.files?.[0])} />
-                <button className={btnCls} onClick={() => file.current?.click()} disabled={sending} aria-label="Send a picture">📷</button>
+                <button className={iconBtn} onClick={() => file.current?.click()} disabled={sending} aria-label="Send a picture" title="Send a picture"><Ic n="camera" s={22} /></button>
                 <input ref={doc} type="file" accept={DOC_ACCEPT} className="hidden" aria-label="Choose a document" onChange={(e) => void sendDocument(e.target.files?.[0])} />
-                <button className={btnCls} onClick={() => doc.current?.click()} disabled={sending} aria-label="Send a PDF or Word document" title="Send a PDF or Word document (10 MB at most). Text in the box goes with it as a caption.">📎</button>
-                <textarea className={cx(inputCls, "resize-none max-h-[120px]")} rows={1} placeholder="Type a message" aria-label="Message" value={draft} maxLength={4000}
+                <button className={iconBtn} onClick={() => doc.current?.click()} disabled={sending} aria-label="Send a PDF or Word document" title="Send a PDF or Word document (10 MB at most). Text in the box goes with it as a caption."><Ic n="clip" s={21} /></button>
+                <textarea className="flex-1 min-w-0 mx-1 resize-none max-h-[140px] min-h-[42px] bg-white rounded-[21px] border-0 outline-none px-4 py-[10px] text-[14.5px] leading-[22px] text-[#111B21] placeholder:text-[#8696A0] shadow-[0_1px_.5px_rgba(11,20,26,.08)] focus:ring-2 focus:ring-[#0B5E5B]/20" rows={1} placeholder="Type a message" aria-label="Message" value={draft} maxLength={4000}
                   onChange={(e) => onType(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} />
-                <button className={primaryCls} onClick={() => void send()} disabled={sending || !draft.trim()}>Send</button>
+                <button className="flex-none size-[42px] rounded-full flex items-center justify-center bg-[#0B5E5B] text-white border-0 cursor-pointer hover:bg-[#094A48] disabled:bg-[#9DB8B5] disabled:cursor-default transition-colors" onClick={() => void send()} disabled={sending || !draft.trim()} aria-label="Send" title="Send"><Ic n="send" s={20} /></button>
               </div>
             </>
-          ) : <div className="m-auto text-center text-[#64748B] text-[14px] p-6">Choose a chat, or press <b>+ New</b> to message a colleague.</div>}
+          ) : (
+            <div className="relative m-auto text-center p-8 max-w-[380px]">
+              <div className="mx-auto mb-4 size-20 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-[#0B5E5B]"><Ic n="send" s={34} /></div>
+              <div className="text-[22px] font-semibold text-[#111B21]">Medoro Team Chat</div>
+              <p className="text-[13.5px] text-[#54656F] mt-1.5">Pick a chat on the left, or press <b>+</b> to message a colleague or start a group.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -625,13 +706,14 @@ function BackupPrompt({ b }: { b: Backup }) {
   const show = b.configured && !b.connected && !asked;
   if (!show) return null;
   return (
-    <div role="region" aria-label="Chat backup" className="flex items-center gap-3 flex-wrap bg-[#F2F9F8] border border-[#CFE6E3] rounded-xl px-4 py-3">
-      <span className="text-[20px]" aria-hidden>☁</span>
-      <span className="flex-1 min-w-[220px] text-[13px]"><strong>Back up your chats automatically</strong><span className="block text-[12px] text-[#475569]">Choose your Google account once. Your chats are then saved, encrypted, to your own Google Drive every day.</span></span>
-      <button className={btnCls} onClick={() => setAsked("1")}>Not now</button>
+    <div role="region" aria-label="Chat backup" className="mx-3 mb-2 flex items-start gap-3 bg-white rounded-xl px-3.5 py-3 shadow-[0_1px_2px_rgba(11,20,26,.1)]">
+      <span className="flex-none size-9 rounded-full bg-[#0B5E5B] text-white flex items-center justify-center" aria-hidden><Ic n="cloud" s={18} /></span>
+      <span className="flex-1 min-w-0 text-[13px] text-[#111B21]"><strong className="font-semibold">Back up your chats</strong><span className="block text-[12px] text-[#54656F] mt-0.5">Saved, encrypted, to your own Google Drive every day.</span>
+        <span className="flex gap-2 mt-2"><button className={btnCls} onClick={() => setAsked("1")}>Not now</button>
       {/* A real browser navigation to a route that redirects to Google, so deliberately not next/link. */}
       {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-      <a className={primaryCls} href="/staff/hrms/google/start?for=backup">Turn on</a>
+      <a className={primaryCls} href="/staff/hrms/google/start?for=backup">Turn on</a></span>
+      </span>
     </div>
   );
 }
