@@ -112,9 +112,12 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           <div className="hr-corner absolute right-0 top-0 size-56 -scale-x-100" />
           <div className="hr-corner absolute left-0 bottom-0 size-48 -scale-y-100" />
         </div>
-        <header className="relative flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
+        {/* Team Chat drops the top bar (status, break, night mode, bell, account) so the chat gets the whole screen; on phones only the menu button stays. */}
+        {fullChat ? <header className="relative flex items-center px-3 pt-3 min-[860px]:hidden print:hidden">
+          <button className="border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
+        </header> : <header className="relative flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
           <button className="min-[860px]:hidden border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          {NO_TITLE_SCREENS.includes(screen) || hero || fullChat ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
+          {NO_TITLE_SCREENS.includes(screen) || hero ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
             <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={def?.icon ?? "home"} s={19} /></span>
             <div className="min-w-0"><h1 className="text-[19px] font-bold truncate">{greet}{greet !== title ? <span aria-hidden className="hr-wave inline-block ml-1.5">👋</span> : null}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>
           </div>}
@@ -153,7 +156,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#B3261E] hover:bg-[#FDECEA] cursor-pointer bg-transparent border-0" onClick={() => void hrSignOut()}>Sign out</button>
             </div> : null}
           </div>
-        </header>
+        </header>}
         <main key={screen} className={cx("hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3", fullChat ? "pt-3 pb-4" : "py-4 pb-12")}>{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
