@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
+import { log } from "@/server/log";
 import { getObject, putObject } from "@/server/storage";
 import { dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { TOUR_VIDEOS, partUrl, VIDEO_BASE } from "@/data/tour-videos";
@@ -31,7 +32,7 @@ const settingsSchema = z.object({
   passPct: pct, productQuizPct: pct, lessonQuizPct: pct, practicalPassPct: pct,
   maxAttempts: z.coerce.number().int().min(1).max(10), maxPracticalAttempts: z.coerce.number().int().min(1).max(10),
   hrApproval: z.boolean(), attendanceRequired: z.boolean(), minSlideSeconds: z.coerce.number().int().min(3).max(120),
-  pricingNote: z.string().max(2000), signatory: z.string().max(80),
+  pricingNote: z.string().max(2000), signatory: z.string().max(80), autoEnrol: z.boolean(),
 });
 /** Assessment rules belong to the super admin; HR may change the approved pricing note and the signatory. */
 export async function saveTrainingSettings(me: Me, raw: unknown) {
@@ -56,9 +57,16 @@ async function needProgramme() {
 /** Installs the standard course, or adds the parts that are missing (matched by slug). HR edits are never overwritten. */
 export async function installStandardCourse(me: Me) {
   needManager(me);
+  const added = await installCourse(me.id);
+  await audit(me, "Training · Standard course installed", JSON.stringify(added));
+  return added;
+}
+/** The install itself. One at a time across every server (a database lock), so two first visits can't both install. */
+async function installCourse(byId: string) {
   const c = standardCourse();
   const added = { modules: 0, lessons: 0, questions: 0, scenarios: 0, sessions: 0 };
   await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('medoro-sales-academy-install'))`;
     const p = (await tx.trProgramme.findUnique({ where: { slug: c.slug } })) ?? (await tx.trProgramme.create({ data: { slug: c.slug, title: c.title, description: c.description } }));
     if (!(await tx.trSession.count({ where: { programmeId: p.id } }))) {
       await tx.trSession.createMany({ data: c.sessions.map((s, k) => ({ programmeId: p.id, order: k, start: s.start, end: s.end, title: s.title, kind: s.kind, moduleSlug: s.moduleSlug ?? "" })) });
@@ -75,7 +83,7 @@ export async function installStandardCourse(me: Me) {
           les = await tx.trLesson.create({ data: {
             programmeId: p.id, moduleId: mod.id, order: li, slug: l.slug, title: l.title, summary: l.summary, mandatory: l.mandatory ?? true, durationMin: l.durationMin,
             videoKind: l.video ? "official" : "none", videoRef: l.video?.ref ?? "", videoSeconds: part?.seconds ?? 0, completionPct: 90,
-            slides: json(l.slides), transcript: l.transcript ?? l.slides.map((s) => s.narration).join("\n\n"), content: json(l.content), updatedById: me.id,
+            slides: json(l.slides), transcript: l.transcript ?? l.slides.map((s) => s.narration).join("\n\n"), content: json(l.content), updatedById: byId,
           } });
           added.lessons++;
           await tx.trQuestion.createMany({ data: l.quiz.map((q, k) => ({ programmeId: p.id, scope: "lesson", lessonId: les!.id, area: q.area ?? "product", order: k, prompt: q.prompt, options: json(q.options), answer: q.answer, explanation: q.explanation })) });
@@ -98,9 +106,67 @@ export async function installStandardCourse(me: Me) {
       added.scenarios++;
     }
   }, { timeout: 60_000 });
-  await audit(me, "Training · Standard course installed", JSON.stringify(added));
   return added;
 }
+
+// ── Automatic: the course installs itself, and the sales team is enrolled without HR doing anything
+const SYSTEM = { id: null, name: "System (automatic)" };
+let installed = false; // per server instance: once the programme exists, stop checking
+/** Makes sure the standard course exists. Cheap after the first call on a server; never throws into a page. */
+export async function ensureAcademy() {
+  if (installed) return true;
+  try {
+    if (!(await programme())) {
+      const added = await installCourse("");
+      if (added.lessons) await audit(SYSTEM, "Training · Standard course installed automatically", JSON.stringify(added));
+    }
+    installed = true;
+  } catch (e) {
+    log.error("sales academy auto-install failed", { err: e });
+  }
+  return installed;
+}
+const AUTO_BATCH_KEY = "trainingAutoBatch";
+const autoBatchId = async () => ((await db.hrSetting.findUnique({ where: { key: AUTO_BATCH_KEY } }))?.value as { id?: string } | undefined)?.id ?? "";
+/** The batch new sales employees join automatically ("self-paced"; HR can move people into dated batches). */
+async function autoBatch(programmeId: string) {
+  const saved = (await db.hrSetting.findUnique({ where: { key: AUTO_BATCH_KEY } }))?.value as { id?: string } | undefined;
+  const found = saved?.id ? await db.trBatch.findUnique({ where: { id: saved.id } }) : null;
+  if (found && found.programmeId === programmeId) return found;
+  const b = await db.trBatch.create({ data: { programmeId, name: "Sales Academy · self-paced", trainingDate: dateOnly(todayISO()), trainerId: "", note: "Every sales employee joins this batch automatically. HR reviews practicals until a trainer is set; move people into a dated batch with a trainer when you schedule one.", createdById: "" } });
+  await db.hrSetting.upsert({ where: { key: AUTO_BATCH_KEY }, create: { key: AUTO_BATCH_KEY, value: json({ id: b.id }) }, update: { value: json({ id: b.id }) } });
+  await audit(SYSTEM, "Training · Self-paced batch created");
+  return b;
+}
+/**
+ * Enrols active sales employees (Sales role or Sales department) who aren't in the programme yet: everyone, or just the
+ * listed people. Skipped when HR switched automatic enrolment off. Returns how many were enrolled.
+ */
+export async function autoEnrol(only?: string[]) {
+  try {
+    if (!(await trainingSettings()).autoEnrol) return 0;
+    if (!(await ensureAcademy())) return 0;
+    const p = await programme();
+    if (!p) return 0;
+    const people = (await staffRows(only)).filter((s) => s.status === "active" && isSalesPerson(s));
+    if (!people.length) return 0;
+    const have = new Set((await db.trAssignment.findMany({ where: { programmeId: p.id, staffId: { in: people.map((x) => x.id) } }, select: { staffId: true } })).map((a) => a.staffId));
+    const todo = people.filter((x) => !have.has(x.id));
+    if (!todo.length) return 0;
+    const b = await autoBatch(p.id);
+    const r = await db.trAssignment.createMany({ data: todo.map((x) => ({ batchId: b.id, programmeId: p.id, staffId: x.id, createdById: "" })), skipDuplicates: true });
+    if (r.count) {
+      await notify(todo.map((x) => x.id), "The Medoro Sales Training Academy is now in your HRMS. Open My Sales Training to start.", "training");
+      await audit(SYSTEM, "Training · Sales employees enrolled automatically", todo.map((x) => x.name).join(", ").slice(0, 900));
+    }
+    return r.count;
+  } catch (e) {
+    log.error("sales academy auto-enrol failed", { err: e });
+    return 0;
+  }
+}
+/** Whether this signed-in person should be enrolled automatically (checked on each page; cheap). */
+export const isSalesMe = (me: Me) => me.role === "sales" || me.dept.trim().toLowerCase() === "sales";
 
 const slideSchema = z.object({ title: z.string().trim().min(1, "Every slide needs a title.").max(160), bullets: z.array(z.string().trim().max(600)).max(12), narration: z.string().max(4000) });
 const lessonSchema = z.object({
@@ -257,7 +323,7 @@ async function staffRows(ids?: string[]): Promise<StaffRow[]> {
 /** The programme is for the sales team: the Sales role or the Sales department. */
 export const isSalesPerson = (s: StaffRow) => s.hrRole === "sales" || s.dept.trim().toLowerCase() === "sales";
 
-const batchSchema = z.object({ name: z.string().trim().min(2, "Name the batch.").max(120), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the training date."), trainerId: z.string().min(1, "Choose a trainer."), note: z.string().max(500).default("") });
+const batchSchema = z.object({ name: z.string().trim().min(2, "Name the batch.").max(120), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the training date."), trainerId: z.string(), note: z.string().max(500).default("") });
 async function checkTrainer(trainerId: string) {
   const [t] = await staffRows([trainerId]);
   if (!t || t.status !== "active") throw new UserError("Choose an active team member as the trainer.");
@@ -266,6 +332,7 @@ async function checkTrainer(trainerId: string) {
 export async function createBatch(me: Me, raw: unknown, staffIds: string[]) {
   needManager(me);
   const i = batchSchema.parse(raw);
+  if (!i.trainerId) throw new UserError("Choose a trainer.");
   const p = await needProgramme();
   const trainer = await checkTrainer(i.trainerId);
   const b = await db.trBatch.create({ data: { programmeId: p.id, name: i.name, trainingDate: dateOnly(i.date), trainerId: trainer.id, note: i.note, createdById: me.id } });
@@ -279,12 +346,13 @@ export async function updateBatch(me: Me, id: string, raw: unknown, status: "sch
   const i = batchSchema.parse(raw);
   const b = await db.trBatch.findUnique({ where: { id } });
   if (!b) throw new UserError("Batch not found.");
-  const trainer = await checkTrainer(i.trainerId);
-  await db.trBatch.update({ where: { id }, data: { name: i.name, trainingDate: dateOnly(i.date), trainerId: trainer.id, note: i.note, status } });
-  if (trainer.id !== b.trainerId) await notify([trainer.id], `You are now the trainer for the Sales Academy batch “${i.name}”.`, "trdesk");
-  await audit(me, "Training · Batch updated", `${i.name} · ${i.date} · ${status}`);
+  // No trainer is allowed (HR reviews practicals), as on the self-paced batch.
+  const trainer = i.trainerId ? await checkTrainer(i.trainerId) : null;
+  await db.trBatch.update({ where: { id }, data: { name: i.name, trainingDate: dateOnly(i.date), trainerId: trainer?.id ?? "", note: i.note, status } });
+  if (trainer && trainer.id !== b.trainerId) await notify([trainer.id], `You are now the trainer for the Sales Academy batch “${i.name}”.`, "trdesk");
+  await audit(me, "Training · Batch updated", `${i.name} · ${i.date} · ${trainer?.name ?? "no trainer"} · ${status}`);
 }
-/** Adds people to a batch. Only active sales staff; someone already assigned to the programme is skipped (one assignment per person keeps all their attempts together). */
+/** Adds people to a batch. Only active sales staff; someone in the self-paced batch is moved here; anyone else already assigned is skipped (one assignment per person keeps all their attempts together). */
 export async function assign(me: Me, batchId: string, staffIds: string[]) {
   needManager(me);
   const b = await db.trBatch.findUnique({ where: { id: batchId } });
@@ -292,15 +360,23 @@ export async function assign(me: Me, batchId: string, staffIds: string[]) {
   const ids = [...new Set(z.array(z.string().min(1)).max(200).parse(staffIds))];
   if (!ids.length) throw new UserError("Choose at least one employee.");
   const people = await staffRows(ids);
-  const existing = new Set((await db.trAssignment.findMany({ where: { programmeId: b.programmeId, staffId: { in: ids } }, select: { staffId: true } })).map((a) => a.staffId));
+  const existing = new Map((await db.trAssignment.findMany({ where: { programmeId: b.programmeId, staffId: { in: ids } }, select: { id: true, staffId: true, batchId: true } })).map((a) => [a.staffId, a]));
+  const selfPaced = await autoBatchId();
   const added: string[] = [], skipped: { name: string; why: string }[] = [];
   for (const id of ids) {
     const s = people.find((x) => x.id === id);
     if (!s) { skipped.push({ name: id, why: "not found" }); continue; }
     if (s.status !== "active") { skipped.push({ name: s.name, why: "not active" }); continue; }
     if (!isSalesPerson(s)) { skipped.push({ name: s.name, why: "not in the sales team (Sales role or Sales department)" }); continue; }
-    if (existing.has(id)) { skipped.push({ name: s.name, why: "already assigned" }); continue; }
     if (id === b.trainerId) { skipped.push({ name: s.name, why: "is this batch's trainer" }); continue; }
+    const had = existing.get(id);
+    if (had) {
+      // Someone enrolled automatically moves from the self-paced batch into this one, keeping all their progress.
+      if (had.batchId !== selfPaced || batchId === selfPaced) { skipped.push({ name: s.name, why: "already assigned" }); continue; }
+      await db.trAssignment.update({ where: { id: had.id }, data: { batchId } });
+      added.push(s.name);
+      continue;
+    }
     try {
       await db.trAssignment.create({ data: { batchId, programmeId: b.programmeId, staffId: id, createdById: me.id } });
       added.push(s.name);
@@ -417,12 +493,15 @@ export async function myTraining(me: Me) {
   ]);
   const trainer = (await staffRows([b.trainerId]))[0];
   const ev = await evaluationOf(a.id);
+  // The self-paced batch has no fixed day: its timetable is today's.
+  const selfPaced = b.id === (await autoBatchId());
+  const day = selfPaced ? todayISO() : isoOf(b.trainingDate);
   const prog = Object.fromEntries(progress.map((x) => [x.lessonId, { done: !!x.completedAt, lastPos: x.lastPos, watched: x.segs ? Math.round((x.segs.split("").filter((c) => c === "1").length / Math.max(1, x.segs.length)) * 100) : 0, seconds: x.seconds }]));
   const used = (k: string) => attempts.filter((t) => t.kind === k).length;
   return {
     me: { name: me.name },
     assignment: { id: a.id, attendance: a.attendance, trainerFeedback: a.trainerFeedback, trainerDecision: a.trainerDecision, hrDecision: a.hrDecision, decisionNote: a.decisionNote },
-    batch: { name: b.name, date: isoOf(b.trainingDate), trainer: trainer?.name ?? "", status: b.status, isToday: isoOf(b.trainingDate) === todayISO() },
+    batch: { name: b.name, date: day, selfPaced, trainer: trainer?.name ?? (b.trainerId ? "" : "HR (no trainer set yet)"), status: b.status, isToday: day === todayISO() },
     programme: { title: p.title, description: p.description },
     settings: { passPct: settings.passPct, productQuizPct: settings.productQuizPct, lessonQuizPct: settings.lessonQuizPct, practicalPassPct: settings.practicalPassPct, hrApproval: settings.hrApproval, pricingNote: settings.pricingNote, attemptsLeft: { product: Math.max(0, settings.maxAttempts + a.extraAttempts - used("product")), final: Math.max(0, settings.maxAttempts + a.extraAttempts - used("final")) }, practicalAttemptsLeft: { mock_call: Math.max(0, settings.maxPracticalAttempts + a.extraAttempts - practicals.filter((x) => x.kind === "mock_call").length), demo: Math.max(0, settings.maxPracticalAttempts + a.extraAttempts - practicals.filter((x) => x.kind === "demo").length) } },
     modules: mods, progress: prog,
@@ -599,7 +678,9 @@ export async function submitPractical(me: Me, raw: unknown) {
   if (prev.length >= settings.maxPracticalAttempts + a.extraAttempts) throw new UserError("No attempts left. HR can allow a retake under company policy.");
   await db.trPractical.create({ data: { assignmentId: a.id, kind: i.kind, scenarioId: i.kind === "mock_call" ? i.scenarioId! : null, attemptNo: prev.length + 1, submission: i.submission, link: i.link, maxScore: rubricMax(i.kind) } });
   const b = await db.trBatch.findUniqueOrThrow({ where: { id: a.batchId } });
-  await notify([b.trainerId], `${me.name} submitted the ${practicalLabel(i.kind).toLowerCase()} for review.`, "trdesk");
+  // No trainer on the batch yet (the self-paced batch): HR with the training module scores it.
+  const reviewers = b.trainerId ? [b.trainerId] : (await holders("training")).filter((x) => x !== me.id);
+  await notify(reviewers, `${me.name} submitted the ${practicalLabel(i.kind).toLowerCase()} for review.`, b.trainerId ? "trdesk" : "academy");
 }
 
 // ── Trainer and HR
@@ -727,7 +808,7 @@ async function participantRows(where: Prisma.TrAssignmentWhereInput) {
   return as.map((a) => {
     const ev = evs.get(a.id)!, s = people.find((p) => p.id === a.staffId), b = batches.find((x) => x.id === a.batchId)!, c = certs.find((x) => x.assignmentId === a.id);
     return {
-      id: a.id, staffId: a.staffId, name: s?.name ?? "", empNo: s?.empNo ?? "", dept: s?.dept ?? "", batchId: b.id, batch: b.name, date: isoOf(b.trainingDate), trainer: trainers.find((t) => t.id === b.trainerId)?.name ?? "", trainerId: b.trainerId,
+      id: a.id, staffId: a.staffId, name: s?.name ?? "", empNo: s?.empNo ?? "", dept: s?.dept ?? "", batchId: b.id, batch: b.name, date: isoOf(b.trainingDate), trainer: trainers.find((t) => t.id === b.trainerId)?.name ?? (b.trainerId ? "" : "HR (no trainer yet)"), trainerId: b.trainerId,
       attendance: a.attendance, extraAttempts: a.extraAttempts, trainerDecision: a.trainerDecision, trainerFeedback: a.trainerFeedback, hrDecision: a.hrDecision, decisionNote: a.decisionNote,
       pct: ev.pct, lessonsDone: ev.lessonsDone, lessonsTotal: ev.lessonsTotal, tourDone: ev.tourDone, tourTotal: ev.tourTotal, score: ev.score, marks: ev.marks, status: ev.status, ready: ev.ready, req: ev.req,
       productPct: ev.product?.pct ?? null, finalPct: ev.final?.pct ?? null, mock: ev.mock ? `${ev.mock.score}/${ev.mock.maxScore}` : "", demo: ev.demo ? `${ev.demo.score}/${ev.demo.maxScore}` : "",
@@ -747,6 +828,8 @@ export async function trainerDesk(me: Me) {
 
 export async function academy(me: Me) {
   needManager(me);
+  await autoEnrol(); // installs the course if needed and enrols any sales employee not in it yet
+  const selfPacedId = await autoBatchId();
   const p = await programme();
   const settings = await trainingSettings();
   const all = await staffRows();
@@ -770,7 +853,7 @@ export async function academy(me: Me) {
     questions: questions.map((q) => ({ id: q.id, scope: q.scope, lessonId: q.lessonId, area: q.area, order: q.order, prompt: q.prompt, options: q.options as string[], answer: q.answer, explanation: q.explanation, status: q.status })),
     scenarios: scenarios.map((s) => ({ id: s.id, title: s.title, persona: s.persona, situation: s.situation, script: s.script as { who: "customer" | "coach"; text: string }[], goals: s.goals as string[], status: s.status })),
     sessions: sessions.map((s) => ({ start: s.start, end: s.end, title: s.title, kind: s.kind, moduleSlug: s.moduleSlug })),
-    batches: batches.map((b) => ({ id: b.id, name: b.name, date: isoOf(b.trainingDate), trainerId: b.trainerId, trainer: all.find((s) => s.id === b.trainerId)?.name ?? "", status: b.status, note: b.note, count: rows.filter((r) => r.batchId === b.id).length })),
+    batches: batches.map((b) => ({ id: b.id, name: b.name, selfPaced: b.id === selfPacedId, date: isoOf(b.trainingDate), trainerId: b.trainerId, trainer: all.find((s) => s.id === b.trainerId)?.name ?? (b.trainerId ? "" : "HR (no trainer yet)"), status: b.status, note: b.note, count: rows.filter((r) => r.batchId === b.id).length })),
     rows,
     certificates: certs.map((c) => ({ id: c.id, certNo: c.certNo, name: rows.find((r) => r.id === c.assignmentId)?.name ?? "", empNo: rows.find((r) => r.id === c.assignmentId)?.empNo ?? "", score: c.score, issuedAt: c.issuedAt.toISOString(), revoked: !!c.revokedAt, revokedReason: c.revokedReason, verifyCode: c.verifyCode })),
     officialParts: TOUR_VIDEOS.filter((v) => v.kind === "part").map((v) => ({ slug: v.slug, title: v.title, seconds: v.seconds })),

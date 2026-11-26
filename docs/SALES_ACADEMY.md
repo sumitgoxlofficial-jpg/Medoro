@@ -13,25 +13,38 @@ a broken video, a blocked video host, a fake PDF and phone width; about 5 minute
 |---|---|---|
 | Employee with an assignment | **My Sales Training** (WORK) | Schedule, lessons, official product tour, lesson checks, product quiz, final exam, practical submissions, results, certificate PDF |
 | A batch's trainer (any team member HR picks) | **Trainer Desk** (TEAM) | Their batches only: attendance, score practicals against the rubric, recommend or send back, feedback |
-| HR (the new **Sales Academy** module in Roles & Permissions; on by default for HR) | **Sales Academy** (PEOPLE) | Install the course, batches and assignments, course builder, video & PPT library, quizzes, scenarios, scoring, HR approval, certificates, reports, pricing note |
+| HR (the new **Sales Academy** module in Roles & Permissions; on by default for HR) | **Sales Academy** (PEOPLE) | Everyone enrolled automatically, batches and assignments, course builder, video & PPT library, quizzes, scenarios, scoring, HR approval, certificates, reports, pricing note |
 | Super admin | Sales Academy + Settings | Everything above, plus the assessment rules (pass marks, attempts, HR approval, attendance) |
 
 The menu items only appear for the people they concern. Nobody can assess, approve or certify their own training; an
 employee can only ever load their own assignment, and answer keys never reach the browser before grading.
 
-## First batch: exact steps for HR
+## Automatic: nothing to install or assign
 
-1. **Sales Academy → Install the standard course** (once). It loads the timetable, 13 modules / 38 lessons (26 official
-   tour chapters + 12 lectures), 26 product-quiz questions, the final exam, lesson checks and 7 role-play scenarios. Nobody is assigned.
-2. **Settings** tab: write the *approved pricing and offers* sales staff may quote and the certificate signatory. (The super
+* **The course installs itself** the first time anyone opens the HRMS after a deploy: the timetable, 13 modules / 38 lessons
+  (26 official tour chapters + 12 lectures), 26 product-quiz questions, the final exam, lesson checks and 7 role-play
+  scenarios. A database lock makes sure two servers never install it twice. It is logged in Audit Logs as
+  *installed automatically*. (If it ever fails, the server log says why and HR sees an **Install the standard course** button.)
+* **Every active sales employee is enrolled automatically** (Sales role or Sales department), into the batch
+  **Sales Academy · self-paced**: on their own first visit to the HRMS, and whenever HR opens Sales Academy. They get a
+  notification and **My Sales Training** appears in their menu. People outside sales, and deactivated people, are not enrolled.
+* The self-paced batch has **no trainer**: HR is notified of practicals and scores them, and gives attendance and the
+  trainer recommendation, until HR sets a trainer on the batch (Training Batches → Edit).
+* HR can switch this off under **Settings → Enrol sales employees automatically** (on by default). Anyone already enrolled stays.
+
+## Scheduling a day with a trainer: exact steps for HR
+
+1. **Settings** tab: write the *approved pricing and offers* sales staff may quote and the certificate signatory. (The super
    admin sets pass marks and attempts; defaults: 80/100 overall, 80% product quiz, 70% lesson checks and practicals, 3 attempts.)
-3. **Training Batches**: name, training date, trainer, tick the employees → **Create batch & assign**. Only active people
-   with the Sales role or in the Sales department can be assigned, once each; the trainer and employees get a notification.
-4. On the day the employee works through **My Sales Training**. The trainer marks attendance and scores the mock call and
+2. **Training Batches**: name, training date, trainer, tick the employees → **Create batch & assign**. Only active people
+   with the Sales role or in the Sales department can be assigned. People in the self-paced batch (marked *self-paced*)
+   **move** into the new batch with all their progress; anyone already in another dated batch is skipped. The trainer and
+   employees get a notification.
+3. On the day the employee works through **My Sales Training**. The trainer marks attendance and scores the mock call and
    demo on the **Trainer Desk**, then presses **Recommend for certificate** (possible only when every requirement is met).
-5. HR sees the person under **Training Overview → Waiting for HR approval** → **Approve & issue**. The certificate is
+4. HR sees the person under **Training Overview → Waiting for HR approval** → **Approve & issue**. The certificate is
    generated at that moment, appears in the employee's My Certificates, and can be downloaded as a PDF.
-6. **Training Reports → Download employee-wise report (CSV)** at any time.
+5. **Training Reports → Download employee-wise report (CSV)** at any time.
 
 ## Design
 

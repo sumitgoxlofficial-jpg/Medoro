@@ -30,10 +30,11 @@ const P: Record<"hr" | "trainer" | "sam" | "priya" | "om", Person> = {
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-async function seedPeople() {
+const LATE: Person = { empNo: `MS-L${tag}`, name: `Lata ${tag}`, role: "employee", dept: "Sales", staffRole: "employee" };
+let n = 0;
+async function seedPeople(people: Person[] = Object.values(P)) {
   const passwordHash = await hash(PW, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
-  let n = 0;
-  for (const p of Object.values(P)) {
+  for (const p of people) {
     n++;
     await db().staffUser.create({ data: {
       empNo: p.empNo, name: p.name, email: `${p.empNo.toLowerCase()}@medoro.in`, kind: "team", phone: `98${String(Date.now()).slice(-7)}${n}`, role: p.staffRole, status: "active", passwordHash,
@@ -71,12 +72,17 @@ test("Sales Academy: HR set-up, real learning, assessments, trainer review, HR a
   test.setTimeout(20 * 60_000);
   await seedPeople();
 
-  // ── HR: install, settings, batches
+  // ── HR: the course is already there (installed automatically) and the sales team enrolled; settings, batches
   const hr = await signIn(browser, P.hr);
   await hr.goto("/staff/hrms/academy");
-  await hr.getByRole("button", { name: /Install the standard course/ }).click();
-  await toast(hr, /Installed: 38 lessons/);
   await expect(hr.getByRole("button", { name: "Training Overview" })).toBeVisible();
+  await expect(hr.getByRole("button", { name: /Install the standard course/ })).toHaveCount(0);
+  expect(await db().trLesson.count()).toBe(38);
+  const selfPaced = await db().trBatch.findFirstOrThrow({ where: { name: "Sales Academy · self-paced" } });
+  for (const p of [P.sam, P.priya]) expect((await assignment(p)).batchId).toBe(selfPaced.id);
+  expect(await db().trAssignment.count({ where: { staffId: { in: [await staffId(P.om), await staffId(P.hr), await staffId(P.trainer)] } } })).toBe(0);
+  await hr.getByRole("button", { name: "Training Batches" }).click();
+  await expect(hr.locator("tr").filter({ hasText: "Sales Academy · self-paced" })).toContainText("HR (no trainer yet)");
 
   await hr.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(field(hr, /^Final score to pass/)).toBeDisabled(); // rules are the super admin's
@@ -176,6 +182,15 @@ test("Sales Academy: HR set-up, real learning, assessments, trainer review, HR a
   await expect(om.getByText("No training has been assigned to you.")).toBeVisible();
   await om.goto("/staff/hrms/academy");
   await expect(om).not.toHaveURL(/academy/);
+
+  // ── A sales employee who joins later has the course on their first visit, with no HR step
+  await seedPeople([LATE]);
+  const lata = await signIn(browser, LATE);
+  await expect(lata.getByRole("link", { name: "My Sales Training" })).toBeVisible();
+  await lata.goto("/staff/hrms/training");
+  await expect(lata.getByText(/Sales Academy · self-paced · learn at your own pace/)).toBeVisible();
+  expect((await assignment(LATE)).batchId).toBe(selfPaced.id);
+  await lata.context().close();
 
   // ── Employee: real video evidence on an official tour chapter
   const sam = await signIn(browser, P.sam);

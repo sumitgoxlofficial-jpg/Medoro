@@ -77,7 +77,7 @@ function Hero({ t }: { t: T }) {
       <div className="relative flex flex-wrap gap-5 items-center">
         <div className="flex-1 min-w-[240px]">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/12 border border-white/20 px-2.5 py-1 text-[11px] font-semibold tracking-[.05em] uppercase">
-            <Sparkles size={12} className="text-[#F5C451]" />{t.batch.name} · {dayLong(t.batch.date)}{t.batch.isToday ? " · Today" : ""}
+            <Sparkles size={12} className="text-[#F5C451]" />{t.batch.name}{t.batch.selfPaced ? " · learn at your own pace" : ` · ${dayLong(t.batch.date)}${t.batch.isToday ? " · Today" : ""}`}
           </div>
           <h2 className="text-[clamp(20px,2.6vw,28px)] font-extrabold mt-2 leading-tight">{t.programme.title}</h2>
           <div className="text-[13px] text-white/75 mt-1">Trainer <strong className="text-white">{t.batch.trainer || "—"}</strong> · {ev.lessonsDone}/{ev.lessonsTotal} lessons · score {ev.score}/100 · pass mark {t.settings.passPct}</div>

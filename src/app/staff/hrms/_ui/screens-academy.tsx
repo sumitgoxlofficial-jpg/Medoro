@@ -23,7 +23,7 @@ export function AcademyScreen({ d }: { d: Data<"academy"> }) {
       <div className="grid gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_300px] items-center">
       <div className="flex flex-col gap-3 pt-1 text-[13.5px] text-[#334155] max-w-[720px]">
         <p>This puts the standard one-day programme into the HRMS database: the 10:00 AM–6:30 PM timetable, the official 26-chapter product tour with sales notes for every chapter, nine Hinglish sales lectures with slides and narration scripts, the feature-to-benefit table, the objection library, cold-calling scripts, 7 role-play scenarios, lesson checks, a 26-question product knowledge quiz and the final exam.</p>
-        <p>Everything stays editable in the Course Builder afterwards. Installing assigns nobody.</p>
+        <p>The course normally installs itself the first time anyone opens the HRMS, and every sales employee is then enrolled automatically. That didn’t happen here (the server log says why), so install it now. Everything stays editable in the Course Builder afterwards.</p>
         <div className="grid grid-cols-3 gap-2 max-w-[460px]">{[["38", "lessons"], ["26", "tour chapters"], ["7", "role-plays"]].map(([n, l]) => <div key={l} className="rounded-xl bg-[#E9F8F5] px-3 py-2"><div className="text-[20px] font-extrabold text-[#0B5E5B]">{n}</div><div className="text-[11.5px] text-[#475569]">{l}</div></div>)}</div>
         <button className={primaryCls + " hr-btn relative overflow-hidden self-start"} disabled={busy} onClick={() => run(() => trInstall(), (r) => `Installed: ${r.lessons} lessons, ${r.questions} questions, ${r.scenarios} scenarios.`)}><Sparkles size={15} />Install the standard course</button>
       </div>
@@ -284,13 +284,14 @@ function Batches({ d }: { d: A }) {
   const [pick, setPick] = useState<string[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [edit, setEdit] = useState<A["batches"][number] | null>(null);
-  const assigned = new Set(d.rows.map((r) => r.staffId));
+  const selfPaced = d.batches.find((b) => b.selfPaced)?.id;
+  const assigned = new Set(d.rows.filter((r) => r.batchId !== selfPaced).map((r) => r.staffId)); // the self-paced can move into a dated batch
   const candidates = d.staff.filter((s) => (showAll || s.sales) && !assigned.has(s.id));
   const toggle = (id: string) => setPick((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const report = (r: { added: string[]; skipped: { name: string; why: string }[] }) => `${r.added.length} assigned${r.skipped.length ? `; skipped: ${r.skipped.map((s) => `${s.name} (${s.why})`).join(", ")}` : ""}.`;
   return (
     <div className="flex flex-col gap-4">
-      <Card title="New training batch" sub="Pick the date, the trainer and the sales employees">
+      <Card title="New training batch" sub="Sales employees are enrolled automatically into the self-paced batch; schedule a dated batch with a trainer to move them in (their progress stays)">
         <div className="px-5 pb-4 flex flex-col gap-3">
           <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
             <Field label="Batch name"><input className={inputCls} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} placeholder="e.g. Sales Batch – Dec 2026" /></Field>
@@ -301,7 +302,7 @@ function Batches({ d }: { d: A }) {
           <div>
             <div className="flex items-center gap-3 mb-1.5"><span className="text-[12px] font-semibold text-[#475569]">Employees ({pick.length} selected)</span><label className="text-[12px] flex items-center gap-1.5 ml-auto"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />Show everyone (only Sales role / Sales department can be assigned)</label></div>
             <div className="max-h-[240px] overflow-y-auto border border-[#E2E8F0] rounded-lg p-2 grid gap-1 grid-cols-[repeat(auto-fill,minmax(230px,1fr))]">
-              {candidates.length ? candidates.map((s) => <label key={s.id} className={cx("flex gap-2 items-center text-[13px] rounded-md px-2 py-1 cursor-pointer", pick.includes(s.id) ? "bg-[#D6F3EF]" : "hover:bg-[#F8FAFC]")}><input type="checkbox" checked={pick.includes(s.id)} onChange={() => toggle(s.id)} className="accent-[#0B5E5B]" /><span className="flex-1">{s.name}<span className="text-[#64748B]"> · {s.empNo} · {s.dept || s.role}</span></span>{!s.sales ? <Pill tone="amber">not sales</Pill> : null}</label>) : <span className="text-[13px] text-[#64748B] p-2">Everyone in the sales team is already assigned.</span>}
+              {candidates.length ? candidates.map((s) => <label key={s.id} className={cx("flex gap-2 items-center text-[13px] rounded-md px-2 py-1 cursor-pointer", pick.includes(s.id) ? "bg-[#D6F3EF]" : "hover:bg-[#F8FAFC]")}><input type="checkbox" checked={pick.includes(s.id)} onChange={() => toggle(s.id)} className="accent-[#0B5E5B]" /><span className="flex-1">{s.name}<span className="text-[#64748B]"> · {s.empNo} · {s.dept || s.role}</span></span>{d.rows.some((r) => r.staffId === s.id) ? <Pill tone="gray">self-paced</Pill> : null}{!s.sales ? <Pill tone="amber">not sales</Pill> : null}</label>) : <span className="text-[13px] text-[#64748B] p-2">Everyone in the sales team is already in a dated batch.</span>}
             </div>
           </div>
           <button className={primaryCls + " self-start"} disabled={busy} onClick={() => run(() => trCreateBatch(v, pick), (r) => { setPick([]); setV({ ...v, name: "" }); return "Batch created. " + report(r); })}>Create batch & assign</button>
@@ -321,13 +322,14 @@ function BatchModal({ b, d, onClose }: { b: A["batches"][number]; d: A; onClose:
   const [v, setV] = useState({ name: b.name, date: b.date, trainerId: b.trainerId, note: b.note });
   const [status, setStatus] = useState<"scheduled" | "closed">(b.status === "closed" ? "closed" : "scheduled");
   const [pick, setPick] = useState<string[]>([]);
-  const assigned = new Set(d.rows.map((r) => r.staffId));
+  const selfPaced = d.batches.find((x) => x.selfPaced)?.id;
+  const assigned = new Set(d.rows.filter((r) => b.selfPaced || r.batchId !== selfPaced).map((r) => r.staffId));
   return (
     <Modal title={`Batch: ${b.name}`} onClose={onClose} wide>
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
         <Field label="Name"><input className={inputCls} value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
         <Field label="Date"><input type="date" className={inputCls} value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} /></Field>
-        <Field label="Trainer"><select className={inputCls} value={v.trainerId} onChange={(e) => setV({ ...v, trainerId: e.target.value })}>{d.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+        <Field label="Trainer"><select className={inputCls} value={v.trainerId} onChange={(e) => setV({ ...v, trainerId: e.target.value })}><option value="">No trainer (HR reviews)</option>{d.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
         <Field label="Status"><select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value as "scheduled" | "closed")}><option value="scheduled">Scheduled</option><option value="closed">Closed</option></select></Field>
       </div>
       <button className={primaryCls + " self-start"} disabled={busy} onClick={() => run(() => trUpdateBatch(b.id, v, status))}>Save batch</button>
@@ -603,6 +605,7 @@ function SettingsTab({ d }: { d: A }) {
           {num("passPct", "Final score to pass (/100)")}{num("productQuizPct", "Product quiz pass %")}{num("lessonQuizPct", "Lesson check pass %")}{num("practicalPassPct", "Practical pass % (of rubric)")}
           {num("maxAttempts", "Attempts: product quiz & final exam")}{num("maxPracticalAttempts", "Attempts: each practical")}{num("minSlideSeconds", "Least seconds per slide")}
         </div>
+        <label className="flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={v.autoEnrol} onChange={(e) => setV({ ...v, autoEnrol: e.target.checked })} />Enrol sales employees automatically (Sales role or Sales department, into the self-paced batch, on their first visit)</label>
         <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={v.hrApproval} disabled={rule} onChange={(e) => setV({ ...v, hrApproval: e.target.checked })} />HR approval required after the trainer</label>
         <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={v.attendanceRequired} disabled={rule} onChange={(e) => setV({ ...v, attendanceRequired: e.target.checked })} />Attendance must be marked present</label>
         <Field label="Approved pricing and offers (shown to trainees)" hint="Only what sales staff may quote. Leave empty to point them to the live pricing page."><textarea className={inputCls + " min-h-[90px]"} value={v.pricingNote} onChange={(e) => setV({ ...v, pricingNote: e.target.value })} /></Field>
