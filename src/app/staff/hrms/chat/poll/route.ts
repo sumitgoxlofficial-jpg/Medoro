@@ -1,5 +1,7 @@
 import { getMe } from "@/staff/hrms/auth";
 import { chatList, chatMessages, presenceMap, unreadTotal } from "@/staff/hrms/chat";
+import { salesPulseTick } from "@/staff/hrms/sales-pulse";
+import { defer } from "@/server/defer";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,7 @@ export async function GET(req: Request) {
   const afterN = after === null || after === "" ? null : Number(after);
   const visible = u.searchParams.get("open") === "1", full = u.searchParams.get("full") === "1";
   try {
+    await defer(() => salesPulseTick()); // after the response (the AI rewrite can take a few seconds); at most every 30 s per server
     const [chats, unread, thread, presence] = await Promise.all([
       chatList(me), unreadTotal(me.id),
       chatId ? chatMessages(me, chatId, afterN !== null && Number.isInteger(afterN) && afterN >= 0 ? afterN : null, visible, full) : null,

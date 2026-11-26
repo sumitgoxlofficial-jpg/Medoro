@@ -5,6 +5,9 @@ import { seal, unseal } from "@/server/vault";
 import { audit, type Me } from "./auth";
 import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
+import { pulsePhoto } from "./pulse-shared";
+import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_LABEL, isPulse, pulseMemberIds, pulseName, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
+import { log } from "@/server/log";
 
 // Team Chat. Every message (and picture, and poll) is sealed with HOST_KEY before it is stored, so nothing readable sits in the
 // database, in backups or in logs. The people in a conversation read it normally. Nobody else can: not HR, not Finance.
@@ -19,7 +22,7 @@ export type FileMeta = { name: string; type: string; size: number };
 export type PollState = { q: string; multi: boolean; options: { text: string; votes: number; mine: boolean }[]; total: number };
 export type ReactionState = { emoji: string; n: number; mine: boolean }[];
 export type ChatMsg = {
-  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; kind: "text" | "image" | "meet" | "poll" | "file"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
+  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; /** win: a real sale or demo announced automatically from the person's account; pulse: a Sales Pulse bot message. */ kind: "text" | "image" | "meet" | "poll" | "file" | "win" | "pulse"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
   reactions: ReactionState; poll: PollState | null;
 };
 export type ChatRow = {
@@ -32,7 +35,7 @@ type Lite = { id: string; seq: number; chatId: string; senderId: string; kind: s
 const LITE = { id: true, seq: true, chatId: true, senderId: true, kind: true, body: true, deletedAt: true, createdAt: true } as const; // never the picture bytes
 
 const text = (b: Uint8Array | Buffer) => unseal(b).toString("utf8");
-const KINDS = ["text", "image", "meet", "poll", "file"] as const;
+const KINDS = ["text", "image", "meet", "poll", "file", "win", "pulse"] as const;
 /** A file message keeps its name, type and size with the caption in the (sealed) body; the bytes sit in the sealed `image` column. */
 type FileBody = { n: string; t: string; s: number; c: string };
 function fileBody(m: Lite): FileBody | null {
@@ -57,7 +60,7 @@ async function decorate(rows: Lite[], meId: string, hide = false): Promise<ChatM
   if (!msgs.length) return msgs;
   const senders = await db.staffUser.findMany({ where: { id: { in: [...new Set(msgs.map((m) => m.senderId))] } }, select: { id: true, name: true, role: true } });
   const named = new Map(senders.map((u) => [u.id, hide && u.role === "super_admin" ? ADMIN_LABEL : u.name]));
-  for (const m of msgs) m.by = named.get(m.senderId) ?? "";
+  for (const m of msgs) m.by = named.get(m.senderId) ?? pulseName(m.senderId);
   const pollIds = rows.filter((r) => r.kind === "poll" && !r.deletedAt).map((r) => r.id);
   const [rx, votes] = await Promise.all([
     db.hrChatReaction.findMany({ where: { messageId: { in: msgs.map((m) => m.id) } } }),
@@ -140,6 +143,7 @@ export async function syncChannels(force = false) {
     const ids = new Set([...p.members, ...(p.leadId ? [p.leadId] : [])].filter((x) => live.has(x)));
     if (ids.size >= 2) wanted.set(`project:${p.id}`, { name: `# ${p.name}`, ids });
   }
+  await syncSales(live, existing);
   for (const [key, w] of wanted) {
     let chat = existing.find((c) => c.sysKey === key);
     if (!chat) {
@@ -154,9 +158,29 @@ export async function syncChannels(force = false) {
     if (drop.length) await db.hrChatMember.deleteMany({ where: { chatId: chat.id, staffId: { in: drop } } });
   }
   // A channel that no longer applies (a department down to one person, a finished project) empties out and disappears from lists.
-  const stale = existing.filter((c) => c.sysKey && !wanted.has(c.sysKey)).map((c) => c.id);
+  const stale = existing.filter((c) => c.sysKey && c.sysKey !== PULSE_KEY && !wanted.has(c.sysKey)).map((c) => c.id);
   if (stale.length) await db.hrChatMember.deleteMany({ where: { chatId: { in: stale } } });
 }
+
+/**
+ * The Sales channel: always holds the 45 Sales Pulse bots, the super admin and HR. Everyone else is added or removed by
+ * HR or the super admin from the group's info window; people who leave the company drop out.
+ */
+async function syncSales(live: Set<string>, existing: { id: string; sysKey: string | null; name: string }[]) {
+  let chat = existing.find((c) => c.sysKey === PULSE_KEY);
+  if (!chat) {
+    try { chat = await db.hrChat.create({ data: { kind: "group", name: "Sales", sysKey: PULSE_KEY, createdById: "system", about: PULSE_ABOUT }, select: { id: true, sysKey: true, name: true } }); }
+    catch { chat = await db.hrChat.findUnique({ where: { sysKey: PULSE_KEY }, select: { id: true, sysKey: true, name: true } }) ?? undefined; }
+    if (!chat) return;
+  }
+  const keep = [...(await pulseMemberIds()), ...PERSONAS.map((p) => p.id)];
+  await db.hrChatMember.createMany({ data: keep.map((staffId) => ({ chatId: chat!.id, staffId })), skipDuplicates: true });
+  const have = await db.hrChatMember.findMany({ where: { chatId: chat.id }, select: { staffId: true } });
+  const gone = have.map((h) => h.staffId).filter((id) => !isPulse(id) && !live.has(id));
+  if (gone.length) await db.hrChatMember.deleteMany({ where: { chatId: chat.id, staffId: { in: gone } } });
+}
+/** In the Sales channel, HR and the super admin choose who else is in it. */
+const managesSales = (me: Pick<Me, "role">, chat: { sysKey: string | null }) => chat.sysKey === PULSE_KEY && (me.role === "admin" || me.role === "hr");
 
 /** The person's conversations, newest first, with unread counts. */
 export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): Promise<ChatRow[]> {
@@ -183,7 +207,7 @@ export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): 
     return {
       id: c.id, kind: c.kind === "dm" ? "dm" : "group", title: c.kind === "dm" ? p?.name ?? "Former colleague" : c.name, photo: c.kind === "dm" ? p?.hr?.photo ?? null : c.photo, avatar: p?.hr?.chatAvatar ?? "",
       withId, presence: p ? liveStatus(p.hr?.presence ?? "offline", p.hr?.presenceAt ?? null) : "offline", sys: !!c.sysKey, about: c.about,
-      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? (people.get(last.senderId)?.name.split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
+      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? ((people.get(last.senderId)?.name ?? pulseName(last.senderId)).split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
     };
   });
 }
@@ -242,7 +266,9 @@ export async function sendText(me: Me, chatId: string, raw: unknown) {
   const body = typeof raw === "string" ? raw.replace(/\r\n/g, "\n").trim() : "";
   if (!body) throw new UserError("Type a message first.");
   if (body.length > MAX_BODY) throw new UserError(`Messages can be up to ${MAX_BODY} characters.`);
-  return post(me, chatId, "text", body);
+  const sent = await post(me, chatId, "text", body);
+  await welcomeFromIntro(me, chatId, body).catch((e) => log.error("Sales welcome not scheduled.", { err: e })); // HR introducing a new employee in Sales
+  return sent;
 }
 const imageKind = (b: Buffer) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? "image/jpeg" : b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ? "image/png" : b.subarray(0, 4).toString() === "RIFF" && b.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "");
 export async function sendImage(me: Me, chatId: string, form: FormData) {
@@ -372,15 +398,17 @@ export async function groupInfo(me: Me, chatId: string) {
   const more = users.filter((u) => !shown.includes(u) && !(hide && u.role === "super_admin")).length;
   return {
     id: chat.id, name: chat.name, about: chat.about, photo: chat.photo, sys: !!chat.sysKey, owner: chat.createdById,
-    canEdit: canManage(me, chat), canAdd: canManage(me, chat) && !chat.sysKey,
+    canEdit: canManage(me, chat), canAdd: (canManage(me, chat) && !chat.sysKey) || managesSales(me, chat),
     // WhatsApp-style admin tools: the person who made the group, and the super admin in any group they are in.
-    canRename: canManage(me, chat) && !chat.sysKey, canRemove: canManage(me, chat) && !chat.sysKey, canDelete: canManage(me, chat) && !chat.sysKey,
+    canRename: canManage(me, chat) && !chat.sysKey, canRemove: (canManage(me, chat) && !chat.sysKey) || managesSales(me, chat), canDelete: canManage(me, chat) && !chat.sysKey,
     superAdmin: me.role === "admin",
     more, // members you can't see by name
     members: shown.sort((a, b) => a.name.localeCompare(b.name)).map((u) => ({
       id: u.id, name: u.name, empNo: u.empNo, designation: u.hr?.designation ?? "", photo: u.hr?.photo ?? null, avatar: u.hr?.chatAvatar ?? "",
-      presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id,
-    })),
+      presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id, bot: false,
+    })).concat(mem.filter((m) => isPulse(m.staffId) && pulseName(m.staffId)).map((m) => ({
+      id: m.staffId, name: pulseName(m.staffId), empNo: "", designation: PULSE_LABEL, photo: pulsePhoto(m.staffId) as string | null, avatar: "", presence: "offline", you: false, bot: true,
+    })).sort((a, b) => a.name.localeCompare(b.name))),
   };
 }
 export async function updateGroup(me: Me, chatId: string, input: { name?: unknown; about?: unknown; photo?: unknown }) {
@@ -412,8 +440,9 @@ export async function updateGroup(me: Me, chatId: string, input: { name?: unknow
 }
 export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
-  if (chat?.sysKey) throw new UserError("This channel’s members follow the team automatically.");
-  if (!chat || chat.kind !== "group" || !canManage(me, chat)) throw new UserError("Only the person who made the group can add people.");
+  if (chat?.sysKey && chat.sysKey !== PULSE_KEY) throw new UserError("This channel’s members follow the team automatically.");
+  if (chat?.sysKey === PULSE_KEY && !managesSales(me, chat)) throw new UserError("Only HR or the super admin can add people to Sales.");
+  if (!chat || chat.kind !== "group" || (!canManage(me, chat) && !managesSales(me, chat))) throw new UserError("Only the person who made the group can add people.");
   await membership(me, chatId);
   const ids = [...new Set(Array.isArray(memberIds) ? memberIds.filter((x): x is string => typeof x === "string") : [])];
   const have = await db.hrChatMember.count({ where: { chatId } });
@@ -424,15 +453,17 @@ export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   const top = (await db.hrChatMessage.aggregate({ where: { chatId }, _max: { seq: true } }))._max.seq ?? 0;
   await db.hrChatMember.createMany({ data: ok.map((u) => ({ chatId, staffId: u.id, lastReadSeq: top, fromSeq: top })), skipDuplicates: true });
   await adminNote(me, chat, `added ${ok.map((u) => u.name).join(", ")}`);
+  if (chat.sysKey === PULSE_KEY) await scheduleWelcome(ok).catch((e) => log.error("Sales welcome not scheduled.", { err: e })); // the bots welcome them, one by one
   return { added: ok.length };
 }
 /** Takes someone out of a group (they keep nothing new from it). Only the super admin can remove the person who made it. */
 export async function removeFromGroup(me: Me, chatId: string, staffId: string) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
   if (!chat || chat.kind !== "group") throw new UserError("That isn’t a group.");
-  if (chat.sysKey) throw new UserError("This channel’s members follow the team automatically.");
+  if (chat.sysKey && chat.sysKey !== PULSE_KEY) throw new UserError("This channel’s members follow the team automatically.");
   await membership(me, chatId);
-  if (!canManage(me, chat)) throw new UserError("Only the person who made the group can remove people.");
+  if (!canManage(me, chat) && !managesSales(me, chat)) throw new UserError(chat.sysKey ? "Only HR or the super admin can remove people from Sales." : "Only the person who made the group can remove people.");
+  if (chat.sysKey === PULSE_KEY && (isPulse(staffId) || (await pulseMemberIds()).includes(staffId))) throw new UserError("Sales Pulse bots, HR and the super admin always stay in Sales.");
   if (staffId === me.id) throw new UserError("To go yourself, use Leave group.");
   if (staffId === chat.createdById && me.role !== "admin") throw new UserError("Only the super admin can remove the person who made the group.");
   const gone = await db.hrChatMember.deleteMany({ where: { chatId, staffId } });

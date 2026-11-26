@@ -115,12 +115,13 @@ const parseArgs = (a: unknown): Record<string, unknown> => {
 };
 
 /** One chat round with tool definitions. Throws on HTTP or network errors (including aborts). */
-export async function chat(p: Provider, messages: ChatMsg[], tools: ToolSpec[], signal: AbortSignal): Promise<{ content: string; calls: ToolCall[] }> {
+export async function chat(p: Provider, messages: ChatMsg[], tools: ToolSpec[], signal: AbortSignal, temperature = 0): Promise<{ content: string; calls: ToolCall[] }> {
   const body = {
-    model: p.model, stream: false, temperature: 0,
-    ...(p.dialect === "ollama" ? { options: { temperature: 0 } } : {}),
+    model: p.model, stream: false, temperature,
+    ...(p.dialect === "ollama" ? { options: { temperature } } : {}),
     messages: messages.map((m) => wire(p, m)),
-    tools: tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: t.params ?? {} } } })),
+    // Left out when empty: some OpenAI-compatible APIs reject an empty tools list.
+    ...(tools.length ? { tools: tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: t.params ?? {} } } })) } : {}),
   };
   const res = await fetch(endpoint(p), { method: "POST", signal, headers: { "content-type": "application/json", ...(p.key ? { authorization: `Bearer ${p.key}` } : {}) }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`Model server answered ${res.status}`);
