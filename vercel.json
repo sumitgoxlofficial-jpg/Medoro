@@ -4,7 +4,7 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm vercel-build",
   "regions": ["bom1"],
-  "crons": [{ "path": "/api/cron/tick", "schedule": "30 21 * * *" }],
+  "crons": [{ "path": "/api/cron/tick", "schedule": "30 21 * * *" }, { "path": "/api/cron/minute", "schedule": "* * * * *" }],
   "headers": [
     { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }, { "key": "Service-Worker-Allowed", "value": "/" }] }
   ]

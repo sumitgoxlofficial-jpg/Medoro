@@ -17,6 +17,7 @@ import { forecastIntel, forecastAccuracy } from "@/domain/intelligence/forecast-
 import { recallReport } from "@/domain/inventory/recall-report";
 import { linkSuggestions, catalogueDiff, syncStatus } from "@/domain/inventory/catalogue-sync";
 import { GET as cronGet, POST as cronPost } from "@/app/api/cron/tick/route";
+import { GET as cronMinute } from "@/app/api/cron/minute/route";
 import { addDays, todayISO } from "@/lib/dates";
 import { randomUUID } from "node:crypto";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
@@ -94,6 +95,8 @@ describe("security regression suite", () => {
     expect((await cronPost(bad({ "x-medoro-cron": `${minute}.${"0".repeat(64)}` }))).status).toBe(403);        // right shape, wrong signature
     expect((await cronGet(new Request("http://localhost/api/cron/tick"))).status).toBe(403);
     expect((await cronGet(new Request("http://localhost/api/cron/tick", { headers: { authorization: "Bearer guess" } }))).status).toBe(403);
+    expect((await cronMinute(new Request("http://localhost/api/cron/minute"))).status).toBe(403);
+    expect((await cronMinute(new Request("http://localhost/api/cron/minute", { headers: { authorization: "Bearer guess" } }))).status).toBe(403);
   });
 
   it("every Medoro 2.0 screen's data refuses a user with no relevant permission, as one matrix", async () => {

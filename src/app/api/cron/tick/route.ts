@@ -1,42 +1,8 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { scheduledTick } from "@/domain/system/backup";
-import { messagingTick } from "@/domain/comms/crm";
-import { licenceTick } from "@/domain/system/licence";
-import { log } from "@/server/log";
-import { dailyJobs } from "@/domain/system/daily";
-import { reportMailTick } from "@/domain/reports/mailer";
-import { deliveryTick } from "@/domain/comms/delivery";
-import { expirePoints } from "@/domain/sales/loyalty";
-import { deletionTick } from "@/domain/system/deletion";
-import { driveHealthTick } from "@/domain/system/drive-health";
-import { autoDeleteMovedCopies } from "@/domain/system/drive-move";
-import { growthTick } from "@/staff/growth/jobs";
-import { leadSheetTick } from "@/staff/hrms/lead-sheet";
-import { recordHeartbeat } from "@/domain/system/health";
-import { chatBackupTick } from "@/staff/hrms/chat-backup";
-import { salesPulseTick } from "@/staff/hrms/sales-pulse";
+import { createHmac } from "node:crypto";
+import { hostCronAllowed, same, tick } from "@/server/cron";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
-let running = false;
-
-async function tick(daily: boolean) {
-  if (running) return new Response("busy");
-  running = true;
-  try {
-    const now = new Date();
-    let failed = false, firstError = "";
-    // Each job runs even if another fails.
-    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily }), () => (daily ? leadSheetTick() : Promise.resolve()), () => (daily ? chatBackupTick(now) : Promise.resolve()), () => salesPulseTick(now, true)]) {
-      try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; firstError ||= e instanceof Error ? e.message : String(e); }
-    }
-    await recordHeartbeat(!failed, firstError).catch((e) => log.error("Heartbeat not recorded.", { err: e }));
-    return failed ? new Response("error", { status: 500 }) : new Response("ok");
-  }
-  finally { running = false; }
-}
-
-const same = (a: string, b: string) => timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 
 /** In-process scheduler of self-hosted installs (see instrumentation-node.ts): HMAC of the current minute. */
 export async function POST(req: Request) {
@@ -49,7 +15,6 @@ export async function POST(req: Request) {
 
 /** Host cron (Vercel Cron sends "Authorization: Bearer $CRON_SECRET"); runs the daily jobs. */
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || secret.length < 16 || !same(req.headers.get("authorization") ?? "", `Bearer ${secret}`)) return new Response("Forbidden", { status: 403 });
+  if (!hostCronAllowed(req)) return new Response("Forbidden", { status: 403 });
   return tick(true);
 }
