@@ -12,6 +12,11 @@ describe("rule planner", () => {
     expect(tool("Expiring in next 30 days")).toEqual(["get_expiry_report", { days: 30 }]);
     expect(tool("kaun si dawai 90 din mein expire hogi")).toEqual(["get_expiry_report", { days: 90 }]);
     expect(tool("What should I reorder?")[0]).toBe("get_low_stock_report");
+    expect(tool("Which medicines are running low?")[0]).toBe("get_low_stock_report");
+    expect(tool("Kaunsi medicines ka stock kam hai?")[0]).toBe("get_low_stock_report");
+    expect(tool("Kaun se medicines reorder karne hain?")[0]).toBe("get_low_stock_report");
+    expect(tool("Which batches are expiring soon?")[0]).toBe("get_expiry_report");
+    expect(tool("Batches of Dolo 650")[0]).toBe("get_batch_inventory");
     expect(tool("Supplier payments due this week")[0]).toBe("get_supplier_balances");
     expect(tool("Which customers have udhaar?")[0]).toBe("get_customer_outstanding");
     expect(tool("Check last backup")[0]).toBe("get_backup_status");
