@@ -112,7 +112,6 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
       <div className={cx("max-w-[78%] flex flex-col", mine ? "items-end" : "items-start")}>
         <div className={cx("rounded-2xl px-3 py-2 text-[13.5px] leading-snug shadow-sm relative", m.kind === "win" && !m.deleted ? cx("bg-gradient-to-br from-[#FFFBEB] to-[#ECFDF5] border border-[#FCD34D]", mine ? "rounded-br-md" : "rounded-bl-md") : mine ? "bg-[#D6F3EF] rounded-br-md" : "bg-white border border-[#E2E8F0] rounded-bl-md")}>
           {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}</div> : null}
-          {m.kind === "win" ? <div className="text-[9.5px] font-semibold text-[#92400E] mb-0.5"><span className="bg-[#FEF3C7] rounded-full px-1.5 py-0.5">⚡ auto · from CRM</span></div> : null}
           {m.deleted ? <span className="italic text-[#64748B]">This message was deleted</span>
             : m.kind === "meet" ? (
               <div className="flex flex-col gap-1.5">
