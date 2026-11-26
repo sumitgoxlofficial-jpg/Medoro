@@ -22,7 +22,7 @@ import { auditLog, departments, myProfile, notifications, officialDomain, roster
 import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { backfillSlugs } from "./careers";
 import { visibleTo } from "./visibility";
-import { academy, hasAssignment, isTrainer, lessonForLearner, myTraining, trainerDesk } from "./training/service";
+import { academy, autoEnrol, ensureAcademy, hasAssignment, isSalesMe, isTrainer, lessonForLearner, myTraining, trainerDesk } from "./training/service";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
@@ -43,6 +43,9 @@ function navFor(me: Me, flags: { learner: boolean; trainer: boolean }) {
 export async function shell(me: Me) {
   const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
   await closeExits().catch(() => {}); // people whose recorded last working day has passed
+  // The Sales Academy is automatic: the course installs itself, and a sales employee is enrolled on their first page view.
+  await ensureAcademy();
+  if (isSalesMe(me) && !(await hasAssignment(me.id))) await autoEnrol([me.id]);
   const [s, notes, att, brk, chatUnread, learner, trainer] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), hasAssignment(me.id), isTrainer(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales", console: me.staffRole === "super_admin" || me.staffRole === "care" },

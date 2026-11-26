@@ -52,10 +52,11 @@ export type TrainingSettings = {
   minSlideSeconds: number; // least time on a slide before it counts as studied
   pricingNote: string; // HR-approved prices and offers sales staff may quote; empty = point customers to the pricing page
   signatory: string; // name printed under the authorised signature
+  autoEnrol: boolean; // every active sales employee is enrolled automatically (into the self-paced batch)
 };
 export const DEFAULT_TRAINING_SETTINGS: TrainingSettings = {
   passPct: 80, productQuizPct: 80, lessonQuizPct: 70, practicalPassPct: 70, maxAttempts: 3, maxPracticalAttempts: 3,
-  hrApproval: true, attendanceRequired: true, minSlideSeconds: 12, pricingNote: "", signatory: "",
+  hrApproval: true, attendanceRequired: true, minSlideSeconds: 12, pricingNote: "", signatory: "", autoEnrol: true,
 };
 
 export type Slide = { title: string; bullets: string[]; narration: string };

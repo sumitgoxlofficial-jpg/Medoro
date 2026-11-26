@@ -20,7 +20,8 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
 
 A one-day training programme for the sales team: **My Sales Training** for assigned employees, **Trainer Desk** for a batch's
 trainer and **Sales Academy** for HR (new *Sales Academy* module in Roles & Permissions). Official product tour, Hinglish lectures,
-quizzes, practicals scored by the trainer, and a certificate after trainer and HR approval. See [SALES_ACADEMY.md](SALES_ACADEMY.md).
+quizzes, practicals scored by the trainer, and a certificate after trainer and HR approval. The course installs itself and every
+sales employee (Sales role or Sales department) is enrolled automatically; HR can turn auto-enrolment off in its Settings. See [SALES_ACADEMY.md](SALES_ACADEMY.md).
 
 ## Lifecycle of an employee
 
