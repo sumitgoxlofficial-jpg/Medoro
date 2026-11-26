@@ -4,6 +4,7 @@ import { AssetsScreen, AttendanceScreen, CalendarScreen, HomeScreen, MyProjectsS
 import { AllyUsageScreen, ApprovalsScreen, AssignTasksScreen, AuditScreen, CredentialsScreen, DashboardScreen, DepartmentsScreen, EmployeesScreen, HrAttendanceScreen, HrLeaveScreen, NewEmployeeScreen, OnboardingScreen, PayrollScreen, PermsScreen, PerfScreen, RecruitScreen, ReportsScreen, SettingsScreen } from "./screens-hr";
 import { ChatReviewScreen, ChatScreen } from "./screens-chat";
 import { ProjectsScreen } from "./screens-projects";
+import { ExitsScreen } from "./screens-exit";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
 import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
 
@@ -40,6 +41,7 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "hrleave": return <HrLeaveScreen d={d as Data<"hrleave">} sh={sh} />;
     case "credentials": return <CredentialsScreen d={d as Data<"credentials">} />;
     case "onboarding": return <OnboardingScreen d={d as Data<"onboarding">} />;
+    case "hrexits": return <ExitsScreen d={d as Data<"hrexits">} />;
     case "payroll": return <PayrollScreen d={d as Data<"payroll">} />;
     case "reports": return <ReportsScreen d={d as Data<"reports">} />;
     case "allyusage": return <AllyUsageScreen d={d as Data<"allyusage">} />;

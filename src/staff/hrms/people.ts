@@ -236,6 +236,8 @@ export async function setEmployeeActive(me: Me, id: string, active: boolean, las
   await db.$transaction([
     db.staffUser.update({ where: { id }, data: { status: active || later ? "active" : "deactivated", tokenVersion: active || later ? undefined : { increment: 1 } } }),
     ...(hr ? [db.hrProfile.update({ where: { staffId: id }, data: { exitDate: exit ? dateOnly(exit) : null } })] : []),
+    // Cancelling an exit (or reactivating) closes the resignation or recorded exit it belonged to (HRMS → Exits).
+    ...(active ? [db.hrExit.updateMany({ where: { staffId: id, status: { in: ["accepted", "recorded"] } }, data: { status: "cancelled" } })] : []),
   ]);
   if (later) await notify([id], `Your last working day is recorded as ${exit}.`, "profile");
   await audit(me, active ? (u.status === "active" ? "Exit cancelled" : "Employee reactivated") : later ? "Exit recorded" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);

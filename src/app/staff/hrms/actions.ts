@@ -24,6 +24,7 @@ import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
 import * as kyc from "@/staff/hrms/kyc";
 import * as careers from "@/staff/hrms/careers";
+import * as exits from "@/staff/hrms/exits";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import type { Settings } from "@/staff/hrms/constants";
 
@@ -172,6 +173,13 @@ export const openInvoice = async (id: string) => hrRun((me) => fin.invoice(me, i
 // ── Super admin
 export const saveSettings = async (input: Settings) => done(await hrRun((me) => people.saveSettings(me, input), "Settings saved."));
 export const togglePerm = async (role: string, moduleId: string) => done(await hrRun((me) => people.togglePerm(me, role, moduleId)));
+
+// ── Exits: resignation, exit interview, clearance
+export const resign = async (input: In<typeof exits.resign>) => done(await hrRun((me) => exits.resign(me, input), "Resignation sent to HR."));
+export const withdrawResignation = async () => done(await hrRun((me) => exits.withdrawResignation(me), "Resignation withdrawn."));
+export const decideResignation = async (id: string, input: { accept: boolean; lastDay?: string; note?: string }) => done(await hrRun((me) => exits.decideResignation(me, id, input), input.accept ? "Resignation accepted. The exit is recorded." : "Resignation declined."));
+export const saveExitInterview = async (answers: Record<string, string | number>) => done(await hrRun((me) => exits.saveInterview(me, answers), "Thank you. Your exit interview was sent to HR."));
+export const tickClearance = async (staffId: string, item: string, isDone: boolean) => done(await hrRun((me) => exits.tickClearance(me, staffId, item, isDone)));
 
 // ── Assets and workflows
 export const addAsset = async (input: In<typeof assets.addAsset>) => done(await hrRun((me) => assets.addAsset(me, input), "Asset added."));

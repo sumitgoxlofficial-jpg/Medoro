@@ -48,6 +48,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "hrleave", label: "Leave Management", icon: "plane", title: "Leave Management", sub: "Approvals and team calendar", group: "PEOPLE", module: "attendance" },
   { id: "credentials", label: "Credentials", icon: "shield", title: "Credentials", sub: "One-time passwords and login status for every employee", group: "PEOPLE", module: "employees" },
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },
+  { id: "hrexits", label: "Exits", icon: "plane", title: "Exits", sub: "Resignations, clearance and exit interviews", group: "PEOPLE", module: "employees" },
   { id: "payroll", label: "Payroll", icon: "rupee", title: "Payroll", sub: "India compliance", group: "PEOPLE", module: "payroll" },
   { id: "reports", label: "Reports", icon: "file", title: "Reports", sub: "Headcount, attendance, leave and payroll", group: "PEOPLE", module: "reports" },
   { id: "allyusage", label: "Ally Usage", icon: "sparkle", title: "Ally Usage", sub: "How much the team uses the assistant", group: "PEOPLE", module: "reports" },
@@ -230,3 +231,28 @@ export function scheduleText(s: Pick<Settings, "lateAfter" | "workHours" | "lunc
   const start = toMin(s.lateAfter), lunch = Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom));
   return { start: clock(start), end: clock(start + s.workHours * 60 + lunch), lunchFrom: clock(toMin(s.lunchFrom)), lunchTo: clock(toMin(s.lunchTo)), lunchMin: lunch };
 }
+
+// ── Exits: resignation, exit interview and clearance
+/** Notice period an employee is asked to serve (the appointment letter's one month). */
+export const NOTICE_DAYS = 30;
+export const EXIT_REASONS = ["Better opportunity", "Higher studies", "Pay", "Role or growth", "Manager or team", "Relocation", "Health or family", "Other"] as const;
+/** Exit interview. Answers are seen only by HR (Employees module) and the person. */
+export const EXIT_QUESTIONS = [
+  { id: "reason", label: "Main reason for leaving", kind: "choice", options: EXIT_REASONS },
+  { id: "liked", label: "What did you like about working at Medoro?", kind: "text" },
+  { id: "improve", label: "What should we improve?", kind: "text" },
+  { id: "manager", label: "How was your reporting manager? (1 = poor, 5 = excellent)", kind: "rating" },
+  { id: "recommend", label: "Would you recommend Medoro to a friend?", kind: "choice", options: ["Yes", "Maybe", "No"] },
+  { id: "rejoin", label: "Would you consider coming back later?", kind: "choice", options: ["Yes", "Maybe", "No"] },
+] as const;
+export type ExitQuestionId = (typeof EXIT_QUESTIONS)[number]["id"];
+/** What HR checks off before someone's last day. */
+export const CLEARANCE_ITEMS = [
+  { id: "handover", label: "Work and files handed over" },
+  { id: "assets", label: "Laptop, phone and other assets returned" },
+  { id: "idcard", label: "ID card and access card returned" },
+  { id: "access", label: "Email, tools and system access removed" },
+  { id: "dues", label: "Advances and dues settled" },
+  { id: "settlement", label: "Final settlement checked in payroll" },
+] as const;
+export type ClearanceId = (typeof CLEARANCE_ITEMS)[number]["id"];

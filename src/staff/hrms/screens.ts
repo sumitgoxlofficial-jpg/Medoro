@@ -16,6 +16,7 @@ import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { promotions } from "./promotions";
 import { myDocs } from "./docs";
+import { exitsBoard, myExit } from "./exits";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
@@ -101,7 +102,7 @@ export const loaders = {
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
-  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id) }),
+  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id), exit: await myExit(me) }),
 
   slhome: async (me: Me) => salesSummary(me),
   slboard: async (me: Me) => salesSummary(me),
@@ -131,6 +132,7 @@ export const loaders = {
     const cutoff = addDays(todayISO(), -45);
     return { joiners: (await roster({ viewer: me })).filter((p) => (p.joinDate && p.joinDate >= cutoff) || p.onboarding.some((x) => !x) && !!p.joinDate && p.joinDate >= addDays(todayISO(), -120)) };
   },
+  hrexits: async (me: Me) => exitsBoard(me),
   payroll: async (me: Me, q: Q) => { const month = monthArg(q.m); return { run: await payrollFor(me, month), prev: addMonths(month, -1), next: addMonths(month, 1) }; },
   reports: async (me: Me) => reports(me),
   allyusage: async (me: Me) => usage(me),
