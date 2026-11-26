@@ -5,6 +5,7 @@ import { AllyUsageScreen, ApprovalsScreen, AssignTasksScreen, AuditScreen, Crede
 import { ChatReviewScreen, ChatScreen } from "./screens-chat";
 import { ProjectsScreen } from "./screens-projects";
 import { AppraisalScreen, HrAppraisalsScreen } from "./screens-appraisals";
+import { TeamScreen } from "./screens-team";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
 import { TrainingScreen } from "./screens-training";
 import { AcademyScreen, TrainerDeskScreen } from "./screens-academy";
@@ -36,6 +37,7 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "hrhome": case "sahome": return <DashboardScreen d={d as Data<"hrhome">} sh={sh} />;
     case "appraisal": return <AppraisalScreen d={d as Data<"appraisal">} />;
     case "hrappraisals": return <HrAppraisalsScreen d={d as Data<"hrappraisals">} />;
+    case "myteam": return <TeamScreen d={d as Data<"myteam">} />;
     case "perf": return <PerfScreen d={d as Data<"perf">} sh={sh} />;
     case "assigntasks": return <AssignTasksScreen d={d as Data<"assigntasks">} />;
     case "assignprojects": return <ProjectsScreen d={d as Data<"assignprojects">} />;
