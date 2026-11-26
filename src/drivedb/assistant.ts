@@ -58,14 +58,14 @@ export const DEVICE_TOOLS: DeviceTool[] = [
       const p = profitAndLoss(db, s.branchId, from, to);
       const label = hi ? { today: "आज", yesterday: "कल", week: "पिछले 7 दिन", month: "इस महीने" }[period] : { today: "Today", yesterday: "Yesterday", week: "Last 7 days", month: "This month" }[period];
       return {
-        text: H(hi, `${label}: gross profit ${inr(p.grossPaise)} (${p.grossMarginPct}% of net sales); after expenses, net profit ${inr(p.netPaise)}.`,
-          `${label}: सकल मुनाफ़ा ${inr(p.grossPaise)} (शुद्ध बिक्री का ${p.grossMarginPct}%); खर्च के बाद शुद्ध मुनाफ़ा ${inr(p.netPaise)}।`),
+        text: H(hi, `${label}: gross profit ${inr(p.grossPaise)} (${p.grossMarginPct}% of net sales); after expenses, ${p.netPaise < 0 ? "a net loss of" : "net profit"} ${inr(Math.abs(p.netPaise))}.`,
+          `${label}: सकल मुनाफ़ा ${inr(p.grossPaise)} (शुद्ध बिक्री का ${p.grossMarginPct}%); खर्च के बाद ${p.netPaise < 0 ? "शुद्ध घाटा" : "शुद्ध मुनाफ़ा"} ${inr(Math.abs(p.netPaise))}।`),
         rows: [
           { a: H(hi, "Net sales (before GST)", "शुद्ध बिक्री (GST से पहले)"), b: "", c: inr(p.netSalesPaise) },
           { a: H(hi, "Cost of goods sold", "बिके माल की लागत"), b: "", c: inr(p.cogsPaise) },
           { a: H(hi, "Gross profit", "सकल मुनाफ़ा"), b: `${p.grossMarginPct}%`, c: inr(p.grossPaise) },
           { a: H(hi, "Expenses", "खर्च"), b: "", c: inr(p.expensesPaise) },
-          { a: H(hi, "Net profit", "शुद्ध मुनाफ़ा"), b: "", c: inr(p.netPaise) },
+          p.netPaise < 0 ? { a: H(hi, "Net loss", "शुद्ध घाटा"), b: "", c: inr(-p.netPaise) } : { a: H(hi, "Net profit", "शुद्ध मुनाफ़ा"), b: "", c: inr(p.netPaise) },
         ],
         basis: H(hi, `Bills, returns and expenses on this counter's data, ${s.branchName}; cost is each bill's batch cost`, `इस काउंटर के बिल, रिटर्न और खर्च, ${s.branchName}; लागत हर बिल के बैच की`),
       };

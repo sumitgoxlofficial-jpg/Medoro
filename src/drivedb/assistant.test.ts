@@ -29,6 +29,7 @@ describe("the assistant on the counter", () => {
     // 5 strips sold at cost ₹20: ₹160 sales incl. 12% GST → net ₹142.86 (rounded per line), cost ₹100.
     expect(p.rows?.find((r) => r.a === "Cost of goods sold")?.c).toBe("₹100");
     expect(p.text).toMatch(/gross profit ₹\d+/);
+    expect(p.text).not.toContain("₹-");
     expect(askRules(db, cashier, "What is today's profit?")).toMatchObject({ refused: true });
   });
   it("answers everyday questions from this device's data with the built-in rules (works offline)", () => {
