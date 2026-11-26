@@ -313,9 +313,9 @@ export function ChatScreen({ d }: { d: D }) {
   const shown = find.trim() ? msgs.filter((m) => m.body.toLowerCase().includes(find.trim().toLowerCase())) : msgs;
   const typingNames = typing.map((id) => byId.get(id)?.name.split(" ")[0]).filter(Boolean) as string[];
   const row = (c: ChatRow) => (
-    <button key={c.id} role="listitem" onClick={() => pick(c.id)} aria-current={c.id === active ? "true" : undefined} className={cx("w-full text-left flex gap-3 pl-3 pr-0 border-0 cursor-pointer items-center", c.id === active ? "bg-[#EAF2F0]" : "bg-white hover:bg-[#F5F6F6]")}>
+    <button key={c.id} role="listitem" onClick={() => pick(c.id)} aria-current={c.id === active ? "true" : undefined} className={cx("w-full text-left flex gap-3 pl-3 pr-0 border-0 cursor-pointer items-center", c.id === active ? "bg-[#D9EAE5]/85" : "bg-transparent hover:bg-white/70")}>
       <Face name={c.title} photo={c.photo} avatar={c.kind === "dm" ? c.avatar : ""} size={48} status={c.kind === "dm" ? (pres[c.withId ?? ""] ?? "offline") : undefined} />
-      <span className="min-w-0 flex-1 py-3 pr-3 border-b border-[#EEF0F1]">
+      <span className="min-w-0 flex-1 py-3 pr-3 border-b border-[#0B5E5B]/[.07]">
         <span className="flex items-baseline gap-2"><span className={cx("text-[15.5px] text-[#111B21] truncate", c.unread ? "font-bold" : "font-medium")}>{c.title}</span><span className={cx("ml-auto text-[11.5px] flex-none", c.unread ? "text-[#0B8A7A] font-semibold" : "text-[#667781]")}>{shortTime(c.lastAt)}</span></span>
         <span className="flex items-center gap-2 mt-0.5"><span className={cx("text-[13.5px] truncate", c.unread ? "text-[#111B21]" : "text-[#667781]")}>{c.last || (c.about || "No messages yet")}</span>
           {c.unread ? <span className="ml-auto flex-none bg-[#14A38F] text-white text-[11px] font-bold rounded-full min-w-[20px] h-[20px] px-1.5 flex items-center justify-center">{c.unread}</span> : null}</span>
@@ -335,8 +335,10 @@ export function ChatScreen({ d }: { d: D }) {
         </div>
       ) : null}
       <div className="hr-chat grid bg-white rounded-2xl overflow-hidden border border-[#E3E8EA] shadow-[0_18px_40px_-24px_rgba(11,60,58,.35)] min-h-[480px] h-[calc(100dvh-96px)] max-[560px]:h-[calc(100dvh-84px)] grid-cols-1 min-[860px]:grid-cols-[360px_1fr] min-[1400px]:grid-cols-[400px_1fr]">
-        <div className={cx("border-r border-[#E9EDEF] flex-col min-h-0 bg-white", showList || !active ? "flex" : "hidden min-[860px]:flex")}>
-          <div className="px-4 pt-3.5 pb-2 flex flex-col gap-2.5">
+        <div className={cx("relative border-r border-[#E3E8EA] flex-col min-h-0 bg-[#F3F7F5]", showList || !active ? "flex" : "hidden min-[860px]:flex")}>
+          {/* The same doodle wallpaper as the conversation, a shade lighter behind the list. */}
+          <div aria-hidden className="absolute inset-0 pointer-events-none opacity-70" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
+          <div className="relative px-4 pt-3.5 pb-3 flex flex-col gap-2.5 bg-white/85 backdrop-blur-sm border-b border-[#E3E8EA]">
             <div className="flex items-center gap-1">
               <button className="bg-transparent border-0 p-0 mr-2 cursor-pointer rounded-full" aria-label="My chat avatar" title="My chat avatar" onClick={() => setModal("avatar")}><Face name={d.me.name} photo={d.me.photo} avatar={avatar} size={36} /></button>
               <div className="min-w-0 mr-auto"><div className="font-bold text-[20px] leading-tight text-[#111B21]">Chats</div><div className="text-[11.5px] text-[#0B8A7A] font-medium flex items-center gap-1"><span className="size-1.5 rounded-full bg-[#14B8A6]" />{online + 1} online</div></div>
@@ -349,7 +351,7 @@ export function ChatScreen({ d }: { d: D }) {
               <input className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[14px] text-[#111B21] placeholder:text-[#8696A0]" placeholder="Search chats" aria-label="Search chats" value={q} onChange={(e) => setQ(e.target.value)} />
             </label>
           </div>
-          <div className="overflow-y-auto flex-1 [scrollbar-width:thin]" role="list">
+          <div className="relative overflow-y-auto flex-1 pt-2 [scrollbar-width:thin]" role="list">
             <BackupPrompt b={d.backup} />
             {channels.length ? <div className="px-4 pt-2 pb-1.5 text-[11px] font-semibold tracking-[.08em] text-[#0B8A7A]">CHANNELS</div> : null}
             {channels.map(row)}
@@ -668,7 +670,7 @@ function BackupPrompt({ b }: { b: Backup }) {
   const show = b.configured && !b.connected && !asked;
   if (!show) return null;
   return (
-    <div role="region" aria-label="Chat backup" className="mx-3 mb-2 flex items-start gap-3 bg-[#E7F4F1] rounded-xl px-3.5 py-3">
+    <div role="region" aria-label="Chat backup" className="mx-3 mb-2 flex items-start gap-3 bg-white rounded-xl px-3.5 py-3 shadow-[0_1px_2px_rgba(11,20,26,.1)]">
       <span className="flex-none size-9 rounded-full bg-[#0B5E5B] text-white flex items-center justify-center" aria-hidden><Ic n="cloud" s={18} /></span>
       <span className="flex-1 min-w-0 text-[13px] text-[#111B21]"><strong className="font-semibold">Back up your chats</strong><span className="block text-[12px] text-[#54656F] mt-0.5">Saved, encrypted, to your own Google Drive every day.</span>
         <span className="flex gap-2 mt-2"><button className={btnCls} onClick={() => setAsked("1")}>Not now</button>
