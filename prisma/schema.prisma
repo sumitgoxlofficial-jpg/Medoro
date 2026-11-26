@@ -2445,6 +2445,8 @@ model HrProfile {
   otpExpiresAt       DateTime?
   onboarding         Json      @default("[]") // checklist ticks for a new joiner
   leaveExtra         Json      @default("{}") // extra days granted per leave type, e.g. {"comp":1}
+  waAlerts           Boolean   @default(false) // the employee asked for their HRMS alerts on WhatsApp too
+  waAlertsAt         DateTime? // when they last switched WhatsApp alerts on or off (their consent record)
   createdAt          DateTime  @default(now())
 }
 
@@ -3888,4 +3890,23 @@ model TrCertificate {
   revokedReason  String    @default("")
 
   @@index([staffId])
+}
+
+/// HRMS alerts sent on WhatsApp (an approved utility template through the company's WhatsApp Business number). The in-app
+/// notification is always written first; this is the copy for people who opted in. Sent by the scheduler with retries.
+model HrWaMessage {
+  id        String    @id @default(uuid())
+  staffId   String
+  to        String // E.164 phone number at the time it was queued
+  text      String
+  status    String    @default("pending") // pending, sending, sent, failed
+  attempts  Int       @default(0)
+  error     String    @default("")
+  waId      String    @default("") // WhatsApp message id once accepted
+  nextAt    DateTime  @default(now())
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([status, nextAt])
+  @@index([staffId, createdAt])
 }

@@ -19,6 +19,7 @@ import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
+import * as wa from "@/staff/hrms/whatsapp";
 import * as promos from "@/staff/hrms/promotions";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
@@ -173,6 +174,11 @@ export const openInvoice = async (id: string) => hrRun((me) => fin.invoice(me, i
 // ── Super admin
 export const saveSettings = async (input: Settings) => done(await hrRun((me) => people.saveSettings(me, input), "Settings saved."));
 export const togglePerm = async (role: string, moduleId: string) => done(await hrRun((me) => people.togglePerm(me, role, moduleId)));
+
+// ── WhatsApp alerts
+export const saveWhatsAppAlerts = async (input: In<typeof wa.saveWaConfig>) => done(await hrRun((me) => wa.saveWaConfig(me, input), "WhatsApp alert settings saved."));
+export const sendWhatsAppTest = async () => done(await hrRun((me) => wa.sendWaTest(me)));
+export const setMyWhatsAppAlerts = async (on: boolean) => done(await hrRun((me) => wa.setMyWaAlerts(me, on), on ? "You’ll get your HR alerts on WhatsApp too." : "WhatsApp alerts switched off."));
 
 // ── Assets and workflows
 export const addAsset = async (input: In<typeof assets.addAsset>) => done(await hrRun((me) => assets.addAsset(me, input), "Asset added."));

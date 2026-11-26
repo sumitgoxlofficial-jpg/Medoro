@@ -1,4 +1,5 @@
 import "server-only";
+import { myWaAlerts, waAdmin } from "./whatsapp";
 import { db } from "@/server/db";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
@@ -108,7 +109,7 @@ export const loaders = {
   training: async (me: Me, q: Q) => ({ t: await myTraining(me), tab: q.tab ?? "overview", lesson: q.lesson ? await lessonForLearner(me, q.lesson).catch(() => null) : null }),
   trdesk: async (me: Me) => trainerDesk(me),
   academy: async (me: Me) => academy(me),
-  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id) }),
+  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id), wa: await myWaAlerts(me) }),
 
   slhome: async (me: Me) => salesSummary(me),
   slboard: async (me: Me) => salesSummary(me),
@@ -158,7 +159,7 @@ export const loaders = {
   saapprovals: async () => ({ waiting: await claims({ status: ["pending_admin"] }), settled: await claims({ status: ["approved", "rejected"] }, 15) }),
   saperms: async () => ({ perms: await loadPerms() }),
   auditlogs: async (me: Me) => ({ rows: await auditLog(me) }),
-  settings: async () => ({ s: await loadSettings() }),
+  settings: async (me: Me) => ({ s: await loadSettings(), wa: await waAdmin(me) }),
 } satisfies Record<string, (me: Me, q: Q) => Promise<unknown>>;
 export type ScreenId = keyof typeof loaders;
 export type Data<K extends ScreenId> = Awaited<ReturnType<(typeof loaders)[K]>>;

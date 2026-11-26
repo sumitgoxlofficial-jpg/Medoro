@@ -37,6 +37,8 @@ const realSender: Sender = {
 };
 let sender = realSender;
 export function setSender(s: Sender | null) { sender = s ?? realSender; }
+/** Sends one WhatsApp payload on the company number (the HRMS alerts use this too). */
+export const sendWhatsAppPayload = (cfg: WaConn, to: string, payload: Record<string, unknown>) => sender.whatsapp(cfg, to, payload);
 
 // ── Connections
 type WaSecrets = { token: string; appSecret: string; verifyToken: string };

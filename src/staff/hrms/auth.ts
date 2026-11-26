@@ -10,6 +10,7 @@ import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { otpMail } from "./mails";
 import { defer } from "@/server/defer";
+import { queueWa } from "./wa-queue";
 import { createStaffSession, readStaffSession, staffAudit } from "../auth";
 import type { StaffRoleId } from "../constants";
 import { DEFAULT_PERMS, DEFAULT_SETTINGS, HR_ROLES, MODULES, hasModule, type HrRoleId, type ModuleId, type Perms, type Settings } from "./constants";
@@ -92,7 +93,14 @@ export const audit = (me: { id: string | null; name: string }, action: string, d
 
 export async function notify(staffIds: string[], text: string, screen = "") {
   const ids = [...new Set(staffIds)].filter(Boolean);
-  if (ids.length) await db.hrNotification.createMany({ data: ids.map((staffId) => ({ staffId, text: text.slice(0, 240), screen })) });
+  if (!ids.length) return;
+  await db.hrNotification.createMany({ data: ids.map((staffId) => ({ staffId, text: text.slice(0, 240), screen })) });
+  // The WhatsApp copy for people who opted in, sent after the response (the scheduler retries what fails).
+  await defer(async () => {
+    if (!(await queueWa(ids, text))) return;
+    const { waTick } = await import("./whatsapp"); // loaded lazily: whatsapp.ts imports this file
+    await waTick();
+  });
 }
 /** Active people who hold a module (to tell them something needs a decision). */
 export async function holders(m: ModuleId): Promise<string[]> {
