@@ -49,7 +49,7 @@ test("a new message pops up on the floating chat bubble and can be answered from
   await signIn(ben, BEN.email);
   await expect(ben).toHaveURL(/\/staff\/hrms/); // sign-in finishes its own redirect first
   await ben.goto("/staff/hrms/chat");
-  await ben.getByRole("button", { name: "+ New" }).click();
+  await ben.getByRole("button", { name: "New chat" }).click();
   await ben.getByRole("button", { name: new RegExp(ANN.name) }).click();
   await ben.getByLabel("Message", { exact: true }).fill("Hello Ann, are you free for a quick call?");
   await ben.getByRole("button", { name: "Send", exact: true }).click();
