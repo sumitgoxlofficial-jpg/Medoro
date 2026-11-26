@@ -8,7 +8,7 @@ import { PRODUCTS } from "../constants";
 // 1. Real wins: when someone closes a sale (ConversionRecord) or books a demo (DemoBooking), a short announcement is posted
 //    into the channel from that person's own account, as kind "win". The chat shows it with an "auto" tag so nobody thinks
 //    they typed it.
-// 2. Motivation bots: 45 named personas (members are the bots, the super admin and HR; those two add anyone else by hand) (20 women, 25 men) post a few upbeat sales messages every day between 10:00 and
+// 2. Motivation bots: 45 named personas (20 women, 25 men) each post one sales message every day between 10:00 and
 //    18:30 India time, in English, Hindi and Hinglish, as kind "pulse". They are not staff accounts: they have no login and
 //    no HR profile, so they never appear in staff lists, attendance, payroll or the org chart, and every message and
 //    profile is badged "Sales Pulse · auto" in the chat.
@@ -44,52 +44,77 @@ const FEATURES = ["GST billing", "expiry alerts", "stock tracking", "WhatsApp re
 const FEATURES_HI = ["GST बिलिंग", "एक्सपायरी अलर्ट", "स्टॉक ट्रैकिंग", "WhatsApp रिमाइंडर", "बारकोड बिलिंग"];
 
 type Fill = { n: number; d: number; city: string; plan: string; feat: string; featHi: string };
+// 60 message styles, all about a sale closed, a demo booked or a demo done: 20 English, 20 Hindi, 20 Hinglish.
+const s = (n: number) => (n === 1 ? "sale" : "sales");
 const EN: ((f: Fill) => string)[] = [
-  (f) => `${f.n} ${f.n === 1 ? "sale" : "sales"} closed today 🎉 Let's keep it going, team!`,
+  (f) => `${f.n} ${s(f.n)} closed today 🎉 Let's keep it going, team!`,
   (f) => `${f.d} demo calls booked for tomorrow ✅`,
   (f) => `Closed a Medoro ${f.plan} deal with a pharmacy in ${f.city} 💪`,
   (f) => `Another one! A chemist in ${f.city} just signed up for ${f.plan} 🚀`,
-  (f) => `Booked ${f.d} demos this morning. ${cap(f.feat)} is a big hit with pharmacy owners.`,
-  () => `Trial converted to paid today 🙌 Follow-ups really work!`,
-  (f) => `${f.n} closed, ${f.d} demos booked. Good day so far 🔥`,
-  () => `Renewal done for a 3-store client, they upgraded to Multi-branch 🏬`,
-  (f) => `Demo went great, client in ${f.city} said yes on the call itself 😄`,
-  () => `Who's hitting target this week? I'm 2 away 💯`,
-  (f) => `Pharmacy owner in ${f.city} asked for a callback after the demo. Closed it on the second call ✅`,
-  (f) => `${f.d} demos lined up for the afternoon, wish me luck 🤞`,
-  (f) => `Upsold the AI Pharmacy Manager add-on to an existing ${f.plan} client today 🤖`,
-  () => `Small win: a lead that said "not now" last month just signed up 🙌`,
-  (f) => `Wrapped up ${f.n} ${f.n === 1 ? "closure" : "closures"} before lunch. Second half, let's go! ⚡`,
+  (f) => `Done with ${f.d} demo calls this morning. ${cap(f.feat)} is a big hit with pharmacy owners.`,
+  (f) => `Trial converted to paid today 🙌 ${f.plan} plan, ${f.city}.`,
+  (f) => `${f.n} closed, ${f.d} demos done. Good day so far 🔥`,
+  (f) => `Demo done with a 3-store owner in ${f.city}, they took Multi-branch on the call 🏬`,
+  (f) => `Demo call went great, client in ${f.city} said yes on the call itself 😄`,
+  (f) => `Closed a sale on the second follow-up call. ${f.plan} plan ✅`,
+  (f) => `${f.d} demos lined up for the afternoon, ${f.n} already closed today 🤞`,
+  (f) => `Sold the AI Pharmacy Manager add-on to an existing ${f.plan} client 🤖`,
+  (f) => `A lead from ${f.city} that said "not now" last month just bought ${f.plan} 🙌`,
+  (f) => `${f.n} ${s(f.n)} closed before lunch. Second half, let's go! ⚡`,
+  (f) => `Booked ${f.d} demos from today's calls. ${cap(f.feat)} gets them every time.`,
+  (f) => `Finished a video demo with a chemist in ${f.city}. Payment link sent, deal closed 💳`,
+  (f) => `Sale closed! ${f.city} pharmacy moving from register billing to Medoro ${f.plan} 📒➡️💻`,
+  (f) => `${f.d} demo calls done, ${f.n} converted on the spot 🎯`,
+  (f) => `In-person demo done in ${f.city}. Owner signed up for ${f.plan} right there 🤝`,
+  (f) => `Today: ${f.n} ${s(f.n)} closed + ${f.d} demos booked. Medoro is selling itself 🚀`,
 ];
 const HI: ((f: Fill) => string)[] = [
   (f) => `आज ${f.n} सेल क्लोज़ हुई 🎉 चलो टीम, और आगे बढ़ते हैं!`,
   (f) => `${f.d} डेमो कॉल बुक हो गए ✅`,
   (f) => `${f.city} के एक मेडिकल स्टोर ने Medoro ${f.plan} ले लिया 💪`,
   (f) => `अभी अभी एक डील क्लोज़ की, कस्टमर को ${f.featHi} बहुत पसंद आया 🙌`,
-  () => `ट्रायल वाला क्लाइंट आज पेड हो गया 🎯`,
+  (f) => `ट्रायल वाला क्लाइंट आज ${f.plan} पर पेड हो गया 🎯`,
   (f) => `आज ${f.d} डेमो बुक किए, कल सबको Medoro दिखाऊँगा 🚀`,
-  () => `फॉलो-अप का फल मीठा होता है, आज एक और सेल पक्की 😊`,
+  (f) => `फॉलो-अप का फल मीठा होता है, आज ${f.city} में एक और सेल पक्की 😊`,
   (f) => `${f.city} वाले क्लाइंट ने डेमो के बाद तुरंत हाँ बोल दिया 🎉`,
-  (f) => `आज शाम तक ${f.d} और डेमो हैं, टारगेट पूरा करके ही रुकेंगे 💪`,
-  () => `पुराने लीड को फिर से कॉल किया और सेल हो गई ✅`,
-  (f) => `${f.plan} प्लान की डील पक्की, कस्टमर बहुत खुश है 😊`,
+  (f) => `आज शाम तक ${f.d} और डेमो हैं, ${f.n} सेल हो चुकी 💪`,
+  (f) => `पुराने लीड को फिर से कॉल किया और ${f.plan} की सेल हो गई ✅`,
+  (f) => `${f.plan} प्लान की डील पक्की, ${f.city} का कस्टमर बहुत खुश है 😊`,
+  (f) => `${f.d} डेमो कॉल पूरे हुए, ${f.n} ने तुरंत साइन अप किया 🔥`,
+  (f) => `${f.city} में 3 स्टोर वाले मालिक ने Multi-branch लिया 🏬`,
+  (f) => `डेमो में ${f.featHi} दिखाया और सेल हो गई 😄`,
+  (f) => `आज का पहला डेमो ${f.city} में हुआ, क्लाइंट ने ${f.plan} लिया 🙏`,
+  (f) => `लंच से पहले ${f.n} सेल क्लोज़, अब ${f.d} डेमो बाकी ⏰`,
+  (f) => `वीडियो डेमो पूरा हुआ, पेमेंट लिंक भेज दिया, ${f.plan} पक्का 💳`,
+  (f) => `${f.city} के केमिस्ट ने कहा अब रजिस्टर नहीं, सिर्फ Medoro ✅`,
+  (f) => `आज ${f.n} सेल और ${f.d} डेमो, दिन शानदार रहा 🎉`,
+  (f) => `AI Pharmacy Manager ऐड-ऑन बेचा, ${f.city} वाले क्लाइंट को 🤖`,
 ];
 const HG: ((f: Fill) => string)[] = [
   (f) => `Aaj ${f.n} sale close ho gayi 🎉 chalo team, target pakka!`,
   (f) => `${f.d} demo call book kar liye 🔥 kal sabko Medoro dikhana hai`,
   (f) => `${f.city} wale chemist ne ${f.plan} plan le liya 💪`,
-  () => `Trial wala client aaj paid ho gaya 🙌`,
+  (f) => `Trial wala client aaj ${f.plan} pe paid ho gaya 🙌`,
   (f) => `Bas abhi ek aur sale close ki, ${f.feat} dekh ke turant haan bol diya 😄`,
   (f) => `${f.n} closed + ${f.d} demo booked, aaj ka din mast hai 🚀`,
-  () => `Follow-up karte raho guys, aaj 2 purane leads convert hue ✅`,
+  (f) => `Follow-up karte raho guys, aaj ${f.city} ka purana lead convert hua ✅`,
   (f) => `${f.city} me 3 store wale owner ne Multi-branch liya 🏬 big one!`,
-  (f) => `Lunch se pehle ${f.n} closing ho gayi, ab demo ka time ⏰`,
-  (f) => `Client bola ${f.feat} toh kamaal hai, turant sign up 😄`,
-  () => `Aaj ka target almost done, bas ek aur closing chahiye 🎯`,
+  (f) => `Lunch se pehle ${f.n} closing ho gayi, ab ${f.d} demo ka time ⏰`,
+  (f) => `Client bola ${f.feat} toh kamaal hai, turant ${f.plan} sign up 😄`,
+  (f) => `${f.d} demo done, ${f.n} ne on the spot payment kar diya 💳`,
   (f) => `${f.city} ka lead 2 hafte se pending tha, aaj convert ho gaya 🙌`,
   (f) => `Kal ke liye ${f.d} demo fix, sab owners interested lag rahe hai 🔥`,
+  (f) => `Video demo khatam, ${f.city} wale bhaiya ne ${f.plan} le liya 🎯`,
+  (f) => `Aaj ka pehla demo hi close ho gaya 😎 ${f.plan} plan`,
+  (f) => `AI Pharmacy Manager add-on bhi bech diya ${f.city} me 🤖`,
+  (f) => `Shop visit karke demo diya ${f.city} me, deal done 🤝`,
+  (f) => `${f.n} sale aur ${f.d} demo, aaj Medoro full form me hai 🚀`,
+  (f) => `${f.city} wale client ne bola register band, ab sirf Medoro ✅`,
+  (f) => `Demo call pe hi ${f.plan} close, ${f.feat} ne kaam kar diya 💪`,
 ];
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+/** English, Hindi and Hinglish interleaved, so neighbouring bots (and each bot from one day to the next) switch language. */
+const POOL = EN.flatMap((e, i) => [e, HI[i], HG[i]]);
 
 /** Small seeded random generator, so a day's schedule is the same on every server and every call. */
 function rng(seed: string) {
@@ -104,23 +129,21 @@ const IST = 330 * 60_000;
 const START = 10 * 60, END = 18 * 60 + 30; // minutes after midnight, India time
 export type Slot = { at: Date; senderId: string; body: string };
 
-/** The day's bot messages (10 to 16 of them), at random minutes between 10:00 and 18:30 India time. */
+/**
+ * The day's bot messages: every one of the 45 bots posts once, at a random minute between 10:00 and 18:30 India time.
+ * Templates rotate daily, so on a given day no two bots send the same message and no bot repeats yesterday's.
+ */
 export function daySchedule(day: string): Slot[] {
   const r = rng(`medoro-sales-pulse:${day}`);
   const midnight = Date.parse(`${day}T00:00:00Z`) - IST;
-  const n = 10 + Math.floor(r() * 7);
-  const minutes = Array.from({ length: n }, () => START + Math.floor(r() * (END - START + 1))).sort((a, b) => a - b);
-  // Every message of the day uses a different template (shuffled pool of all three languages), so no two read the same.
-  const pool = [...EN, ...HI, ...HG];
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  let last = "";
-  return minutes.map((m, k) => {
-    let p = pick(r, PERSONAS);
-    while (p.id === last) p = pick(r, PERSONAS);
-    last = p.id;
+  const dayNo = Math.round(Date.parse(`${day}T00:00:00Z`) / 86400_000);
+  const pool = POOL.length;
+  return PERSONAS.map((p, i) => {
+    const m = START + Math.floor(r() * (END - START + 1));
     const f: Fill = { n: 1 + Math.floor(r() * 3), d: 2 + Math.floor(r() * 5), city: pick(r, CITIES), plan: pick(r, PLANS), feat: pick(r, FEATURES), featHi: pick(r, FEATURES_HI) };
-    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: pool[k](f) };
-  });
+    const t = POOL[(((i + dayNo * 7) % pool) + pool) % pool];
+    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: t(f) };
+  }).sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 export const istDay = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(0, 10);
 

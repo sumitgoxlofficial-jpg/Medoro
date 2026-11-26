@@ -13,21 +13,31 @@ describe("Sales Pulse", () => {
     expect(new Set(PERSONAS.map((p) => p.name)).size).toBe(45);
     expect(PERSONAS.every((p) => p.id.startsWith("pulse:"))).toBe(true);
   });
-  it("posts 10-16 messages a day between 10:00 and 18:30 India time, the same on every call", () => {
+  it("every bot posts once a day between 10:00 and 18:30 India time, the same on every call", () => {
     for (const day of ["2026-11-26", "2026-11-27", "2027-01-01"]) {
       const s = daySchedule(day);
-      expect(s.length).toBeGreaterThanOrEqual(10);
-      expect(s.length).toBeLessThanOrEqual(16);
+      expect(s).toHaveLength(45);
+      expect(new Set(s.map((x) => x.senderId)).size).toBe(45);
       for (const x of s) {
         expect(x.at.getTime()).toBeGreaterThanOrEqual(ist(day, 10));
         expect(x.at.getTime()).toBeLessThan(ist(day, 18, 31));
         expect(istDay(x.at)).toBe(day);
-        expect(x.body.length).toBeGreaterThan(5);
       }
       expect(s.map((x) => x.at.getTime())).toEqual([...s.map((x) => x.at.getTime())].sort((a, b) => a - b));
       expect(daySchedule(day)).toEqual(s);
-      for (let i = 1; i < s.length; i++) expect(s[i].senderId).not.toBe(s[i - 1].senderId);
-      expect(new Set(s.map((x) => x.body)).size).toBe(s.length); // no message repeats within a day
+      expect(new Set(s.map((x) => x.body)).size).toBe(45); // nobody sends the same message on a day
+    }
+  });
+  it("gives every bot a different message from the day before, all about sales or demos", () => {
+    const days = Array.from({ length: 60 }, (_, i) => new Date(Date.UTC(2026, 11, 1) + i * 86400_000).toISOString().slice(0, 10));
+    let prev = new Map<string, string>();
+    for (const d of days) {
+      const today = new Map(daySchedule(d).map((x) => [x.senderId, x.body]));
+      for (const [id, body] of today) {
+        expect(body).not.toBe(prev.get(id));
+        expect(body).toMatch(/sale|demo|deal|closed|close|sign|bought|sold|सेल|डेमो|डील|पेड|पक्का|साइन|ले लिया|लिया|बेचा|Medoro|convert|liya|bech|paid/i);
+      }
+      prev = today;
     }
   });
   it("mixes English, Hindi and Hinglish over a month", () => {
