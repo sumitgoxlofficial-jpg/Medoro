@@ -15,7 +15,7 @@ import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { promotions } from "./promotions";
-import { myDocs } from "./docs";
+import { expiringDocs, myDocs } from "./docs";
 import { exitsBoard, myExit } from "./exits";
 import { cycleBoard, myReviews } from "./appraisals";
 import { myTeam, reportCount } from "./team";
@@ -180,7 +180,7 @@ async function dashboard(me: Me) {
   return {
     staff, pending, onLeave: out.length, openJobs, ann, claimsWaiting: hrClaims + adminClaims, canPost: can(me, "employees") || me.role === "admin",
     joining: staff.filter((p) => p.joinDate && p.joinDate >= today_ && p.joinDate <= soon), depts: new Set(staff.map((p) => p.dept).filter(Boolean)).size,
-    canApprove: can(me, "attendance"),
+    canApprove: can(me, "attendance"), expiring: await expiringDocs(me),
   };
 }
 

@@ -88,6 +88,7 @@ export const removeDoc = async (id: string) => done(await hrRun((me) => docs.rem
 export const rejectDoc = async (id: string, reason: string) => done(await hrRun((me) => docs.rejectDoc(me, id, reason), "Sent back to the employee."));
 export const verifyDoc = async (id: string, ok: boolean) => done(await hrRun((me) => docs.verifyDoc(me, id, ok), ok ? "Marked as verified." : "Verification removed."));
 export const employeeDocs = async (staffId: string) => hrRun((me) => docs.employeeDocs(me, staffId));
+export const setDocExpiry = async (id: string, expiresOn: string | null) => done(await hrRun((me) => docs.setDocExpiry(me, id, expiresOn), expiresOn ? "Expiry date saved. Reminders go out 30 and 7 days before." : "Expiry date removed."));
 export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved."));
 export const skipKyc = async () => done(await hrRun((me) => kyc.skipKyc(me), "No problem. You can add them later from your profile."));
 export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }));

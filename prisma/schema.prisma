@@ -2580,16 +2580,19 @@ model HrTask {
 
 /// A document an employee uploaded for HR (identity, address, certificates). The file is in file storage under `key`.
 model HrDocument {
-  id         String    @id @default(uuid())
-  staffId    String
-  kind       String
-  name       String
-  key        String
-  verifiedBy String?
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id          String    @id @default(uuid())
+  staffId     String
+  kind        String
+  name        String
+  key         String
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  expiresOn   DateTime? @db.Date // when the document stops being valid (passport, visa, contract, licence…); empty = doesn't expire
+  expiryStage Int       @default(0) // reminders already sent for this expiry date: 1 = 30 days before, 2 = 7 days before, 3 = expired
+  createdAt   DateTime  @default(now())
 
   @@index([staffId])
+  @@index([expiresOn])
 }
 
 /// Every change of annual CTC, so pay history can be explained later.
