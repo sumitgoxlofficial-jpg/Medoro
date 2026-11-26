@@ -16,6 +16,7 @@ import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { promotions } from "./promotions";
 import { myDocs } from "./docs";
+import { allPolicies, myPolicies } from "./policies";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
@@ -100,6 +101,8 @@ export const loaders = {
     return { chats, people, me: mine, open: q.c ?? "", google: g.connected, backup: { ...backup, notice }, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
+  policies: async (me: Me) => ({ policies: await myPolicies(me) }),
+  hrpolicies: async (me: Me) => ({ policies: await allPolicies(me) }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id) }),
 

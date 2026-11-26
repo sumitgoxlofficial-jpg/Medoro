@@ -7,9 +7,9 @@ The team workspace for Medoro's own people, at **`/staff/hrms`**. Everyone signs
 
 | Role | Menu |
 |---|---|
-| **Employee** | Home, My Tasks, Calendar, Attendance, Leave & Approvals (with reimbursement claims), Payslips, Work at Medoro (refer a candidate), Support, My profile |
+| **Employee** | Home, My Tasks, Calendar, Attendance, Leave & Approvals (with reimbursement claims), Payslips, Work at Medoro (refer a candidate), Company policies, Support, My profile |
 | **Sales** | Dashboard (target, follow-ups, leaderboard, incentive), Lead Tracker, My Leads, plus the employee screens |
-| **HR Admin** | Everything an employee has, plus Employees, New Employee, Departments, Credentials, Onboarding, Team Attendance, Leave Management, Recruitment, Payroll, Performance, Assign Tasks, Projects, Leads, Reports, Ally Usage |
+| **HR Admin** | Everything an employee has, plus Employees, New Employee, Departments, Credentials, Onboarding, Policies, Team Attendance, Leave Management, Recruitment, Payroll, Performance, Assign Tasks, Projects, Leads, Reports, Ally Usage |
 | **Finance** | Dashboard, Contacts, Sales & Invoices, Purchases & Expenses, Accounting, Products, Banking, GST and Reports, Payroll |
 | **Super Admin** | Everything, plus Approvals, Roles & Permissions, Audit Logs, Settings |
 
@@ -29,6 +29,16 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
    (the exit can be cancelled until then). That month's payslip is the **final settlement**: pay up to the last day, unused
    privilege leave paid at a day's basic (monthly basic ÷ 26), and gratuity after five years (15 days' basic per year of
    service). The settlement is an estimate; have a CA confirm it.
+
+## Company policies (handbook)
+
+* **Policies** (HR, *Employees* module): publish a policy (title, category, text: a blank line starts a paragraph, "- " starts
+  a bullet), mark it *mandatory* (everyone must acknowledge) or *for information*. Everyone is notified. HR sees, per policy,
+  who has and hasn't acknowledged the current version, can **Remind** the ones who haven't, **Edit** and **Archive** / restore.
+  An edit can be ticked as *an important change*: the version goes up and everyone must acknowledge it again (they are told).
+  Small edits (typos) keep existing acknowledgements.
+* **Company policies** (everyone, COMPANY menu): read each policy and press *I have read and accept*; the page shows how many are
+  still to acknowledge. Acknowledgements are kept per version, with the time.
 
 ## More screens
 

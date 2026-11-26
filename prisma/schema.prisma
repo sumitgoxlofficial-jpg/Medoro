@@ -3666,3 +3666,31 @@ model DistConnection {
   @@unique([tenantId, accountId])
   @@index([accountId])
 }
+
+/// A company policy in the HRMS handbook (Company policies). HR publishes it; employees read and acknowledge it.
+model HrPolicy {
+  id          String    @id @default(uuid())
+  title       String
+  category    String    @default("General")
+  body        String // plain text: a blank line starts a paragraph, lines starting with "- " are bullets
+  version     Int       @default(1) // goes up when HR publishes a change that everyone must acknowledge again
+  mandatory   Boolean   @default(true) // employees are asked to acknowledge it
+  archivedAt  DateTime?
+  publishedBy String    @default("")
+  publishedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  acks        HrPolicyAck[]
+}
+
+/// Someone confirmed they read and accept a version of a policy.
+model HrPolicyAck {
+  id       String   @id @default(uuid())
+  policyId String
+  policy   HrPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  staffId  String
+  version  Int
+  ackedAt  DateTime @default(now())
+
+  @@unique([policyId, staffId, version])
+  @@index([staffId])
+}

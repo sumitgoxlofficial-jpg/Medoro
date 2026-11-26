@@ -4,6 +4,7 @@ import { AssetsScreen, AttendanceScreen, CalendarScreen, HomeScreen, MyProjectsS
 import { AllyUsageScreen, ApprovalsScreen, AssignTasksScreen, AuditScreen, CredentialsScreen, DashboardScreen, DepartmentsScreen, EmployeesScreen, HrAttendanceScreen, HrLeaveScreen, NewEmployeeScreen, OnboardingScreen, PayrollScreen, PermsScreen, PerfScreen, RecruitScreen, ReportsScreen, SettingsScreen } from "./screens-hr";
 import { ChatReviewScreen, ChatScreen } from "./screens-chat";
 import { ProjectsScreen } from "./screens-projects";
+import { HrPoliciesScreen, PoliciesScreen } from "./screens-policies";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
 import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
 
@@ -22,6 +23,8 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "jobs": return <JobsScreen d={d as Data<"jobs">} />;
     case "chat": return <ChatScreen d={d as Data<"chat">} />;
     case "chatreview": return <ChatReviewScreen d={d as Data<"chatreview">} />;
+    case "policies": return <PoliciesScreen d={d as Data<"policies">} />;
+    case "hrpolicies": return <HrPoliciesScreen d={d as Data<"hrpolicies">} />;
     case "support": return <SupportScreen d={d as Data<"support">} />;
     case "profile": return <ProfileScreen d={d as Data<"profile">} />;
     case "slhome": return <SalesHome d={d as Data<"slhome">} sh={sh} />;
