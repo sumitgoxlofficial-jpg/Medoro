@@ -137,6 +137,8 @@ export function SoundToggle() {
   return (
     <button type="button" title={on ? "Message sound is on" : "Message sound is off"} aria-label={on ? "Turn message sound off" : "Turn message sound on"} aria-pressed={on}
       onClick={() => { const n = !on; setPref(n ? "on" : "off"); if (n) { unlock(); ding(); } }}
-      className="flex-none px-2.5 rounded-lg border border-[#CBD5E1] bg-white text-[15px] cursor-pointer">{on ? "🔔" : "🔕"}</button>
+      className="flex-none size-10 rounded-full flex items-center justify-center bg-transparent border-0 cursor-pointer text-[#54656F] hover:bg-black/[.06]">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />{on ? null : <path d="m2 2 20 20" />}</svg>
+    </button>
   );
 }

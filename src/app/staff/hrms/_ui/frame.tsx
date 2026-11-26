@@ -70,7 +70,9 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
   // Every titled screen except the sales dashboard (which greets you) opens with a teal strip that carries its title.
   const def = SCREENS.find((x) => x.id === screen);
-  const hero = !!def && !NO_TITLE_SCREENS.includes(screen) && screen !== "slhome";
+  // Team Chat fills the whole screen like a messaging app, so it gets neither the strip nor a title.
+  const fullChat = screen === "chat";
+  const hero = !!def && !NO_TITLE_SCREENS.includes(screen) && screen !== "slhome" && !fullChat;
   // India time on both the server and the browser, so the greeting is the same in both renders.
   const istHour = new Date(now + 5.5 * 3600_000).getUTCHours();
   const greet = screen === sh.home && screen === "slhome" ? `${istHour < 12 ? "Good morning" : istHour < 17 ? "Good afternoon" : "Good evening"}, ${sh.me.first}` : title;
@@ -112,7 +114,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
         </div>
         <header className="relative flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
           <button className="min-[860px]:hidden border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          {NO_TITLE_SCREENS.includes(screen) || hero ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
+          {NO_TITLE_SCREENS.includes(screen) || hero || fullChat ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
             <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={def?.icon ?? "home"} s={19} /></span>
             <div className="min-w-0"><h1 className="text-[19px] font-bold truncate">{greet}{greet !== title ? <span aria-hidden className="hr-wave inline-block ml-1.5">👋</span> : null}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>
           </div>}
@@ -152,7 +154,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             </div> : null}
           </div>
         </header>
-        <main key={screen} className="hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3 py-4 pb-12">{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
+        <main key={screen} className={cx("hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3", fullChat ? "pt-3 pb-4" : "py-4 pb-12")}>{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
       <ChatHeads screen={screen} meId={sh.me.id} />
