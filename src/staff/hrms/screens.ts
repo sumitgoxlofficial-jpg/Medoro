@@ -1,4 +1,5 @@
 import "server-only";
+import { videosFor } from "./video-catalog";
 import { myWaAlerts, waAdmin } from "./whatsapp";
 import { db } from "@/server/db";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
@@ -113,6 +114,7 @@ export const loaders = {
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   policies: async (me: Me) => ({ policies: await myPolicies(me) }),
+  hrvideos: async (me: Me) => ({ videos: videosFor(me.role, me.perms) }),
   hrpolicies: async (me: Me) => ({ policies: await allPolicies(me) }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   training: async (me: Me, q: Q) => ({ t: await myTraining(me), tab: q.tab ?? "overview", lesson: q.lesson ? await lessonForLearner(me, q.lesson).catch(() => null) : null }),

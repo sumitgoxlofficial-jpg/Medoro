@@ -173,6 +173,20 @@ connected Google Calendar).
 * The review shows facts from the period next to the form: tasks done, the share done on time, open overdue tasks, days present and late days.
   HR can export the cycle as CSV and close it.
 
+## Training videos (staff only)
+
+* **Training Videos** (COMPANY menu, everyone): 20 short Hinglish how-to videos for the HRMS, recorded with "(Demo)" staff.
+  Real people are blurred.
+* Each person sees only the videos for what their role can open: payroll, finance, recruitment, leads and HR videos need
+  that module. The super admin, roles and dashboard-comparison videos are for the super admin only.
+* The sign-in page links to them (`/staff/employee?next=videos` opens the videos right after signing in).
+* The files are static (`public/hrms-videos`), but the proxy serves them only with a **video pass**. The pass is a cookie
+  (path `/hrms-videos`, 4 hours) that the screen asks for at `POST /staff/hrms/videos/pass`. It is an HMAC (from `SESSION_SECRET`)
+  over its expiry and the videos that person may watch (`src/lib/hrms-video-pass.ts`). Without a valid pass that covers
+  the video, the file returns 404.
+* To add a video: put `<slug>.mp4` (H.264, `-crf 30 -tune stillimage`, `+faststart`) in `public/hrms-videos/files` and a 640px
+  `<slug>.jpg` in `thumbs`, then add it to `HR_VIDEOS` in `src/staff/hrms/video-catalog.ts` with who may watch it.
+
 ## Not built (in the design, not in Medoro yet)
 
 Built-in voice/video calls and screen sharing (Team Chat uses a Google Meet link instead), AI meeting minutes and AI candidate screening, Wins / Culture OS /

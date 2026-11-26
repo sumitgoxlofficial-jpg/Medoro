@@ -9,9 +9,11 @@ export const metadata: Metadata = { title: "Medoro HRMS sign in" };
 export const dynamic = "force-dynamic";
 
 /** Medoro employees sign in to the HRMS here with their employee ID or work email and a password. */
-export default async function Page() {
-  if (await getMe()) redirect("/staff/hrms");
+export default async function Page({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  // ?next=videos (the "Training videos" link): go to the videos after signing in. Only this one target is allowed.
+  const next = (await searchParams).next === "videos" ? "/staff/hrms/hrvideos" : "/staff/hrms";
+  if (await getMe()) redirect(next);
   // A console session of a partner is not an employee session: let them sign in here regardless.
   void (await readStaffSession(true, true));
-  return <EmployeeLogin emailCodes={mailEnabled()} />;
+  return <EmployeeLogin emailCodes={mailEnabled()} next={next} />;
 }

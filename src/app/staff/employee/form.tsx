@@ -7,7 +7,7 @@ import { HR_CARDS, IdBadge, SideIcons, TeamOrbit } from "./art";
 
 const field = "border border-[#CDD2D7] rounded-[10px] px-3.5 py-3 text-[15px] outline-none transition-[border-color,box-shadow] duration-300 focus:border-[#0B5E5B] focus:shadow-[0_0_0_4px_rgba(20,184,166,.18)] bg-white w-full";
 
-export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
+export function EmployeeLogin({ emailCodes, next = "/staff/hrms" }: { emailCodes: boolean; next?: string }) {
   const router = useRouter();
   const [id, setId] = useState(""), [pw, setPw] = useState(""), [code, setCode] = useState("");
   const [totp, setTotp] = useState(false), [err, setErr] = useState(""), [info, setInfo] = useState("");
@@ -18,7 +18,7 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
       const r = await hrSignIn(id, pw, code);
       if (!r.ok) return setErr(r.error);
       if (r.data.next === "totp") { setTotp(true); return; }
-      router.replace("/staff/hrms");
+      router.replace(next);
       router.refresh();
     });
   };
@@ -89,6 +89,7 @@ export function EmployeeLogin({ emailCodes }: { emailCodes: boolean }) {
             <button type="button" onClick={forgot} disabled={busy || !id.trim()} className="text-[#0B5E5B] font-semibold cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0">Forgot password?</button>
             <Link href="/" className="text-[#475569]">← medoro website</Link>
           </div>
+          <Link href="/staff/employee?next=videos" className={`text-[13px] font-semibold rounded-lg px-3 py-2 ${next.endsWith("hrvideos") ? "bg-[#E1F1EF] text-[#0B5E5B]" : "bg-[#F8FAFC] text-[#0B5E5B] border border-[#E2E8F0]"}`}>{next.endsWith("hrvideos") ? "▶ Sign in to watch the HRMS training videos" : "▶ Training videos: how to use the HRMS (staff only)"}</Link>
           <p className="text-[12px] text-[#64748B] border-t border-[#E2E8F0] pt-3">Only Medoro employees can sign in. Your employee ID and first password come from HR. Locks for 15 minutes after 5 wrong tries.</p>
         </form>
         </div>
