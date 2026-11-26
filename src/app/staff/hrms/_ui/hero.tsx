@@ -132,6 +132,13 @@ function Scene({ icon }: { icon: IconId }) {
           {[45, 135, 225, 315].map((a) => <path key={a} d="M70 12v16" stroke={ROSE} strokeWidth="7" transform={`rotate(${a} 70 40)`} />)}</g>
         <g transform="translate(112 12) scale(1.3)"><path className="hr-twinkle" d={STAR} fill={GOLD} stroke="none" /></g>
       </>;
+    case "cap": // training: a graduation cap over an open book, with a certificate star popping
+      return <>
+        <path d="M30 60c14-6 26-6 32 0 6-6 18-6 32 0V40c-14-6-26-6-32 0-6-6-18-6-32 0z" fill={soft} />
+        <path d="M62 40v20" />
+        <g className="hr-sway"><path d="M38 22l24-10 24 10-24 10z" fill="#fff" stroke="none" /><path d="M50 27v7c6 4 18 4 24 0v-7" stroke="#fff" /><path d="M86 22v12" stroke={GOLD} strokeWidth="2.4" /></g>
+        <g className="hr-pop-loop"><circle cx="114" cy="24" r="11" fill={GOLD} stroke="none" /><path d={STAR} transform="translate(109 19)" fill="#fff" stroke="none" /></g>
+      </>;
     default:
       return <g transform="translate(56 26) scale(2.8)"><path className="hr-twinkle" d={STAR} fill={GOLD} stroke="none" /></g>;
   }
