@@ -7,6 +7,7 @@ import { LOCATIONS, locationPath } from "@/data/locations";
 import { HUBS } from "@/data/site-links";
 import { SOLUTIONS } from "@/data/solutions";
 import { TOOLS } from "@/data/tools";
+import { TOUR_VIDEOS } from "@/data/tour-videos";
 import { absoluteUrl } from "@/lib/seo";
 
 type Freq = NonNullable<MetadataRoute.Sitemap[number]["changeFrequency"]>;
@@ -27,6 +28,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // /medical-store-stock-management-software and the other search landing pages).
     ...LANDING_LINKS.map(([, path]) => page(path, 0.9, "monthly")),
     page("/about-medoro", 0.8, "monthly"),
+    // The product video library and one watch page per video.
+    page("/videos", 0.8, "monthly"),
+    ...TOUR_VIDEOS.map((v) => page(`/videos/${v.slug}`, 0.6, "monthly")),
     page(HUBS.features, 0.8, "monthly"),
     ...FEATURES.map((f) => page(`/features/${f.slug}`, 0.9, "monthly")),
     page(HUBS.compare, 0.7, "monthly"),

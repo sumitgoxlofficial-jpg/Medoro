@@ -2,16 +2,16 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Boxes, BriefcaseBusiness, Building2, Warehouse, Handshake, LogIn, Mail, Menu, Sparkles, UserRound, X, type LucideIcon } from "lucide-react";
+import { Boxes, BriefcaseBusiness, Building2, Warehouse, Handshake, LogIn, Mail, Menu, Sparkles, UserRound, PlayCircle, X, type LucideIcon } from "lucide-react";
 import { useLang, useT } from "@/lib/i18n-client";
 import type { Lang } from "@/lib/tr";
 import { setLang } from "@/app/app/actions";
 import { Wordmark } from "./brand";
 
 /** Icons shown beside the header links (same order as NAV). */
-const NAV_ICONS: LucideIcon[] = [Boxes, Warehouse, Sparkles, Building2, Handshake, BriefcaseBusiness, Mail];
+const NAV_ICONS: LucideIcon[] = [Boxes, Warehouse, PlayCircle, Sparkles, Building2, Handshake, BriefcaseBusiness, Mail];
 
-export const NAV: [string, string][] = [["Pharmacy", "/pharmacy"], ["Distribution", "/distribution"], ["Why Medoro", "/#why"], ["About", "/about-medoro"], ["Become a partner", "/partners"], ["Careers", "/careers"], ["Contact", "/#contact"]];
+export const NAV: [string, string][] = [["Pharmacy", "/pharmacy"], ["Distribution", "/distribution"], ["Videos", "/videos"], ["Why Medoro", "/#why"], ["About", "/about-medoro"], ["Become a partner", "/partners"], ["Careers", "/careers"], ["Contact", "/#contact"]];
 
 /**
  * EN / हिंदी for the public site. Sets the same `medoro_lang` cookie as the app's switch (works without signing in),
@@ -75,7 +75,7 @@ export function SiteHeader() {
           {NAV.map(([l, h], i) => {
             const Icon = NAV_ICONS[i];
             return (
-              <a key={h} href={h} className="site-nav group relative flex items-center gap-1.5 px-2.5 max-[1365px]:px-2 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap">
+              <a key={h} href={h} className={`site-nav group relative ${h === "/#why" || h === "/about-medoro" ? "max-[1499px]:hidden" : ""} flex items-center gap-1.5 px-2.5 max-[1365px]:px-2 py-2 rounded-md text-[var(--s-ink-2)] hover:text-[var(--s-ink)] hover:bg-[var(--s-soft)] transition-colors whitespace-nowrap`}>
                 <Icon size={16} aria-hidden className="site-nav-ico max-[1799px]:hidden text-[var(--s-brand)]" />{t(l, { ctx: "site" })}
               </a>
             );

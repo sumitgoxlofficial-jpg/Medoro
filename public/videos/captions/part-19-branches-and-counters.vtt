@@ -1,0 +1,80 @@
+WEBVTT
+
+1
+00:00:08.850 --> 00:00:14.453
+Medoro Demo Pharmacy ki do branches hain: Main
+Road, do counters ke saath,
+
+2
+00:00:14.493 --> 00:00:17.198
+aur Kanke Road, ek counter ke saath.
+
+3
+00:00:17.238 --> 00:00:21.697
+Branches 'Users & branches' screen se sambhaali
+jaati hain.
+
+4
+00:00:22.470 --> 00:00:28.497
+Yahan nayi branch jod sakte hain aur har branch
+ke counters ki sankhya tay kar sakte hain.
+
+5
+00:00:28.537 --> 00:00:33.418
+Upar branch ka naam badalkar aap kisi bhi branch
+ka data dekh sakte hain.
+
+6
+00:00:34.159 --> 00:00:40.804
+Staff ko branch ke hisaab se joda jaata hai;
+udaaharan ke liye humne Kanke Road ke liye
+pharmacist
+
+7
+00:00:40.844 --> 00:00:42.918
+aur cashier ko invite kiya tha.
+
+8
+00:00:42.958 --> 00:00:45.647
+Permissions hum agle part mein dekhenge.
+
+9
+00:00:46.406 --> 00:00:53.234
+Stock transfer humne Inventory part mein dekha
+tha: batch se maatra chunkar doosri branch ko
+Send.
+
+10
+00:00:53.274 --> 00:00:58.000
+Transfers ka record isi 'Branches & transfers'
+hisse mein rehta hai.
+
+11
+00:00:58.773 --> 00:01:04.102
+Sabhi branches ki ek saath tasveer Owner view
+mein hai: har branch ki aaj
+
+12
+00:01:04.142 --> 00:01:09.911
+aur kal ki bikri, drawers mein cash, low stock
+aur expiry, sab branches jodkar.
+
+13
+00:01:09.951 --> 00:01:13.000
+Yeh screen phone par bhi achhi chalti hai.
+
+14
+00:01:13.775 --> 00:01:18.789
+Dhyan dein: Google Drive wale hosted setup mein
+bills counters par rehte hain,
+
+15
+00:01:18.829 --> 00:01:22.807
+isliye Owner view ke aankde Medoro server ki
+copy se aate hain
+
+16
+00:01:22.847 --> 00:01:30.259
+aur yahan shoonya dikh sakte hain; har counter
+ki asli bikri uske Dashboard par Branch
+performance mein dikhti hai.

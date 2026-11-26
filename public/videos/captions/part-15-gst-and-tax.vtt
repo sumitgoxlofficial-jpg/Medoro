@@ -1,0 +1,90 @@
+WEBVTT
+
+1
+00:00:08.851 --> 00:00:12.914
+Medicine ki MRP mein GST pehle se shaamil hota
+hai.
+
+2
+00:00:12.954 --> 00:00:17.259
+Medoro har bill par MRP se taxable value
+nikaalta hai,
+
+3
+00:00:17.299 --> 00:00:24.259
+aur Jharkhand ke andar ki bikri par GST ko CGST
+aur SGST mein aadha-aadha baant'ta hai.
+
+4
+00:00:24.299 --> 00:00:28.523
+Doosre rajya ke GST wale customer par IGST lagta
+hai.
+
+5
+00:00:29.271 --> 00:00:34.464
+Har medicine ka HSN code aur GST rate uske
+master mein rehta hai,
+
+6
+00:00:34.504 --> 00:00:36.799
+jaise medicines ke liye 3004.
+
+7
+00:00:36.839 --> 00:00:41.468
+'Reports & GST' screen par GST returns wala
+hissa dekhiye.
+
+8
+00:00:42.209 --> 00:00:43.888
+GST month chuniye.
+
+9
+00:00:43.928 --> 00:00:50.861
+Medoro us mahine ke bills se GSTR-1 banata hai:
+B2B, B2C aur HSN summary,
+
+10
+00:00:50.901 --> 00:00:55.063
+section-wise taxable value aur tax ke saath.
+
+11
+00:00:55.807 --> 00:01:03.171
+Yahan se GSTR-1 JSON, jo GST portal ke offline
+tool mein jaata hai, HSN summary CSV,
+
+12
+00:01:03.211 --> 00:01:07.313
+aur GSTR-3B ke JSON aur CSV download hote hain.
+
+13
+00:01:08.078 --> 00:01:10.513
+Aapka CA Tally istemaal karta hai?
+
+14
+00:01:10.553 --> 00:01:18.084
+'Books & registers' mein Tally export se Tally
+Prime ke liye XML banta hai: pehle ledgers yaani
+masters,
+
+15
+00:01:18.124 --> 00:01:19.103
+phir vouchers.
+
+16
+00:01:19.143 --> 00:01:24.708
+Tally mein Import karte hi bikri, khareed,
+payments aur kharch aa jaate hain,
+
+17
+00:01:24.748 --> 00:01:27.984
+har customer aur supplier ke ledger ke saath.
+
+18
+00:01:28.757 --> 00:01:33.602
+Bahut zaroori: yeh reports aur exports filing
+mein madad ke liye hain.
+
+19
+00:01:33.642 --> 00:01:39.603
+GST return file karne se pehle inhein apne
+accountant ya CA se zaroor check karvaaiye.
