@@ -16,6 +16,7 @@ import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { promotions } from "./promotions";
 import { myDocs } from "./docs";
+import { cycleBoard, myReviews } from "./appraisals";
 import { myTeam, reportCount } from "./team";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
@@ -66,6 +67,8 @@ export const loaders = {
     ]);
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id) };
   },
+  appraisal: async (me: Me) => myReviews(me),
+  hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),
   myteam: async (me: Me) => myTeam(me),
   myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
   assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people(me) : [] }),

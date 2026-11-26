@@ -116,6 +116,18 @@ connected Google Calendar).
   rule is added; they are included in database backups (still sealed).
 * Not built: typing indicators, online status, voice notes, Google Drive backups of chats.
 
+## Performance appraisals
+
+* Someone with the **reports** module opens a review cycle on **Appraisals** (name, period, self-assessment and manager-review due
+  dates). Only one cycle can be open at a time. Every active employee except the Super Admin gets a review and is told.
+* Each step happens on **My Review**. The employee rates themselves 1–5 and writes their achievements, challenges and goals. Their reporting
+  manager then rates them and writes what went well and what to improve. Employees with no manager go straight to HR.
+* HR (reports module) sets the final rating and an optional note. Nobody can finalise their own review. Only the Super Admin can finalise
+  one that is still waiting for the manager. The employee sees the manager's and HR's assessment only once it is final, then
+  acknowledges it.
+* The review shows facts from the period next to the form: tasks done, the share done on time, open overdue tasks, days present and late days.
+  HR can export the cycle as CSV and close it.
+
 ## Not built (in the design, not in Medoro yet)
 
 Built-in voice/video calls and screen sharing (Team Chat uses a Google Meet link instead), AI meeting minutes and AI candidate screening, Wins / Culture OS /
