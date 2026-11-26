@@ -7,9 +7,9 @@ The team workspace for Medoro's own people, at **`/staff/hrms`**. Everyone signs
 
 | Role | Menu |
 |---|---|
-| **Employee** | Home, My Tasks, Calendar, Attendance, Leave & Approvals (with reimbursement claims), Payslips, Work at Medoro (refer a candidate), Support, My profile |
+| **Employee** | Home, My Tasks, Calendar, Attendance, Leave & Approvals (with reimbursement claims), Payslips, Work at Medoro (refer a candidate), Support, My profile (with *Leaving Medoro*: resignation and exit interview) |
 | **Sales** | Dashboard (target, follow-ups, leaderboard, incentive), Lead Tracker, My Leads, plus the employee screens |
-| **HR Admin** | Everything an employee has, plus Employees, New Employee, Departments, Credentials, Onboarding, Team Attendance, Leave Management, Recruitment, Payroll, Performance, Assign Tasks, Projects, Leads, Reports, Ally Usage |
+| **HR Admin** | Everything an employee has, plus Employees, New Employee, Departments, Credentials, Onboarding, Exits, Team Attendance, Leave Management, Recruitment, Payroll, Performance, Assign Tasks, Projects, Leads, Reports, Ally Usage |
 | **Finance** | Dashboard, Contacts, Sales & Invoices, Purchases & Expenses, Accounting, Products, Banking, GST and Reports, Payroll |
 | **Super Admin** | Everything, plus Approvals, Roles & Permissions, Audit Logs, Settings |
 
@@ -31,11 +31,37 @@ sales employee (Sales role or Sales department) is enrolled automatically; HR ca
    with `HOST_KEY` and shown masked), accept the offer letter, appointment letter and NDA.
 3. Daily: check in/out (late after the time in Settings), breaks, tasks, leave and claims.
 4. Pay day: HR or Finance processes **Payroll** once the pay period has ended; employees get a payslip (printable as PDF).
-5. Leaving: HR opens **Record exit** on the employee and enters the last working day. Today or earlier deactivates them at
+5. Leaving: the employee resigns from *My profile* and HR accepts it under **Exits**, or HR opens **Record exit** on the employee and enters the last working day. Today or earlier deactivates them at
    once (sessions end immediately). A later day is a notice period: they keep working and are deactivated the day after it
    (the exit can be cancelled until then). That month's payslip is the **final settlement**: pay up to the last day, unused
    privilege leave paid at a day's basic (monthly basic ÷ 26), and gratuity after five years (15 days' basic per year of
    service). The settlement is an estimate; have a CA confirm it.
+
+## Exits: resignation, exit interview and clearance
+
+* **Resign** (everyone except the super admin: *My profile → Leaving Medoro*). The employee gives a reason and the last working day
+  they would like (the full 30-day notice period is suggested; a shorter date is flagged to HR). HR and their reporting manager are
+  told. While HR hasn't decided, the employee can **withdraw** it.
+* **Exits** (HR, *Employees* module): resignations waiting, and everyone leaving or who left in the last 30 days.
+  * **Accept** confirms or changes the last working day and records the exit exactly like *Employees → Record exit* (notice period,
+    final settlement in that month's payroll, deactivated the day after). **Decline** needs a reason; the employee is told.
+  * **Clearance checklist** per person: work handed over, assets returned (the card also counts items still issued in the asset
+    register), ID/access card, system access removed, dues settled, final settlement checked. Each tick records who did it.
+    Exits HR records directly (without a resignation) get the same checklist.
+  * **Exit interview**: once a last working day is recorded, the employee sees the form on *My profile* (main reason, what they liked,
+    what to improve, a 1–5 rating of their manager, would they recommend Medoro, would they come back). It can be sent once, before
+    the last day. Only HR (and the person) can read the answers; the manager cannot.
+  * Cancelling an exit (*Employees → Cancel exit / Reactivate*) closes its resignation and checklist.
+## My Team (reporting managers and team leaders)
+
+Anyone who has at least one active direct report ("Reports to" on their profile), in any role, gets **My Team** in the TEAM
+menu. It shows only their direct reports and only work information (no pay, bank, KYC or chat):
+* **Today**: each person's status (present, late, checked out, on leave, day off, not in yet) with check-in and check-out times.
+* **Leave requests from your team**: approve or reject (the same decision HR can make; whoever acts first decides).
+* **Out in the next 2 weeks**, **open tasks** (overdue flagged) and **this month** per person: days checked in, late days, tasks
+  done, on-time %, open and overdue tasks.
+* **Give a task** to a direct report. A manager can assign plain tasks to their own reports without the *Tasks & projects*
+  module; tasks in a project, or for anyone else, still need that module.
 
 ## More screens
 
@@ -109,6 +135,18 @@ connected Google Calendar).
 * People added to a group later don't see earlier messages. You can delete your own messages. Messages are kept until a retention
   rule is added; they are included in database backups (still sealed).
 * Not built: typing indicators, online status, voice notes, Google Drive backups of chats.
+
+## Performance appraisals
+
+* Someone with the **reports** module opens a review cycle on **Appraisals** (name, period, self-assessment and manager-review due
+  dates). Only one cycle can be open at a time. Every active employee except the Super Admin gets a review and is told.
+* Each step happens on **My Review**. The employee rates themselves 1–5 and writes their achievements, challenges and goals. Their reporting
+  manager then rates them and writes what went well and what to improve. Employees with no manager go straight to HR.
+* HR (reports module) sets the final rating and an optional note. Nobody can finalise their own review. Only the Super Admin can finalise
+  one that is still waiting for the manager. The employee sees the manager's and HR's assessment only once it is final, then
+  acknowledges it.
+* The review shows facts from the period next to the form: tasks done, the share done on time, open overdue tasks, days present and late days.
+  HR can export the cycle as CSV and close it.
 
 ## Not built (in the design, not in Medoro yet)
 

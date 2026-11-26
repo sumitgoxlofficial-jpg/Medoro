@@ -39,7 +39,9 @@ export const SCREENS: ScreenDef[] = [
   { id: "mytasks", label: "My Tasks", icon: "target", title: "My Tasks", sub: "Tasks assigned to you by your lead", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "calendar", label: "Calendar", icon: "cal", title: "Calendar", sub: "Holidays, meetings and who is out", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Team (module screens)
+  { id: "myteam", label: "My Team", icon: "users", title: "My Team", sub: "The people who report to you: today, approvals, tasks and this month", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "perf", label: "Performance", icon: "target", title: "Performance", sub: "Live progress, weekly and monthly reports · Employee of the Month", group: "TEAM", module: "reports" },
+  { id: "hrappraisals", label: "Appraisals", icon: "target", title: "Appraisals", sub: "Review cycles: self-assessment, manager review and final rating", group: "TEAM", module: "reports" },
   { id: "assigntasks", label: "Assign Tasks", icon: "target", title: "Assign Tasks", sub: "Assign and track tasks across the team", group: "TEAM", module: "tasks" },
   { id: "assignprojects", label: "Projects", icon: "box", title: "Projects", sub: "Assign and track project allocations", group: "TEAM", module: "tasks" },
   { id: "hrleads", label: "Leads", icon: "target", title: "Leads", sub: "Upload pharmacy leads and assign them to the sales team", group: "TEAM", module: "leads" },
@@ -51,6 +53,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "hrleave", label: "Leave Management", icon: "plane", title: "Leave Management", sub: "Approvals and team calendar", group: "PEOPLE", module: "attendance" },
   { id: "credentials", label: "Credentials", icon: "shield", title: "Credentials", sub: "One-time passwords and login status for every employee", group: "PEOPLE", module: "employees" },
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },
+  { id: "hrexits", label: "Exits", icon: "plane", title: "Exits", sub: "Resignations, clearance and exit interviews", group: "PEOPLE", module: "employees" },
   { id: "payroll", label: "Payroll", icon: "rupee", title: "Payroll", sub: "India compliance", group: "PEOPLE", module: "payroll" },
   { id: "reports", label: "Reports", icon: "file", title: "Reports", sub: "Headcount, attendance, leave and payroll", group: "PEOPLE", module: "reports" },
   { id: "academy", label: "Sales Academy", icon: "cap", title: "Sales Academy", sub: "Batches, course builder, assessments, certificates and reports", group: "PEOPLE", module: "training" },
@@ -76,6 +79,7 @@ export const SCREENS: ScreenDef[] = [
   // Me
   { id: "attendance", label: "Attendance", icon: "clock", title: "Attendance", sub: "My attendance", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "leave", label: "Leave & Approvals", icon: "plane", title: "Leave", sub: "Balances, requests and reimbursement claims", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "appraisal", label: "My Review", icon: "target", title: "My Review", sub: "Your performance review, and your team's when you are a reporting manager", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "payslips", label: "Payslips", icon: "rupee", title: "Payslips", sub: "Salary history", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
@@ -234,3 +238,33 @@ export function scheduleText(s: Pick<Settings, "lateAfter" | "workHours" | "lunc
   const start = toMin(s.lateAfter), lunch = Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom));
   return { start: clock(start), end: clock(start + s.workHours * 60 + lunch), lunchFrom: clock(toMin(s.lunchFrom)), lunchTo: clock(toMin(s.lunchTo)), lunchMin: lunch };
 }
+
+// ── Exits: resignation, exit interview and clearance
+/** Notice period an employee is asked to serve (the appointment letter's one month). */
+export const NOTICE_DAYS = 30;
+export const EXIT_REASONS = ["Better opportunity", "Higher studies", "Pay", "Role or growth", "Manager or team", "Relocation", "Health or family", "Other"] as const;
+/** Exit interview. Answers are seen only by HR (Employees module) and the person. */
+export const EXIT_QUESTIONS = [
+  { id: "reason", label: "Main reason for leaving", kind: "choice", options: EXIT_REASONS },
+  { id: "liked", label: "What did you like about working at Medoro?", kind: "text" },
+  { id: "improve", label: "What should we improve?", kind: "text" },
+  { id: "manager", label: "How was your reporting manager? (1 = poor, 5 = excellent)", kind: "rating" },
+  { id: "recommend", label: "Would you recommend Medoro to a friend?", kind: "choice", options: ["Yes", "Maybe", "No"] },
+  { id: "rejoin", label: "Would you consider coming back later?", kind: "choice", options: ["Yes", "Maybe", "No"] },
+] as const;
+export type ExitQuestionId = (typeof EXIT_QUESTIONS)[number]["id"];
+/** What HR checks off before someone's last day. */
+export const CLEARANCE_ITEMS = [
+  { id: "handover", label: "Work and files handed over" },
+  { id: "assets", label: "Laptop, phone and other assets returned" },
+  { id: "idcard", label: "ID card and access card returned" },
+  { id: "access", label: "Email, tools and system access removed" },
+  { id: "dues", label: "Advances and dues settled" },
+  { id: "settlement", label: "Final settlement checked in payroll" },
+] as const;
+export type ClearanceId = (typeof CLEARANCE_ITEMS)[number]["id"];
+// ── Performance appraisals
+export const RATINGS = [
+  { v: 1, label: "Needs improvement" }, { v: 2, label: "Partly meets expectations" }, { v: 3, label: "Meets expectations" },
+  { v: 4, label: "Exceeds expectations" }, { v: 5, label: "Outstanding" },
+] as const;
