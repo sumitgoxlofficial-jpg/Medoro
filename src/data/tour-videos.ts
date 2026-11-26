@@ -1,7 +1,7 @@
 /**
  * Medoro Pharmacy video library (website /videos): the product tour and its guides, recorded on a demo pharmacy with
- * fictional data. Each of the 26 parts is one MP4 in public/videos/files (Hinglish subtitles burned in) with a thumbnail
- * in public/videos/thumbs, and may also have a YouTube ID (tour-youtube.ts); a guide, the complete tour included, plays
+ * fictional data. Each of the 26 parts is one MP4 in public/videos/files (Hinglish subtitles burned in; on Vercel they
+ * play from the Supabase Storage bucket tour-videos, see VIDEO_BASE and .vercelignore) with a thumbnail in public/videos/thumbs, and may also have a YouTube ID (tour-youtube.ts); a guide, the complete tour included, plays
  * its parts one after another.
  */
 export type TourVideo = {
