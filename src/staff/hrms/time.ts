@@ -191,6 +191,10 @@ export async function requestCorrection(me: Me, raw: { day: string; reason: stri
   const i = z.object({ day: iso, reason: z.string().trim().min(5, "Say what happened, in a few words.").max(300) }).parse(raw);
   if (i.day >= todayISO()) throw new UserError("Corrections are for past days.");
   if (i.day < addDays(todayISO(), -45)) throw new UserError("Corrections can be requested for the last 45 days.");
+  // Days before someone joined are never absent, so there is nothing to correct (and a "present" mark there would be wrong).
+  const profile = await db.hrProfile.findUnique({ where: { staffId: me.id }, select: { joinDate: true, createdAt: true } });
+  const joined = profile?.joinDate ? isoOf(profile.joinDate) : profile ? todayISO(profile.createdAt) : null;
+  if (joined && i.day < joined) throw new UserError(`You joined on ${joined}. Corrections are for days from then on.`);
   if (await db.hrCorrection.findFirst({ where: { staffId: me.id, day: dateOnly(i.day), status: "pending" } })) throw new UserError("You already asked for a correction on this day.");
   await db.hrCorrection.create({ data: { staffId: me.id, day: dateOnly(i.day), reason: i.reason } });
   await notify((await holders("attendance")).filter((x) => x !== me.id), `${me.name} asked for an attendance correction on ${i.day}.`, "hrleave");

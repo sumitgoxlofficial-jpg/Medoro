@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
 import { useNow } from "@/lib/use-now";
+import { addDays } from "@/lib/dates";
 import { ASSET_KINDS, BOARD_COLS, liveWorkedMin, toMin, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
 import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
@@ -356,7 +357,7 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
       </Card>
       {corr ? <Modal title="Request an attendance correction" onClose={() => setCorr(null)}>
         <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => requestCorrection({ day: corr.day, reason: corr.reason }), () => { setCorr(null); }); }}>
-          <Field label="Which day?"><input className={inputCls} type="date" max={sh.today} value={corr.day} onChange={(e) => setCorr({ ...corr, day: e.target.value })} required /></Field>
+          <Field label="Which day?"><input className={inputCls} type="date" max={addDays(sh.today, -1)} value={corr.day} onChange={(e) => setCorr({ ...corr, day: e.target.value })} required /></Field>
           <Field label="What should HR correct?"><textarea className={inputCls} rows={3} value={corr.reason} onChange={(e) => setCorr({ ...corr, reason: e.target.value })} placeholder="e.g. I forgot to check in; I was at the client site." required /></Field>
           <button className={primaryCls} disabled={busy}>Send to HR</button>
         </form>
