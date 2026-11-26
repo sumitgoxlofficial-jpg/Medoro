@@ -8,16 +8,16 @@ export const HR_ROLE_LABEL: Record<HrRoleId, string> = { employee: "Employee", h
 export const MODULES = [
   { id: "employees", label: "Employees" }, { id: "attendance", label: "Attendance & leave" }, { id: "payroll", label: "Payroll" },
   { id: "recruitment", label: "Recruitment" }, { id: "tasks", label: "Tasks & projects" }, { id: "leads", label: "Leads" },
-  { id: "reports", label: "Reports" }, { id: "finance", label: "Accounts" },
+  { id: "reports", label: "Reports" }, { id: "finance", label: "Accounts" }, { id: "training", label: "Sales Academy" },
 ] as const;
 export type ModuleId = (typeof MODULES)[number]["id"];
 export type Perms = Record<Exclude<HrRoleId, "admin">, ModuleId[]>;
 export const DEFAULT_PERMS: Perms = {
-  hr: ["employees", "attendance", "payroll", "recruitment", "tasks", "leads", "reports"],
+  hr: ["employees", "attendance", "payroll", "recruitment", "tasks", "leads", "reports", "training"],
   finance: ["payroll", "reports", "finance"], sales: [], employee: [],
 };
 
-export type IconId = "home" | "clock" | "plane" | "rupee" | "target" | "box" | "help" | "users" | "cal" | "briefcase" | "shield" | "file" | "sliders" | "sparkle" | "chat";
+export type IconId = "home" | "clock" | "plane" | "rupee" | "target" | "box" | "help" | "users" | "cal" | "briefcase" | "shield" | "file" | "sliders" | "sparkle" | "chat" | "cap";
 export type ScreenDef = { id: string; label: string; icon: IconId; title: string; sub: string; group?: string; roles?: HrRoleId[]; module?: ModuleId; hidden?: boolean };
 
 /** Every screen. A screen opens for the listed roles, or for anyone holding its module. */
@@ -31,6 +31,9 @@ export const SCREENS: ScreenDef[] = [
   // Sales
   { id: "slboard", label: "Lead Tracker", icon: "box", title: "Lead Tracker", sub: "Move each pharmacy from first call to won", group: "WORK", roles: ["sales"] },
   { id: "slleads", label: "My Leads", icon: "users", title: "My Leads", sub: "Pharmacies assigned to you by HR", group: "WORK", roles: ["sales"] },
+  // Sales Training Academy: "My Sales Training" shows for people with an assignment, "Trainer Desk" for a batch's trainer
+  { id: "training", label: "My Sales Training", icon: "cap", title: "My Sales Training", sub: "Medoro Sales Training Academy · one-day programme", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "trdesk", label: "Trainer Desk", icon: "cap", title: "Trainer Desk", sub: "Attendance, practical scoring and recommendations for your batches", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Everyone
   { id: "myprojects", label: "My Projects", icon: "box", title: "My Projects", sub: "Projects you are part of", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "mytasks", label: "My Tasks", icon: "target", title: "My Tasks", sub: "Tasks assigned to you by your lead", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
@@ -50,6 +53,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },
   { id: "payroll", label: "Payroll", icon: "rupee", title: "Payroll", sub: "India compliance", group: "PEOPLE", module: "payroll" },
   { id: "reports", label: "Reports", icon: "file", title: "Reports", sub: "Headcount, attendance, leave and payroll", group: "PEOPLE", module: "reports" },
+  { id: "academy", label: "Sales Academy", icon: "cap", title: "Sales Academy", sub: "Batches, course builder, assessments, certificates and reports", group: "PEOPLE", module: "training" },
   { id: "allyusage", label: "Ally Usage", icon: "sparkle", title: "Ally Usage", sub: "How much the team uses the assistant", group: "PEOPLE", module: "reports" },
   // Accounts
   { id: "fin_contacts", label: "Contacts", icon: "users", title: "Contacts", sub: "Customers and vendors", group: "ACCOUNTS", module: "finance" },

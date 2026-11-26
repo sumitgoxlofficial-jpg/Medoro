@@ -3666,3 +3666,224 @@ model DistConnection {
   @@unique([tenantId, accountId])
   @@index([accountId])
 }
+
+// ───────────── HRMS · Sales Training Academy ─────────────
+// A training programme (the one-day Sales Academy) is content HR installs and edits: modules, lessons, questions and
+// role-play scenarios. People are assigned to it through a batch (a date and a trainer). Progress, quiz attempts and
+// practical evaluations are evidence recorded by the server; a certificate is issued only when every rule holds.
+
+model TrProgramme {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  title       String
+  description String   @default("")
+  status      String   @default("published") // draft, published
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// One row of the day's timetable (HR edits it; no code change needed).
+model TrSession {
+  id          String @id @default(uuid())
+  programmeId String
+  order       Int
+  start       String // HH:MM, India time
+  end         String
+  title       String
+  kind        String @default("session") // session, quiz, break, practical, assessment
+  moduleSlug  String @default("") // the module this session teaches, if any
+
+  @@index([programmeId, order])
+}
+
+model TrModule {
+  id          String @id @default(uuid())
+  programmeId String
+  order       Int
+  slug        String
+  title       String
+  kind        String @default("sales") // intro, tour, product, sales, practice
+  description String @default("")
+  status      String @default("published")
+
+  @@unique([programmeId, slug])
+}
+
+model TrLesson {
+  id            String   @id @default(uuid())
+  programmeId   String
+  moduleId      String
+  order         Int
+  slug          String
+  title         String
+  summary       String   @default("")
+  mandatory     Boolean  @default(true)
+  status        String   @default("published") // draft, published
+  version       Int      @default(1)
+  durationMin   Int      @default(10)
+  videoKind     String   @default("none") // none, official (a part of the official product tour), file (an MP4 URL), youtube
+  videoRef      String   @default("") // official part slug, MP4 URL or YouTube ID
+  videoSeconds  Int      @default(0) // length of the video; 0 = learnt from the player on first play
+  completionPct Int      @default(90) // share of the video that must really be watched
+  slides        Json     @default("[]") // [{ title, bullets[], narration }]
+  transcript    String   @default("") // Hinglish transcript / subtitles text
+  content       Json     @default("{}") // objectives, key points, examples, customer Q&A, feature-to-benefit rows...
+  resources     Json     @default("[]") // [{ name, key?, url?, kind }] uploaded PPT/PDF or links
+  updatedById   String   @default("")
+  updatedAt     DateTime @updatedAt
+
+  @@unique([moduleId, slug])
+  @@index([programmeId])
+}
+
+/// A copy of a lesson as it was before each edit (content versioning).
+model TrLessonVersion {
+  id       String   @id @default(uuid())
+  lessonId String
+  version  Int
+  data     Json
+  byId     String
+  at       DateTime @default(now())
+
+  @@index([lessonId, version])
+}
+
+model TrQuestion {
+  id          String  @id @default(uuid())
+  programmeId String
+  scope       String // lesson, product, final
+  lessonId    String?
+  area        String  @default("product") // product, communication, cold_calling, demo, objection, crm, professionalism
+  order       Int     @default(0)
+  prompt      String
+  options     Json // string[]
+  answer      Int // index of the correct option; never sent to the employee's browser before grading
+  explanation String  @default("")
+  status      String  @default("published")
+
+  @@index([programmeId, scope])
+  @@index([lessonId])
+}
+
+model TrScenario {
+  id          String @id @default(uuid())
+  programmeId String
+  order       Int
+  slug        String
+  title       String
+  persona     String @default("")
+  situation   String @default("")
+  script      Json   @default("[]") // [{ who: "customer"|"coach", text }]
+  goals       Json   @default("[]") // string[]
+  status      String @default("published")
+
+  @@unique([programmeId, slug])
+}
+
+model TrBatch {
+  id           String   @id @default(uuid())
+  programmeId  String
+  name         String
+  trainingDate DateTime @db.Date
+  trainerId    String
+  status       String   @default("scheduled") // scheduled, closed
+  note         String   @default("")
+  createdById  String
+  createdAt    DateTime @default(now())
+
+  @@index([trainerId])
+}
+
+model TrAssignment {
+  id              String    @id @default(uuid())
+  batchId         String
+  programmeId     String
+  staffId         String
+  attendance      String    @default("") // "", present, absent
+  attendanceById  String    @default("")
+  attendanceAt    DateTime?
+  extraAttempts   Int       @default(0) // retests HR allowed beyond the policy
+  trainerFeedback String    @default("")
+  trainerDecision String    @default("") // "", approved, rejected
+  trainerById     String    @default("")
+  trainerAt       DateTime?
+  hrDecision      String    @default("") // "", approved, rejected
+  hrById          String    @default("")
+  hrAt            DateTime?
+  decisionNote    String    @default("")
+  createdById     String
+  createdAt       DateTime  @default(now())
+
+  @@unique([programmeId, staffId])
+  @@index([batchId])
+  @@index([staffId])
+}
+
+model TrProgress {
+  id           String    @id @default(uuid())
+  assignmentId String
+  lessonId     String
+  segs         String    @default("") // one character per 5 seconds of video: 1 = really watched
+  slideSecs    Json      @default("[]") // seconds spent on each slide
+  seconds      Int       @default(0) // seconds of counted learning time
+  lastPos      Float     @default(0) // resume point (video seconds or slide index)
+  lastBeatAt   DateTime?
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+
+  @@unique([assignmentId, lessonId])
+}
+
+model TrAttempt {
+  id           String   @id @default(uuid())
+  assignmentId String
+  kind         String // lesson, product, final
+  lessonId     String?
+  attemptNo    Int
+  answers      Json // [{ q, chose, correct }]
+  score        Int
+  total        Int
+  pct          Int
+  passed       Boolean
+  areas        Json     @default("{}") // { area: [right, total] }
+  createdAt    DateTime @default(now())
+
+  @@index([assignmentId, kind])
+}
+
+model TrPractical {
+  id           String    @id @default(uuid())
+  assignmentId String
+  kind         String // mock_call, demo
+  scenarioId   String?
+  attemptNo    Int
+  submission   String    @default("")
+  link         String    @default("") // recording link, optional
+  submittedAt  DateTime  @default(now())
+  evaluatorId  String    @default("")
+  rubric       Json      @default("{}") // { criterion: score }
+  score        Int?
+  maxScore     Int       @default(0)
+  passed       Boolean?
+  feedback     String    @default("")
+  evaluatedAt  DateTime?
+
+  @@index([assignmentId, kind])
+}
+
+model TrCertificate {
+  id             String    @id @default(uuid())
+  assignmentId   String    @unique
+  staffId        String
+  certNo         String    @unique // MS-STA-2026-0001
+  verifyCode     String    @unique // random, printed as a QR code
+  programmeTitle String
+  score          Int
+  trainerName    String
+  completedOn    DateTime  @db.Date
+  issuedAt       DateTime  @default(now())
+  revokedAt      DateTime?
+  revokedReason  String    @default("")
+
+  @@index([staffId])
+}

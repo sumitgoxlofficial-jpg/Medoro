@@ -16,6 +16,12 @@ The team workspace for Medoro's own people, at **`/staff/hrms`**. Everyone signs
 A staff-console **super admin** is the HRMS super admin. HR and Finance are given by the super admin (or when creating a
 profile). *Roles & Permissions* turns HRMS modules on or off per role; changes are audited.
 
+## Sales Training Academy
+
+A one-day training programme for the sales team: **My Sales Training** for assigned employees, **Trainer Desk** for a batch's
+trainer and **Sales Academy** for HR (new *Sales Academy* module in Roles & Permissions). Official product tour, Hinglish lectures,
+quizzes, practicals scored by the trainer, and a certificate after trainer and HR approval. See [SALES_ACADEMY.md](SALES_ACADEMY.md).
+
 ## Lifecycle of an employee
 
 1. HR opens **New Employee**. The system makes `firstname.lastname@<STAFF_EMAIL_DOMAIN>`, the next employee ID

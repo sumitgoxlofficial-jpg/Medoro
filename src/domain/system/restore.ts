@@ -29,6 +29,8 @@ const GLOBAL = new Set(["Tenant", "SystemHeartbeat", "CatalogueMedicine", "Catal
   // Medoro HRMS (Medoro's own people records): platform-owned, never part of a pharmacy's backup or restore.
   "HrProfile", "HrDepartment", "HrAttendance", "HrBreak", "HrLeave", "HrCorrection", "HrClaim", "HrHoliday", "HrAnnouncement", "HrProject", "HrTask", "HrPayslip",
   "HrJob", "HrCandidate", "HrTicket", "HrMeeting", "HrRecognition", "HrNotification", "HrAllyUsage", "HrRecord", "HrSetting", "HrGoogle", "HrAsset", "HrRisk", "HrSprint", "HrSelfie", "HrIdle", "HrChat", "HrChatMember", "HrChatMessage", "HrChatReaction", "HrChatVote", "HrLetter", "HrChatBackup", "HrSalaryRevision", "HrDocument", "HrPromotion",
+  // HRMS Sales Training Academy (Medoro's own staff training): platform-owned as well.
+  "TrProgramme", "TrSession", "TrModule", "TrLesson", "TrLessonVersion", "TrQuestion", "TrScenario", "TrBatch", "TrAssignment", "TrProgress", "TrAttempt", "TrPractical", "TrCertificate",
   // MEDORO Distribution chemist portal: a chemist's own account and sessions span distributors, so they belong to no
   // single tenant. Each distributor's link to the chemist (DistConnection) and its ledger party are tenant rows.
   "DistChemistAccount", "DistPortalSession"]);

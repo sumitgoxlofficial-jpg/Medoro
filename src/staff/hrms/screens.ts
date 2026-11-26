@@ -22,6 +22,7 @@ import { auditLog, departments, myProfile, notifications, officialDomain, roster
 import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { backfillSlugs } from "./careers";
 import { visibleTo } from "./visibility";
+import { academy, hasAssignment, isTrainer, lessonForLearner, myTraining, trainerDesk } from "./training/service";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
 const ym = () => todayISO().slice(0, 7);
@@ -33,19 +34,19 @@ const people = async (me: Me) => {
   return all.filter((p) => ok.has(p.id) || p.id === me.id).map((p) => ({ id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, role: p.role }));
 };
 
-/** The side menu: every screen the person may open, grouped as before (Team Chat included). */
-function navFor(me: Me) {
-  return screensFor(me.role, me.perms).filter((x) => !x.hidden).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
+/** The side menu: every screen the person may open, grouped as before (Team Chat included). Training screens show only to the people they concern. */
+function navFor(me: Me, flags: { learner: boolean; trainer: boolean }) {
+  return screensFor(me.role, me.perms).filter((x) => !x.hidden && (x.id !== "training" || flags.learner) && (x.id !== "trdesk" || flags.trainer)).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
 }
 
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
 export async function shell(me: Me) {
   const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
   await closeExits().catch(() => {}); // people whose recorded last working day has passed
-  const [s, notes, att, brk, chatUnread] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id)]);
+  const [s, notes, att, brk, chatUnread, learner, trainer] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), hasAssignment(me.id), isTrainer(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales", console: me.staffRole === "super_admin" || me.staffRole === "care" },
-    nav: navFor(me), more: [] as { id: string; label: string }[],
+    nav: navFor(me, { learner, trainer }), more: [] as { id: string; label: string }[],
     home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };
 }
@@ -101,6 +102,9 @@ export const loaders = {
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
+  training: async (me: Me, q: Q) => ({ t: await myTraining(me), tab: q.tab ?? "overview", lesson: q.lesson ? await lessonForLearner(me, q.lesson).catch(() => null) : null }),
+  trdesk: async (me: Me) => trainerDesk(me),
+  academy: async (me: Me) => academy(me),
   profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id) }),
 
   slhome: async (me: Me) => salesSummary(me),
