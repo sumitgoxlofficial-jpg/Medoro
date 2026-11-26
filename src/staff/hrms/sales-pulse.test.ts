@@ -27,6 +27,7 @@ describe("Sales Pulse", () => {
       expect(s.map((x) => x.at.getTime())).toEqual([...s.map((x) => x.at.getTime())].sort((a, b) => a - b));
       expect(daySchedule(day)).toEqual(s);
       for (let i = 1; i < s.length; i++) expect(s[i].senderId).not.toBe(s[i - 1].senderId);
+      expect(new Set(s.map((x) => x.body)).size).toBe(s.length); // no message repeats within a day
     }
   });
   it("mixes English, Hindi and Hinglish over a month", () => {

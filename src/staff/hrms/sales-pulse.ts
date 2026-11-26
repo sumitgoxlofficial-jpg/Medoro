@@ -8,7 +8,7 @@ import { PRODUCTS } from "../constants";
 // 1. Real wins: when someone closes a sale (ConversionRecord) or books a demo (DemoBooking), a short announcement is posted
 //    into the channel from that person's own account, as kind "win". The chat shows it with an "auto" tag so nobody thinks
 //    they typed it.
-// 2. Motivation bots: 45 named personas (20 women, 25 men) post a few upbeat sales messages every day between 10:00 and
+// 2. Motivation bots: 45 named personas (members are the bots, the super admin and HR; those two add anyone else by hand) (20 women, 25 men) post a few upbeat sales messages every day between 10:00 and
 //    18:30 India time, in English, Hindi and Hinglish, as kind "pulse". They are not staff accounts: they have no login and
 //    no HR profile, so they never appear in staff lists, attendance, payroll or the org chart, and every message and
 //    profile is badged "Sales Pulse · auto" in the chat.
@@ -55,6 +55,11 @@ const EN: ((f: Fill) => string)[] = [
   () => `Renewal done for a 3-store client, they upgraded to Multi-branch 🏬`,
   (f) => `Demo went great, client in ${f.city} said yes on the call itself 😄`,
   () => `Who's hitting target this week? I'm 2 away 💯`,
+  (f) => `Pharmacy owner in ${f.city} asked for a callback after the demo. Closed it on the second call ✅`,
+  (f) => `${f.d} demos lined up for the afternoon, wish me luck 🤞`,
+  (f) => `Upsold the AI Pharmacy Manager add-on to an existing ${f.plan} client today 🤖`,
+  () => `Small win: a lead that said "not now" last month just signed up 🙌`,
+  (f) => `Wrapped up ${f.n} ${f.n === 1 ? "closure" : "closures"} before lunch. Second half, let's go! ⚡`,
 ];
 const HI: ((f: Fill) => string)[] = [
   (f) => `आज ${f.n} सेल क्लोज़ हुई 🎉 चलो टीम, और आगे बढ़ते हैं!`,
@@ -64,6 +69,10 @@ const HI: ((f: Fill) => string)[] = [
   () => `ट्रायल वाला क्लाइंट आज पेड हो गया 🎯`,
   (f) => `आज ${f.d} डेमो बुक किए, कल सबको Medoro दिखाऊँगा 🚀`,
   () => `फॉलो-अप का फल मीठा होता है, आज एक और सेल पक्की 😊`,
+  (f) => `${f.city} वाले क्लाइंट ने डेमो के बाद तुरंत हाँ बोल दिया 🎉`,
+  (f) => `आज शाम तक ${f.d} और डेमो हैं, टारगेट पूरा करके ही रुकेंगे 💪`,
+  () => `पुराने लीड को फिर से कॉल किया और सेल हो गई ✅`,
+  (f) => `${f.plan} प्लान की डील पक्की, कस्टमर बहुत खुश है 😊`,
 ];
 const HG: ((f: Fill) => string)[] = [
   (f) => `Aaj ${f.n} sale close ho gayi 🎉 chalo team, target pakka!`,
@@ -74,6 +83,11 @@ const HG: ((f: Fill) => string)[] = [
   (f) => `${f.n} closed + ${f.d} demo booked, aaj ka din mast hai 🚀`,
   () => `Follow-up karte raho guys, aaj 2 purane leads convert hue ✅`,
   (f) => `${f.city} me 3 store wale owner ne Multi-branch liya 🏬 big one!`,
+  (f) => `Lunch se pehle ${f.n} closing ho gayi, ab demo ka time ⏰`,
+  (f) => `Client bola ${f.feat} toh kamaal hai, turant sign up 😄`,
+  () => `Aaj ka target almost done, bas ek aur closing chahiye 🎯`,
+  (f) => `${f.city} ka lead 2 hafte se pending tha, aaj convert ho gaya 🙌`,
+  (f) => `Kal ke liye ${f.d} demo fix, sab owners interested lag rahe hai 🔥`,
 ];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -96,14 +110,16 @@ export function daySchedule(day: string): Slot[] {
   const midnight = Date.parse(`${day}T00:00:00Z`) - IST;
   const n = 10 + Math.floor(r() * 7);
   const minutes = Array.from({ length: n }, () => START + Math.floor(r() * (END - START + 1))).sort((a, b) => a - b);
+  // Every message of the day uses a different template (shuffled pool of all three languages), so no two read the same.
+  const pool = [...EN, ...HI, ...HG];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   let last = "";
-  return minutes.map((m) => {
+  return minutes.map((m, k) => {
     let p = pick(r, PERSONAS);
     while (p.id === last) p = pick(r, PERSONAS);
     last = p.id;
     const f: Fill = { n: 1 + Math.floor(r() * 3), d: 2 + Math.floor(r() * 5), city: pick(r, CITIES), plan: pick(r, PLANS), feat: pick(r, FEATURES), featHi: pick(r, FEATURES_HI) };
-    const lang = r(), set = lang < 0.4 ? EN : lang < 0.65 ? HI : HG;
-    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: pick(r, set)(f) };
+    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: pool[k](f) };
   });
 }
 export const istDay = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(0, 10);
@@ -120,9 +136,9 @@ async function chatId() {
 const planName = (id: string) => PRODUCTS.find((p) => p.id === id)?.name ?? "";
 const MODES: Record<string, string> = { phone: "a phone demo", video: "a video demo", visit: "an in-person demo" };
 
-/** Real people in the Sales channel: every active employee (the same people as All Hands). */
+/** People always kept in the Sales channel: the super admin and HR. Everyone else is added (or removed) by them by hand. */
 export async function pulseMemberIds(): Promise<string[]> {
-  const staff = await db.staffUser.findMany({ where: { kind: "team", status: "active", role: { not: "partner" }, hr: { isNot: null } }, select: { id: true } });
+  const staff = await db.staffUser.findMany({ where: { kind: "team", status: "active", OR: [{ role: "super_admin" }, { hr: { role: "hr" } }] }, select: { id: true } });
   return staff.map((s) => s.id);
 }
 

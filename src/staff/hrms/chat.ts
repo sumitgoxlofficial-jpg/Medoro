@@ -142,12 +142,11 @@ export async function syncChannels(force = false) {
     const ids = new Set([...p.members, ...(p.leadId ? [p.leadId] : [])].filter((x) => live.has(x)));
     if (ids.size >= 2) wanted.set(`project:${p.id}`, { name: `# ${p.name}`, ids });
   }
-  // Sales: every active employee plus the 45 Sales Pulse bots (see sales-pulse.ts).
-  wanted.set(PULSE_KEY, { name: "Sales", ids: new Set([...(await pulseMemberIds()), ...PERSONAS.map((p) => p.id)]) });
+  await syncSales(live, existing);
   for (const [key, w] of wanted) {
     let chat = existing.find((c) => c.sysKey === key);
     if (!chat) {
-      try { chat = await db.hrChat.create({ data: { kind: "group", name: w.name, sysKey: key, createdById: "system", about: key === PULSE_KEY ? PULSE_ABOUT : "" }, select: { id: true, sysKey: true, name: true } }); }
+      try { chat = await db.hrChat.create({ data: { kind: "group", name: w.name, sysKey: key, createdById: "system" }, select: { id: true, sysKey: true, name: true } }); }
       catch { chat = await db.hrChat.findUnique({ where: { sysKey: key }, select: { id: true, sysKey: true, name: true } }) ?? undefined; }
       if (!chat) continue;
     } else if (chat.name !== w.name) await db.hrChat.update({ where: { id: chat.id }, data: { name: w.name } });
@@ -158,9 +157,29 @@ export async function syncChannels(force = false) {
     if (drop.length) await db.hrChatMember.deleteMany({ where: { chatId: chat.id, staffId: { in: drop } } });
   }
   // A channel that no longer applies (a department down to one person, a finished project) empties out and disappears from lists.
-  const stale = existing.filter((c) => c.sysKey && !wanted.has(c.sysKey)).map((c) => c.id);
+  const stale = existing.filter((c) => c.sysKey && c.sysKey !== PULSE_KEY && !wanted.has(c.sysKey)).map((c) => c.id);
   if (stale.length) await db.hrChatMember.deleteMany({ where: { chatId: { in: stale } } });
 }
+
+/**
+ * The Sales channel: always holds the 45 Sales Pulse bots, the super admin and HR. Everyone else is added or removed by
+ * HR or the super admin from the group's info window; people who leave the company drop out.
+ */
+async function syncSales(live: Set<string>, existing: { id: string; sysKey: string | null; name: string }[]) {
+  let chat = existing.find((c) => c.sysKey === PULSE_KEY);
+  if (!chat) {
+    try { chat = await db.hrChat.create({ data: { kind: "group", name: "Sales", sysKey: PULSE_KEY, createdById: "system", about: PULSE_ABOUT }, select: { id: true, sysKey: true, name: true } }); }
+    catch { chat = await db.hrChat.findUnique({ where: { sysKey: PULSE_KEY }, select: { id: true, sysKey: true, name: true } }) ?? undefined; }
+    if (!chat) return;
+  }
+  const keep = [...(await pulseMemberIds()), ...PERSONAS.map((p) => p.id)];
+  await db.hrChatMember.createMany({ data: keep.map((staffId) => ({ chatId: chat!.id, staffId })), skipDuplicates: true });
+  const have = await db.hrChatMember.findMany({ where: { chatId: chat.id }, select: { staffId: true } });
+  const gone = have.map((h) => h.staffId).filter((id) => !isPulse(id) && !live.has(id));
+  if (gone.length) await db.hrChatMember.deleteMany({ where: { chatId: chat.id, staffId: { in: gone } } });
+}
+/** In the Sales channel, HR and the super admin choose who else is in it. */
+const managesSales = (me: Pick<Me, "role">, chat: { sysKey: string | null }) => chat.sysKey === PULSE_KEY && (me.role === "admin" || me.role === "hr");
 
 /** The person's conversations, newest first, with unread counts. */
 export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): Promise<ChatRow[]> {
@@ -376,9 +395,9 @@ export async function groupInfo(me: Me, chatId: string) {
   const more = users.filter((u) => !shown.includes(u) && !(hide && u.role === "super_admin")).length;
   return {
     id: chat.id, name: chat.name, about: chat.about, photo: chat.photo, sys: !!chat.sysKey, owner: chat.createdById,
-    canEdit: canManage(me, chat), canAdd: canManage(me, chat) && !chat.sysKey,
+    canEdit: canManage(me, chat), canAdd: (canManage(me, chat) && !chat.sysKey) || managesSales(me, chat),
     // WhatsApp-style admin tools: the person who made the group, and the super admin in any group they are in.
-    canRename: canManage(me, chat) && !chat.sysKey, canRemove: canManage(me, chat) && !chat.sysKey, canDelete: canManage(me, chat) && !chat.sysKey,
+    canRename: canManage(me, chat) && !chat.sysKey, canRemove: (canManage(me, chat) && !chat.sysKey) || managesSales(me, chat), canDelete: canManage(me, chat) && !chat.sysKey,
     superAdmin: me.role === "admin",
     more, // members you can't see by name
     members: shown.sort((a, b) => a.name.localeCompare(b.name)).map((u) => ({
@@ -418,8 +437,9 @@ export async function updateGroup(me: Me, chatId: string, input: { name?: unknow
 }
 export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
-  if (chat?.sysKey) throw new UserError("This channel’s members follow the team automatically.");
-  if (!chat || chat.kind !== "group" || !canManage(me, chat)) throw new UserError("Only the person who made the group can add people.");
+  if (chat?.sysKey && chat.sysKey !== PULSE_KEY) throw new UserError("This channel’s members follow the team automatically.");
+  if (chat?.sysKey === PULSE_KEY && !managesSales(me, chat)) throw new UserError("Only HR or the super admin can add people to Sales.");
+  if (!chat || chat.kind !== "group" || (!canManage(me, chat) && !managesSales(me, chat))) throw new UserError("Only the person who made the group can add people.");
   await membership(me, chatId);
   const ids = [...new Set(Array.isArray(memberIds) ? memberIds.filter((x): x is string => typeof x === "string") : [])];
   const have = await db.hrChatMember.count({ where: { chatId } });
@@ -436,9 +456,10 @@ export async function addToGroup(me: Me, chatId: string, memberIds: unknown) {
 export async function removeFromGroup(me: Me, chatId: string, staffId: string) {
   const chat = await db.hrChat.findUnique({ where: { id: chatId } });
   if (!chat || chat.kind !== "group") throw new UserError("That isn’t a group.");
-  if (chat.sysKey) throw new UserError("This channel’s members follow the team automatically.");
+  if (chat.sysKey && chat.sysKey !== PULSE_KEY) throw new UserError("This channel’s members follow the team automatically.");
   await membership(me, chatId);
-  if (!canManage(me, chat)) throw new UserError("Only the person who made the group can remove people.");
+  if (!canManage(me, chat) && !managesSales(me, chat)) throw new UserError(chat.sysKey ? "Only HR or the super admin can remove people from Sales." : "Only the person who made the group can remove people.");
+  if (chat.sysKey === PULSE_KEY && (isPulse(staffId) || (await pulseMemberIds()).includes(staffId))) throw new UserError("Sales Pulse bots, HR and the super admin always stay in Sales.");
   if (staffId === me.id) throw new UserError("To go yourself, use Leave group.");
   if (staffId === chat.createdById && me.role !== "admin") throw new UserError("Only the super admin can remove the person who made the group.");
   const gone = await db.hrChatMember.deleteMany({ where: { chatId, staffId } });
