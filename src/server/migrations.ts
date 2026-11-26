@@ -4,7 +4,7 @@ import path from "node:path";
 export type MigrationRow = { migration_name: string; finished_at: Date | null; rolled_back_at: Date | null };
 export type MigrationStatus = { known: boolean; applied: number; pending: string[]; failed: string[] };
 
-export const migrationsDir = () => process.env.MIGRATIONS_DIR || path.join(process.cwd(), "prisma", "migrations");
+export const migrationsDir = () => process.env.MIGRATIONS_DIR || path.join(/* turbopackIgnore: true */ process.cwd(), "prisma", "migrations");
 
 /** Migration folder names shipped with this build, or null when the folder isn't deployed with the app. */
 export async function shippedMigrations(dir = migrationsDir()): Promise<string[] | null> {
