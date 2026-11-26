@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none" stroke="#0B5E5B" stroke-opacity=".08" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Doodle tile for the chat background: pharmacy and office things in thin line, repeated like a wallpaper. -->
+  <!-- capsule -->
+  <g transform="translate(22 24) rotate(-30 20 10)"><rect x="0" y="0" width="40" height="18" rx="9"/><path d="M20 0v18"/></g>
+  <!-- plus / cross -->
+  <path d="M104 18v20M94 28h20"/>
+  <!-- chat bubble -->
+  <path d="M150 20h40a8 8 0 0 1 8 8v18a8 8 0 0 1-8 8h-24l-10 9v-9h-6a8 8 0 0 1-8-8V28a8 8 0 0 1 8-8z"/><circle cx="160" cy="37" r="1.4"/><circle cx="170" cy="37" r="1.4"/><circle cx="180" cy="37" r="1.4"/>
+  <!-- heart pulse -->
+  <path d="M238 34c0-8 11-11 15-3 4-8 15-5 15 3 0 10-15 19-15 19s-15-9-15-19z"/><path d="M226 44h10l4-7 5 12 4-5h24"/>
+  <!-- pill bottle -->
+  <g transform="translate(30 92)"><rect x="2" y="0" width="26" height="8" rx="2"/><rect x="0" y="8" width="30" height="40" rx="5"/><path d="M8 24h14M15 17v14"/></g>
+  <!-- star -->
+  <path d="M110 96l4 9 10 1-8 6 3 10-9-6-9 6 3-10-8-6 10-1z"/>
+  <!-- stethoscope -->
+  <path d="M160 92v16a14 14 0 0 0 28 0V92M174 122v14a12 12 0 0 0 24 0v-6"/><circle cx="198" cy="125" r="5"/>
+  <!-- leaf -->
+  <path d="M252 132c0-26 16-38 40-38 0 26-14 38-40 38zM252 132l22-22"/>
+  <!-- calendar -->
+  <g transform="translate(22 170)"><rect x="0" y="4" width="36" height="32" rx="5"/><path d="M0 14h36M10 0v8M26 0v8M9 22h4M17 22h4M25 22h4M9 29h4M17 29h4"/></g>
+  <!-- tablet round -->
+  <circle cx="102" cy="190" r="13"/><path d="M93 199l18-18"/>
+  <!-- paper plane -->
+  <path d="M148 196l52-20-18 46-10-18zM172 204l28-28"/>
+  <!-- clipboard -->
+  <g transform="translate(240 168)"><rect x="0" y="6" width="32" height="40" rx="4"/><rect x="9" y="1" width="14" height="9" rx="3"/><path d="M8 22h16M8 30h16M8 38h10"/></g>
+  <!-- smile -->
+  <circle cx="44" cy="268" r="15"/><path d="M37 272a9 9 0 0 0 14 0"/><circle cx="39" cy="263" r="1.3"/><circle cx="49" cy="263" r="1.3"/>
+  <!-- syringe-free drop -->
+  <path d="M110 250c8 11 12 17 12 23a12 12 0 0 1-24 0c0-6 4-12 12-23z"/>
+  <!-- mortar & pestle -->
+  <path d="M152 262h46a23 23 0 0 1-46 0zM186 262l14-24"/><path d="M166 286h18"/>
+  <!-- sparkles -->
+  <path d="M262 252v14M255 259h14M286 284v8M282 288h8M232 292v6M229 295h6"/>
+  <!-- tiny dots -->
+  <circle cx="78" cy="66" r="1.6"/><circle cx="216" cy="78" r="1.6"/><circle cx="70" cy="140" r="1.6"/><circle cx="226" cy="150" r="1.6"/><circle cx="132" cy="236" r="1.6"/><circle cx="292" cy="224" r="1.6"/><circle cx="12" cy="214" r="1.6"/><circle cx="300" cy="20" r="1.6"/>
+</svg>
