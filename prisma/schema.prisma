@@ -2921,6 +2921,7 @@ model HrChatMessage {
   body      Bytes
   image     Bytes?
   deletedAt DateTime?
+  editedAt  DateTime? // set when the sender edits a text message (allowed for 5 minutes after sending)
   createdAt DateTime  @default(now())
 
   @@index([chatId, seq])
