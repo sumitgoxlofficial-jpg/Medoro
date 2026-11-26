@@ -53,6 +53,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "hrleave", label: "Leave Management", icon: "plane", title: "Leave Management", sub: "Approvals and team calendar", group: "PEOPLE", module: "attendance" },
   { id: "credentials", label: "Credentials", icon: "shield", title: "Credentials", sub: "One-time passwords and login status for every employee", group: "PEOPLE", module: "employees" },
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },
+  { id: "hrpolicies", label: "Policies", icon: "file", title: "Policies", sub: "Publish the company handbook and see who has acknowledged it", group: "PEOPLE", module: "employees" },
   { id: "hrexits", label: "Exits", icon: "plane", title: "Exits", sub: "Resignations, clearance and exit interviews", group: "PEOPLE", module: "employees" },
   { id: "payroll", label: "Payroll", icon: "rupee", title: "Payroll", sub: "India compliance", group: "PEOPLE", module: "payroll" },
   { id: "reports", label: "Reports", icon: "file", title: "Reports", sub: "Headcount, attendance, leave and payroll", group: "PEOPLE", module: "reports" },
@@ -84,6 +85,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "jobs", label: "Work at Medoro", icon: "briefcase", title: "Work at Medoro", sub: "Open roles · refer someone you know", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "policies", label: "Company policies", icon: "file", title: "Company policies", sub: "The handbook: read each policy and acknowledge it", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "support", label: "Support", icon: "help", title: "Support", sub: "HR helpdesk", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "profile", label: "My profile", icon: "users", title: "My profile", sub: "Personal, bank and emergency details", hidden: true, roles: ["employee", "sales", "hr", "admin", "finance"] },
 ];
@@ -239,6 +241,8 @@ export function scheduleText(s: Pick<Settings, "lateAfter" | "workHours" | "lunc
   return { start: clock(start), end: clock(start + s.workHours * 60 + lunch), lunchFrom: clock(toMin(s.lunchFrom)), lunchTo: clock(toMin(s.lunchTo)), lunchMin: lunch };
 }
 
+// ── Company policy handbook
+export const POLICY_CATEGORIES = ["General", "Leave", "Attendance", "Code of conduct", "IT & security", "Travel & expenses", "Payroll & benefits", "Safety", "Other"] as const;
 // ── Exits: resignation, exit interview and clearance
 /** Notice period an employee is asked to serve (the appointment letter's one month). */
 export const NOTICE_DAYS = 30;

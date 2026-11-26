@@ -24,6 +24,7 @@ import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
 import * as kyc from "@/staff/hrms/kyc";
 import * as careers from "@/staff/hrms/careers";
+import * as policies from "@/staff/hrms/policies";
 import * as exits from "@/staff/hrms/exits";
 import * as appraisals from "@/staff/hrms/appraisals";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
@@ -177,6 +178,11 @@ export const openInvoice = async (id: string) => hrRun((me) => fin.invoice(me, i
 export const saveSettings = async (input: Settings) => done(await hrRun((me) => people.saveSettings(me, input), "Settings saved."));
 export const togglePerm = async (role: string, moduleId: string) => done(await hrRun((me) => people.togglePerm(me, role, moduleId)));
 
+// ── Company policies
+export const acknowledgePolicy = async (id: string) => done(await hrRun((me) => policies.acknowledgePolicy(me, id), "Thank you. Your acknowledgement is recorded."));
+export const savePolicy = async (id: string | null, input: { title: string; category: string; body: string; mandatory: boolean; reack: boolean }) => done(await hrRun((me) => policies.savePolicy(me, id, input as never), id ? "Policy saved." : "Policy published. Everyone was told."));
+export const archivePolicy = async (id: string, archived: boolean) => done(await hrRun((me) => policies.archivePolicy(me, id, archived), archived ? "Policy archived." : "Policy restored."));
+export const remindPolicy = async (id: string) => done(await hrRun(async (me) => { const n = await policies.remindPolicy(me, id); return n; }, "Reminder sent to everyone who hasn’t acknowledged it."));
 // ── Exits: resignation, exit interview, clearance
 export const resign = async (input: In<typeof exits.resign>) => done(await hrRun((me) => exits.resign(me, input), "Resignation sent to HR."));
 export const withdrawResignation = async () => done(await hrRun((me) => exits.withdrawResignation(me), "Resignation withdrawn."));

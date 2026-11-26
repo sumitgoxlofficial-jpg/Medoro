@@ -19,6 +19,7 @@ import { expiringDocs, myDocs } from "./docs";
 import { exitsBoard, myExit } from "./exits";
 import { cycleBoard, myReviews } from "./appraisals";
 import { myTeam, reportCount } from "./team";
+import { allPolicies, myPolicies } from "./policies";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
@@ -110,6 +111,8 @@ export const loaders = {
     return { chats, people, me: mine, open: q.c ?? "", google: g.connected, backup: { ...backup, notice }, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
+  policies: async (me: Me) => ({ policies: await myPolicies(me) }),
+  hrpolicies: async (me: Me) => ({ policies: await allPolicies(me) }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   training: async (me: Me, q: Q) => ({ t: await myTraining(me), tab: q.tab ?? "overview", lesson: q.lesson ? await lessonForLearner(me, q.lesson).catch(() => null) : null }),
   trdesk: async (me: Me) => trainerDesk(me),
