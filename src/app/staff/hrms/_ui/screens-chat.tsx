@@ -1,12 +1,12 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PULSE_COUNT, pulsePhoto } from "@/staff/hrms/pulse-shared";
-import { TEAM_NAME, type BoardRow } from "@/staff/hrms/sales-wins";
+import { TEAM_NAME } from "@/staff/hrms/sales-wins";
 import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
 import type { Data } from "@/staff/hrms/screens";
 import {
-  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatSalesBoard, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
+  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
   chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
@@ -159,45 +159,6 @@ function MilestoneBanner({ m, reactions, onReact }: { m: ChatMsg; reactions: rea
   );
 }
 
-/** The Sales channel leaderboard: real sales and demos today or this week. Reloads when a new win arrives. */
-function SalesBoard({ chatId, bump }: { chatId: string; bump: number }) {
-  const [open, setOpen] = useLocalStorage("hrms.salesBoard");
-  const [tab, setTab] = useState<"today" | "week">("today");
-  const [board, setBoard] = useState<{ today: BoardRow[]; week: BoardRow[] } | null>(null);
-  useEffect(() => {
-    const load = () => void chatSalesBoard(chatId).then((r) => { if (r.ok) setBoard(r.data); });
-    load();
-    const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
-  }, [chatId, bump]);
-  const shown = open !== "0";
-  const rows = board?.[tab] ?? [];
-  const medal = ["🥇", "🥈", "🥉"];
-  return (
-    <div className="bg-white border-b border-[#E2E8F0] px-3 py-2">
-      <div className="flex items-center gap-2">
-        <button onClick={() => setOpen(shown ? "0" : "1")} aria-expanded={shown} className="bg-transparent border-0 p-0 cursor-pointer font-bold text-[13px] text-[#0F172A]">🏆 Leaderboard {shown ? "▾" : "▸"}</button>
-        {shown ? <div className="ml-auto flex gap-1">{(["today", "week"] as const).map((k) => (
-          <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={cx("rounded-full px-2.5 py-0.5 text-[11.5px] border-0 cursor-pointer font-semibold", tab === k ? "bg-[#0B5E5B] text-white" : "bg-[#F1F5F9] text-[#475569]")}>{k === "today" ? "Today" : "This week"}</button>
-        ))}</div> : null}
-      </div>
-      {shown ? (
-        rows.length ? (
-          <ol className="list-none m-0 mt-1.5 p-0 flex gap-2 overflow-x-auto">
-            {rows.map((r, i) => (
-              <li key={r.staffId} className={cx("flex-none flex items-center gap-2 rounded-xl px-2.5 py-1.5 border", i === 0 ? "bg-[#FFFBEB] border-[#FCD34D]" : "bg-[#F8FAFC] border-[#E2E8F0]")}>
-                <span className="text-[15px] w-5 text-center">{medal[i] ?? `${i + 1}`}</span>
-                <Face name={r.name} photo={r.photo} size={26} />
-                <span className="leading-tight"><span className="block text-[12.5px] font-semibold">{r.name.split(" ")[0]}</span><span className="block text-[11px] text-[#64748B]">{r.sales} {r.sales === 1 ? "sale" : "sales"} · {r.demos} {r.demos === 1 ? "demo" : "demos"}</span></span>
-              </li>
-            ))}
-          </ol>
-        ) : <div className="text-[12px] text-[#64748B] mt-1">{board ? `No sales or demos ${tab === "today" ? "yet today" : "yet this week"}. The first one takes the top spot 🎯` : "Loading…"}</div>
-      ) : null}
-    </div>
-  );
-}
-
 export function ChatScreen({ d }: { d: D }) {
   const router = useRouter();
   const { run, toast } = useRun();
@@ -214,7 +175,6 @@ export function ChatScreen({ d }: { d: D }) {
   useEffect(() => { activeRef.current = active; }, [active]);
   const byId = useMemo(() => new Map<string, { name: string; photo: string | null; avatar: string }>([...d.people.map((p) => [p.id, { name: p.name, photo: p.photo, avatar: p.avatar }] as const), [d.me.id, { name: d.me.name, photo: d.me.photo, avatar }]]), [d.people, d.me, avatar]);
   const chat = chats.find((c) => c.id === active);
-  const lastWinSeq = useMemo(() => msgs.reduce((n, m) => (m.kind === "win" || m.kind === "milestone" ? Math.max(n, m.seq) : n), 0), [msgs]);
   const online = Object.keys(pres).filter((id) => id !== d.me.id).length + (chats.some((c) => c.sales) ? PULSE_COUNT : 0); // the Sales Pulse members are always online
 
   const apply = useCallback((p: Poll, chatId: string, reset: boolean) => {
@@ -380,7 +340,6 @@ export function ChatScreen({ d }: { d: D }) {
                 <button className={btnCls} onClick={() => void meet()} disabled={sending} title={d.google ? "Start a Google Meet call" : "Connect Google Calendar first"}>📹 Meet</button>
                 {chat.kind === "group" ? <button className={btnCls} onClick={() => setModal("info")}>Info</button> : null}
               </div>
-              {chat.sales ? <SalesBoard chatId={chat.id} bump={lastWinSeq} /> : null}
               {findOpen ? <div className="bg-white border-b border-[#E2E8F0] px-3 py-2"><input className={inputCls} autoFocus placeholder="Search in this chat" aria-label="Search in this chat" value={find} onChange={(e) => setFind(e.target.value)} /></div> : null}
               <div ref={log} onScroll={(e) => { const el = e.currentTarget; pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" aria-live="polite">
                 {shown.length ? shown.map((m, i) => {
