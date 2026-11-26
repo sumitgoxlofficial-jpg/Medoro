@@ -93,6 +93,8 @@ async function adminNote(me: Me, chat: { name: string; createdById: string }, wh
   if (me.role === "admin" && chat.createdById !== me.id) await audit(me, "Chat group managed", `“${chat.name}” · ${what}`);
 }
 const activeStaff = (ids: string[]) => db.staffUser.findMany({ where: { id: { in: ids }, kind: "team", status: "active", role: { not: "partner" }, hr: { isNot: null } }, select: { id: true, name: true, email: true } });
+/** The Sales channel shows the company logo until someone uploads a group photo. */
+const SALES_LOGO = "/medoro-logo.png";
 const liveStatus = (presence: string, at: Date | null) => (presence !== "offline" && at && Date.now() - at.getTime() < 5 * 60_000 ? presence : "offline");
 
 /** Who is online right now (active or on a break), by person. */
@@ -206,7 +208,7 @@ export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): 
     const withId = c.kind === "dm" ? members.find((m) => m.chatId === c.id && m.staffId !== me.id)?.staffId ?? null : null;
     const p = withId ? people.get(withId) : undefined, last = lastOf.get(c.id);
     return {
-      id: c.id, kind: c.kind === "dm" ? "dm" : "group", title: c.kind === "dm" ? p?.name ?? "Former colleague" : c.name, photo: c.kind === "dm" ? p?.hr?.photo ?? null : c.photo, avatar: p?.hr?.chatAvatar ?? "",
+      id: c.id, kind: c.kind === "dm" ? "dm" : "group", title: c.kind === "dm" ? p?.name ?? "Former colleague" : c.name, photo: c.kind === "dm" ? p?.hr?.photo ?? null : c.photo ?? (c.sysKey === PULSE_KEY ? SALES_LOGO : null), avatar: p?.hr?.chatAvatar ?? "",
       withId, presence: p ? liveStatus(p.hr?.presence ?? "offline", p.hr?.presenceAt ?? null) : "offline", sys: !!c.sysKey, sales: c.sysKey === PULSE_KEY, about: c.about,
       members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? ((people.get(last.senderId)?.name ?? (isTeamId(last.senderId) ? TEAM_NAME : pulseName(last.senderId))).split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
     };
@@ -424,7 +426,7 @@ export async function groupInfo(me: Me, chatId: string) {
   const shown = users.filter((u) => u.id === me.id || (!(hide && u.role === "super_admin") && (!team || team.has(u.id))));
   const more = users.filter((u) => !shown.includes(u) && !(hide && u.role === "super_admin")).length;
   return {
-    id: chat.id, name: chat.name, about: chat.about, photo: chat.photo, sys: !!chat.sysKey, owner: chat.createdById,
+    id: chat.id, name: chat.name, about: chat.about, photo: chat.photo ?? (chat.sysKey === PULSE_KEY ? SALES_LOGO : null), sys: !!chat.sysKey, owner: chat.createdById,
     canEdit: canManage(me, chat), canAdd: (canManage(me, chat) && !chat.sysKey) || managesSales(me, chat),
     // WhatsApp-style admin tools: the person who made the group, and the super admin in any group they are in.
     canRename: canManage(me, chat) && !chat.sysKey, canRemove: (canManage(me, chat) && !chat.sysKey) || managesSales(me, chat), canDelete: canManage(me, chat) && !chat.sysKey,
