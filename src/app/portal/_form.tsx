@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n-client";
@@ -20,5 +21,7 @@ export function PForm({ action, submit, children, reset }: { action: (fd: FormDa
 export function PF({ label, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   const t = useT();
   const id = useId();
-  return <div className="flex flex-col gap-1 text-[12.5px] font-medium text-muted"><label htmlFor={id}>{t(label)}</label><input id={id} {...p} className="h-11 rounded-lg border border-input px-3 text-[15px] bg-white" /></div>;
+  const { type, ...rest } = p;
+  const cls = "h-11 rounded-lg border border-input px-3 text-[15px] bg-white";
+  return <div className="flex flex-col gap-1 text-[12.5px] font-medium text-muted"><label htmlFor={id}>{t(label)}</label>{type === "password" ? <PasswordInput id={id} {...rest} className={`${cls} w-full`} /> : <input id={id} type={type} {...rest} className={cls} />}</div>;
 }

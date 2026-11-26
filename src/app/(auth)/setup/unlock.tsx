@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AuthButton, AuthCard, AuthError, AuthLabel, authInput } from "@/components/auth-ui";
@@ -21,7 +22,7 @@ export function Unlock({ disabled }: { disabled: boolean }) {
         ) : (
           <form className="flex flex-col gap-3.5" onSubmit={(e) => { e.preventDefault(); start(async () => { const r = await unlockSetupAction(token); if (r.ok) router.refresh(); else setErr(r.error); }); }}>
             <p className="m-0 text-[14px] text-ink-2">{t("This server is public, so setup is protected. Enter the setup token from the hosting settings")} (<code>SETUP_TOKEN</code>).</p>
-            <AuthLabel label="Setup token"><input className={authInput} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></AuthLabel>
+            <AuthLabel label="Setup token"><PasswordInput className={authInput} autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></AuthLabel>
             <AuthError>{err}</AuthError>
             <AuthButton type="submit" disabled={busy || !token}>Continue</AuthButton>
           </form>
