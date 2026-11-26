@@ -16,7 +16,11 @@ import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
 import { promotions } from "./promotions";
-import { myDocs } from "./docs";
+import { expiringDocs, myDocs } from "./docs";
+import { exitsBoard, myExit } from "./exits";
+import { cycleBoard, myReviews } from "./appraisals";
+import { myTeam, reportCount } from "./team";
+import { allPolicies, myPolicies } from "./policies";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
@@ -35,9 +39,9 @@ const people = async (me: Me) => {
   return all.filter((p) => ok.has(p.id) || p.id === me.id).map((p) => ({ id: p.id, name: p.name, empNo: p.empNo, dept: p.dept, role: p.role }));
 };
 
-/** The side menu: every screen the person may open, grouped as before (Team Chat included). Training screens show only to the people they concern. */
-function navFor(me: Me, flags: { learner: boolean; trainer: boolean }) {
-  return screensFor(me.role, me.perms).filter((x) => !x.hidden && (x.id !== "training" || flags.learner) && (x.id !== "trdesk" || flags.trainer)).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
+/** The side menu: every screen the person may open, grouped as before (Team Chat included). Training screens show only to the people they concern; My Team only to reporting managers. */
+function navFor(me: Me, flags: { learner: boolean; trainer: boolean; manages: boolean }) {
+  return screensFor(me.role, me.perms).filter((x) => !x.hidden && (x.id !== "training" || flags.learner) && (x.id !== "trdesk" || flags.trainer) && (x.id !== "myteam" || flags.manages)).map((x) => ({ id: x.id, label: x.label, icon: x.icon, group: x.group ?? "" }));
 }
 
 /** What every page needs: who is signed in, their menu, bell and today's attendance. */
@@ -47,10 +51,10 @@ export async function shell(me: Me) {
   // The Sales Academy is automatic: the course installs itself, and a sales employee is enrolled on their first page view.
   await ensureAcademy();
   if (isSalesMe(me) && !(await hasAssignment(me.id))) await autoEnrol([me.id]);
-  const [s, notes, att, brk, chatUnread, learner, trainer] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), hasAssignment(me.id), isTrainer(me.id)]);
+  const [s, notes, att, brk, chatUnread, learner, trainer, manages] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), hasAssignment(me.id), isTrainer(me.id), reportCount(me.id)]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales", console: me.staffRole === "super_admin" || me.staffRole === "care" },
-    nav: navFor(me, { learner, trainer }), more: [] as { id: string; label: string }[],
+    nav: navFor(me, { learner, trainer, manages: manages > 0 }), more: [] as { id: string; label: string }[],
     home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };
 }
@@ -66,6 +70,9 @@ export const loaders = {
     ]);
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id) };
   },
+  appraisal: async (me: Me) => myReviews(me),
+  hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),
+  myteam: async (me: Me) => myTeam(me),
   myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
   assets: async (me: Me) => ({ mine: await myAssets(me), all: can(me, "employees") ? await allAssets(me) : null, people: can(me, "employees") ? await people(me) : [] }),
   mytasks: async (me: Me) => ({ tasks: await myTasks(me), projects: await myProjects(me) }),
@@ -105,11 +112,13 @@ export const loaders = {
     return { chats, people, me: mine, open: q.c ?? "", google: g.connected, backup: { ...backup, notice }, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
   },
   chatreview: async (me: Me, q: Q) => ({ people: await reviewPeople(me), pick: q.p ?? "", chats: q.p ? await reviewChats(me, q.p).catch(() => []) : [] }),
+  policies: async (me: Me) => ({ policies: await myPolicies(me) }),
+  hrpolicies: async (me: Me) => ({ policies: await allPolicies(me) }),
   support: async (me: Me) => ({ tickets: await tickets(me), canResolve: can(me, "employees") }),
   training: async (me: Me, q: Q) => ({ t: await myTraining(me), tab: q.tab ?? "overview", lesson: q.lesson ? await lessonForLearner(me, q.lesson).catch(() => null) : null }),
   trdesk: async (me: Me) => trainerDesk(me),
   academy: async (me: Me) => academy(me),
-  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id), wa: await myWaAlerts(me) }),
+  profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id), exit: await myExit(me), wa: await myWaAlerts(me) }),
 
   slhome: async (me: Me) => salesSummary(me),
   slboard: async (me: Me) => salesSummary(me),
@@ -139,6 +148,7 @@ export const loaders = {
     const cutoff = addDays(todayISO(), -45);
     return { joiners: (await roster({ viewer: me })).filter((p) => (p.joinDate && p.joinDate >= cutoff) || p.onboarding.some((x) => !x) && !!p.joinDate && p.joinDate >= addDays(todayISO(), -120)) };
   },
+  hrexits: async (me: Me) => exitsBoard(me),
   payroll: async (me: Me, q: Q) => { const month = monthArg(q.m); return { run: await payrollFor(me, month), prev: addMonths(month, -1), next: addMonths(month, 1) }; },
   reports: async (me: Me) => reports(me),
   allyusage: async (me: Me) => usage(me),
@@ -174,7 +184,7 @@ async function dashboard(me: Me) {
   return {
     staff, pending, onLeave: out.length, openJobs, ann, claimsWaiting: hrClaims + adminClaims, canPost: can(me, "employees") || me.role === "admin",
     joining: staff.filter((p) => p.joinDate && p.joinDate >= today_ && p.joinDate <= soon), depts: new Set(staff.map((p) => p.dept).filter(Boolean)).size,
-    canApprove: can(me, "attendance"),
+    canApprove: can(me, "attendance"), expiring: await expiringDocs(me),
   };
 }
 

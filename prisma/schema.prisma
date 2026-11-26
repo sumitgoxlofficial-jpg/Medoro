@@ -2582,16 +2582,19 @@ model HrTask {
 
 /// A document an employee uploaded for HR (identity, address, certificates). The file is in file storage under `key`.
 model HrDocument {
-  id         String    @id @default(uuid())
-  staffId    String
-  kind       String
-  name       String
-  key        String
-  verifiedBy String?
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id          String    @id @default(uuid())
+  staffId     String
+  kind        String
+  name        String
+  key         String
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  expiresOn   DateTime? @db.Date // when the document stops being valid (passport, visa, contract, licence…); empty = doesn't expire
+  expiryStage Int       @default(0) // reminders already sent for this expiry date: 1 = 30 days before, 2 = 7 days before, 3 = expired
+  createdAt   DateTime  @default(now())
 
   @@index([staffId])
+  @@index([expiresOn])
 }
 
 /// Every change of annual CTC, so pay history can be explained later.
@@ -3671,6 +3674,55 @@ model DistConnection {
   @@index([accountId])
 }
 
+/// A company policy in the HRMS handbook (Company policies). HR publishes it; employees read and acknowledge it.
+model HrPolicy {
+  id          String        @id @default(uuid())
+  title       String
+  category    String        @default("General")
+  body        String // plain text: a blank line starts a paragraph, lines starting with "- " are bullets
+  version     Int           @default(1) // goes up when HR publishes a change that everyone must acknowledge again
+  mandatory   Boolean       @default(true) // employees are asked to acknowledge it
+  archivedAt  DateTime?
+  publishedBy String        @default("")
+  publishedAt DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  acks        HrPolicyAck[]
+}
+
+/// Someone confirmed they read and accept a version of a policy.
+model HrPolicyAck {
+  id       String   @id @default(uuid())
+  policyId String
+  policy   HrPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  staffId  String
+  version  Int
+  ackedAt  DateTime @default(now())
+
+  @@unique([policyId, staffId, version])
+  @@index([staffId])
+}
+
+/// Someone leaving: their resignation (when they resigned in the HRMS), HR's decision, the exit interview and the clearance checklist.
+/// One row per exit; HR recording an exit directly (Employees → Record exit) gets a row too, so clearance and the interview work the same.
+model HrExit {
+  id              String    @id @default(uuid())
+  staffId         String
+  status          String    @default("requested") // requested, accepted, declined, withdrawn, recorded (HR recorded the exit without a resignation), cancelled (HR cancelled the exit)
+  reason          String    @default("") // the employee's reason for resigning
+  proposedLastDay DateTime? @db.Date // what the employee asked for
+  lastDay         DateTime? @db.Date // what HR accepted (also written to HrProfile.exitDate)
+  decidedBy       String    @default("")
+  decidedAt       DateTime?
+  decisionNote    String    @default("") // HR's note when accepting or declining
+  interview       Json      @default("{}") // exit interview answers, by question id; only HR and the person see them
+  interviewAt     DateTime?
+  clearance       Json      @default("{}") // checklist item id -> { by, at }
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([staffId, createdAt])
+}
+
 // ───────────── HRMS · Sales Training Academy ─────────────
 // A training programme (the one-day Sales Academy) is content HR installs and edits: modules, lessons, questions and
 // role-play scenarios. People are assigned to it through a batch (a date and a trainer). Progress, quiz attempts and
@@ -3909,4 +3961,45 @@ model HrWaMessage {
 
   @@index([status, nextAt])
   @@index([staffId, createdAt])
+}
+
+/// A performance review cycle HR opens (e.g. "H2 2026"): everyone active gets a review in it.
+model HrReviewCycle {
+  id         String     @id @default(uuid())
+  name       String
+  periodFrom DateTime   @db.Date
+  periodTo   DateTime   @db.Date
+  selfDue    DateTime   @db.Date // self-assessments due
+  managerDue DateTime   @db.Date // manager reviews due
+  status     String     @default("open") // open, closed
+  createdBy  String     @default("")
+  createdAt  DateTime   @default(now())
+  reviews    HrReview[]
+}
+
+/// One person's review in a cycle: self-assessment → reporting manager's review → HR's final rating → the person acknowledges.
+model HrReview {
+  id          String        @id @default(uuid())
+  cycleId     String
+  cycle       HrReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  staffId     String
+  managerId   String? // reporting manager when the cycle opened
+  status      String        @default("self") // self, manager, hr, done
+  selfRating  Int?
+  self        Json          @default("{}") // achievements, challenges, goals
+  selfAt      DateTime?
+  mgrRating   Int?
+  mgr         Json          @default("{}") // strengths, improve, comments
+  mgrAt       DateTime?
+  mgrBy       String        @default("")
+  finalRating Int?
+  hrNote      String        @default("")
+  finalAt     DateTime?
+  finalBy     String        @default("")
+  ackAt       DateTime? // the person saw and acknowledged the result
+  createdAt   DateTime      @default(now())
+
+  @@unique([cycleId, staffId])
+  @@index([staffId])
+  @@index([managerId])
 }
