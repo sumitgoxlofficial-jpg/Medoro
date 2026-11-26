@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Award, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Circle, Clock, Download, ExternalLink, FileText, Lock, PlayCircle, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Award, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Circle, Clock, Coffee, Download, ExternalLink, FileText, Lock, Mic, PlayCircle, Sparkles, Trophy, Volume2, VolumeX } from "lucide-react";
 import type { Data } from "@/staff/hrms/screens";
 import { AREAS, RUBRICS, STATUS_LABEL, clock12, type LessonContent } from "@/staff/hrms/training/shared";
 import { trAttempt, trBeat, trExam, trSubmitPractical, trSubmitQuiz } from "../training-actions";
 import { useNow } from "@/lib/use-now";
+import { AreaBars, Burst, CertificatePreview, JourneyMap, ResultRing, ScoreGauge, type Step } from "./training-art";
 import { Card, Empty, Field, Grid, Modal, Pill, Stat, Tabs, btnCls, cx, dayLong, inputCls, primaryCls, useRun } from "./kit";
 
 type T = NonNullable<Data<"training">["t"]>;
@@ -14,7 +15,6 @@ type Review = { prompt: string; options: string[]; chose: number; answer: number
 
 const TABS = [["overview", "My Training"], ["schedule", "Training Schedule"], ["modules", "Learning Modules"], ["tour", "Product Tour"], ["assess", "Assessments"], ["cert", "My Certificates"]] as const;
 type TabId = (typeof TABS)[number][0];
-const statusTone = (s: string) => (s === "certified" ? "green" : s === "rejected" || s === "failed" ? "red" : s === "not_started" ? "gray" : s === "hr" || s === "trainer" || s === "review" ? "purple" : "amber");
 const mins = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
 const href = (q: Record<string, string>) => `/staff/hrms/training?${new URLSearchParams(q).toString()}`;
 
@@ -26,22 +26,9 @@ export function TrainingScreen({ d }: { d: Data<"training"> }) {
 
 function TrainingHome({ t, tab: initial }: { t: T; tab: TabId }) {
   const [tab, setTab] = useState<TabId>(initial);
-  const ev = t.evaluation;
   return (
     <div className="flex flex-col gap-4">
-      <Card pad>
-        <div className="flex flex-wrap gap-4 items-center pt-3">
-          <div className="flex-1 min-w-[240px]">
-            <div className="text-[12px] font-semibold uppercase tracking-[.06em] text-[#64748B]">{t.batch.name} · {dayLong(t.batch.date)}{t.batch.isToday ? " · Today" : ""}</div>
-            <h2 className="text-[19px] font-bold mt-0.5">{t.programme.title}</h2>
-            <div className="text-[13px] text-[#475569] mt-0.5">Trainer: <strong>{t.batch.trainer || "—"}</strong> · Pass mark {t.settings.passPct}/100</div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Ring pct={ev.pct} />
-            <div className="flex flex-col gap-1"><Pill tone={statusTone(ev.status)}>{STATUS_LABEL[ev.status] ?? ev.status}</Pill><span className="text-[12px] text-[#64748B]">{ev.lessonsDone}/{ev.lessonsTotal} lessons · score {ev.score}/100</span></div>
-          </div>
-        </div>
-      </Card>
+      <Hero t={t} />
       <div className="overflow-x-auto -mx-1 px-1"><Tabs value={tab} onChange={setTab} options={TABS.map((x) => [x[0], x[1]])} /></div>
       {tab === "overview" ? <Overview t={t} go={setTab} /> : null}
       {tab === "schedule" ? <Schedule t={t} /> : null}
@@ -53,14 +40,52 @@ function TrainingHome({ t, tab: initial }: { t: T; tab: TabId }) {
   );
 }
 
-function Ring({ pct, size = 64 }: { pct: number; size?: number }) {
-  const r = size / 2 - 6, c = 2 * Math.PI * r;
+function Ring({ pct, size = 64, light }: { pct: number; size?: number; light?: boolean }) {
+  const r = size / 2 - 7, c = 2 * Math.PI * r;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${pct}% complete`}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E2E8F0" strokeWidth="6" />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#0B5E5B" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${(pct / 100) * c} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
-      <text x="50%" y="53%" textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="700" fill="#0f172a">{pct}%</text>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={light ? "rgba(255,255,255,.18)" : "#E2E8F0"} strokeWidth="7" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={light ? "#F5C451" : "#0B5E5B"} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} transform={`rotate(-90 ${size / 2} ${size / 2})`} className="tr-arc" style={{ ["--len" as string]: c }} />
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize={size / 4.4} fontWeight="800" fill={light ? "#fff" : "#0f172a"}>{pct}%</text>
     </svg>
+  );
+}
+
+/** Where the learner stands on the five steps to the certificate. */
+function stepsOf(t: T): Step[] {
+  const ev = t.evaluation, other = ev.lessonsTotal - ev.tourTotal, otherDone = ev.lessonsDone - ev.tourDone;
+  const passedPractical = (k: string) => t.practicals.some((p) => p.kind === k && p.passed);
+  const raw: [string, string, boolean, string][] = [
+    ["learn", "Lessons", otherDone >= other && other > 0, `${otherDone}/${other} lectures`],
+    ["tour", "Product tour", ev.tourDone >= ev.tourTotal && ev.tourTotal > 0, `${ev.tourDone}/${ev.tourTotal} chapters`],
+    ["quiz", "Quiz & exam", !!ev.product && ev.product.pct >= t.settings.productQuizPct && !!ev.final, ev.final ? `exam ${ev.final.pct}%` : ev.product ? `quiz ${ev.product.pct}%` : "not taken"],
+    ["practical", "Practicals", passedPractical("mock_call") && passedPractical("demo"), `${[passedPractical("mock_call"), passedPractical("demo")].filter(Boolean).length}/2 passed`],
+    ["cert", "Certificate", !!t.certificate && !t.certificate.revoked, t.certificate ? t.certificate.certNo : "after approval"],
+  ];
+  let current = false;
+  return raw.map(([id, label, done, detail]) => { const state = done ? "done" : current ? "todo" : ((current = true), "current"); return { id, label, detail, state: state as Step["state"] }; });
+}
+
+function Hero({ t }: { t: T }) {
+  const ev = t.evaluation;
+  return (
+    <section className="tr-hero relative overflow-hidden rounded-2xl text-white px-[clamp(16px,3vw,30px)] pt-5 pb-4 shadow-[0_24px_50px_-30px_rgba(11,94,91,.9)]">
+      <div aria-hidden className="tr-hero-grid absolute inset-0" />
+      <div aria-hidden className="tr-float absolute -right-20 -top-24 size-72 rounded-full bg-[#14B8A6]/30 blur-3xl" />
+      <div aria-hidden className="tr-float absolute -left-16 bottom-[-90px] size-56 rounded-full bg-[#F5C451]/15 blur-3xl" style={{ animationDelay: "-4s" }} />
+      <div className="relative flex flex-wrap gap-5 items-center">
+        <div className="flex-1 min-w-[240px]">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/12 border border-white/20 px-2.5 py-1 text-[11px] font-semibold tracking-[.05em] uppercase">
+            <Sparkles size={12} className="text-[#F5C451]" />{t.batch.name} · {dayLong(t.batch.date)}{t.batch.isToday ? " · Today" : ""}
+          </div>
+          <h2 className="text-[clamp(20px,2.6vw,28px)] font-extrabold mt-2 leading-tight">{t.programme.title}</h2>
+          <div className="text-[13px] text-white/75 mt-1">Trainer <strong className="text-white">{t.batch.trainer || "—"}</strong> · {ev.lessonsDone}/{ev.lessonsTotal} lessons · score {ev.score}/100 · pass mark {t.settings.passPct}</div>
+          <span className={cx("inline-block mt-2.5 rounded-full px-3 py-1 text-[12px] font-bold", ev.status === "certified" ? "bg-[#F5C451] text-[#4A3500]" : ev.status === "rejected" || ev.status === "failed" ? "bg-[#FEE2E2] text-[#B3261E]" : "bg-white text-[#0B5E5B]")}>{STATUS_LABEL[ev.status] ?? ev.status}</span>
+        </div>
+        <Ring pct={ev.pct} size={104} light />
+      </div>
+      <div className="relative mt-4"><JourneyMap steps={stepsOf(t)} /></div>
+    </section>
   );
 }
 const Bar = ({ pct, tone = "#0B5E5B" }: { pct: number; tone?: string }) => (
@@ -69,6 +94,13 @@ const Bar = ({ pct, tone = "#0B5E5B" }: { pct: number; tone?: string }) => (
 
 /** India time "HH:MM" for a moment. */
 const istHHMM = (ms: number) => { const d = new Date(ms + 5.5 * 3600_000); return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`; };
+
+/** Eight sessions around the one running now (or the first eight). */
+function windowOf<S extends { start: string }>(all: S[], current?: S) {
+  const k = current ? all.findIndex((s) => s.start === current.start) : 0;
+  const from = Math.max(0, Math.min(k - 2, all.length - 8));
+  return all.slice(from, from + 8);
+}
 
 function Overview({ t, go }: { t: T; go: (t: TabId) => void }) {
   const ev = t.evaluation;
@@ -86,14 +118,28 @@ function Overview({ t, go }: { t: T; go: (t: TabId) => void }) {
       </Grid>
       <Grid n={2}>
         <Card title={t.batch.isToday ? "Today’s sessions" : `Sessions on ${dayLong(t.batch.date)}`} sub={current ? `Now: ${current.title}` : "10:00 AM – 6:30 PM"} right={<button className={btnCls} onClick={() => go("schedule")}>Full schedule</button>}>
-          <ul className="px-5 pb-4 flex flex-col gap-1.5">
-            {t.sessions.slice(0, 8).map((s) => <li key={s.start} className={cx("flex gap-3 text-[13px] rounded-lg px-2 py-1", current?.start === s.start && "bg-[#D6F3EF] font-semibold")}><span className="w-[72px] flex-none text-[#64748B] tabular-nums">{clock12(s.start)}</span><span className="flex-1">{s.title}</span></li>)}
-            {t.sessions.length > 8 ? <li className="text-[12px] text-[#64748B] px-2">+ {t.sessions.length - 8} more</li> : null}
-          </ul>
+          <ol className="px-5 pb-4 relative">
+            <span aria-hidden className="absolute left-[29px] top-1 bottom-6 w-px bg-[#D6E2E0]" />
+            {windowOf(t.sessions, current).map((s) => { const on = current?.start === s.start, past = t.batch.isToday && s.end <= now; return (
+              <li key={s.start} className={cx("relative flex gap-3 items-center text-[13px] rounded-lg pl-1 pr-2 py-1.5", on && "bg-[#D6F3EF] font-semibold")}>
+                <span className={cx("relative z-[1] size-[11px] rounded-full border-2 flex-none ml-[3px]", on ? "bg-[#14B8A6] border-[#14B8A6] hr-current" : past ? "bg-[#0B5E5B] border-[#0B5E5B]" : "bg-white border-[#94A3B8]")} />
+                <span className="w-[66px] flex-none text-[#64748B] tabular-nums text-[12px]">{clock12(s.start)}</span><span className={cx("flex-1", past && !on && "text-[#64748B]")}>{s.title}</span>{on ? <span className="text-[10.5px] font-bold text-[#0B5E5B] uppercase">Now</span> : null}
+              </li>); })}
+            {t.sessions.length > 8 ? <li className="text-[12px] text-[#64748B] pl-8 pt-1">{t.sessions.length} sessions in all · see the full schedule</li> : null}
+          </ol>
         </Card>
         <Card title="Continue learning" pad>
           {next ? (
             <div className="flex flex-col gap-3 pt-1">
+              {next.thumb ? (
+                <div className="relative aspect-video rounded-xl overflow-hidden bg-[#0f172a]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={next.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/15"><span className="size-14 rounded-full bg-white/95 flex items-center justify-center text-[#0B5E5B] shadow-xl hr-breathe"><PlayCircle size={30} /></span></span>
+                </div>
+              ) : (
+                <div className="relative h-24 rounded-xl overflow-hidden tr-hero flex items-center px-5 text-white"><div aria-hidden className="tr-hero-grid absolute inset-0" /><BookOpen size={30} className="relative hr-bob" /><span className="relative ml-3 text-[13px] text-white/85">Slide lecture with Hinglish narration</span></div>
+              )}
               <div className="text-[12px] text-[#64748B]">{next.module}</div>
               <div className="text-[15px] font-bold">{next.title}</div>
               <div className="text-[13px] text-[#475569]">{next.summary}</div>
@@ -108,9 +154,10 @@ function Overview({ t, go }: { t: T; go: (t: TabId) => void }) {
             {[...ev.req, ...ev.approvals].map((r) => <li key={r.id} className="flex items-start gap-2 text-[13px]">{r.ok ? <CheckCircle2 size={17} className="text-[#0B5E5B] flex-none mt-px" /> : <Circle size={17} className="text-[#94A3B8] flex-none mt-px" />}<span className="flex-1">{r.label}</span><span className="text-[12px] text-[#64748B] text-right">{r.detail}</span></li>)}
           </ul>
         </Card>
-        <Card title="Score breakdown" sub="Marks out of 100">
-          <div className="px-5 pb-4 flex flex-col gap-2.5">
-            {AREAS.map((a) => <div key={a.id}><div className="flex text-[12.5px] mb-1"><span className="flex-1 font-semibold">{a.label}</span><span className="tabular-nums">{ev.marks[a.id].toFixed(1)} / {a.marks}</span></div><Bar pct={(ev.marks[a.id] / a.marks) * 100} /><div className="text-[11px] text-[#64748B] mt-0.5">{a.from}</div></div>)}
+        <Card title="Score breakdown" sub="Marks out of 100 · hover a bar for where it comes from">
+          <div className="px-5 pb-5 flex flex-col items-center gap-4">
+            <ScoreGauge score={ev.score} pass={t.settings.passPct} />
+            <div className="w-full"><AreaBars rows={AREAS.map((a) => ({ id: a.id, label: a.label, got: ev.marks[a.id], max: a.marks, from: a.from }))} /></div>
           </div>
         </Card>
       </Grid>
@@ -127,20 +174,34 @@ function Overview({ t, go }: { t: T; go: (t: TabId) => void }) {
   );
 }
 
+const KIND_ICON = { session: BookOpen, quiz: ClipboardIcon, break: Coffee, practical: Mic, assessment: Trophy } as const;
+function ClipboardIcon(p: { size?: number; className?: string }) { return <CheckCircle2 {...p} />; }
+
 function Schedule({ t }: { t: T }) {
   const mods = new Map(t.modules.map((m) => [m.slug, m]));
+  const now = istHHMM(useNow(30_000));
+  const toMin = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
   return (
-    <Card title="Training schedule" sub={`${dayLong(t.batch.date)} · India time`}>
-      <ol className="px-3 pb-3">
-        {t.sessions.map((s) => {
+    <Card title="Training schedule" sub={`${dayLong(t.batch.date)} · India time${t.batch.isToday ? " · live" : ""}`}>
+      <ol className="px-4 pb-4 relative tr-stagger">
+        <span aria-hidden className="absolute left-[39px] top-3 bottom-8 w-[2px] bg-gradient-to-b from-[#14B8A6] via-[#D6E2E0] to-[#F5C451] rounded-full" />
+        {t.sessions.map((s, k) => {
           const m = s.moduleSlug ? mods.get(s.moduleSlug) : undefined;
           const done = m ? m.lessons.filter((l) => l.mandatory).every((l) => t.progress[l.id]?.done) : false;
+          const on = t.batch.isToday && s.start <= now && now < s.end, past = t.batch.isToday && s.end <= now;
+          const Icon = KIND_ICON[s.kind as keyof typeof KIND_ICON] ?? BookOpen;
+          const pct = on ? Math.round(((toMin(now) - toMin(s.start)) / Math.max(1, toMin(s.end) - toMin(s.start))) * 100) : 0;
           return (
-            <li key={s.start} className={cx("flex flex-wrap gap-x-4 gap-y-1 items-center px-2 py-2.5 border-t border-[#F1F5F9] first:border-t-0", s.kind === "break" && "bg-[#F8FAFC]")}>
-              <span className="w-[150px] flex-none text-[12.5px] text-[#475569] tabular-nums">{clock12(s.start)} – {clock12(s.end)}</span>
-              <span className="flex-1 min-w-[180px] text-[13.5px] font-semibold">{s.title}</span>
-              {s.kind !== "session" ? <Pill tone={s.kind === "break" ? "gray" : "purple"}>{s.kind === "quiz" ? "Quiz" : s.kind === "break" ? "Break" : s.kind === "practical" ? "Practical" : "Assessment"}</Pill> : null}
-              {m ? <span className="flex items-center gap-2">{done ? <Pill tone="green">Done</Pill> : null}<Link className={btnCls + " no-underline"} href={href({ lesson: m.lessons[0]?.id ?? "" })}>Open</Link></span> : null}
+            <li key={s.start} style={{ ["--i" as string]: k }} className={cx("relative flex flex-wrap gap-x-4 gap-y-1 items-center pl-1 pr-2 py-2.5 rounded-xl", on && "bg-[#E9F8F5] ring-1 ring-[#9ADBD0]", s.kind === "break" && !on && "opacity-80")}>
+              <span className={cx("relative z-[1] size-9 rounded-full flex items-center justify-center flex-none ml-[6px] border-2", done || past ? "bg-[#0B5E5B] border-[#0B5E5B] text-white" : on ? "bg-white border-[#14B8A6] text-[#0B5E5B] hr-current" : s.kind === "break" ? "bg-[#FEF3C7] border-[#FDE68A] text-[#B45309]" : "bg-white border-[#CBD5E1] text-[#64748B]")}>{done ? <CheckCircle2 size={17} /> : <Icon size={16} />}</span>
+              <span className="w-[140px] flex-none text-[12.5px] text-[#475569] tabular-nums">{clock12(s.start)} – {clock12(s.end)}</span>
+              <span className="flex-1 min-w-[170px]">
+                <span className="block text-[13.5px] font-semibold">{s.title}</span>
+                {on ? <span className="mt-1.5 block h-1.5 rounded-full bg-white overflow-hidden"><span className="tr-now block h-full rounded-full bg-gradient-to-r from-[#14B8A6] to-[#0B5E5B]" style={{ width: `${pct}%` }} /></span> : null}
+              </span>
+              {on ? <Pill tone="green">Now</Pill> : null}
+              {s.kind !== "session" ? <Pill tone={s.kind === "break" ? "amber" : "purple"}>{s.kind === "quiz" ? "Quiz" : s.kind === "break" ? "Break" : s.kind === "practical" ? "Practical" : "Assessment"}</Pill> : null}
+              {m ? <span className="flex items-center gap-2">{done ? <Pill tone="green">Done</Pill> : null}<Link className={btnCls + " no-underline"} href={href({ lesson: m.lessons.find((l) => !t.progress[l.id]?.done)?.id ?? m.lessons[0]?.id ?? "" })}>{done ? "Review" : "Open"}</Link></span> : null}
             </li>
           );
         })}
@@ -150,7 +211,9 @@ function Schedule({ t }: { t: T }) {
 }
 
 function Modules({ t, kind }: { t: T; kind: "learn" | "tour" }) {
-  const mods = t.modules.filter((m) => (kind === "tour" ? m.kind === "tour" : m.kind !== "tour"));
+  const picked = t.modules.filter((m) => (kind === "tour" ? m.kind === "tour" : m.kind !== "tour"));
+  // The lectures are one lesson per module: show them together as one course grid.
+  const mods = kind === "tour" || !picked.length ? picked : [{ ...picked[0], id: "lectures", title: "Sales skills lectures", description: "Classroom lectures with slides and Hinglish narration, in the order of the day.", lessons: picked.flatMap((m) => m.lessons) }];
   if (!mods.length) return <Card pad><Empty>No lessons published yet.</Empty></Card>;
   return (
     <div className="flex flex-col gap-4">
@@ -162,33 +225,44 @@ function Modules({ t, kind }: { t: T; kind: "learn" | "tour" }) {
           </div>
         </Card>
       ) : null}
-      {mods.map((m) => (
-        <Card key={m.id} title={m.title} sub={m.description}>
-          <div className={cx("px-5 pb-4 grid gap-3", kind === "tour" ? "grid-cols-[repeat(auto-fill,minmax(220px,1fr))]" : "grid-cols-[repeat(auto-fill,minmax(260px,1fr))]")}>
-            {m.lessons.map((l) => {
+      {mods.map((m) => {
+        const req = m.lessons.filter((l) => l.mandatory), doneN = req.filter((l) => t.progress[l.id]?.done).length;
+        return (
+        <Card key={m.id} title={m.title} sub={m.description} right={req.length ? <span className="flex items-center gap-2 text-[12px] text-[#475569]"><span className="w-24"><Bar pct={(doneN / req.length) * 100} /></span>{doneN}/{req.length}</span> : undefined}>
+          <div className={cx("px-5 pb-5 grid gap-4 tr-stagger", kind === "tour" ? "grid-cols-[repeat(auto-fill,minmax(220px,1fr))]" : "grid-cols-[repeat(auto-fill,minmax(260px,1fr))]")}>
+            {m.lessons.map((l, k) => {
               const p = t.progress[l.id];
               return (
-                <Link key={l.id} href={href({ lesson: l.id })} className="group rounded-xl border border-[#CDD2D7] bg-white hover:border-[#0B5E5B] no-underline text-[#0f172a] overflow-hidden flex flex-col">
-                  {l.thumb ? (
-                    <div className="relative aspect-video bg-[#0f172a]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={l.thumb} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100" loading="lazy" />
-                      {l.videoSeconds ? <span className="absolute right-2 bottom-2 rounded bg-black/80 text-white text-[11px] font-semibold px-1.5">{mins(l.videoSeconds)}</span> : null}
-                      {p?.done ? <span className="absolute left-2 top-2"><Pill tone="green">Completed</Pill></span> : null}
-                    </div>
-                  ) : null}
-                  <div className="p-3 flex flex-col gap-1.5 flex-1">
-                    <div className="flex items-start gap-2"><span className="flex-1 text-[13.5px] font-bold leading-snug">{l.title}</span>{!l.thumb ? (p?.done ? <CheckCircle2 size={18} className="text-[#0B5E5B] flex-none" /> : <BookOpen size={17} className="text-[#94A3B8] flex-none" />) : null}</div>
+                <Link key={l.id} href={href({ lesson: l.id })} style={{ ["--i" as string]: k }} className="tr-lift group rounded-2xl border border-[#D5DCE3] bg-white no-underline text-[#0f172a] overflow-hidden flex flex-col">
+                  <div className="relative aspect-video overflow-hidden bg-[#0f172a]">
+                    {l.thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={l.thumb} alt="" className="tr-zoom absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="tr-zoom absolute inset-0 tr-hero flex flex-col justify-between p-4 text-white">
+                        <div aria-hidden className="tr-hero-grid absolute inset-0" />
+                        <span className="relative text-[11px] font-semibold tracking-[.12em] uppercase text-white/65">Lecture · {l.durationMin} min</span>
+                        <span aria-hidden className="relative text-[52px] font-extrabold leading-none text-white/90 tabular-nums">{String(k + 1).padStart(2, "0")}<span className="text-[#F5C451]">.</span></span>
+                        <BookOpen aria-hidden size={64} className="absolute right-4 bottom-4 text-white/12 hr-bob" />
+                      </div>
+                    )}
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors"><span className="size-12 rounded-full bg-white/95 text-[#0B5E5B] flex items-center justify-center shadow-xl scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300"><PlayCircle size={26} /></span></span>
+                    {l.videoSeconds ? <span className="absolute right-2 bottom-2 rounded-md bg-black/80 text-white text-[11px] font-semibold px-1.5 py-px">{mins(l.videoSeconds)}</span> : null}
+                    {p?.done ? <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-[#0B5E5B] text-white text-[11px] font-bold px-2 py-0.5"><CheckCircle2 size={12} />Completed</span> : p ? <span className="absolute right-2 top-2 rounded-full bg-white/95 text-[#B45309] text-[11px] font-bold px-2 py-0.5">In progress</span> : null}
+                  </div>
+                  <div className="p-3.5 flex flex-col gap-1.5 flex-1">
+                    <span className="text-[13.5px] font-bold leading-snug">{l.title}</span>
                     {!l.thumb ? <div className="text-[12px] text-[#64748B] line-clamp-2">{l.summary}</div> : null}
-                    <div className="mt-auto flex items-center gap-2 text-[11.5px] text-[#64748B]"><Clock size={12} />{l.durationMin} min{l.questions ? ` · ${l.questions}-question check` : ""}{l.mandatory ? "" : " · optional"}</div>
-                    {p && !p.done ? <Bar pct={l.videoKind !== "none" ? p.watched : 50} tone="#14B8A6" /> : null}
+                    <div className="mt-auto pt-1 flex items-center gap-2 text-[11.5px] text-[#64748B]"><Clock size={12} />{l.durationMin} min{l.questions ? ` · ${l.questions}-question check` : ""}{l.mandatory ? "" : " · optional"}</div>
+                    {p && !p.done && l.videoKind !== "none" ? <Bar pct={p.watched} tone="#14B8A6" /> : null}
                   </div>
                 </Link>
               );
             })}
           </div>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -200,13 +274,29 @@ function LessonPlayer({ t, l }: { t: T; l: L }) {
   const all = t.modules.flatMap((m) => m.lessons);
   const idx = all.findIndex((x) => x.id === l.id), next = all[idx + 1], prev = all[idx - 1];
   const content = l.content ?? {};
+  // Completion can come from a heartbeat or from passing the check (which refreshes the page data): either counts.
+  const done = prog.done || l.progress.done;
+  const [doneAtOpen] = useState(l.progress.done);
+  const evidence = l.video ? Math.min(100, Math.round((prog.watchedPct / l.completionPct) * 100)) : prog.slidesPct;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={href({ tab: content.chapter ? "tour" : "modules" })} className={btnCls + " no-underline"}><ArrowLeft size={14} />Back</Link>
-        <div className="flex-1 min-w-[200px]"><div className="text-[12px] text-[#64748B]">{l.module}</div><h2 className="text-[17px] font-bold leading-tight">{l.title}</h2></div>
-        {prog.done ? <Pill tone="green">Completed</Pill> : <Pill tone="amber">{l.video ? `Watched ${prog.watchedPct}% · need ${l.completionPct}%` : `Slides ${prog.slidesSeen}/${l.slides.length}`}</Pill>}
+      <div className="hr-sect relative overflow-hidden rounded-2xl bg-white border border-[#a8b6c8] shadow-[0_2px_6px_rgba(15,23,42,.12)] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={href({ tab: content.chapter ? "tour" : "modules" })} className={btnCls + " no-underline"}><ArrowLeft size={14} />Back</Link>
+          <div className="flex-1 min-w-[200px]"><div className="text-[11.5px] font-semibold uppercase tracking-[.06em] text-[#64748B]">{l.module}</div><h2 className="text-[18px] font-extrabold leading-tight">{l.title}</h2></div>
+          {done ? <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0B5E5B] text-white text-[12px] font-bold px-3 py-1"><CheckCircle2 size={14} />Completed</span>
+            : <span className="text-[12px] text-[#475569] text-right">{l.video ? `Watched ${prog.watchedPct}% · need ${l.completionPct}%` : `Slides studied ${prog.slidesSeen}/${l.slides.length}`}{l.questions.length ? " · then pass the check" : ""}</span>}
+        </div>
+        <div className="mt-2.5 h-1.5 rounded-full bg-[#E2E8F0] overflow-hidden" role="progressbar" aria-valuenow={done ? 100 : evidence} aria-valuemin={0} aria-valuemax={100} aria-label="Lesson evidence"><div className="h-full rounded-full bg-gradient-to-r from-[#14B8A6] to-[#0B5E5B] transition-[width] duration-700" style={{ width: `${done ? 100 : evidence}%` }} /></div>
       </div>
+      {done && !doneAtOpen ? (
+        <div role="status" className="relative overflow-hidden rounded-2xl tr-hero text-white px-5 py-4 flex items-center gap-4">
+          <Burst />
+          <span className="relative size-12 rounded-full bg-[#F5C451] text-[#4A3500] flex items-center justify-center flex-none hr-breathe"><Trophy size={24} /></span>
+          <div className="relative flex-1"><div className="text-[16px] font-extrabold">Lesson complete!</div><div className="text-[13px] text-white/80">Shabaash! It now counts towards your certificate.</div></div>
+          {next ? <Link href={href({ lesson: next.id })} className="relative rounded-lg bg-white text-[#0B5E5B] font-bold text-[13px] px-3.5 py-2 no-underline inline-flex items-center gap-1">Next lesson<ChevronRight size={15} /></Link> : null}
+        </div>
+      ) : null}
       {l.video && l.slides.length ? <Tabs value={view} onChange={setView} options={[["video", "Video lecture"], ["slides", "Slides & notes"]]} /> : null}
       <div className="grid gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex flex-col gap-4 min-w-0">
@@ -355,19 +445,39 @@ function SlideDeck({ l, prog, track, onProgress }: { l: L; prog: Prog; track: bo
     u.rate = 0.95; u.onend = () => setSpeaking(false); u.onerror = () => setSpeaking(false);
     speechSynthesis.cancel(); speechSynthesis.speak(u); setSpeaking(true);
   };
-  const go = (k: number) => { if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(); setSpeaking(false); setI(Math.max(0, Math.min(l.slides.length - 1, k))); };
+  const [dir, setDir] = useState(1);
+  const go = useCallback((k: number) => {
+    if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+    setSpeaking(false); setDir(k >= i ? 1 : -1); setI(Math.max(0, Math.min(l.slides.length - 1, k)));
+  }, [i, l.slides.length]);
+  // ← and → move between slides, unless the person is typing in a field.
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      if (e.key === "ArrowRight") go(i + 1); else if (e.key === "ArrowLeft") go(i - 1);
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [go, i]);
   const seen = (k: number) => (prog.slideSecs[k] ?? 0) >= (l.slideNeeds[k] ?? 0);
   return (
     <div className="flex flex-col gap-2">
-      <div className="relative w-full aspect-[16/9] max-[640px]:aspect-auto max-[640px]:min-h-[340px] rounded-2xl overflow-hidden text-white shadow-[0_12px_40px_rgba(15,23,42,.25)]" style={{ background: "linear-gradient(135deg,#0B5E5B 0%,#0E7470 55%,#14907F 100%)" }}>
-        <div className="absolute inset-0 p-[clamp(18px,4vw,44px)] flex flex-col">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.14em] text-white/60">
+      <div className="tr-hero relative w-full aspect-[16/9] max-[640px]:aspect-auto max-[640px]:min-h-[360px] rounded-2xl overflow-hidden text-white shadow-[0_18px_44px_-18px_rgba(11,94,91,.75)]">
+        <div aria-hidden className="tr-hero-grid absolute inset-0" />
+        <div aria-hidden className="tr-float absolute -right-24 -bottom-24 size-80 rounded-full bg-[#14B8A6]/30 blur-3xl" />
+        <svg aria-hidden className="absolute right-[4%] top-[18%] w-[22%] max-w-[220px] opacity-[.13] hr-spin-slow" viewBox="0 0 100 100" fill="none" stroke="#fff" strokeWidth="1.5"><circle cx="50" cy="50" r="46" strokeDasharray="4 6" /><circle cx="50" cy="50" r="30" /><circle cx="50" cy="50" r="12" fill="#F5C451" stroke="none" /></svg>
+        <div className="absolute inset-x-0 top-0 h-1 bg-white/15"><div className="h-full bg-[#F5C451] transition-[width] duration-500" style={{ width: `${((i + 1) / l.slides.length) * 100}%` }} /></div>
+        <div key={i} className="tr-slide absolute inset-0 p-[clamp(18px,4vw,44px)] flex flex-col" style={{ ["--dir" as string]: `${dir * 28}px` }}>
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[.14em] text-white/65">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/medoro-mark.png" alt="" className="size-6 rounded bg-white p-px" />Medoro Sales Academy<span className="ml-auto tabular-nums">{i + 1} / {l.slides.length}</span>
+            <img src="/medoro-mark.png" alt="" className="size-6 rounded bg-white p-px" />Medoro Sales Academy
+            <span className="ml-auto flex items-center gap-2 tabular-nums">{seen(i) ? <span className="inline-flex items-center gap-1 rounded-full bg-[#F5C451] text-[#4A3500] normal-case tracking-normal font-bold px-2 py-px"><CheckCircle2 size={11} />Studied</span> : null}{i + 1} / {l.slides.length}</span>
           </div>
-          <h3 className="mt-[clamp(12px,3vw,28px)] text-[clamp(19px,2.6vw,32px)] font-bold leading-tight">{s.title}</h3>
-          <ul className="mt-[clamp(10px,2vw,22px)] flex flex-col gap-[clamp(6px,1vw,12px)] text-[clamp(13px,1.45vw,18px)] leading-snug overflow-y-auto">
-            {s.bullets.map((b, k) => <li key={k} className="flex gap-2.5"><span className="mt-[.45em] size-2 rounded-full bg-[#F5C451] flex-none" />{b}</li>)}
+          <h3 className="mt-[clamp(12px,3vw,28px)] text-[clamp(20px,2.8vw,34px)] font-extrabold leading-tight max-w-[78%] max-[640px]:max-w-full">{s.title}</h3>
+          <span aria-hidden className="mt-3 block h-1 w-14 rounded-full bg-[#F5C451]" />
+          <ul className="mt-[clamp(10px,2vw,20px)] flex flex-col gap-[clamp(6px,1vw,12px)] text-[clamp(13px,1.45vw,18px)] leading-snug overflow-y-auto max-w-[80%] max-[640px]:max-w-full">
+            {s.bullets.filter(Boolean).map((b, k) => <li key={k} style={{ ["--i" as string]: k }} className="flex gap-3"><span className="mt-[.2em] size-[1.15em] rounded-md bg-white/15 border border-white/25 text-[#F5C451] text-[.7em] font-bold flex items-center justify-center flex-none">{k + 1}</span>{b}</li>)}
           </ul>
         </div>
       </div>
@@ -378,7 +488,15 @@ function SlideDeck({ l, prog, track, onProgress }: { l: L; prog: Prog; track: bo
         <button className={cx(btnCls, "ml-auto")} onClick={speak}>{speaking ? <VolumeX size={14} /> : <Volume2 size={14} />}{speaking ? "Stop narration" : "Play narration"}</button>
       </div>
       {s.narration ? <div className="rounded-xl bg-white border border-[#E2E8F0] px-4 py-3 text-[13px] leading-[1.6] text-[#334155]"><span className="text-[11px] font-semibold uppercase tracking-[.06em] text-[#64748B] block mb-1">Trainer narration (Hinglish)</span>{s.narration}</div> : null}
-      {track ? <div className="text-[12px] text-[#64748B]">Each slide counts after you have spent about {l.slideNeeds[i]} seconds on it with this tab open. {prog.slidesSeen}/{l.slides.length} studied.</div> : null}
+      {track ? (() => {
+        const left = l.slides.map((_, k) => k).filter((k) => !seen(k));
+        return (
+          <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#64748B]">
+            <span>Each slide counts after about {l.slideNeeds[i]} seconds on it with this tab open. {prog.slidesSeen}/{l.slides.length} studied.</span>
+            {left.length && left.some((k) => k !== i) ? <button className="ml-auto inline-flex items-center gap-1 rounded-full bg-[#FEF3C7] text-[#92400E] font-semibold px-2.5 py-1 border-0 cursor-pointer" onClick={() => go(left.find((k) => k !== i)!)}>Not studied yet: slide {left.map((k) => k + 1).join(", ")} · Go<ChevronRight size={13} /></button> : null}
+          </div>
+        );
+      })() : null}
     </div>
   );
 }
@@ -482,7 +600,15 @@ type QuizResult = { pct: number; passed: boolean; passMark: number; score: numbe
 function ResultBox({ r }: { r: QuizResult }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className={cx("rounded-xl px-4 py-3 text-[14px] font-semibold", r.passed ? "bg-[#D6F3EF] text-[#0B5E5B]" : "bg-[#FEE2E2] text-[#B3261E]")}>{r.passed ? "Passed" : "Not passed yet"}: {r.score}/{r.total} ({r.pct}%) · pass mark {r.passMark}%</div>
+      <div className={cx("relative overflow-hidden rounded-2xl px-5 py-4 flex items-center gap-4", r.passed ? "bg-[#E9F8F5] border border-[#9ADBD0]" : "bg-[#FFF6F5] border border-[#F3C5C0]")}>
+        {r.passed ? <Burst /> : null}
+        <ResultRing pct={r.pct} passed={r.passed} size={84} />
+        <div className="relative">
+          <div className={cx("text-[17px] font-extrabold flex items-center gap-1.5", r.passed ? "text-[#0B5E5B]" : "text-[#B3261E]")}>{r.passed ? <><Trophy size={18} />Passed!</> : "Not passed yet"}</div>
+          <div className="text-[13px] text-[#334155]">{r.score} of {r.total} correct · pass mark {r.passMark}%</div>
+          {!r.passed ? <div className="text-[12.5px] text-[#475569] mt-0.5">Read the explanations below, then try again.</div> : null}
+        </div>
+      </div>
       <ReviewList review={r.review} />
     </div>
   );
@@ -622,23 +748,26 @@ function Certificate({ t }: { t: T }) {
   const c = t.certificate, ev = t.evaluation;
   const missing = useMemo(() => [...ev.req, ...ev.approvals].filter((r) => !r.ok), [ev]);
   if (!c) return (
-    <Card title="My certificates" pad>
-      <div className="flex flex-col gap-2 pt-1 text-[13.5px]">
+    <Card title="My certificates" sub="Issued automatically after the last approval">
+      <div className="px-5 pb-5 grid gap-5 min-[860px]:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center">
+      <div className="relative"><CertificatePreview name={t.me.name} programme={t.programme.title} certNo="Not issued yet" date="Your completion date" score={null} muted /><span className="absolute inset-0 flex items-center justify-center"><span className="inline-flex items-center gap-1.5 rounded-full bg-[#0f172a]/85 text-white text-[12px] font-bold px-3 py-1.5"><Lock size={13} />Locked</span></span></div>
+      <div className="flex flex-col gap-2 text-[13.5px]">
         <div className="flex items-center gap-2 text-[#475569]"><Award size={18} />Your certificate is issued automatically once everything below is done and approved.</div>
-        <ul className="list-disc pl-6 text-[13px] text-[#475569]">{missing.map((r) => <li key={r.id}>{r.label} <span className="text-[#64748B]">({r.detail})</span></li>)}</ul>
+        <ul className="flex flex-col gap-1.5 mt-1">{missing.map((r) => <li key={r.id} className="flex gap-2 text-[13px] text-[#334155]"><Circle size={15} className="text-[#94A3B8] flex-none mt-0.5" /><span className="flex-1">{r.label}</span><span className="text-[#64748B] text-[12px]">{r.detail}</span></li>)}</ul>
+      </div>
       </div>
     </Card>
   );
   return (
-    <Card title="My certificates" pad>
-      <div className="flex flex-wrap gap-5 items-center pt-2">
-        <div className="size-16 rounded-2xl bg-gradient-to-br from-[#F5C451] to-[#D9A93A] flex items-center justify-center text-white"><Award size={34} /></div>
-        <div className="flex-1 min-w-[220px]">
-          <div className="text-[16px] font-bold">Medoro Sales Training Certificate</div>
-          <div className="text-[13px] text-[#475569]">{c.certNo} · issued {dayLong(c.issuedAt)} · score {c.score}/100</div>
-          {c.revoked ? <div className="text-[13px] text-[#B3261E] mt-1">Revoked: {c.revokedReason}</div> : null}
+    <Card title="My certificates" sub={c.revoked ? "Revoked" : "Issued by Medoro HR"}>
+      <div className="px-5 pb-5 grid gap-5 min-[860px]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] items-center">
+        <CertificatePreview name={t.me.name} programme={t.programme.title} certNo={c.certNo} date={dayLong(c.issuedAt)} score={c.score} muted={c.revoked} />
+        <div className="flex flex-col gap-3">
+          <div className="text-[18px] font-extrabold">{c.revoked ? "This certificate was revoked" : "Congratulations, you are certified!"}</div>
+          <div className="text-[13px] text-[#475569]">{c.certNo} · issued {dayLong(c.issuedAt)} · final score {c.score}/100</div>
+          {c.revoked ? <div className="text-[13px] text-[#B3261E]">Reason: {c.revokedReason}</div> : <div className="text-[13px] text-[#475569]">The PDF carries a QR code: anyone can scan it to check that the certificate is genuine.</div>}
+          {!c.revoked ? <a className={primaryCls + " no-underline self-start"} href={`/staff/hrms/training/certificate/${c.id}`} target="_blank" rel="noopener"><Download size={15} />Download PDF</a> : null}
         </div>
-        {!c.revoked ? <a className={primaryCls + " no-underline"} href={`/staff/hrms/training/certificate/${c.id}`} target="_blank" rel="noopener"><Download size={15} />Download PDF</a> : null}
       </div>
     </Card>
   );

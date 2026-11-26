@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Award, CheckCircle2, Circle, Download, ExternalLink, FileText, Plus, Upload } from "lucide-react";
+import { Award, CheckCircle2, Circle, Download, ExternalLink, FileText, GraduationCap, Plus, Sparkles, Upload, Users } from "lucide-react";
 import type { Data } from "@/staff/hrms/screens";
 import type { Participant } from "@/staff/hrms/training/service";
 import { AREAS, RUBRICS, STATUS_LABEL, areaLabel, clock12, practicalLabel, type PracticalKind, type Slide } from "@/staff/hrms/training/shared";
 import { trAddLink, trAssign, trAttendance, trCreateBatch, trCreateLesson, trGrantAttempt, trHrDecide, trInstall, trMove, trRemoveResource, trReopen, trReport, trRestore, trRevoke, trSaveLesson, trSaveModule, trSaveQuestion, trSaveScenario, trSaveSchedule, trSaveSettings, trScore, trTrainerDecide, trUnassign, trUpdateBatch, trUpload, trVersions } from "../training-actions";
+import { AcademyArt, Pipeline } from "./training-art";
 import { Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, tdCls, useRun } from "./kit";
 
 type A = Extract<Data<"academy">, { installed: true }>;
@@ -18,10 +19,14 @@ export function AcademyScreen({ d }: { d: Data<"academy"> }) {
   const [tab, setTab] = useState<TabId>("overview");
   if (!d.installed) return (
     <Card title="Install the Medoro Sales Training Academy" pad>
+      <div className="grid gap-6 min-[900px]:grid-cols-[minmax(0,1fr)_300px] items-center">
       <div className="flex flex-col gap-3 pt-1 text-[13.5px] text-[#334155] max-w-[720px]">
         <p>This puts the standard one-day programme into the HRMS database: the 10:00 AM–6:30 PM timetable, the official 26-chapter product tour with sales notes for every chapter, nine Hinglish sales lectures with slides and narration scripts, the feature-to-benefit table, the objection library, cold-calling scripts, 7 role-play scenarios, lesson checks, a 26-question product knowledge quiz and the final exam.</p>
         <p>Everything stays editable in the Course Builder afterwards. Installing assigns nobody.</p>
-        <button className={primaryCls + " self-start"} disabled={busy} onClick={() => run(() => trInstall(), (r) => `Installed: ${r.lessons} lessons, ${r.questions} questions, ${r.scenarios} scenarios.`)}>Install the standard course</button>
+        <div className="grid grid-cols-3 gap-2 max-w-[460px]">{[["38", "lessons"], ["26", "tour chapters"], ["7", "role-plays"]].map(([n, l]) => <div key={l} className="rounded-xl bg-[#E9F8F5] px-3 py-2"><div className="text-[20px] font-extrabold text-[#0B5E5B]">{n}</div><div className="text-[11.5px] text-[#475569]">{l}</div></div>)}</div>
+        <button className={primaryCls + " hr-btn relative overflow-hidden self-start"} disabled={busy} onClick={() => run(() => trInstall(), (r) => `Installed: ${r.lessons} lessons, ${r.questions} questions, ${r.scenarios} scenarios.`)}><Sparkles size={15} />Install the standard course</button>
+      </div>
+      <AcademyArt className="w-full max-w-[300px] mx-auto" />
       </div>
     </Card>
   );
@@ -46,14 +51,41 @@ function Overview({ d, go }: { d: A; go: (t: TabId) => void }) {
   const count = (s: string[]) => d.rows.filter((r) => s.includes(r.status)).length;
   const waitingHr = d.rows.filter((r) => r.status === "hr");
   const avg = d.rows.length ? Math.round(d.rows.reduce((a, r) => a + r.score, 0) / d.rows.length) : 0;
+  const stages = [
+    { label: "Not started", n: count(["not_started"]), hint: "assigned, nothing opened yet" },
+    { label: "Learning", n: count(["learning"]), hint: "lessons and tour in progress" },
+    { label: "Practicals", n: count(["practicals", "failed"]), hint: "lessons done; practicals or score pending" },
+    { label: "Review", n: count(["review", "trainer"]), hint: "waiting for the trainer" },
+    { label: "HR approval", n: count(["hr"]), hint: "trainer approved; waiting for HR" },
+    { label: "Certified", n: count(["certified"]), hint: "certificate issued" },
+  ];
+  const next = [...d.batches].filter((b) => b.status !== "closed").sort((a, b) => a.date.localeCompare(b.date)).find((b) => b.date >= new Date().toISOString().slice(0, 10));
   return (
     <div className="flex flex-col gap-4">
+      <section className="tr-hero relative overflow-hidden rounded-2xl text-white px-[clamp(16px,3vw,30px)] py-5">
+        <div aria-hidden className="tr-hero-grid absolute inset-0" />
+        <div aria-hidden className="tr-float absolute -right-16 -top-20 size-64 rounded-full bg-[#14B8A6]/30 blur-3xl" />
+        <div className="relative flex flex-wrap gap-5 items-center">
+          <div className="flex-1 min-w-[240px]">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/12 border border-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[.05em]"><GraduationCap size={13} className="text-[#F5C451]" />Medoro Sales Training Academy</div>
+            <h2 className="text-[clamp(20px,2.6vw,28px)] font-extrabold mt-2 leading-tight">{d.rows.length ? `${count(["certified"])} of ${d.rows.length} people certified` : "Ready for your first batch"}</h2>
+            <p className="text-[13px] text-white/75 mt-1">{next ? `Next batch: ${next.name} on ${dayLong(next.date)} with ${next.trainer} (${next.count} people).` : "Create a batch to assign the programme to your sales team."}</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button className="rounded-lg bg-white text-[#0B5E5B] font-bold text-[13px] px-3.5 py-2 cursor-pointer border-0 inline-flex items-center gap-1.5" onClick={() => go("batches")}><Users size={15} />New batch</button>
+            <button className="rounded-lg bg-white/10 border border-white/30 text-white font-semibold text-[13px] px-3.5 py-2 cursor-pointer inline-flex items-center gap-1.5" onClick={() => go("reports")}><Download size={15} />Reports</button>
+          </div>
+        </div>
+      </section>
       <Grid n={4}>
         <Stat l="Assigned" v={d.rows.length} sub={`${d.batches.length} batch${d.batches.length === 1 ? "" : "es"}`} />
         <Stat l="Learning" v={count(["not_started", "learning", "practicals"])} sub="still in progress" c="#B45309" />
         <Stat l="Needs review" v={count(["review", "trainer", "hr"])} sub="trainer or HR action" c="#5B45B0" />
         <Stat l="Certified" v={count(["certified"])} sub={`average score ${avg}/100`} />
       </Grid>
+      <Card title="Training pipeline" sub="Where everyone stands · hover a bar for details">
+        <div className="px-5 pb-5 pt-1">{d.rows.length ? <Pipeline stages={stages} /> : <Empty>No one assigned yet.</Empty>}</div>
+      </Card>
       <Card title="Waiting for HR approval" sub={d.settings.hrApproval ? "Trainer approved; every requirement met" : "HR approval is switched off in Settings"}>
         {waitingHr.length ? <ul className="px-5 pb-4 flex flex-col gap-2">{waitingHr.map((r) => <HrApproveRow key={r.id} r={r} meId={d.meId} />)}</ul> : <Empty>Nothing waiting.</Empty>}
       </Card>
@@ -546,7 +578,7 @@ function Reports({ d }: { d: A }) {
         </Table>
       </Card>
       <Card title="Average marks by area" sub="Across everyone assigned">
-        <div className="px-5 pb-4 flex flex-col gap-2.5">{areaAvg.map((a) => <div key={a.id}><div className="flex text-[12.5px] mb-1"><span className="flex-1 font-semibold">{a.label}</span><span className="tabular-nums">{a.avg.toFixed(1)} / {a.marks}</span></div><div className="h-2 bg-[#E2E8F0] rounded-full"><div className="h-full bg-[#0B5E5B] rounded-full" style={{ width: `${(a.avg / a.marks) * 100}%` }} /></div></div>)}</div>
+        <div className="px-5 pb-4 flex flex-col gap-2.5">{areaAvg.map((a) => <div key={a.id}><div className="flex text-[12.5px] mb-1"><span className="flex-1 font-semibold">{a.label}</span><span className="tabular-nums">{a.avg.toFixed(1)} / {a.marks}</span></div><div className="h-2.5 bg-[#E2E8F0] rounded-full overflow-hidden"><div className="h-full rounded-full hr-fill bg-gradient-to-r from-[#14B8A6] to-[#0B5E5B]" style={{ width: `${(a.avg / a.marks) * 100}%` }} /></div></div>)}</div>
       </Card>
     </div>
   );
@@ -583,6 +615,14 @@ export function TrainerDeskScreen({ d }: { d: Desk }) {
   if (!d.batches.length) return <Card pad><Empty>You aren’t the trainer of any Sales Academy batch.</Empty></Card>;
   return (
     <div className="flex flex-col gap-4">
+      <section className="tr-hero relative overflow-hidden rounded-2xl text-white px-[clamp(16px,3vw,30px)] py-5">
+        <div aria-hidden className="tr-hero-grid absolute inset-0" />
+        <div aria-hidden className="tr-float absolute -right-16 -top-20 size-64 rounded-full bg-[#14B8A6]/30 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-4">
+          <span className="size-12 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center hr-bob"><GraduationCap size={24} className="text-[#F5C451]" /></span>
+          <div className="flex-1 min-w-[220px]"><h2 className="text-[clamp(18px,2.4vw,24px)] font-extrabold leading-tight">{pending.length ? `${pending.length} practical${pending.length === 1 ? "" : "s"} to score` : ready.length ? `${ready.length} ready for your recommendation` : "All caught up"}</h2><p className="text-[13px] text-white/75">Score honestly against the rubric and leave feedback the employee can act on.</p></div>
+        </div>
+      </section>
       <Grid n={4}>
         <Stat l="Your batches" v={d.batches.length} />
         <Stat l="Participants" v={d.rows.length} />
@@ -590,7 +630,7 @@ export function TrainerDeskScreen({ d }: { d: Desk }) {
         <Stat l="Ready to recommend" v={ready.length} />
       </Grid>
       <Card title="Practicals waiting for your score">
-        {pending.length ? <ul className="px-5 pb-4 flex flex-col gap-2">{pending.map((p) => <li key={p.id} className="flex flex-wrap gap-2 items-center text-[13px] border-t border-[#F1F5F9] pt-2 first:border-t-0"><span className="flex-1"><strong>{p.r.name}</strong> · {practicalLabel(p.kind)} #{p.attemptNo}{p.scenarioId ? ` · ${d.scenarios.find((s) => s.id === p.scenarioId)?.title ?? ""}` : ""}</span><button className={primaryCls} onClick={() => setScore(p)}><Award size={14} />Score</button></li>)}</ul> : <Empty>Nothing to score.</Empty>}
+        {pending.length ? <ul className="px-5 pb-4 flex flex-col gap-2">{pending.map((p) => <li key={p.id} className="tr-lift flex flex-wrap gap-2 items-center text-[13px] border border-[#E2E8F0] rounded-xl px-3 py-2.5"><span className="flex-1"><strong>{p.r.name}</strong> · {practicalLabel(p.kind)} #{p.attemptNo}{p.scenarioId ? ` · ${d.scenarios.find((s) => s.id === p.scenarioId)?.title ?? ""}` : ""}</span><button className={primaryCls} onClick={() => setScore(p)}><Award size={14} />Score</button></li>)}</ul> : <Empty>Nothing to score.</Empty>}
       </Card>
       <People rows={d.rows} batches={d.batches} manage={false} meId="" rubrics={d.rubrics} />
       {score ? <ScoreModal p={score} onClose={() => setScore(null)} /> : null}

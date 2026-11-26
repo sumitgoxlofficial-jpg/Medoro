@@ -96,7 +96,7 @@ export const EXTRA_NAV: [string, string][] = [["chat", "Team Chat"], ["chatrevie
 /** Only the employee menu has WORK / ME / COMPANY headings in the design. */
 export const EMPLOYEE_GROUPS: Record<string, string> = { home: "WORK", attendance: "ME", jobs: "COMPANY" };
 /** Dashboards show no page title: the greeting is part of the page (employee) or there is none. */
-export const NO_TITLE_SCREENS = ["home", "hrhome", "sahome", "finhome"];
+export const NO_TITLE_SCREENS = ["home", "hrhome", "sahome", "finhome", "training"]; // My Sales Training carries its own banner
 
 export const HOME_OF: Record<HrRoleId, string> = { employee: "home", sales: "slhome", hr: "hrhome", admin: "sahome", finance: "finhome" };
 

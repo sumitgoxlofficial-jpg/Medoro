@@ -356,6 +356,7 @@ async function loadEval(assignmentIds: string[]) {
     db.trPractical.findMany({ where: { assignmentId: { in: assignmentIds } } }),
     db.trCertificate.findMany({ where: { assignmentId: { in: assignmentIds }, revokedAt: null }, select: { assignmentId: true } }),
   ]);
+  const active = new Set((await db.trProgress.groupBy({ by: ["assignmentId"], where: { assignmentId: { in: assignmentIds } } })).map((x) => x.assignmentId));
   const modOf = new Map(mods.map((m) => [m.id, m]));
   const out = new Map<string, ReturnType<typeof evaluate>>();
   for (const a of as) {
@@ -365,7 +366,7 @@ async function loadEval(assignmentIds: string[]) {
       completed: new Set(progress.filter((p) => p.assignmentId === a.id).map((p) => p.lessonId)),
       attempts: attempts.filter((t) => t.assignmentId === a.id).map((t) => ({ kind: t.kind, pct: t.pct, passed: t.passed, areas: t.areas as Record<string, [number, number]>, at: t.createdAt.toISOString() })),
       practicals: practicals.filter((p) => p.assignmentId === a.id).map((p) => ({ kind: p.kind, score: p.score, maxScore: p.maxScore, passed: p.passed, evaluatedAt: p.evaluatedAt?.toISOString() ?? null, submittedAt: p.submittedAt.toISOString(), rubric: p.rubric as Record<string, number> })),
-      attendance: a.attendance, trainerDecision: a.trainerDecision, hrDecision: a.hrDecision, certified: certs.some((c) => c.assignmentId === a.id),
+      attendance: a.attendance, trainerDecision: a.trainerDecision, hrDecision: a.hrDecision, certified: certs.some((c) => c.assignmentId === a.id), started: active.has(a.id),
     };
     out.set(a.id, evaluate(input));
   }
@@ -419,6 +420,7 @@ export async function myTraining(me: Me) {
   const prog = Object.fromEntries(progress.map((x) => [x.lessonId, { done: !!x.completedAt, lastPos: x.lastPos, watched: x.segs ? Math.round((x.segs.split("").filter((c) => c === "1").length / Math.max(1, x.segs.length)) * 100) : 0, seconds: x.seconds }]));
   const used = (k: string) => attempts.filter((t) => t.kind === k).length;
   return {
+    me: { name: me.name },
     assignment: { id: a.id, attendance: a.attendance, trainerFeedback: a.trainerFeedback, trainerDecision: a.trainerDecision, hrDecision: a.hrDecision, decisionNote: a.decisionNote },
     batch: { name: b.name, date: isoOf(b.trainingDate), trainer: trainer?.name ?? "", status: b.status, isToday: isoOf(b.trainingDate) === todayISO() },
     programme: { title: p.title, description: p.description },

@@ -11,6 +11,8 @@ export type EvalInput = {
   trainerDecision: string;
   hrDecision: string;
   certified: boolean;
+  /** Any learning evidence recorded yet (a heartbeat or an attempt). */
+  started?: boolean;
 };
 
 export type Requirement = { id: string; label: string; ok: boolean; detail: string };
@@ -80,7 +82,7 @@ export function evaluate(i: EvalInput) {
     : pendingReview ? "review"
     : everythingTried && !ready && lessonsDone === mandatory.length ? "failed"
     : lessonsDone === mandatory.length && mandatory.length > 0 ? "practicals"
-    : lessonsDone > 0 || i.attempts.length > 0 ? "learning" : "not_started";
+    : lessonsDone > 0 || i.attempts.length > 0 || i.started ? "learning" : "not_started";
   const pct = mandatory.length ? Math.round((lessonsDone / mandatory.length) * 100) : 0;
   return { score, marks, req, approvals, ready, eligible, status, lessonsDone, lessonsTotal: mandatory.length, tourDone, tourTotal: tour.length, pct, product, final, mock, demo };
 }

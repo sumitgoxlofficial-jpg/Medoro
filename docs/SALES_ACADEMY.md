@@ -30,6 +30,14 @@ employee can only ever load their own assignment, and answer keys never reach th
    generated at that moment, appears in the employee's My Certificates, and can be downloaded as a PDF.
 6. **Training Reports → Download employee-wise report (CSV)** at any time.
 
+## Design
+
+The screens use the HRMS look (teal, gold accents) with graphics drawn in SVG (`_ui/training-art.tsx`): a journey map of
+the five steps to the certificate, a score gauge with the pass mark, per-area mark bars, a live timeline of the day, lecture
+covers, animated slide transitions (← → keys work), a celebration when a lesson or quiz is passed, a certificate preview,
+and an HR pipeline chart. Motion lives in `globals.css` (`tr-*`) inside `.hr-app`, so it stops for anyone whose device asks
+for reduced motion; nothing depends on animation to be readable.
+
 ## Rules the server enforces
 
 * **Progress is evidence, not page views.** The browser sends a heartbeat every 10 s; the server credits only the time
