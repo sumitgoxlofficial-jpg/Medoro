@@ -13,7 +13,7 @@ import { INDIAN_STATES, PIN_RE } from "./constants";
 export async function members(a: Actor) {
   need(a, "targets.set");
   const staff = await db.staffUser.findMany({
-    where: { kind: "team", role: { not: "partner" }, ...(a.growthRole === "manager" ? { id: { in: a.teamStaffIds } } : {}) },
+    where: { kind: "team", deletedAt: null, role: { not: "partner" }, ...(a.growthRole === "manager" ? { id: { in: a.teamStaffIds } } : {}) },
     select: { id: true, name: true, empNo: true, email: true, role: true, status: true, growthMember: { include: { team: true } }, territories: true, callingTargets: { orderBy: { effectiveFrom: "desc" }, take: 4 } },
     orderBy: { name: "asc" },
   });

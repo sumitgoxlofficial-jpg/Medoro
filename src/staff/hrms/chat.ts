@@ -9,6 +9,7 @@ import { pulsePhoto } from "./pulse-shared";
 import { TEAM_NAME, isTeamId, istDayStart, istWeekStart, rankBoard, type BoardRow } from "./sales-wins";
 import { PERSONAS, PULSE_ABOUT, PULSE_KEY, isPulse, pulseMemberIds, pulseName, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
 import { log } from "@/server/log";
+import { EDIT_WINDOW_MS } from "./chat-shared";
 
 // Team Chat. Every message (and picture, and poll) is sealed with HOST_KEY before it is stored, so nothing readable sits in the
 // database, in backups or in logs. The people in a conversation read it normally. Nobody else can: not HR, not Finance.
@@ -23,7 +24,7 @@ export type FileMeta = { name: string; type: string; size: number };
 export type PollState = { q: string; multi: boolean; options: { text: string; votes: number; mine: boolean }[]; total: number };
 export type ReactionState = { emoji: string; n: number; mine: boolean }[];
 export type ChatMsg = {
-  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; /** win: a real sale or demo announced automatically from the person's account; pulse: a Sales Pulse bot message; milestone: a real team total passing a threshold. */ kind: "text" | "image" | "meet" | "poll" | "file" | "win" | "pulse" | "milestone"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
+  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; /** win: a real sale or demo announced automatically from the person's account; pulse: a Sales Pulse bot message; milestone: a real team total passing a threshold. */ kind: "text" | "image" | "meet" | "poll" | "file" | "win" | "pulse" | "milestone"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; /** The sender changed the text after sending it. */ edited: boolean; at: string;
   reactions: ReactionState; poll: PollState | null;
 };
 export type ChatRow = {
@@ -32,8 +33,8 @@ export type ChatRow = {
 };
 export type Presence = Record<string, string>;
 
-type Lite = { id: string; seq: number; chatId: string; senderId: string; kind: string; body: Uint8Array; deletedAt: Date | null; createdAt: Date };
-const LITE = { id: true, seq: true, chatId: true, senderId: true, kind: true, body: true, deletedAt: true, createdAt: true } as const; // never the picture bytes
+type Lite = { id: string; seq: number; chatId: string; senderId: string; kind: string; body: Uint8Array; deletedAt: Date | null; editedAt: Date | null; createdAt: Date };
+const LITE = { id: true, seq: true, chatId: true, senderId: true, kind: true, body: true, deletedAt: true, editedAt: true, createdAt: true } as const; // never the picture bytes
 
 const text = (b: Uint8Array | Buffer) => unseal(b).toString("utf8");
 const KINDS = ["text", "image", "meet", "poll", "file", "win", "pulse", "milestone"] as const;
@@ -51,7 +52,7 @@ function pollDef(m: Lite): PollDef | null {
 const asMsg = (m: Lite): ChatMsg => {
   const kind = (KINDS as readonly string[]).includes(m.kind) ? (m.kind as ChatMsg["kind"]) : "text";
   const def = pollDef(m), fb = fileBody(m);
-  return { id: m.id, seq: m.seq, chatId: m.chatId, senderId: m.senderId, by: "", kind, body: m.deletedAt || kind === "file" ? fb?.c ?? "" : def ? def.q : text(m.body), hasImage: kind === "image" && !m.deletedAt, file: fb ? { name: fb.n, type: fb.t, size: fb.s } : null, deleted: !!m.deletedAt, at: m.createdAt.toISOString(), reactions: [], poll: null };
+  return { id: m.id, seq: m.seq, chatId: m.chatId, senderId: m.senderId, by: "", kind, body: m.deletedAt || kind === "file" ? fb?.c ?? "" : def ? def.q : text(m.body), hasImage: kind === "image" && !m.deletedAt, file: fb ? { name: fb.n, type: fb.t, size: fb.s } : null, deleted: !!m.deletedAt, edited: !!m.editedAt && !m.deletedAt, at: m.createdAt.toISOString(), reactions: [], poll: null };
 };
 const preview = (m: ChatMsg | undefined) => (!m ? "" : m.deleted ? "Message deleted" : m.kind === "image" ? "📷 Photo" : m.kind === "file" ? `📄 ${m.file?.name.slice(0, 70) ?? "Document"}` : m.kind === "meet" ? "📹 Video call" : m.kind === "poll" ? `📊 ${m.body.slice(0, 70)}` : m.body.slice(0, 80));
 
@@ -342,6 +343,21 @@ export async function chatImage(me: Me, messageId: string) {
   const fb = fileBody(m);
   if (fb) return { bytes: b, type: fb.t, name: fb.n };
   return { bytes: b, type: imageKind(b) || "application/octet-stream", name: null };
+}
+/** Anyone can change the text of a message they sent, for 5 minutes after sending it. Everyone in the chat then sees the new text, marked "edited". */
+export async function editMessage(me: Me, id: string, raw: unknown) {
+  const body = typeof raw === "string" ? raw.replace(/\r\n/g, "\n").trim() : "";
+  if (!body) throw new UserError("Type a message first.");
+  if (body.length > MAX_BODY) throw new UserError(`Messages can be up to ${MAX_BODY} characters.`);
+  const m = await db.hrChatMessage.findUnique({ where: { id }, select: LITE });
+  if (!m || m.senderId !== me.id) throw new UserError("You can only edit your own messages.");
+  if (m.deletedAt) throw new UserError("That message was deleted.");
+  if (m.kind !== "text") throw new UserError("Only text messages can be edited.");
+  if (Date.now() - m.createdAt.getTime() > EDIT_WINDOW_MS) throw new UserError("Messages can only be edited for 5 minutes after sending.");
+  await membership(me, m.chatId);
+  if (text(m.body) === body) return (await decorate([m], me.id))[0];
+  const u = await db.hrChatMessage.update({ where: { id }, data: { body: new Uint8Array(seal(body)), editedAt: new Date() }, select: LITE });
+  return (await decorate([u], me.id))[0];
 }
 export async function deleteMessage(me: Me, id: string) {
   const m = await db.hrChatMessage.findUnique({ where: { id } });

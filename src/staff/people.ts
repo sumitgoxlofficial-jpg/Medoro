@@ -201,7 +201,7 @@ export async function setEmployeeStatus(s: Staff, id: string, action: "approve" 
   allow(s, "super_admin");
   if (id === s.id) throw new UserError("You can’t change your own access.");
   const u = await db.staffUser.findUnique({ where: { id } });
-  if (!u) throw new UserError("Employee not found.");
+  if (!u || u.deletedAt) throw new UserError("Employee not found.");
   if (action === "approve" && u.status !== "pending") throw new UserError("Only pending profiles can be approved.");
   if (action === "deactivate" && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active" } })) <= 1) throw new UserError("Keep at least one active super admin.");
   const status = action === "deactivate" ? "deactivated" : u.passwordHash ? "active" : "invited";
@@ -221,5 +221,5 @@ export async function resetSignIn(s: Staff, id: string, origin: string) {
 }
 
 export async function listEmployees() {
-  return db.staffUser.findMany({ orderBy: { empNo: "asc" }, select: { id: true, empNo: true, name: true, email: true, phone: true, role: true, team: true, status: true, referralCode: true, bonusPct: true, totpEnabled: true } });
+  return db.staffUser.findMany({ where: { deletedAt: null }, orderBy: { empNo: "asc" }, select: { id: true, empNo: true, name: true, email: true, phone: true, role: true, team: true, status: true, referralCode: true, bonusPct: true, totpEnabled: true } });
 }

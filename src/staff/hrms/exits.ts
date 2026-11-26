@@ -117,8 +117,13 @@ export async function tickClearance(me: Me, staffId: string, item: string, done:
   need(me, "employees");
   const id = z.enum(CLEARANCE_ITEMS.map((c) => c.id) as [ClearanceId, ...ClearanceId[]]).parse(item);
   const row = await exitRow(staffId);
-  const c = { ...(row.clearance as Record<string, Tick>) };
-  if (done) c[id] = { by: me.name, at: new Date().toISOString() }; else delete c[id];
+  // Rebuilt from the fixed checklist, so only its own item ids are ever keys.
+  const prev = (row.clearance ?? {}) as Partial<Record<ClearanceId, Tick>>;
+  const tick: Tick = { by: me.name, at: new Date().toISOString() };
+  const c = Object.fromEntries(CLEARANCE_ITEMS.flatMap((ci): [ClearanceId, Tick][] => {
+    const t = ci.id === id ? (done ? tick : undefined) : prev[ci.id];
+    return t ? [[ci.id, t]] : [];
+  }));
   await db.hrExit.update({ where: { id: row.id }, data: { clearance: c } });
 }
 

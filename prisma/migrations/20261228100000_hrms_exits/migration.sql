@@ -17,3 +17,6 @@ CREATE TABLE "HrExit" (
     CONSTRAINT "HrExit_pkey" PRIMARY KEY ("id")
 );
 CREATE INDEX "HrExit_staffId_createdAt_idx" ON "HrExit"("staffId", "createdAt");
+
+-- Like every Medoro table: row level security on, so a hosted data API gets no rows.
+ALTER TABLE public."HrExit" ENABLE ROW LEVEL SECURITY;
