@@ -1,4 +1,5 @@
 "use client";
+import { WaAdminCard } from "./whatsapp";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -557,7 +558,7 @@ export function SettingsScreen({ d }: { d: Data<"settings"> }) {
   const { run, busy } = useRun();
   const [s, setS] = useState(d.s);
   const co = (k: keyof typeof s.company) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setS({ ...s, company: { ...s.company, [k]: e.target.value } });
-  return <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); run(() => saveSettings(s)); }}>
+  return <><form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); run(() => saveSettings(s)); }}>
     <Card title="Company details" sub="Printed on payslips and invoices" pad><Grid n={3}><Field label="Company name"><input className={inputCls} value={s.company.name} onChange={co("name")} required /></Field><Field label="GSTIN"><input className={inputCls} value={s.company.gstin} onChange={co("gstin")} /></Field><Field label="State" hint="Decides CGST+SGST or IGST on invoices"><input className={inputCls} value={s.company.state} onChange={co("state")} /></Field><Field label="Phone"><input className={inputCls} value={s.company.phone} onChange={co("phone")} /></Field><Field label="Email"><input className={inputCls} value={s.company.email} onChange={co("email")} /></Field><Field label="Bank details (on invoices)"><input className={inputCls} value={s.company.bank} onChange={co("bank")} /></Field></Grid><Field label="Address"><textarea className={cx(inputCls, "mt-3")} rows={2} value={s.company.address} onChange={co("address")} /></Field></Card>
     <Grid n={2}>
       <Card title="Workforce policy" pad>
@@ -579,5 +580,5 @@ export function SettingsScreen({ d }: { d: Data<"settings"> }) {
         <Field label="Privilege leave carried forward (max days)" hint="Unused privilege leave moves to the next year, up to this many days. 0 switches it off."><input className={cx(inputCls, "!w-32 mt-2")} inputMode="numeric" value={s.carryForward} onChange={(e) => setS({ ...s, carryForward: Number(e.target.value.replace(/\D/g, "")) })} /></Field></Card>
     </Grid>
     <div><button className={primaryCls} disabled={busy}>Save settings</button></div>
-  </form>;
+  </form><WaAdminCard d={d.wa} /></>;
 }

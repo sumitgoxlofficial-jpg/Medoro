@@ -9,6 +9,7 @@ import { addDays } from "@/lib/dates";
 import { ASSET_KINDS, BOARD_COLS, liveWorkedMin, toMin, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
 import { setDocExpiry, addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
+import { WaProfileCard } from "./whatsapp";
 import { ExpiryCell } from "./expiry";
 import { ResignCard } from "./screens-exit";
 import { PhotoEditor } from "./photo-editor";
@@ -136,6 +137,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
       {p.responsibilities ? <Card title="My role and responsibilities" sub={p.designation ? `As ${p.designation}${p.dept ? `, ${p.dept}` : ""}` : undefined} pad><ul className="list-disc pl-5 text-[13.5px] flex flex-col gap-1">{p.responsibilities.split("\n").filter(Boolean).map((r, i) => <li key={i}>{r}</li>)}</ul></Card> : null}
       <Card title="My documents" sub="Your offer letter, appointment letter, non-disclosure agreement and any letter HR sends you, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
       <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
+      <WaProfileCard d={d.wa} />
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>
       <ResignCard x={d.exit} />
       {card ? <Modal title="Employee ID card" onClose={() => setCard(false)}>

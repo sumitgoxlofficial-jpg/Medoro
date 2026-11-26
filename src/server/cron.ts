@@ -17,6 +17,7 @@ import { docExpiryTick } from "@/staff/hrms/docs";
 import { recordHeartbeat } from "@/domain/system/health";
 import { chatBackupTick } from "@/staff/hrms/chat-backup";
 import { salesPulseTick } from "@/staff/hrms/sales-pulse";
+import { waTick } from "@/staff/hrms/whatsapp";
 
 
 // The scheduled jobs, shared by the cron endpoints:
@@ -32,7 +33,7 @@ export async function tick(daily: boolean) {
     const now = new Date();
     let failed = false, firstError = "";
     // Each job runs even if another fails.
-    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily }), () => (daily ? leadSheetTick() : Promise.resolve()), () => docExpiryTick(), () => (daily ? chatBackupTick(now) : Promise.resolve()), () => salesPulseTick(now, true)]) {
+    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily }), () => (daily ? leadSheetTick() : Promise.resolve()), () => docExpiryTick(), () => (daily ? chatBackupTick(now) : Promise.resolve()), () => salesPulseTick(now, true), () => waTick(now)]) {
       try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; firstError ||= e instanceof Error ? e.message : String(e); }
     }
     await recordHeartbeat(!failed, firstError).catch((e) => log.error("Heartbeat not recorded.", { err: e }));

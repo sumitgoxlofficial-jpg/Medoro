@@ -146,6 +146,21 @@ connected Google Calendar).
   rule is added; they are included in database backups (still sealed).
 * Not built: typing indicators, online status, voice notes, Google Drive backups of chats.
 
+## WhatsApp alerts
+
+* HRMS alerts (leave, claims, tasks, reviews and the rest that appear under the bell) can also go to WhatsApp. They are sent from the
+  company's WhatsApp Business number through the official Cloud API. It is the same number connected once in **Growth → Integrations**. No
+  WhatsApp Web automation is used.
+* One-time setup:
+  1. In WhatsApp Manager, create a **Utility** template with one body variable, for example `Medoro HRMS: {{1}}`, and wait until Meta
+     approves it.
+  2. In **Settings → WhatsApp alerts** (super admin), enter its name and language code and switch alerts on.
+  3. Use **Send a test to my phone** to check it end to end. A wrong template name shows WhatsApp's error at once.
+* Each employee chooses on **My Profile** ("Send my HR alerts to … on WhatsApp"). It is off until they switch it on, and the time of each
+  change is kept as their consent record. They need a valid Indian mobile number on their profile.
+* The in-app notification is always written. The WhatsApp copy is queued in `HrWaMessage` and sent straight after the action.
+  If sending fails, the scheduler retries it (`/api/cron/minute` or the self-hosted tick), up to 3 tries. Team Chat messages are not sent to WhatsApp.
+
 ## Performance appraisals
 
 * Someone with the **reports** module opens a review cycle on **Appraisals** (name, period, self-assessment and manager-review due

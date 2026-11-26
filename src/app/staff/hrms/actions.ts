@@ -19,6 +19,7 @@ import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
+import * as wa from "@/staff/hrms/whatsapp";
 import * as promos from "@/staff/hrms/promotions";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
 import * as docs from "@/staff/hrms/docs";
@@ -178,6 +179,10 @@ export const openInvoice = async (id: string) => hrRun((me) => fin.invoice(me, i
 export const saveSettings = async (input: Settings) => done(await hrRun((me) => people.saveSettings(me, input), "Settings saved."));
 export const togglePerm = async (role: string, moduleId: string) => done(await hrRun((me) => people.togglePerm(me, role, moduleId)));
 
+// ── WhatsApp alerts
+export const saveWhatsAppAlerts = async (input: In<typeof wa.saveWaConfig>) => done(await hrRun((me) => wa.saveWaConfig(me, input), "WhatsApp alert settings saved."));
+export const sendWhatsAppTest = async () => done(await hrRun((me) => wa.sendWaTest(me)));
+export const setMyWhatsAppAlerts = async (on: boolean) => done(await hrRun((me) => wa.setMyWaAlerts(me, on), on ? "You’ll get your HR alerts on WhatsApp too." : "WhatsApp alerts switched off."));
 // ── Company policies
 export const acknowledgePolicy = async (id: string) => done(await hrRun((me) => policies.acknowledgePolicy(me, id), "Thank you. Your acknowledgement is recorded."));
 export const savePolicy = async (id: string | null, input: { title: string; category: string; body: string; mandatory: boolean; reack: boolean }) => done(await hrRun((me) => policies.savePolicy(me, id, input as never), id ? "Policy saved." : "Policy published. Everyone was told."));
