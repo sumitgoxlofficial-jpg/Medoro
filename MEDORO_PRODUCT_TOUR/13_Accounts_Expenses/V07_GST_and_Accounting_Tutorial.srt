@@ -1,0 +1,157 @@
+1
+00:00:08,850 --> 00:00:12,835
+Accounts screen par dukaan ka roz ka hisaab hai.
+
+2
+00:00:12,875 --> 00:00:19,878
+Sabse pehle expense entry: kiraaya, tankhwaah,
+bijli, internet, transport, marammat,
+
+3
+00:00:19,918 --> 00:00:22,142
+stationery ya bank charges.
+
+4
+00:00:22,915 --> 00:00:27,435
+Category Repairs, amount aath sau pachaas,
+bhugtaan cash se,
+
+5
+00:00:27,475 --> 00:00:30,170
+aur note mein likhiye kya theek hua.
+
+6
+00:00:30,210 --> 00:00:32,678
+'Add expense for today' dabaaiye.
+
+7
+00:00:33,425 --> 00:00:38,817
+Cash book mein aaj ka har len-den hai: bikri ka
+cash, customers se vasooli,
+
+8
+00:00:38,857 --> 00:00:42,801
+supplier payments aur kharch, ant mein In, Out
+aur Net.
+
+9
+00:00:43,555 --> 00:00:46,742
+Bank ka hisaab 'UPI & Bank' screen par hai.
+
+10
+00:00:46,782 --> 00:00:53,271
+Bank statement Excel ya CSV mein upload kijiye;
+Medoro har UPI aur bank credit ko bills
+
+11
+00:00:53,311 --> 00:00:58,599
+aur payments se milaata hai, aur jo nahi mile,
+unhein alag dikhata hai.
+
+12
+00:00:59,364 --> 00:01:05,155
+Munaafa 'Reports & GST' screen par 'Sales and
+profit' mein hai: taareekh-vaar bikri,
+
+13
+00:01:05,195 --> 00:01:06,891
+returns aur gross profit.
+
+14
+00:01:06,931 --> 00:01:10,778
+Ise CSV mein nikaalkar apne accountant ko de
+sakte hain.
+
+15
+00:01:11,558 --> 00:01:17,418
+Dhyan dein: Google Drive wale counter par abhi
+day book, poora ledger, trial balance,
+
+16
+00:01:17,458 --> 00:01:21,999
+profit and loss statement aur cash flow ki alag
+reports nahi hain.
+
+17
+00:01:22,039 --> 00:01:27,622
+Bank connection apne-aap sync ke liye bank ya
+Account Aggregator partner chahiye,
+
+18
+00:01:27,662 --> 00:01:29,704
+jo is demo mein juda nahi hai.
+
+19
+00:01:35,746 --> 00:01:39,809
+Medicine ki MRP mein GST pehle se shaamil hota
+hai.
+
+20
+00:01:39,849 --> 00:01:44,154
+Medoro har bill par MRP se taxable value
+nikaalta hai,
+
+21
+00:01:44,194 --> 00:01:51,154
+aur Jharkhand ke andar ki bikri par GST ko CGST
+aur SGST mein aadha-aadha baant'ta hai.
+
+22
+00:01:51,194 --> 00:01:55,418
+Doosre rajya ke GST wale customer par IGST lagta
+hai.
+
+23
+00:01:56,169 --> 00:02:01,362
+Har medicine ka HSN code aur GST rate uske
+master mein rehta hai,
+
+24
+00:02:01,402 --> 00:02:03,697
+jaise medicines ke liye 3004.
+
+25
+00:02:03,737 --> 00:02:08,366
+'Reports & GST' screen par GST returns wala
+hissa dekhiye.
+
+26
+00:02:09,119 --> 00:02:10,798
+GST month chuniye.
+
+27
+00:02:10,838 --> 00:02:17,771
+Medoro us mahine ke bills se GSTR-1 banata hai:
+B2B, B2C aur HSN summary,
+
+28
+00:02:17,811 --> 00:02:21,973
+section-wise taxable value aur tax ke saath.
+
+29
+00:02:22,742 --> 00:02:30,106
+Yahan se GSTR-1 JSON, jo GST portal ke offline
+tool mein jaata hai, HSN summary CSV,
+
+30
+00:02:30,146 --> 00:02:34,248
+aur GSTR-3B ke JSON aur CSV download hote hain.
+
+31
+00:02:35,009 --> 00:02:39,372
+Bahut zaroori: yeh reports filing mein madad ke
+liye hain.
+
+32
+00:02:39,412 --> 00:02:45,901
+GST return file karne se pehle inhein apne
+accountant ya CA se zaroor check karvaaiye.
+
+33
+00:02:45,941 --> 00:02:49,621
+Tally export is counter par uplabdh nahi hai;
+CSV
+
+34
+00:02:49,661 --> 00:02:52,961
+aur JSON exports aapke CA ke kaam aate hain.

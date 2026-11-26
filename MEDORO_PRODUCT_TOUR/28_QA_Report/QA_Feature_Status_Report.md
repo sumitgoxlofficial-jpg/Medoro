@@ -115,4 +115,20 @@ Legend: **Working** = demonstrated end to end · **Partial** = works with the li
 
 ## 5. Recording QA
 
-RECORDING_QA_PLACEHOLDER
+- **38 MP4 files:** 26 chapter videos and 12 compilations (the complete tour runs 44:10). All are 1920×1080, 30 fps, H.264 (CRF 20) with AAC 160 kbps 48 kHz audio, about 1.3 GB in total.
+- **Recording method:** a real Chromium window on a 1920×1080 virtual display, captured with ffmpeg (x11grab, 30 fps). Every screen is the real Medoro application; nothing is mocked up. An overlay draws a highlighted cursor, click ripples, zoom-ins and callouts.
+- **Voice-over:** Microsoft neural Hindi voice (hi-IN-SwaraNeural), spoken from Devanagari text with English technical terms. Each scene runs at least as long as its narration.
+- **Subtitles:** Hinglish (Roman script), burned in and also supplied as SRT, timed per scene from the same timeline as the audio.
+- **Music:** a light background track synthesised for this project (royalty-free), ducked under the voice. The final mix is loudness-normalised to −16 LUFS.
+- **Branding:** the official Medoro logo, colours (#0B3A78, #0A9A80, #0B5E5B) and font (IBM Plex Sans) on the intro, chapter cards, outro and thumbnails.
+- **Checks done:**
+  - Every scene finished without a recording error. Failed takes (wrong selectors, the barcode race, the F2 navigation) were fixed and re-recorded.
+  - A contact sheet of mid-chapter frames was reviewed for all 26 parts.
+  - The full tour's audio decodes cleanly, and audio/video durations differ by about 1 s over 44 minutes, so there is no drift.
+  - Secrets (QR code, authenticator key, recovery codes, Drive recovery code) are blurred as they render.
+- **Known limitations:**
+  - The voice is synthetic (neural TTS), not a human voice artist.
+  - Subtitle cue timing within a scene is proportional to text length, not word-aligned.
+  - Some zooms are brief.
+  - Recordings show the build before fixes 4–8 (see section 2).
+- **Honesty markers in the videos:** "Demo environment · fictional data", "WhatsApp: NOT CONNECTED", "PDF / photo OCR: not connected", "test Google Drive", "No real payment made", and the QA-finding callouts for missing features.

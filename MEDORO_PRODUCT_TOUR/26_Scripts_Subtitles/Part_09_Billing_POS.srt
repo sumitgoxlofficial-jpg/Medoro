@@ -1,0 +1,144 @@
+1
+00:00:08,851 --> 00:00:11,067
+Ab sabse zaroori kaam, billing.
+
+2
+00:00:11,107 --> 00:00:16,961
+Billing screen keyboard se chalne ke liye bani
+hai: search box mein naam likhiye,
+
+3
+00:00:17,001 --> 00:00:20,963
+Enter se pehla item cart mein, aur F9 se bill
+complete.
+
+4
+00:00:21,707 --> 00:00:25,366
+Search box mein brand ka naam likhiye, jaise
+Paracip.
+
+5
+00:00:25,406 --> 00:00:29,205
+Enter dabaate hi pehli medicine cart mein aa
+jaati hai.
+
+6
+00:00:29,952 --> 00:00:31,977
+Salt se bhi khoj sakte hain.
+
+7
+00:00:32,017 --> 00:00:36,329
+Cetirizine likhne par usi salt wali medicine mil
+jaati hai.
+
+8
+00:00:36,369 --> 00:00:40,533
+Aur pack ke barcode number se bhi medicine mil
+jaati hai.
+
+9
+00:00:41,292 --> 00:00:44,436
+Cart mein quantity plus-minus se badliye.
+
+10
+00:00:44,476 --> 00:00:48,163
+Strip ki jagah loose tablet bhi chun sakte hain.
+
+11
+00:00:48,203 --> 00:00:55,385
+Batch aapko chunna nahi padta: Medoro FEFO se
+sabse pehle expire hone wala batch lagaata hai.
+
+12
+00:00:56,138 --> 00:00:57,735
+Ab customer jodte hain.
+
+13
+00:00:57,775 --> 00:01:02,289
+Mobile number daalte hi purana customer pehchaan
+liya jaata hai.
+
+14
+00:01:02,329 --> 00:01:05,776
+Bill WhatsApp par bhejne ka option bhi yahin
+hai.
+
+15
+00:01:06,519 --> 00:01:14,279
+Discount utna hi de sakte hain jitni aapke role
+ko anumati hai; yahan owner ke liye bees
+pratishat tak.
+
+16
+00:01:14,319 --> 00:01:17,156
+Paanch pratishat discount daalte hain.
+
+17
+00:01:17,196 --> 00:01:22,154
+MRP total, round off aur payable amount apne-aap
+badal jaate hain.
+
+18
+00:01:22,906 --> 00:01:29,743
+Payment mode chuniye: Cash, UPI, Card, ya
+registered customer ke liye Credit.
+
+19
+00:01:29,783 --> 00:01:33,137
+Yeh customer UPI se pay kar rahe hain.
+
+20
+00:01:33,177 --> 00:01:34,208
+F9 dabaaiye.
+
+21
+00:01:34,950 --> 00:01:36,184
+Bill ban gaya.
+
+22
+00:01:36,224 --> 00:01:43,644
+Tax invoice par pharmacy ka GSTIN aur drug
+licence, har item ka batch, expiry, HSN
+
+23
+00:01:43,684 --> 00:01:48,739
+aur GST, aur neeche CGST aur SGST ka hisaab
+chhapta hai.
+
+24
+00:01:48,779 --> 00:01:52,287
+MRP mein GST pehle se shaamil hota hai.
+
+25
+00:01:53,060 --> 00:02:01,592
+Print dabaakar receipt printer par chhaapiye;
+browser ke print mein 'Save as PDF' chunkar PDF
+invoice bhi bana sakte hain.
+
+26
+00:02:01,632 --> 00:02:05,386
+WhatsApp juda ho, to PDF seedhe customer ko
+jaata hai.
+
+27
+00:02:06,152 --> 00:02:07,967
+Ek aur bill: card payment.
+
+28
+00:02:08,007 --> 00:02:13,602
+Aur credit customer ke liye Credit chunne par
+rakam uske khaate mein jaati hai,
+
+29
+00:02:13,642 --> 00:02:14,814
+credit limit tak.
+
+30
+00:02:14,854 --> 00:02:20,235
+Dhyan dein: is device counter par ek bill ka
+bhugtaan do modes mein baantna,
+
+31
+00:02:20,275 --> 00:02:24,729
+aur cart ko hold karke baad mein kholna, abhi
+uplabdh nahi hai.

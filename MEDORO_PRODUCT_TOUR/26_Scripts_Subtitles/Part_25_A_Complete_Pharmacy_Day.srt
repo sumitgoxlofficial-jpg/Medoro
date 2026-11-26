@@ -1,0 +1,74 @@
+1
+00:00:08,851 --> 00:00:10,886
+Ab ek poora din dekhte hain.
+
+2
+00:00:10,926 --> 00:00:16,666
+Subah owner login karta hai aur dashboard par
+kal ki bikri, bakaaya, low stock
+
+3
+00:00:16,706 --> 00:00:18,296
+aur expiry dekhta hai.
+
+4
+00:00:19,055 --> 00:00:22,679
+Stock mein low stock aur expiry check hoti hai.
+
+5
+00:00:22,719 --> 00:00:24,238
+Montidem LC kam hai.
+
+6
+00:00:26,068 --> 00:00:29,218
+Gyaarah baje Birsa Healthcare se maal aata hai.
+
+7
+00:00:29,258 --> 00:00:34,513
+Purchase bill type karke save karte hi GRN banta
+hai aur stock badh jaata hai.
+
+8
+00:00:38,745 --> 00:00:41,001
+Dopahar mein customer aata hai.
+
+9
+00:00:41,041 --> 00:00:47,518
+Staff search box mein medicine khojta hai,
+customer ka mobile daalta hai, UPI chunta hai
+
+10
+00:00:47,558 --> 00:00:49,443
+aur F9 se bill banata hai.
+
+11
+00:00:52,235 --> 00:00:57,578
+Invoice print hota hai, ya WhatsApp juda ho to
+customer ko bheja jaata hai.
+
+12
+00:00:57,618 --> 00:00:59,373
+Stock apne-aap ghat gaya.
+
+13
+00:01:00,121 --> 00:01:03,452
+Shaam ko ek customer sealed strip waapas karta
+hai.
+
+14
+00:01:03,492 --> 00:01:07,353
+Bills screen se bill dhoondhkar return aur
+refund hota hai.
+
+15
+00:01:10,273 --> 00:01:16,078
+Din ke ant mein owner revenue, munaafa aur
+kharch dekhta hai, day-end chhaapta hai,
+
+16
+00:01:16,118 --> 00:01:19,036
+aur reports apne accountant ko bhejta hai.
+
+17
+00:01:19,076 --> 00:01:21,712
+Yahi hai Medoro ke saath ek poora din.

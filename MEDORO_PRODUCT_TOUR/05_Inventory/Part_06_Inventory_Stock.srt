@@ -1,0 +1,132 @@
+1
+00:00:08,850 --> 00:00:12,441
+Inventory part mein hum stock sambhaalna
+seekhenge.
+
+2
+00:00:12,481 --> 00:00:17,852
+Stock screen par har medicine ka kul stock, agli
+expiry aur rack dikhta hai.
+
+3
+00:00:17,892 --> 00:00:24,617
+'Low stock only' tick karne par sirf woh
+medicines dikhti hain jo reorder level se neeche
+hain.
+
+4
+00:00:25,361 --> 00:00:28,427
+Doosre billing software se aa rahe hain?
+
+5
+00:00:28,467 --> 00:00:32,310
+Purani stock list Excel ya CSV mein Import
+kijiye.
+
+6
+00:00:32,350 --> 00:00:36,658
+Medoro pehle preview dikhata hai, har row mein
+kya hoga,
+
+7
+00:00:36,698 --> 00:00:39,842
+aur galti ho to kuch bhi save nahi karta.
+
+8
+00:00:40,610 --> 00:00:45,945
+Yahan teen naye items hain, thermometer, mask
+aur sanitizer, unke batch
+
+9
+00:00:45,985 --> 00:00:47,989
+aur opening stock ke saath.
+
+10
+00:00:48,029 --> 00:00:50,865
+Import dabaate hi stock jud jaata hai.
+
+11
+00:00:51,623 --> 00:00:53,552
+Ab batches dekhte hain.
+
+12
+00:00:53,592 --> 00:00:58,604
+Paracip 650 ke kai batches hain, alag-alag
+expiry ke saath.
+
+13
+00:00:58,644 --> 00:01:04,340
+Billing par Medoro FEFO niyam chalata hai: First
+Expiry, First Out,
+
+14
+00:01:04,380 --> 00:01:09,306
+yaani jo batch sabse pehle expire hoga, wahi
+pehle bikega.
+
+15
+00:01:10,049 --> 00:01:15,624
+Agar koi strip toot-phoot gayi, to 'Correct
+stock' mein kaaran chunkar maatra ghataaiye.
+
+16
+00:01:15,664 --> 00:01:19,261
+Har adjustment ka kaaran aur samay record mein
+rehta hai.
+
+17
+00:01:20,001 --> 00:01:24,748
+Stock count ke liye, shelf par gini hui maatra
+Counted mein daaliye
+
+18
+00:01:24,788 --> 00:01:26,891
+aur 'Save stock count' kijiye.
+
+19
+00:01:26,931 --> 00:01:29,320
+Farq apne-aap adjust ho jaata hai.
+
+20
+00:01:30,080 --> 00:01:34,593
+Branch transfer: Kanke Road branch mein ORS kam
+pad gaya hai.
+
+21
+00:01:34,633 --> 00:01:39,072
+Batch chunkar, branch aur maatra bhariye, aur
+Send dabaaiye.
+
+22
+00:01:39,112 --> 00:01:43,551
+Stock yahan se ghatkar doosri branch mein
+pahunch jaata hai.
+
+23
+00:01:44,297 --> 00:01:49,786
+Batch ka status bhi badal sakte hain: OK to
+sell, Quarantine, ya Recalled.
+
+24
+00:01:49,826 --> 00:01:56,509
+Quarantine ya Recalled batch billing mein nahi
+bikta, jab tak aap use waapas OK na karein.
+
+25
+00:01:57,266 --> 00:02:01,292
+Expiry par nazar rakhne ke liye sidebar mein
+Expiry prevention
+
+26
+00:02:01,332 --> 00:02:05,554
+aur Stock intelligence hain, jahan jaldi expire
+hone wale batches
+
+27
+00:02:05,594 --> 00:02:07,653
+aur reorder ki salaah milti hai.
+
+28
+00:02:07,693 --> 00:02:11,456
+Reorder level har medicine ke edit form mein set
+hota hai.

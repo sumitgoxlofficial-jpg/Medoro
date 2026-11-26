@@ -1,0 +1,28 @@
+0:00 Intro
+0:04 Part 01 – Introduction to Medoro
+1:23 Part 02 – Account Registration
+4:56 Part 03 – Pharmacy Onboarding
+9:18 Part 04 – Dashboard
+10:56 Part 05 – Medicine Management
+12:57 Part 06 – Inventory & Stock
+15:06 Part 07 – Purchase Management
+17:00 Part 08 – Purchase Invoice Import
+18:29 Part 09 – Billing & POS
+20:51 Part 10 – Prescription & Schedule H/H1
+22:30 Part 11 – Customer Management
+23:57 Part 12 – Sales Returns
+25:18 Part 13 – Supplier Management
+26:37 Part 14 – Accounts & Expenses
+28:04 Part 15 – GST & Tax
+29:27 Part 16 – WhatsApp Integration
+30:48 Part 17 – AI Assistant
+33:00 Part 18 – Offline Billing
+34:22 Part 19 – Branches & Counters
+35:49 Part 20 – Staff & Users
+37:25 Part 21 – Backup & Data Security
+38:58 Part 22 – Reports & Analytics
+40:03 Part 23 – Subscription & Plans
+41:04 Part 24 – Language Settings
+41:53 Part 25 – A Complete Pharmacy Day
+43:12 Part 26 – Conclusion
+44:03 Outro

@@ -1,0 +1,128 @@
+1
+00:00:08,850 --> 00:00:14,940
+Ask screen par aap apni pharmacy ke baare mein
+seedhi bhaasha mein sawaal poochh sakte hain.
+
+2
+00:00:14,980 --> 00:00:19,204
+Jawaab isi counter ke apne data se, built-in
+rules se aate hain,
+
+3
+00:00:19,244 --> 00:00:21,802
+aur internet na ho tab bhi chalte hain.
+
+4
+00:00:22,557 --> 00:00:26,779
+English mein poochhte hain: What are today's
+total sales?
+
+5
+00:00:26,819 --> 00:00:31,638
+Jawaab mein aaj ki kul bikri, bills ki ginti,
+aur cash, UPI, card
+
+6
+00:00:31,678 --> 00:00:37,694
+aur credit ka hissa aata hai, saath mein yeh bhi
+ki aankde kis data se liye gaye.
+
+7
+00:00:38,444 --> 00:00:41,004
+Ab: Which medicines are running low?
+
+8
+00:00:41,044 --> 00:00:47,214
+Is version ke built-in rules ne yeh phrasing
+nahi samjhi, aur madad wala message diya.
+
+9
+00:00:47,254 --> 00:00:51,042
+Aise mein neeche diye 'Low stock' button ko
+dabaaiye.
+
+10
+00:00:51,800 --> 00:00:54,031
+Which batches are expiring soon?
+
+11
+00:00:54,071 --> 00:00:59,000
+Yeh sawaal bhi galat samjha gaya, ise medicine
+ka naam maan liya gaya.
+
+12
+00:00:59,040 --> 00:01:02,762
+'What expires in 30 days?' button sahi list deta
+hai.
+
+13
+00:01:02,802 --> 00:01:08,369
+Yeh kamiyaan humne QA report mein darj ki hain
+aur code mein theek kar di hain.
+
+14
+00:01:09,146 --> 00:01:12,611
+Ab Hindi mein: Aaj ki total sale kitni hai?
+
+15
+00:01:12,651 --> 00:01:14,322
+Yeh sahi samjha gaya.
+
+16
+00:01:16,126 --> 00:01:18,391
+Kaunsi medicines ka stock kam hai?
+
+17
+00:01:18,431 --> 00:01:25,239
+Yahan bhi is version mein madad wala message
+aata hai; 'Low stock' button se wahi jaankari
+milti hai.
+
+18
+00:01:25,982 --> 00:01:29,584
+Hinglish mein: Is month ka total profit kitna
+hua?
+
+19
+00:01:29,624 --> 00:01:37,159
+Counter ka assistant abhi munaafa nahi batata;
+munaafa 'Reports & GST' mein Gross profit mein
+milta hai.
+
+20
+00:01:37,199 --> 00:01:40,946
+Par is month ki sale poochhein, to jawaab milta
+hai.
+
+21
+00:01:41,727 --> 00:01:44,715
+Aur: Kaun se medicines reorder karne hain?
+
+22
+00:01:44,755 --> 00:01:49,401
+Reorder shabd se assistant reorder level se
+neeche wali medicines
+
+23
+00:01:49,441 --> 00:01:51,924
+aur sujhaai gayi maatra batata hai.
+
+24
+00:01:51,964 --> 00:01:55,529
+Kisi bhi faisle se pehle aankde khud check
+kijiye.
+
+25
+00:01:56,270 --> 00:02:06,592
+Purchase order banaane ke liye Insights screen
+par reorder ki salaah ko Order list mein jodiye;
+list aap khud review karke supplier ko bhejte hain.
+
+26
+00:02:06,632 --> 00:02:09,200
+Upar 'Ask AI' wala assistant bhi hai.
+
+27
+00:02:09,240 --> 00:02:14,840
+Dhyan rahe: Medoro ka AI doctor nahi hai, yeh
+dava ya ilaaj ki salaah nahi deta.

@@ -1,0 +1,208 @@
+1
+00:00:08,850 --> 00:00:09,414
+Namaste!
+
+2
+00:00:09,454 --> 00:00:13,415
+Medoro Pharmacy ke is tutorial mein aapka swagat
+hai.
+
+3
+00:00:13,455 --> 00:00:18,775
+Is part mein hum dekhenge ki Medoro par apna
+account kaise banate hain,
+
+4
+00:00:18,815 --> 00:00:23,002
+use verify kaise karte hain, aur login kaise
+karte hain.
+
+5
+00:00:23,775 --> 00:00:27,037
+Sabse pehle browser mein medoro.in kholiye.
+
+6
+00:00:27,077 --> 00:00:30,184
+Upar menu mein Pharmacy par click kijiye.
+
+7
+00:00:30,954 --> 00:00:34,671
+Yahan Medoro Pharmacy ke saare features, pricing
+
+8
+00:00:34,711 --> 00:00:41,403
+aur data security ki jaankari hai: billing,
+inventory, GST, accounts aur AI assistant.
+
+9
+00:00:44,578 --> 00:00:49,670
+Ab upar daayin taraf 'Start 7-day free trial'
+button par click kijiye.
+
+10
+00:00:49,710 --> 00:00:54,509
+Saat din ka trial bilkul free hai, aur koi card
+nahi maanga jaata.
+
+11
+00:00:55,268 --> 00:00:57,082
+Yeh asli sign-up page hai.
+
+12
+00:00:57,122 --> 00:01:01,573
+Yahan aap Google account se ya email se sign up
+kar sakte hain.
+
+13
+00:01:02,343 --> 00:01:07,746
+Dhyan dijiye: is video ke liye hum ek alag demo
+server istemaal kar rahe hain,
+
+14
+00:01:07,786 --> 00:01:11,095
+taaki kisi asli pharmacy ka data na chhua jaaye.
+
+15
+00:01:11,135 --> 00:01:15,352
+Demo server par Medoro ka bilkul yahi software
+chal raha hai,
+
+16
+00:01:15,392 --> 00:01:17,864
+aur ismein saara data kaalpanik hai.
+
+17
+00:01:18,612 --> 00:01:23,552
+Email se sign up karne ke liye apna email
+address daaliye aur 'Send code' dabaaiye.
+
+18
+00:01:24,328 --> 00:01:28,944
+Medoro aapke email par chhah ankon ka
+verification code bhejta hai,
+
+19
+00:01:28,984 --> 00:01:31,307
+jo das minute tak valid rehta hai.
+
+20
+00:01:31,347 --> 00:01:36,936
+Email se code dekhkar yahan daaliye, aur
+'Confirm and continue' par click kijiye.
+
+21
+00:01:37,702 --> 00:01:39,308
+Email confirm ho gaya!
+
+22
+00:01:39,348 --> 00:01:43,349
+Ab pharmacy ki details bharne wala form khul
+gaya hai.
+
+23
+00:01:43,389 --> 00:01:47,540
+Yeh onboarding hum agle part mein step by step
+bharenge.
+
+24
+00:01:49,610 --> 00:01:54,348
+Ab dekhte hain ki login aur account ki suraksha
+kaise kaam karti hai.
+
+25
+00:01:54,388 --> 00:01:56,425
+Pehle hum sign out karte hain.
+
+26
+00:01:57,183 --> 00:02:00,291
+Sign in page par apna email aur password
+daaliye.
+
+27
+00:02:06,899 --> 00:02:11,528
+Owner aur manager ke account par two-step
+verification zaroori hai.
+
+28
+00:02:11,568 --> 00:02:15,778
+Authenticator app mein dikh raha chhah ankon ka
+code daaliye.
+
+29
+00:02:15,818 --> 00:02:20,517
+Agar phone paas na ho, to recovery code bhi
+istemaal kar sakte hain.
+
+30
+00:02:20,557 --> 00:02:24,976
+Apne counter PC ko tees din ke liye trusted bhi
+bana sakte hain.
+
+31
+00:02:25,731 --> 00:02:27,496
+Bas, aap andar aa gaye.
+
+32
+00:02:27,536 --> 00:02:31,105
+Ab password bhool jaane ki sthiti dekhte hain.
+
+33
+00:02:31,145 --> 00:02:35,028
+Sign out karke 'Forgot password' par click
+kijiye.
+
+34
+00:02:35,777 --> 00:02:39,611
+Apna registered email daaliye aur 'Send code'
+dabaaiye.
+
+35
+00:02:39,651 --> 00:02:43,625
+Medoro us email par chhah ankon ka reset code
+bhejta hai,
+
+36
+00:02:43,665 --> 00:02:46,301
+jo pandrah minute tak valid rehta hai.
+
+37
+00:02:47,044 --> 00:02:52,025
+Email se code dekhkar yahan daaliye, phir naya
+password do baar likhiye.
+
+38
+00:02:52,065 --> 00:02:57,256
+Dhyan dijiye: password badalte hi aap har device
+se sign out ho jaate hain,
+
+39
+00:02:57,296 --> 00:03:01,510
+aur login par two-step verification phir bhi
+laagu rehta hai.
+
+40
+00:03:02,823 --> 00:03:04,178
+Password badal gaya.
+
+41
+00:03:04,218 --> 00:03:08,990
+Ab naye password aur authenticator code se
+dobara sign in karte hain.
+
+42
+00:03:19,974 --> 00:03:25,094
+Security ke liye yaad rakhiye: password kam se
+kam das characters ka rakhiye,
+
+43
+00:03:25,134 --> 00:03:27,976
+recovery codes offline sambhaalkar rakhiye,
+
+44
+00:03:28,016 --> 00:03:33,672
+aur paanch baar galat password daalne par
+account kuch der ke liye lock ho jaata hai.
+
+45
+00:03:33,712 --> 00:03:36,353
+Medoro mein koi default login nahi hota.

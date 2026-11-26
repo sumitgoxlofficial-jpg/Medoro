@@ -1,0 +1,75 @@
+1
+00:00:08,850 --> 00:00:11,995
+Har bill haath se type karna zaroori nahi.
+
+2
+00:00:12,035 --> 00:00:18,744
+Zyaadatar distributors apna bill e-bill file
+mein bhi dete hain, CSV, Excel ya text mein.
+
+3
+00:00:18,784 --> 00:00:23,824
+Supplier tools ki E-bill import se yeh file
+seedhe padhi jaati hai.
+
+4
+00:00:24,574 --> 00:00:32,751
+Ek zaroori baat: PDF ya photo wale bill ko scan
+karne wala AI feature Medoro server par OCR
+engine se chalta hai.
+
+5
+00:00:32,791 --> 00:00:35,951
+Is demo server par OCR engine juda nahi hai,
+
+6
+00:00:35,991 --> 00:00:39,733
+isliye yahan hum e-bill file import dikha rahe
+hain.
+
+7
+00:00:40,502 --> 00:00:46,008
+Pehle supplier chuniye, phir 'Choose bill file'
+se distributor ki file chuniye.
+
+8
+00:00:46,048 --> 00:00:50,712
+Hamaare paas Jharkhand Medical Agencies ki ek
+demo e-bill file hai.
+
+9
+00:00:51,472 --> 00:00:58,023
+Medoro file ke columns pehchaanta hai: item ka
+naam, batch, expiry, quantity,
+
+10
+00:00:58,063 --> 00:01:00,847
+free quantity, rate, MRP aur GST.
+
+11
+00:01:00,887 --> 00:01:05,555
+Har line ko catalogue ki medicine se milaaya
+jaata hai.
+
+12
+00:01:06,318 --> 00:01:09,262
+Post karne se pehle review zaroori hai.
+
+13
+00:01:09,302 --> 00:01:16,073
+Har line ki medicine, batch, expiry, maatra aur
+rate supplier ke kaagzi bill se milaaiye.
+
+14
+00:01:16,113 --> 00:01:22,118
+Koi medicine na mile, to use sahi medicine se
+jodiye ya nayi medicine banaaiye.
+
+15
+00:01:22,867 --> 00:01:26,372
+Sab sahi ho to bill number daalkar save kijiye.
+
+16
+00:01:26,412 --> 00:01:31,803
+Stock, batches aur supplier ka bakaaya, teeno ek
+saath update hote hain.

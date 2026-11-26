@@ -1,0 +1,66 @@
+1
+00:00:08,851 --> 00:00:12,992
+'Reports & GST' screen par 'Sales and profit'
+report hai.
+
+2
+00:00:13,032 --> 00:00:18,640
+From aur To taareekh chuniye; har din ke bills,
+bikri aur munaafa dikhta hai,
+
+3
+00:00:18,680 --> 00:00:22,234
+aur CSV button se poori report download hoti
+hai.
+
+4
+00:00:22,975 --> 00:00:26,634
+Best sellers mein sabse zyaada bikne wali
+medicines hain,
+
+5
+00:00:26,674 --> 00:00:30,268
+aur 'Expiring in 90 days' mein aane wali expiry
+ki list.
+
+6
+00:00:31,019 --> 00:00:36,317
+Insights screen mein gehra analysis hai: har
+medicine ki bikri ka forecast,
+
+7
+00:00:36,357 --> 00:00:42,438
+reorder ki salaah, dheemi ya bilkul na bikne
+wali dead stock, stock in hand ki keemat,
+
+8
+00:00:42,478 --> 00:00:43,292
+aur margins.
+
+9
+00:00:44,064 --> 00:00:49,270
+Audit anomalies mein owner ke liye sanket hain,
+jaise raat mein bane bills,
+
+10
+00:00:49,310 --> 00:00:51,578
+zyaada discount ya bahut refunds.
+
+11
+00:00:51,618 --> 00:00:55,775
+Yeh galti ka saboot nahi, sirf jaanchne laayak
+baatein hain.
+
+12
+00:00:56,553 --> 00:01:01,456
+Customer outstanding Customers screen par,
+supplier outstanding Accounts mein,
+
+13
+00:01:01,496 --> 00:01:03,547
+GST reports 'Reports & GST' mein,
+
+14
+00:01:03,587 --> 00:01:07,667
+aur branch report dashboard ke Branch
+performance mein milti hai.
