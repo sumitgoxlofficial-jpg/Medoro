@@ -242,8 +242,9 @@ export async function setEmployeeActive(me: Me, id: string, active: boolean, las
 }
 
 /**
- * Deletes a deactivated employee's account: they vanish from the directory, every sign-in route is closed and their
+ * Deletes an employee's account: they vanish from the directory, every sign-in route is closed and their
  * official email can be given to someone new. Payslips, PF/ESI and other records stay, as the law requires them kept.
+ * Someone still working is deactivated first, with today as their last working day (or none if they hadn't joined yet).
  */
 export async function deleteEmployee(me: Me, id: string) {
   need(me, "employees");
@@ -251,16 +252,21 @@ export async function deleteEmployee(me: Me, id: string) {
   const u = await db.staffUser.findUnique({ where: { id } });
   if (!u || u.kind !== "team" || u.deletedAt) throw new UserError("Employee not found.");
   if (u.role === "super_admin" && me.role !== "admin") throw new UserError("Only the super admin can delete a super admin.");
-  if (u.status !== "deactivated") throw new UserError("Record their exit first. Only a deactivated employee’s account can be deleted.");
+  const leaving = u.status !== "deactivated";
+  if (leaving && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active", deletedAt: null } })) <= 1) throw new UserError("Keep at least one active super admin.");
+  const hr = leaving ? await db.hrProfile.findUnique({ where: { staffId: id }, select: { joinDate: true, exitDate: true } }) : null;
+  const today = todayISO();
+  // Their last working day becomes today, unless they had already set one in the past or hadn't joined yet.
+  const exit = !hr ? undefined : hr.joinDate && isoOf(hr.joinDate) > today ? null : hr.exitDate && isoOf(hr.exitDate) <= today ? undefined : dateOnly(today);
   await db.$transaction([
     db.staffUser.update({ where: { id }, data: {
-      deletedAt: new Date(), email: `deleted-${u.id.slice(0, 8)}.${u.email}`, passwordHash: null, totpSecret: null, totpEnabled: false, googleSub: null,
+      deletedAt: new Date(), status: "deactivated", email: `deleted-${u.id.slice(0, 8)}.${u.email}`, passwordHash: null, totpSecret: null, totpEnabled: false, googleSub: null,
       inviteTokenHash: null, inviteExpiresAt: null, tokenVersion: { increment: 1 },
     } }),
     db.staffSession.updateMany({ where: { staffId: id, revokedAt: null }, data: { revokedAt: new Date() } }),
-    db.hrProfile.updateMany({ where: { staffId: id }, data: { otpHash: null, otpExpiresAt: null } }),
+    db.hrProfile.updateMany({ where: { staffId: id }, data: { otpHash: null, otpExpiresAt: null, ...(exit !== undefined ? { exitDate: exit } : {}) } }),
   ]);
-  await audit(me, "Employee account deleted", `${u.empNo} · ${u.name} · ${u.email}`);
+  await audit(me, "Employee account deleted", `${u.empNo} · ${u.name} · ${u.email}${leaving ? " · was active, deactivated today" : ""}`);
 }
 
 /** A password HR reads out to someone who forgot theirs. Works for one sign-in within 24 hours; then they set a new one. */
