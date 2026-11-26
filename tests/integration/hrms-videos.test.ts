@@ -34,6 +34,10 @@ describe("HRMS training videos", () => {
     expect(slugs("employee")).toEqual(expect.arrayContaining(["leave", "attendance", "employee-dashboard"]));
     for (const s of ["payroll", "finance", "super-admin", "roles-permissions", "hr-dashboard"]) expect(slugs("employee")).not.toContain(s);
     expect(slugs("hr")).not.toContain("roles-permissions");
+    // Sales reach their screens by role (no leads module by default), so the sales videos follow the role too.
+    expect(slugs("sales")).toEqual(expect.arrayContaining(["sales-executive", "sales-manager", "leave"]));
+    expect(slugs("sales")).not.toContain("payroll");
+    expect(slugs("employee")).not.toContain("sales-executive");
   });
 
   it("gives no links until the shared secret exists", async () => {
