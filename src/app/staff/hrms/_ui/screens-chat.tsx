@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { pulsePhoto } from "@/staff/hrms/pulse-shared";
+import { PULSE_COUNT, pulsePhoto } from "@/staff/hrms/pulse-shared";
 import { TEAM_NAME, type BoardRow } from "@/staff/hrms/sales-wins";
 import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
@@ -111,7 +111,7 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
       <Face name={sender} photo={face.photo} avatar={face.avatar} size={28} />
       <div className={cx("max-w-[78%] flex flex-col", mine ? "items-end" : "items-start")}>
         <div className={cx("rounded-2xl px-3 py-2 text-[13.5px] leading-snug shadow-sm relative", m.kind === "win" && !m.deleted ? cx("bg-gradient-to-br from-[#FFFBEB] to-[#ECFDF5] border border-[#FCD34D]", mine ? "rounded-br-md" : "rounded-bl-md") : mine ? "bg-[#D6F3EF] rounded-br-md" : "bg-white border border-[#E2E8F0] rounded-bl-md")}>
-          {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}{m.kind === "pulse" ? <span className="ml-1.5 text-[9.5px] font-semibold bg-[#FEF3C7] text-[#92400E] rounded-full px-1.5 py-0.5">⚡ Sales Pulse · auto</span> : null}</div> : null}
+          {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}</div> : null}
           {m.kind === "win" ? <div className="text-[9.5px] font-semibold text-[#92400E] mb-0.5"><span className="bg-[#FEF3C7] rounded-full px-1.5 py-0.5">⚡ auto · from CRM</span></div> : null}
           {m.deleted ? <span className="italic text-[#64748B]">This message was deleted</span>
             : m.kind === "meet" ? (
@@ -216,7 +216,7 @@ export function ChatScreen({ d }: { d: D }) {
   const byId = useMemo(() => new Map<string, { name: string; photo: string | null; avatar: string }>([...d.people.map((p) => [p.id, { name: p.name, photo: p.photo, avatar: p.avatar }] as const), [d.me.id, { name: d.me.name, photo: d.me.photo, avatar }]]), [d.people, d.me, avatar]);
   const chat = chats.find((c) => c.id === active);
   const lastWinSeq = useMemo(() => msgs.reduce((n, m) => (m.kind === "win" || m.kind === "milestone" ? Math.max(n, m.seq) : n), 0), [msgs]);
-  const online = Object.keys(pres).filter((id) => id !== d.me.id).length;
+  const online = Object.keys(pres).filter((id) => id !== d.me.id).length + (chats.some((c) => c.sales) ? PULSE_COUNT : 0); // the Sales Pulse members are always online
 
   const apply = useCallback((p: Poll, chatId: string, reset: boolean) => {
     setChats(p.chats);
