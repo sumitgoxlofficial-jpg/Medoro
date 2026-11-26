@@ -8,21 +8,21 @@
 15:06 Part 07 – Purchase Management
 17:00 Part 08 – Purchase Invoice Import
 18:29 Part 09 – Billing & POS
-20:51 Part 10 – Prescription & Schedule H/H1
-22:30 Part 11 – Customer Management
-23:57 Part 12 – Sales Returns
-25:18 Part 13 – Supplier Management
-26:37 Part 14 – Accounts & Expenses
-28:04 Part 15 – GST & Tax
-29:27 Part 16 – WhatsApp Integration
-30:48 Part 17 – AI Assistant
-33:00 Part 18 – Offline Billing
-34:22 Part 19 – Branches & Counters
-35:49 Part 20 – Staff & Users
-37:25 Part 21 – Backup & Data Security
-38:58 Part 22 – Reports & Analytics
-40:03 Part 23 – Subscription & Plans
-41:04 Part 24 – Language Settings
-41:53 Part 25 – A Complete Pharmacy Day
-43:12 Part 26 – Conclusion
-44:03 Outro
+21:03 Part 10 – Prescription & Schedule H/H1
+22:54 Part 11 – Customer Management
+24:30 Part 12 – Sales Returns
+25:51 Part 13 – Supplier Management
+27:11 Part 14 – Accounts & Expenses
+29:04 Part 15 – GST & Tax
+30:41 Part 16 – WhatsApp Integration
+32:02 Part 17 – AI Assistant
+34:11 Part 18 – Offline Billing
+35:32 Part 19 – Branches & Counters
+36:59 Part 20 – Staff & Users
+38:35 Part 21 – Backup & Data Security
+40:08 Part 22 – Reports & Analytics
+41:28 Part 23 – Subscription & Plans
+42:29 Part 24 – Language Settings
+43:18 Part 25 – A Complete Pharmacy Day
+44:39 Part 26 – Conclusion
+45:30 Outro
