@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Cloud, Server, Network, Database, Store, HardDriveUpload, KeyRound, CircleCheck, CircleAlert, Circle, LoaderCircle, Trash2, Copy } from "lucide-react";
@@ -186,8 +187,8 @@ export function Wizard({ deployment, driveApp = false, driveAccount = null, onRe
               {google ? null : (
                 <>
                   <div />
-                  <input className={inp} value={owner.password} onChange={setO("password")} placeholder={t("Password (10+ characters) *")} aria-label={t("Password")} type="password" autoComplete="new-password" />
-                  <input className={inp} value={owner.password2} onChange={setO("password2")} placeholder={t("Confirm password *")} aria-label={t("Confirm password")} type="password" autoComplete="new-password" />
+                  <PasswordInput className={inp} value={owner.password} onChange={setO("password")} placeholder={t("Password (10+ characters) *")} aria-label={t("Password")} autoComplete="new-password" />
+                  <PasswordInput className={inp} value={owner.password2} onChange={setO("password2")} placeholder={t("Confirm password *")} aria-label={t("Confirm password")} autoComplete="new-password" />
                 </>
               )}
             </div>

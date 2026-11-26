@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -180,9 +181,9 @@ function PasswordForm({ forced, onDone }: { forced: boolean; onDone: () => void 
   };
   return (
     <form onSubmit={submit} className="flex flex-col gap-3">
-      {forced ? null : <Field label="Current password"><input className={inputCls} type="password" value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" required /></Field>}
-      <Field label="New password" hint="At least 12 characters."><input className={inputCls} type="password" value={a} onChange={(e) => setA(e.target.value)} autoComplete="new-password" required minLength={12} /></Field>
-      <Field label="Confirm new password"><input className={inputCls} type="password" value={b} onChange={(e) => setB(e.target.value)} autoComplete="new-password" required /></Field>
+      {forced ? null : <Field label="Current password"><PasswordInput className={inputCls} value={cur} onChange={(e) => setCur(e.target.value)} autoComplete="current-password" required /></Field>}
+      <Field label="New password" hint="At least 12 characters."><PasswordInput className={inputCls} value={a} onChange={(e) => setA(e.target.value)} autoComplete="new-password" required minLength={12} /></Field>
+      <Field label="Confirm new password"><PasswordInput className={inputCls} value={b} onChange={(e) => setB(e.target.value)} autoComplete="new-password" required /></Field>
       <button className={primaryCls} disabled={busy}>Save password</button>
     </form>
   );

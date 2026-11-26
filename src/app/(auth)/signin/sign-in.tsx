@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IdCard, UserPlus, Check, KeyRound } from "lucide-react";
@@ -57,7 +58,7 @@ function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: bo
         {linkEmail ? <div role="status" className="text-[13px] bg-teal-soft border border-teal-line rounded-lg p-3">{t("Google confirmed")} <strong>{linkEmail}</strong>. {t("Enter your Medoro password once to connect Google sign-in to this account.")}</div>
           : notice && GOOGLE_NOTICE[notice] ? <div role="status" className="text-[13px] bg-chip rounded-lg p-3">{t(GOOGLE_NOTICE[notice])}</div> : null}
         <AuthLabel label="Email"><input className={authInput} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@pharmacy.in" autoComplete="username" autoFocus={!linkEmail} /></AuthLabel>
-        <AuthLabel label="Password"><input className={authInput} type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" autoFocus={!!linkEmail} /></AuthLabel>
+        <AuthLabel label="Password"><PasswordInput className={authInput} value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="current-password" autoFocus={!!linkEmail} /></AuthLabel>
         <button type="button" onClick={onForgot} className="self-end -mt-1.5 min-h-10 inline-flex items-center text-[13px] text-teal cursor-pointer">{t("Forgot password?")}</button>
         <AuthError>{err}</AuthError>
         <AuthButton type="submit" disabled={pending}>
@@ -111,7 +112,7 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
         </div>
         <AuthLabel label="Pharmacy code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus={!prefill} /></AuthLabel>
         <AuthLabel label="Employee ID"><input className={cn(authInput, authMono)} value={emp} onChange={(e) => setEmp(e.target.value.toUpperCase())} placeholder="E-104" /></AuthLabel>
-        <AuthLabel label="4-digit PIN"><input className={cn(authInput, "font-mono tracking-[.3em]")} type="password" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" autoFocus={!!prefill} autoComplete="off" /></AuthLabel>
+        <AuthLabel label="4-digit PIN"><PasswordInput className={cn(authInput, "font-mono tracking-[.3em]")} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" autoFocus={!!prefill} autoComplete="off" /></AuthLabel>
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] text-muted">{t("Counter")}</span>
           {counters.length ? (
@@ -207,14 +208,14 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
           <AuthLabel label="Your full name"><input className={authInput} value={name} onChange={(e) => setName(e.target.value)} autoFocus /></AuthLabel>
           {manager ? (
             <>
-              <AuthLabel label="Create a password (10+ characters)"><input className={authInput} type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="new-password" /></AuthLabel>
-              <AuthLabel label="Confirm password"><input className={authInput} type="password" value={pin2} onChange={(e) => setPin2(e.target.value)} autoComplete="new-password" /></AuthLabel>
+              <AuthLabel label="Create a password (10+ characters)"><PasswordInput className={authInput} value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="new-password" /></AuthLabel>
+              <AuthLabel label="Confirm password"><PasswordInput className={authInput} value={pin2} onChange={(e) => setPin2(e.target.value)} autoComplete="new-password" /></AuthLabel>
               <span className="text-[12px] text-faint">{t("Managers sign in with email, password and an authenticator app. You’ll set up the authenticator on first sign-in.")}</span>
             </>
           ) : (
             <>
-              <AuthLabel label="Create a 4-digit PIN"><input className={cn(authInput, "font-mono tracking-[.3em]")} type="password" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" /></AuthLabel>
-              <AuthLabel label="Confirm PIN"><input className={cn(authInput, "font-mono tracking-[.3em]")} type="password" value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" /></AuthLabel>
+              <AuthLabel label="Create a 4-digit PIN"><PasswordInput className={cn(authInput, "font-mono tracking-[.3em]")} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" /></AuthLabel>
+              <AuthLabel label="Confirm PIN"><PasswordInput className={cn(authInput, "font-mono tracking-[.3em]")} value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" /></AuthLabel>
               <span className="text-[12px] text-faint">{t("Avoid easy PINs like 1111 or 1234. Never share your PIN, because every bill is recorded under your name.")}</span>
             </>
           )}
@@ -284,8 +285,8 @@ function Forgot({ recovery, onBack }: { recovery: Recovery; onBack: () => void }
           <>
             <div className="text-[13.5px] text-muted">{t("If an account uses")} <strong className="text-ink">{contact.trim()}</strong>{t(", a code is on its way. Codes expire in 15 minutes.")}</div>
             <AuthLabel label="6-digit code"><input className={cn(authInput, "font-mono text-[18px] tracking-[.3em]")} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus /></AuthLabel>
-            <AuthLabel label="New password (10+ characters)"><input className={authInput} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" /></AuthLabel>
-            <AuthLabel label="Confirm new password"><input className={authInput} type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" /></AuthLabel>
+            <AuthLabel label="New password (10+ characters)"><PasswordInput className={authInput} value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" /></AuthLabel>
+            <AuthLabel label="Confirm new password"><PasswordInput className={authInput} value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" /></AuthLabel>
             <span className="text-[12px] text-faint">{t("Resetting signs you out on every device. Two-step verification still applies when you sign in.")}</span>
           </>
         ) : (

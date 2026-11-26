@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -75,7 +76,7 @@ export function EmployeeLogin({ emailCodes, next = "/staff/hrms" }: { emailCodes
             <input className={field} value={id} onChange={(e) => setId(e.target.value)} placeholder="MS-004 or name@medoro.in" autoComplete="username" autoFocus required disabled={totp} />
           </label>
           <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Password
-            <input className={field} type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" required disabled={totp} />
+            <PasswordInput className={field} value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="current-password" required disabled={totp} />
           </label>
           {totp ? (
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-[#0f172a]">Authenticator code

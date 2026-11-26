@@ -1,4 +1,5 @@
 "use client";
+import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -155,7 +156,7 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
                 {gBtn("Continue with Google")}
                 {google ? <div className="flex items-center gap-2.5 text-[12px] text-faint"><span className="h-px flex-1 bg-line" />or with email<span className="h-px flex-1 bg-line" /></div> : null}
                 <label className={label}>Email<input className={input} value={email} onChange={(e) => { setEmail(e.target.value.trim()); setErr(""); }} placeholder="you@gmail.com" autoComplete="username" inputMode="email" /></label>
-                <label className={label}>Password<input className={input} type="password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} autoComplete="current-password" /></label>
+                <label className={label}>Password<PasswordInput className={input} value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} autoComplete="current-password" /></label>
                 <div className="flex justify-end -mt-1.5 text-[13px]"><button type="button" onClick={() => setErr("Ask a Medoro admin to reset your partner password. Medoro team: use “Forgot password?” on the HRMS sign-in.")} className="min-h-10 inline-flex items-center text-teal cursor-pointer">Forgot password?</button></div>
               </>
             ) : null}
@@ -209,7 +210,7 @@ export function StaffLogin({ invite, pending, joinPartner = false, google = fals
               invite?.info ? (
                 <>
                   <div className="bg-[#F7F8F9] border border-[#EEF0F2] rounded-lg px-3 py-2.5 text-[13px] text-ink-2 flex gap-2 items-center"><User size={15} className="text-muted" /><span className="truncate">{invite.info.name} · {invite.info.email}</span></div>
-                  <label className={label}>Choose a password (12+ characters)<input className={input} type="password" autoComplete="new-password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} /></label>
+                  <label className={label}>Choose a password (12+ characters)<PasswordInput className={input} autoComplete="new-password" value={pwd} onChange={(e) => { setPwd(e.target.value); setErr(""); }} /></label>
                 </>
               ) : <div className="text-[14px] text-muted">This invite link has expired or was already used. Ask a super admin for a new one.</div>
             ) : null}
