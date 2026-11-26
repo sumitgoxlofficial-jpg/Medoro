@@ -1,7 +1,8 @@
 /**
  * Medoro Pharmacy video library (website /videos): the product tour and its guides, recorded on a demo pharmacy with
- * fictional data. Each of the 26 parts is one MP4 in public/videos/files (with captions in public/videos/captions and a
- * thumbnail in public/videos/thumbs); a guide, the complete tour included, plays its parts one after another.
+ * fictional data. Each of the 26 parts is one MP4 in public/videos/files (Hinglish subtitles burned in) with a thumbnail
+ * in public/videos/thumbs, and may also have a YouTube ID (tour-youtube.ts); a guide, the complete tour included, plays
+ * its parts one after another.
  */
 export type TourVideo = {
   slug: string; kind: "guide" | "part"; part?: number; title: string; subtitle: string; description: string;
@@ -738,7 +739,6 @@ export const TOUR_VIDEOS: TourVideo[] = [
  */
 export const VIDEO_BASE = (process.env.NEXT_PUBLIC_VIDEO_BASE_URL || "/videos/files").replace(/\/$/, "");
 export const partUrl = (slug: string) => `${VIDEO_BASE}/${slug}.mp4`;
-export const captionsUrl = (slug: string) => `/videos/captions/${slug}.vtt`;
 export const thumbUrl = (v: TourVideo) => `/videos/thumbs/${v.slug}.webp`;
 export const videoBySlug = (slug: string) => TOUR_VIDEOS.find((v) => v.slug === slug);
 export function clock(s: number) {

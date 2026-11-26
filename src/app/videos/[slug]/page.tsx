@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { CtaBand, MarketingShell } from "@/components/seo/blocks";
 import { VideoCard } from "@/components/site/video-library";
 import { VideoPlayer } from "@/components/site/video-player";
-import { TOUR_VIDEOS, captionsUrl, clock, partUrl, thumbUrl, videoBySlug } from "@/data/tour-videos";
+import { TOUR_VIDEOS, clock, partUrl, thumbUrl, videoBySlug } from "@/data/tour-videos";
+import { youtubeId } from "@/data/tour-youtube";
 import { absoluteUrl, pageMetadata, type Crumb } from "@/lib/seo";
 
 export const dynamicParams = false;
@@ -27,12 +28,13 @@ export default async function Watch({ params }: Props) {
   // Up next: the following part (or the first parts of a guide), then the other videos.
   const partsOf = v.kind === "guide" ? v.sources.map((slug) => videoBySlug(slug)!) : [];
   // What the player plays: the part itself, or each part of the guide with where it starts.
-  const player = v.sources.map((slug, k) => ({ slug, src: partUrl(slug), captions: captionsUrl(slug), title: videoBySlug(slug)!.title, at: v.chapters[k]?.at ?? 0 }));
+  const player = v.sources.map((slug, k) => ({ slug, src: partUrl(slug), title: videoBySlug(slug)!.title, at: v.chapters[k]?.at ?? 0, youtube: youtubeId(slug) }));
+  const yt = v.kind === "part" ? youtubeId(v.slug) : undefined;
   const rest = [...partsOf, ...TOUR_VIDEOS.slice(i + 1), ...TOUR_VIDEOS.slice(0, i)].filter((x, k, a) => x !== v && a.indexOf(x) === k).slice(0, 12);
   const crumbs: Crumb[] = [["Videos", "/videos"], [v.title, `/videos/${v.slug}`]];
   const ld = {
     "@type": "VideoObject", name: v.title, description: v.description, thumbnailUrl: [absoluteUrl(thumbUrl(v))], uploadDate: "2026-11-26",
-    duration: iso(v.seconds), url: absoluteUrl(`/videos/${v.slug}`), ...(v.kind === "part" ? { contentUrl: absoluteUrl(partUrl(v.slug)) } : {}), inLanguage: "hi-IN",
+    duration: iso(v.seconds), url: absoluteUrl(`/videos/${v.slug}`), ...(v.kind === "part" ? { contentUrl: absoluteUrl(partUrl(v.slug)) } : {}), ...(yt ? { embedUrl: `https://www.youtube.com/embed/${yt}` } : {}), inLanguage: "hi-IN",
     ...(v.chapters.length > 1 ? { hasPart: v.chapters.map((c, k) => ({ "@type": "Clip", name: c.label, startOffset: c.at, endOffset: v.chapters[k + 1]?.at ?? v.seconds, url: absoluteUrl(`/videos/${v.slug}?t=${c.at}`) })) } : {}),
   };
   return (

@@ -21,6 +21,11 @@ const DRIVEDB = /^\/drivedb\//;
  * our own pages frame it. Its fonts are then cross-origin requests, hence CORS on these files.
  */
 const TOUR = /^\/tour\//;
+/**
+ * The tour videos on /videos may play from YouTube (privacy-enhanced embed). Allowed on every page, because a visitor
+ * who lands elsewhere and follows a link keeps the policy of the page first loaded (client-side navigation).
+ */
+const YOUTUBE = "https://www.youtube-nocookie.com https://www.youtube.com";
 
 /** The origin of NEXT_PUBLIC_VIDEO_BASE_URL when it is on another host, for media-src. */
 function videoOrigin(): string {
@@ -50,7 +55,7 @@ export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): 
     ["connect-src", `${dev ? "'self' ws: wss:" : "'self'"}${checkout ? " https://*.razorpay.com" : ""}`],
     ["worker-src", "'self'"],
     ["manifest-src", "'self'"],
-    ["frame-src", `'self'${checkout ? ` ${RZP}` : ""}`],
+    ["frame-src", `'self'${checkout ? ` ${RZP}` : ""} ${YOUTUBE}`],
     ["object-src", "'none'"],
     ["base-uri", "'self'"],
     // Google sign-in for Drive backups is a top-level redirect started from our own pages.
