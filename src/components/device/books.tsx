@@ -205,7 +205,7 @@ function H1({ cfg, from, to }: { cfg: Cfg; from: string; to: string }) {
   return (
     <div className={card + " overflow-auto"}>
       <div className="flex items-center gap-2"><strong>{t("Schedule H1 register")}</strong><span className="text-muted text-[13px]">{from} → {to} · {t("{n} lines", { n: rows.length })}</span>
-        <Button size="sm" className="ml-auto" onClick={() => save(`schedule-h1-register-${from}-${to}.csv`, csv([head, ...rows.map((r) => [r.date, r.invoiceNo, r.patient ?? "", r.prescriber ?? "", r.reg ?? "", `${r.medicine}${r.strength ? " " + r.strength : ""}`, r.schedule, r.batchNo, r.expiry.slice(0, 7), `${r.qty - r.returned} ${r.unit}`])]))}><Download size={14} /> CSV</Button></div>
+        <Button size="sm" className="ml-auto" onClick={() => save(`schedule-h1-register-${from}-${to}.csv`, csv([head, ...rows.map((r) => [r.date, r.invoiceNo, r.patient ?? "", r.prescriber ?? "", r.reg ?? "", `${r.medicine}${r.strength && !r.medicine.includes(r.strength.split(" ")[0]) ? " " + r.strength : ""}`, r.schedule, r.batchNo, r.expiry.slice(0, 7), `${r.qty - r.returned} ${r.unit}`])]))}><Download size={14} /> CSV</Button></div>
       {missing ? <div role="note" className="bg-[#FDF2E1] border border-[#F3D9A8] rounded-lg px-3 py-2 text-[13px] text-[#6B4A0E]">{t("{n} line(s) lack the patient name, prescriber or registration number.", { n: missing })}</div> : null}
       {rows.length ? (
         <table className="w-full border-collapse text-[13px] min-w-[1000px]">
@@ -216,7 +216,7 @@ function H1({ cfg, from, to }: { cfg: Cfg; from: string; to: string }) {
               <td className={td} style={{ color: r.patient ? undefined : "#B3261E" }}>{r.patient || t("Missing")}</td>
               <td className={td} style={{ color: r.prescriber ? undefined : "#B3261E" }}>{r.prescriber || t("Missing")}</td>
               <td className={td + " font-mono"} style={{ color: r.reg ? undefined : "#B3261E" }}>{r.reg || t("Missing")}</td>
-              <td className={td}>{r.medicine}{r.strength ? ` ${r.strength}` : ""}</td><td className={td}>{r.schedule}</td><td className={td + " font-mono"}>{r.batchNo}</td>
+              <td className={td}>{r.medicine}{r.strength && !r.medicine.includes(r.strength.split(" ")[0]) ? ` ${r.strength}` : ""}</td><td className={td}>{r.schedule}</td><td className={td + " font-mono"}>{r.batchNo}</td>
               <td className={td + " tnum"}>{r.expiry.slice(0, 7)}</td>
               <td className={td + num}>{r.qty} {r.unit}{r.returned ? <span className="text-faint"> (−{r.returned})</span> : null}</td>
             </tr>))}</tbody>
