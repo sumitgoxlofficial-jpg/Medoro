@@ -5,6 +5,7 @@ import { seal, unseal } from "@/server/vault";
 import { audit, type Me } from "./auth";
 import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
+import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_LABEL, isPulse, pulseMemberIds, pulseName } from "./sales-pulse";
 
 // Team Chat. Every message (and picture, and poll) is sealed with HOST_KEY before it is stored, so nothing readable sits in the
 // database, in backups or in logs. The people in a conversation read it normally. Nobody else can: not HR, not Finance.
@@ -19,7 +20,7 @@ export type FileMeta = { name: string; type: string; size: number };
 export type PollState = { q: string; multi: boolean; options: { text: string; votes: number; mine: boolean }[]; total: number };
 export type ReactionState = { emoji: string; n: number; mine: boolean }[];
 export type ChatMsg = {
-  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; kind: "text" | "image" | "meet" | "poll" | "file"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
+  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; /** win: a real sale or demo announced automatically from the person's account; pulse: a Sales Pulse bot message. */ kind: "text" | "image" | "meet" | "poll" | "file" | "win" | "pulse"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
   reactions: ReactionState; poll: PollState | null;
 };
 export type ChatRow = {
@@ -32,7 +33,7 @@ type Lite = { id: string; seq: number; chatId: string; senderId: string; kind: s
 const LITE = { id: true, seq: true, chatId: true, senderId: true, kind: true, body: true, deletedAt: true, createdAt: true } as const; // never the picture bytes
 
 const text = (b: Uint8Array | Buffer) => unseal(b).toString("utf8");
-const KINDS = ["text", "image", "meet", "poll", "file"] as const;
+const KINDS = ["text", "image", "meet", "poll", "file", "win", "pulse"] as const;
 /** A file message keeps its name, type and size with the caption in the (sealed) body; the bytes sit in the sealed `image` column. */
 type FileBody = { n: string; t: string; s: number; c: string };
 function fileBody(m: Lite): FileBody | null {
@@ -57,7 +58,7 @@ async function decorate(rows: Lite[], meId: string, hide = false): Promise<ChatM
   if (!msgs.length) return msgs;
   const senders = await db.staffUser.findMany({ where: { id: { in: [...new Set(msgs.map((m) => m.senderId))] } }, select: { id: true, name: true, role: true } });
   const named = new Map(senders.map((u) => [u.id, hide && u.role === "super_admin" ? ADMIN_LABEL : u.name]));
-  for (const m of msgs) m.by = named.get(m.senderId) ?? "";
+  for (const m of msgs) m.by = named.get(m.senderId) ?? pulseName(m.senderId);
   const pollIds = rows.filter((r) => r.kind === "poll" && !r.deletedAt).map((r) => r.id);
   const [rx, votes] = await Promise.all([
     db.hrChatReaction.findMany({ where: { messageId: { in: msgs.map((m) => m.id) } } }),
@@ -140,10 +141,12 @@ export async function syncChannels(force = false) {
     const ids = new Set([...p.members, ...(p.leadId ? [p.leadId] : [])].filter((x) => live.has(x)));
     if (ids.size >= 2) wanted.set(`project:${p.id}`, { name: `# ${p.name}`, ids });
   }
+  // Sales: the sales team plus the 45 Sales Pulse bots (see sales-pulse.ts).
+  wanted.set(PULSE_KEY, { name: "Sales", ids: new Set([...(await pulseMemberIds()), ...PERSONAS.map((p) => p.id)]) });
   for (const [key, w] of wanted) {
     let chat = existing.find((c) => c.sysKey === key);
     if (!chat) {
-      try { chat = await db.hrChat.create({ data: { kind: "group", name: w.name, sysKey: key, createdById: "system" }, select: { id: true, sysKey: true, name: true } }); }
+      try { chat = await db.hrChat.create({ data: { kind: "group", name: w.name, sysKey: key, createdById: "system", about: key === PULSE_KEY ? PULSE_ABOUT : "" }, select: { id: true, sysKey: true, name: true } }); }
       catch { chat = await db.hrChat.findUnique({ where: { sysKey: key }, select: { id: true, sysKey: true, name: true } }) ?? undefined; }
       if (!chat) continue;
     } else if (chat.name !== w.name) await db.hrChat.update({ where: { id: chat.id }, data: { name: w.name } });
@@ -183,7 +186,7 @@ export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): 
     return {
       id: c.id, kind: c.kind === "dm" ? "dm" : "group", title: c.kind === "dm" ? p?.name ?? "Former colleague" : c.name, photo: c.kind === "dm" ? p?.hr?.photo ?? null : c.photo, avatar: p?.hr?.chatAvatar ?? "",
       withId, presence: p ? liveStatus(p.hr?.presence ?? "offline", p.hr?.presenceAt ?? null) : "offline", sys: !!c.sysKey, about: c.about,
-      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? (people.get(last.senderId)?.name.split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
+      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? ((people.get(last.senderId)?.name ?? pulseName(last.senderId)).split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
     };
   });
 }
@@ -379,8 +382,10 @@ export async function groupInfo(me: Me, chatId: string) {
     more, // members you can't see by name
     members: shown.sort((a, b) => a.name.localeCompare(b.name)).map((u) => ({
       id: u.id, name: u.name, empNo: u.empNo, designation: u.hr?.designation ?? "", photo: u.hr?.photo ?? null, avatar: u.hr?.chatAvatar ?? "",
-      presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id,
-    })),
+      presence: liveStatus(u.hr?.presence ?? "offline", u.hr?.presenceAt ?? null), you: u.id === me.id, bot: false,
+    })).concat(mem.filter((m) => isPulse(m.staffId) && pulseName(m.staffId)).map((m) => ({
+      id: m.staffId, name: pulseName(m.staffId), empNo: "", designation: PULSE_LABEL, photo: null, avatar: "", presence: "offline", you: false, bot: true,
+    })).sort((a, b) => a.name.localeCompare(b.name))),
   };
 }
 export async function updateGroup(me: Me, chatId: string, input: { name?: unknown; about?: unknown; photo?: unknown }) {

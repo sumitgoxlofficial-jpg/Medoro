@@ -109,7 +109,8 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
       <Face name={sender} photo={face.photo} avatar={face.avatar} size={28} />
       <div className={cx("max-w-[78%] flex flex-col", mine ? "items-end" : "items-start")}>
         <div className={cx("rounded-2xl px-3 py-2 text-[13.5px] leading-snug shadow-sm relative", mine ? "bg-[#D6F3EF] rounded-br-md" : "bg-white border border-[#E2E8F0] rounded-bl-md")}>
-          {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}</div> : null}
+          {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}{m.kind === "pulse" ? <span className="ml-1.5 text-[9.5px] font-semibold bg-[#FEF3C7] text-[#92400E] rounded-full px-1.5 py-0.5">⚡ Sales Pulse · auto</span> : null}</div> : null}
+          {m.kind === "win" ? <div className="text-[9.5px] font-semibold text-[#92400E] mb-0.5"><span className="bg-[#FEF3C7] rounded-full px-1.5 py-0.5">⚡ auto · from CRM</span></div> : null}
           {m.deleted ? <span className="italic text-[#64748B]">This message was deleted</span>
             : m.kind === "meet" ? (
               <div className="flex flex-col gap-1.5">
@@ -283,7 +284,6 @@ export function ChatScreen({ d }: { d: D }) {
   return (
     <div className="flex flex-col gap-3">
       <BackupPrompt b={d.backup} />
-      <p className="text-[12px] text-[#64748B]">Messages are encrypted and kept private to the people in each conversation. Only the super admin can open a conversation for review, and every review is recorded in the audit log.</p>
       {incoming ? (
         <div role="alert" className="flex items-center gap-3 bg-[#0B5E5B] text-white rounded-xl px-4 py-3">
           <span className="text-[20px]" aria-hidden>📞</span>
@@ -478,7 +478,7 @@ function GroupInfo({ chatId, people, onClose, onLeft, onChanged }: { chatId: str
         {info.members.map((m) => (
           <li key={m.id} className="flex items-center gap-2.5 py-1.5 border-b border-[#F1F5F9]">
             <Face name={m.name} photo={m.photo} avatar={m.avatar} size={30} status={m.presence} />
-            <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold truncate">{m.name}{m.you ? <span className="ml-1.5 text-[10px] bg-[#D6F3EF] text-[#0B5E5B] rounded-full px-1.5 py-0.5">You</span> : null}{m.id === info.owner ? <span className="ml-1.5 text-[10px] font-semibold bg-[#E7F2F0] text-[#0B5E5B] rounded-full px-1.5 py-0.5">Group admin</span> : null}</div><div className="text-[11.5px] text-[#64748B] truncate">{m.empNo}{m.designation ? ` · ${m.designation}` : ""}</div></div>
+            <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold truncate">{m.name}{m.you ? <span className="ml-1.5 text-[10px] bg-[#D6F3EF] text-[#0B5E5B] rounded-full px-1.5 py-0.5">You</span> : null}{m.id === info.owner ? <span className="ml-1.5 text-[10px] font-semibold bg-[#E7F2F0] text-[#0B5E5B] rounded-full px-1.5 py-0.5">Group admin</span> : null}{m.bot ? <span className="ml-1.5 text-[10px] font-semibold bg-[#FEF3C7] text-[#92400E] rounded-full px-1.5 py-0.5">Bot</span> : null}</div><div className="text-[11.5px] text-[#64748B] truncate">{m.empNo}{m.designation ? ` · ${m.designation}` : ""}</div></div>
             <span className="text-[11px] text-[#64748B]">{statusText(m.presence)}</span>
             {info.canRemove && !m.you && (m.id !== info.owner || info.superAdmin) ? <button className="text-[11.5px] font-semibold text-[#B3261E] bg-transparent border border-[#F3C5C0] rounded-lg px-2 py-0.5 cursor-pointer hover:bg-[#FDECEA]" aria-label={`Remove ${m.name}`} onClick={() => setRemoving({ id: m.id, name: m.name })}>Remove</button> : null}
           </li>

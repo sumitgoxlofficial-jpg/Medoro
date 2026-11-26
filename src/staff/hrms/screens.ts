@@ -10,6 +10,7 @@ import { registers, summary, workflows } from "./finance";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
+import { salesPulseTick } from "./sales-pulse";
 import { LEAD_PLANS, allLeads, salesSummary, teamBoard } from "./leads";
 import { sheetStatus } from "./lead-sheet";
 import { sentLetters, unreadLetters } from "./letters-server";
@@ -93,6 +94,7 @@ export const loaders = {
   jobs: async () => ({ jobs: await jobs(true) }),
   chat: async (me: Me, q: Q) => {
     await syncChannels();
+    await salesPulseTick();
     const [chats, people, mine, g, backup] = await Promise.all([chatList(me), chatPeople(me), myChatProfile(me), gcalStatus(me.id), backupStatus(me.id)]);
     const notice = q.backup === "connected" ? "Google Drive connected. Your first backup is running now, and from here on your chats back up by themselves every day." : q.backup === "denied" ? "Google Drive wasn’t connected: access was not allowed." : q.backup === "off" ? "Google isn’t set up on this server yet. Ask the super admin." : q.backup === "failed" ? (q.why ?? "Couldn’t connect Google Drive.").slice(0, 200) : q.backup === "error" ? "Couldn’t connect Google Drive. Try again." : "";
     return { chats, people, me: mine, open: q.c ?? "", google: g.connected, backup: { ...backup, notice }, isAdmin: me.role === "admin", reactions: [...REACTIONS], avatars: [...AVATARS] };
