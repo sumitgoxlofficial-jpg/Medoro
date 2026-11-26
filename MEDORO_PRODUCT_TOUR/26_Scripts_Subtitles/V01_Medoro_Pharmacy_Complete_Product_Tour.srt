@@ -1,0 +1,2610 @@
+1
+00:00:08,850 --> 00:00:09,462
+Namaste!
+
+2
+00:00:09,502 --> 00:00:12,560
+Medoro Pharmacy mein aapka swagat hai.
+
+3
+00:00:12,600 --> 00:00:19,409
+Medoro Pharmacy Bharat ki medical stores ke liye
+bana software hai, jismein billing,
+
+4
+00:00:19,449 --> 00:00:24,137
+inventory, purchase, GST aur accounting, sab ek
+jagah hai.
+
+5
+00:00:24,890 --> 00:00:26,268
+Yeh kiske liye hai?
+
+6
+00:00:26,308 --> 00:00:32,088
+Mohalle ki medical store aur retail pharmacy,
+aspataal aur clinic ki pharmacy,
+
+7
+00:00:32,128 --> 00:00:35,819
+aur kai branches wali pharmacy chains, sabke
+liye.
+
+8
+00:00:36,577 --> 00:00:42,082
+Mukhya faayde: keyboard se tez billing, FEFO se
+expiry ka kam nuksaan,
+
+9
+00:00:42,122 --> 00:00:48,974
+Schedule H ki jaanch, GST reports, internet band
+hone par bhi billing, Hindi interface,
+
+10
+00:00:49,014 --> 00:00:51,985
+aur data aapke apne Google Drive mein.
+
+11
+00:00:52,762 --> 00:00:55,133
+Ab software ke andar chalte hain.
+
+12
+00:00:55,173 --> 00:01:00,468
+Yeh hamaari demo pharmacy ka dashboard hai,
+Medoro Demo Pharmacy, Ranchi,
+
+13
+00:01:00,508 --> 00:01:04,414
+jismein pichhle ek mahine ka kaalpanik data
+bhara hai.
+
+14
+00:01:05,174 --> 00:01:09,792
+Upar aaj ki bikri, margin, khareed, kharch aur
+bakaaya.
+
+15
+00:01:09,832 --> 00:01:13,095
+Beech mein bikri ka chart aur insights.
+
+16
+00:01:13,135 --> 00:01:17,161
+Neeche low stock, expiry aur branch performance.
+
+17
+00:01:17,201 --> 00:01:21,311
+In sabko hum agle parts mein vistaar se
+dekhenge.
+
+18
+00:01:27,376 --> 00:01:27,940
+Namaste!
+
+19
+00:01:27,980 --> 00:01:31,941
+Medoro Pharmacy ke is tutorial mein aapka swagat
+hai.
+
+20
+00:01:31,981 --> 00:01:37,301
+Is part mein hum dekhenge ki Medoro par apna
+account kaise banate hain,
+
+21
+00:01:37,341 --> 00:01:41,528
+use verify kaise karte hain, aur login kaise
+karte hain.
+
+22
+00:01:42,301 --> 00:01:45,563
+Sabse pehle browser mein medoro.in kholiye.
+
+23
+00:01:45,603 --> 00:01:48,711
+Upar menu mein Pharmacy par click kijiye.
+
+24
+00:01:49,480 --> 00:01:53,197
+Yahan Medoro Pharmacy ke saare features, pricing
+
+25
+00:01:53,237 --> 00:01:59,929
+aur data security ki jaankari hai: billing,
+inventory, GST, accounts aur AI assistant.
+
+26
+00:02:03,104 --> 00:02:08,196
+Ab upar daayin taraf 'Start 7-day free trial'
+button par click kijiye.
+
+27
+00:02:08,236 --> 00:02:13,035
+Saat din ka trial bilkul free hai, aur koi card
+nahi maanga jaata.
+
+28
+00:02:13,794 --> 00:02:15,608
+Yeh asli sign-up page hai.
+
+29
+00:02:15,648 --> 00:02:20,099
+Yahan aap Google account se ya email se sign up
+kar sakte hain.
+
+30
+00:02:20,869 --> 00:02:26,272
+Dhyan dijiye: is video ke liye hum ek alag demo
+server istemaal kar rahe hain,
+
+31
+00:02:26,312 --> 00:02:29,621
+taaki kisi asli pharmacy ka data na chhua jaaye.
+
+32
+00:02:29,661 --> 00:02:33,878
+Demo server par Medoro ka bilkul yahi software
+chal raha hai,
+
+33
+00:02:33,918 --> 00:02:36,390
+aur ismein saara data kaalpanik hai.
+
+34
+00:02:37,138 --> 00:02:42,078
+Email se sign up karne ke liye apna email
+address daaliye aur 'Send code' dabaaiye.
+
+35
+00:02:42,854 --> 00:02:47,470
+Medoro aapke email par chhah ankon ka
+verification code bhejta hai,
+
+36
+00:02:47,510 --> 00:02:49,833
+jo das minute tak valid rehta hai.
+
+37
+00:02:49,873 --> 00:02:55,462
+Email se code dekhkar yahan daaliye, aur
+'Confirm and continue' par click kijiye.
+
+38
+00:02:56,228 --> 00:02:57,834
+Email confirm ho gaya!
+
+39
+00:02:57,874 --> 00:03:01,875
+Ab pharmacy ki details bharne wala form khul
+gaya hai.
+
+40
+00:03:01,915 --> 00:03:06,066
+Yeh onboarding hum agle part mein step by step
+bharenge.
+
+41
+00:03:08,136 --> 00:03:12,874
+Ab dekhte hain ki login aur account ki suraksha
+kaise kaam karti hai.
+
+42
+00:03:12,914 --> 00:03:14,951
+Pehle hum sign out karte hain.
+
+43
+00:03:15,709 --> 00:03:18,817
+Sign in page par apna email aur password
+daaliye.
+
+44
+00:03:25,425 --> 00:03:30,054
+Owner aur manager ke account par two-step
+verification zaroori hai.
+
+45
+00:03:30,094 --> 00:03:34,304
+Authenticator app mein dikh raha chhah ankon ka
+code daaliye.
+
+46
+00:03:34,344 --> 00:03:39,043
+Agar phone paas na ho, to recovery code bhi
+istemaal kar sakte hain.
+
+47
+00:03:39,083 --> 00:03:43,502
+Apne counter PC ko tees din ke liye trusted bhi
+bana sakte hain.
+
+48
+00:03:44,257 --> 00:03:46,022
+Bas, aap andar aa gaye.
+
+49
+00:03:46,062 --> 00:03:49,631
+Ab password bhool jaane ki sthiti dekhte hain.
+
+50
+00:03:49,671 --> 00:03:53,554
+Sign out karke 'Forgot password' par click
+kijiye.
+
+51
+00:03:54,303 --> 00:03:58,137
+Apna registered email daaliye aur 'Send code'
+dabaaiye.
+
+52
+00:03:58,177 --> 00:04:02,151
+Medoro us email par chhah ankon ka reset code
+bhejta hai,
+
+53
+00:04:02,191 --> 00:04:04,827
+jo pandrah minute tak valid rehta hai.
+
+54
+00:04:05,570 --> 00:04:10,551
+Email se code dekhkar yahan daaliye, phir naya
+password do baar likhiye.
+
+55
+00:04:10,591 --> 00:04:15,782
+Dhyan dijiye: password badalte hi aap har device
+se sign out ho jaate hain,
+
+56
+00:04:15,822 --> 00:04:20,036
+aur login par two-step verification phir bhi
+laagu rehta hai.
+
+57
+00:04:21,349 --> 00:04:22,704
+Password badal gaya.
+
+58
+00:04:22,744 --> 00:04:27,516
+Ab naye password aur authenticator code se
+dobara sign in karte hain.
+
+59
+00:04:38,500 --> 00:04:43,620
+Security ke liye yaad rakhiye: password kam se
+kam das characters ka rakhiye,
+
+60
+00:04:43,660 --> 00:04:46,502
+recovery codes offline sambhaalkar rakhiye,
+
+61
+00:04:46,542 --> 00:04:52,198
+aur paanch baar galat password daalne par
+account kuch der ke liye lock ho jaata hai.
+
+62
+00:04:52,238 --> 00:04:54,879
+Medoro mein koi default login nahi hota.
+
+63
+00:05:00,942 --> 00:05:05,023
+Is part mein hum pharmacy ka onboarding poora
+karenge.
+
+64
+00:05:05,063 --> 00:05:11,890
+Upar chhah steps dikh rahe hain: Pharmacy, Your
+account, Branches, Team, Backups aur Done.
+
+65
+00:05:12,651 --> 00:05:15,104
+Pehla field hai pharmacy ka naam.
+
+66
+00:05:15,144 --> 00:05:19,032
+Wahi naam likhiye jo aapke bill par chhapna
+chahiye.
+
+67
+00:05:19,072 --> 00:05:22,053
+Hum likh rahe hain Medoro Demo Pharmacy.
+
+68
+00:05:22,798 --> 00:05:24,099
+Ab GSTIN daaliye.
+
+69
+00:05:24,139 --> 00:05:30,171
+GSTIN pandrah characters ka hota hai, aur Medoro
+uska format check karta hai.
+
+70
+00:05:30,211 --> 00:05:35,849
+Dekhiye, agar hum adhoora GSTIN daalein, to
+Continue par error aata hai.
+
+71
+00:05:36,602 --> 00:05:38,702
+Ab poora GSTIN daalte hain.
+
+72
+00:05:38,742 --> 00:05:43,616
+Is demo ka GSTIN aur drug licence number, dono
+kaalpanik hain.
+
+73
+00:05:43,656 --> 00:05:48,689
+Drug licence yaani Form 20B aur 21B ka number
+zaroori field hai,
+
+74
+00:05:48,729 --> 00:05:51,543
+kyunki yeh har bill par chhapta hai.
+
+75
+00:05:52,317 --> 00:05:55,918
+Registered pharmacist ka naam aur registration
+number,
+
+76
+00:05:55,958 --> 00:06:01,110
+aur pharmacy ka poora address bhi bhariye, city,
+state aur PIN code ke saath.
+
+77
+00:06:01,851 --> 00:06:05,347
+Pharmacy code aapke staff ke login ke liye hai.
+
+78
+00:06:05,387 --> 00:06:11,216
+Counter par staff yeh code, apna employee ID aur
+PIN daalkar login karte hain.
+
+79
+00:06:11,256 --> 00:06:16,182
+Interface language baad mein bhi badal sakte
+hain: English, Hindi,
+
+80
+00:06:16,222 --> 00:06:18,590
+ya English ke saath Hinglish AI.
+
+81
+00:06:19,348 --> 00:06:21,317
+Continue par click kijiye.
+
+82
+00:06:21,357 --> 00:06:23,480
+Agla step hai owner account.
+
+83
+00:06:23,520 --> 00:06:29,352
+Medoro mein koi default login nahi hota: yeh
+account pharmacy ka maalik hai,
+
+84
+00:06:29,392 --> 00:06:31,747
+aur baaki sabko yahi jodta hai.
+
+85
+00:06:32,488 --> 00:06:35,582
+Owner ka naam aur mobile number daaliye.
+
+86
+00:06:35,622 --> 00:06:38,325
+Email pehle hi verify ho chuka hai.
+
+87
+00:06:38,365 --> 00:06:44,358
+Password kam se kam das characters ka rakhiye,
+aur use dobara confirm kijiye.
+
+88
+00:06:45,119 --> 00:06:46,985
+Ab branches aur counters.
+
+89
+00:06:47,025 --> 00:06:52,703
+Pehli branch ka naam Main Road rakhte hain, aur
+usmein do billing counters.
+
+90
+00:06:52,743 --> 00:06:56,438
+Phir Kanke Road naam ki doosri branch jodte
+hain.
+
+91
+00:06:57,203 --> 00:07:03,299
+Team step mein aap staff ko invite kar sakte
+hain: manager, pharmacist, cashier,
+
+92
+00:07:03,339 --> 00:07:05,063
+accountant ya delivery.
+
+93
+00:07:05,103 --> 00:07:08,284
+Manager ko email se invite karna hota hai.
+
+94
+00:07:08,324 --> 00:07:12,042
+Har invite code adtaalees ghante valid rehta
+hai.
+
+95
+00:07:14,423 --> 00:07:15,201
+Ab backups.
+
+96
+00:07:15,241 --> 00:07:20,701
+Medoro mein pharmacy ka data aapke apne Google
+Drive mein rakha jaata hai,
+
+97
+00:07:20,741 --> 00:07:24,714
+aisi key se encrypt karke jo sirf aapke paas
+hoti hai.
+
+98
+00:07:24,754 --> 00:07:29,843
+Recovery kit download karke use offline,
+surakshit jagah par rakhiye.
+
+99
+00:07:30,593 --> 00:07:36,100
+Dono checkbox tick kijiye: recovery kit
+sambhaalkar rakhne wala, aur Terms
+
+100
+00:07:36,140 --> 00:07:37,900
+aur Privacy policy wala.
+
+101
+00:07:37,940 --> 00:07:41,123
+Phir 'Create my pharmacy' par click kijiye.
+
+102
+00:07:41,870 --> 00:07:43,452
+Pharmacy taiyaar hai!
+
+103
+00:07:43,492 --> 00:07:47,853
+Yahan pharmacy code aur team ke invite codes
+dikhte hain.
+
+104
+00:07:47,893 --> 00:07:51,251
+Agla zaroori step hai two-step verification.
+
+105
+00:07:52,002 --> 00:07:55,456
+'Set up two-step verification' par click kijiye.
+
+106
+00:07:55,496 --> 00:07:59,750
+Apne phone ke authenticator app se yeh QR code
+scan kijiye.
+
+107
+00:07:59,790 --> 00:08:04,700
+Video mein QR code aur key suraksha ke liye
+dhundhle kiye gaye hain.
+
+108
+00:08:05,463 --> 00:08:09,475
+App mein dikh raha chhah ankon ka code daaliye
+aur Verify kijiye.
+
+109
+00:08:11,193 --> 00:08:13,671
+Ab das recovery codes dikhte hain.
+
+110
+00:08:13,711 --> 00:08:18,114
+Phone kho jaane par har code ek baar login ke
+kaam aata hai.
+
+111
+00:08:18,154 --> 00:08:22,854
+Inhein download karke offline rakhiye; yeh
+dobara nahi dikhenge.
+
+112
+00:08:23,603 --> 00:08:25,779
+Aakhri setup hai Drive storage.
+
+113
+00:08:25,819 --> 00:08:34,713
+Live Medoro mein pehle aap apna Google Drive
+connect karte hain; is demo server par Google
+Drive ka ek test version juda hai.
+
+114
+00:08:34,753 --> 00:08:37,572
+'Set up Drive storage' par click kijiye.
+
+115
+00:08:38,333 --> 00:08:42,903
+Medoro encryption keys aur ek Drive recovery
+code banata hai.
+
+116
+00:08:42,943 --> 00:08:46,606
+Yeh code naye device par data kholne ke liye
+hai,
+
+117
+00:08:46,646 --> 00:08:49,856
+aur Medoro ke paas iski koi copy nahi hoti.
+
+118
+00:08:49,896 --> 00:08:51,821
+Ise bhi surakshit rakhiye.
+
+119
+00:08:52,594 --> 00:08:56,486
+Ab 'Start my pharmacy on this device' par click
+kijiye.
+
+120
+00:08:56,526 --> 00:09:00,703
+Aapki medicines, stock, bills aur customers isi
+device par,
+
+121
+00:09:00,743 --> 00:09:04,706
+aur encrypted roop mein aapke Google Drive mein
+rahenge.
+
+122
+00:09:05,480 --> 00:09:09,764
+Onboarding poora ho gaya, aur dashboard khul
+gaya hai!
+
+123
+00:09:09,804 --> 00:09:11,366
+Abhi sab khaali hai.
+
+124
+00:09:11,406 --> 00:09:16,972
+Agle parts mein hum medicines, stock, suppliers
+aur customers jodenge.
+
+125
+00:09:23,036 --> 00:09:26,596
+Login karte hi Medoro ka dashboard khulta hai.
+
+126
+00:09:26,636 --> 00:09:32,308
+Yahan ek hi screen par aaj ki bikri, munafa,
+khareed, kharch aur bakaaya,
+
+127
+00:09:32,348 --> 00:09:33,873
+sab kuch dikhta hai.
+
+128
+00:09:33,913 --> 00:09:38,568
+Upar Today, saat din aur tees din ke beech badal
+sakte hain.
+
+129
+00:09:39,338 --> 00:09:43,628
+Sales today mein aaj ki kul bikri aur bills ki
+ginti hai.
+
+130
+00:09:43,668 --> 00:09:49,630
+Gross margin batata hai ki GST se pehle, returns
+ghataakar, kitna munafa bacha.
+
+131
+00:09:50,402 --> 00:09:54,799
+Purchases mein supplier bills, aur Expenses mein
+aaj ke kharch.
+
+132
+00:09:54,839 --> 00:09:58,039
+Receivables yaani customers se kitna lena hai,
+
+133
+00:09:58,079 --> 00:10:01,349
+aur Payables yaani suppliers ko kitna dena hai.
+
+134
+00:10:02,126 --> 00:10:04,636
+Ab tees din wala view dekhte hain.
+
+135
+00:10:04,676 --> 00:10:10,486
+Sales chart har din ki bikri GST sahit dikhata
+hai, aur neeche cash, UPI, card
+
+136
+00:10:10,526 --> 00:10:13,561
+aur credit mein collection ka hisaab hai.
+
+137
+00:10:14,314 --> 00:10:17,257
+Insights box zaroori baatein khud batata hai,
+
+138
+00:10:17,297 --> 00:10:20,240
+jaise kitna stock jaldi expire hone wala hai,
+
+139
+00:10:20,280 --> 00:10:23,488
+ya kaunsi medicines reorder level se neeche
+hain.
+
+140
+00:10:24,255 --> 00:10:26,149
+Neeche Low stock ki list hai,
+
+141
+00:10:26,189 --> 00:10:31,618
+aur 'Expiring within 90 days' mein woh batches
+jo nabbe din ke andar expire honge,
+
+142
+00:10:31,657 --> 00:10:34,085
+unki keemat aur bache dinon ke saath.
+
+143
+00:10:34,825 --> 00:10:38,310
+Branch performance mein har branch ki bikri
+dikhti hai,
+
+144
+00:10:38,350 --> 00:10:41,963
+aur saath mein Google Drive ki aakhri full copy
+ka samay,
+
+145
+00:10:42,003 --> 00:10:44,783
+taaki aapko pata rahe ki data surakshit hai.
+
+146
+00:10:45,546 --> 00:10:50,202
+Sabse neeche Recent activity mein har bill aur
+badlaav ka record hai.
+
+147
+00:10:50,242 --> 00:10:54,966
+Upar Export button se dashboard ki report
+download bhi kar sakte hain.
+
+148
+00:11:01,048 --> 00:11:05,589
+Medoro mein medicines ka poora master Stock
+screen par hai.
+
+149
+00:11:05,629 --> 00:11:11,025
+Har medicine ke saath uska salt, schedule, kul
+stock, agli expiry, MRP
+
+150
+00:11:11,065 --> 00:11:13,276
+aur rack location dikhta hai.
+
+151
+00:11:14,035 --> 00:11:18,285
+Medicine ko brand name, salt ya barcode se khoj
+sakte hain.
+
+152
+00:11:18,325 --> 00:11:23,884
+Jaise salt mein Paracetamol likhne par us salt
+ki saari brands aa jaati hain.
+
+153
+00:11:24,627 --> 00:11:27,133
+Ab nayi medicine jodte hain.
+
+154
+00:11:27,173 --> 00:11:30,044
+'Add medicine' par click kijiye.
+
+155
+00:11:30,084 --> 00:11:37,137
+Naam, salt, MRP, GST rate, pack size, loose
+unit, reorder level, rack, barcode
+
+156
+00:11:37,177 --> 00:11:40,411
+aur schedule, sab yahin bharte hain.
+
+157
+00:11:41,164 --> 00:11:45,486
+MRP paintaalees rupaye prati strip, GST paanch
+pratishat.
+
+158
+00:11:45,526 --> 00:11:49,619
+Ek strip mein das tablets, aur loose bikri ki
+anumati,
+
+159
+00:11:49,659 --> 00:11:53,751
+taaki zaroorat padne par ek-do tablet bhi bech
+sakein.
+
+160
+00:11:54,516 --> 00:12:00,080
+Reorder level pandrah strips, rack A3, aur pack
+par chhapa barcode.
+
+161
+00:12:00,120 --> 00:12:05,684
+Yeh medicine Schedule H mein nahi hai, isliye
+schedule None rahega.
+
+162
+00:12:05,724 --> 00:12:06,939
+Ab Save kijiye.
+
+163
+00:12:07,715 --> 00:12:09,920
+Nayi medicine list mein aa gayi.
+
+164
+00:12:09,960 --> 00:12:15,883
+Abhi iska stock shoonya hai; batch aur expiry ke
+saath stock purchase bill se aayega,
+
+165
+00:12:15,923 --> 00:12:18,689
+jo hum Purchase wale part mein dekhenge.
+
+166
+00:12:19,432 --> 00:12:23,601
+Kisi medicine ko edit karne ke liye pencil icon
+dabaaiye.
+
+167
+00:12:23,641 --> 00:12:29,140
+Maan lijiye Paracip 650 ki rack badalni hai aur
+reorder level badhaana hai.
+
+168
+00:12:29,885 --> 00:12:33,589
+Save karte hi badlaav har counter par pahunch
+jaata hai.
+
+169
+00:12:33,629 --> 00:12:36,063
+Aur agar koi medicine ab nahi bechni,
+
+170
+00:12:36,103 --> 00:12:42,148
+to use delete karne ki bajaay 'In use' ka tick
+hata dijiye; woh billing se chhip jaati hai,
+
+171
+00:12:42,188 --> 00:12:44,689
+par uska purana record bana rehta hai.
+
+172
+00:12:45,459 --> 00:12:51,547
+Batch wale icon se har batch ki expiry, bacha
+stock aur status dikhta hai.
+
+173
+00:12:51,587 --> 00:12:56,267
+HSN code, GST aur MRP har bill par apne-aap
+chhapte hain.
+
+174
+00:13:02,324 --> 00:13:05,915
+Inventory part mein hum stock sambhaalna
+seekhenge.
+
+175
+00:13:05,955 --> 00:13:11,326
+Stock screen par har medicine ka kul stock, agli
+expiry aur rack dikhta hai.
+
+176
+00:13:11,366 --> 00:13:18,091
+'Low stock only' tick karne par sirf woh
+medicines dikhti hain jo reorder level se neeche
+hain.
+
+177
+00:13:18,835 --> 00:13:21,901
+Doosre billing software se aa rahe hain?
+
+178
+00:13:21,941 --> 00:13:25,784
+Purani stock list Excel ya CSV mein Import
+kijiye.
+
+179
+00:13:25,824 --> 00:13:30,132
+Medoro pehle preview dikhata hai, har row mein
+kya hoga,
+
+180
+00:13:30,172 --> 00:13:33,316
+aur galti ho to kuch bhi save nahi karta.
+
+181
+00:13:34,084 --> 00:13:39,419
+Yahan teen naye items hain, thermometer, mask
+aur sanitizer, unke batch
+
+182
+00:13:39,459 --> 00:13:41,463
+aur opening stock ke saath.
+
+183
+00:13:41,503 --> 00:13:44,339
+Import dabaate hi stock jud jaata hai.
+
+184
+00:13:45,097 --> 00:13:47,026
+Ab batches dekhte hain.
+
+185
+00:13:47,066 --> 00:13:52,078
+Paracip 650 ke kai batches hain, alag-alag
+expiry ke saath.
+
+186
+00:13:52,118 --> 00:13:57,814
+Billing par Medoro FEFO niyam chalata hai: First
+Expiry, First Out,
+
+187
+00:13:57,854 --> 00:14:02,780
+yaani jo batch sabse pehle expire hoga, wahi
+pehle bikega.
+
+188
+00:14:03,523 --> 00:14:09,098
+Agar koi strip toot-phoot gayi, to 'Correct
+stock' mein kaaran chunkar maatra ghataaiye.
+
+189
+00:14:09,138 --> 00:14:12,735
+Har adjustment ka kaaran aur samay record mein
+rehta hai.
+
+190
+00:14:13,475 --> 00:14:18,222
+Stock count ke liye, shelf par gini hui maatra
+Counted mein daaliye
+
+191
+00:14:18,262 --> 00:14:20,365
+aur 'Save stock count' kijiye.
+
+192
+00:14:20,405 --> 00:14:22,794
+Farq apne-aap adjust ho jaata hai.
+
+193
+00:14:23,554 --> 00:14:28,067
+Branch transfer: Kanke Road branch mein ORS kam
+pad gaya hai.
+
+194
+00:14:28,107 --> 00:14:32,546
+Batch chunkar, branch aur maatra bhariye, aur
+Send dabaaiye.
+
+195
+00:14:32,586 --> 00:14:37,025
+Stock yahan se ghatkar doosri branch mein
+pahunch jaata hai.
+
+196
+00:14:37,771 --> 00:14:43,260
+Batch ka status bhi badal sakte hain: OK to
+sell, Quarantine, ya Recalled.
+
+197
+00:14:43,300 --> 00:14:49,983
+Quarantine ya Recalled batch billing mein nahi
+bikta, jab tak aap use waapas OK na karein.
+
+198
+00:14:50,740 --> 00:14:54,766
+Expiry par nazar rakhne ke liye sidebar mein
+Expiry prevention
+
+199
+00:14:54,806 --> 00:14:59,028
+aur Stock intelligence hain, jahan jaldi expire
+hone wale batches
+
+200
+00:14:59,068 --> 00:15:01,127
+aur reorder ki salaah milti hai.
+
+201
+00:15:01,167 --> 00:15:04,930
+Reorder level har medicine ke edit form mein set
+hota hai.
+
+202
+00:15:10,978 --> 00:15:13,078
+Distributor se maal aaya hai.
+
+203
+00:15:13,118 --> 00:15:19,940
+Purchases screen par supplier ka bill do tarah
+se daal sakte hain: bill ki file upload karke,
+
+204
+00:15:19,980 --> 00:15:21,638
+ya haath se type karke.
+
+205
+00:15:21,678 --> 00:15:23,630
+Abhi hum bill type karenge.
+
+206
+00:15:24,373 --> 00:15:25,650
+Supplier chuniye.
+
+207
+00:15:25,690 --> 00:15:29,057
+Naya supplier ho to naam likhkar Add kijiye.
+
+208
+00:15:29,097 --> 00:15:33,549
+Phir supplier ka bill number aur bill ki
+taareekh daaliye.
+
+209
+00:15:34,316 --> 00:15:35,588
+Ab items jodiye.
+
+210
+00:15:35,628 --> 00:15:42,476
+Medicine khojiye, aur har line par batch number,
+expiry, packs ki ginti, free packs,
+
+211
+00:15:42,516 --> 00:15:45,510
+GST se pehle ki rate aur MRP bhariye.
+
+212
+00:15:45,550 --> 00:15:50,921
+Yeh wahi nayi medicine hai jo humne pichhle part
+mein banaayi thi.
+
+213
+00:15:51,672 --> 00:15:54,745
+Doosri line: Paracip 650 ka naya batch.
+
+214
+00:15:54,785 --> 00:15:58,736
+Free packs ka matlab scheme mein mili muft
+strips,
+
+215
+00:15:58,776 --> 00:16:02,807
+jo stock mein judti hain par unka paisa nahi
+lagta.
+
+216
+00:16:03,550 --> 00:16:07,627
+Neeche bill ka total GST sahit apne-aap banta
+hai.
+
+217
+00:16:07,667 --> 00:16:11,249
+GST har medicine ke GST rate se nikalta hai.
+
+218
+00:16:11,289 --> 00:16:17,506
+Supplier ke bill se total milaaiye, phir 'Save
+bill and add stock' dabaaiye.
+
+219
+00:16:17,546 --> 00:16:20,800
+Yahi aapka goods receipt, yaani GRN hai.
+
+220
+00:16:21,554 --> 00:16:25,762
+Stock turant badh gaya, naye batch aur expiry ke
+saath.
+
+221
+00:16:25,802 --> 00:16:29,007
+Supplier ka bakaaya bhi apne-aap jud gaya.
+
+222
+00:16:30,018 --> 00:16:33,474
+Supplier ko payment Accounts screen se hota hai.
+
+223
+00:16:33,514 --> 00:16:37,771
+'Suppliers to pay' mein har supplier ka bakaaya
+dikhta hai.
+
+224
+00:16:37,811 --> 00:16:41,923
+Amount, mode aur UTR ya cheque number daalkar
+Pay kijiye.
+
+225
+00:16:45,051 --> 00:16:51,159
+Payment hote hi bakaaya kam ho jaata hai, aur
+entry cash book ya bank mein chali jaati hai.
+
+226
+00:16:51,199 --> 00:16:55,213
+Supplier ko maal waapas bhejna ho, ya expiry
+claim karna ho,
+
+227
+00:16:55,253 --> 00:16:58,997
+to Supplier tools mein Claims aur return ke
+vikalp hain.
+
+228
+00:17:05,058 --> 00:17:08,203
+Har bill haath se type karna zaroori nahi.
+
+229
+00:17:08,243 --> 00:17:14,952
+Zyaadatar distributors apna bill e-bill file
+mein bhi dete hain, CSV, Excel ya text mein.
+
+230
+00:17:14,992 --> 00:17:20,032
+Supplier tools ki E-bill import se yeh file
+seedhe padhi jaati hai.
+
+231
+00:17:20,782 --> 00:17:28,959
+Ek zaroori baat: PDF ya photo wale bill ko scan
+karne wala AI feature Medoro server par OCR
+engine se chalta hai.
+
+232
+00:17:28,999 --> 00:17:32,159
+Is demo server par OCR engine juda nahi hai,
+
+233
+00:17:32,199 --> 00:17:35,941
+isliye yahan hum e-bill file import dikha rahe
+hain.
+
+234
+00:17:36,710 --> 00:17:42,216
+Pehle supplier chuniye, phir 'Choose bill file'
+se distributor ki file chuniye.
+
+235
+00:17:42,256 --> 00:17:46,920
+Hamaare paas Jharkhand Medical Agencies ki ek
+demo e-bill file hai.
+
+236
+00:17:47,680 --> 00:17:54,231
+Medoro file ke columns pehchaanta hai: item ka
+naam, batch, expiry, quantity,
+
+237
+00:17:54,271 --> 00:17:57,055
+free quantity, rate, MRP aur GST.
+
+238
+00:17:57,095 --> 00:18:01,763
+Har line ko catalogue ki medicine se milaaya
+jaata hai.
+
+239
+00:18:02,526 --> 00:18:05,470
+Post karne se pehle review zaroori hai.
+
+240
+00:18:05,510 --> 00:18:12,281
+Har line ki medicine, batch, expiry, maatra aur
+rate supplier ke kaagzi bill se milaaiye.
+
+241
+00:18:12,321 --> 00:18:18,326
+Koi medicine na mile, to use sahi medicine se
+jodiye ya nayi medicine banaaiye.
+
+242
+00:18:19,075 --> 00:18:22,580
+Sab sahi ho to bill number daalkar save kijiye.
+
+243
+00:18:22,620 --> 00:18:28,011
+Stock, batches aur supplier ka bakaaya, teeno ek
+saath update hote hain.
+
+244
+00:18:34,077 --> 00:18:36,293
+Ab sabse zaroori kaam, billing.
+
+245
+00:18:36,333 --> 00:18:42,187
+Billing screen keyboard se chalne ke liye bani
+hai: search box mein naam likhiye,
+
+246
+00:18:42,227 --> 00:18:46,189
+Enter se pehla item cart mein, aur F9 se bill
+complete.
+
+247
+00:18:46,933 --> 00:18:50,592
+Search box mein brand ka naam likhiye, jaise
+Paracip.
+
+248
+00:18:50,632 --> 00:18:54,431
+Enter dabaate hi pehli medicine cart mein aa
+jaati hai.
+
+249
+00:18:55,178 --> 00:18:57,203
+Salt se bhi khoj sakte hain.
+
+250
+00:18:57,243 --> 00:19:01,555
+Cetirizine likhne par usi salt wali medicine mil
+jaati hai.
+
+251
+00:19:01,595 --> 00:19:05,759
+Aur pack ke barcode number se bhi medicine mil
+jaati hai.
+
+252
+00:19:06,518 --> 00:19:09,662
+Cart mein quantity plus-minus se badliye.
+
+253
+00:19:09,702 --> 00:19:13,389
+Strip ki jagah loose tablet bhi chun sakte hain.
+
+254
+00:19:13,429 --> 00:19:20,611
+Batch aapko chunna nahi padta: Medoro FEFO se
+sabse pehle expire hone wala batch lagaata hai.
+
+255
+00:19:21,364 --> 00:19:22,961
+Ab customer jodte hain.
+
+256
+00:19:23,001 --> 00:19:27,515
+Mobile number daalte hi purana customer pehchaan
+liya jaata hai.
+
+257
+00:19:27,555 --> 00:19:31,002
+Bill WhatsApp par bhejne ka option bhi yahin
+hai.
+
+258
+00:19:31,745 --> 00:19:39,505
+Discount utna hi de sakte hain jitni aapke role
+ko anumati hai; yahan owner ke liye bees
+pratishat tak.
+
+259
+00:19:39,545 --> 00:19:42,382
+Paanch pratishat discount daalte hain.
+
+260
+00:19:42,422 --> 00:19:47,380
+MRP total, round off aur payable amount apne-aap
+badal jaate hain.
+
+261
+00:19:48,132 --> 00:19:54,969
+Payment mode chuniye: Cash, UPI, Card, ya
+registered customer ke liye Credit.
+
+262
+00:19:55,009 --> 00:19:58,363
+Yeh customer UPI se pay kar rahe hain.
+
+263
+00:19:58,403 --> 00:19:59,434
+F9 dabaaiye.
+
+264
+00:20:00,176 --> 00:20:01,410
+Bill ban gaya.
+
+265
+00:20:01,450 --> 00:20:08,870
+Tax invoice par pharmacy ka GSTIN aur drug
+licence, har item ka batch, expiry, HSN
+
+266
+00:20:08,910 --> 00:20:13,965
+aur GST, aur neeche CGST aur SGST ka hisaab
+chhapta hai.
+
+267
+00:20:14,005 --> 00:20:17,513
+MRP mein GST pehle se shaamil hota hai.
+
+268
+00:20:18,286 --> 00:20:26,818
+Print dabaakar receipt printer par chhaapiye;
+browser ke print mein 'Save as PDF' chunkar PDF
+invoice bhi bana sakte hain.
+
+269
+00:20:26,858 --> 00:20:30,612
+WhatsApp juda ho, to PDF seedhe customer ko
+jaata hai.
+
+270
+00:20:31,378 --> 00:20:33,193
+Ek aur bill: card payment.
+
+271
+00:20:33,233 --> 00:20:38,828
+Aur credit customer ke liye Credit chunne par
+rakam uske khaate mein jaati hai,
+
+272
+00:20:38,868 --> 00:20:40,040
+credit limit tak.
+
+273
+00:20:40,080 --> 00:20:45,461
+Dhyan dein: is device counter par ek bill ka
+bhugtaan do modes mein baantna,
+
+274
+00:20:45,501 --> 00:20:49,955
+aur cart ko hold karke baad mein kholna, abhi
+uplabdh nahi hai.
+
+275
+00:20:56,033 --> 00:21:02,357
+Schedule H aur H1 ki davaayein sirf registered
+doctor ki prescription par bikti hain.
+
+276
+00:21:02,397 --> 00:21:05,950
+Medoro yeh niyam billing par hi laagu karta hai.
+
+277
+00:21:05,990 --> 00:21:12,613
+Search list mein aisi medicines ke saath laal
+rang mein Sch H ya Sch H1 likha dikhta hai.
+
+278
+00:21:13,375 --> 00:21:16,068
+Cefidem 200 ek Schedule H1 dava hai.
+
+279
+00:21:16,108 --> 00:21:20,320
+Ise cart mein daalte hi Prescription section
+khulta hai,
+
+280
+00:21:20,360 --> 00:21:23,661
+aur likha aata hai: Required for Schedule H.
+
+281
+00:21:24,416 --> 00:21:30,616
+Bina prescriber details ke bill poora karne ki
+koshish karein, to Medoro bill nahi banata.
+
+282
+00:21:30,656 --> 00:21:32,834
+Yeh check hataaya nahi ja sakta.
+
+283
+00:21:33,611 --> 00:21:40,053
+Ab doctor ka naam, unka registration number, aur
+H1 dava ke liye patient ka naam bhariye.
+
+284
+00:21:40,093 --> 00:21:43,914
+Is demo mein doctor aur patient, dono kaalpanik
+hain.
+
+285
+00:21:44,671 --> 00:21:45,065
+Ab F9.
+
+286
+00:21:45,105 --> 00:21:51,580
+Bill ban gaya, aur prescriber ka naam aur
+registration number invoice par bhi chhapta hai.
+
+287
+00:21:52,349 --> 00:21:58,320
+Doctors screen par aap prescribing doctors ka
+record rakhte hain: naam, qualification,
+
+288
+00:21:58,360 --> 00:22:00,487
+registration number aur clinic.
+
+289
+00:22:00,527 --> 00:22:05,730
+'Sales by doctor' mein har doctor ki
+prescriptions se hui bikri dikhti hai.
+
+290
+00:22:06,492 --> 00:22:11,250
+Prescriber aur patient ki details har bill ke
+saath save hoti hain,
+
+291
+00:22:11,290 --> 00:22:13,327
+aur invoice par chhapti hain.
+
+292
+00:22:13,367 --> 00:22:24,426
+Ek zaroori baat: alag Schedule H1 register wali
+report is Google Drive wale counter par abhi
+uplabdh nahi hai; humne ise apni QA report mein darj kiya hai.
+
+293
+00:22:24,466 --> 00:22:28,651
+Medoro legal check ko bypass karne ka koi raasta
+nahi deta.
+
+294
+00:22:34,707 --> 00:22:39,713
+Customers screen par aapke saare customers hain,
+unke bakaaya ke saath.
+
+295
+00:22:39,753 --> 00:22:42,485
+Upar naam ya mobile se khoj sakte hain.
+
+296
+00:22:43,264 --> 00:22:47,215
+Naya customer jodne ke liye 'Add customer'
+dabaaiye.
+
+297
+00:22:47,255 --> 00:22:51,282
+Naam, mobile, aur business customer ho to uska
+GSTIN.
+
+298
+00:22:51,322 --> 00:22:56,961
+Credit limit tay karti hai ki customer adhiktam
+kitna udhaar le sakta hai.
+
+299
+00:22:57,705 --> 00:23:02,545
+WhatsApp par offers bhejne se pehle customer ki
+anumati zaroori hai.
+
+300
+00:23:02,585 --> 00:23:05,846
+Customer haan kahe, tabhi yeh box tick kijiye.
+
+301
+00:23:05,886 --> 00:23:10,798
+Yeh consent record mein rehta hai aur kabhi bhi
+hataaya ja sakta hai.
+
+302
+00:23:11,539 --> 00:23:16,810
+Jin customers par udhaar baaki hai, unke aage
+bakaaya rakam dikhti hai.
+
+303
+00:23:16,850 --> 00:23:20,550
+Receive se payment lijiye, cash, UPI ya card
+mein.
+
+304
+00:23:20,590 --> 00:23:23,842
+Remind se WhatsApp par yaad dila sakte hain,
+
+305
+00:23:23,882 --> 00:23:27,956
+aur Pay link se online payment ka link bhej
+sakte hain.
+
+306
+00:23:28,716 --> 00:23:33,861
+Rakesh ji ne apne udhaar mein se paanch sau
+rupaye UPI se jama kiye.
+
+307
+00:23:33,901 --> 00:23:38,208
+Receive dabaakar amount aur mode chuniye aur
+save kijiye.
+
+308
+00:23:38,248 --> 00:23:40,877
+Unka bakaaya turant ghat jaata hai.
+
+309
+00:23:41,634 --> 00:23:45,082
+Dhyan dein: is device counter par poora customer
+ledger
+
+310
+00:23:45,122 --> 00:23:50,663
+aur statement alag screen par nahi hai; bakaaya
+aur payments yahin Customers screen par,
+
+311
+00:23:50,703 --> 00:23:55,356
+aur har bill Bills screen par customer ke naam
+ya mobile se mil jaata hai.
+
+312
+00:24:01,412 --> 00:24:03,988
+Customer dava waapas karne aaya hai.
+
+313
+00:24:04,028 --> 00:24:06,386
+'Bills & day-end' screen kholiye.
+
+314
+00:24:06,426 --> 00:24:12,489
+Yahan invoice number, customer ke naam ya mobile
+se koi bhi bill dhoondh sakte hain.
+
+315
+00:24:13,235 --> 00:24:14,316
+Bill mil gaya.
+
+316
+00:24:14,356 --> 00:24:16,237
+Return par click kijiye.
+
+317
+00:24:16,277 --> 00:24:18,479
+Bill ki har line dikhti hai,
+
+318
+00:24:18,519 --> 00:24:24,964
+aur har line par utni hi maatra waapas ho sakti
+hai jitni biki thi, usi batch ki.
+
+319
+00:24:25,730 --> 00:24:30,957
+Waapas aayi maatra daaliye, aur kaaran likhiye,
+jaise doctor ne dava badal di.
+
+320
+00:24:30,997 --> 00:24:38,251
+Condition mein Sealed chunein to dava waapas
+stock mein jaati hai; Damaged chunein to stock
+mein nahi judti.
+
+321
+00:24:39,027 --> 00:24:45,660
+Refund kaise hoga, yeh chuniye: cash, UPI, ya
+customer ke account mein credit.
+
+322
+00:24:45,700 --> 00:24:49,680
+Refund ki rakam GST samet apne-aap nikalti hai.
+
+323
+00:24:50,443 --> 00:24:55,984
+'Issue credit note' dabaate hi credit note banta
+hai: stock waapas, refund darj,
+
+324
+00:24:56,024 --> 00:24:59,193
+aur day-end mein Returns ke neeche dikhta hai.
+
+325
+00:24:59,233 --> 00:25:04,286
+Bill kabhi edit ya delete nahi hota, isliye
+poora itihaas saaf rehta hai.
+
+326
+00:25:05,052 --> 00:25:09,393
+Day-end summary mein aaj ke bills, cash, UPI,
+card, returns
+
+327
+00:25:09,433 --> 00:25:13,700
+aur drawer mein kitna cash hona chahiye, sab ek
+jagah hai.
+
+328
+00:25:13,740 --> 00:25:16,745
+'Print day-end' se ise chhaap sakte hain.
+
+329
+00:25:22,813 --> 00:25:26,664
+Suppliers ki jaankari Medoro mein purchase bills
+se banti hai.
+
+330
+00:25:26,704 --> 00:25:31,874
+Accounts screen par 'Suppliers to pay' mein har
+supplier ka kul bakaaya dikhta hai.
+
+331
+00:25:32,631 --> 00:25:37,437
+Har supplier ke aage payment form hai: amount,
+mode, jaise cash,
+
+332
+00:25:37,477 --> 00:25:41,222
+bank transfer ya cheque, aur UTR ya cheque
+number.
+
+333
+00:25:41,262 --> 00:25:46,068
+Pay dabaate hi payment voucher banta hai aur
+bakaaya ghatta hai.
+
+334
+00:25:46,813 --> 00:25:52,906
+Supplier tools mein Pricing tab har medicine ki
+supplier-wise khareed dar dikhata hai,
+
+335
+00:25:52,946 --> 00:25:57,897
+sabse sasta supplier pehle, saath mein landed
+cost aur MRP par margin.
+
+336
+00:25:57,937 --> 00:26:02,247
+Isse pata chalta hai ki agla order kisse lena
+faaydemand hai.
+
+337
+00:26:03,002 --> 00:26:11,134
+Claims tab mein expiry ke kareeb ka maal
+supplier ko waapas karne ya credit note lene ka
+hisaab rehta hai: kitne din bache,
+
+338
+00:26:11,174 --> 00:26:13,526
+kitna claim kiya, kitna credit mila.
+
+339
+00:26:14,274 --> 00:26:19,234
+Aur Cheques screen par suppliers ko diye gaye
+post-dated cheques ka record rehta hai,
+
+340
+00:26:19,274 --> 00:26:21,410
+taaki clearing ki taareekh yaad rahe.
+
+341
+00:26:22,158 --> 00:26:27,375
+Dhyan dein: is device counter par supplier ki
+alag profile, poora supplier ledger
+
+342
+00:26:27,415 --> 00:26:31,788
+aur statement ki screen abhi nahi hai; supplier
+ka bakaaya, payments
+
+343
+00:26:31,828 --> 00:26:35,746
+aur purchase bills upar dikhaaye gaye screens
+par milte hain.
+
+344
+00:26:41,797 --> 00:26:45,782
+Accounts screen par dukaan ka roz ka hisaab hai.
+
+345
+00:26:45,822 --> 00:26:52,825
+Sabse pehle expense entry: kiraaya, tankhwaah,
+bijli, internet, transport, marammat,
+
+346
+00:26:52,865 --> 00:26:55,089
+stationery ya bank charges.
+
+347
+00:26:55,862 --> 00:27:00,382
+Category Repairs, amount aath sau pachaas,
+bhugtaan cash se,
+
+348
+00:27:00,422 --> 00:27:03,117
+aur note mein likhiye kya theek hua.
+
+349
+00:27:03,157 --> 00:27:05,625
+'Add expense for today' dabaaiye.
+
+350
+00:27:06,372 --> 00:27:11,764
+Cash book mein aaj ka har len-den hai: bikri ka
+cash, customers se vasooli,
+
+351
+00:27:11,804 --> 00:27:15,748
+supplier payments aur kharch, ant mein In, Out
+aur Net.
+
+352
+00:27:16,502 --> 00:27:19,689
+Bank ka hisaab 'UPI & Bank' screen par hai.
+
+353
+00:27:19,729 --> 00:27:26,218
+Bank statement Excel ya CSV mein upload kijiye;
+Medoro har UPI aur bank credit ko bills
+
+354
+00:27:26,258 --> 00:27:31,546
+aur payments se milaata hai, aur jo nahi mile,
+unhein alag dikhata hai.
+
+355
+00:27:32,311 --> 00:27:38,102
+Munaafa 'Reports & GST' screen par 'Sales and
+profit' mein hai: taareekh-vaar bikri,
+
+356
+00:27:38,142 --> 00:27:39,838
+returns aur gross profit.
+
+357
+00:27:39,878 --> 00:27:43,725
+Ise CSV mein nikaalkar apne accountant ko de
+sakte hain.
+
+358
+00:27:44,505 --> 00:27:50,365
+Dhyan dein: Google Drive wale counter par abhi
+day book, poora ledger, trial balance,
+
+359
+00:27:50,405 --> 00:27:54,946
+profit and loss statement aur cash flow ki alag
+reports nahi hain.
+
+360
+00:27:54,986 --> 00:28:00,569
+Bank connection apne-aap sync ke liye bank ya
+Account Aggregator partner chahiye,
+
+361
+00:28:00,609 --> 00:28:02,651
+jo is demo mein juda nahi hai.
+
+362
+00:28:08,693 --> 00:28:12,756
+Medicine ki MRP mein GST pehle se shaamil hota
+hai.
+
+363
+00:28:12,796 --> 00:28:17,101
+Medoro har bill par MRP se taxable value
+nikaalta hai,
+
+364
+00:28:17,141 --> 00:28:24,101
+aur Jharkhand ke andar ki bikri par GST ko CGST
+aur SGST mein aadha-aadha baant'ta hai.
+
+365
+00:28:24,141 --> 00:28:28,365
+Doosre rajya ke GST wale customer par IGST lagta
+hai.
+
+366
+00:28:29,116 --> 00:28:34,309
+Har medicine ka HSN code aur GST rate uske
+master mein rehta hai,
+
+367
+00:28:34,349 --> 00:28:36,644
+jaise medicines ke liye 3004.
+
+368
+00:28:36,684 --> 00:28:41,313
+'Reports & GST' screen par GST returns wala
+hissa dekhiye.
+
+369
+00:28:42,066 --> 00:28:43,745
+GST month chuniye.
+
+370
+00:28:43,785 --> 00:28:50,718
+Medoro us mahine ke bills se GSTR-1 banata hai:
+B2B, B2C aur HSN summary,
+
+371
+00:28:50,758 --> 00:28:54,920
+section-wise taxable value aur tax ke saath.
+
+372
+00:28:55,689 --> 00:29:03,053
+Yahan se GSTR-1 JSON, jo GST portal ke offline
+tool mein jaata hai, HSN summary CSV,
+
+373
+00:29:03,093 --> 00:29:07,195
+aur GSTR-3B ke JSON aur CSV download hote hain.
+
+374
+00:29:07,956 --> 00:29:12,319
+Bahut zaroori: yeh reports filing mein madad ke
+liye hain.
+
+375
+00:29:12,359 --> 00:29:18,848
+GST return file karne se pehle inhein apne
+accountant ya CA se zaroor check karvaaiye.
+
+376
+00:29:18,888 --> 00:29:22,568
+Tally export is counter par uplabdh nahi hai;
+CSV
+
+377
+00:29:22,608 --> 00:29:25,908
+aur JSON exports aapke CA ke kaam aate hain.
+
+378
+00:29:31,949 --> 00:29:36,545
+Medoro customers ko WhatsApp par bill aur
+reminders bhej sakta hai.
+
+379
+00:29:36,585 --> 00:29:42,356
+WhatsApp screen par aap apni pharmacy ka apna
+WhatsApp number QR code se jodte hain,
+
+380
+00:29:42,396 --> 00:29:44,363
+bilkul WhatsApp Web ki tarah.
+
+381
+00:29:45,130 --> 00:29:50,044
+Is demo server par WhatsApp juda nahi hai, yahan
+'Not linked' dikh raha hai.
+
+382
+00:29:50,084 --> 00:29:54,085
+Isliye hum asli message bhejkar nahi dikha rahe,
+sirf settings
+
+383
+00:29:54,125 --> 00:29:56,497
+aur tracking screens dikha rahe hain.
+
+384
+00:29:57,239 --> 00:30:02,830
+Invoice delivery mein 'Auto-send after sale'
+chaalu karne par bill apne-aap jaata hai,
+
+385
+00:30:02,870 --> 00:30:06,562
+par sirf un customers ko jinki WhatsApp consent
+darj hai.
+
+386
+00:30:06,602 --> 00:30:10,491
+'Attach the invoice PDF' se bill ka PDF bhi
+saath jaata hai.
+
+387
+00:30:11,244 --> 00:30:15,855
+Neeche Sent, Delivered, Read aur Failed ki ginti
+aur delivery log hai,
+
+388
+00:30:15,895 --> 00:30:19,045
+jahan har message ki delivery status dikhti hai.
+
+389
+00:30:19,827 --> 00:30:22,862
+Customer messaging mein refill reminders hain,
+
+390
+00:30:22,902 --> 00:30:31,216
+jo sirf is baat par chalte hain ki customer koi
+dava kitne din mein dobara leta hai; Medoro
+beemaari ka andaaza nahi lagaata.
+
+391
+00:30:31,256 --> 00:30:35,093
+Saath mein feedback aur weekly payment reminders
+bhi hain.
+
+392
+00:30:35,872 --> 00:30:40,225
+Messages sirf unhi customers ko jaate hain
+jinhone haan kaha hai.
+
+393
+00:30:40,265 --> 00:30:44,145
+Customer STOP likhkar kabhi bhi opt-out kar
+sakta hai, aur
+
+394
+00:30:44,185 --> 00:30:47,118
+phir use koi promotional message nahi jaata.
+
+395
+00:30:53,187 --> 00:30:59,277
+Ask screen par aap apni pharmacy ke baare mein
+seedhi bhaasha mein sawaal poochh sakte hain.
+
+396
+00:30:59,317 --> 00:31:03,541
+Jawaab isi counter ke apne data se, built-in
+rules se aate hain,
+
+397
+00:31:03,581 --> 00:31:06,139
+aur internet na ho tab bhi chalte hain.
+
+398
+00:31:06,894 --> 00:31:11,116
+English mein poochhte hain: What are today's
+total sales?
+
+399
+00:31:11,156 --> 00:31:15,975
+Jawaab mein aaj ki kul bikri, bills ki ginti,
+aur cash, UPI, card
+
+400
+00:31:16,015 --> 00:31:22,031
+aur credit ka hissa aata hai, saath mein yeh bhi
+ki aankde kis data se liye gaye.
+
+401
+00:31:22,781 --> 00:31:25,341
+Ab: Which medicines are running low?
+
+402
+00:31:25,381 --> 00:31:31,551
+Is version ke built-in rules ne yeh phrasing
+nahi samjhi, aur madad wala message diya.
+
+403
+00:31:31,591 --> 00:31:35,379
+Aise mein neeche diye 'Low stock' button ko
+dabaaiye.
+
+404
+00:31:36,137 --> 00:31:38,368
+Which batches are expiring soon?
+
+405
+00:31:38,408 --> 00:31:43,337
+Yeh sawaal bhi galat samjha gaya, ise medicine
+ka naam maan liya gaya.
+
+406
+00:31:43,377 --> 00:31:47,099
+'What expires in 30 days?' button sahi list deta
+hai.
+
+407
+00:31:47,139 --> 00:31:52,706
+Yeh kamiyaan humne QA report mein darj ki hain
+aur code mein theek kar di hain.
+
+408
+00:31:53,483 --> 00:31:56,948
+Ab Hindi mein: Aaj ki total sale kitni hai?
+
+409
+00:31:56,988 --> 00:31:58,659
+Yeh sahi samjha gaya.
+
+410
+00:32:00,463 --> 00:32:02,728
+Kaunsi medicines ka stock kam hai?
+
+411
+00:32:02,768 --> 00:32:09,576
+Yahan bhi is version mein madad wala message
+aata hai; 'Low stock' button se wahi jaankari
+milti hai.
+
+412
+00:32:10,319 --> 00:32:13,921
+Hinglish mein: Is month ka total profit kitna
+hua?
+
+413
+00:32:13,961 --> 00:32:21,496
+Counter ka assistant abhi munaafa nahi batata;
+munaafa 'Reports & GST' mein Gross profit mein
+milta hai.
+
+414
+00:32:21,536 --> 00:32:25,283
+Par is month ki sale poochhein, to jawaab milta
+hai.
+
+415
+00:32:26,064 --> 00:32:29,052
+Aur: Kaun se medicines reorder karne hain?
+
+416
+00:32:29,092 --> 00:32:33,738
+Reorder shabd se assistant reorder level se
+neeche wali medicines
+
+417
+00:32:33,778 --> 00:32:36,261
+aur sujhaai gayi maatra batata hai.
+
+418
+00:32:36,301 --> 00:32:39,866
+Kisi bhi faisle se pehle aankde khud check
+kijiye.
+
+419
+00:32:40,607 --> 00:32:50,929
+Purchase order banaane ke liye Insights screen
+par reorder ki salaah ko Order list mein jodiye;
+list aap khud review karke supplier ko bhejte hain.
+
+420
+00:32:50,969 --> 00:32:53,537
+Upar 'Ask AI' wala assistant bhi hai.
+
+421
+00:32:53,577 --> 00:32:59,177
+Dhyan rahe: Medoro ka AI doctor nahi hai, yeh
+dava ya ilaaj ki salaah nahi deta.
+
+422
+00:33:05,234 --> 00:33:09,507
+Medoro ka counter aapke device par hi apna
+database rakhta hai,
+
+423
+00:33:09,547 --> 00:33:13,547
+isliye internet band hone par bhi billing chalti
+rehti hai.
+
+424
+00:33:13,587 --> 00:33:19,914
+Counter screen par ek Counter PIN set kijiye;
+offline hone par isi PIN se counter khulta hai.
+
+425
+00:33:20,691 --> 00:33:24,075
+Ab is demo browser ka internet band karte hain.
+
+426
+00:33:24,115 --> 00:33:29,103
+Sirf yahi browser offline hoga; baaki koi system
+nahi chheda ja raha.
+
+427
+00:33:29,870 --> 00:33:32,579
+Upar Live ki jagah offline dikhega.
+
+428
+00:33:32,619 --> 00:33:38,942
+Phir bhi bill banaaiye: medicine khojiye, cart
+mein daaliye, Cash chuniye aur F9.
+
+429
+00:33:39,715 --> 00:33:42,667
+Bill ban gaya aur isi device par save ho gaya.
+
+430
+00:33:42,707 --> 00:33:46,504
+Google Drive wale box mein 'Changes waiting'
+badh gaya hai,
+
+431
+00:33:46,544 --> 00:33:50,147
+yaani yeh badlaav upload hone ka intezaar kar
+rahe hain.
+
+432
+00:33:50,919 --> 00:33:53,324
+Ab internet waapas chaalu karte hain.
+
+433
+00:33:53,364 --> 00:33:54,646
+'Sync now' dabaaiye,
+
+434
+00:33:54,686 --> 00:34:00,264
+ya thoda rukiye; badlaav apne-aap encrypted
+hokar Google Drive mein chale jaate hain,
+
+435
+00:34:00,304 --> 00:34:03,436
+aur 'Changes waiting' phir shoonya ho jaata hai.
+
+436
+00:34:04,212 --> 00:34:08,109
+Do counters ne offline rehte ek hi batch bech
+diya ho,
+
+437
+00:34:08,149 --> 00:34:11,901
+to sync ke baad woh batch minus mein dikh sakta
+hai.
+
+438
+00:34:11,941 --> 00:34:17,880
+Stock tab par laal ginti aati hai, aur stock
+count karke use theek kiya jaata hai.
+
+439
+00:34:17,920 --> 00:34:20,432
+Bills kabhi mit'te ya badalte nahi.
+
+440
+00:34:26,487 --> 00:34:32,090
+Medoro Demo Pharmacy ki do branches hain: Main
+Road, do counters ke saath,
+
+441
+00:34:32,130 --> 00:34:34,835
+aur Kanke Road, ek counter ke saath.
+
+442
+00:34:34,875 --> 00:34:39,334
+Branches 'Users & branches' screen se sambhaali
+jaati hain.
+
+443
+00:34:40,107 --> 00:34:46,134
+Yahan nayi branch jod sakte hain aur har branch
+ke counters ki sankhya tay kar sakte hain.
+
+444
+00:34:46,174 --> 00:34:51,056
+Upar branch ka naam badalkar aap kisi bhi branch
+ka data dekh sakte hain.
+
+445
+00:34:51,796 --> 00:34:58,441
+Staff ko branch ke hisaab se joda jaata hai;
+udaaharan ke liye humne Kanke Road ke liye
+pharmacist
+
+446
+00:34:58,481 --> 00:35:00,555
+aur cashier ko invite kiya tha.
+
+447
+00:35:00,595 --> 00:35:03,284
+Permissions hum agle part mein dekhenge.
+
+448
+00:35:04,043 --> 00:35:10,871
+Stock transfer humne Inventory part mein dekha
+tha: batch se maatra chunkar doosri branch ko
+Send.
+
+449
+00:35:10,911 --> 00:35:15,637
+Transfers ka record isi 'Branches & transfers'
+hisse mein rehta hai.
+
+450
+00:35:16,410 --> 00:35:21,739
+Sabhi branches ki ek saath tasveer Owner view
+mein hai: har branch ki aaj
+
+451
+00:35:21,779 --> 00:35:27,548
+aur kal ki bikri, drawers mein cash, low stock
+aur expiry, sab branches jodkar.
+
+452
+00:35:27,588 --> 00:35:30,637
+Yeh screen phone par bhi achhi chalti hai.
+
+453
+00:35:31,412 --> 00:35:36,426
+Dhyan dein: Google Drive wale hosted setup mein
+bills counters par rehte hain,
+
+454
+00:35:36,466 --> 00:35:40,444
+isliye Owner view ke aankde Medoro server ki
+copy se aate hain
+
+455
+00:35:40,484 --> 00:35:47,896
+aur yahan shoonya dikh sakte hain; har counter
+ki asli bikri uske Dashboard par Branch
+performance mein dikhti hai.
+
+456
+00:35:53,958 --> 00:35:59,109
+Users screen par har user ka role, branch,
+two-step verification ki sthiti
+
+457
+00:35:59,149 --> 00:36:02,125
+aur aakhri baar kab active tha, dikhta hai.
+
+458
+00:36:02,883 --> 00:36:06,775
+Naya staff jodne ke liye 'Add employee'
+dabaaiye.
+
+459
+00:36:06,815 --> 00:36:09,182
+Naam, role aur branch chuniye.
+
+460
+00:36:09,222 --> 00:36:13,675
+Counter staff, jaise cashier, pharmacy code,
+employee ID
+
+461
+00:36:13,715 --> 00:36:19,853
+aur PIN se login karte hain; owner aur manager
+password aur authenticator se.
+
+462
+00:36:20,633 --> 00:36:26,297
+'Roles & permissions' mein har role ke adhikaar
+tay hote hain: Owner, Manager,
+
+463
+00:36:26,337 --> 00:36:29,587
+Pharmacist, Cashier, Accountant aur Delivery.
+
+464
+00:36:29,627 --> 00:36:34,998
+Jaise cashier bill bana sakta hai, par purchase
+ya report nahi dekh sakta,
+
+465
+00:36:35,038 --> 00:36:38,435
+aur discount ki seema bhi role se tay hoti hai.
+
+466
+00:36:39,206 --> 00:36:44,548
+Owner upar 'View as' se dekh sakta hai ki kisi
+role ko screen kaisi dikhti hai.
+
+467
+00:36:44,588 --> 00:36:51,701
+Jaise 'View as Cashier' chunne par sidebar mein
+sirf wahi options bachte hain jo cashier ke kaam
+ke hain.
+
+468
+00:36:52,453 --> 00:36:59,020
+Audit trail mein har zaroori kaam ka record hai:
+kisne, kab, kya badla, jaise login,
+
+469
+00:36:59,060 --> 00:37:02,638
+sign-up, user invite ya settings mein badlaav.
+
+470
+00:37:02,678 --> 00:37:04,683
+Ise mitaaya nahi ja sakta.
+
+471
+00:37:05,434 --> 00:37:10,798
+Counter par har user ka kaam Activity screen par
+bhi dikhta hai: kaunsa bill,
+
+472
+00:37:10,838 --> 00:37:12,904
+kaunsa payment, kisne banaaya.
+
+473
+00:37:12,944 --> 00:37:18,379
+Login security ke liye two-step verification,
+paanch galat koshishon par lock,
+
+474
+00:37:18,419 --> 00:37:23,573
+aur 'Profile & sessions' se baaki devices ko
+sign out karne ka vikalp hai.
+
+475
+00:37:29,630 --> 00:37:32,927
+Medoro mein aapki pharmacy ka data aapka hai.
+
+476
+00:37:32,967 --> 00:37:36,338
+Bills, stock aur customers aapke counters par,
+
+477
+00:37:36,378 --> 00:37:39,600
+aur aapke apne Google Drive mein rehte hain,
+
+478
+00:37:39,640 --> 00:37:43,086
+us key se encrypt hokar jo sirf aapke paas hai.
+
+479
+00:37:43,126 --> 00:37:47,831
+Medoro ke paas sirf aapka account aur devices ki
+list rehti hai.
+
+480
+00:37:48,588 --> 00:37:52,611
+Counter har badlaav kuch seconds mein Drive mein
+bhejta hai,
+
+481
+00:37:52,651 --> 00:37:54,981
+aur samay-samay par poori copy bhi.
+
+482
+00:37:55,021 --> 00:37:58,841
+Yeh files Drive ke hidden app data hisse mein
+rehti hain.
+
+483
+00:37:58,881 --> 00:38:02,091
+Is demo server par asli Google sign-in nahi hai,
+
+484
+00:38:02,131 --> 00:38:05,951
+isliye Google Drive ka test version istemaal ho
+raha hai.
+
+485
+00:38:06,721 --> 00:38:09,620
+Restore: naya ya reset kiya hua counter,
+
+486
+00:38:09,660 --> 00:38:15,571
+Drive recovery code se sab kuch waapas le aata
+hai, har medicine, batch, customer
+
+487
+00:38:15,611 --> 00:38:16,232
+aur bill.
+
+488
+00:38:16,272 --> 00:38:16,820
+Yeh code
+
+489
+00:38:16,860 --> 00:38:23,873
+aur sign-up wali recovery kit offline
+sambhaalkar rakhiye; Medoro inhein recover nahi
+kar sakta.
+
+490
+00:38:23,913 --> 00:38:27,546
+Video mein koi key ya code nahi dikhaaya gaya
+hai.
+
+491
+00:38:28,293 --> 00:38:31,310
+'Privacy & data' screen par data controls hain.
+
+492
+00:38:31,350 --> 00:38:36,188
+Strict customer-controlled mode mein customers
+ke mobile numbers sirf owner
+
+493
+00:38:36,228 --> 00:38:38,335
+aur manager ko poore dikhte hain,
+
+494
+00:38:38,375 --> 00:38:42,107
+aur export mein number tabhi jaata hai jab
+kaaran darj ho.
+
+495
+00:38:42,860 --> 00:38:46,428
+Yahin se aap apna poora data export kar sakte
+hain,
+
+496
+00:38:46,468 --> 00:38:50,743
+aur zaroorat ho to kisi customer ka data mita
+bhi sakte hain.
+
+497
+00:38:50,783 --> 00:38:56,755
+Integration health screen batata hai ki kya juda
+hai, kya test hua, aur kya fail hua.
+
+498
+00:39:02,835 --> 00:39:06,976
+'Reports & GST' screen par 'Sales and profit'
+report hai.
+
+499
+00:39:07,016 --> 00:39:12,624
+From aur To taareekh chuniye; har din ke bills,
+bikri aur munaafa dikhta hai,
+
+500
+00:39:12,664 --> 00:39:16,218
+aur CSV button se poori report download hoti
+hai.
+
+501
+00:39:16,959 --> 00:39:20,618
+Best sellers mein sabse zyaada bikne wali
+medicines hain,
+
+502
+00:39:20,658 --> 00:39:24,252
+aur 'Expiring in 90 days' mein aane wali expiry
+ki list.
+
+503
+00:39:25,003 --> 00:39:30,301
+Insights screen mein gehra analysis hai: har
+medicine ki bikri ka forecast,
+
+504
+00:39:30,341 --> 00:39:36,422
+reorder ki salaah, dheemi ya bilkul na bikne
+wali dead stock, stock in hand ki keemat,
+
+505
+00:39:36,462 --> 00:39:37,276
+aur margins.
+
+506
+00:39:38,048 --> 00:39:43,254
+Audit anomalies mein owner ke liye sanket hain,
+jaise raat mein bane bills,
+
+507
+00:39:43,294 --> 00:39:45,562
+zyaada discount ya bahut refunds.
+
+508
+00:39:45,602 --> 00:39:49,759
+Yeh galti ka saboot nahi, sirf jaanchne laayak
+baatein hain.
+
+509
+00:39:50,537 --> 00:39:55,440
+Customer outstanding Customers screen par,
+supplier outstanding Accounts mein,
+
+510
+00:39:55,480 --> 00:39:57,531
+GST reports 'Reports & GST' mein,
+
+511
+00:39:57,571 --> 00:40:01,651
+aur branch report dashboard ke Branch
+performance mein milti hai.
+
+512
+00:40:07,719 --> 00:40:12,334
+Medoro ka saat din ka free trial bina card ke
+shuru hota hai.
+
+513
+00:40:12,374 --> 00:40:16,303
+Plans aur keematein medoro.in par Pricing mein
+hain.
+
+514
+00:40:16,343 --> 00:40:17,906
+Yeh live website hai.
+
+515
+00:40:18,666 --> 00:40:23,783
+Plans ki tulna kijiye: branches, counters, users
+aur add-ons.
+
+516
+00:40:23,823 --> 00:40:28,094
+Sahi plan apni dukaan ke size ke hisaab se
+chuniye.
+
+517
+00:40:28,838 --> 00:40:34,754
+App ke andar Subscription screen par aapka plan,
+usmein kya shaamil hai, aur payments
+
+518
+00:40:34,794 --> 00:40:36,996
+aur Medoro invoices dikhte hain.
+
+519
+00:40:37,036 --> 00:40:41,060
+Yeh demo server Medoro ke licence server se juda
+nahi hai,
+
+520
+00:40:41,100 --> 00:40:44,564
+isliye yahan trial ki jagah Self-hosted likha
+hai.
+
+521
+00:40:45,319 --> 00:40:50,880
+Upgrade ya renew ke liye 'Renew or pay' mein UPI
+ya card se bhugtaan hota hai.
+
+522
+00:40:50,920 --> 00:40:54,471
+Is video mein koi asli payment nahi kiya gaya
+hai.
+
+523
+00:40:54,511 --> 00:41:02,299
+Cancel karna ho to Medoro support se baat
+kijiye; aapka data aapke Google Drive mein aapke
+paas hi rehta hai.
+
+524
+00:41:08,375 --> 00:41:11,410
+Medoro poora Hindi mein bhi chalta hai.
+
+525
+00:41:11,450 --> 00:41:13,934
+Upar EN aur Hindi ka switch hai.
+
+526
+00:41:13,974 --> 00:41:15,747
+Hindi par click kijiye.
+
+527
+00:41:16,500 --> 00:41:21,110
+Ab sidebar, dashboard, button aur messages, sab
+Hindi mein hain.
+
+528
+00:41:21,150 --> 00:41:25,977
+Medicines ke naam aur bill par zaroori jaankari
+waisi hi rehti hai.
+
+529
+00:41:26,740 --> 00:41:29,341
+Billing screen bhi Hindi mein dekhiye.
+
+530
+00:41:29,381 --> 00:41:35,456
+Har user apni bhaasha alag chun sakta hai; yeh
+pasand usi ke account par yaad rehti hai.
+
+531
+00:41:36,217 --> 00:41:42,413
+Ask screen par Hindi ya Hinglish mein sawaal
+poochhiye, jaise: Aaj ki total sale kitni hai?
+
+532
+00:41:44,712 --> 00:41:47,661
+Waapas English ke liye EN par click kijiye.
+
+533
+00:41:47,701 --> 00:41:51,762
+Sign-up ke samay bhi interface language chuni ja
+sakti hai.
+
+534
+00:41:57,837 --> 00:41:59,872
+Ab ek poora din dekhte hain.
+
+535
+00:41:59,912 --> 00:42:05,652
+Subah owner login karta hai aur dashboard par
+kal ki bikri, bakaaya, low stock
+
+536
+00:42:05,692 --> 00:42:07,282
+aur expiry dekhta hai.
+
+537
+00:42:08,041 --> 00:42:11,665
+Stock mein low stock aur expiry check hoti hai.
+
+538
+00:42:11,705 --> 00:42:13,224
+Montidem LC kam hai.
+
+539
+00:42:15,054 --> 00:42:18,204
+Gyaarah baje Birsa Healthcare se maal aata hai.
+
+540
+00:42:18,244 --> 00:42:23,499
+Purchase bill type karke save karte hi GRN banta
+hai aur stock badh jaata hai.
+
+541
+00:42:27,731 --> 00:42:29,987
+Dopahar mein customer aata hai.
+
+542
+00:42:30,027 --> 00:42:36,504
+Staff search box mein medicine khojta hai,
+customer ka mobile daalta hai, UPI chunta hai
+
+543
+00:42:36,544 --> 00:42:38,429
+aur F9 se bill banata hai.
+
+544
+00:42:41,221 --> 00:42:46,564
+Invoice print hota hai, ya WhatsApp juda ho to
+customer ko bheja jaata hai.
+
+545
+00:42:46,604 --> 00:42:48,359
+Stock apne-aap ghat gaya.
+
+546
+00:42:49,107 --> 00:42:52,438
+Shaam ko ek customer sealed strip waapas karta
+hai.
+
+547
+00:42:52,478 --> 00:42:56,339
+Bills screen se bill dhoondhkar return aur
+refund hota hai.
+
+548
+00:42:59,259 --> 00:43:05,064
+Din ke ant mein owner revenue, munaafa aur
+kharch dekhta hai, day-end chhaapta hai,
+
+549
+00:43:05,104 --> 00:43:08,022
+aur reports apne accountant ko bhejta hai.
+
+550
+00:43:08,062 --> 00:43:10,698
+Yahi hai Medoro ke saath ek poora din.
+
+551
+00:43:16,765 --> 00:43:20,236
+To yeh tha Medoro Pharmacy ka poora tour.
+
+552
+00:43:20,276 --> 00:43:27,174
+Billing, inventory, purchase, GST, accounts aur
+AI assistant, sab ek jagah, Hindi
+
+553
+00:43:27,214 --> 00:43:29,058
+aur English dono mein.
+
+554
+00:43:29,820 --> 00:43:36,382
+Medical store owner ke liye iska matlab hai: tez
+billing, FEFO se kam expiry ka nuksaan,
+
+555
+00:43:36,422 --> 00:43:39,457
+samay par GST reports, bakaaye par nazar,
+
+556
+00:43:39,497 --> 00:43:43,883
+aur data jo hamesha aapke apne Google Drive mein
+rehta hai.
+
+557
+00:43:44,636 --> 00:43:50,207
+Aaj hi medoro.in par jaaiye aur 'Start 7-day
+free trial' par click kijiye.
+
+558
+00:43:50,247 --> 00:43:51,875
+Koi card nahi chahiye.
+
+559
+00:43:52,636 --> 00:43:57,802
+Demo chahiye to 'Book a demo' se WhatsApp par
+Medoro team se baat kijiye.
+
+560
+00:43:57,842 --> 00:44:01,795
+Dhanyavaad, aur aapki pharmacy ke liye
+shubhkaamnaayein!

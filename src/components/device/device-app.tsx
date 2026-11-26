@@ -46,8 +46,13 @@ function EmptyState({ render, ready }: { render: (ready: (cfg: Cfg) => void) => 
  * The whole Drive mode counter, on the device's own database. Online (signed in) it gets `who` from the
  * server; offline (/device) it uses the device's saved user and asks for the counter PIN.
  */
-export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab = "bill" }: {
+export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab = "bill", pharmacyBranches }: {
   who?: Who;
+  /**
+   * Signed in: every branch id of the signed-in pharmacy. A browser holds one device database; if it belongs to another
+   * pharmacy (someone else used this browser profile), it isn't opened, so one pharmacy never sees another's records.
+   */
+  pharmacyBranches?: readonly string[];
   /** The tab to open on, e.g. "dash" when the sidebar's Dashboard is clicked. */
   initialTab?: Tab;
   /** Shown when this device has no pharmacy yet (online only: load catalogue / restore from Drive). */
@@ -59,7 +64,8 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
   const toast = useToast();
   const t = useT();
   const dev = deviceDb();
-  const [state, setState] = useState<"opening" | "empty" | "locked" | "ready" | "error">("opening");
+  const [state, setState] = useState<"opening" | "empty" | "locked" | "ready" | "error" | "foreign">("opening");
+  const [foreignName, setForeignName] = useState("");
   const [err, setErr] = useState("");
   const [cfg, setCfg] = useState<Cfg | null>(null);
   const [tabState, setTabState] = useState<Tab>(initialTab);
@@ -102,13 +108,23 @@ export function DeviceApp({ who: online, empty, side, settingsExtra, initialTab 
         await dev.call("open", deviceId());
         const c = await dev.call("config");
         if (!c) { setState("empty"); return; }
+        if (pharmacyBranches?.length && !pharmacyBranches.includes(c.branchId) && !c.branches.some((b) => pharmacyBranches.includes(b.id))) {
+          setForeignName(c.pharmacy?.tradeName ?? ""); setState("foreign"); return;
+        }
         ready(c);
       } catch (e) { setErr(errText(e)); setState("error"); }
     })();
-  }, [dev, ready]);
+  }, [dev, ready, pharmacyBranches]);
 
   if (state === "opening") return <div className={card}>{t("Opening this device’s database…")}</div>;
   if (state === "error") return <div className={card}><div className="text-bad text-sm">{t("This browser can’t run the device database: {err}", { err })}</div><div className="text-sm text-muted">{t("Use a current Chrome or Edge.")}</div></div>;
+  if (state === "foreign") return (
+    <div className={`${card} max-w-xl`} data-testid="device-foreign">
+      <div className="flex items-center gap-2 font-semibold"><Lock size={18} className="text-teal" />{t("This browser holds another pharmacy’s counter")}</div>
+      <div className="text-sm text-muted">{foreignName ? t("The records on this browser belong to {name}, not to the pharmacy you’re signed in to. They aren’t shown, to keep both pharmacies’ records apart.", { name: foreignName }) : t("The records on this browser belong to another pharmacy, not to the one you’re signed in to. They aren’t shown, to keep both pharmacies’ records apart.")}</div>
+      <div className="text-sm text-muted">{t("Sign in to that pharmacy to use them, or bill for this pharmacy from another browser profile or computer.")}</div>
+    </div>
+  );
   if (state === "empty") return empty ? <EmptyState render={empty} ready={ready} /> : <div className={card}>{t("This device has no pharmacy data yet. Connect to the internet and sign in to Medoro to set it up.")}</div>;
   if (!cfg) return null;
 

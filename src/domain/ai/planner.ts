@@ -171,7 +171,8 @@ export function rulePlan(raw: string, lang: "en" | "hi", month: number, year = n
   if (/(purchase order|draft po|\bpo\b|order bana|order taiyar|खरीद आदेश|परचेज ऑर्डर|ऑर्डर बना|पीओ)/.test(l)) return { kind: "tool", tool: "create_draft_purchase_order", input: {} };
 
   // Batches of a medicine
-  if (/(batch|बैच)/.test(l)) {
+  // "Which batches are expiring soon?" is an expiry question, not a lookup of a medicine called "expiring soon".
+  if (/(batch|बैच)/.test(l) && !/(expir|एक्सपायर)/.test(l)) {
     const { branch, rest } = branchOf(l);
     const query = rest.replace(STOP, " ").replace(/\s+/g, " ").trim();
     if (query.length < 2) return ask("Batches of which medicine? For example: “batches of Dolo 650”.", "Kis dawai ke batch? Jaise: “Dolo 650 ke batch dikhao”.", "किस दवा के बैच? जैसे: “Dolo 650 के बैच दिखाओ”।");
@@ -182,7 +183,7 @@ export function rulePlan(raw: string, lang: "en" | "hi", month: number, year = n
     const m = MONTHS.find(([r]) => r.test(l));
     return { kind: "tool", tool: "get_seasonal_forecast", input: { month: m ? m[1] : (month + 1) % 12 } };
   }
-  if (/(reorder|low stock|kam stock|khatam|order karna|running out|out of stock|कम स्टॉक|ख़?खत्म|रीऑर्डर)/.test(l)) return { kind: "tool", tool: "get_low_stock_report", input: {} };
+  if (/(reorder|low stock|kam stock|khatam|order karna|running out|running low|low on stock|out of stock|stock (?:\S+ )?kam|कम स्टॉक|स्टॉक (?:\S+ )?कम|ख़?खत्म|रीऑर्डर)/.test(l)) return { kind: "tool", tool: "get_low_stock_report", input: {} };
   if (/(expir|expire|kharab hone|एक्सपायर|समाप्त)/.test(l)) {
     const d = l.match(/(\d{1,3})\s*(din|days?|d\b|दिन)/);
     return { kind: "tool", tool: "get_expiry_report", input: { days: d ? Math.min(365, Math.max(1, +d[1])) : 30 } };

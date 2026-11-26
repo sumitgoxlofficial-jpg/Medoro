@@ -31,7 +31,8 @@ export function splitQty(units: number, packSize: number) {
   return { sign: s, packs: Math.floor(a / Math.max(1, packSize)), loose: a % Math.max(1, packSize) };
 }
 
-const plural = (n: number, w: string) => (n === 1 || !w || /s$/i.test(w) ? w : w + "s");
+// English plural of a pack word: box → boxes, pouch → pouches, strip → strips (words already plural stay as they are).
+const plural = (n: number, w: string) => (n === 1 || !w || /s$/i.test(w) ? w : /(x|ch|sh)$/i.test(w) ? w + "es" : w + "s");
 
 /** "3 strips + 2 tabs" for a stock-unit quantity; plain "47" for medicines kept in packs. */
 export function fmtQty(units: number, m: Pick<PackDef, "packSize" | "packUnit" | "looseUnit">): string {

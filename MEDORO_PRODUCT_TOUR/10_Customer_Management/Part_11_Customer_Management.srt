@@ -1,0 +1,85 @@
+1
+00:00:08,852 --> 00:00:13,858
+Customers screen par aapke saare customers hain,
+unke bakaaya ke saath.
+
+2
+00:00:13,898 --> 00:00:16,630
+Upar naam ya mobile se khoj sakte hain.
+
+3
+00:00:17,409 --> 00:00:21,360
+Naya customer jodne ke liye 'Add customer'
+dabaaiye.
+
+4
+00:00:21,400 --> 00:00:25,427
+Naam, mobile, aur business customer ho to uska
+GSTIN.
+
+5
+00:00:25,467 --> 00:00:31,106
+Credit limit tay karti hai ki customer adhiktam
+kitna udhaar le sakta hai.
+
+6
+00:00:31,850 --> 00:00:36,690
+WhatsApp par offers bhejne se pehle customer ki
+anumati zaroori hai.
+
+7
+00:00:36,730 --> 00:00:39,991
+Customer haan kahe, tabhi yeh box tick kijiye.
+
+8
+00:00:40,031 --> 00:00:44,943
+Yeh consent record mein rehta hai aur kabhi bhi
+hataaya ja sakta hai.
+
+9
+00:00:45,684 --> 00:00:50,955
+Jin customers par udhaar baaki hai, unke aage
+bakaaya rakam dikhti hai.
+
+10
+00:00:50,995 --> 00:00:54,695
+Receive se payment lijiye, cash, UPI ya card
+mein.
+
+11
+00:00:54,735 --> 00:00:57,987
+Remind se WhatsApp par yaad dila sakte hain,
+
+12
+00:00:58,027 --> 00:01:02,101
+aur Pay link se online payment ka link bhej
+sakte hain.
+
+13
+00:01:02,861 --> 00:01:08,006
+Rakesh ji ne apne udhaar mein se paanch sau
+rupaye UPI se jama kiye.
+
+14
+00:01:08,046 --> 00:01:12,353
+Receive dabaakar amount aur mode chuniye aur
+save kijiye.
+
+15
+00:01:12,393 --> 00:01:15,022
+Unka bakaaya turant ghat jaata hai.
+
+16
+00:01:15,779 --> 00:01:19,227
+Dhyan dein: is device counter par poora customer
+ledger
+
+17
+00:01:19,267 --> 00:01:24,808
+aur statement alag screen par nahi hai; bakaaya
+aur payments yahin Customers screen par,
+
+18
+00:01:24,848 --> 00:01:29,501
+aur har bill Bills screen par customer ke naam
+ya mobile se mil jaata hai.

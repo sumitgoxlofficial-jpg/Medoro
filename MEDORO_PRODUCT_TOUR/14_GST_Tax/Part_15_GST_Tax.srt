@@ -1,0 +1,74 @@
+1
+00:00:08,850 --> 00:00:12,913
+Medicine ki MRP mein GST pehle se shaamil hota
+hai.
+
+2
+00:00:12,953 --> 00:00:17,258
+Medoro har bill par MRP se taxable value
+nikaalta hai,
+
+3
+00:00:17,298 --> 00:00:24,258
+aur Jharkhand ke andar ki bikri par GST ko CGST
+aur SGST mein aadha-aadha baant'ta hai.
+
+4
+00:00:24,298 --> 00:00:28,522
+Doosre rajya ke GST wale customer par IGST lagta
+hai.
+
+5
+00:00:29,273 --> 00:00:34,466
+Har medicine ka HSN code aur GST rate uske
+master mein rehta hai,
+
+6
+00:00:34,506 --> 00:00:36,801
+jaise medicines ke liye 3004.
+
+7
+00:00:36,841 --> 00:00:41,470
+'Reports & GST' screen par GST returns wala
+hissa dekhiye.
+
+8
+00:00:42,223 --> 00:00:43,902
+GST month chuniye.
+
+9
+00:00:43,942 --> 00:00:50,875
+Medoro us mahine ke bills se GSTR-1 banata hai:
+B2B, B2C aur HSN summary,
+
+10
+00:00:50,915 --> 00:00:55,077
+section-wise taxable value aur tax ke saath.
+
+11
+00:00:55,846 --> 00:01:03,210
+Yahan se GSTR-1 JSON, jo GST portal ke offline
+tool mein jaata hai, HSN summary CSV,
+
+12
+00:01:03,250 --> 00:01:07,352
+aur GSTR-3B ke JSON aur CSV download hote hain.
+
+13
+00:01:08,113 --> 00:01:12,476
+Bahut zaroori: yeh reports filing mein madad ke
+liye hain.
+
+14
+00:01:12,516 --> 00:01:19,005
+GST return file karne se pehle inhein apne
+accountant ya CA se zaroor check karvaaiye.
+
+15
+00:01:19,045 --> 00:01:22,725
+Tally export is counter par uplabdh nahi hai;
+CSV
+
+16
+00:01:22,765 --> 00:01:26,065
+aur JSON exports aapke CA ke kaam aate hain.

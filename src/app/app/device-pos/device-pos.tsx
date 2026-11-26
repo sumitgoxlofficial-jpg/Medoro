@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { deviceDb } from "@/drivedb/device";
+import { deviceDb, deviceId } from "@/drivedb/device";
 import { dayMonth, hhmm } from "@/lib/dates";
 import { DeviceApp, type Tab } from "@/components/device/device-app";
 import { card, input, errText, type Cfg, type Who } from "@/components/device/ui";
@@ -17,8 +17,10 @@ import { aiGatewayStatusAction, aiStepAction, counterCancelIrnAction, counterIrn
 import { useOnChange } from "@/lib/react-state";
 
 /** Signed-in Drive mode counter: the device app, plus first-time setup and Google Drive for the owner. */
-export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab, tabs }: { tabs?: readonly string[]; userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab }) {
-  const conn = useDriveConnect(drive);
+export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, fresh = false, mustMove = false, driveResult = null, tab, tabs, pharmacyBranches }: { tabs?: readonly string[]; userId: string; userName: string; owner: boolean; canCredit: boolean; discCap: number; drive: boolean; fresh?: boolean; mustMove?: boolean; driveResult?: string | null; tab?: Tab; pharmacyBranches: readonly string[] }) {
+  // A database on this browser that belongs to another pharmacy is never registered or synced for this one.
+  const foreign = useForeignDevice(pharmacyBranches);
+  const conn = useDriveConnect(drive && foreign === false);
   const t = useT();
   const [paying, setPaying] = useState(false);
   const [ai, setAi] = useState<{ remote: boolean; remoteNames: boolean } | null>(null);
@@ -37,6 +39,7 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     {mustMove && owner && drive && conn.access?.status === "approved" && <PilotDeviceMove userId={userId} />}
     <DeviceApp
       who={who}
+      pharmacyBranches={pharmacyBranches}
       initialTab={tab}
       empty={(ready) => <Setup owner={owner} userId={userId} drive={drive} access={conn.access} ready={ready} fresh={fresh} mustMove={mustMove} />}
       side={drive ? <>{owner && conn.access?.status === "approved" && <FinishMove />}<DrivePanel access={conn.access} error={conn.error} /></> : owner ? <div className="text-[13px] text-muted">{t("Connect Google Drive on the Backup page to keep this device’s data safe in your Drive and add more counters.")}</div> : null}
@@ -44,6 +47,24 @@ export function DevicePos({ userId, userName, owner, canCredit, discCap, drive, 
     />
     </DriveGate>
   );
+}
+
+/** Does this browser's device database belong to another pharmacy? null while checking. */
+function useForeignDevice(branches: readonly string[]) {
+  const [foreign, setForeign] = useState<boolean | null>(null);
+  useEffect(() => {
+    let stop = false;
+    const dev = deviceDb();
+    void (async () => {
+      try {
+        await dev.call("open", deviceId());
+        const c = await dev.call("config");
+        if (!stop) setForeign(!!c && !branches.includes(c.branchId) && !c.branches.some((b) => branches.includes(b.id)));
+      } catch { if (!stop) setForeign(false); } // no device database here: nothing to keep apart
+    })();
+    return () => { stop = true; };
+  }, [branches]);
+  return foreign;
 }
 
 /**

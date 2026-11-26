@@ -103,7 +103,9 @@ function ShellInner(p: ShellProps) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
-      if (e.key === "F2" && READY.has("pos") && p.perms.includes("sale")) { e.preventDefault(); router.push("/app/pos?focus=1"); }
+      // On the device counter, F2 belongs to its own search box (src/components/device/billing.tsx): don't leave the page.
+      const onCounter = window.location.pathname.startsWith("/app/device-pos") || window.location.pathname.startsWith("/dist/device");
+      if (e.key === "F2" && !onCounter && READY.has("pos") && p.perms.includes("sale")) { e.preventDefault(); router.push("/app/pos?focus=1"); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && showAi) { e.preventDefault(); setAiOpen((x) => !x); }
       else if (e.key === "Escape" && drawer) setDrawer(false);
       else if (e.key === "Escape" && aiOpen && narrow) setAiOpen(false);

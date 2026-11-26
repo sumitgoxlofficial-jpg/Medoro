@@ -1,0 +1,2 @@
+# Large video files are delivered in the session workspace, not committed to git.
+*.mp4

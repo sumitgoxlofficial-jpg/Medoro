@@ -22,12 +22,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
   const google = g ? { name: g.name ?? "", email: g.email } : null;
   // Google first: the pharmacy form opens after Google (name and email filled in), or when they choose email instead.
   const sp = await searchParams;
-  const choose = !google && googleLoginConfigured() && sp.with !== "email";
+  let choose = !google && googleLoginConfigured() && sp.with !== "email";
   // A referral code from a partner's link (?ref= here, or the cookie /trial set) is filled in for them.
   const referral = (sp.ref ?? (await cookies()).get("medoro_ref")?.value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
   // Sign-up with email: the address is confirmed with a code before the pharmacy form opens.
   const verifiedEmail = google ? null : await readVerifiedEmail();
-  const needCode = !choose && !google && !verifiedEmail && mailEnabled();
+  // The pharmacy was just created (signupAction cleared the confirmed-email cookie and opened a session that still
+  // needs two-step setup): keep the wizard on screen so it can show the Done step, instead of the email step again.
+  const pending = google || verifiedEmail ? null : await readSession(true);
+  const justSignedUp = !!pending && !pending.mfaPassed && pending.device === "Sign-up" && Date.now() - pending.createdAt.getTime() < 10 * 60_000;
+  if (justSignedUp) choose = false;
+  const needCode = !choose && !google && !verifiedEmail && !justSignedUp && mailEnabled();
   // No restoring an old Medoro backup here: each pharmacy's data lives in its own Google Drive, not on Medoro's server.
   if (sp.restore === "1") redirect("/signup");
   const t = await getT();

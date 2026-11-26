@@ -1,0 +1,167 @@
+1
+00:00:08,850 --> 00:00:14,453
+Medoro Demo Pharmacy ki do branches hain: Main
+Road, do counters ke saath,
+
+2
+00:00:14,493 --> 00:00:17,198
+aur Kanke Road, ek counter ke saath.
+
+3
+00:00:17,238 --> 00:00:21,697
+Branches 'Users & branches' screen se sambhaali
+jaati hain.
+
+4
+00:00:22,470 --> 00:00:28,497
+Yahan nayi branch jod sakte hain aur har branch
+ke counters ki sankhya tay kar sakte hain.
+
+5
+00:00:28,537 --> 00:00:33,418
+Upar branch ka naam badalkar aap kisi bhi branch
+ka data dekh sakte hain.
+
+6
+00:00:34,159 --> 00:00:40,804
+Staff ko branch ke hisaab se joda jaata hai;
+udaaharan ke liye humne Kanke Road ke liye
+pharmacist
+
+7
+00:00:40,844 --> 00:00:42,918
+aur cashier ko invite kiya tha.
+
+8
+00:00:42,958 --> 00:00:45,647
+Permissions hum agle part mein dekhenge.
+
+9
+00:00:46,406 --> 00:00:53,234
+Stock transfer humne Inventory part mein dekha
+tha: batch se maatra chunkar doosri branch ko
+Send.
+
+10
+00:00:53,274 --> 00:00:58,000
+Transfers ka record isi 'Branches & transfers'
+hisse mein rehta hai.
+
+11
+00:00:58,773 --> 00:01:04,102
+Sabhi branches ki ek saath tasveer Owner view
+mein hai: har branch ki aaj
+
+12
+00:01:04,142 --> 00:01:09,911
+aur kal ki bikri, drawers mein cash, low stock
+aur expiry, sab branches jodkar.
+
+13
+00:01:09,951 --> 00:01:13,000
+Yeh screen phone par bhi achhi chalti hai.
+
+14
+00:01:13,775 --> 00:01:18,789
+Dhyan dein: Google Drive wale hosted setup mein
+bills counters par rehte hain,
+
+15
+00:01:18,829 --> 00:01:22,807
+isliye Owner view ke aankde Medoro server ki
+copy se aate hain
+
+16
+00:01:22,847 --> 00:01:30,259
+aur yahan shoonya dikh sakte hain; har counter
+ki asli bikri uske Dashboard par Branch
+performance mein dikhti hai.
+
+17
+00:01:36,321 --> 00:01:41,472
+Users screen par har user ka role, branch,
+two-step verification ki sthiti
+
+18
+00:01:41,512 --> 00:01:44,488
+aur aakhri baar kab active tha, dikhta hai.
+
+19
+00:01:45,246 --> 00:01:49,138
+Naya staff jodne ke liye 'Add employee'
+dabaaiye.
+
+20
+00:01:49,178 --> 00:01:51,545
+Naam, role aur branch chuniye.
+
+21
+00:01:51,585 --> 00:01:56,038
+Counter staff, jaise cashier, pharmacy code,
+employee ID
+
+22
+00:01:56,078 --> 00:02:02,216
+aur PIN se login karte hain; owner aur manager
+password aur authenticator se.
+
+23
+00:02:02,996 --> 00:02:08,660
+'Roles & permissions' mein har role ke adhikaar
+tay hote hain: Owner, Manager,
+
+24
+00:02:08,700 --> 00:02:11,950
+Pharmacist, Cashier, Accountant aur Delivery.
+
+25
+00:02:11,990 --> 00:02:17,361
+Jaise cashier bill bana sakta hai, par purchase
+ya report nahi dekh sakta,
+
+26
+00:02:17,401 --> 00:02:20,798
+aur discount ki seema bhi role se tay hoti hai.
+
+27
+00:02:21,569 --> 00:02:26,911
+Owner upar 'View as' se dekh sakta hai ki kisi
+role ko screen kaisi dikhti hai.
+
+28
+00:02:26,951 --> 00:02:34,064
+Jaise 'View as Cashier' chunne par sidebar mein
+sirf wahi options bachte hain jo cashier ke kaam
+ke hain.
+
+29
+00:02:34,816 --> 00:02:41,383
+Audit trail mein har zaroori kaam ka record hai:
+kisne, kab, kya badla, jaise login,
+
+30
+00:02:41,423 --> 00:02:45,001
+sign-up, user invite ya settings mein badlaav.
+
+31
+00:02:45,041 --> 00:02:47,046
+Ise mitaaya nahi ja sakta.
+
+32
+00:02:47,797 --> 00:02:53,161
+Counter par har user ka kaam Activity screen par
+bhi dikhta hai: kaunsa bill,
+
+33
+00:02:53,201 --> 00:02:55,267
+kaunsa payment, kisne banaaya.
+
+34
+00:02:55,307 --> 00:03:00,742
+Login security ke liye two-step verification,
+paanch galat koshishon par lock,
+
+35
+00:03:00,782 --> 00:03:05,936
+aur 'Profile & sessions' se baaki devices ko
+sign out karne ka vikalp hai.

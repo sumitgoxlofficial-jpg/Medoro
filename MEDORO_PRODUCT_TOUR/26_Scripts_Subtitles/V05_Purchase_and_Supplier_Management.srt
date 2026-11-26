@@ -1,0 +1,267 @@
+1
+00:00:08,850 --> 00:00:10,950
+Distributor se maal aaya hai.
+
+2
+00:00:10,990 --> 00:00:17,812
+Purchases screen par supplier ka bill do tarah
+se daal sakte hain: bill ki file upload karke,
+
+3
+00:00:17,852 --> 00:00:19,510
+ya haath se type karke.
+
+4
+00:00:19,550 --> 00:00:21,502
+Abhi hum bill type karenge.
+
+5
+00:00:22,245 --> 00:00:23,522
+Supplier chuniye.
+
+6
+00:00:23,562 --> 00:00:26,929
+Naya supplier ho to naam likhkar Add kijiye.
+
+7
+00:00:26,969 --> 00:00:31,421
+Phir supplier ka bill number aur bill ki
+taareekh daaliye.
+
+8
+00:00:32,188 --> 00:00:33,460
+Ab items jodiye.
+
+9
+00:00:33,500 --> 00:00:40,348
+Medicine khojiye, aur har line par batch number,
+expiry, packs ki ginti, free packs,
+
+10
+00:00:40,388 --> 00:00:43,382
+GST se pehle ki rate aur MRP bhariye.
+
+11
+00:00:43,422 --> 00:00:48,793
+Yeh wahi nayi medicine hai jo humne pichhle part
+mein banaayi thi.
+
+12
+00:00:49,544 --> 00:00:52,617
+Doosri line: Paracip 650 ka naya batch.
+
+13
+00:00:52,657 --> 00:00:56,608
+Free packs ka matlab scheme mein mili muft
+strips,
+
+14
+00:00:56,648 --> 00:01:00,679
+jo stock mein judti hain par unka paisa nahi
+lagta.
+
+15
+00:01:01,422 --> 00:01:05,499
+Neeche bill ka total GST sahit apne-aap banta
+hai.
+
+16
+00:01:05,539 --> 00:01:09,121
+GST har medicine ke GST rate se nikalta hai.
+
+17
+00:01:09,161 --> 00:01:15,378
+Supplier ke bill se total milaaiye, phir 'Save
+bill and add stock' dabaaiye.
+
+18
+00:01:15,418 --> 00:01:18,672
+Yahi aapka goods receipt, yaani GRN hai.
+
+19
+00:01:19,426 --> 00:01:23,634
+Stock turant badh gaya, naye batch aur expiry ke
+saath.
+
+20
+00:01:23,674 --> 00:01:26,879
+Supplier ka bakaaya bhi apne-aap jud gaya.
+
+21
+00:01:27,890 --> 00:01:31,346
+Supplier ko payment Accounts screen se hota hai.
+
+22
+00:01:31,386 --> 00:01:35,643
+'Suppliers to pay' mein har supplier ka bakaaya
+dikhta hai.
+
+23
+00:01:35,683 --> 00:01:39,795
+Amount, mode aur UTR ya cheque number daalkar
+Pay kijiye.
+
+24
+00:01:42,923 --> 00:01:49,031
+Payment hote hi bakaaya kam ho jaata hai, aur
+entry cash book ya bank mein chali jaati hai.
+
+25
+00:01:49,071 --> 00:01:53,085
+Supplier ko maal waapas bhejna ho, ya expiry
+claim karna ho,
+
+26
+00:01:53,125 --> 00:01:56,869
+to Supplier tools mein Claims aur return ke
+vikalp hain.
+
+27
+00:02:02,930 --> 00:02:06,075
+Har bill haath se type karna zaroori nahi.
+
+28
+00:02:06,115 --> 00:02:12,824
+Zyaadatar distributors apna bill e-bill file
+mein bhi dete hain, CSV, Excel ya text mein.
+
+29
+00:02:12,864 --> 00:02:17,904
+Supplier tools ki E-bill import se yeh file
+seedhe padhi jaati hai.
+
+30
+00:02:18,654 --> 00:02:26,831
+Ek zaroori baat: PDF ya photo wale bill ko scan
+karne wala AI feature Medoro server par OCR
+engine se chalta hai.
+
+31
+00:02:26,871 --> 00:02:30,031
+Is demo server par OCR engine juda nahi hai,
+
+32
+00:02:30,071 --> 00:02:33,813
+isliye yahan hum e-bill file import dikha rahe
+hain.
+
+33
+00:02:34,582 --> 00:02:40,088
+Pehle supplier chuniye, phir 'Choose bill file'
+se distributor ki file chuniye.
+
+34
+00:02:40,128 --> 00:02:44,792
+Hamaare paas Jharkhand Medical Agencies ki ek
+demo e-bill file hai.
+
+35
+00:02:45,552 --> 00:02:52,103
+Medoro file ke columns pehchaanta hai: item ka
+naam, batch, expiry, quantity,
+
+36
+00:02:52,143 --> 00:02:54,927
+free quantity, rate, MRP aur GST.
+
+37
+00:02:54,967 --> 00:02:59,635
+Har line ko catalogue ki medicine se milaaya
+jaata hai.
+
+38
+00:03:00,398 --> 00:03:03,342
+Post karne se pehle review zaroori hai.
+
+39
+00:03:03,382 --> 00:03:10,153
+Har line ki medicine, batch, expiry, maatra aur
+rate supplier ke kaagzi bill se milaaiye.
+
+40
+00:03:10,193 --> 00:03:16,198
+Koi medicine na mile, to use sahi medicine se
+jodiye ya nayi medicine banaaiye.
+
+41
+00:03:16,947 --> 00:03:20,452
+Sab sahi ho to bill number daalkar save kijiye.
+
+42
+00:03:20,492 --> 00:03:25,883
+Stock, batches aur supplier ka bakaaya, teeno ek
+saath update hote hain.
+
+43
+00:03:31,948 --> 00:03:35,799
+Suppliers ki jaankari Medoro mein purchase bills
+se banti hai.
+
+44
+00:03:35,839 --> 00:03:41,009
+Accounts screen par 'Suppliers to pay' mein har
+supplier ka kul bakaaya dikhta hai.
+
+45
+00:03:41,766 --> 00:03:46,572
+Har supplier ke aage payment form hai: amount,
+mode, jaise cash,
+
+46
+00:03:46,612 --> 00:03:50,357
+bank transfer ya cheque, aur UTR ya cheque
+number.
+
+47
+00:03:50,397 --> 00:03:55,203
+Pay dabaate hi payment voucher banta hai aur
+bakaaya ghatta hai.
+
+48
+00:03:55,948 --> 00:04:02,041
+Supplier tools mein Pricing tab har medicine ki
+supplier-wise khareed dar dikhata hai,
+
+49
+00:04:02,081 --> 00:04:07,032
+sabse sasta supplier pehle, saath mein landed
+cost aur MRP par margin.
+
+50
+00:04:07,072 --> 00:04:11,382
+Isse pata chalta hai ki agla order kisse lena
+faaydemand hai.
+
+51
+00:04:12,137 --> 00:04:20,269
+Claims tab mein expiry ke kareeb ka maal
+supplier ko waapas karne ya credit note lene ka
+hisaab rehta hai: kitne din bache,
+
+52
+00:04:20,309 --> 00:04:22,661
+kitna claim kiya, kitna credit mila.
+
+53
+00:04:23,409 --> 00:04:28,369
+Aur Cheques screen par suppliers ko diye gaye
+post-dated cheques ka record rehta hai,
+
+54
+00:04:28,409 --> 00:04:30,545
+taaki clearing ki taareekh yaad rahe.
+
+55
+00:04:31,293 --> 00:04:36,510
+Dhyan dein: is device counter par supplier ki
+alag profile, poora supplier ledger
+
+56
+00:04:36,550 --> 00:04:40,923
+aur statement ki screen abhi nahi hai; supplier
+ka bakaaya, payments
+
+57
+00:04:40,963 --> 00:04:44,881
+aur purchase bills upar dikhaaye gaye screens
+par milte hain.

@@ -54,7 +54,33 @@ const opened = new Promise<void>((r) => { markOpen = r; });
 
 const openFile = () => DriveDB.open(wasmEngine(new pool!.OpfsSAHPoolDb(FILE), (d) => sqlite!.capi.sqlite3_js_db_export(d)), { device: deviceName });
 
-async function open(device: string, which: keyof typeof FILES = "pharmacy") {
+/**
+ * Several screens open the database as the page loads (the Drive gate, the counter, its checks). Calls are queued, so
+ * the OPFS pool is installed once: a second install while the first runs can't get the file handles and the counter
+ * then looked empty ("Set up this device") although its records were there.
+ */
+let openQueue: Promise<unknown> = Promise.resolve();
+/**
+ * After a reload or a move to another Medoro page, the previous page's worker can still hold the OPFS file handles for
+ * a moment. Installing the pool then fails with NoModificationAllowedError; wait and try again (about 10 s in all)
+ * instead of opening without the records.
+ */
+async function installPool(s: Sqlite): Promise<Pool> {
+  for (let i = 0; ; i++) {
+    try { return await s.installOpfsSAHPoolVfs({ name: "medoro-device" }); }
+    catch (e) {
+      const busy = e instanceof Error && (e.name === "NoModificationAllowedError" || /Access Handle/.test(e.message));
+      if (!busy || i >= 20) throw e;
+      await new Promise((r) => setTimeout(r, 250 + i * 50));
+    }
+  }
+}
+function open(device: string, which: keyof typeof FILES = "pharmacy") {
+  const next = openQueue.then(() => openNow(device, which));
+  openQueue = next.catch(() => {});
+  return next;
+}
+async function openNow(device: string, which: keyof typeof FILES = "pharmacy") {
   if (!Object.prototype.hasOwnProperty.call(FILES, which)) throw new Error("Unknown database.");
   if (db && FILE === FILES[which]) return { device: db.device };
   if (db) { db.engine.close(); db = null; ring = null; }
@@ -63,7 +89,7 @@ async function open(device: string, which: keyof typeof FILES = "pharmacy") {
   const url = "/drivedb/sqlite/index.mjs";
   const mod = await import(/* webpackIgnore: true */ url);
   sqlite ??= (await mod.default()) as Sqlite;
-  pool ??= await sqlite.installOpfsSAHPoolVfs({ name: "medoro-device" });
+  pool ??= await installPool(sqlite);
   deviceName = device;
   db = openFile();
   markOpen();

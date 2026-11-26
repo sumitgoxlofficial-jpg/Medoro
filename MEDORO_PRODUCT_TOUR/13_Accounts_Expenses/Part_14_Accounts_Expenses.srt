@@ -1,0 +1,82 @@
+1
+00:00:08,850 --> 00:00:12,835
+Accounts screen par dukaan ka roz ka hisaab hai.
+
+2
+00:00:12,875 --> 00:00:19,878
+Sabse pehle expense entry: kiraaya, tankhwaah,
+bijli, internet, transport, marammat,
+
+3
+00:00:19,918 --> 00:00:22,142
+stationery ya bank charges.
+
+4
+00:00:22,915 --> 00:00:27,435
+Category Repairs, amount aath sau pachaas,
+bhugtaan cash se,
+
+5
+00:00:27,475 --> 00:00:30,170
+aur note mein likhiye kya theek hua.
+
+6
+00:00:30,210 --> 00:00:32,678
+'Add expense for today' dabaaiye.
+
+7
+00:00:33,425 --> 00:00:38,817
+Cash book mein aaj ka har len-den hai: bikri ka
+cash, customers se vasooli,
+
+8
+00:00:38,857 --> 00:00:42,801
+supplier payments aur kharch, ant mein In, Out
+aur Net.
+
+9
+00:00:43,555 --> 00:00:46,742
+Bank ka hisaab 'UPI & Bank' screen par hai.
+
+10
+00:00:46,782 --> 00:00:53,271
+Bank statement Excel ya CSV mein upload kijiye;
+Medoro har UPI aur bank credit ko bills
+
+11
+00:00:53,311 --> 00:00:58,599
+aur payments se milaata hai, aur jo nahi mile,
+unhein alag dikhata hai.
+
+12
+00:00:59,364 --> 00:01:05,155
+Munaafa 'Reports & GST' screen par 'Sales and
+profit' mein hai: taareekh-vaar bikri,
+
+13
+00:01:05,195 --> 00:01:06,891
+returns aur gross profit.
+
+14
+00:01:06,931 --> 00:01:10,778
+Ise CSV mein nikaalkar apne accountant ko de
+sakte hain.
+
+15
+00:01:11,558 --> 00:01:17,418
+Dhyan dein: Google Drive wale counter par abhi
+day book, poora ledger, trial balance,
+
+16
+00:01:17,458 --> 00:01:21,999
+profit and loss statement aur cash flow ki alag
+reports nahi hain.
+
+17
+00:01:22,039 --> 00:01:27,622
+Bank connection apne-aap sync ke liye bank ya
+Account Aggregator partner chahiye,
+
+18
+00:01:27,662 --> 00:01:29,704
+jo is demo mein juda nahi hai.
