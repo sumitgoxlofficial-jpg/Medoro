@@ -10,6 +10,7 @@ import { AppraisalScreen, HrAppraisalsScreen } from "./screens-appraisals";
 import { TeamScreen } from "./screens-team";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
 import { TrainingScreen } from "./screens-training";
+import { VideosScreen } from "./screens-videos";
 import { AcademyScreen, TrainerDeskScreen } from "./screens-academy";
 import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
 
@@ -29,6 +30,7 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "chat": return <ChatScreen d={d as Data<"chat">} />;
     case "chatreview": return <ChatReviewScreen d={d as Data<"chatreview">} />;
     case "policies": return <PoliciesScreen d={d as Data<"policies">} />;
+    case "hrvideos": return <VideosScreen d={d as Data<"hrvideos">} />;
     case "hrpolicies": return <HrPoliciesScreen d={d as Data<"hrpolicies">} />;
     case "support": return <SupportScreen d={d as Data<"support">} />;
     case "training": return <TrainingScreen d={d as Data<"training">} />;

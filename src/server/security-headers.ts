@@ -1,3 +1,4 @@
+import { hrmsVideoOrigin } from "@/lib/hrms-video-origin";
 export type HeaderOpts = { nonce: string; https: boolean; path: string; dev?: boolean };
 
 /** Paths a Medoro page may embed in an iframe (the scanned-invoice preview). Everything else refuses framing. */
@@ -44,14 +45,16 @@ export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): 
     ].join("; ");
   }
   const frameable = FRAMEABLE.test(path), checkout = CHECKOUT.test(path);
+  // HRMS training videos play from signed links to a private storage bucket (lib/hrms-video-origin.ts).
+  const hrv = path.startsWith("/staff/hrms") && hrmsVideoOrigin() ? ` ${hrmsVideoOrigin()}` : "";
   const d: [string, string][] = [
     ["default-src", "'self'"],
     ["script-src", `'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`],
     ["style-src", "'self' 'unsafe-inline'"],
-    ["img-src", `'self' data: blob:${checkout ? " https://*.razorpay.com" : ""}`],
+    ["img-src", `'self' data: blob:${checkout ? " https://*.razorpay.com" : ""}${hrv}`],
     ["font-src", "'self' data:"],
     // Product videos (/videos) may be served from a storage bucket or CDN set in NEXT_PUBLIC_VIDEO_BASE_URL.
-    ["media-src", `'self' blob:${videoOrigin() ? ` ${videoOrigin()}` : ""}`],
+    ["media-src", `'self' blob:${videoOrigin() ? ` ${videoOrigin()}` : ""}${hrv}`],
     ["connect-src", `${dev ? "'self' ws: wss:" : "'self'"}${checkout ? " https://*.razorpay.com" : ""}`],
     ["worker-src", "'self'"],
     ["manifest-src", "'self'"],

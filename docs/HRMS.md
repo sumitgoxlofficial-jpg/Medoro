@@ -173,6 +173,23 @@ connected Google Calendar).
 * The review shows facts from the period next to the form: tasks done, the share done on time, open overdue tasks, days present and late days.
   HR can export the cycle as CSV and close it.
 
+## Training videos (staff only)
+
+* **Training Videos** (COMPANY menu, everyone): 20 short Hinglish how-to videos for the HRMS, recorded with "(Demo)" staff.
+  Real people are blurred.
+* Each person sees only the videos for what their role can open: payroll, finance, recruitment, leads and HR videos need
+  that module. The super admin, roles and dashboard-comparison videos are for the super admin only.
+* The sign-in page links to them (`/staff/employee?next=videos` opens the videos right after signing in).
+* The videos are in a **private** Supabase Storage bucket, `hrms-videos`, in the production project. The bucket is never public,
+  so there are no files in this repository (it is public). When the screen opens, it calls `POST /staff/hrms/videos/links`.
+  medoro.in then asks the `hrms-videos` Edge Function for signed links, valid for 4 hours, to only that person's videos
+  (`src/staff/hrms/video-links.ts`). The function and medoro.in share a secret that Postgres generated and keeps in
+  `HrSetting` (key `videoSecret`), so it is in no code, env var or chat. Without the secret (preview and dev), the screen
+  says the videos can't be opened.
+* To add or replace a video: encode it as H.264 (`-crf 30 -tune stillimage`, `+faststart`; at most 50 MB) with a 640px JPEG
+  thumbnail. Upload both to `files/<slug>.mp4` and `thumbs/<slug>.jpg` in the bucket (the dashboard, or the function's
+  `upload` action), then add it to `HR_VIDEOS` in `src/staff/hrms/video-catalog.ts` with who may watch it.
+
 ## Not built (in the design, not in Medoro yet)
 
 Built-in voice/video calls and screen sharing (Team Chat uses a Google Meet link instead), AI meeting minutes and AI candidate screening, Wins / Culture OS /
