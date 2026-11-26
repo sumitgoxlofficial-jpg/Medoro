@@ -1,7 +1,7 @@
 import type { Perm } from "@/domain/identity/permissions";
 
 export type ScreenId =
-  | "dash" | "own" | "pos" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "comp" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "est" | "att" | "acc"
+  | "dash" | "own" | "pos" | "books" | "ord" | "dlv" | "ret" | "inv" | "count" | "recall" | "comp" | "exp" | "intel" | "pur" | "parties" | "chq" | "bank" | "money" | "doc" | "est" | "att" | "acc"
   | "wa" | "crm" | "bak" | "health" | "sync" | "users" | "plan" | "privacy" | "help" | "admin";
 
 export type NavDef = { id: ScreenId; href: string; icon: string; perm: Perm | null; group: "Operations" | "Intelligence" | "Business" | "Finance" | "Engagement" | "System"; abbr: string; sub: string };
@@ -24,6 +24,7 @@ export const NAV: NavDef[] = [
   { id: "pur", href: "/app/purchases", icon: "Truck", perm: "purchase", group: "Business", abbr: "Buy", sub: "Purchase orders, GRNs and invoice scanning" },
   { id: "parties", href: "/app/parties", icon: "Contact", perm: "payments", group: "Business", abbr: "Parties", sub: "Balances, terms and payments" },
   { id: "doc", href: "/app/doctors", icon: "Stethoscope", perm: "sale", group: "Business", abbr: "Doctors", sub: "Doctor master, prescriptions and sales by referring doctor" },
+  { id: "books", href: "/app/device-pos?tab=books", icon: "Landmark", perm: "reports", group: "Business", abbr: "Books", sub: "Day book, trial balance, P&L, statements, Schedule H1 register and Tally export" },
   { id: "acc", href: "/app/accounts", icon: "Landmark", perm: "reports", group: "Business", abbr: "A/c", sub: "Ledgers, P&L, GST summary and exports" },
   { id: "money", href: "/app/money", icon: "Wallet", perm: "payments", group: "Finance", abbr: "UPI", sub: "UPI & Bank Connect: statements, UPI checks, bill matching and connections" },
   { id: "bank", href: "/app/bank", icon: "Scale", perm: "payments", group: "Finance", abbr: "Bank", sub: "Import bank statements and match them to your books" },
@@ -40,7 +41,7 @@ export const NAV: NavDef[] = [
 ];
 
 /** Screens that are built. The rest stay hidden from navigation until they land. */
-export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est", "att", "ret", "inv", "count", "recall", "comp", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
+export const READY = new Set<ScreenId>(["books", "dash", "own", "pos", "ord", "dlv", "est", "att", "ret", "inv", "count", "recall", "comp", "exp", "intel", "pur", "parties", "chq", "bank", "money", "doc", "wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
 
 /**
  * A pharmacy whose records live on its counters and in its Google Drive: each screen opens the matching tab of
@@ -49,8 +50,10 @@ export const READY = new Set<ScreenId>(["dash", "own", "pos", "ord", "dlv", "est
  */
 export const DRIVE_TAB: Partial<Record<ScreenId, string>> = {
   dash: "dash", pos: "bill", ord: "orders", ret: "bills", inv: "stock", exp: "reports", pur: "purchases", parties: "customers", money: "money",
-  recall: "recalls", doc: "doctors", chq: "cheques", intel: "insights",
+  recall: "recalls", doc: "doctors", chq: "cheques", intel: "insights", books: "books",
 };
+/** Screens that exist only on the counter (Drive pharmacies): left out of the menu of a pharmacy on Medoro's server. */
+export const DRIVE_ONLY = new Set<ScreenId>(["books"]);
 /** Screens that stay for Drive pharmacies as they are: WhatsApp and customer messaging, account, devices, plan, privacy, help. */
 const DRIVE_KEEP = new Set<ScreenId>(["wa", "crm", "bak", "health", "sync", "users", "plan", "privacy", "help"]);
 export const driveNav = (n: NavDef): NavDef | null => DRIVE_TAB[n.id] ? { ...n, href: `/app/device-pos?tab=${DRIVE_TAB[n.id]}` } : DRIVE_KEEP.has(n.id) ? n : null;

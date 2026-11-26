@@ -16,7 +16,7 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { DICT, type Lang } from "@/lib/i18n";
 import { useLang, useT } from "@/lib/i18n-client";
 import { localeOf } from "@/lib/tr";
-import { DRIVE_TAB, NAV, READY, driveNav, screenOf, type NavDef, type ScreenId } from "@/lib/nav";
+import { DRIVE_ONLY, DRIVE_TAB, NAV, READY, driveNav, screenOf, type NavDef, type ScreenId } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
 import { DashBackdrop } from "@/components/welcome-banner";
 
@@ -117,7 +117,7 @@ function ShellInner(p: ShellProps) {
 
 
   const search = useSearchParams();
-  const base = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)));
+  const base = NAV.filter((n) => READY.has(n.id) && (!n.perm || p.perms.includes(n.perm)) && (p.driveNav || !DRIVE_ONLY.has(n.id)));
   // Records on the counters (Drive): each screen opens the matching tab of Billing (device).
   const allowed = p.driveNav ? base.map(driveNav).filter((n): n is NavDef => !!n) : base;
   // "Find a screen": typing narrows the menu to matching screens (label or description), across every group.

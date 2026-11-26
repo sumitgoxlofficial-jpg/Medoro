@@ -9,7 +9,7 @@ import { DIST_TABS, TABS } from "./tabs";
 
 /** Icon and one-line purpose for each counter tab (the Dashboard has its own welcome banner). */
 const HERO: Partial<Record<Tab, [LucideIcon, string]>> = {
-  bill: [ScanBarcode, "F2 search · F9 complete"],
+  bill: [ScanBarcode, "F2 search · F4 hold · F9 complete"],
   bills: [ReceiptText, "Find bills, take returns and print the day-end."],
   stock: [Boxes, "Batches, expiry dates and shelf counts on this counter."],
   recalls: [ShieldAlert, "Recalled batches: block, quarantine or return them."],
@@ -22,6 +22,7 @@ const HERO: Partial<Record<Tab, [LucideIcon, string]>> = {
   money: [Landmark, "UPI and bank credits, matched to bills."],
   cheques: [FileCheck2, "Cheques received and given, until they clear."],
   reports: [BarChart3, "Sales, stock and GST reports for your CA."],
+  books: [Landmark, "Day book, trial balance, P&L, statements, Schedule H1 register and Tally export."],
   insights: [Lightbulb, "Stock forecasts and what to reorder."],
   ask: [Sparkles, "Ask about sales, stock and customers in plain words."],
   activity: [History, "Who did what on this counter, and when."],
