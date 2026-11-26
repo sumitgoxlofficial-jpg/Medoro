@@ -1,7 +1,9 @@
 /* Medoro service worker: keeps the app installable and lets a counter keep billing with no network.
    It never caches signed-in pages or API answers; only the static offline billing page and build files. */
 const SHELL = "medoro-shell-v2";
-const STATIC = "medoro-static-v1";
+/** Build files are cached per release (/sw.js?v=<build id>): a new release starts a new cache and drops the old one. */
+const BUILD = new URL(self.location.href).searchParams.get("v") || "1";
+const STATIC = "medoro-static-v1-" + BUILD.replace(/[^\w-]/g, "").slice(0, 40);
 const OFFLINE_URL = "/offline";
 /** Drive mode counter page and the SQLite build it loads: kept so a Drive mode counter opens with no network. */
 const DEVICE_URL = "/device";

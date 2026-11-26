@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -69,19 +69,22 @@ export function Books({ cfg }: { cfg: Cfg }) {
   );
 }
 
-/** Runs one read on the device database whenever its arguments change. */
+/** Runs one read on the device database whenever its arguments change; only the latest answer is shown. */
 function useData<T>(op: keyof DeviceHandlers, args: unknown[]): T | null {
   const toast = useToast();
-  const [data, setData] = useState<T | null>(null);
+  const toastRef = useRef(toast);
+  useEffect(() => { toastRef.current = toast; }, [toast]);
+  const [data, setData] = useState<{ key: string; value: T } | null>(null);
   const key = JSON.stringify([op, args]);
+  const latest = useRef(key);
   useEffect(() => {
-    let stop = false;
+    latest.current = key;
     const [o, a] = JSON.parse(key) as [keyof DeviceHandlers, unknown[]];
     if (a.some((x) => x === "")) return;
-    (deviceDb().call as (op: keyof DeviceHandlers, ...args: unknown[]) => Promise<T>)(o, ...a).then((d) => { if (!stop) setData(d); }, (e) => toast(errText(e), "red"));
-    return () => { stop = true; };
-  }, [key, toast]);
-  return data;
+    (deviceDb().call as (op: keyof DeviceHandlers, ...args: unknown[]) => Promise<T>)(o, ...a)
+      .then((value) => { if (latest.current === key) setData({ key, value }); }, (e) => toastRef.current(errText(e), "red"));
+  }, [key]);
+  return data && data.key === key ? data.value : null;
 }
 
 function DayBook({ cfg, day }: { cfg: Cfg; day: string }) {

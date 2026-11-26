@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
+/**
+ * Changes on every build. The service worker is registered as /sw.js?v=<this> and names its build-file cache after it,
+ * because Turbopack can keep a chunk's file name when its content changes: a cache-first copy would otherwise keep
+ * serving the old code (e.g. a counter worker without the screens a new release added).
+ */
+const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || process.env.SOURCE_COMMIT?.slice(0, 12) || Date.now().toString(36);
+
 const nextConfig: NextConfig = {
+  env: { NEXT_PUBLIC_BUILD_ID: BUILD_ID },
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   serverExternalPackages: ["@node-rs/argon2", "pg", "baileys"],
   poweredByHeader: false,
