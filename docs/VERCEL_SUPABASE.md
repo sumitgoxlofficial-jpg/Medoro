@@ -14,10 +14,18 @@ server-side sessions); Supabase Auth and `supabase-js` are not used, so no Supab
 | Tenant isolation | Server-side: every query is scoped to the signed-in user's pharmacy (`ctx.tenantId`), permissions checked on the server | Same |
 | Files (invoice scans, backups) | `STORAGE_DIR` on disk | Private bucket `medoro-private` (created automatically), server-side secret key |
 | Daily backups | In-process timer at the pharmacy's chosen time, failed runs retried (max 3/day, 30 min apart) | Vercel Cron, 21:30 UTC (03:00 IST), `GET /api/cron/tick` with `CRON_SECRET`; once a day on Hobby, so the chosen time and same-day retries don't apply |
+| Every-minute jobs (Sales Pulse chat messages, deliveries, messaging) | In-process timer every minute | `GET /api/cron/minute` with `CRON_SECRET`, called every minute by an outside scheduler (Hobby allows only daily Vercel crons; see *Every-minute jobs* below). On Pro, a `* * * * *` entry in `vercel.json` does the same |
 | Live updates | LISTEN/NOTIFY + SSE | Same over `DIRECT_URL`; functions end after 300 s and browsers reconnect automatically |
 | First-run setup | Open on first visit | Locked until the visitor enters `SETUP_TOKEN` |
 | New pharmacies | One per installation (setup wizard) | Also open to everyone at `/signup` when `PUBLIC_SIGNUP=1`: rate-limited per IP, pharmacy code and owner email/mobile must be unused |
 | Upload size | 10 MB | 4 MB (Vercel request limit) |
+
+## Every-minute jobs on the Hobby plan
+Vercel Hobby runs crons only once a day, so use a free outside scheduler, for example cron-job.org:
+1. Create a cron job with URL `https://<your-domain>/api/cron/minute`, method GET, schedule every minute.
+2. Under *Advanced → Headers* add `Authorization` with the value `Bearer <CRON_SECRET>` (the same value as in Vercel).
+3. Save and run it once: the response should be `ok` (or `busy` if a run was still going). `Forbidden` means the header is wrong.
+Without it, the HRMS Sales channel's bot messages go out only while someone has Team Chat open, and late ones are skipped.
 
 ## Environment variables (Vercel → Project → Settings → Environment Variables)
 Set these for **Production**. Mark secrets as *Sensitive*. Never prefix a secret with `NEXT_PUBLIC_`

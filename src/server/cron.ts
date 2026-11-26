@@ -21,7 +21,7 @@ import { salesPulseTick } from "@/staff/hrms/sales-pulse";
 // The scheduled jobs, shared by the cron endpoints:
 //  * POST /api/cron/tick: the in-process scheduler of self-hosted installs, every minute (frequent jobs only);
 //  * GET /api/cron/tick: host cron (Vercel), once a day, with the daily jobs;
-//  * GET /api/cron/minute: host cron (Vercel Pro), every minute, frequent jobs only (Sales Pulse, deliveries, ...).
+//  * GET /api/cron/minute: every minute from an outside scheduler (or Vercel Cron on Pro), frequent jobs only.
 let running = false;
 
 export async function tick(daily: boolean) {
