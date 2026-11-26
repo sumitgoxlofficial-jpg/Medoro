@@ -40,6 +40,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "calendar", label: "Calendar", icon: "cal", title: "Calendar", sub: "Holidays, meetings and who is out", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Team (module screens)
   { id: "perf", label: "Performance", icon: "target", title: "Performance", sub: "Live progress, weekly and monthly reports · Employee of the Month", group: "TEAM", module: "reports" },
+  { id: "hrappraisals", label: "Appraisals", icon: "target", title: "Appraisals", sub: "Review cycles: self-assessment, manager review and final rating", group: "TEAM", module: "reports" },
   { id: "assigntasks", label: "Assign Tasks", icon: "target", title: "Assign Tasks", sub: "Assign and track tasks across the team", group: "TEAM", module: "tasks" },
   { id: "assignprojects", label: "Projects", icon: "box", title: "Projects", sub: "Assign and track project allocations", group: "TEAM", module: "tasks" },
   { id: "hrleads", label: "Leads", icon: "target", title: "Leads", sub: "Upload pharmacy leads and assign them to the sales team", group: "TEAM", module: "leads" },
@@ -76,6 +77,7 @@ export const SCREENS: ScreenDef[] = [
   // Me
   { id: "attendance", label: "Attendance", icon: "clock", title: "Attendance", sub: "My attendance", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "leave", label: "Leave & Approvals", icon: "plane", title: "Leave", sub: "Balances, requests and reimbursement claims", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "appraisal", label: "My Review", icon: "target", title: "My Review", sub: "Your performance review, and your team's when you are a reporting manager", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "payslips", label: "Payslips", icon: "rupee", title: "Payslips", sub: "Salary history", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
@@ -234,3 +236,9 @@ export function scheduleText(s: Pick<Settings, "lateAfter" | "workHours" | "lunc
   const start = toMin(s.lateAfter), lunch = Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom));
   return { start: clock(start), end: clock(start + s.workHours * 60 + lunch), lunchFrom: clock(toMin(s.lunchFrom)), lunchTo: clock(toMin(s.lunchTo)), lunchMin: lunch };
 }
+
+// ── Performance appraisals
+export const RATINGS = [
+  { v: 1, label: "Needs improvement" }, { v: 2, label: "Partly meets expectations" }, { v: 3, label: "Meets expectations" },
+  { v: 4, label: "Exceeds expectations" }, { v: 5, label: "Outstanding" },
+] as const;
