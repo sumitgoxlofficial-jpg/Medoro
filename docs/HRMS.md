@@ -37,6 +37,17 @@ sales employee (Sales role or Sales department) is enrolled automatically; HR ca
    privilege leave paid at a day's basic (monthly basic ÷ 26), and gratuity after five years (15 days' basic per year of
    service). The settlement is an estimate; have a CA confirm it.
 
+## My Team (reporting managers and team leaders)
+
+Anyone who has at least one active direct report ("Reports to" on their profile), in any role, gets **My Team** in the TEAM
+menu. It shows only their direct reports and only work information (no pay, bank, KYC or chat):
+* **Today**: each person's status (present, late, checked out, on leave, day off, not in yet) with check-in and check-out times.
+* **Leave requests from your team**: approve or reject (the same decision HR can make; whoever acts first decides).
+* **Out in the next 2 weeks**, **open tasks** (overdue flagged) and **this month** per person: days checked in, late days, tasks
+  done, on-time %, open and overdue tasks.
+* **Give a task** to a direct report. A manager can assign plain tasks to their own reports without the *Tasks & projects*
+  module; tasks in a project, or for anyone else, still need that module.
+
 ## More screens
 
 * **Assets** (everyone: *Assets* under Me; HR: the register too). HR adds equipment (tags `MS-AST-0001`…), issues it to an employee and takes it back.

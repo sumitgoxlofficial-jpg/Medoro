@@ -39,6 +39,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "mytasks", label: "My Tasks", icon: "target", title: "My Tasks", sub: "Tasks assigned to you by your lead", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "calendar", label: "Calendar", icon: "cal", title: "Calendar", sub: "Holidays, meetings and who is out", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Team (module screens)
+  { id: "myteam", label: "My Team", icon: "users", title: "My Team", sub: "The people who report to you: today, approvals, tasks and this month", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "perf", label: "Performance", icon: "target", title: "Performance", sub: "Live progress, weekly and monthly reports · Employee of the Month", group: "TEAM", module: "reports" },
   { id: "assigntasks", label: "Assign Tasks", icon: "target", title: "Assign Tasks", sub: "Assign and track tasks across the team", group: "TEAM", module: "tasks" },
   { id: "assignprojects", label: "Projects", icon: "box", title: "Projects", sub: "Assign and track project allocations", group: "TEAM", module: "tasks" },

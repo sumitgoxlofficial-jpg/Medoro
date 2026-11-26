@@ -8,6 +8,7 @@ import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, notify, type Me } from "./auth";
 import { COL_IDS, PRIORITIES, PROJECT_STATUS, TICKET_TOPICS, type ColId } from "./constants";
 import { nameMap } from "./people";
+import { isDirectReport } from "./team";
 import { pushMeeting, removeEvent } from "./gcal";
 
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date.");
@@ -44,8 +45,11 @@ const taskSchema = z.object({
   priority: z.enum(PRIORITIES).default("Medium"), projectId: z.string().nullish(), sprintId: z.string().nullish(), col: z.enum(COL_IDS).default("todo"),
 });
 export async function assignTask(me: Me, raw: z.input<typeof taskSchema>) {
-  need(me, "tasks");
   const i = taskSchema.parse(raw);
+  // People with Tasks & projects assign to anyone; a reporting manager assigns plain tasks (no project) to their direct reports.
+  if (!can(me, "tasks")) {
+    if (i.projectId || !(await isDirectReport(me.id, i.assigneeId))) need(me, "tasks");
+  }
   const who = await db.staffUser.findFirst({ where: { id: i.assigneeId, kind: "team", status: "active" } });
   if (!who) throw new UserError("That employee isn’t active.");
   if (i.projectId && !(await db.hrProject.findUnique({ where: { id: i.projectId } }))) throw new UserError("Project not found.");
