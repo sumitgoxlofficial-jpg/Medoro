@@ -44,6 +44,11 @@ profile). *Roles & Permissions* turns HRMS modules on or off per role; changes a
   cancelled cheque (PDF, JPG, PNG). HR opens them from **Employees → Documents**, marks each verified or removes it. Files open
   only for their owner and people with the Employees module; HR opening one is written to Audit Logs. A verified document can
   only be removed by HR. Aadhaar and PAN numbers are collected in the KYC step (see *Aadhaar and PAN verification*).
+  **Expiry dates:** a document can have an *Expires on* date (passport, visa, contract, licence…), set when uploading or later
+  in the Expires column by the employee or HR (a past date is refused). The employee and HR get a notification 30 days and
+  7 days before and on the day it expires (each once per date; a new date starts again; people who have left are skipped).
+  HR's dashboard lists documents of active people that have expired or expire within 30 days. The reminders run with the
+  scheduled jobs (`/api/cron/tick`, or the in-process scheduler on self-hosted installs).
 * **Promotions** (HR, **Employees → Promote**). HR enters the new designation, department, reporting manager, annual CTC (with quick +10/15/20/30%
   buttons), the roles and responsibilities of the new role (one per line) and an effective date. The employee's profile changes on that date
   (at once when it is today or earlier; otherwise with the daily housekeeping, and always before payroll runs), a CTC change is kept in salary

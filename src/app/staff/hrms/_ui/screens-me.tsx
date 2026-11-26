@@ -6,8 +6,9 @@ import type { Data } from "@/staff/hrms/screens";
 import type { Shell } from "@/staff/hrms/screens";
 import { useNow } from "@/lib/use-now";
 import { ASSET_KINDS, BOARD_COLS, liveWorkedMin, toMin, CLAIM_STATUS, APPLY_TYPES, CLAIM_TYPES, DOC_KINDS, TICKET_TOPICS, daysText, inr, leaveLabel } from "@/staff/hrms/constants";
-import { addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
+import { setDocExpiry, addReminder, applyLeave, cancelLeave, decideLeave, taxStatement, uploadDoc, removeDoc, checkIn, checkOut, deleteTask, openPayslip, postAnnouncement, deleteAnnouncement, raiseTicket, referCandidate, requestCorrection, resolveTicket, savePhoto, saveProfile, scheduleMeeting, setTaskDone, submitClaim, addHoliday, removeHoliday, addNationalHolidays, saveMeetingNotes, cancelMeeting, moveTask, disconnectGoogle, addAsset, issueAsset, returnAsset, setAssetStatus, reportAssetIssue } from "../actions";
 import { MyLetters } from "./letters";
+import { ExpiryCell } from "./expiry";
 import { PhotoEditor } from "./photo-editor";
 import { BriefcaseBusiness, CalendarDays, Camera, FileCheck2, IdCard, Mail, MapPin, ShieldCheck, UserCheck } from "lucide-react";
 import { IdBadge } from "../../employee/art";
@@ -374,21 +375,23 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
 function MyDocs({ docs }: { docs: Data<"profile">["docs"] }) {
   const { run, busy, toast } = useRun();
   const [kind, setKind] = useState<string>(DOC_KINDS[0]);
+  const [exp, setExp] = useState("");
   const file = useRef<HTMLInputElement>(null);
   const send = (e: React.FormEvent) => {
     e.preventDefault();
     const f = file.current?.files?.[0];
     if (!f) return toast("Choose a file to upload.", "red");
-    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f);
-    run(() => uploadDoc(fd), () => { if (file.current) file.current.value = ""; });
+    const fd = new FormData(); fd.set("kind", kind); fd.set("file", f); if (exp) fd.set("expiresOn", exp);
+    run(() => uploadDoc(fd), () => { if (file.current) file.current.value = ""; setExp(""); });
   };
   return <>
     <form className="flex gap-2 flex-wrap items-end" onSubmit={send}>
       <Field label="Document"><select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>{DOC_KINDS.map((k) => <option key={k}>{k}</option>)}</select></Field>
       <Field label="File (PDF, JPG, PNG)"><input ref={file} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="text-[12.5px]" /></Field>
+      <Field label="Expires on (optional)" hint="Passport, visa, contract, licence…"><input className={inputCls} type="date" value={exp} onChange={(e) => setExp(e.target.value)} /></Field>
       <button className={primaryCls} disabled={busy}>Upload</button>
     </form>
-    {docs.length ? <div className="mt-4"><Table head={["Document", "File", "Uploaded", "Status", ""]}>{docs.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified by HR" : "Waiting for HR"}</Pill></td><td className={tdCls}>{x.verified ? null : <button className={dangerCls} disabled={busy} onClick={() => run(() => removeDoc(x.id))}>Remove</button>}</td></tr>)}</Table></div> : <Empty>No documents uploaded yet.</Empty>}
+    {docs.length ? <div className="mt-4"><Table head={["Document", "File", "Uploaded", "Expires", "Status", ""]}>{docs.map((x) => <tr key={x.id}><td className={tdCls}>{x.kind}</td><td className={tdCls}><a className="text-[#0B5E5B] font-semibold" href={`/staff/hrms/doc/${x.id}`} target="_blank" rel="noreferrer">{x.name}</a></td><td className={tdCls}>{dayLabel(x.at)}</td><td className={tdCls}><ExpiryCell x={x} disabled={busy} onSave={(v) => run(() => setDocExpiry(x.id, v))} /></td><td className={tdCls}><Pill tone={x.verified ? "green" : "amber"}>{x.verified ? "Verified by HR" : "Waiting for HR"}</Pill></td><td className={tdCls}>{x.verified ? null : <button className={dangerCls} disabled={busy} onClick={() => run(() => removeDoc(x.id))}>Remove</button>}</td></tr>)}</Table></div> : <Empty>No documents uploaded yet.</Empty>}
   </>;
 }
 
