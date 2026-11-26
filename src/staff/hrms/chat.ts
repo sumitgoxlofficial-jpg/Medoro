@@ -6,6 +6,7 @@ import { audit, type Me } from "./auth";
 import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
 import { pulsePhoto } from "./pulse-shared";
+import { TEAM_NAME, isTeamId, istDayStart, istWeekStart, rankBoard, type BoardRow } from "./sales-wins";
 import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_LABEL, isPulse, pulseMemberIds, pulseName, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
 import { log } from "@/server/log";
 
@@ -22,11 +23,11 @@ export type FileMeta = { name: string; type: string; size: number };
 export type PollState = { q: string; multi: boolean; options: { text: string; votes: number; mine: boolean }[]; total: number };
 export type ReactionState = { emoji: string; n: number; mine: boolean }[];
 export type ChatMsg = {
-  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; /** win: a real sale or demo announced automatically from the person's account; pulse: a Sales Pulse bot message. */ kind: "text" | "image" | "meet" | "poll" | "file" | "win" | "pulse"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
+  id: string; seq: number; chatId: string; senderId: string; /** Who sent it, as this viewer may know them: the super admin reads "Admin". */ by: string; /** win: a real sale or demo announced automatically from the person's account; pulse: a Sales Pulse bot message; milestone: a real team total passing a threshold. */ kind: "text" | "image" | "meet" | "poll" | "file" | "win" | "pulse" | "milestone"; body: string; hasImage: boolean; /** A PDF or Word document sent in the chat. */ file: FileMeta | null; deleted: boolean; at: string;
   reactions: ReactionState; poll: PollState | null;
 };
 export type ChatRow = {
-  id: string; kind: "dm" | "group"; title: string; photo: string | null; avatar: string; withId: string | null; presence: string; sys: boolean; about: string;
+  id: string; kind: "dm" | "group"; title: string; photo: string | null; avatar: string; withId: string | null; presence: string; sys: boolean; /** The Sales company channel, which shows the leaderboard. */ sales: boolean; about: string;
   members: number; last: string; /** First name of whoever sent the last message, when it is not you. */ lastBy: string; lastAt: string; unread: number;
 };
 export type Presence = Record<string, string>;
@@ -35,7 +36,7 @@ type Lite = { id: string; seq: number; chatId: string; senderId: string; kind: s
 const LITE = { id: true, seq: true, chatId: true, senderId: true, kind: true, body: true, deletedAt: true, createdAt: true } as const; // never the picture bytes
 
 const text = (b: Uint8Array | Buffer) => unseal(b).toString("utf8");
-const KINDS = ["text", "image", "meet", "poll", "file", "win", "pulse"] as const;
+const KINDS = ["text", "image", "meet", "poll", "file", "win", "pulse", "milestone"] as const;
 /** A file message keeps its name, type and size with the caption in the (sealed) body; the bytes sit in the sealed `image` column. */
 type FileBody = { n: string; t: string; s: number; c: string };
 function fileBody(m: Lite): FileBody | null {
@@ -60,7 +61,7 @@ async function decorate(rows: Lite[], meId: string, hide = false): Promise<ChatM
   if (!msgs.length) return msgs;
   const senders = await db.staffUser.findMany({ where: { id: { in: [...new Set(msgs.map((m) => m.senderId))] } }, select: { id: true, name: true, role: true } });
   const named = new Map(senders.map((u) => [u.id, hide && u.role === "super_admin" ? ADMIN_LABEL : u.name]));
-  for (const m of msgs) m.by = named.get(m.senderId) ?? pulseName(m.senderId);
+  for (const m of msgs) m.by = named.get(m.senderId) ?? (isTeamId(m.senderId) ? TEAM_NAME : pulseName(m.senderId));
   const pollIds = rows.filter((r) => r.kind === "poll" && !r.deletedAt).map((r) => r.id);
   const [rx, votes] = await Promise.all([
     db.hrChatReaction.findMany({ where: { messageId: { in: msgs.map((m) => m.id) } } }),
@@ -206,10 +207,36 @@ export async function chatList(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>): 
     const p = withId ? people.get(withId) : undefined, last = lastOf.get(c.id);
     return {
       id: c.id, kind: c.kind === "dm" ? "dm" : "group", title: c.kind === "dm" ? p?.name ?? "Former colleague" : c.name, photo: c.kind === "dm" ? p?.hr?.photo ?? null : c.photo, avatar: p?.hr?.chatAvatar ?? "",
-      withId, presence: p ? liveStatus(p.hr?.presence ?? "offline", p.hr?.presenceAt ?? null) : "offline", sys: !!c.sysKey, about: c.about,
-      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? ((people.get(last.senderId)?.name ?? pulseName(last.senderId)).split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
+      withId, presence: p ? liveStatus(p.hr?.presence ?? "offline", p.hr?.presenceAt ?? null) : "offline", sys: !!c.sysKey, sales: c.sysKey === PULSE_KEY, about: c.about,
+      members: members.filter((m) => m.chatId === c.id).length, last: preview(last), lastBy: last && last.senderId !== me.id ? ((people.get(last.senderId)?.name ?? (isTeamId(last.senderId) ? TEAM_NAME : pulseName(last.senderId))).split(" ")[0] ?? "") : "", lastAt: (last?.at ?? c.lastAt.toISOString()), unread: unreadOf.get(c.id) ?? 0,
     };
   });
+}
+
+/** The Sales channel leaderboard: real sales closed and demos booked today and this week (India time), top 5 each. */
+export async function salesBoard(me: Pick<Me, "id"> & Partial<Pick<Me, "role">>, chatId: string, now = new Date()): Promise<{ today: BoardRow[]; week: BoardRow[] }> {
+  await membership(me, chatId);
+  const chat = await db.hrChat.findUnique({ where: { id: chatId }, select: { sysKey: true } });
+  if (chat?.sysKey !== PULSE_KEY) throw new UserError("The leaderboard is only in the Sales channel.");
+  const day = istDayStart(now), week = istWeekStart(now);
+  const [salesW, demosW, salesD, demosD] = await Promise.all([
+    db.conversionRecord.groupBy({ by: ["staffId"], where: { at: { gte: week, lte: now } }, _count: { _all: true } }),
+    db.demoBooking.groupBy({ by: ["staffId"], where: { createdAt: { gte: week, lte: now } }, _count: { _all: true } }),
+    db.conversionRecord.groupBy({ by: ["staffId"], where: { at: { gte: day, lte: now } }, _count: { _all: true } }),
+    db.demoBooking.groupBy({ by: ["staffId"], where: { createdAt: { gte: day, lte: now } }, _count: { _all: true } }),
+  ]);
+  const ids = [...new Set([...salesW, ...demosW].map((r) => r.staffId))];
+  const hide = hideAdmin(me);
+  const people = new Map((await db.staffUser.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, role: true, hr: { select: { photo: true } } } }))
+    .map((u) => [u.id, hide && u.role === "super_admin" ? { name: ADMIN_LABEL, photo: null } : { name: u.name, photo: u.hr?.photo ?? null }]));
+  const build = (sales: { staffId: string; _count: { _all: number } }[], demos: typeof sales) => {
+    const rows = new Map<string, BoardRow>();
+    const get = (id: string) => rows.get(id) ?? rows.set(id, { staffId: id, name: people.get(id)?.name ?? "Former colleague", photo: people.get(id)?.photo ?? null, sales: 0, demos: 0 }).get(id)!;
+    for (const r of sales) get(r.staffId).sales = r._count._all;
+    for (const r of demos) get(r.staffId).demos = r._count._all;
+    return rankBoard([...rows.values()]);
+  };
+  return { today: build(salesD, demosD), week: build(salesW, demosW) };
 }
 
 /** Total unread messages, for the menu badge. */

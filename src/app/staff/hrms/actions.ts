@@ -196,6 +196,7 @@ export const chatTyping = async (chatId: string) => hrRun((me) => chat.setTyping
 export const chatReact = async (messageId: string, emoji: string) => hrRun((me) => chat.react(me, messageId, emoji));
 export const chatPoll = async (chatId: string, q: string, options: string[], multi: boolean) => hrRun((me) => chat.sendPoll(me, chatId, q, options, multi));
 export const chatVote = async (messageId: string, option: number) => hrRun((me) => chat.vote(me, messageId, option));
+export const chatSalesBoard = async (chatId: string) => hrRun((me) => chat.salesBoard(me, chatId));
 export const chatGroupInfo = async (chatId: string) => hrRun((me) => chat.groupInfo(me, chatId));
 export const chatUpdateGroup = async (chatId: string, input: { name?: string; about?: string; photo?: string | null }) => hrRun((me) => chat.updateGroup(me, chatId, input), "Group updated.");
 export const chatRemoveMember = async (chatId: string, staffId: string) => hrRun((me) => chat.removeFromGroup(me, chatId, staffId), "Removed from the group.");

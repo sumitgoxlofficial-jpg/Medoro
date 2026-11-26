@@ -1,11 +1,12 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pulsePhoto } from "@/staff/hrms/pulse-shared";
+import { TEAM_NAME, type BoardRow } from "@/staff/hrms/sales-wins";
 import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
 import type { Data } from "@/staff/hrms/screens";
 import {
-  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
+  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatSalesBoard, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
   chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
@@ -109,7 +110,7 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
     <div className={cx("flex gap-2 group items-end", mine ? "flex-row-reverse" : "")}>
       <Face name={sender} photo={face.photo} avatar={face.avatar} size={28} />
       <div className={cx("max-w-[78%] flex flex-col", mine ? "items-end" : "items-start")}>
-        <div className={cx("rounded-2xl px-3 py-2 text-[13.5px] leading-snug shadow-sm relative", mine ? "bg-[#D6F3EF] rounded-br-md" : "bg-white border border-[#E2E8F0] rounded-bl-md")}>
+        <div className={cx("rounded-2xl px-3 py-2 text-[13.5px] leading-snug shadow-sm relative", m.kind === "win" && !m.deleted ? cx("bg-gradient-to-br from-[#FFFBEB] to-[#ECFDF5] border border-[#FCD34D]", mine ? "rounded-br-md" : "rounded-bl-md") : mine ? "bg-[#D6F3EF] rounded-br-md" : "bg-white border border-[#E2E8F0] rounded-bl-md")}>
           {group && !mine ? <div className="text-[11.5px] font-bold text-[#0B5E5B] mb-0.5">{sender}{m.kind === "pulse" ? <span className="ml-1.5 text-[9.5px] font-semibold bg-[#FEF3C7] text-[#92400E] rounded-full px-1.5 py-0.5">⚡ Sales Pulse · auto</span> : null}</div> : null}
           {m.kind === "win" ? <div className="text-[9.5px] font-semibold text-[#92400E] mb-0.5"><span className="bg-[#FEF3C7] rounded-full px-1.5 py-0.5">⚡ auto · from CRM</span></div> : null}
           {m.deleted ? <span className="italic text-[#64748B]">This message was deleted</span>
@@ -126,7 +127,7 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
                   // eslint-disable-next-line @next/next/no-img-element
                   <button onClick={onOpenImage} aria-label="Open picture" className="block bg-transparent border-0 p-0 cursor-zoom-in"><img src={`/staff/hrms/chat/img/${m.id}`} alt="Photo in chat" className="rounded-lg max-h-[280px] mb-1" loading="lazy" /></button>
                 ) : null}
-                {m.body ? <div className="whitespace-pre-wrap break-words"><Linked text={m.body} /></div> : null}
+                {m.body ? <div className={cx("whitespace-pre-wrap break-words", m.kind === "win" ? "font-semibold text-[#0F172A]" : "")}><Linked text={m.body} /></div> : null}
               </>
             )}
           <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10.5px] text-[#64748B]">
@@ -138,6 +139,62 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
         {menu ? <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-full px-2 py-1 shadow-md mt-1" role="menu">{reactions.map((e) => <button key={e} role="menuitem" onClick={() => { setMenu(false); onReact(e); }} className="bg-transparent border-0 cursor-pointer text-[16px] hover:scale-125 transition-transform">{e}</button>)}</div> : null}
         {m.reactions.length ? <div className="flex gap-1 mt-1 flex-wrap">{m.reactions.map((r) => <button key={r.emoji} onClick={() => onReact(r.emoji)} aria-pressed={r.mine} className={cx("text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-pointer", r.mine ? "bg-[#D6F3EF] border-[#0B5E5B] text-[#0B5E5B]" : "bg-white border-[#E2E8F0]")}>{r.emoji} {r.n}</button>)}</div> : null}
       </div>
+    </div>
+  );
+}
+
+/** A real team milestone (from CRM totals), shown as a centred banner rather than a chat bubble. */
+function MilestoneBanner({ m, reactions, onReact }: { m: ChatMsg; reactions: readonly string[]; onReact: (e: string) => void }) {
+  const [menu, setMenu] = useState(false);
+  return (
+    <div className="self-center max-w-[90%] text-center bg-gradient-to-r from-[#0B5E5B] to-[#14B8A6] text-white rounded-2xl px-4 py-2.5 shadow-sm">
+      <div className="text-[10px] font-bold tracking-[.12em] opacity-80">{TEAM_NAME.toUpperCase()} · FROM CRM</div>
+      <div className="text-[14px] font-bold">{m.body}</div>
+      <div className="flex items-center justify-center gap-1.5 mt-1 text-[10.5px] opacity-90">
+        {m.reactions.map((r) => <button key={r.emoji} onClick={() => onReact(r.emoji)} className={cx("rounded-full px-1.5 border-0 cursor-pointer text-[11.5px]", r.mine ? "bg-white text-[#0B5E5B]" : "bg-white/20 text-white")}>{r.emoji} {r.n}</button>)}
+        <button onClick={() => setMenu((o) => !o)} aria-label="React" className="bg-white/20 border-0 rounded-full px-1.5 cursor-pointer">🎉+</button>
+        {timeLabel(m.at)}
+      </div>
+      {menu ? <div className="flex justify-center gap-1 mt-1">{reactions.map((e) => <button key={e} onClick={() => { onReact(e); setMenu(false); }} className="bg-white/90 rounded-full border-0 cursor-pointer text-[15px] px-1">{e}</button>)}</div> : null}
+    </div>
+  );
+}
+
+/** The Sales channel leaderboard: real sales and demos today or this week. Reloads when a new win arrives. */
+function SalesBoard({ chatId, bump }: { chatId: string; bump: number }) {
+  const [open, setOpen] = useLocalStorage("hrms.salesBoard");
+  const [tab, setTab] = useState<"today" | "week">("today");
+  const [board, setBoard] = useState<{ today: BoardRow[]; week: BoardRow[] } | null>(null);
+  useEffect(() => {
+    const load = () => void chatSalesBoard(chatId).then((r) => { if (r.ok) setBoard(r.data); });
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, [chatId, bump]);
+  const shown = open !== "0";
+  const rows = board?.[tab] ?? [];
+  const medal = ["🥇", "🥈", "🥉"];
+  return (
+    <div className="bg-white border-b border-[#E2E8F0] px-3 py-2">
+      <div className="flex items-center gap-2">
+        <button onClick={() => setOpen(shown ? "0" : "1")} aria-expanded={shown} className="bg-transparent border-0 p-0 cursor-pointer font-bold text-[13px] text-[#0F172A]">🏆 Leaderboard {shown ? "▾" : "▸"}</button>
+        {shown ? <div className="ml-auto flex gap-1">{(["today", "week"] as const).map((k) => (
+          <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={cx("rounded-full px-2.5 py-0.5 text-[11.5px] border-0 cursor-pointer font-semibold", tab === k ? "bg-[#0B5E5B] text-white" : "bg-[#F1F5F9] text-[#475569]")}>{k === "today" ? "Today" : "This week"}</button>
+        ))}</div> : null}
+      </div>
+      {shown ? (
+        rows.length ? (
+          <ol className="list-none m-0 mt-1.5 p-0 flex gap-2 overflow-x-auto">
+            {rows.map((r, i) => (
+              <li key={r.staffId} className={cx("flex-none flex items-center gap-2 rounded-xl px-2.5 py-1.5 border", i === 0 ? "bg-[#FFFBEB] border-[#FCD34D]" : "bg-[#F8FAFC] border-[#E2E8F0]")}>
+                <span className="text-[15px] w-5 text-center">{medal[i] ?? `${i + 1}`}</span>
+                <Face name={r.name} photo={r.photo} size={26} />
+                <span className="leading-tight"><span className="block text-[12.5px] font-semibold">{r.name.split(" ")[0]}</span><span className="block text-[11px] text-[#64748B]">{r.sales} {r.sales === 1 ? "sale" : "sales"} · {r.demos} {r.demos === 1 ? "demo" : "demos"}</span></span>
+              </li>
+            ))}
+          </ol>
+        ) : <div className="text-[12px] text-[#64748B] mt-1">{board ? `No sales or demos ${tab === "today" ? "yet today" : "yet this week"}. The first one takes the top spot 🎯` : "Loading…"}</div>
+      ) : null}
     </div>
   );
 }
@@ -158,6 +215,7 @@ export function ChatScreen({ d }: { d: D }) {
   useEffect(() => { activeRef.current = active; }, [active]);
   const byId = useMemo(() => new Map<string, { name: string; photo: string | null; avatar: string }>([...d.people.map((p) => [p.id, { name: p.name, photo: p.photo, avatar: p.avatar }] as const), [d.me.id, { name: d.me.name, photo: d.me.photo, avatar }]]), [d.people, d.me, avatar]);
   const chat = chats.find((c) => c.id === active);
+  const lastWinSeq = useMemo(() => msgs.reduce((n, m) => (m.kind === "win" || m.kind === "milestone" ? Math.max(n, m.seq) : n), 0), [msgs]);
   const online = Object.keys(pres).filter((id) => id !== d.me.id).length;
 
   const apply = useCallback((p: Poll, chatId: string, reset: boolean) => {
@@ -323,6 +381,7 @@ export function ChatScreen({ d }: { d: D }) {
                 <button className={btnCls} onClick={() => void meet()} disabled={sending} title={d.google ? "Start a Google Meet call" : "Connect Google Calendar first"}>📹 Meet</button>
                 {chat.kind === "group" ? <button className={btnCls} onClick={() => setModal("info")}>Info</button> : null}
               </div>
+              {chat.sales ? <SalesBoard chatId={chat.id} bump={lastWinSeq} /> : null}
               {findOpen ? <div className="bg-white border-b border-[#E2E8F0] px-3 py-2"><input className={inputCls} autoFocus placeholder="Search in this chat" aria-label="Search in this chat" value={find} onChange={(e) => setFind(e.target.value)} /></div> : null}
               <div ref={log} onScroll={(e) => { const el = e.currentTarget; pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-2" aria-live="polite">
                 {shown.length ? shown.map((m, i) => {
@@ -330,8 +389,8 @@ export function ChatScreen({ d }: { d: D }) {
                   return (
                     <div key={m.id} className="flex flex-col gap-1.5">
                       {i === 0 || dayKey(shown[i - 1].at) !== dayKey(m.at) ? <div className="self-center text-[11px] bg-[#E2E8F0] text-[#475569] rounded-full px-3 py-0.5 my-1">{dayLong(m.at)}</div> : null}
-                      <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? { photo: pulsePhoto(m.senderId) }} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
-                        onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />
+                      {m.kind === "milestone" ? <MilestoneBanner m={m} reactions={d.reactions} onReact={(e) => void react(m.id, e)} /> : <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? { photo: pulsePhoto(m.senderId) }} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
+                        onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />}
                     </div>
                   );
                 }) : <Empty>{find ? "No messages match your search." : "Say hello 👋"}</Empty>}
