@@ -4,9 +4,10 @@ import { PULSE_COUNT, pulsePhoto } from "@/staff/hrms/pulse-shared";
 import { TEAM_NAME } from "@/staff/hrms/sales-wins";
 import { useRouter } from "next/navigation";
 import type { ChatMsg, ChatRow, PollState, Presence } from "@/staff/hrms/chat";
+import { EDIT_WINDOW_MS } from "@/staff/hrms/chat-shared";
 import type { Data } from "@/staff/hrms/screens";
 import {
-  chatAddMembers, chatCreateGroup, chatDelete, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
+  chatAddMembers, chatCreateGroup, chatDelete, chatEdit, chatGroupInfo, chatLeave, chatMeet, chatOpenDm, chatPoll, chatReact, chatReviewOpen, chatSend, chatSendFile, chatSendImage, chatSetAvatar,
   chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
@@ -100,11 +101,29 @@ function PollCard({ poll, onVote }: { poll: PollState; onVote: (i: number) => vo
   );
 }
 
-function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDelete, onVote, onOpenImage, onCopy }: {
+function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDelete, onEdit, onVote, onOpenImage, onCopy }: {
   m: ChatMsg; mine: boolean; sender: string; face: { photo?: string | null; avatar?: string }; read: boolean; group: boolean; reactions: readonly string[];
-  onReact: (e: string) => void; onDelete: () => void; onVote: (i: number) => void; onOpenImage: () => void; onCopy: () => void;
+  onReact: (e: string) => void; onDelete: () => void; onEdit: (body: string) => Promise<boolean>; onVote: (i: number) => void; onOpenImage: () => void; onCopy: () => void;
 }) {
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState(false), [editing, setEditing] = useState<string | null>(null), [saving, setSaving] = useState(false);
+  // A text message you sent can be edited for 5 minutes; the Edit button goes away by itself when the time is up.
+  const editable = mine && !m.deleted && m.kind === "text";
+  const [expired, setExpired] = useState(() => Date.now() - new Date(m.at).getTime() >= EDIT_WINDOW_MS);
+  useEffect(() => {
+    if (!editable || expired) return;
+    const t = setTimeout(() => setExpired(true), Math.max(0, new Date(m.at).getTime() + EDIT_WINDOW_MS - Date.now()));
+    return () => clearTimeout(t);
+  }, [editable, expired, m.at]);
+  const canEdit = editable && !expired;
+  const save = async () => {
+    const v = (editing ?? "").trim();
+    if (!v || saving) return;
+    if (v === m.body) { setEditing(null); return; }
+    setSaving(true);
+    const ok = await onEdit(v);
+    setSaving(false);
+    if (ok) setEditing(null);
+  };
   const tick = mine && !m.deleted ? <span className={cx("ml-1 text-[11px]", read ? "text-[#2563EB]" : "text-[#94A3B8]")} aria-label={read ? "Read" : "Sent"}>{read ? "✓✓" : "✓"}</span> : null;
   return (
     <div className={cx("flex gap-2 group items-end", mine ? "flex-row-reverse" : "")}>
@@ -126,13 +145,23 @@ function Bubble({ m, mine, sender, face, read, group, reactions, onReact, onDele
                   // eslint-disable-next-line @next/next/no-img-element
                   <button onClick={onOpenImage} aria-label="Open picture" className="block bg-transparent border-0 p-0 cursor-zoom-in"><img src={`/staff/hrms/chat/img/${m.id}`} alt="Photo in chat" className="rounded-lg max-h-[280px] mb-1" loading="lazy" /></button>
                 ) : null}
-                {m.body ? <div className={cx("whitespace-pre-wrap break-words", m.kind === "win" ? "font-semibold text-[#0F172A]" : "")}><Linked text={m.body} /></div> : null}
+                {editing !== null ? (
+                  <div className="flex flex-col gap-1.5 min-w-[220px]">
+                    <textarea className={cx(inputCls, "resize-none")} rows={2} autoFocus aria-label="Edit message" value={editing} maxLength={4000} onChange={(e) => setEditing(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void save(); } else if (e.key === "Escape") setEditing(null); }} />
+                    <div className="flex gap-1.5 justify-end">
+                      <button className={btnCls} onClick={() => setEditing(null)} disabled={saving}>Cancel</button>
+                      <button className={primaryCls} onClick={() => void save()} disabled={saving || !editing.trim()}>Save</button>
+                    </div>
+                  </div>
+                ) : m.body ? <div className={cx("whitespace-pre-wrap break-words", m.kind === "win" ? "font-semibold text-[#0F172A]" : "")}><Linked text={m.body} /></div> : null}
               </>
             )}
           <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10.5px] text-[#64748B]">
             {!m.deleted ? <button onClick={() => setMenu((o) => !o)} aria-label="React" className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 cursor-pointer text-[12px]">😊</button> : null}
+            {canEdit && editing === null ? <button onClick={() => { setMenu(false); setEditing(m.body); }} title="You can edit a message for 5 minutes after sending it" className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 cursor-pointer text-[#0B5E5B] text-[10.5px]">Edit</button> : null}
             {mine && !m.deleted ? <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 focus:opacity-100 bg-transparent border-0 cursor-pointer text-[#B3261E] text-[10.5px]">Delete</button> : null}
-            {timeLabel(m.at)}{tick}
+            {m.edited && !m.deleted ? <span className="italic">edited</span> : null}{timeLabel(m.at)}{tick}
           </div>
         </div>
         {menu ? <div className="flex gap-1 bg-white border border-[#E2E8F0] rounded-full px-2 py-1 shadow-md mt-1" role="menu">{reactions.map((e) => <button key={e} role="menuitem" onClick={() => { setMenu(false); onReact(e); }} className="bg-transparent border-0 cursor-pointer text-[16px] hover:scale-125 transition-transform">{e}</button>)}</div> : null}
@@ -190,7 +219,7 @@ export function ChatScreen({ d }: { d: D }) {
       const base = reset ? [] : cur, seen = new Set(base.map((m) => m.id));
       const merged = [...base, ...add.filter((m) => !seen.has(m.id))];
       const fresh = new Map((refresh ?? []).map((m) => [m.id, m]));
-      const out = merged.map((m) => { const r = fresh.get(m.id); return r ? { ...m, reactions: r.reactions, poll: r.poll, deleted: r.deleted, body: r.deleted ? "" : m.body, hasImage: r.deleted ? false : m.hasImage, file: r.deleted ? null : m.file } : m; });
+      const out = merged.map((m) => { const r = fresh.get(m.id); return r ? { ...m, reactions: r.reactions, poll: r.poll, deleted: r.deleted, edited: r.edited, body: r.deleted ? "" : r.edited ? r.body : m.body, hasImage: r.deleted ? false : m.hasImage, file: r.deleted ? null : m.file } : m; });
       top.current = out.length ? out[out.length - 1].seq : 0;
       return out;
     });
@@ -275,6 +304,7 @@ export function ChatScreen({ d }: { d: D }) {
   const patch = (id: string, f: (m: ChatMsg) => ChatMsg) => setMsgs((c) => c.map((m) => (m.id === id ? f(m) : m)));
   const react = async (id: string, e: string) => { const r = await chatReact(id, e); if (!r.ok) toast(r.error, "red"); else patch(id, (m) => ({ ...m, reactions: r.data.reactions })); };
   const vote = async (id: string, i: number) => { const r = await chatVote(id, i); if (!r.ok) toast(r.error, "red"); else patch(id, (m) => ({ ...m, poll: r.data.poll })); };
+  const edit = async (id: string, body: string) => { const r = await chatEdit(id, body); if (!r.ok) { toast(r.error, "red"); return false; } patch(id, (m) => ({ ...m, body: r.data.body, edited: r.data.edited })); return true; };
   const del = (id: string) => run(() => chatDelete(id), () => { patch(id, (m) => ({ ...m, deleted: true, body: "", hasImage: false, file: null, poll: null, reactions: [] })); });
   const startDm = async (id: string) => {
     const r = await chatOpenDm(id);
@@ -348,7 +378,7 @@ export function ChatScreen({ d }: { d: D }) {
                     <div key={m.id} className="flex flex-col gap-1.5">
                       {i === 0 || dayKey(shown[i - 1].at) !== dayKey(m.at) ? <div className="self-center text-[11px] bg-[#E2E8F0] text-[#475569] rounded-full px-3 py-0.5 my-1">{dayLong(m.at)}</div> : null}
                       {m.kind === "milestone" ? <MilestoneBanner m={m} reactions={d.reactions} onReact={(e) => void react(m.id, e)} /> : <Bubble m={m} mine={m.senderId === d.me.id} sender={who?.name ?? (m.by || "Colleague")} face={who ?? { photo: pulsePhoto(m.senderId) }} read={m.seq <= readUpTo} group={chat.kind === "group"} reactions={d.reactions}
-                        onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />}
+                        onReact={(e) => void react(m.id, e)} onDelete={() => del(m.id)} onEdit={(b) => edit(m.id, b)} onVote={(o) => void vote(m.id, o)} onOpenImage={() => setViewer(m.id)} onCopy={() => copy(m.body)} />}
                     </div>
                   );
                 }) : <Empty>{find ? "No messages match your search." : "Say hello 👋"}</Empty>}
