@@ -1,0 +1,12 @@
+# Files Vercel never needs to build or serve the site. Every deployment stores its own copy of the source it was
+# built from, so these folders (~45 MB) were being stored again on every deployment, filling the Hobby plan's
+# 10 GB Deployment Storage. The build type-checks with tsconfig.build.json, which already leaves tests/ and e2e/ out.
+/MEDORO_PRODUCT_TOUR
+/design
+/desktop
+/docs
+/e2e
+/tests
+/deploy
+/Dockerfile
+/docker-compose.yml
