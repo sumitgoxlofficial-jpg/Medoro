@@ -3669,6 +3669,27 @@ model DistConnection {
   @@index([accountId])
 }
 
+/// Someone leaving: their resignation (when they resigned in the HRMS), HR's decision, the exit interview and the clearance checklist.
+/// One row per exit; HR recording an exit directly (Employees → Record exit) gets a row too, so clearance and the interview work the same.
+model HrExit {
+  id              String    @id @default(uuid())
+  staffId         String
+  status          String    @default("requested") // requested, accepted, declined, withdrawn, recorded (HR recorded the exit without a resignation), cancelled (HR cancelled the exit)
+  reason          String    @default("") // the employee's reason for resigning
+  proposedLastDay DateTime? @db.Date // what the employee asked for
+  lastDay         DateTime? @db.Date // what HR accepted (also written to HrProfile.exitDate)
+  decidedBy       String    @default("")
+  decidedAt       DateTime?
+  decisionNote    String    @default("") // HR's note when accepting or declining
+  interview       Json      @default("{}") // exit interview answers, by question id; only HR and the person see them
+  interviewAt     DateTime?
+  clearance       Json      @default("{}") // checklist item id -> { by, at }
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([staffId, createdAt])
+}
+
 // ───────────── HRMS · Sales Training Academy ─────────────
 // A training programme (the one-day Sales Academy) is content HR installs and edits: modules, lessons, questions and
 // role-play scenarios. People are assigned to it through a batch (a date and a trainer). Progress, quiz attempts and
