@@ -93,6 +93,25 @@ const T: Tool[] = [
     },
   },
   {
+    name: "get_profit_summary", kind: "read", perms: ["reports"], description: "Gross profit for today, yesterday, this week or this month at the current branch: sales before GST, cost of goods sold and margin.",
+    input: z.object({ period: z.enum(["today", "yesterday", "week", "month"]).default("month") }),
+    params: { period: { type: "string", enum: ["today", "yesterday", "week", "month"] } },
+    run: async (ctx, { period }: { period: "today" | "yesterday" | "week" | "month" }, o) => {
+      const t0 = startOfTodayIST();
+      const from = period === "today" ? t0 : period === "yesterday" ? new Date(t0.getTime() - 86400_000) : period === "week" ? new Date(t0.getTime() - 6 * 86400_000) : new Date(Date.UTC(+todayISO().slice(0, 4), +todayISO().slice(5, 7) - 1, 1) - 330 * 60_000);
+      const to = period === "yesterday" ? t0 : new Date();
+      const agg = await db.sale.aggregate({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, at: { gte: from, lt: to }, voided: { is: null } }, _sum: { taxablePaise: true, costPaise: true }, _count: true });
+      const sales = Number(big(agg._sum.taxablePaise)), cost = Number(big(agg._sum.costPaise)), gross = sales - cost;
+      const pct = sales ? Math.round((gross / sales) * 1000) / 10 : 0;
+      const label = o.hi ? { today: "आज", yesterday: "कल", week: "पिछले 7 दिन", month: "इस महीने" }[period] : { today: "Today", yesterday: "Yesterday", week: "Last 7 days", month: "This month" }[period];
+      return {
+        text: H(o, `${label}: gross profit ${inr0(gross)} on sales of ${inr0(sales)} before GST (${pct}%).`, `${label}: GST से पहले ${inr0(sales)} की बिक्री पर ${inr0(gross)} सकल मुनाफ़ा (${pct}%)।`),
+        rows: [{ a: H(o, "Sales before GST", "GST से पहले बिक्री"), b: "", c: inr0(sales) }, { a: H(o, "Cost of goods sold", "बिके माल की लागत"), b: "", c: inr0(cost) }, { a: H(o, "Gross profit", "सकल मुनाफ़ा"), b: `${pct}%`, c: inr0(gross) }],
+        basis: H(o, `Committed bills before returns and expenses, ${ctx.branchName}`, `रिटर्न और खर्च से पहले के बिल, ${ctx.branchName}`),
+      };
+    },
+  },
+  {
     name: "search_medicines", kind: "read", perms: [], description: "Find a medicine by name, generic or barcode and show sellable stock and price.",
     input: z.object({ query: z.string().min(2).max(60) }),
     params: { query: { type: "string", description: "medicine name, generic or barcode" } },

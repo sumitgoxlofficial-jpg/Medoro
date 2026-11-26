@@ -15,7 +15,7 @@ import { aiLimits } from "./service";
  */
 
 /** The lookups a counter may offer the model (the device's read-only tools). */
-const DEVICE_TOOL_NAMES = ["get_sales_summary", "search_medicines", "get_batch_inventory", "get_expiry_report", "get_low_stock_report", "get_supplier_balances", "get_customer_outstanding", "get_cash_reconciliation"] as const;
+const DEVICE_TOOL_NAMES = ["get_sales_summary", "get_profit_summary", "search_medicines", "get_batch_inventory", "get_expiry_report", "get_low_stock_report", "get_supplier_balances", "get_customer_outstanding", "get_cash_reconciliation"] as const;
 
 const call = z.object({ id: z.string().max(100), name: z.enum(DEVICE_TOOL_NAMES), args: z.record(z.string(), z.unknown()) });
 const message = z.discriminatedUnion("role", [

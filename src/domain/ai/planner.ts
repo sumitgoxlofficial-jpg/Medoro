@@ -191,6 +191,10 @@ export function rulePlan(raw: string, lang: "en" | "hi", month: number, year = n
   if (/(reconcil|cash in|drawer|galla|shift|गल्ला|गल्ले|शिफ्ट|नकद)/.test(l)) return { kind: "tool", tool: "get_cash_reconciliation", input: {} };
   if (/(supplier|payable|payment due|dues to|owe|सप्लायर|आपूर्तिकर्ता)/.test(l) && !/(customer|udhaar|receivable|ग्राहक|उधार)/.test(l)) return { kind: "tool", tool: "get_supplier_balances", input: {} };
   if (/(customer|udhaar|receivable|outstanding|credit due|ग्राहक|उधार|बकाया)/.test(l)) return { kind: "tool", tool: "get_customer_outstanding", input: {} };
+  if (/(profit|munafa|munaafa|munafe|margin|kamai|kamaai|मुनाफ़?ा|मुनाफ़?े|कमाई|मार्जिन)/.test(l)) {
+    const period = /(yesterday|\bkal\b|कल)/.test(l) ? "yesterday" : /(today|\baaj\b|आज)/.test(l) ? "today" : /(week|hafte|7 days|हफ्ते|सप्ताह)/.test(l) ? "week" : "month";
+    return { kind: "tool", tool: "get_profit_summary", input: { period } };
+  }
   if (/(\bsales?\b|bikri|becha|revenue|collection|kitna bika|\bbills?\b|बिक्री|सेल|बिका|बेचा)/.test(l)) {
     const period = /(yesterday|\bkal\b|कल)/.test(l) ? "yesterday" : /(week|hafte|7 days|हफ्ते|सप्ताह)/.test(l) ? "week" : /(month|mahina|mahine|महीने|महीना)/.test(l) ? "month" : "today";
     return { kind: "tool", tool: "get_sales_summary", input: { period } };

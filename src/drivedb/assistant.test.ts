@@ -23,6 +23,14 @@ beforeEach(async () => {
 });
 
 describe("the assistant on the counter", () => {
+  it("answers profit questions for the owner only", () => {
+    const p = askRules(db, owner, "Is month ka total profit kitna hua?");
+    expect(p.tool).toBe("get_profit_summary");
+    // 5 strips sold at cost ₹20: ₹160 sales incl. 12% GST → net ₹142.86 (rounded per line), cost ₹100.
+    expect(p.rows?.find((r) => r.a === "Cost of goods sold")?.c).toBe("₹100");
+    expect(p.text).toMatch(/gross profit ₹\d+/);
+    expect(askRules(db, cashier, "What is today's profit?")).toMatchObject({ refused: true });
+  });
   it("answers everyday questions from this device's data with the built-in rules (works offline)", () => {
     const sales = askRules(db, owner, "Sales today");
     expect(sales).toMatchObject({ tool: "get_sales_summary", via: "rules", text: "Today so far: ₹160 across 2 bills." });
