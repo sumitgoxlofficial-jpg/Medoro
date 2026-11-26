@@ -48,14 +48,62 @@ Credentials, the authenticator key, recovery codes, the Drive recovery code and 
 | 3 | Medium | Device database opens were not serialised, and a page reload could hit OPFS handles still held by the previous page's worker. The counter could then wrongly show "Set up this device", inviting a fresh start or restore | `bb808c2` – opens queued; pool install retries for ~10 s on `NoModificationAllowedError` |
 | 4 | Low | Billing header advertised **"F4 hold"**, which the device counter doesn't implement | `387abc5` – hint removed |
 | 5 | Low | Stock quantities read "10 **boxs**" | `387abc5` – -es plural for x/ch/sh |
+| 6 | **High** | **Barcode scan added the wrong medicine.** Enter added the first item of the last debounced (120 ms) search. A scanner types and sends Enter faster than that, so scanning an ORS sachet added **Alprazolam (Schedule H1)**, the first item A–Z. The H1 prescription check then blocked the bill, which is how this was found | `4dd2bb6` – Enter searches the exact text in the box first |
+| 7 | Medium | **F2 on the device counter opened the server POS** (`/app/pos`, Medoro's empty server copy for a Drive pharmacy), although the counter says "F2 search" | `1c3d28f` – F2 is left to the counter on counter pages |
+| 8 | Medium | **Ask (built-in rules)** didn't understand "Which medicines are running low?" or "Kaunsi medicines ka stock kam hai?", and read "Which batches are expiring soon?" as a medicine name | `9fe222b` – rules extended, tests added |
 
-Fixes 4 and 5 were made after the demo server had started. The demo server wasn't restarted for them, because a restart wipes the in-memory test Drive mid-production. Recordings made after that point still show the old "F4 hold" hint and "boxs".
+Fixes 4–8 were made after the demo pharmacy's data was in place. The demo server wasn't restarted for them, because a restart wipes the in-memory test Drive (and with it the encrypted copy the counter syncs to). **The videos therefore show the build before fixes 4–8.** The narration avoids F2 on the counter and types barcodes at hand speed. Part 17 says plainly which questions the assistant didn't understand. All 8 fixes are committed, typechecked, linted and unit-tested, but have not been re-recorded.
 
 ## 3. Feature status (verified on the demo server)
 
 Legend: **Working** = demonstrated end to end · **Partial** = works with the limits noted · **Not available** = not present for a hosted (Google Drive) pharmacy · **Not connected** = needs external credentials not available here.
 
-FEATURE_TABLE_PLACEHOLDER
+| Area | Feature | Status | Notes |
+|---|---|---|---|
+| Registration | medoro.in → Pharmacy → Start 7-day free trial | Working | Live site shown read-only; account created on the demo server |
+| | Email verification (6-digit code) | Working | Code to the demo inbox; 10-minute validity shown |
+| | Google sign-up | Not connected | Google sign-in not configured on the demo server |
+| | Login, two-step verification (TOTP), trusted PC 30 days | Working | |
+| | Forgot password (email code, signs out every device) | Working | Full reset demonstrated |
+| | Lockout after 5 failures, sign-up rate limit | Working (rate limit observed) | Lockout narrated from the product documentation; not triggered on camera |
+| Onboarding | Pharmacy name, GSTIN (format check), drug licence, pharmacist, address, pharmacy code, language | Working | Validation shown |
+| | State/city/financial year/tax configuration as separate settings | Not available | Address is one free-text field; GST is set per medicine |
+| | Branches and counters, team invites, recovery kit, terms | Working | |
+| | Drive storage set-up and recovery code | Working (test Drive) | |
+| Dashboard | Sales, margin, purchases, expenses, receivables, payables, 7D/30D, sales chart, collections by mode, insights, low stock, expiry, branch performance, recent activity | Working | Sales chart always shows the last 14 days, even in the 30D view |
+| Medicines | Add, edit, deactivate ("In use"), salt, schedule, HSN, GST, MRP, pack/loose, barcode, rack, reorder level | Working | Delete is by design "deactivate" (history kept). Manufacturer/HSN not in the hand-entry form (they come from import) |
+| Inventory | Stock list, low-stock filter, opening-stock import with preview/validation, batches, FEFO, stock correction with reason, stock count, batch status OK/Quarantine/Recalled, branch transfer | Working | |
+| | Recall notices (record verified notice, match stock) | Present, not tested | Recalls tab opened; no notice recorded (Medoro asks for notices from verified sources only) |
+| Purchases | Typed supplier bill = GRN (batch, expiry, packs, free packs, rate, MRP), supplier dues, supplier payment | Working | |
+| | Purchase discount per line | Not available | No discount field on the device purchase line |
+| | Purchase order | Partial | Insights → order list (reviewed by the owner); no formal PO document on the counter |
+| | Purchase return / supplier claims | Present, not tested end to end | Supplier tools → Claims screen shown |
+| Invoice import | Distributor e-bill file (CSV/Excel/text) with column mapping and review | Working | |
+| | AI scan of PDF/photo invoices (OCR) | Not connected | Server-side OCR engine (`OCR_ENGINE=remote`) not configured; not on the Drive counter |
+| Billing | Search by brand, salt, barcode; Enter add; F9 complete; FEFO batch; loose units; customer by mobile; role-capped discount; GST (CGST/SGST, IGST for inter-state GSTIN); cash, UPI, card, credit; tax invoice; print / Save as PDF | Working | See bugs 6 and 7 |
+| | Split payment, hold & resume cart | Not available on the device counter | Exist only on the server-mode POS |
+| | WhatsApp invoice PDF | Not connected | |
+| Schedule H/H1 | Prescriber, registration no., patient (H1) required before billing; printed on invoice; sales by doctor | Working | |
+| | Schedule H1 register report | **Not available on the Drive counter** | Server-mode register reads Medoro's copy, empty for Drive pharmacies. Compliance gap |
+| Customers | Add/edit, credit limit, GSTIN, WhatsApp consent, receive payment, remind, pay link | Working (pay link / remind need WhatsApp/payments) | |
+| | Customer ledger and statement screen | Partial | Dues and receipts on Customers; bills searchable by mobile; no statement document on the counter |
+| Returns | Find bill, per-line quantity (same batch), reason, condition sealed/damaged, refund cash/UPI/to account, credit note, day-end | Working | |
+| Suppliers | Dues, payment voucher, pricing comparison | Working | Claims and cheques screens shown, not tested end to end; home-delivery Orders tab not tested |
+| | Supplier profile, ledger and statement screen | Not available on the Drive counter | |
+| Accounts | Expenses by category, cash book, bank statement import and matching, sales & profit report | Working | |
+| | Day book, ledger, trial balance, P&L statement, cash flow | Not available on the Drive counter | Listed as plan features; present only in server mode |
+| | Automatic bank sync | Not connected | Needs a bank / Account Aggregator partner |
+| GST | MRP-inclusive tax, HSN, GSTR-1 JSON, HSN summary CSV, GSTR-3B JSON/CSV | Working | Must be reviewed by the pharmacy's CA |
+| | Tally export | Not available on the Drive counter | CSV/JSON exports only |
+| WhatsApp | Link by QR, auto-send invoice PDF, delivery log, refill/feedback/payment reminders, consent, STOP opt-out | Not connected (screens shown) | |
+| AI assistant | Ask (built-in rules, offline): today/month sales, low stock, expiry, dues, cash | Partial | Bug 8 (fixed in code); no profit answer on the counter; "Ask AI" drawer uses the same tools; not a medical advisor |
+| | Draft purchase order via AI with confirmation | Not demonstrated | Exists in the server-mode assistant |
+| Offline | Counter PIN; billing with the browser offline; changes waiting; sync on reconnect | Working | Demo browser taken offline only |
+| Branches | Two branches, counters, branch transfer, branch performance | Working | Owner view (consolidated) reads the server copy and shows zeros for a Drive pharmacy |
+| Staff | Users list (role, branch, MFA, last active), invites, add employee, roles & permissions, view-as-role, audit trail, counter activity | Working | Invited staff did not accept their invites in this demo |
+| Backup/security | Encrypted Google Drive copy, recovery code, restore, privacy controls, strict mode, export, erasure, integration health | Working (test Drive) | Real Google Drive not connected |
+| Subscription | Plan page, plan features, renew/pay | Partial | Demo server isn't licensed ("Self-hosted"); trial/plan comparison shown on the live medoro.in pricing page; no payment made |
+| Language | English ⇄ Hindi interface, Hindi/Hinglish questions | Working | |
 
 ## 4. Other observations
 
