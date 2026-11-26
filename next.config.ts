@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   typescript: { tsconfigPath: "tsconfig.build.json" },
   experimental: { serverActions: { bodySizeLimit: "11mb", allowedOrigins: process.env.ALLOWED_ORIGINS?.split(",").map((s) => s.trim()).filter(Boolean) } },
   outputFileTracingIncludes: { "/api/ready": ["./prisma/migrations/**/*"] },
+  // Tour videos, thumbnails and captions are static files the CDN serves; never bundle them into server functions
+  // (the tracer otherwise copies ~175 MB into every function and Vercel splits the app past its function limit).
+  outputFileTracingExcludes: { "*": ["./public/videos/**/*"] },
   // Short addresses for the team sign-in pages. They are not linked from the public site: staff use these directly.
   async redirects() {
     return [
