@@ -6,6 +6,8 @@ import { ChatReviewScreen, ChatScreen } from "./screens-chat";
 import { ProjectsScreen } from "./screens-projects";
 import { HrPoliciesScreen, PoliciesScreen } from "./screens-policies";
 import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
+import { TrainingScreen } from "./screens-training";
+import { AcademyScreen, TrainerDeskScreen } from "./screens-academy";
 import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
 
 /** Picks the screen for the page. `data` is what that screen's loader returned. */
@@ -26,6 +28,9 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "policies": return <PoliciesScreen d={d as Data<"policies">} />;
     case "hrpolicies": return <HrPoliciesScreen d={d as Data<"hrpolicies">} />;
     case "support": return <SupportScreen d={d as Data<"support">} />;
+    case "training": return <TrainingScreen d={d as Data<"training">} />;
+    case "trdesk": return <TrainerDeskScreen d={d as Data<"trdesk">} />;
+    case "academy": return <AcademyScreen d={d as Data<"academy">} />;
     case "profile": return <ProfileScreen d={d as Data<"profile">} />;
     case "slhome": return <SalesHome d={d as Data<"slhome">} sh={sh} />;
     case "slboard": return <LeadBoard d={d as Data<"slboard">} />;

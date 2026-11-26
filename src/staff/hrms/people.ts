@@ -37,7 +37,7 @@ const liveStatus = (presence: string, at: Date | null) => (presence !== "offline
 export async function roster(opts: { includeInactive?: boolean; viewer?: Pick<Me, "role"> } = {}): Promise<Person[]> {
   const rows = await db.staffUser.findMany({
     where: { kind: "team", role: opts.viewer && hideAdmin(opts.viewer) ? { notIn: ["partner", "super_admin"] } : { not: "partner" }, // nobody but the super admin can see who the super admin is
-    ...(opts.includeInactive ? {} : { status: { in: ["active", "invited"] } }) },
+    deletedAt: null, ...(opts.includeInactive ? {} : { status: { in: ["active", "invited"] } }) },
     include: { hr: true }, orderBy: { name: "asc" },
   });
   return rows.map((u) => {
@@ -224,7 +224,7 @@ export async function setEmployeeActive(me: Me, id: string, active: boolean, las
   need(me, "employees");
   if (id === me.id) throw new UserError("You can’t change your own access.");
   const u = await db.staffUser.findUnique({ where: { id } });
-  if (!u || u.kind !== "team") throw new UserError("Employee not found.");
+  if (!u || u.kind !== "team" || u.deletedAt) throw new UserError("Employee not found.");
   if (u.role === "super_admin" && me.role !== "admin") throw new UserError("Only the super admin can change a super admin.");
   if (!active && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active" } })) <= 1) throw new UserError("Keep at least one active super admin.");
   const hr = await db.hrProfile.findUnique({ where: { staffId: id }, select: { joinDate: true } });
@@ -239,6 +239,34 @@ export async function setEmployeeActive(me: Me, id: string, active: boolean, las
   ]);
   if (later) await notify([id], `Your last working day is recorded as ${exit}.`, "profile");
   await audit(me, active ? (u.status === "active" ? "Exit cancelled" : "Employee reactivated") : later ? "Exit recorded" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);
+}
+
+/**
+ * Deletes an employee's account: they vanish from the directory, every sign-in route is closed and their
+ * official email can be given to someone new. Payslips, PF/ESI and other records stay, as the law requires them kept.
+ * Someone still working is deactivated first, with today as their last working day (or none if they hadn't joined yet).
+ */
+export async function deleteEmployee(me: Me, id: string) {
+  need(me, "employees");
+  if (id === me.id) throw new UserError("You can’t delete your own account.");
+  const u = await db.staffUser.findUnique({ where: { id } });
+  if (!u || u.kind !== "team" || u.deletedAt) throw new UserError("Employee not found.");
+  if (u.role === "super_admin" && me.role !== "admin") throw new UserError("Only the super admin can delete a super admin.");
+  const leaving = u.status !== "deactivated";
+  if (leaving && u.role === "super_admin" && (await db.staffUser.count({ where: { role: "super_admin", status: "active", deletedAt: null } })) <= 1) throw new UserError("Keep at least one active super admin.");
+  const hr = leaving ? await db.hrProfile.findUnique({ where: { staffId: id }, select: { joinDate: true, exitDate: true } }) : null;
+  const today = todayISO();
+  // Their last working day becomes today, unless they had already set one in the past or hadn't joined yet.
+  const exit = !hr ? undefined : hr.joinDate && isoOf(hr.joinDate) > today ? null : hr.exitDate && isoOf(hr.exitDate) <= today ? undefined : dateOnly(today);
+  await db.$transaction([
+    db.staffUser.update({ where: { id }, data: {
+      deletedAt: new Date(), status: "deactivated", email: `deleted-${u.id.slice(0, 8)}.${u.email}`, passwordHash: null, totpSecret: null, totpEnabled: false, googleSub: null,
+      inviteTokenHash: null, inviteExpiresAt: null, tokenVersion: { increment: 1 },
+    } }),
+    db.staffSession.updateMany({ where: { staffId: id, revokedAt: null }, data: { revokedAt: new Date() } }),
+    db.hrProfile.updateMany({ where: { staffId: id }, data: { otpHash: null, otpExpiresAt: null, ...(exit !== undefined ? { exitDate: exit } : {}) } }),
+  ]);
+  await audit(me, "Employee account deleted", `${u.empNo} · ${u.name} · ${u.email}${leaving ? " · was active, deactivated today" : ""}`);
 }
 
 /** A password HR reads out to someone who forgot theirs. Works for one sign-in within 24 hours; then they set a new one. */

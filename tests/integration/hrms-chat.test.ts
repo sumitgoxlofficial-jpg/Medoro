@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("
 
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
-import { AVATARS, REACTIONS, deleteGroup, removeFromGroup, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendFile, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
+import { AVATARS, REACTIONS, deleteGroup, removeFromGroup, presenceMap, react, sendPoll, setChatAvatar, setTyping, syncChannels, updateGroup, vote, addToGroup, groupInfo, chatImage, chatList, chatMessages, createGroup, deleteMessage, editMessage, leaveGroup, openDm, reviewChats, reviewMessages, sendFile, sendImage, sendText, startMeet, unreadTotal } from "@/staff/hrms/chat";
 import { resetDb } from "./helpers";
 
 let admin: Me, hr: Me, ann: Me, bob: Me, cat: Me;
@@ -91,6 +91,26 @@ describe("team chat", () => {
     await deleteMessage(ann, m.id);
     const after = (await chatMessages(bob, chatId, null, false)).msgs.find((x) => x.id === m.id)!;
     expect(after).toMatchObject({ deleted: true, body: "" });
+  });
+
+  it("lets the sender edit a text message for 5 minutes, and no one else", async () => {
+    const { chatId } = await openDm(ann, bob.id);
+    const m = await sendText(ann, chatId, "Meeting at 3");
+    expect(m.edited).toBe(false);
+    await expect(editMessage(bob, m.id, "hijacked")).rejects.toThrow("your own");
+    await expect(editMessage(ann, m.id, "   ")).rejects.toThrow();
+    const e = await editMessage(ann, m.id, "  Meeting at 4  ");
+    expect(e).toMatchObject({ body: "Meeting at 4", edited: true });
+    expect((await chatMessages(bob, chatId, null, false)).msgs.find((x) => x.id === m.id)).toMatchObject({ body: "Meeting at 4", edited: true });
+    const raw = await db.hrChatMessage.findUniqueOrThrow({ where: { id: m.id } });
+    expect(Buffer.from(raw.body).toString("utf8")).not.toContain("Meeting at 4"); // still sealed
+    await db.hrChatMessage.update({ where: { id: m.id }, data: { createdAt: new Date(Date.now() - 5 * 60_000 - 1000) } });
+    await expect(editMessage(ann, m.id, "Meeting at 5")).rejects.toThrow("5 minutes");
+    const poll = await sendPoll(ann, chatId, "Lunch?", ["Yes", "No"], false);
+    await expect(editMessage(ann, poll.id, "x")).rejects.toThrow("Only text");
+    const gone = await sendText(ann, chatId, "bye");
+    await deleteMessage(ann, gone.id);
+    await expect(editMessage(ann, gone.id, "x")).rejects.toThrow("deleted");
   });
 
   it("sends pictures sealed, opens them only for the conversation and checks the file", async () => {

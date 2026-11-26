@@ -27,7 +27,7 @@ beforeAll(async () => {
 });
 beforeEach(() => jar.clear());
 const notes = (id: string) => db.hrNotification.findMany({ where: { staffId: id }, orderBy: { createdAt: "asc" } }).then((r) => r.map((n) => n.text));
-const LEAVE = { title: "Leave policy", category: "Leave", body: "Apply for leave in the HRMS before you go.\n\n- 12 casual days\n- 12 sick days", mandatory: true, reack: false };
+const LEAVE = { title: "Leave policy", category: "Leave" as const, body: "Apply for leave in the HRMS before you go.\n\n- 12 casual days\n- 12 sick days", mandatory: true, reack: false };
 
 describe("company policies", () => {
   let id = "";

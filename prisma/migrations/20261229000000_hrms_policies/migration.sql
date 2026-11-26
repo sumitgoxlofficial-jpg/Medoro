@@ -35,3 +35,7 @@ CREATE UNIQUE INDEX "HrPolicyAck_policyId_staffId_version_key" ON "HrPolicyAck"(
 -- AddForeignKey
 ALTER TABLE "HrPolicyAck" ADD CONSTRAINT "HrPolicyAck_policyId_fkey" FOREIGN KEY ("policyId") REFERENCES "HrPolicy"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- Like every Medoro table: row level security on, so a hosted data API gets no rows.
+ALTER TABLE public."HrPolicy" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."HrPolicyAck" ENABLE ROW LEVEL SECURITY;
