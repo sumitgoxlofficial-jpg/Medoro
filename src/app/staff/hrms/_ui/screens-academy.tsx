@@ -6,6 +6,7 @@ import type { Participant } from "@/staff/hrms/training/service";
 import { AREAS, RUBRICS, STATUS_LABEL, areaLabel, clock12, practicalLabel, type PracticalKind, type Slide } from "@/staff/hrms/training/shared";
 import { trAddLink, trAssign, trAttendance, trCreateBatch, trCreateLesson, trGrantAttempt, trHrDecide, trInstall, trMove, trRemoveResource, trReopen, trReport, trRestore, trRevoke, trSaveLesson, trSaveModule, trSaveQuestion, trSaveScenario, trSaveSchedule, trSaveSettings, trScore, trTrainerDecide, trUnassign, trUpdateBatch, trUpload, trVersions } from "../training-actions";
 import { AcademyArt, Pipeline } from "./training-art";
+import { LectureThumb } from "./lecture-thumbs";
 import { Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, tdCls, useRun } from "./kit";
 
 type A = Extract<Data<"academy">, { installed: true }>;
@@ -357,6 +358,12 @@ function Builder({ d }: { d: A }) {
           <ul className="px-5 pb-3 flex flex-col">
             {d.lessons.filter((l) => l.moduleId === m.id).map((l) => (
               <li key={l.id} className="flex flex-wrap items-center gap-2 py-1.5 border-t border-[#F1F5F9] first:border-t-0 text-[13px]">
+                <span className="relative w-[88px] aspect-video rounded-md overflow-hidden flex-none bg-[#0f172a]">
+                  {l.thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={l.thumb} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                  ) : <LectureThumb slug={l.slug} title={l.title} n={l.order + 1} minutes={l.durationMin} className="absolute inset-0 w-full h-full" />}
+                </span>
                 <span className="flex-1 min-w-[200px] font-semibold">{l.title}</span>
                 <span className="text-[11.5px] text-[#64748B]">{l.video ? (l.video.official ? "Official video" : "Video") : "Slides"} · {l.slides.length} slides · v{l.version}</span>
                 {l.status !== "published" ? <Pill tone="amber">Draft</Pill> : null}{!l.mandatory ? <Pill>Optional</Pill> : null}

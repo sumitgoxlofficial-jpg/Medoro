@@ -6,6 +6,7 @@ import type { Data } from "@/staff/hrms/screens";
 import { AREAS, RUBRICS, STATUS_LABEL, clock12, type LessonContent } from "@/staff/hrms/training/shared";
 import { trAttempt, trBeat, trExam, trSubmitPractical, trSubmitQuiz } from "../training-actions";
 import { useNow } from "@/lib/use-now";
+import { LectureThumb } from "./lecture-thumbs";
 import { AreaBars, Burst, CertificatePreview, JourneyMap, ResultRing, ScoreGauge, type Step } from "./training-art";
 import { Card, Empty, Field, Grid, Modal, Pill, Stat, Tabs, btnCls, cx, dayLong, inputCls, primaryCls, useRun } from "./kit";
 
@@ -95,6 +96,9 @@ const Bar = ({ pct, tone = "#0B5E5B" }: { pct: number; tone?: string }) => (
 /** India time "HH:MM" for a moment. */
 const istHHMM = (ms: number) => { const d = new Date(ms + 5.5 * 3600_000); return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`; };
 
+/** A lecture's position among the non-tour lessons (its number on the thumbnail). */
+const lectureNo = (t: T, id: string) => t.modules.filter((m) => m.kind !== "tour").flatMap((m) => m.lessons).findIndex((l) => l.id === id) + 1;
+
 /** Eight sessions around the one running now (or the first eight). */
 function windowOf<S extends { start: string }>(all: S[], current?: S) {
   const k = current ? all.findIndex((s) => s.start === current.start) : 0;
@@ -138,7 +142,7 @@ function Overview({ t, go }: { t: T; go: (t: TabId) => void }) {
                   <span className="absolute inset-0 flex items-center justify-center bg-black/15"><span className="size-14 rounded-full bg-white/95 flex items-center justify-center text-[#0B5E5B] shadow-xl hr-breathe"><PlayCircle size={30} /></span></span>
                 </div>
               ) : (
-                <div className="relative h-24 rounded-xl overflow-hidden tr-hero flex items-center px-5 text-white"><div aria-hidden className="tr-hero-grid absolute inset-0" /><BookOpen size={30} className="relative hr-bob" /><span className="relative ml-3 text-[13px] text-white/85">Slide lecture with Hinglish narration</span></div>
+                <div className="relative aspect-video rounded-xl overflow-hidden"><LectureThumb slug={next.slug} title={next.title} n={lectureNo(t, next.id)} minutes={next.durationMin} className="absolute inset-0 w-full h-full" /><span className="absolute inset-0 flex items-center justify-center"><span className="size-14 rounded-full bg-white/95 flex items-center justify-center text-[#0B5E5B] shadow-xl hr-breathe"><PlayCircle size={30} /></span></span></div>
               )}
               <div className="text-[12px] text-[#64748B]">{next.module}</div>
               <div className="text-[15px] font-bold">{next.title}</div>
@@ -239,12 +243,7 @@ function Modules({ t, kind }: { t: T; kind: "learn" | "tour" }) {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={l.thumb} alt="" className="tr-zoom absolute inset-0 w-full h-full object-cover" loading="lazy" />
                     ) : (
-                      <div className="tr-zoom absolute inset-0 tr-hero flex flex-col justify-between p-4 text-white">
-                        <div aria-hidden className="tr-hero-grid absolute inset-0" />
-                        <span className="relative text-[11px] font-semibold tracking-[.12em] uppercase text-white/65">Lecture · {l.durationMin} min</span>
-                        <span aria-hidden className="relative text-[52px] font-extrabold leading-none text-white/90 tabular-nums">{String(k + 1).padStart(2, "0")}<span className="text-[#F5C451]">.</span></span>
-                        <BookOpen aria-hidden size={64} className="absolute right-4 bottom-4 text-white/12 hr-bob" />
-                      </div>
+                      <LectureThumb slug={l.slug} title={l.title} n={k + 1} minutes={l.durationMin} className="tr-zoom absolute inset-0 w-full h-full" />
                     )}
                     <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors"><span className="size-12 rounded-full bg-white/95 text-[#0B5E5B] flex items-center justify-center shadow-xl scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-300"><PlayCircle size={26} /></span></span>
                     {l.videoSeconds ? <span className="absolute right-2 bottom-2 rounded-md bg-black/80 text-white text-[11px] font-semibold px-1.5 py-px">{mins(l.videoSeconds)}</span> : null}
