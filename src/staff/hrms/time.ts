@@ -212,6 +212,38 @@ export async function decideCorrection(me: Me, id: string, approve: boolean) {
   await audit(me, `Attendance correction ${approve ? "approved" : "rejected"}`, isoOf(c.day));
 }
 
+/**
+ * The signed-in person's working day so far, for their own "My day" card: the P / A mark, check-in and out, every break,
+ * idle time in the HRMS tab and the target. The browser ticks the hours live from these times.
+ * Codes: P present, L late (present, after the start time), A absent (no check-in on a working day),
+ * LV on approved leave, H holiday, WO weekly off.
+ */
+export async function myDay(me: Me) {
+  const day = todayISO(), s = await loadSettings(), now = Date.now();
+  const [a, breaks, idle, hol, leave, profile] = await Promise.all([
+    db.hrAttendance.findUnique({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } } }),
+    db.hrBreak.findMany({ where: { staffId: me.id, startAt: { gte: new Date(`${day}T00:00:00+05:30`) } }, orderBy: { startAt: "asc" } }),
+    db.hrIdle.findMany({ where: { staffId: me.id, day: dateOnly(day) } }),
+    db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }),
+    approvedLeaveOn(me.id, day),
+    db.hrProfile.findUnique({ where: { staffId: me.id }, select: { shiftStart: true } }),
+  ]);
+  const start = profile?.shiftStart || s.lateAfter;
+  const off = weekend(day, s.weekOff);
+  type Code = "P" | "L" | "A" | "LV" | "H" | "WO";
+  const code: Code = a?.inAt ? (a.status === "late" ? "L" : "P") : a?.status === "present" ? "P" : leave && !leave.half ? "LV" : hol ? "H" : off ? "WO" : "A";
+  const label = { P: "Present", L: "Present · late", A: istClock(new Date(now)) > start ? "Absent · not checked in" : "Not checked in yet", LV: `On leave · ${leave ? leaveLabel(leave.type) : ""}`, H: `Holiday · ${hol?.name ?? ""}`, WO: "Weekly off" }[code];
+  const idleMin = idle.reduce((t, r) => t + (r.endAt ? r.minutes : Math.min(240, Math.max(0, Math.round((now - r.startAt.getTime()) / 60_000)))), 0);
+  return {
+    day, code, label, start, halfLeave: !!leave?.half,
+    inAt: a?.inAt?.toISOString() ?? null, outAt: a?.outAt?.toISOString() ?? null, breakMin: a?.breakMin ?? 0,
+    breaks: breaks.map((b) => ({ kind: b.kind, startAt: b.startAt.toISOString(), endAt: b.endAt?.toISOString() ?? null })),
+    idleMin, idleNow: idle.some((r) => !r.endAt),
+    targetMin: Math.round(s.workHours * 60), lunch: { from: s.lunchFrom, to: s.lunchTo },
+  };
+}
+export type MyDay = Awaited<ReturnType<typeof myDay>>;
+
 /** Everyone's status today, for HR. */
 export async function teamToday(me: Me) {
   need(me, "attendance");

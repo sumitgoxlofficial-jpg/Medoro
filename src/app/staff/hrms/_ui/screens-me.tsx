@@ -16,6 +16,7 @@ import { PhotoEditor } from "./photo-editor";
 import { BriefcaseBusiness, CalendarDays, Camera, FileCheck2, IdCard, Mail, MapPin, ShieldCheck, UserCheck } from "lucide-react";
 import { IdBadge } from "../../employee/art";
 import { Selfie, SelfieModal } from "./monitor";
+import { MyDayCard } from "./my-day";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, cx, dangerCls, dayLabel, dayLong, download, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun, Hide } from "./kit";
 import { useLocalStorage } from "@/lib/react-state";
 
@@ -202,6 +203,7 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
         </div>
         <div className="text-right"><div className="text-[40px] font-bold leading-none" suppressHydrationWarning>{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</div><div className="text-[12px] text-white/70">Local time · India</div></div>
       </div>
+      {sh.checkin ? <MyDayCard d={d.day} month={d.month ?? undefined} link /> : null}
       {!hid.includes("today") ? <><Card title="Today" sub="Task-based day · due 11:59 PM" right={<Tabs value={tab} onChange={setTab} options={[["tasks", "Tasks"], ["assigned", `Assigned · ${open.length}`], ["reminders", `Reminders · ${rems.length}`]]} />}>
         <div className="px-5 pb-4">
           {tab === "tasks" ? (
@@ -334,6 +336,8 @@ function MeetingModal({ people, google, onClose }: { people: { id: string; name:
 
 // ── Attendance
 const CELL: Record<string, string> = { present: "bg-[#D6F3EF] text-[#0B5E5B] border-[#A8E4DC]", late: "bg-[#FEF3C7] text-[#B45309] border-[#FDE68A]", absent: "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]", leave: "bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]", holiday: "bg-[#FFFBEB] text-[#92400E] border-[#FCD34D]", weekend: "bg-[#F8FAFC] text-[#94A3B8] border-[#F1F5F9]", upcoming: "bg-white text-[#CBD5E1] border-[#F1F5F9]", today: "bg-white text-[#0f172a] border-[#14B8A6]", before: "bg-[#F8FAFC] text-[#CBD5E1] border-[#F1F5F9]" };
+/** The register mark under each date: P present (late counts as present), A absent, L leave, H holiday, WO weekly off. */
+const MARK_OF: Record<string, string> = { present: "P", late: "P", absent: "A", leave: "L", holiday: "H", weekend: "WO", upcoming: "", today: "", before: "" };
 export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
   const router = useRouter();
   const { run, busy } = useRun();
@@ -354,11 +358,12 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
           {d.checkin && inn && !out ? <button disabled={busy} onClick={() => (d.selfie ? setShot("out") : run(() => checkOut()))} className="size-[84px] rounded-full bg-[#B45309] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check out</button> : null}
         </div>
       </Card>
+      {d.checkin ? <MyDayCard d={d.day} month={d.isCurrent ? d.counts : undefined} /> : null}
       {d.selfie || d.monitor ? <Card pad><p className="text-[12.5px] text-[#475569]">{d.selfie ? "📷 Selfie check-in is on: you take a photo when you check in and out. It is kept for 30 days and only you and HR can see it. " : ""}{d.monitor ? `⏱ Idle-time tracking is on: while you are checked in and not on a break, inactivity in this HRMS tab of ${d.monitor}+ minutes is recorded. Nothing you type is captured, and no other app or window is watched.` : ""}</p></Card> : null}
-      <Grid n={5}><Stat l="Present" v={d.counts.present} /><Stat l="Late" v={d.counts.late} c="#B45309" /><Stat l="Absent" v={d.counts.absent} c="#DC2626" /><Stat l="Holidays" v={d.counts.holidays} c="#92400E" /><Stat l="Overtime" v={`${Math.floor(d.counts.overtimeMin / 60)}h`} c="#0f172a" /></Grid>
-      <Card title={<span className="flex items-center gap-3"><button className={btnCls} aria-label="Previous month" onClick={() => router.push(`/staff/hrms/attendance?m=${d.prev}`)}>‹</button>{label}<button className={btnCls} aria-label="Next month" disabled={d.isCurrent} onClick={() => router.push(`/staff/hrms/attendance?m=${d.next}`)}>›</button></span>} right={<div className="flex gap-3 flex-wrap text-[11px] text-[#475569]">{[["present", "Present", "#14B8A6"], ["late", "Late", "#F59E0B"], ["absent", "Absent", "#DC2626"], ["leave", "Leave", "#3B82F6"], ["holiday", "Holiday", "#D97706"], ["weekend", "Weekend", "#64748B"]].map(([k, l, c]) => <span key={k} className="flex items-center gap-1.5"><i className="size-2 rounded-full" style={{ background: c }} />{l}</span>)}</div>} pad>
+      <Grid n={5}><Stat l="Present (P)" v={d.counts.present + d.counts.late} sub={d.counts.late ? `${d.counts.late} late` : undefined} /><Stat l="Late" v={d.counts.late} c="#B45309" /><Stat l="Absent (A)" v={d.counts.absent} c="#DC2626" /><Stat l="Holidays" v={d.counts.holidays} c="#92400E" /><Stat l="Overtime" v={`${Math.floor(d.counts.overtimeMin / 60)}h`} c="#0f172a" /></Grid>
+      <Card title={<span className="flex items-center gap-3"><button className={btnCls} aria-label="Previous month" onClick={() => router.push(`/staff/hrms/attendance?m=${d.prev}`)}>‹</button>{label}<button className={btnCls} aria-label="Next month" disabled={d.isCurrent} onClick={() => router.push(`/staff/hrms/attendance?m=${d.next}`)}>›</button></span>} right={<div className="flex gap-3 flex-wrap text-[11px] text-[#475569]">{[["present", "P · Present", "#14B8A6"], ["late", "P · Late", "#F59E0B"], ["absent", "A · Absent", "#DC2626"], ["leave", "L · Leave", "#3B82F6"], ["holiday", "H · Holiday", "#D97706"], ["weekend", "WO · Weekly off", "#64748B"]].map(([k, l, c]) => <span key={k} className="flex items-center gap-1.5"><i className="size-2 rounded-full" style={{ background: c }} />{l}</span>)}</div>} pad>
         <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-semibold text-[#64748B] mb-1.5">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((x) => <div key={x}>{x}</div>)}</div>
-        <div className="grid grid-cols-7 gap-1.5">{Array.from({ length: lead }, (_, i) => <div key={"e" + i} />)}{d.cells.map((c) => <button key={c.day} title={c.label} onClick={() => { setSel(c); setReason(""); }} className={cx("border rounded-lg py-2.5 text-[12.5px] font-semibold cursor-pointer", CELL[c.kind], c.day === sh.today && "outline outline-2 outline-[#14B8A6] -outline-offset-2")}>{Number(c.day.slice(8))}</button>)}</div>
+        <div className="grid grid-cols-7 gap-1.5">{Array.from({ length: lead }, (_, i) => <div key={"e" + i} />)}{d.cells.map((c) => <button key={c.day} title={c.label} onClick={() => { setSel(c); setReason(""); }} className={cx("border rounded-lg py-1.5 text-[12.5px] font-semibold cursor-pointer flex flex-col items-center leading-tight", CELL[c.kind], c.day === sh.today && "outline outline-2 outline-[#14B8A6] -outline-offset-2")}>{Number(c.day.slice(8))}<span className="text-[9.5px] font-bold tracking-wide opacity-80 h-3">{MARK_OF[c.kind]}</span></button>)}</div>
       </Card>
       {corr ? <Modal title="Request an attendance correction" onClose={() => setCorr(null)}>
         <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => requestCorrection({ day: corr.day, reason: corr.reason }), () => { setCorr(null); }); }}>
