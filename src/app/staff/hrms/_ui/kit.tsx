@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useToast } from "@/components/ui/toast";
 import { initials } from "@/staff/hrms/constants";
@@ -8,12 +8,12 @@ import { CountUp } from "@/components/welcome-banner";
 import { useBrowserValue } from "@/lib/react-state";
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
-export const inputCls = "border border-[#CDD2D7] rounded-lg px-3 py-2 text-[13.5px] outline-none bg-white focus:border-[#0B5E5B] w-full disabled:bg-[#F1F5F9]";
-export const btnCls = "border border-[#CDD2D7] bg-white rounded-lg px-3 py-1.5 text-[12.5px] font-semibold cursor-pointer whitespace-nowrap text-[#0f172a] hover:border-[#0B5E5B] disabled:opacity-50 inline-flex items-center gap-1.5";
-export const primaryCls = "bg-[#0B5E5B] text-white border-0 rounded-lg px-3.5 py-2 text-[13px] font-semibold cursor-pointer whitespace-nowrap hover:bg-[#094A48] disabled:opacity-60 inline-flex items-center gap-1.5";
-export const dangerCls = "border border-[#F3C5C0] bg-white text-[#B3261E] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold cursor-pointer whitespace-nowrap hover:bg-[#FDECEA] disabled:opacity-50";
-export const thCls = "text-left px-3 py-2 text-[11px] font-semibold uppercase tracking-[.05em] text-[#64748B]";
-export const tdCls = "px-3 py-2.5 border-t border-[#F1F5F9] text-[13px] align-middle";
+export const inputCls = "border border-[#CBD5E1] rounded-lg px-3 py-2 text-[13.5px] outline-none bg-white transition-[border-color,box-shadow] hover:border-[#94A3B8] focus:border-[#0B5E5B] focus:shadow-[0_0_0_3px_rgba(20,184,166,.18)] w-full disabled:bg-[#F1F5F9]";
+export const btnCls = "border border-[#CBD5E1] bg-white rounded-lg px-3 py-1.5 text-[12.5px] font-semibold cursor-pointer whitespace-nowrap text-[#0f172a] shadow-[0_1px_1px_rgba(15,23,42,.04)] transition-colors hover:border-[#0B5E5B] hover:bg-[#F8FAFC] disabled:opacity-50 inline-flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B5E5B]";
+export const primaryCls = "bg-[#0B5E5B] text-white border-0 rounded-lg px-3.5 py-2 text-[13px] font-semibold cursor-pointer whitespace-nowrap shadow-[0_1px_2px_rgba(11,94,91,.3)] transition-colors hover:bg-[#094A48] active:bg-[#073D3B] disabled:opacity-60 inline-flex items-center gap-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B5E5B]";
+export const dangerCls = "border border-[#F3C5C0] bg-white text-[#B3261E] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold cursor-pointer whitespace-nowrap transition-colors hover:bg-[#FDECEA] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B3261E]";
+export const thCls = "text-left px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[.06em] text-[#64748B] bg-[#F8FAFC] border-y border-[#EEF2F6] first:pl-5 last:pr-5 whitespace-nowrap";
+export const tdCls = "px-3 py-3 border-t border-[#F1F5F9] text-[13px] align-middle first:pl-5 last:pr-5";
 
 /** Runs a server action, toasts its message or error, and refreshes the page data on success. */
 export function useRun() {
@@ -34,10 +34,10 @@ export function useRun() {
 
 export function Card({ title, sub, right, children, className, pad = false }: { title?: React.ReactNode; sub?: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string; pad?: boolean }) {
   return (
-    <section className={cx("hr-sect bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] min-w-0", className)}>
+    <section className={cx("hr-sect bg-white border border-[#DCE3EA] rounded-xl shadow-[0_1px_2px_rgba(15,23,42,.05),0_1px_3px_rgba(15,23,42,.04)] min-w-0", className)}>
       {title ? (
         <div className="px-5 pt-4 pb-3 flex gap-3 items-center flex-wrap">
-          <div className="flex flex-col"><h3 className="text-[14.5px] font-bold text-[#0f172a]">{title}</h3>{sub ? <span className="text-[12px] text-[#64748B]">{sub}</span> : null}</div>
+          <div className="flex flex-col"><h3 className="text-[14.5px] font-semibold tracking-[-.005em] text-[#0f172a]">{title}</h3>{sub ? <span className="text-[12px] text-[#64748B]">{sub}</span> : null}</div>
           {right ? <div className="ml-auto flex gap-2 items-center flex-wrap">{right}</div> : null}
         </div>
       ) : null}
@@ -46,7 +46,7 @@ export function Card({ title, sub, right, children, className, pad = false }: { 
   );
 }
 export const Stat = ({ l, v, c, sub }: { l: string; v: React.ReactNode; c?: string; sub?: string }) => (
-  <div className="hr-stat relative overflow-hidden bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] px-4 py-3.5 min-w-0">
+  <div className="hr-stat relative overflow-hidden bg-white border border-[#DCE3EA] rounded-xl shadow-[0_1px_2px_rgba(15,23,42,.05),0_1px_3px_rgba(15,23,42,.04)] px-4 py-3.5 min-w-0">
     <div className="text-[11px] font-semibold uppercase tracking-[.06em] text-[#64748B]">{l}</div>
     <div className="text-[22px] font-bold mt-1 truncate" style={{ color: c ?? "#0B5E5B" }}>{typeof v === "number" ? <CountUp value={v} format={String} /> : v}</div>
     {sub ? <div className="text-[11.5px] text-[#64748B] mt-0.5">{sub}</div> : null}
@@ -87,9 +87,9 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   const host = useBrowserValue<HTMLElement | null>(() => document.body, null);
   if (!host) return null;
   return createPortal(
-    <div className="fixed inset-0 z-[100] bg-black/40 flex items-start justify-center overflow-auto py-8 px-4 text-[#0f172a]" style={{ fontFamily: "Inter, system-ui, sans-serif" }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-label={title} className={cx("bg-white rounded-2xl shadow-2xl w-full p-5 flex flex-col gap-4", wide ? "max-w-[820px]" : "max-w-[520px]")}>
-        <div className="flex items-center gap-3"><h3 className="text-[16px] font-bold flex-1">{title}</h3><button onClick={onClose} aria-label="Close" className="text-[20px] leading-none text-[#64748B] cursor-pointer bg-transparent border-0">×</button></div>
+    <div className="fixed inset-0 z-[100] bg-[#0f172a]/45 backdrop-blur-[2px] flex items-start justify-center overflow-auto py-8 px-4 text-[#0f172a]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={cx("cp-in bg-white rounded-2xl border border-[#E2E8F0] shadow-[0_24px_60px_-20px_rgba(15,23,42,.45)] w-full p-5 flex flex-col gap-4", wide ? "max-w-[820px]" : "max-w-[520px]")}>
+        <div className="flex items-center gap-3 -mx-5 -mt-1 px-5 pb-3 border-b border-[#EEF2F6]"><h3 className="text-[16px] font-semibold flex-1">{title}</h3><button onClick={onClose} aria-label="Close" className="size-8 rounded-lg flex items-center justify-center text-[#64748B] cursor-pointer bg-transparent border-0 hover:bg-[#F1F5F9] hover:text-[#0f172a]"><svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M18 6 6 18M6 6l12 12" /></svg></button></div>
         {children}
       </div>
     </div>,
@@ -98,14 +98,14 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
 }
 export function Tabs<T extends string>({ value, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
   return (
-    <div className="inline-flex gap-0.5 bg-[#E2E8F0] p-[3px] rounded-[10px] flex-wrap self-start">
-      {options.map(([v, l]) => <button key={v} type="button" onClick={() => onChange(v)} className={cx("h-[30px] px-3 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap border-0", value === v ? "bg-[#0B5E5B] text-white" : "bg-transparent text-[#334155]")}>{l}</button>)}
+    <div role="group" className="inline-flex gap-0.5 bg-[#EEF2F6] border border-[#E2E8F0] p-[3px] rounded-[10px] flex-wrap self-start">
+      {options.map(([v, l]) => <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)} className={cx("h-[30px] px-3 rounded-[7px] text-[12.5px] font-semibold cursor-pointer whitespace-nowrap border-0 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0B5E5B]", value === v ? "bg-white text-[#0B5E5B] shadow-[0_1px_2px_rgba(15,23,42,.12)]" : "bg-transparent text-[#475569] hover:text-[#0f172a]")}>{l}</button>)}
     </div>
   );
 }
 export function Table({ head, children, empty }: { head: string[]; children: React.ReactNode; empty?: string }) {
   return (
-    <div className="overflow-x-auto"><table className="w-full min-w-[640px] border-collapse"><thead><tr>{head.map((h, i) => <th key={i} className={thCls}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table>
+    <div className="overflow-x-auto"><table className="w-full min-w-[640px] border-collapse"><thead><tr>{head.map((h, i) => <th key={i} scope="col" className={thCls}>{h}</th>)}</tr></thead><tbody className="[&>tr]:transition-colors [&>tr:hover]:bg-[#F8FAFC]">{children}</tbody></table>
       {empty ? <Empty>{empty}</Empty> : null}</div>
   );
 }
@@ -125,3 +125,30 @@ export function useForm<T extends Record<string, unknown>>(init: T) {
 }
 export const money = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 export const Hide = ({ n, show }: { n: number; show: boolean }) => <>{show ? money(n) : "₹ ••••••"}</>;
+
+/** Menu-item style for buttons inside a MoreMenu. */
+export const menuItemCls = "block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#0f172a] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0 whitespace-nowrap";
+export const menuDangerCls = "block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#B3261E] hover:bg-[#FDECEA] cursor-pointer bg-transparent border-0 whitespace-nowrap";
+/**
+ * A "More" button that opens a small menu of secondary actions (the row-actions menu of enterprise tables). The menu
+ * closes on a click outside, on Escape, and after an item is chosen. Items are ordinary buttons (menuItemCls).
+ */
+export function MoreMenu({ children, label = "More" }: { children: React.ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  return (
+    <div ref={box} className="relative inline-block">
+      <button type="button" className={btnCls} aria-expanded={open} aria-haspopup="true" onClick={() => setOpen((o) => !o)}>
+        {label}<svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      {open ? <div className="cp-in absolute right-0 top-full mt-1.5 z-30 min-w-[190px] bg-white border border-[#E2E8F0] rounded-xl shadow-[0_16px_40px_-16px_rgba(15,23,42,.35)] p-1.5" onClick={(e) => { if ((e.target as HTMLElement).closest("button")) setOpen(false); }}>{children}</div> : null}
+    </div>
+  );
+}

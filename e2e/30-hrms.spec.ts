@@ -149,6 +149,7 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   // Record a last working day two weeks ahead: the person stays active; then cancel the exit.
   await page.goto("/staff/hrms/hremployees");
   const person = page.getByRole("row").filter({ hasText: empNo });
+  await person.getByRole("button", { name: "More" }).click(); // secondary row actions live in the More menu
   await person.getByRole("button", { name: "Record exit" }).click();
   await page.getByLabel("Last working day").fill(new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10));
   await page.getByRole("button", { name: "Record last working day" }).click();
@@ -158,6 +159,7 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   expect(staff.hr?.exitDate).not.toBeNull();
   page.once("dialog", (d) => void d.accept());
   await person.getByRole("button", { name: /Leaving .* cancel/ }).click();
+  await person.getByRole("button", { name: "More" }).click();
   await expect(person.getByRole("button", { name: "Record exit" })).toBeVisible();
   await ctx.close();
 });
