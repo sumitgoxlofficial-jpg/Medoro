@@ -96,8 +96,8 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
 }
 
 /** Sign-up with email, step 1: send a 6-digit code to the address. */
-export async function sendSignupEmailCode(email: string): Promise<R> {
-  try { if (!signupOpen()) return fail("Sign-up is not open on this server."); await sendSignupCode(email); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
+export async function sendSignupEmailCode(email: string, product: "pharmacy" | "distribution" = "pharmacy"): Promise<R> {
+  try { if (!signupOpen()) return fail("Sign-up is not open on this server."); await sendSignupCode(email, "pharmacy", product === "distribution" ? "distribution" : "pharmacy"); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
 }
 /** Step 2: the code matches; the pharmacy form opens with this email. */
 export async function verifySignupEmailCode(email: string, code: string): Promise<R> {

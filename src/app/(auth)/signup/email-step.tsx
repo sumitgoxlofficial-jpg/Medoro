@@ -9,7 +9,7 @@ import { sendSignupEmailCode, verifySignupEmailCode } from "../actions";
 const inp = "border border-input rounded-[10px] px-3.5 py-3 text-[15px] text-ink outline-none focus:border-teal bg-white w-full";
 
 /** Sign-up with email: confirm the address with a 6-digit code, then the pharmacy form opens. */
-export function EmailStep({ back, then = "Then you add your pharmacy details." }: { back: string | null; then?: string }) {
+export function EmailStep({ back, then = "Then you add your pharmacy details.", product = "pharmacy" }: { back: string | null; then?: string; product?: "pharmacy" | "distribution" }) {
   const router = useRouter();
   const t = useT();
   const [email, setEmail] = useState(""), [code, setCode] = useState(""), [sent, setSent] = useState(false);
@@ -18,7 +18,7 @@ export function EmailStep({ back, then = "Then you add your pharmacy details." }
     e.preventDefault(); setErr("");
     start(async () => {
       if (!sent) {
-        const r = await sendSignupEmailCode(email);
+        const r = await sendSignupEmailCode(email, product);
         if (!r.ok) return setErr(r.error);
         setSent(true);
       } else {

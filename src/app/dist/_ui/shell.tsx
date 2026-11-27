@@ -9,7 +9,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   BadgeIndianRupee, BarChart3, Bell, Boxes, Building2, CalendarClock, ChevronDown, ChevronRight, ClipboardList, CreditCard, Ellipsis, FileText, Gauge,
   Keyboard, Landmark, Languages, LogOut, MapPin, MapPinned, Menu, Network, Package, PackageCheck, Percent, Receipt, RotateCcw, Search, Settings,
-  ShieldCheck, ShoppingCart, Smartphone, Sparkles, Store, Truck, Undo2, Users, Warehouse, X,
+  CloudUpload, ShieldCheck, ShoppingCart, Smartphone, Sparkles, Store, Truck, Undo2, Users, Warehouse, X,
 } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { ToastProvider, useToast } from "@/components/ui/toast";
@@ -52,6 +52,7 @@ const NAV: Item[] = [
   { href: "/dist/portal-admin", label: "Chemist portal", abbr: "Portal", icon: Store, perms: ["portal"], group: "System", badge: "portal" },
   { href: "/dist/users", label: "Users & roles", abbr: "Users", icon: Users, perms: ["users"], group: "System" },
   { href: "/dist/plan", label: "Subscription", abbr: "Plan", icon: ShieldCheck, perms: ["users"], group: "System" },
+  { href: "/dist/backup", label: "Backup & restore", abbr: "Backup", icon: CloudUpload, perms: ["integrations"], group: "System" },
   { href: "/dist/settings", label: "Settings", abbr: "Settings", icon: Settings, perms: ["users", "integrations"], group: "System" },
 ];
 

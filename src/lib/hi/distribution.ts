@@ -1,5 +1,21 @@
 /** Hindi lines for: MEDORO Distribution (/dist) and the chemist portal (/portal). Key = the English text exactly as written in the code. */
 export const hi: Record<string, string> = {
+  "Backup & restore": "बैकअप और रीस्टोर",
+  // Supplier ledger & payments
+  "We owe": "हमें देना है",
+  "Ledger & pay": "लेजर और भुगतान",
+  "Pay supplier": "सप्लायर को भुगतान",
+  "Last purchase": "आख़िरी ख़रीद",
+  "Last payment": "आख़िरी भुगतान",
+  "Ledger statement": "लेजर स्टेटमेंट",
+  "Supplier invoice": "सप्लायर इनवॉइस",
+  "No purchases yet.": "अभी कोई ख़रीद नहीं।",
+  "Record this payment to the supplier?": "सप्लायर को यह भुगतान दर्ज करें?",
+  "Posts a payment voucher and settles the oldest bills first. Cheques go to Cheques issued until they clear.": "पेमेंट वाउचर बनता है और सबसे पुराने बिल पहले चुकते हैं। चेक क्लियर होने तक 'जारी किए गए चेक' में रहते हैं।",
+  "UTR / reference": "UTR / रेफ़रेंस",
+  "Mode": "माध्यम",
+  "Credit days": "क्रेडिट दिन",
+  "Show": "दिखाएँ",
   // Shell and navigation
   "Distribution": "डिस्ट्रीब्यूशन",
   "Overview": "सारांश",

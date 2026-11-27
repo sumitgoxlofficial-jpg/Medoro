@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ w
           <Link href="/distributor-signup?with=email" className="text-center text-[14px] font-semibold text-teal min-h-10 inline-flex items-center justify-center">{t("Sign up with email instead")}</Link>
         </div>
       ) : needCode ? (
-        <EmailStep back={open && googleLoginConfigured() ? "/distributor-signup" : null} then="Then you add your business details." />
+        <EmailStep back={open && googleLoginConfigured() ? "/distributor-signup" : null} then="Then you add your business details." product="distribution" />
       ) : (
         <>
           {verifiedEmail ? <div className="text-[13.5px] text-ink-2 bg-white border border-line rounded-lg px-4 py-2.5">{t("Email confirmed:")} <strong>{verifiedEmail}</strong>. {t("Now add your business details.")}</div> : null}

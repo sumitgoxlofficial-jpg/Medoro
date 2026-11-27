@@ -15,7 +15,7 @@ const looksLikeEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.
 /** Pharmacy owners and reference partners are separate accounts, so each checks its own kind for an existing one. */
 export type SignupKind = "pharmacy" | "partner";
 
-export async function sendSignupCode(raw: string, kind: SignupKind = "pharmacy") {
+export async function sendSignupCode(raw: string, kind: SignupKind = "pharmacy", product: "pharmacy" | "distribution" = "pharmacy") {
   const email = normEmail(raw);
   if (!looksLikeEmail(email)) throw new UserError("Enter a valid email.");
   if (!mailEnabled()) throw new UserError("Email isn’t set up on this server. Use “Continue with Google”.");
@@ -34,7 +34,7 @@ export async function sendSignupCode(raw: string, kind: SignupKind = "pharmacy")
       ...compose({
         greeting: "Hello,",
         blocks: [
-          { p: `Thank you for choosing Medoro. Please enter the code below to verify your email and create your ${kind === "partner" ? "reference partner" : "pharmacy"} account.` },
+          { p: `Thank you for choosing Medoro. Please enter the code below to verify your email and create your ${kind === "partner" ? "reference partner" : product === "distribution" ? "distributor" : "pharmacy"} account.` },
           { code, note: `Valid for ${MIN} minutes.` },
           { note: "If you did not ask for this code, you can safely ignore this email. No account will be created." },
         ],
