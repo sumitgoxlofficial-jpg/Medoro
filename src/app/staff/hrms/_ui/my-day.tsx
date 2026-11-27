@@ -93,7 +93,6 @@ export function MyDayCard({ d, month, link = false, checkin = true }: { d: MyDay
   ];
   const mP = month ? month.present + month.late : 0, mTot = month ? mP + month.absent + month.leave : 0;
   const attendancePct = month && mP + month.absent > 0 ? Math.round((mP * 100) / (mP + month.absent)) : null;
-  const greet = nowM < 720 ? "Good morning" : nowM < 1020 ? "Good afternoon" : "Good evening";
 
   return (
     <section className="md-card bg-white border border-[#a8b6c8] rounded-xl shadow-[0_2px_6px_rgba(15,23,42,.12)] overflow-hidden" aria-label="My day">
@@ -101,7 +100,7 @@ export function MyDayCard({ d, month, link = false, checkin = true }: { d: MyDay
       <div className="relative overflow-hidden text-white px-5 py-3.5 flex items-center gap-3 flex-wrap" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F 60%,#1BA597)" }}>
         <div aria-hidden className="pointer-events-none absolute inset-0"><div className="md-dots absolute inset-0" /><div className="hr-sheen absolute inset-y-0 -left-1/3 w-1/3" /></div>
         <div className="relative flex flex-col min-w-0">
-          <span className="text-[10.5px] tracking-[.14em] font-semibold text-white/70 uppercase flex items-center gap-1.5"><CalendarCheck className="size-3.5" />My day · {greet}</span>
+          <span className="text-[10.5px] tracking-[.14em] font-semibold text-white/70 uppercase flex items-center gap-1.5"><CalendarCheck className="size-3.5" />My day</span>
           <h3 className="text-[16px] font-bold leading-snug">{new Date(day0 + IST).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}</h3>
           <span className="text-[12px] text-white/80">Target {dur(d.targetMin)} · day starts {d.start}</span>
         </div>
