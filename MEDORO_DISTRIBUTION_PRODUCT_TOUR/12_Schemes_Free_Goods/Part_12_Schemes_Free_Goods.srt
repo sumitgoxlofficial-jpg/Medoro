@@ -1,0 +1,175 @@
+1
+00:00:00,150 --> 00:00:07,253
+Part 12 mein schemes aur free goods: 10 plus 2 jaisi quantity scheme, percentage discount,
+
+2
+00:00:07,253 --> 00:00:12,777
+company-wide scheme, sirf kuch chemists ke liye scheme, special rates,
+
+3
+00:00:12,777 --> 00:00:16,250
+aur free goods ka stock aur margin par asar.
+
+4
+00:00:17,197 --> 00:00:19,756
+Masters mein Schemes kholiye.
+
+5
+00:00:19,756 --> 00:00:27,344
+Do tarah ki schemes hoti hain: Free goods, yaani buy X get Y free, aur Extra discount.
+
+6
+00:00:27,344 --> 00:00:33,873
+Scheme ek product par ho sakti hai, ya kisi company ke saare products par.
+
+7
+00:00:34,574 --> 00:00:42,249
+List mein dekhiye: Febrinil 650 par 10 plus 2, Sanjivani ki poori range par 10 plus 1,
+
+8
+00:00:42,249 --> 00:00:48,407
+Prana ke vitamins par extra 5 percent, aur Montiluk LC par 20 plus 3,
+
+9
+00:00:48,407 --> 00:00:51,709
+jo sirf do bade chemists ke liye hai.
+
+10
+00:00:51,709 --> 00:00:54,922
+Har scheme ki validity date bhi hai.
+
+11
+00:00:55,605 --> 00:00:58,654
+Nayi scheme banate hain.
+
+12
+00:00:58,654 --> 00:01:01,068
+New scheme kholiye.
+
+13
+00:01:01,068 --> 00:01:08,056
+Code: ORS20P4, naam: ORSiva 20 plus 4, type Free goods.
+
+14
+00:01:08,056 --> 00:01:10,851
+Product ORSiva Sachet.
+
+15
+00:01:10,851 --> 00:01:15,425
+Buy 20, free 4, minimum quantity 20.
+
+16
+00:01:16,100 --> 00:01:19,863
+Valid from aaj se, valid to 31 March tak.
+
+17
+00:01:19,863 --> 00:01:28,123
+Show to chemists on the portal tick kariye, taaki chemist portal par bhi yeh scheme dikhe.
+
+18
+00:01:28,123 --> 00:01:29,224
+Save scheme.
+
+19
+00:01:29,880 --> 00:01:35,396
+Ab dekhte hain scheme order par apne-aap kaise lagti hai.
+
+20
+00:01:35,396 --> 00:01:40,138
+Naya invoice kholiye, chemist Kokar Health Point.
+
+21
+00:01:40,138 --> 00:01:43,234
+Febrinil 650 ke 10 packs jodiye.
+
+22
+00:01:43,234 --> 00:01:47,492
+Free column mein 2 packs aa gaye: 10 plus 2.
+
+23
+00:01:48,147 --> 00:01:50,114
+Quantity 25 kariye.
+
+24
+00:01:50,114 --> 00:01:57,152
+Scheme poore slab par lagti hai, yaani do baar 10, toh free 4 packs.
+
+25
+00:01:57,152 --> 00:02:00,671
+Bache hue 5 packs par scheme nahi.
+
+26
+00:02:00,671 --> 00:02:03,983
+Calculation bilkul nishchit hai.
+
+27
+00:02:04,656 --> 00:02:06,956
+Ab ORSiva ke 40 sachets.
+
+28
+00:02:06,956 --> 00:02:12,513
+Abhi banayi gayi 20 plus 4 scheme turant lag gayi: 8 free.
+
+29
+00:02:12,513 --> 00:02:19,700
+Calvita D3 jodne par Prana ka 5 percent discount Disc column mein aata hai.
+
+30
+00:02:20,384 --> 00:02:24,599
+Taxable value sirf bike hue packs par banti hai.
+
+31
+00:02:24,599 --> 00:02:30,218
+Free packs ki keemat zero hai, par stock se woh bhi kat-te hain.
+
+32
+00:02:30,218 --> 00:02:38,032
+Isliye free goods ka asar margin par padta hai: maal gaya, paisa sirf paid packs ka aaya.
+
+33
+00:02:38,032 --> 00:02:39,964
+Raise invoice dabaiye.
+
+34
+00:02:40,630 --> 00:02:45,479
+Invoice par Free column mein 4 aur 8 packs saaf chhape hain,
+
+35
+00:02:45,479 --> 00:02:49,278
+aur stock se 29 Febrinil aur 48 ORSiva kam hue.
+
+36
+00:02:49,278 --> 00:02:56,552
+Scheme report MIS mein hai, aur business intelligence mein scheme profitability batati hai
+
+37
+00:02:56,552 --> 00:02:59,946
+ki kaunsi scheme se bikri sach mein badhi.
+
+38
+00:03:00,620 --> 00:03:08,477
+Special rates chemist ki profile mein set hote hain: kisi ek chemist ke liye kisi product
+
+39
+00:03:08,477 --> 00:03:10,949
+ka net rate, ek tareekh tak.
+
+40
+00:03:10,949 --> 00:03:15,628
+Jaise Lalpur Life Care ke liye Pantovista 110 rupaye.
+
+41
+00:03:15,628 --> 00:03:19,336
+Yeh PTR aur PTS se upar priority leta hai.
+
+42
+00:03:20,005 --> 00:03:23,748
+Yaad rakhiye: scheme ki end date hamesha daaliye,
+
+43
+00:03:23,748 --> 00:03:27,108
+company se mila scheme hi chemist ko dijiye,
+
+44
+00:03:27,108 --> 00:03:32,073
+aur scheme report har mahine dekhiye taaki margin par nazar rahe.

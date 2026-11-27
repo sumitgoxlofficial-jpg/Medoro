@@ -1,0 +1,115 @@
+1
+00:00:00,143 --> 00:00:04,889
+Part 2 mein hum Medoro Distribution ka account banayenge.
+
+2
+00:00:04,889 --> 00:00:11,299
+Website se 7-day free trial shuru karenge, email verify karenge, aur sign-in,
+
+3
+00:00:11,299 --> 00:00:15,379
+password recovery aur account security samjhenge.
+
+4
+00:00:16,323 --> 00:00:22,383
+Sabse pehle official website kholte hain: medoro dot in slash distribution.
+
+5
+00:00:22,383 --> 00:00:26,908
+Yeh live website hai, aur hum yahan sirf dekh rahe hain,
+
+6
+00:00:26,908 --> 00:00:30,383
+koi account live server par nahi bana rahe.
+
+7
+00:00:31,044 --> 00:00:39,132
+Hero section mein saaf likha hai: orders with credit control, batch-wise stock, schemes,
+
+8
+00:00:39,132 --> 00:00:43,543
+GST invoices, picking, dispatch aur collections.
+
+9
+00:00:43,543 --> 00:00:50,528
+Neeche likha hai, From ₹2,499 a month, aur trial mein har feature milta hai.
+
+10
+00:00:51,186 --> 00:00:59,080
+Pricing section mein bhi likha hai: 7 days free, no card, aur plans apne-aap renew nahi hote.
+
+11
+00:00:59,080 --> 00:01:03,494
+Yani trial ke liye koi payment details nahi chahiye.
+
+12
+00:01:04,152 --> 00:01:07,973
+Ab Start 7-day free trial par click karte hain.
+
+13
+00:01:07,973 --> 00:01:11,226
+Yeh distributor sign-up page kholta hai.
+
+14
+00:01:11,226 --> 00:01:18,543
+Isi software ki ek alag copy hamare demo server par chal rahi hai, alag database ke saath.
+
+15
+00:01:18,543 --> 00:01:25,292
+Wahan hum fictional data se account banayenge, taaki live system par kuch na badle.
+
+16
+00:01:25,954 --> 00:01:30,059
+Yeh hai demo server par wahi sign-up page.
+
+17
+00:01:30,059 --> 00:01:33,187
+Create your distributor account.
+
+18
+00:01:33,187 --> 00:01:36,217
+Pehla step: apna email daaliye.
+
+19
+00:01:36,217 --> 00:01:40,518
+Medoro is email par ek 6-digit code bhejega.
+
+20
+00:01:41,167 --> 00:01:45,612
+Send code dabate hi code email par chala jata hai.
+
+21
+00:01:45,612 --> 00:01:48,723
+Code 10 minute tak valid rehta hai.
+
+22
+00:01:49,392 --> 00:01:54,649
+Demo server ka email ek authorised test inbox mein aata hai.
+
+23
+00:01:54,649 --> 00:01:57,015
+Yeh raha verification code.
+
+24
+00:01:57,015 --> 00:02:01,484
+Asli account mein yeh aapke apne inbox mein aayega.
+
+25
+00:02:02,144 --> 00:02:08,451
+Wapas sign-up page par code daalte hain, aur Confirm and continue dabate hain.
+
+26
+00:02:08,451 --> 00:02:10,230
+Email confirm ho gaya.
+
+27
+00:02:10,230 --> 00:02:16,780
+Ab business details ka wizard khulta hai, jise hum agle part mein poora bharenge.
+
+28
+00:02:17,426 --> 00:02:23,375
+Google se sign-up ka option tab dikhta hai jab server par Google sign-in configure ho.
+
+29
+00:02:23,375 --> 00:02:29,878
+Is demo server par Google configure nahi hai, isliye hum email wala tareeka use kar rahe hain.

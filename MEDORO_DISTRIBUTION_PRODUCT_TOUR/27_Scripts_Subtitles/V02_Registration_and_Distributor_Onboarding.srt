@@ -1,0 +1,343 @@
+1
+00:00:00,143 --> 00:00:04,889
+Part 2 mein hum Medoro Distribution ka account banayenge.
+
+2
+00:00:04,889 --> 00:00:11,299
+Website se 7-day free trial shuru karenge, email verify karenge, aur sign-in,
+
+3
+00:00:11,299 --> 00:00:15,379
+password recovery aur account security samjhenge.
+
+4
+00:00:16,323 --> 00:00:22,383
+Sabse pehle official website kholte hain: medoro dot in slash distribution.
+
+5
+00:00:22,383 --> 00:00:26,908
+Yeh live website hai, aur hum yahan sirf dekh rahe hain,
+
+6
+00:00:26,908 --> 00:00:30,383
+koi account live server par nahi bana rahe.
+
+7
+00:00:31,044 --> 00:00:39,132
+Hero section mein saaf likha hai: orders with credit control, batch-wise stock, schemes,
+
+8
+00:00:39,132 --> 00:00:43,543
+GST invoices, picking, dispatch aur collections.
+
+9
+00:00:43,543 --> 00:00:50,528
+Neeche likha hai, From ₹2,499 a month, aur trial mein har feature milta hai.
+
+10
+00:00:51,186 --> 00:00:59,080
+Pricing section mein bhi likha hai: 7 days free, no card, aur plans apne-aap renew nahi hote.
+
+11
+00:00:59,080 --> 00:01:03,494
+Yani trial ke liye koi payment details nahi chahiye.
+
+12
+00:01:04,152 --> 00:01:07,973
+Ab Start 7-day free trial par click karte hain.
+
+13
+00:01:07,973 --> 00:01:11,226
+Yeh distributor sign-up page kholta hai.
+
+14
+00:01:11,226 --> 00:01:18,543
+Isi software ki ek alag copy hamare demo server par chal rahi hai, alag database ke saath.
+
+15
+00:01:18,543 --> 00:01:25,292
+Wahan hum fictional data se account banayenge, taaki live system par kuch na badle.
+
+16
+00:01:25,954 --> 00:01:30,059
+Yeh hai demo server par wahi sign-up page.
+
+17
+00:01:30,059 --> 00:01:33,187
+Create your distributor account.
+
+18
+00:01:33,187 --> 00:01:36,217
+Pehla step: apna email daaliye.
+
+19
+00:01:36,217 --> 00:01:40,518
+Medoro is email par ek 6-digit code bhejega.
+
+20
+00:01:41,167 --> 00:01:45,612
+Send code dabate hi code email par chala jata hai.
+
+21
+00:01:45,612 --> 00:01:48,723
+Code 10 minute tak valid rehta hai.
+
+22
+00:01:49,392 --> 00:01:54,649
+Demo server ka email ek authorised test inbox mein aata hai.
+
+23
+00:01:54,649 --> 00:01:57,015
+Yeh raha verification code.
+
+24
+00:01:57,015 --> 00:02:01,484
+Asli account mein yeh aapke apne inbox mein aayega.
+
+25
+00:02:02,144 --> 00:02:08,451
+Wapas sign-up page par code daalte hain, aur Confirm and continue dabate hain.
+
+26
+00:02:08,451 --> 00:02:10,230
+Email confirm ho gaya.
+
+27
+00:02:10,230 --> 00:02:16,780
+Ab business details ka wizard khulta hai, jise hum agle part mein poora bharenge.
+
+28
+00:02:17,426 --> 00:02:23,375
+Google se sign-up ka option tab dikhta hai jab server par Google sign-in configure ho.
+
+29
+00:02:23,375 --> 00:02:29,878
+Is demo server par Google configure nahi hai, isliye hum email wala tareeka use kar rahe hain.
+
+30
+00:02:31,544 --> 00:02:39,335
+Part 3 mein distributor ka business onboarding karenge: business name, GSTIN, drug licence,
+
+31
+00:02:39,335 --> 00:02:46,099
+address, owner account, godown, backup recovery kit, aur two-step verification.
+
+32
+00:02:46,099 --> 00:02:49,780
+Phir distribution settings bhi set karenge.
+
+33
+00:02:50,729 --> 00:02:58,581
+Email confirm hone ke baad wizard ke paanch steps dikhte hain: Your business, Your account,
+
+34
+00:02:58,581 --> 00:03:00,911
+Godowns, Backups, aur Done.
+
+35
+00:03:00,911 --> 00:03:05,053
+Pehle step mein business ki details bharte hain.
+
+36
+00:03:05,053 --> 00:03:09,109
+Business name: Medoro Demo Pharma Distributors.
+
+37
+00:03:09,778 --> 00:03:10,611
+Ab GSTIN.
+
+38
+00:03:10,611 --> 00:03:18,018
+Yeh ek fictional demo GSTIN hai jo Jharkhand ke state code 20 se shuru hota hai.
+
+39
+00:03:18,018 --> 00:03:22,462
+Medoro format aur checksum dono check karta hai.
+
+40
+00:03:22,462 --> 00:03:28,110
+Phir wholesale drug licence, yani Form 20B aur 21B ka number.
+
+41
+00:03:28,770 --> 00:03:34,323
+Address mein godown ya office ka poora pata, city aur PIN code.
+
+42
+00:03:34,323 --> 00:03:37,849
+Business code apne-aap suggest hota hai.
+
+43
+00:03:37,849 --> 00:03:39,964
+Hum MEDORO-RNC rakhenge.
+
+44
+00:03:39,964 --> 00:03:45,782
+Isi code se aapki team aur chemists aapka business dhoondhte hain.
+
+45
+00:03:46,436 --> 00:03:48,006
+Continue dabaiye.
+
+46
+00:03:48,006 --> 00:03:50,778
+Doosra step hai owner account.
+
+47
+00:03:50,778 --> 00:03:54,473
+Medoro mein koi default login nahi hota.
+
+48
+00:03:54,473 --> 00:04:01,031
+Yeh account business ka maalik hai, aur baaki sab users yahi jodta hai.
+
+49
+00:04:01,031 --> 00:04:06,112
+Naam, mobile number aur ek strong password daalte hain.
+
+50
+00:04:06,765 --> 00:04:08,623
+Teesra step: godowns.
+
+51
+00:04:08,623 --> 00:04:15,083
+Stock, orders aur dispatch har godown ke hisaab se alag rakhe jaate hain.
+
+52
+00:04:15,083 --> 00:04:19,684
+Pehle godown ka naam Medoro Main Godown rakhte hain.
+
+53
+00:04:19,684 --> 00:04:23,489
+Baaki godowns baad mein bhi jod sakte hain.
+
+54
+00:04:24,142 --> 00:04:27,635
+Chautha step: backups aur recovery kit.
+
+55
+00:04:27,635 --> 00:04:31,396
+Is kit mein backup kholne ki key hoti hai.
+
+56
+00:04:31,396 --> 00:04:36,949
+Download and print dabaiye, aur ise offline surakshit rakhiye.
+
+57
+00:04:36,949 --> 00:04:40,890
+Bina is kit ke backup restore nahi ho sakta.
+
+58
+00:04:41,565 --> 00:04:48,185
+Terms aur Privacy Policy accept karke, Create my distributor account dabaate hain.
+
+59
+00:04:48,846 --> 00:04:50,573
+Account taiyaar hai.
+
+60
+00:04:50,573 --> 00:04:57,049
+Screen par likha hai: Your 7-day free trial has started with every feature.
+
+61
+00:04:57,049 --> 00:04:59,553
+Business code MEDORO-RNC hai.
+
+62
+00:04:59,553 --> 00:05:04,130
+Ab Set up two-step verification par click karte hain.
+
+63
+00:05:04,791 --> 00:05:09,908
+Owner aur manager ke liye two-step verification zaroori hai.
+
+64
+00:05:09,908 --> 00:05:14,513
+Google Authenticator jaisi app se QR code scan kariye.
+
+65
+00:05:14,513 --> 00:05:19,971
+Security ke liye QR code aur key video mein blur kiye gaye hain.
+
+66
+00:05:19,971 --> 00:05:23,723
+App ka 6-digit code daal kar Verify dabaiye.
+
+67
+00:05:24,376 --> 00:05:27,200
+Ab 10 recovery codes milte hain.
+
+68
+00:05:27,200 --> 00:05:31,082
+Agar phone kho jaye, toh inhi se login hoga.
+
+69
+00:05:31,082 --> 00:05:37,788
+Inhe surakshit jagah save kariye, phir checkbox tick karke Continue dabaiye.
+
+70
+00:05:38,434 --> 00:05:42,602
+Hum seedhe Distributor dashboard par pahunch gaye.
+
+71
+00:05:42,602 --> 00:05:46,352
+Abhi yeh khali hai, kyunki koi data nahi hai.
+
+72
+00:05:46,352 --> 00:05:51,270
+Upar business ka naam aur Medoro Main Godown dikh raha hai.
+
+73
+00:05:51,926 --> 00:05:55,315
+Ab godown ki details poori karte hain.
+
+74
+00:05:55,315 --> 00:05:58,526
+Godowns and racks mein Edit dabaiye.
+
+75
+00:05:58,526 --> 00:06:04,413
+Godown ka code, address, GSTIN aur drug licence yahan bharte hain.
+
+76
+00:06:04,413 --> 00:06:08,962
+Har godown ki invoice series isi code se banti hai.
+
+77
+00:06:09,614 --> 00:06:15,149
+Settings mein distribution ke business rules hain: invoice par legal name,
+
+78
+00:06:15,149 --> 00:06:19,338
+chemists ko bheje jaane wale maal ki minimum shelf life,
+
+79
+00:06:19,338 --> 00:06:25,845
+purchase cover aur safety stock ke din, aur credit rules todne wale orders ke saath kya
+
+80
+00:06:25,845 --> 00:06:28,762
+ho: hold for approval, ya seedha block.
+
+81
+00:06:29,416 --> 00:06:34,962
+Financial year Medoro apne-aap date se samajhta hai, April se March.
+
+82
+00:06:34,962 --> 00:06:42,793
+Invoice, order aur dispatch number har financial year ke hisaab se naye series mein chalte hain.
+
+83
+00:06:42,793 --> 00:06:46,382
+Iske liye alag setting ki zaroorat nahi hai.
+
+84
+00:06:46,382 --> 00:06:50,460
+Neeche integrations ka asli status bhi dikhta hai.
+
+85
+00:06:51,124 --> 00:06:53,017
+Onboarding poora hua.
+
+86
+00:06:53,017 --> 00:06:59,328
+Agle part mein dashboard ko detail mein samjhenge, demo data ke saath.

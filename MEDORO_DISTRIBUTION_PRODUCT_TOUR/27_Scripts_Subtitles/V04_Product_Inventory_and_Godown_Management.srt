@@ -1,0 +1,483 @@
+1
+00:00:00,148 --> 00:00:08,634
+Part 5 mein product aur medicine catalogue dekhenge: naya product jodna, PTR, PTS aur MRP,
+
+2
+00:00:08,634 --> 00:00:16,272
+HSN aur GST, schedule, barcode, reorder level, edit karna aur product band karna.
+
+3
+00:00:17,217 --> 00:00:20,156
+Masters mein Products kholiye.
+
+4
+00:00:20,156 --> 00:00:28,680
+Yahan har product ki wholesale rates dikhti hain: PTR, PTS, MRP, GST, pack aur company.
+
+5
+00:00:28,680 --> 00:00:34,853
+Stock yahan nahi, balki Stock screen par batch-wise dikhta hai.
+
+6
+00:00:35,523 --> 00:00:40,986
+Search box mein brand naam ya salt likh kar product dhoondh sakte hain.
+
+7
+00:00:40,986 --> 00:00:46,295
+Jaise Paracetamol likhne par Febrinil ke dono strength aa jaate hain.
+
+8
+00:00:46,295 --> 00:00:51,143
+Company filter se ek company ke saare products dekh sakte hain.
+
+9
+00:00:51,798 --> 00:00:54,644
+Ab naya product jodte hain.
+
+10
+00:00:54,644 --> 00:00:56,752
+Add product kholiye.
+
+11
+00:00:56,752 --> 00:01:00,125
+Product name: Levocet Kid Syrup.
+
+12
+00:01:00,125 --> 00:01:04,552
+Generic yaani composition: Levocetirizine.
+
+13
+00:01:04,552 --> 00:01:09,506
+Strength aur form, yahan syrup, aur pack 60 ml.
+
+14
+00:01:10,159 --> 00:01:15,191
+Company chuniye: Nirmal Demo Formulations.
+
+15
+00:01:15,191 --> 00:01:19,744
+HSN code 30049099, aur GST 12 percent.
+
+16
+00:01:19,744 --> 00:01:27,771
+HSN aur GST sahi hone se hi invoice aur GST return sahi bante hain.
+
+17
+00:01:28,441 --> 00:01:29,365
+Ab rates.
+
+18
+00:01:29,365 --> 00:01:33,777
+MRP GST ke saath hota hai, yahan 85 rupaye.
+
+19
+00:01:33,777 --> 00:01:41,575
+PTR, yani price to retailer, GST ke bina, jis par chemist ko maal milta hai.
+
+20
+00:01:41,575 --> 00:01:48,861
+PTS, price to stockist, aur bhi kam hota hai, sub-distributors ke liye.
+
+21
+00:01:49,521 --> 00:01:53,664
+Dekhiye, maine PTR galti se 80 rupaye daala.
+
+22
+00:01:53,664 --> 00:02:02,421
+Add product dabane par Medoro rok deta hai: PTR plus GST MRP se upar hai, rates check kariye.
+
+23
+00:02:02,421 --> 00:02:06,941
+Aisi galti se chemist ka margin khatam ho jaata.
+
+24
+00:02:07,605 --> 00:02:11,638
+PTR theek karke 59 rupaye 50 paise karte hain.
+
+25
+00:02:11,638 --> 00:02:18,213
+Barcode, ek pack mein kitni units, ek case mein kitne packs, minimum order,
+
+26
+00:02:18,213 --> 00:02:20,843
+aur reorder level bhi bhariye.
+
+27
+00:02:20,843 --> 00:02:25,577
+Reorder level se neeche stock jaate hi alert aata hai.
+
+28
+00:02:26,235 --> 00:02:30,800
+Schedule H ya H1 dawaiyon ke liye schedule chuniye.
+
+29
+00:02:30,800 --> 00:02:37,872
+Show on chemist portal tick ho, toh yeh product chemists ke portal par dikhega.
+
+30
+00:02:37,872 --> 00:02:39,215
+Ab Add product.
+
+31
+00:02:39,877 --> 00:02:42,091
+Product list mein aa gaya.
+
+32
+00:02:42,091 --> 00:02:49,157
+Ab kisi product ko edit karna ho, jaise rate badalna, toh uske saamne Edit dabaiye.
+
+33
+00:02:49,157 --> 00:02:53,073
+Yahan reorder level badal kar save karte hain.
+
+34
+00:02:53,719 --> 00:03:01,275
+Product ko delete nahi kiya jaata, kyunki uske purane invoices aur stock record rehne chahiye.
+
+35
+00:03:01,275 --> 00:03:06,741
+Agar company ne product band kar diya, toh Discontinued tick kariye.
+
+36
+00:03:06,741 --> 00:03:11,403
+Woh naye orders mein nahi aayega, par history safe rahegi.
+
+37
+00:03:12,057 --> 00:03:19,171
+Yaad rakhiye: PTR plus GST hamesha MRP se kam ho, PTS PTR se upar na ho,
+
+38
+00:03:19,171 --> 00:03:23,716
+aur HSN aur GST company ke invoice se milaiye.
+
+39
+00:03:23,716 --> 00:03:27,965
+Sahi catalogue hi sahi billing ki neev hai.
+
+40
+00:03:29,646 --> 00:03:34,934
+Part 6 mein godown aur inventory management: naya godown, racks,
+
+41
+00:03:34,934 --> 00:03:42,369
+product ko rack par rakhna, batch-wise stock, stock value, audited adjustment, quarantine,
+
+42
+00:03:42,369 --> 00:03:45,674
+low stock aur godowns ke beech transfer.
+
+43
+00:03:46,619 --> 00:03:50,137
+Masters mein Godowns and racks kholiye.
+
+44
+00:03:50,137 --> 00:03:56,360
+Hamare paas do godown hain: Medoro Main Godown aur Kanke Road Godown.
+
+45
+00:03:56,360 --> 00:04:04,207
+Har godown ka code, GSTIN, licence, racks ki ginti aur cost par stock value dikhti hai.
+
+46
+00:04:04,885 --> 00:04:07,061
+Naya godown jodte hain.
+
+47
+00:04:07,061 --> 00:04:08,859
+Add godown kholiye.
+
+48
+00:04:08,859 --> 00:04:12,927
+Naam: Dhanbad Depot, code DHN, aur address.
+
+49
+00:04:12,927 --> 00:04:21,537
+Professional plan mein teen godown tak, aur Enterprise mein bees tak godown mil sakte hain.
+
+50
+00:04:22,193 --> 00:04:22,998
+Ab racks.
+
+51
+00:04:22,998 --> 00:04:27,205
+Har rack ka code, zone aur pick order hota hai.
+
+52
+00:04:27,205 --> 00:04:34,723
+Pick list isi order mein chalti hai, taaki picker ko baar-baar peeche na jaana pade.
+
+53
+00:04:34,723 --> 00:04:38,392
+Cold chain wale rack alag mark hote hain.
+
+54
+00:04:38,392 --> 00:04:41,077
+Ek naya rack A-07 banate hain.
+
+55
+00:04:41,743 --> 00:04:48,209
+Product ko rack par rakhne ke liye product aur rack chuniye aur Place dabaiye.
+
+56
+00:04:48,209 --> 00:04:51,774
+Naya Levocet syrup rack A-07 par rakh diya.
+
+57
+00:04:51,774 --> 00:04:56,499
+Ab picking ke samay picker ko seedha rack number dikhega.
+
+58
+00:05:06,340 --> 00:05:09,408
+Ab Stock and transfers kholiye.
+
+59
+00:05:09,408 --> 00:05:17,722
+Yahan har batch ki line hai: product, batch number, expiry, rack, packs, quarantine,
+
+60
+00:05:17,722 --> 00:05:19,009
+cost aur MRP.
+
+61
+00:05:19,009 --> 00:05:22,176
+Upar kul stock value dikhti hai.
+
+62
+00:05:22,830 --> 00:05:30,564
+Stock sirf GRN, invoice, return, claim, transfer ya audited adjustment se hi badalta hai.
+
+63
+00:05:30,564 --> 00:05:33,866
+Koi seedha number edit nahi kar sakta.
+
+64
+00:05:33,866 --> 00:05:41,426
+Search mein Febrinil likhiye: iske alag-alag batches, alag expiry ke saath dikhte hain.
+
+65
+00:05:42,079 --> 00:05:48,971
+Agar ginti mein fark mile, jaise ek strip toot gayi, toh Stock adjustment use kariye.
+
+66
+00:05:48,971 --> 00:05:54,160
+Batch chuniye, minus 2 units likhiye, aur reason zaroor daaliye.
+
+67
+00:05:54,160 --> 00:05:59,835
+Yeh adjustment audit trail mein naam aur samay ke saath darj hota hai.
+
+68
+00:06:00,492 --> 00:06:07,622
+Quarantine ka matlab hai woh maal jo bika nahi ja sakta: chemist ka lautaya hua expired ya
+
+69
+00:06:07,622 --> 00:06:08,494
+toota maal.
+
+70
+00:06:08,494 --> 00:06:14,753
+Yeh stock alag column mein rehta hai aur supplier claim ke liye ruka rehta hai.
+
+71
+00:06:14,753 --> 00:06:18,080
+Hum ise Part 14 mein detail mein dekhenge.
+
+72
+00:06:18,736 --> 00:06:24,529
+Low stock pehchanne ke liye dashboard par Products below reorder level ka link hai,
+
+73
+00:06:24,529 --> 00:06:30,461
+aur Business intelligence mein automatic reorder suggestions hain, jo bikri ki speed,
+
+74
+00:06:30,461 --> 00:06:34,020
+lead time aur safety stock se quantity batate hain.
+
+75
+00:06:34,667 --> 00:06:36,513
+Ab godown transfer.
+
+76
+00:06:36,513 --> 00:06:40,399
+Stock tab par Request transfer form hai.
+
+77
+00:06:40,399 --> 00:06:46,130
+Batch chuniye, kis godown mein bhejna hai, aur kitne units.
+
+78
+00:06:46,130 --> 00:06:48,559
+Request transfer dabaiye.
+
+79
+00:06:49,214 --> 00:06:56,885
+Transfer teen kadam mein hota hai: request, approve aur bhejna, phir doosre godown mein receive.
+
+80
+00:06:56,885 --> 00:07:03,758
+Jab tak maal raaste mein hai, woh kisi bhi godown ke bikne wale stock mein nahi ginta.
+
+81
+00:07:03,758 --> 00:07:07,114
+Is tarah stock kabhi do jagah nahi dikhta.
+
+82
+00:07:07,763 --> 00:07:12,967
+Yaad rakhiye: har mahine physical count karke adjustment kariye,
+
+83
+00:07:12,967 --> 00:07:18,822
+expiry ke paas wala maal pehle nikaliye, aur reorder level sahi rakhiye.
+
+84
+00:07:18,822 --> 00:07:23,863
+Isse shortage bhi nahi hogi aur expiry ka nuksan bhi kam hoga.
+
+85
+00:07:25,446 --> 00:07:32,104
+Part 9 mein batch-wise inventory, expiry tracking aur stock reservation samjhenge: order
+
+86
+00:07:32,104 --> 00:07:36,039
+approve hote hi kaunsa batch kaise reserve hota hai,
+
+87
+00:07:36,039 --> 00:07:39,746
+aur near-expiry aur expired maal ka kya hota hai.
+
+88
+00:07:40,707 --> 00:07:45,946
+Pharma mein har strip ka batch number aur expiry hota hai.
+
+89
+00:07:45,946 --> 00:07:49,559
+Stock screen par Montiluk LC dhoondhiye.
+
+90
+00:07:49,559 --> 00:07:57,599
+Iske do ya zyada batches hain, har ek ka apna batch number, expiry, rack, packs aur cost.
+
+91
+00:07:58,272 --> 00:08:01,429
+Packs column godown mein pada kul maal hai.
+
+92
+00:08:01,429 --> 00:08:05,908
+Iska kuch hissa approved orders ke liye reserve ho sakta hai.
+
+93
+00:08:05,908 --> 00:08:09,652
+Reserved packs order ki pick list mein dikhte hain,
+
+94
+00:08:09,652 --> 00:08:16,700
+aur naya order banate samay Stock column reservation ghata kar hi bikne laayak stock batata hai.
+
+95
+00:08:17,362 --> 00:08:21,057
+Ab ek pending order approve karke dekhte hain.
+
+96
+00:08:21,057 --> 00:08:24,671
+Orders mein New Sai Medicos ka order kholiye.
+
+97
+00:08:24,671 --> 00:08:32,382
+Abhi status Awaiting approval hai, aur value aur credit card par likha hai: Within credit terms.
+
+98
+00:08:33,033 --> 00:08:38,445
+Approve dabate hi Medoro do kaam karta hai: credit dobara check karta hai,
+
+99
+00:08:38,445 --> 00:08:44,662
+aur har product ke liye FEFO yaani first expiry first out ke hisaab se batch chun kar
+
+100
+00:08:44,662 --> 00:08:46,637
+packs reserve kar deta hai.
+
+101
+00:08:47,304 --> 00:08:49,665
+Neeche pick list ban gayi.
+
+102
+00:08:49,665 --> 00:08:55,748
+Har line mein rack, product, batch, expiry aur reserved packs hain.
+
+103
+00:08:55,748 --> 00:09:03,284
+Sabse pehle expire hone wala batch pehle chuna gaya, taaki purana maal pehle nikle.
+
+104
+00:09:03,940 --> 00:09:09,131
+Agar kisi batch ki expiry chemist ki minimum shelf life se kam hai,
+
+105
+00:09:09,131 --> 00:09:16,415
+jo settings mein 90 din jaisa rakha jaata hai, toh woh batch chemist ko allocate hi nahi hota.
+
+106
+00:09:16,415 --> 00:09:19,824
+Short-dated maal chemist tak nahi pahunchta.
+
+107
+00:09:20,490 --> 00:09:23,004
+Ab Expiry and claims kholiye.
+
+108
+00:09:23,004 --> 00:09:28,552
+Upar chaar aankde: expired ya 30 din mein expire hone wala maal,
+
+109
+00:09:28,552 --> 00:09:36,614
+abhi claim ho sakne wala maal aur uska expected credit, khule claims, aur ab tak mila credit.
+
+110
+00:09:37,263 --> 00:09:45,851
+Expiry workbench mein har batch ka band dikhta hai: Expired, 30 din, 31 se 60 din, 61 se 90 din.
+
+111
+00:09:45,851 --> 00:09:51,308
+Saath mein shelf par kitna hai, quarantine mein kitna, value,
+
+112
+00:09:51,308 --> 00:09:55,691
+aur kya woh company ki claim window ke andar hai.
+
+113
+00:09:56,347 --> 00:10:02,406
+Jaise Gastrocalm Gel ka ek batch 15 November ko expire ho chuka hai.
+
+114
+00:10:02,406 --> 00:10:07,484
+Eligible likha hai, 70 percent credit ki ummeed ke saath.
+
+115
+00:10:07,484 --> 00:10:13,454
+Expired maal bikta nahi, isliye ise claim karna hi sahi raasta hai.
+
+116
+00:10:13,454 --> 00:10:17,463
+Claim ka poora process Part 14 mein dekhenge.
+
+117
+00:10:18,130 --> 00:10:25,114
+Stock reconciliation ke liye har batch ki har movement record hoti hai: GRN se aaya,
+
+118
+00:10:25,114 --> 00:10:32,348
+invoice se gaya, return se wapas, claim se company ko, transfer, ya audited adjustment.
+
+119
+00:10:32,348 --> 00:10:37,254
+Isliye batch ka balance hamesha movements se mil jaata hai.
+
+120
+00:10:37,910 --> 00:10:43,961
+Yaad rakhiye: FEFO par bharosa rakhiye, near-expiry list har hafte dekhiye,
+
+121
+00:10:43,961 --> 00:10:47,914
+aur claim window band hone se pehle claim kariye.

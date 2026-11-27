@@ -1,0 +1,171 @@
+1
+00:00:00,157 --> 00:00:09,060
+Part 13 mein wholesale GST invoice: chemist chunna, PTR aur PTS rates, discount aur scheme,
+
+2
+00:00:09,060 --> 00:00:17,180
+same-state par CGST aur SGST, doosre state par IGST, HSN, invoice number, A4 print,
+
+3
+00:00:17,180 --> 00:00:19,137
+aur invoice history.
+
+4
+00:00:20,107 --> 00:00:22,480
+Sales mein New invoice kholiye.
+
+5
+00:00:22,480 --> 00:00:28,528
+Yeh direct ya counter billing hai, jab chemist khud aakar ya phone par maal le.
+
+6
+00:00:28,528 --> 00:00:34,575
+Order wale maal ka invoice packed order se banta hai, jo Part 15 mein dekhenge.
+
+7
+00:00:35,288 --> 00:00:39,785
+Chemist chuniye: City Care Chemists, Ranchi.
+
+8
+00:00:39,785 --> 00:00:47,042
+Yeh Jharkhand ka chemist hai, aur hamara godown bhi Jharkhand mein hai.
+
+9
+00:00:47,042 --> 00:00:50,210
+Isliye yeh same-state sale hai.
+
+10
+00:00:50,210 --> 00:00:56,956
+Products jodte hain: Amoxirise CV 625, Azivon 500, aur Telmiva 40.
+
+11
+00:00:57,625 --> 00:01:05,065
+Har line par rate chemist ke price tier se aata hai: PTR retailer ke liye, PTS stockist ke liye.
+
+12
+00:01:05,065 --> 00:01:08,630
+Disc column mein extra discount de sakte hain,
+
+13
+00:01:08,630 --> 00:01:14,133
+par rate ghatane ya extra discount ke liye override permission chahiye.
+
+14
+00:01:14,862 --> 00:01:22,256
+Neeche summary dekhiye: taxable value, discount, aur CGST plus SGST.
+
+15
+00:01:22,256 --> 00:01:28,671
+Same state hone se GST aadha CGST aur aadha SGST mein bata.
+
+16
+00:01:28,671 --> 00:01:34,760
+12 percent GST matlab 6 percent CGST aur 6 percent SGST.
+
+17
+00:01:34,760 --> 00:01:37,370
+Round off ke baad total.
+
+18
+00:01:38,051 --> 00:01:39,842
+Raise invoice dabaiye.
+
+19
+00:01:39,842 --> 00:01:44,565
+Medoro stock FEFO se batch-wise kaatata hai, credit limit,
+
+20
+00:01:44,565 --> 00:01:51,079
+overdue bills aur licence validity check karta hai, aur invoice number deta hai.
+
+21
+00:01:51,746 --> 00:01:53,332
+Yeh hai invoice.
+
+22
+00:01:53,332 --> 00:02:01,859
+Number godown ki series se banta hai: W, godown code, financial year aur kram sankhya,
+
+23
+00:02:01,859 --> 00:02:05,329
+GST ke 16 akshar ki seema ke andar.
+
+24
+00:02:05,329 --> 00:02:13,757
+Upar place of supply Jharkhand, aur har line mein HSN, batch, expiry, quantity, free,
+
+25
+00:02:13,757 --> 00:02:15,046
+rate aur GST.
+
+26
+00:02:15,722 --> 00:02:22,699
+Print dabaane par A4 tax invoice ka layout khulta hai: distributor ka naam, GSTIN,
+
+27
+00:02:22,699 --> 00:02:28,229
+drug licence, chemist ki details, HSN-wise lines aur tax summary.
+
+28
+00:02:28,229 --> 00:02:33,334
+Isse printer par chhapa ya PDF mein save kiya jaa sakta hai.
+
+29
+00:02:34,034 --> 00:02:40,166
+Ab doosre state ka chemist: Patna Demo Medical Agency, Bihar.
+
+30
+00:02:40,166 --> 00:02:42,679
+Wahi products jodte hain.
+
+31
+00:02:42,679 --> 00:02:49,413
+Summary mein ab CGST aur SGST ki jagah IGST aaya, poora 12 percent,
+
+32
+00:02:49,413 --> 00:02:52,630
+aur Inter-state: IGST likha hai.
+
+33
+00:02:53,648 --> 00:03:00,923
+Yeh place of supply ke niyam se hota hai: maal doosre state mein jaa raha hai, toh IGST.
+
+34
+00:03:00,923 --> 00:03:06,131
+Medoro chemist ke GSTIN ya state se yeh apne-aap tay karta hai.
+
+35
+00:03:06,131 --> 00:03:11,422
+Phir bhi tax ka faisla GST niyamon ke hisaab se hi hona chahiye,
+
+36
+00:03:11,422 --> 00:03:14,068
+aur shak ho toh CA se poochhiye.
+
+37
+00:03:14,799 --> 00:03:21,533
+Invoices screen par saare invoices ki history hai: number, chemist, date aur total.
+
+38
+00:03:21,533 --> 00:03:27,131
+Chemist ya number se search, aur date range se filter kar sakte hain.
+
+39
+00:03:27,791 --> 00:03:32,082
+Invoice same din cancel ho sakta hai, reason ke saath,
+
+40
+00:03:32,082 --> 00:03:36,532
+aur tab stock aur chemist ka balance wapas ho jaata hai.
+
+41
+00:03:36,532 --> 00:03:43,843
+Purane invoice ke liye cancel nahi, balki credit note banta hai, jo agle part mein dekhenge.
+
+42
+00:03:44,498 --> 00:03:50,220
+E-invoice IRN aur e-way bill abhi government portal par hi banaye jaate hain.
+
+43
+00:03:50,220 --> 00:03:56,686
+Medoro mein inka integration abhi wired nahi hai, aur settings mein yeh saaf likha hai.
