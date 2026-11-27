@@ -15,6 +15,7 @@ import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { ChatNotifier } from "./chat-notify";
 import { ChatHeads } from "./chat-heads";
 import { Screen } from "./screens";
+import { useCheckoutGuard } from "./checkout-guard";
 import { ScreenHero } from "./hero";
 import { Check, FileSignature, KeyRound, ShieldCheck, UserRound } from "lucide-react";
 import { IdBadge, SideIcons } from "../../employee/art";
@@ -64,6 +65,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   useEffect(() => { const t = setInterval(() => router.refresh(), 60_000); return () => clearInterval(t); }, [router]);
   const now = useNow(60_000);
   useEffect(() => { const open = () => setAlly(true); window.addEventListener("hrms:ally", open); return () => window.removeEventListener("hrms:ally", open); }, []);
+  const guard = useCheckoutGuard(sh);
   if (gate) return <Gate gate={gate} sh={sh} />;
   const unread = sh.notes.filter((n) => n.unread).length;
   const lunchNow = (() => { const ist = new Date(now + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes(); return m >= toMin(sh.lunch.from) && m < toMin(sh.lunch.to); })();
@@ -126,6 +128,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           {sh.onBreak
             ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0">On break: {sh.onBreak.kind} · end break</button>
             : lunchNow ? <span className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5">🍽 Lunch break · back at {to12(sh.lunch.to)}</span> : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
+          {screen === "attendance" ? null : guard.button}
           <div className="relative">
             <button className={btnCls} onClick={() => setBrk((o) => !o)} disabled={!!sh.onBreak}>☕ Take a break</button>
             {brk ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl p-1.5 w-[210px]">
@@ -155,7 +158,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => { setMenu(false); setPw(true); }}>Change password</button>
               {sh.me.growth ? <Link href="/staff/growth/my-work" className="block px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9]">Open lead tools</Link> : null}
               {sh.me.console ? <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => void openStaffConsole().then((to) => { window.location.href = to; })}>Open staff console</button> : null}
-              <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#B3261E] hover:bg-[#FDECEA] cursor-pointer bg-transparent border-0" onClick={() => void hrSignOut()}>Sign out</button>
+              <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] text-[#B3261E] hover:bg-[#FDECEA] cursor-pointer bg-transparent border-0" onClick={() => { setMenu(false); guard.signOut(); }}>Sign out</button>
             </div> : null}
           </div>
         </header>}
@@ -167,6 +170,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
       {sh.needsPhoto ? <PhotoCheckin lateAfter={sh.lateAfter} /> : null}
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}
       {pw ? <PasswordModal onClose={() => setPw(false)} /> : null}
+      {guard.node}
     </div>
   );
 }

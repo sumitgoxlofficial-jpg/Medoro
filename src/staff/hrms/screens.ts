@@ -52,11 +52,11 @@ export async function shell(me: Me) {
   // The Sales Academy is automatic: the course installs itself, and a sales employee is enrolled on their first page view.
   await ensureAcademy();
   if (isSalesMe(me) && !(await hasAssignment(me.id))) await autoEnrol([me.id]);
-  const [s, notes, att, brk, chatUnread, learner, trainer, manages] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), hasAssignment(me.id), isTrainer(me.id), reportCount(me.id)]);
+  const [s, notes, att, brk, chatUnread, learner, trainer, manages, prof] = await Promise.all([loadSettings(), notifications(me), today(me), db.hrBreak.findFirst({ where: { staffId: me.id, endAt: null }, orderBy: { startAt: "desc" } }), unreadTotal(me.id), hasAssignment(me.id), isTrainer(me.id), reportCount(me.id), db.hrProfile.findUnique({ where: { staffId: me.id }, select: { shiftStart: true } })]);
   return {
     me: { id: me.id, phone: me.phone, personalEmail: me.personalEmail, name: me.name, first: me.first, empNo: me.empNo, email: me.email, role: me.role, dept: me.dept, designation: me.designation, photo: me.photo, growth: me.staffRole === "sales", console: me.staffRole === "super_admin" || me.staffRole === "care" },
     nav: navFor(me, { learner, trainer, manages: manages > 0 }), more: [] as { id: string; label: string }[],
-    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
+    home: HOME_OF[me.role], notes, att, onBreak: brk ? { kind: brk.kind, since: brk.startAt.toISOString() } : null, checkin: s.checkin && !admin, selfie: s.selfie && !admin, monitor: s.idleMonitor && !admin ? s.idleMinutes : 0, today: todayISO(), chatUnread, workHours: s.workHours, lunch: { from: s.lunchFrom, to: s.lunchTo }, lateAfter: s.lateAfter, start: prof?.shiftStart || s.lateAfter, needsPhoto: !admin && s.selfie && s.checkin && !att.inAt && (await isWorkDay(me.id)),
   };
 }
 export type Shell = Awaited<ReturnType<typeof shell>>;

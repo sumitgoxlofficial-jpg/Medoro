@@ -24,6 +24,8 @@ export function lunchOverlapMin(inAt: Date, outAt: Date, s: Pick<Settings, "lunc
 export const workedMin = (a: { inAt: Date; outAt: Date; breakMin: number }, s: Pick<Settings, "lunchFrom" | "lunchTo">) =>
   Math.max(0, Math.round((a.outAt.getTime() - a.inAt.getTime()) / 60_000) - lunchOverlapMin(a.inAt, a.outAt, s) - a.breakMin);
 export const hm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+/** Minutes since midnight → "HH:MM" (comparable with istClock). */
+const clockOf = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 export const istClock = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(11, 16);
 /** Is this date one of the weekly days off (Settings; Saturday and Sunday unless changed)? */
 export const weekend = (day: string, off: number[] = [0, 6]) => off.includes(dateOnly(day).getUTCDay());
@@ -155,6 +157,12 @@ export async function rangeFor(staffId: string, first: string, last: string, s: 
     // A half-day leave on a day the person also worked: half a day of leave (or of loss of pay, when unpaid).
     const halfNote = () => { if (!lv?.half || !working) return ""; if (lv.type === UNPAID) counts.unpaid += 0.5; else counts.leave += 0.5; return ` · half-day ${leaveLabel(lv.type)}`; };
     if (working && day >= start && day <= todayDay && (!left || day <= left)) counts.workDays++;
+    if (a?.inAt && missedOut(a)) {
+      const late = a.status === "late";
+      if (late) counts.late++; else counts.present++;
+      counts.absent += 0.5; // check-out is compulsory: half a day's loss of pay until HR corrects the day
+      return cell(late ? "late" : "present", `${late ? "Late" : "Present"} · in ${fmtTime(a.inAt)} · ${MISSED_OUT}: half-day loss of pay until HR approves a correction${halfNote()}`, true);
+    }
     if (a?.inAt) {
       const worked = a.outAt ? workedMin({ inAt: a.inAt, outAt: a.outAt, breakMin: a.breakMin }, s) : 0;
       if (a.outAt) counts.overtimeMin += Math.max(0, worked - s.workHours * 60);
@@ -204,6 +212,17 @@ export async function decideCorrection(me: Me, id: string, approve: boolean) {
   const c = await db.hrCorrection.findUnique({ where: { id } });
   if (!c || c.status !== "pending") throw new UserError("This request was already decided.");
   if (c.staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to decide your own request.");
+  const row = await db.hrAttendance.findUnique({ where: { staffId_day: { staffId: c.staffId, day: c.day } } });
+  if (approve && row?.inAt && missedOut(row)) {
+    // A missed check-out: the person was in, so the day is restored as a full working day, keeping its present/late mark.
+    await db.$transaction([
+      db.hrCorrection.update({ where: { id }, data: { status: "approved", decidedBy: me.id, decidedAt: new Date() } }),
+      db.hrAttendance.update({ where: { id: row.id }, data: { outAt: fullDayOut(row.day, row.inAt, await loadSettings()), note: row.note.replace(MISSED_OUT, "Check-out corrected by HR") } }),
+    ]);
+    await notify([c.staffId], `Your attendance correction for ${isoOf(c.day)} was approved.`, "attendance");
+    await audit(me, "Attendance correction approved", `${isoOf(c.day)} · missed check-out`);
+    return;
+  }
   await db.$transaction([
     db.hrCorrection.update({ where: { id }, data: { status: approve ? "approved" : "rejected", decidedBy: me.id, decidedAt: new Date() } }),
     ...(approve ? [db.hrAttendance.upsert({ where: { staffId_day: { staffId: c.staffId, day: c.day } }, update: { status: "present", note: "Corrected by HR" }, create: { staffId: c.staffId, day: c.day, status: "present", note: "Corrected by HR" } })] : []),
@@ -248,20 +267,23 @@ export type MyDay = Awaited<ReturnType<typeof myDay>>;
 export async function teamToday(me: Me) {
   need(me, "attendance");
   const day = todayISO(), set = await loadSettings();
-  const [staff, att, leaves, idle, shots] = await Promise.all([
+  const [staff, att, leaves, idle, shots, missed] = await Promise.all([
     db.staffUser.findMany({ where: { kind: "team", role: { not: "partner" }, status: "active" }, select: { id: true, name: true, empNo: true, hr: { select: { dept: true, role: true } } }, orderBy: { name: "asc" } }),
     db.hrAttendance.findMany({ where: { day: dateOnly(day) } }),
     db.hrLeave.findMany({ where: { status: "approved", fromDay: { lte: dateOnly(day) }, toDay: { gte: dateOnly(day) } } }),
     idleToday(),
     db.hrSelfie.findMany({ where: { day: dateOnly(day) }, select: { id: true, staffId: true, kind: true } }),
+    db.hrAttendance.findMany({ where: { day: { gte: dateOnly(day.slice(0, 8) + "01"), lt: dateOnly(day) }, note: { contains: MISSED_OUT } }, select: { staffId: true } }),
   ]);
+  // The working day is over once a full day (from the company start time, lunch included) has passed: still in = not checked out.
+  const dayOver = istClock(new Date()) >= clockOf(toMin(set.lateAfter) + set.workHours * 60 + Math.max(0, toMin(set.lunchTo) - toMin(set.lunchFrom)));
   const off = weekend(day, set.weekOff) || !!(await db.hrHoliday.findUnique({ where: { day: dateOnly(day) } }));
   return staff.filter((u) => u.hr?.role !== "admin").map((u) => { // the super admin is not on the attendance roll
     const a = att.find((x) => x.staffId === u.id), onLeave = leaves.some((l) => l.staffId === u.id);
-    const status = a?.inAt ? (a.status === "late" ? "Late" : "Present") : onLeave ? "On leave" : off ? "Day off" : "Not in yet";
+    const status = a?.inAt ? (!a.outAt && dayOver ? "Not checked out" : a.status === "late" ? "Late" : "Present") : onLeave ? "On leave" : off ? "Day off" : "Not in yet";
     return { id: u.id, name: u.name, empNo: u.empNo, dept: u.hr?.dept ?? "", inAt: a?.inAt ? fmtTime(a.inAt) : "", outAt: a?.outAt ? fmtTime(a.outAt) : "", status,
       worked: a?.inAt ? hm(workedMin({ inAt: a.inAt, outAt: a.outAt ?? new Date(), breakMin: a.breakMin }, set)) : "", short: !!(a?.inAt && a.outAt && workedMin({ inAt: a.inAt, outAt: a.outAt, breakMin: a.breakMin }, set) < set.workHours * 60),
-      idleMin: idle.get(u.id)?.minutes ?? 0, idleNow: idle.get(u.id)?.open ?? false, selfieIn: shots.find((x) => x.staffId === u.id && x.kind === "in")?.id ?? null, selfieOut: shots.find((x) => x.staffId === u.id && x.kind === "out")?.id ?? null };
+      idleMin: idle.get(u.id)?.minutes ?? 0, idleNow: idle.get(u.id)?.open ?? false, selfieIn: shots.find((x) => x.staffId === u.id && x.kind === "in")?.id ?? null, selfieOut: shots.find((x) => x.staffId === u.id && x.kind === "out")?.id ?? null, missed: missed.filter((x) => x.staffId === u.id).length };
   });
 }
 
@@ -269,24 +291,31 @@ export async function teamToday(me: Me) {
  * Deactivates people whose last working day has passed (an exit recorded in advance). Runs at most every ten
  * minutes from ordinary page loads; `now` forces it (payroll).
  */
+/** Marks a day whose check-out was missed. Check-out is compulsory: such a day is half a day's loss of pay until HR approves a correction. */
+export const MISSED_OUT = "Missed check-out";
+/** A full working day after check-in (work hours + the lunch hour), never past midnight India time: the hours HR restores on a correction. */
+function fullDayOut(day: Date, inAt: Date, s: Settings) {
+  const span = (s.workHours * 60 + Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom))) * 60_000;
+  const midnight = new Date(`${addDays(isoOf(day), 1)}T00:00:00+05:30`).getTime() - 60_000;
+  return new Date(Math.min(inAt.getTime() + span, midnight));
+}
 /**
- * Closes past days someone forgot to check out of: check-out is set to a full working day after check-in (never past
- * midnight, India time) and the day is noted, so hours and reports aren't left open. Returns how many were closed.
+ * Closes past days someone forgot to check out of. Check-out is compulsory, so no hours are credited (check-out is set to
+ * the check-in time), the day is noted as a missed check-out (half a day's loss of pay until HR approves a correction) and
+ * the employee is told. Returns how many were closed.
  */
 export async function closeOpenDays() {
-  const s = await loadSettings();
   const open = await db.hrAttendance.findMany({ where: { day: { lt: dateOnly(todayISO()) }, inAt: { not: null }, outAt: null }, take: 500 });
-  const span = (s.workHours * 60 + Math.max(0, toMin(s.lunchTo) - toMin(s.lunchFrom))) * 60_000;
   for (const a of open) {
-    const midnight = new Date(`${addDays(isoOf(a.day), 1)}T00:00:00+05:30`).getTime() - 60_000;
-    const outAt = new Date(Math.min(a.inAt!.getTime() + span, midnight));
     await db.$transaction([
-      db.hrAttendance.update({ where: { id: a.id }, data: { outAt, note: [a.note, "Auto check-out (forgot to check out)"].filter(Boolean).join(" · ") } }),
-      db.hrBreak.updateMany({ where: { staffId: a.staffId, endAt: null, startAt: { lt: outAt } }, data: { endAt: outAt } }),
+      db.hrAttendance.update({ where: { id: a.id }, data: { outAt: a.inAt, note: [a.note, MISSED_OUT].filter(Boolean).join(" · ") } }),
+      db.hrBreak.updateMany({ where: { staffId: a.staffId, endAt: null, startAt: { lt: new Date(`${addDays(isoOf(a.day), 1)}T00:00:00+05:30`) } }, data: { endAt: a.inAt } }),
     ]);
+    await notify([a.staffId], `You didn’t check out on ${isoOf(a.day)}. It counts as half a day’s loss of pay unless HR approves a correction: open Attendance, tap the day and request one.`, "attendance");
   }
   return open.length;
 }
+export const missedOut = (a: { note: string } | null | undefined) => !!a?.note.includes(MISSED_OUT);
 let exitsCheckedAt = 0;
 export async function closeExits(now = false) {
   if (!now && Date.now() - exitsCheckedAt < 600_000) return;

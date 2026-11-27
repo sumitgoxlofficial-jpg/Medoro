@@ -357,6 +357,7 @@ export function AttendanceScreen({ d, sh }: { d: Data<"attendance"> } & P) {
           {d.checkin && !inn ? <button disabled={busy} onClick={() => (d.selfie ? setShot("in") : doIn())} className="size-[84px] rounded-full bg-[#0B5E5B] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check in</button> : null}
           {d.checkin && inn && !out ? <button disabled={busy} onClick={() => (d.selfie ? setShot("out") : run(() => checkOut()))} className="size-[84px] rounded-full bg-[#B45309] text-white font-bold cursor-pointer border-0 disabled:opacity-60">Check out</button> : null}
         </div>
+        {d.checkin ? <p className="mt-3 text-[12px] text-[#64748B] border-t border-[#F1F5F9] pt-2.5"><strong className="text-[#B45309]">Check-out is compulsory.</strong> A day you don’t check out of is closed at midnight as a <em>missed check-out</em>: no hours are credited and it counts as half a day’s loss of pay until HR approves a correction.</p> : null}
       </Card>
       {d.checkin ? <MyDayCard d={d.day} month={d.isCurrent ? d.counts : undefined} /> : null}
       {d.selfie || d.monitor ? <Card pad><p className="text-[12.5px] text-[#475569]">{d.selfie ? "📷 Selfie check-in is on: you take a photo when you check in and out. It is kept for 30 days and only you and HR can see it. " : ""}{d.monitor ? `⏱ Idle-time tracking is on: while you are checked in and not on a break, inactivity in this HRMS tab of ${d.monitor}+ minutes is recorded. Nothing you type is captured, and no other app or window is watched.` : ""}</p></Card> : null}
