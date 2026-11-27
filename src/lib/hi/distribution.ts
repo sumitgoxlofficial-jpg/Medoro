@@ -1,6 +1,7 @@
 /** Hindi lines for: MEDORO Distribution (/dist) and the chemist portal (/portal). Key = the English text exactly as written in the code. */
 export const hi: Record<string, string> = {
   "Backup & restore": "बैकअप और रीस्टोर",
+  "Watch the 26-part Hindi-English video tour": "26 हिस्सों वाला हिंदी-इंग्लिश वीडियो टूर देखें",
   "Packs returned": "लौटे पैक",
   "Condition": "हालत",
   "Reserved": "आरक्षित",

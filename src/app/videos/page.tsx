@@ -38,7 +38,7 @@ export default function Videos() {
               <Link href={`/videos/${tour.slug}`} className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold hover:bg-[var(--s-brand-ink)] hover:text-white no-underline"><Play size={17} fill="currentColor" aria-hidden />Watch the full tour ({clock(tour.seconds)})</Link>
               <a href="/trial" className="inline-flex items-center h-12 px-5 rounded-lg border border-[#C9D1CF] text-[16px] font-semibold text-[var(--s-ink)] hover:border-[var(--s-ink)] no-underline">Start 7-day free trial</a>
             </div>
-            <p className="m-0 text-[13.5px] text-[var(--s-muted)]">Recorded on a demo pharmacy with made-up data. Hinglish subtitles on every video.</p>
+            <p className="m-0 text-[13.5px] text-[var(--s-muted)]">Recorded on a demo pharmacy with made-up data. Hinglish subtitles on every video. Distributor? See the <Link href="/videos/distribution">Medoro Distribution videos</Link>.</p>
           </div>
           <Link href={`/videos/${tour.slug}`} className="group relative block aspect-video rounded-2xl overflow-hidden border border-[var(--s-line)] shadow-[0_24px_70px_rgba(11,58,120,.18)]" aria-label={`Play: ${tour.title}`}>
             {/* eslint-disable-next-line @next/next/no-img-element -- static WebP thumbnail */}

@@ -27,14 +27,16 @@ Demo account and data: see `30_Demo_Data/README.md`.
 | 1 | **High (gap)** | **No supplier outstanding, ledger or payment screen in Distribution.** Supplier dues were visible only as one "Sundry creditors" total in the trial balance; suppliers could not be paid from the Distribution app (the pharmacy screens redirect distributors to `/dist`) | **Fixed** (`ffb5ca0`): `/dist/suppliers/[id]` (we owe, last purchase/payment, ledger statement with date range, recent GRNs, *Pay supplier* using the shared payment service, oldest bills first); "We owe" column and links on Companies & principals; Hindi strings; integration test `tests/integration/dist-payables.test.ts` |
 | 2 | **High (gap)** | **Distributors could not reach Backup & restore.** `/app/backup` redirects a distribution tenant to `/dist`, and the Distribution menu had no backup screen, although the shared encrypted backup covers every distribution table | **Fixed** (`ffb5ca0`): `/dist/backup` renders the shared backup screen; *Backup & restore* added under System |
 | 3 | Low (copy) | Sign-up verification email told distributors "…create your **pharmacy** account" | **Fixed** (`ffb5ca0`): the distributor sign-up passes the product; the email says "distributor account" |
-| 4 | Low (copy) | Distributor-facing screens still use pharmacy wording: sign-in and two-step pages ("Bill faster… FEFO… Offline billing", "Trust this counter PC"), staff join flow ("Pharmacy code", "Pharmacy staff login"), plan page ("your pharmacy's name"), backup screen copy | Open (recorded as observed) |
-| 5 | Low (UX) | The stock screen has no **Reserved** column; reserved packs are visible on each order's pick list and are netted in the order entry's Stock column | Open (narration describes the real behaviour) |
-| 6 | Low (UX) | Sign-up errors that belong to an earlier step (e.g. "An account with this mobile number already exists") appear on the last wizard step | Open |
-| 7 | Low (a11y) | Some forms have inputs without accessible labels (Companies/principals/suppliers, Territories/salesmen, the credit-note lines on the invoice) | Open |
-| 8 | Info | Portal discovery shows a distributor's address from its most recently created godown | Open |
-| 9 | Medium (privacy) | Every role, including Salesman, Warehouse and Delivery, sees the full distributor dashboard: today's and month's sales, collections, total receivable and top outstanding chemists | Open (shown honestly in Part 23) |
-| 11 | Low (copy) | The password-reset email ends "let your pharmacy owner know" for a distributor owner | Open |
-| 10 | Low (UX) | "Against PO" on Receive goods lists only PO numbers, not the supplier, so the wrong PO is easy to pick (it happened in a first recording take of Part 08) | Open |
+| 4 | Low (copy) | Distributor-facing screens still use pharmacy wording: sign-in and two-step pages ("Bill faster… FEFO… Offline billing", "Trust this counter PC"), staff join flow ("Pharmacy code", "Pharmacy staff login"), plan page ("your pharmacy's name"), backup screen copy | **Fixed after recording** (`1cf9685`): Shared sign-in, staff login, two-step, plan and reset-email text is now neutral (Staff login, Business code, Trust this PC); the Distribution Users page describes the real join path |
+| 5 | Low (UX) | The stock screen has no **Reserved** column; reserved packs are visible on each order's pick list and are netted in the order entry's Stock column | **Fixed after recording** (`1cf9685`): Stock screen shows Reserved and Free to sell per batch |
+| 6 | Low (UX) | Sign-up errors that belong to an earlier step (e.g. "An account with this mobile number already exists") appear on the last wizard step | **Fixed after recording** (`1cf9685`): Distributor sign-up returns to the step the error belongs to |
+| 7 | Low (a11y) | Credit-note line inputs on the invoice had no accessible names. (Companies and Territories forms were also listed here; that was a probe error — their fields are labelled) | **Fixed after recording** (`1cf9685`): quantity, condition, credit % and reason are labelled |
+| 8 | Info | Portal discovery shows a distributor's address from its most recently created godown | **Fixed after recording** (`1cf9685`): Portal directory uses the first (main) godown's address |
+| 9 | Medium (privacy) | Every role, including Salesman, Warehouse and Delivery, sees the full distributor dashboard: today's and month's sales, collections, total receivable and top outstanding chemists | **Fixed after recording** (`1cf9685`): Business-wide sales, collections, receivables and top outstanding now need the reports permission (Owner, Manager, Accountant); other roles see the order pipeline and stock alerts |
+| 11 | Low (copy) | The password-reset email ends "let your pharmacy owner know" for a distributor owner | **Fixed after recording** (`1cf9685`): Reset email says "let the account owner know" |
+| 10 | Low (UX) | "Against PO" on Receive goods lists only PO numbers, not the supplier, so the wrong PO is easy to pick (it happened in a first recording take of Part 08) | **Fixed after recording** (`1cf9685`): Against PO lists `PO no · supplier` |
+
+Videos were recorded before the fixes marked "after recording", so they show the earlier behaviour (Part 23 narrates finding 9 as it was).
 
 ## 3. Feature status (verified on the demo server)
 
@@ -52,11 +54,11 @@ Legend: **Working** = demonstrated end to end on camera and checked in the demo 
 | Onboarding | Business name, GSTIN (format + checksum), wholesale drug licence, address, business code, owner, godowns, recovery kit, terms | Working | |
 | | State, city, financial year, tax configuration as separate settings | Not available | Address is one field; FY is automatic (Apr–Mar) in document numbering; GST is per product |
 | | Godown code/GSTIN/licence/address, legal name, min shelf life, cover/safety days, credit-rule mode | Working | |
-| Dashboard | Sales today/month, margin, collected today, receivable/overdue, 30-day chart, order pipeline, expiry and reorder alerts, top outstanding with risk, ageing | Working | Visible to every role (finding 9) |
+| Dashboard | Sales today/month, margin, collected today, receivable/overdue, 30-day chart, order pipeline, expiry and reorder alerts, top outstanding with risk, ageing | Working | Money figures for reports roles only (finding 9, fixed) |
 | Products | Add/edit, generic, strength, form, pack, company, HSN, GST, MRP/PTR/PTS (PTR+GST ≤ MRP check), schedule, barcode, packs per case, min order, reorder level, portal visibility, discontinue | Working | No delete by design (history kept) |
 | | Bulk product import | Not available in Distribution | Shared Excel importer is pharmacy-only |
 | Godowns & inventory | Add godown (plan limit), racks with pick order and cold chain, place product on rack | Working | |
-| | Batch-wise stock, expiry, value at landed cost, audited adjustment with reason, quarantine column | Working | No "Reserved" column (finding 5) |
+| | Batch-wise stock, expiry, value at landed cost, reserved / free to sell, audited adjustment with reason, quarantine column | Working | Reserved columns added (finding 5) |
 | | Godown transfer request → approve & send → receive | Working | |
 | | Reorder suggestions | Working | Business intelligence |
 | Companies & suppliers | Companies, principals (margin, divisions, claim window and credit %), suppliers (GSTIN, credit/lead days, returns) | Working | |
@@ -81,7 +83,7 @@ Legend: **Working** = demonstrated end to end on camera and checked in the demo 
 | | Bank feeds / Account Aggregator | Not available | Statement import only |
 | GST reports | GSTR-1 JSON, GSTR-3B JSON, HSN CSV, HSN summary, ITC; purchase register | Working | Filing is on the GST portal after the CA checks |
 | MIS & BI | 14 MIS reports with date range and CSV; reorder, expiry loss, dead stock, product and scheme profitability, credit risk, sales forecast; rule-based assistant | Working | All 14 advertised reports exist |
-| Users & roles | Team list, invite (email for password roles, mobile for PIN roles), roles, permission matrix toggles, server-side enforcement, audit trail | Working | Dashboard visible to all roles (finding 9) |
+| Users & roles | Team list, invite (email for password roles, mobile for PIN roles), roles, permission matrix toggles, server-side enforcement, audit trail | Working | |
 | Backup & security | Encrypted backup, recovery kit fingerprint, backup history, test restore, Drive connection | **Built** (menu) / Working (test Drive) | Finding 2; real Google Drive not connected |
 | Subscription | Trial status, plan features and limits, licence check-in | Working | No payment made; payment details not set on demo server |
 | Language | English ⇄ Hindi interface | Working | |

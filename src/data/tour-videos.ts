@@ -4,8 +4,12 @@
  * play from the Supabase Storage bucket tour-videos, see VIDEO_BASE and .vercelignore) with a thumbnail in public/videos/thumbs, and may also have a YouTube ID (tour-youtube.ts); a guide, the complete tour included, plays
  * its parts one after another.
  */
+import { DIST_VIDEOS } from "./dist-tour-videos";
+
 export type TourVideo = {
-  slug: string; kind: "guide" | "part"; part?: number; title: string; subtitle: string; description: string;
+  slug: string; kind: "guide" | "part"; part?: number;
+  /** Which product the video is about; pharmacy when absent. */
+  product?: "pharmacy" | "distribution"; title: string; subtitle: string; description: string;
   seconds: number;
   /** The parts this video plays, in order (slugs of part videos; a part lists itself). */
   sources: string[];
@@ -740,7 +744,15 @@ export const TOUR_VIDEOS: TourVideo[] = [
 export const VIDEO_BASE = (process.env.NEXT_PUBLIC_VIDEO_BASE_URL || "/videos/files").replace(/\/$/, "");
 export const partUrl = (slug: string) => `${VIDEO_BASE}/${slug}.mp4`;
 export const thumbUrl = (v: TourVideo) => `/videos/thumbs/${v.slug}.webp`;
-export const videoBySlug = (slug: string) => TOUR_VIDEOS.find((v) => v.slug === slug);
+/** Every video on the site: the pharmacy library, then the distribution library (/videos/distribution). */
+export const ALL_VIDEOS: TourVideo[] = [...TOUR_VIDEOS, ...DIST_VIDEOS];
+export const videoBySlug = (slug: string) => ALL_VIDEOS.find((v) => v.slug === slug);
+/** The library a video belongs to, its product name and where its listing lives. */
+export function libraryOf(v: TourVideo) {
+  return v.product === "distribution"
+    ? { videos: DIST_VIDEOS, name: "Medoro Distribution", href: "/videos/distribution", demo: "a demo distributor" }
+    : { videos: TOUR_VIDEOS, name: "Medoro Pharmacy", href: "/videos", demo: "a demo pharmacy" };
+}
 export function clock(s: number) {
   const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = Math.floor(s % 60);
   return (h ? `${h}:${String(m).padStart(2, "0")}` : String(m)) + `:${String(x).padStart(2, "0")}`;
