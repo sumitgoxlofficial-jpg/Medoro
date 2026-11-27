@@ -7,7 +7,7 @@ import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
 import { pulsePhoto } from "./pulse-shared";
 import { TEAM_NAME, isTeamId, istDayStart, istWeekStart, rankBoard, type BoardRow } from "./sales-wins";
-import { PERSONAS, PULSE_ABOUT, PULSE_KEY, isPulse, pulseMemberIds, pulseName, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
+import { PERSONAS, PULSE_ABOUT, PULSE_KEY, isPulse, pulseMemberIds, pulseName, repliesFromAsk, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
 import { log } from "@/server/log";
 import { EDIT_WINDOW_MS } from "./chat-shared";
 
@@ -298,6 +298,7 @@ export async function sendText(me: Me, chatId: string, raw: unknown) {
   if (body.length > MAX_BODY) throw new UserError(`Messages can be up to ${MAX_BODY} characters.`);
   const sent = await post(me, chatId, "text", body);
   await welcomeFromIntro(me, chatId, body).catch((e) => log.error("Sales welcome not scheduled.", { err: e })); // HR introducing a new employee in Sales
+  await repliesFromAsk(me, chatId, body, sent.id).catch((e) => log.error("Sales Pulse replies not scheduled.", { err: e })); // "What's the update?" in Sales: bots answer
   return sent;
 }
 const imageKind = (b: Buffer) => (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? "image/jpeg" : b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) ? "image/png" : b.subarray(0, 4).toString() === "RIFF" && b.subarray(8, 12).toString() === "WEBP" ? "image/webp" : "");

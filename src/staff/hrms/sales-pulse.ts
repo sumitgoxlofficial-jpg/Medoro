@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/server/db";
 import { seal, unseal } from "@/server/vault";
-import { humanize, type Brief } from "./sales-pulse-ai";
+import { humanize, langOf, type Brief } from "./sales-pulse-ai";
 import { log } from "@/server/log";
 import { PRODUCTS } from "../constants";
 import { DEMO_MILESTONES, SALE_MILESTONES, TEAM_ID, crossed, demoBody, istDayStart, istWeekStart, milestoneBody, saleBody } from "./sales-wins";
@@ -19,7 +19,7 @@ import { DEMO_MILESTONES, SALE_MILESTONES, TEAM_ID, crossed, demoBody, istDaySta
 export const PULSE_KEY = "sales-pulse";
 export const PULSE_PREFIX = "pulse:";
 export const PULSE_LABEL = "Sales Pulse · auto";
-export const PULSE_ABOUT = "Wins and demo bookings. Messages tagged ⚡ auto are posted automatically: real wins from the CRM, and motivation from the Sales Pulse bots (not real employees).";
+export const PULSE_ABOUT = "Wins and demo bookings. Real wins are posted automatically from the CRM. Members marked Bot are Sales Pulse bots that post and reply automatically (not real employees).";
 
 const WOMEN = [
   "Priyanka Sharma", "Neha Verma", "Ananya Iyer", "Pooja Patel", "Kavya Reddy", "Sneha Kulkarni", "Riya Banerjee", "Aishwarya Nair", "Divya Joshi", "Shruti Mishra",
@@ -130,7 +130,7 @@ const pick = <T,>(r: () => number, xs: readonly T[]) => xs[Math.floor(r() * xs.l
 
 const IST = 330 * 60_000;
 const START = 10 * 60, END = 18 * 60 + 30; // minutes after midnight, India time
-export type Slot = { at: Date; senderId: string; body: string };
+export type Slot = { at: Date; senderId: string; body: string; fill: Fill };
 
 /**
  * The day's bot messages: every one of the 45 bots posts once, at a random minute between 10:00 and 18:30 India time.
@@ -145,7 +145,7 @@ export function daySchedule(day: string): Slot[] {
     const m = START + Math.floor(r() * (END - START + 1));
     const f: Fill = { n: 1 + Math.floor(r() * 3), d: 2 + Math.floor(r() * 5), city: pick(r, CITIES), plan: pick(r, PLANS), feat: pick(r, FEATURES), featHi: pick(r, FEATURES_HI) };
     const t = POOL[(((i + dayNo * 7) % pool) + pool) % pool];
-    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: t(f) };
+    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: t(f), fill: f };
   }).sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 export const istDay = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(0, 10);
@@ -289,6 +289,128 @@ export async function welcomeFromIntro(me: { id: string; role: string }, chat: s
   if (u) await scheduleWelcome([u]);
 }
 
+// ── Replies: when a real person (an employee, HR or the super admin) asks the Sales group for an update ("What's the
+// update?", "Kitna kaam hua?", "आज कितने डेमो हुए?"), two to four bots answer with their own day's work, a few minutes
+// apart, in the language of the question. If the question names bots ("Neha, Rahul, update?"), only those answer.
+// Numbers follow each bot's own messages for the day, so a bot never contradicts what it posted. Only during
+// 09:30-20:00 India time (nobody answers at midnight), and a group-wide question gets answers at most every 10 minutes.
+const ASK = new RegExp([
+  String.raw`\b(update|updates|status|progress|report|eod)\b`,
+  String.raw`\bhow (much|many)\b`,
+  String.raw`\bhow('?s| is| are)? (it going|the day|work|things|everything|sales)\b`,
+  String.raw`\b(work|kaam|kam) (done|hua|kiya|ho gaya|ho gya)\b`,
+  String.raw`\bany (sale|sales|closing|closings|demo|demos|lead|leads|news)\b`,
+  String.raw`\b(kitna|kitne|kitni)\b`,
+  String.raw`\bkya (scene|haal|chal raha|hua|update|status)\b`,
+  String.raw`\b(kaha|kahan) tak\b`,
+  "अपडेट|कितना|कितने|कितनी|स्टेटस|रिपोर्ट|कहाँ तक|क्या हुआ|कैसा चल",
+].join("|"), "i");
+export const isStatusAsk = (body: string) => ASK.test(body) && !INTRO.test(body);
+
+type Work = { calls: number; demos: number; sales: number; left: number; city: string; plan: string; g: (f: string, m: string) => string };
+const R_EN: ((n: string, w: Work) => string)[] = [
+  (n, w) => `Hi ${n}! ${w.calls} calls done so far, ${w.demos} demos and ${w.sales} closed 👍`,
+  (_, w) => `${w.sales} closed, ${w.demos} demos done today. Following up on ${w.left} more leads this evening.`,
+  (n, w) => `Going good ${n} 🙂 ${w.calls} calls, ${w.demos} demos. The ${w.city} lead looks very positive for ${w.plan}.`,
+  (_, w) => `Update: ${w.demos} demos done, ${w.sales} converted. Will share final numbers by EOD.`,
+  (_, w) => `${w.calls} calls today, ${w.demos} demos done, ${w.sales} closed. On track for the day ✅`,
+  (n, w) => `${n}, ${w.sales} closing so far + ${w.demos} demos. One ${w.plan} deal in ${w.city} should close by evening 🤞`,
+  (_, w) => `So far ${w.calls} calls, ${w.demos} demos, ${w.sales} ${s(w.sales)}. Pipeline looks strong this week.`,
+  (n, w) => `Hi ${n}, just finished a demo. ${w.demos} demos and ${w.sales} ${s(w.sales)} today, ${w.left} follow-ups pending.`,
+];
+const R_HI: ((n: string, w: Work) => string)[] = [
+  (n, w) => `${n} जी, अभी तक ${w.calls} कॉल, ${w.demos} डेमो और ${w.sales} सेल हो गई 👍`,
+  (_, w) => `आज ${w.demos} डेमो हो गए, ${w.sales} क्लोज़ हुई। शाम तक ${w.left} फॉलो-अप और करने हैं।`,
+  (n, w) => `सब बढ़िया चल रहा है ${n} जी 🙂 ${w.city} वाला क्लाइंट ${w.plan} के लिए लगभग पक्का है।`,
+  (_, w) => `अपडेट: ${w.calls} कॉल, ${w.demos} डेमो, ${w.sales} सेल। शाम को फाइनल नंबर भेज ${w.g("दूँगी", "दूँगा")}।`,
+  (n, w) => `${n} जी, ${w.sales} सेल क्लोज़, ${w.demos} डेमो हो गए। टारगेट ट्रैक पर है ✅`,
+  (_, w) => `अभी एक डेमो खत्म किया। आज ${w.demos} डेमो और ${w.sales} सेल, ${w.left} लीड पर फॉलो-अप बाकी है।`,
+  (_, w) => `${w.calls} कॉल हो चुके, ${w.demos} डेमो हो गए। ${w.city} में ${w.plan} की डील आज ही होगी 🤞`,
+  (_, w) => `आज का हाल: ${w.sales} सेल, ${w.demos} डेमो। इस हफ्ते पाइपलाइन अच्छी है 💪`,
+];
+const R_HG: ((n: string, w: Work) => string)[] = [
+  (n, w) => `${n} abhi tak ${w.calls} call, ${w.demos} demo aur ${w.sales} sale ho gayi 👍`,
+  (n, w) => `Sab badhiya ${n} 🙂 ${w.demos} demo done, ${w.sales} closing. ${w.left} follow-up shaam ko karne hai`,
+  (_, w) => `Update: ${w.calls} calls, ${w.demos} demos, ${w.sales} sale. EOD tak final number share kar ${w.g("dungi", "dunga")}`,
+  (_, w) => `${w.city} wala ${w.plan} lead almost pakka hai, aaj ${w.sales} close + ${w.demos} demo ho chuke ✅`,
+  (_, w) => `Bas abhi demo khatam kiya. Aaj ${w.demos} demo aur ${w.sales} sale, target track pe hai 🔥`,
+  (n, w) => `${n}, ${w.calls} call ho gaye, ${w.demos} demo done. Shaam tak 1-2 aur closing ki umeed hai 🤞`,
+  (_, w) => `Aaj ka scene: ${w.sales} sale, ${w.demos} demo, ${w.left} lead follow-up pe 💪`,
+  (n, w) => `Chal raha hai ${n} 🙂 ${w.demos} demo ho gaye, ${w.sales} ne payment kar diya`,
+];
+const REPLY_PREFIX = "salesPulseReply:";
+const REPLY_LAST = "salesPulseReplyLast";
+const R_START = 9 * 60 + 30, R_END = 20 * 60;
+
+/** The bots named in a message by first name ("Neha", "@Rahul"), leaving out names a real member of the group also has. */
+export function namedBots(body: string, realFirstNames: string[] = []): Persona[] {
+  const taken = new Set(realFirstNames.map((x) => x.toLowerCase()));
+  return PERSONAS.filter((p) => {
+    const first = p.name.split(" ")[0];
+    return !taken.has(first.toLowerCase()) && new RegExp(`(^|[^\\p{L}])${first}([^\\p{L}]|$)`, "iu").test(body);
+  });
+}
+
+/** The bots' answers to one question: who answers, what each says and when. Empty outside 09:30-20:00 India time. */
+export function replyPlan(key: string, asker: string, ask: string, from: Date, named: Persona[] = []): Pending[] {
+  const day = istDay(from), midnight = Date.parse(`${day}T00:00:00Z`) - IST, min = (from.getTime() - midnight) / 60_000;
+  if (min < R_START || min > R_END) return [];
+  const r = rng(`medoro-sales-reply:${key}`);
+  let bots = named.slice(0, 3);
+  if (!bots.length) {
+    const all = [...PERSONAS];
+    for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    bots = all.slice(0, 2 + Math.floor(r() * 3));
+  }
+  const lang = langOf(ask), main = lang.startsWith("Hindi") ? R_HI : lang.startsWith("Hinglish") ? R_HG : R_EN;
+  const other = lang.startsWith("English") ? R_HG : lang.startsWith("Hindi") ? R_HG : R_EN; // a team mixes languages a bit
+  const plan = new Map(daySchedule(day).map((x) => [x.senderId, x]));
+  const first = asker.trim().split(/\s+/)[0] ?? "";
+  const used = new Set<string>();
+  let t = from.getTime();
+  return bots.map((b, k) => {
+    t += (k === 0 ? 60 + Math.floor(r() * 120) : 90 + Math.floor(r() * 240)) * 1000; // first in 1-3 min, then every 1.5-5.5 min
+    const slot = plan.get(b.id), f = slot?.fill ?? { n: 1, d: 3, city: pick(r, CITIES), plan: pick(r, PLANS), feat: "", featHi: "" };
+    const before = slot ? slot.at.getTime() > from.getTime() : false; // its daily message hasn't gone out yet: a bit less done
+    const demos = Math.max(1, f.d - (before ? 1 : 0)), sales = Math.max(1, f.n - (before ? 1 : 0));
+    const w: Work = { demos, sales, calls: demos * 3 + 4 + Math.floor(r() * 9), left: 2 + Math.floor(r() * 5), city: f.city, plan: f.plan, g: (fe, ma) => (b.gender === "f" ? fe : ma) };
+    const pool = r() < 0.75 ? main : other;
+    // No name to use (the super admin stays anonymous in chat): only the messages that don't address anyone.
+    const tag = pool === R_EN ? "e" : pool === R_HI ? "h" : "g", fits = (j: number) => !used.has(tag + j) && (!!first || !pool[j]("\u0000", w).includes("\u0000"));
+    let i = Math.floor(r() * pool.length);
+    for (let n = 0; n < pool.length && !fits(i); n++) i = (i + 1) % pool.length;
+    used.add(tag + i);
+    return { at: new Date(t).toISOString(), senderId: b.id, body: pool[i](first, w) };
+  });
+}
+
+/**
+ * A real person asking the Sales group for an update: queues the bots' answers (sent by the tick, like welcomes).
+ * The question is kept with real names swapped for [asker] / [colleague], so the AI rewrite never sees them.
+ */
+export async function repliesFromAsk(me: { id: string; name: string; role: string }, chat: string, body: string, msgId: string, now = new Date()) {
+  if (isPulse(me.id) || !isStatusAsk(body)) return;
+  const c = await db.hrChat.findUnique({ where: { id: chat }, select: { sysKey: true } });
+  if (c?.sysKey !== PULSE_KEY) return;
+  const state = (await db.hrSetting.findUnique({ where: { key: STATE_KEY } }))?.value as Partial<State> | undefined;
+  if (state?.enabled === false) return;
+  const mem = await db.hrChatMember.findMany({ where: { chatId: chat }, select: { staffId: true } });
+  const users = await db.staffUser.findMany({ where: { id: { in: mem.map((m) => m.staffId).filter((id) => !isPulse(id)) } }, select: { name: true } });
+  const named = namedBots(body, users.map((u) => u.name.trim().split(/\s+/)[0]));
+  if (!named.length) { // a question to everyone: answered at most every 10 minutes, so a chatty group isn't flooded
+    const last = (await db.hrSetting.findUnique({ where: { key: REPLY_LAST } }))?.value as { at?: string } | undefined;
+    if (last?.at && now.getTime() - Date.parse(last.at) < 10 * 60_000) return;
+  }
+  const pending = replyPlan(msgId, me.role === "admin" ? "" : me.name, body, now, named);
+  if (!pending.length) return;
+  let ask = body.slice(0, 300);
+  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const part of me.name.split(/\s+/).filter((x) => x.length > 1)) ask = ask.replace(new RegExp(esc(part), "gi"), "[asker]");
+  for (const u of users) for (const part of u.name.split(/\s+/).filter((x) => x.length > 2)) ask = ask.replace(new RegExp(esc(part), "gi"), "[colleague]");
+  await db.hrSetting.upsert({ where: { key: REPLY_PREFIX + msgId }, create: { key: REPLY_PREFIX + msgId, value: { name: me.role === "admin" ? "" : me.name, ask, pending } }, update: {} });
+  if (!named.length) await db.hrSetting.upsert({ where: { key: REPLY_LAST }, create: { key: REPLY_LAST, value: { at: now.toISOString() } }, update: { value: { at: now.toISOString() } } });
+}
+
 const slotKey = (senderId: string, at: string | Date) => `${senderId}|${typeof at === "string" ? at : at.toISOString()}`;
 
 /**
@@ -308,6 +430,13 @@ async function prepareTexts(chat: string, now: Date): Promise<Map<string, string
     const first = (v.name ?? "").trim().split(/\s+/)[0] ?? "";
     for (const x of v.pending ?? []) if (new Date(x.at) <= now && first) {
       briefs.push({ key: slotKey(x.senderId, x.at), senderId: x.senderId, name: pulseName(x.senderId), brief: x.body.replaceAll(first, "[new colleague]"), kind: "welcome", newName: first });
+    }
+  }
+  for (const q of await db.hrSetting.findMany({ where: { key: { startsWith: REPLY_PREFIX } } })) {
+    const v = q.value as { name?: string; ask?: string; pending?: Pending[] };
+    const first = (v.name ?? "").trim().split(/\s+/)[0] ?? "";
+    for (const x of v.pending ?? []) if (new Date(x.at) <= now) {
+      briefs.push({ key: slotKey(x.senderId, x.at), senderId: x.senderId, name: pulseName(x.senderId), brief: first ? x.body.replaceAll(first, "[asker]") : x.body, kind: "reply", newName: first, ask: v.ask ?? "" });
     }
   }
   if (!briefs.length) return new Map();
@@ -400,6 +529,16 @@ export async function salesPulseTick(now = new Date(), force = false) {
         if (!due.length) continue;
         if (s.enabled) for (const x of due) { const at = new Date(x.at); await write(x.senderId, "pulse", texts.get(slotKey(x.senderId, x.at)) ?? x.body, now.getTime() - at.getTime() > CATCH_UP_MS ? now : at); }
         await tx.hrSetting.update({ where: { key: q.key }, data: { value: { name: v.name ?? "", pending: rest } } });
+      }
+
+      // Answers to someone's question that are due. Too late (server asleep more than 30 minutes) and they are dropped.
+      for (const q of await tx.hrSetting.findMany({ where: { key: { startsWith: REPLY_PREFIX } } })) {
+        const v = q.value as { name?: string; ask?: string; pending?: Pending[] };
+        const pending = v.pending ?? [];
+        const due = pending.filter((x) => new Date(x.at) <= now), rest = pending.filter((x) => new Date(x.at) > now);
+        if (s.enabled) for (const x of due) if (now.getTime() - Date.parse(x.at) <= CATCH_UP_MS) await write(x.senderId, "pulse", texts.get(slotKey(x.senderId, x.at)) ?? x.body, new Date(x.at));
+        if (!rest.length) await tx.hrSetting.delete({ where: { key: q.key } });
+        else if (due.length) await tx.hrSetting.update({ where: { key: q.key }, data: { value: { ...v, pending: rest } } });
       }
 
       if (lastAt) await tx.hrChat.update({ where: { id: chat }, data: { lastAt } });
