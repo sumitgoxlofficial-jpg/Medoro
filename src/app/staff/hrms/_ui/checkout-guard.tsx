@@ -23,7 +23,8 @@ export function dayEndMs(sh: Pick<Shell, "today" | "start" | "workHours" | "lunc
   return Date.parse(`${sh.today}T00:00:00+05:30`) + (toMin(sh.start) + sh.workHours * 60 + lunch) * 60_000;
 }
 
-export function useCheckoutGuard(sh: Shell) {
+/** `onAttendance`: the Attendance page has its own Check out button, so the reminder bar points to it instead of adding another. */
+export function useCheckoutGuard(sh: Shell, onAttendance = false) {
   const now = useNow(30_000);
   const { run, busy } = useRun();
   const [ask, setAsk] = useState(false), [shot, setShot] = useState<null | { thenSignOut: boolean }>(null);
@@ -43,21 +44,23 @@ export function useCheckoutGuard(sh: Shell) {
   /** Sign out, asking to check out first while checked in. */
   const signOut = useCallback(() => { if (open) setAsk(true); else void hrSignOut(); }, [open]);
 
-  const button = open ? (
+  const button = open && !onAttendance ? (
     <button disabled={busy} onClick={() => startOut(false)} className={cx("inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold cursor-pointer border disabled:opacity-60", overdue ? "md-nudge bg-[#B45309] border-[#B45309] text-white" : "bg-white border-[#CDD2D7] text-[#B45309] hover:border-[#B45309]")}>
       <LogOut className="size-3.5" />Check out
     </button>
   ) : null;
 
+  // Sits at the top of the page content (not floating), so it never covers anything the person needs to click.
+  const banner = overdue ? (
+    <div role="alert" className="bg-white border border-[#F59E0B] rounded-xl shadow-[0_8px_24px_-16px_rgba(180,83,9,.6)] px-4 py-3 flex items-center gap-3 flex-wrap print:hidden">
+      <span className="md-nudge flex-none size-9 rounded-full bg-[#FEF3C7] text-[#B45309] flex items-center justify-center"><AlarmClock className="size-[18px]" /></span>
+      <div className="flex-1 min-w-[200px] text-[13px] text-[#334155]"><strong className="block text-[#0f172a]">Your working day ended at {clock(end)}. Please check out.</strong>Check-out is compulsory: a missed check-out counts as half a day’s loss of pay.</div>
+      {onAttendance ? null : <button className={primaryCls} disabled={busy} onClick={() => startOut(false)}>Check out now</button>}
+    </div>
+  ) : null;
+
   const node = (
     <>
-      {overdue ? (
-        <div role="alert" className="fixed z-40 bottom-4 left-1/2 -translate-x-1/2 w-[min(640px,calc(100vw-24px))] bg-white border border-[#F59E0B] rounded-xl shadow-[0_18px_40px_-16px_rgba(15,23,42,.45)] px-4 py-3 flex items-center gap-3 flex-wrap print:hidden">
-          <span className="md-nudge flex-none size-9 rounded-full bg-[#FEF3C7] text-[#B45309] flex items-center justify-center"><AlarmClock className="size-[18px]" /></span>
-          <div className="flex-1 min-w-[200px] text-[13px] text-[#334155]"><strong className="block text-[#0f172a]">Your working day ended at {clock(end)}. Please check out.</strong>Check-out is compulsory: a missed check-out counts as half a day’s loss of pay.</div>
-          <button className={primaryCls} disabled={busy} onClick={() => startOut(false)}>Check out now</button>
-        </div>
-      ) : null}
       {ask ? (
         <Modal title="Check out before you sign out" onClose={() => setAsk(false)}>
           <p className="text-[13.5px] text-[#334155]">You’re still checked in. Check-out is compulsory: if today is left open, it counts as a <strong>missed check-out</strong>, with no hours credited and half a day’s loss of pay until HR approves a correction.</p>
@@ -71,5 +74,5 @@ export function useCheckoutGuard(sh: Shell) {
       {shot ? <SelfieModal title="Check out: take a selfie" busy={busy} onClose={() => setShot(null)} onDone={(img) => doOut(shot.thenSignOut, img)} /> : null}
     </>
   );
-  return { node, button, signOut };
+  return { node, banner, button, signOut };
 }

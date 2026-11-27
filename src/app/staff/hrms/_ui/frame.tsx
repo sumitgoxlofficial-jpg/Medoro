@@ -65,7 +65,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   useEffect(() => { const t = setInterval(() => router.refresh(), 60_000); return () => clearInterval(t); }, [router]);
   const now = useNow(60_000);
   useEffect(() => { const open = () => setAlly(true); window.addEventListener("hrms:ally", open); return () => window.removeEventListener("hrms:ally", open); }, []);
-  const guard = useCheckoutGuard(sh);
+  const guard = useCheckoutGuard(sh, screen === "attendance");
   if (gate) return <Gate gate={gate} sh={sh} />;
   const unread = sh.notes.filter((n) => n.unread).length;
   const lunchNow = (() => { const ist = new Date(now + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes(); return m >= toMin(sh.lunch.from) && m < toMin(sh.lunch.to); })();
@@ -128,7 +128,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           {sh.onBreak
             ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0">On break: {sh.onBreak.kind} · end break</button>
             : lunchNow ? <span className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5">🍽 Lunch break · back at {to12(sh.lunch.to)}</span> : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
-          {screen === "attendance" ? null : guard.button}
+          {guard.button}
           <div className="relative">
             <button className={btnCls} onClick={() => setBrk((o) => !o)} disabled={!!sh.onBreak}>☕ Take a break</button>
             {brk ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl p-1.5 w-[210px]">
@@ -162,7 +162,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             </div> : null}
           </div>
         </header>}
-        <main key={screen} className={cx("hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3", fullChat ? "pt-3 pb-4" : "py-4 pb-12")}>{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
+        <main key={screen} className={cx("hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3", fullChat ? "pt-3 pb-4" : "py-4 pb-12")}>{guard.banner}{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
       <ChatHeads screen={screen} meId={sh.me.id} />
