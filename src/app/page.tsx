@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import {
   ArrowRight, Boxes, BriefcaseBusiness, Building2, Check, CloudOff, Database, FileCheck, Flag, Handshake, HeartPulse, IndianRupee, Languages, Layers, Lock, Mail,
-  MessageCircle, Plus, ReceiptIndianRupee, ScanBarcode, ShieldCheck, Sparkles, Stethoscope, Store, Truck, UserCheck, Warehouse,
+  MessageCircle, PlayCircle, Plus, ReceiptIndianRupee, ScanBarcode, ShieldCheck, Sparkles, Stethoscope, Store, Truck, UserCheck, Warehouse,
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { SiteFooter, SiteHeader, SiteMotion, WhatsAppFab, WA_DEMO } from "@/components/site/chrome";
@@ -14,7 +14,7 @@ import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
 import { Aurora, HelpArt, SupplyChainArt, WhiteDecor } from "@/components/site/decor";
 import { HeroVideo } from "@/components/site/hero-video";
-import { VideoShowcase } from "@/components/site/video-showcase";
+import { ProductTours } from "@/components/site/product-tours";
 
 /**
  * The main Medoro page, about the company: who Medoro is, its two products (each with its own landing page, /pharmacy
@@ -157,6 +157,7 @@ export default async function Home() {
             <div className="site-up flex gap-3 flex-wrap justify-center pt-1 [--d:3]">
               <a href="#products" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{t("Explore our products")}<ArrowRight size={18} aria-hidden /></a>
               <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:text-[var(--s-ink)] hover:opacity-90"><MessageCircle size={18} aria-hidden />{t("Book a demo")}</a>
+              <a href="#videos" className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/45 bg-white/10 backdrop-blur text-white text-[16px] font-semibold transition-colors hover:border-white hover:text-white"><PlayCircle size={18} aria-hidden />{t("Watch product videos")}</a>
             </div>
           </div>
         </section>
@@ -229,7 +230,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <VideoShowcase t={t} />
+        <ProductTours t={t} />
 
         {/* Why Medoro */}
         <section id="why" aria-labelledby="why-title" className="relative isolate">

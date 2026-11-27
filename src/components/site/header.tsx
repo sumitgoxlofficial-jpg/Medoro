@@ -11,7 +11,7 @@ import { Wordmark } from "./brand";
 /** Icons shown beside the header links (same order as NAV). */
 const NAV_ICONS: LucideIcon[] = [Boxes, Warehouse, PlayCircle, Sparkles, Building2, Handshake, BriefcaseBusiness, Mail];
 
-export const NAV: [string, string][] = [["Pharmacy", "/pharmacy"], ["Distribution", "/distribution"], ["Videos", "/videos"], ["Why Medoro", "/#why"], ["About", "/about-medoro"], ["Become a partner", "/partners"], ["Careers", "/careers"], ["Contact", "/#contact"]];
+export const NAV: [string, string][] = [["Pharmacy", "/pharmacy"], ["Distribution", "/distribution"], ["Videos", "/#videos"], ["Why Medoro", "/#why"], ["About", "/about-medoro"], ["Become a partner", "/partners"], ["Careers", "/careers"], ["Contact", "/#contact"]];
 
 /**
  * EN / हिंदी for the public site. Sets the same `medoro_lang` cookie as the app's switch (works without signing in),
