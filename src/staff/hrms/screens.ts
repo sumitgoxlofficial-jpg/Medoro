@@ -25,7 +25,7 @@ import { allPolicies, myPolicies } from "./policies";
 import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
-import { isWorkDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
+import { isWorkDay, myDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
 import { backfillSlugs } from "./careers";
 import { visibleTo } from "./visibility";
 import { academy, autoEnrol, ensureAcademy, hasAssignment, isSalesMe, isTrainer, lessonForLearner, myTraining, trainerDesk } from "./training/service";
@@ -69,7 +69,7 @@ export const loaders = {
       myTasks(me), leaveBalances(me.id, s), myPayslips(me.id), announcements(5, me), upcomingHolidays(),
       meetings(me, new Date(`${todayISO()}T00:00:00+05:30`), new Date(`${addDays(todayISO(), 1)}T00:00:00+05:30`)), myProjects(me),
     ]);
-    return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id) };
+    return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id), day: await myDay(me), month: me.role === "admin" ? null : (await monthFor(me.id, ym(), s)).counts };
   },
   appraisal: async (me: Me) => myReviews(me),
   hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),
@@ -96,7 +96,7 @@ export const loaders = {
   attendance: async (me: Me, q: Q) => {
     const s = await loadSettings(), month = monthArg(q.m);
     const first = month + "-01", last = addDays(addMonths(month, 1) + "-01", -1);
-    return { ...(await monthFor(me.id, month, s)), isCurrent: month === ym(), prev: addMonths(month, -1), next: addMonths(month, 1), lateAfter: s.lateAfter, checkin: s.checkin && me.role !== "admin", selfie: s.selfie && me.role !== "admin", monitor: s.idleMonitor && me.role !== "admin" ? s.idleMinutes : 0, selfies: await selfieIds(me.id, first, last) };
+    return { ...(await monthFor(me.id, month, s)), isCurrent: month === ym(), prev: addMonths(month, -1), next: addMonths(month, 1), lateAfter: s.lateAfter, checkin: s.checkin && me.role !== "admin", selfie: s.selfie && me.role !== "admin", monitor: s.idleMonitor && me.role !== "admin" ? s.idleMinutes : 0, selfies: await selfieIds(me.id, first, last), day: await myDay(me) };
   },
   leave: async (me: Me) => {
     const s = await loadSettings();
@@ -122,7 +122,7 @@ export const loaders = {
   academy: async (me: Me) => academy(me),
   profile: async (me: Me) => ({ p: await myProfile(me), letters: await sentLetters(me), docs: await myDocs(me.id), exit: await myExit(me), wa: await myWaAlerts(me) }),
 
-  slhome: async (me: Me) => salesSummary(me),
+  slhome: async (me: Me) => ({ ...(await salesSummary(me)), day: await myDay(me), month: (await monthFor(me.id, ym(), await loadSettings())).counts }),
   slboard: async (me: Me) => salesSummary(me),
   slleads: async (me: Me) => salesSummary(me),
 

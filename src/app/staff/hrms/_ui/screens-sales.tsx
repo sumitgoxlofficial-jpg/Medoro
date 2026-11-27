@@ -5,6 +5,7 @@ import { inr } from "@/staff/hrms/constants";
 import { CountUp } from "@/components/welcome-banner";
 import { LOST_REASONS, STAGES } from "@/staff/constants";
 import { addLead, assignLead, autoAssignLeads, importLeads, logLeadCall, saveLeadSheet, setLeadFollowUp, setLeadStage, setSalesTerms, syncLeadSheet } from "../actions";
+import { MyDayCard } from "./my-day";
 import { Avatar, Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, btnCls, cx, inputCls, primaryCls, tdCls, useRun } from "./kit";
 
 type Lead = Data<"slhome">["leads"][number];
@@ -51,6 +52,7 @@ export function SalesHome({ d, sh }: { d: Data<"slhome"> } & { sh: Shell }) {
         <div className="text-right"><div className="text-[40px] font-bold leading-none"><CountUp value={pct} format={(n) => `${n}%`} /></div><div className="text-[11px] text-white/70">of monthly target</div></div>
       </div>
     </div>
+    {sh.checkin ? <MyDayCard d={d.day} month={d.month} link /> : null}
     <Grid n={4}><Stat l="Assigned to me" v={d.leads.length} sub={`${fresh.length} new`} /><Stat l="In pipeline" v={d.leads.filter((l) => !["won", "lost", "new"].includes(l.stage)).length} c="#0f172a" /><Stat l="Follow-ups due" v={due.length} c={due.length ? "#B45309" : "#0f172a"} /><Stat l="Incentive earned" v={inr(d.incentive)} sub={`${d.pct}% of ${inr(d.value)} annual plan value`} /></Grid>
     <Grid n={2}>
       <Card title="Follow-ups today" pad>{due.length ? due.slice(0, 8).map((l) => <div key={l.id} className="py-2.5 border-t border-[#F1F5F9] first:border-0"><div className="flex items-center gap-2 mb-1.5"><div className="flex-1"><strong className="text-[13.5px]">{l.name}</strong><div className="text-[12px] text-[#64748B]">{l.owner} · {l.city} · {l.phone}</div></div><Stage s={l.stage} /></div><LeadActions l={l} /></div>) : <Empty>No follow-ups due. Nice.</Empty>}</Card>
