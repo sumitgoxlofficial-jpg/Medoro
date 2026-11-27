@@ -124,10 +124,25 @@ export async function chat(p: Provider, messages: ChatMsg[], tools: ToolSpec[], 
     ...(tools.length ? { tools: tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: t.params ?? {} } } })) } : {}),
   };
   const res = await fetch(endpoint(p), { method: "POST", signal, headers: { "content-type": "application/json", ...(p.key ? { authorization: `Bearer ${p.key}` } : {}) }, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`Model server answered ${res.status}`);
+  if (!res.ok) {
+    // Say why, when the provider does (e.g. Groq's "The model … has been decommissioned"), so a retired model or a bad key
+    // shows in the logs as itself and not as a bare status code. Only the provider's message: never the request or the key.
+    const detail = await errorDetail(res);
+    throw new Error(detail ? `Model server answered ${res.status}: ${detail}` : `Model server answered ${res.status}`);
+  }
   type Call = { id?: string; function?: { name?: string; arguments?: unknown } };
   const j = (await res.json()) as { message?: { content?: string; tool_calls?: Call[] }; choices?: { message?: { content?: string | null; tool_calls?: Call[] } }[] };
   const msg = p.dialect === "ollama" ? j.message : j.choices?.[0]?.message;
   const calls = (msg?.tool_calls ?? []).filter((c) => c.function?.name).map((c, i) => ({ id: c.id ?? `call_${i}`, name: c.function!.name!, args: parseArgs(c.function!.arguments) }));
   return { content: (msg?.content ?? "").trim(), calls };
+}
+
+/** The provider's own error message from a failed response (OpenAI-style `error.message`, Ollama's `error`), trimmed; "" if none. */
+async function errorDetail(res: Response): Promise<string> {
+  try {
+    const text = await res.text();
+    let msg = text;
+    try { const j = JSON.parse(text) as { error?: string | { message?: string } }; msg = (typeof j.error === "string" ? j.error : j.error?.message) ?? ""; } catch { /* not JSON: use the text */ }
+    return msg.replace(/\s+/g, " ").trim().slice(0, 200);
+  } catch { return ""; }
 }
