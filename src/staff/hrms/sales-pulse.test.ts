@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/server/db", () => ({ db: {} }));
 vi.mock("@/server/vault", () => ({ seal: (x: string) => Buffer.from(x) }));
 vi.mock("@/server/log", () => ({ log: { error: () => {} } }));
-import { PERSONAS, daySchedule, istDay, welcomePlan } from "./sales-pulse";
+import { PERSONAS, daySchedule, isStatusAsk, istDay, namedBots, replyPlan, welcomePlan } from "./sales-pulse";
 
 const ist = (day: string, h: number, m = 0) => Date.parse(`${day}T00:00:00Z`) - 5.5 * 3600_000 + (h * 60 + m) * 60_000;
 
@@ -66,5 +66,44 @@ describe("Sales Pulse", () => {
       const ok = (t >= ist("2026-11-26", 18, 0) && t <= ist("2026-11-26", 18, 31)) || (t >= ist("2026-11-27", 10) && t <= ist("2026-11-27", 18, 30));
       expect(ok).toBe(true);
     }
+  });
+  it("spots a request for an update in English, Hindi and Hinglish, and nothing else", () => {
+    for (const q of ["What's the update?", "Team, how much work done today?", "Any sales so far?", "status pls", "Kitna kaam hua aaj?", "kya scene hai guys", "Kahan tak pahuncha?", "आज कितने डेमो हुए?", "सबका अपडेट दो"]) expect(isStatusAsk(q)).toBe(true);
+    for (const q of ["Good morning team", "Please welcome Rohan, our new employee", "Lunch at 2?", "Thanks everyone 🙏"]) expect(isStatusAsk(q)).toBe(false);
+  });
+  it("finds bots named in a question, unless a real member has that first name", () => {
+    expect(namedBots("Neha, Rahul what's the update?").map((p) => p.name)).toEqual(["Neha Verma", "Rahul Gupta"]);
+    expect(namedBots("@neha update?").map((p) => p.name.split(" ")[0])).toEqual(["Neha"]);
+    expect(namedBots("Neha update?", ["Neha"])).toEqual([]);
+    expect(namedBots("Nehal update?")).toEqual([]);
+  });
+  it("answers a question with 2 to 4 bots, a few minutes apart, in the question's language", () => {
+    const from = new Date(ist("2026-11-26", 12, 0));
+    for (const key of ["m1", "m2", "m3", "m4", "m5"]) {
+      const r = replyPlan(key, "Amit Kumar", "Kitna kaam hua aaj?", from);
+      expect(r.length).toBeGreaterThanOrEqual(2);
+      expect(r.length).toBeLessThanOrEqual(4);
+      expect(new Set(r.map((x) => x.senderId)).size).toBe(r.length);
+      expect(new Set(r.map((x) => x.body)).size).toBe(r.length);
+      expect(Date.parse(r[0].at) - from.getTime()).toBeGreaterThanOrEqual(60_000);
+      expect(Date.parse(r[0].at) - from.getTime()).toBeLessThanOrEqual(180_000);
+      for (let i = 1; i < r.length; i++) expect(Date.parse(r[i].at)).toBeGreaterThan(Date.parse(r[i - 1].at));
+      for (const x of r) expect(x.body).toMatch(/\d/);
+      expect(replyPlan(key, "Amit Kumar", "Kitna kaam hua aaj?", from)).toEqual(r);
+    }
+    const hi = Array.from({ length: 10 }, (_, i) => replyPlan(`h${i}`, "Amit", "आज कितना काम हुआ?", from)).flat();
+    expect(hi.filter((x) => /[ऀ-ॿ]/.test(x.body)).length).toBeGreaterThan(hi.length / 2);
+  });
+  it("only the named bots answer, and nobody answers outside 09:30-20:00", () => {
+    const neha = PERSONAS.find((p) => p.name.startsWith("Neha "))!;
+    const r = replyPlan("n1", "Amit", "Neha update?", new Date(ist("2026-11-26", 15, 0)), [neha]);
+    expect(r.map((x) => x.senderId)).toEqual([neha.id]);
+    expect(replyPlan("n2", "Amit", "update?", new Date(ist("2026-11-26", 21, 0)))).toEqual([]);
+    expect(replyPlan("n3", "Amit", "update?", new Date(ist("2026-11-26", 8, 0)))).toEqual([]);
+  });
+  it("never names an anonymous asker (the super admin)", () => {
+    const r = Array.from({ length: 20 }, (_, i) => replyPlan(`a${i}`, "", "What's the update?", new Date(ist("2026-11-26", 12, 0)))).flat();
+    expect(r.length).toBeGreaterThan(0);
+    for (const x of r) { expect(x.body).not.toMatch(/^(Hi\b|,|\s)|जी|Going good|Sab badhiya|Chal raha hai|abhi tak/); expect(x.body).not.toContain("  "); }
   });
 });

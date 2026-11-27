@@ -10,7 +10,7 @@ import { log } from "@/server/log";
 // Nothing personal leaves the server: real colleagues appear to the model only as [colleague] / [new colleague] and
 // their first names are put back here.
 
-export type Brief = { key: string; senderId: string; name: string; brief: string; kind: "daily" | "welcome"; newName?: string };
+export type Brief = { key: string; senderId: string; name: string; brief: string; kind: "daily" | "welcome" | "reply"; newName?: string; /** reply: the question asked, real names already swapped for [asker] / [colleague]. */ ask?: string };
 
 /** A steady personality per bot, so the same person always sounds the same. */
 const STYLES = [
@@ -52,22 +52,27 @@ function prompt(b: Brief, recent: string[], win: string | null) {
   if (b.kind === "daily") {
     sys.push("Say what the brief says in your own words. Keep every number, plan name and city exactly as in the brief.");
     if (win) sys.push(`A colleague, [colleague], just posted: "${win}". You may also congratulate [colleague] in a few words, writing [colleague] exactly like that.`);
+  } else if (b.kind === "reply") {
+    sys.push(`Someone${b.newName ? ", [asker]," : " (your manager)"} just asked the group: "${b.ask ?? ""}". Answer them like a colleague giving a quick update on your own day's work, as the brief says.`,
+      "Keep every number, plan name and city exactly as in the brief. Don't invent other numbers, names or promises.",
+      b.newName ? "You may address them as [asker], written exactly like that. Never write [colleague]." : "Don't address them by name. Never write [asker] or [colleague].");
   } else {
     sys.push("A new colleague just joined the group. Welcome them warmly in your own words. Write their name exactly as [new colleague].");
   }
   if (recent.length) sys.push(`Others already wrote these today, so don't repeat their wording:\n${recent.map((r) => `- ${r}`).join("\n")}`);
-  return [{ role: "system" as const, content: sys.join("\n") }, { role: "user" as const, content: b.kind === "daily" ? `Brief: ${b.brief}` : `Brief (an example welcome, write your own): ${b.brief}` }];
+  return [{ role: "system" as const, content: sys.join("\n") }, { role: "user" as const, content: b.kind !== "welcome" ? `Brief: ${b.brief}` : `Brief (an example welcome, write your own): ${b.brief}` }];
 }
 
 /** Cleans the model's reply; null when it isn't usable (empty, too long, talks about AI, or lost the name placeholder). */
-export function tidy(raw: string, b: Pick<Brief, "kind" | "name">, winBy: string | null): string | null {
+export function tidy(raw: string, b: Pick<Brief, "kind" | "name" | "newName">, winBy: string | null): string | null {
   let t = raw.trim().replace(/^```[a-z]*\s*|```$/g, "").trim();
   t = t.replace(new RegExp(`^(${b.name}|${b.name.split(" ")[0]})\\s*:\\s*`, "i"), "").replace(/^["“'](.*)["”']$/s, "$1").trim();
   t = t.split(/\n+/).slice(0, 2).join("\n").trim();
   if (!t || t.length > 300 || /\b(as an ai|language model|brief)\b/i.test(t)) return null;
   if (b.kind === "welcome" && !t.includes("[new colleague]")) return null;
   if (t.includes("[colleague]") && !winBy) return null;
-  if (/\[(?!new colleague\]|colleague\])[^\]]*\]/.test(t)) return null; // some other placeholder left in
+  if (t.includes("[asker]") && (b.kind !== "reply" || !b.newName)) return null;
+  if (/\[(?!new colleague\]|colleague\]|asker\])[^\]]*\]/.test(t)) return null; // some other placeholder left in
   return t;
 }
 
@@ -92,10 +97,11 @@ export async function humanize(briefs: Brief[], recent: string[], win: { body: s
   const todo = briefs.filter((b) => !out.has(b.key)).slice(0, 6); // a handful per tick keeps the tick quick
   await Promise.all(todo.map(async (b) => {
     try {
-      const r = await chat(p, prompt(b, recent.slice(-8), win?.body ?? null), [], AbortSignal.timeout(12_000), 0.9);
-      const t = tidy(r.content, b, win?.firstName ?? null);
+      const w = b.kind === "daily" ? win : null; // a welcome or an answer never congratulates the last winner
+      const r = await chat(p, prompt(b, recent.slice(-8), w?.body ?? null), [], AbortSignal.timeout(12_000), 0.9);
+      const t = tidy(r.content, b, w?.firstName ?? null);
       if (!t) return;
-      const text = t.replaceAll("[new colleague]", b.newName ?? "").replaceAll("[colleague]", win?.firstName ?? "");
+      const text = t.replaceAll("[new colleague]", b.newName ?? "").replaceAll("[asker]", b.newName ?? "").replaceAll("[colleague]", w?.firstName ?? "");
       cache.set(b.key, text);
       out.set(b.key, text);
     } catch (e) {

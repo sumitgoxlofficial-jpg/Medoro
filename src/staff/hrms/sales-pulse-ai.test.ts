@@ -48,4 +48,20 @@ describe("Sales Pulse AI", () => {
     expect((await humanize([{ key: "z", senderId: "pulse:04", name: "Pooja Patel", brief: "1 sale closed today", kind: "daily" }], [], null)).size).toBe(0);
     expect(f).not.toHaveBeenCalled();
   });
+  it("answers a question in the bot's voice, puts the asker's name back and never sends it", async () => {
+    const f = reply("Haan [asker], 9 call ho gaye, 2 demo done 👍");
+    vi.stubGlobal("fetch", f);
+    const { humanize } = await import("./sales-pulse-ai");
+    const out = await humanize([{ key: "r", senderId: "pulse:21", name: "Rahul Gupta", brief: "[asker] abhi tak 9 call, 2 demo aur 1 sale ho gayi 👍", kind: "reply", newName: "Amit", ask: "[asker] here, kitna kaam hua?" }], [], { body: "Closed a Starter deal", firstName: "Rohan" });
+    expect(out.get("r")).toBe("Haan Amit, 9 call ho gaye, 2 demo done 👍");
+    const sent = JSON.stringify(f.mock.calls[0]);
+    expect(sent).not.toContain("Amit"); expect(sent).not.toContain("Rohan"); expect(sent).toContain("kitna kaam hua");
+  });
+
+  it("drops an answer that names an anonymous asker", async () => {
+    vi.stubGlobal("fetch", reply("Hi [asker], 2 demos done"));
+    const { humanize } = await import("./sales-pulse-ai");
+    expect((await humanize([{ key: "q", senderId: "pulse:05", name: "Kavya Reddy", brief: "Update: 2 demos done, 1 converted.", kind: "reply", newName: "", ask: "update?" }], [], null)).has("q")).toBe(false);
+  });
 });
+
