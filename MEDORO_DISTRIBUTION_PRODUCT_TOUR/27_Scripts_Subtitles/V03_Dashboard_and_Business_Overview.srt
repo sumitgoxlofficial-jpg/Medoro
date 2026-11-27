@@ -1,0 +1,287 @@
+1
+00:00:00,156 --> 00:00:00,849
+Namaste!
+
+2
+00:00:00,849 --> 00:00:04,484
+Medoro Distribution mein aapka swagat hai.
+
+3
+00:00:04,484 --> 00:00:10,631
+Aaj hum Medoro Distribution software ka complete product tour dekhenge,
+
+4
+00:00:10,631 --> 00:00:15,392
+ek demo distributor ke saath, poore fictional data par.
+
+5
+00:00:16,343 --> 00:00:21,643
+Agar aap pharmaceutical distributor, medicine wholesaler, stockist,
+
+6
+00:00:21,643 --> 00:00:28,840
+super stockist ya C and F agent hain, toh aap jaante hain ki orders, stock, chemist credit,
+
+7
+00:00:28,840 --> 00:00:34,219
+GST billing aur payment collection sambhalna kitna mushkil hota hai.
+
+8
+00:00:34,880 --> 00:00:40,679
+Medoro Distribution ek pharma wholesale aur distribution ERP hai.
+
+9
+00:00:40,679 --> 00:00:48,262
+Matlab ek hi software jisme orders, godown ka stock, invoices, dispatch, collections,
+
+10
+00:00:48,262 --> 00:00:52,276
+accounts aur GST, sab ek saath jude hue hain.
+
+11
+00:00:52,939 --> 00:00:59,489
+Website par dekhiye: yeh software pharma distributors, wholesalers, stockists,
+
+12
+00:00:59,489 --> 00:01:03,855
+super stockists aur C and F agents ke liye bana hai.
+
+13
+00:01:04,527 --> 00:01:09,946
+Retail pharmacy aur wholesale distribution mein bada fark hai.
+
+14
+00:01:09,946 --> 00:01:13,529
+Pharmacy ek grahak ko MRP par bechti hai.
+
+15
+00:01:13,529 --> 00:01:19,560
+Distributor chemists ko PTR ya PTS par, udhaar par, schemes ke saath,
+
+16
+00:01:19,560 --> 00:01:22,619
+aur kai godowns se maal bhejta hai.
+
+17
+00:01:23,317 --> 00:01:27,683
+Distribution business mein paisa chupke se kahan jaata hai?
+
+18
+00:01:27,683 --> 00:01:33,232
+Udhaar jo badhta rehta hai, near-expiry maal jiska claim time par nahi hua,
+
+19
+00:01:33,232 --> 00:01:39,743
+haath se calculate ki gayi schemes, aur phone ya WhatsApp par aaye orders jo dobara type
+
+20
+00:01:39,743 --> 00:01:41,001
+karne padte hain.
+
+21
+00:01:41,701 --> 00:01:47,587
+Medoro inhi samasyaon ko seedha pakadta hai: har order par credit check,
+
+22
+00:01:47,587 --> 00:01:54,699
+batch-wise stock reservation, automatic schemes, wholesale GST invoice, mobile picking,
+
+23
+00:01:54,699 --> 00:01:57,969
+dispatch, expiry claims aur collections.
+
+24
+00:01:58,665 --> 00:02:01,648
+Order se paise tak ek seedhi line hai.
+
+25
+00:02:01,648 --> 00:02:06,121
+Order aata hai, credit check hota hai, invoice banta hai,
+
+26
+00:02:06,121 --> 00:02:12,008
+godown mein pick aur pack hota hai, dispatch hota hai, aur phir collection.
+
+27
+00:02:12,008 --> 00:02:19,229
+Har step pichhle step ko check karta hai, isliye stock, invoice aur dues hamesha milte hain.
+
+28
+00:02:19,893 --> 00:02:22,456
+Ab chaliye software ke andar.
+
+29
+00:02:22,456 --> 00:02:30,143
+Yeh hai hamare demo distributor, Medoro Demo Pharma Distributors, Ranchi, ka dashboard.
+
+30
+00:02:30,143 --> 00:02:34,385
+Ismein do mahine ka fictional business data hai.
+
+31
+00:02:35,075 --> 00:02:41,714
+Ek hi screen par aaj ki sales, mahine ki sales, aaj ka collection, kul receivable,
+
+32
+00:02:41,714 --> 00:02:46,247
+order pipeline aur top outstanding chemists dikhte hain.
+
+33
+00:02:46,247 --> 00:02:51,024
+Left side ke menu mein Sales, Warehouse, Purchase, Finance,
+
+34
+00:02:51,024 --> 00:02:54,343
+Masters aur System ke saare modules hain.
+
+35
+00:02:55,029 --> 00:03:02,499
+Is training mein hum 26 parts mein, account banane se lekar purchase, GRN, inventory,
+
+36
+00:03:02,499 --> 00:03:08,651
+orders, credit control, GST invoicing, picking, dispatch, collections,
+
+37
+00:03:08,651 --> 00:03:13,924
+reports aur security tak, har workflow practically dekhenge.
+
+38
+00:03:13,924 --> 00:03:16,121
+Chaliye shuru karte hain.
+
+39
+00:03:17,653 --> 00:03:22,274
+Part 4 mein Distributor dashboard ko detail mein samjhenge.
+
+40
+00:03:22,274 --> 00:03:29,322
+Har card kya batata hai, aur owner ek hi screen se poore business ki position kaise samajh
+
+41
+00:03:29,322 --> 00:03:30,105
+sakta hai.
+
+42
+00:03:31,063 --> 00:03:34,674
+Login karte hi owner yahi screen dekhta hai.
+
+43
+00:03:34,674 --> 00:03:40,583
+Upar business ka naam, aaj ki date aur abhi chuna hua godown dikhta hai.
+
+44
+00:03:40,583 --> 00:03:45,507
+Godown badalne ke liye upar wala godown selector use kariye.
+
+45
+00:03:46,189 --> 00:03:52,283
+Pehla card hai Sales today: aaj ke invoices ki kul value aur unki ginti.
+
+46
+00:03:52,283 --> 00:03:57,531
+Doosra card Sales this month, saath mein gross margin percent,
+
+47
+00:03:57,531 --> 00:04:01,425
+yaani maal ki landed cost ke baad kitna bacha.
+
+48
+00:04:02,197 --> 00:04:10,331
+Teesra card Collected today: aaj chemists se kitna paisa aaya, cash, UPI, NEFT ya cheque mein.
+
+49
+00:04:10,331 --> 00:04:15,349
+Chautha card Receivable: market mein kul kitna udhaar hai,
+
+50
+00:04:15,349 --> 00:04:18,897
+aur usmein se kitna overdue ho chuka hai.
+
+51
+00:04:19,593 --> 00:04:24,329
+Sales, last 30 days chart har din ki sales dikhata hai,
+
+52
+00:04:24,329 --> 00:04:28,548
+GST ke saath aur cancelled invoices ko chhod kar.
+
+53
+00:04:28,548 --> 00:04:34,661
+Isse trend turant samajh aata hai: kaunse din kam bikri hui, kab badhi.
+
+54
+00:04:35,347 --> 00:04:38,146
+Order pipeline sabse kaam ka hissa hai.
+
+55
+00:04:38,146 --> 00:04:43,171
+Kitne orders approval ka intezaar kar rahe hain, kitne pick hone hain,
+
+56
+00:04:43,171 --> 00:04:48,627
+kitne pick ho rahe hain, kitne pack hokar invoice ka intezaar kar rahe hain,
+
+57
+00:04:48,627 --> 00:04:52,431
+kitne dispatch hone hain, aur kitne raaste mein hain.
+
+58
+00:04:53,130 --> 00:04:57,959
+Neeche do alerts hain: 90 din mein expire hone wale batches,
+
+59
+00:04:57,959 --> 00:05:01,339
+aur reorder level se neeche gaye products.
+
+60
+00:05:01,339 --> 00:05:05,846
+Inpar click karke seedha us list par pahunch jaate hain.
+
+61
+00:05:06,522 --> 00:05:13,436
+Top outstanding mein sabse zyada udhaar wale chemists hain: balance, overdue,
+
+62
+00:05:13,436 --> 00:05:19,272
+sabse purana bill kitne din ka hai, aur risk low, medium ya high.
+
+63
+00:05:19,272 --> 00:05:26,006
+Ageing card batata hai ki udhaar 0 se 30 din, 31 se 60, ya usse purana hai.
+
+64
+00:05:26,695 --> 00:05:32,886
+Kisi chemist ke naam par click karte hi uski profile khulti hai, jahan statement,
+
+65
+00:05:32,886 --> 00:05:35,637
+credit terms aur special rates hain.
+
+66
+00:05:35,637 --> 00:05:39,459
+Is tarah dashboard se seedha action le sakte hain.
+
+67
+00:05:40,167 --> 00:05:43,154
+Upar ghanti mein notifications aate hain,
+
+68
+00:05:43,154 --> 00:05:49,347
+aur Insights button business intelligence kholta hai, jise hum Part 22 mein dekhenge.
+
+69
+00:05:49,347 --> 00:05:54,155
+Bill a chemist search se kahin se bhi naya invoice shuru hota hai.
+
+70
+00:05:54,870 --> 00:06:00,951
+Toh dashboard owner ko subah ki pehli nazar mein batata hai: bikri kaisi hai,
+
+71
+00:06:00,951 --> 00:06:06,638
+paisa kitna aaya, kitna baaki hai, aur godown mein kaunsa kaam atka hai.
+
+72
+00:06:06,638 --> 00:06:10,034
+Agle part mein product catalogue banayenge.

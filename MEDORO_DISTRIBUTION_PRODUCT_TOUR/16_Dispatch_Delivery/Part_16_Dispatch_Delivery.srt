@@ -1,0 +1,139 @@
+1
+00:00:00,172 --> 00:00:05,788
+Part 16 mein dispatch aur delivery: invoiced orders ko van trip mein jodna,
+
+2
+00:00:05,788 --> 00:00:12,603
+delivery person assign karna, van nikalna, delivery phone par receiver ka naam aur payment,
+
+3
+00:00:12,603 --> 00:00:16,272
+na pahunch paaye maal ka kya, aur trip ka hisaab.
+
+4
+00:00:17,248 --> 00:00:19,958
+Warehouse mein Dispatch kholiye.
+
+5
+00:00:19,958 --> 00:00:28,004
+Ready to dispatch mein woh saare invoices hain jo ban chuke hain par abhi godown se nikle nahi.
+
+6
+00:00:28,004 --> 00:00:32,916
+Har invoice ka number, chemist, pata aur value dikhti hai.
+
+7
+00:00:35,502 --> 00:00:43,668
+Ek route ke invoices chuniye: City Care Chemists, Hinoo Family Pharmacy aur Doranda Drug House.
+
+8
+00:00:43,668 --> 00:00:47,450
+Teeno Ranchi ke andar ek hi raaste par hain.
+
+9
+00:00:48,142 --> 00:00:56,136
+Gaadi number, driver ka naam, route, aur delivery person yaani app wala user chuniye:
+
+10
+00:00:56,136 --> 00:00:59,333
+Manoj, hamara demo delivery staff.
+
+11
+00:00:59,333 --> 00:01:01,026
+Plan trip dabaiye.
+
+12
+00:01:01,697 --> 00:01:05,322
+Trip ban gaya, dispatch number ke saath.
+
+13
+00:01:05,322 --> 00:01:09,127
+Jab van godown se nikle, Van left dabaiye.
+
+14
+00:01:09,127 --> 00:01:13,477
+Ab in orders ka status Out for delivery ho gaya.
+
+15
+00:01:14,157 --> 00:01:15,819
+Ab Manoj ka phone.
+
+16
+00:01:15,819 --> 00:01:20,251
+Usne apne employee ID aur PIN se login kiya hai.
+
+17
+00:01:20,251 --> 00:01:26,623
+My deliveries mein aaj ka trip hai: har drop ka chemist, pata, value,
+
+18
+00:01:26,623 --> 00:01:29,393
+aur Call aur Navigate buttons.
+
+19
+00:01:35,447 --> 00:01:38,572
+City Care Chemists par maal diya.
+
+20
+00:01:38,572 --> 00:01:40,845
+Record delivery kholiye.
+
+21
+00:01:40,845 --> 00:01:42,645
+Outcome: Delivered.
+
+22
+00:01:42,645 --> 00:01:49,748
+Received by mein lene wale ka naam zaroori hai: yahi proof of delivery hai.
+
+23
+00:01:49,748 --> 00:01:53,347
+Chemist ne UPI se poore paise de diye.
+
+24
+00:01:54,079 --> 00:01:58,601
+Collected mein rakam aur UPI reference likhiye, aur Save.
+
+25
+00:01:58,601 --> 00:02:04,471
+Yeh paisa turant receipt ban kar chemist ke khaate mein jama ho jaata hai,
+
+26
+00:02:04,471 --> 00:02:06,771
+sabse purane bill ke against.
+
+27
+00:02:12,094 --> 00:02:19,227
+Hinoo Family Pharmacy par maal diya, payment baad mein hogi, toh sirf receiver ka naam.
+
+28
+00:02:19,227 --> 00:02:24,721
+Doranda Drug House band mila: Outcome Could not deliver aur reason.
+
+29
+00:02:24,721 --> 00:02:30,378
+Aisa invoice wapas dispatch desk par aa jaata hai, agle trip ke liye.
+
+30
+00:02:31,051 --> 00:02:38,437
+Office mein dispatch board par trip ka poora hisaab hai: har invoice ka status, kisne liya,
+
+31
+00:02:38,437 --> 00:02:40,223
+aur kitna collect hua.
+
+32
+00:02:40,223 --> 00:02:46,311
+Delivery reconciliation ke liye driver se cash aur UPI isi list se milaiye.
+
+33
+00:02:46,991 --> 00:02:52,267
+Photo ya signature se proof of delivery abhi uplabdh nahi hai.
+
+34
+00:02:52,267 --> 00:02:55,841
+Proof receiver ke naam se record hota hai.
+
+35
+00:02:55,841 --> 00:02:59,755
+Yeh limitation hamari QA report mein darj hai.

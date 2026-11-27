@@ -1,0 +1,167 @@
+1
+00:00:00,150 --> 00:00:05,218
+Part 19 mein chemist ordering portal: chemist ka registration,
+
+2
+00:00:05,218 --> 00:00:10,450
+distributor se judne ki request, licence check ke baad approval,
+
+3
+00:00:10,450 --> 00:00:16,826
+catalogue mein apne rates aur schemes, cart, order, status, invoices aur dues.
+
+4
+00:00:17,798 --> 00:00:22,822
+Website ke anusaar chemist portal Professional plan se shamil hai,
+
+5
+00:00:22,822 --> 00:00:25,105
+aur chemists ke liye muft hai.
+
+6
+00:00:25,105 --> 00:00:31,042
+Pehle distributor ki settings dekhte hain: System mein Chemist portal kholiye.
+
+7
+00:00:31,708 --> 00:00:36,859
+Yahan tay hota hai ki chemist kya dekhega: portal ordering on,
+
+8
+00:00:36,859 --> 00:00:44,086
+distributor search mein naam dikhe ya nahi, stock exact packs mein, sirf In stock, Low,
+
+9
+00:00:44,086 --> 00:00:50,400
+Out band mein, ya bilkul nahi, schemes, MRP, minimum order aur service area.
+
+10
+00:00:51,074 --> 00:00:52,886
+Ab chemist ki taraf.
+
+11
+00:00:52,886 --> 00:01:00,947
+Ek naya chemist, Ormanjhi Demo Medicals, portal par register karta hai: pharmacy ka naam,
+
+12
+00:01:00,947 --> 00:01:09,190
+owner, mobile, email, state, address, PIN, aur dono drug licence numbers validity ke saath.
+
+13
+00:01:09,873 --> 00:01:14,687
+Licence number Form 20B aur 21B, aur unki validity date.
+
+14
+00:01:14,687 --> 00:01:19,672
+Password banaiye, terms accept kariye, aur Create account.
+
+15
+00:01:19,672 --> 00:01:27,151
+Portal par account banne ke baad bhi koi distributor tab tak maal nahi deta jab tak woh
+
+16
+00:01:27,151 --> 00:01:30,245
+licence check karke approve na kare.
+
+17
+00:01:30,932 --> 00:01:37,027
+Find a distributor mein naam, area ya distributor code se dhoondhiye.
+
+18
+00:01:37,027 --> 00:01:43,034
+MEDORO-RNC code daala, aur Medoro Demo Pharma Distributors mil gaya.
+
+19
+00:01:43,034 --> 00:01:45,065
+Ask to connect dabaiye.
+
+20
+00:01:45,065 --> 00:01:48,952
+KYC share karne ki anumati bhi isi mein hai.
+
+21
+00:01:49,631 --> 00:01:52,094
+Wapas distributor ki screen.
+
+22
+00:01:52,094 --> 00:01:55,702
+Chemist portal mein nayi request aa gayi.
+
+23
+00:01:55,702 --> 00:02:02,388
+Licence numbers ki copy se milaiye, credit limit aur credit days tay kariye,
+
+24
+00:02:02,388 --> 00:02:05,907
+ya kisi existing chemist se link kariye.
+
+25
+00:02:05,907 --> 00:02:07,051
+Phir Approve.
+
+26
+00:02:09,865 --> 00:02:16,172
+Ab chemist ke phone par My distributors mein distributor approved dikh raha hai.
+
+27
+00:02:16,172 --> 00:02:22,479
+Order dabaate hi catalogue khulta hai: products, chemist ke apne rates, schemes,
+
+28
+00:02:22,479 --> 00:02:25,869
+aur stock band, jaisa distributor ne chuna.
+
+29
+00:02:30,665 --> 00:02:33,052
+Search mein Febrinil likhiye.
+
+30
+00:02:33,052 --> 00:02:36,426
+10 plus 2 scheme yahan bhi dikh rahi hai.
+
+31
+00:02:36,426 --> 00:02:43,093
+Quantity 20 likhte hi neeche Your order mein 4 packs free ke saath jud jaata hai.
+
+32
+00:03:00,320 --> 00:03:05,058
+Neeche Your order mein products, approx total GST ke saath,
+
+33
+00:03:05,058 --> 00:03:09,636
+aur ek note: rates aur schemes aapke distributor ke hain,
+
+34
+00:03:09,636 --> 00:03:14,454
+stock aur credit distributor approval par confirm karta hai.
+
+35
+00:03:14,454 --> 00:03:16,060
+Place order dabaiye.
+
+36
+00:03:16,790 --> 00:03:21,794
+My orders mein order ka status hai: abhi Awaiting approval.
+
+37
+00:03:21,794 --> 00:03:27,986
+Jaise hi distributor approve, pick, invoice karega, status yahan badlega.
+
+38
+00:03:27,986 --> 00:03:35,026
+Dues and invoices mein chemist apna outstanding aur invoices dekhta hai, sirf apne.
+
+39
+00:03:35,748 --> 00:03:42,739
+Distributor ki Orders screen par portal se aaya order source portal ke saath dikh raha hai.
+
+40
+00:03:42,739 --> 00:03:46,426
+Ise baaki orders ki tarah hi approve karte hain.
+
+41
+00:03:46,426 --> 00:03:51,881
+Portal par password reset aur email verification abhi uplabdh nahi hai,
+
+42
+00:03:51,881 --> 00:03:54,032
+yeh QA report mein darj hai.

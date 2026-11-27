@@ -104,7 +104,7 @@ export async function ownerPasswordStep(page: Page, email: string, password: str
 /** Enters the current TOTP. On first enrolment the recovery codes screen follows; its codes are returned. */
 export async function enterTotp(page: Page, secret: string, trust = true): Promise<string[] | null> {
   await expect(page).toHaveURL(/\/signin\/mfa/);
-  const box = page.getByLabel("Trust this counter PC for 30 days");
+  const box = page.getByLabel("Trust this PC for 30 days");
   if ((await box.isChecked()) !== trust) await box.click();
   await page.getByLabel("6-digit code").fill(totp(secret));
   await page.getByRole("button", { name: "Verify" }).click();
@@ -133,7 +133,7 @@ export async function freshOwner(browser: Browser): Promise<{ context: BrowserCo
 
 export async function employeeLogin(page: Page, code: string, employeeNo: string, pin: string, counter?: string) {
   await page.goto("/signin?view=employee");
-  await page.getByLabel("Pharmacy code").fill(code);
+  await page.getByLabel("Business code").fill(code);
   await page.getByLabel("Employee ID").fill(employeeNo);
   await page.getByLabel("4-digit PIN").fill(pin);
   const c = counter ? page.getByRole("button", { name: new RegExp(counter) }) : page.getByRole("button", { name: /^Counter \d/ }).first();
@@ -163,7 +163,7 @@ export async function addEmployee(page: Page, p: { name: string; contact: string
 export async function joinWithInvite(page: Page, p: { code: string; invite: string; contact: string; name: string; pin: string }) {
   await page.goto("/signin?view=employee");
   await page.getByRole("button", { name: "New employee? Create your account" }).click();
-  await page.getByLabel("Pharmacy code").fill(p.code);
+  await page.getByLabel("Business code").fill(p.code);
   await page.getByLabel("Invite code").fill(p.invite);
   await page.getByRole("button", { name: "Find my invite" }).click();
   await expect(page.getByText("Invite found:")).toBeVisible();

@@ -1,0 +1,227 @@
+1
+00:00:00,144 --> 00:00:07,935
+Part 3 mein distributor ka business onboarding karenge: business name, GSTIN, drug licence,
+
+2
+00:00:07,935 --> 00:00:14,699
+address, owner account, godown, backup recovery kit, aur two-step verification.
+
+3
+00:00:14,699 --> 00:00:18,380
+Phir distribution settings bhi set karenge.
+
+4
+00:00:19,329 --> 00:00:27,181
+Email confirm hone ke baad wizard ke paanch steps dikhte hain: Your business, Your account,
+
+5
+00:00:27,181 --> 00:00:29,511
+Godowns, Backups, aur Done.
+
+6
+00:00:29,511 --> 00:00:33,653
+Pehle step mein business ki details bharte hain.
+
+7
+00:00:33,653 --> 00:00:37,709
+Business name: Medoro Demo Pharma Distributors.
+
+8
+00:00:38,378 --> 00:00:39,211
+Ab GSTIN.
+
+9
+00:00:39,211 --> 00:00:46,618
+Yeh ek fictional demo GSTIN hai jo Jharkhand ke state code 20 se shuru hota hai.
+
+10
+00:00:46,618 --> 00:00:51,062
+Medoro format aur checksum dono check karta hai.
+
+11
+00:00:51,062 --> 00:00:56,710
+Phir wholesale drug licence, yani Form 20B aur 21B ka number.
+
+12
+00:00:57,370 --> 00:01:02,923
+Address mein godown ya office ka poora pata, city aur PIN code.
+
+13
+00:01:02,923 --> 00:01:06,449
+Business code apne-aap suggest hota hai.
+
+14
+00:01:06,449 --> 00:01:08,564
+Hum MEDORO-RNC rakhenge.
+
+15
+00:01:08,564 --> 00:01:14,382
+Isi code se aapki team aur chemists aapka business dhoondhte hain.
+
+16
+00:01:15,036 --> 00:01:16,606
+Continue dabaiye.
+
+17
+00:01:16,606 --> 00:01:19,378
+Doosra step hai owner account.
+
+18
+00:01:19,378 --> 00:01:23,073
+Medoro mein koi default login nahi hota.
+
+19
+00:01:23,073 --> 00:01:29,631
+Yeh account business ka maalik hai, aur baaki sab users yahi jodta hai.
+
+20
+00:01:29,631 --> 00:01:34,712
+Naam, mobile number aur ek strong password daalte hain.
+
+21
+00:01:35,365 --> 00:01:37,223
+Teesra step: godowns.
+
+22
+00:01:37,223 --> 00:01:43,683
+Stock, orders aur dispatch har godown ke hisaab se alag rakhe jaate hain.
+
+23
+00:01:43,683 --> 00:01:48,284
+Pehle godown ka naam Medoro Main Godown rakhte hain.
+
+24
+00:01:48,284 --> 00:01:52,089
+Baaki godowns baad mein bhi jod sakte hain.
+
+25
+00:01:52,742 --> 00:01:56,235
+Chautha step: backups aur recovery kit.
+
+26
+00:01:56,235 --> 00:01:59,996
+Is kit mein backup kholne ki key hoti hai.
+
+27
+00:01:59,996 --> 00:02:05,549
+Download and print dabaiye, aur ise offline surakshit rakhiye.
+
+28
+00:02:05,549 --> 00:02:09,490
+Bina is kit ke backup restore nahi ho sakta.
+
+29
+00:02:10,165 --> 00:02:16,785
+Terms aur Privacy Policy accept karke, Create my distributor account dabaate hain.
+
+30
+00:02:17,446 --> 00:02:19,173
+Account taiyaar hai.
+
+31
+00:02:19,173 --> 00:02:25,649
+Screen par likha hai: Your 7-day free trial has started with every feature.
+
+32
+00:02:25,649 --> 00:02:28,153
+Business code MEDORO-RNC hai.
+
+33
+00:02:28,153 --> 00:02:32,730
+Ab Set up two-step verification par click karte hain.
+
+34
+00:02:33,391 --> 00:02:38,508
+Owner aur manager ke liye two-step verification zaroori hai.
+
+35
+00:02:38,508 --> 00:02:43,113
+Google Authenticator jaisi app se QR code scan kariye.
+
+36
+00:02:43,113 --> 00:02:48,571
+Security ke liye QR code aur key video mein blur kiye gaye hain.
+
+37
+00:02:48,571 --> 00:02:52,323
+App ka 6-digit code daal kar Verify dabaiye.
+
+38
+00:02:52,976 --> 00:02:55,800
+Ab 10 recovery codes milte hain.
+
+39
+00:02:55,800 --> 00:02:59,682
+Agar phone kho jaye, toh inhi se login hoga.
+
+40
+00:02:59,682 --> 00:03:06,388
+Inhe surakshit jagah save kariye, phir checkbox tick karke Continue dabaiye.
+
+41
+00:03:07,034 --> 00:03:11,202
+Hum seedhe Distributor dashboard par pahunch gaye.
+
+42
+00:03:11,202 --> 00:03:14,952
+Abhi yeh khali hai, kyunki koi data nahi hai.
+
+43
+00:03:14,952 --> 00:03:19,870
+Upar business ka naam aur Medoro Main Godown dikh raha hai.
+
+44
+00:03:20,526 --> 00:03:23,915
+Ab godown ki details poori karte hain.
+
+45
+00:03:23,915 --> 00:03:27,126
+Godowns and racks mein Edit dabaiye.
+
+46
+00:03:27,126 --> 00:03:33,013
+Godown ka code, address, GSTIN aur drug licence yahan bharte hain.
+
+47
+00:03:33,013 --> 00:03:37,562
+Har godown ki invoice series isi code se banti hai.
+
+48
+00:03:38,214 --> 00:03:43,749
+Settings mein distribution ke business rules hain: invoice par legal name,
+
+49
+00:03:43,749 --> 00:03:47,938
+chemists ko bheje jaane wale maal ki minimum shelf life,
+
+50
+00:03:47,938 --> 00:03:54,445
+purchase cover aur safety stock ke din, aur credit rules todne wale orders ke saath kya
+
+51
+00:03:54,445 --> 00:03:57,362
+ho: hold for approval, ya seedha block.
+
+52
+00:03:58,016 --> 00:04:03,562
+Financial year Medoro apne-aap date se samajhta hai, April se March.
+
+53
+00:04:03,562 --> 00:04:11,393
+Invoice, order aur dispatch number har financial year ke hisaab se naye series mein chalte hain.
+
+54
+00:04:11,393 --> 00:04:14,982
+Iske liye alag setting ki zaroorat nahi hai.
+
+55
+00:04:14,982 --> 00:04:19,060
+Neeche integrations ka asli status bhi dikhta hai.
+
+56
+00:04:19,724 --> 00:04:21,617
+Onboarding poora hua.
+
+57
+00:04:21,617 --> 00:04:27,928
+Agle part mein dashboard ko detail mein samjhenge, demo data ke saath.

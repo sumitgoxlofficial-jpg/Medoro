@@ -1,0 +1,6 @@
+Product, Inventory and Godown Management
+Total 10:49
+
+0:00 Part 05 – Product and Medicine Catalogue
+3:29 Part 06 – Godown and Inventory Management
+7:25 Part 09 – Batch, Expiry and Stock Reservation

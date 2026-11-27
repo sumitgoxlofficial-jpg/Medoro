@@ -1,0 +1,179 @@
+1
+00:00:00,149 --> 00:00:07,835
+Part 23 mein users aur security: team ki list, naya user invite karna, roles jaise manager,
+
+2
+00:00:07,835 --> 00:00:15,522
+accountant, billing, warehouse, salesman aur delivery, permission matrix, two-step sign-in,
+
+3
+00:00:15,522 --> 00:00:16,873
+aur audit trail.
+
+4
+00:00:17,841 --> 00:00:20,902
+System mein Users and roles kholiye.
+
+5
+00:00:20,902 --> 00:00:28,384
+Owner, manager aur accountant email, password aur authenticator app se login karte hain.
+
+6
+00:00:28,384 --> 00:00:34,421
+Warehouse, billing, salesman aur delivery staff employee ID aur PIN se.
+
+7
+00:00:35,100 --> 00:00:42,775
+Team list mein har user ka naam, sign-in ka tareeka, employee ID, two-step on hai ya nahi,
+
+8
+00:00:42,775 --> 00:00:44,651
+role aur aakhri login.
+
+9
+00:00:44,651 --> 00:00:50,023
+Hamare demo mein owner ke alawa Ravi salesman, Rahul warehouse,
+
+10
+00:00:50,023 --> 00:00:53,264
+Manoj delivery aur Pooja billing hain.
+
+11
+00:00:53,933 --> 00:00:57,933
+Naya user jodte hain: office ka accountant.
+
+12
+00:00:57,933 --> 00:01:02,212
+Full name, email, role Accountant, aur godown.
+
+13
+00:01:02,212 --> 00:01:10,026
+Accountant ko password aur authenticator chahiye, isliye invite email par jaata hai.
+
+14
+00:01:10,026 --> 00:01:12,073
+Create invite dabaiye.
+
+15
+00:01:12,775 --> 00:01:16,817
+Invite code ban gaya, jo 48 ghante tak valid hai.
+
+16
+00:01:16,817 --> 00:01:23,004
+Employee sign-in page par I have an invite code se apna account banata hai.
+
+17
+00:01:23,004 --> 00:01:30,675
+Code video mein dikhaya ja sakta hai kyunki yeh demo hai, asli code kisi se share mat kariye.
+
+18
+00:01:31,392 --> 00:01:33,331
+Ab permission matrix.
+
+19
+00:01:33,331 --> 00:01:41,735
+Har row ek permission hai: masters, orders book karna, approve karna, credit hold override,
+
+20
+00:01:41,735 --> 00:01:49,769
+invoice, invoice cancel, pick and pack, dispatch, delivery, purchase, stock adjustment,
+
+21
+00:01:49,769 --> 00:01:54,017
+payments, reports, insights, portal aur users.
+
+22
+00:01:54,017 --> 00:01:55,772
+Har column ek role.
+
+23
+00:01:56,475 --> 00:02:02,511
+Jaise Salesman ke paas sirf orders book karna aur payment collect karna hai.
+
+24
+00:02:02,511 --> 00:02:07,117
+Woh approve nahi kar sakta, invoice cancel nahi kar sakta.
+
+25
+00:02:07,117 --> 00:02:11,802
+Kisi cell par click karke permission de ya hata sakte hain.
+
+26
+00:02:11,802 --> 00:02:14,423
+Owner ki permissions locked hain.
+
+27
+00:02:15,090 --> 00:02:22,665
+Jaise warehouse role ko stock adjustment ki permission dete hain, aur phir wapas hata dete hain.
+
+28
+00:02:22,665 --> 00:02:25,742
+Har badlaav audit trail mein jaata hai.
+
+29
+00:02:26,402 --> 00:02:28,588
+Ab dekhiye role ka asar.
+
+30
+00:02:28,588 --> 00:02:33,323
+Yeh Ravi salesman ka phone hai, jo PIN se login hai.
+
+31
+00:02:33,323 --> 00:02:41,519
+Dhyan dijiye: salesman ko bhi dashboard par poori bikri, vasooli aur bakaya dikh raha hai.
+
+32
+00:02:41,519 --> 00:02:45,070
+Yeh hamari QA report ka ek finding hai.
+
+33
+00:02:51,127 --> 00:02:55,332
+Ravi users ka page kholne ki koshish karta hai.
+
+34
+00:02:55,332 --> 00:02:59,715
+Use permission nahi hai, isliye page nahi khulta.
+
+35
+00:03:00,368 --> 00:03:04,531
+Two-step sign-in owner aur manager ke liye zaroori hai.
+
+36
+00:03:04,531 --> 00:03:08,844
+Login par password ke baad authenticator ka 6-digit code.
+
+37
+00:03:08,844 --> 00:03:13,461
+Bharose wale computer ko 30 din ke liye trust kar sakte hain,
+
+38
+00:03:13,461 --> 00:03:17,548
+aur phone kho jaaye toh recovery codes kaam aate hain.
+
+39
+00:03:18,206 --> 00:03:22,318
+Neeche Audit trail hai: kisne, kab, kya kiya.
+
+40
+00:03:22,318 --> 00:03:29,903
+Order approve, credit override, invoice cancel, stock adjustment, permission badli,
+
+41
+00:03:29,903 --> 00:03:34,106
+supplier payment, sab naam aur samay ke saath.
+
+42
+00:03:34,106 --> 00:03:38,218
+Audit entries badli ya mitaayi nahi ja sakti.
+
+43
+00:03:38,872 --> 00:03:43,713
+Sahi role aur permission se har karmchari sirf apna kaam karta hai,
+
+44
+00:03:43,713 --> 00:03:50,216
+galti ya gadbad ka khatra kam hota hai, aur zaroorat padne par audit trail se poori kahani
+
+45
+00:03:50,216 --> 00:03:51,228
+mil jaati hai.

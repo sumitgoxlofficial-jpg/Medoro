@@ -1,0 +1,179 @@
+1
+00:00:00,146 --> 00:00:05,434
+Part 6 mein godown aur inventory management: naya godown, racks,
+
+2
+00:00:05,434 --> 00:00:12,869
+product ko rack par rakhna, batch-wise stock, stock value, audited adjustment, quarantine,
+
+3
+00:00:12,869 --> 00:00:16,174
+low stock aur godowns ke beech transfer.
+
+4
+00:00:17,119 --> 00:00:20,637
+Masters mein Godowns and racks kholiye.
+
+5
+00:00:20,637 --> 00:00:26,860
+Hamare paas do godown hain: Medoro Main Godown aur Kanke Road Godown.
+
+6
+00:00:26,860 --> 00:00:34,707
+Har godown ka code, GSTIN, licence, racks ki ginti aur cost par stock value dikhti hai.
+
+7
+00:00:35,385 --> 00:00:37,561
+Naya godown jodte hain.
+
+8
+00:00:37,561 --> 00:00:39,359
+Add godown kholiye.
+
+9
+00:00:39,359 --> 00:00:43,427
+Naam: Dhanbad Depot, code DHN, aur address.
+
+10
+00:00:43,427 --> 00:00:52,037
+Professional plan mein teen godown tak, aur Enterprise mein bees tak godown mil sakte hain.
+
+11
+00:00:52,693 --> 00:00:53,498
+Ab racks.
+
+12
+00:00:53,498 --> 00:00:57,705
+Har rack ka code, zone aur pick order hota hai.
+
+13
+00:00:57,705 --> 00:01:05,223
+Pick list isi order mein chalti hai, taaki picker ko baar-baar peeche na jaana pade.
+
+14
+00:01:05,223 --> 00:01:08,892
+Cold chain wale rack alag mark hote hain.
+
+15
+00:01:08,892 --> 00:01:11,577
+Ek naya rack A-07 banate hain.
+
+16
+00:01:12,243 --> 00:01:18,709
+Product ko rack par rakhne ke liye product aur rack chuniye aur Place dabaiye.
+
+17
+00:01:18,709 --> 00:01:22,274
+Naya Levocet syrup rack A-07 par rakh diya.
+
+18
+00:01:22,274 --> 00:01:26,999
+Ab picking ke samay picker ko seedha rack number dikhega.
+
+19
+00:01:36,840 --> 00:01:39,908
+Ab Stock and transfers kholiye.
+
+20
+00:01:39,908 --> 00:01:48,222
+Yahan har batch ki line hai: product, batch number, expiry, rack, packs, quarantine,
+
+21
+00:01:48,222 --> 00:01:49,509
+cost aur MRP.
+
+22
+00:01:49,509 --> 00:01:52,676
+Upar kul stock value dikhti hai.
+
+23
+00:01:53,330 --> 00:02:01,064
+Stock sirf GRN, invoice, return, claim, transfer ya audited adjustment se hi badalta hai.
+
+24
+00:02:01,064 --> 00:02:04,366
+Koi seedha number edit nahi kar sakta.
+
+25
+00:02:04,366 --> 00:02:11,926
+Search mein Febrinil likhiye: iske alag-alag batches, alag expiry ke saath dikhte hain.
+
+26
+00:02:12,579 --> 00:02:19,471
+Agar ginti mein fark mile, jaise ek strip toot gayi, toh Stock adjustment use kariye.
+
+27
+00:02:19,471 --> 00:02:24,660
+Batch chuniye, minus 2 units likhiye, aur reason zaroor daaliye.
+
+28
+00:02:24,660 --> 00:02:30,335
+Yeh adjustment audit trail mein naam aur samay ke saath darj hota hai.
+
+29
+00:02:30,992 --> 00:02:38,122
+Quarantine ka matlab hai woh maal jo bika nahi ja sakta: chemist ka lautaya hua expired ya
+
+30
+00:02:38,122 --> 00:02:38,994
+toota maal.
+
+31
+00:02:38,994 --> 00:02:45,253
+Yeh stock alag column mein rehta hai aur supplier claim ke liye ruka rehta hai.
+
+32
+00:02:45,253 --> 00:02:48,580
+Hum ise Part 14 mein detail mein dekhenge.
+
+33
+00:02:49,236 --> 00:02:55,029
+Low stock pehchanne ke liye dashboard par Products below reorder level ka link hai,
+
+34
+00:02:55,029 --> 00:03:00,961
+aur Business intelligence mein automatic reorder suggestions hain, jo bikri ki speed,
+
+35
+00:03:00,961 --> 00:03:04,520
+lead time aur safety stock se quantity batate hain.
+
+36
+00:03:05,167 --> 00:03:07,013
+Ab godown transfer.
+
+37
+00:03:07,013 --> 00:03:10,899
+Stock tab par Request transfer form hai.
+
+38
+00:03:10,899 --> 00:03:16,630
+Batch chuniye, kis godown mein bhejna hai, aur kitne units.
+
+39
+00:03:16,630 --> 00:03:19,059
+Request transfer dabaiye.
+
+40
+00:03:19,714 --> 00:03:27,385
+Transfer teen kadam mein hota hai: request, approve aur bhejna, phir doosre godown mein receive.
+
+41
+00:03:27,385 --> 00:03:34,258
+Jab tak maal raaste mein hai, woh kisi bhi godown ke bikne wale stock mein nahi ginta.
+
+42
+00:03:34,258 --> 00:03:37,614
+Is tarah stock kabhi do jagah nahi dikhta.
+
+43
+00:03:38,263 --> 00:03:43,467
+Yaad rakhiye: har mahine physical count karke adjustment kariye,
+
+44
+00:03:43,467 --> 00:03:49,322
+expiry ke paas wala maal pehle nikaliye, aur reorder level sahi rakhiye.
+
+45
+00:03:49,322 --> 00:03:54,363
+Isse shortage bhi nahi hogi aur expiry ka nuksan bhi kam hoga.

@@ -1,0 +1,115 @@
+1
+00:00:00,170 --> 00:00:04,647
+Part 15 mein godown ka kaam: approved orders ki pick list,
+
+2
+00:00:04,647 --> 00:00:11,517
+mobile phone par rack aur batch dekh kar picking, kam maal milne par short pick, packing,
+
+3
+00:00:11,517 --> 00:00:13,678
+aur packed order ka invoice.
+
+4
+00:00:14,660 --> 00:00:21,565
+Owner ki screen par Pick and pack menu mein badge dikhta hai: kitni pick lists baaki hain.
+
+5
+00:00:21,565 --> 00:00:27,856
+Yeh queue sabse purane order se shuru hoti hai, taaki koi order peeche na chhoote.
+
+6
+00:00:28,548 --> 00:00:33,035
+Lekin picking godown ka staff apne phone par karta hai.
+
+7
+00:00:33,035 --> 00:00:38,990
+Yeh hai Rahul, demo warehouse staff, jo employee ID aur PIN se login hai.
+
+8
+00:00:38,990 --> 00:00:44,456
+Uske phone par sirf Pick and pack jaise godown ke kaam dikhte hain.
+
+9
+00:00:47,287 --> 00:00:51,538
+Rahul Ramgarh Janta Medical ki pick list kholta hai.
+
+10
+00:00:51,538 --> 00:00:57,833
+Har line par rack number, product, batch, expiry aur kitne packs uthane hain.
+
+11
+00:00:57,833 --> 00:01:05,355
+Lines rack ke pick order mein lagi hain, taaki godown mein ek hi chakkar mein sab mil jaaye.
+
+12
+00:01:06,104 --> 00:01:07,853
+Start picking dabaiye.
+
+13
+00:01:07,853 --> 00:01:15,484
+Ab order ka status Picking ho gaya, aur office mein sabko dikhta hai ki maal uthaya ja raha hai.
+
+14
+00:01:16,174 --> 00:01:23,120
+Pehli line: rack number dekha, batch match kiya, packs uthaye, aur Picked all dabaya.
+
+15
+00:01:23,120 --> 00:01:30,474
+Har line ke saath batch number milana zaroori hai, taaki galat batch chemist tak na jaaye.
+
+16
+00:01:31,167 --> 00:01:37,904
+Agli line par shelf par maal kam nikla, toh Short dabaiye aur jitna mila utna likhiye.
+
+17
+00:01:37,904 --> 00:01:42,134
+Short pick par invoice sirf uthaye hue maal ka banega,
+
+18
+00:01:42,134 --> 00:01:45,659
+aur free goods bhi usi anupaat mein ghatenge.
+
+19
+00:01:46,399 --> 00:01:48,697
+Baaki lines par Picked all.
+
+20
+00:01:48,697 --> 00:01:56,270
+Saari lines pick hone ke baad, kitne boxes mein pack kiya, woh likhiye, aur Pack dabaiye.
+
+21
+00:01:56,270 --> 00:02:01,035
+Order packed ho gaya aur ab invoice ke liye taiyaar hai.
+
+22
+00:02:01,711 --> 00:02:03,312
+Wapas office mein.
+
+23
+00:02:03,312 --> 00:02:06,514
+Order ab Packed to invoice mein hai.
+
+24
+00:02:06,514 --> 00:02:09,716
+Order kholkar Raise invoice dabaiye.
+
+25
+00:02:09,716 --> 00:02:17,187
+Invoice bilkul utne maal ka banta hai jitna pick hua, usi batch aur expiry ke saath.
+
+26
+00:02:17,902 --> 00:02:25,369
+Picking ki galti distribution mein sabse mehngi galti hoti hai: galat product, galat batch,
+
+27
+00:02:25,369 --> 00:02:26,354
+ya kam maal.
+
+28
+00:02:26,354 --> 00:02:34,067
+Rack, batch aur quantity ki line-by-line confirmation se yeh galtiyan kaafi kam ho jaati hain.
+
+29
+00:02:34,067 --> 00:02:37,842
+Barcode scan se picking abhi uplabdh nahi hai.

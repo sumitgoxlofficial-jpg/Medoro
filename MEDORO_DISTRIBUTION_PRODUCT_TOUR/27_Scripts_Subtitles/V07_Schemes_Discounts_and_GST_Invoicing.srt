@@ -1,0 +1,347 @@
+1
+00:00:00,150 --> 00:00:07,253
+Part 12 mein schemes aur free goods: 10 plus 2 jaisi quantity scheme, percentage discount,
+
+2
+00:00:07,253 --> 00:00:12,777
+company-wide scheme, sirf kuch chemists ke liye scheme, special rates,
+
+3
+00:00:12,777 --> 00:00:16,250
+aur free goods ka stock aur margin par asar.
+
+4
+00:00:17,197 --> 00:00:19,756
+Masters mein Schemes kholiye.
+
+5
+00:00:19,756 --> 00:00:27,344
+Do tarah ki schemes hoti hain: Free goods, yaani buy X get Y free, aur Extra discount.
+
+6
+00:00:27,344 --> 00:00:33,873
+Scheme ek product par ho sakti hai, ya kisi company ke saare products par.
+
+7
+00:00:34,574 --> 00:00:42,249
+List mein dekhiye: Febrinil 650 par 10 plus 2, Sanjivani ki poori range par 10 plus 1,
+
+8
+00:00:42,249 --> 00:00:48,407
+Prana ke vitamins par extra 5 percent, aur Montiluk LC par 20 plus 3,
+
+9
+00:00:48,407 --> 00:00:51,709
+jo sirf do bade chemists ke liye hai.
+
+10
+00:00:51,709 --> 00:00:54,922
+Har scheme ki validity date bhi hai.
+
+11
+00:00:55,605 --> 00:00:58,654
+Nayi scheme banate hain.
+
+12
+00:00:58,654 --> 00:01:01,068
+New scheme kholiye.
+
+13
+00:01:01,068 --> 00:01:08,056
+Code: ORS20P4, naam: ORSiva 20 plus 4, type Free goods.
+
+14
+00:01:08,056 --> 00:01:10,851
+Product ORSiva Sachet.
+
+15
+00:01:10,851 --> 00:01:15,425
+Buy 20, free 4, minimum quantity 20.
+
+16
+00:01:16,100 --> 00:01:19,863
+Valid from aaj se, valid to 31 March tak.
+
+17
+00:01:19,863 --> 00:01:28,123
+Show to chemists on the portal tick kariye, taaki chemist portal par bhi yeh scheme dikhe.
+
+18
+00:01:28,123 --> 00:01:29,224
+Save scheme.
+
+19
+00:01:29,880 --> 00:01:35,396
+Ab dekhte hain scheme order par apne-aap kaise lagti hai.
+
+20
+00:01:35,396 --> 00:01:40,138
+Naya invoice kholiye, chemist Kokar Health Point.
+
+21
+00:01:40,138 --> 00:01:43,234
+Febrinil 650 ke 10 packs jodiye.
+
+22
+00:01:43,234 --> 00:01:47,492
+Free column mein 2 packs aa gaye: 10 plus 2.
+
+23
+00:01:48,147 --> 00:01:50,114
+Quantity 25 kariye.
+
+24
+00:01:50,114 --> 00:01:57,152
+Scheme poore slab par lagti hai, yaani do baar 10, toh free 4 packs.
+
+25
+00:01:57,152 --> 00:02:00,671
+Bache hue 5 packs par scheme nahi.
+
+26
+00:02:00,671 --> 00:02:03,983
+Calculation bilkul nishchit hai.
+
+27
+00:02:04,656 --> 00:02:06,956
+Ab ORSiva ke 40 sachets.
+
+28
+00:02:06,956 --> 00:02:12,513
+Abhi banayi gayi 20 plus 4 scheme turant lag gayi: 8 free.
+
+29
+00:02:12,513 --> 00:02:19,700
+Calvita D3 jodne par Prana ka 5 percent discount Disc column mein aata hai.
+
+30
+00:02:20,384 --> 00:02:24,599
+Taxable value sirf bike hue packs par banti hai.
+
+31
+00:02:24,599 --> 00:02:30,218
+Free packs ki keemat zero hai, par stock se woh bhi kat-te hain.
+
+32
+00:02:30,218 --> 00:02:38,032
+Isliye free goods ka asar margin par padta hai: maal gaya, paisa sirf paid packs ka aaya.
+
+33
+00:02:38,032 --> 00:02:39,964
+Raise invoice dabaiye.
+
+34
+00:02:40,630 --> 00:02:45,479
+Invoice par Free column mein 4 aur 8 packs saaf chhape hain,
+
+35
+00:02:45,479 --> 00:02:49,278
+aur stock se 29 Febrinil aur 48 ORSiva kam hue.
+
+36
+00:02:49,278 --> 00:02:56,552
+Scheme report MIS mein hai, aur business intelligence mein scheme profitability batati hai
+
+37
+00:02:56,552 --> 00:02:59,946
+ki kaunsi scheme se bikri sach mein badhi.
+
+38
+00:03:00,620 --> 00:03:08,477
+Special rates chemist ki profile mein set hote hain: kisi ek chemist ke liye kisi product
+
+39
+00:03:08,477 --> 00:03:10,949
+ka net rate, ek tareekh tak.
+
+40
+00:03:10,949 --> 00:03:15,628
+Jaise Lalpur Life Care ke liye Pantovista 110 rupaye.
+
+41
+00:03:15,628 --> 00:03:19,336
+Yeh PTR aur PTS se upar priority leta hai.
+
+42
+00:03:20,005 --> 00:03:23,748
+Yaad rakhiye: scheme ki end date hamesha daaliye,
+
+43
+00:03:23,748 --> 00:03:27,108
+company se mila scheme hi chemist ko dijiye,
+
+44
+00:03:27,108 --> 00:03:32,073
+aur scheme report har mahine dekhiye taaki margin par nazar rahe.
+
+45
+00:03:33,757 --> 00:03:42,660
+Part 13 mein wholesale GST invoice: chemist chunna, PTR aur PTS rates, discount aur scheme,
+
+46
+00:03:42,660 --> 00:03:50,780
+same-state par CGST aur SGST, doosre state par IGST, HSN, invoice number, A4 print,
+
+47
+00:03:50,780 --> 00:03:52,737
+aur invoice history.
+
+48
+00:03:53,707 --> 00:03:56,080
+Sales mein New invoice kholiye.
+
+49
+00:03:56,080 --> 00:04:02,128
+Yeh direct ya counter billing hai, jab chemist khud aakar ya phone par maal le.
+
+50
+00:04:02,128 --> 00:04:08,175
+Order wale maal ka invoice packed order se banta hai, jo Part 15 mein dekhenge.
+
+51
+00:04:08,888 --> 00:04:13,385
+Chemist chuniye: City Care Chemists, Ranchi.
+
+52
+00:04:13,385 --> 00:04:20,642
+Yeh Jharkhand ka chemist hai, aur hamara godown bhi Jharkhand mein hai.
+
+53
+00:04:20,642 --> 00:04:23,810
+Isliye yeh same-state sale hai.
+
+54
+00:04:23,810 --> 00:04:30,556
+Products jodte hain: Amoxirise CV 625, Azivon 500, aur Telmiva 40.
+
+55
+00:04:31,225 --> 00:04:38,665
+Har line par rate chemist ke price tier se aata hai: PTR retailer ke liye, PTS stockist ke liye.
+
+56
+00:04:38,665 --> 00:04:42,230
+Disc column mein extra discount de sakte hain,
+
+57
+00:04:42,230 --> 00:04:47,733
+par rate ghatane ya extra discount ke liye override permission chahiye.
+
+58
+00:04:48,462 --> 00:04:55,856
+Neeche summary dekhiye: taxable value, discount, aur CGST plus SGST.
+
+59
+00:04:55,856 --> 00:05:02,271
+Same state hone se GST aadha CGST aur aadha SGST mein bata.
+
+60
+00:05:02,271 --> 00:05:08,360
+12 percent GST matlab 6 percent CGST aur 6 percent SGST.
+
+61
+00:05:08,360 --> 00:05:10,970
+Round off ke baad total.
+
+62
+00:05:11,651 --> 00:05:13,442
+Raise invoice dabaiye.
+
+63
+00:05:13,442 --> 00:05:18,165
+Medoro stock FEFO se batch-wise kaatata hai, credit limit,
+
+64
+00:05:18,165 --> 00:05:24,679
+overdue bills aur licence validity check karta hai, aur invoice number deta hai.
+
+65
+00:05:25,346 --> 00:05:26,932
+Yeh hai invoice.
+
+66
+00:05:26,932 --> 00:05:35,459
+Number godown ki series se banta hai: W, godown code, financial year aur kram sankhya,
+
+67
+00:05:35,459 --> 00:05:38,929
+GST ke 16 akshar ki seema ke andar.
+
+68
+00:05:38,929 --> 00:05:47,357
+Upar place of supply Jharkhand, aur har line mein HSN, batch, expiry, quantity, free,
+
+69
+00:05:47,357 --> 00:05:48,646
+rate aur GST.
+
+70
+00:05:49,322 --> 00:05:56,299
+Print dabaane par A4 tax invoice ka layout khulta hai: distributor ka naam, GSTIN,
+
+71
+00:05:56,299 --> 00:06:01,829
+drug licence, chemist ki details, HSN-wise lines aur tax summary.
+
+72
+00:06:01,829 --> 00:06:06,934
+Isse printer par chhapa ya PDF mein save kiya jaa sakta hai.
+
+73
+00:06:07,634 --> 00:06:13,766
+Ab doosre state ka chemist: Patna Demo Medical Agency, Bihar.
+
+74
+00:06:13,766 --> 00:06:16,279
+Wahi products jodte hain.
+
+75
+00:06:16,279 --> 00:06:23,013
+Summary mein ab CGST aur SGST ki jagah IGST aaya, poora 12 percent,
+
+76
+00:06:23,013 --> 00:06:26,230
+aur Inter-state: IGST likha hai.
+
+77
+00:06:27,248 --> 00:06:34,523
+Yeh place of supply ke niyam se hota hai: maal doosre state mein jaa raha hai, toh IGST.
+
+78
+00:06:34,523 --> 00:06:39,731
+Medoro chemist ke GSTIN ya state se yeh apne-aap tay karta hai.
+
+79
+00:06:39,731 --> 00:06:45,022
+Phir bhi tax ka faisla GST niyamon ke hisaab se hi hona chahiye,
+
+80
+00:06:45,022 --> 00:06:47,668
+aur shak ho toh CA se poochhiye.
+
+81
+00:06:48,399 --> 00:06:55,133
+Invoices screen par saare invoices ki history hai: number, chemist, date aur total.
+
+82
+00:06:55,133 --> 00:07:00,731
+Chemist ya number se search, aur date range se filter kar sakte hain.
+
+83
+00:07:01,391 --> 00:07:05,682
+Invoice same din cancel ho sakta hai, reason ke saath,
+
+84
+00:07:05,682 --> 00:07:10,132
+aur tab stock aur chemist ka balance wapas ho jaata hai.
+
+85
+00:07:10,132 --> 00:07:17,443
+Purane invoice ke liye cancel nahi, balki credit note banta hai, jo agle part mein dekhenge.
+
+86
+00:07:18,098 --> 00:07:23,820
+E-invoice IRN aur e-way bill abhi government portal par hi banaye jaate hain.
+
+87
+00:07:23,820 --> 00:07:30,286
+Medoro mein inka integration abhi wired nahi hai, aur settings mein yeh saaf likha hai.

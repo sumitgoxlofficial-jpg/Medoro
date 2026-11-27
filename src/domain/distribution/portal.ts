@@ -119,7 +119,7 @@ export async function signOutEverywhere(accountId: string) {
 // ───────────── Discovery and connections ─────────────
 
 async function portalTenants() {
-  const ts = await db.tenant.findMany({ where: { product: "distribution" }, select: { id: true, code: true, name: true, settings: true, branches: { where: { active: true }, select: { address: true }, take: 1 } } });
+  const ts = await db.tenant.findMany({ where: { product: "distribution" }, select: { id: true, code: true, name: true, settings: true, branches: { where: { active: true }, select: { address: true }, orderBy: { createdAt: "asc" }, take: 1 } } });
   return ts.map((t) => ({ ...t, s: distSettingsOf(t.settings) })).filter((t) => t.s.portal.enabled);
 }
 

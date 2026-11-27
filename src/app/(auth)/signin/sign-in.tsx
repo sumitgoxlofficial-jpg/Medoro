@@ -71,7 +71,7 @@ function Owner({ google, notice, linkEmail, onEmployee, onForgot }: { google: bo
         </a>
       ) : null}
       <button onClick={onEmployee} className="flex items-center justify-center gap-2 border border-input bg-white rounded-[10px] py-[11px] text-[14px] font-semibold text-ink cursor-pointer hover:border-teal hover:text-teal">
-        <IdCard size={16} />{t("Pharmacy staff login (PIN)")}
+        <IdCard size={16} />{t("Staff login (PIN)")}
       </button>
       <p className="m-0 text-[13px] text-muted text-center">{t("New to Medoro?")} <a href="/trial" className="text-teal font-semibold">{t("Start a free trial")}</a> · {t("Distributor?")} <a href="/distributor-signup" className="text-teal font-semibold">{t("Distribution trial")}</a></p>
       <p className="m-0 text-[12px] text-fainter text-center">{t("Trouble signing in?")} <a href={WA} target="_blank" rel="noreferrer" className="text-teal font-medium">{t("WhatsApp Medoro support")}</a></p>
@@ -108,9 +108,9 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
       <form onSubmit={submit} className="flex flex-col gap-3.5">
         <div className="flex gap-2.5 items-center">
           <span className="size-9 rounded-[9px] bg-teal-tint text-teal flex items-center justify-center flex-none"><IdCard size={18} /></span>
-          <div className="flex flex-col leading-tight"><h1 className="m-0 text-[20px] font-semibold">{t("Pharmacy staff login")}</h1><span className="text-[13px] text-muted">{t("For pharmacists, cashiers and accountants")}</span></div>
+          <div className="flex flex-col leading-tight"><h1 className="m-0 text-[20px] font-semibold">{t("Staff login")}</h1><span className="text-[13px] text-muted">{t("For pharmacists, cashiers and accountants")}</span></div>
         </div>
-        <AuthLabel label="Pharmacy code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus={!prefill} /></AuthLabel>
+        <AuthLabel label="Business code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus={!prefill} /></AuthLabel>
         <AuthLabel label="Employee ID"><input className={cn(authInput, authMono)} value={emp} onChange={(e) => setEmp(e.target.value.toUpperCase())} placeholder="E-104" /></AuthLabel>
         <AuthLabel label="4-digit PIN"><PasswordInput className={cn(authInput, "font-mono tracking-[.3em]")} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="••••" autoFocus={!!prefill} autoComplete="off" /></AuthLabel>
         <div className="flex flex-col gap-1.5">
@@ -127,7 +127,7 @@ function Employee({ onOwner, onJoin, prefill }: { onOwner: () => void; onJoin: (
                 );
               })}
             </div>
-          ) : <span className="text-[12.5px] text-fainter">{t("Enter your pharmacy code to see counters.")}</span>}
+          ) : <span className="text-[12.5px] text-fainter">{t("Enter your business code to see counters.")}</span>}
         </div>
         <AuthError>{err}</AuthError>
         <AuthButton type="submit" disabled={pending}>{pending ? "Checking…" : "Start shift"}</AuthButton>
@@ -190,7 +190,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
       <Steps labels={["Invite", "Verify", manager ? "Password" : "PIN"]} step={Math.min(step, 3)} />
       {step === 1 ? (
         <>
-          <AuthLabel label="Pharmacy code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus /></AuthLabel>
+          <AuthLabel label="Business code"><input className={cn(authInput, authMono)} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="SANJ-PUNE" autoFocus /></AuthLabel>
           <AuthLabel label="Invite code"><input className={cn(authInput, authMono)} value={inv} onChange={(e) => setInv(e.target.value.toUpperCase())} placeholder="XXXX-00" /></AuthLabel>
         </>
       ) : null}
@@ -237,7 +237,7 @@ function Join({ onDone, onBack }: { onDone: (code: string, emp: string) => void;
       </AuthButton>
       {step < 4 ? (
         <div className="flex justify-between gap-2 flex-wrap text-[12.5px]">
-          <button onClick={onBack} className="text-teal cursor-pointer">← {t("Pharmacy staff login")}</button>
+          <button onClick={onBack} className="text-teal cursor-pointer">← {t("Staff login")}</button>
           <span className="text-faint">{t("No code? Ask your manager to add you in Users.")}</span>
         </div>
       ) : null}

@@ -1,0 +1,179 @@
+1
+00:00:00,142 --> 00:00:06,646
+Part 11 mein credit control: chemist ki credit limit, utilisation, overdue bills,
+
+2
+00:00:06,646 --> 00:00:14,274
+hold aur block, ageing, aur ek practical example ki limit cross hone par order ka kya hota hai.
+
+3
+00:00:15,231 --> 00:00:19,094
+Finance mein Credit control kholiye.
+
+4
+00:00:19,094 --> 00:00:27,893
+Upar market ka kul outstanding, overdue, aur ageing ke buckets hain: 31 se 60 din,
+
+5
+00:00:27,893 --> 00:00:32,507
+61 se 90, 91 se 120, aur 120 din se purana.
+
+6
+00:00:33,168 --> 00:00:40,706
+Table mein har chemist: credit limit, balance, limit ka kitna percent use hua, overdue,
+
+7
+00:00:40,706 --> 00:00:44,346
+sabse purana bill, status, aur risk score.
+
+8
+00:00:44,346 --> 00:00:51,884
+Why column saaf batata hai ki risk kyon high hai, jaise limit se upar, ya dues overdue.
+
+9
+00:00:52,547 --> 00:00:57,202
+Salesman, territory aur risk se filter kar sakte hain.
+
+10
+00:00:57,202 --> 00:01:01,426
+Jaise Ravi Kumar ke chemists, aur sirf high risk.
+
+11
+00:01:01,426 --> 00:01:06,943
+Isse har salesman ko pata chalta hai ki kisse vasooli karni hai.
+
+12
+00:01:07,598 --> 00:01:09,485
+Ab practical example.
+
+13
+00:01:09,485 --> 00:01:18,022
+Shree Ram Medical Hall ki credit limit 50,000 rupaye hai aur 45,000 rupaye pehle se baaki hain.
+
+14
+00:01:18,022 --> 00:01:23,683
+Yeh chemist ab lagbhag 15,000 rupaye ka naya order de raha hai.
+
+15
+00:01:23,683 --> 00:01:25,930
+Dekhte hain kya hota hai.
+
+16
+00:01:26,592 --> 00:01:31,992
+Book order kholte hain, Shree Ram Medical Hall chunte hain.
+
+17
+00:01:31,992 --> 00:01:36,110
+Upar credit limit aur balance dikh rahe hain.
+
+18
+00:01:36,110 --> 00:01:43,340
+Telmiva 40 ke 120 packs jodte hain, jo GST ke saath lagbhag 15,000 rupaye hain.
+
+19
+00:01:43,993 --> 00:01:46,005
+Place order dabaiye.
+
+20
+00:01:46,005 --> 00:01:51,134
+Order ban toh gaya, par credit hold par chala gaya.
+
+21
+00:01:51,134 --> 00:01:57,571
+45,000 plus 15,000 yaani 60,000, jo 50,000 ki limit se upar hai.
+
+22
+00:01:57,571 --> 00:02:01,293
+Yeh order apne-aap approve nahi hoga.
+
+23
+00:02:01,948 --> 00:02:03,058
+Order kholiye.
+
+24
+00:02:03,058 --> 00:02:08,452
+Value and credit card par saaf likha hai ki limit cross ho rahi hai.
+
+25
+00:02:08,452 --> 00:02:12,338
+Approve ki jagah Override and approve button hai,
+
+26
+00:02:12,338 --> 00:02:18,128
+jo sirf owner ya manager ke paas hota hai, aur reason likhna zaroori hai.
+
+27
+00:02:18,128 --> 00:02:22,728
+Har override audit trail mein naam ke saath darj hota hai.
+
+28
+00:02:23,381 --> 00:02:26,263
+Hum yahan override nahi karenge.
+
+29
+00:02:26,263 --> 00:02:29,955
+Sahi tareeka hai pehle purana paisa lena.
+
+30
+00:02:29,955 --> 00:02:33,737
+Chemist ne 10,000 rupaye UPI se bhej diye.
+
+31
+00:02:33,737 --> 00:02:37,969
+Collections mein yeh payment record karte hain.
+
+32
+00:02:38,616 --> 00:02:40,769
+Ab balance 35,000 hai.
+
+33
+00:02:40,769 --> 00:02:45,760
+35,000 plus naya order lagbhag 50,000 ke andar hai.
+
+34
+00:02:45,760 --> 00:02:50,065
+Order par wapas jaakar Approve dabaate hain.
+
+35
+00:02:50,065 --> 00:02:53,588
+Ab bina override ke approve ho gaya.
+
+36
+00:02:54,247 --> 00:02:56,355
+Hold aur block alag hain.
+
+37
+00:02:56,355 --> 00:03:01,415
+Chemist ki profile mein Put on hold ya Block kar sakte hain.
+
+38
+00:03:01,415 --> 00:03:06,896
+Tupudana Rural Medicos par hold hai, kyunki do cheque bounce hue.
+
+39
+00:03:06,896 --> 00:03:11,871
+Hold wale chemist ke naye bill bina override ke nahi bante.
+
+40
+00:03:11,871 --> 00:03:14,907
+Block matlab koi naya order hi nahi.
+
+41
+00:03:15,558 --> 00:03:18,914
+Licence bhi credit control ka hissa hai.
+
+42
+00:03:18,914 --> 00:03:25,795
+Jis chemist ka drug licence expire ho gaya, uska order Medoro refuse kar deta hai.
+
+43
+00:03:25,795 --> 00:03:30,578
+Isliye har chemist ki licence validity date sahi rakhiye.
+
+44
+00:03:31,230 --> 00:03:38,864
+Credit control ka matlab bikri rokna nahi, balki sahi chemist ko sahi had tak udhaar dena hai.
+
+45
+00:03:38,864 --> 00:03:43,250
+Isse bad debt kam hota hai aur cash flow sudharta hai.

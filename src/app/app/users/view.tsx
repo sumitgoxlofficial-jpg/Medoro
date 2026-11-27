@@ -78,7 +78,7 @@ export function UsersView({ tab, team, roles, perms, branches, transfers, audit,
           <div className="flex flex-col gap-0.5">
             <span className="text-[12.5px] text-muted">{t(code.reset ? "Reset code for {name} · valid 48 hours" : "Invite for {name} · valid 48 hours", { name: code.name })}</span>
             <span className="font-mono text-[22px] font-semibold tracking-wider">{code.code}</span>
-            <span className="text-[12.5px] text-muted">{t("Pharmacy code")} <span className="font-mono">{code.tenantCode}</span> · {t("they open Sign in → Pharmacy staff login → “New employee? Create your account”.")}</span>
+            <span className="text-[12.5px] text-muted">{t("Pharmacy code")} <span className="font-mono">{code.tenantCode}</span> · {t("they open Sign in → Staff login → “New employee? Create your account”.")}</span>
           </div>
           <Button className="ml-auto" onClick={() => { navigator.clipboard.writeText(`Medoro: pharmacy code ${code.tenantCode}, ${code.reset ? "reset" : "invite"} code ${code.code}. Open Sign in → Pharmacy staff login → New employee.`); toast("Copied.", "gray"); }}><Copy size={14} />{t("Copy message")}</Button>
           <button onClick={() => setCode(null)} aria-label={t("Dismiss")} className="text-faint cursor-pointer"><X size={18} /></button>

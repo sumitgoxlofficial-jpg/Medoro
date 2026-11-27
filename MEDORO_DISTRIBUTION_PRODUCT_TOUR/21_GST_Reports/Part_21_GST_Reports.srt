@@ -1,0 +1,95 @@
+1
+00:00:00,187 --> 00:00:08,276
+Part 21 mein GST reports: GSTR-1 aur GSTR-3B ki JSON file, HSN summary, CGST,
+
+2
+00:00:08,276 --> 00:00:15,525
+SGST aur IGST, input tax credit, credit notes, aur CA ke liye export.
+
+3
+00:00:15,525 --> 00:00:22,143
+Saath mein yeh bhi ki report aur asli filing mein kya fark hai.
+
+4
+00:00:23,109 --> 00:00:26,366
+Finance mein GST returns kholiye.
+
+5
+00:00:26,366 --> 00:00:34,953
+Upar likha hai: GSTR-1 aur GSTR-3B posted invoices, credit notes aur GRN se bante hain.
+
+6
+00:00:34,953 --> 00:00:42,257
+JSON GSTN ke offline tool ke liye hai, aur filing GST portal par hoti hai.
+
+7
+00:00:42,921 --> 00:00:44,421
+Mahina chuniye.
+
+8
+00:00:44,421 --> 00:00:53,318
+Chaar aankde: kitne invoices, kitne B2B aur kitne cancelled; credit notes ke baad taxable
+
+9
+00:00:53,318 --> 00:00:58,517
+value; output tax; aur GRN se mila input tax credit.
+
+10
+00:00:59,190 --> 00:01:08,006
+HSN summary, yaani GSTR-1 ka Table 12: har HSN aur GST rate ke hisaab se quantity,
+
+11
+00:01:08,006 --> 00:01:12,951
+taxable value, aur IGST, CGST, SGST alag-alag.
+
+12
+00:01:12,951 --> 00:01:21,122
+Same-state bikri CGST aur SGST mein, aur Bihar ya Bengal ki bikri IGST mein.
+
+13
+00:01:21,810 --> 00:01:31,036
+GSTR-1 JSON button dabaate hi file download hoti hai, GSTN offline tool ke format mein.
+
+14
+00:01:31,036 --> 00:01:34,748
+Isi tarah GSTR-3B JSON aur HSN CSV.
+
+15
+00:01:34,748 --> 00:01:38,990
+In files ko CA ya accountant ko bhejiye.
+
+16
+00:01:39,679 --> 00:01:44,023
+Credit notes bhi in reports mein apne-aap shamil hain,
+
+17
+00:01:44,023 --> 00:01:49,574
+aur cancelled invoices GSTR-1 mein cancelled ke roop mein jaate hain.
+
+18
+00:01:49,574 --> 00:01:54,723
+Purchase ki taraf GRN ka input tax credit GSTR-3B mein aata hai.
+
+19
+00:01:55,391 --> 00:02:00,312
+Ek zaroori baat: Medoro report aur JSON taiyaar karta hai,
+
+20
+00:02:00,312 --> 00:02:04,046
+par government portal par filing nahi karta.
+
+21
+00:02:04,046 --> 00:02:07,864
+GSTN API se direct filing connected nahi hai.
+
+22
+00:02:07,864 --> 00:02:12,955
+Filing se pehle aapke CA ko records zaroor jaanchne chahiye.
+
+23
+00:02:13,659 --> 00:02:19,174
+E-invoice IRN aur e-way bill bhi abhi portal par hi banaye jaate hain.
+
+24
+00:02:19,174 --> 00:02:24,767
+Settings mein Integrations ki list har cheez ka asli status batati hai.

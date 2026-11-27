@@ -1,0 +1,155 @@
+1
+00:00:00,148 --> 00:00:08,634
+Part 5 mein product aur medicine catalogue dekhenge: naya product jodna, PTR, PTS aur MRP,
+
+2
+00:00:08,634 --> 00:00:16,272
+HSN aur GST, schedule, barcode, reorder level, edit karna aur product band karna.
+
+3
+00:00:17,217 --> 00:00:20,156
+Masters mein Products kholiye.
+
+4
+00:00:20,156 --> 00:00:28,680
+Yahan har product ki wholesale rates dikhti hain: PTR, PTS, MRP, GST, pack aur company.
+
+5
+00:00:28,680 --> 00:00:34,853
+Stock yahan nahi, balki Stock screen par batch-wise dikhta hai.
+
+6
+00:00:35,523 --> 00:00:40,986
+Search box mein brand naam ya salt likh kar product dhoondh sakte hain.
+
+7
+00:00:40,986 --> 00:00:46,295
+Jaise Paracetamol likhne par Febrinil ke dono strength aa jaate hain.
+
+8
+00:00:46,295 --> 00:00:51,143
+Company filter se ek company ke saare products dekh sakte hain.
+
+9
+00:00:51,798 --> 00:00:54,644
+Ab naya product jodte hain.
+
+10
+00:00:54,644 --> 00:00:56,752
+Add product kholiye.
+
+11
+00:00:56,752 --> 00:01:00,125
+Product name: Levocet Kid Syrup.
+
+12
+00:01:00,125 --> 00:01:04,552
+Generic yaani composition: Levocetirizine.
+
+13
+00:01:04,552 --> 00:01:09,506
+Strength aur form, yahan syrup, aur pack 60 ml.
+
+14
+00:01:10,159 --> 00:01:15,191
+Company chuniye: Nirmal Demo Formulations.
+
+15
+00:01:15,191 --> 00:01:19,744
+HSN code 30049099, aur GST 12 percent.
+
+16
+00:01:19,744 --> 00:01:27,771
+HSN aur GST sahi hone se hi invoice aur GST return sahi bante hain.
+
+17
+00:01:28,441 --> 00:01:29,365
+Ab rates.
+
+18
+00:01:29,365 --> 00:01:33,777
+MRP GST ke saath hota hai, yahan 85 rupaye.
+
+19
+00:01:33,777 --> 00:01:41,575
+PTR, yani price to retailer, GST ke bina, jis par chemist ko maal milta hai.
+
+20
+00:01:41,575 --> 00:01:48,861
+PTS, price to stockist, aur bhi kam hota hai, sub-distributors ke liye.
+
+21
+00:01:49,521 --> 00:01:53,664
+Dekhiye, maine PTR galti se 80 rupaye daala.
+
+22
+00:01:53,664 --> 00:02:02,421
+Add product dabane par Medoro rok deta hai: PTR plus GST MRP se upar hai, rates check kariye.
+
+23
+00:02:02,421 --> 00:02:06,941
+Aisi galti se chemist ka margin khatam ho jaata.
+
+24
+00:02:07,605 --> 00:02:11,638
+PTR theek karke 59 rupaye 50 paise karte hain.
+
+25
+00:02:11,638 --> 00:02:18,213
+Barcode, ek pack mein kitni units, ek case mein kitne packs, minimum order,
+
+26
+00:02:18,213 --> 00:02:20,843
+aur reorder level bhi bhariye.
+
+27
+00:02:20,843 --> 00:02:25,577
+Reorder level se neeche stock jaate hi alert aata hai.
+
+28
+00:02:26,235 --> 00:02:30,800
+Schedule H ya H1 dawaiyon ke liye schedule chuniye.
+
+29
+00:02:30,800 --> 00:02:37,872
+Show on chemist portal tick ho, toh yeh product chemists ke portal par dikhega.
+
+30
+00:02:37,872 --> 00:02:39,215
+Ab Add product.
+
+31
+00:02:39,877 --> 00:02:42,091
+Product list mein aa gaya.
+
+32
+00:02:42,091 --> 00:02:49,157
+Ab kisi product ko edit karna ho, jaise rate badalna, toh uske saamne Edit dabaiye.
+
+33
+00:02:49,157 --> 00:02:53,073
+Yahan reorder level badal kar save karte hain.
+
+34
+00:02:53,719 --> 00:03:01,275
+Product ko delete nahi kiya jaata, kyunki uske purane invoices aur stock record rehne chahiye.
+
+35
+00:03:01,275 --> 00:03:06,741
+Agar company ne product band kar diya, toh Discontinued tick kariye.
+
+36
+00:03:06,741 --> 00:03:11,403
+Woh naye orders mein nahi aayega, par history safe rahegi.
+
+37
+00:03:12,057 --> 00:03:19,171
+Yaad rakhiye: PTR plus GST hamesha MRP se kam ho, PTS PTR se upar na ho,
+
+38
+00:03:19,171 --> 00:03:23,716
+aur HSN aur GST company ke invoice se milaiye.
+
+39
+00:03:23,716 --> 00:03:27,965
+Sahi catalogue hi sahi billing ki neev hai.

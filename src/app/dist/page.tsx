@@ -16,19 +16,23 @@ export default async function Page() {
   // A distributor whose records live in its own Drive (or must move there) works on its devices.
   if (ctx.moved || ctx.mustMove) redirect("/dist/device?tab=wholesale");
   const d = await distDashboard(ctx);
-  const money = ctx.perms.includes("payments") || ctx.perms.includes("reports");
+  // Business-wide money (sales, collections, receivables, who owes what) is for people who may see reports.
+  // Salesmen, billing, godown and delivery staff get the operational view: the order pipeline and stock alerts.
+  const money = ctx.perms.includes("reports");
   const ag = ageingTotals(d.receivable.top);
   return (
     <>
       <PageHead title="Distributor dashboard" sub={`${ctx.branchName} · ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })}`} />
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-4">
-        <Stat d={0} icon={IndianRupee} label="Sales today" paise={d.today.sales} note={`${d.today.invoices} invoices`} href="/dist/invoices" />
-        <Stat d={1} icon={CalendarRange} tone="blue" label="Sales this month" paise={d.month.sales} note={money ? `Gross margin ${d.month.marginPct}%` : undefined} />
-        <Stat d={2} icon={BadgeIndianRupee} tone="green" label="Collected today" paise={d.today.collections} href="/dist/collections" />
-        {money ? <Stat d={3} icon={Wallet} tone={d.receivable.overdue ? "amber" : "navy"} label="Receivable" paise={d.receivable.total} note={`${inrShort(d.receivable.overdue)} overdue`} href="/dist/credit" /> : <Stat d={3} icon={PackageCheck} label="Open pick lists" value={d.pipeline.openPicks} href="/dist/warehouse" />}
-      </div>
+      {money ? (
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-4">
+          <Stat d={0} icon={IndianRupee} label="Sales today" paise={d.today.sales} note={`${d.today.invoices} invoices`} href="/dist/invoices" />
+          <Stat d={1} icon={CalendarRange} tone="blue" label="Sales this month" paise={d.month.sales} note={money ? `Gross margin ${d.month.marginPct}%` : undefined} />
+          <Stat d={2} icon={BadgeIndianRupee} tone="green" label="Collected today" paise={d.today.collections} href="/dist/collections" />
+          {money ? <Stat d={3} icon={Wallet} tone={d.receivable.overdue ? "amber" : "navy"} label="Receivable" paise={d.receivable.total} note={`${inrShort(d.receivable.overdue)} overdue`} href="/dist/credit" /> : <Stat d={3} icon={PackageCheck} label="Open pick lists" value={d.pipeline.openPicks} href="/dist/warehouse" />}
+        </div>
+      ) : null}
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-3 mb-4">
-        <Panel d={3} title="Sales, last 30 days" sub="Incl. GST · cancelled invoices excluded" className="lg:col-span-2"><TrendChart data={d.trend} /></Panel>
+        {money ? <Panel d={3} title="Sales, last 30 days" sub="Incl. GST · cancelled invoices excluded" className="lg:col-span-2"><TrendChart data={d.trend} /></Panel> : null}
         <Panel d={4} title="Order pipeline">
           <ul className="m-0 p-0 list-none flex flex-col gap-2.5 text-[13.5px]">
             {[["Awaiting approval", d.pipeline.pending, "pending", "/dist/orders?status=pending"], ["Approved, to pick", d.pipeline.approved, "approved", "/dist/warehouse"], ["Being picked", d.pipeline.picking, "picking", "/dist/warehouse"], ["Packed, to invoice", d.pipeline.packed, "packed", "/dist/orders?status=packed"], ["Invoiced, to dispatch", d.pipeline.toDispatch, "planned", "/dist/dispatch"], ["Out for delivery", d.pipeline.out, "out", "/dist/dispatch"]].map(([l, n, s, h]) => (

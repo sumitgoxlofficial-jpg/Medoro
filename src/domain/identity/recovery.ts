@@ -74,7 +74,7 @@ async function issueCode(u: CodeUser, purpose: Purpose, channel: Channel) {
           blocks: [
             { p: `We received a request to ${what}. Please enter the code below to continue.` },
             { code, note: `Valid for ${CODE_MIN} minutes and can be used once.` },
-            { note: "If you did not make this request, please ignore this email and let your pharmacy owner know, as someone may have your password or email address." },
+            { note: "If you did not make this request, please ignore this email and let the account owner know, as someone may have your password or email address." },
           ],
         }, subject),
       });

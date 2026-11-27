@@ -30,13 +30,13 @@ export function VideoCard({ v, size = "md" }: { v: TourVideo; size?: "md" | "sm"
 }
 
 /** The whole library: filter chips, a search box and the grid of all videos. */
-export function VideoLibrary() {
+export function VideoLibrary({ videos = TOUR_VIDEOS }: { videos?: TourVideo[] } = {}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const shown = useMemo(() => {
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return TOUR_VIDEOS.filter((v) => (filter === "all" || v.kind === filter) && words.every((w) => `${v.title} ${v.subtitle} ${v.description}`.toLowerCase().includes(w)));
-  }, [filter, q]);
+    return videos.filter((v) => (filter === "all" || v.kind === filter) && words.every((w) => `${v.title} ${v.subtitle} ${v.description}`.toLowerCase().includes(w)));
+  }, [filter, q, videos]);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -44,7 +44,7 @@ export function VideoLibrary() {
           {FILTERS.map(([k, label]) => (
             <button key={k} role="tab" aria-selected={filter === k} onClick={() => setFilter(k)}
               className={`h-9 px-4 rounded-full text-[14px] font-medium cursor-pointer transition-colors ${filter === k ? "bg-[var(--s-ink)] text-white" : "bg-[var(--s-soft)] text-[var(--s-ink)] hover:bg-[var(--s-line)]"}`}>
-              {label} <span className="opacity-70">({k === "all" ? TOUR_VIDEOS.length : TOUR_VIDEOS.filter((v) => v.kind === k).length})</span>
+              {label} <span className="opacity-70">({k === "all" ? videos.length : videos.filter((v) => v.kind === k).length})</span>
             </button>
           ))}
         </div>

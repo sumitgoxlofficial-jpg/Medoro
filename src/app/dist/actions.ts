@@ -11,7 +11,7 @@ import * as U from "@/domain/distribution/admin";
 import { acknowledgeClaim, creditClaim } from "@/domain/inventory/claims";
 import { approveTransfer, cancelTransfer, receiveTransfer, rejectTransfer, requestTransfer, adjustStock } from "@/domain/inventory/adjust";
 import { approveSupplierInvoice, createPo, setPoStatus } from "@/domain/purchasing/service";
-import { saveSupplier } from "@/domain/parties/service";
+import { saveSupplier, paySupplier } from "@/domain/parties/service";
 import { importBankStatement, matchBankLine, unmatchBankLine } from "@/domain/accounting/bank";
 import { depositCheque, clearCheque, bounceCheque } from "@/domain/parties/cheques";
 import { distAuthorize } from "@/domain/distribution/context";
@@ -83,6 +83,7 @@ export async function grnAction(input: GrnInput) { return distRun(async (c) => {
 export async function createDispatchAction(fd: FormData) { return distRun((c) => D.createDispatch(c, formObject(fd, ["invoiceIds"]) as never), (r) => `Dispatch ${r.no} planned.`); }
 export async function startDispatchAction(dispatchId: string) { return distRun((c) => D.startDispatch(c, dispatchId), "Dispatch is out."); }
 export async function deliverAction(fd: FormData) { return distRun((c) => D.recordDelivery(c, String(fd.get("deliveryId")), formObject(fd) as never), (r) => (r.receiptNo ? `Delivered; receipt ${r.receiptNo}.` : "Saved.")); }
+export async function paySupplierAction(fd: FormData) { return distRun(async (c) => { distAuthorize(c, "payments"); return paySupplier(c, formObject(fd) as never); }, (no) => `Payment ${no} posted.`); }
 export async function collectAction(fd: FormData) { return distRun((c) => D.collectPayment(c, formObject(fd) as never), (no) => `Receipt ${no} posted.`); }
 export async function chequeAction(chequeId: string, step: "deposit" | "clear" | "bounce", reason: string) {
   return distRun(async (c) => { distAuthorize(c, "payments"); return step === "deposit" ? depositCheque(c, chequeId) : step === "clear" ? clearCheque(c, chequeId) : bounceCheque(c, chequeId, { reason }); }, "Cheque updated.");

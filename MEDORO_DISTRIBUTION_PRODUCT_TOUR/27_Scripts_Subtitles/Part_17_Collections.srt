@@ -1,0 +1,135 @@
+1
+00:00:00,153 --> 00:00:06,423
+Part 17 mein chemists se payment collection: cash, UPI, NEFT aur cheque,
+
+2
+00:00:06,423 --> 00:00:13,041
+partial aur full payment, bill-wise adjustment, receipt, collection history,
+
+3
+00:00:13,041 --> 00:00:14,957
+aur cheques ka hisaab.
+
+4
+00:00:15,917 --> 00:00:18,414
+Finance mein Collections kholiye.
+
+5
+00:00:18,414 --> 00:00:24,696
+Record a payment form mein chemist list ke saath har chemist ka due bhi dikhta hai,
+
+6
+00:00:24,696 --> 00:00:28,177
+taaki galat chemist mein paisa na chala jaaye.
+
+7
+00:00:28,854 --> 00:00:35,547
+Pehla example: Doranda Drug House ne NEFT se 20,000 rupaye bheje.
+
+8
+00:00:35,547 --> 00:00:43,063
+Chemist chuniye, amount, mode Bank transfer NEFT, aur bank ka UTR number.
+
+9
+00:00:43,063 --> 00:00:44,402
+Post receipt.
+
+10
+00:00:45,082 --> 00:00:47,210
+Receipt voucher ban gaya.
+
+11
+00:00:47,210 --> 00:00:52,998
+Yeh payment sabse purane bill ke against pehle lagta hai, yani FIFO.
+
+12
+00:00:52,998 --> 00:01:00,318
+Isse ageing hamesha sahi rehti hai, aur chemist ka purana bill hi pehle band hota hai.
+
+13
+00:01:00,999 --> 00:01:05,584
+Doosra example: Morabadi Medicine Centre ne cheque diya.
+
+14
+00:01:05,584 --> 00:01:09,841
+Mode Cheque, cheque number, bank aur cheque ki date.
+
+15
+00:01:09,841 --> 00:01:17,291
+Cheque turant bank mein nahi jaata: woh Cheques in hand mein rehta hai jab tak clear na ho.
+
+16
+00:01:17,959 --> 00:01:22,775
+Yeh partial payment hai: Morabadi par is se zyada baaki tha,
+
+17
+00:01:22,775 --> 00:01:26,146
+toh balance ghat gaya par khatam nahi hua.
+
+18
+00:01:26,146 --> 00:01:33,369
+Agar koi due se zyada rakam daale, toh Medoro rok deta hai: amount exceeds the outstanding
+
+19
+00:01:33,369 --> 00:01:34,011
+balance.
+
+20
+00:01:34,680 --> 00:01:40,040
+Teesra example: Kokar Health Point ka poora due cash mein.
+
+21
+00:01:40,040 --> 00:01:44,014
+Chemist list mein uska exact due likha hai.
+
+22
+00:01:44,014 --> 00:01:47,063
+Wahi rakam daal kar Post receipt.
+
+23
+00:01:47,063 --> 00:01:49,004
+Ab uska balance zero.
+
+24
+00:01:49,710 --> 00:01:55,655
+Neeche aaj ke collections ki list hai: receipt number, chemist, mode,
+
+25
+00:01:55,655 --> 00:02:01,687
+reference aur kisne collect kiya, office, salesman ya delivery person.
+
+26
+00:02:01,687 --> 00:02:05,306
+Shaam ko cash aur UPI isi list se milaiye.
+
+27
+00:02:05,973 --> 00:02:11,333
+Cheques ka agla kadam: cheque bank mein jama hua, phir clear ya bounce.
+
+28
+00:02:11,333 --> 00:02:15,561
+Bounce hone par chemist ka balance wapas badh jaata hai,
+
+29
+00:02:15,561 --> 00:02:19,865
+aur credit risk score mein bounced cheque gina jaata hai.
+
+30
+00:02:20,527 --> 00:02:27,338
+Ab Credit control par dekhiye: Doranda, Morabadi aur Kokar ke balance aur ageing turant
+
+31
+00:02:27,338 --> 00:02:28,512
+update ho gaye.
+
+32
+00:02:28,512 --> 00:02:34,227
+Collections ka asar dashboard ke Collected today card par bhi dikhta hai.
+
+33
+00:02:35,124 --> 00:02:41,451
+Yaad rakhiye: har payment ka reference zaroor likhiye, cheque ki date sahi daaliye,
+
+34
+00:02:41,451 --> 00:02:45,872
+aur roz shaam collection list ko bank aur cash se milaiye.

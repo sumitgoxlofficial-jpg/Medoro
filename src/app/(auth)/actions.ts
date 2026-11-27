@@ -96,8 +96,8 @@ export async function signupAction(input: Omit<SetupInput, "deployment"> & { agr
 }
 
 /** Sign-up with email, step 1: send a 6-digit code to the address. */
-export async function sendSignupEmailCode(email: string): Promise<R> {
-  try { if (!signupOpen()) return fail("Sign-up is not open on this server."); await sendSignupCode(email); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
+export async function sendSignupEmailCode(email: string, product: "pharmacy" | "distribution" = "pharmacy"): Promise<R> {
+  try { if (!signupOpen()) return fail("Sign-up is not open on this server."); await sendSignupCode(email, "pharmacy", product === "distribution" ? "distribution" : "pharmacy"); return { ok: true }; } catch (e) { return fail(errMsg(e)); }
 }
 /** Step 2: the code matches; the pharmacy form opens with this email. */
 export async function verifySignupEmailCode(email: string, code: string): Promise<R> {
@@ -235,7 +235,7 @@ export async function countersFor(code: string, employeeNo = ""): Promise<{ id: 
 
 export async function employeeSignIn(input: { code: string; employeeNo: string; pin: string; counterId: string }): Promise<R<string>> {
   const code = input.code.trim().toUpperCase(), no = input.employeeNo.trim().toUpperCase();
-  if (code.length < 4) return fail("Enter your pharmacy code. Your manager can find it in Users.");
+  if (code.length < 4) return fail("Enter your business code. Your manager can find it in Users.");
   if (!/^\d{4}$/.test(input.pin)) return fail("Enter your 4-digit PIN.");
   const { ip } = await clientInfo();
   const keys = lockKeys("emp:" + code + ":" + no, ip);

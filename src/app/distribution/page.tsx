@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   ArrowRight, BarChart3, Boxes, Check, ClipboardList, CreditCard, FileSpreadsheet, Gift, IndianRupee, MapPin, MessageCircle, PackageCheck, Plus,
   ReceiptIndianRupee, RotateCcw, ScanBarcode, ShieldCheck, Smartphone, Store, Truck, Users, Warehouse,
@@ -136,6 +137,7 @@ export default async function DistributionHome() {
                 <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/40 text-white text-[16px] font-semibold hover:border-white hover:text-white"><MessageCircle size={18} aria-hidden />{t("Book a demo on WhatsApp")}</a>
               </div>
               <p className="site-up m-0 text-[14px] text-[#9FB5B1] [--d:4]">{t("From {amount} a month. Every feature during the trial.", { amount: `₹${from.toLocaleString("en-IN")}` })}</p>
+              <Link href="/videos/distribution" className="site-up [--d:4] self-start text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Watch the 26-part Hindi-English video tour")} →</Link>
             </div>
             <div className="site-up [--d:3] col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7">
               <DistHeroShot />

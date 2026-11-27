@@ -1,7 +1,8 @@
+import { inr } from "@/lib/money";
+import { payables } from "@/domain/distribution/payables";
 import Link from "next/link";
 import { requireDistCtx } from "@/domain/distribution/context";
 import { listCompanies, listPrincipals } from "@/domain/distribution/masters";
-import { db } from "@/server/db";
 import { DataTable, PageHead, Panel, Pill } from "../_ui/ui";
 import { ActForm, Check, Drawer, F, Grid, S } from "../_ui/forms";
 import { saveCompanyAction, savePrincipalAction, saveSupplierAction } from "../actions";
@@ -12,7 +13,7 @@ export const metadata = { title: "Companies & principals" };
 export default async function Page({ searchParams }: { searchParams: Promise<{ edit?: string; editp?: string }> }) {
   const ctx = await requireDistCtx();
   const sp = await searchParams;
-  const [companies, principals, suppliers] = await Promise.all([listCompanies(ctx), listPrincipals(ctx), db.supplier.findMany({ where: { tenantId: ctx.tenantId }, orderBy: { name: "asc" } })]);
+  const [companies, principals, suppliers] = await Promise.all([listCompanies(ctx), listPrincipals(ctx), payables(ctx)]);
   const e = companies.find((c) => c.id === sp.edit), p = principals.find((x) => x.id === sp.editp);
   return (
     <>
@@ -79,8 +80,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ e
           </ActForm>
         </Drawer>
         <Panel title="Suppliers" pad={false}>
-          <DataTable dense cols={[{ label: "Supplier" }, { label: "GSTIN" }, { label: "Credit days", num: true }, { label: "Lead days", num: true }, { label: "Returns" }]}
-            rows={suppliers.map((s) => [s.name, s.gstin ?? "—", s.creditDays, String(s.leadDays), s.acceptsReturns ? "Accepted" : "Not accepted"])} empty="No suppliers yet." />
+          <DataTable dense cols={[{ label: "Supplier" }, { label: "GSTIN" }, { label: "Credit days", num: true }, { label: "Lead days", num: true }, { label: "Returns" }, { label: "We owe", num: true }, { label: "" }]}
+            rows={suppliers.map((s) => [<Link key="n" href={`/dist/suppliers/${s.id}`}>{s.name}</Link>, s.gstin ?? "—", s.creditDays, String(s.leadDays), s.acceptsReturns ? "Accepted" : "Not accepted", inr(s.balance), <Link key="l" href={`/dist/suppliers/${s.id}`}>Ledger &amp; pay</Link>])} empty="No suppliers yet." />
         </Panel>
       </div>
     </>

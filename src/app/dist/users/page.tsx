@@ -34,7 +34,7 @@ export default async function Page() {
             </Grid>
           </ActForm>
           {team.invites.length ? <ul className="mt-3 text-[12.5px] list-none p-0 m-0">{team.invites.map((i) => <li key={i.id}>{i.name} · {i.roleName} · code <strong>{i.code}</strong></li>)}</ul> : null}
-          <p className="text-[12px] text-muted mt-2">They join at /signin → “I have an invite code”.</p>
+          <p className="text-[12px] text-muted mt-2">They join at Sign in → Staff login → “New employee? Create your account”, with your business code and this invite code.</p>
         </Panel>
       </div>
       <Panel title="Role permissions" sub="Click to grant or remove. Owner is locked." pad={false} className="mb-4">

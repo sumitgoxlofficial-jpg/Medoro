@@ -38,7 +38,8 @@ describe("portal catalogue the device publishes", () => {
     saveDistSettings(db, { portal: { enabled: true, discoverable: true, stock: "exact", showSchemes: false, showMrp: false, minOrderPaise: 0, serviceArea: "" } });
     expect(buildCatalogue(db, G, today).items[0]).toMatchObject({ mrp: null, schemes: [], stock: { packs: 7, label: "7 in stock" } });
     // Nothing of the books goes out.
-    expect(JSON.stringify(buildCatalogue(db, G, today))).not.toMatch(/costPaise|balance|4000/);
+    // (4000 is the batch cost in paise; match it as a JSON value, since ids are random UUIDs that can contain "4000".)
+    expect(JSON.stringify(buildCatalogue(db, G, today))).not.toMatch(/costPaise|balance|[:,\[]4000[,}\]]/);
   });
 });
 

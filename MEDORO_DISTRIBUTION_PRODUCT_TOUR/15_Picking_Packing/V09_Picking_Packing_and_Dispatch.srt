@@ -1,0 +1,255 @@
+1
+00:00:00,170 --> 00:00:04,647
+Part 15 mein godown ka kaam: approved orders ki pick list,
+
+2
+00:00:04,647 --> 00:00:11,517
+mobile phone par rack aur batch dekh kar picking, kam maal milne par short pick, packing,
+
+3
+00:00:11,517 --> 00:00:13,678
+aur packed order ka invoice.
+
+4
+00:00:14,660 --> 00:00:21,565
+Owner ki screen par Pick and pack menu mein badge dikhta hai: kitni pick lists baaki hain.
+
+5
+00:00:21,565 --> 00:00:27,856
+Yeh queue sabse purane order se shuru hoti hai, taaki koi order peeche na chhoote.
+
+6
+00:00:28,548 --> 00:00:33,035
+Lekin picking godown ka staff apne phone par karta hai.
+
+7
+00:00:33,035 --> 00:00:38,990
+Yeh hai Rahul, demo warehouse staff, jo employee ID aur PIN se login hai.
+
+8
+00:00:38,990 --> 00:00:44,456
+Uske phone par sirf Pick and pack jaise godown ke kaam dikhte hain.
+
+9
+00:00:47,287 --> 00:00:51,538
+Rahul Ramgarh Janta Medical ki pick list kholta hai.
+
+10
+00:00:51,538 --> 00:00:57,833
+Har line par rack number, product, batch, expiry aur kitne packs uthane hain.
+
+11
+00:00:57,833 --> 00:01:05,355
+Lines rack ke pick order mein lagi hain, taaki godown mein ek hi chakkar mein sab mil jaaye.
+
+12
+00:01:06,104 --> 00:01:07,853
+Start picking dabaiye.
+
+13
+00:01:07,853 --> 00:01:15,484
+Ab order ka status Picking ho gaya, aur office mein sabko dikhta hai ki maal uthaya ja raha hai.
+
+14
+00:01:16,174 --> 00:01:23,120
+Pehli line: rack number dekha, batch match kiya, packs uthaye, aur Picked all dabaya.
+
+15
+00:01:23,120 --> 00:01:30,474
+Har line ke saath batch number milana zaroori hai, taaki galat batch chemist tak na jaaye.
+
+16
+00:01:31,167 --> 00:01:37,904
+Agli line par shelf par maal kam nikla, toh Short dabaiye aur jitna mila utna likhiye.
+
+17
+00:01:37,904 --> 00:01:42,134
+Short pick par invoice sirf uthaye hue maal ka banega,
+
+18
+00:01:42,134 --> 00:01:45,659
+aur free goods bhi usi anupaat mein ghatenge.
+
+19
+00:01:46,399 --> 00:01:48,697
+Baaki lines par Picked all.
+
+20
+00:01:48,697 --> 00:01:56,270
+Saari lines pick hone ke baad, kitne boxes mein pack kiya, woh likhiye, aur Pack dabaiye.
+
+21
+00:01:56,270 --> 00:02:01,035
+Order packed ho gaya aur ab invoice ke liye taiyaar hai.
+
+22
+00:02:01,711 --> 00:02:03,312
+Wapas office mein.
+
+23
+00:02:03,312 --> 00:02:06,514
+Order ab Packed to invoice mein hai.
+
+24
+00:02:06,514 --> 00:02:09,716
+Order kholkar Raise invoice dabaiye.
+
+25
+00:02:09,716 --> 00:02:17,187
+Invoice bilkul utne maal ka banta hai jitna pick hua, usi batch aur expiry ke saath.
+
+26
+00:02:17,902 --> 00:02:25,369
+Picking ki galti distribution mein sabse mehngi galti hoti hai: galat product, galat batch,
+
+27
+00:02:25,369 --> 00:02:26,354
+ya kam maal.
+
+28
+00:02:26,354 --> 00:02:34,067
+Rack, batch aur quantity ki line-by-line confirmation se yeh galtiyan kaafi kam ho jaati hain.
+
+29
+00:02:34,067 --> 00:02:37,842
+Barcode scan se picking abhi uplabdh nahi hai.
+
+30
+00:02:39,572 --> 00:02:45,188
+Part 16 mein dispatch aur delivery: invoiced orders ko van trip mein jodna,
+
+31
+00:02:45,188 --> 00:02:52,003
+delivery person assign karna, van nikalna, delivery phone par receiver ka naam aur payment,
+
+32
+00:02:52,003 --> 00:02:55,672
+na pahunch paaye maal ka kya, aur trip ka hisaab.
+
+33
+00:02:56,648 --> 00:02:59,358
+Warehouse mein Dispatch kholiye.
+
+34
+00:02:59,358 --> 00:03:07,404
+Ready to dispatch mein woh saare invoices hain jo ban chuke hain par abhi godown se nikle nahi.
+
+35
+00:03:07,404 --> 00:03:12,316
+Har invoice ka number, chemist, pata aur value dikhti hai.
+
+36
+00:03:14,902 --> 00:03:23,068
+Ek route ke invoices chuniye: City Care Chemists, Hinoo Family Pharmacy aur Doranda Drug House.
+
+37
+00:03:23,068 --> 00:03:26,850
+Teeno Ranchi ke andar ek hi raaste par hain.
+
+38
+00:03:27,542 --> 00:03:35,536
+Gaadi number, driver ka naam, route, aur delivery person yaani app wala user chuniye:
+
+39
+00:03:35,536 --> 00:03:38,733
+Manoj, hamara demo delivery staff.
+
+40
+00:03:38,733 --> 00:03:40,426
+Plan trip dabaiye.
+
+41
+00:03:41,097 --> 00:03:44,722
+Trip ban gaya, dispatch number ke saath.
+
+42
+00:03:44,722 --> 00:03:48,527
+Jab van godown se nikle, Van left dabaiye.
+
+43
+00:03:48,527 --> 00:03:52,877
+Ab in orders ka status Out for delivery ho gaya.
+
+44
+00:03:53,557 --> 00:03:55,219
+Ab Manoj ka phone.
+
+45
+00:03:55,219 --> 00:03:59,651
+Usne apne employee ID aur PIN se login kiya hai.
+
+46
+00:03:59,651 --> 00:04:06,023
+My deliveries mein aaj ka trip hai: har drop ka chemist, pata, value,
+
+47
+00:04:06,023 --> 00:04:08,793
+aur Call aur Navigate buttons.
+
+48
+00:04:14,847 --> 00:04:17,972
+City Care Chemists par maal diya.
+
+49
+00:04:17,972 --> 00:04:20,245
+Record delivery kholiye.
+
+50
+00:04:20,245 --> 00:04:22,045
+Outcome: Delivered.
+
+51
+00:04:22,045 --> 00:04:29,148
+Received by mein lene wale ka naam zaroori hai: yahi proof of delivery hai.
+
+52
+00:04:29,148 --> 00:04:32,747
+Chemist ne UPI se poore paise de diye.
+
+53
+00:04:33,479 --> 00:04:38,001
+Collected mein rakam aur UPI reference likhiye, aur Save.
+
+54
+00:04:38,001 --> 00:04:43,871
+Yeh paisa turant receipt ban kar chemist ke khaate mein jama ho jaata hai,
+
+55
+00:04:43,871 --> 00:04:46,171
+sabse purane bill ke against.
+
+56
+00:04:51,494 --> 00:04:58,627
+Hinoo Family Pharmacy par maal diya, payment baad mein hogi, toh sirf receiver ka naam.
+
+57
+00:04:58,627 --> 00:05:04,121
+Doranda Drug House band mila: Outcome Could not deliver aur reason.
+
+58
+00:05:04,121 --> 00:05:09,778
+Aisa invoice wapas dispatch desk par aa jaata hai, agle trip ke liye.
+
+59
+00:05:10,451 --> 00:05:17,837
+Office mein dispatch board par trip ka poora hisaab hai: har invoice ka status, kisne liya,
+
+60
+00:05:17,837 --> 00:05:19,623
+aur kitna collect hua.
+
+61
+00:05:19,623 --> 00:05:25,711
+Delivery reconciliation ke liye driver se cash aur UPI isi list se milaiye.
+
+62
+00:05:26,391 --> 00:05:31,667
+Photo ya signature se proof of delivery abhi uplabdh nahi hai.
+
+63
+00:05:31,667 --> 00:05:35,241
+Proof receiver ke naam se record hota hai.
+
+64
+00:05:35,241 --> 00:05:39,155
+Yeh limitation hamari QA report mein darj hai.

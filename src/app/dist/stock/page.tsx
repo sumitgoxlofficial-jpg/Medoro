@@ -6,6 +6,7 @@ import { daysTo, isoOf } from "@/lib/dates";
 import { DataTable, dateIN, PageHead, Panel, Pill, STATUS_TONE, Tabs } from "../_ui/ui";
 import { ActButton, ActForm, F, Grid, S } from "../_ui/forms";
 import { adjustAction, transferAction, transferStepAction } from "../actions";
+import { reservedUnits } from "@/domain/distribution/orders";
 
 export const metadata = { title: "Stock & transfers" };
 
@@ -17,6 +18,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
   const q = (sp.q ?? "").trim();
   const batches = await db.batch.findMany({ where: { tenantId: ctx.tenantId, branchId: ctx.branchId, OR: [{ qtyAvailable: { gt: 0 } }, { qtyQuarantined: { gt: 0 } }], ...(q ? { OR: [{ medicine: { name: { contains: q, mode: "insensitive" } } }, { batchNo: { contains: q.toUpperCase() } }] } : {}) }, include: { medicine: true }, orderBy: [{ medicine: { name: "asc" } }, { expiryDate: "asc" }], take: 500 });
   const racks = await db.medicineRack.findMany({ where: { branchId: ctx.branchId, medicineId: { in: batches.map((b) => b.medicineId) } } });
+  // Packs held for approved orders (open pick lists): in the godown, but not free to sell.
+  const reserved = await reservedUnits(db, ctx.tenantId, batches.map((b) => b.id));
   const transfers = tab === "transfers" ? await listBranchTransfers(ctx) : [];
   const others = ctx.branches.filter((b) => b.id !== ctx.branchId);
   const value = batches.reduce((a, b) => a + ((b.qtyAvailable + b.qtyQuarantined) / Math.max(1, b.medicine.packSize)) * Number(b.costPaise), 0);
@@ -51,8 +54,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ q
             </div>
           ) : null}
           <Panel pad={false} title={`${batches.length} batches`} right={<form><input data-search name="q" defaultValue={q} placeholder="Product or batch" className="h-8 w-[200px] border border-input rounded px-2 text-[13px]" /></form>}>
-            <DataTable dense cols={[{ label: "Product" }, { label: "Batch" }, { label: "Expiry" }, { label: "Rack" }, { label: "Packs", num: true }, { label: "Quarantined", num: true }, { label: "Cost", num: true }, { label: "MRP", num: true }, { label: "Status" }]}
-              rows={batches.map((b) => { const p = Math.max(1, b.medicine.packSize), d = daysTo(b.expiryDate); return [b.medicine.name, b.batchNo, <span key="e" className={d <= 0 ? "text-[#B3261E] font-semibold" : d <= 90 ? "text-[#94570A]" : ""}>{isoOf(b.expiryDate)}</span>, racks.find((r) => r.medicineId === b.medicineId)?.rack ?? b.medicine.rack ?? "—", b.qtyAvailable / p, b.qtyQuarantined ? b.qtyQuarantined / p : "", inr(Number(b.costPaise)), inr(Number(b.mrpPaise)), <Pill key="s" tone={b.status === "ok" ? "green" : "amber"}>{b.status}</Pill>]; })} empty="No stock in this godown. Receive stock with a GRN under Purchases." />
+            <DataTable dense cols={[{ label: "Product" }, { label: "Batch" }, { label: "Expiry" }, { label: "Rack" }, { label: "Packs", num: true }, { label: "Reserved", num: true }, { label: "Free to sell", num: true }, { label: "Quarantined", num: true }, { label: "Cost", num: true }, { label: "MRP", num: true }, { label: "Status" }]}
+              rows={batches.map((b) => { const p = Math.max(1, b.medicine.packSize), d = daysTo(b.expiryDate); return [b.medicine.name, b.batchNo, <span key="e" className={d <= 0 ? "text-[#B3261E] font-semibold" : d <= 90 ? "text-[#94570A]" : ""}>{isoOf(b.expiryDate)}</span>, racks.find((r) => r.medicineId === b.medicineId)?.rack ?? b.medicine.rack ?? "—", b.qtyAvailable / p, (reserved[b.id] ?? 0) / p || "—", Math.max(0, b.qtyAvailable - (reserved[b.id] ?? 0)) / p, b.qtyQuarantined ? b.qtyQuarantined / p : "", inr(Number(b.costPaise)), inr(Number(b.mrpPaise)), <Pill key="s" tone={b.status === "ok" ? "green" : "amber"}>{b.status}</Pill>]; })} empty="No stock in this godown. Receive stock with a GRN under Purchases." />
           </Panel>
         </>
       ) : (

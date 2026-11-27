@@ -1,0 +1,207 @@
+1
+00:00:00,173 --> 00:00:06,584
+Part 8 mein poora purchase process: purchase order banana, supplier ko bhejna,
+
+2
+00:00:06,584 --> 00:00:11,351
+maal aane par batch aur expiry ke saath GRN, totals check,
+
+3
+00:00:11,351 --> 00:00:15,049
+aur stock aur supplier outstanding ka update.
+
+4
+00:00:16,054 --> 00:00:18,505
+Purchase and GRN kholiye.
+
+5
+00:00:18,505 --> 00:00:25,859
+Upar flow likha hai: purchase planning, PO, supplier invoice, GRN, batches,
+
+6
+00:00:25,859 --> 00:00:28,409
+stock aur supplier ledger.
+
+7
+00:00:28,409 --> 00:00:34,194
+Teen tabs hain: Receive goods, Purchase orders, aur New PO.
+
+8
+00:00:34,934 --> 00:00:42,255
+Purchase orders list mein har PO ka number, supplier, date, value aur status hai: draft,
+
+9
+00:00:42,255 --> 00:00:45,583
+ordered, partially received ya received.
+
+10
+00:00:45,583 --> 00:00:51,490
+Ek PO pehle se ordered hai, aur ek draft hai jise abhi bheja nahi gaya.
+
+11
+00:00:55,598 --> 00:00:57,598
+Naya PO banate hain.
+
+12
+00:00:57,598 --> 00:01:06,998
+New PO tab mein supplier chuniye: Prana vitamins ke liye Eastern Demo Super Stockist, Kolkata.
+
+13
+00:01:06,998 --> 00:01:09,998
+Product chuniye: Zincosure 20.
+
+14
+00:01:09,998 --> 00:01:16,498
+Quantity 200 packs, aur free quantity 20, yaani 10 plus 1 scheme.
+
+15
+00:01:17,192 --> 00:01:23,944
+Rate apne-aap PTS se aata hai, jise supplier ke rate se badal sakte hain.
+
+16
+00:01:23,944 --> 00:01:25,979
+MRP bhi bhara hua hai.
+
+17
+00:01:25,979 --> 00:01:29,401
+Trade discount 2 percent daalte hain.
+
+18
+00:01:29,401 --> 00:01:33,748
+Neeche approx value GST ke saath dikh rahi hai.
+
+19
+00:01:36,431 --> 00:01:41,132
+Ek aur line jodte hain: Ferrovit XT, 150 packs.
+
+20
+00:01:41,132 --> 00:01:43,033
+Phir Save draft PO.
+
+21
+00:01:43,033 --> 00:01:50,635
+PO pehle draft mein banta hai, taaki bhejne se pehle koi aur check kar sake.
+
+22
+00:01:51,290 --> 00:01:55,955
+Purchase orders tab mein naya PO draft status mein hai.
+
+23
+00:01:55,955 --> 00:01:58,839
+Place dabaiye, aur confirm kariye.
+
+24
+00:01:58,839 --> 00:02:04,438
+Ab status ordered ho gaya, yaani supplier ko order bhej diya gaya.
+
+25
+00:02:09,965 --> 00:02:11,499
+Ab maal aa gaya.
+
+26
+00:02:11,499 --> 00:02:13,991
+Receive goods tab kholiye.
+
+27
+00:02:13,991 --> 00:02:21,180
+Against PO mein Aarogya ka winter season wala PO, number dekh kar, chuniye.
+
+28
+00:02:21,180 --> 00:02:28,945
+Supplier aur PO ki lines apne-aap bhar jaati hain: Febrinil 650 aur Amoxirise CV.
+
+29
+00:02:29,630 --> 00:02:34,104
+Supplier ke bill ka number aur date daaliye.
+
+30
+00:02:34,104 --> 00:02:39,086
+Har line par batch number aur expiry zaroori hai.
+
+31
+00:02:39,086 --> 00:02:43,966
+Febrinil ka batch FEB2611A, expiry October 2028.
+
+32
+00:02:43,966 --> 00:02:49,762
+Scheme ke 120 packs free mein aaye, woh Free column mein.
+
+33
+00:02:50,436 --> 00:02:56,187
+Amoxirise CV ka batch AMC2611B aur expiry March 2028.
+
+34
+00:02:56,187 --> 00:03:00,961
+Quantity check kariye: jo aaya wahi likhiye.
+
+35
+00:03:00,961 --> 00:03:07,472
+Agar kam aaya toh kam likhiye, PO partially received rahega.
+
+36
+00:03:08,146 --> 00:03:12,189
+Ab supplier invoice par chhapa hua total daaliye.
+
+37
+00:03:12,189 --> 00:03:15,985
+Maan lijiye galti se gol rakam 30,000 likh di.
+
+38
+00:03:15,985 --> 00:03:21,266
+Post GRN dabate hi Medoro rok deta hai: totals match nahi karte,
+
+39
+00:03:21,266 --> 00:03:25,062
+lines itne ki hain aur invoice itna kehta hai.
+
+40
+00:03:25,712 --> 00:03:32,525
+Yeh check bahut kaam ka hai: typing ki galti, chhoota hua item, ya galat rate,
+
+41
+00:03:32,525 --> 00:03:34,796
+sab yahin pakda jaata hai.
+
+42
+00:03:34,796 --> 00:03:39,076
+Sahi total daal kar dobara Post GRN dabaate hain.
+
+43
+00:03:39,746 --> 00:03:41,204
+GRN post ho gaya.
+
+44
+00:03:41,204 --> 00:03:44,635
+Recent GRNs mein naya GRN dikh raha hai.
+
+45
+00:03:44,635 --> 00:03:50,468
+Iske saath teen cheezein ek saath hui: naye batches stock mein aaye,
+
+46
+00:03:50,468 --> 00:03:57,502
+free goods ki wajah se landed cost kam hui, aur supplier ka outstanding badh gaya.
+
+47
+00:03:58,173 --> 00:04:05,068
+Stock screen par Febrinil ka naya batch FEB2611A dikh raha hai,
+
+48
+00:04:05,068 --> 00:04:09,665
+720 packs ke saath: 600 kharide, 120 free.
+
+49
+00:04:10,462 --> 00:04:16,786
+Aur supplier ke ledger mein yeh GRN credit mein aa gaya, toh We owe badh gaya.
+
+50
+00:04:16,786 --> 00:04:19,218
+PO ka status received ho gaya.
+
+51
+00:04:19,875 --> 00:04:26,258
+Yaad rakhiye: PO matlab aapne kya maanga, GRN matlab asal mein kya aaya.
+
+52
+00:04:26,258 --> 00:04:33,527
+Hamesha GRN supplier ke bill se milakar, batch aur expiry dekh kar hi post kariye.

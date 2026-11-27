@@ -78,7 +78,7 @@ export async function destroySession() {
   c.delete(SESSION_COOKIE);
 }
 
-// "Trust this counter PC for 30 days": signed cookie bound to the user and their token version.
+// "Trust this PC for 30 days": signed cookie bound to the user and their token version.
 export async function setTrustedDevice(userId: string, tokenVersion: number) {
   const exp = Date.now() + 30 * 86400_000;
   const body = `${userId}.${tokenVersion}.${exp}`;

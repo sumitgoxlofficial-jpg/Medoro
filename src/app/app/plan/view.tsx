@@ -281,7 +281,7 @@ export function PlanView({ v, items, rows, pay, reference, online, payLink = tru
             {connected ? <Button size="sm" className="ml-auto" disabled={busy} onClick={() => act(() => checkNowAction())}><RefreshCw size={13} />{t("Check now")}</Button> : null}</div>
           {connected ? (
             <>
-              <div className="text-[13.5px] text-ink-2">{rich(t("Checks in with Medoro at {server}. Check-ins send only your pharmacy’s name and owner contact (once, to start the licence), app version, branch and counter counts, and the requests you make on this page or under Help."), { server: <span className="font-mono">{v.server}</span> })}</div>
+              <div className="text-[13.5px] text-ink-2">{rich(t("Checks in with Medoro at {server}. Check-ins send only your business’s name and owner contact (once, to start the licence), app version, branch and counter counts, and the requests you make on this page or under Help."), { server: <span className="font-mono">{v.server}</span> })}</div>
               <div className="text-[12.5px] text-muted flex flex-col gap-0.5">
                 {v.customerCode ? <span>{t("Customer {code}", { code: v.customerCode })}{v.licenceId ? ` · ${t("licence {id}…", { id: v.licenceId.slice(0, 8) })}` : ""}</span> : null}
                 <span>{v.issuedAt ? t("Licence signed {when}", { when: when(v.issuedAt) }) : t("No signed licence yet: the 7-day trial from setup applies.")}{v.checkedAt ? ` · ${t("last check {when}", { when: when(v.checkedAt) })}` : ""}</span>

@@ -1,0 +1,163 @@
+1
+00:00:00,144 --> 00:00:05,987
+Part 10 mein sales order ka poora safar: order book karna, chemist chunna,
+
+2
+00:00:05,987 --> 00:00:12,777
+products aur quantity, special rate aur scheme, stock aur credit check, approve karna,
+
+3
+00:00:12,777 --> 00:00:15,620
+reject karna aur status track karna.
+
+4
+00:00:16,565 --> 00:00:23,462
+Orders screen par saare orders hain: portal, salesman, phone aur office se aaye.
+
+5
+00:00:23,462 --> 00:00:31,565
+Upar filters hain: Open, Awaiting approval, Approved, Picking, Packed, Invoiced aur Delivered.
+
+6
+00:00:31,565 --> 00:00:37,945
+Har order mein source, value, credit status aur current status dikhta hai.
+
+7
+00:00:38,613 --> 00:00:40,595
+Naya order banate hain.
+
+8
+00:00:40,595 --> 00:00:42,232
+Book order dabaiye.
+
+9
+00:00:42,232 --> 00:00:48,263
+Chemist list mein filter kariye aur Lalpur Life Care Pharmacy chuniye.
+
+10
+00:00:48,263 --> 00:00:53,777
+Turant uski credit limit, balance aur price tier dikh jaata hai.
+
+11
+00:00:54,432 --> 00:00:59,621
+Add product box mein do akshar likhiye aur Enter dabaiye.
+
+12
+00:00:59,621 --> 00:01:01,351
+Pantovista 40 joda.
+
+13
+00:01:01,351 --> 00:01:07,269
+Is chemist ke liye Pantovista ka special rate 110 rupaye set hai,
+
+14
+00:01:07,269 --> 00:01:10,364
+isliye rate PTR ki jagah 110 aaya.
+
+15
+00:01:11,029 --> 00:01:13,403
+Ab Febrinil 650, 30 packs.
+
+16
+00:01:13,403 --> 00:01:21,713
+Febrinil par 10 plus 2 scheme chal raha hai, toh Free column mein 6 packs apne-aap aa gaye.
+
+17
+00:01:21,713 --> 00:01:27,009
+Scheme yaad rakhne ya calculator chalane ki zaroorat nahi.
+
+18
+00:01:27,661 --> 00:01:30,810
+Teesra product Calvita D3, 10 packs.
+
+19
+00:01:30,810 --> 00:01:38,683
+Prana company par extra 5 percent discount scheme hai, woh Disc column mein dikh raha hai.
+
+20
+00:01:38,683 --> 00:01:42,969
+Stock column batata hai kitna maal available hai.
+
+21
+00:01:43,621 --> 00:01:50,781
+Daayi taraf taxable value, discount, CGST aur SGST, round off aur total.
+
+22
+00:01:50,781 --> 00:01:55,058
+Warehouse ke liye note bhi likh sakte hain.
+
+23
+00:01:55,058 --> 00:01:57,345
+Ab Place order dabaiye.
+
+24
+00:01:58,010 --> 00:02:02,181
+Order place ho gaya aur Awaiting approval mein hai.
+
+25
+00:02:02,181 --> 00:02:05,944
+Credit theek hai, isliye credit status OK hai.
+
+26
+00:02:05,944 --> 00:02:09,379
+Order kholte hain aur Approve dabate hain.
+
+27
+00:02:09,379 --> 00:02:14,614
+Stock batch-wise reserve hua aur pick list godown ko chali gayi.
+
+28
+00:02:15,268 --> 00:02:17,757
+Ab ek order reject karte hain.
+
+29
+00:02:17,757 --> 00:02:21,821
+Kanke Road Medical Store ka portal order kholiye.
+
+30
+00:02:21,821 --> 00:02:26,799
+Maan lijiye chemist ne phone par order cancel karne ko kaha.
+
+31
+00:02:26,799 --> 00:02:29,619
+Reject dabaiye aur reason likhiye.
+
+32
+00:02:29,619 --> 00:02:35,592
+Reject hua order kabhi bill nahi hota, aur reason record mein rehta hai.
+
+33
+00:02:36,252 --> 00:02:40,127
+Approve hone se pehle order cancel bhi ho sakta hai,
+
+34
+00:02:40,127 --> 00:02:45,864
+aur zaroorat ho toh line-wise quantity kam karke dobara order liya jaata hai.
+
+35
+00:02:45,864 --> 00:02:49,814
+Approve hone ke baad stock reserve ho chuka hota hai,
+
+36
+00:02:49,814 --> 00:02:53,912
+isliye badlaav ke liye cancel karke naya order banaiye.
+
+37
+00:02:54,564 --> 00:03:01,465
+Har order ka status timeline mein dikhta hai: Awaiting approval, Approved, Picking, Packed,
+
+38
+00:03:01,465 --> 00:03:04,575
+Invoiced, Out for delivery aur Delivered.
+
+39
+00:03:04,575 --> 00:03:09,656
+Office ko kabhi phone karke poochhna nahi padta ki order kahan hai.
+
+40
+00:03:10,307 --> 00:03:14,068
+Credit control order ka sabse zaroori hissa hai.
+
+41
+00:03:14,068 --> 00:03:21,199
+Agla part poori tarah isi par hai: limit cross karne wale chemist ke order ka kya hota hai.

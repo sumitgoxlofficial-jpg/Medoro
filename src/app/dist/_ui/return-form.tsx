@@ -27,13 +27,13 @@ export function ReturnForm({ invoiceId, lines }: { invoiceId: string; lines: L[]
             <tr key={l.id} className="border-t border-line-soft">
               <td className="py-1.5">{l.name} <span className="text-muted">{l.batchNo}</span></td>
               <td className="text-right tnum">{can}</td>
-              <td className="text-right"><input type="number" min={0} max={can} disabled={!can} value={v.qty || ""} onChange={(e) => set({ qty: Math.min(can, Math.max(0, Math.floor(Number(e.target.value) || 0))) })} className="h-8 w-[64px] text-right border border-input rounded px-1" /></td>
-              <td className="text-center"><select value={v.condition} onChange={(e) => set({ condition: e.target.value as typeof v.condition })} className="h-8 border border-input rounded text-[12.5px]"><option value="saleable">{t("Saleable")}</option><option value="expired">{t("Expired")}</option><option value="damaged">{t("Damaged")}</option></select></td>
-              <td className="text-right"><input type="number" min={0} max={100} value={v.pct} onChange={(e) => set({ pct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} className="h-8 w-[60px] text-right border border-input rounded px-1" /></td>
+              <td className="text-right"><input aria-label={`${t("Packs returned")} · ${l.name}`} type="number" min={0} max={can} disabled={!can} value={v.qty || ""} onChange={(e) => set({ qty: Math.min(can, Math.max(0, Math.floor(Number(e.target.value) || 0))) })} className="h-8 w-[64px] text-right border border-input rounded px-1" /></td>
+              <td className="text-center"><select aria-label={`${t("Condition")} · ${l.name}`} value={v.condition} onChange={(e) => set({ condition: e.target.value as typeof v.condition })} className="h-8 border border-input rounded text-[12.5px]"><option value="saleable">{t("Saleable")}</option><option value="expired">{t("Expired")}</option><option value="damaged">{t("Damaged")}</option></select></td>
+              <td className="text-right"><input aria-label={`${t("Credit %")} · ${l.name}`} type="number" min={0} max={100} value={v.pct} onChange={(e) => set({ pct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} className="h-8 w-[60px] text-right border border-input rounded px-1" /></td>
             </tr>
           );
         })}</tbody></table>
-      <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("Reason (printed on the credit note)")} className="h-9 border border-input rounded-md px-2 text-[13px]" />
+      <input aria-label={t("Reason (printed on the credit note)")} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("Reason (printed on the credit note)")} className="h-9 border border-input rounded-md px-2 text-[13px]" />
       <div className="flex items-center gap-3">
         <Btn variant="primary" disabled={pending || !chosen.length} onClick={() => start(async () => {
           const r = await returnAction({ invoiceId, reason, lines: chosen.map(([id, v]) => ({ invoiceLineId: id, qty: v.qty, condition: v.condition, creditPct: v.pct })) });
