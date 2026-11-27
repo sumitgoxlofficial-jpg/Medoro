@@ -1,0 +1,17 @@
+# Files Vercel never needs to build or serve the site. Every deployment stores its own copy of the source it was
+# built from, so these folders (~45 MB) were being stored again on every deployment, filling the Hobby plan's
+# 10 GB Deployment Storage. The build type-checks with tsconfig.build.json, which already leaves tests/ and e2e/ out.
+/MEDORO_PRODUCT_TOUR
+/design
+/desktop
+/docs
+/e2e
+/tests
+/deploy
+/Dockerfile
+/docker-compose.yml
+
+# The 26 tour MP4s (~175 MB) are served from the public Supabase Storage bucket `tour-videos` (medoro-production),
+# set by NEXT_PUBLIC_VIDEO_BASE_URL in Vercel. They stay in git for Docker and self-hosted installs, which serve them
+# from /videos/files. A new or changed MP4 must also be uploaded to that bucket under the same file name.
+/public/videos/files
