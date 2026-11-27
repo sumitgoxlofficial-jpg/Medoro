@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/server/db", () => ({ db: {} }));
 vi.mock("@/server/vault", () => ({ seal: (x: string) => Buffer.from(x) }));
 vi.mock("@/server/log", () => ({ log: { error: () => {} } }));
-import { PERSONAS, daySchedule, isStatusAsk, istDay, namedBots, replyMode, replyPlan, welcomePlan } from "./sales-pulse";
+import { PERSONAS, daySchedule, eodSchedule, isStatusAsk, istDay, namedBots, replyMode, replyPlan, welcomePlan } from "./sales-pulse";
 
 const ist = (day: string, h: number, m = 0) => Date.parse(`${day}T00:00:00Z`) - 5.5 * 3600_000 + (h * 60 + m) * 60_000;
 
@@ -144,4 +144,30 @@ describe("Sales Pulse", () => {
     expect(r.length).toBeGreaterThan(0);
     for (const x of r) { expect(x.body).not.toMatch(/^(Hi\b|,|\s)|जी|Going good|Sab badhiya|Chal raha hai|abhi tak/); expect(x.body).not.toContain("  "); }
   });
+  it("every bot posts one professional EOD between 18:15 and 19:45, matching its day", () => {
+    const day = "2026-11-26", e = eodSchedule(day), daily = new Map(daySchedule(day).map((x) => [x.senderId, x.fill]));
+    expect(e).toHaveLength(45);
+    expect(new Set(e.map((x) => x.senderId)).size).toBe(45);
+    for (const x of e) {
+      expect(x.at.getTime()).toBeGreaterThanOrEqual(ist(day, 18, 15));
+      expect(x.at.getTime()).toBeLessThan(ist(day, 19, 46));
+      expect(x.body).toContain("26 Nov");
+      expect(x.body).toMatch(/₹[\d,]+/);
+      expect(x.body.split("\n").length).toBeGreaterThanOrEqual(4);
+      const f = daily.get(x.senderId)!;
+      expect(x.body).toMatch(new RegExp(`(Demos?|डेमो)\\D{0,15}\\b${f.d}\\b|\\b${f.d} demos`));
+    }
+    expect(eodSchedule(day)).toEqual(e);
+    // each bot keeps its own format from day to day
+    const next = new Map(eodSchedule("2026-11-27").map((x) => [x.senderId, x.body.split("\n")[0].replace(/\d+ \w+/, "")]));
+    for (const x of e) expect(next.get(x.senderId)).toBe(x.body.split("\n")[0].replace(/\d+ \w+/, ""));
+  });
+  it("never tells anyone more calls in a reply than its EOD says", () => {
+    const day = "2026-11-26", e = new Map(eodSchedule(day).map((x) => [x.senderId, Number((/(\d+) calls/.exec(x.body) ?? /(?:calls?|कॉल)\D{0,15}(\d+)/i.exec(x.body))?.[1])]));
+    for (let i = 0; i < 30; i++) for (const x of replyPlan(`k${i}`, "Amit", "What's the update?", new Date(ist(day, 17, 0)))) {
+      const m = /(\d+) (calls?|call|कॉल)/.exec(x.body);
+      if (m) expect(Number(m[1])).toBeLessThanOrEqual(e.get(x.senderId)!);
+    }
+  });
 });
+

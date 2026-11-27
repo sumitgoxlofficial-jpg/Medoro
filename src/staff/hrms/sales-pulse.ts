@@ -150,8 +150,47 @@ export function daySchedule(day: string): Slot[] {
 }
 export const istDay = (d: Date) => new Date(d.getTime() + IST).toISOString().slice(0, 10);
 
+// ── End-of-day reports: every bot posts a short, professional EOD between 18:15 and 19:45 India time, with the same
+// numbers as its message earlier that day (demos and sales from the daily message; calls never below what it told
+// anyone in a reply). Each bot keeps one report format, every day, like people do.
+const PRICE = new Map<string, number>(PRODUCTS.map((p) => [p.name, p.m]));
+const inr = (n: number) => n.toLocaleString("en-IN");
+type Eod = { date: string; calls: number; demos: number; sales: number; closed: string; plans: string; value: string; follow: number; fresh: number; tomorrow: number; g: (f: string, m: string) => string };
+const EOD_FORMATS: ((e: Eod) => string)[] = [
+  (e) => `EOD Report – ${e.date}\n• Calls made: ${e.calls}\n• Demos done: ${e.demos}\n• Sales closed: ${e.sales} (${e.plans})\n• Sales value: ₹${e.value}\n• Follow-ups pending: ${e.follow}\n• Tomorrow: ${e.tomorrow} demos scheduled`,
+  (e) => `Day summary (${e.date})\nCalls: ${e.calls} | Demos: ${e.demos} | Closed: ${e.sales}\nClosed: ${e.closed}\nValue booked: ₹${e.value}\nPipeline: ${e.follow} follow-ups and ${e.tomorrow} demos for tomorrow`,
+  (e) => `EOD update – ${e.date}\n1. Total calls – ${e.calls}\n2. Demos completed – ${e.demos}\n3. Leads converted – ${e.sales} (₹${e.value})\n4. New leads added – ${e.fresh}\n5. Plan for tomorrow – ${e.tomorrow} demos + ${e.follow} follow-ups`,
+  (e) => `Good evening team, my EOD for ${e.date}:\n✅ ${e.sales} ${e.sales === 1 ? "sale" : "sales"} closed – ${e.closed}\n📞 ${e.calls} calls, ${e.demos} demos\n💰 ₹${e.value} booked\n📅 Tomorrow: ${e.tomorrow} demos lined up`,
+  (e) => `EOD – ${e.date}\nCalls: ${e.calls}\nDemo: ${e.demos}\nClosing: ${e.sales} – ${e.plans}\nRevenue: ₹${e.value}\nNaye leads: ${e.fresh}\nKal ka plan: ${e.tomorrow} demo, ${e.follow} follow-up`,
+  (e) => `EOD रिपोर्ट – ${e.date}\nकॉल: ${e.calls}\nडेमो: ${e.demos}\nसेल: ${e.sales} (${e.plans})\nकुल वैल्यू: ₹${e.value}\nफॉलो-अप बाकी: ${e.follow}\nकल: ${e.tomorrow} डेमो तय`,
+  (e) => `Today's report (${e.date})\nCalls – ${e.calls}\nDemos – ${e.demos}\nConversions – ${e.sales}\nDeals: ${e.closed}\nTotal value – ₹${e.value}\nNext: ${e.follow} follow-ups, ${e.tomorrow} demos tomorrow`,
+];
+/** A bot's calls for the day: at least as many as any update it gave (those say up to demos × 3 + 12). */
+export const dayCalls = (day: string, id: string, demos: number) => demos * 3 + 12 + Math.floor(rng(`medoro-sales-calls:${day}:${id}`)() * 7);
+const EOD_START = 18 * 60 + 15, EOD_END = 19 * 60 + 45;
+
+/** The day's EOD reports, one per bot, between 18:15 and 19:45 India time, sorted by time. */
+export function eodSchedule(day: string): Slot[] {
+  const r = rng(`medoro-sales-eod:${day}`);
+  const midnight = Date.parse(`${day}T00:00:00Z`) - IST;
+  const daily = new Map(daySchedule(day).map((x) => [x.senderId, x.fill]));
+  const date = new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+  return PERSONAS.map((p, i) => {
+    const m = EOD_START + Math.floor(r() * (EOD_END - EOD_START + 1));
+    const f = daily.get(p.id)!;
+    const deals = Array.from({ length: f.n }, (_, k) => ({ plan: k === 0 ? f.plan : pick(r, PLANS), city: k === 0 ? f.city : pick(r, CITIES) }));
+    const value = deals.reduce((t, d) => t + (PRICE.get(d.plan) ?? 999), 0);
+    const e: Eod = {
+      date, calls: dayCalls(day, p.id, f.d), demos: f.d, sales: f.n, plans: deals.map((d) => d.plan).join(", "),
+      closed: deals.map((d) => `${d.plan} (${d.city})`).join(", "), value: inr(value), follow: 2 + Math.floor(r() * 6),
+      fresh: 3 + Math.floor(r() * 8), tomorrow: 2 + Math.floor(r() * 4), g: (fe, ma) => (p.gender === "f" ? fe : ma),
+    };
+    return { at: new Date(midnight + m * 60_000 + Math.floor(r() * 60) * 1000), senderId: p.id, body: EOD_FORMATS[(i * 5) % EOD_FORMATS.length](e), fill: f };
+  }).sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
 // ── State: kept in HrSetting under one key. `enabled: false` there switches the bots off (real wins still post).
-type State = { enabled: boolean; day: string; posted: number; winsAt: string };
+type State = { enabled: boolean; day: string; posted: number; winsAt: string; /** EOD reports sent today. */ eod?: number };
 const STATE_KEY = "salesPulse";
 const CATCH_UP_MS = 30 * 60_000; // a slot missed by more than this (server asleep) is skipped, not posted late in a burst
 
@@ -485,7 +524,7 @@ export function replyPlan(key: string, asker: string, ask: string, from: Date, n
     const slot = plan.get(b.id), f = slot?.fill ?? { n: 1, d: 3, city: pick(r, CITIES), plan: pick(r, PLANS), feat: "", featHi: "" };
     const before = slot ? slot.at.getTime() > from.getTime() : false; // its daily message hasn't gone out yet: a bit less done
     const demos = Math.max(1, f.d - (before ? 1 : 0)), sales = Math.max(1, f.n - (before ? 1 : 0));
-    const w: Work = { demos, sales, calls: demos * 3 + 4 + Math.floor(r() * 9), left: 2 + Math.floor(r() * 5), city: f.city, plan: f.plan, g: (fe, ma) => (b.gender === "f" ? fe : ma), ...hi };
+    const w: Work = { demos, sales, calls: Math.min(demos * 3 + 4 + Math.floor(r() * 9), dayCalls(day, b.id, f.d)), left: 2 + Math.floor(r() * 5), city: f.city, plan: f.plan, g: (fe, ma) => (b.gender === "f" ? fe : ma), ...hi };
     const l = mode !== "honest" && r() >= 0.75 ? other : main;
     if (mode === "status" && r() < 0.3) { // typed in two goes, like people do
       const o = choose(OPENERS, l, w);
@@ -541,6 +580,7 @@ export async function botsTyping(now = new Date()): Promise<string[]> {
   const ids = new Set<string>();
   const today = istDay(now), posted = saved.day === today ? saved.posted ?? 0 : 0;
   for (const x of daySchedule(today).slice(posted)) if (soon(x.at.getTime())) ids.add(x.senderId);
+  for (const x of eodSchedule(today).slice(saved.day === today ? saved.eod ?? 0 : 0)) if (soon(x.at.getTime())) ids.add(x.senderId);
   for (const q of await db.hrSetting.findMany({ where: { OR: [{ key: { startsWith: REPLY_PREFIX } }, { key: { startsWith: WELCOME_PREFIX } }] } })) {
     for (const x of ((q.value as { pending?: Pending[] }).pending ?? [])) if (soon(Date.parse(x.at))) ids.add(x.senderId);
   }
@@ -602,8 +642,8 @@ export async function salesPulseTick(now = new Date(), force = false) {
       const row = await tx.hrSetting.findUnique({ where: { key: STATE_KEY } });
       const saved = (row?.value ?? {}) as Partial<State>;
       const today = istDay(now);
-      const s: State = { enabled: saved.enabled !== false, day: saved.day ?? today, posted: saved.posted ?? 0, winsAt: saved.winsAt ?? now.toISOString() };
-      if (s.day !== today) { s.day = today; s.posted = 0; }
+      const s: State = { enabled: saved.enabled !== false, day: saved.day ?? today, posted: saved.posted ?? 0, winsAt: saved.winsAt ?? now.toISOString(), eod: saved.eod ?? 0 };
+      if (s.day !== today) { s.day = today; s.posted = 0; s.eod = 0; }
       let lastAt: Date | null = null;
       const write = async (senderId: string, kind: "win" | "pulse" | "milestone", body: string, at: Date) => {
         await tx.hrChatMessage.create({ data: { chatId: chat, senderId, kind, body: new Uint8Array(seal(body)), createdAt: at } });
@@ -663,6 +703,15 @@ export async function salesPulseTick(now = new Date(), force = false) {
         const slot = plan[s.posted++];
         if (s.enabled && now.getTime() - slot.at.getTime() <= CATCH_UP_MS) await write(slot.senderId, "pulse", texts.get(slotKey(slot.senderId, slot.at)) ?? slot.body, slot.at);
       }
+
+      // EOD reports that are due (sent as written: the numbers must stay exact).
+      const eods = eodSchedule(today);
+      let e = s.eod ?? 0;
+      while (e < eods.length && eods[e].at <= now) {
+        const slot = eods[e++];
+        if (s.enabled && now.getTime() - slot.at.getTime() <= CATCH_UP_MS) await write(slot.senderId, "pulse", slot.body, slot.at);
+      }
+      s.eod = e;
 
       // Welcomes that are due. Unlike the daily messages, a late welcome is still sent.
       const queued = await tx.hrSetting.findMany({ where: { key: { startsWith: WELCOME_PREFIX } } });
