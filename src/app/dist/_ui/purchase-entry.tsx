@@ -7,7 +7,7 @@ import { Btn } from "./forms";
 import { createPoAction, grnAction } from "../actions";
 
 type Product = { id: string; name: string; pack: string; mrp: number; pts: number; gstRate: number };
-type Po = { id: string; no: string; supplierId: string; items: { id: string; medicineId: string; qty: number; received: number; rate: number; mrp: number | null; freeQty: number }[] };
+type Po = { id: string; no: string; supplierId: string; supplier?: string; items: { id: string; medicineId: string; qty: number; received: number; rate: number; mrp: number | null; freeQty: number }[] };
 type Line = { medicineId: string; batchNo: string; expiry: string; qty: string; freeQty: string; rate: string; mrp: string; tradePct: string; cashPct: string; poItemId: string | null };
 
 const blank = (): Line => ({ medicineId: "", batchNo: "", expiry: "", qty: "", freeQty: "", rate: "", mrp: "", tradePct: "", cashPct: "", poItemId: null });
@@ -50,7 +50,7 @@ export function PurchaseEntry({ mode, suppliers, products, pos = [] }: { mode: "
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {mode === "grn" && pos.length ? <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">{t("Against PO")}<select aria-label={t("Against PO")} value={poId} onChange={(e) => loadPo(e.target.value)} className={cell + " h-9"}><option value="">{t("— none —")}</option>{pos.map((p) => <option key={p.id} value={p.id}>{p.no}</option>)}</select></label> : null}
+        {mode === "grn" && pos.length ? <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">{t("Against PO")}<select aria-label={t("Against PO")} value={poId} onChange={(e) => loadPo(e.target.value)} className={cell + " h-9"}><option value="">{t("— none —")}</option>{pos.map((p) => <option key={p.id} value={p.id}>{p.supplier ? `${p.no} · ${p.supplier}` : p.no}</option>)}</select></label> : null}
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">{t("Supplier")}<select aria-label={t("Supplier")} value={supplierId} onChange={(e) => setSupplier(e.target.value)} className={cell + " h-9"}><option value="">{t("Choose…")}</option>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
         {mode === "grn" ? <>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">{t("Supplier invoice no.")}<input aria-label={t("Supplier invoice no.")} value={inv.no} onChange={(e) => setInv({ ...inv, no: e.target.value })} className={cell + " h-9"} /></label>

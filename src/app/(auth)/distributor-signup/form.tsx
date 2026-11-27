@@ -78,7 +78,14 @@ export function DistributorSignup({ signup, google = null, verifiedEmail = "" }:
       if (signup && !agree) return e("Accept the Terms and Privacy Policy to continue.");
       return start(async () => {
         const r = await createDistributorAction({ business: biz, owner: { name: owner.name, email: owner.email, phone: owner.phone, password: owner.password }, godowns, backupKey: kit.key, kitAck: true, agree });
-        if (!r.ok) return setErr(r.error);
+        if (!r.ok) {
+          // Send the person back to the step the problem is on, instead of leaving it on the last step.
+          const m = r.error.toLowerCase();
+          if (/mobile|email|password|name/.test(m) && !/business|code|gstin|licen/.test(m)) setStep(2);
+          else if (/gstin|business code|code is taken|licen|address|business name/.test(m)) setStep(1);
+          else if (/godown/.test(m)) setStep(3);
+          return setErr(r.error);
+        }
         setDone(r.data); setStep(5);
       });
     }

@@ -25,7 +25,7 @@ test.describe("sign-in", () => {
       await expect(page).toHaveURL(/\/signin\/mfa/);
       await page.getByRole("button", { name: "Use a recovery code" }).click();
       await page.getByLabel("Recovery code").fill(code.toUpperCase()); // case and dashes don't matter
-      const trust = page.getByLabel("Trust this counter PC for 30 days");
+      const trust = page.getByLabel("Trust this PC for 30 days");
       if (await trust.isChecked()) await trust.click();
       await page.getByRole("button", { name: "Verify" }).click();
     };

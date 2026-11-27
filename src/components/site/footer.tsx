@@ -29,7 +29,7 @@ const FOOT: FootCol[] = [
   { t: "Product", icon: Boxes, links: [["Medoro Pharmacy", "/pharmacy"], ["Medoro Distribution", "/distribution"], ["Medoro Medical Billing SaaS", "/medical-billing-saas"], ["Medoro Pharmacy Billing Software", "/pharmacy-billing-software"], ["Medoro Pharmacy Stock Software", "/medical-store-stock-management-software"], ["Medoro GST Billing", "/features/gst-billing"], ["Medoro Batch & Expiry Management", "/features/expiry-management"], ["Medoro Pricing", "/pharmacy#pricing"]] },
   { t: "Pharmacy software", icon: Store, links: LANDING_LINKS },
   { t: "Company", icon: Building2, links: [["About Medoro", "/about-medoro"], ["Blog", "/blog"], ["Become a reference partner", "/partners"], ["Careers", "/careers"], ["Switching to Medoro", "/pharmacy#switching"], ["Security & data", "/pharmacy#security"], ["FAQ", "/#faq"], ["Help & setup", "/legal#help"], ["Backup & recovery", "/legal#backup"], ["Contact", "/legal#contact"]] },
-  { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Pharmacy staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/employee"], ["Start 7-day free trial", "/trial"]] },
+  { t: "Sign in", icon: LogIn, links: [["Log in", "/signin"], ["Staff login", "/signin?view=employee"], ["Medoro employee login", "/staff/employee"], ["Start 7-day free trial", "/trial"]] },
   { t: "Legal", icon: Scale, links: [["Privacy policy", "/legal#privacy"], ["Terms of service", "/legal#terms"], ["Cancellation & refunds", "/legal#refund"], ["Cookie policy", "/legal#cookies"], ["DPDP rights", "/legal#dpdp"], ["Grievance officer", "/legal#grievance"]] },
 ];
 

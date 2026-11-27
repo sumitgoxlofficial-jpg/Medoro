@@ -26,7 +26,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
       {tab === "grn" ? (
         <>
           <Panel title="Supplier invoice → GRN" sub="Every line needs batch, expiry, quantity and rate. The lines must add up to the printed total (±₹1)." className="mb-4">
-            <PurchaseEntry mode="grn" suppliers={suppliers} products={prods} pos={openPos.map((p) => ({ id: p.id, no: p.no, supplierId: p.supplierId, items: p.items }))} />
+            <PurchaseEntry mode="grn" suppliers={suppliers} products={prods} pos={openPos.map((p) => ({ id: p.id, no: p.no, supplierId: p.supplierId, supplier: p.supplier, items: p.items }))} />
           </Panel>
           <Panel title="Recent GRNs" pad={false}>
             <DataTable cols={[{ label: "GRN" }, { label: "Supplier" }, { label: "Invoice" }, { label: "Date" }, { label: "Lines", num: true }, { label: "Total", num: true }]} rows={grns.map((g) => [g.no, g.supplier, g.invoiceNo, dateIN(g.date), g.lines, inr(g.total)])} empty="No goods received yet." />

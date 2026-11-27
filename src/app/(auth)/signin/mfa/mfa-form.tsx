@@ -81,7 +81,7 @@ export function MfaForm({ enrol, name, reset }: { enrol: { qr: string; secret: s
           <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" autoFocus aria-label={t("6-digit code")} className={codeInput} />
         )}
         <AuthError>{err}</AuthError>
-        {mode !== "lost" || enrol ? <label className="flex items-center gap-2 text-[13px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal" checked={trust} onChange={(e) => setTrust(e.target.checked)} />{t("Trust this counter PC for 30 days")}</label> : null}
+        {mode !== "lost" || enrol ? <label className="flex items-center gap-2 text-[13px] text-ink-2 cursor-pointer"><input type="checkbox" className="accent-teal" checked={trust} onChange={(e) => setTrust(e.target.checked)} />{t("Trust this PC for 30 days")}</label> : null}
         {mode === "lost" && !enrol ? (
           <AuthButton type="submit" disabled={pending || !reset?.ok || (!!sentTo && code.length !== 6)}>{pending ? "Please wait…" : sentTo ? "Reset two-step verification" : "Send code"}</AuthButton>
         ) : (

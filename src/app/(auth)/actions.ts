@@ -235,7 +235,7 @@ export async function countersFor(code: string, employeeNo = ""): Promise<{ id: 
 
 export async function employeeSignIn(input: { code: string; employeeNo: string; pin: string; counterId: string }): Promise<R<string>> {
   const code = input.code.trim().toUpperCase(), no = input.employeeNo.trim().toUpperCase();
-  if (code.length < 4) return fail("Enter your pharmacy code. Your manager can find it in Users.");
+  if (code.length < 4) return fail("Enter your business code. Your manager can find it in Users.");
   if (!/^\d{4}$/.test(input.pin)) return fail("Enter your 4-digit PIN.");
   const { ip } = await clientInfo();
   const keys = lockKeys("emp:" + code + ":" + no, ip);
