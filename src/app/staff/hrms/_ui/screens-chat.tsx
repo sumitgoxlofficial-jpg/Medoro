@@ -16,7 +16,7 @@ import { useLocalStorage, useOnChange } from "@/lib/react-state";
 
 type D = Data<"chat">;
 type Person = D["people"][number];
-type Poll = { chats: ChatRow[]; unread: number; presence: Presence | null; thread: { msgs: ChatMsg[]; readUpTo: number; typing: string[]; refresh: ChatMsg[] | null } | null };
+type Poll = { chats: ChatRow[]; unread: number; presence: Presence | null; thread: { msgs: ChatMsg[]; readUpTo: number; typing: string[]; typingNames?: Record<string, string>; refresh: ChatMsg[] | null } | null };
 type Backup = Awaited<ReturnType<typeof import("@/staff/hrms/chat-backup").backupStatus>> & { notice: string };
 type Info = Awaited<ReturnType<typeof chatGroupInfo>> extends infer R ? (R extends { ok: true; data: infer T } ? T : never) : never;
 
@@ -225,7 +225,7 @@ export function ChatScreen({ d }: { d: D }) {
   const [chats, setChats] = useState<ChatRow[]>(d.chats);
   const [active, setActive] = useState<string>(d.chats.some((c) => c.id === d.open) ? d.open : "");
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
-  const [readUpTo, setReadUpTo] = useState(0), [typing, setTyping] = useState<string[]>([]);
+  const [readUpTo, setReadUpTo] = useState(0), [typing, setTyping] = useState<string[]>([]), [typingBy, setTypingBy] = useState<Record<string, string>>({});
   const [pres, setPres] = useState<Presence>(() => Object.fromEntries(d.people.filter((p) => p.presence !== "offline").map((p) => [p.id, p.presence])));
   const [draft, setDraft] = useState(""), [sending, setSending] = useState(false), [q, setQ] = useState("");
   const [find, setFind] = useState(""), [findOpen, setFindOpen] = useState(false);
@@ -254,7 +254,7 @@ export function ChatScreen({ d }: { d: D }) {
       top.current = out.length ? out[out.length - 1].seq : 0;
       return out;
     });
-    setReadUpTo(p.thread.readUpTo); setTyping(p.thread.typing);
+    setReadUpTo(p.thread.readUpTo); setTyping(p.thread.typing); setTypingBy(p.thread.typingNames ?? {});
   }, [d.me.id]);
 
   const poll = useCallback(async (reset = false, forceFull = false) => {
@@ -347,7 +347,7 @@ export function ChatScreen({ d }: { d: D }) {
   const match = (c: ChatRow) => c.title.toLowerCase().includes(q.trim().toLowerCase());
   const channels = chats.filter((c) => c.kind === "group" && match(c)), dms = chats.filter((c) => c.kind === "dm" && match(c));
   const shown = find.trim() ? msgs.filter((m) => m.body.toLowerCase().includes(find.trim().toLowerCase())) : msgs;
-  const typingNames = typing.map((id) => byId.get(id)?.name.split(" ")[0]).filter(Boolean) as string[];
+  const typingNames = typing.map((id) => (byId.get(id)?.name ?? typingBy[id])?.split(" ")[0]).filter(Boolean) as string[];
   const row = (c: ChatRow) => (
     <button key={c.id} role="listitem" onClick={() => pick(c.id)} aria-current={c.id === active ? "true" : undefined} className={cx("w-full text-left flex gap-3 pl-3 pr-0 border-0 cursor-pointer items-center", c.id === active ? "bg-[#D9EAE5]/85" : "bg-transparent hover:bg-white/70")}>
       <Face name={c.title} photo={c.photo} avatar={c.kind === "dm" ? c.avatar : ""} size={48} status={c.kind === "dm" ? (pres[c.withId ?? ""] ?? "offline") : undefined} />

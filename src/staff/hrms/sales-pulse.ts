@@ -289,11 +289,18 @@ export async function welcomeFromIntro(me: { id: string; role: string }, chat: s
   if (u) await scheduleWelcome([u]);
 }
 
-// ── Replies: when a real person (an employee, HR or the super admin) asks the Sales group for an update ("What's the
-// update?", "Kitna kaam hua?", "आज कितने डेमो हुए?"), two to four bots answer with their own day's work, a few minutes
-// apart, in the language of the question. If the question names bots ("Neha, Rahul, update?"), only those answer.
-// Numbers follow each bot's own messages for the day, so a bot never contradicts what it posted. Only during
-// 09:30-20:00 India time (nobody answers at midnight), and a group-wide question gets answers at most every 10 minutes.
+// ── Replies: the bots take part in the conversation like colleagues. When a real person (an employee, HR or the super
+// admin) writes in the Sales group, a few bots answer, a few minutes apart, in the language of the message:
+//   * status: "What's the update?", "Kitna kaam hua?", "आज कितने डेमो हुए?" → their own day's calls, demos and sales
+//     (the numbers follow each bot's daily message, so a bot never contradicts itself); sometimes in two messages.
+//   * greet: "Good morning team" → greetings back.       * thanks: "Well done team" → thank-yous.
+//   * ack: HR or the super admin giving an instruction ("Please submit the report by 6") → "Noted 👍".
+//   * chat: anything else said to a bot by name ("Neha, are you free at 4?") → that bot answers (the AI model writes it
+//     when one is set up; otherwise a short "on a call, will get back" kind of reply).
+//   * congrats: a real sale or demo announced in the group → one or two bots congratulate the person.
+// Naming bots ("Neha, Rahul, update?") makes only those answer. While a bot's answer is coming, it shows as typing.
+// Only during 09:00-20:00 India time (nobody answers at midnight), and a group-wide message of one kind gets answers at
+// most every 10-20 minutes, so a chatty group isn't flooded.
 const ASK = new RegExp([
   String.raw`\b(update|updates|status|progress|report|eod)\b`,
   String.raw`\bhow (much|many)\b`,
@@ -306,9 +313,28 @@ const ASK = new RegExp([
   "अपडेट|कितना|कितने|कितनी|स्टेटस|रिपोर्ट|कहाँ तक|क्या हुआ|कैसा चल",
 ].join("|"), "i");
 export const isStatusAsk = (body: string) => ASK.test(body) && !INTRO.test(body);
+const GREET = /\b(good ?morning|gm|good ?afternoon|good ?evening|hello|hi+|hey|namaste|namaskar|ram ram|jai hind)\b|सुप्रभात|नमस्ते|नमस्कार|गुड मॉर्निंग|राम राम/i;
+const THANKS = /\b(well done|great (work|job|going|effort)|good (work|job|going)|nice work|keep it up|proud of|thank(s| you)|thanku|shabash|shabaash|badhiya kaam|awesome|superb|kudos|bravo)\b|शाबाश|बहुत बढ़िया|धन्यवाद|शुक्रिया|बढ़िया काम/i;
+const ACK = /\b(please|pls|plz|kindly|everyone|everybody|all of you|meeting|submit|share|send|join|by \d|before \d|deadline|reminder|zaroor|dhyan)\b|कृपया|सभी|मीटिंग|भेजें|जमा करें|ध्यान दें/i;
+export type ReplyMode = "status" | "greet" | "thanks" | "ack" | "chat" | "congrats" | "honest";
+// Someone asking a bot whether it is a bot or a real person always gets a straight answer, never a pretend human one.
+const BOT_WHO = /\b(are (you|u|they|these|all)|r u|you('re| are)|aap|tum|ye sab|yeh sab)\b|आप|तुम|ये सब/i;
+const BOT_WHAT = /\b(bots?|robots?|ai|real (person|people|human|employee)s?|humans?|insaan|asli|fake)\b|बॉट|रोबोट|असली|इंसान/i;
+/** What kind of message this is, for the bots' answers; null when it needs no answer from the group. */
+export function replyMode(body: string, role = ""): ReplyMode | null {
+  if (INTRO.test(body)) return null; // introductions get welcomes instead
+  if (BOT_WHO.test(body) && BOT_WHAT.test(body)) return "honest";
+  const boss = role === "hr" || role === "admin";
+  if (boss && ACK.test(body) && !body.includes("?") && !/^\s*(what|how|any|kitna|kitne|kya)\b/i.test(body)) return "ack"; // "Please submit your report by 6"
+  if (ASK.test(body)) return "status";
+  if (THANKS.test(body)) return "thanks";
+  if (GREET.test(body) && body.length <= 80) return "greet";
+  return null;
+}
 
-type Work = { calls: number; demos: number; sales: number; left: number; city: string; plan: string; g: (f: string, m: string) => string };
-const R_EN: ((n: string, w: Work) => string)[] = [
+type Work = { calls: number; demos: number; sales: number; left: number; city: string; plan: string; g: (f: string, m: string) => string; hello: string; helloHi: string };
+type Line = (n: string, w: Work) => string;
+const R_EN: Line[] = [
   (n, w) => `Hi ${n}! ${w.calls} calls done so far, ${w.demos} demos and ${w.sales} closed 👍`,
   (_, w) => `${w.sales} closed, ${w.demos} demos done today. Following up on ${w.left} more leads this evening.`,
   (n, w) => `Going good ${n} 🙂 ${w.calls} calls, ${w.demos} demos. The ${w.city} lead looks very positive for ${w.plan}.`,
@@ -318,7 +344,7 @@ const R_EN: ((n: string, w: Work) => string)[] = [
   (_, w) => `So far ${w.calls} calls, ${w.demos} demos, ${w.sales} ${s(w.sales)}. Pipeline looks strong this week.`,
   (n, w) => `Hi ${n}, just finished a demo. ${w.demos} demos and ${w.sales} ${s(w.sales)} today, ${w.left} follow-ups pending.`,
 ];
-const R_HI: ((n: string, w: Work) => string)[] = [
+const R_HI: Line[] = [
   (n, w) => `${n} जी, अभी तक ${w.calls} कॉल, ${w.demos} डेमो और ${w.sales} सेल हो गई 👍`,
   (_, w) => `आज ${w.demos} डेमो हो गए, ${w.sales} क्लोज़ हुई। शाम तक ${w.left} फॉलो-अप और करने हैं।`,
   (n, w) => `सब बढ़िया चल रहा है ${n} जी 🙂 ${w.city} वाला क्लाइंट ${w.plan} के लिए लगभग पक्का है।`,
@@ -328,7 +354,7 @@ const R_HI: ((n: string, w: Work) => string)[] = [
   (_, w) => `${w.calls} कॉल हो चुके, ${w.demos} डेमो हो गए। ${w.city} में ${w.plan} की डील आज ही होगी 🤞`,
   (_, w) => `आज का हाल: ${w.sales} सेल, ${w.demos} डेमो। इस हफ्ते पाइपलाइन अच्छी है 💪`,
 ];
-const R_HG: ((n: string, w: Work) => string)[] = [
+const R_HG: Line[] = [
   (n, w) => `${n} abhi tak ${w.calls} call, ${w.demos} demo aur ${w.sales} sale ho gayi 👍`,
   (n, w) => `Sab badhiya ${n} 🙂 ${w.demos} demo done, ${w.sales} closing. ${w.left} follow-up shaam ko karne hai`,
   (_, w) => `Update: ${w.calls} calls, ${w.demos} demos, ${w.sales} sale. EOD tak final number share kar ${w.g("dungi", "dunga")}`,
@@ -338,9 +364,73 @@ const R_HG: ((n: string, w: Work) => string)[] = [
   (_, w) => `Aaj ka scene: ${w.sales} sale, ${w.demos} demo, ${w.left} lead follow-up pe 💪`,
   (n, w) => `Chal raha hai ${n} 🙂 ${w.demos} demo ho gaye, ${w.sales} ne payment kar diya`,
 ];
+const G_EN: Line[] = [
+  (n, w) => `${w.hello} ${n}! 😊`, (_, w) => `${w.hello} everyone ☀️`, (_, w) => `${w.hello}! Let's make it a great day 💪`,
+  (n, w) => `${w.hello} ${n} 🙏`, (_, w) => `${w.hello}! Already on my first call 📞`, (_, w) => `${w.hello} team 👋`,
+];
+const G_HI: Line[] = [
+  (n, w) => `${n} जी, ${w.helloHi} 🙏`, (_, w) => `${w.helloHi} सबको 😊`, (_, w) => `${w.helloHi}! आज का दिन शानदार रहेगा 💪`,
+  (n, w) => `${w.helloHi} ${n} जी ☀️`, (_, w) => `${w.helloHi}! चलो आज टारगेट पूरा करते हैं 🎯`, (_, w) => `${w.helloHi} टीम 🙏`,
+];
+const G_HG: Line[] = [
+  (n, w) => `${w.hello} ${n} ji 🙏`, (_, w) => `${w.hello} sabko ☀️`, (_, w) => `${w.hello}! Aaj ka din mast jayega 💪`,
+  (n, w) => `${w.hello} ${n} 😊`, (_, w) => `${w.hello}, pehli call pe hi ${w.g("baithi", "baitha")} hoon 📞`, (_, w) => `${w.hello} team, chalo shuru karte hai 🔥`,
+];
+const T_EN: Line[] = [
+  (n) => `Thank you ${n} 🙏`, (n) => `Thanks ${n}! Means a lot 😊`, () => `Thank you! We'll keep pushing 💪`,
+  (n) => `Thanks for the support ${n} 🙌`, () => `Thank you, team effort 🙏`, (n) => `Thanks ${n}! More coming this week 🔥`,
+];
+const T_HI: Line[] = [
+  (n) => `धन्यवाद ${n} जी 🙏`, (n) => `शुक्रिया ${n} जी 😊`, () => `थैंक यू! ऐसे ही मेहनत करते रहेंगे 💪`,
+  () => `आपके सपोर्ट के लिए धन्यवाद 🙏`, () => `टीम की मेहनत है, धन्यवाद 🙌`, (n) => `थैंक यू ${n} जी, इस हफ्ते और अच्छा करेंगे 🔥`,
+];
+const T_HG: Line[] = [
+  (n) => `Thank you ${n} ji 🙏`, (n) => `Thanks ${n}, bahut accha laga 😊`, () => `Thank you! Aise hi push karte rahenge 💪`,
+  (n) => `Support ke liye thanks ${n} 🙌`, () => `Team ki mehnat hai, thank you 🙏`, (n) => `Thanks ${n}! Is hafte aur close karenge 🔥`,
+];
+const A_EN: Line[] = [() => `Noted 👍`, (n) => `Sure ${n}, will do ✅`, () => `Okay, noted 🙏`, (n) => `Got it ${n} 👍`, () => `Will do 👍`, () => `Noted, thanks for letting us know`];
+const A_HI: Line[] = [(n) => `ठीक है ${n} जी 👍`, () => `नोट कर लिया 🙏`, () => `जी, हो जाएगा ✅`, () => `ठीक है, ध्यान रखेंगे 👍`, (n) => `जी ${n} जी 🙏`, (_, w) => `ओके, समझ ${w.g("गई", "गया")} 👍`];
+const A_HG: Line[] = [(n) => `Ok ${n} ji 👍`, () => `Noted 🙏`, () => `Ji, ho jayega ✅`, () => `Theek hai, dhyan rakhenge 👍`, (n) => `Done ${n} 👍`, (_, w) => `Ok samajh ${w.g("gayi", "gaya")} 🙏`];
+// Without the AI model, a question to one bot gets a neutral "busy, will get back" answer that fits any question.
+const C_EN: Line[] = [
+  (n) => `Hi ${n}, on a call right now, will get back in 10 mins 📞`, (n) => `${n}, give me a few minutes, will get back to you 🙏`,
+  () => `Will check and let you know shortly 👍`, (n) => `In a client meeting ${n}, will call you once free`,
+];
+const C_HI: Line[] = [
+  (n, w) => `${n} जी, अभी कॉल पर हूँ, 10 मिनट में ${w.g("बताती", "बताता")} हूँ 📞`, (n, w) => `${n} जी, थोड़ी देर में देखकर ${w.g("बताती", "बताता")} हूँ 🙏`,
+  (_, w) => `थोड़ी देर में चेक करके ${w.g("बताती", "बताता")} हूँ 👍`, (n, w) => `${n} जी, क्लाइंट मीटिंग में हूँ, फ्री होते ही कॉल ${w.g("करती", "करता")} हूँ`,
+];
+const C_HG: Line[] = [
+  (n, w) => `${n} abhi call pe hoon, 10 min me ${w.g("batati", "batata")} hoon 📞`, (n, w) => `${n}, thodi der me check karke ${w.g("batati", "batata")} hoon 🙏`,
+  (_, w) => `Check karke ${w.g("batati", "batata")} hoon thodi der me 👍`, (n, w) => `${n} client meeting me hoon, free hote hi call ${w.g("karti", "karta")} hoon`,
+];
+const W2_EN: Line[] = [(n) => `Congrats ${n}! 🎉`, (n) => `Woohoo, well done ${n} 🔥`, (n) => `Great job ${n} 👏`, (n) => `Superb ${n}! Keep it going 💪`, (n) => `That's the way ${n} 🚀`];
+const W2_HI: Line[] = [(n) => `बधाई हो ${n} 🎉`, (n) => `शाबाश ${n}! 👏`, (n) => `बहुत बढ़िया ${n} 🔥`, (n) => `वाह ${n}, ऐसे ही आगे बढ़ो 💪`];
+const W2_HG: Line[] = [(n) => `Congrats ${n} 🎉 ekdum mast`, (n) => `Waah ${n}, kya baat hai 🔥`, (n) => `Badhai ho ${n} 👏`, (n) => `${n} ne toh kamaal kar diya 🚀`, (n) => `Shabash ${n}, aise hi chalte raho 💪`];
+// The first half of an update sent in two messages ("Hi Amit!" … "4 demos done, 1 closed").
+const O_EN: Line[] = [(n) => `Hi ${n}!`, () => `One sec, sharing 🙏`, () => `Hey 👋`];
+const O_HI: Line[] = [(n) => `${n} जी 🙏`, (_, w) => `जी, ${w.g("बताती", "बताता")} हूँ`];
+const O_HG: Line[] = [(n) => `Haan ${n}`, () => `Ek sec 🙏`, (_, w) => `Bata ${w.g("rahi", "raha")} hoon`];
+const H_EN: Line[] = [() => `Yes, I'm one of the Sales Pulse bots 🙂 I post automatically, I'm not a real employee.`];
+const H_HI: Line[] = [(_, w) => `जी, मैं Sales Pulse बॉट हूँ 🙂 अपने आप मैसेज ${w.g("भेजती", "भेजता")} हूँ, असली कर्मचारी नहीं हूँ।`];
+const H_HG: Line[] = [(_, w) => `Haan, main Sales Pulse bot hoon 🙂 automatically message ${w.g("karti", "karta")} hoon, real employee nahi hoon.`];
+type Lang = "e" | "h" | "g";
+const POOLS: Record<ReplyMode, Record<Lang, Line[]>> = {
+  status: { e: R_EN, h: R_HI, g: R_HG }, greet: { e: G_EN, h: G_HI, g: G_HG }, thanks: { e: T_EN, h: T_HI, g: T_HG },
+  ack: { e: A_EN, h: A_HI, g: A_HG }, chat: { e: C_EN, h: C_HI, g: C_HG }, congrats: { e: W2_EN, h: W2_HI, g: W2_HG },
+  honest: { e: H_EN, h: H_HI, g: H_HG },
+};
+const OPENERS: Record<Lang, Line[]> = { e: O_EN, h: O_HI, g: O_HG };
+// How many bots answer a message to everyone, how soon the first one does (seconds), and how long a kind rests after.
+const SHAPE: Record<ReplyMode, { min: number; max: number; first: [number, number]; rest: number }> = {
+  status: { min: 2, max: 4, first: [60, 180], rest: 10 }, greet: { min: 2, max: 4, first: [25, 90], rest: 20 },
+  thanks: { min: 1, max: 3, first: [40, 150], rest: 15 }, ack: { min: 2, max: 3, first: [30, 120], rest: 10 },
+  chat: { min: 0, max: 0, first: [45, 200], rest: 0 }, congrats: { min: 1, max: 2, first: [30, 180], rest: 0 },
+  honest: { min: 1, max: 1, first: [20, 60], rest: 5 },
+};
 const REPLY_PREFIX = "salesPulseReply:";
-const REPLY_LAST = "salesPulseReplyLast";
-const R_START = 9 * 60 + 30, R_END = 20 * 60;
+const REPLY_LAST = "salesPulseReplyLast:";
+const R_START = 9 * 60, R_END = 20 * 60;
 
 /** The bots named in a message by first name ("Neha", "@Rahul"), leaving out names a real member of the group also has. */
 export function namedBots(body: string, realFirstNames: string[] = []): Persona[] {
@@ -351,45 +441,74 @@ export function namedBots(body: string, realFirstNames: string[] = []): Persona[
   });
 }
 
-/** The bots' answers to one question: who answers, what each says and when. Empty outside 09:30-20:00 India time. */
-export function replyPlan(key: string, asker: string, ask: string, from: Date, named: Persona[] = []): Pending[] {
+function hellos(ask: string, minute: number) {
+  const part = /morning|gm\b|सुप्रभात|मॉर्निंग/i.test(ask) ? 0 : /afternoon/i.test(ask) ? 1 : /evening/i.test(ask) ? 2 : minute < 12 * 60 ? 0 : minute < 17 * 60 ? 1 : 2;
+  return { hello: ["Good morning", "Good afternoon", "Good evening"][part], helloHi: part === 0 ? "सुप्रभात" : "नमस्ते" };
+}
+
+/**
+ * The bots' answers to one message: who answers, what each says and when. Empty outside 09:00-20:00 India time.
+ * `asker` is the first name to address (empty for the super admin, who stays anonymous in chat; for congrats, the winner).
+ */
+export function replyPlan(key: string, asker: string, ask: string, from: Date, named: Persona[] = [], mode: ReplyMode = "status"): Pending[] {
   const day = istDay(from), midnight = Date.parse(`${day}T00:00:00Z`) - IST, min = (from.getTime() - midnight) / 60_000;
   if (min < R_START || min > R_END) return [];
-  const r = rng(`medoro-sales-reply:${key}`);
+  const r = rng(`medoro-sales-reply:${key}`), shape = SHAPE[mode];
   let bots = named.slice(0, 3);
   if (!bots.length) {
     const all = [...PERSONAS];
     for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
-    bots = all.slice(0, 2 + Math.floor(r() * 3));
+    bots = all.slice(0, shape.min + Math.floor(r() * (shape.max - shape.min + 1)));
   }
-  const lang = langOf(ask), main = lang.startsWith("Hindi") ? R_HI : lang.startsWith("Hinglish") ? R_HG : R_EN;
-  const other = lang.startsWith("English") ? R_HG : lang.startsWith("Hindi") ? R_HG : R_EN; // a team mixes languages a bit
+  const lang = langOf(ask), main: Lang = lang.startsWith("Hindi") ? "h" : lang.startsWith("Hinglish") ? "g" : "e";
+  const other: Lang = main === "g" ? "e" : "g"; // a team mixes languages a bit
   const plan = new Map(daySchedule(day).map((x) => [x.senderId, x]));
   const first = asker.trim().split(/\s+/)[0] ?? "";
+  const hi = hellos(ask, min);
   const used = new Set<string>();
+  const choose = (pools: Record<Lang, Line[]>, l: Lang, w: Work) => {
+    const pool = pools[l];
+    // No name to use: only the lines that don't address anyone.
+    const tag = (j: number) => `${pools === OPENERS ? "o" : mode}${j}`; // the same line in another language counts as used
+    const fits = (j: number) => !used.has(tag(j)) && (!!first || !pool[j]("\u0000", w).includes("\u0000"));
+    let i = Math.floor(r() * pool.length);
+    for (let n = 0; n < pool.length && !fits(i); n++) i = (i + 1) % pool.length;
+    if (!fits(i)) return null;
+    used.add(tag(i));
+    return pool[i](first, w);
+  };
+  const out: Pending[] = [];
   let t = from.getTime();
-  return bots.map((b, k) => {
-    t += (k === 0 ? 60 + Math.floor(r() * 120) : 90 + Math.floor(r() * 240)) * 1000; // first in 1-3 min, then every 1.5-5.5 min
+  bots.forEach((b, k) => {
+    const [lo, hiS] = shape.first;
+    t += (k === 0 ? lo + Math.floor(r() * (hiS - lo)) : 45 + Math.floor(r() * 120)) * 1000;
     const slot = plan.get(b.id), f = slot?.fill ?? { n: 1, d: 3, city: pick(r, CITIES), plan: pick(r, PLANS), feat: "", featHi: "" };
     const before = slot ? slot.at.getTime() > from.getTime() : false; // its daily message hasn't gone out yet: a bit less done
     const demos = Math.max(1, f.d - (before ? 1 : 0)), sales = Math.max(1, f.n - (before ? 1 : 0));
-    const w: Work = { demos, sales, calls: demos * 3 + 4 + Math.floor(r() * 9), left: 2 + Math.floor(r() * 5), city: f.city, plan: f.plan, g: (fe, ma) => (b.gender === "f" ? fe : ma) };
-    const pool = r() < 0.75 ? main : other;
-    // No name to use (the super admin stays anonymous in chat): only the messages that don't address anyone.
-    const tag = pool === R_EN ? "e" : pool === R_HI ? "h" : "g", fits = (j: number) => !used.has(tag + j) && (!!first || !pool[j]("\u0000", w).includes("\u0000"));
-    let i = Math.floor(r() * pool.length);
-    for (let n = 0; n < pool.length && !fits(i); n++) i = (i + 1) % pool.length;
-    used.add(tag + i);
-    return { at: new Date(t).toISOString(), senderId: b.id, body: pool[i](first, w) };
+    const w: Work = { demos, sales, calls: demos * 3 + 4 + Math.floor(r() * 9), left: 2 + Math.floor(r() * 5), city: f.city, plan: f.plan, g: (fe, ma) => (b.gender === "f" ? fe : ma), ...hi };
+    const l = mode !== "honest" && r() >= 0.75 ? other : main;
+    if (mode === "status" && r() < 0.3) { // typed in two goes, like people do
+      const o = choose(OPENERS, l, w);
+      if (o) { out.push({ at: new Date(t).toISOString(), senderId: b.id, body: o }); t += (15 + Math.floor(r() * 35)) * 1000; }
+    }
+    const body = choose(POOLS[mode], l, w) ?? choose(POOLS[mode], main, w);
+    if (body) out.push({ at: new Date(t).toISOString(), senderId: b.id, body });
   });
+  return out;
 }
 
-/**
- * A real person asking the Sales group for an update: queues the bots' answers (sent by the tick, like welcomes).
- * The question is kept with real names swapped for [asker] / [colleague], so the AI rewrite never sees them.
- */
+const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Real names in a message swapped for [asker] / [colleague], so the AI rewrite never sees them. */
+function scrub(body: string, asker: string, others: string[]) {
+  let t = body.slice(0, 300);
+  for (const part of asker.split(/\s+/).filter((x) => x.length > 1)) t = t.replace(new RegExp(esc(part), "gi"), "[asker]");
+  for (const n of others) for (const part of n.split(/\s+/).filter((x) => x.length > 2)) t = t.replace(new RegExp(esc(part), "gi"), "[colleague]");
+  return t;
+}
+
+/** A real person's message in the Sales group: queues the bots' answers, if it calls for any (sent by the tick). */
 export async function repliesFromAsk(me: { id: string; name: string; role: string }, chat: string, body: string, msgId: string, now = new Date()) {
-  if (isPulse(me.id) || !isStatusAsk(body)) return;
+  if (isPulse(me.id)) return;
   const c = await db.hrChat.findUnique({ where: { id: chat }, select: { sysKey: true } });
   if (c?.sysKey !== PULSE_KEY) return;
   const state = (await db.hrSetting.findUnique({ where: { key: STATE_KEY } }))?.value as Partial<State> | undefined;
@@ -397,18 +516,35 @@ export async function repliesFromAsk(me: { id: string; name: string; role: strin
   const mem = await db.hrChatMember.findMany({ where: { chatId: chat }, select: { staffId: true } });
   const users = await db.staffUser.findMany({ where: { id: { in: mem.map((m) => m.staffId).filter((id) => !isPulse(id)) } }, select: { name: true } });
   const named = namedBots(body, users.map((u) => u.name.trim().split(/\s+/)[0]));
-  if (!named.length) { // a question to everyone: answered at most every 10 minutes, so a chatty group isn't flooded
-    const last = (await db.hrSetting.findUnique({ where: { key: REPLY_LAST } }))?.value as { at?: string } | undefined;
-    if (last?.at && now.getTime() - Date.parse(last.at) < 10 * 60_000) return;
+  const mode = replyMode(body, me.role) ?? (named.length && !INTRO.test(body) ? "chat" : null);
+  if (!mode) return;
+  if (!named.length) { // a message to everyone: answered at most every few minutes per kind
+    const last = (await db.hrSetting.findUnique({ where: { key: REPLY_LAST + mode } }))?.value as { at?: string } | undefined;
+    if (last?.at && now.getTime() - Date.parse(last.at) < SHAPE[mode].rest * 60_000) return;
   }
-  const pending = replyPlan(msgId, me.role === "admin" ? "" : me.name, body, now, named);
+  const name = me.role === "admin" ? "" : me.name;
+  const pending = replyPlan(msgId, name, body, now, named, mode);
   if (!pending.length) return;
-  let ask = body.slice(0, 300);
-  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  for (const part of me.name.split(/\s+/).filter((x) => x.length > 1)) ask = ask.replace(new RegExp(esc(part), "gi"), "[asker]");
-  for (const u of users) for (const part of u.name.split(/\s+/).filter((x) => x.length > 2)) ask = ask.replace(new RegExp(esc(part), "gi"), "[colleague]");
-  await db.hrSetting.upsert({ where: { key: REPLY_PREFIX + msgId }, create: { key: REPLY_PREFIX + msgId, value: { name: me.role === "admin" ? "" : me.name, ask, pending } }, update: {} });
-  if (!named.length) await db.hrSetting.upsert({ where: { key: REPLY_LAST }, create: { key: REPLY_LAST, value: { at: now.toISOString() } }, update: { value: { at: now.toISOString() } } });
+  await db.hrSetting.upsert({ where: { key: REPLY_PREFIX + msgId }, create: { key: REPLY_PREFIX + msgId, value: { name, mode, ask: scrub(body, me.name, users.map((u) => u.name)), pending } }, update: {} });
+  if (!named.length) await db.hrSetting.upsert({ where: { key: REPLY_LAST + mode }, create: { key: REPLY_LAST + mode, value: { at: now.toISOString() } }, update: { value: { at: now.toISOString() } } });
+}
+
+/**
+ * The bots that are "typing" right now in the Sales group: those with a message due in the next few seconds (or due
+ * and waiting for the next tick to send it). Empty when the bots are off.
+ */
+export async function botsTyping(now = new Date()): Promise<string[]> {
+  const row = await db.hrSetting.findUnique({ where: { key: STATE_KEY } });
+  const saved = (row?.value ?? {}) as Partial<State>;
+  if (saved.enabled === false) return [];
+  const t = now.getTime(), soon = (at: number) => at - 12_000 <= t && t <= at + 90_000;
+  const ids = new Set<string>();
+  const today = istDay(now), posted = saved.day === today ? saved.posted ?? 0 : 0;
+  for (const x of daySchedule(today).slice(posted)) if (soon(x.at.getTime())) ids.add(x.senderId);
+  for (const q of await db.hrSetting.findMany({ where: { OR: [{ key: { startsWith: REPLY_PREFIX } }, { key: { startsWith: WELCOME_PREFIX } }] } })) {
+    for (const x of ((q.value as { pending?: Pending[] }).pending ?? [])) if (soon(Date.parse(x.at))) ids.add(x.senderId);
+  }
+  return [...ids].slice(0, 3);
 }
 
 const slotKey = (senderId: string, at: string | Date) => `${senderId}|${typeof at === "string" ? at : at.toISOString()}`;
@@ -433,10 +569,11 @@ async function prepareTexts(chat: string, now: Date): Promise<Map<string, string
     }
   }
   for (const q of await db.hrSetting.findMany({ where: { key: { startsWith: REPLY_PREFIX } } })) {
-    const v = q.value as { name?: string; ask?: string; pending?: Pending[] };
+    const v = q.value as { name?: string; ask?: string; mode?: ReplyMode; pending?: Pending[] };
     const first = (v.name ?? "").trim().split(/\s+/)[0] ?? "";
+    if (v.mode === "honest") continue; // sent word for word
     for (const x of v.pending ?? []) if (new Date(x.at) <= now) {
-      briefs.push({ key: slotKey(x.senderId, x.at), senderId: x.senderId, name: pulseName(x.senderId), brief: first ? x.body.replaceAll(first, "[asker]") : x.body, kind: "reply", newName: first, ask: v.ask ?? "" });
+      briefs.push({ key: slotKey(x.senderId, x.at), senderId: x.senderId, name: pulseName(x.senderId), brief: first ? x.body.replaceAll(first, "[asker]") : x.body, kind: "reply", mode: v.mode ?? "status", newName: first, ask: v.ask ?? "" });
     }
   }
   if (!briefs.length) return new Map();
@@ -496,6 +633,14 @@ export async function salesPulseTick(now = new Date(), force = false) {
       }
       wins.sort((a, b) => a.at.getTime() - b.at.getTime());
       for (const w of wins) await write(w.staffId, "win", w.body, w.at);
+      // A colleague or two congratulates each fresh win (not a backlog after a long pause).
+      if (s.enabled && wins.length <= 3) for (const w of wins) {
+        if (now.getTime() - w.at.getTime() > CATCH_UP_MS) continue;
+        const who = await tx.staffUser.findUnique({ where: { id: w.staffId }, select: { name: true } });
+        const key = `win:${w.staffId}:${w.at.getTime()}`;
+        const pending = who ? replyPlan(key, who.name, w.body, now, [], "congrats") : [];
+        if (pending.length) await tx.hrSetting.upsert({ where: { key: REPLY_PREFIX + key }, create: { key: REPLY_PREFIX + key, value: { name: who!.name, mode: "congrats", ask: w.body, pending } }, update: {} });
+      }
 
       // Team milestones: when today's real team totals pass a threshold, the "Sales team" posts it once.
       if (wins.length) {
