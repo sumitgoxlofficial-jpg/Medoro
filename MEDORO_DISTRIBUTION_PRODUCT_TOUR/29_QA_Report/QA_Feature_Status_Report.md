@@ -33,11 +33,12 @@ Demo account and data: see `30_Demo_Data/README.md`.
 | 7 | Low (a11y) | Some forms have inputs without accessible labels (Companies/principals/suppliers, Territories/salesmen, the credit-note lines on the invoice) | Open |
 | 8 | Info | Portal discovery shows a distributor's address from its most recently created godown | Open |
 | 9 | Medium (privacy) | Every role, including Salesman, Warehouse and Delivery, sees the full distributor dashboard: today's and month's sales, collections, total receivable and top outstanding chemists | Open (shown honestly in Part 23) |
+| 11 | Low (copy) | The password-reset email ends "let your pharmacy owner know" for a distributor owner | Open |
 | 10 | Low (UX) | "Against PO" on Receive goods lists only PO numbers, not the supplier, so the wrong PO is easy to pick (it happened in a first recording take of Part 08) | Open |
 
 ## 3. Feature status (verified on the demo server)
 
-Legend: **Working** = demonstrated end to end on camera or in rehearsal · **Partial** = works with the limits noted · **Requires configuration** = needs external credentials · **Not available** = not in the application · **Built** = added during this project.
+Legend: **Working** = demonstrated end to end on camera and checked in the demo database · **Partial** = works with the limits noted · **Requires configuration** = needs external credentials · **Not available** = not in the application · **Built** = added during this project.
 
 
 | Area | Feature | Status | Notes |
@@ -88,4 +89,61 @@ Legend: **Working** = demonstrated end to end on camera or in rehearsal · **Par
 
 ## 4. Recording QA
 
-(filled in after recording)
+
+- **38 MP4 files:** 26 chapter videos and 12 compilations; the complete tour (V01) runs 1:30:02. All 1920×1080, 30 fps, H.264 (CRF 20) with AAC 160 kbps 48 kHz, about 1.4 GB in total. Chapter timestamps for every compilation are in its `_chapters.txt` and in `27_Scripts_Subtitles/Video_Titles_Descriptions_Timestamps.md`.
+- **Recording method:** a real Chromium window (125 % zoom) on a 1920×1080 virtual display, captured with ffmpeg (x11grab, 30 fps). Staff phones (warehouse, delivery, salesman) and the chemist's phone are a second, phone-sized app window signed in as that person. Every screen is the real Medoro Distribution application; title cards, intro/outro and the "demo test inbox" panel are the only designed frames. An overlay draws a highlighted cursor, click ripples, spotlights, zoom-ins and callouts.
+- **Voice-over:** Microsoft neural Hindi voice (hi-IN-SwaraNeural), spoken from Devanagari text with English business terms; each scene lasts at least as long as its narration. Subtitles are the Roman Hinglish text, burned in and supplied as SRT.
+- **Music:** a light background track synthesised for this project (royalty-free), ducked under the voice; mix normalised to −16 LUFS.
+- **Branding:** official Medoro logo and colours (#0B5E5B, #0B3A78, #0A9A80), IBM Plex type on chapter cards, outro and thumbnails.
+- **Checks done:**
+  - Every chapter's actions were checked twice: frames from the video, and the resulting rows in the demo database (orders, picks, invoices, deliveries, schemes, claims, POs).
+  - Takes that did not match their narration were re-recorded: the whole set after the first takes were clipped on the right (browser window wider than the screen at 125 %) and after Chrome's "Save password?" bubble covered Part 03; Part 08 (wrong PO picked); Part 15 (short pick not registered, four takes); Part 16 (wrong invoices on the trip). Earlier takes are kept aside, not delivered.
+  - Two scenes whose click did not happen were re-narrated to describe what the screen shows: Part 19 (cart updates without "Add to cart") and Part 23 (the salesman's phone shows the full dashboard — finding 9).
+  - The complete tour's audio decodes without errors; audio and video durations differ by less than 0.1 s over 90 minutes.
+  - Secrets (QR code, authenticator key, recovery codes) are blurred as they render; one-time sign-up and reset codes from the test inbox are shown, as they are demo-only and expired.
+- **Known limitations:** synthetic voice; subtitle timing within a scene is proportional to text length, not word-aligned; the session clock is 27 Nov 2026, so "today" in the demo is that date; the history was entered by script through the app's services (see `30_Demo_Data`), while everything narrated as done on camera was done on camera.
+
+| Chapter | Length |
+|---|---|
+| Part_01_Introduction | 3:17 |
+| Part_02_Account_Registration | 4:08 |
+| Part_03_Distributor_Onboarding | 4:29 |
+| Part_04_Dashboard | 2:54 |
+| Part_05_Product_Management | 3:29 |
+| Part_06_Godown_Inventory | 3:55 |
+| Part_07_Supplier_Management | 3:26 |
+| Part_08_Purchase_GRN | 4:35 |
+| Part_09_Batch_Expiry | 3:24 |
+| Part_10_Sales_Orders | 3:22 |
+| Part_11_Credit_Control | 3:44 |
+| Part_12_Schemes_Free_Goods | 3:33 |
+| Part_13_GST_Invoicing | 3:58 |
+| Part_14_Expiry_Claims_Returns | 3:31 |
+| Part_15_Picking_Packing | 2:39 |
+| Part_16_Dispatch_Delivery | 3:01 |
+| Part_17_Collections | 2:47 |
+| Part_18_Salesman_Territories | 2:51 |
+| Part_19_Chemist_Portal | 3:55 |
+| Part_20_Accounts_Finance | 3:04 |
+| Part_21_GST_Reports | 2:26 |
+| Part_22_MIS_Analytics | 3:38 |
+| Part_23_User_Permissions | 3:52 |
+| Part_24_Backup_Security | 2:53 |
+| Part_25_Subscription_Language_Workflow | 4:59 |
+| Part_26_Conclusion | 2:01 |
+
+| Compilation | Length |
+|---|---|
+| V01_Medoro_Distribution_Complete_Product_Tour | 1:30:02 |
+| V02_Registration_and_Distributor_Onboarding | 8:37 |
+| V03_Dashboard_and_Business_Overview | 6:11 |
+| V04_Product_Inventory_and_Godown_Management | 10:49 |
+| V05_Purchase_Suppliers_and_GRN | 8:01 |
+| V06_Sales_Orders_and_Credit_Control | 7:07 |
+| V07_Schemes_Discounts_and_GST_Invoicing | 7:31 |
+| V09_Picking_Packing_and_Dispatch | 5:40 |
+| V08_Chemist_Portal_and_Salesman_App | 6:46 |
+| V10_Collections_Accounts_and_GST | 8:17 |
+| V11_Expiry_Claims_and_MIS_Analytics | 7:10 |
+| V12_Staff_Security_Backup_and_Subscription | 11:46 |
+

@@ -1,0 +1,343 @@
+1
+00:00:00,162 --> 00:00:07,406
+Part 14 mein chemist se aaye returns aur expiry claims: invoice se credit note, saleable,
+
+2
+00:00:07,406 --> 00:00:13,348
+expired aur damaged maal, quarantine, company par claim, acknowledgement,
+
+3
+00:00:13,348 --> 00:00:16,766
+company ka credit note aur reconciliation.
+
+4
+00:00:17,741 --> 00:00:22,827
+Return hamesha us invoice se banta hai jisse maal gaya tha.
+
+5
+00:00:22,827 --> 00:00:27,138
+Isse batch, rate aur GST apne-aap sahi rehte hain.
+
+6
+00:00:27,138 --> 00:00:32,569
+Invoices mein City Care Chemists ka aaj ka invoice kholte hain.
+
+7
+00:00:33,329 --> 00:00:36,042
+Neeche credit note ka form hai.
+
+8
+00:00:36,042 --> 00:00:42,342
+Har line par kitne packs wapas aaye, unki condition, aur credit percent.
+
+9
+00:00:42,342 --> 00:00:49,693
+Amoxirise CV ke 2 packs saleable hain: yeh wapas usi batch mein stock mein jaayenge.
+
+10
+00:00:50,400 --> 00:00:55,640
+Azivon ke 3 packs toote hue aaye, toh condition Damaged chuniye,
+
+11
+00:00:55,640 --> 00:00:59,488
+aur chemist ke saath tay hua 50 percent credit.
+
+12
+00:00:59,488 --> 00:01:05,547
+Damaged aur expired maal stock mein nahi, balki quarantine mein jaata hai,
+
+13
+00:01:05,547 --> 00:01:07,676
+company par claim ke liye.
+
+14
+00:01:08,356 --> 00:01:12,629
+Reason likhiye, jo credit note par chhapta hai.
+
+15
+00:01:12,629 --> 00:01:16,357
+Button par credit ki rakam dikh rahi hai.
+
+16
+00:01:16,357 --> 00:01:19,812
+GST bhi usi anupaat mein kam hota hai.
+
+17
+00:01:19,812 --> 00:01:22,176
+Issue credit note dabaiye.
+
+18
+00:01:22,880 --> 00:01:27,544
+Credit note ban gaya aur chemist ka balance kam ho gaya.
+
+19
+00:01:27,544 --> 00:01:34,372
+Credit notes screen par saare sales returns ki list hai: number, invoice, chemist,
+
+20
+00:01:34,372 --> 00:01:35,788
+reason aur rakam.
+
+21
+00:01:36,469 --> 00:01:38,257
+Ab expiry claims.
+
+22
+00:01:38,257 --> 00:01:40,992
+Expiry and claims kholiye.
+
+23
+00:01:40,992 --> 00:01:47,304
+Workbench mein Gastrocalm Gel ka expired batch eligible hai.
+
+24
+00:01:47,304 --> 00:01:48,777
+Claim dabaiye.
+
+25
+00:01:49,451 --> 00:01:53,389
+Claim form mein packs, reason expiry, aur note.
+
+26
+00:01:53,389 --> 00:02:01,014
+Medoro company ke principal agreement se check karta hai ki claim window khuli hai ya nahi,
+
+27
+00:02:01,014 --> 00:02:03,611
+aur expected credit batata hai.
+
+28
+00:02:03,611 --> 00:02:05,287
+Raise claim dabaiye.
+
+29
+00:02:05,981 --> 00:02:11,608
+Claim raise ho gaya aur maal stock se nikal kar claim mein chala gaya.
+
+30
+00:02:11,608 --> 00:02:18,761
+Claims tab mein har claim ka number, supplier, item, packs, reason, kitne din purana hai,
+
+31
+00:02:18,761 --> 00:02:22,057
+claim value, credited aur open rakam hai.
+
+32
+00:02:22,732 --> 00:02:28,700
+Jab company ya C and F claim maan le, Supplier acknowledged dabaiye.
+
+33
+00:02:28,700 --> 00:02:31,597
+Status acknowledged ho jaata hai.
+
+34
+00:02:31,597 --> 00:02:36,336
+Maal company ko bhejne ka record bhi isi se judta hai.
+
+35
+00:02:37,031 --> 00:02:41,635
+Company ka credit note aane par Record credit note kholiye,
+
+36
+00:02:41,635 --> 00:02:44,679
+company ka CN number aur rakam bhariye.
+
+37
+00:02:44,679 --> 00:02:47,488
+Hum yahan sirf form dikha rahe hain.
+
+38
+00:02:47,488 --> 00:02:53,419
+Asli settlement tabhi darj kariye jab company ka credit note sach mein mile.
+
+39
+00:02:54,184 --> 00:03:01,027
+Reconciliation tab har supplier ka hisaab dikhata hai: kitne claims, kitna claim kiya,
+
+40
+00:03:01,027 --> 00:03:05,880
+kitna credit mila, kitna write-off hua, kitna abhi khula hai,
+
+41
+00:03:05,880 --> 00:03:09,540
+aur sabse purana khula claim kitne din ka hai.
+
+42
+00:03:10,374 --> 00:03:14,164
+Har company ki claim window alag hoti hai,
+
+43
+00:03:14,164 --> 00:03:20,209
+jaise expiry se 60 ya 90 din pehle se lekar 90 ya 180 din baad tak.
+
+44
+00:03:20,209 --> 00:03:26,796
+Window band hone ke baad claim nahi hota, aur maal ka poora nuksan aapka.
+
+45
+00:03:26,796 --> 00:03:29,954
+Isliye workbench har hafte dekhiye.
+
+46
+00:03:31,690 --> 00:03:37,941
+Part 22 mein MIS reports aur business intelligence: chaudah MIS reports,
+
+47
+00:03:37,941 --> 00:03:44,626
+date range aur CSV export, phir reorder suggestions, expiry risk, dead stock,
+
+48
+00:03:44,626 --> 00:03:51,918
+profitability, scheme results, credit risk, sales forecast aur management assistant.
+
+49
+00:03:52,888 --> 00:03:55,890
+Finance mein MIS reports kholiye.
+
+50
+00:03:55,890 --> 00:04:02,896
+Website par chaudah MIS reports likhe hain, aur yahan sach mein chaudah hain.
+
+51
+00:04:02,896 --> 00:04:08,719
+Har aankda posted invoices, GRN, vouchers aur stock se aata hai,
+
+52
+00:04:08,719 --> 00:04:12,540
+aur har report CSV mein download hoti hai.
+
+53
+00:04:13,249 --> 00:04:20,569
+Ek-ek karke dekhte hain: sales register, product-wise, company-wise aur chemist-wise sales,
+
+54
+00:04:20,569 --> 00:04:25,557
+salesman performance, territory-wise sales, purchase register.
+
+55
+00:04:28,985 --> 00:04:36,357
+Phir batch-wise stock statement, outstanding aur ageing, collections, scheme report,
+
+56
+00:04:36,357 --> 00:04:41,272
+delivery performance, supplier claims, aur credit notes.
+
+57
+00:04:41,272 --> 00:04:42,325
+Kul chaudah.
+
+58
+00:04:43,272 --> 00:04:45,437
+Sales by product kholiye.
+
+59
+00:04:45,437 --> 00:04:53,405
+Har product ke bike packs, free packs, taxable sales, cost, gross margin aur margin percent.
+
+60
+00:04:53,405 --> 00:05:01,460
+Isse pata chalta hai ki kaunsa product sach mein kamaata hai aur kaunsa sirf volume deta hai.
+
+61
+00:05:02,125 --> 00:05:06,583
+Date range badal kar Apply kariye, jaise pichhle mahine ka.
+
+62
+00:05:06,583 --> 00:05:11,418
+CSV dabaate hi file Excel mein khulne ke liye download hoti hai,
+
+63
+00:05:11,418 --> 00:05:14,289
+jise CA ya company ko bhej sakte hain.
+
+64
+00:05:14,978 --> 00:05:23,232
+Outstanding and ageing report har chemist ka limit, balance, overdue aur 0 se 30, 31 se 60,
+
+65
+00:05:23,232 --> 00:05:26,044
+aur purane buckets dikhata hai.
+
+66
+00:05:26,044 --> 00:05:29,854
+Vasooli ki meeting isi report se chalaiye.
+
+67
+00:05:30,562 --> 00:05:32,747
+Ab Business intelligence.
+
+68
+00:05:32,747 --> 00:05:39,127
+Yeh koi jaadu wala AI nahi, balki aapke apne data ka saaf statistics hai.
+
+69
+00:05:39,127 --> 00:05:45,770
+Kuch bhi apne-aap post nahi hota: kharid ke sujhav sirf draft PO bante hain,
+
+70
+00:05:45,770 --> 00:05:48,654
+jinhe aap jaanch kar bhejte hain.
+
+71
+00:05:49,348 --> 00:05:56,693
+Automatic reorder suggestions: pichhle 120 din ki demand, lead time, cover aur safety days,
+
+72
+00:05:56,693 --> 00:06:03,714
+aur haath ka stock, order mein aaya maal aur reservation ghata kar, kitna mangwana hai.
+
+73
+00:06:03,714 --> 00:06:07,992
+Create draft POs dabaane par draft PO ban jaate hain.
+
+74
+00:06:08,706 --> 00:06:14,515
+Expiry loss tab batata hai kis batch par kitna nuksan ho sakta hai.
+
+75
+00:06:14,515 --> 00:06:17,983
+Dead stock: jo maal 90 din se nahi bika.
+
+76
+00:06:17,983 --> 00:06:25,353
+Product profitability aur scheme profitability: scheme se pehle aur scheme ke dauraan
+
+77
+00:06:25,353 --> 00:06:26,654
+margin ka fark.
+
+78
+00:06:27,361 --> 00:06:32,129
+Credit risk har chemist ka risk score aur uske kaaran dikhata hai,
+
+79
+00:06:32,129 --> 00:06:35,741
+aur Sales forecast agle 30 din ki sambhavit bikri.
+
+80
+00:06:35,741 --> 00:06:40,581
+Yeh sab Professional plan ke business intelligence mein shamil hai.
+
+81
+00:06:41,252 --> 00:06:44,805
+Upar management reporting assistant hai.
+
+82
+00:06:44,805 --> 00:06:47,114
+Who owes us money dabaiye.
+
+83
+00:06:47,114 --> 00:06:55,552
+Jawab fixed queries se aata hai, kisi bahari AI model se nahi: kis chemist par kitna baaki hai.
+
+84
+00:06:56,222 --> 00:07:00,634
+What should I reorder dabaane par reorder ki list aati hai.
+
+85
+00:07:00,634 --> 00:07:05,944
+In reports aur insights ka niyamit upyog karke distributor apna margin,
+
+86
+00:07:05,944 --> 00:07:09,010
+stock aur udhaar teeno sambhal sakta hai.

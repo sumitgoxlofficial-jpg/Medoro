@@ -1,0 +1,4139 @@
+1
+00:00:00,156 --> 00:00:00,849
+Namaste!
+
+2
+00:00:00,849 --> 00:00:04,484
+Medoro Distribution mein aapka swagat hai.
+
+3
+00:00:04,484 --> 00:00:10,631
+Aaj hum Medoro Distribution software ka complete product tour dekhenge,
+
+4
+00:00:10,631 --> 00:00:15,392
+ek demo distributor ke saath, poore fictional data par.
+
+5
+00:00:16,343 --> 00:00:21,643
+Agar aap pharmaceutical distributor, medicine wholesaler, stockist,
+
+6
+00:00:21,643 --> 00:00:28,840
+super stockist ya C and F agent hain, toh aap jaante hain ki orders, stock, chemist credit,
+
+7
+00:00:28,840 --> 00:00:34,219
+GST billing aur payment collection sambhalna kitna mushkil hota hai.
+
+8
+00:00:34,880 --> 00:00:40,679
+Medoro Distribution ek pharma wholesale aur distribution ERP hai.
+
+9
+00:00:40,679 --> 00:00:48,262
+Matlab ek hi software jisme orders, godown ka stock, invoices, dispatch, collections,
+
+10
+00:00:48,262 --> 00:00:52,276
+accounts aur GST, sab ek saath jude hue hain.
+
+11
+00:00:52,939 --> 00:00:59,489
+Website par dekhiye: yeh software pharma distributors, wholesalers, stockists,
+
+12
+00:00:59,489 --> 00:01:03,855
+super stockists aur C and F agents ke liye bana hai.
+
+13
+00:01:04,527 --> 00:01:09,946
+Retail pharmacy aur wholesale distribution mein bada fark hai.
+
+14
+00:01:09,946 --> 00:01:13,529
+Pharmacy ek grahak ko MRP par bechti hai.
+
+15
+00:01:13,529 --> 00:01:19,560
+Distributor chemists ko PTR ya PTS par, udhaar par, schemes ke saath,
+
+16
+00:01:19,560 --> 00:01:22,619
+aur kai godowns se maal bhejta hai.
+
+17
+00:01:23,317 --> 00:01:27,683
+Distribution business mein paisa chupke se kahan jaata hai?
+
+18
+00:01:27,683 --> 00:01:33,232
+Udhaar jo badhta rehta hai, near-expiry maal jiska claim time par nahi hua,
+
+19
+00:01:33,232 --> 00:01:39,743
+haath se calculate ki gayi schemes, aur phone ya WhatsApp par aaye orders jo dobara type
+
+20
+00:01:39,743 --> 00:01:41,001
+karne padte hain.
+
+21
+00:01:41,701 --> 00:01:47,587
+Medoro inhi samasyaon ko seedha pakadta hai: har order par credit check,
+
+22
+00:01:47,587 --> 00:01:54,699
+batch-wise stock reservation, automatic schemes, wholesale GST invoice, mobile picking,
+
+23
+00:01:54,699 --> 00:01:57,969
+dispatch, expiry claims aur collections.
+
+24
+00:01:58,665 --> 00:02:01,648
+Order se paise tak ek seedhi line hai.
+
+25
+00:02:01,648 --> 00:02:06,121
+Order aata hai, credit check hota hai, invoice banta hai,
+
+26
+00:02:06,121 --> 00:02:12,008
+godown mein pick aur pack hota hai, dispatch hota hai, aur phir collection.
+
+27
+00:02:12,008 --> 00:02:19,229
+Har step pichhle step ko check karta hai, isliye stock, invoice aur dues hamesha milte hain.
+
+28
+00:02:19,893 --> 00:02:22,456
+Ab chaliye software ke andar.
+
+29
+00:02:22,456 --> 00:02:30,143
+Yeh hai hamare demo distributor, Medoro Demo Pharma Distributors, Ranchi, ka dashboard.
+
+30
+00:02:30,143 --> 00:02:34,385
+Ismein do mahine ka fictional business data hai.
+
+31
+00:02:35,075 --> 00:02:41,714
+Ek hi screen par aaj ki sales, mahine ki sales, aaj ka collection, kul receivable,
+
+32
+00:02:41,714 --> 00:02:46,247
+order pipeline aur top outstanding chemists dikhte hain.
+
+33
+00:02:46,247 --> 00:02:51,024
+Left side ke menu mein Sales, Warehouse, Purchase, Finance,
+
+34
+00:02:51,024 --> 00:02:54,343
+Masters aur System ke saare modules hain.
+
+35
+00:02:55,029 --> 00:03:02,499
+Is training mein hum 26 parts mein, account banane se lekar purchase, GRN, inventory,
+
+36
+00:03:02,499 --> 00:03:08,651
+orders, credit control, GST invoicing, picking, dispatch, collections,
+
+37
+00:03:08,651 --> 00:03:13,924
+reports aur security tak, har workflow practically dekhenge.
+
+38
+00:03:13,924 --> 00:03:16,121
+Chaliye shuru karte hain.
+
+39
+00:03:17,643 --> 00:03:22,389
+Part 2 mein hum Medoro Distribution ka account banayenge.
+
+40
+00:03:22,389 --> 00:03:28,799
+Website se 7-day free trial shuru karenge, email verify karenge, aur sign-in,
+
+41
+00:03:28,799 --> 00:03:32,879
+password recovery aur account security samjhenge.
+
+42
+00:03:33,823 --> 00:03:39,883
+Sabse pehle official website kholte hain: medoro dot in slash distribution.
+
+43
+00:03:39,883 --> 00:03:44,408
+Yeh live website hai, aur hum yahan sirf dekh rahe hain,
+
+44
+00:03:44,408 --> 00:03:47,883
+koi account live server par nahi bana rahe.
+
+45
+00:03:48,544 --> 00:03:56,632
+Hero section mein saaf likha hai: orders with credit control, batch-wise stock, schemes,
+
+46
+00:03:56,632 --> 00:04:01,043
+GST invoices, picking, dispatch aur collections.
+
+47
+00:04:01,043 --> 00:04:08,028
+Neeche likha hai, From ₹2,499 a month, aur trial mein har feature milta hai.
+
+48
+00:04:08,686 --> 00:04:16,580
+Pricing section mein bhi likha hai: 7 days free, no card, aur plans apne-aap renew nahi hote.
+
+49
+00:04:16,580 --> 00:04:20,994
+Yani trial ke liye koi payment details nahi chahiye.
+
+50
+00:04:21,652 --> 00:04:25,473
+Ab Start 7-day free trial par click karte hain.
+
+51
+00:04:25,473 --> 00:04:28,726
+Yeh distributor sign-up page kholta hai.
+
+52
+00:04:28,726 --> 00:04:36,043
+Isi software ki ek alag copy hamare demo server par chal rahi hai, alag database ke saath.
+
+53
+00:04:36,043 --> 00:04:42,792
+Wahan hum fictional data se account banayenge, taaki live system par kuch na badle.
+
+54
+00:04:43,454 --> 00:04:47,559
+Yeh hai demo server par wahi sign-up page.
+
+55
+00:04:47,559 --> 00:04:50,687
+Create your distributor account.
+
+56
+00:04:50,687 --> 00:04:53,717
+Pehla step: apna email daaliye.
+
+57
+00:04:53,717 --> 00:04:58,018
+Medoro is email par ek 6-digit code bhejega.
+
+58
+00:04:58,667 --> 00:05:03,112
+Send code dabate hi code email par chala jata hai.
+
+59
+00:05:03,112 --> 00:05:06,223
+Code 10 minute tak valid rehta hai.
+
+60
+00:05:06,892 --> 00:05:12,149
+Demo server ka email ek authorised test inbox mein aata hai.
+
+61
+00:05:12,149 --> 00:05:14,515
+Yeh raha verification code.
+
+62
+00:05:14,515 --> 00:05:18,984
+Asli account mein yeh aapke apne inbox mein aayega.
+
+63
+00:05:19,644 --> 00:05:25,951
+Wapas sign-up page par code daalte hain, aur Confirm and continue dabate hain.
+
+64
+00:05:25,951 --> 00:05:27,730
+Email confirm ho gaya.
+
+65
+00:05:27,730 --> 00:05:34,280
+Ab business details ka wizard khulta hai, jise hum agle part mein poora bharenge.
+
+66
+00:05:34,926 --> 00:05:40,875
+Google se sign-up ka option tab dikhta hai jab server par Google sign-in configure ho.
+
+67
+00:05:40,875 --> 00:05:47,378
+Is demo server par Google configure nahi hai, isliye hum email wala tareeka use kar rahe hain.
+
+68
+00:05:49,059 --> 00:05:52,830
+Ab login aur password recovery dekhte hain.
+
+69
+00:05:52,830 --> 00:05:54,760
+Account ban chuka hai.
+
+70
+00:05:54,760 --> 00:05:58,618
+Sign in page par email aur password daaliye.
+
+71
+00:05:58,618 --> 00:06:04,319
+Distributor aur pharmacy owner dono isi page se login karte hain.
+
+72
+00:06:04,972 --> 00:06:11,282
+Owner ke liye password ke baad authenticator app ka 6-digit code zaroori hai.
+
+73
+00:06:11,282 --> 00:06:15,461
+Is computer ko 30 din ke liye trust kar sakte hain.
+
+74
+00:06:15,461 --> 00:06:19,968
+Code daal kar Verify, aur seedha Distributor dashboard.
+
+75
+00:06:20,638 --> 00:06:24,981
+Ab sign out karke Forgot password dekhte hain.
+
+76
+00:06:24,981 --> 00:06:28,002
+Neeche profile menu se Sign out.
+
+77
+00:06:28,729 --> 00:06:35,544
+Sign in par Forgot password dabaiye, apna email daaliye aur code mangwaiye.
+
+78
+00:06:35,544 --> 00:06:37,725
+Code email par aata hai.
+
+79
+00:06:42,160 --> 00:06:46,381
+Demo test inbox mein password reset ka code aa gaya.
+
+80
+00:06:46,381 --> 00:06:51,252
+Isse sirf account ka maalik hi naya password bana sakta hai.
+
+81
+00:06:51,914 --> 00:06:55,482
+Code aur naya password daal kar save kariye.
+
+82
+00:06:55,482 --> 00:07:00,753
+Password badalte hi baaki saare devices se sign out ho jaata hai,
+
+83
+00:07:00,753 --> 00:07:06,430
+taaki agar kisi aur ke paas purana password ho, toh woh andar na rahe.
+
+84
+00:07:07,107 --> 00:07:13,522
+Security ke liye kuch aur baatein: baar-baar galat password par account kuch der ke liye
+
+85
+00:07:13,522 --> 00:07:16,583
+lock hota hai, sign-up par rate limit hai,
+
+86
+00:07:16,583 --> 00:07:20,884
+aur owner aur manager ke liye two-step sign-in zaroori hai.
+
+87
+00:07:20,884 --> 00:07:24,383
+Trial ke liye koi payment details nahi li jaati.
+
+88
+00:07:26,065 --> 00:07:33,856
+Part 3 mein distributor ka business onboarding karenge: business name, GSTIN, drug licence,
+
+89
+00:07:33,856 --> 00:07:40,620
+address, owner account, godown, backup recovery kit, aur two-step verification.
+
+90
+00:07:40,620 --> 00:07:44,301
+Phir distribution settings bhi set karenge.
+
+91
+00:07:45,250 --> 00:07:53,102
+Email confirm hone ke baad wizard ke paanch steps dikhte hain: Your business, Your account,
+
+92
+00:07:53,102 --> 00:07:55,432
+Godowns, Backups, aur Done.
+
+93
+00:07:55,432 --> 00:07:59,574
+Pehle step mein business ki details bharte hain.
+
+94
+00:07:59,574 --> 00:08:03,630
+Business name: Medoro Demo Pharma Distributors.
+
+95
+00:08:04,299 --> 00:08:05,132
+Ab GSTIN.
+
+96
+00:08:05,132 --> 00:08:12,539
+Yeh ek fictional demo GSTIN hai jo Jharkhand ke state code 20 se shuru hota hai.
+
+97
+00:08:12,539 --> 00:08:16,983
+Medoro format aur checksum dono check karta hai.
+
+98
+00:08:16,983 --> 00:08:22,631
+Phir wholesale drug licence, yani Form 20B aur 21B ka number.
+
+99
+00:08:23,291 --> 00:08:28,844
+Address mein godown ya office ka poora pata, city aur PIN code.
+
+100
+00:08:28,844 --> 00:08:32,370
+Business code apne-aap suggest hota hai.
+
+101
+00:08:32,370 --> 00:08:34,485
+Hum MEDORO-RNC rakhenge.
+
+102
+00:08:34,485 --> 00:08:40,303
+Isi code se aapki team aur chemists aapka business dhoondhte hain.
+
+103
+00:08:40,957 --> 00:08:42,527
+Continue dabaiye.
+
+104
+00:08:42,527 --> 00:08:45,299
+Doosra step hai owner account.
+
+105
+00:08:45,299 --> 00:08:48,994
+Medoro mein koi default login nahi hota.
+
+106
+00:08:48,994 --> 00:08:55,552
+Yeh account business ka maalik hai, aur baaki sab users yahi jodta hai.
+
+107
+00:08:55,552 --> 00:09:00,633
+Naam, mobile number aur ek strong password daalte hain.
+
+108
+00:09:01,286 --> 00:09:03,144
+Teesra step: godowns.
+
+109
+00:09:03,144 --> 00:09:09,604
+Stock, orders aur dispatch har godown ke hisaab se alag rakhe jaate hain.
+
+110
+00:09:09,604 --> 00:09:14,205
+Pehle godown ka naam Medoro Main Godown rakhte hain.
+
+111
+00:09:14,205 --> 00:09:18,010
+Baaki godowns baad mein bhi jod sakte hain.
+
+112
+00:09:18,663 --> 00:09:22,156
+Chautha step: backups aur recovery kit.
+
+113
+00:09:22,156 --> 00:09:25,917
+Is kit mein backup kholne ki key hoti hai.
+
+114
+00:09:25,917 --> 00:09:31,470
+Download and print dabaiye, aur ise offline surakshit rakhiye.
+
+115
+00:09:31,470 --> 00:09:35,411
+Bina is kit ke backup restore nahi ho sakta.
+
+116
+00:09:36,086 --> 00:09:42,706
+Terms aur Privacy Policy accept karke, Create my distributor account dabaate hain.
+
+117
+00:09:43,367 --> 00:09:45,094
+Account taiyaar hai.
+
+118
+00:09:45,094 --> 00:09:51,570
+Screen par likha hai: Your 7-day free trial has started with every feature.
+
+119
+00:09:51,570 --> 00:09:54,074
+Business code MEDORO-RNC hai.
+
+120
+00:09:54,074 --> 00:09:58,651
+Ab Set up two-step verification par click karte hain.
+
+121
+00:09:59,312 --> 00:10:04,429
+Owner aur manager ke liye two-step verification zaroori hai.
+
+122
+00:10:04,429 --> 00:10:09,034
+Google Authenticator jaisi app se QR code scan kariye.
+
+123
+00:10:09,034 --> 00:10:14,492
+Security ke liye QR code aur key video mein blur kiye gaye hain.
+
+124
+00:10:14,492 --> 00:10:18,244
+App ka 6-digit code daal kar Verify dabaiye.
+
+125
+00:10:18,897 --> 00:10:21,721
+Ab 10 recovery codes milte hain.
+
+126
+00:10:21,721 --> 00:10:25,603
+Agar phone kho jaye, toh inhi se login hoga.
+
+127
+00:10:25,603 --> 00:10:32,309
+Inhe surakshit jagah save kariye, phir checkbox tick karke Continue dabaiye.
+
+128
+00:10:32,955 --> 00:10:37,123
+Hum seedhe Distributor dashboard par pahunch gaye.
+
+129
+00:10:37,123 --> 00:10:40,873
+Abhi yeh khali hai, kyunki koi data nahi hai.
+
+130
+00:10:40,873 --> 00:10:45,791
+Upar business ka naam aur Medoro Main Godown dikh raha hai.
+
+131
+00:10:46,447 --> 00:10:49,836
+Ab godown ki details poori karte hain.
+
+132
+00:10:49,836 --> 00:10:53,047
+Godowns and racks mein Edit dabaiye.
+
+133
+00:10:53,047 --> 00:10:58,934
+Godown ka code, address, GSTIN aur drug licence yahan bharte hain.
+
+134
+00:10:58,934 --> 00:11:03,483
+Har godown ki invoice series isi code se banti hai.
+
+135
+00:11:04,135 --> 00:11:09,670
+Settings mein distribution ke business rules hain: invoice par legal name,
+
+136
+00:11:09,670 --> 00:11:13,859
+chemists ko bheje jaane wale maal ki minimum shelf life,
+
+137
+00:11:13,859 --> 00:11:20,366
+purchase cover aur safety stock ke din, aur credit rules todne wale orders ke saath kya
+
+138
+00:11:20,366 --> 00:11:23,283
+ho: hold for approval, ya seedha block.
+
+139
+00:11:23,937 --> 00:11:29,483
+Financial year Medoro apne-aap date se samajhta hai, April se March.
+
+140
+00:11:29,483 --> 00:11:37,314
+Invoice, order aur dispatch number har financial year ke hisaab se naye series mein chalte hain.
+
+141
+00:11:37,314 --> 00:11:40,903
+Iske liye alag setting ki zaroorat nahi hai.
+
+142
+00:11:40,903 --> 00:11:44,981
+Neeche integrations ka asli status bhi dikhta hai.
+
+143
+00:11:45,645 --> 00:11:47,538
+Onboarding poora hua.
+
+144
+00:11:47,538 --> 00:11:53,849
+Agle part mein dashboard ko detail mein samjhenge, demo data ke saath.
+
+145
+00:11:55,474 --> 00:12:00,095
+Part 4 mein Distributor dashboard ko detail mein samjhenge.
+
+146
+00:12:00,095 --> 00:12:07,143
+Har card kya batata hai, aur owner ek hi screen se poore business ki position kaise samajh
+
+147
+00:12:07,143 --> 00:12:07,926
+sakta hai.
+
+148
+00:12:08,884 --> 00:12:12,495
+Login karte hi owner yahi screen dekhta hai.
+
+149
+00:12:12,495 --> 00:12:18,404
+Upar business ka naam, aaj ki date aur abhi chuna hua godown dikhta hai.
+
+150
+00:12:18,404 --> 00:12:23,328
+Godown badalne ke liye upar wala godown selector use kariye.
+
+151
+00:12:24,010 --> 00:12:30,104
+Pehla card hai Sales today: aaj ke invoices ki kul value aur unki ginti.
+
+152
+00:12:30,104 --> 00:12:35,352
+Doosra card Sales this month, saath mein gross margin percent,
+
+153
+00:12:35,352 --> 00:12:39,246
+yaani maal ki landed cost ke baad kitna bacha.
+
+154
+00:12:40,018 --> 00:12:48,152
+Teesra card Collected today: aaj chemists se kitna paisa aaya, cash, UPI, NEFT ya cheque mein.
+
+155
+00:12:48,152 --> 00:12:53,170
+Chautha card Receivable: market mein kul kitna udhaar hai,
+
+156
+00:12:53,170 --> 00:12:56,718
+aur usmein se kitna overdue ho chuka hai.
+
+157
+00:12:57,414 --> 00:13:02,150
+Sales, last 30 days chart har din ki sales dikhata hai,
+
+158
+00:13:02,150 --> 00:13:06,369
+GST ke saath aur cancelled invoices ko chhod kar.
+
+159
+00:13:06,369 --> 00:13:12,482
+Isse trend turant samajh aata hai: kaunse din kam bikri hui, kab badhi.
+
+160
+00:13:13,168 --> 00:13:15,967
+Order pipeline sabse kaam ka hissa hai.
+
+161
+00:13:15,967 --> 00:13:20,992
+Kitne orders approval ka intezaar kar rahe hain, kitne pick hone hain,
+
+162
+00:13:20,992 --> 00:13:26,448
+kitne pick ho rahe hain, kitne pack hokar invoice ka intezaar kar rahe hain,
+
+163
+00:13:26,448 --> 00:13:30,252
+kitne dispatch hone hain, aur kitne raaste mein hain.
+
+164
+00:13:30,951 --> 00:13:35,780
+Neeche do alerts hain: 90 din mein expire hone wale batches,
+
+165
+00:13:35,780 --> 00:13:39,160
+aur reorder level se neeche gaye products.
+
+166
+00:13:39,160 --> 00:13:43,667
+Inpar click karke seedha us list par pahunch jaate hain.
+
+167
+00:13:44,343 --> 00:13:51,257
+Top outstanding mein sabse zyada udhaar wale chemists hain: balance, overdue,
+
+168
+00:13:51,257 --> 00:13:57,093
+sabse purana bill kitne din ka hai, aur risk low, medium ya high.
+
+169
+00:13:57,093 --> 00:14:03,827
+Ageing card batata hai ki udhaar 0 se 30 din, 31 se 60, ya usse purana hai.
+
+170
+00:14:04,516 --> 00:14:10,707
+Kisi chemist ke naam par click karte hi uski profile khulti hai, jahan statement,
+
+171
+00:14:10,707 --> 00:14:13,458
+credit terms aur special rates hain.
+
+172
+00:14:13,458 --> 00:14:17,280
+Is tarah dashboard se seedha action le sakte hain.
+
+173
+00:14:17,988 --> 00:14:20,975
+Upar ghanti mein notifications aate hain,
+
+174
+00:14:20,975 --> 00:14:27,168
+aur Insights button business intelligence kholta hai, jise hum Part 22 mein dekhenge.
+
+175
+00:14:27,168 --> 00:14:31,976
+Bill a chemist search se kahin se bhi naya invoice shuru hota hai.
+
+176
+00:14:32,691 --> 00:14:38,772
+Toh dashboard owner ko subah ki pehli nazar mein batata hai: bikri kaisi hai,
+
+177
+00:14:38,772 --> 00:14:44,459
+paisa kitna aaya, kitna baaki hai, aur godown mein kaunsa kaam atka hai.
+
+178
+00:14:44,459 --> 00:14:47,855
+Agle part mein product catalogue banayenge.
+
+179
+00:14:49,569 --> 00:14:58,055
+Part 5 mein product aur medicine catalogue dekhenge: naya product jodna, PTR, PTS aur MRP,
+
+180
+00:14:58,055 --> 00:15:05,693
+HSN aur GST, schedule, barcode, reorder level, edit karna aur product band karna.
+
+181
+00:15:06,638 --> 00:15:09,577
+Masters mein Products kholiye.
+
+182
+00:15:09,577 --> 00:15:18,101
+Yahan har product ki wholesale rates dikhti hain: PTR, PTS, MRP, GST, pack aur company.
+
+183
+00:15:18,101 --> 00:15:24,274
+Stock yahan nahi, balki Stock screen par batch-wise dikhta hai.
+
+184
+00:15:24,944 --> 00:15:30,407
+Search box mein brand naam ya salt likh kar product dhoondh sakte hain.
+
+185
+00:15:30,407 --> 00:15:35,716
+Jaise Paracetamol likhne par Febrinil ke dono strength aa jaate hain.
+
+186
+00:15:35,716 --> 00:15:40,564
+Company filter se ek company ke saare products dekh sakte hain.
+
+187
+00:15:41,219 --> 00:15:44,065
+Ab naya product jodte hain.
+
+188
+00:15:44,065 --> 00:15:46,173
+Add product kholiye.
+
+189
+00:15:46,173 --> 00:15:49,546
+Product name: Levocet Kid Syrup.
+
+190
+00:15:49,546 --> 00:15:53,973
+Generic yaani composition: Levocetirizine.
+
+191
+00:15:53,973 --> 00:15:58,927
+Strength aur form, yahan syrup, aur pack 60 ml.
+
+192
+00:15:59,580 --> 00:16:04,612
+Company chuniye: Nirmal Demo Formulations.
+
+193
+00:16:04,612 --> 00:16:09,165
+HSN code 30049099, aur GST 12 percent.
+
+194
+00:16:09,165 --> 00:16:17,192
+HSN aur GST sahi hone se hi invoice aur GST return sahi bante hain.
+
+195
+00:16:17,862 --> 00:16:18,786
+Ab rates.
+
+196
+00:16:18,786 --> 00:16:23,198
+MRP GST ke saath hota hai, yahan 85 rupaye.
+
+197
+00:16:23,198 --> 00:16:30,996
+PTR, yani price to retailer, GST ke bina, jis par chemist ko maal milta hai.
+
+198
+00:16:30,996 --> 00:16:38,282
+PTS, price to stockist, aur bhi kam hota hai, sub-distributors ke liye.
+
+199
+00:16:38,942 --> 00:16:43,085
+Dekhiye, maine PTR galti se 80 rupaye daala.
+
+200
+00:16:43,085 --> 00:16:51,842
+Add product dabane par Medoro rok deta hai: PTR plus GST MRP se upar hai, rates check kariye.
+
+201
+00:16:51,842 --> 00:16:56,362
+Aisi galti se chemist ka margin khatam ho jaata.
+
+202
+00:16:57,026 --> 00:17:01,059
+PTR theek karke 59 rupaye 50 paise karte hain.
+
+203
+00:17:01,059 --> 00:17:07,634
+Barcode, ek pack mein kitni units, ek case mein kitne packs, minimum order,
+
+204
+00:17:07,634 --> 00:17:10,264
+aur reorder level bhi bhariye.
+
+205
+00:17:10,264 --> 00:17:14,998
+Reorder level se neeche stock jaate hi alert aata hai.
+
+206
+00:17:15,656 --> 00:17:20,221
+Schedule H ya H1 dawaiyon ke liye schedule chuniye.
+
+207
+00:17:20,221 --> 00:17:27,293
+Show on chemist portal tick ho, toh yeh product chemists ke portal par dikhega.
+
+208
+00:17:27,293 --> 00:17:28,636
+Ab Add product.
+
+209
+00:17:29,298 --> 00:17:31,512
+Product list mein aa gaya.
+
+210
+00:17:31,512 --> 00:17:38,578
+Ab kisi product ko edit karna ho, jaise rate badalna, toh uske saamne Edit dabaiye.
+
+211
+00:17:38,578 --> 00:17:42,494
+Yahan reorder level badal kar save karte hain.
+
+212
+00:17:43,140 --> 00:17:50,696
+Product ko delete nahi kiya jaata, kyunki uske purane invoices aur stock record rehne chahiye.
+
+213
+00:17:50,696 --> 00:17:56,162
+Agar company ne product band kar diya, toh Discontinued tick kariye.
+
+214
+00:17:56,162 --> 00:18:00,824
+Woh naye orders mein nahi aayega, par history safe rahegi.
+
+215
+00:18:01,478 --> 00:18:08,592
+Yaad rakhiye: PTR plus GST hamesha MRP se kam ho, PTS PTR se upar na ho,
+
+216
+00:18:08,592 --> 00:18:13,137
+aur HSN aur GST company ke invoice se milaiye.
+
+217
+00:18:13,137 --> 00:18:17,386
+Sahi catalogue hi sahi billing ki neev hai.
+
+218
+00:18:19,067 --> 00:18:24,355
+Part 6 mein godown aur inventory management: naya godown, racks,
+
+219
+00:18:24,355 --> 00:18:31,790
+product ko rack par rakhna, batch-wise stock, stock value, audited adjustment, quarantine,
+
+220
+00:18:31,790 --> 00:18:35,095
+low stock aur godowns ke beech transfer.
+
+221
+00:18:36,040 --> 00:18:39,558
+Masters mein Godowns and racks kholiye.
+
+222
+00:18:39,558 --> 00:18:45,781
+Hamare paas do godown hain: Medoro Main Godown aur Kanke Road Godown.
+
+223
+00:18:45,781 --> 00:18:53,628
+Har godown ka code, GSTIN, licence, racks ki ginti aur cost par stock value dikhti hai.
+
+224
+00:18:54,306 --> 00:18:56,482
+Naya godown jodte hain.
+
+225
+00:18:56,482 --> 00:18:58,280
+Add godown kholiye.
+
+226
+00:18:58,280 --> 00:19:02,348
+Naam: Dhanbad Depot, code DHN, aur address.
+
+227
+00:19:02,348 --> 00:19:10,958
+Professional plan mein teen godown tak, aur Enterprise mein bees tak godown mil sakte hain.
+
+228
+00:19:11,614 --> 00:19:12,419
+Ab racks.
+
+229
+00:19:12,419 --> 00:19:16,626
+Har rack ka code, zone aur pick order hota hai.
+
+230
+00:19:16,626 --> 00:19:24,144
+Pick list isi order mein chalti hai, taaki picker ko baar-baar peeche na jaana pade.
+
+231
+00:19:24,144 --> 00:19:27,813
+Cold chain wale rack alag mark hote hain.
+
+232
+00:19:27,813 --> 00:19:30,498
+Ek naya rack A-07 banate hain.
+
+233
+00:19:31,164 --> 00:19:37,630
+Product ko rack par rakhne ke liye product aur rack chuniye aur Place dabaiye.
+
+234
+00:19:37,630 --> 00:19:41,195
+Naya Levocet syrup rack A-07 par rakh diya.
+
+235
+00:19:41,195 --> 00:19:45,920
+Ab picking ke samay picker ko seedha rack number dikhega.
+
+236
+00:19:55,761 --> 00:19:58,829
+Ab Stock and transfers kholiye.
+
+237
+00:19:58,829 --> 00:20:07,143
+Yahan har batch ki line hai: product, batch number, expiry, rack, packs, quarantine,
+
+238
+00:20:07,143 --> 00:20:08,430
+cost aur MRP.
+
+239
+00:20:08,430 --> 00:20:11,597
+Upar kul stock value dikhti hai.
+
+240
+00:20:12,251 --> 00:20:19,985
+Stock sirf GRN, invoice, return, claim, transfer ya audited adjustment se hi badalta hai.
+
+241
+00:20:19,985 --> 00:20:23,287
+Koi seedha number edit nahi kar sakta.
+
+242
+00:20:23,287 --> 00:20:30,847
+Search mein Febrinil likhiye: iske alag-alag batches, alag expiry ke saath dikhte hain.
+
+243
+00:20:31,500 --> 00:20:38,392
+Agar ginti mein fark mile, jaise ek strip toot gayi, toh Stock adjustment use kariye.
+
+244
+00:20:38,392 --> 00:20:43,581
+Batch chuniye, minus 2 units likhiye, aur reason zaroor daaliye.
+
+245
+00:20:43,581 --> 00:20:49,256
+Yeh adjustment audit trail mein naam aur samay ke saath darj hota hai.
+
+246
+00:20:49,913 --> 00:20:57,043
+Quarantine ka matlab hai woh maal jo bika nahi ja sakta: chemist ka lautaya hua expired ya
+
+247
+00:20:57,043 --> 00:20:57,915
+toota maal.
+
+248
+00:20:57,915 --> 00:21:04,174
+Yeh stock alag column mein rehta hai aur supplier claim ke liye ruka rehta hai.
+
+249
+00:21:04,174 --> 00:21:07,501
+Hum ise Part 14 mein detail mein dekhenge.
+
+250
+00:21:08,157 --> 00:21:13,950
+Low stock pehchanne ke liye dashboard par Products below reorder level ka link hai,
+
+251
+00:21:13,950 --> 00:21:19,882
+aur Business intelligence mein automatic reorder suggestions hain, jo bikri ki speed,
+
+252
+00:21:19,882 --> 00:21:23,441
+lead time aur safety stock se quantity batate hain.
+
+253
+00:21:24,088 --> 00:21:25,934
+Ab godown transfer.
+
+254
+00:21:25,934 --> 00:21:29,820
+Stock tab par Request transfer form hai.
+
+255
+00:21:29,820 --> 00:21:35,551
+Batch chuniye, kis godown mein bhejna hai, aur kitne units.
+
+256
+00:21:35,551 --> 00:21:37,980
+Request transfer dabaiye.
+
+257
+00:21:38,635 --> 00:21:46,306
+Transfer teen kadam mein hota hai: request, approve aur bhejna, phir doosre godown mein receive.
+
+258
+00:21:46,306 --> 00:21:53,179
+Jab tak maal raaste mein hai, woh kisi bhi godown ke bikne wale stock mein nahi ginta.
+
+259
+00:21:53,179 --> 00:21:56,535
+Is tarah stock kabhi do jagah nahi dikhta.
+
+260
+00:21:57,184 --> 00:22:02,388
+Yaad rakhiye: har mahine physical count karke adjustment kariye,
+
+261
+00:22:02,388 --> 00:22:08,243
+expiry ke paas wala maal pehle nikaliye, aur reorder level sahi rakhiye.
+
+262
+00:22:08,243 --> 00:22:13,284
+Isse shortage bhi nahi hogi aur expiry ka nuksan bhi kam hoga.
+
+263
+00:22:14,866 --> 00:22:21,970
+Part 7 mein pharmaceutical companies, principals aur suppliers dekhenge: company jodna,
+
+264
+00:22:21,970 --> 00:22:27,522
+stockist agreement, supplier profile, credit terms, supplier ledger,
+
+265
+00:22:27,522 --> 00:22:30,462
+outstanding aur supplier ko payment.
+
+266
+00:22:31,419 --> 00:22:35,064
+Masters mein Companies and principals kholiye.
+
+267
+00:22:35,064 --> 00:22:40,136
+Is screen par teen cheezein hain: companies yaani manufacturers,
+
+268
+00:22:40,136 --> 00:22:45,605
+principals yaani unke saath aapke stockist agreements, aur suppliers,
+
+269
+00:22:45,605 --> 00:22:47,903
+jinse aap maal kharidte hain.
+
+270
+00:22:48,574 --> 00:22:55,189
+Saari companies aur supplier names fictional hain, jinke aage Demo likha hai.
+
+271
+00:22:55,189 --> 00:23:02,836
+Nayi company jodte hain: Add company kholiye, naam Kavach Demo Pharma, short name KAVACH,
+
+272
+00:23:02,836 --> 00:23:04,554
+aur contact details.
+
+273
+00:23:05,206 --> 00:23:12,751
+Principal ka matlab hai company ke saath aapka agreement: kis supplier ya C and F se maal
+
+274
+00:23:12,751 --> 00:23:18,262
+aata hai, aapka margin, divisions, aur expiry return ki shartein,
+
+275
+00:23:18,262 --> 00:23:25,722
+jaise expiry se 90 din pehle se 180 din baad tak claim, aur kitne percent credit milega.
+
+276
+00:23:26,381 --> 00:23:29,294
+Yeh expiry terms bahut zaroori hain.
+
+277
+00:23:29,294 --> 00:23:34,957
+Medoro inhi se tay karta hai ki koi batch claim ke laayak hai ya nahi,
+
+278
+00:23:34,957 --> 00:23:37,950
+aur kitna credit milne ki ummeed hai.
+
+279
+00:23:37,950 --> 00:23:42,481
+Isliye har company ke principal mein sahi terms bhariye.
+
+280
+00:23:43,136 --> 00:23:48,225
+Neeche suppliers ki list hai: GSTIN, credit days, lead time,
+
+281
+00:23:48,225 --> 00:23:53,654
+expiry returns lete hain ya nahi, aur ab ek naya column, We owe,
+
+282
+00:23:53,654 --> 00:23:57,556
+yaani hum is supplier ko kitna dene wale hain.
+
+283
+00:23:58,210 --> 00:24:05,479
+Naya supplier jodne ke liye Add supplier kholiye: naam, GSTIN, phone, credit days,
+
+284
+00:24:05,479 --> 00:24:09,468
+lead time, return window aur opening balance.
+
+285
+00:24:09,468 --> 00:24:15,318
+Doosre state ka GSTIN ho toh purchase par IGST apne-aap lagta hai.
+
+286
+00:24:15,987 --> 00:24:21,920
+Ab kisi supplier par click kariye, jaise Aarogya Demo C and F Agency.
+
+287
+00:24:21,920 --> 00:24:28,025
+Yeh supplier ka ledger page hai: hum kitna dene wale hain, credit days,
+
+288
+00:24:28,025 --> 00:24:30,863
+aakhri kharid aur aakhri payment.
+
+289
+00:24:31,516 --> 00:24:36,883
+Ledger statement mein har GRN credit mein aata hai, aur har payment,
+
+290
+00:24:36,883 --> 00:24:40,118
+debit note ya claim ka credit debit mein.
+
+291
+00:24:40,118 --> 00:24:44,380
+Running balance batata hai ki kis din kitna baaki tha.
+
+292
+00:24:44,380 --> 00:24:48,168
+Date range chun kar statement nikaal sakte hain.
+
+293
+00:24:48,829 --> 00:24:54,125
+Supplier ko payment dene ke liye Pay supplier mein amount, mode,
+
+294
+00:24:54,125 --> 00:24:56,856
+aur UTR ya cheque number bhariye.
+
+295
+00:24:56,856 --> 00:24:59,835
+Hum 50,000 rupaye NEFT se dete hain.
+
+296
+00:24:59,835 --> 00:25:07,449
+Record payment dabaate hi payment voucher banta hai aur sabse purane bill pehle chukte hain.
+
+297
+00:25:08,100 --> 00:25:12,599
+Payment post ho gaya, aur We owe ka aankda kam ho gaya.
+
+298
+00:25:12,599 --> 00:25:17,588
+Neeche statement mein naya payment voucher bhi dikh raha hai.
+
+299
+00:25:17,588 --> 00:25:22,496
+Recent GRNs mein is supplier se aaye saare maal ki list hai.
+
+300
+00:25:23,143 --> 00:25:28,963
+Yeh supplier ledger aur payment screen is project ki QA ke dauraan banaya gaya,
+
+301
+00:25:28,963 --> 00:25:35,593
+kyunki pehle Distribution mein supplier ka outstanding sirf trial balance mein ek total ki
+
+302
+00:25:35,593 --> 00:25:36,845
+tarah dikhta tha.
+
+303
+00:25:36,845 --> 00:25:39,939
+Ab har supplier ka hisaab alag dikhta hai.
+
+304
+00:25:41,594 --> 00:25:48,005
+Part 8 mein poora purchase process: purchase order banana, supplier ko bhejna,
+
+305
+00:25:48,005 --> 00:25:52,772
+maal aane par batch aur expiry ke saath GRN, totals check,
+
+306
+00:25:52,772 --> 00:25:56,470
+aur stock aur supplier outstanding ka update.
+
+307
+00:25:57,475 --> 00:25:59,926
+Purchase and GRN kholiye.
+
+308
+00:25:59,926 --> 00:26:07,280
+Upar flow likha hai: purchase planning, PO, supplier invoice, GRN, batches,
+
+309
+00:26:07,280 --> 00:26:09,830
+stock aur supplier ledger.
+
+310
+00:26:09,830 --> 00:26:15,615
+Teen tabs hain: Receive goods, Purchase orders, aur New PO.
+
+311
+00:26:16,355 --> 00:26:23,676
+Purchase orders list mein har PO ka number, supplier, date, value aur status hai: draft,
+
+312
+00:26:23,676 --> 00:26:27,004
+ordered, partially received ya received.
+
+313
+00:26:27,004 --> 00:26:32,911
+Ek PO pehle se ordered hai, aur ek draft hai jise abhi bheja nahi gaya.
+
+314
+00:26:37,019 --> 00:26:39,019
+Naya PO banate hain.
+
+315
+00:26:39,019 --> 00:26:48,419
+New PO tab mein supplier chuniye: Prana vitamins ke liye Eastern Demo Super Stockist, Kolkata.
+
+316
+00:26:48,419 --> 00:26:51,419
+Product chuniye: Zincosure 20.
+
+317
+00:26:51,419 --> 00:26:57,919
+Quantity 200 packs, aur free quantity 20, yaani 10 plus 1 scheme.
+
+318
+00:26:58,613 --> 00:27:05,365
+Rate apne-aap PTS se aata hai, jise supplier ke rate se badal sakte hain.
+
+319
+00:27:05,365 --> 00:27:07,400
+MRP bhi bhara hua hai.
+
+320
+00:27:07,400 --> 00:27:10,822
+Trade discount 2 percent daalte hain.
+
+321
+00:27:10,822 --> 00:27:15,169
+Neeche approx value GST ke saath dikh rahi hai.
+
+322
+00:27:17,852 --> 00:27:22,553
+Ek aur line jodte hain: Ferrovit XT, 150 packs.
+
+323
+00:27:22,553 --> 00:27:24,454
+Phir Save draft PO.
+
+324
+00:27:24,454 --> 00:27:32,056
+PO pehle draft mein banta hai, taaki bhejne se pehle koi aur check kar sake.
+
+325
+00:27:32,711 --> 00:27:37,376
+Purchase orders tab mein naya PO draft status mein hai.
+
+326
+00:27:37,376 --> 00:27:40,260
+Place dabaiye, aur confirm kariye.
+
+327
+00:27:40,260 --> 00:27:45,859
+Ab status ordered ho gaya, yaani supplier ko order bhej diya gaya.
+
+328
+00:27:51,386 --> 00:27:52,920
+Ab maal aa gaya.
+
+329
+00:27:52,920 --> 00:27:55,412
+Receive goods tab kholiye.
+
+330
+00:27:55,412 --> 00:28:02,601
+Against PO mein Aarogya ka winter season wala PO, number dekh kar, chuniye.
+
+331
+00:28:02,601 --> 00:28:10,366
+Supplier aur PO ki lines apne-aap bhar jaati hain: Febrinil 650 aur Amoxirise CV.
+
+332
+00:28:11,051 --> 00:28:15,525
+Supplier ke bill ka number aur date daaliye.
+
+333
+00:28:15,525 --> 00:28:20,507
+Har line par batch number aur expiry zaroori hai.
+
+334
+00:28:20,507 --> 00:28:25,387
+Febrinil ka batch FEB2611A, expiry October 2028.
+
+335
+00:28:25,387 --> 00:28:31,183
+Scheme ke 120 packs free mein aaye, woh Free column mein.
+
+336
+00:28:31,857 --> 00:28:37,608
+Amoxirise CV ka batch AMC2611B aur expiry March 2028.
+
+337
+00:28:37,608 --> 00:28:42,382
+Quantity check kariye: jo aaya wahi likhiye.
+
+338
+00:28:42,382 --> 00:28:48,893
+Agar kam aaya toh kam likhiye, PO partially received rahega.
+
+339
+00:28:49,567 --> 00:28:53,610
+Ab supplier invoice par chhapa hua total daaliye.
+
+340
+00:28:53,610 --> 00:28:57,406
+Maan lijiye galti se gol rakam 30,000 likh di.
+
+341
+00:28:57,406 --> 00:29:02,687
+Post GRN dabate hi Medoro rok deta hai: totals match nahi karte,
+
+342
+00:29:02,687 --> 00:29:06,483
+lines itne ki hain aur invoice itna kehta hai.
+
+343
+00:29:07,133 --> 00:29:13,946
+Yeh check bahut kaam ka hai: typing ki galti, chhoota hua item, ya galat rate,
+
+344
+00:29:13,946 --> 00:29:16,217
+sab yahin pakda jaata hai.
+
+345
+00:29:16,217 --> 00:29:20,497
+Sahi total daal kar dobara Post GRN dabaate hain.
+
+346
+00:29:21,167 --> 00:29:22,625
+GRN post ho gaya.
+
+347
+00:29:22,625 --> 00:29:26,056
+Recent GRNs mein naya GRN dikh raha hai.
+
+348
+00:29:26,056 --> 00:29:31,889
+Iske saath teen cheezein ek saath hui: naye batches stock mein aaye,
+
+349
+00:29:31,889 --> 00:29:38,923
+free goods ki wajah se landed cost kam hui, aur supplier ka outstanding badh gaya.
+
+350
+00:29:39,594 --> 00:29:46,489
+Stock screen par Febrinil ka naya batch FEB2611A dikh raha hai,
+
+351
+00:29:46,489 --> 00:29:51,086
+720 packs ke saath: 600 kharide, 120 free.
+
+352
+00:29:51,883 --> 00:29:58,207
+Aur supplier ke ledger mein yeh GRN credit mein aa gaya, toh We owe badh gaya.
+
+353
+00:29:58,207 --> 00:30:00,639
+PO ka status received ho gaya.
+
+354
+00:30:01,296 --> 00:30:07,679
+Yaad rakhiye: PO matlab aapne kya maanga, GRN matlab asal mein kya aaya.
+
+355
+00:30:07,679 --> 00:30:14,948
+Hamesha GRN supplier ke bill se milakar, batch aur expiry dekh kar hi post kariye.
+
+356
+00:30:16,567 --> 00:30:23,225
+Part 9 mein batch-wise inventory, expiry tracking aur stock reservation samjhenge: order
+
+357
+00:30:23,225 --> 00:30:27,160
+approve hote hi kaunsa batch kaise reserve hota hai,
+
+358
+00:30:27,160 --> 00:30:30,867
+aur near-expiry aur expired maal ka kya hota hai.
+
+359
+00:30:31,828 --> 00:30:37,067
+Pharma mein har strip ka batch number aur expiry hota hai.
+
+360
+00:30:37,067 --> 00:30:40,680
+Stock screen par Montiluk LC dhoondhiye.
+
+361
+00:30:40,680 --> 00:30:48,720
+Iske do ya zyada batches hain, har ek ka apna batch number, expiry, rack, packs aur cost.
+
+362
+00:30:49,393 --> 00:30:52,550
+Packs column godown mein pada kul maal hai.
+
+363
+00:30:52,550 --> 00:30:57,029
+Iska kuch hissa approved orders ke liye reserve ho sakta hai.
+
+364
+00:30:57,029 --> 00:31:00,773
+Reserved packs order ki pick list mein dikhte hain,
+
+365
+00:31:00,773 --> 00:31:07,821
+aur naya order banate samay Stock column reservation ghata kar hi bikne laayak stock batata hai.
+
+366
+00:31:08,483 --> 00:31:12,178
+Ab ek pending order approve karke dekhte hain.
+
+367
+00:31:12,178 --> 00:31:15,792
+Orders mein New Sai Medicos ka order kholiye.
+
+368
+00:31:15,792 --> 00:31:23,503
+Abhi status Awaiting approval hai, aur value aur credit card par likha hai: Within credit terms.
+
+369
+00:31:24,154 --> 00:31:29,566
+Approve dabate hi Medoro do kaam karta hai: credit dobara check karta hai,
+
+370
+00:31:29,566 --> 00:31:35,783
+aur har product ke liye FEFO yaani first expiry first out ke hisaab se batch chun kar
+
+371
+00:31:35,783 --> 00:31:37,758
+packs reserve kar deta hai.
+
+372
+00:31:38,425 --> 00:31:40,786
+Neeche pick list ban gayi.
+
+373
+00:31:40,786 --> 00:31:46,869
+Har line mein rack, product, batch, expiry aur reserved packs hain.
+
+374
+00:31:46,869 --> 00:31:54,405
+Sabse pehle expire hone wala batch pehle chuna gaya, taaki purana maal pehle nikle.
+
+375
+00:31:55,061 --> 00:32:00,252
+Agar kisi batch ki expiry chemist ki minimum shelf life se kam hai,
+
+376
+00:32:00,252 --> 00:32:07,536
+jo settings mein 90 din jaisa rakha jaata hai, toh woh batch chemist ko allocate hi nahi hota.
+
+377
+00:32:07,536 --> 00:32:10,945
+Short-dated maal chemist tak nahi pahunchta.
+
+378
+00:32:11,611 --> 00:32:14,125
+Ab Expiry and claims kholiye.
+
+379
+00:32:14,125 --> 00:32:19,673
+Upar chaar aankde: expired ya 30 din mein expire hone wala maal,
+
+380
+00:32:19,673 --> 00:32:27,735
+abhi claim ho sakne wala maal aur uska expected credit, khule claims, aur ab tak mila credit.
+
+381
+00:32:28,384 --> 00:32:36,972
+Expiry workbench mein har batch ka band dikhta hai: Expired, 30 din, 31 se 60 din, 61 se 90 din.
+
+382
+00:32:36,972 --> 00:32:42,429
+Saath mein shelf par kitna hai, quarantine mein kitna, value,
+
+383
+00:32:42,429 --> 00:32:46,812
+aur kya woh company ki claim window ke andar hai.
+
+384
+00:32:47,468 --> 00:32:53,527
+Jaise Gastrocalm Gel ka ek batch 15 November ko expire ho chuka hai.
+
+385
+00:32:53,527 --> 00:32:58,605
+Eligible likha hai, 70 percent credit ki ummeed ke saath.
+
+386
+00:32:58,605 --> 00:33:04,575
+Expired maal bikta nahi, isliye ise claim karna hi sahi raasta hai.
+
+387
+00:33:04,575 --> 00:33:08,584
+Claim ka poora process Part 14 mein dekhenge.
+
+388
+00:33:09,251 --> 00:33:16,235
+Stock reconciliation ke liye har batch ki har movement record hoti hai: GRN se aaya,
+
+389
+00:33:16,235 --> 00:33:23,469
+invoice se gaya, return se wapas, claim se company ko, transfer, ya audited adjustment.
+
+390
+00:33:23,469 --> 00:33:28,375
+Isliye batch ka balance hamesha movements se mil jaata hai.
+
+391
+00:33:29,031 --> 00:33:35,082
+Yaad rakhiye: FEFO par bharosa rakhiye, near-expiry list har hafte dekhiye,
+
+392
+00:33:35,082 --> 00:33:39,035
+aur claim window band hone se pehle claim kariye.
+
+393
+00:33:40,665 --> 00:33:46,508
+Part 10 mein sales order ka poora safar: order book karna, chemist chunna,
+
+394
+00:33:46,508 --> 00:33:53,298
+products aur quantity, special rate aur scheme, stock aur credit check, approve karna,
+
+395
+00:33:53,298 --> 00:33:56,141
+reject karna aur status track karna.
+
+396
+00:33:57,086 --> 00:34:03,983
+Orders screen par saare orders hain: portal, salesman, phone aur office se aaye.
+
+397
+00:34:03,983 --> 00:34:12,086
+Upar filters hain: Open, Awaiting approval, Approved, Picking, Packed, Invoiced aur Delivered.
+
+398
+00:34:12,086 --> 00:34:18,466
+Har order mein source, value, credit status aur current status dikhta hai.
+
+399
+00:34:19,134 --> 00:34:21,116
+Naya order banate hain.
+
+400
+00:34:21,116 --> 00:34:22,753
+Book order dabaiye.
+
+401
+00:34:22,753 --> 00:34:28,784
+Chemist list mein filter kariye aur Lalpur Life Care Pharmacy chuniye.
+
+402
+00:34:28,784 --> 00:34:34,298
+Turant uski credit limit, balance aur price tier dikh jaata hai.
+
+403
+00:34:34,953 --> 00:34:40,142
+Add product box mein do akshar likhiye aur Enter dabaiye.
+
+404
+00:34:40,142 --> 00:34:41,872
+Pantovista 40 joda.
+
+405
+00:34:41,872 --> 00:34:47,790
+Is chemist ke liye Pantovista ka special rate 110 rupaye set hai,
+
+406
+00:34:47,790 --> 00:34:50,885
+isliye rate PTR ki jagah 110 aaya.
+
+407
+00:34:51,550 --> 00:34:53,924
+Ab Febrinil 650, 30 packs.
+
+408
+00:34:53,924 --> 00:35:02,234
+Febrinil par 10 plus 2 scheme chal raha hai, toh Free column mein 6 packs apne-aap aa gaye.
+
+409
+00:35:02,234 --> 00:35:07,530
+Scheme yaad rakhne ya calculator chalane ki zaroorat nahi.
+
+410
+00:35:08,182 --> 00:35:11,331
+Teesra product Calvita D3, 10 packs.
+
+411
+00:35:11,331 --> 00:35:19,204
+Prana company par extra 5 percent discount scheme hai, woh Disc column mein dikh raha hai.
+
+412
+00:35:19,204 --> 00:35:23,490
+Stock column batata hai kitna maal available hai.
+
+413
+00:35:24,142 --> 00:35:31,302
+Daayi taraf taxable value, discount, CGST aur SGST, round off aur total.
+
+414
+00:35:31,302 --> 00:35:35,579
+Warehouse ke liye note bhi likh sakte hain.
+
+415
+00:35:35,579 --> 00:35:37,866
+Ab Place order dabaiye.
+
+416
+00:35:38,531 --> 00:35:42,702
+Order place ho gaya aur Awaiting approval mein hai.
+
+417
+00:35:42,702 --> 00:35:46,465
+Credit theek hai, isliye credit status OK hai.
+
+418
+00:35:46,465 --> 00:35:49,900
+Order kholte hain aur Approve dabate hain.
+
+419
+00:35:49,900 --> 00:35:55,135
+Stock batch-wise reserve hua aur pick list godown ko chali gayi.
+
+420
+00:35:55,789 --> 00:35:58,278
+Ab ek order reject karte hain.
+
+421
+00:35:58,278 --> 00:36:02,342
+Kanke Road Medical Store ka portal order kholiye.
+
+422
+00:36:02,342 --> 00:36:07,320
+Maan lijiye chemist ne phone par order cancel karne ko kaha.
+
+423
+00:36:07,320 --> 00:36:10,140
+Reject dabaiye aur reason likhiye.
+
+424
+00:36:10,140 --> 00:36:16,113
+Reject hua order kabhi bill nahi hota, aur reason record mein rehta hai.
+
+425
+00:36:16,773 --> 00:36:20,648
+Approve hone se pehle order cancel bhi ho sakta hai,
+
+426
+00:36:20,648 --> 00:36:26,385
+aur zaroorat ho toh line-wise quantity kam karke dobara order liya jaata hai.
+
+427
+00:36:26,385 --> 00:36:30,335
+Approve hone ke baad stock reserve ho chuka hota hai,
+
+428
+00:36:30,335 --> 00:36:34,433
+isliye badlaav ke liye cancel karke naya order banaiye.
+
+429
+00:36:35,085 --> 00:36:41,986
+Har order ka status timeline mein dikhta hai: Awaiting approval, Approved, Picking, Packed,
+
+430
+00:36:41,986 --> 00:36:45,096
+Invoiced, Out for delivery aur Delivered.
+
+431
+00:36:45,096 --> 00:36:50,177
+Office ko kabhi phone karke poochhna nahi padta ki order kahan hai.
+
+432
+00:36:50,828 --> 00:36:54,589
+Credit control order ka sabse zaroori hissa hai.
+
+433
+00:36:54,589 --> 00:37:01,720
+Agla part poori tarah isi par hai: limit cross karne wale chemist ke order ka kya hota hai.
+
+434
+00:37:03,363 --> 00:37:09,867
+Part 11 mein credit control: chemist ki credit limit, utilisation, overdue bills,
+
+435
+00:37:09,867 --> 00:37:17,495
+hold aur block, ageing, aur ek practical example ki limit cross hone par order ka kya hota hai.
+
+436
+00:37:18,452 --> 00:37:22,315
+Finance mein Credit control kholiye.
+
+437
+00:37:22,315 --> 00:37:31,114
+Upar market ka kul outstanding, overdue, aur ageing ke buckets hain: 31 se 60 din,
+
+438
+00:37:31,114 --> 00:37:35,728
+61 se 90, 91 se 120, aur 120 din se purana.
+
+439
+00:37:36,389 --> 00:37:43,927
+Table mein har chemist: credit limit, balance, limit ka kitna percent use hua, overdue,
+
+440
+00:37:43,927 --> 00:37:47,567
+sabse purana bill, status, aur risk score.
+
+441
+00:37:47,567 --> 00:37:55,105
+Why column saaf batata hai ki risk kyon high hai, jaise limit se upar, ya dues overdue.
+
+442
+00:37:55,768 --> 00:38:00,423
+Salesman, territory aur risk se filter kar sakte hain.
+
+443
+00:38:00,423 --> 00:38:04,647
+Jaise Ravi Kumar ke chemists, aur sirf high risk.
+
+444
+00:38:04,647 --> 00:38:10,164
+Isse har salesman ko pata chalta hai ki kisse vasooli karni hai.
+
+445
+00:38:10,819 --> 00:38:12,706
+Ab practical example.
+
+446
+00:38:12,706 --> 00:38:21,243
+Shree Ram Medical Hall ki credit limit 50,000 rupaye hai aur 45,000 rupaye pehle se baaki hain.
+
+447
+00:38:21,243 --> 00:38:26,904
+Yeh chemist ab lagbhag 15,000 rupaye ka naya order de raha hai.
+
+448
+00:38:26,904 --> 00:38:29,151
+Dekhte hain kya hota hai.
+
+449
+00:38:29,813 --> 00:38:35,213
+Book order kholte hain, Shree Ram Medical Hall chunte hain.
+
+450
+00:38:35,213 --> 00:38:39,331
+Upar credit limit aur balance dikh rahe hain.
+
+451
+00:38:39,331 --> 00:38:46,561
+Telmiva 40 ke 120 packs jodte hain, jo GST ke saath lagbhag 15,000 rupaye hain.
+
+452
+00:38:47,214 --> 00:38:49,226
+Place order dabaiye.
+
+453
+00:38:49,226 --> 00:38:54,355
+Order ban toh gaya, par credit hold par chala gaya.
+
+454
+00:38:54,355 --> 00:39:00,792
+45,000 plus 15,000 yaani 60,000, jo 50,000 ki limit se upar hai.
+
+455
+00:39:00,792 --> 00:39:04,514
+Yeh order apne-aap approve nahi hoga.
+
+456
+00:39:05,169 --> 00:39:06,279
+Order kholiye.
+
+457
+00:39:06,279 --> 00:39:11,673
+Value and credit card par saaf likha hai ki limit cross ho rahi hai.
+
+458
+00:39:11,673 --> 00:39:15,559
+Approve ki jagah Override and approve button hai,
+
+459
+00:39:15,559 --> 00:39:21,349
+jo sirf owner ya manager ke paas hota hai, aur reason likhna zaroori hai.
+
+460
+00:39:21,349 --> 00:39:25,949
+Har override audit trail mein naam ke saath darj hota hai.
+
+461
+00:39:26,602 --> 00:39:29,484
+Hum yahan override nahi karenge.
+
+462
+00:39:29,484 --> 00:39:33,176
+Sahi tareeka hai pehle purana paisa lena.
+
+463
+00:39:33,176 --> 00:39:36,958
+Chemist ne 10,000 rupaye UPI se bhej diye.
+
+464
+00:39:36,958 --> 00:39:41,190
+Collections mein yeh payment record karte hain.
+
+465
+00:39:41,837 --> 00:39:43,990
+Ab balance 35,000 hai.
+
+466
+00:39:43,990 --> 00:39:48,981
+35,000 plus naya order lagbhag 50,000 ke andar hai.
+
+467
+00:39:48,981 --> 00:39:53,286
+Order par wapas jaakar Approve dabaate hain.
+
+468
+00:39:53,286 --> 00:39:56,809
+Ab bina override ke approve ho gaya.
+
+469
+00:39:57,468 --> 00:39:59,576
+Hold aur block alag hain.
+
+470
+00:39:59,576 --> 00:40:04,636
+Chemist ki profile mein Put on hold ya Block kar sakte hain.
+
+471
+00:40:04,636 --> 00:40:10,117
+Tupudana Rural Medicos par hold hai, kyunki do cheque bounce hue.
+
+472
+00:40:10,117 --> 00:40:15,092
+Hold wale chemist ke naye bill bina override ke nahi bante.
+
+473
+00:40:15,092 --> 00:40:18,128
+Block matlab koi naya order hi nahi.
+
+474
+00:40:18,779 --> 00:40:22,135
+Licence bhi credit control ka hissa hai.
+
+475
+00:40:22,135 --> 00:40:29,016
+Jis chemist ka drug licence expire ho gaya, uska order Medoro refuse kar deta hai.
+
+476
+00:40:29,016 --> 00:40:33,799
+Isliye har chemist ki licence validity date sahi rakhiye.
+
+477
+00:40:34,451 --> 00:40:42,085
+Credit control ka matlab bikri rokna nahi, balki sahi chemist ko sahi had tak udhaar dena hai.
+
+478
+00:40:42,085 --> 00:40:46,471
+Isse bad debt kam hota hai aur cash flow sudharta hai.
+
+479
+00:40:48,071 --> 00:40:55,174
+Part 12 mein schemes aur free goods: 10 plus 2 jaisi quantity scheme, percentage discount,
+
+480
+00:40:55,174 --> 00:41:00,698
+company-wide scheme, sirf kuch chemists ke liye scheme, special rates,
+
+481
+00:41:00,698 --> 00:41:04,171
+aur free goods ka stock aur margin par asar.
+
+482
+00:41:05,118 --> 00:41:07,677
+Masters mein Schemes kholiye.
+
+483
+00:41:07,677 --> 00:41:15,265
+Do tarah ki schemes hoti hain: Free goods, yaani buy X get Y free, aur Extra discount.
+
+484
+00:41:15,265 --> 00:41:21,794
+Scheme ek product par ho sakti hai, ya kisi company ke saare products par.
+
+485
+00:41:22,495 --> 00:41:30,170
+List mein dekhiye: Febrinil 650 par 10 plus 2, Sanjivani ki poori range par 10 plus 1,
+
+486
+00:41:30,170 --> 00:41:36,328
+Prana ke vitamins par extra 5 percent, aur Montiluk LC par 20 plus 3,
+
+487
+00:41:36,328 --> 00:41:39,630
+jo sirf do bade chemists ke liye hai.
+
+488
+00:41:39,630 --> 00:41:42,843
+Har scheme ki validity date bhi hai.
+
+489
+00:41:43,526 --> 00:41:46,575
+Nayi scheme banate hain.
+
+490
+00:41:46,575 --> 00:41:48,989
+New scheme kholiye.
+
+491
+00:41:48,989 --> 00:41:55,977
+Code: ORS20P4, naam: ORSiva 20 plus 4, type Free goods.
+
+492
+00:41:55,977 --> 00:41:58,772
+Product ORSiva Sachet.
+
+493
+00:41:58,772 --> 00:42:03,346
+Buy 20, free 4, minimum quantity 20.
+
+494
+00:42:04,021 --> 00:42:07,784
+Valid from aaj se, valid to 31 March tak.
+
+495
+00:42:07,784 --> 00:42:16,044
+Show to chemists on the portal tick kariye, taaki chemist portal par bhi yeh scheme dikhe.
+
+496
+00:42:16,044 --> 00:42:17,145
+Save scheme.
+
+497
+00:42:17,801 --> 00:42:23,317
+Ab dekhte hain scheme order par apne-aap kaise lagti hai.
+
+498
+00:42:23,317 --> 00:42:28,059
+Naya invoice kholiye, chemist Kokar Health Point.
+
+499
+00:42:28,059 --> 00:42:31,155
+Febrinil 650 ke 10 packs jodiye.
+
+500
+00:42:31,155 --> 00:42:35,413
+Free column mein 2 packs aa gaye: 10 plus 2.
+
+501
+00:42:36,068 --> 00:42:38,035
+Quantity 25 kariye.
+
+502
+00:42:38,035 --> 00:42:45,073
+Scheme poore slab par lagti hai, yaani do baar 10, toh free 4 packs.
+
+503
+00:42:45,073 --> 00:42:48,592
+Bache hue 5 packs par scheme nahi.
+
+504
+00:42:48,592 --> 00:42:51,904
+Calculation bilkul nishchit hai.
+
+505
+00:42:52,577 --> 00:42:54,877
+Ab ORSiva ke 40 sachets.
+
+506
+00:42:54,877 --> 00:43:00,434
+Abhi banayi gayi 20 plus 4 scheme turant lag gayi: 8 free.
+
+507
+00:43:00,434 --> 00:43:07,621
+Calvita D3 jodne par Prana ka 5 percent discount Disc column mein aata hai.
+
+508
+00:43:08,305 --> 00:43:12,520
+Taxable value sirf bike hue packs par banti hai.
+
+509
+00:43:12,520 --> 00:43:18,139
+Free packs ki keemat zero hai, par stock se woh bhi kat-te hain.
+
+510
+00:43:18,139 --> 00:43:25,953
+Isliye free goods ka asar margin par padta hai: maal gaya, paisa sirf paid packs ka aaya.
+
+511
+00:43:25,953 --> 00:43:27,885
+Raise invoice dabaiye.
+
+512
+00:43:28,551 --> 00:43:33,400
+Invoice par Free column mein 4 aur 8 packs saaf chhape hain,
+
+513
+00:43:33,400 --> 00:43:37,199
+aur stock se 29 Febrinil aur 48 ORSiva kam hue.
+
+514
+00:43:37,199 --> 00:43:44,473
+Scheme report MIS mein hai, aur business intelligence mein scheme profitability batati hai
+
+515
+00:43:44,473 --> 00:43:47,867
+ki kaunsi scheme se bikri sach mein badhi.
+
+516
+00:43:48,541 --> 00:43:56,398
+Special rates chemist ki profile mein set hote hain: kisi ek chemist ke liye kisi product
+
+517
+00:43:56,398 --> 00:43:58,870
+ka net rate, ek tareekh tak.
+
+518
+00:43:58,870 --> 00:44:03,549
+Jaise Lalpur Life Care ke liye Pantovista 110 rupaye.
+
+519
+00:44:03,549 --> 00:44:07,257
+Yeh PTR aur PTS se upar priority leta hai.
+
+520
+00:44:07,926 --> 00:44:11,669
+Yaad rakhiye: scheme ki end date hamesha daaliye,
+
+521
+00:44:11,669 --> 00:44:15,029
+company se mila scheme hi chemist ko dijiye,
+
+522
+00:44:15,029 --> 00:44:19,994
+aur scheme report har mahine dekhiye taaki margin par nazar rahe.
+
+523
+00:44:21,678 --> 00:44:30,581
+Part 13 mein wholesale GST invoice: chemist chunna, PTR aur PTS rates, discount aur scheme,
+
+524
+00:44:30,581 --> 00:44:38,701
+same-state par CGST aur SGST, doosre state par IGST, HSN, invoice number, A4 print,
+
+525
+00:44:38,701 --> 00:44:40,658
+aur invoice history.
+
+526
+00:44:41,628 --> 00:44:44,001
+Sales mein New invoice kholiye.
+
+527
+00:44:44,001 --> 00:44:50,049
+Yeh direct ya counter billing hai, jab chemist khud aakar ya phone par maal le.
+
+528
+00:44:50,049 --> 00:44:56,096
+Order wale maal ka invoice packed order se banta hai, jo Part 15 mein dekhenge.
+
+529
+00:44:56,809 --> 00:45:01,306
+Chemist chuniye: City Care Chemists, Ranchi.
+
+530
+00:45:01,306 --> 00:45:08,563
+Yeh Jharkhand ka chemist hai, aur hamara godown bhi Jharkhand mein hai.
+
+531
+00:45:08,563 --> 00:45:11,731
+Isliye yeh same-state sale hai.
+
+532
+00:45:11,731 --> 00:45:18,477
+Products jodte hain: Amoxirise CV 625, Azivon 500, aur Telmiva 40.
+
+533
+00:45:19,146 --> 00:45:26,586
+Har line par rate chemist ke price tier se aata hai: PTR retailer ke liye, PTS stockist ke liye.
+
+534
+00:45:26,586 --> 00:45:30,151
+Disc column mein extra discount de sakte hain,
+
+535
+00:45:30,151 --> 00:45:35,654
+par rate ghatane ya extra discount ke liye override permission chahiye.
+
+536
+00:45:36,383 --> 00:45:43,777
+Neeche summary dekhiye: taxable value, discount, aur CGST plus SGST.
+
+537
+00:45:43,777 --> 00:45:50,192
+Same state hone se GST aadha CGST aur aadha SGST mein bata.
+
+538
+00:45:50,192 --> 00:45:56,281
+12 percent GST matlab 6 percent CGST aur 6 percent SGST.
+
+539
+00:45:56,281 --> 00:45:58,891
+Round off ke baad total.
+
+540
+00:45:59,572 --> 00:46:01,363
+Raise invoice dabaiye.
+
+541
+00:46:01,363 --> 00:46:06,086
+Medoro stock FEFO se batch-wise kaatata hai, credit limit,
+
+542
+00:46:06,086 --> 00:46:12,600
+overdue bills aur licence validity check karta hai, aur invoice number deta hai.
+
+543
+00:46:13,267 --> 00:46:14,853
+Yeh hai invoice.
+
+544
+00:46:14,853 --> 00:46:23,380
+Number godown ki series se banta hai: W, godown code, financial year aur kram sankhya,
+
+545
+00:46:23,380 --> 00:46:26,850
+GST ke 16 akshar ki seema ke andar.
+
+546
+00:46:26,850 --> 00:46:35,278
+Upar place of supply Jharkhand, aur har line mein HSN, batch, expiry, quantity, free,
+
+547
+00:46:35,278 --> 00:46:36,567
+rate aur GST.
+
+548
+00:46:37,243 --> 00:46:44,220
+Print dabaane par A4 tax invoice ka layout khulta hai: distributor ka naam, GSTIN,
+
+549
+00:46:44,220 --> 00:46:49,750
+drug licence, chemist ki details, HSN-wise lines aur tax summary.
+
+550
+00:46:49,750 --> 00:46:54,855
+Isse printer par chhapa ya PDF mein save kiya jaa sakta hai.
+
+551
+00:46:55,555 --> 00:47:01,687
+Ab doosre state ka chemist: Patna Demo Medical Agency, Bihar.
+
+552
+00:47:01,687 --> 00:47:04,200
+Wahi products jodte hain.
+
+553
+00:47:04,200 --> 00:47:10,934
+Summary mein ab CGST aur SGST ki jagah IGST aaya, poora 12 percent,
+
+554
+00:47:10,934 --> 00:47:14,151
+aur Inter-state: IGST likha hai.
+
+555
+00:47:15,169 --> 00:47:22,444
+Yeh place of supply ke niyam se hota hai: maal doosre state mein jaa raha hai, toh IGST.
+
+556
+00:47:22,444 --> 00:47:27,652
+Medoro chemist ke GSTIN ya state se yeh apne-aap tay karta hai.
+
+557
+00:47:27,652 --> 00:47:32,943
+Phir bhi tax ka faisla GST niyamon ke hisaab se hi hona chahiye,
+
+558
+00:47:32,943 --> 00:47:35,589
+aur shak ho toh CA se poochhiye.
+
+559
+00:47:36,320 --> 00:47:43,054
+Invoices screen par saare invoices ki history hai: number, chemist, date aur total.
+
+560
+00:47:43,054 --> 00:47:48,652
+Chemist ya number se search, aur date range se filter kar sakte hain.
+
+561
+00:47:49,312 --> 00:47:53,603
+Invoice same din cancel ho sakta hai, reason ke saath,
+
+562
+00:47:53,603 --> 00:47:58,053
+aur tab stock aur chemist ka balance wapas ho jaata hai.
+
+563
+00:47:58,053 --> 00:48:05,364
+Purane invoice ke liye cancel nahi, balki credit note banta hai, jo agle part mein dekhenge.
+
+564
+00:48:06,019 --> 00:48:11,741
+E-invoice IRN aur e-way bill abhi government portal par hi banaye jaate hain.
+
+565
+00:48:11,741 --> 00:48:18,207
+Medoro mein inka integration abhi wired nahi hai, aur settings mein yeh saaf likha hai.
+
+566
+00:48:19,783 --> 00:48:27,027
+Part 14 mein chemist se aaye returns aur expiry claims: invoice se credit note, saleable,
+
+567
+00:48:27,027 --> 00:48:32,969
+expired aur damaged maal, quarantine, company par claim, acknowledgement,
+
+568
+00:48:32,969 --> 00:48:36,387
+company ka credit note aur reconciliation.
+
+569
+00:48:37,362 --> 00:48:42,448
+Return hamesha us invoice se banta hai jisse maal gaya tha.
+
+570
+00:48:42,448 --> 00:48:46,759
+Isse batch, rate aur GST apne-aap sahi rehte hain.
+
+571
+00:48:46,759 --> 00:48:52,190
+Invoices mein City Care Chemists ka aaj ka invoice kholte hain.
+
+572
+00:48:52,950 --> 00:48:55,663
+Neeche credit note ka form hai.
+
+573
+00:48:55,663 --> 00:49:01,963
+Har line par kitne packs wapas aaye, unki condition, aur credit percent.
+
+574
+00:49:01,963 --> 00:49:09,314
+Amoxirise CV ke 2 packs saleable hain: yeh wapas usi batch mein stock mein jaayenge.
+
+575
+00:49:10,021 --> 00:49:15,261
+Azivon ke 3 packs toote hue aaye, toh condition Damaged chuniye,
+
+576
+00:49:15,261 --> 00:49:19,109
+aur chemist ke saath tay hua 50 percent credit.
+
+577
+00:49:19,109 --> 00:49:25,168
+Damaged aur expired maal stock mein nahi, balki quarantine mein jaata hai,
+
+578
+00:49:25,168 --> 00:49:27,297
+company par claim ke liye.
+
+579
+00:49:27,977 --> 00:49:32,250
+Reason likhiye, jo credit note par chhapta hai.
+
+580
+00:49:32,250 --> 00:49:35,978
+Button par credit ki rakam dikh rahi hai.
+
+581
+00:49:35,978 --> 00:49:39,433
+GST bhi usi anupaat mein kam hota hai.
+
+582
+00:49:39,433 --> 00:49:41,797
+Issue credit note dabaiye.
+
+583
+00:49:42,501 --> 00:49:47,165
+Credit note ban gaya aur chemist ka balance kam ho gaya.
+
+584
+00:49:47,165 --> 00:49:53,993
+Credit notes screen par saare sales returns ki list hai: number, invoice, chemist,
+
+585
+00:49:53,993 --> 00:49:55,409
+reason aur rakam.
+
+586
+00:49:56,090 --> 00:49:57,878
+Ab expiry claims.
+
+587
+00:49:57,878 --> 00:50:00,613
+Expiry and claims kholiye.
+
+588
+00:50:00,613 --> 00:50:06,925
+Workbench mein Gastrocalm Gel ka expired batch eligible hai.
+
+589
+00:50:06,925 --> 00:50:08,398
+Claim dabaiye.
+
+590
+00:50:09,072 --> 00:50:13,010
+Claim form mein packs, reason expiry, aur note.
+
+591
+00:50:13,010 --> 00:50:20,635
+Medoro company ke principal agreement se check karta hai ki claim window khuli hai ya nahi,
+
+592
+00:50:20,635 --> 00:50:23,232
+aur expected credit batata hai.
+
+593
+00:50:23,232 --> 00:50:24,908
+Raise claim dabaiye.
+
+594
+00:50:25,602 --> 00:50:31,229
+Claim raise ho gaya aur maal stock se nikal kar claim mein chala gaya.
+
+595
+00:50:31,229 --> 00:50:38,382
+Claims tab mein har claim ka number, supplier, item, packs, reason, kitne din purana hai,
+
+596
+00:50:38,382 --> 00:50:41,678
+claim value, credited aur open rakam hai.
+
+597
+00:50:42,353 --> 00:50:48,321
+Jab company ya C and F claim maan le, Supplier acknowledged dabaiye.
+
+598
+00:50:48,321 --> 00:50:51,218
+Status acknowledged ho jaata hai.
+
+599
+00:50:51,218 --> 00:50:55,957
+Maal company ko bhejne ka record bhi isi se judta hai.
+
+600
+00:50:56,652 --> 00:51:01,256
+Company ka credit note aane par Record credit note kholiye,
+
+601
+00:51:01,256 --> 00:51:04,300
+company ka CN number aur rakam bhariye.
+
+602
+00:51:04,300 --> 00:51:07,109
+Hum yahan sirf form dikha rahe hain.
+
+603
+00:51:07,109 --> 00:51:13,040
+Asli settlement tabhi darj kariye jab company ka credit note sach mein mile.
+
+604
+00:51:13,805 --> 00:51:20,648
+Reconciliation tab har supplier ka hisaab dikhata hai: kitne claims, kitna claim kiya,
+
+605
+00:51:20,648 --> 00:51:25,501
+kitna credit mila, kitna write-off hua, kitna abhi khula hai,
+
+606
+00:51:25,501 --> 00:51:29,161
+aur sabse purana khula claim kitne din ka hai.
+
+607
+00:51:29,995 --> 00:51:33,785
+Har company ki claim window alag hoti hai,
+
+608
+00:51:33,785 --> 00:51:39,830
+jaise expiry se 60 ya 90 din pehle se lekar 90 ya 180 din baad tak.
+
+609
+00:51:39,830 --> 00:51:46,417
+Window band hone ke baad claim nahi hota, aur maal ka poora nuksan aapka.
+
+610
+00:51:46,417 --> 00:51:49,575
+Isliye workbench har hafte dekhiye.
+
+611
+00:51:51,291 --> 00:51:55,768
+Part 15 mein godown ka kaam: approved orders ki pick list,
+
+612
+00:51:55,768 --> 00:52:02,638
+mobile phone par rack aur batch dekh kar picking, kam maal milne par short pick, packing,
+
+613
+00:52:02,638 --> 00:52:04,799
+aur packed order ka invoice.
+
+614
+00:52:05,781 --> 00:52:12,686
+Owner ki screen par Pick and pack menu mein badge dikhta hai: kitni pick lists baaki hain.
+
+615
+00:52:12,686 --> 00:52:18,977
+Yeh queue sabse purane order se shuru hoti hai, taaki koi order peeche na chhoote.
+
+616
+00:52:19,669 --> 00:52:24,156
+Lekin picking godown ka staff apne phone par karta hai.
+
+617
+00:52:24,156 --> 00:52:30,111
+Yeh hai Rahul, demo warehouse staff, jo employee ID aur PIN se login hai.
+
+618
+00:52:30,111 --> 00:52:35,577
+Uske phone par sirf Pick and pack jaise godown ke kaam dikhte hain.
+
+619
+00:52:38,408 --> 00:52:42,659
+Rahul Ramgarh Janta Medical ki pick list kholta hai.
+
+620
+00:52:42,659 --> 00:52:48,954
+Har line par rack number, product, batch, expiry aur kitne packs uthane hain.
+
+621
+00:52:48,954 --> 00:52:56,476
+Lines rack ke pick order mein lagi hain, taaki godown mein ek hi chakkar mein sab mil jaaye.
+
+622
+00:52:57,225 --> 00:52:58,974
+Start picking dabaiye.
+
+623
+00:52:58,974 --> 00:53:06,605
+Ab order ka status Picking ho gaya, aur office mein sabko dikhta hai ki maal uthaya ja raha hai.
+
+624
+00:53:07,295 --> 00:53:14,241
+Pehli line: rack number dekha, batch match kiya, packs uthaye, aur Picked all dabaya.
+
+625
+00:53:14,241 --> 00:53:21,595
+Har line ke saath batch number milana zaroori hai, taaki galat batch chemist tak na jaaye.
+
+626
+00:53:22,288 --> 00:53:29,025
+Agli line par shelf par maal kam nikla, toh Short dabaiye aur jitna mila utna likhiye.
+
+627
+00:53:29,025 --> 00:53:33,255
+Short pick par invoice sirf uthaye hue maal ka banega,
+
+628
+00:53:33,255 --> 00:53:36,780
+aur free goods bhi usi anupaat mein ghatenge.
+
+629
+00:53:37,520 --> 00:53:39,818
+Baaki lines par Picked all.
+
+630
+00:53:39,818 --> 00:53:47,391
+Saari lines pick hone ke baad, kitne boxes mein pack kiya, woh likhiye, aur Pack dabaiye.
+
+631
+00:53:47,391 --> 00:53:52,156
+Order packed ho gaya aur ab invoice ke liye taiyaar hai.
+
+632
+00:53:52,832 --> 00:53:54,433
+Wapas office mein.
+
+633
+00:53:54,433 --> 00:53:57,635
+Order ab Packed to invoice mein hai.
+
+634
+00:53:57,635 --> 00:54:00,837
+Order kholkar Raise invoice dabaiye.
+
+635
+00:54:00,837 --> 00:54:08,308
+Invoice bilkul utne maal ka banta hai jitna pick hua, usi batch aur expiry ke saath.
+
+636
+00:54:09,023 --> 00:54:16,490
+Picking ki galti distribution mein sabse mehngi galti hoti hai: galat product, galat batch,
+
+637
+00:54:16,490 --> 00:54:17,475
+ya kam maal.
+
+638
+00:54:17,475 --> 00:54:25,188
+Rack, batch aur quantity ki line-by-line confirmation se yeh galtiyan kaafi kam ho jaati hain.
+
+639
+00:54:25,188 --> 00:54:28,963
+Barcode scan se picking abhi uplabdh nahi hai.
+
+640
+00:54:30,693 --> 00:54:36,309
+Part 16 mein dispatch aur delivery: invoiced orders ko van trip mein jodna,
+
+641
+00:54:36,309 --> 00:54:43,124
+delivery person assign karna, van nikalna, delivery phone par receiver ka naam aur payment,
+
+642
+00:54:43,124 --> 00:54:46,793
+na pahunch paaye maal ka kya, aur trip ka hisaab.
+
+643
+00:54:47,769 --> 00:54:50,479
+Warehouse mein Dispatch kholiye.
+
+644
+00:54:50,479 --> 00:54:58,525
+Ready to dispatch mein woh saare invoices hain jo ban chuke hain par abhi godown se nikle nahi.
+
+645
+00:54:58,525 --> 00:55:03,437
+Har invoice ka number, chemist, pata aur value dikhti hai.
+
+646
+00:55:06,023 --> 00:55:14,189
+Ek route ke invoices chuniye: City Care Chemists, Hinoo Family Pharmacy aur Doranda Drug House.
+
+647
+00:55:14,189 --> 00:55:17,971
+Teeno Ranchi ke andar ek hi raaste par hain.
+
+648
+00:55:18,663 --> 00:55:26,657
+Gaadi number, driver ka naam, route, aur delivery person yaani app wala user chuniye:
+
+649
+00:55:26,657 --> 00:55:29,854
+Manoj, hamara demo delivery staff.
+
+650
+00:55:29,854 --> 00:55:31,547
+Plan trip dabaiye.
+
+651
+00:55:32,218 --> 00:55:35,843
+Trip ban gaya, dispatch number ke saath.
+
+652
+00:55:35,843 --> 00:55:39,648
+Jab van godown se nikle, Van left dabaiye.
+
+653
+00:55:39,648 --> 00:55:43,998
+Ab in orders ka status Out for delivery ho gaya.
+
+654
+00:55:44,678 --> 00:55:46,340
+Ab Manoj ka phone.
+
+655
+00:55:46,340 --> 00:55:50,772
+Usne apne employee ID aur PIN se login kiya hai.
+
+656
+00:55:50,772 --> 00:55:57,144
+My deliveries mein aaj ka trip hai: har drop ka chemist, pata, value,
+
+657
+00:55:57,144 --> 00:55:59,914
+aur Call aur Navigate buttons.
+
+658
+00:56:05,968 --> 00:56:09,093
+City Care Chemists par maal diya.
+
+659
+00:56:09,093 --> 00:56:11,366
+Record delivery kholiye.
+
+660
+00:56:11,366 --> 00:56:13,166
+Outcome: Delivered.
+
+661
+00:56:13,166 --> 00:56:20,269
+Received by mein lene wale ka naam zaroori hai: yahi proof of delivery hai.
+
+662
+00:56:20,269 --> 00:56:23,868
+Chemist ne UPI se poore paise de diye.
+
+663
+00:56:24,600 --> 00:56:29,122
+Collected mein rakam aur UPI reference likhiye, aur Save.
+
+664
+00:56:29,122 --> 00:56:34,992
+Yeh paisa turant receipt ban kar chemist ke khaate mein jama ho jaata hai,
+
+665
+00:56:34,992 --> 00:56:37,292
+sabse purane bill ke against.
+
+666
+00:56:42,615 --> 00:56:49,748
+Hinoo Family Pharmacy par maal diya, payment baad mein hogi, toh sirf receiver ka naam.
+
+667
+00:56:49,748 --> 00:56:55,242
+Doranda Drug House band mila: Outcome Could not deliver aur reason.
+
+668
+00:56:55,242 --> 00:57:00,899
+Aisa invoice wapas dispatch desk par aa jaata hai, agle trip ke liye.
+
+669
+00:57:01,572 --> 00:57:08,958
+Office mein dispatch board par trip ka poora hisaab hai: har invoice ka status, kisne liya,
+
+670
+00:57:08,958 --> 00:57:10,744
+aur kitna collect hua.
+
+671
+00:57:10,744 --> 00:57:16,832
+Delivery reconciliation ke liye driver se cash aur UPI isi list se milaiye.
+
+672
+00:57:17,512 --> 00:57:22,788
+Photo ya signature se proof of delivery abhi uplabdh nahi hai.
+
+673
+00:57:22,788 --> 00:57:26,362
+Proof receiver ke naam se record hota hai.
+
+674
+00:57:26,362 --> 00:57:30,276
+Yeh limitation hamari QA report mein darj hai.
+
+675
+00:57:31,874 --> 00:57:38,144
+Part 17 mein chemists se payment collection: cash, UPI, NEFT aur cheque,
+
+676
+00:57:38,144 --> 00:57:44,762
+partial aur full payment, bill-wise adjustment, receipt, collection history,
+
+677
+00:57:44,762 --> 00:57:46,678
+aur cheques ka hisaab.
+
+678
+00:57:47,638 --> 00:57:50,135
+Finance mein Collections kholiye.
+
+679
+00:57:50,135 --> 00:57:56,417
+Record a payment form mein chemist list ke saath har chemist ka due bhi dikhta hai,
+
+680
+00:57:56,417 --> 00:57:59,898
+taaki galat chemist mein paisa na chala jaaye.
+
+681
+00:58:00,575 --> 00:58:07,268
+Pehla example: Doranda Drug House ne NEFT se 20,000 rupaye bheje.
+
+682
+00:58:07,268 --> 00:58:14,784
+Chemist chuniye, amount, mode Bank transfer NEFT, aur bank ka UTR number.
+
+683
+00:58:14,784 --> 00:58:16,123
+Post receipt.
+
+684
+00:58:16,803 --> 00:58:18,931
+Receipt voucher ban gaya.
+
+685
+00:58:18,931 --> 00:58:24,719
+Yeh payment sabse purane bill ke against pehle lagta hai, yani FIFO.
+
+686
+00:58:24,719 --> 00:58:32,039
+Isse ageing hamesha sahi rehti hai, aur chemist ka purana bill hi pehle band hota hai.
+
+687
+00:58:32,720 --> 00:58:37,305
+Doosra example: Morabadi Medicine Centre ne cheque diya.
+
+688
+00:58:37,305 --> 00:58:41,562
+Mode Cheque, cheque number, bank aur cheque ki date.
+
+689
+00:58:41,562 --> 00:58:49,012
+Cheque turant bank mein nahi jaata: woh Cheques in hand mein rehta hai jab tak clear na ho.
+
+690
+00:58:49,680 --> 00:58:54,496
+Yeh partial payment hai: Morabadi par is se zyada baaki tha,
+
+691
+00:58:54,496 --> 00:58:57,867
+toh balance ghat gaya par khatam nahi hua.
+
+692
+00:58:57,867 --> 00:59:05,090
+Agar koi due se zyada rakam daale, toh Medoro rok deta hai: amount exceeds the outstanding
+
+693
+00:59:05,090 --> 00:59:05,732
+balance.
+
+694
+00:59:06,401 --> 00:59:11,761
+Teesra example: Kokar Health Point ka poora due cash mein.
+
+695
+00:59:11,761 --> 00:59:15,735
+Chemist list mein uska exact due likha hai.
+
+696
+00:59:15,735 --> 00:59:18,784
+Wahi rakam daal kar Post receipt.
+
+697
+00:59:18,784 --> 00:59:20,725
+Ab uska balance zero.
+
+698
+00:59:21,431 --> 00:59:27,376
+Neeche aaj ke collections ki list hai: receipt number, chemist, mode,
+
+699
+00:59:27,376 --> 00:59:33,408
+reference aur kisne collect kiya, office, salesman ya delivery person.
+
+700
+00:59:33,408 --> 00:59:37,027
+Shaam ko cash aur UPI isi list se milaiye.
+
+701
+00:59:37,694 --> 00:59:43,054
+Cheques ka agla kadam: cheque bank mein jama hua, phir clear ya bounce.
+
+702
+00:59:43,054 --> 00:59:47,282
+Bounce hone par chemist ka balance wapas badh jaata hai,
+
+703
+00:59:47,282 --> 00:59:51,586
+aur credit risk score mein bounced cheque gina jaata hai.
+
+704
+00:59:52,248 --> 00:59:59,059
+Ab Credit control par dekhiye: Doranda, Morabadi aur Kokar ke balance aur ageing turant
+
+705
+00:59:59,059 --> 01:00:00,233
+update ho gaye.
+
+706
+01:00:00,233 --> 01:00:05,948
+Collections ka asar dashboard ke Collected today card par bhi dikhta hai.
+
+707
+01:00:06,845 --> 01:00:13,172
+Yaad rakhiye: har payment ka reference zaroor likhiye, cheque ki date sahi daaliye,
+
+708
+01:00:13,172 --> 01:00:17,593
+aur roz shaam collection list ko bank aur cash se milaiye.
+
+709
+01:00:19,179 --> 01:00:24,932
+Part 18 mein field sales: territories aur beats, salesmen aur unke target,
+
+710
+01:00:24,932 --> 01:00:31,462
+chemists ko salesman se jodna, aur salesman ka field app jisme woh order aur payment
+
+711
+01:00:31,462 --> 01:00:33,095
+collection karta hai.
+
+712
+01:00:34,054 --> 01:00:38,050
+Masters mein Territories and salesmen kholiye.
+
+713
+01:00:38,050 --> 01:00:45,000
+Territory ek area ya beat hai, jaise Ranchi Central, Ranchi North, Ranchi South,
+
+714
+01:00:45,000 --> 01:00:49,170
+aur Ramgarh-Hazaribagh, unke PIN codes ke saath.
+
+715
+01:00:49,842 --> 01:00:57,018
+Salesmen ki list mein har salesman ka code, phone, territories aur monthly target hai.
+
+716
+01:00:57,018 --> 01:01:04,694
+Ravi Kumar Ranchi Central dekhte hain, Suman Tirkey North aur South, aur Anil Mahto Ramgarh.
+
+717
+01:01:05,356 --> 01:01:10,571
+Field app ke liye salesman ko uske login se jodna zaroori hai.
+
+718
+01:01:10,571 --> 01:01:14,776
+Ravi ka employee account Users mein ban chuka hai.
+
+719
+01:01:14,776 --> 01:01:20,664
+Ravi ki row mein Edit dabaiye, User mein Ravi Kumar chuniye, aur save.
+
+720
+01:01:21,342 --> 01:01:25,844
+Chemist profile mein territory aur salesman set hote hain.
+
+721
+01:01:25,844 --> 01:01:29,881
+Isse har salesman ko sirf apne chemists dikhte hain,
+
+722
+01:01:29,881 --> 01:01:34,538
+aur unke orders aur collections uske naam se darj hote hain.
+
+723
+01:01:35,233 --> 01:01:36,780
+Ab Ravi ka phone.
+
+724
+01:01:36,780 --> 01:01:40,693
+Usne employee ID aur PIN se login kiya hai.
+
+725
+01:01:40,693 --> 01:01:47,336
+Field app mein sirf uske chemists hain, har ek ka due, overdue aur phone,
+
+726
+01:01:47,336 --> 01:01:52,341
+aur teen buttons: Book order, Call aur Collect payment.
+
+727
+01:01:53,026 --> 01:01:57,144
+Morabadi Medicine Centre par Ravi order leta hai.
+
+728
+01:01:57,144 --> 01:02:01,598
+Book order dabaiye, products jodiye, aur Place order.
+
+729
+01:02:01,598 --> 01:02:08,321
+Order seedha office ki approval queue mein pahunchta hai, credit check ke saath.
+
+730
+01:02:08,321 --> 01:02:11,094
+Koi kaagaz ya dobara typing nahi.
+
+731
+01:02:11,780 --> 01:02:14,493
+Chemist ne 5,000 rupaye cash diye.
+
+732
+01:02:14,493 --> 01:02:20,715
+Field app mein Collect payment kholiye, amount aur mode bhar kar Post receipt.
+
+733
+01:02:20,715 --> 01:02:27,736
+Receipt Ravi ke naam se banti hai, aur Collections report mein salesman-wise dikhti hai.
+
+734
+01:02:28,446 --> 01:02:35,476
+Recent orders mein Ravi apne orders ka status dekh sakta hai: approved hua, pick hua,
+
+735
+01:02:35,476 --> 01:02:37,213
+invoice bana ya nahi.
+
+736
+01:02:37,213 --> 01:02:41,018
+Chemist poochhe toh turant jawab de sakta hai.
+
+737
+01:02:41,715 --> 01:02:49,096
+Owner ki taraf se MIS reports mein Salesman performance report hai: har salesman ki bikri,
+
+738
+01:02:49,096 --> 01:02:52,786
+target ke saamne achievement aur collections.
+
+739
+01:02:52,786 --> 01:02:57,215
+Sales by territory report area-wise bikri dikhata hai.
+
+740
+01:02:57,884 --> 01:03:03,326
+Field app se salesman ka aadha din kaagaz aur phone mein nahi jaata.
+
+741
+01:03:03,326 --> 01:03:08,608
+Order aur payment wahin darj, aur office ko sab turant dikhta hai.
+
+742
+01:03:10,271 --> 01:03:15,339
+Part 19 mein chemist ordering portal: chemist ka registration,
+
+743
+01:03:15,339 --> 01:03:20,571
+distributor se judne ki request, licence check ke baad approval,
+
+744
+01:03:20,571 --> 01:03:26,947
+catalogue mein apne rates aur schemes, cart, order, status, invoices aur dues.
+
+745
+01:03:27,919 --> 01:03:32,943
+Website ke anusaar chemist portal Professional plan se shamil hai,
+
+746
+01:03:32,943 --> 01:03:35,226
+aur chemists ke liye muft hai.
+
+747
+01:03:35,226 --> 01:03:41,163
+Pehle distributor ki settings dekhte hain: System mein Chemist portal kholiye.
+
+748
+01:03:41,829 --> 01:03:46,980
+Yahan tay hota hai ki chemist kya dekhega: portal ordering on,
+
+749
+01:03:46,980 --> 01:03:54,207
+distributor search mein naam dikhe ya nahi, stock exact packs mein, sirf In stock, Low,
+
+750
+01:03:54,207 --> 01:04:00,521
+Out band mein, ya bilkul nahi, schemes, MRP, minimum order aur service area.
+
+751
+01:04:01,195 --> 01:04:03,007
+Ab chemist ki taraf.
+
+752
+01:04:03,007 --> 01:04:11,068
+Ek naya chemist, Ormanjhi Demo Medicals, portal par register karta hai: pharmacy ka naam,
+
+753
+01:04:11,068 --> 01:04:19,311
+owner, mobile, email, state, address, PIN, aur dono drug licence numbers validity ke saath.
+
+754
+01:04:19,994 --> 01:04:24,808
+Licence number Form 20B aur 21B, aur unki validity date.
+
+755
+01:04:24,808 --> 01:04:29,793
+Password banaiye, terms accept kariye, aur Create account.
+
+756
+01:04:29,793 --> 01:04:37,272
+Portal par account banne ke baad bhi koi distributor tab tak maal nahi deta jab tak woh
+
+757
+01:04:37,272 --> 01:04:40,366
+licence check karke approve na kare.
+
+758
+01:04:41,053 --> 01:04:47,148
+Find a distributor mein naam, area ya distributor code se dhoondhiye.
+
+759
+01:04:47,148 --> 01:04:53,155
+MEDORO-RNC code daala, aur Medoro Demo Pharma Distributors mil gaya.
+
+760
+01:04:53,155 --> 01:04:55,186
+Ask to connect dabaiye.
+
+761
+01:04:55,186 --> 01:04:59,073
+KYC share karne ki anumati bhi isi mein hai.
+
+762
+01:04:59,752 --> 01:05:02,215
+Wapas distributor ki screen.
+
+763
+01:05:02,215 --> 01:05:05,823
+Chemist portal mein nayi request aa gayi.
+
+764
+01:05:05,823 --> 01:05:12,509
+Licence numbers ki copy se milaiye, credit limit aur credit days tay kariye,
+
+765
+01:05:12,509 --> 01:05:16,028
+ya kisi existing chemist se link kariye.
+
+766
+01:05:16,028 --> 01:05:17,172
+Phir Approve.
+
+767
+01:05:19,986 --> 01:05:26,293
+Ab chemist ke phone par My distributors mein distributor approved dikh raha hai.
+
+768
+01:05:26,293 --> 01:05:32,600
+Order dabaate hi catalogue khulta hai: products, chemist ke apne rates, schemes,
+
+769
+01:05:32,600 --> 01:05:35,990
+aur stock band, jaisa distributor ne chuna.
+
+770
+01:05:40,786 --> 01:05:43,173
+Search mein Febrinil likhiye.
+
+771
+01:05:43,173 --> 01:05:46,547
+10 plus 2 scheme yahan bhi dikh rahi hai.
+
+772
+01:05:46,547 --> 01:05:53,214
+Quantity 20 likhte hi neeche Your order mein 4 packs free ke saath jud jaata hai.
+
+773
+01:06:10,441 --> 01:06:15,179
+Neeche Your order mein products, approx total GST ke saath,
+
+774
+01:06:15,179 --> 01:06:19,757
+aur ek note: rates aur schemes aapke distributor ke hain,
+
+775
+01:06:19,757 --> 01:06:24,575
+stock aur credit distributor approval par confirm karta hai.
+
+776
+01:06:24,575 --> 01:06:26,181
+Place order dabaiye.
+
+777
+01:06:26,911 --> 01:06:31,915
+My orders mein order ka status hai: abhi Awaiting approval.
+
+778
+01:06:31,915 --> 01:06:38,107
+Jaise hi distributor approve, pick, invoice karega, status yahan badlega.
+
+779
+01:06:38,107 --> 01:06:45,147
+Dues and invoices mein chemist apna outstanding aur invoices dekhta hai, sirf apne.
+
+780
+01:06:45,869 --> 01:06:52,860
+Distributor ki Orders screen par portal se aaya order source portal ke saath dikh raha hai.
+
+781
+01:06:52,860 --> 01:06:56,547
+Ise baaki orders ki tarah hi approve karte hain.
+
+782
+01:06:56,547 --> 01:07:02,002
+Portal par password reset aur email verification abhi uplabdh nahi hai,
+
+783
+01:07:02,002 --> 01:07:04,153
+yeh QA report mein darj hai.
+
+784
+01:07:05,793 --> 01:07:12,701
+Part 20 mein accounts: double-entry books, trial balance, day book, chemist ledger,
+
+785
+01:07:12,701 --> 01:07:20,525
+supplier ledger, receipt aur payment vouchers, expenses, aur bank statement se reconciliation.
+
+786
+01:07:21,477 --> 01:07:24,920
+Finance mein Accounts and bank kholiye.
+
+787
+01:07:24,920 --> 01:07:32,248
+Medoro mein alag se entry nahi karni padti: har invoice, credit note, receipt, GRN,
+
+788
+01:07:32,248 --> 01:07:37,369
+payment aur claim apne-aap ek balanced voucher banata hai.
+
+789
+01:07:37,369 --> 01:07:39,929
+Voucher kabhi edit nahi hote.
+
+790
+01:07:40,604 --> 01:07:46,843
+Trial balance mein har account ka debit aur credit hai: bank, cash in hand,
+
+791
+01:07:46,843 --> 01:07:52,749
+cheques in hand, input aur output GST, purchases, sales, sales returns,
+
+792
+01:07:52,749 --> 01:07:59,736
+sundry debtors yaani chemists se lena, aur sundry creditors yaani suppliers ko dena.
+
+793
+01:07:59,736 --> 01:08:01,816
+Neeche total barabar hai.
+
+794
+01:08:02,497 --> 01:08:08,843
+Expenses bhi isi mein dikhte hain: rent, salaries, bijli aur delivery ka kharcha.
+
+795
+01:08:08,843 --> 01:08:11,663
+Is demo mein yeh pehle se darj hain.
+
+796
+01:08:11,663 --> 01:08:17,147
+Distribution ki screens mein abhi expense jodne ka alag form nahi hai,
+
+797
+01:08:17,147 --> 01:08:19,341
+yeh QA report mein darj hai.
+
+798
+01:08:20,036 --> 01:08:28,059
+Day book tab mein din ya mahine ke saare vouchers kram se: voucher number, type, narration,
+
+799
+01:08:28,059 --> 01:08:29,558
+debit aur credit.
+
+800
+01:08:29,558 --> 01:08:34,407
+Sales voucher, receipt, payment, journal, sab ek jagah.
+
+801
+01:08:34,407 --> 01:08:39,520
+Isse cash book aur bank book ki jagah bhi kaam chalta hai.
+
+802
+01:08:40,247 --> 01:08:43,488
+Chemist ka ledger uski profile mein hai.
+
+803
+01:08:43,488 --> 01:08:48,835
+Jaise Doranda Drug House: opening balance, har invoice debit mein,
+
+804
+01:08:48,835 --> 01:08:53,778
+har receipt aur credit note credit mein, aur running balance.
+
+805
+01:08:53,778 --> 01:08:57,667
+Date range daal kar statement nikaal sakte hain.
+
+806
+01:08:58,342 --> 01:09:04,889
+Supplier ka ledger supplier page par hai, jo Part 7 mein dekha: GRN credit mein,
+
+807
+01:09:04,889 --> 01:09:08,408
+payments debit mein, aur We owe ka balance.
+
+808
+01:09:08,408 --> 01:09:13,482
+Trial balance ka sundry creditors in sab suppliers ka jod hai.
+
+809
+01:09:14,225 --> 01:09:20,163
+Bank reconciliation tab mein bank ka statement CSV ya Excel mein import kariye.
+
+810
+01:09:20,163 --> 01:09:26,251
+Medoro har line ko books ki entry se milata hai: rakam, tareekh aur reference se.
+
+811
+01:09:26,251 --> 01:09:32,941
+Jo nahi mila, woh Unmatched lines mein dikhta hai, aur use haath se match kar sakte hain.
+
+812
+01:09:33,643 --> 01:09:38,772
+Automatic bank feed ya Account Aggregator abhi connected nahi hai.
+
+813
+01:09:38,772 --> 01:09:41,647
+Statement file import hi tareeka hai.
+
+814
+01:09:41,647 --> 01:09:48,563
+Profit and loss statement Distribution ki screen par abhi alag se nahi hai; trial balance
+
+815
+01:09:48,563 --> 01:09:53,847
+ke sales, purchases aur kharche ke aankde CA ko diye jaa sakte hain.
+
+816
+01:09:54,523 --> 01:10:01,469
+Accounts ka sabse bada faayda: bikri, kharid aur paisa, teeno ek hi system mein,
+
+817
+01:10:01,469 --> 01:10:04,334
+isliye hisaab apne-aap milta hai.
+
+818
+01:10:04,334 --> 01:10:08,415
+Mahine ke ant mein trial balance CA ko bhejiye.
+
+819
+01:10:10,008 --> 01:10:18,097
+Part 21 mein GST reports: GSTR-1 aur GSTR-3B ki JSON file, HSN summary, CGST,
+
+820
+01:10:18,097 --> 01:10:25,346
+SGST aur IGST, input tax credit, credit notes, aur CA ke liye export.
+
+821
+01:10:25,346 --> 01:10:31,964
+Saath mein yeh bhi ki report aur asli filing mein kya fark hai.
+
+822
+01:10:32,930 --> 01:10:36,187
+Finance mein GST returns kholiye.
+
+823
+01:10:36,187 --> 01:10:44,774
+Upar likha hai: GSTR-1 aur GSTR-3B posted invoices, credit notes aur GRN se bante hain.
+
+824
+01:10:44,774 --> 01:10:52,078
+JSON GSTN ke offline tool ke liye hai, aur filing GST portal par hoti hai.
+
+825
+01:10:52,742 --> 01:10:54,242
+Mahina chuniye.
+
+826
+01:10:54,242 --> 01:11:03,139
+Chaar aankde: kitne invoices, kitne B2B aur kitne cancelled; credit notes ke baad taxable
+
+827
+01:11:03,139 --> 01:11:08,338
+value; output tax; aur GRN se mila input tax credit.
+
+828
+01:11:09,011 --> 01:11:17,827
+HSN summary, yaani GSTR-1 ka Table 12: har HSN aur GST rate ke hisaab se quantity,
+
+829
+01:11:17,827 --> 01:11:22,772
+taxable value, aur IGST, CGST, SGST alag-alag.
+
+830
+01:11:22,772 --> 01:11:30,943
+Same-state bikri CGST aur SGST mein, aur Bihar ya Bengal ki bikri IGST mein.
+
+831
+01:11:31,631 --> 01:11:40,857
+GSTR-1 JSON button dabaate hi file download hoti hai, GSTN offline tool ke format mein.
+
+832
+01:11:40,857 --> 01:11:44,569
+Isi tarah GSTR-3B JSON aur HSN CSV.
+
+833
+01:11:44,569 --> 01:11:48,811
+In files ko CA ya accountant ko bhejiye.
+
+834
+01:11:49,500 --> 01:11:53,844
+Credit notes bhi in reports mein apne-aap shamil hain,
+
+835
+01:11:53,844 --> 01:11:59,395
+aur cancelled invoices GSTR-1 mein cancelled ke roop mein jaate hain.
+
+836
+01:11:59,395 --> 01:12:04,544
+Purchase ki taraf GRN ka input tax credit GSTR-3B mein aata hai.
+
+837
+01:12:05,212 --> 01:12:10,133
+Ek zaroori baat: Medoro report aur JSON taiyaar karta hai,
+
+838
+01:12:10,133 --> 01:12:13,867
+par government portal par filing nahi karta.
+
+839
+01:12:13,867 --> 01:12:17,685
+GSTN API se direct filing connected nahi hai.
+
+840
+01:12:17,685 --> 01:12:22,776
+Filing se pehle aapke CA ko records zaroor jaanchne chahiye.
+
+841
+01:12:23,480 --> 01:12:28,995
+E-invoice IRN aur e-way bill bhi abhi portal par hi banaye jaate hain.
+
+842
+01:12:28,995 --> 01:12:34,588
+Settings mein Integrations ki list har cheez ka asli status batati hai.
+
+843
+01:12:36,211 --> 01:12:42,462
+Part 22 mein MIS reports aur business intelligence: chaudah MIS reports,
+
+844
+01:12:42,462 --> 01:12:49,147
+date range aur CSV export, phir reorder suggestions, expiry risk, dead stock,
+
+845
+01:12:49,147 --> 01:12:56,439
+profitability, scheme results, credit risk, sales forecast aur management assistant.
+
+846
+01:12:57,409 --> 01:13:00,411
+Finance mein MIS reports kholiye.
+
+847
+01:13:00,411 --> 01:13:07,417
+Website par chaudah MIS reports likhe hain, aur yahan sach mein chaudah hain.
+
+848
+01:13:07,417 --> 01:13:13,240
+Har aankda posted invoices, GRN, vouchers aur stock se aata hai,
+
+849
+01:13:13,240 --> 01:13:17,061
+aur har report CSV mein download hoti hai.
+
+850
+01:13:17,770 --> 01:13:25,090
+Ek-ek karke dekhte hain: sales register, product-wise, company-wise aur chemist-wise sales,
+
+851
+01:13:25,090 --> 01:13:30,078
+salesman performance, territory-wise sales, purchase register.
+
+852
+01:13:33,506 --> 01:13:40,878
+Phir batch-wise stock statement, outstanding aur ageing, collections, scheme report,
+
+853
+01:13:40,878 --> 01:13:45,793
+delivery performance, supplier claims, aur credit notes.
+
+854
+01:13:45,793 --> 01:13:46,846
+Kul chaudah.
+
+855
+01:13:47,793 --> 01:13:49,958
+Sales by product kholiye.
+
+856
+01:13:49,958 --> 01:13:57,926
+Har product ke bike packs, free packs, taxable sales, cost, gross margin aur margin percent.
+
+857
+01:13:57,926 --> 01:14:05,981
+Isse pata chalta hai ki kaunsa product sach mein kamaata hai aur kaunsa sirf volume deta hai.
+
+858
+01:14:06,646 --> 01:14:11,104
+Date range badal kar Apply kariye, jaise pichhle mahine ka.
+
+859
+01:14:11,104 --> 01:14:15,939
+CSV dabaate hi file Excel mein khulne ke liye download hoti hai,
+
+860
+01:14:15,939 --> 01:14:18,810
+jise CA ya company ko bhej sakte hain.
+
+861
+01:14:19,499 --> 01:14:27,753
+Outstanding and ageing report har chemist ka limit, balance, overdue aur 0 se 30, 31 se 60,
+
+862
+01:14:27,753 --> 01:14:30,565
+aur purane buckets dikhata hai.
+
+863
+01:14:30,565 --> 01:14:34,375
+Vasooli ki meeting isi report se chalaiye.
+
+864
+01:14:35,083 --> 01:14:37,268
+Ab Business intelligence.
+
+865
+01:14:37,268 --> 01:14:43,648
+Yeh koi jaadu wala AI nahi, balki aapke apne data ka saaf statistics hai.
+
+866
+01:14:43,648 --> 01:14:50,291
+Kuch bhi apne-aap post nahi hota: kharid ke sujhav sirf draft PO bante hain,
+
+867
+01:14:50,291 --> 01:14:53,175
+jinhe aap jaanch kar bhejte hain.
+
+868
+01:14:53,869 --> 01:15:01,214
+Automatic reorder suggestions: pichhle 120 din ki demand, lead time, cover aur safety days,
+
+869
+01:15:01,214 --> 01:15:08,235
+aur haath ka stock, order mein aaya maal aur reservation ghata kar, kitna mangwana hai.
+
+870
+01:15:08,235 --> 01:15:12,513
+Create draft POs dabaane par draft PO ban jaate hain.
+
+871
+01:15:13,227 --> 01:15:19,036
+Expiry loss tab batata hai kis batch par kitna nuksan ho sakta hai.
+
+872
+01:15:19,036 --> 01:15:22,504
+Dead stock: jo maal 90 din se nahi bika.
+
+873
+01:15:22,504 --> 01:15:29,874
+Product profitability aur scheme profitability: scheme se pehle aur scheme ke dauraan
+
+874
+01:15:29,874 --> 01:15:31,175
+margin ka fark.
+
+875
+01:15:31,882 --> 01:15:36,650
+Credit risk har chemist ka risk score aur uske kaaran dikhata hai,
+
+876
+01:15:36,650 --> 01:15:40,262
+aur Sales forecast agle 30 din ki sambhavit bikri.
+
+877
+01:15:40,262 --> 01:15:45,102
+Yeh sab Professional plan ke business intelligence mein shamil hai.
+
+878
+01:15:45,773 --> 01:15:49,326
+Upar management reporting assistant hai.
+
+879
+01:15:49,326 --> 01:15:51,635
+Who owes us money dabaiye.
+
+880
+01:15:51,635 --> 01:16:00,073
+Jawab fixed queries se aata hai, kisi bahari AI model se nahi: kis chemist par kitna baaki hai.
+
+881
+01:16:00,743 --> 01:16:05,155
+What should I reorder dabaane par reorder ki list aati hai.
+
+882
+01:16:05,155 --> 01:16:10,465
+In reports aur insights ka niyamit upyog karke distributor apna margin,
+
+883
+01:16:10,465 --> 01:16:13,531
+stock aur udhaar teeno sambhal sakta hai.
+
+884
+01:16:15,070 --> 01:16:22,756
+Part 23 mein users aur security: team ki list, naya user invite karna, roles jaise manager,
+
+885
+01:16:22,756 --> 01:16:30,443
+accountant, billing, warehouse, salesman aur delivery, permission matrix, two-step sign-in,
+
+886
+01:16:30,443 --> 01:16:31,794
+aur audit trail.
+
+887
+01:16:32,762 --> 01:16:35,823
+System mein Users and roles kholiye.
+
+888
+01:16:35,823 --> 01:16:43,305
+Owner, manager aur accountant email, password aur authenticator app se login karte hain.
+
+889
+01:16:43,305 --> 01:16:49,342
+Warehouse, billing, salesman aur delivery staff employee ID aur PIN se.
+
+890
+01:16:50,021 --> 01:16:57,696
+Team list mein har user ka naam, sign-in ka tareeka, employee ID, two-step on hai ya nahi,
+
+891
+01:16:57,696 --> 01:16:59,572
+role aur aakhri login.
+
+892
+01:16:59,572 --> 01:17:04,944
+Hamare demo mein owner ke alawa Ravi salesman, Rahul warehouse,
+
+893
+01:17:04,944 --> 01:17:08,185
+Manoj delivery aur Pooja billing hain.
+
+894
+01:17:08,854 --> 01:17:12,854
+Naya user jodte hain: office ka accountant.
+
+895
+01:17:12,854 --> 01:17:17,133
+Full name, email, role Accountant, aur godown.
+
+896
+01:17:17,133 --> 01:17:24,947
+Accountant ko password aur authenticator chahiye, isliye invite email par jaata hai.
+
+897
+01:17:24,947 --> 01:17:26,994
+Create invite dabaiye.
+
+898
+01:17:27,696 --> 01:17:31,738
+Invite code ban gaya, jo 48 ghante tak valid hai.
+
+899
+01:17:31,738 --> 01:17:37,925
+Employee sign-in page par I have an invite code se apna account banata hai.
+
+900
+01:17:37,925 --> 01:17:45,596
+Code video mein dikhaya ja sakta hai kyunki yeh demo hai, asli code kisi se share mat kariye.
+
+901
+01:17:46,313 --> 01:17:48,252
+Ab permission matrix.
+
+902
+01:17:48,252 --> 01:17:56,656
+Har row ek permission hai: masters, orders book karna, approve karna, credit hold override,
+
+903
+01:17:56,656 --> 01:18:04,690
+invoice, invoice cancel, pick and pack, dispatch, delivery, purchase, stock adjustment,
+
+904
+01:18:04,690 --> 01:18:08,938
+payments, reports, insights, portal aur users.
+
+905
+01:18:08,938 --> 01:18:10,693
+Har column ek role.
+
+906
+01:18:11,396 --> 01:18:17,432
+Jaise Salesman ke paas sirf orders book karna aur payment collect karna hai.
+
+907
+01:18:17,432 --> 01:18:22,038
+Woh approve nahi kar sakta, invoice cancel nahi kar sakta.
+
+908
+01:18:22,038 --> 01:18:26,723
+Kisi cell par click karke permission de ya hata sakte hain.
+
+909
+01:18:26,723 --> 01:18:29,344
+Owner ki permissions locked hain.
+
+910
+01:18:30,011 --> 01:18:37,586
+Jaise warehouse role ko stock adjustment ki permission dete hain, aur phir wapas hata dete hain.
+
+911
+01:18:37,586 --> 01:18:40,663
+Har badlaav audit trail mein jaata hai.
+
+912
+01:18:41,323 --> 01:18:43,509
+Ab dekhiye role ka asar.
+
+913
+01:18:43,509 --> 01:18:48,244
+Yeh Ravi salesman ka phone hai, jo PIN se login hai.
+
+914
+01:18:48,244 --> 01:18:56,440
+Dhyan dijiye: salesman ko bhi dashboard par poori bikri, vasooli aur bakaya dikh raha hai.
+
+915
+01:18:56,440 --> 01:18:59,991
+Yeh hamari QA report ka ek finding hai.
+
+916
+01:19:06,048 --> 01:19:10,253
+Ravi users ka page kholne ki koshish karta hai.
+
+917
+01:19:10,253 --> 01:19:14,636
+Use permission nahi hai, isliye page nahi khulta.
+
+918
+01:19:15,289 --> 01:19:19,452
+Two-step sign-in owner aur manager ke liye zaroori hai.
+
+919
+01:19:19,452 --> 01:19:23,765
+Login par password ke baad authenticator ka 6-digit code.
+
+920
+01:19:23,765 --> 01:19:28,382
+Bharose wale computer ko 30 din ke liye trust kar sakte hain,
+
+921
+01:19:28,382 --> 01:19:32,469
+aur phone kho jaaye toh recovery codes kaam aate hain.
+
+922
+01:19:33,127 --> 01:19:37,239
+Neeche Audit trail hai: kisne, kab, kya kiya.
+
+923
+01:19:37,239 --> 01:19:44,824
+Order approve, credit override, invoice cancel, stock adjustment, permission badli,
+
+924
+01:19:44,824 --> 01:19:49,027
+supplier payment, sab naam aur samay ke saath.
+
+925
+01:19:49,027 --> 01:19:53,139
+Audit entries badli ya mitaayi nahi ja sakti.
+
+926
+01:19:53,793 --> 01:19:58,634
+Sahi role aur permission se har karmchari sirf apna kaam karta hai,
+
+927
+01:19:58,634 --> 01:20:05,137
+galti ya gadbad ka khatra kam hota hai, aur zaroorat padne par audit trail se poori kahani
+
+928
+01:20:05,137 --> 01:20:06,149
+mil jaati hai.
+
+929
+01:20:07,774 --> 01:20:14,381
+Part 24 mein backup aur security: encrypted backup, Google Drive connection,
+
+930
+01:20:14,381 --> 01:20:21,944
+backup history, test restore, recovery kit, data export, two-step sign-in, audit trail,
+
+931
+01:20:21,944 --> 01:20:24,378
+aur data ka maalik kaun hai.
+
+932
+01:20:25,325 --> 01:20:28,494
+System mein Backup and restore kholiye.
+
+933
+01:20:28,494 --> 01:20:34,589
+Yeh screen is project ki QA ke dauraan Distribution ke menu mein jodi gayi.
+
+934
+01:20:34,589 --> 01:20:39,302
+Pehle distributor ko backup ki koi screen nahi dikhti thi,
+
+935
+01:20:39,302 --> 01:20:42,553
+jabki backup system sabke liye same hai.
+
+936
+01:20:43,212 --> 01:20:51,930
+Backup AES-256-GCM se encrypted hota hai, aur use sirf aapki recovery kit ki key khol sakti hai.
+
+937
+01:20:51,930 --> 01:20:56,198
+Recovery kit sign-up ke samay download hui thi.
+
+938
+01:20:56,198 --> 01:21:00,920
+Yahan key ka fingerprint dikhta hai, poori key nahi.
+
+939
+01:21:01,587 --> 01:21:08,324
+Google Drive connection: Medoro ke hosted server par backup aapke apne Google Drive mein
+
+940
+01:21:08,324 --> 01:21:09,089
+jaata hai.
+
+941
+01:21:09,089 --> 01:21:13,912
+Is demo server par asli Google ki jagah ek test Drive judi hai.
+
+942
+01:21:13,912 --> 01:21:19,271
+Asli Google account se judne ke liye Connect Google Drive dabate hain.
+
+943
+01:21:19,938 --> 01:21:21,636
+Backup now dabaiye.
+
+944
+01:21:21,636 --> 01:21:25,657
+Poore business ka encrypted backup banta hai,
+
+945
+01:21:25,657 --> 01:21:33,968
+jisme distribution ke saare tables shamil hain: products, batches, orders, invoices, ledgers.
+
+946
+01:21:33,968 --> 01:21:39,062
+History mein samay, size, checksum aur status dikhta hai.
+
+947
+01:21:39,753 --> 01:21:45,723
+Test restore backup ko ek alag test copy mein kholta hai aur jaanchta hai,
+
+948
+01:21:45,723 --> 01:21:47,660
+live data ko chhue bina.
+
+949
+01:21:47,660 --> 01:21:54,437
+Asli restore owner hi kar sakta hai, business code type karke, taaki galti se na ho.
+
+950
+01:21:55,188 --> 01:22:00,638
+Data export ke liye har MIS report CSV mein, GST returns JSON mein,
+
+951
+01:22:00,638 --> 01:22:05,438
+aur chemist aur supplier statements nikaale jaa sakte hain.
+
+952
+01:22:05,438 --> 01:22:11,864
+Data aapka hai: plan band karne par bhi exports aur backups uplabdh rehte hain.
+
+953
+01:22:12,557 --> 01:22:19,538
+Security ki baaki parten: owner aur manager ke liye two-step sign-in, staff ke liye PIN,
+
+954
+01:22:19,538 --> 01:22:25,170
+har role ki seemit permissions, aur badla na ja sakne wala audit trail.
+
+955
+01:22:25,170 --> 01:22:29,137
+Session ek samay ke baad apne-aap khatam hota hai.
+
+956
+01:22:29,825 --> 01:22:33,981
+Hosting ke vikalp: Medoro ke cloud par shuru kariye,
+
+957
+01:22:33,981 --> 01:22:37,578
+ya apne server ya apne database par chalaiye.
+
+958
+01:22:37,578 --> 01:22:43,333
+Settings mein yeh line saaf likhi hai ki aapke records kahan rehte hain.
+
+959
+01:22:43,998 --> 01:22:48,611
+Yaad rakhiye: recovery kit kabhi online share mat kariye,
+
+960
+01:22:48,611 --> 01:22:51,848
+use print karke surakshit jagah rakhiye.
+
+961
+01:22:51,848 --> 01:22:57,433
+Password, recovery codes aur authenticator kabhi kisi ko mat bataiye,
+
+962
+01:22:57,433 --> 01:22:59,618
+Medoro support ko bhi nahi.
+
+963
+01:23:01,179 --> 01:23:08,236
+Part 25 teen hisson mein: pehle subscription aur plans, phir English se Hindi interface,
+
+964
+01:23:08,236 --> 01:23:15,935
+aur aakhir mein ek poora business din, purchase se lekar delivery aur collection tak, bina ruke.
+
+965
+01:23:16,889 --> 01:23:19,351
+Pehla hissa: subscription.
+
+966
+01:23:19,351 --> 01:23:22,475
+System mein Subscription kholiye.
+
+967
+01:23:22,475 --> 01:23:29,576
+Hamara account Free trial par hai, Professional plan ke saath, 7 din baaki.
+
+968
+01:23:29,576 --> 01:23:32,701
+Trial mein har feature khula hai.
+
+969
+01:23:33,404 --> 01:23:38,523
+What your plan includes mein chemist portal, salesman field app,
+
+970
+01:23:38,523 --> 01:23:45,081
+mobile picking aur dispatch, business intelligence, aur kai godowns aur transfers.
+
+971
+01:23:45,081 --> 01:23:49,960
+Saath mein godowns, users aur chemists ki ginti ki seema bhi.
+
+972
+01:23:50,642 --> 01:23:54,481
+Plan aur keemat website par hain.
+
+973
+01:23:54,481 --> 01:24:01,811
+Standard 2,499 rupaye mahina: ek godown, 8 users, 300 chemists.
+
+974
+01:24:01,811 --> 01:24:10,304
+Professional 4,999 rupaye: teen godown, 25 users, 2,000 chemists, portal,
+
+975
+01:24:10,304 --> 01:24:14,492
+field app aur business intelligence.
+
+976
+01:24:14,492 --> 01:24:22,054
+Enterprise 9,999 rupaye: bees godown, 150 users, 20,000 chemists.
+
+977
+01:24:22,771 --> 01:24:25,431
+Trial 7 din ka hai, bina card ke.
+
+978
+01:24:25,431 --> 01:24:32,686
+Plans apne-aap renew nahi hote, kabhi bhi cancel kar sakte hain, aur data wahin rehta hai.
+
+979
+01:24:32,686 --> 01:24:37,039
+Website par likha hai ki in keemat par GST nahi lagta.
+
+980
+01:24:37,039 --> 01:24:40,263
+Is demo mein koi payment nahi kiya gaya.
+
+981
+01:24:40,952 --> 01:24:42,904
+Doosra hissa: bhasha.
+
+982
+01:24:42,904 --> 01:24:45,877
+Upar EN aur Hindi ka toggle hai.
+
+983
+01:24:45,877 --> 01:24:54,148
+Hindi dabaate hi poora interface Hindi mein badal jaata hai: menu, buttons, aur headings.
+
+984
+01:24:54,851 --> 01:25:02,134
+Dashboard par dekhiye: aaj ki bikri, mahine ki bikri, vasooli aur bakaya, sab Hindi mein.
+
+985
+01:25:02,134 --> 01:25:07,944
+Orders, invoice aur credit jaise vyaapaar ke shabd bhi Hindi mein hain,
+
+986
+01:25:07,944 --> 01:25:12,199
+par product ke naam aur numbers waise hi rehte hain.
+
+987
+01:25:12,873 --> 01:25:16,162
+Har user apni bhasha khud chun sakta hai.
+
+988
+01:25:16,162 --> 01:25:22,902
+Owner Hindi mein kaam kare aur accountant English mein, dono ke liye data ek hi hai.
+
+989
+01:25:22,902 --> 01:25:25,469
+Wapas English mein badalte hain.
+
+990
+01:25:26,141 --> 01:25:29,320
+Teesra hissa: ek poora business din.
+
+991
+01:25:29,320 --> 01:25:36,295
+Subah owner login karke dashboard dekhta hai: bikri, bakaya aur order pipeline.
+
+992
+01:25:36,295 --> 01:25:44,065
+Phir credit control mein top outstanding chemists, aur expiry desk par near-expiry maal.
+
+993
+01:25:44,739 --> 01:25:52,801
+Eastern Demo Super Stockist se Telmiva aur Glucocheck ka maal aaya, jiska PO pehle bheja tha.
+
+994
+01:25:52,801 --> 01:26:00,862
+Receive goods mein PO chuniye, batch aur expiry bhariye, printed total daaliye, aur Post GRN.
+
+995
+01:26:00,862 --> 01:26:03,983
+Stock aur supplier ka hisaab update.
+
+996
+01:26:05,253 --> 01:26:13,163
+Dopahar se pehle salesman Ravi City Care Chemists par order leta hai: Febrinil 650 ke 20
+
+997
+01:26:13,163 --> 01:26:15,321
+packs aur Telmiva ke 10.
+
+998
+01:26:15,321 --> 01:26:18,377
+Order seedha office pahunchta hai.
+
+999
+01:26:23,402 --> 01:26:26,101
+Office mein order khulta hai.
+
+1000
+01:26:26,101 --> 01:26:29,918
+Credit check: City Care within limit hai.
+
+1001
+01:26:29,918 --> 01:26:35,037
+Febrinil par 10 plus 2 scheme se 4 packs free apne-aap.
+
+1002
+01:26:35,037 --> 01:26:39,598
+Approve dabaya, aur FEFO batches reserve ho gaye.
+
+1003
+01:26:40,415 --> 01:26:44,589
+Godown mein Rahul ke phone par pick list aa gayi.
+
+1004
+01:26:44,589 --> 01:26:49,699
+Rack aur batch dekh kar har line pick, phir 1 box mein pack.
+
+1005
+01:26:53,882 --> 01:27:01,510
+Office mein packed order se wholesale GST invoice: same state, toh CGST aur SGST.
+
+1006
+01:27:01,510 --> 01:27:05,182
+Invoice par free goods bhi chhape hain.
+
+1007
+01:27:05,842 --> 01:27:13,221
+Dispatch par City Care ka invoice chuna, Manoj ko delivery person banaya, trip plan kiya,
+
+1008
+01:27:13,221 --> 01:27:14,382
+aur van nikli.
+
+1009
+01:27:19,884 --> 01:27:23,545
+Shaam ko Manoj ne City Care par maal diya.
+
+1010
+01:27:23,545 --> 01:27:28,948
+Receiver ka naam likha aur chemist ne UPI se poore paise diye.
+
+1011
+01:27:28,948 --> 01:27:32,696
+Payment turant chemist ke khaate mein jama.
+
+1012
+01:27:33,946 --> 01:27:40,673
+Din ke ant mein owner dashboard dekhta hai: aaj ki bikri aur vasooli badh gayi.
+
+1013
+01:27:40,673 --> 01:27:46,974
+Collections report mein UPI receipt, aur City Care ka outstanding kam hua.
+
+1014
+01:27:47,648 --> 01:27:53,687
+Aakhir mein expiry risk aur credit ageing par ek nazar, taaki kal ka kaam tay ho.
+
+1015
+01:27:53,687 --> 01:27:59,428
+Yahi hai Medoro Distribution ka poora order to cash cycle, ek hi system mein.
+
+1016
+01:28:01,087 --> 01:28:03,034
+Part 26, aakhri part.
+
+1017
+01:28:03,034 --> 01:28:10,175
+Ek baar mein dekhte hain ki Medoro Distribution kya deta hai, kiske liye hai,
+
+1018
+01:28:10,175 --> 01:28:12,771
+aur aage kaise shuru karein.
+
+1019
+01:28:13,726 --> 01:28:18,999
+Medoro Distribution pharma distributors, wholesalers, stockists,
+
+1020
+01:28:18,999 --> 01:28:26,250
+super stockists aur C and F agents ke liye bana hai, ek godown se lekar bees godown tak.
+
+1021
+01:28:26,904 --> 01:28:33,112
+Sales ki taraf: credit check aur batch-wise reservation ke saath orders,
+
+1022
+01:28:33,112 --> 01:28:40,700
+automatic schemes aur free goods, aur CGST, SGST ya IGST ke saath wholesale GST invoice.
+
+1023
+01:28:41,381 --> 01:28:47,622
+Godown ki taraf: batch, expiry aur rack ke saath stock, godown transfers,
+
+1024
+01:28:47,622 --> 01:28:54,889
+mobile picking aur packing, dispatch aur delivery, aur expiry claims ka poora hisaab.
+
+1025
+01:28:55,548 --> 01:29:04,140
+Paise ki taraf: office, field aur delivery par collections, FIFO ageing, credit control,
+
+1026
+01:29:04,140 --> 01:29:12,536
+double-entry books, supplier ledger, GSTR-1 aur GSTR-3B JSON, aur chaudah MIS reports.
+
+1027
+01:29:13,205 --> 01:29:20,161
+Aur team ki taraf: chemist ordering portal, salesman field app, roles aur permissions,
+
+1028
+01:29:20,161 --> 01:29:26,713
+two-step sign-in, audit trail, encrypted backup, aur English aur Hindi interface.
+
+1029
+01:29:27,377 --> 01:29:34,674
+Is tour mein humne har feature ko asli software par, fictional data ke saath chala kar dekha.
+
+1030
+01:29:34,674 --> 01:29:41,736
+Jo feature abhi uplabdh nahi hai, ya bahari credentials maangta hai, woh saaf bataya gaya,
+
+1031
+01:29:41,736 --> 01:29:43,933
+aur QA report mein darj hai.
+
+1032
+01:29:44,611 --> 01:29:49,973
+Shuru karne ke liye medoro dot in slash distribution par jaaiye.
+
+1033
+01:29:49,973 --> 01:29:53,743
+Start 7-day free trial dabaiye, bina card ke.
+
+1034
+01:29:53,743 --> 01:29:58,853
+Ya Book a distribution demo se WhatsApp par demo book kariye.
+
+1035
+01:29:58,853 --> 01:29:59,775
+Dhanyavaad!

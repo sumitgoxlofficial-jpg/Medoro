@@ -1,0 +1,135 @@
+1
+00:00:00,153 --> 00:00:04,774
+Part 4 mein Distributor dashboard ko detail mein samjhenge.
+
+2
+00:00:04,774 --> 00:00:11,822
+Har card kya batata hai, aur owner ek hi screen se poore business ki position kaise samajh
+
+3
+00:00:11,822 --> 00:00:12,605
+sakta hai.
+
+4
+00:00:13,563 --> 00:00:17,174
+Login karte hi owner yahi screen dekhta hai.
+
+5
+00:00:17,174 --> 00:00:23,083
+Upar business ka naam, aaj ki date aur abhi chuna hua godown dikhta hai.
+
+6
+00:00:23,083 --> 00:00:28,007
+Godown badalne ke liye upar wala godown selector use kariye.
+
+7
+00:00:28,689 --> 00:00:34,783
+Pehla card hai Sales today: aaj ke invoices ki kul value aur unki ginti.
+
+8
+00:00:34,783 --> 00:00:40,031
+Doosra card Sales this month, saath mein gross margin percent,
+
+9
+00:00:40,031 --> 00:00:43,925
+yaani maal ki landed cost ke baad kitna bacha.
+
+10
+00:00:44,697 --> 00:00:52,831
+Teesra card Collected today: aaj chemists se kitna paisa aaya, cash, UPI, NEFT ya cheque mein.
+
+11
+00:00:52,831 --> 00:00:57,849
+Chautha card Receivable: market mein kul kitna udhaar hai,
+
+12
+00:00:57,849 --> 00:01:01,397
+aur usmein se kitna overdue ho chuka hai.
+
+13
+00:01:02,093 --> 00:01:06,829
+Sales, last 30 days chart har din ki sales dikhata hai,
+
+14
+00:01:06,829 --> 00:01:11,048
+GST ke saath aur cancelled invoices ko chhod kar.
+
+15
+00:01:11,048 --> 00:01:17,161
+Isse trend turant samajh aata hai: kaunse din kam bikri hui, kab badhi.
+
+16
+00:01:17,847 --> 00:01:20,646
+Order pipeline sabse kaam ka hissa hai.
+
+17
+00:01:20,646 --> 00:01:25,671
+Kitne orders approval ka intezaar kar rahe hain, kitne pick hone hain,
+
+18
+00:01:25,671 --> 00:01:31,127
+kitne pick ho rahe hain, kitne pack hokar invoice ka intezaar kar rahe hain,
+
+19
+00:01:31,127 --> 00:01:34,931
+kitne dispatch hone hain, aur kitne raaste mein hain.
+
+20
+00:01:35,630 --> 00:01:40,459
+Neeche do alerts hain: 90 din mein expire hone wale batches,
+
+21
+00:01:40,459 --> 00:01:43,839
+aur reorder level se neeche gaye products.
+
+22
+00:01:43,839 --> 00:01:48,346
+Inpar click karke seedha us list par pahunch jaate hain.
+
+23
+00:01:49,022 --> 00:01:55,936
+Top outstanding mein sabse zyada udhaar wale chemists hain: balance, overdue,
+
+24
+00:01:55,936 --> 00:02:01,772
+sabse purana bill kitne din ka hai, aur risk low, medium ya high.
+
+25
+00:02:01,772 --> 00:02:08,506
+Ageing card batata hai ki udhaar 0 se 30 din, 31 se 60, ya usse purana hai.
+
+26
+00:02:09,195 --> 00:02:15,386
+Kisi chemist ke naam par click karte hi uski profile khulti hai, jahan statement,
+
+27
+00:02:15,386 --> 00:02:18,137
+credit terms aur special rates hain.
+
+28
+00:02:18,137 --> 00:02:21,959
+Is tarah dashboard se seedha action le sakte hain.
+
+29
+00:02:22,667 --> 00:02:25,654
+Upar ghanti mein notifications aate hain,
+
+30
+00:02:25,654 --> 00:02:31,847
+aur Insights button business intelligence kholta hai, jise hum Part 22 mein dekhenge.
+
+31
+00:02:31,847 --> 00:02:36,655
+Bill a chemist search se kahin se bhi naya invoice shuru hota hai.
+
+32
+00:02:37,370 --> 00:02:43,451
+Toh dashboard owner ko subah ki pehli nazar mein batata hai: bikri kaisi hai,
+
+33
+00:02:43,451 --> 00:02:49,138
+paisa kitna aaya, kitna baaki hai, aur godown mein kaunsa kaam atka hai.
+
+34
+00:02:49,138 --> 00:02:52,534
+Agle part mein product catalogue banayenge.

@@ -1,0 +1,163 @@
+1
+00:00:00,190 --> 00:00:06,441
+Part 22 mein MIS reports aur business intelligence: chaudah MIS reports,
+
+2
+00:00:06,441 --> 00:00:13,126
+date range aur CSV export, phir reorder suggestions, expiry risk, dead stock,
+
+3
+00:00:13,126 --> 00:00:20,418
+profitability, scheme results, credit risk, sales forecast aur management assistant.
+
+4
+00:00:21,388 --> 00:00:24,390
+Finance mein MIS reports kholiye.
+
+5
+00:00:24,390 --> 00:00:31,396
+Website par chaudah MIS reports likhe hain, aur yahan sach mein chaudah hain.
+
+6
+00:00:31,396 --> 00:00:37,219
+Har aankda posted invoices, GRN, vouchers aur stock se aata hai,
+
+7
+00:00:37,219 --> 00:00:41,040
+aur har report CSV mein download hoti hai.
+
+8
+00:00:41,749 --> 00:00:49,069
+Ek-ek karke dekhte hain: sales register, product-wise, company-wise aur chemist-wise sales,
+
+9
+00:00:49,069 --> 00:00:54,057
+salesman performance, territory-wise sales, purchase register.
+
+10
+00:00:57,485 --> 00:01:04,857
+Phir batch-wise stock statement, outstanding aur ageing, collections, scheme report,
+
+11
+00:01:04,857 --> 00:01:09,772
+delivery performance, supplier claims, aur credit notes.
+
+12
+00:01:09,772 --> 00:01:10,825
+Kul chaudah.
+
+13
+00:01:11,772 --> 00:01:13,937
+Sales by product kholiye.
+
+14
+00:01:13,937 --> 00:01:21,905
+Har product ke bike packs, free packs, taxable sales, cost, gross margin aur margin percent.
+
+15
+00:01:21,905 --> 00:01:29,960
+Isse pata chalta hai ki kaunsa product sach mein kamaata hai aur kaunsa sirf volume deta hai.
+
+16
+00:01:30,625 --> 00:01:35,083
+Date range badal kar Apply kariye, jaise pichhle mahine ka.
+
+17
+00:01:35,083 --> 00:01:39,918
+CSV dabaate hi file Excel mein khulne ke liye download hoti hai,
+
+18
+00:01:39,918 --> 00:01:42,789
+jise CA ya company ko bhej sakte hain.
+
+19
+00:01:43,478 --> 00:01:51,732
+Outstanding and ageing report har chemist ka limit, balance, overdue aur 0 se 30, 31 se 60,
+
+20
+00:01:51,732 --> 00:01:54,544
+aur purane buckets dikhata hai.
+
+21
+00:01:54,544 --> 00:01:58,354
+Vasooli ki meeting isi report se chalaiye.
+
+22
+00:01:59,062 --> 00:02:01,247
+Ab Business intelligence.
+
+23
+00:02:01,247 --> 00:02:07,627
+Yeh koi jaadu wala AI nahi, balki aapke apne data ka saaf statistics hai.
+
+24
+00:02:07,627 --> 00:02:14,270
+Kuch bhi apne-aap post nahi hota: kharid ke sujhav sirf draft PO bante hain,
+
+25
+00:02:14,270 --> 00:02:17,154
+jinhe aap jaanch kar bhejte hain.
+
+26
+00:02:17,848 --> 00:02:25,193
+Automatic reorder suggestions: pichhle 120 din ki demand, lead time, cover aur safety days,
+
+27
+00:02:25,193 --> 00:02:32,214
+aur haath ka stock, order mein aaya maal aur reservation ghata kar, kitna mangwana hai.
+
+28
+00:02:32,214 --> 00:02:36,492
+Create draft POs dabaane par draft PO ban jaate hain.
+
+29
+00:02:37,206 --> 00:02:43,015
+Expiry loss tab batata hai kis batch par kitna nuksan ho sakta hai.
+
+30
+00:02:43,015 --> 00:02:46,483
+Dead stock: jo maal 90 din se nahi bika.
+
+31
+00:02:46,483 --> 00:02:53,853
+Product profitability aur scheme profitability: scheme se pehle aur scheme ke dauraan
+
+32
+00:02:53,853 --> 00:02:55,154
+margin ka fark.
+
+33
+00:02:55,861 --> 00:03:00,629
+Credit risk har chemist ka risk score aur uske kaaran dikhata hai,
+
+34
+00:03:00,629 --> 00:03:04,241
+aur Sales forecast agle 30 din ki sambhavit bikri.
+
+35
+00:03:04,241 --> 00:03:09,081
+Yeh sab Professional plan ke business intelligence mein shamil hai.
+
+36
+00:03:09,752 --> 00:03:13,305
+Upar management reporting assistant hai.
+
+37
+00:03:13,305 --> 00:03:15,614
+Who owes us money dabaiye.
+
+38
+00:03:15,614 --> 00:03:24,052
+Jawab fixed queries se aata hai, kisi bahari AI model se nahi: kis chemist par kitna baaki hai.
+
+39
+00:03:24,722 --> 00:03:29,134
+What should I reorder dabaane par reorder ki list aati hai.
+
+40
+00:03:29,134 --> 00:03:34,444
+In reports aur insights ka niyamit upyog karke distributor apna margin,
+
+41
+00:03:34,444 --> 00:03:37,510
+stock aur udhaar teeno sambhal sakta hai.

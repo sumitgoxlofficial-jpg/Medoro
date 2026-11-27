@@ -1,0 +1,211 @@
+1
+00:00:00,158 --> 00:00:07,215
+Part 25 teen hisson mein: pehle subscription aur plans, phir English se Hindi interface,
+
+2
+00:00:07,215 --> 00:00:14,914
+aur aakhir mein ek poora business din, purchase se lekar delivery aur collection tak, bina ruke.
+
+3
+00:00:15,868 --> 00:00:18,330
+Pehla hissa: subscription.
+
+4
+00:00:18,330 --> 00:00:21,454
+System mein Subscription kholiye.
+
+5
+00:00:21,454 --> 00:00:28,555
+Hamara account Free trial par hai, Professional plan ke saath, 7 din baaki.
+
+6
+00:00:28,555 --> 00:00:31,680
+Trial mein har feature khula hai.
+
+7
+00:00:32,383 --> 00:00:37,502
+What your plan includes mein chemist portal, salesman field app,
+
+8
+00:00:37,502 --> 00:00:44,060
+mobile picking aur dispatch, business intelligence, aur kai godowns aur transfers.
+
+9
+00:00:44,060 --> 00:00:48,939
+Saath mein godowns, users aur chemists ki ginti ki seema bhi.
+
+10
+00:00:49,621 --> 00:00:53,460
+Plan aur keemat website par hain.
+
+11
+00:00:53,460 --> 00:01:00,790
+Standard 2,499 rupaye mahina: ek godown, 8 users, 300 chemists.
+
+12
+00:01:00,790 --> 00:01:09,283
+Professional 4,999 rupaye: teen godown, 25 users, 2,000 chemists, portal,
+
+13
+00:01:09,283 --> 00:01:13,471
+field app aur business intelligence.
+
+14
+00:01:13,471 --> 00:01:21,033
+Enterprise 9,999 rupaye: bees godown, 150 users, 20,000 chemists.
+
+15
+00:01:21,750 --> 00:01:24,410
+Trial 7 din ka hai, bina card ke.
+
+16
+00:01:24,410 --> 00:01:31,665
+Plans apne-aap renew nahi hote, kabhi bhi cancel kar sakte hain, aur data wahin rehta hai.
+
+17
+00:01:31,665 --> 00:01:36,018
+Website par likha hai ki in keemat par GST nahi lagta.
+
+18
+00:01:36,018 --> 00:01:39,242
+Is demo mein koi payment nahi kiya gaya.
+
+19
+00:01:39,931 --> 00:01:41,883
+Doosra hissa: bhasha.
+
+20
+00:01:41,883 --> 00:01:44,856
+Upar EN aur Hindi ka toggle hai.
+
+21
+00:01:44,856 --> 00:01:53,127
+Hindi dabaate hi poora interface Hindi mein badal jaata hai: menu, buttons, aur headings.
+
+22
+00:01:53,830 --> 00:02:01,113
+Dashboard par dekhiye: aaj ki bikri, mahine ki bikri, vasooli aur bakaya, sab Hindi mein.
+
+23
+00:02:01,113 --> 00:02:06,923
+Orders, invoice aur credit jaise vyaapaar ke shabd bhi Hindi mein hain,
+
+24
+00:02:06,923 --> 00:02:11,178
+par product ke naam aur numbers waise hi rehte hain.
+
+25
+00:02:11,852 --> 00:02:15,141
+Har user apni bhasha khud chun sakta hai.
+
+26
+00:02:15,141 --> 00:02:21,881
+Owner Hindi mein kaam kare aur accountant English mein, dono ke liye data ek hi hai.
+
+27
+00:02:21,881 --> 00:02:24,448
+Wapas English mein badalte hain.
+
+28
+00:02:25,120 --> 00:02:28,299
+Teesra hissa: ek poora business din.
+
+29
+00:02:28,299 --> 00:02:35,274
+Subah owner login karke dashboard dekhta hai: bikri, bakaya aur order pipeline.
+
+30
+00:02:35,274 --> 00:02:43,044
+Phir credit control mein top outstanding chemists, aur expiry desk par near-expiry maal.
+
+31
+00:02:43,718 --> 00:02:51,780
+Eastern Demo Super Stockist se Telmiva aur Glucocheck ka maal aaya, jiska PO pehle bheja tha.
+
+32
+00:02:51,780 --> 00:02:59,841
+Receive goods mein PO chuniye, batch aur expiry bhariye, printed total daaliye, aur Post GRN.
+
+33
+00:02:59,841 --> 00:03:02,962
+Stock aur supplier ka hisaab update.
+
+34
+00:03:04,232 --> 00:03:12,142
+Dopahar se pehle salesman Ravi City Care Chemists par order leta hai: Febrinil 650 ke 20
+
+35
+00:03:12,142 --> 00:03:14,300
+packs aur Telmiva ke 10.
+
+36
+00:03:14,300 --> 00:03:17,356
+Order seedha office pahunchta hai.
+
+37
+00:03:22,381 --> 00:03:25,080
+Office mein order khulta hai.
+
+38
+00:03:25,080 --> 00:03:28,897
+Credit check: City Care within limit hai.
+
+39
+00:03:28,897 --> 00:03:34,016
+Febrinil par 10 plus 2 scheme se 4 packs free apne-aap.
+
+40
+00:03:34,016 --> 00:03:38,577
+Approve dabaya, aur FEFO batches reserve ho gaye.
+
+41
+00:03:39,394 --> 00:03:43,568
+Godown mein Rahul ke phone par pick list aa gayi.
+
+42
+00:03:43,568 --> 00:03:48,678
+Rack aur batch dekh kar har line pick, phir 1 box mein pack.
+
+43
+00:03:52,861 --> 00:04:00,489
+Office mein packed order se wholesale GST invoice: same state, toh CGST aur SGST.
+
+44
+00:04:00,489 --> 00:04:04,161
+Invoice par free goods bhi chhape hain.
+
+45
+00:04:04,821 --> 00:04:12,200
+Dispatch par City Care ka invoice chuna, Manoj ko delivery person banaya, trip plan kiya,
+
+46
+00:04:12,200 --> 00:04:13,361
+aur van nikli.
+
+47
+00:04:18,863 --> 00:04:22,524
+Shaam ko Manoj ne City Care par maal diya.
+
+48
+00:04:22,524 --> 00:04:27,927
+Receiver ka naam likha aur chemist ne UPI se poore paise diye.
+
+49
+00:04:27,927 --> 00:04:31,675
+Payment turant chemist ke khaate mein jama.
+
+50
+00:04:32,925 --> 00:04:39,652
+Din ke ant mein owner dashboard dekhta hai: aaj ki bikri aur vasooli badh gayi.
+
+51
+00:04:39,652 --> 00:04:45,953
+Collections report mein UPI receipt, aur City Care ka outstanding kam hua.
+
+52
+00:04:46,627 --> 00:04:52,666
+Aakhir mein expiry risk aur credit ageing par ek nazar, taaki kal ka kaam tay ho.
+
+53
+00:04:52,666 --> 00:04:58,407
+Yahi hai Medoro Distribution ka poora order to cash cycle, ek hi system mein.

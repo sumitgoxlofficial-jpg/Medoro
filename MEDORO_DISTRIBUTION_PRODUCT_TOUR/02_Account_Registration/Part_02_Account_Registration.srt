@@ -113,3 +113,83 @@ Google se sign-up ka option tab dikhta hai jab server par Google sign-in configu
 29
 00:02:23,375 --> 00:02:29,878
 Is demo server par Google configure nahi hai, isliye hum email wala tareeka use kar rahe hain.
+
+30
+00:02:31,559 --> 00:02:35,330
+Ab login aur password recovery dekhte hain.
+
+31
+00:02:35,330 --> 00:02:37,260
+Account ban chuka hai.
+
+32
+00:02:37,260 --> 00:02:41,118
+Sign in page par email aur password daaliye.
+
+33
+00:02:41,118 --> 00:02:46,819
+Distributor aur pharmacy owner dono isi page se login karte hain.
+
+34
+00:02:47,472 --> 00:02:53,782
+Owner ke liye password ke baad authenticator app ka 6-digit code zaroori hai.
+
+35
+00:02:53,782 --> 00:02:57,961
+Is computer ko 30 din ke liye trust kar sakte hain.
+
+36
+00:02:57,961 --> 00:03:02,468
+Code daal kar Verify, aur seedha Distributor dashboard.
+
+37
+00:03:03,138 --> 00:03:07,481
+Ab sign out karke Forgot password dekhte hain.
+
+38
+00:03:07,481 --> 00:03:10,502
+Neeche profile menu se Sign out.
+
+39
+00:03:11,229 --> 00:03:18,044
+Sign in par Forgot password dabaiye, apna email daaliye aur code mangwaiye.
+
+40
+00:03:18,044 --> 00:03:20,225
+Code email par aata hai.
+
+41
+00:03:24,660 --> 00:03:28,881
+Demo test inbox mein password reset ka code aa gaya.
+
+42
+00:03:28,881 --> 00:03:33,752
+Isse sirf account ka maalik hi naya password bana sakta hai.
+
+43
+00:03:34,414 --> 00:03:37,982
+Code aur naya password daal kar save kariye.
+
+44
+00:03:37,982 --> 00:03:43,253
+Password badalte hi baaki saare devices se sign out ho jaata hai,
+
+45
+00:03:43,253 --> 00:03:48,930
+taaki agar kisi aur ke paas purana password ho, toh woh andar na rahe.
+
+46
+00:03:49,607 --> 00:03:56,022
+Security ke liye kuch aur baatein: baar-baar galat password par account kuch der ke liye
+
+47
+00:03:56,022 --> 00:03:59,083
+lock hota hai, sign-up par rate limit hai,
+
+48
+00:03:59,083 --> 00:04:03,384
+aur owner aur manager ke liye two-step sign-in zaroori hai.
+
+49
+00:04:03,384 --> 00:04:06,883
+Trial ke liye koi payment details nahi li jaati.

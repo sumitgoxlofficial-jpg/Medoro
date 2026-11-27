@@ -1,0 +1,179 @@
+1
+00:00:00,162 --> 00:00:07,406
+Part 14 mein chemist se aaye returns aur expiry claims: invoice se credit note, saleable,
+
+2
+00:00:07,406 --> 00:00:13,348
+expired aur damaged maal, quarantine, company par claim, acknowledgement,
+
+3
+00:00:13,348 --> 00:00:16,766
+company ka credit note aur reconciliation.
+
+4
+00:00:17,741 --> 00:00:22,827
+Return hamesha us invoice se banta hai jisse maal gaya tha.
+
+5
+00:00:22,827 --> 00:00:27,138
+Isse batch, rate aur GST apne-aap sahi rehte hain.
+
+6
+00:00:27,138 --> 00:00:32,569
+Invoices mein City Care Chemists ka aaj ka invoice kholte hain.
+
+7
+00:00:33,329 --> 00:00:36,042
+Neeche credit note ka form hai.
+
+8
+00:00:36,042 --> 00:00:42,342
+Har line par kitne packs wapas aaye, unki condition, aur credit percent.
+
+9
+00:00:42,342 --> 00:00:49,693
+Amoxirise CV ke 2 packs saleable hain: yeh wapas usi batch mein stock mein jaayenge.
+
+10
+00:00:50,400 --> 00:00:55,640
+Azivon ke 3 packs toote hue aaye, toh condition Damaged chuniye,
+
+11
+00:00:55,640 --> 00:00:59,488
+aur chemist ke saath tay hua 50 percent credit.
+
+12
+00:00:59,488 --> 00:01:05,547
+Damaged aur expired maal stock mein nahi, balki quarantine mein jaata hai,
+
+13
+00:01:05,547 --> 00:01:07,676
+company par claim ke liye.
+
+14
+00:01:08,356 --> 00:01:12,629
+Reason likhiye, jo credit note par chhapta hai.
+
+15
+00:01:12,629 --> 00:01:16,357
+Button par credit ki rakam dikh rahi hai.
+
+16
+00:01:16,357 --> 00:01:19,812
+GST bhi usi anupaat mein kam hota hai.
+
+17
+00:01:19,812 --> 00:01:22,176
+Issue credit note dabaiye.
+
+18
+00:01:22,880 --> 00:01:27,544
+Credit note ban gaya aur chemist ka balance kam ho gaya.
+
+19
+00:01:27,544 --> 00:01:34,372
+Credit notes screen par saare sales returns ki list hai: number, invoice, chemist,
+
+20
+00:01:34,372 --> 00:01:35,788
+reason aur rakam.
+
+21
+00:01:36,469 --> 00:01:38,257
+Ab expiry claims.
+
+22
+00:01:38,257 --> 00:01:40,992
+Expiry and claims kholiye.
+
+23
+00:01:40,992 --> 00:01:47,304
+Workbench mein Gastrocalm Gel ka expired batch eligible hai.
+
+24
+00:01:47,304 --> 00:01:48,777
+Claim dabaiye.
+
+25
+00:01:49,451 --> 00:01:53,389
+Claim form mein packs, reason expiry, aur note.
+
+26
+00:01:53,389 --> 00:02:01,014
+Medoro company ke principal agreement se check karta hai ki claim window khuli hai ya nahi,
+
+27
+00:02:01,014 --> 00:02:03,611
+aur expected credit batata hai.
+
+28
+00:02:03,611 --> 00:02:05,287
+Raise claim dabaiye.
+
+29
+00:02:05,981 --> 00:02:11,608
+Claim raise ho gaya aur maal stock se nikal kar claim mein chala gaya.
+
+30
+00:02:11,608 --> 00:02:18,761
+Claims tab mein har claim ka number, supplier, item, packs, reason, kitne din purana hai,
+
+31
+00:02:18,761 --> 00:02:22,057
+claim value, credited aur open rakam hai.
+
+32
+00:02:22,732 --> 00:02:28,700
+Jab company ya C and F claim maan le, Supplier acknowledged dabaiye.
+
+33
+00:02:28,700 --> 00:02:31,597
+Status acknowledged ho jaata hai.
+
+34
+00:02:31,597 --> 00:02:36,336
+Maal company ko bhejne ka record bhi isi se judta hai.
+
+35
+00:02:37,031 --> 00:02:41,635
+Company ka credit note aane par Record credit note kholiye,
+
+36
+00:02:41,635 --> 00:02:44,679
+company ka CN number aur rakam bhariye.
+
+37
+00:02:44,679 --> 00:02:47,488
+Hum yahan sirf form dikha rahe hain.
+
+38
+00:02:47,488 --> 00:02:53,419
+Asli settlement tabhi darj kariye jab company ka credit note sach mein mile.
+
+39
+00:02:54,184 --> 00:03:01,027
+Reconciliation tab har supplier ka hisaab dikhata hai: kitne claims, kitna claim kiya,
+
+40
+00:03:01,027 --> 00:03:05,880
+kitna credit mila, kitna write-off hua, kitna abhi khula hai,
+
+41
+00:03:05,880 --> 00:03:09,540
+aur sabse purana khula claim kitne din ka hai.
+
+42
+00:03:10,374 --> 00:03:14,164
+Har company ki claim window alag hoti hai,
+
+43
+00:03:14,164 --> 00:03:20,209
+jaise expiry se 60 ya 90 din pehle se lekar 90 ya 180 din baad tak.
+
+44
+00:03:20,209 --> 00:03:26,796
+Window band hone ke baad claim nahi hota, aur maal ka poora nuksan aapka.
+
+45
+00:03:26,796 --> 00:03:29,954
+Isliye workbench har hafte dekhiye.

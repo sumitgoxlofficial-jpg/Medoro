@@ -1,0 +1,151 @@
+1
+00:00:00,156 --> 00:00:00,849
+Namaste!
+
+2
+00:00:00,849 --> 00:00:04,484
+Medoro Distribution mein aapka swagat hai.
+
+3
+00:00:04,484 --> 00:00:10,631
+Aaj hum Medoro Distribution software ka complete product tour dekhenge,
+
+4
+00:00:10,631 --> 00:00:15,392
+ek demo distributor ke saath, poore fictional data par.
+
+5
+00:00:16,343 --> 00:00:21,643
+Agar aap pharmaceutical distributor, medicine wholesaler, stockist,
+
+6
+00:00:21,643 --> 00:00:28,840
+super stockist ya C and F agent hain, toh aap jaante hain ki orders, stock, chemist credit,
+
+7
+00:00:28,840 --> 00:00:34,219
+GST billing aur payment collection sambhalna kitna mushkil hota hai.
+
+8
+00:00:34,880 --> 00:00:40,679
+Medoro Distribution ek pharma wholesale aur distribution ERP hai.
+
+9
+00:00:40,679 --> 00:00:48,262
+Matlab ek hi software jisme orders, godown ka stock, invoices, dispatch, collections,
+
+10
+00:00:48,262 --> 00:00:52,276
+accounts aur GST, sab ek saath jude hue hain.
+
+11
+00:00:52,939 --> 00:00:59,489
+Website par dekhiye: yeh software pharma distributors, wholesalers, stockists,
+
+12
+00:00:59,489 --> 00:01:03,855
+super stockists aur C and F agents ke liye bana hai.
+
+13
+00:01:04,527 --> 00:01:09,946
+Retail pharmacy aur wholesale distribution mein bada fark hai.
+
+14
+00:01:09,946 --> 00:01:13,529
+Pharmacy ek grahak ko MRP par bechti hai.
+
+15
+00:01:13,529 --> 00:01:19,560
+Distributor chemists ko PTR ya PTS par, udhaar par, schemes ke saath,
+
+16
+00:01:19,560 --> 00:01:22,619
+aur kai godowns se maal bhejta hai.
+
+17
+00:01:23,317 --> 00:01:27,683
+Distribution business mein paisa chupke se kahan jaata hai?
+
+18
+00:01:27,683 --> 00:01:33,232
+Udhaar jo badhta rehta hai, near-expiry maal jiska claim time par nahi hua,
+
+19
+00:01:33,232 --> 00:01:39,743
+haath se calculate ki gayi schemes, aur phone ya WhatsApp par aaye orders jo dobara type
+
+20
+00:01:39,743 --> 00:01:41,001
+karne padte hain.
+
+21
+00:01:41,701 --> 00:01:47,587
+Medoro inhi samasyaon ko seedha pakadta hai: har order par credit check,
+
+22
+00:01:47,587 --> 00:01:54,699
+batch-wise stock reservation, automatic schemes, wholesale GST invoice, mobile picking,
+
+23
+00:01:54,699 --> 00:01:57,969
+dispatch, expiry claims aur collections.
+
+24
+00:01:58,665 --> 00:02:01,648
+Order se paise tak ek seedhi line hai.
+
+25
+00:02:01,648 --> 00:02:06,121
+Order aata hai, credit check hota hai, invoice banta hai,
+
+26
+00:02:06,121 --> 00:02:12,008
+godown mein pick aur pack hota hai, dispatch hota hai, aur phir collection.
+
+27
+00:02:12,008 --> 00:02:19,229
+Har step pichhle step ko check karta hai, isliye stock, invoice aur dues hamesha milte hain.
+
+28
+00:02:19,893 --> 00:02:22,456
+Ab chaliye software ke andar.
+
+29
+00:02:22,456 --> 00:02:30,143
+Yeh hai hamare demo distributor, Medoro Demo Pharma Distributors, Ranchi, ka dashboard.
+
+30
+00:02:30,143 --> 00:02:34,385
+Ismein do mahine ka fictional business data hai.
+
+31
+00:02:35,075 --> 00:02:41,714
+Ek hi screen par aaj ki sales, mahine ki sales, aaj ka collection, kul receivable,
+
+32
+00:02:41,714 --> 00:02:46,247
+order pipeline aur top outstanding chemists dikhte hain.
+
+33
+00:02:46,247 --> 00:02:51,024
+Left side ke menu mein Sales, Warehouse, Purchase, Finance,
+
+34
+00:02:51,024 --> 00:02:54,343
+Masters aur System ke saare modules hain.
+
+35
+00:02:55,029 --> 00:03:02,499
+Is training mein hum 26 parts mein, account banane se lekar purchase, GRN, inventory,
+
+36
+00:03:02,499 --> 00:03:08,651
+orders, credit control, GST invoicing, picking, dispatch, collections,
+
+37
+00:03:08,651 --> 00:03:13,924
+reports aur security tak, har workflow practically dekhenge.
+
+38
+00:03:13,924 --> 00:03:16,121
+Chaliye shuru karte hain.

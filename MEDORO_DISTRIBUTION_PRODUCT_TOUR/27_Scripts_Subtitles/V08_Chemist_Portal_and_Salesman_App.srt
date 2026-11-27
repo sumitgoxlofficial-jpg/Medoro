@@ -1,0 +1,299 @@
+1
+00:00:00,158 --> 00:00:05,911
+Part 18 mein field sales: territories aur beats, salesmen aur unke target,
+
+2
+00:00:05,911 --> 00:00:12,441
+chemists ko salesman se jodna, aur salesman ka field app jisme woh order aur payment
+
+3
+00:00:12,441 --> 00:00:14,074
+collection karta hai.
+
+4
+00:00:15,033 --> 00:00:19,029
+Masters mein Territories and salesmen kholiye.
+
+5
+00:00:19,029 --> 00:00:25,979
+Territory ek area ya beat hai, jaise Ranchi Central, Ranchi North, Ranchi South,
+
+6
+00:00:25,979 --> 00:00:30,149
+aur Ramgarh-Hazaribagh, unke PIN codes ke saath.
+
+7
+00:00:30,821 --> 00:00:37,997
+Salesmen ki list mein har salesman ka code, phone, territories aur monthly target hai.
+
+8
+00:00:37,997 --> 00:00:45,673
+Ravi Kumar Ranchi Central dekhte hain, Suman Tirkey North aur South, aur Anil Mahto Ramgarh.
+
+9
+00:00:46,335 --> 00:00:51,550
+Field app ke liye salesman ko uske login se jodna zaroori hai.
+
+10
+00:00:51,550 --> 00:00:55,755
+Ravi ka employee account Users mein ban chuka hai.
+
+11
+00:00:55,755 --> 00:01:01,643
+Ravi ki row mein Edit dabaiye, User mein Ravi Kumar chuniye, aur save.
+
+12
+00:01:02,321 --> 00:01:06,823
+Chemist profile mein territory aur salesman set hote hain.
+
+13
+00:01:06,823 --> 00:01:10,860
+Isse har salesman ko sirf apne chemists dikhte hain,
+
+14
+00:01:10,860 --> 00:01:15,517
+aur unke orders aur collections uske naam se darj hote hain.
+
+15
+00:01:16,212 --> 00:01:17,759
+Ab Ravi ka phone.
+
+16
+00:01:17,759 --> 00:01:21,672
+Usne employee ID aur PIN se login kiya hai.
+
+17
+00:01:21,672 --> 00:01:28,315
+Field app mein sirf uske chemists hain, har ek ka due, overdue aur phone,
+
+18
+00:01:28,315 --> 00:01:33,320
+aur teen buttons: Book order, Call aur Collect payment.
+
+19
+00:01:34,005 --> 00:01:38,123
+Morabadi Medicine Centre par Ravi order leta hai.
+
+20
+00:01:38,123 --> 00:01:42,577
+Book order dabaiye, products jodiye, aur Place order.
+
+21
+00:01:42,577 --> 00:01:49,300
+Order seedha office ki approval queue mein pahunchta hai, credit check ke saath.
+
+22
+00:01:49,300 --> 00:01:52,073
+Koi kaagaz ya dobara typing nahi.
+
+23
+00:01:52,759 --> 00:01:55,472
+Chemist ne 5,000 rupaye cash diye.
+
+24
+00:01:55,472 --> 00:02:01,694
+Field app mein Collect payment kholiye, amount aur mode bhar kar Post receipt.
+
+25
+00:02:01,694 --> 00:02:08,715
+Receipt Ravi ke naam se banti hai, aur Collections report mein salesman-wise dikhti hai.
+
+26
+00:02:09,425 --> 00:02:16,455
+Recent orders mein Ravi apne orders ka status dekh sakta hai: approved hua, pick hua,
+
+27
+00:02:16,455 --> 00:02:18,192
+invoice bana ya nahi.
+
+28
+00:02:18,192 --> 00:02:21,997
+Chemist poochhe toh turant jawab de sakta hai.
+
+29
+00:02:22,694 --> 00:02:30,075
+Owner ki taraf se MIS reports mein Salesman performance report hai: har salesman ki bikri,
+
+30
+00:02:30,075 --> 00:02:33,765
+target ke saamne achievement aur collections.
+
+31
+00:02:33,765 --> 00:02:38,194
+Sales by territory report area-wise bikri dikhata hai.
+
+32
+00:02:38,863 --> 00:02:44,305
+Field app se salesman ka aadha din kaagaz aur phone mein nahi jaata.
+
+33
+00:02:44,305 --> 00:02:49,587
+Order aur payment wahin darj, aur office ko sab turant dikhta hai.
+
+34
+00:02:51,250 --> 00:02:56,318
+Part 19 mein chemist ordering portal: chemist ka registration,
+
+35
+00:02:56,318 --> 00:03:01,550
+distributor se judne ki request, licence check ke baad approval,
+
+36
+00:03:01,550 --> 00:03:07,926
+catalogue mein apne rates aur schemes, cart, order, status, invoices aur dues.
+
+37
+00:03:08,898 --> 00:03:13,922
+Website ke anusaar chemist portal Professional plan se shamil hai,
+
+38
+00:03:13,922 --> 00:03:16,205
+aur chemists ke liye muft hai.
+
+39
+00:03:16,205 --> 00:03:22,142
+Pehle distributor ki settings dekhte hain: System mein Chemist portal kholiye.
+
+40
+00:03:22,808 --> 00:03:27,959
+Yahan tay hota hai ki chemist kya dekhega: portal ordering on,
+
+41
+00:03:27,959 --> 00:03:35,186
+distributor search mein naam dikhe ya nahi, stock exact packs mein, sirf In stock, Low,
+
+42
+00:03:35,186 --> 00:03:41,500
+Out band mein, ya bilkul nahi, schemes, MRP, minimum order aur service area.
+
+43
+00:03:42,174 --> 00:03:43,986
+Ab chemist ki taraf.
+
+44
+00:03:43,986 --> 00:03:52,047
+Ek naya chemist, Ormanjhi Demo Medicals, portal par register karta hai: pharmacy ka naam,
+
+45
+00:03:52,047 --> 00:04:00,290
+owner, mobile, email, state, address, PIN, aur dono drug licence numbers validity ke saath.
+
+46
+00:04:00,973 --> 00:04:05,787
+Licence number Form 20B aur 21B, aur unki validity date.
+
+47
+00:04:05,787 --> 00:04:10,772
+Password banaiye, terms accept kariye, aur Create account.
+
+48
+00:04:10,772 --> 00:04:18,251
+Portal par account banne ke baad bhi koi distributor tab tak maal nahi deta jab tak woh
+
+49
+00:04:18,251 --> 00:04:21,345
+licence check karke approve na kare.
+
+50
+00:04:22,032 --> 00:04:28,127
+Find a distributor mein naam, area ya distributor code se dhoondhiye.
+
+51
+00:04:28,127 --> 00:04:34,134
+MEDORO-RNC code daala, aur Medoro Demo Pharma Distributors mil gaya.
+
+52
+00:04:34,134 --> 00:04:36,165
+Ask to connect dabaiye.
+
+53
+00:04:36,165 --> 00:04:40,052
+KYC share karne ki anumati bhi isi mein hai.
+
+54
+00:04:40,731 --> 00:04:43,194
+Wapas distributor ki screen.
+
+55
+00:04:43,194 --> 00:04:46,802
+Chemist portal mein nayi request aa gayi.
+
+56
+00:04:46,802 --> 00:04:53,488
+Licence numbers ki copy se milaiye, credit limit aur credit days tay kariye,
+
+57
+00:04:53,488 --> 00:04:57,007
+ya kisi existing chemist se link kariye.
+
+58
+00:04:57,007 --> 00:04:58,151
+Phir Approve.
+
+59
+00:05:00,965 --> 00:05:07,272
+Ab chemist ke phone par My distributors mein distributor approved dikh raha hai.
+
+60
+00:05:07,272 --> 00:05:13,579
+Order dabaate hi catalogue khulta hai: products, chemist ke apne rates, schemes,
+
+61
+00:05:13,579 --> 00:05:16,969
+aur stock band, jaisa distributor ne chuna.
+
+62
+00:05:21,765 --> 00:05:24,152
+Search mein Febrinil likhiye.
+
+63
+00:05:24,152 --> 00:05:27,526
+10 plus 2 scheme yahan bhi dikh rahi hai.
+
+64
+00:05:27,526 --> 00:05:34,193
+Quantity 20 likhte hi neeche Your order mein 4 packs free ke saath jud jaata hai.
+
+65
+00:05:51,420 --> 00:05:56,158
+Neeche Your order mein products, approx total GST ke saath,
+
+66
+00:05:56,158 --> 00:06:00,736
+aur ek note: rates aur schemes aapke distributor ke hain,
+
+67
+00:06:00,736 --> 00:06:05,554
+stock aur credit distributor approval par confirm karta hai.
+
+68
+00:06:05,554 --> 00:06:07,160
+Place order dabaiye.
+
+69
+00:06:07,890 --> 00:06:12,894
+My orders mein order ka status hai: abhi Awaiting approval.
+
+70
+00:06:12,894 --> 00:06:19,086
+Jaise hi distributor approve, pick, invoice karega, status yahan badlega.
+
+71
+00:06:19,086 --> 00:06:26,126
+Dues and invoices mein chemist apna outstanding aur invoices dekhta hai, sirf apne.
+
+72
+00:06:26,848 --> 00:06:33,839
+Distributor ki Orders screen par portal se aaya order source portal ke saath dikh raha hai.
+
+73
+00:06:33,839 --> 00:06:37,526
+Ise baaki orders ki tarah hi approve karte hain.
+
+74
+00:06:37,526 --> 00:06:42,981
+Portal par password reset aur email verification abhi uplabdh nahi hai,
+
+75
+00:06:42,981 --> 00:06:45,132
+yeh QA report mein darj hai.

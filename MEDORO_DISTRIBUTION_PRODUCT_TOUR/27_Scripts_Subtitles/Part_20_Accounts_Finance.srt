@@ -1,0 +1,139 @@
+1
+00:00:00,172 --> 00:00:07,080
+Part 20 mein accounts: double-entry books, trial balance, day book, chemist ledger,
+
+2
+00:00:07,080 --> 00:00:14,904
+supplier ledger, receipt aur payment vouchers, expenses, aur bank statement se reconciliation.
+
+3
+00:00:15,856 --> 00:00:19,299
+Finance mein Accounts and bank kholiye.
+
+4
+00:00:19,299 --> 00:00:26,627
+Medoro mein alag se entry nahi karni padti: har invoice, credit note, receipt, GRN,
+
+5
+00:00:26,627 --> 00:00:31,748
+payment aur claim apne-aap ek balanced voucher banata hai.
+
+6
+00:00:31,748 --> 00:00:34,308
+Voucher kabhi edit nahi hote.
+
+7
+00:00:34,983 --> 00:00:41,222
+Trial balance mein har account ka debit aur credit hai: bank, cash in hand,
+
+8
+00:00:41,222 --> 00:00:47,128
+cheques in hand, input aur output GST, purchases, sales, sales returns,
+
+9
+00:00:47,128 --> 00:00:54,115
+sundry debtors yaani chemists se lena, aur sundry creditors yaani suppliers ko dena.
+
+10
+00:00:54,115 --> 00:00:56,195
+Neeche total barabar hai.
+
+11
+00:00:56,876 --> 00:01:03,222
+Expenses bhi isi mein dikhte hain: rent, salaries, bijli aur delivery ka kharcha.
+
+12
+00:01:03,222 --> 00:01:06,042
+Is demo mein yeh pehle se darj hain.
+
+13
+00:01:06,042 --> 00:01:11,526
+Distribution ki screens mein abhi expense jodne ka alag form nahi hai,
+
+14
+00:01:11,526 --> 00:01:13,720
+yeh QA report mein darj hai.
+
+15
+00:01:14,415 --> 00:01:22,438
+Day book tab mein din ya mahine ke saare vouchers kram se: voucher number, type, narration,
+
+16
+00:01:22,438 --> 00:01:23,937
+debit aur credit.
+
+17
+00:01:23,937 --> 00:01:28,786
+Sales voucher, receipt, payment, journal, sab ek jagah.
+
+18
+00:01:28,786 --> 00:01:33,899
+Isse cash book aur bank book ki jagah bhi kaam chalta hai.
+
+19
+00:01:34,626 --> 00:01:37,867
+Chemist ka ledger uski profile mein hai.
+
+20
+00:01:37,867 --> 00:01:43,214
+Jaise Doranda Drug House: opening balance, har invoice debit mein,
+
+21
+00:01:43,214 --> 00:01:48,157
+har receipt aur credit note credit mein, aur running balance.
+
+22
+00:01:48,157 --> 00:01:52,046
+Date range daal kar statement nikaal sakte hain.
+
+23
+00:01:52,721 --> 00:01:59,268
+Supplier ka ledger supplier page par hai, jo Part 7 mein dekha: GRN credit mein,
+
+24
+00:01:59,268 --> 00:02:02,787
+payments debit mein, aur We owe ka balance.
+
+25
+00:02:02,787 --> 00:02:07,861
+Trial balance ka sundry creditors in sab suppliers ka jod hai.
+
+26
+00:02:08,604 --> 00:02:14,542
+Bank reconciliation tab mein bank ka statement CSV ya Excel mein import kariye.
+
+27
+00:02:14,542 --> 00:02:20,630
+Medoro har line ko books ki entry se milata hai: rakam, tareekh aur reference se.
+
+28
+00:02:20,630 --> 00:02:27,320
+Jo nahi mila, woh Unmatched lines mein dikhta hai, aur use haath se match kar sakte hain.
+
+29
+00:02:28,022 --> 00:02:33,151
+Automatic bank feed ya Account Aggregator abhi connected nahi hai.
+
+30
+00:02:33,151 --> 00:02:36,026
+Statement file import hi tareeka hai.
+
+31
+00:02:36,026 --> 00:02:42,942
+Profit and loss statement Distribution ki screen par abhi alag se nahi hai; trial balance
+
+32
+00:02:42,942 --> 00:02:48,226
+ke sales, purchases aur kharche ke aankde CA ko diye jaa sakte hain.
+
+33
+00:02:48,902 --> 00:02:55,848
+Accounts ka sabse bada faayda: bikri, kharid aur paisa, teeno ek hi system mein,
+
+34
+00:02:55,848 --> 00:02:58,713
+isliye hisaab apne-aap milta hai.
+
+35
+00:02:58,713 --> 00:03:02,794
+Mahine ke ant mein trial balance CA ko bhejiye.
