@@ -29,6 +29,7 @@ import * as policies from "@/staff/hrms/policies";
 import * as exits from "@/staff/hrms/exits";
 import * as appraisals from "@/staff/hrms/appraisals";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
+import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -47,7 +48,7 @@ type In<F> = F extends (me: auth.Me, raw: infer A, ...rest: never[]) => unknown 
 // ── Sign-in and account
 export const hrSignIn = async (id: string, password: string, code = "") => open(() => auth.signIn(id, password, code));
 export const hrSendCode = async (id: string) => open(() => auth.sendCode(id));
-export const hrChangePassword = async (next: string, current = "") => done(await hrRun((me) => auth.changePassword(me, next, current), "Password changed."));
+export const hrChangePassword = async (next: string, current = "") => done(await hrRun((me) => auth.changePassword(me, next, current), "Password changed.", { during: auth.ANY_STEP }));
 /** Super admins and care open the staff console from the HRMS; it asks for their authenticator first. */
 export async function openStaffConsole() {
   const me = await auth.getMe();
@@ -62,9 +63,9 @@ export async function hrSignOut() {
 }
 
 // ── Me
-export const saveProfile = async (input: In<typeof people.saveProfile>, complete = false) => done(await hrRun((me) => people.saveProfile(me, input, complete), "Profile saved."));
+export const saveProfile = async (input: In<typeof people.saveProfile>, complete = false) => done(await hrRun((me) => people.saveProfile(me, input, complete), "Profile saved.", { during: ["profile"] }));
 export const savePhoto = async (dataUrl: string | null) => done(await hrRun((me) => people.savePhoto(me, dataUrl), dataUrl ? "Photo updated." : "Photo removed."));
-export const acceptDocuments = async () => done(await hrRun((me) => people.acceptDocuments(me), "Documents accepted. Welcome to Medoro."));
+export const acceptDocuments = async () => done(await hrRun((me) => people.acceptDocuments(me), "Documents accepted. Welcome to Medoro.", { during: ["docs"] }));
 export const startBreak = async (kind: string) => done(await hrRun((me) => people.startBreak(me, kind)));
 export const endBreak = async () => done(await hrRun((me) => people.endBreak(me), "Welcome back."));
 export const readNotifications = async () => done(await hrRun((me) => people.readNotifications(me)));
@@ -85,15 +86,15 @@ export const grantLeave = async (staffId: string, type: string, days: number) =>
 export const addHoliday = async (input: In<typeof time.addHoliday>) => done(await hrRun((me) => time.addHoliday(me, input), "Holiday added."));
 export const removeHoliday = async (id: string) => done(await hrRun((me) => time.removeHoliday(me, id), "Holiday removed."));
 export const addNationalHolidays = async (year: number) => done(await hrRun((me) => time.addNationalHolidays(me, year)));
-export const uploadDoc = async (form: FormData) => done(await hrRun((me) => docs.uploadDoc(me, form), "Document uploaded. HR will verify it."));
+export const uploadDoc = async (form: FormData) => done(await hrRun((me) => docs.uploadDoc(me, form), "Document uploaded. HR will verify it.", { during: ["kyc"] }));
 export const removeDoc = async (id: string) => done(await hrRun((me) => docs.removeDoc(me, id), "Document removed."));
 export const rejectDoc = async (id: string, reason: string) => done(await hrRun((me) => docs.rejectDoc(me, id, reason), "Sent back to the employee."));
 export const verifyDoc = async (id: string, ok: boolean) => done(await hrRun((me) => docs.verifyDoc(me, id, ok), ok ? "Marked as verified." : "Verification removed."));
 export const employeeDocs = async (staffId: string) => hrRun((me) => docs.employeeDocs(me, staffId));
 export const setDocExpiry = async (id: string, expiresOn: string | null) => done(await hrRun((me) => docs.setDocExpiry(me, id, expiresOn), expiresOn ? "Expiry date saved. Reminders go out 30 and 7 days before." : "Expiry date removed."));
-export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved."));
-export const skipKyc = async () => done(await hrRun((me) => kyc.skipKyc(me), "No problem. You can add them later from your profile."));
-export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }));
+export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved.", { during: ["kyc"] }));
+export const skipKyc = async () => done(await hrRun((me) => kyc.skipKyc(me), "No problem. You can add them later from your profile.", { during: ["kyc"] }));
+export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }), undefined, { during: ["kyc"] });
 export const revealKyc = async (staffId: string) => hrRun((me) => kyc.revealKyc(me, staffId));
 export const employeeKyc = async (staffId: string) => hrRun((me) => kyc.kycStateFor(me, staffId));
 export const submitClaim = async (form: FormData) => done(await hrRun((me) => time.submitClaim(me, form), "Claim submitted. HR reviews it first."));
@@ -234,7 +235,8 @@ export const chatDeleteGroup = async (chatId: string) => hrRun((me) => chat.dele
 export const chatSetAvatar = async (emoji: string) => hrRun((me) => chat.setChatAvatar(me, emoji), "Chat avatar saved.");
 
 // ── Letters (viewing only changes nothing, so these don't refresh the page)
-export const getLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.letterFor(me, staffId === "me" ? me.id : staffId, type, lastDay));
+// During the joining-documents step a person may read only their own letters.
+export const getLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => { if (gateOf(me) && staffId !== "me" && staffId !== me.id) throw new UserError(auth.GATE_MESSAGE); return letters.letterFor(me, staffId === "me" ? me.id : staffId, type, lastDay); }, undefined, { during: ["docs"] });
 export const getOfferLetter = async (candidateId: string) => hrRun((me) => letters.candidateLetter(me, candidateId));
 export const emailLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.emailLetter(me, staffId, type, lastDay));
 export const emailOffer = async (candidateId: string) => done(await hrRun((me) => letters.emailOffer(me, candidateId)));

@@ -1,11 +1,11 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { resumeFile } from "@/staff/hrms/careers";
 
 export const dynamic = "force-dynamic";
 
 /** A candidate's résumé from the careers page, for people with the Recruitment module. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   let f: Awaited<ReturnType<typeof resumeFile>>;
   try { f = await resumeFile(me, (await params).id); } catch { return new Response("Not allowed.", { status: 403 }); }

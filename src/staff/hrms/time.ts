@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
-import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/storage";
+import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject, sniff } from "@/server/storage";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "./auth";
 import { visibleTo } from "./visibility";
@@ -369,6 +369,7 @@ async function carriedPrivilege(staffId: string, s: Settings, year: string) {
 }
 export async function grantLeave(me: Me, staffId: string, type: string, days: number) {
   need(me, "attendance");
+  if (staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to change your own leave balance.");
   const ty = z.enum(LEAVE_IDS).parse(type), n = z.number().int().min(-30).max(30).parse(days);
   const p = await db.hrProfile.findUnique({ where: { staffId } });
   if (!p) throw new UserError("Employee not found.");
@@ -470,9 +471,11 @@ export async function submitClaim(me: Me, form: FormData) {
     const ext = ALLOWED[file.type as keyof typeof ALLOWED];
     if (!ext) throw new UserError("Attach the bill as a PDF, JPG or PNG.");
     if (file.size > MAX_BYTES) throw new UserError(`The bill is too large (limit ${MAX_LABEL}).`);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (sniff(bytes) !== file.type) throw new UserError("That bill isn’t really a PDF, JPG or PNG. Attach the original file.");
     billKey = `_hrms/claims/${randomUUID()}.${ext}`;
     billName = file.name.replace(/[^\w.\- ]/g, "").slice(0, 80) || `bill.${ext}`;
-    await putObject(billKey, Buffer.from(await file.arrayBuffer()), file.type);
+    await putObject(billKey, bytes, file.type);
   }
   await db.hrClaim.create({ data: { staffId: me.id, type: i.type, amount: i.amount, note: i.note, billKey, billName } });
   await notify((await holders("attendance")).filter((x) => x !== me.id), `${me.name} submitted a ${i.type} claim for ₹${i.amount.toLocaleString("en-IN")}.`, "hrleave");

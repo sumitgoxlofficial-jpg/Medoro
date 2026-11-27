@@ -188,15 +188,20 @@ const slipOf = (p: { workDays: number; lopDays: number; basic: number; hra: numb
 /** Saves a payslip for everyone in the run who is ready and marks their approved claims paid. `lop` overrides loss-of-pay days per person. */
 export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, number> = {}) {
   const run = await payrollFor(me, ymRaw);
+  // Nobody but the super admin changes their own loss-of-pay days (sending the computed value unchanged is fine).
+  const own = run.lines.find((l) => l.staffId === me.id && l.status === "draft");
+  if (me.role !== "admin" && own && lop[me.id] !== undefined && lop[me.id] !== own.lopDays) throw new UserError("Someone else has to change your own loss-of-pay days.");
   if (!run.canProcess) throw new UserError(run.note || "This month is already processed.");
   const s = await loadSettings();
   const drafts = run.lines.filter((l) => l.status === "draft" && l.ready); // the rest wait for their period to end or their bank account to be fixed
   const prof = new Map((await db.hrProfile.findMany({ where: { staffId: { in: drafts.map((d) => d.staffId) } }, select: { staffId: true, ctc: true, taxRegime: true, taxDeclared: true } })).map((p) => [p.staffId, p]));
   const paidOn = dateOnly(todayISO());
   let n = 0, total = 0;
+  const changed: string[] = []; // loss-of-pay days changed by hand, for the audit trail
   await db.$transaction(async (tx) => {
     for (const d of drafts) {
       const over = lop[d.staffId];
+      if (over !== undefined && over !== d.lopDays) changed.push(`${d.empNo} ${d.lopDays}→${over}`);
       const slip = over === undefined ? d : computeSlip(prof.get(d.staffId)?.ctc ?? 0, { ...taxOf(prof.get(d.staffId)), workDays: d.workDays, lopDays: z.number().min(0).max(31).multipleOf(0.5, "Loss-of-pay days are whole or half days.").parse(over), incentive: d.incentive, reimburse: d.reimburse, ptax: s.ptax, encash: d.encash, gratuity: d.gratuity });
       await tx.hrPayslip.create({ data: { staffId: d.staffId, month: run.ym, ...slipOf(slip), periodFrom: dateOnly(d.from), periodTo: dateOnly(d.to), payDate: dateOnly(d.payDate), status: "paid", paidOn, runBy: me.id } });
       await tx.hrClaim.updateMany({ where: { staffId: d.staffId, status: "approved", paidMonth: null }, data: { paidMonth: run.ym } });
@@ -204,7 +209,7 @@ export async function processPayroll(me: Me, ymRaw: string, lop: Record<string, 
     }
   });
   await notify(drafts.map((d) => d.staffId), `Your ${run.label} payslip is ready.`, "payslips");
-  await audit(me, "Payroll processed", `${run.label} · ${n} payslip${n === 1 ? "" : "s"}`);
+  await audit(me, "Payroll processed", `${run.label} · ${n} payslip${n === 1 ? "" : "s"}${changed.length ? ` · LOP changed: ${changed.join(", ")}`.slice(0, 1500) : ""}`);
   // The "Post the salary journal" workflow adds the month's journal entry (when switched on).
   await postSalaryJournal(me.id, run.label, total).catch((e) => log.error("salary journal failed", { err: e }));
   return n;

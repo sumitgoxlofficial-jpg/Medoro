@@ -1244,6 +1244,9 @@ model StaffAudit {
   action    String
   detail    String?
   ip        String?
+
+  @@index([at])
+  @@index([staffId, at])
 }
 
 model CpSetting {
@@ -2448,6 +2451,9 @@ model HrProfile {
   waAlerts           Boolean   @default(false) // the employee asked for their HRMS alerts on WhatsApp too
   waAlertsAt         DateTime? // when they last switched WhatsApp alerts on or off (their consent record)
   createdAt          DateTime  @default(now())
+
+  @@index([managerId])
+  @@index([dept])
 }
 
 model HrDepartment {

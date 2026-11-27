@@ -197,6 +197,17 @@ Non-Negotiables (these three are blank in the design itself). Ally answers from 
 
 ## Rules the code enforces
 
+* **First sign-in is enforced on the server.** Until a person has set their own password, filled in their details,
+  given Aadhaar and PAN (or skipped) and accepted the joining documents, the server runs only the actions of the step
+  they are on, sends no screen data, and every file route (documents, payslips, chat pictures, selfies…) answers as if
+  signed out. A temporary or one-time password opens nothing but the password step.
+* **Nobody acts on their own records** (the super admin excepted): no editing your own employment record (pay, tax,
+  role, manager), changing your own leave balance or loss-of-pay days, confirming your own bank account, approving your
+  own leave, claim or correction, verifying your own document or promoting yourself. Loss-of-pay changes made in a
+  payroll run are written to Audit Logs.
+* **Uploads are checked by content.** Documents and claim bills must really be PDF, JPG, PNG or WebP files.
+* **Opening full Aadhaar and PAN numbers** is limited to 30 per HR person per hour; each opening and each refusal is audited.
+* **Payslips and salary revisions are append-only** in the database (as is the audit log): they can't be edited or deleted.
 * **Attendance.** Check-in is on by default. A working day in the past with no check-in, no leave and no approved
   correction is *absent* and counts as loss of pay in payroll (HR can override LOP days per person before processing).
   Weekly offs (Saturday and Sunday unless changed in Settings → *Weekly days off*) and holidays never count. Corrections go to HR.

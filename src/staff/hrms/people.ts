@@ -194,6 +194,8 @@ export const editEmployeeSchema = newEmployeeSchema.omit({ personalEmail: true, 
 });
 export async function updateEmployee(me: Me, id: string, raw: z.input<typeof editEmployeeSchema>) {
   need(me, "employees");
+  // Pay, tax, role and reporting line are someone else's decision: HR can't edit their own employment record.
+  if (id === me.id && me.role !== "admin") throw new UserError("Someone else has to edit your own employment record. Ask another HR admin or the super admin.");
   const i = editEmployeeSchema.parse(raw);
   const u = await db.staffUser.findUnique({ where: { id }, include: { hr: true } });
   if (!u || u.kind !== "team") throw new UserError("Employee not found.");
@@ -347,6 +349,7 @@ export async function saveProfile(me: Me, raw: z.input<typeof profileSchema>, co
 /** HR confirms the saved bank account is the employee's own when the holder's name differs from theirs (a joint account, a spelling). */
 export async function confirmBank(me: Me, staffId: string) {
   need(me, "payroll");
+  if (staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to confirm your own bank account.");
   const u = await db.staffUser.findUnique({ where: { id: staffId }, select: { name: true, empNo: true, hr: { select: { bankLast4: true, bankHolder: true } } } });
   if (!u?.hr?.bankLast4) throw new UserError("This person has no bank account saved.");
   await db.hrProfile.update({ where: { staffId }, data: { bankConfirmedAt: new Date() } });

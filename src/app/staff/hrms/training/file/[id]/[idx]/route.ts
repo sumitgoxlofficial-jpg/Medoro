@@ -1,11 +1,11 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { resourceFor } from "@/staff/hrms/training/service";
 
 export const dynamic = "force-dynamic";
 
 /** A PDF or PowerPoint HR attached to a lesson: for assigned learners (published lessons), trainers and HR. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string; idx: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   const { id, idx } = await params;
   const f = /^\d{1,2}$/.test(idx) ? await resourceFor(me, id, Number(idx)) : null;

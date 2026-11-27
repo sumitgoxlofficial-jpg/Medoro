@@ -14,6 +14,7 @@ import { queueWa } from "./wa-queue";
 import { createStaffSession, readStaffSession, staffAudit } from "../auth";
 import type { StaffRoleId } from "../constants";
 import { DEFAULT_PERMS, DEFAULT_SETTINGS, HR_ROLES, MODULES, hasModule, type HrRoleId, type ModuleId, type Perms, type Settings } from "./constants";
+import { gateOf, type Gate } from "./gate";
 
 // The HRMS signs Medoro's own employees in with their employee ID or work email and a password. It uses the staff
 // session cookie with kind "hrms": such a session opens the HRMS, never the staff console (sales employees excepted,
@@ -76,6 +77,22 @@ export async function getMe(): Promise<Me | null> {
   };
 }
 
+/** A first-sign-in step (temporary password, details, Aadhaar and PAN, joining documents) that is not finished yet. */
+export type GateStep = NonNullable<Gate>;
+export const ANY_STEP: readonly GateStep[] = ["password", "profile", "kyc", "docs"];
+export const GATE_MESSAGE = "Finish setting up your account first (password, details, Aadhaar & PAN, joining documents).";
+
+/**
+ * The signed-in person, but only once they have finished the first-sign-in steps, or while they are on one of the
+ * steps in `during`. Used by file and data routes so a temporary password opens nothing but the set-up steps.
+ */
+export async function getReadyMe(during: readonly GateStep[] = []): Promise<Me | null> {
+  const me = await getMe();
+  if (!me) return null;
+  const g = gateOf(me);
+  return !g || during.includes(g) ? me : null;
+}
+
 export async function requireMe(): Promise<Me> {
   const me = await getMe();
   if (!me) redirect("/staff/employee");
@@ -109,10 +126,15 @@ export async function holders(m: ModuleId): Promise<string[]> {
   return staff.filter((u) => hasModule(roleOf(u.role, u.hr?.role), perms, m)).map((u) => u.id);
 }
 
-/** Server-action wrapper for the HRMS. */
-export async function hrRun<T>(fn: (me: Me) => Promise<T>, message?: string): Promise<ActionResult<T>> {
+/**
+ * Server-action wrapper for the HRMS. Until the person has finished the first-sign-in steps, only the actions that
+ * belong to the step they are on run (`during`); everything else is refused on the server, not just hidden.
+ */
+export async function hrRun<T>(fn: (me: Me) => Promise<T>, message?: string, opts: { during?: readonly GateStep[] } = {}): Promise<ActionResult<T>> {
   const me = await getMe();
   if (!me) return { ok: false, error: "Your session has ended. Sign in again." };
+  const g = gateOf(me);
+  if (g && !opts.during?.includes(g)) return { ok: false, error: GATE_MESSAGE };
   me.perms = await loadPerms(true); // an action never trusts a cached permission
   try {
     return { ok: true, data: await fn(me), message };

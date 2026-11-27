@@ -1,12 +1,12 @@
 import { UserError } from "@/server/action";
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { candidateLetter, letterPdf } from "@/staff/hrms/letters-server";
 
 export const dynamic = "force-dynamic";
 
 /** A candidate's offer letter as a PDF (Recruitment module). Never cached. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   try {
     const l = await candidateLetter(me, (await params).id);
