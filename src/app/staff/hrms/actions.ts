@@ -30,6 +30,7 @@ import * as exits from "@/staff/hrms/exits";
 import * as appraisals from "@/staff/hrms/appraisals";
 import * as org from "@/staff/hrms/org";
 import * as approvals from "@/staff/hrms/approvals";
+import * as workforce from "@/staff/hrms/workforce";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -270,3 +271,12 @@ export const addAccessGrant = async (input: unknown) => done(await hrRun((me) =>
 export const revokeAccessGrant = async (id: string) => done(await hrRun((me) => approvals.revokeGrant(me, id), "Access change ended."));
 export const mfaStart = async () => hrRun((me) => auth.mfaStart(me), undefined, { during: ["mfa"] });
 export const mfaConfirm = async (code: string) => done(await hrRun((me) => auth.mfaConfirm(me, code), undefined, { during: ["mfa"] }));
+
+// ── Workforce devices and activity (Enterprise HRMS Phase 4)
+export const issueDeviceCode = async (staffId: string) => done(await hrRun((me) => workforce.issueDeviceCode(me, staffId)));
+export const revokeDevice = async (id: string, reason = "") => done(await hrRun((me) => workforce.revokeDevice(me, id, reason), "PC removed. It stops at its next contact."));
+export const acknowledgeMonitorPolicy = async () => done(await hrRun((me) => workforce.acknowledgePolicy(me), "Thank you. Your acceptance is recorded."));
+export const raiseActivityDispute = async (input: Parameters<typeof workforce.raiseDispute>[1]) => done(await hrRun((me) => workforce.raiseDispute(me, input), "Dispute sent to HR."));
+export const decideActivityDispute = async (id: string, accept: boolean, reply = "") => done(await hrRun((me) => workforce.decideDispute(me, id, accept, reply), accept ? "Accepted. Those minutes are removed." : "Rejected."));
+export const activityFor = async (staffId: string, day: string) => hrRun((me) => workforce.activityDay(me, staffId, day));
+export const setAppCategory = async (app: string, category: string) => done(await hrRun((me) => workforce.setAppCategory(me, app, category), "Category saved."));

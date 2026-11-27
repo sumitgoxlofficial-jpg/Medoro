@@ -11,6 +11,8 @@ import { HOME_OF, MODULES, REGISTERS, SCREENS, canOpen, screensFor } from "./con
 import { registers, summary, workflows } from "./finance";
 import { orgChart, orgHealth, timeline } from "./org";
 import { accessGrants, approvalsFor, myDelegations } from "./approvals";
+import { myActivity, workforceAdmin } from "./workforce";
+import { MONITOR_POLICY } from "./workforce-policy";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
@@ -85,6 +87,11 @@ export const loaders = {
       grants: me.role === "admin" ? await accessGrants(me) : null,
       ctcNeedsApproval: (await loadSettings()).ctcNeedsApproval,
     };
+  },
+  myactivity: async (me: Me, q: Q = {}) => ({ ...(await myActivity(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO())), policy: MONITOR_POLICY }),
+  workforce: async (me: Me, q: Q = {}) => {
+    const staff = await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } });
+    return { ...(await workforceAdmin(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO())), people: staff };
   },
   orgchart: async (me: Me) => ({ chart: await orgChart(me), health: can(me, "employees") ? await orgHealth(me) : null, history: await timeline(me, me.id), hr: can(me, "employees") }),
   hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),

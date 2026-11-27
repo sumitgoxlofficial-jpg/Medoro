@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{5162CB44-8099-41D0-BCC9-C643591D84BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Medoro.Agent.Core", "src\Medoro.Agent.Core\Medoro.Agent.Core.csproj", "{1F97A516-F307-42D4-AA00-EC141C2A9694}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D994C64F-B569-43C7-B351-8CCBFC3E8F7E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Medoro.Agent.Tests", "tests\Medoro.Agent.Tests\Medoro.Agent.Tests.csproj", "{90317A0E-BF99-4070-882C-46E1FB05230C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1F97A516-F307-42D4-AA00-EC141C2A9694}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F97A516-F307-42D4-AA00-EC141C2A9694}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F97A516-F307-42D4-AA00-EC141C2A9694}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F97A516-F307-42D4-AA00-EC141C2A9694}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90317A0E-BF99-4070-882C-46E1FB05230C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90317A0E-BF99-4070-882C-46E1FB05230C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90317A0E-BF99-4070-882C-46E1FB05230C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90317A0E-BF99-4070-882C-46E1FB05230C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1F97A516-F307-42D4-AA00-EC141C2A9694} = {5162CB44-8099-41D0-BCC9-C643591D84BF}
+		{90317A0E-BF99-4070-882C-46E1FB05230C} = {D994C64F-B569-43C7-B351-8CCBFC3E8F7E}
+	EndGlobalSection
+EndGlobal

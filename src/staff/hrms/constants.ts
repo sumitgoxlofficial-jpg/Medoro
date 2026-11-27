@@ -51,6 +51,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "departments", label: "Departments", icon: "box", title: "Departments", sub: "Org structure and heads", group: "PEOPLE", module: "employees" },
   { id: "recruit", label: "Recruitment", icon: "briefcase", title: "Recruitment (ATS)", sub: "Openings, pipeline and offers", group: "PEOPLE", module: "recruitment" },
   { id: "hrattendance", label: "Team Attendance", icon: "clock", title: "Team Attendance", sub: "Today", group: "PEOPLE", module: "attendance" },
+  { id: "workforce", label: "Workforce devices", icon: "shield", title: "Workforce devices & activity", sub: "Company PCs, enrolment codes, disputes and the team’s activity (context, not a score)", group: "PEOPLE", module: "attendance" },
   { id: "hrleave", label: "Leave Management", icon: "plane", title: "Leave Management", sub: "Approvals and team calendar", group: "PEOPLE", module: "attendance" },
   { id: "credentials", label: "Credentials", icon: "shield", title: "Credentials", sub: "One-time passwords and login status for every employee", group: "PEOPLE", module: "employees" },
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },
@@ -82,6 +83,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "attendance", label: "Attendance", icon: "clock", title: "Attendance", sub: "My attendance", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "leave", label: "Leave & Approvals", icon: "plane", title: "Leave", sub: "Balances, requests and reimbursement claims", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "appraisal", label: "My Review", icon: "target", title: "My Review", sub: "Your performance review, and your team's when you are a reporting manager", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "myactivity", label: "My activity", icon: "clock", title: "My activity", sub: "What your company PC records about you, the policy, corrections and disputes", group: "ME", roles: ["employee", "sales", "hr", "finance"] },
   { id: "payslips", label: "Payslips", icon: "rupee", title: "Payslips", sub: "Salary history", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
@@ -176,10 +178,12 @@ export type Settings = {
   payDay: number;
   mfaPrivileged: boolean; // HR, Finance and the super admin must use an authenticator app to sign in to the HRMS
   ctcNeedsApproval: boolean; // a CTC change outside the super admin goes through Approvals (manager, then super admin)
+  agentTracking: boolean; // enrolled company PCs may send activity (see workforce-policy.ts); off by default
+  agentIdleMinutes: number; // minutes without input before the agent records idle time
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1, mfaPrivileged: false, ctcNeedsApproval: false,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1, mfaPrivileged: false, ctcNeedsApproval: false, agentTracking: false, agentIdleMinutes: 5,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.

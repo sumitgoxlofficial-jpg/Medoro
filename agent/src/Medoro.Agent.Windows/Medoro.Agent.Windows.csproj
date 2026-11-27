@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>Medoro.Agent.Windows</RootNamespace>
+    <AssemblyName>MedoroAgent</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks> <!-- for the generated P/Invoke marshalling only -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+  <!-- WinForms through its framework reference: the same thing UseWindowsForms adds, but it also builds with SDKs that
+       don't ship the Windows Desktop targets (Linux CI). The reference pack comes from NuGet. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <Using Include="System.Windows.Forms" />
+    <Using Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Medoro.Agent.Core/Medoro.Agent.Core.csproj" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="agent.settings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

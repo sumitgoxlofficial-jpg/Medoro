@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Data } from "@/staff/hrms/screens";
 import { addAccessGrant, cancelApproval, cancelDelegation, decideApproval, delegateApprovals, requestApproval, revokeAccessGrant } from "../actions";
-import { Card, Empty, Field, Grid, Modal, Pill, Table, btnCls, dangerCls, dayLabel, inputCls, primaryCls, statusTone, tdCls, useRun } from "./kit";
+import { Card, Field, Grid, Modal, Pill, Table, btnCls, dangerCls, dayLabel, inputCls, primaryCls, statusTone, tdCls, useRun } from "./kit";
 
 type D = Data<"approvals">;
 type A = D["waiting"][number];

@@ -424,6 +424,7 @@ export const settingsSchema = z.object({
   carryForward: z.coerce.number().int().min(0).max(120).default(30),
   ptax: z.coerce.number().int().min(0).max(2500), payDay: z.coerce.number().int().min(1).max(28),
   mfaPrivileged: z.boolean().default(false), ctcNeedsApproval: z.boolean().default(false),
+  agentTracking: z.boolean().default(false), agentIdleMinutes: z.coerce.number().int().min(1, "Idle time is at least 1 minute.").max(30, "Idle time is at most 30 minutes.").default(5),
 });
 export async function saveSettings(me: Me, raw: Settings) {
   needAdmin(me);

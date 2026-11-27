@@ -1178,6 +1178,8 @@ model StaffUser {
   hr               HrProfile?
   employmentEvents HrEmploymentEvent[]
   accessGrants     HrAccessGrant[]
+  hrDevices        HrDevice[]
+  hrWorkEvents     HrWorkEvent[]
 
   @@unique([email, kind])
 }
@@ -4102,4 +4104,96 @@ model HrDelegation {
 
   @@index([fromId, toDay])
   @@index([toId, toDay])
+}
+
+/// Enterprise HRMS: a company PC enrolled for the workforce agent (agent/). The token is stored only as its SHA-256.
+model HrDevice {
+  id           String        @id @default(uuid())
+  staffId      String
+  staff        StaffUser     @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  name         String
+  platform     String        @default("windows")
+  agentVersion String        @default("")
+  tokenHash    String        @unique
+  ownership    String        @default("company") // only company devices can be enrolled
+  enrolledAt   DateTime      @default(now())
+  enrolledBy   String // the HR person who issued the code
+  lastSeenAt   DateTime?
+  lastIp       String?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String        @default("")
+  events       HrWorkEvent[]
+
+  @@index([staffId, revokedAt])
+}
+
+/// A one-time enrolment code HR issues for one employee's company PC (15 minutes, single use, stored hashed).
+model HrDeviceCode {
+  id        String    @id @default(uuid())
+  staffId   String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+}
+
+/// A span from the agent: active in a program (process name only), idle or locked. Only accepted while the employee is
+/// checked in, not on a break, with tracking switched on and the policy acknowledged. Kept 90 days.
+model HrWorkEvent {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  deviceId  String
+  device    HrDevice  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  clientId  String
+  kind      String // active, idle, locked
+  app       String? // process name, active spans only
+  day       DateTime  @db.Date // India date of startedAt
+  startedAt DateTime
+  endedAt   DateTime
+  seconds   Int
+  excluded  Boolean   @default(false) // removed from totals after an accepted dispute (kept for the record)
+  createdAt DateTime  @default(now())
+
+  @@unique([deviceId, clientId])
+  @@index([staffId, day])
+  @@index([day])
+}
+
+/// The employee read and accepted the workforce-monitoring policy (per version).
+model HrMonitorAck {
+  id      String   @id @default(uuid())
+  staffId String
+  version Int
+  at      DateTime @default(now())
+
+  @@unique([staffId, version])
+}
+
+/// An employee disputes recorded activity for a time window; accepted disputes exclude those spans from every total.
+model HrActivityDispute {
+  id        String    @id @default(uuid())
+  staffId   String
+  day       DateTime  @db.Date
+  fromTime  String // HH:MM India time
+  toTime    String
+  reason    String
+  status    String    @default("open") // open, accepted, rejected
+  reply     String    @default("")
+  decidedBy String?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([staffId, day])
+}
+
+/// How HR classifies a program for context (work, neutral, personal). Never a score on its own.
+model HrAppCategory {
+  app       String   @id // lower-case process name
+  category  String // work, neutral, personal
+  setBy     String
+  updatedAt DateTime @updatedAt
 }
