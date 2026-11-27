@@ -11,6 +11,7 @@ import { saveAiSettings } from "@/domain/ai/settings";
 import { takeAiAsk } from "@/domain/ai/ratelimit";
 import { postGrnTx } from "@/domain/purchasing/service";
 import { ask, cancel, confirm } from "@/domain/ai/service";
+import { toolFor } from "@/domain/ai/tools";
 import { addDays, todayISO } from "@/lib/dates";
 import { ctxFor, makePharmacy, resetDb } from "./helpers";
 
@@ -295,9 +296,16 @@ describe("AI assistant", () => {
       expect(f).toHaveBeenCalledTimes(5);
       expect(await db.auditEvent.count({ where: { action: "AI query" } })).toBe(before + 4);
 
+      // The lookup is held back so it is always slower than the 1 ms budget: a real query can finish inside 1 ms on a
+      // fast runner, and the test then failed on timing alone.
       clean();
       process.env.AI_TOOL_TIMEOUT_MS = "1";
-      await expect(ask(ctx, "What should I reorder?")).rejects.toThrow(/took longer than/);
+      const lowStock = toolFor("get_low_stock_report")!;
+      const run = lowStock.run;
+      const slow = vi.spyOn(lowStock, "run").mockImplementation(async (...a) => { await new Promise((r) => setTimeout(r, 200)); return run(...a); });
+      try {
+        await expect(ask(ctx, "What should I reorder?")).rejects.toThrow(/took longer than/);
+      } finally { slow.mockRestore(); }
     });
   });
 
