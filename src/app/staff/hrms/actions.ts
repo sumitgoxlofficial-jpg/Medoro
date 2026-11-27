@@ -28,6 +28,7 @@ import * as careers from "@/staff/hrms/careers";
 import * as policies from "@/staff/hrms/policies";
 import * as exits from "@/staff/hrms/exits";
 import * as appraisals from "@/staff/hrms/appraisals";
+import * as org from "@/staff/hrms/org";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -254,3 +255,6 @@ export const promoteEmployee = async (staffId: string, input: Parameters<typeof 
   return r;
 }));
 export const cancelPromotion = async (id: string) => done(await hrRun((me) => promos.cancelPromotion(me, id), "Promotion cancelled."));
+
+// ── Organisation (Enterprise HRMS Phase 2)
+export const employeeTimeline = async (staffId: string) => hrRun((me) => org.timeline(me, staffId));

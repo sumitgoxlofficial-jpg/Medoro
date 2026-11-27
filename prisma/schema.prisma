@@ -1146,36 +1146,37 @@ enum StaffStatus {
 }
 
 model StaffUser {
-  id              String                  @id @default(uuid())
-  empNo           String                  @unique
-  name            String
-  email           String
-  kind            String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
-  phone           String
-  role            StaffRole
-  team            String                  @default("")
-  status          StaffStatus
-  passwordHash    String?
-  totpSecret      String? // sealed
-  totpEnabled     Boolean                 @default(false)
-  referralCode    String?                 @unique
-  googleSub       String?                 @unique // reference partners can sign in with Google
-  bonusPct        Decimal                 @default(0) @db.Decimal(5, 2)
-  inviteTokenHash String?                 @unique
-  inviteExpiresAt DateTime?
-  tokenVersion    Int                     @default(0)
-  approvedBy      String?
-  deletedAt       DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
-  createdAt       DateTime                @default(now())
-  sessions        StaffSession[]
-  bank            StaffBank?
-  growthMember    GrowthMember?
-  territories     EmployeeTerritory[]
-  callingTargets  EmployeeCallingTarget[]
-  leadAssignments LeadAssignment[]
-  callSessions    CallSession[]
-  followUps       FollowUpTask[]
-  hr              HrProfile?
+  id               String                  @id @default(uuid())
+  empNo            String                  @unique
+  name             String
+  email            String
+  kind             String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
+  phone            String
+  role             StaffRole
+  team             String                  @default("")
+  status           StaffStatus
+  passwordHash     String?
+  totpSecret       String? // sealed
+  totpEnabled      Boolean                 @default(false)
+  referralCode     String?                 @unique
+  googleSub        String?                 @unique // reference partners can sign in with Google
+  bonusPct         Decimal                 @default(0) @db.Decimal(5, 2)
+  inviteTokenHash  String?                 @unique
+  inviteExpiresAt  DateTime?
+  tokenVersion     Int                     @default(0)
+  approvedBy       String?
+  deletedAt        DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
+  createdAt        DateTime                @default(now())
+  sessions         StaffSession[]
+  bank             StaffBank?
+  growthMember     GrowthMember?
+  territories      EmployeeTerritory[]
+  callingTargets   EmployeeCallingTarget[]
+  leadAssignments  LeadAssignment[]
+  callSessions     CallSession[]
+  followUps        FollowUpTask[]
+  hr               HrProfile?
+  employmentEvents HrEmploymentEvent[]
 
   @@unique([email, kind])
 }
@@ -4008,4 +4009,22 @@ model HrReview {
   @@unique([cycleId, staffId])
   @@index([staffId])
   @@index([managerId])
+}
+
+/// Enterprise HRMS: the employment history of a person (joined, role/department/manager/pay changes, promotion, exit,
+/// reactivation). Append-only (database trigger). `changes` is {field: [before, after]}; pay fields are only shown to
+/// people with the Payroll module and to the employee.
+model HrEmploymentEvent {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  type      String // joined, updated, manager, transfer, promotion, pay, exit, reactivated
+  effective DateTime  @db.Date
+  changes   Json      @default("{}")
+  note      String    @default("")
+  byId      String? // who made the change; null = the system (a scheduled promotion, a notice period ending)
+  at        DateTime  @default(now())
+
+  @@index([staffId, at])
+  @@index([type, effective])
 }

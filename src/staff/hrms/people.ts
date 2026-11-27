@@ -1,4 +1,5 @@
 import "server-only";
+import { checkManager, diff, recordEvent, typeOf } from "./org";
 import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/server/db";
@@ -163,6 +164,7 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
     email = c.email;
   } else email = await officialEmail(i.name);
   if (!email) throw new UserError("Enter a username for the official email.");
+  const managerId = await checkManager(null, i.managerId);
   const { empNo, n } = await newEmployeeNo();
   const temp = tempPassword();
   const staffRole = i.role === "sales" ? "sales" : "employee";
@@ -170,9 +172,10 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
     data: {
       empNo, name: i.name, email, kind: "team", phone: i.phone, team: i.dept, role: staffRole, status: "active", passwordHash: await hashPassword(temp), approvedBy: me.name,
       referralCode: staffRole === "sales" ? referral(i.name, n) : null,
-      hr: { create: { payCycleDay: cycleDayOf(i.joinDate), role: i.role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: dateOnly(i.joinDate), ctc: i.ctc, incentivePct: i.role === "sales" ? i.incentivePct : 0, personalEmail: i.personalEmail, mustChangePassword: true } },
+      hr: { create: { payCycleDay: cycleDayOf(i.joinDate), role: i.role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId, joinDate: dateOnly(i.joinDate), ctc: i.ctc, incentivePct: i.role === "sales" ? i.incentivePct : 0, personalEmail: i.personalEmail, mustChangePassword: true } },
     },
   });
+  await recordEvent({ staffId: u.id, type: "joined", effective: i.joinDate, byId: me.id, changes: { dept: [null, i.dept], designation: [null, i.designation], role: [null, i.role], managerId: [null, managerId], ctc: [null, i.ctc] } });
   await audit(me, "Employee created", `${empNo} · ${email} · ${i.role}`);
   let mailed = false;
   if (mailEnabled()) {
@@ -204,14 +207,19 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   if (was === "admin" && me.role !== "admin") throw new UserError("Only the super admin can edit a super admin.");
   if (i.role !== was && was !== "admin" && me.role !== "admin") throw new UserError("Only the super admin can change system access.");
   const role = was === "admin" ? "admin" : i.role;
+  const managerId = await checkManager(id, i.managerId);
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
-  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId: i.managerId || null, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, ...(i.payCycleDay !== undefined ? { payCycleDay: i.payCycleDay } : {}), shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo, ...(i.responsibilities !== undefined ? { responsibilities: responsibilityLines(i.responsibilities).join("\n") } : {}) } as const;
-  await db.$transaction([
-    db.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } }),
-    db.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } }),
-    ...(u.hr && u.hr.ctc !== i.ctc ? [db.hrSalaryRevision.create({ data: { staffId: id, fromCtc: u.hr.ctc, toCtc: i.ctc, byId: me.id } })] : []),
-  ]);
+  const data = { role, dept: i.dept, designation: i.designation, empType: i.empType, location: i.location, homeState: i.homeState, managerId, joinDate: i.joinDate ? dateOnly(i.joinDate) : null, ctc: i.ctc, incentivePct: role === "sales" ? i.incentivePct : 0, monthlyTarget: i.monthlyTarget, ...(i.payCycleDay !== undefined ? { payCycleDay: i.payCycleDay } : {}), shiftStart: i.shiftStart, taxRegime: i.taxRegime, taxDeclared: i.taxRegime === "old" ? i.taxDeclared : 0, esiNo: i.esiNo, ...(i.responsibilities !== undefined ? { responsibilities: responsibilityLines(i.responsibilities).join("\n") } : {}) } as const;
+  // The history keeps the employment terms that changed (not tax or contact details).
+  const tracked = (h: Record<string, unknown>) => ({ role: h.role, dept: h.dept, designation: h.designation, empType: h.empType, location: h.location, managerId: h.managerId ?? null, ctc: h.ctc, incentivePct: Number(h.incentivePct ?? 0), shiftStart: h.shiftStart });
+  const changes = u.hr ? diff(tracked(u.hr as unknown as Record<string, unknown>), tracked(data)) : {};
+  await db.$transaction(async (tx) => {
+    await tx.hrProfile.upsert({ where: { staffId: id }, update: data, create: { staffId: id, ...data } });
+    await tx.staffUser.update({ where: { id }, data: { role: staffRole, team: i.dept } });
+    if (u.hr && u.hr.ctc !== i.ctc) await tx.hrSalaryRevision.create({ data: { staffId: id, fromCtc: u.hr.ctc, toCtc: i.ctc, byId: me.id } });
+    if (Object.keys(changes).length) await recordEvent({ staffId: id, type: typeOf(changes), changes, byId: me.id }, tx);
+  });
   await audit(me, "Employee updated", `${u.empNo} · ${role} · ${i.dept} · ${i.designation}`);
 }
 
@@ -241,6 +249,7 @@ export async function setEmployeeActive(me: Me, id: string, active: boolean, las
     // Cancelling an exit (or reactivating) closes the resignation or recorded exit it belonged to (HRMS → Exits).
     ...(active ? [db.hrExit.updateMany({ where: { staffId: id, status: { in: ["accepted", "recorded"] } }, data: { status: "cancelled" } })] : []),
   ]);
+  await recordEvent({ staffId: id, type: active ? "reactivated" : "exit", effective: active ? todayISO() : exit!, byId: me.id, note: active ? (u.status === "active" ? "Exit cancelled" : "Reactivated") : later ? "Last working day recorded (notice period)" : "Deactivated" });
   if (later) await notify([id], `Your last working day is recorded as ${exit}.`, "profile");
   await audit(me, active ? (u.status === "active" ? "Exit cancelled" : "Employee reactivated") : later ? "Exit recorded" : "Employee deactivated", `${u.empNo} · ${u.email}${exit ? ` · last working day ${exit}` : ""}`);
 }

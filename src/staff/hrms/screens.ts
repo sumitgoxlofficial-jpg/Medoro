@@ -9,6 +9,7 @@ import { listEvents, status as gcalStatus } from "./gcal";
 import { backupStatus } from "./chat-backup";
 import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
+import { orgChart, orgHealth, timeline } from "./org";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
@@ -72,6 +73,7 @@ export const loaders = {
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id), day: await myDay(me), month: me.role === "admin" ? null : (await monthFor(me.id, ym(), s)).counts };
   },
   appraisal: async (me: Me) => myReviews(me),
+  orgchart: async (me: Me) => ({ chart: await orgChart(me), health: can(me, "employees") ? await orgHealth(me) : null, history: await timeline(me, me.id), hr: can(me, "employees") }),
   hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),
   myteam: async (me: Me) => myTeam(me),
   myprojects: async (me: Me) => ({ projects: await myProjects(me) }),
