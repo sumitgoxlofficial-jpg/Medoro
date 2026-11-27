@@ -11,7 +11,10 @@
 /Dockerfile
 /docker-compose.yml
 
-# The 26 tour MP4s (~175 MB) are served from the public Supabase Storage bucket `tour-videos` (medoro-production),
-# set by NEXT_PUBLIC_VIDEO_BASE_URL in Vercel. They stay in git for Docker and self-hosted installs, which serve them
-# from /videos/files. A new or changed MP4 must also be uploaded to that bucket under the same file name.
+# Videos are served from the public Supabase Storage bucket `tour-videos` (medoro-production), set by
+# NEXT_PUBLIC_VIDEO_BASE_URL in Vercel: the 26 tour MP4s (~175 MB) and the homepage hero video (site/hero-loop.*).
+# They stay in git for Docker and self-hosted installs, which serve them from /videos/files and /site. A new or
+# changed video must also be uploaded to that bucket under the same path.
 /public/videos/files
+/public/site/hero-loop.mp4
+/public/site/hero-loop.webm
