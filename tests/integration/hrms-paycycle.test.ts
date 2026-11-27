@@ -37,9 +37,9 @@ describe("pay cycles from the joining day, and salary only into the employee's o
     expect(staff.hr!.payCycleDay).toBe(13);
     await db.hrProfile.update({ where: { staffId: r.id }, data: { createdAt: new Date("2026-11-13T00:00:00Z") } });
     await bank(r.id, "Riya Sharma");
-    // They checked in on every working day of their first cycle (Mon-Fri, 13 Nov to 12 Dec: 21 days).
+    // They checked in and out on every working day of their first cycle (Mon-Fri, 13 Nov to 12 Dec: 21 days).
     for (let d = new Date("2026-11-13T00:00:00Z"); d <= new Date("2026-12-12T00:00:00Z"); d = new Date(d.getTime() + 86_400_000)) {
-      if (![0, 6].includes(d.getUTCDay())) await db.hrAttendance.create({ data: { staffId: r.id, day: d, inAt: new Date(d.getTime() + 4 * 3600_000), status: "present" } });
+      if (![0, 6].includes(d.getUTCDay())) await db.hrAttendance.create({ data: { staffId: r.id, day: d, inAt: new Date(d.getTime() + 4 * 3600_000), outAt: new Date(d.getTime() + 13 * 3600_000), status: "present" } });
     }
 
     // Nothing is paid in November for someone who joined on the 13th.

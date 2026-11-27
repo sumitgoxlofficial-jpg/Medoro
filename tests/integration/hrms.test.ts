@@ -13,7 +13,7 @@ import { hashPassword } from "@/server/auth";
 import { getStaff } from "@/staff/auth";
 import { changePassword, getMe, loadPerms, loadSettings, need, signIn, type Me } from "@/staff/hrms/auth";
 import { checkOfficialUsername, createEmployee, salaryRevisions, saveSettings, setEmployeeActive, updateEmployee, issueOneTimePassword, saveProfile } from "@/staff/hrms/people";
-import { addMonths, addNationalHolidays, checkIn, closeOpenDays, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
+import { addMonths, addNationalHolidays, checkIn, closeOpenDays, decideCorrection, requestCorrection, applyLeave, adminDecideClaim, decideLeave, hrDecideClaim, leaveBalances, monthFor, submitClaim, teamRequests, yearShare } from "@/staff/hrms/time";
 import { annualTax, computeSlip, employerCost, esiReturn, finalSettlement, payrollFor, pfReturn, processPayroll, payslip, taxStatement } from "@/staff/hrms/pay";
 import { addLead, assignLead, importLeads, setStage, salesSummary } from "@/staff/hrms/leads";
 import { createInvoice, summary } from "@/staff/hrms/finance";
@@ -366,7 +366,7 @@ describe("HRMS", () => {
       expect((await payslip(hr, slip.id)).lastDay).toBe("2031-09-19");
     } finally { vi.useRealTimers(); }
   });
-  it("weekly offs from Settings, a person's own shift start, and automatic check-out of a forgotten day", async () => {
+  it("weekly offs from Settings, a person's own shift start, and a missed check-out (half-day loss of pay until HR corrects it)", async () => {
     const s = await loadSettings();
     const nina = await me((await db.staffUser.findFirstOrThrow({ where: { empNo: "MS-050" } })).id);
     // A six-day week: Saturday becomes a working day.
@@ -381,13 +381,30 @@ describe("HRMS", () => {
       vi.setSystemTime(new Date("2032-05-10T07:30:00Z")); // Monday 1:00 PM in India
       await db.hrProfile.update({ where: { staffId: nina.id }, data: { shiftStart: "14:00" } });
       expect((await checkIn(nina)).status).toBe("present");
-      // Never checked out: the next day it is closed after a full working day.
+      // Never checked out: check-out is compulsory, so the next day it is closed as a missed check-out with no hours,
+      // and the day counts as half a day's loss of pay until HR approves a correction.
       vi.setSystemTime(new Date("2032-05-11T04:00:00Z"));
       expect(await closeOpenDays()).toBeGreaterThan(0);
       const a = await db.hrAttendance.findUniqueOrThrow({ where: { staffId_day: { staffId: nina.id, day: dateOnly("2032-05-10") } } });
-      expect(a.outAt!.toISOString()).toBe("2032-05-10T16:00:00.000Z"); // 8 hours of work + the half-hour lunch
-      expect(a.note).toMatch(/Auto check-out/);
+      expect(a.outAt!.toISOString()).toBe(a.inAt!.toISOString());
+      expect(a.note).toMatch(/Missed check-out/);
       expect(await closeOpenDays()).toBe(0);
+      expect((await db.hrNotification.findFirstOrThrow({ where: { staffId: nina.id }, orderBy: { createdAt: "desc" } })).text).toMatch(/didn’t check out on 2032-05-10/);
+      const may = await monthFor(nina.id, "2032-05", s);
+      const cell = may.cells.find((c) => c.day === "2032-05-10")!;
+      expect(cell.kind).toBe("present");
+      expect(cell.label).toMatch(/Missed check-out/);
+      expect(cell.correctable).toBe(true);
+      const absentBefore = may.counts.absent;
+      // HR approves the correction: a full working day is restored and the loss of pay goes away.
+      await requestCorrection(nina, { day: "2032-05-10", reason: "Forgot to check out, left at 6 PM." });
+      const corr = await db.hrCorrection.findFirstOrThrow({ where: { staffId: nina.id, day: dateOnly("2032-05-10"), status: "pending" } });
+      await decideCorrection(admin, corr.id, true);
+      const fixed = await db.hrAttendance.findUniqueOrThrow({ where: { id: a.id } });
+      expect(fixed.outAt!.toISOString()).toBe("2032-05-10T16:00:00.000Z"); // 8 hours of work + the half-hour lunch
+      expect(fixed.status).toBe("present");
+      expect(fixed.note).not.toMatch(/Missed check-out/);
+      expect(absentBefore - (await monthFor(nina.id, "2032-05", s)).counts.absent).toBe(0.5); // the half day of loss of pay is gone
     } finally { vi.useRealTimers(); }
   });
   it("statutory: old tax regime, employer shares, PF and ESI returns, the yearly tax statement and salary revisions", async () => {
