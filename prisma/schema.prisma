@@ -1182,6 +1182,7 @@ model StaffUser {
   hrWorkEvents       HrWorkEvent[]
   hrKpiResults       HrKpiResult[]
   hrShiftAssignments HrShiftAssignment[]
+  hrCourseEnrolments HrCourseEnrolment[]
 
   @@unique([email, kind])
 }
@@ -4298,4 +4299,88 @@ model HrShiftAssignment {
 
   @@index([staffId, fromDay])
   @@index([shiftId])
+}
+
+/// Enterprise HRMS: a course for everyone or a department/designation (the Sales Academy stays separate).
+model HrCourse {
+  id          String              @id @default(uuid())
+  title       String
+  summary     String              @default("")
+  dept        String              @default("")
+  designation String              @default("")
+  mandatory   Boolean             @default(false)
+  dueDays     Int                 @default(14)
+  passPct     Int                 @default(70)
+  lessons     Json // [{title, body, url}]
+  questions   Json                @default("[]") // [{q, options, answer}]: answers never leave the server
+  status      String              @default("draft") // draft, published, archived
+  version     Int                 @default(1)
+  createdBy   String
+  updatedBy   String
+  createdAt   DateTime            @default(now())
+  publishedAt DateTime?
+  enrolments  HrCourseEnrolment[]
+}
+
+model HrCourseEnrolment {
+  id          String            @id @default(uuid())
+  courseId    String
+  course      HrCourse          @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  staffId     String
+  staff       StaffUser         @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  assignedBy  String? // null = enrolled automatically (audience)
+  dueOn       DateTime          @db.Date
+  startedAt   DateTime?
+  lessonsRead Json              @default("[]")
+  attempts    Int               @default(0)
+  score       Int?
+  completedAt DateTime?
+  reminded    Int               @default(0) // 1 = due soon, 2 = overdue
+  createdAt   DateTime          @default(now())
+  history     HrCourseAttempt[]
+
+  @@unique([courseId, staffId])
+  @@index([staffId, completedAt])
+}
+
+/// Every quiz attempt, with the course version it was taken on. Append-only.
+model HrCourseAttempt {
+  id          String            @id @default(uuid())
+  enrolmentId String
+  enrolment   HrCourseEnrolment @relation(fields: [enrolmentId], references: [id], onDelete: Restrict)
+  version     Int
+  answers     Json
+  score       Int
+  passed      Boolean
+  at          DateTime          @default(now())
+
+  @@index([enrolmentId])
+}
+
+/// Enterprise HRMS: a pulse survey (anonymous by default).
+model HrSurvey {
+  id        String             @id @default(uuid())
+  title     String
+  intro     String             @default("")
+  anonymous Boolean            @default(true)
+  dept      String             @default("") // empty = everyone
+  questions Json // [{text, kind: scale|nps|text}]
+  closesOn  DateTime
+  createdBy String
+  createdAt DateTime           @default(now())
+  responses HrSurveyResponse[]
+}
+
+/// One answer set. For anonymous surveys staffId is null and respondentKey is an HMAC that only prevents a second answer.
+model HrSurveyResponse {
+  id            String   @id @default(uuid())
+  surveyId      String
+  survey        HrSurvey @relation(fields: [surveyId], references: [id], onDelete: Restrict)
+  respondentKey String
+  staffId       String?
+  dept          String   @default("")
+  answers       Json
+  at            DateTime @default(now())
+
+  @@unique([surveyId, respondentKey])
 }

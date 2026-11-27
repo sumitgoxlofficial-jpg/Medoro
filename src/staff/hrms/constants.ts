@@ -91,6 +91,8 @@ export const SCREENS: ScreenDef[] = [
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "jobs", label: "Work at Medoro", icon: "briefcase", title: "Work at Medoro", sub: "Open roles · refer someone you know", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "orgchart", label: "Org chart", icon: "users", title: "Organisation", sub: "Who reports to whom, and your employment history", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "learning", label: "Learning", icon: "cap", title: "Learning", sub: "Courses for your role: lessons, a short quiz and required deadlines", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "engage", label: "Engagement", icon: "sparkle", title: "Engagement", sub: "Pulse surveys (anonymous unless stated) and their results", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "policies", label: "Company policies", icon: "file", title: "Company policies", sub: "The handbook: read each policy and acknowledge it", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "hrvideos", label: "Training Videos", icon: "cap", title: "Training Videos", sub: "How to use the HRMS: short Hinglish videos for your role", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "support", label: "Support", icon: "help", title: "Support", sub: "HR helpdesk", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },

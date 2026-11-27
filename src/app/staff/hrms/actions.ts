@@ -33,6 +33,8 @@ import * as approvals from "@/staff/hrms/approvals";
 import * as workforce from "@/staff/hrms/workforce";
 import * as kpi from "@/staff/hrms/kpi";
 import * as shifts from "@/staff/hrms/shifts";
+import * as learning from "@/staff/hrms/learning";
+import * as surveys from "@/staff/hrms/surveys";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -295,3 +297,17 @@ export const reviewInsight = async (id: string, decision: "reviewed" | "dismisse
 export const saveShift = async (id: string | null, input: Parameters<typeof shifts.saveShift>[2]) => done(await hrRun((me) => shifts.saveShift(me, id, input), "Shift saved."));
 export const archiveShift = async (id: string) => done(await hrRun((me) => shifts.archiveShift(me, id), "Shift archived."));
 export const assignShift = async (input: Parameters<typeof shifts.assignShift>[1]) => done(await hrRun((me) => shifts.assignShift(me, input), "Roster saved. Each person was told."));
+
+// ── Learning and engagement (Enterprise HRMS Phase 7)
+export const saveCourse = async (id: string | null, input: Parameters<typeof learning.saveCourse>[2]) => done(await hrRun((me) => learning.saveCourse(me, id, input), "Course saved."));
+export const publishCourse = async (id: string) => done(await hrRun((me) => learning.publishCourse(me, id), undefined));
+export const assignCourse = async (id: string, staffIds: string[]) => done(await hrRun((me) => learning.assignCourse(me, id, staffIds)));
+export const archiveCourse = async (id: string) => done(await hrRun((me) => learning.archiveCourse(me, id), "Course archived."));
+export const openCourse = async (id: string) => hrRun((me) => learning.openCourse(me, id));
+export const markLessonRead = async (id: string, index: number) => done(await hrRun((me) => learning.markLessonRead(me, id, index)));
+export const submitQuiz = async (id: string, answers: number[]) => done(await hrRun((me) => learning.submitQuiz(me, id, answers)));
+export const resetCourseAttempts = async (id: string, staffId: string) => done(await hrRun((me) => learning.resetAttempts(me, id, staffId), "Attempts reset."));
+export const createSurvey = async (input: Parameters<typeof surveys.createSurvey>[1]) => done(await hrRun((me) => surveys.createSurvey(me, input), "Survey sent."));
+export const closeSurvey = async (id: string) => done(await hrRun((me) => surveys.closeSurvey(me, id), "Survey closed."));
+export const answerSurvey = async (id: string, answers: unknown[]) => done(await hrRun((me) => surveys.answerSurvey(me, id, answers), "Thank you. Your answer is recorded."));
+export const surveyResults = async (id: string) => hrRun((me) => surveys.surveyResults(me, id));
