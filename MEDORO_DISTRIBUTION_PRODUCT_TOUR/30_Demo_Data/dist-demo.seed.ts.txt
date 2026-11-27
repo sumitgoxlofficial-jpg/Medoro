@@ -1,0 +1,381 @@
+// Demo data for the product tour (NOT a test). Run only against the demo database:
+//   SEED=1 DATABASE_URL=... LD_PRELOAD=libfaketime ... npx vitest run --config tests/seed/vitest.seed.mts
+// It drives Medoro's own domain services (the same code the screens call) with the clock moved to past dates.
+import { it } from "vitest";
+import fs from "node:fs";
+import { db } from "@/server/db";
+import type { Ctx } from "@/server/context";
+import { DIST_GRANTS, type DistRole } from "@/domain/distribution/perms";
+import { saveChemist, saveCompany, savePrincipal, saveProduct, saveTerritory, saveSalesman, saveGodown, saveRack, placeOnRack, saveScheme, setSpecialRate, setChemistStatus, verifyChemistKyc } from "@/domain/distribution/masters";
+import { saveSupplierIn, paySupplier } from "@/domain/parties/service";
+import { postGrnTx, createPo, setPoStatus } from "@/domain/purchasing/service";
+import { directInvoice, invoiceOrder, invoiceView } from "@/domain/distribution/billing";
+import { placeOrder, approveOrder, startPicking, confirmPickLine, packOrder, rejectOrder } from "@/domain/distribution/orders";
+import { createDispatch, startDispatch, recordDelivery, collectPayment } from "@/domain/distribution/dispatch";
+import { createReturn, raiseDistClaim } from "@/domain/distribution/returns";
+import { acknowledgeClaim, creditClaim } from "@/domain/inventory/claims";
+import { recordExpense } from "@/domain/accounting/service";
+import { savePortalSettings } from "@/domain/distribution/portal";
+import { addDays } from "@/lib/dates";
+import { customerBalance } from "@/domain/parties/balances";
+
+const CLOCK = process.env.FAKETIME_TIMESTAMP_FILE!;
+const setClock = (iso: string, hm = "10:30:00") => { fs.writeFileSync(CLOCK, `@${iso} ${hm}`); };
+let seq = 0;
+const key = () => "seed" + (++seq).toString(36) + Math.random().toString(36).slice(2, 10);
+// Deterministic pseudo-random numbers so the demo is reproducible.
+let rs = 20261127;
+const rnd = () => ((rs = (rs * 1103515245 + 12345) % 2147483648) / 2147483648);
+const pick = <T,>(a: T[]) => a[Math.floor(rnd() * a.length)];
+const between = (a: number, b: number) => a + Math.floor(rnd() * (b - a + 1));
+
+async function ctxFor(code: string, role: DistRole = "Owner", branchName?: string): Promise<Ctx> {
+  const t = await db.tenant.findUniqueOrThrow({ where: { code } });
+  const u = await db.user.findFirstOrThrow({ where: { tenantId: t.id }, orderBy: { createdAt: "asc" } });
+  const branches = await db.branch.findMany({ where: { tenantId: t.id }, orderBy: { createdAt: "asc" } });
+  const br = branchName ? branches.find((b) => b.name === branchName)! : branches[0];
+  return { tenantId: t.id, tenantName: t.name, userId: u.id, userName: u.name, userEmail: u.email ?? "", realRole: role, role, perms: [...DIST_GRANTS[role]],
+    branchId: br.id, branchName: br.name, branchCode: br.code, branches: branches.map((b) => ({ id: b.id, name: b.name, code: b.code })), lang: "en", sessionId: "seed", counterId: null, counterName: null };
+}
+
+const CODE = process.env.DEMO_CODE ?? "MEDORO-RNC";
+const START = "2026-09-28"; // history starts here; "today" is the real date of recording
+const TODAY = process.env.DEMO_TODAY ?? "2026-11-27";
+
+const COMPANIES = [
+  { name: "Aarogya Demo Pharma Ltd", shortName: "AAROGYA", gstin: "27DEMOC0601D1Z7" },
+  { name: "Sanjivani Demo Labs", shortName: "SANJIVANI", gstin: "24DEMOC0701D1ZC" },
+  { name: "Vitalis Demo Healthcare", shortName: "VITALIS", gstin: "" },
+  { name: "Nirmal Demo Formulations", shortName: "NIRMAL", gstin: "" },
+  { name: "Prana Demo Biotech", shortName: "PRANA", gstin: "" },
+  { name: "Shubh Demo Lifesciences", shortName: "SHUBH", gstin: "" },
+];
+const SUPPLIERS = [
+  { name: "Aarogya Demo C&F Agency, Ranchi", gstin: "20DEMOF0501D1ZJ", stateCode: "20", creditDays: 30, leadDays: 2, phone: "9000000101" },
+  { name: "Eastern Demo Super Stockist, Kolkata", gstin: "19DEMOC0401D1Z6", stateCode: "19", creditDays: 45, leadDays: 4, phone: "9000000102" },
+  { name: "Sanjivani Demo Depot, Patna", gstin: "10DEMOF0301D1ZM", stateCode: "10", creditDays: 30, leadDays: 3, phone: "9000000103" },
+  { name: "Jharkhand Demo Pharma Agency, Ranchi", gstin: "20DEMOP0201D1ZC", stateCode: "20", creditDays: 21, leadDays: 1, phone: "9000000104" },
+];
+// company index → supplier index, claim terms
+const PRINCIPALS: [number, number, number, number, number][] = [[0, 0, 90, 180, 80], [1, 2, 60, 120, 75], [2, 1, 90, 180, 80], [3, 3, 60, 90, 70], [4, 1, 90, 180, 85], [5, 3, 60, 120, 75]];
+// name, generic, strength, form, pack, company, hsn, gst, mrp, ptr, pts, schedule, reorder, rack
+type P = [string, string, string, string, string, number, string, number, number, number, number, string, number, string];
+const PRODUCTS: P[] = [
+  ["Febrinil 650", "Paracetamol", "650 mg", "Tablet", "15 tabs", 0, "30049099", 12, 33, 23.1, 21.5, "", 300, "A-01"],
+  ["Febrinil 500", "Paracetamol", "500 mg", "Tablet", "10 tabs", 0, "30049099", 12, 22, 15.4, 14.3, "", 200, "A-01"],
+  ["Amoxirise 500", "Amoxicillin", "500 mg", "Capsule", "10 caps", 0, "30041010", 12, 110, 76.9, 71.5, "H", 120, "A-02"],
+  ["Amoxirise CV 625", "Amoxicillin + Clavulanic acid", "625 mg", "Tablet", "10 tabs", 0, "30042019", 12, 228, 159.4, 148.2, "H", 100, "A-02"],
+  ["Azivon 500", "Azithromycin", "500 mg", "Tablet", "3 tabs", 1, "30042019", 12, 120, 83.9, 78, "H", 120, "A-03"],
+  ["Cefoxa 200", "Cefixime", "200 mg", "Tablet", "10 tabs", 1, "30042019", 12, 189, 132.1, 122.9, "H", 80, "A-03"],
+  ["Pantovista 40", "Pantoprazole", "40 mg", "Tablet", "15 tabs", 1, "30049099", 12, 165, 115.4, 107.3, "H", 150, "A-04"],
+  ["Ranzole-D", "Rabeprazole + Domperidone", "20/10 mg", "Capsule", "10 caps", 1, "30049099", 12, 142, 99.3, 92.3, "H", 120, "A-04"],
+  ["Metforal 500", "Metformin", "500 mg", "Tablet", "20 tabs", 2, "30049099", 12, 48, 33.6, 31.2, "H", 250, "B-01"],
+  ["Metforal G1", "Glimepiride + Metformin", "1/500 mg", "Tablet", "15 tabs", 2, "30049099", 12, 118, 82.5, 76.7, "H", 150, "B-01"],
+  ["Telmiva 40", "Telmisartan", "40 mg", "Tablet", "15 tabs", 2, "30049099", 12, 156, 109.1, 101.4, "H", 150, "B-02"],
+  ["Amlocard 5", "Amlodipine", "5 mg", "Tablet", "15 tabs", 2, "30049099", 12, 54, 37.8, 35.1, "H", 200, "B-02"],
+  ["Atorvex 10", "Atorvastatin", "10 mg", "Tablet", "15 tabs", 2, "30049099", 12, 132, 92.3, 85.8, "H", 150, "B-03"],
+  ["Clopidex 75", "Clopidogrel", "75 mg", "Tablet", "15 tabs", 2, "30049099", 12, 148, 103.5, 96.2, "H", 100, "B-03"],
+  ["Cetrinova 10", "Cetirizine", "10 mg", "Tablet", "10 tabs", 3, "30049099", 12, 28, 19.6, 18.2, "", 300, "A-05"],
+  ["Montiluk-LC", "Montelukast + Levocetirizine", "10/5 mg", "Tablet", "10 tabs", 3, "30049099", 12, 168, 117.5, 109.2, "H", 120, "A-05"],
+  ["Coughnil DX Syrup", "Dextromethorphan + Chlorpheniramine", "100 ml", "Syrup", "100 ml", 3, "30049099", 12, 118, 82.5, 76.7, "", 150, "C-02"],
+  ["Gastrocalm Gel", "Antacid (Aluminium + Magnesium hydroxide)", "170 ml", "Suspension", "170 ml", 3, "30049099", 12, 135, 94.4, 87.8, "", 100, "C-02"],
+  ["Calvita-D3", "Calcium carbonate + Vitamin D3", "500 mg/250 IU", "Tablet", "15 tabs", 4, "21069099", 18, 125, 79.4, 73.8, "", 200, "A-06"],
+  ["Neurobion-Z Forte", "Vitamin B-complex + Zinc", "", "Tablet", "30 tabs", 4, "30045090", 12, 95, 66.4, 61.8, "", 200, "A-06"],
+  ["Ferrovit XT", "Ferrous ascorbate + Folic acid", "100 mg/1.5 mg", "Tablet", "10 tabs", 4, "30045090", 12, 145, 101.4, 94.3, "", 150, "A-06"],
+  ["ORSiva Sachet", "Oral rehydration salts", "21.8 g", "Powder", "1 sachet", 4, "30049099", 5, 21, 15.4, 14.3, "", 500, "C-01"],
+  ["Zincosure 20", "Zinc sulphate", "20 mg", "Tablet", "10 tabs", 4, "30049099", 12, 38, 26.6, 24.7, "", 150, "A-06"],
+  ["Insugen-R 40IU", "Human insulin (regular)", "40 IU/ml 10 ml", "Injection", "1 vial", 5, "30043110", 5, 170, 129.5, 120.4, "H", 60, "COLD-1"],
+  ["Ondawin 4", "Ondansetron", "4 mg", "Tablet", "10 tabs", 5, "30049099", 12, 64, 44.8, 41.6, "H", 120, "B-04"],
+  ["Diclomax SR", "Diclofenac sodium SR", "100 mg", "Tablet", "10 tabs", 5, "30049099", 12, 72, 50.3, 46.8, "H", 150, "B-04"],
+  ["Thyrovance 50", "Levothyroxine", "50 mcg", "Tablet", "100 tabs", 5, "30043990", 12, 178, 124.5, 115.8, "H", 100, "B-04"],
+  ["Alprazen 0.25", "Alprazolam", "0.25 mg", "Tablet", "10 tabs", 5, "30049099", 12, 36, 25.2, 23.4, "H1", 50, "B-05"],
+  ["Sanitize Plus 500 ml", "Hand sanitiser (alcohol based)", "500 ml", "Liquid", "500 ml", 3, "38089400", 18, 250, 158.9, 147.7, "", 80, "C-03"],
+  ["Glucocheck Strips", "Blood glucose test strips", "50 strips", "Strip", "50 strips", 2, "38220090", 12, 950, 664.3, 617.8, "", 30, "C-03"],
+];
+const TERRITORIES = [
+  { code: "RNC-C", name: "Ranchi Central (Main Road, Lalpur, Kokar)", pincodes: "834001, 834002" },
+  { code: "RNC-N", name: "Ranchi North (Kanke, Ratu Road)", pincodes: "834006, 834005" },
+  { code: "RNC-S", name: "Ranchi South (Doranda, Hinoo, HEC)", pincodes: "834002, 834004" },
+  { code: "RMG", name: "Ramgarh & Hazaribagh", pincodes: "829122, 825301" },
+];
+const SALESMEN = [
+  { code: "SM01", name: "Ravi Kumar (Demo)", phone: "9000000201", t: [0], target: "900000" },
+  { code: "SM02", name: "Suman Tirkey (Demo)", phone: "9000000202", t: [1, 2], target: "800000" },
+  { code: "SM03", name: "Anil Mahto (Demo)", phone: "9000000203", t: [3], target: "500000" },
+];
+// name, owner, area, pin, territory, salesman, limit, days, gst?, state, opening
+type C = [string, string, string, string, number, number, number, number, boolean, string, number];
+const CHEMISTS: C[] = [
+  ["Shree Ram Medical Hall", "Demo Owner R. Sharma", "Main Road", "834001", 0, 0, 50000, 21, true, "20", 0],
+  ["Lalpur Life Care Pharmacy", "Demo Owner A. Verma", "Lalpur Chowk", "834001", 0, 0, 150000, 30, true, "20", 18500],
+  ["Kokar Health Point", "Demo Owner S. Gupta", "Kokar", "834001", 0, 0, 80000, 21, false, "20", 0],
+  ["New Sai Medicos", "Demo Owner P. Singh", "Bahu Bazar", "834001", 0, 0, 100000, 21, true, "20", 12000],
+  ["Morabadi Medicine Centre", "Demo Owner K. Oraon", "Morabadi", "834008", 0, 0, 60000, 15, false, "20", 0],
+  ["City Care Chemists", "Demo Owner M. Ansari", "Upper Bazar", "834001", 0, 0, 120000, 30, true, "20", 25000],
+  ["Kanke Road Medical Store", "Demo Owner D. Mahato", "Kanke Road", "834008", 1, 1, 75000, 21, false, "20", 0],
+  ["Ratu Road Pharma Point", "Demo Owner N. Kumari", "Ratu Road", "834005", 1, 1, 90000, 21, true, "20", 8000],
+  ["Pitoria Gramin Medical", "Demo Owner B. Munda", "Pithoria", "834006", 1, 1, 30000, 15, false, "20", 0],
+  ["Booty More Chemist", "Demo Owner L. Prasad", "Booty More", "834009", 1, 1, 70000, 21, true, "20", 0],
+  ["Doranda Drug House", "Demo Owner F. Khan", "Doranda", "834002", 2, 1, 200000, 30, true, "20", 42000],
+  ["Hinoo Family Pharmacy", "Demo Owner T. Lakra", "Hinoo", "834002", 2, 1, 80000, 21, false, "20", 0],
+  ["HEC Colony Medicals", "Demo Owner V. Pandey", "HEC Dhurwa", "834004", 2, 1, 60000, 21, true, "20", 0],
+  ["Birsa Chowk Medicos", "Demo Owner R. Kachhap", "Birsa Chowk", "834002", 2, 1, 50000, 15, false, "20", 6500],
+  ["Argora Wellness Chemist", "Demo Owner S. Tiwari", "Argora", "834002", 2, 1, 70000, 21, true, "20", 0],
+  ["Ramgarh Janta Medical", "Demo Owner J. Mehta", "Main Road, Ramgarh", "829122", 3, 2, 100000, 30, true, "20", 15000],
+  ["Hazaribagh Medicine Mart", "Demo Owner U. Yadav", "Hazaribagh", "825301", 3, 2, 120000, 30, true, "20", 0],
+  ["Bhurkunda Health Store", "Demo Owner G. Soren", "Bhurkunda", "829106", 3, 2, 40000, 15, false, "20", 0],
+  ["Patna Demo Medical Agency", "Demo Owner A. Jha", "Boring Road, Patna (Bihar)", "800001", 3, 2, 150000, 30, true, "10", 0],
+  ["Purulia Demo Pharma Traders", "Demo Owner S. Mondal", "Purulia (West Bengal)", "723101", 3, 2, 100000, 30, true, "19", 0],
+  ["Namkum Medical Corner", "Demo Owner P. Ekka", "Namkum", "834010", 2, 1, 50000, 21, false, "20", 0],
+  ["Bariatu Hospital Pharmacy", "Demo Owner K. Sinha", "Bariatu", "834009", 0, 0, 250000, 30, true, "20", 0],
+  ["Harmu Housing Chemists", "Demo Owner N. Bhagat", "Harmu", "834002", 0, 0, 60000, 21, false, "20", 0],
+  ["Tupudana Rural Medicos", "Demo Owner R. Toppo", "Tupudana", "835221", 2, 1, 25000, 15, false, "20", 4500],
+];
+const C_GST = (i: number, state: string) => {
+  const C = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const base = `${state}DEMOC${String(1000 + i).padStart(4, "0")}D1Z`;
+  let s = 0; for (let k = 0; k < 14; k++) { const v = C.indexOf(base[k]) * (k % 2 ? 2 : 1); s += Math.floor(v / 36) + (v % 36); }
+  return base + C[(36 - (s % 36)) % 36];
+};
+
+it("seeds the demo distributor", { timeout: 3_600_000 }, async () => {
+  if (process.env.SEED !== "1") return;
+  setClock(START, "09:30:00");
+  let ctx = await ctxFor(CODE);
+  const t = await db.tenant.findUniqueOrThrow({ where: { code: CODE } });
+  if (await db.distChemist.count({ where: { tenantId: t.id } })) throw new Error("Already seeded");
+
+  // ── godowns & racks ──
+  const main = ctx.branchId;
+  const kankeId = await saveGodown(ctx, null, { name: "Kanke Road Godown", code: "KNK", address: "Plot 9 (Demo Address), Kanke Road, Ranchi 834008", gstin: "", drugLicence: "JH-RNC-DEMO-20B-0003" });
+  ctx = await ctxFor(CODE);
+  const RACKS = [["A-01", "Fast movers", 10], ["A-02", "Antibiotics", 20], ["A-03", "Antibiotics", 30], ["A-04", "Gastro", 40], ["A-05", "Allergy", 50], ["A-06", "Vitamins", 60], ["B-01", "Diabetes", 70], ["B-02", "Cardiac", 80], ["B-03", "Cardiac", 90], ["B-04", "General", 100], ["B-05", "Schedule H1 (locked)", 110], ["C-01", "Sachets", 120], ["C-02", "Liquids", 130], ["C-03", "OTC & devices", 140], ["COLD-1", "Cold chain 2–8 °C", 150], ["Q-01", "Quarantine", 900]] as const;
+  for (const [code, zone, s] of RACKS) await saveRack(ctx, { branchId: main, code, zone, seq: s, coldChain: code === "COLD-1" });
+  for (const [code, zone, s] of RACKS.slice(0, 6)) await saveRack(ctx, { branchId: kankeId, code, zone, seq: s, coldChain: false });
+
+  // ── companies, suppliers, principals ──
+  const companyIds: string[] = [];
+  for (const c of COMPANIES) companyIds.push(await saveCompany(ctx, null, { ...c, contact: "Demo contact", phone: "", email: "", address: "Demo address" }));
+  const supplierIds: string[] = [];
+  for (const s of SUPPLIERS) supplierIds.push(await db.$transaction((tx) => saveSupplierIn(tx, { ...ctx, perms: [...ctx.perms, "purchase", "payments"] }, null, { ...s, acceptsReturns: true, returnWindowDays: 90 } as never)));
+  for (const [ci, si, before, after, pct] of PRINCIPALS) await savePrincipal(ctx, null, { companyId: companyIds[ci], supplierId: supplierIds[si], claimBeforeDays: before, claimAfterDays: after, claimCreditPct: pct, marginPct: 10, divisions: "General, Specialty", agreementFrom: START, agreementTo: "2027-09-30" } as never);
+
+  // ── products ──
+  const prod: { id: string; p: P }[] = [];
+  let bc = 8909000100000;
+  for (const p of PRODUCTS) {
+    const id = await saveProduct(ctx, null, { name: p[0], generic: p[1], strength: p[2], form: p[3], pack: p[4], companyId: companyIds[p[5]], hsn: p[6], gstRate: p[7], mrp: String(p[8]), ptr: String(p[9]), pts: String(p[10]), schedule: p[11] as never, barcode: String(bc++), packSize: 1, caseSize: 50, minOrderQty: 1, reorderLevel: p[12], portalVisible: p[11] !== "H1" });
+    prod.push({ id, p });
+  }
+  for (const { id, p } of prod) await placeOnRack(ctx, main, id, p[13]);
+
+  // ── territories, salesmen ──
+  const terr: string[] = [];
+  for (const x of TERRITORIES) terr.push(await saveTerritory(ctx, null, x));
+  const sm: string[] = [];
+  for (const s of SALESMEN) sm.push(await saveSalesman(ctx, null, { code: s.code, name: s.name, phone: s.phone, territoryIds: s.t.map((i) => terr[i]), monthlyTarget: s.target }));
+
+  // ── chemists ──
+  const chem: string[] = [];
+  for (let i = 0; i < CHEMISTS.length; i++) {
+    const c = CHEMISTS[i];
+    const id = await saveChemist(ctx, null, {
+      name: c[0], ownerName: c[1], phone: `90000${String(10001 + i).slice(-5)}`, gstin: c[8] ? C_GST(i, c[9]) : "", stateCode: c[9], address: `Shop ${i + 3} (Demo Address), ${c[2]}`, pincode: c[3],
+      dl20b: `JH-RNC-DEMO-20B-${1100 + i}`.replace("JH-RNC", c[9] === "10" ? "BR-PAT" : c[9] === "19" ? "WB-PUR" : "JH-RNC"), dl21b: `JH-RNC-DEMO-21B-${1100 + i}`.replace("JH-RNC", c[9] === "10" ? "BR-PAT" : c[9] === "19" ? "WB-PUR" : "JH-RNC"),
+      dlExpiry: addDays(TODAY, i === 9 ? 20 : 300 + i * 11), creditLimit: String(c[6]), creditDays: c[7], graceDays: 7, territoryId: terr[c[4]], salesmanId: sm[c[5]], priceTier: c[6] >= 150000 ? "pts" : "ptr", opening: String(c[10]),
+    });
+    chem.push(id);
+    if (i % 3 !== 2) await verifyChemistKyc(ctx, id);
+  }
+
+  // ── schemes & special rates ──
+  const P = (n: string) => prod.find((x) => x.p[0] === n)!.id;
+  await saveScheme(ctx, null, { code: "FEB10P2", name: "Febrinil 650: buy 10 get 2 free", kind: "free", medicineId: P("Febrinil 650"), buyQty: 10, freeQty: 2, minQty: 10, validFrom: START, validTo: "2027-03-31", portal: true });
+  await saveScheme(ctx, null, { code: "SANJ10P1", name: "Sanjivani range: 10 + 1", kind: "free", companyId: companyIds[1], buyQty: 10, freeQty: 1, minQty: 10, validFrom: START, validTo: "2027-01-31", portal: true });
+  await saveScheme(ctx, null, { code: "VITA5", name: "Prana vitamins: extra 5% off", kind: "discount", companyId: companyIds[4], discPct: 5, minQty: 5, validFrom: START, validTo: "2027-02-28", portal: true });
+  await saveScheme(ctx, null, { code: "MONTI20P3", name: "Montiluk-LC: 20 + 3 for big buyers", kind: "free", medicineId: P("Montiluk-LC"), buyQty: 20, freeQty: 3, minQty: 20, customerIds: [chem[10], chem[21]], validFrom: START, validTo: "2027-03-31", portal: false });
+  await setSpecialRate(ctx, chem[1], P("Pantovista 40"), "110", "2027-03-31");
+  await setSpecialRate(ctx, chem[10], P("Telmiva 40"), "104", "2027-03-31");
+  await setSpecialRate(ctx, chem[21], P("Insugen-R 40IU"), "125", "2027-03-31");
+  await savePortalSettings(ctx, { enabled: true, showStock: "band", showMrp: true } as never).catch((e) => console.log("portal settings:", e.message));
+
+  // ── opening stock by GRN (two batches; some short-dated) ──
+  const grnLines = (list: { id: string; p: P }[], day: string, mult = 1, nth = 1) => list.map(({ id, p }, k) => {
+    const short = nth === 1 && k % 7 === 3; // a short-dated batch for expiry demos
+    const exp = short ? addDays(day, 60 + (k % 4) * 25) : addDays(day, 420 + (k % 5) * 60);
+    const qty = Math.max(30, Math.round((p[12] * 3.5 * mult) / 10) * 10);
+    return { medicineId: id, batchNo: `${p[0].replace(/[^A-Z0-9]/gi, "").slice(0, 4).toUpperCase()}${day.slice(5, 7)}${String(nth)}${String(k).padStart(2, "0")}`, expiry: exp, qty, freeQty: k % 5 === 0 ? Math.round(qty / 10) : 0, rate: (p[10] * 0.9).toFixed(2), mrp: String(p[8]), scheme: k % 5 === 0 ? "10+1" : "", tradePct: k % 3 === 0 ? 2 : 0 };
+  });
+  const bySupplier = (si: number) => prod.filter(({ p }) => PRINCIPALS.find((x) => x[0] === p[5])![1] === si);
+  let inv = 1;
+  for (let si = 0; si < SUPPLIERS.length; si++) {
+    const lines = grnLines(bySupplier(si), START);
+    if (lines.length) await postGrnTx(ctx, { supplierId: supplierIds[si], invoiceNo: `DEMO-SI-${String(inv++).padStart(4, "0")}`, invoiceDate: START, acceptShortExpiry: true, lines } as never);
+  }
+  // Kanke Road godown: a smaller opening stock of fast movers
+  const kctx = await ctxFor(CODE, "Owner", "Kanke Road Godown");
+  await postGrnTx(kctx, { supplierId: supplierIds[3], invoiceNo: `DEMO-SI-${String(inv++).padStart(4, "0")}`, invoiceDate: START, acceptShortExpiry: true, lines: grnLines(prod.slice(0, 8), START, 0.4) } as never);
+  // An already-expired batch and a near-expiry batch of slow movers, for the expiry desk
+  await postGrnTx(ctx, { supplierId: supplierIds[3], invoiceNo: `DEMO-SI-${String(inv++).padStart(4, "0")}`, invoiceDate: START, acceptShortExpiry: true, lines: [
+    { medicineId: P("Gastrocalm Gel"), batchNo: "GAST0901X", expiry: "2026-11-15", qty: 24, rate: "79", mrp: "135" },
+    { medicineId: P("Coughnil DX Syrup"), batchNo: "COUG0902N", expiry: "2027-01-20", qty: 40, rate: "69", mrp: "118" },
+    { medicineId: P("Diclomax SR"), batchNo: "DICL0903N", expiry: "2027-01-31", qty: 60, rate: "42", mrp: "72" },
+  ] } as never);
+
+  // ── 60 days of trade ──
+  const days: string[] = []; for (let d = START; d < TODAY; d = addDays(d, 1)) days.push(d);
+  const invoicesBy: Record<string, string[]> = {};
+  let dayNo = 0;
+  const retry: string[] = [];
+  for (const day of days) {
+    dayNo++;
+    const dow = new Date(day + "T12:00:00Z").getUTCDay();
+    if (dow === 0) continue; // Sundays closed
+    setClock(day, "10:05:00");
+    ctx = await ctxFor(CODE);
+    // weekly restock (Mondays) from two suppliers
+    if (dow === 1 && dayNo > 3) {
+      for (const si of [0, 1, 2, 3]) {
+        const stock = await db.batch.groupBy({ by: ["medicineId"], where: { tenantId: ctx.tenantId, branchId: ctx.branchId }, _sum: { qtyAvailable: true } });
+        const list = bySupplier(si).filter(({ id, p }) => (stock.find((x) => x.medicineId === id)?._sum.qtyAvailable ?? 0) < p[12] * 2.2);
+        if (list.length) await postGrnTx(ctx, { supplierId: supplierIds[si], invoiceNo: `DEMO-SI-${String(inv++).padStart(4, "0")}`, invoiceDate: day, acceptShortExpiry: true, lines: grnLines(list, day, 0.8, 2) } as never).catch((e) => console.log("grn", day, e.message));
+      }
+    }
+    // invoices: 4–9 a day, mostly through orders
+    const n = between(6, 12);
+    for (let k = 0; k < n; k++) {
+      setClock(day, `${String(10 + Math.floor(k * 0.8)).padStart(2, "0")}:${String(between(0, 59)).padStart(2, "0")}:00`);
+      const ci = pick([0, 1, 1, 2, 3, 3, 4, 5, 5, 6, 7, 7, 8, 9, 10, 10, 10, 11, 12, 13, 14, 15, 15, 16, 16, 17, 18, 19, 20, 21, 21, 22, 23]);
+      if (ci === 0) continue; // keep Shree Ram near its limit for the credit demo
+      const items = Array.from(new Set(Array.from({ length: between(2, 6) }, () => between(0, prod.length - 1))))
+        .filter((x) => PRODUCTS[x][11] !== "H1" || rnd() < 0.2)
+        .map((x) => ({ medicineId: prod[x].id, qty: x === 0 ? pick([20, 30, 50, 100]) : between(5, 30) * (PRODUCTS[x][12] > 200 ? 2 : 1) }));
+      if (!items.length) continue;
+      try {
+        let invoiceId: string;
+        if (rnd() < 0.55) {
+          const o = await placeOrder({ kind: "user", ctx }, { customerId: chem[ci], source: pick(["salesman", "phone", "office", "salesman"]) as never, idempotencyKey: key(), lines: items });
+          await approveOrder(ctx, o.orderId, { allowPartial: true, overrideReason: "Regular customer, payment promised (demo)" });
+          const pl = await db.distPickList.findFirstOrThrow({ where: { orderId: o.orderId }, include: { lines: true } });
+          await startPicking(ctx, pl.id);
+          for (const l of pl.lines) await confirmPickLine(ctx, l.id, l.units);
+          await packOrder(ctx, pl.id, between(1, 3));
+          invoiceId = (await invoiceOrder(ctx, o.orderId)).invoiceId;
+        } else {
+          invoiceId = (await directInvoice(ctx, { customerId: chem[ci], idempotencyKey: key(), lines: items, overrideReason: "Regular customer (demo)" })).invoiceId;
+        }
+        (invoicesBy[day] ??= []).push(invoiceId);
+      } catch (e) { if (!/credit|stock|short|licen/i.test((e as Error).message)) console.log("sale", day, (e as Error).message); }
+    }
+    // dispatch the day's invoices in the afternoon; deliveries the same evening
+    const todays = invoicesBy[day] ?? [];
+    const trip = [...todays, ...retry.splice(0)];
+    if (trip.length) {
+      setClock(day, "15:30:00");
+      try {
+        const d = await createDispatch(ctx, { vehicleNo: pick(["JH01DM1234", "JH01DM5678"]), driverName: pick(["Demo Driver Manoj", "Demo Driver Salim"]), route: pick(["Ranchi city", "Kanke–Ratu", "Doranda–HEC", "Ramgarh"]), invoiceIds: trip } as never);
+        await startDispatch(ctx, d.dispatchId);
+        setClock(day, "18:10:00");
+        const dels = await db.distDelivery.findMany({ where: { dispatchId: d.dispatchId } });
+        for (const del of dels) {
+          const v = (await invoiceView(ctx.tenantId, del.invoiceId))!;
+          const total = Number(v.total ?? 0) / 100;
+          const r = rnd();
+          if (r < 0.04 && day < addDays(TODAY, -2)) { await recordDelivery(ctx, del.id, { outcome: "failed", note: "Shop closed (demo)" }); retry.push(del.invoiceId); }
+          else if (r < 0.35) await recordDelivery(ctx, del.id, { outcome: "delivered", receiverName: "Shop staff (demo)", collected: String(Math.round(total)), mode: rnd() < 0.5 ? "Cash" : "UPI", ref: rnd() < 0.5 ? "" : `UTR${between(100000, 999999)}` });
+          else await recordDelivery(ctx, del.id, { outcome: "delivered", receiverName: pick(["Owner (demo)", "Pharmacist (demo)", "Shop staff (demo)"]) });
+        }
+      } catch (e) { console.log("dispatch", day, (e as Error).message); }
+    }
+    // office / field collections
+    setClock(day, "17:00:00");
+    for (let k = 0; k < between(3, 7); k++) {
+      const ci = between(1, CHEMISTS.length - 2);
+      if ([5, 13, 17, 23, 8].includes(ci) && rnd() < 0.85) continue; // slow payers, for ageing
+      const bal = (await customerBalance(db, ctx.tenantId, chem[ci])) / 100;
+      if (bal < 2000) continue;
+      const amt = Math.round((bal * pick([0.25, 0.35, 0.5, 0.6, 0.8])) / 100) * 100;
+      if (amt < 500) continue;
+      await collectPayment(ctx, { customerId: chem[ci], amount: String(amt), method: pick(["Cash", "UPI", "UPI", "Bank transfer (NEFT)", "Cheque"]) as never, ref: `REF${between(10000, 99999)}`, chequeNo: String(between(100000, 999999)), bank: "Demo Bank", chequeDate: day } as never).catch(() => {});
+    }
+    // expenses
+    if (dayNo % 7 === 2) await recordExpense(ctx, { account: "Delivery expense", amount: String(between(1800, 3200)), method: "Cash", note: "Van fuel (demo)" }).catch((e) => console.log("exp", e.message));
+    if (day.endsWith("-01") || day === START) {
+      await recordExpense(ctx, { account: "Rent", amount: "45000", method: "Bank", note: "Godown rent (demo)" }).catch(() => {});
+      await recordExpense(ctx, { account: "Salaries", amount: "185000", method: "Bank", note: "Staff salaries (demo)" }).catch(() => {});
+      await recordExpense(ctx, { account: "Electricity", amount: "8600", method: "UPI", note: "Godown electricity (demo)" }).catch(() => {});
+    }
+    // supplier payments fortnightly
+    if (dayNo % 14 === 10) for (const si of [0, 1, 2, 3]) await paySupplier({ ...ctx, perms: [...ctx.perms, "payments"] }, { partyId: supplierIds[si], amount: String(pick([150000, 250000, 350000])), method: pick(["Bank transfer (NEFT)", "Cheque"]) as never, ref: `NEFT${between(1000, 9999)}`, chequeNo: String(between(100000, 999999)), bank: "Demo Bank" } as never).catch((e) => console.log("pay", e.message));
+    // a few credit notes
+    if (dayNo % 9 === 5 && todays[0]) {
+      const v = (await invoiceView(ctx.tenantId, todays[0]))!;
+      const line = v.lines[0];
+      if (line && line.qty >= 2) await createReturn(ctx, { invoiceId: todays[0], reason: pick(["Excess supplied (demo)", "Breakage in transit (demo)", "Near expiry returned by chemist (demo)"]), lines: [{ invoiceLineId: line.id, qty: 1, condition: pick(["saleable", "damaged", "saleable"]) as never, creditPct: 100 }] }).catch((e) => console.log("ret", e.message));
+    }
+  }
+
+  // ── expiry claims on the principal ──
+  setClock(addDays(TODAY, -6), "11:00:00");
+  ctx = await ctxFor(CODE);
+  const exp = await db.batch.findFirst({ where: { tenantId: t.id, batchNo: "GAST0901X" } });
+  if (exp) {
+    const c1 = await raiseDistClaim(ctx, { batchId: exp.id, qty: 10, reason: "expiry" }).catch((e) => { console.log("claim", e.message); return null; });
+    if (c1) { await acknowledgeClaim(ctx, c1.claimId); setClock(addDays(TODAY, -2), "12:00:00"); await creditClaim(ctx, c1.claimId, { ref: "DEMO-SCN-0042", amount: (c1.expected / 100).toFixed(2), close: true, reason: "Company credit note received (demo)" } as never).catch((e) => console.log("credit", e.message)); }
+  }
+  const dmg = await db.batch.findFirst({ where: { tenantId: t.id, qtyQuarantined: { gt: 0 } } });
+  if (dmg) { setClock(addDays(TODAY, -3), "11:30:00"); await raiseDistClaim(ctx, { batchId: dmg.id, qty: Math.min(1, dmg.qtyQuarantined), reason: "breakage" }).catch((e) => console.log("claim2", e.message)); }
+
+  // ── purchase orders: one placed and received by GRN last week, one placed and open, one draft ──
+  setClock(addDays(TODAY, -9), "12:00:00"); ctx = await ctxFor(CODE);
+  const po1 = await createPo(ctx, { supplierId: supplierIds[1], lines: [{ medicineId: P("Glucocheck Strips"), qty: 60, rate: "556", mrp: "950" }, { medicineId: P("Telmiva 40"), qty: 200, rate: "91.3", mrp: "156", scheme: "10+1" }], note: "Monthly order (demo)" } as never);
+  const po1Id = typeof po1 === "string" ? po1 : (po1 as { id: string }).id;
+  await setPoStatus(ctx, po1Id, "place").catch((e) => console.log("po1", e.message));
+  setClock(addDays(TODAY, -4), "12:00:00"); ctx = await ctxFor(CODE);
+  const po2 = await createPo(ctx, { supplierId: supplierIds[0], lines: [{ medicineId: P("Febrinil 650"), qty: 600, rate: "19.35", mrp: "33", scheme: "10+2" }, { medicineId: P("Amoxirise CV 625"), qty: 150, rate: "133.4", mrp: "228" }], note: "Winter season stock (demo)" } as never);
+  await setPoStatus(ctx, typeof po2 === "string" ? po2 : (po2 as { id: string }).id, "place").catch((e) => console.log("po2", e.message));
+  await createPo(ctx, { supplierId: supplierIds[3], lines: [{ medicineId: P("Sanitize Plus 500 ml"), qty: 120, rate: "133", mrp: "250" }], note: "Draft: check price first (demo)" } as never).catch((e) => console.log("po3", e.message));
+
+  // ── this morning: orders at every stage for the pipeline ──
+  setClock(TODAY, "09:15:00");
+  ctx = await ctxFor(CODE);
+  const mk = async (ci: number, lines: { medicineId: string; qty: number }[], src = "salesman") => placeOrder({ kind: "user", ctx }, { customerId: chem[ci], source: src as never, idempotencyKey: key(), lines });
+  // awaiting approval (two), one of them over its credit limit (held)
+  await mk(3, [{ medicineId: P("Azivon 500"), qty: 10 }, { medicineId: P("Pantovista 40"), qty: 12 }]).catch((e) => console.log("o1", e.message));
+  await mk(13, [{ medicineId: P("Metforal 500"), qty: 40 }, { medicineId: P("Telmiva 40"), qty: 30 }, { medicineId: P("Atorvex 10"), qty: 20 }, { medicineId: P("Glucocheck Strips"), qty: 5 }], "phone").catch((e) => console.log("o2", e.message));
+  await mk(6, [{ medicineId: P("Febrinil 650"), qty: 20 }, { medicineId: P("Cetrinova 10"), qty: 10 }], "portal").catch((e) => console.log("o3", e.message));
+  // approved, to pick
+  setClock(TODAY, "09:40:00");
+  const a1 = await mk(10, [{ medicineId: P("Amoxirise CV 625"), qty: 15 }, { medicineId: P("Montiluk-LC"), qty: 20 }, { medicineId: P("Telmiva 40"), qty: 25 }]);
+  await approveOrder(ctx, a1.orderId, { allowPartial: true, overrideReason: "Regular customer, payment promised (demo)" });
+  const a2 = await mk(15, [{ medicineId: P("Febrinil 650"), qty: 30 }, { medicineId: P("ORSiva Sachet"), qty: 50 }, { medicineId: P("Calvita-D3"), qty: 10 }]);
+  await approveOrder(ctx, a2.orderId, { allowPartial: true, overrideReason: "Regular customer, payment promised (demo)" });
+  // being picked
+  const a3 = await mk(7, [{ medicineId: P("Cefoxa 200"), qty: 10 }, { medicineId: P("Ranzole-D"), qty: 10 }]);
+  await approveOrder(ctx, a3.orderId, { allowPartial: true, overrideReason: "Regular customer, payment promised (demo)" });
+  const pl3 = await db.distPickList.findFirstOrThrow({ where: { orderId: a3.orderId } });
+  await startPicking(ctx, pl3.id);
+  // packed, to invoice
+  const a4 = await mk(16, [{ medicineId: P("Thyrovance 50"), qty: 10 }, { medicineId: P("Clopidex 75"), qty: 10 }]);
+  await approveOrder(ctx, a4.orderId, { allowPartial: true, overrideReason: "Regular customer, payment promised (demo)" });
+  const pl4 = await db.distPickList.findFirstOrThrow({ where: { orderId: a4.orderId }, include: { lines: true } });
+  await startPicking(ctx, pl4.id); for (const l of pl4.lines) await confirmPickLine(ctx, l.id, l.units); await packOrder(ctx, pl4.id, 2);
+  // a rejected one
+  const r1 = await mk(8, [{ medicineId: P("Alprazen 0.25"), qty: 20 }], "phone").catch(() => null);
+  if (r1) await rejectOrder(ctx, r1.orderId, "Schedule H1 quantity too high for a rural store; asked for prescription records (demo)").catch((e) => console.log("rej", e.message));
+  // invoiced this morning, waiting for dispatch
+  setClock(TODAY, "10:20:00");
+  for (const ci of [1, 11, 21]) await directInvoice(ctx, { customerId: chem[ci], idempotencyKey: key(), lines: [{ medicineId: P("Pantovista 40"), qty: 10 }, { medicineId: P("Febrinil 650"), qty: 20 }, { medicineId: P("Neurobion-Z Forte"), qty: 6 }], overrideReason: "Regular customer (demo)" }).catch((e) => console.log("inv", e.message));
+  // Shree Ram Medical Hall: ₹45,000 outstanding against a ₹50,000 limit (credit-control demo)
+  setClock(addDays(TODAY, -8), "11:15:00");
+  ctx = await ctxFor(CODE);
+  await directInvoice(ctx, { customerId: chem[0], idempotencyKey: key(), lines: [{ medicineId: P("Telmiva 40"), qty: 200 }, { medicineId: P("Atorvex 10"), qty: 200 }, { medicineId: P("Metforal 500"), qty: 150 }], overrideReason: "Festival stock, owner approved (demo)" });
+  const b0 = (await customerBalance(db, ctx.tenantId, chem[0])) / 100;
+  if (b0 > 45000) await collectPayment(ctx, { customerId: chem[0], amount: (b0 - 45000).toFixed(2), method: "UPI", ref: "UTR-DEMO-4501" } as never);
+  setClock(TODAY, "10:40:00");
+  ctx = await ctxFor(CODE);
+  console.log("Shree Ram balance", (await customerBalance(db, ctx.tenantId, chem[0])) / 100);
+  // on hold chemist
+  await setChemistStatus(ctx, chem[23], "hold", "Two cheques returned; pay old dues before new supply (demo)");
+  console.log("seed done");
+});
