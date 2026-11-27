@@ -164,6 +164,8 @@ export const hi: Record<string, string> = {
   "Collections": "कलेक्शन",
   "Watch Medoro Distribution in action.": "Medoro Distribution को काम करते हुए देखिए।",
   "Watch the video tour": "वीडियो टूर देखिए",
+  "Medoro Pharmacy videos": "Medoro Pharmacy वीडियो",
+  "Medoro Distribution videos": "Medoro Distribution वीडियो",
   "Video tutorials": "वीडियो ट्यूटोरियल",
   "Watch Medoro Pharmacy in action.": "Medoro Pharmacy को काम करते हुए देखिए।",
   "{n} videos in simple Hindi-English: the full tour, a guide for each job, and every step from sign-up to GST.": "आसान हिंदी-इंग्लिश में {n} वीडियो: पूरा टूर, हर काम की गाइड, और साइन-अप से GST तक हर कदम।",
