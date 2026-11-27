@@ -12,6 +12,7 @@ import { WEBSITE_ID, ORG_ID, absoluteUrl, faqSchema } from "@/lib/seo";
 import { getLang } from "@/server/lang";
 import { tFor } from "@/lib/tr";
 import { Aurora, FloatingShapes, WhiteDecor } from "@/components/site/decor";
+import { VideoShowcase } from "@/components/site/video-showcase";
 
 /**
  * Landing page for MEDORO Distribution, the wholesale ERP (/dist for the distributor's team, /portal for chemists).
@@ -137,7 +138,7 @@ export default async function DistributionHome() {
                 <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-white/40 text-white text-[16px] font-semibold hover:border-white hover:text-white"><MessageCircle size={18} aria-hidden />{t("Book a demo on WhatsApp")}</a>
               </div>
               <p className="site-up m-0 text-[14px] text-[#9FB5B1] [--d:4]">{t("From {amount} a month. Every feature during the trial.", { amount: `₹${from.toLocaleString("en-IN")}` })}</p>
-              <Link href="/videos/distribution" className="site-up [--d:4] self-start text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Watch the 26-part Hindi-English video tour")} →</Link>
+              <Link href="#videos" className="site-up [--d:4] self-start text-[15px] font-semibold text-white underline underline-offset-4 decoration-white/40 hover:decoration-white hover:text-white">{t("Watch the 26-part Hindi-English video tour")} →</Link>
             </div>
             <div className="site-up [--d:3] col-span-12 min-[1000px]:col-span-6 min-[1000px]:col-start-7">
               <DistHeroShot />
@@ -214,6 +215,8 @@ export default async function DistributionHome() {
             ))}
           </ol>
         </section>
+
+        <VideoShowcase t={t} soft product="distribution" />
 
         {/* Chemist portal and field */}
         <section id="portal" aria-labelledby="portal-title" className="site-dark bg-[var(--s-dark)] text-white relative overflow-hidden">
