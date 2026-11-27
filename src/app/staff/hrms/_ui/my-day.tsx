@@ -141,7 +141,7 @@ export function MyDayCard({ d, month, link = false, checkin = true }: { d: MyDay
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
               {reached ? <Trophy className="md-pop size-4 text-[#B7791F] mb-0.5" /> : <div className="text-[10px] font-semibold uppercase tracking-[.1em] text-[#64748B]">Worked</div>}
-              <div className="text-[21px] font-bold tabular-nums text-[#0f172a] leading-tight" suppressHydrationWarning>{Math.floor(secs / 3600)}:{String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}<span className="text-[13px] text-[#94A3B8]">:{String(secs % 60).padStart(2, "0")}</span></div>
+              <div className="text-[21px] font-bold tabular-nums text-[#0f172a] leading-tight" suppressHydrationWarning>{Math.floor(secs / 3600)}:{String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}<span className="text-[13px] text-[#94A3B8]" suppressHydrationWarning>:{String(secs % 60).padStart(2, "0")}</span></div>
               <div className="text-[11px] text-[#64748B]" suppressHydrationWarning>{Math.round(pct * 100)}% of target</div>
             </div>
             {reached ? <div aria-hidden className="absolute inset-0 pointer-events-none">{[[6, 18], [118, 10], [128, 104], [2, 112]].map(([l, t], i) => <Sparkles key={i} className="hr-twinkle absolute size-3.5 text-[#F5C451]" style={{ left: l, top: t, animationDelay: `${-i * 0.7}s` }} />)}</div> : null}
