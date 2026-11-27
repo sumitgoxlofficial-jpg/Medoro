@@ -66,5 +66,11 @@ describe("model providers", () => {
     expect((await chat(p, [{ role: "user", content: "reorder?" }], [], AbortSignal.timeout(1000))).calls[0].name).toBe("get_low_stock_report");
     vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", { status: 500 })));
     await expect(chat(p, [{ role: "user", content: "x" }], [], AbortSignal.timeout(1000))).rejects.toThrow(/500/);
+    // A retired model: the provider's reason is kept in the error, so the logs say what is wrong.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { message: "The model `llama-3.3-70b-versatile` has been decommissioned and is no longer supported.", type: "invalid_request_error", code: "model_decommissioned" } }), { status: 404 })));
+    await expect(chat(p, [{ role: "user", content: "x" }], [], AbortSignal.timeout(1000))).rejects.toThrow("Model server answered 404: The model `llama-3.3-70b-versatile` has been decommissioned and is no longer supported.");
+    // No body: just the status, as before.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 404 })));
+    await expect(chat(p, [{ role: "user", content: "x" }], [], AbortSignal.timeout(1000))).rejects.toThrow(/^Model server answered 404$/);
   });
 });

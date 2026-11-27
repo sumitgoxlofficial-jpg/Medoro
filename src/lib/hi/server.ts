@@ -16,6 +16,7 @@ export const hi: Record<string, string> = {
   "Ask a question first.": "पहले सवाल पूछें।",
   "Type a question.": "सवाल लिखें।",
   "Model server answered {status}": "मॉडल सर्वर ने {status} जवाब दिया",
+  "Model server answered {status}: {detail}": "मॉडल सर्वर ने {status} जवाब दिया: {detail}",
   "You’ve asked {limit} questions in the last minute. Wait a moment and try again.": "आपने पिछले एक मिनट में {limit} सवाल पूछे हैं। थोड़ा रुककर फिर कोशिश करें।",
   "No such tool.": "ऐसा कोई टूल नहीं है।",
   "Invalid arguments.": "जानकारी सही नहीं है।",
