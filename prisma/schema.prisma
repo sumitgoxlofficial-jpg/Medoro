@@ -1180,6 +1180,7 @@ model StaffUser {
   accessGrants     HrAccessGrant[]
   hrDevices        HrDevice[]
   hrWorkEvents     HrWorkEvent[]
+  hrKpiResults     HrKpiResult[]
 
   @@unique([email, kind])
 }
@@ -4196,4 +4197,72 @@ model HrAppCategory {
   category  String // work, neutral, personal
   setBy     String
   updatedAt DateTime @updatedAt
+}
+
+/// Enterprise HRMS: a KPI for a department and/or designation (never company-wide), with its metric, target, period
+/// and weight. The formula of each metric is fixed in src/staff/hrms/kpi-metrics.ts.
+model HrKpi {
+  id          String        @id @default(uuid())
+  name        String
+  description String        @default("")
+  dept        String        @default("")
+  designation String        @default("")
+  metric      String
+  unit        String        @default("")
+  better      String        @default("higher") // higher, lower
+  target      Float
+  period      String        @default("month") // month, quarter
+  weight      Int           @default(10)
+  active      Boolean       @default(true)
+  createdBy   String
+  updatedBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  results     HrKpiResult[]
+
+  @@index([active])
+}
+
+/// One person's result for one KPI and period: value, the target it was scored against, score, evidence, explanation.
+model HrKpiResult {
+  id          String    @id @default(uuid())
+  kpiId       String
+  kpi         HrKpi     @relation(fields: [kpiId], references: [id], onDelete: Restrict)
+  staffId     String
+  staff       StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  periodStart DateTime  @db.Date
+  periodEnd   DateTime  @db.Date
+  value       Float?
+  target      Float
+  weight      Int
+  score       Int?
+  evidence    Json      @default("[]")
+  explanation String
+  manualNote  String    @default("")
+  enteredBy   String?
+  computedAt  DateTime  @default(now())
+
+  @@unique([kpiId, staffId, periodStart])
+  @@index([staffId, periodStart])
+}
+
+/// A rule-based suggestion about a person's KPIs. Advisory: it stays with the manager and HR until reviewed, and reaches
+/// the employee only when the reviewer shares it.
+model HrInsight {
+  id          String    @id @default(uuid())
+  staffId     String
+  kind        String // decline, improvement, below_target, missing_value
+  key         String
+  periodStart DateTime  @db.Date
+  text        String
+  evidence    Json      @default("[]")
+  status      String    @default("pending") // pending, reviewed, dismissed
+  shared      Boolean   @default(false)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String    @default("")
+  createdAt   DateTime  @default(now())
+
+  @@unique([staffId, key, periodStart])
+  @@index([status, staffId])
 }

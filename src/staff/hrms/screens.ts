@@ -12,6 +12,7 @@ import { registers, summary, workflows } from "./finance";
 import { orgChart, orgHealth, timeline } from "./org";
 import { accessGrants, approvalsFor, myDelegations } from "./approvals";
 import { myActivity, workforceAdmin } from "./workforce";
+import { kpiScreen } from "./kpi";
 import { MONITOR_POLICY } from "./workforce-policy";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
@@ -93,6 +94,7 @@ export const loaders = {
     const staff = await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } });
     return { ...(await workforceAdmin(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO())), people: staff };
   },
+  kpis: async (me: Me, q: Q = {}) => kpiScreen(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO()),
   orgchart: async (me: Me) => ({ chart: await orgChart(me), health: can(me, "employees") ? await orgHealth(me) : null, history: await timeline(me, me.id), hr: can(me, "employees") }),
   hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),
   myteam: async (me: Me) => myTeam(me),

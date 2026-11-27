@@ -31,6 +31,7 @@ import * as appraisals from "@/staff/hrms/appraisals";
 import * as org from "@/staff/hrms/org";
 import * as approvals from "@/staff/hrms/approvals";
 import * as workforce from "@/staff/hrms/workforce";
+import * as kpi from "@/staff/hrms/kpi";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -280,3 +281,11 @@ export const raiseActivityDispute = async (input: Parameters<typeof workforce.ra
 export const decideActivityDispute = async (id: string, accept: boolean, reply = "") => done(await hrRun((me) => workforce.decideDispute(me, id, accept, reply), accept ? "Accepted. Those minutes are removed." : "Rejected."));
 export const activityFor = async (staffId: string, day: string) => hrRun((me) => workforce.activityDay(me, staffId, day));
 export const setAppCategory = async (app: string, category: string) => done(await hrRun((me) => workforce.setAppCategory(me, app, category), "Category saved."));
+
+// ── KPIs and suggestions (Enterprise HRMS Phase 5)
+export const saveKpi = async (id: string | null, input: Parameters<typeof kpi.saveKpi>[2]) => done(await hrRun((me) => kpi.saveKpi(me, id, input), "KPI saved. Compute to update results."));
+export const setKpiActive = async (id: string, active: boolean) => done(await hrRun((me) => kpi.setKpiActive(me, id, active), active ? "KPI switched on." : "KPI switched off."));
+export const computeKpis = async (day: string) => done(await hrRun(async (me) => { const n = await kpi.computeKpis(me, day); await kpi.generateInsights(day); return n; }));
+export const enterKpiValue = async (input: Parameters<typeof kpi.enterManual>[1]) => done(await hrRun((me) => kpi.enterManual(me, input), "Value saved."));
+export const kpiFor = async (staffId: string, day: string) => hrRun((me) => kpi.kpiFor(me, staffId, day));
+export const reviewInsight = async (id: string, decision: "reviewed" | "dismissed", note = "", share = false) => done(await hrRun((me) => kpi.reviewInsight(me, id, decision, note, share), decision === "reviewed" ? (share ? "Reviewed and shared." : "Marked reviewed.") : "Dismissed."));

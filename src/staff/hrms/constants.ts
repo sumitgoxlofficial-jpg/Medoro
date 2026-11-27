@@ -36,6 +36,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "trdesk", label: "Trainer Desk", icon: "cap", title: "Trainer Desk", sub: "Attendance, practical scoring and recommendations for your batches", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Everyone
   { id: "approvals", label: "Approvals", icon: "shield", title: "Approvals", sub: "Requests waiting for you, what you asked for, delegation and individual access", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "kpis", label: "KPIs", icon: "target", title: "KPIs & output", sub: "Output, quality and outcomes against targets, with the evidence and the formula behind every score", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "myprojects", label: "My Projects", icon: "box", title: "My Projects", sub: "Projects you are part of", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "mytasks", label: "My Tasks", icon: "target", title: "My Tasks", sub: "Tasks assigned to you by your lead", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "calendar", label: "Calendar", icon: "cal", title: "Calendar", sub: "Holidays, meetings and who is out", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
