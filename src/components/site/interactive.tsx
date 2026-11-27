@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, CreditCard, Gift, HardDriveUpload, MessageCircle, Minus, Pause, Play, RefreshCcw, ScanBarcode, ShieldCheck, Sparkles, Truck, Warehouse,
+  ArrowRight, BadgeIndianRupee, Bot, Check, ChevronDown, CloudOff, CreditCard, Gift, HardDriveUpload, MessageCircle, Minus, Pause, Play, PlayCircle, RefreshCcw, ScanBarcode, ShieldCheck, Sparkles, Truck, Warehouse,
 } from "lucide-react";
 import { PRODUCTS } from "@/staff/constants";
 import { DIST_PLANS } from "@/domain/distribution/plans";
@@ -45,6 +45,7 @@ export function Hero() {
           <div className="site-up flex gap-3 flex-wrap pt-1 [--d:3]">
             <a href="/trial" className="site-link-arrow inline-flex items-center gap-2 h-12 px-5 rounded-lg bg-[var(--s-brand)] text-white text-[16px] font-semibold transition-colors hover:bg-[var(--s-brand-ink)] hover:text-white">{t("Start 7-day free trial")}<ArrowRight size={17} aria-hidden /></a>
             <a href={WA_DEMO} className="inline-flex items-center gap-2 h-12 px-5 rounded-lg border border-[#C9D1CF] bg-white text-[var(--s-ink)] text-[16px] font-semibold transition-colors hover:border-[var(--s-ink)] hover:text-[var(--s-ink)]"><MessageCircle size={17} aria-hidden className="text-[#146C43]" />{t("Get a demo on WhatsApp")}</a>
+            <a href="#videos" className="inline-flex items-center gap-2 h-12 px-3 rounded-lg text-[var(--s-ink)] text-[16px] font-semibold underline underline-offset-4 decoration-[var(--s-brand)]/40 hover:decoration-[var(--s-brand)] hover:text-[var(--s-ink)]"><PlayCircle size={17} aria-hidden className="text-[var(--s-brand)]" />{t("Watch the video tour")}</a>
           </div>
           <p className="site-up m-0 text-[14px] text-[var(--s-muted)] [--d:4]">{t("No card needed. Pay by UPI, card or netbanking only if you continue.")}</p>
         </div>
