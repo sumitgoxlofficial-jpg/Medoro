@@ -178,6 +178,8 @@ function LiveHours({ sh }: { sh: P["sh"] }) {
   );
 }
 export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
+  // India time on the server and in the browser alike, so the greeting and clock render the same in both.
+  const now = useNow(30_000), istHour = new Date(now + 5.5 * 3600_000).getUTCHours();
   const [tab, setTab] = useState<"tasks" | "assigned" | "reminders">("tasks");
   const [show, setShow] = useState(false), [rem, setRem] = useState(""), [ann, setAnn] = useState(false), [custom, setCustom] = useState(false);
   const [hidRaw, setHidRaw] = useLocalStorage("hrms.home.hide");
@@ -188,26 +190,28 @@ export function HomeScreen({ d, sh }: { d: Data<"home"> } & P) {
   const open = d.tasks.filter((t) => t.kind === "task" && !t.done), rems = d.tasks.filter((t) => t.kind === "reminder" && !t.done);
   const doneToday = d.tasks.filter((t) => t.kind === "task" && t.done && t.doneAt && t.doneAt.slice(0, 10) === sh.today).length;
   const total = open.length + doneToday;
-  const left = (() => { const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1).getTime() - n.getTime(); return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m left`; })();
+  // Time left until midnight India time (the same on the server and in the browser).
+  const left = (() => { const ms = 86_400_000 - ((now + 5.5 * 3600_000) % 86_400_000); return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m left`; })();
   return (
     <>
       {d.newLetters ? <Link href="/staff/hrms/profile" className="flex items-center gap-3 bg-[#D6F3EF] border border-[#0B5E5B] rounded-xl px-4 py-3 text-[13.5px] text-[#0B5E5B] font-semibold no-underline"><span aria-hidden>📄</span>HR sent you {d.newLetters} new letter{d.newLetters === 1 ? "" : "s"}<span className="ml-auto">Open My documents →</span></Link> : null}
       <div className="flex justify-end -mb-1"><button className={btnCls} onClick={() => setCustom(true)}>⚙️ Customize home</button></div>
       <div className="rounded-[20px] px-8 py-6 text-white flex flex-wrap items-center gap-4" style={{ background: "linear-gradient(135deg,#0B5E5B,#14907F)" }}>
         <div className="flex-1 min-w-[240px]">
-          <div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
-          <div className="text-[26px] font-bold mt-1">{new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 17 ? "Good afternoon" : "Good evening"}, {sh.me.first} 👋</div>
+          <div className="text-[11px] tracking-[.12em] font-semibold text-white/70 uppercase">{new Date(sh.today + "T00:00:00Z").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}</div>
+          <div className="text-[26px] font-semibold tracking-[-.01em] mt-1" suppressHydrationWarning>{istHour < 12 ? "Good morning" : istHour < 17 ? "Good afternoon" : "Good evening"}, {sh.me.first}</div>
           <div className="text-[13px] text-white/80 mt-1.5 max-w-[460px]">Here’s your day at a glance. Helping Indian pharmacies bill faster and waste less stock.</div>
-          <LiveHours sh={sh} />
+          {/* With check-in on, the My day card below has the hours; the hero keeps only the nudge to check in. */}
+          {!sh.checkin || !sh.att.inAt ? <LiveHours sh={sh} /> : null}
           <div className="flex gap-2 mt-4 flex-wrap"><Link href="/staff/hrms/mytasks" className="bg-white text-[#0B5E5B] px-4 py-2 rounded-[10px] font-semibold text-[13px]">View my tasks</Link><button onClick={() => window.dispatchEvent(new Event("hrms:ally"))} className="bg-white/15 border border-white/30 text-white px-4 py-2 rounded-[10px] font-semibold text-[13px] cursor-pointer">✦ Ask Ally</button></div>
         </div>
-        <div className="text-right"><div className="text-[40px] font-bold leading-none" suppressHydrationWarning>{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}</div><div className="text-[12px] text-white/70">Local time · India</div></div>
+        <div className="text-right"><div className="text-[40px] font-semibold tabular-nums leading-none" suppressHydrationWarning>{new Date(now).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })}</div><div className="text-[12px] text-white/70">India time</div></div>
       </div>
       {sh.checkin ? <MyDayCard d={d.day} month={d.month ?? undefined} link /> : null}
       {!hid.includes("today") ? <><Card title="Today" sub="Task-based day · due 11:59 PM" right={<Tabs value={tab} onChange={setTab} options={[["tasks", "Tasks"], ["assigned", `Assigned · ${open.length}`], ["reminders", `Reminders · ${rems.length}`]]} />}>
         <div className="px-5 pb-4">
           {tab === "tasks" ? (
-            <div className="flex items-center gap-4 flex-wrap"><div className="flex-1 min-w-[220px]"><div className="font-bold text-[15px]">{doneToday} of {total} tasks done today</div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-2 overflow-hidden"><div className="h-full bg-[#14B8A6]" style={{ width: `${total ? (doneToday * 100) / total : 0}%` }} /></div><div className="text-[12px] text-[#64748B] mt-1.5">{open.length} remaining · finish before midnight, at your own pace</div></div><div className="text-[24px] font-bold">{left}</div><Link href="/staff/hrms/mytasks" className={primaryCls}>Open my tasks →</Link></div>
+            <div className="flex items-center gap-4 flex-wrap"><div className="flex-1 min-w-[220px]"><div className="font-bold text-[15px]">{doneToday} of {total} tasks done today</div><div className="h-1.5 bg-[#E2E8F0] rounded-full mt-2 overflow-hidden"><div className="h-full bg-[#14B8A6]" style={{ width: `${total ? (doneToday * 100) / total : 0}%` }} /></div><div className="text-[12px] text-[#64748B] mt-1.5">{open.length} remaining · finish before midnight, at your own pace</div></div><div className="text-[24px] font-bold" suppressHydrationWarning>{left}</div><Link href="/staff/hrms/mytasks" className={primaryCls}>Open my tasks →</Link></div>
           ) : tab === "assigned" ? (open.length ? open.slice(0, 6).map((t) => <div key={t.id} className="flex items-center gap-2.5 py-2 border-t border-[#F1F5F9] first:border-0 text-[13.5px]"><input type="checkbox" aria-label={`Done: ${t.title}`} onChange={() => run(() => setTaskDone(t.id, true))} /><span className="flex-1">{t.title}</span><span className="text-[12px] text-[#64748B]">{t.by ? `by ${t.by}` : ""}{t.due ? ` · due ${dayLabel(t.due)}` : ""}</span></div>) : <Empty>Nothing assigned to you.</Empty>)
             : <div>{rems.map((t) => <div key={t.id} className="flex items-center gap-2.5 py-2 border-t border-[#F1F5F9] first:border-0 text-[13.5px]"><input type="checkbox" aria-label={`Done: ${t.title}`} onChange={() => run(() => setTaskDone(t.id, true))} /><span className="flex-1">{t.title}</span><button className={dangerCls} onClick={() => run(() => deleteTask(t.id))}>Remove</button></div>)}
               <form className="flex gap-2 mt-2" onSubmit={(e) => { e.preventDefault(); if (rem.trim()) run(() => addReminder({ title: rem }), () => { setRem(""); }); }}><input className={inputCls} placeholder="Add a reminder for today" value={rem} onChange={(e) => setRem(e.target.value)} /><button className={primaryCls} disabled={busy}>Add</button></form></div>}

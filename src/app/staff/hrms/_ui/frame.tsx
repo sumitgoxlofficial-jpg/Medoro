@@ -1,7 +1,7 @@
 "use client";
 import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
 import { HR_ROLE_LABEL, NO_TITLE_SCREENS, SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
@@ -16,8 +16,9 @@ import { ChatNotifier } from "./chat-notify";
 import { ChatHeads } from "./chat-heads";
 import { Screen } from "./screens";
 import { useCheckoutGuard } from "./checkout-guard";
+import { CommandPalette, SearchButton } from "./command-palette";
 import { ScreenHero } from "./hero";
-import { Check, FileSignature, KeyRound, ShieldCheck, UserRound } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Coffee, FileSignature, KeyRound, Menu, Moon, Search, ShieldCheck, Sun, UserRound, UtensilsCrossed } from "lucide-react";
 import { IdBadge, SideIcons } from "../../employee/art";
 import { useNow } from "@/lib/use-now";
 import { useLocalStorage } from "@/lib/react-state";
@@ -45,7 +46,7 @@ const Ico = ({ n, s = 16 }: { n: string; s?: number }) => <svg width={s} height=
 
 export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; screen: ScreenId; title: string; sub: string; data: unknown; gate: "password" | "profile" | "kyc" | "docs" | null }) {
   const [menu, setMenu] = useState(false), [bell, setBell] = useState(false), [brk, setBrk] = useState(false), [ally, setAlly] = useState(false), [pw, setPw] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false), [find, setFind] = useState(false);
   const router = useRouter();
   const { run } = useRun();
   const [nightPref, setNightPref] = useLocalStorage("hrms.night");
@@ -66,6 +67,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   const now = useNow(60_000);
   useEffect(() => { const open = () => setAlly(true); window.addEventListener("hrms:ally", open); return () => window.removeEventListener("hrms:ally", open); }, []);
   const guard = useCheckoutGuard(sh, screen === "attendance");
+  const openFind = useCallback(() => setFind(true), []);
   if (gate) return <Gate gate={gate} sh={sh} />;
   const unread = sh.notes.filter((n) => n.unread).length;
   const lunchNow = (() => { const ist = new Date(now + 5.5 * 3600_000), m = ist.getUTCHours() * 60 + ist.getUTCMinutes(); return m >= toMin(sh.lunch.from) && m < toMin(sh.lunch.to); })();
@@ -74,6 +76,9 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
   for (const n of sh.nav) { const g = groups.find((x) => x[0] === n.group); if (g) g[1].push(n); else groups.push([n.group, [n]]); }
   // Every titled screen except the sales dashboard (which greets you) opens with a teal strip that carries its title.
   const def = SCREENS.find((x) => x.id === screen);
+  // The breadcrumb's middle step: the menu group the page sits in ("WORK" → "Work").
+  const group = sh.nav.find((n) => n.id === screen)?.group ?? "";
+  const crumb = group ? group.charAt(0) + group.slice(1).toLowerCase() : "";
   // Team Chat fills the whole screen like a messaging app, so it gets neither the strip nor a title.
   const fullChat = screen === "chat";
   const hero = !!def && !NO_TITLE_SCREENS.includes(screen) && screen !== "slhome" && !fullChat;
@@ -117,42 +122,48 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
           <div className="hr-corner absolute left-0 bottom-0 size-48 -scale-y-100" />
         </div>
         {/* Team Chat drops the top bar (status, break, night mode, bell, account) so the chat gets the whole screen; on phones only the menu button stays. */}
+        {/* Team Chat drops the app bar (status, break, night mode, bell, account) so the chat gets the whole screen; on phones only the menu button stays. */}
         {fullChat ? <header className="relative flex items-center px-3 pt-3 min-[860px]:hidden print:hidden">
-          <button className="border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-        </header> : <header className="relative flex items-center gap-2.5 px-6 max-[560px]:px-3 pt-5 pb-1 flex-wrap print:hidden">
-          <button className="min-[860px]:hidden border border-[#CDD2D7] bg-white rounded-lg size-9 cursor-pointer" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>☰</button>
-          {NO_TITLE_SCREENS.includes(screen) || hero ? <div className="mr-auto" /> : <div key={screen} className="hr-title min-w-0 mr-auto flex items-center gap-2.5">
-            <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={def?.icon ?? "home"} s={19} /></span>
-            <div className="min-w-0"><h1 className="text-[19px] font-bold truncate">{greet}{greet !== title ? <span aria-hidden className="hr-wave inline-block ml-1.5">👋</span> : null}</h1>{subtitle ? <p className="text-[12.5px] text-[#334155] truncate">{subtitle}</p> : null}</div>
-          </div>}
+          <button className={cx(btnCls, "!p-0 size-9 justify-center")} aria-label="Menu" onClick={() => setNavOpen((o) => !o)}><Menu className="size-[18px]" /></button>
+        </header> : <header className="hr-appbar sticky top-0 z-30 flex items-center gap-2.5 px-6 max-[560px]:px-3 h-[60px] border-b border-[#E2E8F0] print:hidden">
+          <button className={cx(btnCls, "!p-0 size-9 justify-center min-[860px]:hidden")} aria-label="Menu" onClick={() => setNavOpen((o) => !o)}><Menu className="size-[18px]" /></button>
+          {/* Where you are: the menu group and the page. */}
+          <nav aria-label="Breadcrumb" className="min-w-0 hidden min-[560px]:flex items-center gap-1.5 text-[12.5px] text-[#64748B]">
+            <Link href={`/staff/hrms/${sh.home}`} className="hover:text-[#0B5E5B] font-medium">HRMS</Link>
+            {crumb ? <><ChevronRight className="size-3.5 flex-none" /><span>{crumb}</span></> : null}
+            <ChevronRight className="size-3.5 flex-none" /><span className="font-semibold text-[#0f172a] truncate" aria-current="page">{def?.label ?? title}</span>
+          </nav>
+          <div className="mx-auto" />
+          <SearchButton onOpen={() => setFind(true)} />
+          <button type="button" onClick={() => setFind(true)} aria-label="Search pages" className={cx(btnCls, "!p-0 size-9 justify-center min-[700px]:hidden")}><Search className="size-4" /></button>
           {sh.onBreak
-            ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0">On break: {sh.onBreak.kind} · end break</button>
-            : lunchNow ? <span className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5">🍽 Lunch break · back at {to12(sh.lunch.to)}</span> : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
+            ? <button onClick={() => run(() => endBreak())} className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3.5 py-1.5 text-[12.5px] font-semibold cursor-pointer border-0 inline-flex items-center gap-1.5"><Coffee className="size-3.5" />On break: {sh.onBreak.kind} · end break</button>
+            : lunchNow ? <span className="rounded-full bg-[#FEF3C7] text-[#B45309] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5 max-[700px]:hidden"><UtensilsCrossed className="size-3.5" />Lunch · back at {to12(sh.lunch.to)}</span> : <span className="rounded-full bg-[#D6F3EF] text-[#0B5E5B] px-3 py-1.5 text-[12px] font-semibold flex items-center gap-1.5 max-[700px]:hidden"><span className="size-2 rounded-full bg-[#0B5E5B]" />Active</span>}
           {guard.button}
           <div className="relative">
-            <button className={btnCls} onClick={() => setBrk((o) => !o)} disabled={!!sh.onBreak}>☕ Take a break</button>
-            {brk ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl p-1.5 w-[210px]">
+            <button className={btnCls} onClick={() => setBrk((o) => !o)} disabled={!!sh.onBreak} aria-expanded={brk}><Coffee className="size-3.5" /><span className="max-[700px]:hidden">Take a break</span></button>
+            {brk ? <div className="cp-in absolute right-0 top-full mt-1.5 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-[0_16px_40px_-16px_rgba(15,23,42,.35)] p-1.5 w-[220px]">
               {BREAKS.map((b) => <button key={b} className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => { setBrk(false); run(() => startBreak(b), () => `Enjoy your break: ${b}.`); }}>{b}</button>)}
             </div> : null}
           </div>
-          <button className={btnCls} aria-label={night ? "Switch to day mode" : "Switch to night mode"} aria-pressed={night} onClick={toggleNight}>{night ? "☀️" : "🌙"}</button>
+          <button className={cx(btnCls, "!p-0 size-9 justify-center")} aria-label={night ? "Switch to day mode" : "Switch to night mode"} aria-pressed={night} onClick={toggleNight}>{night ? <Sun className="size-4" /> : <Moon className="size-4" />}</button>
           <div className="relative">
-            <button className={cx(btnCls, "relative")} aria-label="Notifications" onClick={() => { setBell((o) => !o); if (!bell && unread) void readNotifications().then(() => router.refresh()); }}>
-              <Ico n="bell" />{unread ? <span className="absolute -top-1 -right-1 bg-[#DC2626] text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{unread}</span> : null}
+            <button className={cx(btnCls, "relative !p-0 size-9 justify-center")} aria-label="Notifications" aria-expanded={bell} onClick={() => { setBell((o) => !o); if (!bell && unread) void readNotifications().then(() => router.refresh()); }}>
+              <Ico n="bell" />{unread ? <span className="absolute -top-1 -right-1 bg-[#DC2626] text-white text-[10px] font-semibold rounded-full min-w-4 h-4 px-1 flex items-center justify-center ring-2 ring-white">{unread}</span> : null}
             </button>
-            {bell ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl w-[320px] max-h-[420px] overflow-auto">
-              <div className="px-4 py-2.5 text-[13px] font-bold border-b border-[#F1F5F9]">Notifications</div>
+            {bell ? <div className="cp-in absolute right-0 top-full mt-1.5 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-[0_16px_40px_-16px_rgba(15,23,42,.35)] w-[340px] max-w-[calc(100vw-24px)] max-h-[440px] overflow-auto">
+              <div className="px-4 py-3 text-[13px] font-semibold border-b border-[#F1F5F9] sticky top-0 bg-white">Notifications</div>
               {sh.notes.length ? sh.notes.map((n) => (
-                <Link key={n.id} href={n.screen ? `/staff/hrms/${n.screen}` : `/staff/hrms/${sh.home}`} onClick={() => setBell(false)} className={cx("block px-4 py-2.5 text-[12.5px] border-b border-[#F8FAFC] hover:bg-[#F8FAFC]", n.unread && "bg-[#F2F9F8]")}>
-                  {n.text}<span className="block text-[11px] text-[#94A3B8] mt-0.5">{ago(n.at)}</span>
+                <Link key={n.id} href={n.screen ? `/staff/hrms/${n.screen}` : `/staff/hrms/${sh.home}`} onClick={() => setBell(false)} className={cx("flex gap-2.5 px-4 py-2.5 text-[12.5px] border-b border-[#F8FAFC] hover:bg-[#F8FAFC]", n.unread && "bg-[#F2F9F8]")}>
+                  <span className={cx("mt-1.5 size-1.5 rounded-full flex-none", n.unread ? "bg-[#14B8A6]" : "bg-transparent")} /><span>{n.text}<span className="block text-[11px] text-[#94A3B8] mt-0.5">{ago(n.at)}</span></span>
                 </Link>
-              )) : <div className="px-4 py-6 text-center text-[13px] text-[#64748B]">You’re all caught up.</div>}
+              )) : <div className="px-4 py-8 text-center text-[13px] text-[#64748B]">You’re all caught up.</div>}
             </div> : null}
           </div>
           <div className="relative">
-            <button className="flex items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0" onClick={() => setMenu((o) => !o)} aria-label="Account menu"><Avatar name={sh.me.name} photo={sh.me.photo} size={36} dot={presenceColor(sh.onBreak ? "break" : "active")} />▾</button>
-            {menu ? <div className="absolute right-0 top-full mt-1 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-xl w-[240px] p-1.5">
-              <div className="px-3 py-2 border-b border-[#F1F5F9] mb-1"><div className="text-[13.5px] font-bold">{sh.me.name}</div><div className="text-[11.5px] text-[#64748B]">{sh.me.empNo} · {sh.me.designation || HR_ROLE_LABEL[sh.me.role]}</div></div>
+            <button className="flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0.5 rounded-full hover:bg-[#EEF2F6]" onClick={() => setMenu((o) => !o)} aria-label="Account menu" aria-expanded={menu}><Avatar name={sh.me.name} photo={sh.me.photo} size={34} dot={presenceColor(sh.onBreak ? "break" : "active")} /><ChevronDown className="size-3.5 text-[#64748B]" /></button>
+            {menu ? <div className="cp-in absolute right-0 top-full mt-1.5 z-30 bg-white border border-[#E2E8F0] rounded-xl shadow-[0_16px_40px_-16px_rgba(15,23,42,.35)] w-[250px] p-1.5">
+              <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-[#F1F5F9] mb-1"><Avatar name={sh.me.name} photo={sh.me.photo} size={36} /><div className="min-w-0"><div className="text-[13.5px] font-semibold truncate">{sh.me.name}</div><div className="text-[11.5px] text-[#64748B] truncate">{sh.me.empNo} · {sh.me.designation || HR_ROLE_LABEL[sh.me.role]}</div></div></div>
               <Link href="/staff/hrms/profile" onClick={() => setMenu(false)} className="block px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9]">My profile</Link>
               {sh.more.length ? <><div className="px-3 pt-2 pb-1 text-[10px] font-bold tracking-[.1em] text-[#94A3B8] border-t border-[#F1F5F9] mt-1">MORE</div><div className="max-h-[240px] overflow-y-auto">{sh.more.map((m) => <Link key={m.id} href={`/staff/hrms/${m.id}`} onClick={() => setMenu(false)} className="block px-3 py-1.5 rounded-lg text-[12.5px] hover:bg-[#F1F5F9]">{m.label}</Link>)}</div></> : null}
               <button className="block w-full text-left px-3 py-2 rounded-lg text-[13px] hover:bg-[#F1F5F9] cursor-pointer bg-transparent border-0" onClick={() => { setMenu(false); setPw(true); }}>Change password</button>
@@ -162,7 +173,10 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
             </div> : null}
           </div>
         </header>}
-        <main key={screen} className={cx("hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3", fullChat ? "pt-3 pb-4" : "py-4 pb-12")}>{guard.banner}{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : null}<Screen screen={screen} data={data} sh={sh} /></main>
+        <main key={screen} className={cx("hr-main relative flex flex-col gap-4 px-6 max-[560px]:px-3", fullChat ? "pt-3 pb-4" : "py-4 pb-12")}>{guard.banner}{hero ? <ScreenHero icon={def!.icon} title={title} sub={sub} /> : NO_TITLE_SCREENS.includes(screen) || fullChat ? null : <div key={screen} className="hr-title min-w-0 flex items-center gap-3">
+          <span aria-hidden className="hr-tile-ico flex-none size-10 rounded-xl bg-gradient-to-br from-[#0B5E5B] to-[#14907F] text-white flex items-center justify-center shadow-[0_8px_18px_-10px_rgba(11,94,91,.8)]"><Ico n={def?.icon ?? "home"} s={19} /></span>
+          <div className="min-w-0"><h1 className="text-[20px] font-semibold tracking-[-.01em] truncate">{greet}</h1>{subtitle ? <p className="text-[12.5px] text-[#475569] truncate">{subtitle}</p> : null}</div>
+        </div>}<Screen screen={screen} data={data} sh={sh} /></main>
       </div>
       <ChatNotifier screen={screen} />
       <ChatHeads screen={screen} meId={sh.me.id} />
@@ -171,6 +185,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}
       {pw ? <PasswordModal onClose={() => setPw(false)} /> : null}
       {guard.node}
+      <CommandPalette sh={sh} open={find} onOpen={openFind} onClose={() => setFind(false)} />
     </div>
   );
 }
