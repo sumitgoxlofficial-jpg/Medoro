@@ -1146,41 +1146,42 @@ enum StaffStatus {
 }
 
 model StaffUser {
-  id               String                  @id @default(uuid())
-  empNo            String                  @unique
-  name             String
-  email            String
-  kind             String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
-  phone            String
-  role             StaffRole
-  team             String                  @default("")
-  status           StaffStatus
-  passwordHash     String?
-  totpSecret       String? // sealed
-  totpEnabled      Boolean                 @default(false)
-  referralCode     String?                 @unique
-  googleSub        String?                 @unique // reference partners can sign in with Google
-  bonusPct         Decimal                 @default(0) @db.Decimal(5, 2)
-  inviteTokenHash  String?                 @unique
-  inviteExpiresAt  DateTime?
-  tokenVersion     Int                     @default(0)
-  approvedBy       String?
-  deletedAt        DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
-  createdAt        DateTime                @default(now())
-  sessions         StaffSession[]
-  bank             StaffBank?
-  growthMember     GrowthMember?
-  territories      EmployeeTerritory[]
-  callingTargets   EmployeeCallingTarget[]
-  leadAssignments  LeadAssignment[]
-  callSessions     CallSession[]
-  followUps        FollowUpTask[]
-  hr               HrProfile?
-  employmentEvents HrEmploymentEvent[]
-  accessGrants     HrAccessGrant[]
-  hrDevices        HrDevice[]
-  hrWorkEvents     HrWorkEvent[]
-  hrKpiResults     HrKpiResult[]
+  id                 String                  @id @default(uuid())
+  empNo              String                  @unique
+  name               String
+  email              String
+  kind               String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
+  phone              String
+  role               StaffRole
+  team               String                  @default("")
+  status             StaffStatus
+  passwordHash       String?
+  totpSecret         String? // sealed
+  totpEnabled        Boolean                 @default(false)
+  referralCode       String?                 @unique
+  googleSub          String?                 @unique // reference partners can sign in with Google
+  bonusPct           Decimal                 @default(0) @db.Decimal(5, 2)
+  inviteTokenHash    String?                 @unique
+  inviteExpiresAt    DateTime?
+  tokenVersion       Int                     @default(0)
+  approvedBy         String?
+  deletedAt          DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
+  createdAt          DateTime                @default(now())
+  sessions           StaffSession[]
+  bank               StaffBank?
+  growthMember       GrowthMember?
+  territories        EmployeeTerritory[]
+  callingTargets     EmployeeCallingTarget[]
+  leadAssignments    LeadAssignment[]
+  callSessions       CallSession[]
+  followUps          FollowUpTask[]
+  hr                 HrProfile?
+  employmentEvents   HrEmploymentEvent[]
+  accessGrants       HrAccessGrant[]
+  hrDevices          HrDevice[]
+  hrWorkEvents       HrWorkEvent[]
+  hrKpiResults       HrKpiResult[]
+  hrShiftAssignments HrShiftAssignment[]
 
   @@unique([email, kind])
 }
@@ -4265,4 +4266,36 @@ model HrInsight {
 
   @@unique([staffId, key, periodStart])
   @@index([status, staffId])
+}
+
+/// Enterprise HRMS: a working shift (it may cross midnight). Late after start + grace.
+model HrShift {
+  id          String              @id @default(uuid())
+  name        String
+  start       String // HH:MM India time
+  end         String
+  graceMin    Int                 @default(10)
+  breakMin    Int                 @default(30)
+  workMin     Int // expected working minutes (length − break), used for overtime
+  overnight   Boolean             @default(false)
+  archived    Boolean             @default(false)
+  createdBy   String
+  createdAt   DateTime            @default(now())
+  assignments HrShiftAssignment[]
+}
+
+/// A person on a shift from a day, until a day (or open-ended). Older overlapping entries are cut short, never deleted.
+model HrShiftAssignment {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  shiftId   String
+  shift     HrShift   @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  fromDay   DateTime  @db.Date
+  toDay     DateTime? @db.Date
+  byId      String
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, fromDay])
+  @@index([shiftId])
 }

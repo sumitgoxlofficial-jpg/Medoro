@@ -53,6 +53,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "recruit", label: "Recruitment", icon: "briefcase", title: "Recruitment (ATS)", sub: "Openings, pipeline and offers", group: "PEOPLE", module: "recruitment" },
   { id: "hrattendance", label: "Team Attendance", icon: "clock", title: "Team Attendance", sub: "Today", group: "PEOPLE", module: "attendance" },
   { id: "workforce", label: "Workforce devices", icon: "shield", title: "Workforce devices & activity", sub: "Company PCs, enrolment codes, disputes and the team’s activity (context, not a score)", group: "PEOPLE", module: "attendance" },
+  { id: "hrshifts", label: "Shifts & roster", icon: "clock", title: "Shifts, roster & workforce operations", sub: "Shifts, who works which, overtime, and what would hold up this month’s payroll", group: "PEOPLE", module: "attendance" },
   { id: "hrleave", label: "Leave Management", icon: "plane", title: "Leave Management", sub: "Approvals and team calendar", group: "PEOPLE", module: "attendance" },
   { id: "credentials", label: "Credentials", icon: "shield", title: "Credentials", sub: "One-time passwords and login status for every employee", group: "PEOPLE", module: "employees" },
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },

@@ -32,6 +32,7 @@ import * as org from "@/staff/hrms/org";
 import * as approvals from "@/staff/hrms/approvals";
 import * as workforce from "@/staff/hrms/workforce";
 import * as kpi from "@/staff/hrms/kpi";
+import * as shifts from "@/staff/hrms/shifts";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -289,3 +290,8 @@ export const computeKpis = async (day: string) => done(await hrRun(async (me) =>
 export const enterKpiValue = async (input: Parameters<typeof kpi.enterManual>[1]) => done(await hrRun((me) => kpi.enterManual(me, input), "Value saved."));
 export const kpiFor = async (staffId: string, day: string) => hrRun((me) => kpi.kpiFor(me, staffId, day));
 export const reviewInsight = async (id: string, decision: "reviewed" | "dismissed", note = "", share = false) => done(await hrRun((me) => kpi.reviewInsight(me, id, decision, note, share), decision === "reviewed" ? (share ? "Reviewed and shared." : "Marked reviewed.") : "Dismissed."));
+
+// ── Shifts, roster, overtime, payroll readiness (Enterprise HRMS Phase 6)
+export const saveShift = async (id: string | null, input: Parameters<typeof shifts.saveShift>[2]) => done(await hrRun((me) => shifts.saveShift(me, id, input), "Shift saved."));
+export const archiveShift = async (id: string) => done(await hrRun((me) => shifts.archiveShift(me, id), "Shift archived."));
+export const assignShift = async (input: Parameters<typeof shifts.assignShift>[1]) => done(await hrRun((me) => shifts.assignShift(me, input), "Roster saved. Each person was told."));

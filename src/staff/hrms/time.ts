@@ -1,4 +1,5 @@
 import "server-only";
+import { lateAfterFor } from "./shifts";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "@/server/db";
@@ -93,9 +94,10 @@ export async function checkIn(me: Me, selfie?: string) {
   if (have?.inAt) throw new UserError("You have already checked in today.");
   const onLeave = await approvedLeaveOn(me.id, day);
   if (onLeave && !onLeave.half) throw new UserError("You are on approved leave today. Ask HR to cancel the leave first.");
-  // Late after the person's own shift start when HR set one, else the company time.
-  const shift = (await db.hrProfile.findUnique({ where: { staffId: me.id }, select: { shiftStart: true } }))?.shiftStart;
-  const status = istClock(now) > (shift || s.lateAfter) ? "late" : "present";
+  // Late after the rostered shift's start + grace, else the person's own shift start, else the company time.
+  const own = (await db.hrProfile.findUnique({ where: { staffId: me.id }, select: { shiftStart: true } }))?.shiftStart;
+  const { lateAfter } = await lateAfterFor(me.id, day, { shiftStart: own, lateAfter: s.lateAfter });
+  const status = istClock(now) > lateAfter ? "late" : "present";
   await db.hrAttendance.upsert({ where: { staffId_day: { staffId: me.id, day: dateOnly(day) } }, update: { inAt: now, status }, create: { staffId: me.id, day: dateOnly(day), inAt: now, status } });
   await db.hrProfile.update({ where: { staffId: me.id }, data: { presence: "active", presenceNote: "", presenceAt: now } });
   if (photo) await saveSelfie(me.id, day, "in", photo);
@@ -247,7 +249,7 @@ export async function myDay(me: Me) {
     approvedLeaveOn(me.id, day),
     db.hrProfile.findUnique({ where: { staffId: me.id }, select: { shiftStart: true } }),
   ]);
-  const start = profile?.shiftStart || s.lateAfter;
+  const start = (await lateAfterFor(me.id, day, { shiftStart: profile?.shiftStart, lateAfter: s.lateAfter })).start;
   const off = weekend(day, s.weekOff);
   type Code = "P" | "L" | "A" | "LV" | "H" | "WO";
   const code: Code = a?.inAt ? (a.status === "late" ? "L" : "P") : a?.status === "present" ? "P" : leave && !leave.half ? "LV" : hol ? "H" : off ? "WO" : "A";

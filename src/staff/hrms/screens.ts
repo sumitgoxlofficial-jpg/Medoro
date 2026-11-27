@@ -13,6 +13,7 @@ import { orgChart, orgHealth, timeline } from "./org";
 import { accessGrants, approvalsFor, myDelegations } from "./approvals";
 import { myActivity, workforceAdmin } from "./workforce";
 import { kpiScreen } from "./kpi";
+import { overtimeReport, payrollReadiness, rosterView } from "./shifts";
 import { MONITOR_POLICY } from "./workforce-policy";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
@@ -93,6 +94,10 @@ export const loaders = {
   workforce: async (me: Me, q: Q = {}) => {
     const staff = await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } });
     return { ...(await workforceAdmin(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO())), people: staff };
+  },
+  hrshifts: async (me: Me, q: Q = {}) => {
+    const month = /^\d{4}-\d{2}$/.test(q.m ?? "") ? q.m! : todayISO().slice(0, 7);
+    return { ...(await rosterView(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO())), month, overtime: await overtimeReport(me, month), readiness: can(me, "payroll") ? await payrollReadiness(me, month) : null };
   },
   kpis: async (me: Me, q: Q = {}) => kpiScreen(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO()),
   orgchart: async (me: Me) => ({ chart: await orgChart(me), health: can(me, "employees") ? await orgHealth(me) : null, history: await timeline(me, me.id), hr: can(me, "employees") }),
