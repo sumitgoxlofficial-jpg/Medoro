@@ -19,7 +19,7 @@ import { DEMO_MILESTONES, SALE_MILESTONES, TEAM_ID, crossed, demoBody, istDaySta
 export const PULSE_KEY = "sales-pulse";
 export const PULSE_PREFIX = "pulse:";
 export const PULSE_LABEL = "Sales Pulse · auto";
-export const PULSE_ABOUT = "Wins and demo bookings. Messages tagged ⚡ auto are posted automatically: real wins from the CRM, and motivation from the Sales Pulse bots (not real employees).";
+export const PULSE_ABOUT = "Wins and demo bookings. Real wins are posted automatically from the CRM. Members marked Bot are Sales Pulse bots that post and reply automatically (not real employees).";
 
 const WOMEN = [
   "Priyanka Sharma", "Neha Verma", "Ananya Iyer", "Pooja Patel", "Kavya Reddy", "Sneha Kulkarni", "Riya Banerjee", "Aishwarya Nair", "Divya Joshi", "Shruti Mishra",
