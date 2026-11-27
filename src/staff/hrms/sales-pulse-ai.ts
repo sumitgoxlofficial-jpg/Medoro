@@ -10,7 +10,7 @@ import { log } from "@/server/log";
 // Nothing personal leaves the server: real colleagues appear to the model only as [colleague] / [new colleague] and
 // their first names are put back here.
 
-export type Brief = { key: string; senderId: string; name: string; brief: string; kind: "daily" | "welcome" | "reply"; newName?: string; /** reply: the question asked, real names already swapped for [asker] / [colleague]. */ ask?: string };
+export type Brief = { key: string; senderId: string; name: string; brief: string; kind: "daily" | "welcome" | "reply"; /** reply: what kind of message is being answered (see sales-pulse.ts). */ mode?: "status" | "greet" | "thanks" | "ack" | "chat" | "congrats"; newName?: string; /** reply: the question asked, real names already swapped for [asker] / [colleague]. */ ask?: string };
 
 /** A steady personality per bot, so the same person always sounds the same. */
 const STYLES = [
@@ -53,8 +53,16 @@ function prompt(b: Brief, recent: string[], win: string | null) {
     sys.push("Say what the brief says in your own words. Keep every number, plan name and city exactly as in the brief.");
     if (win) sys.push(`A colleague, [colleague], just posted: "${win}". You may also congratulate [colleague] in a few words, writing [colleague] exactly like that.`);
   } else if (b.kind === "reply") {
-    sys.push(`Someone${b.newName ? ", [asker]," : " (your manager)"} just asked the group: "${b.ask ?? ""}". Answer them like a colleague giving a quick update on your own day's work, as the brief says.`,
-      "Keep every number, plan name and city exactly as in the brief. Don't invent other numbers, names or promises.",
+    const who = b.newName ? "[asker]" : "your manager";
+    const task = {
+      status: `${who} asked the group: "${b.ask ?? ""}". Give them a quick update on your own day's work, as the brief says. Keep every number, plan name and city exactly as in the brief.`,
+      greet: `${who} greeted the group: "${b.ask ?? ""}". Greet back in a few words, like the brief.`,
+      thanks: `${who} appreciated the team: "${b.ask ?? ""}". Thank them briefly, like the brief.`,
+      ack: `${who} told the group: "${b.ask ?? ""}". Acknowledge it in a few words (noted, will do), like the brief. Don't promise anything specific.`,
+      chat: `${who} said to you in the group: "${b.ask ?? ""}". Answer naturally and briefly as a busy salesperson. If it needs facts you don't have (dates, numbers, people, decisions), say you'll check and get back; never make them up. If they ask whether you are a bot, an AI or a real person, say plainly that you are a Sales Pulse bot.`,
+      congrats: `This was just announced in the group: "${b.ask ?? ""}". It is [asker]'s win. Congratulate [asker] in a few words.`,
+    }[b.mode ?? "status"];
+    sys.push(task, "Don't invent names, numbers or promises that aren't in the brief or the message.",
       b.newName ? "You may address them as [asker], written exactly like that. Never write [colleague]." : "Don't address them by name. Never write [asker] or [colleague].");
   } else {
     sys.push("A new colleague just joined the group. Welcome them warmly in your own words. Write their name exactly as [new colleague].");

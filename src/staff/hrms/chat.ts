@@ -7,7 +7,7 @@ import { instantMeet } from "./gcal";
 import { ADMIN_LABEL, hideAdmin, seesAll, teamIds, visibleTo } from "./visibility";
 import { pulsePhoto } from "./pulse-shared";
 import { TEAM_NAME, isTeamId, istDayStart, istWeekStart, rankBoard, type BoardRow } from "./sales-wins";
-import { PERSONAS, PULSE_ABOUT, PULSE_KEY, isPulse, pulseMemberIds, pulseName, repliesFromAsk, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
+import { PERSONAS, PULSE_ABOUT, PULSE_KEY, PULSE_PREFIX, isPulse, pulseMemberIds, botsTyping, pulseName, repliesFromAsk, scheduleWelcome, welcomeFromIntro } from "./sales-pulse";
 import { log } from "@/server/log";
 import { EDIT_WINDOW_MS } from "./chat-shared";
 
@@ -263,16 +263,22 @@ export async function chatMessages(me: Pick<Me, "id"> & Partial<Pick<Me, "role">
   const msgs = await decorate(rows, me.id, hideAdmin(me));
   const top = msgs.length ? msgs[msgs.length - 1].seq : 0;
   if (markRead && top > mem.lastReadSeq) await db.hrChatMember.update({ where: { chatId_staffId: { chatId, staffId: me.id } }, data: { lastReadSeq: top } });
-  const [others, typing] = await Promise.all([
-    db.hrChatMember.findMany({ where: { chatId, staffId: { not: me.id } }, select: { lastReadSeq: true } }),
+  const [others, typing, sales] = await Promise.all([
+    // Read ticks follow the real people in the chat (the Sales Pulse bots never open it).
+    db.hrChatMember.findMany({ where: { chatId, staffId: { not: me.id }, NOT: { staffId: { startsWith: PULSE_PREFIX } } }, select: { lastReadSeq: true } }),
     db.hrChatMember.findMany({ where: { chatId, staffId: { not: me.id }, typingAt: { gt: new Date(Date.now() - 4000) } }, select: { staffId: true } }),
+    db.hrChat.findUnique({ where: { id: chatId }, select: { sysKey: true } }).then((c) => c?.sysKey === PULSE_KEY),
   ]);
+  // In Sales, a bot about to post shows as typing, like anyone else.
+  const bots = sales ? await botsTyping().catch(() => [] as string[]) : [];
+  const typingIds = [...new Set([...typing.map((t) => t.staffId), ...bots])];
+  const typingNames = Object.fromEntries(bots.map((id) => [id, pulseName(id)]));
   let refresh: ChatMsg[] | null = null, presence: Presence | null = null;
   if (full) {
     const win = after === null ? rows : (await db.hrChatMessage.findMany({ where: { chatId, seq: { gt: mem.fromSeq } }, orderBy: { seq: "desc" }, take: PAGE, select: LITE }));
     [refresh, presence] = await Promise.all([decorate(win, me.id, hideAdmin(me)), presenceMap()]);
   }
-  return { msgs, readUpTo: others.length ? Math.min(...others.map((o) => o.lastReadSeq)) : 0, typing: typing.map((t) => t.staffId), refresh, presence };
+  return { msgs, readUpTo: others.length ? Math.min(...others.map((o) => o.lastReadSeq)) : 0, typing: typingIds, typingNames, refresh, presence };
 }
 export async function setTyping(me: Pick<Me, "id">, chatId: string) {
   await membership(me, chatId);
