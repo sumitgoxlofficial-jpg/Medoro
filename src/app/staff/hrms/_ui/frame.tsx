@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Shell, ScreenId } from "@/staff/hrms/screens";
 import { HR_ROLE_LABEL, NO_TITLE_SCREENS, SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
 import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
+import { MfaSetup } from "./mfa";
 import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, openStaffConsole, readNotifications, saveProfile, startBreak } from "../actions";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
 import { LetterModal, useLetterView } from "./letters";
@@ -44,7 +45,7 @@ const ICONS: Record<string, string> = {
 };
 const Ico = ({ n, s = 16 }: { n: string; s?: number }) => <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden dangerouslySetInnerHTML={{ __html: ICONS[n] ?? "" }} />;
 
-export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; screen: ScreenId; title: string; sub: string; data: unknown; gate: "password" | "profile" | "kyc" | "docs" | null }) {
+export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; screen: ScreenId; title: string; sub: string; data: unknown; gate: "password" | "mfa" | "profile" | "kyc" | "docs" | null }) {
   const [menu, setMenu] = useState(false), [bell, setBell] = useState(false), [brk, setBrk] = useState(false), [ally, setAlly] = useState(false), [pw, setPw] = useState(false);
   const [navOpen, setNavOpen] = useState(false), [find, setFind] = useState(false);
   const router = useRouter();
@@ -210,16 +211,18 @@ function PasswordForm({ forced, onDone }: { forced: boolean; onDone: () => void 
 const PasswordModal = ({ onClose }: { onClose: () => void }) => <Modal title="Change password" onClose={onClose}><PasswordForm forced={false} onDone={onClose} /></Modal>;
 
 /** First sign-in: set your own password, fill in your details, accept the joining documents. */
-function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh: Shell }) {
-  const steps = ["Set your password", "Your details", "Aadhaar & PAN", "Joining documents"];
-  const at = gate === "password" ? 0 : gate === "profile" ? 1 : gate === "kyc" ? 2 : 3;
+function Gate({ gate, sh }: { gate: "password" | "mfa" | "profile" | "kyc" | "docs"; sh: Shell }) {
+  // Two-step sign-in is a step only for HR, Finance and the super admin when Settings require it.
+  const mfa = gate === "mfa";
+  const steps = mfa ? ["Set your password", "Two-step sign-in", "Your details", "Aadhaar & PAN", "Joining documents"] : ["Set your password", "Your details", "Aadhaar & PAN", "Joining documents"];
+  const at = gate === "password" ? 0 : mfa ? 1 : (gate === "profile" ? 1 : gate === "kyc" ? 2 : 3) + (mfa ? 1 : 0);
   const { run, busy } = useRun();
   const [agree, setAgree] = useState([false, false, false]);
   const docs: [LetterType, string][] = JOINING_LETTERS.map((t) => [t, letterLabel(t)]);
   const v = useLetterView();
-  const icons = [KeyRound, UserRound, ShieldCheck, FileSignature];
+  const icons = mfa ? [KeyRound, ShieldCheck, UserRound, ShieldCheck, FileSignature] : [KeyRound, UserRound, ShieldCheck, FileSignature];
   const StepIcon = icons[at];
-  const cheer = ["Let’s start with a password only you know.", "Nice. Now a few details for HR and your salary.", "Halfway there. A quick identity check.", "Last step. Read and accept, and you’re in."][at];
+  const cheer = (mfa ? ["Let’s start with a password only you know.", "Your role sees salaries and identity documents, so sign-in needs a code from your phone too.", "Nice. Now a few details for HR and your salary.", "Halfway there. A quick identity check.", "Last step. Read and accept, and you’re in."] : ["Let’s start with a password only you know.", "Nice. Now a few details for HR and your salary.", "Halfway there. A quick identity check.", "Last step. Read and accept, and you’re in."])[at];
   return (
     <div className="hr-motion relative min-h-screen overflow-hidden bg-[#F8FAFC]">
       <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -235,9 +238,9 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
         <button onClick={() => void hrSignOut()} className={cx(btnCls, "ml-auto")}>Sign out</button>
       </div>
       {/* Stepper: done steps get a tick, the current one pulses, the line fills as you go. */}
-      <ol aria-label={`Step ${at + 1} of ${steps.length}`} className="hr-up [--d:1] relative m-0 p-0 list-none grid grid-cols-4 gap-2">
-        <span aria-hidden className="absolute left-[12.5%] right-[12.5%] top-[19px] h-[3px] rounded-full bg-[#E2E8F0]" />
-        <span aria-hidden className="hr-fill absolute left-[12.5%] top-[19px] h-[3px] rounded-full bg-gradient-to-r from-[#14B8A6] to-[#0B5E5B]" style={{ width: `${(at / (steps.length - 1)) * 75}%` }} />
+      <ol aria-label={`Step ${at + 1} of ${steps.length}`} className={cx("hr-up [--d:1] relative m-0 p-0 list-none grid gap-2", mfa ? "grid-cols-5" : "grid-cols-4")}>
+        <span aria-hidden className="absolute top-[19px] h-[3px] rounded-full bg-[#E2E8F0]" style={{ left: `${50 / steps.length}%`, right: `${50 / steps.length}%` }} />
+        <span aria-hidden className="hr-fill absolute top-[19px] h-[3px] rounded-full bg-gradient-to-r from-[#14B8A6] to-[#0B5E5B]" style={{ left: `${50 / steps.length}%`, width: `${(at / (steps.length - 1)) * (100 - 100 / steps.length)}%` }} />
         {steps.map((s, i) => {
           const Icon = icons[i];
           return (
@@ -257,6 +260,7 @@ function Gate({ gate, sh }: { gate: "password" | "profile" | "kyc" | "docs"; sh:
       </div>
       <div key={`card-${gate}`} className="hr-up [--d:3] hr-glow relative rounded-xl">
       {gate === "password" ? <Card title="Set your own password" sub="The password HR gave you was temporary." pad><PasswordForm forced onDone={() => {}} /></Card> : null}
+      {gate === "mfa" ? <Card title="Turn on two-step sign-in" sub="Scan the QR code with Google Authenticator, Microsoft Authenticator or a similar app, then enter the code it shows." pad><MfaSetup /></Card> : null}
       {gate === "profile" ? <Card title="Your details" sub="Needed for HR records and to pay your salary. Bank account and PAN are stored encrypted." pad><ProfileForm initial={{ phone: sh.me.phone, personalEmail: sh.me.personalEmail }} complete onSave={(v) => run(() => saveProfile(v, true))} busy={busy} /></Card> : null}
       {gate === "kyc" ? <KycStep /> : null}
       {gate === "docs" ? (

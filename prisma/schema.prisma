@@ -1177,6 +1177,7 @@ model StaffUser {
   followUps        FollowUpTask[]
   hr               HrProfile?
   employmentEvents HrEmploymentEvent[]
+  accessGrants     HrAccessGrant[]
 
   @@unique([email, kind])
 }
@@ -2451,6 +2452,7 @@ model HrProfile {
   leaveExtra         Json      @default("{}") // extra days granted per leave type, e.g. {"comp":1}
   waAlerts           Boolean   @default(false) // the employee asked for their HRMS alerts on WhatsApp too
   waAlertsAt         DateTime? // when they last switched WhatsApp alerts on or off (their consent record)
+  totpPending        String? // sealed authenticator secret while the person is setting up two-step sign-in in the HRMS
   createdAt          DateTime  @default(now())
 
   @@index([managerId])
@@ -4027,4 +4029,77 @@ model HrEmploymentEvent {
 
   @@index([staffId, at])
   @@index([type, effective])
+}
+
+/// Enterprise HRMS: one person's access on top of their role: a module given ("grant") or taken away ("deny"), with a
+/// reason and an optional end. Only the super admin creates them (directly, or by approving an access request).
+model HrAccessGrant {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  module    String
+  effect    String // grant, deny
+  reason    String
+  expiresAt DateTime? // null = until revoked
+  byId      String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  revokedBy String?
+
+  @@index([staffId, revokedAt])
+}
+
+/// Enterprise HRMS: a request that needs one or more approvals before it changes anything (salary change, temporary access).
+model HrApproval {
+  id          String           @id @default(uuid())
+  kind        String // a workflow id from src/staff/hrms/approvals.ts
+  subjectId   String // who it is about
+  requesterId String
+  title       String
+  payload     Json
+  status      String           @default("pending") // pending, rejected, cancelled, applied
+  result      String           @default("")
+  createdAt   DateTime         @default(now())
+  decidedAt   DateTime?
+  appliedAt   DateTime?
+  steps       HrApprovalStep[]
+
+  @@index([status, kind])
+  @@index([requesterId, createdAt])
+  @@index([subjectId])
+}
+
+model HrApprovalStep {
+  id          String     @id @default(uuid())
+  approvalId  String
+  approval    HrApproval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  seq         Int
+  kind        String // manager, admin
+  label       String
+  status      String     @default("waiting") // waiting, pending, approved, rejected, skipped
+  approverId  String? // the person a manager step waits on (null for the super admin step: any super admin)
+  decidedBy   String?
+  decidedAt   DateTime?
+  comment     String     @default("")
+  dueAt       DateTime?
+  escalatedAt DateTime?
+
+  @@unique([approvalId, seq])
+  @@index([status, approverId])
+  @@index([status, dueAt])
+}
+
+/// Enterprise HRMS: a person away hands their approvals to a colleague for a period.
+model HrDelegation {
+  id          String    @id @default(uuid())
+  fromId      String
+  toId        String
+  fromDay     DateTime  @db.Date
+  toDay       DateTime  @db.Date
+  reason      String    @default("")
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  @@index([fromId, toDay])
+  @@index([toId, toDay])
 }

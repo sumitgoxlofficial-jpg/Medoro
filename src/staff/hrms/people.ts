@@ -207,6 +207,7 @@ export async function updateEmployee(me: Me, id: string, raw: z.input<typeof edi
   if (was === "admin" && me.role !== "admin") throw new UserError("Only the super admin can edit a super admin.");
   if (i.role !== was && was !== "admin" && me.role !== "admin") throw new UserError("Only the super admin can change system access.");
   const role = was === "admin" ? "admin" : i.role;
+  if (u.hr && u.hr.ctc !== i.ctc && me.role !== "admin" && (await loadSettings(true)).ctcNeedsApproval) throw new UserError("Salary changes need approval: raise a salary change under Approvals.");
   const managerId = await checkManager(id, i.managerId);
   // The staff console role follows sales access; console-only roles (customer care, super admin) are left alone.
   const staffRole = u.role === "super_admin" || u.role === "care" ? u.role : role === "sales" ? "sales" : "employee";
@@ -422,6 +423,7 @@ export const settingsSchema = z.object({
   leave: z.object({ casual: z.coerce.number().int().min(0).max(60), sick: z.coerce.number().int().min(0).max(60), privilege: z.coerce.number().int().min(0).max(60), comp: z.coerce.number().int().min(0).max(60) }),
   carryForward: z.coerce.number().int().min(0).max(120).default(30),
   ptax: z.coerce.number().int().min(0).max(2500), payDay: z.coerce.number().int().min(1).max(28),
+  mfaPrivileged: z.boolean().default(false), ctcNeedsApproval: z.boolean().default(false),
 });
 export async function saveSettings(me: Me, raw: Settings) {
   needAdmin(me);

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
-import { audit, need, notify, roleOf, type Me } from "./auth";
+import { audit, loadSettings, need, notify, roleOf, type Me } from "./auth";
 import { responsibilityLines, type PromotionTerms } from "./letters";
 
 // Promotions: HR records the new designation, department, manager, pay and responsibilities from an effective date. The employee's profile
@@ -45,6 +45,7 @@ export async function promote(me: Me, staffId: string, raw: z.input<typeof promo
   if (await db.hrPromotion.findUnique({ where: { staffId_effective: { staffId, effective: i.effective } } })) throw new UserError("A promotion with this effective date is recorded already.");
   const h = u.hr;
   if (i.toDesig === h.designation && i.toDept === h.dept && i.toCtc === h.ctc && (i.toManagerId || null) === h.managerId) throw new UserError("Nothing changes: give a new designation, department, manager or CTC.");
+  if (i.toCtc !== h.ctc && me.role !== "admin" && (await loadSettings(true)).ctcNeedsApproval) throw new UserError("Salary changes need approval: record the promotion with the current CTC and raise a salary change under Approvals.");
   const lines = responsibilityLines(i.responsibilities);
   const row = await db.hrPromotion.create({
     data: {

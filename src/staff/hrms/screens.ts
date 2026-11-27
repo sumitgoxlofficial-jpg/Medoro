@@ -7,9 +7,10 @@ import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
 import { listEvents, status as gcalStatus } from "./gcal";
 import { backupStatus } from "./chat-backup";
-import { HOME_OF, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
+import { HOME_OF, MODULES, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
 import { registers, summary, workflows } from "./finance";
 import { orgChart, orgHealth, timeline } from "./org";
+import { accessGrants, approvalsFor, myDelegations } from "./approvals";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
 import { AVATARS, REACTIONS, chatList, chatPeople, myChatProfile, reviewChats, reviewPeople, syncChannels, unreadTotal } from "./chat";
@@ -27,8 +28,8 @@ import { mailEnabled } from "@/server/mail";
 import { myPayslips, payrollFor } from "./pay";
 import { auditLog, departments, myProfile, notifications, officialDomain, roster, salaryRevisions } from "./people";
 import { isWorkDay, myDay, addMonths, claims, closeExits, holidays, leaveBalances, monthFor, myLeaves, pendingApprovals, teamRequests, teamToday, today, whosOut } from "./time";
-import { backfillSlugs } from "./careers";
 import { visibleTo } from "./visibility";
+import { backfillSlugs } from "./careers";
 import { academy, autoEnrol, ensureAcademy, hasAssignment, isSalesMe, isTrainer, lessonForLearner, myTraining, trainerDesk } from "./training/service";
 import { allTasks, announcements, candidates, jobs, meetings, myProjects, myTasks, performance, projects, tickets } from "./work";
 
@@ -73,6 +74,18 @@ export const loaders = {
     return { tasks, bal, slip: slips[0] ?? null, ann, hols, meets, proj, canPost: can(me, "employees"), newLetters: await unreadLetters(me.id), day: await myDay(me), month: me.role === "admin" ? null : (await monthFor(me.id, ym(), s)).counts };
   },
   appraisal: async (me: Me) => myReviews(me),
+  approvals: async (me: Me) => {
+    const staff = await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } });
+    const seen = new Set(await visibleTo(me, staff.map((s) => s.id)));
+    const canCtc = can(me, "payroll") || can(me, "employees");
+    return {
+      ...(await approvalsFor(me)), delegations: await myDelegations(me),
+      people: staff.filter((s) => s.id !== me.id && (canCtc || seen.has(s.id))), canCtc,
+      modules: MODULES.filter((m) => !can(me, m.id)).map((m) => ({ id: m.id, label: m.label })), allModules: MODULES.map((m) => ({ id: m.id, label: m.label })),
+      grants: me.role === "admin" ? await accessGrants(me) : null,
+      ctcNeedsApproval: (await loadSettings()).ctcNeedsApproval,
+    };
+  },
   orgchart: async (me: Me) => ({ chart: await orgChart(me), health: can(me, "employees") ? await orgHealth(me) : null, history: await timeline(me, me.id), hr: can(me, "employees") }),
   hrappraisals: async (me: Me, q: Q) => cycleBoard(me, q.c),
   myteam: async (me: Me) => myTeam(me),

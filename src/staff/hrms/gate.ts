@@ -1,6 +1,6 @@
 import type { Me } from "./auth";
 
-export type Gate = "password" | "profile" | "kyc" | "docs" | null;
+export type Gate = "password" | "mfa" | "profile" | "kyc" | "docs" | null;
 
 /**
  * The first step a person must finish before the HRMS opens: their own password, their details, Aadhaar and PAN
@@ -8,8 +8,10 @@ export type Gate = "password" | "profile" | "kyc" | "docs" | null;
  * joining documents. They can also choose "Skip for now" and finish Aadhaar and PAN later; HR still sees it as missing.
  * The super admin owns the system and is not asked to verify their identity, and (like every admin) isn't asked to accept joining documents.
  */
-export function gateOf(me: Pick<Me, "mustChangePassword" | "profileDone" | "kycSubmitted" | "kycSkipped" | "docsAccepted" | "role" | "staffRole">): Gate {
+export function gateOf(me: Pick<Me, "mustChangePassword" | "profileDone" | "kycSubmitted" | "kycSkipped" | "docsAccepted" | "role" | "staffRole" | "mfaSetup">): Gate {
   if (me.mustChangePassword) return "password";
+  // HR, Finance and the super admin set up an authenticator app when Settings require it.
+  if (me.mfaSetup) return "mfa";
   if (!me.profileDone) return "profile";
   if (me.staffRole !== "super_admin" && !me.kycSubmitted && !me.kycSkipped) return "kyc";
   if (!me.docsAccepted && me.role !== "admin") return "docs";

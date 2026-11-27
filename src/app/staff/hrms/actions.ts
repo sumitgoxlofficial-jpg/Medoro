@@ -29,6 +29,7 @@ import * as policies from "@/staff/hrms/policies";
 import * as exits from "@/staff/hrms/exits";
 import * as appraisals from "@/staff/hrms/appraisals";
 import * as org from "@/staff/hrms/org";
+import * as approvals from "@/staff/hrms/approvals";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -258,3 +259,14 @@ export const cancelPromotion = async (id: string) => done(await hrRun((me) => pr
 
 // ── Organisation (Enterprise HRMS Phase 2)
 export const employeeTimeline = async (staffId: string) => hrRun((me) => org.timeline(me, staffId));
+
+// ── Approvals, delegation, individual access, two-step sign-in (Enterprise HRMS Phase 3)
+export const requestApproval = async (kind: string, input: unknown) => done(await hrRun((me) => approvals.requestApproval(me, kind, input), "Request sent for approval."));
+export const decideApproval = async (id: string, approve: boolean, comment = "") => done(await hrRun((me) => approvals.decideApproval(me, id, approve, comment), approve ? "Approved." : "Rejected."));
+export const cancelApproval = async (id: string) => done(await hrRun((me) => approvals.cancelApproval(me, id), "Request withdrawn."));
+export const delegateApprovals = async (input: Parameters<typeof approvals.delegate>[1]) => done(await hrRun((me) => approvals.delegate(me, input), "Your approvals are delegated."));
+export const cancelDelegation = async (id: string) => done(await hrRun((me) => approvals.cancelDelegation(me, id), "Delegation cancelled."));
+export const addAccessGrant = async (input: unknown) => done(await hrRun((me) => approvals.addGrant(me, input), "Access changed for that person."));
+export const revokeAccessGrant = async (id: string) => done(await hrRun((me) => approvals.revokeGrant(me, id), "Access change ended."));
+export const mfaStart = async () => hrRun((me) => auth.mfaStart(me), undefined, { during: ["mfa"] });
+export const mfaConfirm = async (code: string) => done(await hrRun((me) => auth.mfaConfirm(me, code), undefined, { during: ["mfa"] }));

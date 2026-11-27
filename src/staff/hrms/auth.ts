@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z, ZodError } from "zod";
 import { db } from "@/server/db";
 import { checkLock, clearFailures, clientInfo, hashPassword, lockKeys, rateLimit, recordFailure, verifyPassword } from "@/server/auth";
-import { checkTotp, openSecret } from "@/server/totp";
+import { checkTotp, newTotpSecret, openSecret, totpQr } from "@/server/totp";
 import { UserError, type ActionResult } from "@/server/action";
 import { log } from "@/server/log";
 import { mailEnabled, sendMail } from "@/server/mail";
@@ -15,6 +15,7 @@ import { createStaffSession, readStaffSession, staffAudit } from "../auth";
 import type { StaffRoleId } from "../constants";
 import { DEFAULT_PERMS, DEFAULT_SETTINGS, HR_ROLES, MODULES, hasModule, type HrRoleId, type ModuleId, type Perms, type Settings } from "./constants";
 import { gateOf, type Gate } from "./gate";
+import { effectivePerms, grantsFor, NO_GRANTS, type Grants } from "./access";
 
 // The HRMS signs Medoro's own employees in with their employee ID or work email and a password. It uses the staff
 // session cookie with kind "hrms": such a session opens the HRMS, never the staff console (sales employees excepted,
@@ -25,7 +26,13 @@ export type Me = {
   phone: string; personalEmail: string; dept: string; designation: string; photo: string | null; mustChangePassword: boolean; profileDone: boolean; docsAccepted: boolean;
   /** Aadhaar and PAN given with proof / both verified (see kyc.ts). */
   kycSubmitted: boolean; kycSkipped: boolean; kycVerified: boolean;
+  /** Modules given to or taken from this person on top of their role (already applied to `perms`). */
+  grants?: Grants;
+  /** Two-step sign-in is required for this person (Settings) and not set up yet. */
+  mfaSetup?: boolean;
 };
+/** Roles that must use an authenticator when Settings → "Two-step sign-in for HR, Finance and the super admin" is on. */
+export const PRIVILEGED: readonly HrRoleId[] = ["hr", "finance", "admin"];
 
 export const password = z.string().min(12, "Password must be at least 12 characters.").max(200);
 
@@ -64,22 +71,24 @@ export async function ensureProfile(staffId: string, staffRole: StaffRoleId) {
 }
 
 export async function getMe(): Promise<Me | null> {
-  const s = await readStaffSession(false, true); // one joined query: session, staff and HR profile
-  if (!s || s.staff.kind !== "team" || s.staff.role === "partner") return null;
-  const u = s.staff;
-  const [p, perms] = await Promise.all([u.hr ?? ensureProfile(u.id, u.role), loadPerms()]);
+  const sess = await readStaffSession(false, true); // one joined query: session, staff and HR profile
+  if (!sess || sess.staff.kind !== "team" || sess.staff.role === "partner") return null;
+  const u = sess.staff;
+  const [p, perms, grants, s] = await Promise.all([u.hr ?? ensureProfile(u.id, u.role), loadPerms(), grantsFor([u.id]), loadSettings()]);
+  const role = roleOf(u.role, p.role), g = grants.get(u.id) ?? NO_GRANTS;
   if (!p.presenceAt || Date.now() - p.presenceAt.getTime() > 60_000) {
     await defer(() => db.hrProfile.update({ where: { staffId: u.id }, data: { presenceAt: new Date(), ...(p.presence === "offline" ? { presence: "active" } : {}) } }));
   }
   return {
-    id: u.id, empNo: u.empNo, name: u.name, first: u.name.trim().split(/\s+/)[0], email: u.email, staffRole: u.role, role: roleOf(u.role, p.role), perms, sessionId: s.id,
+    id: u.id, empNo: u.empNo, name: u.name, first: u.name.trim().split(/\s+/)[0], email: u.email, staffRole: u.role, role, perms: effectivePerms(role, perms, g), grants: g, sessionId: sess.id,
+    mfaSetup: s.mfaPrivileged && PRIVILEGED.includes(role) && !u.totpEnabled,
     phone: u.phone, personalEmail: p.personalEmail, dept: p.dept, designation: p.designation, photo: p.photo, mustChangePassword: p.mustChangePassword, profileDone: p.profileDone, docsAccepted: !!p.docsAcceptedAt, kycSubmitted: !!p.kycSubmittedAt, kycSkipped: !!p.kycSkippedAt, kycVerified: !!p.kycVerifiedAt,
   };
 }
 
 /** A first-sign-in step (temporary password, details, Aadhaar and PAN, joining documents) that is not finished yet. */
 export type GateStep = NonNullable<Gate>;
-export const ANY_STEP: readonly GateStep[] = ["password", "profile", "kyc", "docs"];
+export const ANY_STEP: readonly GateStep[] = ["password", "mfa", "profile", "kyc", "docs"];
 export const GATE_MESSAGE = "Finish setting up your account first (password, details, Aadhaar & PAN, joining documents).";
 
 /**
@@ -123,7 +132,8 @@ export async function notify(staffIds: string[], text: string, screen = "") {
 export async function holders(m: ModuleId): Promise<string[]> {
   const perms = await loadPerms();
   const staff = await db.staffUser.findMany({ where: { kind: "team", status: "active", role: { not: "partner" } }, select: { id: true, role: true, hr: { select: { role: true } } } });
-  return staff.filter((u) => hasModule(roleOf(u.role, u.hr?.role), perms, m)).map((u) => u.id);
+  const grants = await grantsFor(staff.map((u) => u.id));
+  return staff.filter((u) => { const r = roleOf(u.role, u.hr?.role); return hasModule(r, effectivePerms(r, perms, grants.get(u.id)), m); }).map((u) => u.id);
 }
 
 /**
@@ -135,7 +145,9 @@ export async function hrRun<T>(fn: (me: Me) => Promise<T>, message?: string, opt
   if (!me) return { ok: false, error: "Your session has ended. Sign in again." };
   const g = gateOf(me);
   if (g && !opts.during?.includes(g)) return { ok: false, error: GATE_MESSAGE };
-  me.perms = await loadPerms(true); // an action never trusts a cached permission
+  // An action never trusts a cached permission: the role matrix and the person's own grants are read again.
+  me.grants = (await grantsFor([me.id])).get(me.id) ?? NO_GRANTS;
+  me.perms = effectivePerms(me.role, await loadPerms(true), me.grants);
   try {
     return { ok: true, data: await fn(me), message };
   } catch (e) {
@@ -245,4 +257,31 @@ export async function changePassword(me: Me, next: string, current = "") {
     db.staffSession.updateMany({ where: { staffId: me.id, id: { not: me.sessionId }, revokedAt: null }, data: { revokedAt: new Date() } }),
   ]);
   await audit(me, "Password changed");
+}
+
+// ── Two-step sign-in set-up inside the HRMS (required for HR, Finance and the super admin when Settings say so; anyone
+// may set it up from My profile). The secret waits sealed on the profile until a correct code proves the app has it.
+export async function mfaStart(me: Me) {
+  const u = await db.staffUser.findUniqueOrThrow({ where: { id: me.id }, select: { totpEnabled: true, email: true } });
+  if (u.totpEnabled) throw new UserError("Two-step sign-in is already on for your account.");
+  const { b32, sealed } = newTotpSecret();
+  await db.hrProfile.update({ where: { staffId: me.id }, data: { totpPending: sealed } });
+  return { qr: await totpQr(b32, u.email), secret: b32 };
+}
+export async function mfaConfirm(me: Me, rawCode: string) {
+  const code = String(rawCode ?? "").replace(/\D/g, "");
+  if (code.length !== 6) throw new UserError("Enter the 6-digit code from your authenticator app.");
+  const { ip } = await clientInfo();
+  const wait = await rateLimit([{ key: `hrmsmfa:${me.id}`, max: 10 }, { key: `hrmsmfa:ip:${ip ?? "?"}`, max: 50 }]);
+  if (wait) throw new UserError(`Too many tries. Try again in ${wait} minute${wait > 1 ? "s" : ""}.`);
+  const p = await db.hrProfile.findUniqueOrThrow({ where: { staffId: me.id }, select: { totpPending: true } });
+  if (!p.totpPending) throw new UserError("Start the set-up again: scan a new QR code.");
+  if (!checkTotp(openSecret(p.totpPending), code)) throw new UserError("That code doesn’t match. Check the time on your phone and try the newest code.");
+  await db.$transaction([
+    db.staffUser.update({ where: { id: me.id }, data: { totpSecret: p.totpPending, totpEnabled: true } }),
+    db.hrProfile.update({ where: { staffId: me.id }, data: { totpPending: null } }),
+    // Every other device signs in again, now with the code.
+    db.staffSession.updateMany({ where: { staffId: me.id, id: { not: me.sessionId }, revokedAt: null }, data: { revokedAt: new Date() } }),
+  ]);
+  await audit(me, "Two-step sign-in turned on");
 }

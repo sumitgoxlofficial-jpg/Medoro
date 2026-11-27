@@ -35,6 +35,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "training", label: "My Sales Training", icon: "cap", title: "My Sales Training", sub: "Medoro Sales Training Academy · one-day programme", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "trdesk", label: "Trainer Desk", icon: "cap", title: "Trainer Desk", sub: "Attendance, practical scoring and recommendations for your batches", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Everyone
+  { id: "approvals", label: "Approvals", icon: "shield", title: "Approvals", sub: "Requests waiting for you, what you asked for, delegation and individual access", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "myprojects", label: "My Projects", icon: "box", title: "My Projects", sub: "Projects you are part of", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "mytasks", label: "My Tasks", icon: "target", title: "My Tasks", sub: "Tasks assigned to you by your lead", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "calendar", label: "Calendar", icon: "cal", title: "Calendar", sub: "Holidays, meetings and who is out", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
@@ -173,10 +174,12 @@ export type Settings = {
   carryForward: number; // most unused privilege-leave days carried into the next year (0 = none)
   ptax: number; // professional tax a month, rupees
   payDay: number;
+  mfaPrivileged: boolean; // HR, Finance and the super admin must use an authenticator app to sign in to the HRMS
+  ctcNeedsApproval: boolean; // a CTC change outside the super admin goes through Approvals (manager, then super admin)
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1, mfaPrivileged: false, ctcNeedsApproval: false,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.
