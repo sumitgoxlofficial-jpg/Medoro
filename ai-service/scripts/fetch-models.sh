@@ -6,4 +6,6 @@ base=https://huggingface.co/rhasspy/piper-voices/resolve/main/hi/hi_IN/priyamvad
 for f in hi_IN-priyamvada-medium.onnx hi_IN-priyamvada-medium.onnx.json MODEL_CARD; do
   [ -s "/models/voices/$f" ] || curl -fsSL -o "/models/voices/$f" "$base/$f" || echo "Could not download $f (voice replies stay off until it is there)."
 done
+# Voice-only mode (a laptop giving Naina her voice): speech is recognised in the browsers, so Whisper isn't needed.
+[ "${VOICE_ONLY:-0}" = "1" ] && exit 0
 python -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL:-small}', device='cpu', compute_type='${WHISPER_COMPUTE:-int8}')" || echo "Whisper model not downloaded yet; it will be fetched on the first request."

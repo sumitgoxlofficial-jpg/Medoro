@@ -180,6 +180,26 @@ If Medoro itself still runs on Vercel, the office computer can provide the voice
 
 While the office computer is off, phones use their own voice automatically.
 
+## 10c. Naina's voice from a laptop that's already on (Medoro stays on Vercel)
+
+For the laptop or PC that already runs the WhatsApp connector with Docker and Tailscale Funnel. Only Naina's voice runs
+there (about 1 GB RAM, 70 MB download); Medoro stays on Vercel.
+
+1. Get the code on that laptop (once): `git clone https://github.com/sumitgoxlofficial-jpg/Medoro.git`, then `cd Medoro`.
+2. Run the setup:
+   - Windows (PowerShell): `powershell -ExecutionPolicy Bypass -File scripts\voice\setup.ps1`
+   - Mac/Linux: `bash scripts/voice/setup.sh`
+
+   It makes a private key (`.env.voice`), builds and starts the voice server, waits for the voice to download, saves a
+   test sentence to `naina-test.wav` (play it to hear Naina), opens HTTPS port 8443 with Tailscale Funnel (WhatsApp's
+   address is not touched; 10000 if 8443 is taken) and prints `AI_HR_SERVICE_URL` and `AI_HR_SERVICE_TOKEN`.
+3. Vercel → medoro → Settings → Environment Variables → Production: add the two values (the token as Sensitive), then
+   Deployments → ⋯ → Redeploy.
+4. HRMS → AI HR Assistant → Settings → **Naina's voice: Medoro's built-in voice** → Save. Model status shows the voice.
+
+The voice server restarts by itself with Docker. While the laptop is off or asleep, phones use their own voice and
+calls carry on. To update later: `git pull`, then run the setup again (same key and port are kept).
+
 ## 11. Everyday commands
 
 Compose commands (add `-f deploy/office/compose.localdb.yml` after the first `-f` if you use the local database):

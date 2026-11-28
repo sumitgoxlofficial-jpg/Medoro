@@ -21,3 +21,6 @@ public/drivedb/sqlite/
 backups/
 speech-models/
 logs/
+
+# Naina voice test file (scripts/voice/setup)
+naina-test.wav
