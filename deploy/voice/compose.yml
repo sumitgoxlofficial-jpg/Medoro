@@ -14,6 +14,8 @@ services:
     environment:
       MEDORO_AI_TOKEN: ${AI_HR_SERVICE_TOKEN:?run scripts/voice/setup first}
       VOICE_ONLY: "1"
+      # Load the model at start, but don't queue five warm-up sentences ahead of the first real request (slow PCs).
+      TTS_WARM: "0"
       OLLAMA_URL: http://127.0.0.1:9 # no local language model on this machine
     # Only this machine can reach it; Tailscale Funnel publishes it over HTTPS.
     ports:
