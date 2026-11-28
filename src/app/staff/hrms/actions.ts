@@ -358,7 +358,7 @@ export const aiHrPlayground = async (input: Parameters<typeof aiHr.playground>[1
 export const aiCallBegin = async (id: string, speak = false) => hrRun((me) => aiHr.beginCall(me, id, { speak }));
 export const aiCallTurn = async (fd: FormData) => hrRun((me) => {
   const audio = fd.get("audio");
-  return aiHr.sendTurn(me, String(fd.get("id") ?? ""), { text: String(fd.get("text") ?? ""), audio: audio instanceof Blob ? audio : null, speak: fd.get("speak") === "1", sttMs: Number(fd.get("sttMs") ?? 0) });
+  return aiHr.sendTurn(me, String(fd.get("id") ?? ""), { text: String(fd.get("text") ?? ""), audio: audio instanceof Blob ? audio : null, speak: fd.get("speak") === "1", sttMs: Number(fd.get("sttMs") ?? 0), diag: String(fd.get("diag") ?? "") });
 });
 // Naina in Chats
 export const aiNainaThread = async () => hrRun(async (me) => ({ thread: await aiHr.nainaThread(me), info: await aiHr.nainaInfo(me) }));

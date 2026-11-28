@@ -26,7 +26,8 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
   const [lines, setLines] = useState<Line[]>([]);
   const [live, setLive] = useState(""), [err, setErr] = useState(""), [typed, setTyped] = useState(""), [pct, setPct] = useState(0);
   const [muted, setMuted] = useState(false), [speaker, setSpeaker] = useState(cfg.tts);
-  const [secs, setSecs] = useState(0), [voiceNote, setVoiceNote] = useState("");
+  const [secs, setSecs] = useState(0), [voiceNote, setVoiceNote] = useState(""), [hint, setHint] = useState(""), [level, setLevel] = useState(-1);
+  const diag = useRef<string[]>([]); // why nothing was heard, sent with a silent turn (server log only)
   const phaseRef = useRef<Phase>("connecting"), lang = useRef<"hi" | "en" | "hinglish">("hinglish"), done = useRef(false), closed = useRef(false);
   const mutedRef = useRef(false), speakerRef = useRef(cfg.tts), nativeOk = useRef(cfg.recognizer === "device"), prepared = useRef(false);
   const stopListen = useRef<() => void>(() => {}), audioEl = useRef<HTMLAudioElement | null>(null), media = useRef<{ rec: MediaRecorder; stream: MediaStream; ctx: AudioContext; raf: number } | null>(null);
@@ -65,25 +66,38 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
   };
   const afterSpeaking = () => { if (done.current) setPhase("ended"); else void listen(); };
 
-  const listen = async () => {
+  /**
+   * Listens for one answer. The browser's recognition gives up after ~5 s of quiet, so Naina keeps listening for up to
+   * three rounds before taking it as silence. Phones (iPhone above all) may only let it start from a tap: `byTap` is a
+   * press of "Tap to talk", and a refusal without a tap asks for one instead of saying the microphone is blocked.
+   */
+  const listen = async (byTap = false) => {
     if (closed.current || done.current) return;
     if (mutedRef.current) { setPhase("muted"); return; }
     setErr(""); setLive("");
     if (cfg.voice && browser && nativeOk.current && nativeRecognitionSupported()) {
-      setPhase("listening");
-      const h = listenOnce(lang.current, (t) => { setLive(t); if (t && phaseRef.current === "listening") setPhase("hearing"); });
-      stopListen.current = h.abort;
-      const r = await h.result;
-      if (closed.current) return;
-      if ("text" in r) { void send({ text: r.text, sttMs: r.ms }); return; }
-      if (r.error === "aborted") return; // interrupted, muted, typing or hung up
-      if (r.error === "no-speech") { void send({ text: "" }); return; } // silence: Naina asks again, never takes it as yes
-      if (r.error === "denied") { setErr("The microphone is blocked for this site. Allow it (the icon left of the address), or type below."); setPhase("typing"); return; }
-      nativeOk.current = false; // the browser's recognition isn't reachable here: use the model on the device
+      for (let round = 0; round < 3; round++) {
+        setPhase("listening");
+        const h = listenOnce(lang.current, (t) => { setLive(t); if (t && phaseRef.current === "listening") setPhase("hearing"); });
+        stopListen.current = h.abort;
+        const r = await h.result;
+        if (closed.current) return;
+        if ("text" in r) { setHint(""); diag.current = []; void send({ text: r.text, sttMs: r.ms }); return; }
+        if (r.error === "aborted") return; // interrupted, muted, typing, a new tap or hung up
+        diag.current.push(`${round}:${r.raw ?? r.error}`);
+        if (r.error === "denied") {
+          if (!byTap) { setHint("Tap 🎤 Tap to talk, then speak."); setPhase("typing"); return; }
+          setErr("The microphone is blocked for this site. Allow it (the icon left of the address), or type below."); setPhase("typing"); return;
+        }
+        if (r.error === "unavailable") { nativeOk.current = false; break; } // the browser's service isn't reachable: on-device model
+        if (round === 0) setHint("I can’t hear you yet. Speak close to the microphone, or tap 🎤 Tap to talk.");
+      }
+      if (nativeOk.current) { void send({ text: "" }); return; } // still nothing: silence (Naina asks again, never a yes)
     }
     if (cfg.voice && ((browser && browserSpeechSupported()) || cfg.speech === "server")) { await record(); return; }
     setPhase("typing");
   };
+  const tapToTalk = () => { silence(); setHint(""); if (mutedRef.current) { mutedRef.current = false; setMuted(false); } void listen(true); };
 
   // Recording one answer for the on-device model (or the AI host): it stops after a short silence.
   const stopMedia = () => {
@@ -117,14 +131,16 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
       let sum = 0; for (const v of buf) sum += (v - 128) ** 2;
       const rms = Math.sqrt(sum / buf.length), t = clockMs();
       if (rms > 9) { if (!spoke) setPhase("hearing"); spoke = true; quietSince = 0; } else if (spoke && !quietSince) quietSince = t;
+      setLevel(Math.min(1, rms / 40));
       if ((spoke && quietSince && t - quietSince > 1100) || t - started > 15000 || (!spoke && t - started > 8000)) { if (rec.state === "recording") rec.stop(); return; }
       if (media.current) media.current.raf = requestAnimationFrame(tick);
     };
-    stopListen.current = () => { cancelled = true; stopMedia(); };
+    stopListen.current = () => { cancelled = true; stopMedia(); setLevel(-1); };
     rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     rec.onstop = () => {
       const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" }), heard = spoke;
-      stopMedia();
+      stopMedia(); setLevel(-1);
+      if (!heard) diag.current.push("rec:quiet");
       if (cancelled || closed.current) return;
       if (!heard || blob.size < 1200) { void send({ text: "" }); return; }
       setPhase("thinking");
@@ -144,6 +160,8 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
     fd.set("id", id); fd.set("speak", speakerRef.current && fromServer ? "1" : "0");
     if (input.sttMs) fd.set("sttMs", String(input.sttMs));
     if (input.text !== undefined) fd.set("text", input.text);
+    if (!input.text && !input.audio && diag.current.length) fd.set("diag", diag.current.join(",").slice(0, 200));
+    diag.current = [];
     if (input.audio) fd.set("audio", input.audio, `turn.${recordingFormat().ext}`);
     const r = await aiCallTurn(fd).catch(() => null);
     if (closed.current) return;
@@ -170,7 +188,7 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
 
   // ── Controls
   const silence = () => { stopListen.current(); stopListen.current = () => {}; stopMedia(); audioEl.current?.pause(); stopSpeaking(); };
-  const interrupt = () => { silence(); void listen(); };
+  const interrupt = () => { silence(); void listen(true); };
   const toggleMute = () => {
     const m = !mutedRef.current; mutedRef.current = m; setMuted(m);
     if (m && (phaseRef.current === "listening" || phaseRef.current === "hearing")) { silence(); setPhase("muted"); }
@@ -199,6 +217,8 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
         {live ? <div className="self-end max-w-[88%] rounded-xl px-3 py-1.5 bg-[#D9FDD3]/70 text-[#111B21] italic">{live}</div> : null}
       </div>
 
+      {level >= 0 ? <div className="mx-4 mb-2 flex items-center gap-2 text-[11.5px] text-white/80" aria-label="Microphone level"><span>🎤</span><span className="flex-1 h-2 rounded-full bg-white/15 overflow-hidden"><span className="block h-full bg-[#5EEAD4] transition-[width] duration-75" style={{ width: `${Math.round(level * 100)}%` }} /></span></div> : null}
+      {hint && !err ? <div role="status" className="mx-4 mb-2 text-[12.5px] bg-[#FEF3C7] text-[#78350F] rounded-lg px-3 py-2">{hint}</div> : null}
       {err ? <div role="alert" className="mx-4 mb-2 text-[12.5px] bg-[#7F1D1D]/60 rounded-lg px-3 py-2">{err}</div> : null}
       {voiceNote && speaker ? <div className="mx-4 mb-2 text-[11.5px] text-white/80 bg-black/15 rounded-lg px-3 py-1.5">{voiceNote}</div> : null}
 
@@ -211,7 +231,7 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
         {phase === "ended" ? <button onClick={onClose} className="rounded-full bg-white text-[#0B5E5B] font-bold px-8 py-3 text-[15px]">Close</button> : <>
           <CallBtn label={muted ? "Unmute" : "Mute"} on={muted} onClick={toggleMute}>{muted ? "🔇" : "🎙️"}</CallBtn>
           <CallBtn label={speaker ? "Speaker on" : "Speaker off"} on={!speaker} onClick={toggleSpeaker} disabled={!cfg.tts}>{speaker ? "🔊" : "🔈"}</CallBtn>
-          {talking ? <CallBtn label="Interrupt" onClick={interrupt}>✋</CallBtn> : phase === "typing" && cfg.voice ? <CallBtn label="Talk" onClick={() => void listen()}>🗣️</CallBtn> : null}
+          {talking ? <CallBtn label="Interrupt" onClick={interrupt}>✋</CallBtn> : cfg.voice && ["listening", "hearing", "typing", "muted"].includes(phase) ? <CallBtn label="Tap to talk" on={phase === "hearing"} onClick={tapToTalk}>🎤</CallBtn> : null}
           <button onClick={hangUp} aria-label="End call" className="size-16 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] flex items-center justify-center text-[26px] shadow-lg rotate-[135deg]">📞</button>
         </>}
       </div>
