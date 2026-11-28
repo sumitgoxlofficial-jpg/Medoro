@@ -4425,3 +4425,29 @@ model HrOfferSign {
   hireError     String      @default("")
   trail         Json        @default("[]")
 }
+
+/// An employee's electronic signature on a joining letter (appointment letter or NDA), made in the HRMS while signed in: what they entered,
+/// the audit trail and the signed PDF. One per employee and letter.
+model HrLetterSign {
+  id         String   @id @default(uuid())
+  staffId    String
+  /// appointment or nda
+  type       String
+  signedAt   DateTime @default(now())
+  viewedAt   DateTime
+  signerName String
+  place      String
+  lat        Float
+  lng        Float
+  accuracy   Float
+  sigType    String
+  sigPng     Bytes
+  ip         String?
+  userAgent  String   @default("")
+  docHash    String
+  signedHash String
+  signedPdf  Bytes
+  trail      Json     @default("[]")
+
+  @@unique([staffId, type])
+}

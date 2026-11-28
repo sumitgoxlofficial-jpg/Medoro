@@ -136,7 +136,7 @@ export function ProfileScreen({ d }: { d: Data<"profile"> }) {
         </div>
       </Card>
       {p.responsibilities ? <Card title="My role and responsibilities" sub={p.designation ? `As ${p.designation}${p.dept ? `, ${p.dept}` : ""}` : undefined} pad><ul className="list-disc pl-5 text-[13.5px] flex flex-col gap-1">{p.responsibilities.split("\n").filter(Boolean).map((r, i) => <li key={i}>{r}</li>)}</ul></Card> : null}
-      <Card title="My documents" sub="Your offer letter, appointment letter, non-disclosure agreement and any letter HR sends you, written from your HR record" pad><MyLetters sent={d.letters} /></Card>
+      <Card title="My documents" sub="Your offer letter, appointment letter, non-disclosure agreement and any letter HR sends you, written from your HR record" pad><MyLetters sent={d.letters} name={d.p?.name ?? ""} /></Card>
       <Card title="KYC & certificates" sub="Upload your identity and address proof and certificates for HR. Only you and HR can open them." pad><MyDocs docs={d.docs} /></Card>
       <WaProfileCard d={d.wa} />
       <Card title="Personal & bank details" sub="Only you and HR can see these. Salary is paid to this account." pad><ProfileForm key={JSON.stringify(p)} initial={p} busy={busy} onSave={(v) => run(() => saveProfile(v))} /></Card>

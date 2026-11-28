@@ -4,7 +4,8 @@ import type { Letter } from "@/staff/hrms/letters";
 import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, PROMOTION_LETTER, letterLabel, type LetterType } from "@/staff/hrms/letters";
 import { LetterSheet } from "./letter-sheet";
 export { LetterSheet };
-import { emailOffer, getLetter, getOfferLetter, getOfferSigning, retryOfferHire, sendLetters, sendOfferForSignature } from "../actions";
+import { emailOffer, getLetter, getOfferLetter, getOfferSigning, myLetterSignatures, retryOfferHire, sendLetters, sendOfferForSignature } from "../actions";
+import { SignLetterModal } from "./sign-letter";
 import { Empty, Field, Modal, Pill, Tabs, btnCls, cx, inputCls, primaryCls, useRun } from "./kit";
 import { useOnChange } from "@/lib/react-state";
 
@@ -45,17 +46,22 @@ export function useLetterView() {
 
 type Sent = { id: string; type: string; label: string; lastDay: string; sentAt: string; unread: boolean };
 /** An employee's own letters: the joining letters (offer, appointment, NDA) and anything else HR has sent, with a "New" tag until opened. */
-export function MyLetters({ sent = [] }: { sent?: Sent[] }) {
+export function MyLetters({ sent = [], name = "" }: { sent?: Sent[]; name?: string }) {
   const v = useLetterView();
+  const [sigs, setSigs] = useState<Partial<Record<string, { signedAt: string }>>>({}), [signing, setSigning] = useState<"appointment" | "nda" | null>(null);
+  const loadSigs = useCallback(() => { myLetterSignatures().then((r) => { if (r.ok) setSigs(r.data); }).catch(() => {}); }, []);
+  useEffect(() => { loadSigs(); }, [loadSigs]);
   const exit = sent.filter((x) => DATED_LETTERS.includes(x.type as LetterType)); // exit and promotion letters, once HR sends them
   const fresh = new Set(sent.filter((x) => x.unread).map((x) => x.type + x.lastDay));
   return (
     <>
       <div className="flex gap-2 flex-wrap items-center">
-        {JOINING_LETTERS.map((t) => <button key={t} className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>📄 {letterLabel(t)}{fresh.has(t) ? <Pill tone="green">New</Pill> : null}</button>)}
+        {JOINING_LETTERS.map((t) => <button key={t} className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>📄 {letterLabel(t)}{sigs[t] ? <Pill tone="green">Signed</Pill> : fresh.has(t) ? <Pill tone="green">New</Pill> : null}</button>)}
+        {(["appointment", "nda"] as const).filter((t) => !sigs[t]).map((t) => <button key={`sign-${t}`} className={primaryCls} onClick={() => setSigning(t)}>✍ Sign {letterLabel(t).toLowerCase()}</button>)}
         {exit.map((x) => <button key={x.id} className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", x.type, x.lastDay), `/staff/hrms/letter/me/${x.type}?day=${x.lastDay}`)}>📄 {x.label}{fresh.has(x.type + x.lastDay) ? <Pill tone="green">New</Pill> : null}</button>)}
       </div>
       {v.open ? <LetterModal letter={v.open.letter} pdf={v.open.pdf} onClose={v.close} /> : null}
+      {signing ? <SignLetterModal type={signing} name={name} onClose={() => setSigning(null)} onSigned={() => { setSigning(null); loadSigs(); }} /> : null}
     </>
   );
 }

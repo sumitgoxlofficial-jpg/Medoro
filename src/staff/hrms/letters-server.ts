@@ -3,11 +3,15 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFP
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
-import { lettersMail, offerMail } from "./mails";
+import { lettersMail, offerMail, signedCopyMail } from "./mails";
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import { log } from "@/server/log";
+import { DISCLOSURE_VERSION, signSchema } from "./esign";
 import { clean } from "@/domain/sales/pdf";
 import { todayISO } from "@/lib/dates";
-import { audit, loadSettings, need, notify, type Me } from "./auth";
-import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, PROMOTION_LETTER, LETTER_TYPES, buildCandidateOffer, buildLetter, clauseParas, letterLabel, listLabel, type Letter, type LetterCompany, type LetterPerson, type LetterType, type OfferTerms } from "./letters";
+import { audit, holders, loadSettings, need, notify, type Me } from "./auth";
+import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, PROMOTION_LETTER, LETTER_TYPES, buildCandidateOffer, buildLetter, clauseParas, letterLabel, listLabel, type Letter, type LetterCompany, type LetterPerson, type LetterSigned, type LetterType, type OfferTerms } from "./letters";
 import { LOGO_ASPECT, LOGO_PNG_BASE64 } from "./logo";
 import { scheduleText } from "./constants";
 import { promotionTerms } from "./promotions";
@@ -49,6 +53,8 @@ export async function letterFor(me: Me, staffId: string, type: unknown, lastDay?
   if (promotion === null) throw new UserError("No promotion is recorded with that effective date.");
   const co = await companyOf();
   if (mine) await db.hrLetter.updateMany({ where: { staffId, type, readAt: null, ...(DATED_LETTERS.includes(type) && day ? { lastDay: day } : {}) }, data: { readAt: new Date() } }); // opening a letter HR sent marks it read
+  const sig = SIGNABLE.includes(type) ? await db.hrLetterSign.findUnique({ where: { staffId_type: { staffId, type } } }) : null;
+  if (sig) return buildLetter(type, p, co, { today: sig.signedAt, signed: signedOf(sig, p) }); // the letter as signed, dated the day it was signed
   return buildLetter(type, p, co, { lastDay: sent?.lastDay || day || undefined, promotion });
 }
 /** The offer HR prepared for a candidate. */
@@ -286,7 +292,7 @@ export async function emailLetter(me: Me, staffId: string, type: unknown, lastDa
   const u = await db.staffUser.findUnique({ where: { id: staffId }, include: { hr: { select: { personalEmail: true } } } });
   const to = [...new Set([u?.hr?.personalEmail, u?.email].filter((x): x is string => !!x && sendable(x)))];
   if (!to.length) throw new UserError("This employee has no email address on record.");
-  const pdf = Buffer.from(await letterPdf(letter));
+  const pdf = Buffer.from(await pdfOf(staffId, letter));
   for (const addr of to) await sendMail({ to: addr, ...lettersMail({ name: letter.to, labels: [letterLabel(letter.type).toLowerCase()], org: letter.company }), attachments: [{ filename: `${letter.title.replace(/\W+/g, "-")}.pdf`, content: pdf, contentType: "application/pdf" }] });
   await audit(me, "Letter emailed", `${letter.title} · ${letter.ref}`);
   return { sentTo: to };
@@ -338,11 +344,73 @@ export async function sendLetters(me: Me, staffId: string, types: unknown, lastD
   let emailed: string[] = [];
   if (email) {
     const atts = [];
-    for (const type of list) { const l = await letterFor(me, staffId, type, DATED_LETTERS.includes(type) ? lastDay : undefined); atts.push({ filename: `${l.title.replace(/\W+/g, "-")}.pdf`, content: Buffer.from(await letterPdf(l)), contentType: "application/pdf" }); }
+    for (const type of list) { const l = await letterFor(me, staffId, type, DATED_LETTERS.includes(type) ? lastDay : undefined); atts.push({ filename: `${l.title.replace(/\W+/g, "-")}.pdf`, content: Buffer.from(await pdfOf(staffId, l)), contentType: "application/pdf" }); }
     const row = await db.staffUser.findUnique({ where: { id: staffId }, include: { hr: { select: { personalEmail: true } } } });
     emailed = [...new Set([row?.hr?.personalEmail, row?.email].filter((x): x is string => !!x && sendable(x)))];
     for (const to of emailed) await sendMail({ to, ...lettersMail({ name: u.name, labels, org: (await loadSettings()).company.name || "Medoro" }), attachments: atts });
   }
   await audit(me, "Letters sent", `${u.name} · ${list.join(", ")}${emailed.length ? " · emailed" : ""}`);
   return { sent: list.length, emailed };
+}
+
+// ── E-signature of joining letters by the employee (appointment letter, NDA), while signed in to the HRMS ──────────────────────
+
+/** The joining letters an employee signs electronically. (The offer is signed by the candidate before joining; see offer-sign.ts.) */
+export const SIGNABLE: LetterType[] = ["appointment", "nda"];
+type SignRow = { signerName: string; place: string; lat: number; lng: number; accuracy: number; sigType: string; sigPng: Uint8Array; ip: string | null; userAgent: string; docHash: string; signedAt: Date; viewedAt: Date };
+const signedOf = (r: SignRow, p: LetterPerson): LetterSigned => ({
+  name: r.signerName, phone: p.phone, email: p.email, place: r.place, png: Buffer.from(r.sigPng).toString("base64"), type: r.sigType === "drawn" ? "drawn" : "typed", at: r.signedAt.toISOString(),
+  ip: r.ip ?? "", userAgent: r.userAgent, lat: r.lat, lng: r.lng, accuracy: r.accuracy, sentAt: r.viewedAt.toISOString(), viewedAt: r.viewedAt.toISOString(), otpAt: r.signedAt.toISOString(),
+  docHash: r.docHash, sentBy: "", employee: { empNo: p.empNo, account: p.email },
+});
+/** The PDF of a letter: for a signed joining letter, exactly the copy that was signed. */
+export async function pdfOf(staffId: string, l: Letter): Promise<Uint8Array> {
+  if (SIGNABLE.includes(l.type as LetterType)) {
+    const r = await db.hrLetterSign.findUnique({ where: { staffId_type: { staffId, type: l.type } }, select: { signedPdf: true } });
+    if (r) return new Uint8Array(r.signedPdf);
+  }
+  return letterPdf(l);
+}
+/** Which joining letters a person has signed, and when. */
+export async function letterSignatures(staffId: string) {
+  const rows = await db.hrLetterSign.findMany({ where: { staffId }, select: { type: true, signedAt: true, place: true } });
+  return Object.fromEntries(rows.map((r) => [r.type, { signedAt: r.signedAt.toISOString(), place: r.place }])) as Partial<Record<LetterType, { signedAt: string; place: string }>>;
+}
+
+const letterSignSchema = signSchema.omit({ phone: true });
+const sha256 = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
+/** The employee signs their own appointment letter or NDA. The signed PDF is kept, emailed to them, and HR is told. */
+export async function signJoiningLetter(me: Me, rawType: unknown, raw: unknown, ctx: { ip: string | null; userAgent: string }) {
+  const type = z.enum(["appointment", "nda"], { error: "Choose the letter to sign." }).parse(rawType);
+  if (await db.hrLetterSign.findUnique({ where: { staffId_type: { staffId: me.id, type } }, select: { id: true } })) throw new UserError(`You have already signed your ${letterLabel(type).toLowerCase()}.`);
+  const i = letterSignSchema.parse(raw);
+  const p = await person(me.id);
+  if (!p) throw new UserError("Employee not found.");
+  const co = await companyOf(), now = new Date();
+  const docHash = sha256(await letterPdf(buildLetter(type, p, co, { today: now })));
+  const signed: LetterSigned = {
+    name: i.name, phone: p.phone, email: p.email, place: i.place, png: i.png, type: i.type, at: now.toISOString(), ip: ctx.ip ?? "", userAgent: ctx.userAgent.slice(0, 300),
+    lat: i.lat, lng: i.lng, accuracy: i.accuracy, sentAt: now.toISOString(), viewedAt: now.toISOString(), otpAt: now.toISOString(), docHash, sentBy: "", employee: { empNo: p.empNo, account: p.email },
+  };
+  const letter = buildLetter(type, p, co, { today: now, signed }), pdf = await letterPdf(letter);
+  try {
+    await db.hrLetterSign.create({
+      data: {
+        staffId: me.id, type, signedAt: now, viewedAt: now, signerName: i.name, place: i.place, lat: i.lat, lng: i.lng, accuracy: i.accuracy, sigType: i.type, sigPng: Buffer.from(i.png, "base64"),
+        ip: ctx.ip, userAgent: signed.userAgent, docHash, signedHash: sha256(pdf), signedPdf: Buffer.from(pdf),
+        trail: [{ at: now.toISOString(), event: "Signed", ip: ctx.ip, detail: `${i.place} (${i.lat.toFixed(4)}, ${i.lng.toFixed(4)}) · consents ${DISCLOSURE_VERSION}` }],
+      },
+    });
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") throw new UserError(`You have already signed your ${letterLabel(type).toLowerCase()}.`);
+    throw e;
+  }
+  await audit(me, "Joining letter e-signed", `${letterLabel(type)} · ${i.place} · ${ctx.ip ?? "no IP"}`);
+  await notify((await holders("employees")).filter((x) => x !== me.id), `${me.name} (${me.empNo}) signed their ${letterLabel(type).toLowerCase()}${i.place ? ` at ${i.place}` : ""}.`, "employees");
+  if (mailEnabled()) {
+    const u = await db.staffUser.findUnique({ where: { id: me.id }, include: { hr: { select: { personalEmail: true } } } });
+    const to = [...new Set([u?.hr?.personalEmail, u?.email].filter((x): x is string => !!x && sendable(x)))];
+    for (const addr of to) await sendMail({ to: addr, ...signedCopyMail({ name: me.name, title: letter.title, org: letter.company }), attachments: [{ filename: `${letter.title.replace(/\W+/g, "-")}-signed.pdf`, content: Buffer.from(pdf), contentType: "application/pdf" }] }).catch((e) => log.error("signed letter mail failed", { err: e }));
+  }
+  return { signedAt: now.toISOString() };
 }

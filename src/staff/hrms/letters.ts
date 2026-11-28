@@ -279,7 +279,11 @@ const documentsTable = (letter: string): Block[] => [
 export type OfferSigned = {
   name: string; phone: string; email: string; place: string; png: string; type: "typed" | "drawn"; at: string; ip: string; userAgent: string;
   lat: number; lng: number; accuracy: number; sentAt: string; viewedAt: string; otpAt: string; docHash: string; sentBy: string;
+  /** An employee signing in the HRMS: how they were identified (their account), in place of the emailed code. */
+  employee?: { empNo: string; account: string };
 };
+/** What an employee entered when e-signing a joining letter (appointment letter, NDA) in the HRMS. */
+export type LetterSigned = OfferSigned;
 /** "28 November 2026, 3:42 pm IST" */
 export const istTime = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) + " IST";
 const initialsOf = (name: string) => name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 4);
@@ -292,14 +296,14 @@ const certificate = (title: string, ref: string, s: OfferSigned): Block[] => [
   { k: "break" },
   { k: "h", t: "Certificate", sub: "Certificate of electronic signature" },
   { k: "p", t: `This certificate records how the ${title} (Ref: ${ref}) was signed electronically. It forms part of the signed document.` },
-  { k: "facts", title: "Signer", rows: [["Name", s.name], ["Email (verified by one-time code)", s.email], ["Mobile", s.phone], ["Place of signing (as stated)", s.place], ["Location at signing", `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)} (accuracy about ${Math.round(s.accuracy)} m)`], ["Signature", s.type === "drawn" ? "Drawn by hand on screen" : "Typed name in a signature style"]] },
-  { k: "facts", title: "Audit trail", rows: [["Sent for signature", `${istTime(s.sentAt)}${s.sentBy ? ` by ${s.sentBy}` : ""}`], ["Opened", istTime(s.viewedAt)], ["Email verified", istTime(s.otpAt)], ["Signed", istTime(s.at)], ["IP address", s.ip || "Not available"], ["Device", s.userAgent.slice(0, 140) || "Not available"]] },
+  { k: "facts", title: "Signer", rows: [["Name", s.name], ...(s.employee ? [["Employee ID", s.employee.empNo], ["Identified by", `Signed in to the HRMS with their own account (${s.employee.account})`]] as [string, string][] : [["Email (verified by one-time code)", s.email], ["Mobile", s.phone]] as [string, string][]), ["Place of signing (as stated)", s.place], ["Location at signing", `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)} (accuracy about ${Math.round(s.accuracy)} m)`], ["Signature", s.type === "drawn" ? "Drawn by hand on screen" : "Typed name in a signature style"]] },
+  { k: "facts", title: "Audit trail", rows: [...(s.employee ? [] : [["Sent for signature", `${istTime(s.sentAt)}${s.sentBy ? ` by ${s.sentBy}` : ""}`], ["Opened", istTime(s.viewedAt)], ["Email verified", istTime(s.otpAt)]] as [string, string][]), ["Signed", istTime(s.at)], ["IP address", s.ip || "Not available"], ["Device", s.userAgent.slice(0, 140) || "Not available"]] },
   { k: "facts", title: "Document integrity", rows: [["SHA-256 of the document sent", s.docHash.match(/.{1,16}/g)?.join(" ") ?? s.docHash]] },
   { k: "p", t: "Legal basis", bold: true },
   { k: "list", style: "num", items: [
-    "Before signing, the signer read and accepted the Electronic Records and Signature Disclosure, agreed to use electronic records and an electronic signature, confirmed that they had read the document, and intended the electronic signature to have the same effect as a handwritten signature.",
-    "Under section 10A of the Information Technology Act, 2000, a contract is not unenforceable merely because electronic means were used to communicate the proposal and its acceptance. An offer of employment is not among the documents excluded by the First Schedule to that Act. The acceptance was communicated in accordance with sections 3 to 7 of the Indian Contract Act, 1872.",
-    "The signature is a simple electronic signature (a typed or drawn mark, with the signer identified by a one-time code sent to their email). It is not an electronic signature under section 3A of the Information Technology Act, 2000 such as Aadhaar eSign or a Digital Signature Certificate.",
+    `Before signing, the signer read and accepted the Electronic Records and Signature Disclosure, agreed to use electronic records and an electronic signature, confirmed that they had read the document, and intended the electronic signature to have the same effect as a handwritten signature.`,
+    `Under section 10A of the Information Technology Act, 2000, a contract is not unenforceable merely because electronic means were used to communicate the proposal and its acceptance. ${/^[aeiou]/i.test(title) ? "An" : "A"} ${title} is not among the documents excluded by the First Schedule to that Act. The acceptance was communicated in accordance with sections 3 to 7 of the Indian Contract Act, 1872.`,
+    `The signature is a simple electronic signature (a typed or drawn mark, with the signer identified ${s.employee ? "by signing in to their own HRMS account" : "by a one-time code sent to their email"}). It is not an electronic signature under section 3A of the Information Technology Act, 2000 such as Aadhaar eSign or a Digital Signature Certificate.`,
     "This document and its audit trail are electronic records that may be produced as evidence under the Bharatiya Sakshya Adhiniyam, 2023. The location, IP address and device details were recorded with the signer’s consent under the Digital Personal Data Protection Act, 2023, for the purpose of evidencing the signature.",
   ] },
   { k: "p", t: "The SHA-256 value above identifies the exact document that was sent for signature. Any change to that document would produce a different value." },
@@ -386,7 +390,8 @@ function promotionLetter(p: LetterPerson, co: LetterCompany, pr: PromotionTerms,
   };
 }
 
-export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany, opts: { lastDay?: string; today?: Date; promotion?: PromotionTerms } = {}): Letter {
+export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany, opts: { lastDay?: string; today?: Date; promotion?: PromotionTerms; signed?: LetterSigned } = {}): Letter {
+  const signed = type === "appointment" || type === "nda" ? opts.signed : undefined;
   const now = opts.today ?? new Date(), c = ctxOf(p, co), today = longDate(now), base = { ...head(co), ...addressee(p), date: today };
   if (type === "promotion") {
     if (!opts.promotion) throw new Error("A promotion letter needs the promotion.");
@@ -440,12 +445,14 @@ export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany
         { k: "h", t: `Annexure ${cc}`, sub: "Acknowledgement and acceptance" },
         { k: "p", t: `I, ${p.name}, employee ID ${p.empNo}, acknowledge that I have received, read and understood the Letter of Appointment dated ${today} (Ref: ${ref}) and its annexures. I accept the appointment on the terms and conditions set out in it, and agree to abide by the Policies of the Company as amended from time to time.` },
         { k: "p", t: "I confirm that the information and documents I have provided to the Company are true and complete, and I understand that the Company may verify them at any time during my employment." },
-        { k: "sign", boxes: [{ title: "Accepted and agreed", lines: ["", `Name: ${p.name}`, `Employee ID: ${p.empNo}`, "Date:", "Place:"] }] },
+        { k: "sign", boxes: [signBox("Accepted and agreed", p.name, [`Employee ID: ${p.empNo}`, "Date and place:"], signed)] },
+        ...(signed ? certificate("letter of appointment", ref, signed) : []),
       ],
+      initialsText: signed ? initialsOf(signed.name) : undefined,
     };
   }
   if (type === "nda") return {
-    ...base, type, title: "Non-Disclosure Agreement", subject: `Non-Disclosure Agreement with ${p.name} (${p.empNo})`, ref: refOf("NDA", p.empNo, now), confidential: true, form: "agreement", initials: true,
+    ...base, type, title: "Non-Disclosure Agreement", subject: `Non-Disclosure Agreement with ${p.name} (${p.empNo})`, ref: refOf("NDA", p.empNo, now), confidential: true, form: "agreement", initials: true, initialsText: signed ? initialsOf(signed.name) : undefined,
     blocks: [
       { k: "p", t: `This Non-Disclosure Agreement (the “Agreement”) is made at ${JURISDICTION.split(",")[0]} on ${today}.` },
       { k: "p", t: "BETWEEN", bold: true },
@@ -540,7 +547,7 @@ export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany
       { k: "p", t: "IN WITNESS WHEREOF the Parties have signed this Agreement on the date first written above." },
       { k: "sign", boxes: [
         companySign(c.company),
-        { title: "The Employee", lines: ["", `Name: ${p.name}`, `Employee ID: ${p.empNo}`, "Date:"] },
+        signBox("The Employee", p.name, [`Employee ID: ${p.empNo}`, "Date and place:"], signed),
         { title: "Witness 1", lines: ["", "Name:", "Address:"] },
         { title: "Witness 2", lines: ["", "Name:", "Address:"] },
       ] },
@@ -559,6 +566,7 @@ export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany
         ],
         note: "The categories above are illustrative and do not limit the definition of Confidential Information in clause 1.",
       },
+      ...(signed ? certificate("non-disclosure agreement", refOf("NDA", p.empNo, now), signed) : []),
     ],
   };
   const last = opts.lastDay ? longDate(opts.lastDay) : today;

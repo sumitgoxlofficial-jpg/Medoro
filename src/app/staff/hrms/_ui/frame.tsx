@@ -7,7 +7,8 @@ import type { Shell, ScreenId } from "@/staff/hrms/screens";
 import { HR_ROLE_LABEL, NO_TITLE_SCREENS, SCREENS, ONBOARD_STEPS, BREAKS, toMin } from "@/staff/hrms/constants";
 import { JOINING_LETTERS, letterLabel, type LetterType } from "@/staff/hrms/letters";
 import { MfaSetup } from "./mfa";
-import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, openStaffConsole, readNotifications, saveProfile, startBreak } from "../actions";
+import { acceptDocuments, askAlly, endBreak, getLetter, hrChangePassword, hrSignOut, myLetterSignatures, openStaffConsole, readNotifications, saveProfile, startBreak } from "../actions";
+import { SignLetterModal } from "./sign-letter";
 import { Avatar, Card, Field, Modal, ago, btnCls, cx, inputCls, presenceColor, primaryCls, useRun } from "./kit";
 import { LetterModal, useLetterView } from "./letters";
 import { ProfileForm } from "./screens-me";
@@ -218,6 +219,11 @@ function Gate({ gate, sh }: { gate: "password" | "mfa" | "profile" | "kyc" | "do
   const at = gate === "password" ? 0 : mfa ? 1 : (gate === "profile" ? 1 : gate === "kyc" ? 2 : 3) + (mfa ? 1 : 0);
   const { run, busy } = useRun();
   const [agree, setAgree] = useState([false, false, false]);
+  // The appointment letter and the NDA are e-signed here; the offer letter is acknowledged.
+  const [sigs, setSigs] = useState<Partial<Record<string, { signedAt: string; place: string }>>>({}), [signing, setSigning] = useState<"appointment" | "nda" | null>(null);
+  const loadSigs = useCallback(() => { if (gate === "docs") myLetterSignatures().then((r) => { if (r.ok) setSigs(r.data); }).catch(() => {}); }, [gate]);
+  useEffect(() => { loadSigs(); }, [loadSigs]);
+  const done = (t: LetterType, i: number) => (t === "appointment" || t === "nda" ? !!sigs[t] : agree[i]);
   const docs: [LetterType, string][] = JOINING_LETTERS.map((t) => [t, letterLabel(t)]);
   const v = useLetterView();
   const icons = mfa ? [KeyRound, ShieldCheck, UserRound, ShieldCheck, FileSignature] : [KeyRound, UserRound, ShieldCheck, FileSignature];
@@ -264,18 +270,27 @@ function Gate({ gate, sh }: { gate: "password" | "mfa" | "profile" | "kyc" | "do
       {gate === "profile" ? <Card title="Your details" sub="Needed for HR records and to pay your salary. Bank account and PAN are stored encrypted." pad><ProfileForm initial={{ phone: sh.me.phone, personalEmail: sh.me.personalEmail }} complete onSave={(v) => run(() => saveProfile(v, true))} busy={busy} /></Card> : null}
       {gate === "kyc" ? <KycStep /> : null}
       {gate === "docs" ? (
-        <Card title="Joining documents" sub="Read each one, then accept." pad>
+        <Card title="Joining documents" sub="Read each one, sign your appointment letter and NDA, then accept." pad>
           <div className="flex flex-col gap-3">
-            {docs.map(([t, d], i) => (
-              <div key={t} className={cx("flex items-start gap-3 border rounded-xl p-3.5 transition-[background-color,border-color,transform] duration-300 hover:-translate-y-0.5", agree[i] ? "bg-[#F0FBF6] border-[#9FDBBE]" : "border-[#E2E8F0]")}>
-                <input type="checkbox" className="mt-1" aria-label={`I have read and accept the ${d.toLowerCase()}`} checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />
-                <span><strong className="text-[13.5px]">{d}</strong><span className="block text-[12.5px] text-[#64748B]">{i === 0 ? "Your role, pay and joining date as agreed." : i === 1 ? "Terms of your employment at Medoro, including notice period and leave policy." : "You agree to keep Medoro and pharmacy customer data confidential."} HR can share the signed copies on request.</span></span>
-                <button type="button" className={cx(btnCls, "ml-auto")} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>Read</button>
-              </div>
-            ))}
-            <p className="text-[12px] text-[#64748B]">Accepting is recorded with today’s date. Steps: {ONBOARD_STEPS.length} onboarding tasks follow with HR.</p>
-            <button className={primaryCls} disabled={busy || !agree.every(Boolean)} onClick={() => run(() => acceptDocuments())}>Accept and enter the HRMS</button>
+            {docs.map(([t, d], i) => {
+              const esign = t === "appointment" || t === "nda", sig = esign ? sigs[t] : undefined;
+              return (
+                <div key={t} className={cx("flex items-start gap-3 border rounded-xl p-3.5 transition-[background-color,border-color,transform] duration-300 hover:-translate-y-0.5", done(t, i) ? "bg-[#F0FBF6] border-[#9FDBBE]" : "border-[#E2E8F0]")}>
+                  {esign ? <span aria-hidden className={cx("mt-0.5 size-5 rounded-full grid place-items-center flex-none text-[11px]", sig ? "bg-[#0B5E5B] text-white" : "border-2 border-[#CBD5E1]")}>{sig ? "✓" : ""}</span>
+                    : <input type="checkbox" className="mt-1" aria-label={`I have read and accept the ${d.toLowerCase()}`} checked={agree[i]} onChange={(e) => setAgree(agree.map((x, j) => (j === i ? e.target.checked : x)))} />}
+                  <span><strong className="text-[13.5px]">{d}</strong>{esign ? <span className={cx("ml-2 text-[11px] font-bold rounded-full px-2 py-0.5", sig ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEF3C7] text-[#92400E]")}>{sig ? "Signed" : "E-signature needed"}</span> : null}
+                    <span className="block text-[12.5px] text-[#64748B]">{i === 0 ? "Your role, pay and joining date as agreed. Tick to confirm you have read it." : i === 1 ? "Terms of your employment at Medoro, including notice period and leave policy." : "You agree to keep Medoro and pharmacy customer data confidential."}{sig ? ` Signed electronically on ${new Date(sig.signedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })} at ${sig.place}. A copy has been emailed to you.` : ""}</span></span>
+                  <div className="ml-auto flex gap-2 flex-none">
+                    <button type="button" className={btnCls} disabled={v.busy} onClick={() => void v.show(() => getLetter("me", t), `/staff/hrms/letter/me/${t}`)}>{sig ? "View signed" : "Read"}</button>
+                    {esign && !sig ? <button type="button" className={primaryCls} onClick={() => setSigning(t)}>Sign</button> : null}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-[12px] text-[#64748B]">Your appointment letter and non-disclosure agreement are signed electronically, with your place and location recorded, under the Information Technology Act, 2000. Then {ONBOARD_STEPS.length} onboarding tasks follow with HR.</p>
+            <button className={primaryCls} disabled={busy || !docs.every(([t], i) => done(t, i))} onClick={() => run(() => acceptDocuments())}>Accept and enter the HRMS</button>
             {v.open ? <LetterModal letter={v.open.letter} pdf={v.open.pdf} onClose={v.close} /> : null}
+            {signing ? <SignLetterModal type={signing} name={sh.me.name} onClose={() => setSigning(null)} onSigned={() => { setSigning(null); loadSigs(); }} /> : null}
           </div>
         </Card>
       ) : null}
