@@ -1,5 +1,6 @@
 # Naina's voice on a laptop or PC that is already on (for example the one running the WhatsApp connector).
-# Only the voice: Medoro itself stays on Vercel. About 1 GB of RAM and 70 MB of download.
+# Only the voice (Kokoro-82M): Medoro itself stays on Vercel. Needs ~1-3 GB of RAM (measured peak ~2.7 GB) and about
+# 1.5 GB of downloads once (CPU-only PyTorch and the 330 MB voice model).
 #   Windows:  powershell -ExecutionPolicy Bypass -File scripts\voice\setup.ps1
 #   Mac/Linux: bash scripts/voice/setup.sh
 # Guide: docs/OFFICE_SERVER.md §10c
@@ -19,7 +20,8 @@ services:
       - "127.0.0.1:${MEDORO_VOICE_PORT:-8090}:8090"
     volumes:
       - voicemodels:/models
-    deploy: { resources: { limits: { memory: 1g } } }
+    # Kokoro measured ~1.1 GB after load and transient peaks up to ~2.7 GB (docs/ai-hr-assistant/TEST-REPORT.md).
+    deploy: { resources: { limits: { memory: 3g } } }
     logging: { driver: local, options: { max-size: "10m", max-file: "3" } }
 
 volumes:
