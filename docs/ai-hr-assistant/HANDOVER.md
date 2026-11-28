@@ -1,5 +1,20 @@
 # AI HR Assistant — technical handover
 
+## Update 4 (2026-11-28): review of unclear answers, weekly summary, e2e fix
+* **Answers not understood** (AI HR Assistant → Escalations & review): employee answers the assistant couldn't place
+  (intent `unknown`, kept only for the transcript retention period). HR can **Teach** a phrase from one (adds a custom
+  word, then takes the answer off the list), open the transcript, or **Dismiss** it. A "Now" column shows whether words
+  taught since would understand it. Opening the list is audited; Attendance module only. Dismissed answers are kept in
+  `HrSetting` key `aiHrUnclearDismissed` (no schema change). Tested (integration + e2e).
+* **Weekly summary email** to everyone with Attendance & leave: sent on the first scheduler run from Monday 00:00 India
+  time, covering the previous Monday to Sunday; counts only (conversations, reasons, coming/absent, overtime answers,
+  escalations, stop requests, follow-ups, open and urgent items, unclear answers), no names or conversation text. Once
+  per week across all servers (atomic claim on `HrSetting` key `aiHrDigest`). Needs the assistant switched on and email
+  set up; switch in Settings ("Weekly summary email", on by default). Tested with email captured (integration); a real
+  delivery depends on your mail settings.
+* **Fixed the e2e `30-hrms` spec**: the joining documents are now e-signed (appointment letter and NDA, with place and
+  location) after the change in main; the spec signs both and passes on the production build.
+
 ## Update 3 (2026-11-28): office hosting extras
 * **Words HR teaches** (AI HR Assistant → Scenarios): local phrases mapped to a meaning (e.g. "line me lagi hai" →
   coming, traffic). Used at once in live conversations, the playground and evaluation; audited; Attendance module only.

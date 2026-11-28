@@ -92,6 +92,15 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   expect(await p.staffAudit.count({ where: { action: "HRMS · AI conversation transcript opened" } })).toBeGreaterThan(0);
   await page.keyboard.press("Escape");
 
+  // Escalations & review lists answers the assistant didn't understand (none in this conversation).
+  await page.goto("/staff/hrms/aihr?tab=escalations");
+  await expect(page.getByText("Answers not understood")).toBeVisible();
+  await expect(page.getByText("Nothing to review: the assistant understood every answer.")).toBeVisible();
+
+  // Settings has the weekly summary switch (email isn't set up in this test server).
+  await page.goto("/staff/hrms/aihr?tab=settings");
+  await expect(page.getByLabel(/Weekly summary email/)).toBeChecked();
+
   // Knowledge: retrieval test answers with its source.
   await page.goto("/staff/hrms/aihr?tab=knowledge");
   await page.getByPlaceholder("Leave cancel kaise karte hain?").fill("payslip kahan milegi");
