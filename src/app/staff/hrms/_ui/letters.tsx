@@ -65,7 +65,7 @@ export function LetterSheet({ l }: { l: Letter }) {
             if (b.k === "p") return <p key={i} className={cx("mb-3 whitespace-pre-wrap", b.bold && "font-bold", b.center && "text-center")}>{b.t}</p>;
             if (b.k === "h") return <div key={i} className="mt-6 mb-3 pb-2 border-b border-[#E2E8F0] break-after-avoid"><div className="text-[10px] font-bold tracking-[.14em] text-[#0B5E5B]">{b.t.toUpperCase()}</div>{b.sub ? <div className="text-[18px] font-bold">{b.sub}</div> : null}</div>;
             if (b.k === "list") return <ol key={i} className="mb-3">{b.items.map((t, j) => <li key={j} className="flex gap-3 mb-1.5"><span className="w-7 flex-none">{listLabel(b.style, j)}</span><span className="flex-1">{t}</span></li>)}</ol>;
-            if (b.k === "clause") return (
+            if (b.k === "clause" || b.k === "sec") return (
               <div key={i} className="mb-3">
                 <div className="flex gap-3 font-bold text-[#0B5E5B] text-[12.5px] tracking-[.03em] break-after-avoid"><span className="w-8 flex-none">{b.n}.</span><span>{b.title.toUpperCase()}</span></div>
                 {clauseParas(b).map((x, j) => x.item

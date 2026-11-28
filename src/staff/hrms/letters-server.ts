@@ -181,7 +181,7 @@ export async function letterPdf(l: Letter): Promise<Uint8Array> {
     } else if (blk.k === "list") {
       blk.items.forEach((t, i) => para(t, { x: M + NUM, width: CW - NUM, label: listLabel(blk.style, i), labelX: M + 6, gap: 4 }));
       y -= 4;
-    } else if (blk.k === "clause") {
+    } else if (blk.k === "clause" || blk.k === "sec") {
       room(52);
       page.drawText(`${blk.n}.`, { x: M, y: y - 9.2, size: 9.2, font: b, color: TEAL });
       para(blk.title.toUpperCase(), { x: M + NUM, font: b, size: 9.2, color: TEAL, gap: 3, justify: false });
