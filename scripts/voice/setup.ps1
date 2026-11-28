@@ -11,7 +11,10 @@ Set-Location (Join-Path $PSScriptRoot "..\..")
 $EnvFile = ".env.voice"; $Port = 8090
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw "Docker Desktop is not installed." }
-docker info *> $null; if ($LASTEXITCODE -ne 0) { throw "Docker Desktop is not running. Start it and try again." }
+# Windows PowerShell 5.1 turns any stderr line of a redirected native command into an error, and with
+# ErrorActionPreference=Stop that aborts the script (e.g. Docker's "Plugin ... is not valid" warning). Check exit codes only.
+$ErrorActionPreference = "Continue"; docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0); $ErrorActionPreference = "Stop"
+if (-not $dockerOk) { throw "Docker Desktop is not running. Start it and try again." }
 
 # 1. The private key shared with Medoro on Vercel (made once, then kept).
 $token = ""
@@ -56,7 +59,7 @@ if (Get-Command tailscale -ErrorAction SilentlyContinue) {
   $saved = Get-Content $EnvFile | Where-Object { $_ -match "^FUNNEL_PORT=" } | Select-Object -Last 1
   if ($saved) { $fport = ($saved -split "=", 2)[1].Trim() }
   else {
-    $status = (tailscale funnel status 2>&1 | Out-String)
+    $ErrorActionPreference = "Continue"; $status = (tailscale funnel status 2>&1 | Out-String); $ErrorActionPreference = "Stop"
     foreach ($p in @("8443", "10000")) { if ($status -notmatch ":$p\b") { $fport = $p; break } }
     if ($fport) { Add-Content -Path $EnvFile -Value "FUNNEL_PORT=$fport" -Encoding ascii }
   }
