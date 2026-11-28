@@ -6,7 +6,7 @@
  │ cron tick (every minute) ─▶ detect() ─▶ AiHrCall (unique   │        │ Nginx :443 (HTTPS, rate limit, 4 MB bodies)  │
  │   eventKey)  ─▶ dispatch() ─▶ notify() (HRMS + WhatsApp     │        │   └▶ medoro-ai (FastAPI, 127.0.0.1:8090)     │
  │   opt-in), retries, expiry, "checked in meanwhile" cancel   │ HTTPS  │       /stt  Faster-Whisper small int8 (CPU)  │
- │                                                           │ bearer │       /tts  Piper hi_IN-priyamvada-medium    │
+ │                                                           │ bearer │       /tts  Kokoro-82M hf_alpha / hf_beta    │
  │ Employee: AI conversations screen (browser mic, turn-based)│──────▶│       /llm/classify ─▶ Ollama 127.0.0.1:11434 │
  │   server action ─▶ sendTurn(): STT? ─▶ rule NLU ─▶ (LLM     │        │                        qwen2.5:1.5b (medoro-hr)│
  │   classify if unknown) ─▶ dialog engine ─▶ TTS? ─▶ reply    │        │       /health  engines, RAM, CPU             │

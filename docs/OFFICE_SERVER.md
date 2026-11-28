@@ -217,8 +217,10 @@ their own voice until the 1st of the next month, so there's no surprise bill.
    restrictions → Restrict key → Cloud Text-to-Speech API → Save**. Copy the key.
 6. Recommended: **Billing → Budgets & alerts → Create budget**, amount ₹100, email alerts at 50% and 100%.
 7. Vercel → medoro → Settings → Environment Variables → **Production**: add `GOOGLE_TTS_API_KEY` = the key, tick
-   **Sensitive** → Save → Deployments → ⋯ → **Redeploy**.
-8. HRMS → AI HR Assistant → Settings → **Naina's voice: Google natural voice** → choose the **Google voice** (Chirp 3
+   **Sensitive**, and add `AI_HR_ALLOW_EXTERNAL_TTS` = `1` (external speech is off without it, since Medoro's own
+   voice is now the self-hosted Kokoro voice: docs/ai-hr-assistant/KOKORO-TTS-SETUP.md) → Save → Deployments → ⋯ →
+   **Redeploy**.
+8. HRMS → AI HR Assistant → Settings → **Naina's voice: Google Cloud voice (external)** → choose the **Google voice** (Chirp 3
    HD · Kore is the most natural) → keep the monthly limit at 900,000 → **Save settings**. Model status shows
    "key set" and the characters used this month.
 9. Call Naina and listen. If a Chirp 3 HD voice isn't available on your account, she uses the Neural2 voice instead.

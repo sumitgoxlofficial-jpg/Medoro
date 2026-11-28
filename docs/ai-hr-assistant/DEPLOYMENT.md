@@ -26,13 +26,15 @@ No AI server, no API keys. Everything below about the AI host is optional (serve
 
 | Item | Status |
 |---|---|
-| Medoro app | Vercel project `medoro` (serverless, region `bom1`). Can't host Ollama/Whisper/Piper as persistent processes. |
-| Persistent 8 GB AI host | Not found / not provided. **Not needed in the free set-up**; only for optional server mode (Piper voice, local model assist). |
-| This build sandbox | 4 cores / 15 GB, but Hugging Face and ollama.com are blocked by its network policy, so models could not be downloaded or benchmarked here. |
+| Medoro app | Vercel project `medoro` (serverless, region `bom1`). Can't host Ollama/Whisper/Kokoro as persistent processes. |
+| Persistent 8 GB AI host | Not found / not provided. **Not needed in the free set-up**; needed for Naina's own server voice (Kokoro-82M) and local model assist. |
+| This build sandbox | 4 vCPU / 16 GB. Hugging Face and the PyTorch CPU index were opened for this work: **Kokoro-82M was downloaded, run and benchmarked here** (TEST-REPORT.md). ollama.com stays blocked, so Ollama was not run. |
 
 Requirements for the AI host: Ubuntu 22.04/24.04, 8 GB RAM, 4 cores preferred, 20 GB free disk, systemd, a public DNS
-name with HTTPS (or a private network reachable from the app), outbound access to ollama.com, registry.ollama.ai,
-huggingface.co and PyPI during installation.
+name with HTTPS (or a private network reachable from the app), outbound access during installation to ollama.com, registry.ollama.ai, PyPI,
+download.pytorch.org (+ download-r2.pytorch.org), github.com (spaCy English model) and Hugging Face (huggingface.co,
+cdn-lfs.hf.co, cdn-lfs-us-1.hf.co, cas-bridge.xethub.hf.co, us.aws.cdn.hf.co, cas-server.xethub.hf.co). After
+installation the service needs no internet (`HF_HUB_OFFLINE=1`).
 
 ## 1. App side (Vercel)
 
@@ -58,10 +60,13 @@ From a checkout of this repository on the host:
 cd ai-service
 sudo bash scripts/install.sh
 ```
-The script (read it first) installs packages, Ollama bound to 127.0.0.1 with one model / one request, pulls
-`qwen2.5:1.5b-instruct` and creates `medoro-hr` from `Modelfile`, creates the `medoro-ai` user and virtualenv, downloads
-the Piper voice and its `MODEL_CARD`, generates `/etc/medoro-ai.env` with a token, warms Faster-Whisper `small` int8,
-installs the systemd unit and enables UFW (SSH + HTTPS only). Then:
+The script (read it first; details in [KOKORO-TTS-SETUP.md](KOKORO-TTS-SETUP.md)) installs packages, Ollama bound to
+127.0.0.1 with one model / one request (skip with `SKIP_OLLAMA=1`), pulls `qwen2.5:1.5b-instruct` and creates
+`medoro-hr` from `Modelfile`, creates the `medoro-ai` user, reuses or creates the virtualenv, installs the pinned
+CPU-only dependencies (Kokoro 0.9.4, torch 2.6.0+cpu), generates `/etc/medoro-ai.env` with a token (kept on re-runs),
+downloads **Kokoro-82M and the Hindi voices hf_alpha / hf_beta once** into `/opt/medoro-ai/cache` and checks Hindi
+speech offline, warms Faster-Whisper `base` int8, installs the systemd unit, enables UFW (SSH + HTTPS only), and finally
+calls `/health` and `/tts`. It **no longer downloads the Piper hi_IN-priyamvada voice** (non-commercial licence). Then:
 ```bash
 sudo cp deploy/nginx-medoro-ai.conf /etc/nginx/sites-available/medoro-ai
 sudo ln -s ../sites-available/medoro-ai /etc/nginx/sites-enabled/medoro-ai
@@ -93,6 +98,24 @@ psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -1 -f scripts/rollback/20270105000000_hrms
 ```
 (Tested: rollback → `migrate deploy` → `migrate status` up to date.) AI host: `sudo systemctl disable --now medoro-ai`.
 
+**This change has no database migration.** New settings (`kokoroVoice`, `speakingSpeed`) live in the existing
+`HrSetting` row `aiHr` and have defaults, so older code ignores them.
+
+Voice only, quickest first:
+1. HRMS → AI HR Assistant → Settings → Naina's voice: **Each device's own voice** (no server audio at once), or Voice:
+   **Off (text only)**.
+2. AI host, keep the service but stop server speech: set `TTS_ENGINE=off` in `/etc/medoro-ai.env`, then
+   `sudo systemctl restart medoro-ai` (`/tts` answers 503, the app falls back to device voices or captions).
+3. Previous code on the AI host: the installer keeps the last copy in `/opt/medoro-ai/service.prev`:
+   ```bash
+   sudo systemctl stop medoro-ai && sudo rm -rf /opt/medoro-ai/service && sudo mv /opt/medoro-ai/service.prev /opt/medoro-ai/service && sudo systemctl start medoro-ai
+   ```
+   The previous (Piper) code needs `piper-tts` and a voice file; do **not** download `hi_IN-priyamvada-medium` for
+   commercial use (non-commercial licence). A Piper voice you are licensed to use can be set with
+   `TTS_ENGINE=piper PIPER_VOICE=/path/voice.onnx` after `pip install -r requirements-piper-rollback.txt`.
+4. App code: redeploy the previous Vercel deployment; `ai-client.ts` sends `voice`/`speed`, which older AI hosts
+   ignore, and the new AI host still accepts the old `{text}` request, so either side can be rolled back alone.
+
 ## 5. Monitoring and failure handling
 
 * **AI HR Assistant → Model status**: reachability, engines, free RAM, CPU load, latency.
@@ -110,4 +133,4 @@ psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -1 -f scripts/rollback/20270105000000_hrms
 | Same person contacted twice | impossible per event (unique `eventKey`); a callback creates its own event `callback:<id>` |
 | `/health` llm false | `ollama list` shows `medoro-hr`? `systemctl status ollama`; RAM (`free -m`) |
 | Slow STT | `WHISPER_THREADS`, CPU load; consider `base` model; keep one session at a time on 8 GB |
-| Hinglish read badly by the voice | Piper's Hindi voice reads romanised Hindi imperfectly; see HANDOVER limitations |
+| Voice problems | see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |

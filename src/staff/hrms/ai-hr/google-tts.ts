@@ -19,7 +19,9 @@ export type GoogleVoice = keyof typeof GOOGLE_VOICES;
 const FALLBACK: GoogleVoice = "hi-IN-Neural2-A";
 
 export const googleKey = (env: NodeJS.ProcessEnv = process.env) => (env.GOOGLE_TTS_API_KEY ?? "").trim();
-export const googleConfigured = () => googleKey().length >= 20;
+/** External speech is off unless the deployment opts in (AI_HR_ALLOW_EXTERNAL_TTS=1): Medoro's own voice is Kokoro, self-hosted. */
+export const externalTtsAllowed = (env: NodeJS.ProcessEnv = process.env) => env.AI_HR_ALLOW_EXTERNAL_TTS === "1";
+export const googleConfigured = () => externalTtsAllowed() && googleKey().length >= 20;
 
 const usageKey = (d = new Date()) => `aiHrTtsUsage:${d.toISOString().slice(0, 7)}`;
 export async function monthUsage(d = new Date()): Promise<number> {
@@ -46,7 +48,7 @@ const clean = (t: string) => t.replace(/\(([^)]*Source|स्रोत)[^)]*\)/g
  */
 export async function googleSpeak(text: string, chosen: GoogleVoice, monthlyLimit: number): Promise<{ audio: string; mime: string; ms: number } | null> {
   const key = googleKey(), t = clean(text);
-  if (key.length < 20 || !t) return null;
+  if (!googleConfigured() || !t) return null;
   if ((await monthUsage()) + t.length > monthlyLimit) return null;
   const t0 = Date.now();
   const ask = async (voice: { languageCode: string; name: string }) => fetch(`https://texttospeech.googleapis.com/v1/text:synthesize`, {

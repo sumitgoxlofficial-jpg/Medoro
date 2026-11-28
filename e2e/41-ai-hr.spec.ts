@@ -13,7 +13,9 @@ const tag = uid().toLowerCase();
 const ADMIN = { email: `ai-admin-${tag}@medoro.in`, otp: `One-Time-${tag}-Pass`, password: `Admin-${tag}-Password-26` };
 const EMP = { email: `neha.${tag}@medoro.in`, password: `Neha-${tag}-Password-26`, name: `Neha ${tag.replace(/\d/g, "x")}` };
 
-test.use({ storageState: { cookies: [], origins: [] } });
+// Full Chromium in headless mode: Playwright's default chrome-headless-shell reports web notifications as denied, so
+// the "Let Naina ring this device" switch can't be tested with it (this spec failed in CI for that reason).
+test.use({ storageState: { cookies: [], origins: [] }, channel: "chromium" });
 
 async function signIn(page: Page, id: string, password: string) {
   await page.goto("/staff/employee");
@@ -190,5 +192,5 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   // Scenario evaluation from the screen.
   await page.goto("/staff/hrms/aihr?tab=scenarios");
   await page.getByRole("button", { name: "Run evaluation" }).click();
-  await expect(page.getByText(/Evaluation finished: 1000\/1000 passed/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Evaluation finished: 1060\/1060 passed/)).toBeVisible({ timeout: 60_000 });
 });

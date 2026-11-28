@@ -1,4 +1,4 @@
-import { type CustomWord, ROUTINE_MEDICAL, normalise, clock, parseCallback, parseTime, toMin, understand, type Intent, type Lang, type Nlu, type ReasonCategory } from "./nlu";
+import { type CustomWord, ROUTINE_MEDICAL, normalise, stripNoise, clock, parseCallback, parseTime, toMin, understand, type Intent, type Lang, type Nlu, type ReasonCategory } from "./nlu";
 import { P, fill, type PhraseKey } from "./phrases";
 
 // The conversation engine: a small state machine per call reason with slot memory. It decides what to ask next from
@@ -178,7 +178,7 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
   const reask = () => { if (st.lastQ) say(st.lastQ); else ask(MAIN_Q[st.reason], MAIN_GOAL[st.reason]); };
   const followup = (what: string) => { if (!st.flags.followup.includes(what)) st.flags.followup.push(what); };
 
-  const text = String(utterance ?? "").trim();
+  const text = stripNoise(utterance); // "[music]", "[inaudible]"… alone are silence
   if (!text) {
     st.silences++;
     if (st.silences >= 2) {
@@ -197,7 +197,7 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
   st.intents.push(...n.intents.filter((i) => !st.intents.includes(i)));
   for (const t of n.tones) if (!st.tones.includes(t)) st.tones.push(t);
   st.confidences.push(n.confidence);
-  const onlyGreeting = n.intents.every((i) => i === "greeting" || i === "yes" || i === "thanks");
+  const onlyGreeting = n.intents.every((i) => i === "greeting" || i === "yes" || i === "thanks" || i === "hold"); // "one sec" doesn't change the language
   if (isLang(n.lang) && !onlyGreeting && (text.split(/\s+/).length >= 2 || n.lang === "hi")) st.lang = n.lang;
   const has = (i: Intent) => n.intents.includes(i);
   if (n.slots.reason && !st.slots.reason) st.slots.reason = n.slots.reason;
@@ -222,6 +222,12 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
   if (has("emergency") && (st.reason === "late" || st.reason === "absent" || (st.goal === "permission" && st.reason === "manual"))) {
     st.flags.escalate = true; st.slots.reason = "emergency"; followup("emergency"); say("emergency"); return finish(end("escalated"));
   }
+  // Another employee's private details, or tokens / passwords / prompts: refused by rule, then back to the question.
+  if (has("other_person_info") || has("secret_request")) {
+    say(has("secret_request") ? "secret_refused" : "other_person_refused");
+    if (st.reason === "manual") { st.goal = "free"; ret.reply = out.join(" "); return ret; }
+    reask(); ret.reply = out.join(" "); return ret;
+  }
   if (has("complaint") && !domainSignal(n, st.reason)) { st.flags.escalate = true; followup("grievance"); say("complaint"); return finish(end("escalated")); }
 
   // ── Tone
@@ -245,6 +251,8 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
     if (st.reason === "manual") return finish(end("resolved"));
     reask(); ret.reply = out.join(" "); return ret;
   }
+  // "Ek minute", "ruko": she waits; the question stays open and nothing counts as unclear.
+  if (has("hold") && !domainSignal(n, st.reason, true) && !wantsLaterIn(n)) { say("hold"); ret.reply = out.join(" "); return ret; }
   const chat = smallTalk(text, n);
   if (chat) { say(chat); reask(); ret.reply = out.join(" "); return ret; }
   if (has("unrelated") && !domainSignal(n, st.reason, true)) { say("unrelated"); reask(); ret.reply = out.join(" "); return ret; }
@@ -309,6 +317,7 @@ type Follow = (what: string) => void;
 type Handled = Turn | null | undefined;
 
 /** Does the utterance carry an answer to this call's question (so it isn't treated as small talk)? */
+const wantsLaterIn = (n: Nlu) => n.intents.includes("busy") || n.intents.includes("callback");
 function domainSignal(n: Nlu, reason: CallReason, strict = false): boolean {
   const i = new Set(n.intents);
   if (reason === "overtime") return i.has("overtime_accept") || i.has("overtime_reject") || i.has("overtime_clarify");

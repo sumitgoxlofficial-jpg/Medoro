@@ -1,5 +1,16 @@
 # AI HR Assistant — technical handover
 
+## Update 10 (2026-11-28): Kokoro-82M voice, Hinglish pronunciation, 1,060 scenarios
+* Naina's server voice is now **Kokoro-82M** (Apache-2.0, CPU, self-hosted): `ai-service/app/tts.py`, female Hindi
+  voices `hf_alpha` (default) / `hf_beta`, same `/tts` contract plus optional `voice`/`speed`/`lang`. Piper and the
+  non-commercial hi_IN-priyamvada voice are no longer installed (rollback path kept, see DEPLOYMENT.md §4).
+* Hinglish → speech layer `ai-service/app/speech/` (796 HR terms, 674 Hinglish words, 240 names, hot-reloaded override).
+* App: Settings → Kokoro voice, speaking speed, opening language, idle timeout; replies spoken sentence by sentence;
+  Google Cloud TTS off unless `AI_HR_ALLOW_EXTERNAL_TTS=1`; another employee's data and secrets refused by rule.
+* Scenarios 1,000 → 1,060 (interruptions, background noise, informal speech, recruitment, goals/PIP, privacy).
+* Measured Kokoro here (not the office machine): TEST-REPORT.md. Docs: MASTER-ARCHITECTURE.md and the seven others.
+* Not done: human listening test to choose the production default; numbers on the real 8 GB host.
+
 ## Update 9 (2026-11-28): Google natural voice, faster replies, small talk
 * Settings → Naina's voice: **Google natural voice** (`google-tts.ts`, Cloud Text-to-Speech REST with an API key kept on
   the server, `GOOGLE_TTS_API_KEY`). Devanagari goes to the chosen hi-IN voice (Chirp 3 HD Kore/Aoede or Neural2 A/D;

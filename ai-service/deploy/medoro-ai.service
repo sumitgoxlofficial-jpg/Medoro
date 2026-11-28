@@ -1,6 +1,6 @@
 # /etc/systemd/system/medoro-ai.service
 [Unit]
-Description=Medoro AI service (Faster-Whisper, Piper, Ollama client)
+Description=Medoro AI service (Kokoro-82M voice, Faster-Whisper, Ollama client)
 After=network-online.target ollama.service
 Wants=ollama.service
 
@@ -10,10 +10,17 @@ User=medoro-ai
 Group=medoro-ai
 WorkingDirectory=/opt/medoro-ai/service
 EnvironmentFile=/etc/medoro-ai.env
-ExecStart=/opt/medoro-ai/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8090 --workers 1 --no-access-log
+Environment=HF_HOME=/opt/medoro-ai/cache/huggingface
+ExecStart=/opt/medoro-ai/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8090 --workers 1 --no-access-log --timeout-graceful-shutdown 20
 Restart=always
 RestartSec=5
+# Graceful shutdown: uvicorn finishes in-flight requests (20 s), then the model is released.
+KillSignal=SIGTERM
+TimeoutStopSec=30
 # An 8 GB host shared with Ollama: keep this process bounded and restart it rather than let it swap the box.
+# Measured (TEST-REPORT.md): Kokoro ~1.07 GB after load, ~1.4 GB settled after replies, transient peaks ~2.0 GB on
+# normal lines and ~2.4-2.7 GB on a single 740-character request. Whisper base adds ~0.3 GB if recognition runs here.
+MemoryHigh=2800M
 MemoryMax=3G
 CPUQuota=200%
 NoNewPrivileges=true
@@ -21,7 +28,7 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/opt/medoro-ai/cache
-Environment=HF_HOME=/opt/medoro-ai/cache/huggingface
+ReadOnlyPaths=/etc/medoro-ai
 
 [Install]
 WantedBy=multi-user.target

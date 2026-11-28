@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // Enterprise HRMS Phase 4: device enrolment and revocation, the agent API (status, events, update), the rules that limit
 // recording (tracking switch, policy acceptance, check-in, breaks, strict schema), disputes, access and retention.
@@ -32,7 +32,11 @@ const span = (id: string, fromMin: number, toMin: number, extra: Record<string, 
 
 describe("HRMS workforce agent (Phase 4)", () => {
   let token = "";
+  afterAll(() => { vi.useRealTimers(); });
   beforeAll(async () => {
+    // The spans and check-in are "N minutes ago" while the HRMS day is India's date: run at midday IST so they never
+    // straddle midnight (this test failed whenever CI ran between 00:00 and ~02:00 IST).
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(`${todayISO()}T13:00:00+05:30`) });
     await resetDb();
     hr = await me(await mk("Hari HR", "hr"));
     emp = await me(await mk("Esha Employee", "employee"));

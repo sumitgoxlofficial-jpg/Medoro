@@ -8,7 +8,7 @@ export const INTENTS = [
   "harassment", "accident", "emergency", "stop_calls", "human", "ai_identity", "recording", "privacy",
   "complaint", "dont_know", "attendance_dispute", "not_scheduled", "why_call", "already_checked_in", "attendance_issue", "leave_applied", "want_leave", "half_day", "wfh", "absent", "coming",
   "still_working", "forgot_checkout", "left_early", "overtime_accept", "overtime_reject", "overtime_clarify",
-  "policy_question", "payroll_question", "busy", "callback", "confused", "repeat", "yes", "no", "greeting", "thanks", "goodbye", "unrelated", "unknown",
+  "policy_question", "payroll_question", "busy", "callback", "hold", "other_person_info", "secret_request", "confused", "repeat", "yes", "no", "greeting", "thanks", "goodbye", "unrelated", "unknown",
 ] as const;
 export type Intent = (typeof INTENTS)[number];
 export const REASONS = [
@@ -31,8 +31,23 @@ export type Nlu = { lang: Lang; intents: Intent[]; primary: Intent; slots: Slots
 
 // ── Normalisation
 const DEV_DIGITS = "०१२३४५६७८९";
+/**
+ * What speech recognisers write for sounds that aren't words: "[music]", "[noise]", "[inaudible]", "(laughs)", "<unk>".
+ * They are removed, so an answer made only of them is silence (silence is never consent).
+ */
+export function stripNoise(raw: string): string {
+  return String(raw ?? "").replace(/\[[^\]]{0,40}\]|<[^>]{0,20}>|\((?:inaudible|noise|music|laughs?|laughter|crosstalk|silence|unclear|background noise)\)/giu, " ").replace(/\s+/g, " ").trim();
+}
+/** Short forms of fast, informal typing and speech ("aa ra hu", "nai aa paunga", "baad me baat krte h") in full. */
+const INFORMAL: [RegExp, string][] = [
+  [/\b(hu|hun|hoo)\b/g, "hoon"], [/\bh\b/g, "hai"], [/\b(ni|nai|nhi|nahee)\b/g, "nahi"], [/\bkr\b/g, "kar"], [/\bkrna\b/g, "karna"],
+  [/\bkrte\b/g, "karte"], [/\bkrta\b/g, "karta"], [/\bkrti\b/g, "karti"], [/\bkrao\b/g, "karao"], [/\bkro\b/g, "karo"], [/\bgya\b/g, "gaya"],
+  [/\bgyi\b/g, "gayi"], [/\btk\b/g, "tak"], [/\baa ra\b/g, "aa raha"], [/\baa ri\b/g, "aa rahi"], [/\bomw\b/g, "on my way"],
+  [/\bthk\b/g, "theek"], [/\bbhul\b/g, "bhool"], [/\bplz\b|\bpls\b/g, "please"], [/\bmins\b/g, "minutes"],
+];
 export function normalise(raw: string): string {
-  let t = String(raw ?? "").toLowerCase();
+  let t = stripNoise(raw).toLowerCase();
+  for (const [re, to] of INFORMAL) t = t.replace(re, to);
   t = t.replace(/[०-९]/g, (d) => String(DEV_DIGITS.indexOf(d)));
   t = t.replace(/\u0901/g, "\u0902").replace(/\u093C/g, "");
   t = t.replace(/\.{2,}|…/g, " ");
@@ -64,7 +79,7 @@ const normAlt = (a: string) => a.replace(/\u0901/g, "\u0902").replace(/\u093C/g,
 const w = (...alts: string[]) => new RegExp(`${B}(?:${alts.map(normAlt).join("|")})${E}`, "u");
 const any = (t: string, ...res: RegExp[]) => res.some((r) => r.test(t));
 
-const HINDI_WORDS = w("hai", "hain", "hoon", "hun", "hu", "nahi", "nahin", "nhi", "kya", "aap", "main", "mein", "mai", "raha", "rahi", "rha", "rhi", "aaj", "kal", "baje", "bje", "ghante", "ghanta", "kar", "karo", "karna", "karunga", "karungi", "jaunga", "jaungi", "aunga", "aaunga", "aaungi", "theek", "thik", "haan", "han", "ji", "bhai", "abhi", "baad", "wala", "kuch", "kaise", "kyun", "mujhe", "mera", "meri", "gaya", "gayi", "tha", "thi", "lunga", "lungi", "chahiye", "paunga", "paungi", "sakta", "sakti", "bolo", "boliye", "chhutti", "chutti", "tabiyat", "ghar", "bahut", "thoda", "thodi", "der", "pahunch", "dunga", "dungi", "matlab", "samajh", "lekin", "par", "toh", "to", "bhi", "se", "ko", "ka", "ki", "ke", "kahan", "kahaan", "kab", "kitna", "kitni", "kitne", "kaun", "kyu", "kyon", "milegi", "milega", "milta", "milti", "aayegi", "aayega", "aaegi", "batao", "bataiye", "karte", "karein", "karen", "chalega", "hoga", "hogi");
+const HINDI_WORDS = w("ek", "ruko", "rukiye", "zara", "yaar", "achha", "accha", "hai", "hain", "hoon", "hun", "hu", "nahi", "nahin", "nhi", "kya", "aap", "main", "mein", "mai", "raha", "rahi", "rha", "rhi", "aaj", "kal", "baje", "bje", "ghante", "ghanta", "kar", "karo", "karna", "karunga", "karungi", "jaunga", "jaungi", "aunga", "aaunga", "aaungi", "theek", "thik", "haan", "han", "ji", "bhai", "abhi", "baad", "wala", "kuch", "kaise", "kyun", "mujhe", "mera", "meri", "gaya", "gayi", "tha", "thi", "lunga", "lungi", "chahiye", "paunga", "paungi", "sakta", "sakti", "bolo", "boliye", "chhutti", "chutti", "tabiyat", "ghar", "bahut", "thoda", "thodi", "der", "pahunch", "dunga", "dungi", "matlab", "samajh", "lekin", "par", "toh", "to", "bhi", "se", "ko", "ka", "ki", "ke", "kahan", "kahaan", "kab", "kitna", "kitni", "kitne", "kaun", "kyu", "kyon", "milegi", "milega", "milta", "milti", "aayegi", "aayega", "aaegi", "batao", "bataiye", "karte", "karein", "karen", "chalega", "hoga", "hogi");
 const ENGLISH_ONLY = w("the", "i", "i'm", "im", "am", "will", "would", "can", "could", "please", "today", "office", "reach", "coming", "late", "leave", "sorry", "my", "is", "are", "was", "have", "been", "by", "at", "in", "on", "for", "not", "don't", "can't", "won't", "yes", "no", "okay", "ok");
 
 export function detectLang(raw: string): Lang {
@@ -167,7 +182,7 @@ const L = {
   halfDay: w("half day", "half-day", "halfday", "aadha din", "aadhe din", "second half", "first half", "post lunch", "lunch ke baad", "आधा दिन", "हाफ डे"),
   wfh: w("wfh", "work from home", "working from home", "ghar se kaam", "ghar se karunga", "ghar se karungi", "ghar se kar", "remote", "remotely", "online kaam", "online kar", "घर से काम"),
   checkedInRe: /reach[^.?!]{0,20}(kar liya|kar gaya|kar gayi|ho gaya|kiya tha)/u,
-  checkedIn: w("check in kar liya", "check in kar li", "checkin kar liya", "checkin kar li", "check-in kar liya", "check in kiya tha", "check in kar diya", "check in ho gaya", "punch kar diya", "punch kiya tha", "already checked in", "checked in", "i checked in", "desk pe hoon", "desk par hoon", "main to desk", "seat par hoon", "reach kar liya", "reach ho gaya", "reach kar gaya", "reached", "i'm in the office", "i am in the office", "in the office already", "andar hoon", "main andar", "office mein hoon", "office me hoon", "office mein hu", "office me hu", "office pahunch gaya", "office pahunch gayi", "pahunch gaya hoon", "pahunch gayi hoon", "pahunch gaya", "pahunch gayi", "reached office", "i have reached", "already reached", "i am in office", "i'm in office", "already in office", "at my desk", "seat pe hoon", "ऑफिस में हूँ", "ऑफिस में हूं", "पहुंच गया", "पहुंच गई", "पहुँच गया", "चेक इन कर लिया"),
+  checkedIn: w("check in kar liya", "check in kar li", "checkin kar liya", "checkin kar li", "check-in kar liya", "check in kiya tha", "check in kar diya", "check in ho gaya", "punch kar diya", "punch kiya tha", "already checked in", "checked in", "i checked in", "desk pe hoon", "desk par hoon", "main to desk", "seat par hoon", "reach kar liya", "reach ho gaya", "reach kar gaya", "reached", "i'm in the office", "i am in the office", "in the office already", "andar hoon", "main andar", "office mein hoon", "office me hoon", "office hi hoon", "office pe hoon", "office par hoon", "office pahunch chuka", "office pahunch chuki", "office mein hu", "office me hu", "office pahunch gaya", "office pahunch gayi", "pahunch gaya hoon", "pahunch gayi hoon", "pahunch gaya", "pahunch gayi", "reached office", "i have reached", "already reached", "i am in office", "i'm in office", "already in office", "at my desk", "seat pe hoon", "ऑफिस में हूँ", "ऑफिस में हूं", "पहुंच गया", "पहुंच गई", "पहुँच गया", "चेक इन कर लिया"),
   attIssueRe: /(check ?-?in|button|app|machine|biometric|scanner|device|punch)[^.?!]{0,20}(kaam nahi|nahi chal|not working|isn't working|band hai|error|fail)/u,
   attIssue: w("biometric", "machine kharab", "machine nahi", "thumb", "finger", "fingerprint", "punch nahi", "punch nahi hua", "otp nahi", "otp nahi aa raha", "login nahi", "login issue", "login problem", "can't log in", "cannot login", "password bhool", "password issue", "app nahi khul", "app not opening", "app crash", "app band", "gps", "location", "location permission", "network nahi", "network issue", "internet nahi", "internet issue", "no network", "server down", "site nahi khul", "hrms nahi khul", "hrms down", "record nahi hua", "show nahi ho raha", "not showing", "sync", "बायोमेट्रिक", "लॉगिन", "नेटवर्क"),
   stillWorkingRe: [/tak\s+(kaam|duty|office)/u, /(duty|shift)\s+(chal rahi|chal raha|pe hoon|par hoon)/u],
@@ -180,7 +195,7 @@ const L = {
   otClarify: w("kis din", "kaun sa din", "kaunsa din", "kab hai", "kar loon", "kar lu", "subah jaldi", "jaldi aa ke", "ki jagah", "instead", "ke bajaye", "ke badle", "sirf ek ghanta", "only one hour", "one hour only", "not two", "do nahi", "lekin", "but not", "par 8", "but only", "kitne ghante", "kitni der", "kitna time", "payment", "pay milega", "paise milenge", "paisa", "extra pay", "extra paisa", "compensation", "compensat", "comp off", "kab tak", "what time", "timing kya", "time change", "time badal", "baad mein aa sakta", "ke baad", "dinner", "cab milegi", "cab", "transport", "drop", "kaun sa din", "which day", "how many hours", "how long", "will i be paid", "paid", "kyun", "why", "कितने घंटे", "पैसे", "कब तक"),
   busy: w("busy", "bizi", "vyast", "meeting mein", "meeting me", "in a meeting", "drive kar raha", "drive kar rahi", "driving", "gaadi chala", "bike chala", "abhi nahi", "abhi baat nahi", "baat nahi kar sakta", "baat nahi kar sakti", "can't talk", "cannot talk", "not now", "not a good time", "bad time", "thodi der baad", "baad mein baat", "बाद में", "व्यस्त", "अभी नहीं", "मीटिंग में"),
   callback: w("baad mein", "baad me", "baat karte hain", "baat karenge", "baat kar lenge", "call back", "callback", "call me back", "call me later", "call me at", "call me in", "call me tomorrow", "baad mein call", "baad me call", "phir se call", "phir call", "dobara call", "call karna", "call kar lena", "call kar dena", "call karo", "baad mein baat karte", "later", "kal baat", "kal call", "shaam ko call", "remind me", "soch ke batata", "sochke batata", "soch ke bataungi", "sochke bataungi", "soch kar batata", "let me think", "baad mein batata", "baad mein bataungi", "फिर से कॉल", "बाद में कॉल", "कल बात"),
-  stop: w("call mat karo", "call mat karna", "calls mat karo", "phone mat karo", "phone mat karna", "call band karo", "call band kar do", "calls band", "band karo ye call", "mujhe call mat", "mujhe phone mat", "ai call nahi chahiye", "call nahi chahiye", "calls nahi chahiye", "aage se call mat", "kabhi call mat", "don't call", "do not call", "dont call", "stop calling", "stop these calls", "stop the calls", "stop call", "no more calls", "unsubscribe", "never call", "don't contact", "कॉल मत", "फोन मत", "कॉल बंद"),
+  stop: w("call mat karo", "call mat karna", "calls mat karo", "phone mat karo", "phone mat karna", "call band karo", "call band kar do", "calls band", "band karo ye call", "mujhe call mat", "mujhe phone mat", "ai call nahi chahiye", "call nahi chahiye", "calls nahi chahiye", "aage se call mat", "kabhi call mat", "calls mat karna", "calls mat kijiye", "ye calls mat", "ye call mat", "aisi calls mat", "aise call mat", "call karna band", "calls karna band", "mujhe ye calls", "don't call", "do not call", "dont call", "stop calling", "stop these calls", "stop the calls", "stop call", "no more calls", "unsubscribe", "never call", "don't contact", "कॉल मत", "फोन मत", "कॉल बंद"),
   humanRe: [/(hr|h\.r\.|एचआर|manager|मैनेजर)[^.?!]{0,20}(se|ko|with|to)\s+(baat|बात|connect|bulao|call|bhejo|bolo|escalate|speak|talk)/u, /(escalate|send|forward)[^.?!]{0,15}(to hr|hr ko|to my manager)/u, /(talk|speak)\s+(to|with)\s+(my\s+)?(reporting\s+)?(manager|hr|someone|a person|a human|human)/u, /(isse|ise|is baat ko)\s+hr\s+ko/u, /(hr|manager)\s+ko\s+(?:[^.?!]{0,20}\s)?(bol do|bata do|batao|bolo|kaho)/u, /(baat|talk|speak|connect)[^.?!]{0,20}(human|real person|actual person|insaan|person in hr)/u, /(human|real person|insaan|person)[^.?!]{0,12}(se baat|chahiye|please)/u],
   human: w("hr se baat", "hr se baat karni", "hr se baat karao", "hr se baat karwao", "hr ko bulao", "hr ko call", "hr ko bolo", "hr ko connect", "connect me to hr", "connect me with hr", "connect to hr", "talk to hr", "speak to hr", "speak with hr", "talk to a human", "talk to a person", "talk to someone", "speak to someone", "insaan se", "kisi insaan", "kisi se baat", "manager se baat", "manager ko bulao", "asli insaan", "hr chahiye", "human hr", "एचआर से बात", "इंसान से"),
   complaint: w("complain", "complaint", "shikayat", "grievance", "unfair", "injustice", "pareshan", "pareshaan", "torture", "workload", "bahut kaam", "zyada kaam", "too much work", "overworked", "manager problem", "manager se problem", "partiality", "favouritism", "bias", "conflict", "jhagda", "fight", "शिकायत", "परेशान"),
@@ -255,6 +270,31 @@ const matchesPhrase = (t: string, phrase: string) => {
   return re.test(t);
 };
 
+// Another person's private information ("Rahul ki salary", "Priya's phone number", "salary of my manager"). The owner
+// must look like a person: a capitalised name that isn't an ordinary word ("Pichhle mahine ki salary", "Company ka
+// address proof" are the employee's own), a colleague / manager, or a Devanagari name that isn't a time or amount word.
+const PRIVATE_FIELD = /^(salary|tankhwah|tankha|payslip|ctc|increment|bonus|incentive|phone|mobile|number|contact|address|email|bank|account|aadhaar|aadhar|pan|leave|leaves|attendance|complaint|shikayat|rating|appraisal|medical|details|documents?|सैलरी|तनख्वाह|वेतन|फोन|नंबर|पता|छुट्टी|शिकायत|हाज़िरी|हाजिरी)$/u;
+const NOT_A_PERSON = new Set(["mera", "meri", "mere", "apna", "apni", "apne", "my", "our", "hamara", "hamari", "humara", "humari", "is", "us", "iska", "uska", "aapka", "aapki", "aapke", "your", "the", "a", "kya", "mujhe", "main", "pichhle", "pichle", "pichhli", "last", "next", "agle", "agli", "is", "this", "that", "company", "office", "purani", "purana", "naya", "nayi", "kam", "zyada", "do", "teen", "char", "ek", "aaj", "kal", "har", "sab", "total", "hr", "hrms", "month", "mahine", "saal", "din", "hafte", "quarter", "year", "week", "galti", "is", "salary", "leave", "मेरी", "मेरा", "मेरे", "अपनी", "अपना", "पिछले", "पिछली", "इस", "उस", "दिन", "हफ्ते", "महीने", "साल", "कंपनी", "ऑफिस", "दो", "तीन", "एक", "आज", "कल"]);
+const PERSON_NOUN = new Set(["colleague", "colleagues", "manager", "boss", "teammate", "team mate", "supervisor", "senior", "junior", "dost", "friend", "partner", "bhaiya", "didi", "sir", "madam"]);
+const isPersonWord = (x: string) => {
+  const l = x.toLowerCase();
+  if (NOT_A_PERSON.has(l)) return false;
+  return PERSON_NOUN.has(l) || /^\p{Lu}\p{Ll}{2,}$/u.test(x) || (/^[\u0900-\u097F]{2,}$/u.test(x));
+};
+const OTHER_WHO = w("colleague", "colleagues", "team mate", "teammate", "dusre", "doosre", "dusron", "sabki", "sab ki", "everyone's", "others'", "other employees", "dusre employee", "doosre employee");
+function asksOtherPerson(raw: string, t: string): boolean {
+  const clean = stripNoise(raw);
+  for (const m of clean.matchAll(/([\p{L}\p{M}]+)\s+(?:ki|ka|ke|की|का|के)\s+(?:kitni\s+|kya\s+|kitna\s+|कितनी\s+)?([\p{L}\p{M}]+)/gu)) {
+    if (PRIVATE_FIELD.test(m[2].toLowerCase()) && isPersonWord(m[1])) return true;
+  }
+  for (const m of clean.matchAll(/([\p{L}]+)['’]s\s+([\p{L}]+)/gu)) if (PRIVATE_FIELD.test(m[2].toLowerCase()) && isPersonWord(m[1]) && !/^(wife|husband|mother|father|son|daughter|family)$/i.test(m[1])) return true;
+  for (const m of clean.matchAll(/([\p{L}]+)\s+of\s+(?:my\s+|the\s+)?([\p{L}]+)/gu)) if (PRIVATE_FIELD.test(m[1].toLowerCase()) && isPersonWord(m[2])) return true;
+  return OTHER_WHO.test(t) && t.split(" ").some((x) => PRIVATE_FIELD.test(x));
+}
+const SECRET = /(token|password|passcode|otp|api ?key|secret|system prompt|prompt|instructions|config|configuration|database|server ka|admin password)/u;
+const REVEAL = /(dikhao|dikha do|batao|bata do|bataiye|share|show|tell|give|reveal|kya hai|what is|what's|bhejo|de do|chahiye)/u;
+
+const HOLD = w("ek minute", "ek min", "ek minat", "ek second", "ek sec", "ek sekand", "ek pal", "one sec", "one second", "one minute", "just a sec", "just a second", "just a minute", "hold on", "wait a minute", "wait a second", "ruko", "rukiye", "ruk jao", "ruk jaiye", "thoda ruko", "ruko ruko", "एक मिनट", "एक सेकंड", "रुकिए", "रुको");
 export function understand(raw: string, nowMin = 600, hint: { reason?: string; custom?: CustomWord[] } = {}): Nlu {
   const text = String(raw ?? "").slice(0, 1000);
   const t = withLoanwords(normalise(text));
@@ -293,7 +333,9 @@ export function understand(raw: string, nowMin = 600, hint: { reason?: string; c
   add("absent", absent);
   if (dontKnowEarly(t) && absent) found.add("dont_know");
   add("coming", has("coming") && !absent && !found.has("already_checked_in") && !has("repeat"));
-  add("still_working", has("stillWorking") || has("stillWorkingRe"));
+  // "Construction ka kaam chal raha hai bagal mein" is noise nearby, not the person still working.
+  const nearbyWork = /(construction|bagal|padosi|padosiyon|neighbou?r|next door|sadak|road pe|road par|repair|मरम्मत|बगल)/u.test(t);
+  add("still_working", (has("stillWorking") || has("stillWorkingRe")) && !nearbyWork);
   add("forgot_checkout", (has("forgotOut") || (has("forgotGeneric") && !checkinWords && hint.reason === "missing_checkout")) && !found.has("still_working") && !found.has("already_checked_in"));
   add("left_early", has("leftEarly"));
   add("overtime_reject", has("otReject"));
@@ -308,6 +350,12 @@ export function understand(raw: string, nowMin = 600, hint: { reason?: string; c
   add("callback", has("callback") || (found.has("busy") && !!parseTime(text, nowMin)));
   add("confused", has("confused"));
   add("repeat", has("repeat"));
+  // Privacy and secrets: rules only; these never reach the knowledge base or a model.
+  add("other_person_info", asksOtherPerson(text, t));
+  add("secret_request", SECRET.test(t) && REVEAL.test(t) && !/(reset|bhool|forgot|change|badal|naya|new|nahi aa|not coming|nahi mila)/u.test(t));
+  // "Ek minute", "ruko", "hold on": wait, not an answer ("ek minute" here is never an arrival time).
+  const hold = HOLD.test(t);
+  add("hold", hold);
   // Plain yes / no only when the sentence is short or starts with it.
   const words = t.split(" ").filter(Boolean);
   const first2 = words.slice(0, 2).join(" ");
@@ -335,7 +383,7 @@ export function understand(raw: string, nowMin = 600, hint: { reason?: string; c
   if (found.has("accident")) reason = "emergency";
   const slots: Slots = {};
   if (reason) slots.reason = reason;
-  const time = parseTime(text, nowMin);
+  const time = parseTime(hold ? t.replace(new RegExp(HOLD.source, "gu"), " ") : text, nowMin);
   if (!time && (found.has("coming") || found.has("still_working")) && /[,\s](\d{1,2})\s*$/.test(t)) {
     const n = Number(t.match(/(\d{1,2})\s*$/)![1]);
     if (n >= 1 && n <= 12) { const tm = parseTime(`${n} baje`, nowMin); if (tm) slots.eta = tm.at; }

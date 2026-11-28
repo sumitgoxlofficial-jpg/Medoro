@@ -281,7 +281,7 @@ describe("AI HR Assistant (integration)", () => {
     expect(o.total).toBe(await db.aiHrCall.count());
     expect(o.completed).toBe(await db.aiHrCall.count({ where: { status: "completed" } }));
     expect(o.health.configured).toBe(false);
-    expect(o.scenarios.total).toBe(1000);
+    expect(o.scenarios.total).toBe(1060);
   });
 
   it("the webhook is off unless configured, verifies signatures and ignores duplicates", async () => {
@@ -331,7 +331,7 @@ describe("AI HR Assistant (integration)", () => {
 
   it("scenario evaluation runs and is stored", async () => {
     const r = await svc.runEvaluation(hr);
-    expect(r.total).toBe(1000);
+    expect(r.total).toBe(1060);
     const run = await db.aiHrEvalRun.findFirstOrThrow({ orderBy: { startedAt: "desc" } });
     expect(run.passed).toBe(r.passed);
     expect(run.finishedAt).not.toBeNull();
@@ -412,6 +412,26 @@ describe("AI HR Assistant (integration)", () => {
     expect(await incomplete()).toBe(before); // closing a chat they started never creates an "incomplete" follow-up
   });
 
+  it("opening language and idle timeout come from Settings; an idle conversation is closed by the scheduler", async () => {
+    const ix = await me(await mk("Isha Idle", "employee"));
+    try {
+      vi.useFakeTimers({ toFake: ["Date"] }); at(ist("12:00", "2026-12-16"));
+      await enable({ defaultLang: "en", idleTimeoutMin: 10 });
+      const { id } = await svc.nainaConversation(ix);
+      const opening = (await db.aiHrTurn.findFirstOrThrow({ where: { callId: id, seq: 0 } })).lang;
+      expect(opening).toBe("en"); // opens in English as configured
+      // Prisma's engine stamps updatedAt with the real clock; this test runs on a faked date, so stamp it with that.
+      await db.aiHrCall.update({ where: { id }, data: { updatedAt: new Date() } });
+      at(ist("12:05", "2026-12-16")); await svc.dispatch();
+      expect((await db.aiHrCall.findUniqueOrThrow({ where: { id } })).status).toBe("in_progress"); // not idle long enough
+      at(ist("12:11", "2026-12-16"));
+      expect((await svc.dispatch()).idle).toBeGreaterThanOrEqual(1);
+      const c = await db.aiHrCall.findUniqueOrThrow({ where: { id }, include: { response: true } });
+      expect(c.status).toBe("completed");
+      expect(await db.aiHrAction.count({ where: { callId: id, kind: "incomplete" } })).toBe(0); // the employee's own chat: simply over
+    } finally { vi.useRealTimers(); await enable(); }
+  });
+
   it("Naina rings for a conversation the scheduler opened, and answering joins that same conversation", async () => {
     vi.useFakeTimers({ toFake: ["Date"] }); at(ist("11:30", "2026-12-15"));
     await svc.nainaEnd(dv);
@@ -465,7 +485,7 @@ describe("AI HR Assistant (integration)", () => {
   });
   it("Medoro's built-in voice: with the AI host up, every reply comes with Naina's audio from the server; otherwise the device speaks", async () => {
     const fx = await me(await mk("Farah Voice", "employee"));
-    const asked: string[] = [];
+    const asked: string[] = [], ttsOpts: { voice?: string; speed?: number }[] = [];
     let up = true;
     const srv: Server = createServer((req, res) => {
       let body = "";
@@ -474,8 +494,8 @@ describe("AI HR Assistant (integration)", () => {
         if (req.headers.authorization !== "Bearer test-token-0123456789abcdefghij") { res.writeHead(401).end(); return; }
         res.setHeader("content-type", "application/json");
         if (!up) { res.writeHead(503).end("{}"); return; }
-        if (req.url === "/health") { res.end(JSON.stringify({ ok: true, tts: { ok: true, voice: "hi_IN-priyamvada-medium" }, stt: { ok: false } })); return; }
-        if (req.url === "/tts") { asked.push((JSON.parse(body) as { text: string }).text); res.end(JSON.stringify({ audio_b64: Buffer.from("RIFF-test-wav").toString("base64"), mime: "audio/wav", ms: 42 })); return; }
+        if (req.url === "/health") { res.end(JSON.stringify({ ok: true, tts: { ok: true, engine: "kokoro", voice: "hf_alpha", voices: ["hf_alpha", "hf_beta"], loaded: true }, stt: { ok: false } })); return; }
+        if (req.url === "/tts") { const j = JSON.parse(body) as { text: string; voice?: string; speed?: number }; asked.push(j.text); ttsOpts.push({ voice: j.voice, speed: j.speed }); res.end(JSON.stringify({ audio_b64: Buffer.from("RIFF-test-wav").toString("base64"), mime: "audio/wav", ms: 42 })); return; }
         res.writeHead(404).end("{}");
       });
     });
@@ -496,9 +516,12 @@ describe("AI HR Assistant (integration)", () => {
       // A long opening: only its first sentence is made now; the rest comes on request while she speaks.
       expect(open.audio?.rest).toBeTruthy();
       expect(asked.at(-1)!.length).toBeLessThan(open.speech.length);
+      expect(ttsOpts.at(-1)).toEqual({ voice: "hf_alpha", speed: 0.95 }); // Kokoro's voice and speed from Settings
       const rest = await svc.speakRest(fx, id, open.audio!.rest!);
       expect(rest?.mime).toBe("audio/wav");
-      expect(asked.at(-1)).toBe(open.audio!.rest);
+      // The rest is made sentence by sentence too: what was asked is the start of the rest, and the remainder comes next.
+      expect(open.audio!.rest!.startsWith(asked.at(-1)!)).toBe(true);
+      if (rest?.rest) expect(asked.at(-1)!.length + rest.rest.length).toBeLessThanOrEqual(open.audio!.rest!.length);
       await expect(svc.speakRest(b, id, "x")).rejects.toThrow(/isn't yours/); // only the employee whose call it is
       const turn = await svc.sendTurn(fx, id, { text: "payslip kahan milegi", speak: true });
       expect(turn.audio?.mime).toBe("audio/wav");
@@ -534,6 +557,8 @@ describe("AI HR Assistant (integration)", () => {
       await enable({ voiceFrom: "google" });
       expect(await svc.nainaInfo(gx)).toMatchObject({ serverVoice: false }); // no key yet: devices speak
       process.env.GOOGLE_TTS_API_KEY = "test-google-key-0123456789";
+      expect(await svc.nainaInfo(gx)).toMatchObject({ serverVoice: false }); // external speech is off unless explicitly allowed
+      process.env.AI_HR_ALLOW_EXTERNAL_TTS = "1";
       expect(await svc.nainaInfo(gx)).toMatchObject({ serverVoice: true, tts: true });
       const { id } = await svc.nainaConversation(gx);
       const open = await svc.beginCall(gx, id, { speak: true });
@@ -558,7 +583,7 @@ describe("AI HR Assistant (integration)", () => {
       await enable({ voiceFrom: "google" }); status = 403; refuseChirp = false;
       expect((await svc.sendTurn(gx, id, { text: "kaise ho", speak: true })).audio).toBeNull();
     } finally {
-      globalThis.fetch = real; delete process.env.GOOGLE_TTS_API_KEY;
+      globalThis.fetch = real; delete process.env.GOOGLE_TTS_API_KEY; delete process.env.AI_HR_ALLOW_EXTERNAL_TTS;
       await enable();
     }
   });

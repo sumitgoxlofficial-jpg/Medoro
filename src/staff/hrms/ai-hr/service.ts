@@ -25,7 +25,7 @@ import { mailEnabled, sendMail } from "@/server/mail";
 import { aiHrDigestMail } from "../mails";
 import { digestWeek, type DigestStats } from "./digest";
 import { pushTo } from "./push";
-import { GOOGLE_VOICES, googleConfigured, googleSpeak, monthUsage, type GoogleVoice } from "./google-tts";
+import { GOOGLE_VOICES, externalTtsAllowed, googleConfigured, googleSpeak, monthUsage, type GoogleVoice } from "./google-tts";
 
 // The AI HR Assistant's server side. It detects attendance exceptions from the HRMS's own records (the same shift,
 // leave, holiday and weekly-off rules the attendance screens use), schedules a conversation per event exactly once,
@@ -59,11 +59,19 @@ export const configSchema = z.object({
    */
   recognizer: z.enum(["device", "whisper"]).default("device"),
   /**
-   * Whose voice Naina speaks with: "server" is Medoro's own built-in Hindi female voice (Piper on the AI host; the same
-   * voice on every phone and laptop, nothing to install), "device" is each device's own voice. With "server", if the AI
-   * host is unreachable, the device's voice is used instead.
+   * Whose voice Naina speaks with: "server" is Medoro's own Hindi female voice (Kokoro-82M, self-hosted on the AI host;
+   * the same voice on every phone and laptop, nothing to install, no per-use cost), "device" is each device's own voice,
+   * "google" is Google Cloud TTS (external and paid beyond its free allowance: only offered when the deployment sets
+   * AI_HR_ALLOW_EXTERNAL_TTS=1). If the chosen voice can't answer, the device's voice is used, else captions only.
    */
   voiceFrom: z.enum(["server", "device", "google"]).default("device"),
+  /** With voiceFrom "server": Kokoro's female Hindi voice (hf_alpha by default; hf_beta to compare) and speaking speed. */
+  kokoroVoice: z.enum(["hf_alpha", "hf_beta"]).default("hf_alpha"),
+  speakingSpeed: z.number().min(0.8).max(1.2).default(0.95),
+  /** The language Naina opens in; she follows the employee's language after their first answer. */
+  defaultLang: z.enum(["hinglish", "hi", "en"]).default("hinglish"),
+  /** An open conversation with no activity for this long is closed (incomplete for HR, or simply over for a chat the employee started). */
+  idleTimeoutMin: z.number().int().min(5).max(240).default(30),
   /** With voiceFrom "google": which natural female voice (google-tts.ts), and the most characters a month (free allowance). */
   googleVoice: z.enum(Object.keys(GOOGLE_VOICES) as [GoogleVoice, ...GoogleVoice[]]).default("hi-IN-Chirp3-HD-Kore"),
   googleMonthlyChars: z.number().int().min(10_000).max(5_000_000).default(900_000),
@@ -74,7 +82,7 @@ export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", voiceFrom: "device", googleVoice: "hi-IN-Chirp3-HD-Kore", googleMonthlyChars: 900_000, weeklyDigest: true,
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", voiceFrom: "device", kokoroVoice: "hf_alpha", speakingSpeed: 0.95, defaultLang: "hinglish", idleTimeoutMin: 30, googleVoice: "hi-IN-Chirp3-HD-Kore", googleMonthlyChars: 900_000, weeklyDigest: true,
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -155,11 +163,14 @@ export async function detect(now = new Date()) {
 // ── Dispatch: notify, retry, expire. Durable: everything is in AiHrCall rows; a failed tick is retried by the next one.
 export async function dispatch(now = new Date()) {
   const c = await loadConfig();
-  const out = { notified: 0, cancelled: 0, noAnswer: 0 };
+  const out = { notified: 0, cancelled: 0, noAnswer: 0, idle: 0 };
   const today = todayISO(now);
   // Calls from earlier days that never started are closed as no answer (attendance is HR's to follow up).
   const stale = await db.aiHrCall.findMany({ where: { status: { in: ["scheduled", "notified"] }, day: { lt: dateOnly(today) }, reason: { not: "overtime" } }, take: 200 });
   for (const call of stale) { await closeNoAnswer(call.id, call.staffId, "The day ended before the employee answered."); out.noAnswer++; }
+  // Conversations left open with no activity (the tab was closed, the phone locked) are closed after idleTimeoutMin.
+  const idle = await db.aiHrCall.findMany({ where: { status: "in_progress", updatedAt: { lt: new Date(now.getTime() - c.idleTimeoutMin * 60_000) } }, select: { id: true, state: true, context: true }, take: 100 });
+  for (const call of idle) { await closeIdle(call); out.idle++; }
   if (!c.enabled) return out;
   const due = await db.aiHrCall.findMany({ where: { status: { in: ["scheduled", "notified"] }, nextAttemptAt: { lte: now } }, orderBy: { nextAttemptAt: "asc" }, take: 100 });
   for (const call of due) {
@@ -531,20 +542,23 @@ export async function myCalls(me: Me) {
   };
 }
 
-async function maybeSpeak(text: string, cfg: AiHrConfig, whole = false): Promise<{ audio: string; mime: string; ms: number; rest?: string } | null> {
+async function maybeSpeak(text: string, cfg: AiHrConfig): Promise<{ audio: string; mime: string; ms: number; rest?: string } | null> {
   const google = cfg.speech === "browser" && cfg.voiceFrom === "google";
   if (cfg.speech === "off" || !text || (google ? !googleConfigured() : (cfg.speech !== "server" && cfg.voiceFrom !== "server") || !ai.serviceConfig())) return null;
   // Naina starts talking sooner: only the first sentence is made now; the browser asks for the rest while she speaks.
-  const parts = whole ? [text] : text.split(/(?<=[।.!?])\s+/).filter(Boolean);
+  const parts = text.split(/(?<=[।.!?])\s+/).filter(Boolean);
   const first = parts.length > 1 && text.length > 70 ? parts[0] : text, rest = first === text ? "" : text.slice(first.length).trim();
   if (google) { const g = await googleSpeak(first, cfg.googleVoice, cfg.googleMonthlyChars); return g ? { ...g, ...(rest ? { rest } : {}) } : null; }
-  try { return { ...(await ai.speak(first)), ...(rest ? { rest } : {}) }; } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
+  try { return { ...(await ai.speak(first, { voice: cfg.kokoroVoice, speed: cfg.speakingSpeed })), ...(rest ? { rest } : {}) }; } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
 }
-/** The rest of a reply's audio (after its first sentence), for the employee whose conversation it is. */
+/**
+ * The next part of a reply's audio, for the employee whose conversation it is: again one sentence, with what remains as
+ * `rest`, so a long reply is made sentence by sentence while she speaks (a self-hosted CPU voice never gets one long job).
+ */
 export async function speakRest(me: Me, id: string, text: string) {
   await enforce("aiHrTurn", `hrms:${me.id}`);
   await ownCall(me, id);
-  return maybeSpeak(String(text).slice(0, 1500), await loadConfig(), true);
+  return maybeSpeak(String(text).slice(0, 1500), await loadConfig());
 }
 
 /** Starts (or resumes) a conversation: the assistant's opening line. */
@@ -561,7 +575,7 @@ export async function beginCall(me: Me, id: string, opts: { speak?: boolean } = 
     const audio = opts.speak && speech ? await maybeSpeak(speech, cfg) : null;
     return { turns, done: false, audio, speech, lang: st.lang ?? "hinglish" };
   }
-  const t = start(call.reason as CallReason, await ctxFor(call, cfg));
+  const t = start(call.reason as CallReason, await ctxFor(call, cfg), cfg.defaultLang);
   const audio = opts.speak ? await maybeSpeak(t.speech || t.reply, cfg) : null;
   await db.$transaction([
     db.aiHrCall.update({ where: { id }, data: { status: "in_progress", startedAt: new Date(), state: withSpeech(t.state, t.speech), nextAttemptAt: null } }),
@@ -604,7 +618,7 @@ async function beginSelf(me: Me) {
   const staff = await db.staffUser.findUniqueOrThrow({ where: { id: me.id }, select: { name: true } });
   const context = { topic: "Employee started a chat", self: true };
   const ctx = await ctxFor({ reason: "manual", context, staff }, cfg);
-  const t = startSelf(ctx);
+  const t = startSelf(ctx, cfg.defaultLang);
   const call = await db.aiHrCall.create({ data: { staffId: me.id, reason: "manual", day: dateOnly(today), eventKey: `self:${me.id}:${randomUUID()}`, maxAttempts: 1, status: "in_progress", startedAt: new Date(), createdBy: me.id, context, state: withSpeech(t.state, t.speech) } });
   await db.aiHrTurn.create({ data: { callId: call.id, seq: 0, who: "ai", textSealed: sealText(t.reply), lang: t.state.lang } });
   return call.id;
@@ -685,6 +699,11 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
 export async function endCall(me: Me, id: string) {
   const call = await ownCall(me, id);
   if (call.status !== "in_progress") return;
+  await closeIdle(call);
+}
+/** Ends an open conversation: one Naina started and the employee left is incomplete for HR; their own chat is just over. */
+async function closeIdle(call: { id: string; state: Prisma.JsonValue; context: Prisma.JsonValue }) {
+  const id = call.id;
   const st = call.state as unknown as State;
   // A chat the employee started and closed is simply over; one Naina started and they left is incomplete for HR.
   const self = !!(call.context as { self?: boolean } | null)?.self;
@@ -899,6 +918,6 @@ export async function playground(me: Me, raw: z.input<typeof pgInput>) {
 export async function modelStatus(me: Me) {
   need(me, "attendance");
   const config = await loadConfig();
-  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", mail: mailEnabled(), google: { configured: googleConfigured(), usedThisMonth: await monthUsage(), voices: GOOGLE_VOICES }, config, speechFiles: await speechFilesStatus(config.sttModel) };
+  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", mail: mailEnabled(), google: { allowed: externalTtsAllowed(), configured: googleConfigured(), usedThisMonth: await monthUsage(), voices: GOOGLE_VOICES }, config, checkedAt: new Date().toISOString(), speechFiles: await speechFilesStatus(config.sttModel) };
 }
 export { can };

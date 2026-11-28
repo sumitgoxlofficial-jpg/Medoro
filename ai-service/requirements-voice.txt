@@ -1,6 +1,13 @@
-# Voice only (Naina's built-in voice on a laptop; docs/OFFICE_SERVER.md §10c): no speech recognition here, browsers do it.
+# Voice only (Naina's voice on a laptop or small box; docs/OFFICE_SERVER.md §10c): no speech recognition here, browsers
+# do it. Same pins as requirements.txt.
+--extra-index-url https://download.pytorch.org/whl/cpu
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 httpx==0.28.1
-piper-tts==1.3.0           # GPL-3.0-or-later; see docs/ai-hr-assistant/HANDOVER.md
+kokoro==0.9.4
+misaki[en]==0.9.4
+torch==2.6.0+cpu
+transformers==4.51.3
+huggingface-hub==0.30.2
+numpy==2.2.6

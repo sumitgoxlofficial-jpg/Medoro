@@ -5,10 +5,11 @@ import { LIB_2 } from "./lib-2";
 import { LIB_3 } from "./lib-3";
 import { LIB_4 } from "./lib-4";
 import { LIB_5 } from "./lib-5";
+import { LIB_6 } from "./lib-6";
 import type { Category } from "./types";
 
-export const CATEGORIES: Category[] = [...LIB_1, ...LIB_2, ...LIB_3, ...LIB_4, ...LIB_5];
-export const LIBRARY_VERSION = "2027.01.1";
+export const CATEGORIES: Category[] = [...LIB_1, ...LIB_2, ...LIB_3, ...LIB_4, ...LIB_5, ...LIB_6];
+export const LIBRARY_VERSION = "2027.01.2";
 
 export type Scenario = {
   id: string; category: string; categoryName: string; callReason: CallReason;
