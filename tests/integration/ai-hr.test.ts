@@ -516,4 +516,50 @@ describe("AI HR Assistant (integration)", () => {
       await enable();
     }
   });
+  it("Google's natural voice: Naina's Devanagari text to the chosen hi-IN voice, counted against the monthly limit, falls back safely", async () => {
+    const gx = await me(await mk("Gita Google", "employee"));
+    const real = globalThis.fetch;
+    const sent: { url: string; key: string | null; body: { input: { text: string }; voice: { languageCode: string; name: string } } }[] = [];
+    let status = 200, refuseChirp = false;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url);
+      if (!u.startsWith("https://texttospeech.googleapis.com/")) return real(url, init);
+      const body = JSON.parse(String(init?.body));
+      sent.push({ url: u, key: new Headers(init?.headers).get("x-goog-api-key"), body });
+      if (refuseChirp && body.voice.name.includes("Chirp3")) return new Response("{}", { status: 400 });
+      return new Response(JSON.stringify({ audioContent: Buffer.from("ID3-mp3").toString("base64") }), { status, headers: { "content-type": "application/json" } });
+    }) as typeof fetch;
+    try {
+      vi.useFakeTimers({ toFake: ["Date"] }); at(ist("12:00", "2026-12-18"));
+      await enable({ voiceFrom: "google" });
+      expect(await svc.nainaInfo(gx)).toMatchObject({ serverVoice: false }); // no key yet: devices speak
+      process.env.GOOGLE_TTS_API_KEY = "test-google-key-0123456789";
+      expect(await svc.nainaInfo(gx)).toMatchObject({ serverVoice: true, tts: true });
+      const { id } = await svc.nainaConversation(gx);
+      const open = await svc.beginCall(gx, id, { speak: true });
+      expect(open.audio).toMatchObject({ mime: "audio/mpeg", audio: Buffer.from("ID3-mp3").toString("base64") });
+      expect(sent[0].key).toBe("test-google-key-0123456789");
+      expect(sent[0].body.voice).toEqual({ languageCode: "hi-IN", name: "hi-IN-Chirp3-HD-Kore" });
+      expect(sent[0].body.input.text).toMatch(/[\u0900-\u097F]/);
+      expect(sent[0].body.input.text).not.toMatch(/Google|MS-\d/); // only what Naina says (her greeting has the first name), nothing else
+      const used = (await svc.modelStatus(admin)).google.usedThisMonth;
+      expect(used).toBe(sent[0].body.input.text.length);
+      // A voice Google doesn't offer: the dependable Neural2 voice, once.
+      refuseChirp = true;
+      const r = await svc.sendTurn(gx, id, { text: "kaise ho", speak: true });
+      expect(r.audio?.mime).toBe("audio/mpeg");
+      expect(sent.at(-1)!.body.voice.name).toBe("hi-IN-Neural2-A");
+      // Over the monthly limit, or Google refusing: no audio, the device's own voice takes over.
+      await enable({ voiceFrom: "google", googleMonthlyChars: 10_000 });
+      await db.hrSetting.update({ where: { key: "aiHrTtsUsage:2026-12" }, data: { value: { chars: 9_990 } } });
+      const n = sent.length;
+      expect((await svc.sendTurn(gx, id, { text: "hello, awaaz aa rahi hai?", speak: true })).audio).toBeNull();
+      expect(sent.length).toBe(n); // nothing sent to Google
+      await enable({ voiceFrom: "google" }); status = 403; refuseChirp = false;
+      expect((await svc.sendTurn(gx, id, { text: "kaise ho", speak: true })).audio).toBeNull();
+    } finally {
+      globalThis.fetch = real; delete process.env.GOOGLE_TTS_API_KEY;
+      await enable();
+    }
+  });
 });

@@ -200,6 +200,29 @@ there (about 1 GB RAM, 70 MB download); Medoro stays on Vercel.
 The voice server restarts by itself with Docker. While the laptop is off or asleep, phones use their own voice and
 calls carry on. To update later: `git pull`, then run the setup again (same key and port are kept).
 
+## 10d. Naina's natural voice from Google Cloud (most human, no laptop needed)
+
+Google's Neural2 and Chirp 3 HD Hindi voices sound close to a real person and answer in under a second. Medoro sends
+Google only the text of Naina's replies (which can include the employee's first name, as she greets them), never the
+employee's voice. A monthly character limit in Settings keeps use inside Google's free allowance (check the current
+Text-to-Speech pricing page; it has been about 1 million characters a month per voice type). Past the limit, phones use
+their own voice until the 1st of the next month, so there's no surprise bill.
+
+1. Open https://console.cloud.google.com and sign in with the Google account Medoro should use.
+2. Top bar → project picker → **New project** → name `Medoro Voice` → Create, then select it.
+3. **Billing** → link a billing account (Google asks for a card even for the free allowance; new accounts also get
+   free trial credit).
+4. **APIs & Services → Library** → search **Cloud Text-to-Speech API** → **Enable**.
+5. **APIs & Services → Credentials → Create credentials → API key**. On the new key: **Edit API key → API
+   restrictions → Restrict key → Cloud Text-to-Speech API → Save**. Copy the key.
+6. Recommended: **Billing → Budgets & alerts → Create budget**, amount ₹100, email alerts at 50% and 100%.
+7. Vercel → medoro → Settings → Environment Variables → **Production**: add `GOOGLE_TTS_API_KEY` = the key, tick
+   **Sensitive** → Save → Deployments → ⋯ → **Redeploy**.
+8. HRMS → AI HR Assistant → Settings → **Naina's voice: Google natural voice** → choose the **Google voice** (Chirp 3
+   HD · Kore is the most natural) → keep the monthly limit at 900,000 → **Save settings**. Model status shows
+   "key set" and the characters used this month.
+9. Call Naina and listen. If a Chirp 3 HD voice isn't available on your account, she uses the Neural2 voice instead.
+
 ## 11. Everyday commands
 
 Compose commands (add `-f deploy/office/compose.localdb.yml` after the first `-f` if you use the local database):
