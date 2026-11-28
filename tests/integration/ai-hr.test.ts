@@ -109,7 +109,7 @@ describe("AI HR Assistant (integration)", () => {
     at(ist("17:50"));
     const call = (await callsOf(c.id)).find((x) => x.reason === "missing_checkout")!;
     const open = await svc.beginCall(c, call.id);
-    expect(open.turns[0].text).toMatch(/AI HR Assistant/);
+    expect(open.turns[0].text).toMatch(/Naina hoon, Medoro HR ki AI assistant/);
     expect(open.audio).toBeNull(); // no AI service configured: voice is off, text works
     await expect(svc.sendTurn(c, call.id, { audio: new Blob([new Uint8Array(5000)]) })).rejects.toThrow(/type your answer/);
     await svc.sendTurn(c, call.id, { text: "haan" });
@@ -368,5 +368,65 @@ describe("AI HR Assistant (integration)", () => {
     expect(await svc.weeklyDigest(new Date("2026-12-16T12:00:00+05:30"))).toBe(0);
     expect(await svc.weeklyDigest(new Date("2026-12-21T08:00:00+05:30"))).toBeGreaterThanOrEqual(3);
     mail.on = false;
+  });
+  let dv: Me;
+  it("Naina in Chats: the employee starts a chat, asks a question, a bare hello just opens it, closing an empty chat leaves nothing for HR", async () => {
+    dv = await me(await mk("Divya Chat", "employee"));
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("11:00", "2026-12-15"));
+    const incomplete = () => db.aiHrAction.count({ where: { staffId: dv.id, kind: "incomplete" } });
+    const before = await incomplete();
+    const info = await svc.nainaInfo(dv);
+    expect(info).toMatchObject({ open: null });
+    // "hi" opens a chat with Naina's offer to help, and isn't treated as an answer.
+    const r1 = await svc.nainaSend(dv, "hi");
+    let thread = await svc.nainaThread(dv);
+    const chat1 = thread.find((t) => t.id === r1.callId)!;
+    expect(chat1).toMatchObject({ self: true, status: "in_progress" });
+    expect(chat1.turns.map((t) => t.who)).toEqual(["ai"]);
+    expect(chat1.turns[0].text).toMatch(/Naina hoon, Medoro HR ki AI assistant/);
+    // A question in the same chat is answered from approved knowledge.
+    const r2 = await svc.nainaSend(dv, "Leave cancel kaise karte hain HRMS mein?");
+    expect(r2.callId).toBe(r1.callId);
+    thread = await svc.nainaThread(dv);
+    const last = thread.find((t) => t.id === r1.callId)!.turns.at(-1)!;
+    expect(last.who).toBe("ai");
+    expect(last.text).toMatch(/Source: Cancelling leave/);
+    // Another employee never sees it.
+    expect((await svc.nainaThread(b)).some((t) => t.id === r1.callId)).toBe(false);
+    // An empty chat the employee closes is dropped without a follow-up for HR.
+    const r3 = await svc.nainaSend(dv, "hello");
+    if (r3.callId !== r1.callId) {
+      await svc.nainaEnd(dv);
+      expect((await db.aiHrCall.findUniqueOrThrow({ where: { id: r3.callId } })).status).toBe("cancelled");
+    }
+    await svc.nainaEnd(dv);
+    expect(await incomplete()).toBe(before); // closing a chat they started never creates an "incomplete" follow-up
+  });
+
+  it("Naina rings for a conversation the scheduler opened, and answering joins that same conversation", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("11:30", "2026-12-15"));
+    await svc.nainaEnd(dv);
+    expect(await svc.nainaRing(dv)).toBeNull();
+    const id = await svc.startManualCall(hr, dv.id, "Check documents");
+    expect(await svc.nainaRing(dv)).toBeNull(); // scheduled, not yet sent
+    await svc.dispatch();
+    const ring = await svc.nainaRing(dv);
+    expect(ring).toMatchObject({ id, reason: "manual", attempts: 1, cfg: { speech: "browser" } });
+    expect((await svc.nainaRing(b))?.id).not.toBe(id); // only the employee it is for
+    expect((await svc.nainaInfo(dv))?.open).toMatchObject({ id, status: "notified", self: false });
+    // Answering (voice call or a typed reply) joins the waiting conversation instead of starting a new chat.
+    const conv = await svc.nainaConversation(dv);
+    expect(conv).toEqual({ id, fresh: true });
+    expect(await svc.nainaRing(dv)).toBeNull();
+    const turns = (await svc.nainaThread(dv)).find((t) => t.id === id)!.turns;
+    expect(turns[0].text).toMatch(/Naina/);
+    await svc.endCall(dv, id);
+  });
+
+  it("Naina is unavailable while the assistant is switched off", async () => {
+    await enable({ enabled: false });
+    expect(await svc.nainaInfo(dv)).toBeNull();
+    await expect(svc.nainaSend(dv, "payslip kahan hai")).rejects.toThrow(/isn't switched on/);
+    await enable();
   });
 });

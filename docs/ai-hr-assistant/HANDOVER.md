@@ -1,5 +1,22 @@
 # AI HR Assistant — technical handover
 
+## Update 5 (2026-11-28): Naina in Team Chat, in-app calls (no phone)
+* The assistant is now **Naina** (female, Hinglish by default, says she is an AI in every opening).
+* **Chats → Naina** (pinned at the top for every employee while the assistant is on): a one-to-one chat. Typed questions
+  are answered from approved knowledge with the source; a bare "hi" just opens the chat. A conversation Naina is
+  waiting to have (late, absent, check-out, overtime, HR follow-up) shows there with an Answer button. Only the employee
+  and authorised HR can see it; it uses the same engine, rules, retention and audit as every AI conversation.
+* **📞 Call** in Naina's chat header opens a voice call window (speak or type) inside the HRMS. No phone line, ₹0.
+* **Incoming call on any HRMS page**: when the scheduler sends a conversation (within contact hours, with retries), a
+  ringing banner appears — Answer (voice call window), Chat, or Decline (hides that ring; the usual retries and the
+  hand-over to HR after the last attempt still apply). Polled from `/staff/hrms/naina/ring` (one indexed query when
+  nothing is waiting).
+* Chats an employee starts: at most 30 a day; closing one they never wrote in is dropped; closing one they wrote in ends
+  it without an "incomplete" follow-up for HR (unlike conversations Naina started).
+* Limits: the in-app ring only reaches people who have the HRMS open (a closed browser can't ring); voice quality
+  depends on the device voice, as before. Tested: unit, integration (chat, ring, joining a waiting conversation, off
+  switch) and e2e in Chromium (chat answer with source, ring → Answer → voice-call window → escalation to HR).
+
 ## Update 4 (2026-11-28): review of unclear answers, weekly summary, e2e fix
 * **Answers not understood** (AI HR Assistant → Escalations & review): employee answers the assistant couldn't place
   (intent `unknown`, kept only for the transcript retention period). HR can **Teach** a phrase from one (adds a custom

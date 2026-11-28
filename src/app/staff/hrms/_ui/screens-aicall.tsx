@@ -33,7 +33,7 @@ export function AiCallScreen({ d }: { d: D }) {
   </>;
 }
 
-function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; selfHosted: boolean; onClose: () => void }) {
+export function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; selfHosted: boolean; onClose: () => void }) {
   const browser = mode === "browser";
   const canVoice = voice && (!browser || browserSpeechSupported());
   const [prep, setPrep] = useState<"" | "loading" | "ready">("");
@@ -138,7 +138,7 @@ function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id
     mediaRef.current.raf = requestAnimationFrame(tick);
   };
 
-  return <Card title="AI HR Assistant" sub="An AI assistant from Medoro HR. Say “HR se baat karni hai” for a person, or “call mat karo” to stop." right={<><label className="flex gap-1.5 items-center text-[12px]"><input type="checkbox" checked={speakOut} disabled={!tts} onChange={(e) => setSpeakOut(e.target.checked)} />Voice replies{!tts ? " (unavailable)" : ""}</label><button className={btnCls} onClick={() => { if (!done) void aiCallEnd(id); onClose(); }}>{done ? "Close" : "End"}</button></>}>
+  return <Card title="Naina · AI HR assistant" sub="Naina is an AI assistant from Medoro HR. Say “HR se baat karni hai” for a person, or “call mat karo” to stop." right={<><label className="flex gap-1.5 items-center text-[12px]"><input type="checkbox" checked={speakOut} disabled={!tts} onChange={(e) => setSpeakOut(e.target.checked)} />Voice replies{!tts ? " (unavailable)" : ""}</label><button className={btnCls} onClick={() => { if (!done) void aiCallEnd(id); onClose(); }}>{done ? "Close" : "End"}</button></>}>
     <div className="px-5 pb-4 flex flex-col gap-2" aria-live="polite">
       {turns.map((t, i) => <div key={i} className={cx("rounded-lg px-3 py-2 text-[13.5px] max-w-[88%]", t.who === "ai" ? "self-start bg-[#E6F4F2]" : "self-end bg-[#EEF2FF]")}>{t.text || <em className="text-[#94A3B8]">(no answer)</em>}</div>)}
       {busy ? <div className="self-start text-[12px] text-[#64748B]">…</div> : null}

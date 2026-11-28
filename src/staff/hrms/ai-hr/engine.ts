@@ -141,6 +141,20 @@ export function start(reason: CallReason, ctx: Ctx, lang: Lang = "hinglish"): Tu
   return { state: st, reply, speech: speechFor(parts, st, ctx, reason), done: false };
 }
 
+/**
+ * The opening when the employee starts the chat themselves: they asked, so there is no permission question. The state is
+ * the same as an HR follow-up after "yes" (open question, knowledge answers, escalation), so every rule still applies.
+ */
+export function startSelf(ctx: Ctx, lang: Lang = "hinglish"): Turn {
+  const after = step(start("manual", ctx, lang).state, ctx, "haan");
+  const st: State = { ...after.state, turns: 0 };
+  REC = [];
+  const reply = fill(pick(st, "intro_self"), vars(st, ctx));
+  const parts = REC.filter((p) => p.key === "intro_self");
+  REC = null;
+  return { state: st, reply, speech: speechFor(parts, st, ctx), done: false };
+}
+
 /** One employee turn. An empty utterance is silence (silence is never consent). */
 export function step(prev: State, ctx: Ctx, utterance: string): Turn {
   REC = [];

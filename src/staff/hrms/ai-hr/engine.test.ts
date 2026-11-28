@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { converse, start, step, type Ctx } from "./engine";
+import { converse, start, startSelf, step, type Ctx } from "./engine";
 import { understand, parseTime } from "./nlu";
 import { buildOutput } from "./output";
 import { Index, kbFrom, productIndex } from "./knowledge";
@@ -13,7 +13,7 @@ const out = (r: ReturnType<typeof converse>, reason: Parameters<typeof converse>
 describe("AI HR conversation engine", () => {
   it("opens with an introduction, AI disclosure, the reason and a permission question", () => {
     const t = start("late", ctx());
-    expect(t.reply).toMatch(/AI HR Assistant/);
+    expect(t.reply).toMatch(/Naina hoon, Medoro HR ki AI assistant/);
     expect(t.reply).toMatch(/attendance/);
     expect((t.reply.match(/\?/g) ?? []).length).toBe(1);
   });
@@ -195,5 +195,18 @@ describe("Scenario library", () => {
     // every scenario that expects an urgent escalation gets one
     const urgent = scenarios().filter((s) => s.expect.esc === "urgent").map((s) => s.id);
     expect(r.failures.filter((f) => urgent.includes(f.id) && f.failed.some((x) => x.startsWith("escalation")))).toEqual([]);
+  });
+});
+
+describe("Naina: a chat the employee starts", () => {
+  it("opens with an offer to help, no permission question, and answers the next message", () => {
+    const ctx = { name: "Neha", nowMin: 600 };
+    const t = startSelf(ctx);
+    expect(t.reply).toMatch(/^(Namaste|Hello) Neha ji! Main Naina/);
+    expect(t.reply).not.toMatch(/baat kar sakte|theek rahega/);
+    expect(t.speech).toMatch(/नैना/);
+    expect(t.state.turns).toBe(0);
+    const n = step(t.state, ctx, "HR se baat karni hai");
+    expect(n.reply).toMatch(/HR/);
   });
 });

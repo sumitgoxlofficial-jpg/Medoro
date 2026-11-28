@@ -65,7 +65,7 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   await e.goto("/staff/hrms/aicall");
   await expect(e.getByText("AI conversations on")).toBeVisible();
   await e.getByRole("button", { name: "Talk now" }).click();
-  await expect(e.getByText(/Main Medoro ki AI HR Assistant hoon|AI assistant from Medoro HR/).first()).toBeVisible();
+  await expect(e.getByText(/Main Naina hoon|I'm Naina|this is Naina/).first()).toBeVisible();
   // Headless Chromium has no installed voices: the employee is told replies are text-only and how to add a Hindi voice.
   await expect(e.getByText(/no Hindi voice installed/)).toBeVisible();
   await e.getByPlaceholder("Type your answer (Hindi, English or Hinglish)").fill("Leave cancel kaise karte hain HRMS mein?");
@@ -80,11 +80,34 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   await expect(e.getByText("AI conversations off", { exact: true })).toBeVisible();
   await choice.getByRole("button", { name: "Turn on" }).click();
   await expect(e.getByText("AI conversations on", { exact: true })).toBeVisible();
+
+  // Naina is pinned in Chats: a typed question is answered from approved knowledge, with its source.
+  await e.goto("/staff/hrms/chat?c=naina");
+  await expect(e.getByRole("listitem", { name: "Naina, AI HR assistant" })).toBeVisible();
+  await e.getByLabel("Message Naina").fill("payslip kahan milegi");
+  await e.getByRole("button", { name: "Send to Naina" }).click();
+  await expect(e.getByText(/Source: Payslips/).first()).toBeVisible();
+
+  // Naina rings inside the HRMS for a conversation the scheduler has sent (no phone): Answer opens the call window.
+  const staffId = (await p.staffUser.findFirstOrThrow({ where: { email: EMP.email } })).id;
+  const istDay = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+  await p.aiHrCall.create({ data: { staffId, reason: "manual", day: new Date(`${istDay}T00:00:00Z`), eventKey: `manual:${staffId}:e2e-ring`, status: "notified", attempts: 1, maxAttempts: 3, nextAttemptAt: new Date(Date.now() + 3600_000), context: { topic: "Check documents" } } });
+  await e.goto("/staff/hrms/attendance");
+  const ringing = e.getByRole("alertdialog", { name: "Naina is calling" });
+  await expect(ringing).toBeVisible({ timeout: 20_000 });
+  await ringing.getByRole("button", { name: "📞 Answer" }).click();
+  const callWin = e.getByRole("dialog", { name: "Call with Naina" });
+  await expect(callWin.getByText(/Naina hoon|I'm Naina|this is Naina/).first()).toBeVisible();
+  await callWin.getByPlaceholder("Type your answer (Hindi, English or Hinglish)").fill("HR se baat karni hai");
+  await callWin.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(callWin.getByText("Conversation finished. Thank you.")).toBeVisible();
+  await callWin.getByRole("button", { name: "Close" }).click();
+  await expect(ringing).toBeHidden();
   await ctx.close();
 
   // HR sees the outcome and the transcript (the opening is audited).
   await page.goto("/staff/hrms/aihr?tab=calls");
-  const row = page.getByRole("row", { name: new RegExp(EMP.name) }).first();
+  const row = page.getByRole("row", { name: new RegExp(EMP.name) }).last(); // the oldest: the follow-up about leave
   await expect(row.getByText("completed")).toBeVisible();
   await row.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText(/Leave cancel kaise karte hain/)).toBeVisible();
