@@ -73,7 +73,7 @@ export async function signingStatus(me: Me, candidateId: string) {
   if (!s) return null;
   const emp = s.staffId ? await db.staffUser.findUnique({ where: { id: s.staffId }, select: { empNo: true, email: true } }) : null;
   return {
-    status: s.status === "signed" ? "signed" : s.expiresAt < new Date() ? "expired" : s.status, sentAt: s.sentAt.toISOString(), viewedAt: s.viewedAt?.toISOString() ?? null, signedAt: s.signedAt?.toISOString() ?? null,
+    status: s.status === "signed" || s.status === "declined" ? s.status : s.expiresAt < new Date() ? "expired" : s.status, declineReason: s.status === "declined" ? ((s.trail as Trail).findLast((e) => e.event === "Declined")?.detail ?? "") : "", sentAt: s.sentAt.toISOString(), viewedAt: s.viewedAt?.toISOString() ?? null, signedAt: s.signedAt?.toISOString() ?? null,
     expiresAt: s.expiresAt.toISOString(), email: s.email, place: s.place, lat: s.lat, lng: s.lng, signer: s.signerName, empNo: emp?.empNo ?? null, officialEmail: emp?.email ?? null, hireError: s.hireError,
   };
 }
@@ -95,21 +95,26 @@ async function byToken(token: unknown) {
 }
 const offerOf = (s: { candidate: { offer: unknown } }) => s.candidate.offer as unknown as OfferFields;
 
-export type SigningView = { state: "open" | "signed" | "expired"; name: string; phone: string; email: string; company: string; verified: boolean; expiresAt: string; signedAt: string | null; empNo: string | null; letter: Letter };
+export type SigningView = {
+  state: "open" | "signed" | "expired" | "declined"; name: string; phone: string; email: string; company: string; verified: boolean; expiresAt: string; signedAt: string | null; empNo: string | null;
+  ref: string; position: string; sentBy: string; sentAt: string; fingerprint: string; letter: Letter;
+};
 /** What the signing page shows. Opening it the first time is recorded. */
 export async function signingView(token: unknown, ip: string | null): Promise<SigningView> {
   const s = await byToken(token), now = new Date(), co = await companyOf();
-  const signed = s.status === "signed", expired = !signed && s.expiresAt < now;
-  if (!signed && !expired && !s.viewedAt) await db.hrOfferSign.update({ where: { id: s.id }, data: { viewedAt: now, status: "viewed", trail: push(s.trail, { at: now.toISOString(), event: "Opened", ip }) } });
+  const signed = s.status === "signed", declined = s.status === "declined", expired = !signed && !declined && s.expiresAt < now;
+  if (!signed && !declined && !expired && !s.viewedAt) await db.hrOfferSign.update({ where: { id: s.id }, data: { viewedAt: now, status: "viewed", trail: push(s.trail, { at: now.toISOString(), event: "Opened", ip }) } });
   const emp = s.staffId ? await db.staffUser.findUnique({ where: { id: s.staffId }, select: { empNo: true } }) : null;
+  const letter = buildCandidateOffer(s.candidate.name, offerOf(s), co);
   return {
-    state: signed ? "signed" : expired ? "expired" : "open", name: s.candidate.name, phone: s.candidate.phone, email: maskEmail(s.email), company: co.name || "Medoro",
+    state: signed ? "signed" : declined ? "declined" : expired ? "expired" : "open", ref: letter.ref, position: offerOf(s).position, sentBy: s.sentByName, sentAt: s.sentAt.toISOString(), fingerprint: s.docHash, name: s.candidate.name, phone: s.candidate.phone, email: maskEmail(s.email), company: co.name || "Medoro",
     verified: !!s.otpVerifiedAt && now.getTime() - s.otpVerifiedAt.getTime() < VERIFIED_MINUTES * 60_000, expiresAt: s.expiresAt.toISOString(), signedAt: s.signedAt?.toISOString() ?? null, empNo: emp?.empNo ?? null,
-    letter: buildCandidateOffer(s.candidate.name, offerOf(s), co),
+    letter,
   };
 }
 const open = (s: { status: string; expiresAt: Date }) => {
   if (s.status === "signed") throw new UserError("You have already signed this offer.");
+  if (s.status === "declined") throw new UserError("You declined this offer. Please contact HR if you have changed your mind.");
   if (s.expiresAt < new Date()) throw new UserError("This offer has lapsed. Please contact HR for a new link.");
 };
 
@@ -149,7 +154,10 @@ export const signSchema = z.object({
   type: z.enum(["typed", "drawn"]),
   png: z.string().transform((v) => v.replace(/^data:image\/png;base64,/, "")).refine((v) => v.startsWith(PNG_MAGIC) && v.length < 400_000 && /^[A-Za-z0-9+/=]+$/.test(v), "Sign in the box first."),
   consent: z.literal(true, { error: "Tick the box to agree to sign electronically." }),
+  dataConsent: z.literal(true, { error: "Tick the box to agree to the recording of your signing details." }),
 });
+/** The version of the disclosure and consent text the candidate agreed to (kept in the audit trail). */
+export const DISCLOSURE_VERSION = "ERSD-IN-2026-11";
 
 /** The candidate signs: the signed letter is made and kept, and the employee record is created. */
 export async function signOffer(token: unknown, raw: unknown, ctx: { ip: string | null; userAgent: string }) {
@@ -173,7 +181,7 @@ export async function signOffer(token: unknown, raw: unknown, ctx: { ip: string 
       data: {
         status: "signed", signedAt: now, signerName: i.name, signerPhone: i.phone, place: i.place, lat: i.lat, lng: i.lng, accuracy: i.accuracy, sigType: i.type, sigPng: Buffer.from(i.png, "base64"),
         ip: ctx.ip, userAgent: signed.userAgent, signedHash: sha256(pdf), signedPdf: Buffer.from(pdf),
-        trail: push(s.trail, { at: now.toISOString(), event: "Signed", ip: ctx.ip, detail: `${i.place} (${i.lat.toFixed(4)}, ${i.lng.toFixed(4)})` }),
+        trail: push(s.trail, { at: now.toISOString(), event: "Signed", ip: ctx.ip, detail: `${i.place} (${i.lat.toFixed(4)}, ${i.lng.toFixed(4)}) · consents ${DISCLOSURE_VERSION}` }),
       },
     });
   } catch (e) {
@@ -184,6 +192,19 @@ export async function signOffer(token: unknown, raw: unknown, ctx: { ip: string 
   await audit({ id: null, name: i.name }, "Offer e-signed", `${s.candidate.name} · ${i.place} · ${ctx.ip ?? "no IP"}`);
   const hire = await hireFromOffer(s.id);
   return { empNo: hire.empNo, mailed: hire.mailed };
+}
+
+/** The candidate declines the offer, with a reason if they wish to give one. HR is told. */
+export async function declineOffer(token: unknown, rawReason: unknown, ip: string | null) {
+  const s = await byToken(token);
+  open(s);
+  const reason = z.string().trim().max(500, "Keep the reason under 500 characters.").parse(rawReason ?? "");
+  const now = new Date();
+  const r = await db.hrOfferSign.updateMany({ where: { id: s.id, status: { in: ["sent", "viewed"] } }, data: { status: "declined", trail: push(s.trail, { at: now.toISOString(), event: "Declined", ip, detail: reason }) } });
+  if (!r.count) throw new UserError("This offer can’t be declined now. Refresh the page.");
+  await notify(await holders("recruitment"), `${s.candidate.name} declined the offer${reason ? `: “${reason.slice(0, 120)}”` : "."}`, "recruit");
+  await audit({ id: null, name: s.candidate.name }, "Offer declined", `${s.candidate.name}${reason ? ` · ${reason.slice(0, 120)}` : ""}`);
+  return { declined: true };
 }
 
 /**

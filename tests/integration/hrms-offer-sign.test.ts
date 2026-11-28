@@ -8,13 +8,13 @@ vi.mock("@/server/otp", async (orig) => ({ ...(await orig<typeof import("@/serve
 import { PDFDocument } from "pdf-lib";
 import { db } from "@/server/db";
 import { loadPerms, type Me } from "@/staff/hrms/auth";
-import { hireFromOffer, retryHire, sendForSignature, sendSignCode, signedOfferPdf, signingStatus, signingView, signOffer, verifySignCode } from "@/staff/hrms/offer-sign";
+import { declineOffer, hireFromOffer, retryHire, sendForSignature, sendSignCode, signedOfferPdf, signingStatus, signingView, signOffer, verifySignCode } from "@/staff/hrms/offer-sign";
 import { saveOffer } from "@/staff/hrms/work";
 import { resetDb } from "./helpers";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 const ctx = { ip: "10.1.2.3", userAgent: "vitest browser" };
-const sign = { name: "Cara Das", phone: "9876501234", place: "Bokaro Steel City", lat: 23.6693, lng: 86.1511, accuracy: 18, type: "typed", png: "data:image/png;base64," + PNG, consent: true };
+const sign = { name: "Cara Das", phone: "9876501234", place: "Bokaro Steel City", lat: 23.6693, lng: 86.1511, accuracy: 18, type: "typed", png: "data:image/png;base64," + PNG, consent: true, dataConsent: true };
 let hr: Me, job: { id: string };
 const tokenOf = (url: string) => url.split("/offer/sign/")[1];
 
@@ -71,6 +71,7 @@ describe("offer e-signature", () => {
     expect(st).toMatchObject({ status: "signed", signer: "Cara Das", place: "Bokaro Steel City", empNo: r.empNo, hireError: "" });
     const row = await db.hrOfferSign.findUniqueOrThrow({ where: { candidateId: c.id } });
     expect(row).toMatchObject({ ip: "10.1.2.3", lat: 23.6693, lng: 86.1511, sigType: "typed" });
+    expect((row.trail as { detail?: string }[]).find((e) => e.detail?.includes("consents ERSD-IN"))).toBeTruthy();
     expect((row.trail as { event: string }[]).map((e) => e.event)).toEqual(["Sent for signature", "Opened", "Code sent", "Email verified", "Signed", "Employee created"]);
 
     // The signed PDF: the full offer plus the certificate of electronic signature.
@@ -99,6 +100,17 @@ describe("offer e-signature", () => {
     await db.hrOfferSign.update({ where: { candidateId: c.id }, data: { signerPhone: "9876509999" } });
     const again = await retryHire({ ...hr, role: "admin" }, c.id);
     expect(again.empNo).toMatch(/^MS-\d{3}$/);
+  });
+
+  it("lets the candidate decline, tells HR, and the link can't be signed after", async () => {
+    const c = await candidate("Gita Sen", "gita@example.com", "9876507777");
+    const token = tokenOf((await sendForSignature(hr, c.id)).url);
+    await expect(signOffer(token, { ...sign, dataConsent: false }, ctx)).rejects.toThrow(); // both consents are needed (and the email code)
+    await declineOffer(token, "Accepted another offer", "10.9.9.9");
+    expect(await signingStatus(hr, c.id)).toMatchObject({ status: "declined", declineReason: "Accepted another offer" });
+    expect((await signingView(token, null)).state).toBe("declined");
+    await expect(sendSignCode(token, null)).rejects.toThrow("declined");
+    expect(await db.hrNotification.count({ where: { staffId: hr.id, text: { contains: "Gita Sen declined" } } })).toBe(1);
   });
 
   it("refuses bad, cancelled and expired links", async () => {
