@@ -7,7 +7,7 @@ name: medoro-voice
 
 services:
   ai-service:
-    build: { context: ../../ai-service }
+    build: { context: ../../ai-service, args: { VOICE_ONLY: "1" } }
     image: medoro/ai-service:voice
     restart: unless-stopped
     environment:
