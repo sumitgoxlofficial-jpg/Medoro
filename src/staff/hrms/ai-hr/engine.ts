@@ -1,4 +1,4 @@
-import { ROUTINE_MEDICAL, normalise, clock, parseCallback, parseTime, toMin, understand, type Intent, type Lang, type Nlu, type ReasonCategory } from "./nlu";
+import { type CustomWord, ROUTINE_MEDICAL, normalise, clock, parseCallback, parseTime, toMin, understand, type Intent, type Lang, type Nlu, type ReasonCategory } from "./nlu";
 import { P, fill, type PhraseKey } from "./phrases";
 
 // The conversation engine: a small state machine per call reason with slot memory. It decides what to ask next from
@@ -24,6 +24,8 @@ export type Ctx = {
   overtime?: { date: string; hours: number; from?: string; why?: string };
   topic?: string;
   retentionDays?: number;
+  /** Phrases HR taught the assistant. */
+  vocabulary?: CustomWord[];
   /** Answers a policy / HRMS question from approved knowledge, or null (never invents). */
   kb?: (q: string, lang: Lang) => { answer: string; source: string } | null;
 };
@@ -176,7 +178,7 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
     return { state: st, reply: out.join(" "), done: false };
   }
   st.silences = 0;
-  const n = understand(text, ctx.nowMin, { reason: st.reason });
+  const n = understand(text, ctx.nowMin, { reason: st.reason, custom: ctx.vocabulary });
   st.said.push(text.slice(0, 500));
   st.intents.push(...n.intents.filter((i) => !st.intents.includes(i)));
   for (const t of n.tones) if (!st.tones.includes(t)) st.tones.push(t);

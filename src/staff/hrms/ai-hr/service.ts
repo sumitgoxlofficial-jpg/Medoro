@@ -12,7 +12,7 @@ import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } f
 import { APPLY_IDS, leaveLabel, toMin as hhmmToMin, type Settings } from "../constants";
 import { applyLeave, decideLeave, istClock, weekend } from "../time";
 import { CALL_REASONS, start, step, type CallReason, type Ctx, type State } from "./engine";
-import { understand, clock, type Lang } from "./nlu";
+import { understand, clock, normalise, REASONS, TEACHABLE_INTENTS, type CustomWord, type Lang } from "./nlu";
 import { buildOutput, type CallOutput } from "./output";
 import { Index, kbFrom, productDocs, type KDoc } from "./knowledge";
 import { passages } from "../ally-knowledge";
@@ -328,6 +328,41 @@ export async function testRetrieval(me: Me, question: string) {
   return { hits: hits.map((h) => ({ title: h.doc.title, source: h.doc.source, scope: h.doc.scope, score: Math.round(h.score * 100) / 100, coverage: Math.round(h.coverage * 100), passage: h.passage })), answer };
 }
 
+// ── Vocabulary HR teaches the assistant (HrSetting key "aiHrVocabulary")
+const wordInput = z.object({
+  phrase: z.string().trim().min(2, "Write the word or phrase.").max(60, "Keep it under 60 characters."),
+  intent: z.enum(TEACHABLE_INTENTS as [string, ...string[]]).optional(),
+  reason: z.enum(REASONS).optional(),
+}).refine((w) => !!w.intent || !!w.reason, { message: "Choose what it means." });
+let vocabCache: { at: number; words: CustomWord[] } | null = null;
+export async function loadVocabulary(): Promise<CustomWord[]> {
+  if (vocabCache && Date.now() - vocabCache.at < 60_000) return vocabCache.words;
+  const v = (await db.hrSetting.findUnique({ where: { key: "aiHrVocabulary" } }))?.value;
+  const words = (Array.isArray(v) ? v : []).flatMap((x) => { const r = wordInput.safeParse(x); return r.success ? [r.data as CustomWord] : []; });
+  vocabCache = { at: Date.now(), words };
+  return words;
+}
+export async function vocabularyAdmin(me: Me) { need(me, "attendance"); return loadVocabulary(); }
+export async function addWord(me: Me, raw: z.input<typeof wordInput>) {
+  need(me, "attendance");
+  const w = wordInput.parse(raw) as CustomWord;
+  w.phrase = normalise(w.phrase);
+  const words = await loadVocabulary();
+  if (words.length >= 300) throw new UserError("That's 300 words already. Remove some first.");
+  if (words.some((x) => x.phrase === w.phrase)) throw new UserError("That phrase is already taught. Remove it first to change its meaning.");
+  const next = [...words, w];
+  await db.hrSetting.upsert({ where: { key: "aiHrVocabulary" }, update: { value: next }, create: { key: "aiHrVocabulary", value: next } });
+  vocabCache = null;
+  await audit(me, "AI vocabulary added", `"${w.phrase}" → ${[w.intent, w.reason].filter(Boolean).join(" / ")}`);
+}
+export async function removeWord(me: Me, phrase: string) {
+  need(me, "attendance");
+  const next = (await loadVocabulary()).filter((x) => x.phrase !== phrase);
+  await db.hrSetting.upsert({ where: { key: "aiHrVocabulary" }, update: { value: next }, create: { key: "aiHrVocabulary", value: next } });
+  vocabCache = null;
+  await audit(me, "AI vocabulary removed", `"${phrase}"`);
+}
+
 // ── The conversation, for the employee it belongs to
 async function ownCall(me: Me, id: string) {
   const call = await db.aiHrCall.findUnique({ where: { id }, include: { staff: { select: { name: true } } } });
@@ -337,7 +372,7 @@ async function ownCall(me: Me, id: string) {
 async function ctxFor(call: { reason: string; context: Prisma.JsonValue; staff: { name: string } }, cfg: AiHrConfig): Promise<Ctx> {
   const cx = (call.context ?? {}) as { shiftStart?: string; shiftEnd?: string; overtime?: Ctx["overtime"]; topic?: string };
   const idx = await knowledgeIndex();
-  return { name: call.staff.name.trim().split(/\s+/)[0], nowMin: nowMinIST(new Date()), shiftStart: cx.shiftStart, shiftEnd: cx.shiftEnd, overtime: cx.overtime, topic: cx.topic, retentionDays: cfg.retentionDays, kb: kbFrom(idx) };
+  return { name: call.staff.name.trim().split(/\s+/)[0], nowMin: nowMinIST(new Date()), shiftStart: cx.shiftStart, shiftEnd: cx.shiftEnd, overtime: cx.overtime, topic: cx.topic, retentionDays: cfg.retentionDays, kb: kbFrom(idx), vocabulary: await loadVocabulary() };
 }
 const sealText = (t: string) => new Uint8Array(seal(t));
 const openText = (b: Uint8Array) => unseal(b).toString("utf8");
@@ -403,7 +438,7 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
   const ctx = await ctxFor(call, cfg);
   let used = text, llmMs: number | null = null, intentNote = "";
   // A local model may place an utterance the rules can't, but only by choosing one of the engine's own intents.
-  if (text && cfg.llmAssist && understand(text, ctx.nowMin, { reason: call.reason }).primary === "unknown") {
+  if (text && cfg.llmAssist && understand(text, ctx.nowMin, { reason: call.reason, custom: ctx.vocabulary }).primary === "unknown") {
     const t0 = Date.now();
     const m = await ai.classify(text, call.reason, prev.lastQ ?? "");
     if (m && m.intent !== "unknown" && CANON[m.intent]) { used = `${CANON[m.intent]}${m.eta ? " " + m.eta : ""}`; intentNote = `llm:${m.intent}`; llmMs = Date.now() - t0; }
@@ -618,7 +653,7 @@ export async function runEvaluation(me: Me) {
   const run = await db.aiHrEvalRun.create({ data: { by: me.id } });
   const custom = await db.aiHrScenario.findMany({ where: { disabled: false } });
   const list: Scenario[] = [...libraryScenarios(), ...custom.map((c, i) => ({ id: `custom-${i + 1}`, category: `custom:${c.category}`, categoryName: c.category, callReason: c.callReason as CallReason, situation: c.utterance, opening: c.utterance.split("||")[0].trim(), turns: c.utterance.split("||").map((t) => t.trim()), english: c.utterance, hindi: c.utterance, hindiSource: "category" as const, objective: "", escalation: "", expect: c.expect as Record<string, string>, split: "tuning" as const }))];
-  const r = evaluateAll(list, LIBRARY_VERSION);
+  const r = evaluateAll(list, LIBRARY_VERSION, { vocabulary: await loadVocabulary() });
   await db.aiHrEvalRun.update({ where: { id: run.id }, data: { total: r.total, passed: r.passed, metrics: { ...r.metrics, bySplit: r.bySplit } as unknown as Prisma.InputJsonValue, failures: r.failures.slice(0, 100).map((f) => ({ id: f.id, failed: f.failed })), finishedAt: new Date() } });
   await audit(me, "AI scenario evaluation run", `${r.passed}/${r.total}`);
   return { total: r.total, passed: r.passed };
@@ -629,7 +664,7 @@ export async function playground(me: Me, raw: z.input<typeof pgInput>) {
   need(me, "attendance");
   const i = pgInput.parse(raw);
   const idx = await knowledgeIndex();
-  const ctx: Ctx = { name: me.first, nowMin: nowMinIST(new Date()), shiftStart: "10:00", shiftEnd: "19:00", retentionDays: (await loadConfig()).retentionDays, kb: kbFrom(idx), overtime: i.reason === "overtime" ? { date: addDays(todayISO(), 1), hours: 2, from: "19:00", why: "testing" } : undefined };
+  const ctx: Ctx = { name: me.first, nowMin: nowMinIST(new Date()), shiftStart: "10:00", shiftEnd: "19:00", retentionDays: (await loadConfig()).retentionDays, kb: kbFrom(idx), vocabulary: await loadVocabulary(), overtime: i.reason === "overtime" ? { date: addDays(todayISO(), 1), hours: 2, from: "19:00", why: "testing" } : undefined };
   const r = converse(i.reason, ctx, i.lines);
   const o = buildOutput(r.state, { organisationId: ORG_ID, employeeId: me.id, reason: i.reason, transcript: r.turns, status: r.state.ended ? "completed" : "in_progress" });
   return { turns: r.turns, output: o, lang: r.state.lang as Lang };

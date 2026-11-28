@@ -292,6 +292,24 @@ describe("AI HR Assistant (integration)", () => {
     } finally { delete process.env.AI_HR_SIP_ENABLED; delete process.env.AI_HR_WEBHOOK_SECRET; }
   });
 
+  it("HR teaches a phrase; live conversations understand it; only the Attendance module may change it", async () => {
+    await expect(svc.addWord(a, { phrase: "line me lagi hai", intent: "coming" })).rejects.toThrow(/role can’t/);
+    await svc.addWord(hr, { phrase: "Line me lagi hai", intent: "coming", reason: "traffic" });
+    await expect(svc.addWord(hr, { phrase: "line me lagi hai", intent: "absent" })).rejects.toThrow(/already taught/);
+    await expect(svc.addWord(hr, { phrase: "xyz" })).rejects.toThrow(/what it means/);
+    expect(await svc.vocabularyAdmin(hr)).toEqual([{ phrase: "line me lagi hai", intent: "coming", reason: "traffic" }]);
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("10:30", "2026-12-08"));
+    const id = await svc.startManualCall(hr, b.id, "check");
+    await db.aiHrCall.update({ where: { id }, data: { reason: "late" } });
+    await svc.beginCall(b, id);
+    await svc.sendTurn(b, id, { text: "haan" });
+    const r = await svc.sendTurn(b, id, { text: "gaadi line me lagi hai" });
+    expect(r.reply).toMatch(/kitne baje/);
+    await svc.removeWord(hr, "line me lagi hai");
+    expect(await svc.vocabularyAdmin(hr)).toEqual([]);
+    expect(await db.staffAudit.count({ where: { action: { startsWith: "HRMS · AI vocabulary" } } })).toBe(2);
+  });
+
   it("page views run the AI job at most once a minute (free scheduling)", async () => {
     const t0 = new Date("2026-12-09T05:00:00Z");
     expect(await svc.maybeTick(t0)).toBe(true);

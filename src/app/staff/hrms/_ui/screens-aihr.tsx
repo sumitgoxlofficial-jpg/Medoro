@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
-import { aiHrAddScenario, aiHrApproveKnowledge, aiHrCallDetail, aiHrDecide, aiHrDeleteTranscript, aiHrManualCall, aiHrPlayground, aiHrRequestOvertime, aiHrRollbackKnowledge, aiHrRunEvaluation, aiHrSaveConfig, aiHrSaveKnowledge, aiHrTestRetrieval, aiHrToggleScenario } from "../actions";
+import { aiHrAddWord, aiHrRemoveWord, aiHrAddScenario, aiHrApproveKnowledge, aiHrCallDetail, aiHrDecide, aiHrDeleteTranscript, aiHrManualCall, aiHrPlayground, aiHrRequestOvertime, aiHrRollbackKnowledge, aiHrRunEvaluation, aiHrSaveConfig, aiHrSaveKnowledge, aiHrTestRetrieval, aiHrToggleScenario } from "../actions";
 import { Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, dangerCls, dayLabel, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 
 type D = Data<"aihr">;
@@ -20,7 +20,7 @@ export function AiHrScreen({ d }: { d: D }) {
     {d.tab === "calls" && d.calls ? <Calls d={d} /> : null}
     {d.actions ? <Escalations d={d} /> : null}
     {d.knowledge ? <Knowledge k={d.knowledge} /> : null}
-    {d.scenarios ? <Scenarios s={d.scenarios} /> : null}
+    {d.scenarios ? <><Vocabulary words={d.vocabulary ?? []} /><Scenarios s={d.scenarios} /></> : null}
     {d.tab === "playground" ? <Playground /> : null}
     {d.tab === "status" && d.status ? <Status s={d.status} /> : null}
     {d.tab === "settings" && d.status ? <Settings s={d.status} admin={d.admin} /> : null}
@@ -170,6 +170,36 @@ function Knowledge({ k }: { k: K }) {
       </form>
     </Modal> : null}
   </>;
+}
+
+const MEANING: [string, string][] = [
+  ["intent:coming", "Is coming (on the way / late)"], ["intent:absent", "Won't come today"], ["intent:want_leave", "Wants leave"], ["intent:leave_applied", "Already applied for leave"],
+  ["intent:half_day", "Half day"], ["intent:wfh", "Working from home"], ["intent:already_checked_in", "Already in the office"], ["intent:attendance_issue", "Attendance app / machine problem"],
+  ["intent:not_scheduled", "Not scheduled now (off, holiday, other shift)"], ["intent:still_working", "Still working"], ["intent:forgot_checkout", "Forgot to check out"],
+  ["intent:overtime_accept", "Accepts overtime"], ["intent:overtime_reject", "Declines overtime"], ["intent:overtime_clarify", "Question about overtime"],
+  ["intent:busy", "Busy now"], ["intent:callback", "Call back later"], ["intent:stop_calls", "Stop AI calls"], ["intent:human", "Wants a person from HR"],
+  ["intent:complaint", "Complaint / grievance"], ["intent:harassment", "Harassment (urgent)"], ["intent:accident", "Accident / injury (urgent)"], ["intent:emergency", "Emergency"],
+  ["intent:yes", "Yes"], ["intent:no", "No"],
+  ["reason:traffic", "Reason: traffic"], ["reason:public_transport", "Reason: bus / metro / train"], ["reason:vehicle", "Reason: vehicle problem"], ["reason:weather", "Reason: weather"],
+  ["reason:illness", "Reason: unwell"], ["reason:medical", "Reason: doctor / hospital"], ["reason:family", "Reason: family"], ["reason:personal", "Reason: personal work"], ["reason:work", "Reason: field / client work"],
+];
+const meaningLabel = (w: { intent?: string; reason?: string }) => MEANING.filter(([k]) => k === `intent:${w.intent}` || k === `reason:${w.reason}`).map(([, l]) => l).join(" · ");
+
+/** Words and local phrases the assistant should understand, taught by HR without code changes. */
+function Vocabulary({ words }: { words: { phrase: string; intent?: string; reason?: string }[] }) {
+  const { run, busy } = useRun();
+  const [phrase, setPhrase] = useState("");
+  const [meaning, setMeaning] = useState("intent:coming");
+  return <Card title="Words the assistant should understand" sub="Teach local phrases your team uses, e.g. “raste me hu” → is coming, or “sir ka order hai” → field work. It adds to the built-in understanding and is used at once in conversations, the playground and evaluation. Run the evaluation after adding words to check nothing else changed.">
+    <form className="flex gap-2 items-end flex-wrap px-5 pb-3" onSubmit={(e) => { e.preventDefault(); const [kind, value] = meaning.split(":"); run(() => aiHrAddWord(kind === "intent" ? { phrase, intent: value } : { phrase, reason: value as "traffic" }), () => setPhrase("")); }}>
+      <Field label="Word or phrase"><input className={inputCls + " !w-[240px]"} value={phrase} onChange={(e) => setPhrase(e.target.value)} placeholder="raste me hu" required /></Field>
+      <Field label="Means"><select className={inputCls} value={meaning} onChange={(e) => setMeaning(e.target.value)}>{MEANING.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+      <button className={primaryCls} disabled={busy}>Teach</button>
+    </form>
+    <Table head={["Phrase", "Means", ""]} empty="No custom words yet: the built-in Hindi, English and Hinglish understanding is used.">
+      {words.map((w) => <tr key={w.phrase}><td className={tdCls}><strong>{w.phrase}</strong></td><td className={tdCls}>{meaningLabel(w)}</td><td className={tdCls}><button className={dangerCls} disabled={busy} onClick={() => run(() => aiHrRemoveWord(w.phrase))}>Remove</button></td></tr>)}
+    </Table>
+  </Card>;
 }
 
 type S = NonNullable<D["scenarios"]>;

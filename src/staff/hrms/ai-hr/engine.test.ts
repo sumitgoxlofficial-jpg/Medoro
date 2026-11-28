@@ -134,6 +134,25 @@ describe("AI HR conversation engine", () => {
   });
 });
 
+describe("Vocabulary HR teaches", () => {
+  it("adds meanings for local phrases without changing what the rules already understand", () => {
+    const plain = converse("late", ctx(), ["haan", "gaadi line me lagi hai"]);
+    expect(plain.state.slots.status).toBeUndefined();
+    const taught = converse("late", ctx({ vocabulary: [{ phrase: "line me lagi hai", intent: "coming", reason: "traffic" }] }), ["haan", "gaadi line me lagi hai"]);
+    expect(taught.state.slots).toMatchObject({ status: "coming", reason: "traffic" });
+    expect(taught.state.lastQ).toBe("ask_eta");
+    // a taught "won't come" phrase beats an accidental "coming" match
+    const absent = converse("late", ctx({ vocabulary: [{ phrase: "aaj ghar pe hi rahunga", intent: "absent" }] }), ["haan", "aaj ghar pe hi rahunga"]);
+    expect(absent.state.slots.status).toBe("absent");
+    // phrases with regex characters are matched literally
+    expect(() => converse("late", ctx({ vocabulary: [{ phrase: "a+b (test)?", intent: "yes" }] }), ["a+b (test)?"])).not.toThrow();
+  });
+  it("custom words keep the whole library passing", () => {
+    const r = evaluateAll(scenarios(), "", { vocabulary: [{ phrase: "line me lagi hai", intent: "coming", reason: "traffic" }, { phrase: "aaj ghar pe hi rahunga", intent: "absent" }] });
+    expect(r.passed).toBe(r.total);
+  });
+});
+
 describe("Knowledge retrieval", () => {
   it("answers HRMS questions from approved records with their source", () => {
     const kb = kbFrom(productIndex());

@@ -22,8 +22,8 @@ export type Result = { id: string; category: string; split: Scenario["split"]; p
 const HINDI_MARKERS = /\b(hai|hoon|kya|aap|kar|nahi|theek|main|mein|ji|baje)\b/i;
 const resolveTime = (v: string, reason: CallReason) => (v.startsWith("+") ? clock(EVAL_TIME[reason] + Number(v.slice(1))) : v);
 
-export function runScenario(s: Scenario): Result {
-  const ctx = evalCtx(s.callReason);
+export function runScenario(s: Scenario, extra: Partial<Ctx> = {}): Result {
+  const ctx = { ...evalCtx(s.callReason), ...extra };
   const checks: Check[] = [];
   let output: CallOutput | null = null, state: State | null = null, transcript: Result["transcript"] = [];
   try {
@@ -80,8 +80,8 @@ export type Report = {
   failures: { id: string; failed: string[]; transcript: Result["transcript"] }[];
 };
 
-export function evaluateAll(list = scenarios(), version = ""): Report {
-  const res = list.map(runScenario);
+export function evaluateAll(list = scenarios(), version = "", extra: Partial<Ctx> = {}): Report {
+  const res = list.map((s) => runScenario(s, extra));
   const bySplit: Report["bySplit"] = {}, byCategory: Report["byCategory"] = {}, metrics: Report["metrics"] = {};
   for (const r of res) {
     (bySplit[r.split] ??= { total: 0, passed: 0 }).total++; if (r.pass) bySplit[r.split].passed++;

@@ -207,6 +207,7 @@ export const loaders = {
       actions: tab === "escalations" ? await aiHr.actionsBoard(me, q.all === "1" ? "all" : "open") : null,
       knowledge: tab === "knowledge" && can(me, "employees") ? await aiHr.knowledgeAdmin(me, (q.q ?? "").slice(0, 80)) : null,
       scenarios: tab === "scenarios" ? await aiHr.scenarioAdmin(me) : null,
+      vocabulary: tab === "scenarios" ? await aiHr.vocabularyAdmin(me) : null,
       status: tab === "status" || tab === "settings" ? await aiHr.modelStatus(me) : null,
     };
   },

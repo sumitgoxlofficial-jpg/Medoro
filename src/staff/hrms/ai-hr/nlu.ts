@@ -225,7 +225,19 @@ export function parseCallback(raw: string, nowMin: number): string | undefined {
 const dontKnowEarly = (t: string) => L.dontKnow.test(t);
 
 /** Understand one utterance. `nowMin` is minutes since midnight India time (for "11 baje", "20 minute mein"). */
-export function understand(raw: string, nowMin = 600, hint: { reason?: string } = {}): Nlu {
+/** Words HR taught the assistant (AI HR Assistant → Scenarios): a phrase that means an intent and/or a reason. */
+export type CustomWord = { phrase: string; intent?: Intent; reason?: ReasonCategory };
+/** Intents HR may attach to a custom phrase (everything the conversation acts on; never "unknown"). */
+export const TEACHABLE_INTENTS: Intent[] = ["coming", "absent", "leave_applied", "want_leave", "half_day", "wfh", "already_checked_in", "attendance_issue", "not_scheduled", "still_working", "forgot_checkout", "overtime_accept", "overtime_reject", "overtime_clarify", "busy", "callback", "stop_calls", "human", "harassment", "accident", "emergency", "complaint", "yes", "no"];
+const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const customRe = new Map<string, RegExp>();
+const matchesPhrase = (t: string, phrase: string) => {
+  let re = customRe.get(phrase);
+  if (!re) { re = w(escapeRe(normalise(phrase))); customRe.set(phrase, re); }
+  return re.test(t);
+};
+
+export function understand(raw: string, nowMin = 600, hint: { reason?: string; custom?: CustomWord[] } = {}): Nlu {
   const text = String(raw ?? "").slice(0, 1000);
   const t = normalise(text);
   const lang = detectLang(text);
@@ -290,12 +302,18 @@ export function understand(raw: string, nowMin = 600, hint: { reason?: string } 
   add("greeting", L.greeting.test(t.split(" ").slice(0, 2).join(" ")));
   add("thanks", has("thanks"));
   add("goodbye", has("goodbye"));
+  // HR's own vocabulary: adds what a phrase means (it never removes what the built-in rules found).
+  const customHits = (hint.custom ?? []).filter((c) => c.phrase && matchesPhrase(t, c.phrase));
+  for (const c of customHits) if (c.intent) found.add(c.intent);
+  if (customHits.some((c) => c.intent === "absent")) found.delete("coming");
   add("unrelated", has("unrelated") && found.size === 0);
 
   // Reason
   let reason: ReasonCategory | undefined;
   for (const r of REASON_ORDER) if (R[r].test(t)) { reason = r; break; }
   if (reason === "illness" && R.family.test(t)) reason = "family"; // a family member is unwell: a family matter
+  const customReason = customHits.find((c) => c.reason)?.reason;
+  if (customReason && !reason) reason = customReason;
   if (found.has("accident")) reason = "emergency";
   const slots: Slots = {};
   if (reason) slots.reason = reason;
