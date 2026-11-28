@@ -86,6 +86,27 @@ def test_tts_returns_wav(monkeypatch):
     assert client.post("/tts", headers=AUTH, json={"text": "x" * 1201}).status_code == 422
 
 
+def test_tts_repeats_come_from_the_cache(monkeypatch):
+    calls = []
+
+    class CountingVoice(FakeVoice):
+        def synthesize_wav(self, text, w):
+            calls.append(text)
+            super().synthesize_wav(text, w)
+
+    monkeypatch.setattr(m, "_piper", CountingVoice())
+    m._tts_cache.clear()
+    line = "Bataiye, main aapki kis tarah madad kar sakti hoon?"
+    a = client.post("/tts", headers=AUTH, json={"text": line}).json()
+    b = client.post("/tts", headers=AUTH, json={"text": line}).json()
+    assert a["cached"] is False and b["cached"] is True and a["audio_b64"] == b["audio_b64"]
+    assert len(calls) == 1
+    monkeypatch.setattr(m, "TTS_CACHE_SIZE", 2)
+    for t in ("one", "two", "three"):
+        client.post("/tts", headers=AUTH, json={"text": t})
+    assert len(m._tts_cache) == 2 and line not in m._tts_cache  # oldest lines make room
+
+
 def test_speakable():
     assert m.speakable("HR ko 11:30 aur 10:00 baje. (Source: Leave)") == "H R ko 11 30 aur 10 baje."
 

@@ -369,5 +369,6 @@ export const aiNainaCall = async () => hrRun(async (me) => (await aiHr.nainaConv
 export const aiNainaPushKey = async () => hrRun(async (me) => ({ publicKey: await aiPush.pushPublicKey(), devices: await aiPush.pushDevices(me.id) }));
 export const aiNainaPushSave = async (sub: unknown) => hrRun((me) => aiPush.savePushSub(me.id, sub), "Naina can now ring this device, even when the HRMS is closed.");
 export const aiNainaPushRemove = async (endpoint: string) => hrRun((me) => aiPush.removePushSub(me.id, String(endpoint).slice(0, 1000)));
+export const aiCallSpeak = async (id: string, text: string) => hrRun((me) => aiHr.speakRest(me, id, text));
 export const aiCallEnd = async (id: string) => done(await hrRun((me) => aiHr.endCall(me, id)));
 export const aiCallConsent = async (allowed: boolean) => done(await hrRun((me) => aiHr.setConsent(me, allowed), allowed ? "AI conversations are on." : "AI conversations are off. HR can still contact you."));

@@ -524,9 +524,18 @@ export async function myCalls(me: Me) {
   };
 }
 
-async function maybeSpeak(text: string, cfg: AiHrConfig) {
+async function maybeSpeak(text: string, cfg: AiHrConfig, whole = false): Promise<{ audio: string; mime: string; ms: number; rest?: string } | null> {
   if (cfg.speech === "off" || (cfg.speech !== "server" && cfg.voiceFrom !== "server") || !ai.serviceConfig() || !text) return null;
-  try { return await ai.speak(text); } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
+  // Naina starts talking sooner: only the first sentence is made now; the browser asks for the rest while she speaks.
+  const parts = whole ? [text] : text.split(/(?<=[।.!?])\s+/).filter(Boolean);
+  const first = parts.length > 1 && text.length > 70 ? parts[0] : text, rest = first === text ? "" : text.slice(first.length).trim();
+  try { return { ...(await ai.speak(first)), ...(rest ? { rest } : {}) }; } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
+}
+/** The rest of a reply's audio (after its first sentence), for the employee whose conversation it is. */
+export async function speakRest(me: Me, id: string, text: string) {
+  await enforce("aiHrTurn", `hrms:${me.id}`);
+  await ownCall(me, id);
+  return maybeSpeak(String(text).slice(0, 1500), await loadConfig(), true);
 }
 
 /** Starts (or resumes) a conversation: the assistant's opening line. */

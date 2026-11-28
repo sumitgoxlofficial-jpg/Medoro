@@ -245,6 +245,8 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
     if (st.reason === "manual") return finish(end("resolved"));
     reask(); ret.reply = out.join(" "); return ret;
   }
+  const chat = smallTalk(text, n);
+  if (chat) { say(chat); reask(); ret.reply = out.join(" "); return ret; }
   if (has("unrelated") && !domainSignal(n, st.reason, true)) { say("unrelated"); reask(); ret.reply = out.join(" "); return ret; }
 
   // ── Busy / call back
@@ -384,6 +386,20 @@ function manual(st: State, n: Nlu, say: Say, end: End, follow: Follow, ctx: Ctx,
   const hit = ctx.kb?.(text, st.lang) ?? null;
   if (hit) { say("kb_answer", { answer: hit.answer, source: hit.source }); return end("resolved"); }
   follow("hr_followup"); say("note_followup"); return end("resolved");
+}
+
+// "Can you hear me?", "how are you?": answered like a person would, only when nothing else was said in the same breath.
+const HEAR = /(sun (pa )?(rahi|rahe|rha|rhi)|sun sakt|sunai (de|nahi)|aawaz|awaaz|awaz|can you hear|hear me|are you there|you there|सुन (पा )?(रही|रहे)|सुन सकत|सुनाई|आवाज)/;
+const HOW = /(?<![\p{L}\p{M}])(kaise ho|kaisi ho|kaisi hain|kaise hain|how are you|how r u|कैसी हो|कैसे हो|कैसी हैं|कैसे हैं)(?![\p{L}\p{M}])/u;
+/** "I can't hear you" is a bad line, not a question to answer with "yes, I can hear you". */
+const CANT = /(nahi|nahin|nhi|not|can'?t|cannot|cut|kat|नहीं|नही|कट)/;
+const CHATTY = new Set<Intent>(["greeting", "yes", "unknown", "thanks", "confused", "repeat"]);
+function smallTalk(text: string, n: Nlu): "hear_yes" | "how_are_you" | null {
+  const t = normalise(text);
+  // "awaaz aa rahi hai?" reads like "aa rahi" (coming): with no time or reason given, it's about hearing.
+  const hearing = HEAR.test(t) && !CANT.test(t) && !/\d/.test(t) && !n.slots.eta && !n.slots.reason && n.intents.every((i) => CHATTY.has(i) || i === "coming");
+  if (hearing) return "hear_yes";
+  return n.intents.every((i) => CHATTY.has(i)) && HOW.test(t) ? "how_are_you" : null;
 }
 
 /** Plays a whole conversation (used by tests, the playground and the scenario evaluation). */

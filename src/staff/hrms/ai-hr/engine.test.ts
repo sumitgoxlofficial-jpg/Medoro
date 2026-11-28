@@ -230,3 +230,23 @@ describe("Speech recognition writes English words in Devanagari", () => {
   });
 });
 
+describe("Small talk, answered like a person", () => {
+  const ctx = { name: "Sumit", nowMin: 600 };
+  it("answers 'can you hear me?' and 'how are you?', then goes back to the question", () => {
+    const t = startSelf(ctx);
+    const a = step(t.state, ctx, "हेलो क्या मुझे तुमसे सुन सकते हो");
+    expect(a.reply).toMatch(/^Ji haan, main aapko achhi tarah sun pa rahi hoon\. Bataiye/);
+    expect(a.speech).toMatch(/सुन पा रही हूँ/);
+    expect(step(a.state, ctx, "kaise ho").reply).toMatch(/^Main bilkul theek hoon/);
+    const late = start("late", ctx);
+    expect(step(late.state, ctx, "hello, awaaz aa rahi hai?").reply).toMatch(/sun pa rahi hoon.*office aa rahe/);
+  });
+  it("doesn't mistake other things for small talk", () => {
+    const t = startSelf(ctx);
+    expect(step(t.state, ctx, "Shift swap kaise hota hai?").reply).not.toMatch(/theek hoon/); // "kaise ho-ta" isn't "how are you"
+    const late = start("late", ctx);
+    expect(step(late.state, ctx, "sunai nahi de raha").reply).not.toMatch(/sun pa rahi hoon/); // can't hear: a bad line
+    expect(step(late.state, ctx, "haan aa raha hoon 15 minute mein").state.slots.eta).toBeTruthy();
+  });
+});
+

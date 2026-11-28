@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { aiCallBegin, aiCallEnd, aiCallTurn } from "../actions";
+import { aiCallBegin, aiCallEnd, aiCallSpeak, aiCallTurn } from "../actions";
 import { browserSpeechSupported, deviceVoiceKind, prepareRecognition, recognise, recordingFormat, sharedAudio, speakReply, stopSpeaking, voiceHelp, voicesReady } from "./speech/browser-speech";
 import { listenOnce, nativeRecognitionSupported } from "./speech/native-recognition";
 import { cx } from "./kit";
@@ -13,7 +13,7 @@ import { cx } from "./kit";
 export type CallCfg = { voice: boolean; tts: boolean; serverVoice: boolean; speech: "browser" | "server" | "off"; sttModel: string; modelSource: "huggingface" | "self"; recognizer: "device" | "whisper" };
 type Line = { who: "ai" | "employee"; text: string };
 type Phase = "connecting" | "speaking" | "listening" | "hearing" | "thinking" | "muted" | "typing" | "preparing" | "ended";
-type Audio64 = { audio: string; mime: string } | null;
+type Audio64 = { audio: string; mime: string; rest?: string } | null;
 const STATUS: Record<Phase, string> = { connecting: "Connecting…", speaking: "Naina is speaking", listening: "Listening… go ahead", hearing: "Listening…", thinking: "Naina is thinking…", muted: "You’re muted", typing: "Type your answer below", preparing: "Getting voice ready on this phone…", ended: "Call ended" };
 const clockMs = () => performance.now();
 const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -54,7 +54,18 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
       if (el) {
         try {
           audioEl.current = el; el.pause();
-          el.onended = next; el.onerror = next;
+          // A long reply: its first sentence plays now; the rest is fetched meanwhile and plays straight after.
+          const more = audio.rest ? aiCallSpeak(id, audio.rest).then((r) => (r.ok ? r.data : null)).catch(() => null) : null;
+          const afterFirst = !more ? next : () => {
+            void more.then((a) => {
+              if (closed.current || phaseRef.current !== "speaking") return;
+              if (!a) { next(); return; }
+              el.onended = next; el.onerror = next;
+              el.src = `data:${a.mime};base64,${a.audio}`;
+              void el.play().catch(next);
+            });
+          };
+          el.onended = afterFirst; el.onerror = afterFirst;
           el.src = `data:${audio.mime};base64,${audio.audio}`;
           void el.play().catch(() => { if (!(browser && speakReply(speech, reply, next))) next(); });
           return;
@@ -76,9 +87,9 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
     if (mutedRef.current) { setPhase("muted"); return; }
     setErr(""); setLive("");
     if (cfg.voice && browser && nativeOk.current && nativeRecognitionSupported()) {
-      for (let round = 0; round < 3; round++) {
+      for (let round = 0; round < 2; round++) {
         setPhase("listening");
-        const h = listenOnce(lang.current, (t) => { setLive(t); if (t && phaseRef.current === "listening") setPhase("hearing"); });
+        const h = listenOnce(lang.current, (t) => { setLive(t); if (t && phaseRef.current === "listening") setPhase("hearing"); }, { maxMs: 9000 });
         stopListen.current = h.abort;
         const r = await h.result;
         if (closed.current) return;
