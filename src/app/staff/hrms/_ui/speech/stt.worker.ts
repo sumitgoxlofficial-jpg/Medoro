@@ -12,7 +12,22 @@ let asr: Promise<Asr> | null = null, loadedModel = "";
 
 const MODELS: Record<string, string> = { "whisper-base": "onnx-community/whisper-base", "whisper-small": "onnx-community/whisper-small" };
 
-async function load(model: string, post: (m: Record<string, unknown>) => void): Promise<Asr> {
+let configured = false;
+/** Self-hosted: model files and the ONNX runtime from this server (/staff/hrms/ai-speech/…) instead of Hugging Face / jsDelivr. */
+function useOwnServer(base: string) {
+  if (configured) return;
+  configured = true;
+  env.remoteHost = `${base}/models/`;
+  env.remotePathTemplate = "{model}/";
+  const ua = (self as unknown as { navigator: Navigator }).navigator.userAgent;
+  const oldSafari = /Version\/(\d+).*Safari/.test(ua) && Number(ua.match(/Version\/(\d+)/)?.[1]) < 26 && !("gpu" in navigator);
+  const variant = oldSafari ? "" : ".asyncify";
+  const onnx = env.backends.onnx as unknown as { wasm: { wasmPaths: unknown } };
+  onnx.wasm.wasmPaths = { mjs: `${base}/ort/ort-wasm-simd-threaded${variant}.mjs`, wasm: `${base}/ort/ort-wasm-simd-threaded${variant}.wasm` };
+}
+
+async function load(model: string, post: (m: Record<string, unknown>) => void, base?: string): Promise<Asr> {
+  if (base) useOwnServer(base);
   if (asr && loadedModel === model) return asr;
   loadedModel = model;
   const webgpu = "gpu" in navigator && !!(await (navigator as unknown as { gpu: { requestAdapter(): Promise<unknown> } }).gpu.requestAdapter().catch(() => null));
@@ -32,11 +47,11 @@ async function load(model: string, post: (m: Record<string, unknown>) => void): 
   return asr;
 }
 
-self.onmessage = async (e: MessageEvent<{ id: number; type: "load" | "transcribe"; model: string; audio?: Float32Array; language?: string }>) => {
-  const { id, type, model, audio, language } = e.data;
+self.onmessage = async (e: MessageEvent<{ id: number; type: "load" | "transcribe"; model: string; base?: string; audio?: Float32Array; language?: string }>) => {
+  const { id, type, model, base, audio, language } = e.data;
   const post = (m: Record<string, unknown>) => (self as unknown as Worker).postMessage({ id, ...m });
   try {
-    const run = await load(model, post);
+    const run = await load(model, post, base);
     if (type === "load") { post({ type: "ready" }); return; }
     const t0 = performance.now();
     const out = await run(audio!, { task: "transcribe", ...(language ? { language } : {}), chunk_length_s: 30, return_timestamps: false });

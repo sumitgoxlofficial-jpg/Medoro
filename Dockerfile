@@ -34,6 +34,10 @@ RUN mkdir -p /data/storage && chown -R node:node /data
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/public ./public
+# ONNX runtime for the AI HR Assistant's in-browser speech, served from this server when Settings → "Speech model from:
+# this server" (src/app/staff/hrms/ai-speech). The model files themselves come from scripts/office/fetch-speech-model.sh.
+COPY --from=deps --chown=node:node /app/node_modules/.pnpm/onnxruntime-web@*/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.* ./ai-speech/ort/
+COPY --from=deps --chown=node:node /app/node_modules/.pnpm/onnxruntime-web@*/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs /app/node_modules/.pnpm/onnxruntime-web@*/node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm ./ai-speech/ort/
 # Migration folders, read by the startup check and /api/ready.
 COPY --from=build --chown=node:node /app/prisma/migrations ./prisma/migrations
 USER node

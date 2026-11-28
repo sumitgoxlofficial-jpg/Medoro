@@ -78,6 +78,9 @@ if [ "$AI" = 1 ]; then
   PROFILES+=(--profile ai)
 fi
 
+set_kv MEDORO_PROFILES "$( { [ "$TUNNEL" = 1 ] && printf 'tunnel '; [ "$AI" = 1 ] && printf 'ai'; true; } | xargs)"
+# Extra compose files (e.g. a company proxy's CA certificate): MEDORO_COMPOSE_EXTRA="path/a.yml path/b.yml" in .env.office.
+for f in $(get MEDORO_COMPOSE_EXTRA); do FILES+=(-f "$f"); done
 echo "Building and starting (the first build takes several minutes)…"
 docker compose --env-file "$ENV" "${FILES[@]}" "${PROFILES[@]}" up -d $BUILD
 echo "Waiting for the app…"

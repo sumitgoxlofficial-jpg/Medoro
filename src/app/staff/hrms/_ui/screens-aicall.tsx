@@ -20,7 +20,7 @@ export function AiCallScreen({ d }: { d: D }) {
   const [active, setActive] = useState<string | null>(null);
   return <>
     {!d.enabled ? <Card pad><div className="text-[13px] text-[#64748B]">The AI HR Assistant isn&apos;t switched on for the company yet.</div></Card> : null}
-    {active ? <Conversation id={active} voice={d.voice} tts={d.tts} mode={d.speech} model={d.sttModel} onClose={() => setActive(null)} /> : <>
+    {active ? <Conversation id={active} voice={d.voice} tts={d.tts} mode={d.speech} model={d.sttModel} selfHosted={d.modelSource === "self"} onClose={() => setActive(null)} /> : <>
       <Card title="Waiting for you" sub="The assistant checks in about attendance or an overtime request. It is an AI: it only notes what you say; HR or your manager decide anything.">
         {d.open.length ? <div className="flex flex-col gap-2 px-5 pb-4">{d.open.map((c) => <div key={c.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-lg px-3 py-2.5"><div className="flex-1"><div className="text-[13.5px] font-semibold">About {ABOUT[c.reason]}</div><div className="text-[12px] text-[#64748B]">{dayLabel(c.day)} · {c.status === "in_progress" ? "started" : "waiting"}</div></div><button className={primaryCls} onClick={() => { if (d.speech === "browser") unlockSpeech(); setActive(c.id); }}>{c.status === "in_progress" ? "Continue" : "Talk now"}</button></div>)}</div> : <Empty>Nothing waiting. You&apos;ll get a notification when the assistant has a question.</Empty>}
       </Card>
@@ -33,7 +33,7 @@ export function AiCallScreen({ d }: { d: D }) {
   </>;
 }
 
-function Conversation({ id, voice, tts, mode, model, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; onClose: () => void }) {
+function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; selfHosted: boolean; onClose: () => void }) {
   const browser = mode === "browser";
   const canVoice = voice && (!browser || browserSpeechSupported());
   const [prep, setPrep] = useState<"" | "loading" | "ready">("");
@@ -101,7 +101,7 @@ function Conversation({ id, voice, tts, mode, model, onClose }: { id: string; vo
     if (browser && prep !== "ready") {
       // First use on this device: download the speech model once (kept in the browser cache afterwards).
       setPrep("loading");
-      try { await prepareRecognition(model, (l, t) => setPct(t ? Math.round((l / t) * 100) : 0)); setPrep("ready"); }
+      try { await prepareRecognition(model, (l, t) => setPct(t ? Math.round((l / t) * 100) : 0), selfHosted); setPrep("ready"); }
       catch { setPrep(""); setErr("This device couldn't load voice recognition. Please type your answer below."); return; }
     }
     let stream: MediaStream;

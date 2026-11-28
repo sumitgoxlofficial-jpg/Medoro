@@ -259,6 +259,7 @@ function Status({ s }: { s: St }) {
       <div className="px-5 pb-4 flex flex-col gap-2 text-[13px]">
         {!h.configured ? <div className="text-[#B45309]">{h.error}</div> : !h.reachable ? <div className="text-[#DC2626]">Unreachable: {h.error}. Conversations continue as text with the rule engine; attendance events stay queued.</div> : null}
         {h.reachable ? <Grid><Stat l="Overall" v={h.ok ? "Healthy" : "Degraded"} sub={`${h.ms} ms · ${h.version ?? ""}`} /><Stat l="Speech to text" v={h.stt?.ok ? "Ready" : "Down"} sub={h.stt?.model} /><Stat l="Voice" v={h.tts?.ok ? "Ready" : "Down"} sub={h.tts?.voice} /><Stat l="Local model" v={h.llm?.ok ? "Ready" : "Down"} sub={h.llm?.model ?? h.llm?.error} /><Stat l="Memory free" v={h.memory?.available_mb ? `${Math.round(h.memory.available_mb)} MB` : "—"} sub={h.memory?.total_mb ? `of ${Math.round(h.memory.total_mb)} MB · service ${Math.round(h.memory.process_rss_mb ?? 0)} MB` : ""} /><Stat l="CPU load" v={h.cpu?.load1 ?? "—"} sub={h.cpu?.count ? `${h.cpu.count} cores` : ""} /></Grid> : null}
+        <div className="text-[12px] text-[#64748B]">Self-hosted browser speech files ({s.config.sttModel}): {s.speechFiles.ready ? `present (${s.speechFiles.modelFiles} model files, ${s.speechFiles.runtimeFiles} runtime files)` : `not ready (${s.speechFiles.modelFiles} model files, ${s.speechFiles.runtimeFiles} runtime files). On the office server run: bash scripts/office/fetch-speech-model.sh ${s.config.sttModel}`}.</div>
         <div className="text-[12px] text-[#64748B]">Mobile calling (SIP/PSTN): {s.sip ? "enabled" : "not configured. Real phone calls need a licensed telecom provider and cost money; conversations happen in the HRMS instead"}.</div>
       </div>
     </Card>
@@ -295,6 +296,9 @@ function Settings({ s, admin }: { s: St; admin: boolean }) {
           </Field>
           {c.speech === "browser" ? <Field label="Recognition model" hint="Downloaded once per device and cached.">
             <select className={inputCls} disabled={!admin} value={c.sttModel} onChange={(e) => setC({ ...c, sttModel: e.target.value as typeof c.sttModel })}><option value="whisper-base">Whisper base: ~80 MB, faster</option><option value="whisper-small">Whisper small: ~250 MB, better Hindi</option></select>
+          </Field> : null}
+          {c.speech === "browser" ? <Field label="Speech model from" hint={c.modelSource === "self" ? (s.speechFiles.ready ? "This server has the files." : "Not on this server yet: run scripts/office/fetch-speech-model.sh first (see Model status).") : "Downloaded from Hugging Face and jsDelivr by each device."}>
+            <select className={inputCls} disabled={!admin} value={c.modelSource} onChange={(e) => setC({ ...c, modelSource: e.target.value as typeof c.modelSource })}><option value="huggingface">Hugging Face (internet)</option><option value="self">This server</option></select>
           </Field> : null}
         </Grid>
         <label className="flex gap-2 items-center"><input type="checkbox" checked={c.llmAssist} disabled={!admin} onChange={(e) => setC({ ...c, llmAssist: e.target.checked })} />Let the local model place answers the rules don&apos;t understand (it can only choose one of the assistant&apos;s own intents; safety requests are always handled by rules)</label>

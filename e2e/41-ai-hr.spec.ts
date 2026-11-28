@@ -66,6 +66,8 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   await expect(e.getByText("AI conversations on")).toBeVisible();
   await e.getByRole("button", { name: "Talk now" }).click();
   await expect(e.getByText(/Main Medoro ki AI HR Assistant hoon|AI assistant from Medoro HR/).first()).toBeVisible();
+  // Headless Chromium has no installed voices: the employee is told replies are text-only and how to add a Hindi voice.
+  await expect(e.getByText(/no Hindi voice installed/)).toBeVisible();
   await e.getByPlaceholder("Type your answer (Hindi, English or Hinglish)").fill("Leave cancel kaise karte hain HRMS mein?");
   await e.getByRole("button", { name: "Send", exact: true }).click();
   await expect(e.getByText(/Source: Cancelling leave/)).toBeVisible();

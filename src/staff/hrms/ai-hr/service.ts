@@ -18,6 +18,7 @@ import { Index, kbFrom, productDocs, type KDoc } from "./knowledge";
 import { passages } from "../ally-knowledge";
 import * as ai from "./ai-client";
 import { evaluateAll } from "./evaluate";
+import { speechFilesStatus } from "./speech-files";
 import { LIBRARY_VERSION, parseExpect, scenarios as libraryScenarios, validateLibrary, type Scenario } from "./scenarios";
 import { converse } from "./engine";
 
@@ -44,12 +45,14 @@ export const configSchema = z.object({
   speech: z.enum(["browser", "server", "off"]),
   /** Browser speech model: base (~80 MB once, faster) or small (~250 MB once, better Hindi). */
   sttModel: z.enum(["whisper-base", "whisper-small"]),
+  /** Where browsers download the speech model from: Hugging Face (default) or this server (scripts/office/fetch-speech-model.sh). */
+  modelSource: z.enum(["huggingface", "self"]),
 });
 export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base",
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface",
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -386,7 +389,7 @@ export async function myCalls(me: Me) {
     open: calls.filter((c) => ["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status })),
     past: calls.filter((c) => !["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status, summary: c.response?.summary ?? "" })),
     allowed: consent?.status !== "stopped", enabled: cfg.enabled,
-    speech: cfg.speech, sttModel: cfg.sttModel,
+    speech: cfg.speech, sttModel: cfg.sttModel, modelSource: cfg.modelSource,
     // Server speech only when the AI host answers; browser speech needs nothing from the server.
     voice: cfg.speech === "browser" || (cfg.speech === "server" && !!h?.reachable && h.stt?.ok !== false),
     tts: cfg.speech === "server" ? !!h?.reachable && h.tts?.ok !== false : cfg.speech === "browser",
@@ -671,6 +674,7 @@ export async function playground(me: Me, raw: z.input<typeof pgInput>) {
 }
 export async function modelStatus(me: Me) {
   need(me, "attendance");
-  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", config: await loadConfig() };
+  const config = await loadConfig();
+  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", config, speechFiles: await speechFilesStatus(config.sttModel) };
 }
 export { can };

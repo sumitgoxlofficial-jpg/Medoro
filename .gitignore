@@ -19,3 +19,5 @@ certs/
 public/drivedb/sqlite/
 
 backups/
+speech-models/
+logs/

@@ -28,8 +28,8 @@ function ask(msg: Record<string, unknown>, progress?: (l: number, t: number) => 
 export const browserSpeechSupported = () => typeof window !== "undefined" && typeof Worker !== "undefined" && typeof WebAssembly !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined" && !!AudioCtx();
 
 /** Downloads (first time) and starts the model. */
-export async function prepareRecognition(model: string, progress?: (loaded: number, total: number) => void) {
-  const r = await ask({ type: "load", model }, progress);
+export async function prepareRecognition(model: string, progress?: (loaded: number, total: number) => void, selfHosted = false) {
+  const r = await ask({ type: "load", model, base: selfHosted ? `${location.origin}/staff/hrms/ai-speech` : undefined }, progress);
   if (r.type === "error") throw new Error(r.error);
 }
 

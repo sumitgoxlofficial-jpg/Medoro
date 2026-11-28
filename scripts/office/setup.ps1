@@ -80,6 +80,8 @@ if ($Ai) {
   $profiles += @("--profile", "ai")
 }
 
+Set-Kv "MEDORO_PROFILES" ((@($(if (-not $NoTunnel) { "tunnel" }), $(if ($Ai) { "ai" })) | Where-Object { $_ }) -join " ")
+foreach ($f in ((Get-Kv "MEDORO_COMPOSE_EXTRA") -split "\s+" | Where-Object { $_ })) { $files += @("-f", $f) }
 Write-Host "Building and starting (the first build takes several minutes)..."
 docker compose --env-file $EnvFile @files @profiles up -d --build
 if ($LASTEXITCODE -ne 0) { throw "docker compose failed." }
