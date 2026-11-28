@@ -86,7 +86,7 @@ services:
       MEDORO_AI_TOKEN: ${AI_HR_SERVICE_TOKEN:-}  # the service refuses requests until set
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: medoro-hr
-      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
       WHISPER_THREADS: ${WHISPER_THREADS:-2}
     volumes:
       - aimodels:/models

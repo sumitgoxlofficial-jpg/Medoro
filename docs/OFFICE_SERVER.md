@@ -183,7 +183,7 @@ While the office computer is off, phones use their own voice automatically.
 ## 10c. Naina's voice from a laptop that's already on (Medoro stays on Vercel)
 
 For the laptop or PC that already runs the WhatsApp connector with Docker and Tailscale Funnel. Only Naina's voice runs
-there (about 1 GB RAM, 70 MB download); Medoro stays on Vercel.
+there (Kokoro-82M: about 1–3 GB RAM, about 1.5 GB downloaded once); Medoro stays on Vercel. The computer needs 8 GB RAM.
 
 1. Get the code on that laptop (once): `git clone https://github.com/sumitgoxlofficial-jpg/Medoro.git`, then `cd Medoro`.
 2. Run the setup:
