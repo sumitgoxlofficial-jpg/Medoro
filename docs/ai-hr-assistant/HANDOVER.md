@@ -1,5 +1,21 @@
 # AI HR Assistant — technical handover
 
+## Update 7 (2026-11-28): a call with Naina works like a phone call
+* **Hands-free call screen** (`_ui/naina-call.tsx`, used for Answer and 📞 Call): Naina speaks, then listens by herself;
+  when the employee stops talking she answers. Live captions for both sides, call timer, Mute, Speaker, Interrupt (✋
+  while she speaks), End call, and "Type instead" at all times. Silence is sent as silence (she asks again; never a yes).
+* **Hearing the employee** (Settings → "Hearing the employee"): by default the browser's built-in recognition (instant,
+  live captions; Chrome sends audio to Google, Safari to Apple; Medoro keeps only the text), falling back to the
+  in-browser Whisper model if the browser has none or it's unreachable; or "On-device model only" (private, slower).
+  Hindi conversations listen in hi-IN, English ones in en-IN; the server returns the conversation's language each turn.
+* **Hindi as recognition writes it**: English words in Devanagari ("चेकआउट", "पेस्लिप", "लीव कैंसिल") get their English
+  form added for the rules and knowledge search, and Devanagari question words no longer block knowledge answers.
+* Speaking never breaks the call: if a device refuses a voice, the caption stays on screen.
+* Tested: unit (Devanagari understanding and answers), e2e in Chromium with a stand-in microphone and voice: Answer →
+  Naina speaks → listens by herself → "haan, boliye" → her question → "मुझे एचआर से बात करनी है" (Hindi) → she replies in
+  Hindi and the call ends; recognition ran in hi-IN and her lines were spoken in Devanagari. Not tested: real
+  microphones, real voices, Safari/iPhone, recognition accuracy in noisy places.
+
 ## Update 6 (2026-11-28): Naina rings with the HRMS closed, voice fallback, no scheduler set-up needed
 * **Free browser push** (`web-push`, no paid service): in Chats → Naina an employee turns on "Let Naina ring this
   device". When the scheduler sends a conversation, every such device gets a ringing notification (stays until tapped,

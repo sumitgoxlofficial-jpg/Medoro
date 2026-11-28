@@ -92,15 +92,48 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   const staffId = (await p.staffUser.findFirstOrThrow({ where: { email: EMP.email } })).id;
   const istDay = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
   await p.aiHrCall.create({ data: { staffId, reason: "manual", day: new Date(`${istDay}T00:00:00Z`), eventKey: `manual:${staffId}:e2e-ring`, status: "notified", attempts: 1, maxAttempts: 3, nextAttemptAt: new Date(Date.now() + 3600_000), context: { topic: "Check documents" } } });
+  // The call works like a phone call. A fake device voice and the browser's speech recognition stand in for the
+  // speaker and microphone: Naina speaks, listens by herself, hears a Hindi answer (Devanagari), and ends the call.
+  await e.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    const said = ["haan, boliye", "मुझे एचआर से बात करनी है"];
+    const spoken: string[] = []; w.__spoken = spoken;
+    const voice = { name: "Lekha", lang: "hi-IN", localService: true, default: true, voiceURI: "Lekha" };
+    w.SpeechSynthesisUtterance = class { text: string; voice: unknown = null; lang = ""; rate = 1; pitch = 1; volume = 1; onend: (() => void) | null = null; onerror: (() => void) | null = null; constructor(t: string) { this.text = t; } };
+    Object.defineProperty(window, "speechSynthesis", { configurable: true, value: { getVoices: () => [voice], cancel() {}, pause() {}, resume() {}, addEventListener() {}, removeEventListener() {}, speaking: false, pending: false, paused: false, speak(u: { text: string; onend?: () => void }) { spoken.push(u.text); setTimeout(() => u.onend?.(), 150); } } });
+    type R = { results: { length: number; [i: number]: { isFinal: boolean; length: number; [j: number]: { transcript: string; confidence: number } } }; resultIndex: number };
+    class FakeRec {
+      lang = ""; interimResults = false; continuous = false; maxAlternatives = 1;
+      onresult: ((e: R) => void) | null = null; onerror: ((e: { error: string }) => void) | null = null; onend: (() => void) | null = null; onspeechstart = null;
+      start() {
+        const t = said.shift(); w.__recLang = this.lang;
+        setTimeout(() => {
+          const res = (text: string, isFinal: boolean): R => ({ resultIndex: 0, results: { length: 1, 0: { isFinal, length: 1, 0: { transcript: text, confidence: 0.9 } } } });
+          if (t) { this.onresult?.(res(t.split(" ")[0], false)); this.onresult?.(res(t, true)); } else this.onerror?.({ error: "no-speech" });
+          this.onend?.();
+        }, 400);
+      }
+      stop() {}
+      abort() { this.onerror?.({ error: "aborted" }); this.onend?.(); }
+    }
+    w.SpeechRecognition = FakeRec; w.webkitSpeechRecognition = FakeRec;
+  });
   await e.goto("/staff/hrms/attendance");
   const ringing = e.getByRole("alertdialog", { name: "Naina is calling" });
   await expect(ringing).toBeVisible({ timeout: 20_000 });
   await ringing.getByRole("button", { name: "📞 Answer" }).click();
   const callWin = e.getByRole("dialog", { name: "Call with Naina" });
-  await expect(callWin.getByText(/Naina hoon|I'm Naina|this is Naina/).first()).toBeVisible();
-  await callWin.getByPlaceholder("Type your answer (Hindi, English or Hinglish)").fill("HR se baat karni hai");
-  await callWin.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(callWin.getByText("Conversation finished. Thank you.")).toBeVisible();
+  const captions = callWin.getByLabel("Captions");
+  await expect(captions.getByText(/Naina hoon|I'm Naina|this is Naina/).first()).toBeVisible();
+  await expect(captions.getByText("haan, boliye")).toBeVisible();
+  await expect(captions.getByText(/madad kar sakti hoon/)).toBeVisible();
+  await expect(captions.getByText("मुझे एचआर से बात करनी है")).toBeVisible();
+  await expect(captions.getByText(/HR team ko bata deti hoon|एचआर टीम को|HR टीम को/).first()).toBeVisible();
+  await expect(callWin.getByRole("status")).toContainText("Call ended", { timeout: 15_000 });
+  expect(await e.evaluate(() => (window as unknown as { __recLang: string }).__recLang)).toBe("hi-IN");
+  const spoken = await e.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken.filter((x) => x.trim()));
+  expect(spoken.length).toBeGreaterThanOrEqual(3); // her opening, the question and the goodbye, spoken aloud
+  expect(spoken[0]).toMatch(/नैना/); // in Devanagari for the Hindi voice
   await callWin.getByRole("button", { name: "Close" }).click();
   await expect(ringing).toBeHidden();
 

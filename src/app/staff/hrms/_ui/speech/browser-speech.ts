@@ -110,23 +110,32 @@ export function pickVoice(lang: "hi" | "en"): SpeechSynthesisVoice | null {
 export const deviceVoiceAvailable = (lang: "hi" | "en") => !!pickVoice(lang);
 
 /** Speaks a reply with the device voice. Returns false if no suitable installed voice exists. */
-export function speakOnDevice(text: string, lang: "hi" | "en"): boolean {
+export function speakOnDevice(text: string, lang: "hi" | "en", onEnd?: () => void): boolean {
   const v = pickVoice(lang);
   if (!v || !text) return false;
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text.replace(/\(([^)]*Source|स्रोत)[^)]*\)/g, ""));
-  u.voice = v; u.lang = v.lang; u.rate = 0.95; u.pitch = 1.05;
-  speechSynthesis.speak(u);
+  const said = text.replace(/\(([^)]*Source|स्रोत)[^)]*\)/g, "");
+  let u: SpeechSynthesisUtterance;
+  try { u = new SpeechSynthesisUtterance(said); u.voice = v; u.lang = v.lang; u.rate = 1; u.pitch = 1.08; }
+  catch { return false; } // a voice the browser won't use: the caption is on screen instead
+  if (onEnd) {
+    // Some browsers never fire "end" for long sentences: a generous timer finishes the turn anyway.
+    let fired = false;
+    const done = () => { if (!fired) { fired = true; clearTimeout(t); onEnd(); } };
+    const t = setTimeout(done, 4000 + said.length * 110);
+    u.onend = done; u.onerror = done;
+  }
+  try { speechSynthesis.speak(u); } catch { return false; }
   return true;
 }
 /**
  * Naina's reply aloud with whatever the device has: a Hindi voice reads the Devanagari version; without one, an Indian
  * (or any) English voice reads the Hinglish text, which it pronounces well enough to follow. Returns the voice used.
  */
-export function speakReply(devanagari: string, latin: string): "hi" | "en" | null {
-  if (devanagari && /[\u0900-\u097F]/.test(devanagari) && speakOnDevice(devanagari, "hi")) return "hi";
+export function speakReply(devanagari: string, latin: string, onEnd?: () => void): "hi" | "en" | null {
+  if (devanagari && /[\u0900-\u097F]/.test(devanagari) && speakOnDevice(devanagari, "hi", onEnd)) return "hi";
   const text = latin || (/[\u0900-\u097F]/.test(devanagari) ? "" : devanagari);
-  return text && speakOnDevice(text, "en") ? "en" : null;
+  return text && speakOnDevice(text, "en", onEnd) ? "en" : null;
 }
 /** Which voice replies will use on this device: Hindi, English (reading Hinglish), or none. */
 export const deviceVoiceKind = (): "hi" | "en" | null => (pickVoice("hi") ? "hi" : pickVoice("en") ? "en" : null);

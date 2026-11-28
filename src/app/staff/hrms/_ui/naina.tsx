@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import { aiNainaCall, aiNainaEnd, aiNainaPushKey, aiNainaPushRemove, aiNainaPushSave, aiNainaSend, aiNainaThread } from "../actions";
-import { Conversation } from "./screens-aicall";
+import { NainaVoiceCall } from "./naina-call";
 import { unlockSpeech } from "./speech/browser-speech";
 import { ding } from "./chat-notify";
 import { cx, dayLong, timeLabel } from "./kit";
@@ -15,7 +15,7 @@ import { cx, dayLong, timeLabel } from "./kit";
  */
 export const NAINA = "naina";
 export type NainaInfo = NonNullable<Data<"chat">["naina"]>;
-type Cfg = Pick<NainaInfo, "voice" | "tts" | "speech" | "sttModel" | "modelSource">;
+type Cfg = Pick<NainaInfo, "voice" | "tts" | "speech" | "sttModel" | "modelSource" | "recognizer">;
 type Thread = { id: string; reason: string; day: string; status: string; self: boolean; turns: { who: "ai" | "employee"; text: string; at: string }[] }[];
 const ABOUT: Record<string, string> = { late: "today's check-in", absent: "today's attendance", missing_checkout: "today's check-out", overtime: "an overtime request", manual: "an HR follow-up" };
 
@@ -43,14 +43,11 @@ export function NainaRow({ info, active, onPick }: { info: NainaInfo; active: bo
   );
 }
 
-/** The voice call with Naina: the AI HR conversation (speak or type) in a call window. */
+/** The voice call with Naina: a phone-style call window inside the HRMS (hands-free, captions, mute, end). */
 export function NainaCall({ id, cfg, onClose }: { id: string; cfg: Cfg; onClose: () => void }) {
   return (
-    <div role="dialog" aria-modal="true" aria-label="Call with Naina" className="fixed inset-0 z-[110] bg-[#0f172a]/60 backdrop-blur-[2px] flex items-start justify-center overflow-auto py-8 px-4">
-      <div className="w-full max-w-[560px] flex flex-col gap-3">
-        <div className="flex items-center gap-3 text-white"><NainaFace size={52} /><div><div className="font-bold text-[17px]">Naina · on call</div><div className="text-[12.5px] text-white/80">AI assistant from Medoro HR · inside the HRMS, no phone needed</div></div></div>
-        <div className="bg-white rounded-2xl overflow-hidden"><Conversation id={id} voice={cfg.voice} tts={cfg.tts} mode={cfg.speech} model={cfg.sttModel} selfHosted={cfg.modelSource === "self"} onClose={onClose} /></div>
-      </div>
+    <div role="dialog" aria-modal="true" aria-label="Call with Naina" className="fixed inset-0 z-[110] bg-[#0f172a]/70 backdrop-blur-[3px] flex items-start justify-center overflow-auto py-6 px-3">
+      <div className="w-full max-w-[440px]"><NainaVoiceCall id={id} cfg={cfg} onClose={onClose} /></div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { converse, start, startSelf, step, type Ctx } from "./engine";
-import { understand, parseTime } from "./nlu";
+import { understand, parseTime, withLoanwords } from "./nlu";
 import { buildOutput } from "./output";
 import { Index, kbFrom, productIndex } from "./knowledge";
 import { scenarios, validateLibrary } from "./scenarios";
@@ -210,3 +210,23 @@ describe("Naina: a chat the employee starts", () => {
     expect(n.reply).toMatch(/HR/);
   });
 });
+
+describe("Speech recognition writes English words in Devanagari", () => {
+  it("adds the English form after the text, and leaves Latin text alone", () => {
+    expect(withLoanwords("चेकआउट करना भूल गया")).toBe("चेकआउट करना भूल गया checkout");
+    expect(withLoanwords("checkout bhool gaya")).toBe("checkout bhool gaya");
+    expect(withLoanwords("बस दस मिनट")).toBe("बस दस मिनट"); // "bas" means "just", not a bus
+  });
+  it("understands what Chrome's Hindi recognition hears", () => {
+    expect(understand("चेकआउट करना भूल गया था", 600, { reason: "missing_checkout" }).primary).toBe("forgot_checkout");
+    expect(understand("हाँ ट्रैफिक में हूँ 15 मिनट में पहुंच जाऊंगा", 600, { reason: "late" }).primary).toBe("coming");
+    expect(understand("मुझे एचआर से बात करनी है", 600, { reason: "late" }).primary).toBe("human");
+    expect(understand("पेस्लिप कहां मिलेगी", 600, { reason: "manual" }).primary).toBe("payroll_question");
+  });
+  it("finds knowledge answers for Devanagari questions", () => {
+    const kb = kbFrom(productIndex());
+    expect(kb("पेस्लिप कहां मिलेगी", "hi")?.source).toBe("Payslips and tax statement");
+    expect(kb("लीव कैसे कैंसिल करें", "hi")?.source).toBe("Cancelling leave");
+  });
+});
+
