@@ -15,7 +15,7 @@ import { cx, dayLong, timeLabel } from "./kit";
  */
 export const NAINA = "naina";
 export type NainaInfo = NonNullable<Data<"chat">["naina"]>;
-type Cfg = Pick<NainaInfo, "voice" | "tts" | "speech" | "sttModel" | "modelSource" | "recognizer">;
+type Cfg = Pick<NainaInfo, "voice" | "tts" | "serverVoice" | "speech" | "sttModel" | "modelSource" | "recognizer">;
 type Thread = { id: string; reason: string; day: string; status: string; self: boolean; turns: { who: "ai" | "employee"; text: string; at: string }[] }[];
 const ABOUT: Record<string, string> = { late: "today's check-in", absent: "today's attendance", missing_checkout: "today's check-out", overtime: "an overtime request", manual: "an HR follow-up" };
 
@@ -147,7 +147,7 @@ export function NainaPanel({ info: first, onBack }: { info: NainaInfo; onBack: (
   };
   const startCall = async () => {
     if (!info) return;
-    if (info.speech === "browser") unlockSpeech(); // the tap allows the device voice to speak
+    unlockSpeech(); // the tap allows the device voice to speak
     setErr("");
     const r = await aiNainaCall().catch(() => null);
     if (!r) { setErr("Couldn’t reach the server. Check your connection and try again."); return; }
@@ -232,7 +232,7 @@ export function NainaRinger({ screen }: { screen: string }) {
   }, [ring]);
   if (call) return <NainaCall id={call.id} cfg={call.cfg} onClose={() => setCall(null)} />;
   if (!ring) return null;
-  const answer = () => { if (ring.cfg.speech === "browser") unlockSpeech(); setCall({ id: ring.id, cfg: ring.cfg }); setRing(null); };
+  const answer = () => { unlockSpeech(); setCall({ id: ring.id, cfg: ring.cfg }); setRing(null); };
   const decline = () => { try { sessionStorage.setItem(seenKey(ring), "1"); } catch { /* private window */ } setRing(null); };
   return (
     <div role="alertdialog" aria-label="Naina is calling" className="fixed top-4 left-1/2 -translate-x-1/2 z-[105] w-[min(420px,calc(100vw-24px))] bg-[#0B5E5B] text-white rounded-2xl px-4 py-3.5 shadow-[0_16px_40px_-10px_rgba(0,0,0,.45)] flex flex-col gap-3">

@@ -57,6 +57,12 @@ export const configSchema = z.object({
    * Whisper model as the fallback; "whisper" always uses the in-browser model (nothing leaves the device, ~80 MB once).
    */
   recognizer: z.enum(["device", "whisper"]).default("device"),
+  /**
+   * Whose voice Naina speaks with: "server" is Medoro's own built-in Hindi female voice (Piper on the AI host; the same
+   * voice on every phone and laptop, nothing to install), "device" is each device's own voice. With "server", if the AI
+   * host is unreachable, the device's voice is used instead.
+   */
+  voiceFrom: z.enum(["server", "device"]).default("device"),
   /** A weekly summary email to everyone with Attendance & leave (Monday), when email is set up. */
   weeklyDigest: z.boolean().default(true),
 });
@@ -64,7 +70,7 @@ export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", weeklyDigest: true,
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", voiceFrom: "device", weeklyDigest: true,
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -487,12 +493,22 @@ async function ctxFor(call: { reason: string; context: Prisma.JsonValue; staff: 
   return { name: call.staff.name.trim().split(/\s+/)[0], nowMin: nowMinIST(new Date()), shiftStart: cx.shiftStart, shiftEnd: cx.shiftEnd, overtime: cx.overtime, topic: cx.topic, retentionDays: cfg.retentionDays, kb: kbFrom(idx), vocabulary: await loadVocabulary() };
 }
 const sealText = (t: string) => new Uint8Array(seal(t));
+/** The conversation state, with the spoken (Devanagari) form of Naina's last line, so a call that joins later can say it. */
+const withSpeech = (st: State, speech?: string) => ({ ...st, ...(speech !== undefined ? { lastSpeech: speech.slice(0, 1500) } : {}) }) as unknown as Prisma.InputJsonValue;
 const openText = (b: Uint8Array) => unseal(b).toString("utf8");
 
+/** The AI host's health, remembered for 30 s (the call screens ask often; the host shouldn't be asked each time). */
+let healthMemo: { at: number; h: Awaited<ReturnType<typeof ai.health>> } | null = null;
+async function cachedHealth() {
+  if (healthMemo && Date.now() - healthMemo.at < 30_000) return healthMemo.h;
+  const h = await ai.health();
+  healthMemo = { at: Date.now(), h };
+  return h;
+}
 export async function myCalls(me: Me) {
   const [calls, consent, cfg, h] = await Promise.all([
     db.aiHrCall.findMany({ where: { staffId: me.id }, orderBy: { createdAt: "desc" }, take: 15, include: { response: { select: { summary: true } } } }),
-    db.aiHrConsent.findUnique({ where: { staffId: me.id } }), loadConfig(), ai.serviceConfig() ? ai.health() : Promise.resolve(null),
+    db.aiHrConsent.findUnique({ where: { staffId: me.id } }), loadConfig(), ai.serviceConfig() ? cachedHealth() : Promise.resolve(null),
   ]);
   return {
     open: calls.filter((c) => ["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status })),
@@ -501,13 +517,15 @@ export async function myCalls(me: Me) {
     speech: cfg.speech, sttModel: cfg.sttModel, modelSource: cfg.modelSource, recognizer: cfg.recognizer,
     // Server speech only when the AI host answers; browser speech needs nothing from the server.
     voice: cfg.speech === "browser" || (cfg.speech === "server" && !!h?.reachable && h.stt?.ok !== false),
+    /** Medoro's own voice is speaking (the AI host answers): the browser asks the server for audio with each reply. */
+    serverVoice: cfg.speech !== "off" && (cfg.speech === "server" || cfg.voiceFrom === "server") && !!h?.reachable && h.tts?.ok !== false,
     tts: cfg.speech === "server" ? !!h?.reachable && h.tts?.ok !== false : cfg.speech === "browser",
     retentionDays: cfg.retentionDays,
   };
 }
 
 async function maybeSpeak(text: string, cfg: AiHrConfig) {
-  if (cfg.speech !== "server" || !ai.serviceConfig() || !text) return null;
+  if (cfg.speech === "off" || (cfg.speech !== "server" && cfg.voiceFrom !== "server") || !ai.serviceConfig() || !text) return null;
   try { return await ai.speak(text); } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
 }
 
@@ -517,13 +535,18 @@ export async function beginCall(me: Me, id: string, opts: { speak?: boolean } = 
   const cfg = await loadConfig();
   if (!["scheduled", "notified", "in_progress"].includes(call.status)) throw new UserError("This conversation has ended.");
   if (call.status === "in_progress") {
-    const turns = await db.aiHrTurn.findMany({ where: { callId: id }, orderBy: { seq: "asc" } });
-    return { turns: turns.map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed) })), done: false, audio: null, speech: "", lang: (call.state as unknown as State).lang ?? "hinglish" };
+    // Joining a conversation already open (a chat, or a call answered again): Naina repeats her last line aloud.
+    const turns = (await db.aiHrTurn.findMany({ where: { callId: id }, orderBy: { seq: "asc" } })).map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed) }));
+    const st = call.state as unknown as State & { lastSpeech?: string };
+    const last = turns.at(-1)?.who === "ai" ? turns.at(-1)!.text : "";
+    const speech = last ? st.lastSpeech || last : "";
+    const audio = opts.speak && speech ? await maybeSpeak(speech, cfg) : null;
+    return { turns, done: false, audio, speech, lang: st.lang ?? "hinglish" };
   }
   const t = start(call.reason as CallReason, await ctxFor(call, cfg));
   const audio = opts.speak ? await maybeSpeak(t.speech || t.reply, cfg) : null;
   await db.$transaction([
-    db.aiHrCall.update({ where: { id }, data: { status: "in_progress", startedAt: new Date(), state: t.state as unknown as Prisma.InputJsonValue, nextAttemptAt: null } }),
+    db.aiHrCall.update({ where: { id }, data: { status: "in_progress", startedAt: new Date(), state: withSpeech(t.state, t.speech), nextAttemptAt: null } }),
     db.aiHrTurn.create({ data: { callId: id, seq: 0, who: "ai", textSealed: sealText(t.reply), lang: t.state.lang, ttsMs: audio?.ms ?? null } }),
     db.aiHrCallAttempt.create({ data: { callId: id, n: call.attempts, outcome: "answered", detail: "opened in the HRMS" } }),
   ]);
@@ -539,7 +562,7 @@ export async function nainaInfo(me: Me) {
   if (!cfg.enabled) return null;
   const v = await myCalls(me);
   const open = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: { in: OPEN } }, orderBy: { createdAt: "desc" }, select: { id: true, reason: true, status: true, context: true } });
-  return { voice: v.voice, tts: v.tts, speech: v.speech, sttModel: v.sttModel, modelSource: v.modelSource, recognizer: v.recognizer, allowed: v.allowed, open: open ? { id: open.id, reason: open.reason, status: open.status, self: !!(open.context as { self?: boolean } | null)?.self } : null };
+  return { voice: v.voice, tts: v.tts || v.serverVoice, serverVoice: v.serverVoice, speech: v.speech, sttModel: v.sttModel, modelSource: v.modelSource, recognizer: v.recognizer, allowed: v.allowed, open: open ? { id: open.id, reason: open.reason, status: open.status, self: !!(open.context as { self?: boolean } | null)?.self } : null };
 }
 /** A conversation Naina wants to have now (notified within calling hours): the HRMS rings for it. */
 export async function nainaRing(me: Me) {
@@ -547,7 +570,7 @@ export async function nainaRing(me: Me) {
   const call = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: "notified" }, orderBy: { createdAt: "asc" }, select: { id: true, reason: true, attempts: true } });
   if (!call) return null;
   const info = await nainaInfo(me);
-  return info ? { ...call, cfg: { voice: info.voice, tts: info.tts, speech: info.speech, sttModel: info.sttModel, modelSource: info.modelSource, recognizer: info.recognizer } } : null;
+  return info ? { ...call, cfg: { voice: info.voice, tts: info.tts, serverVoice: info.serverVoice, speech: info.speech, sttModel: info.sttModel, modelSource: info.modelSource, recognizer: info.recognizer } } : null;
 }
 /** The employee's thread with Naina: their recent conversations, oldest first (only what retention still keeps). */
 export async function nainaThread(me: Me) {
@@ -564,7 +587,7 @@ async function beginSelf(me: Me) {
   const context = { topic: "Employee started a chat", self: true };
   const ctx = await ctxFor({ reason: "manual", context, staff }, cfg);
   const t = startSelf(ctx);
-  const call = await db.aiHrCall.create({ data: { staffId: me.id, reason: "manual", day: dateOnly(today), eventKey: `self:${me.id}:${randomUUID()}`, maxAttempts: 1, status: "in_progress", startedAt: new Date(), createdBy: me.id, context, state: t.state as unknown as Prisma.InputJsonValue } });
+  const call = await db.aiHrCall.create({ data: { staffId: me.id, reason: "manual", day: dateOnly(today), eventKey: `self:${me.id}:${randomUUID()}`, maxAttempts: 1, status: "in_progress", startedAt: new Date(), createdBy: me.id, context, state: withSpeech(t.state, t.speech) } });
   await db.aiHrTurn.create({ data: { callId: call.id, seq: 0, who: "ai", textSealed: sealText(t.reply), lang: t.state.lang } });
   return call.id;
 }
@@ -630,7 +653,7 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
   const audio = input.speak && r.reply ? await maybeSpeak(r.speech || r.reply, cfg) : null;
   const writes: Prisma.PrismaPromise<unknown>[] = [
     db.aiHrTurn.create({ data: { callId: id, seq, who: "employee", textSealed: sealText(text), lang: r.nlu?.lang ?? r.state.lang, intent: intentNote || (r.nlu?.primary ?? (text ? "" : "silence")), sttMs, llmMs } }),
-    db.aiHrCall.update({ where: { id }, data: { state: r.state as unknown as Prisma.InputJsonValue } }),
+    db.aiHrCall.update({ where: { id }, data: { state: withSpeech(r.state, r.reply ? r.speech : undefined) } }),
   ];
   if (r.reply) writes.push(db.aiHrTurn.create({ data: { callId: id, seq: seq + 1, who: "ai", textSealed: sealText(r.reply), lang: r.state.lang, ttsMs: audio?.ms ?? null } }));
   await db.$transaction(writes);

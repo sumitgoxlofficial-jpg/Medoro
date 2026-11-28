@@ -1,5 +1,19 @@
 # AI HR Assistant — technical handover
 
+## Update 8 (2026-11-28): Medoro's built-in voice for Naina
+* Settings → **Naina's voice**: "Medoro's built-in voice (same for everyone)" or "Each device's own voice". The built-in
+  voice is the Piper Hindi female voice on Medoro's AI host (`ai-service`, office computer set up with `--ai`): the
+  server sends Naina's audio with every reply, so employees install nothing and hear the same voice on every phone and
+  laptop. Recognition stays fast in the browser. If the AI host doesn't answer, each device's own voice takes over.
+* Phones only play sound a tap started: the Answer / Call tap unlocks one audio element that the whole call reuses.
+* A call that joins an open conversation repeats Naina's last line aloud (its Devanagari form is kept in the state).
+* Fixed: the AI host address check refused private-network addresses (e.g. `http://192.168.1.5:8090`); the office
+  compose name `http://ai-service:8090` was not affected. Fixed: "payslip kahan milegi" was taken as English (common
+  Hindi question words added); 1,000/1,000 scenarios still pass.
+* With Medoro on Vercel, point `AI_HR_SERVICE_URL` at the office computer through the tunnel (see docs/OFFICE_SERVER.md
+  §10b). Tested: integration against a stand-in AI host (audio returned with each reply, Devanagari text sent to the
+  voice, device voice when the host is down). Not tested: the real Piper voice (model download blocked here).
+
 ## Update 7 (2026-11-28): a call with Naina works like a phone call
 * **Hands-free call screen** (`_ui/naina-call.tsx`, used for Answer and 📞 Call): Naina speaks, then listens by herself;
   when the employee stops talking she answers. Live captions for both sides, call timer, Mute, Speaker, Interrupt (✋

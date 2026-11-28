@@ -166,6 +166,20 @@ instead (faster on the office network, and not dependent on Hugging Face):
 Model status shows whether the files are present. They are served only to signed-in HRMS users. The speech runtime is
 built into the Docker image.
 
+## 10b. Naina's built-in voice (same voice for every employee, nothing to install)
+
+Naina can speak with Medoro's own Hindi female voice instead of each phone's voice.
+1. Run the setup with the AI option: `bash scripts/office/setup.sh --ai` (Windows: `-Ai`). It needs about 4 GB more RAM
+   and downloads the voice once.
+2. HRMS → AI HR Assistant → Settings → **Naina's voice: Medoro's built-in voice**. Model status shows when it's ready.
+
+If Medoro itself still runs on Vercel, the office computer can provide the voice:
+1. In the Cloudflare tunnel, add a public hostname, e.g. `ai.medoro.in` → `HTTP` → `ai-service:8090`.
+2. In Vercel → Settings → Environment Variables, set `AI_HR_SERVICE_URL=https://ai.medoro.in` and `AI_HR_SERVICE_TOKEN`
+   to the same value as `AI_HR_SERVICE_TOKEN` in `.env.office`, then redeploy.
+
+While the office computer is off, phones use their own voice automatically.
+
 ## 11. Everyday commands
 
 Compose commands (add `-f deploy/office/compose.localdb.yml` after the first `-f` if you use the local database):
