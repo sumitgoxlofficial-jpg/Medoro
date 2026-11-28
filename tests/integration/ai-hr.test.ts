@@ -493,6 +493,13 @@ describe("AI HR Assistant (integration)", () => {
       const { id } = await svc.nainaConversation(fx);
       const open = await svc.beginCall(fx, id, { speak: true });
       expect(open.audio).toMatchObject({ mime: "audio/wav", audio: Buffer.from("RIFF-test-wav").toString("base64") });
+      // A long opening: only its first sentence is made now; the rest comes on request while she speaks.
+      expect(open.audio?.rest).toBeTruthy();
+      expect(asked.at(-1)!.length).toBeLessThan(open.speech.length);
+      const rest = await svc.speakRest(fx, id, open.audio!.rest!);
+      expect(rest?.mime).toBe("audio/wav");
+      expect(asked.at(-1)).toBe(open.audio!.rest);
+      await expect(svc.speakRest(b, id, "x")).rejects.toThrow(/isn't yours/); // only the employee whose call it is
       const turn = await svc.sendTurn(fx, id, { text: "payslip kahan milegi", speak: true });
       expect(turn.audio?.mime).toBe("audio/wav");
       expect(asked.length).toBeGreaterThanOrEqual(1);

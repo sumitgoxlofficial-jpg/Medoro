@@ -26,6 +26,7 @@ import resource
 import tempfile
 import time
 import wave
+from collections import OrderedDict
 from typing import Any
 
 import httpx
@@ -47,9 +48,24 @@ STT_PROMPT = "Haan ji, main traffic mein hoon, gyarah baje tak pahunch jaunga. A
 
 app = FastAPI(title="Medoro AI service", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
 
+
+@app.on_event("startup")
+async def _warm_voice() -> None:
+    """Loads the voice when the server starts, so the first call isn't slower (in the background; never blocks start-up)."""
+    async def load() -> None:
+        try:
+            if os.path.exists(PIPER_VOICE):
+                await asyncio.to_thread(lambda: _synthesize("नमस्ते"))
+        except Exception:  # noqa: BLE001 - a failed warm-up only means the first reply loads it
+            pass
+    asyncio.get_running_loop().create_task(load())
+
 # One request at a time per engine on an 8 GB host: queued requests wait instead of exhausting memory.
 _stt_lock = asyncio.Semaphore(1)
 _tts_lock = asyncio.Semaphore(1)
+# Lines Naina says again and again ("Bataiye, main aapki kis tarah madad kar sakti hoon?") are made once, then reused.
+_tts_cache: "OrderedDict[str, bytes]" = OrderedDict()
+TTS_CACHE_SIZE = int(os.environ.get("TTS_CACHE_SIZE", "400"))
 _llm_lock = asyncio.Semaphore(1)
 _whisper: Any = None
 _piper: Any = None
@@ -158,9 +174,18 @@ async def tts(body: TtsIn) -> dict[str, Any]:
     if not os.path.exists(PIPER_VOICE):
         raise HTTPException(503, "voice model not installed")
     t0 = time.perf_counter()
-    async with _tts_lock:
-        wav = await asyncio.to_thread(_synthesize, speakable(body.text))
-    return {"audio_b64": base64.b64encode(wav).decode(), "mime": "audio/wav", "ms": int((time.perf_counter() - t0) * 1000)}
+    text = speakable(body.text)
+    wav = _tts_cache.get(text)
+    hit = wav is not None
+    if hit:
+        _tts_cache.move_to_end(text)
+    else:
+        async with _tts_lock:
+            wav = await asyncio.to_thread(_synthesize, text)
+        _tts_cache[text] = wav
+        while len(_tts_cache) > TTS_CACHE_SIZE:
+            _tts_cache.popitem(last=False)
+    return {"audio_b64": base64.b64encode(wav).decode(), "mime": "audio/wav", "ms": int((time.perf_counter() - t0) * 1000), "cached": hit}
 
 
 def _synthesize(text: str) -> bytes:
