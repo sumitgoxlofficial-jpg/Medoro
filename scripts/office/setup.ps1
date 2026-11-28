@@ -17,7 +17,10 @@ Set-Location (Join-Path $PSScriptRoot "..\..")
 $EnvFile = ".env.office"
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw "Docker Desktop is not installed. See docs/OFFICE_SERVER.md, step 2." }
-docker info *> $null; if ($LASTEXITCODE -ne 0) { throw "Docker Desktop is not running. Start it and try again." }
+# Windows PowerShell 5.1 turns any stderr line of a redirected native command into an error, and with
+# ErrorActionPreference=Stop that aborts the script (e.g. Docker's "Plugin ... is not valid" warning). Check exit codes only.
+$ErrorActionPreference = "Continue"; docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0); $ErrorActionPreference = "Stop"
+if (-not $dockerOk) { throw "Docker Desktop is not running. Start it and try again." }
 
 function Get-Kv([string]$k) {
   if (-not (Test-Path $EnvFile)) { return "" }
@@ -87,7 +90,9 @@ docker compose --env-file $EnvFile @files @profiles up -d --build
 if ($LASTEXITCODE -ne 0) { throw "docker compose failed." }
 Write-Host "Waiting for the app..."
 for ($i = 0; $i -lt 60; $i++) {
+  $ErrorActionPreference = "Continue"
   docker compose --env-file $EnvFile @files exec -T app node -e "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" *> $null
+  $ErrorActionPreference = "Stop"
   if ($LASTEXITCODE -eq 0) {
     Write-Host "Medoro is running. Local check: http://localhost:3000/api/ready"
     if (-not $NoTunnel) { Write-Host "Public address (once the tunnel's public hostname points to http://app:3000): $(Get-Kv 'APP_URL')" }
