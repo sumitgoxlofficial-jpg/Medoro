@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { UserError } from "@/server/action";
-import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject } from "@/server/storage";
+import { ALLOWED, MAX_BYTES, MAX_LABEL, getObject, putObject, sniff } from "@/server/storage";
 import { audit, can, holders, need, notify, type Me } from "./auth";
 import { DOC_KINDS } from "./constants";
 import { AADHAAR_DOC, PAN_DOC, notifyVerified, refreshKyc } from "./kyc";
@@ -37,8 +37,11 @@ export async function uploadDoc(me: Me, form: FormData) {
   if ((await db.hrDocument.count({ where: { staffId: me.id } })) >= MAX_DOCS) throw new UserError(`You can keep up to ${MAX_DOCS} documents. Remove one first.`);
   const rawExp = String(form.get("expiresOn") ?? "").trim();
   const expiresOn = checkExpiry(rawExp ? expiryInput.parse(rawExp) : null);
+  // The browser's file type is only a claim: the bytes must really be that kind of file.
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (sniff(bytes) !== file.type) throw new UserError("That file isn’t really a PDF, JPG or PNG. Upload the original file.");
   const key = `_hrms/docs/${randomUUID()}.${ext}`;
-  await putObject(key, Buffer.from(await file.arrayBuffer()), file.type);
+  await putObject(key, bytes, file.type);
   await db.hrDocument.create({ data: { staffId: me.id, kind, name: file.name.replace(/[^\w.\- ]/g, "").slice(0, 80) || `document.${ext}`, key, expiresOn } });
   if (kind === AADHAAR_DOC || kind === PAN_DOC) await db.hrProfile.updateMany({ where: { staffId: me.id }, data: { kycNote: "" } });
   await refreshKyc(me.id);

@@ -14,6 +14,10 @@ import { autoDeleteMovedCopies } from "@/domain/system/drive-move";
 import { growthTick } from "@/staff/growth/jobs";
 import { leadSheetTick } from "@/staff/hrms/lead-sheet";
 import { docExpiryTick } from "@/staff/hrms/docs";
+import { escalationTick } from "@/staff/hrms/approvals";
+import { workforceRetention } from "@/staff/hrms/workforce";
+import { kpiTick } from "@/staff/hrms/kpi";
+import { learningTick } from "@/staff/hrms/learning";
 import { recordHeartbeat } from "@/domain/system/health";
 import { chatBackupTick } from "@/staff/hrms/chat-backup";
 import { salesPulseTick } from "@/staff/hrms/sales-pulse";
@@ -33,7 +37,7 @@ export async function tick(daily: boolean) {
     const now = new Date();
     let failed = false, firstError = "";
     // Each job runs even if another fails.
-    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily }), () => (daily ? leadSheetTick() : Promise.resolve()), () => docExpiryTick(), () => (daily ? chatBackupTick(now) : Promise.resolve()), () => salesPulseTick(now, true), () => waTick(now)]) {
+    for (const job of [() => scheduledTick(now, { daily }), () => deliveryTick(now), () => messagingTick(now, { daily }), () => licenceTick(), () => dailyJobs(now), () => reportMailTick(now, { daily }), () => expirePoints(now), () => deletionTick(now), () => driveHealthTick(now), () => autoDeleteMovedCopies(now), () => growthTick(now, { daily }), () => (daily ? leadSheetTick() : Promise.resolve()), () => docExpiryTick(), () => escalationTick(now), () => (daily ? workforceRetention(now) : Promise.resolve()), () => (daily ? kpiTick(now) : Promise.resolve()), () => (daily ? learningTick(now) : Promise.resolve()), () => (daily ? chatBackupTick(now) : Promise.resolve()), () => salesPulseTick(now, true), () => waTick(now)]) {
       try { await job(); } catch (e) { log.error("Scheduled job failed.", { err: e }); failed = true; firstError ||= e instanceof Error ? e.message : String(e); }
     }
     await recordHeartbeat(!failed, firstError).catch((e) => log.error("Heartbeat not recorded.", { err: e }));

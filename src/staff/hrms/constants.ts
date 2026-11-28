@@ -35,12 +35,15 @@ export const SCREENS: ScreenDef[] = [
   { id: "training", label: "My Sales Training", icon: "cap", title: "My Sales Training", sub: "Medoro Sales Training Academy · one-day programme", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "trdesk", label: "Trainer Desk", icon: "cap", title: "Trainer Desk", sub: "Attendance, practical scoring and recommendations for your batches", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Everyone
+  { id: "approvals", label: "Approvals", icon: "shield", title: "Approvals", sub: "Requests waiting for you, what you asked for, delegation and individual access", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "kpis", label: "KPIs", icon: "target", title: "KPIs & output", sub: "Output, quality and outcomes against targets, with the evidence and the formula behind every score", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "myprojects", label: "My Projects", icon: "box", title: "My Projects", sub: "Projects you are part of", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "mytasks", label: "My Tasks", icon: "target", title: "My Tasks", sub: "Tasks assigned to you by your lead", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "calendar", label: "Calendar", icon: "cal", title: "Calendar", sub: "Holidays, meetings and who is out", group: "WORK", roles: ["employee", "sales", "hr", "admin", "finance"] },
   // Team (module screens)
   { id: "myteam", label: "My Team", icon: "users", title: "My Team", sub: "The people who report to you: today, approvals, tasks and this month", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "perf", label: "Performance", icon: "target", title: "Performance", sub: "Live progress, weekly and monthly reports · Employee of the Month", group: "TEAM", module: "reports" },
+  { id: "mgmt", label: "Management", icon: "sparkle", title: "Management dashboard", sub: "Headcount, attrition, attendance, KPIs, learning, engagement, operations and payroll cost, with every definition", group: "TEAM", module: "reports" },
   { id: "hrappraisals", label: "Appraisals", icon: "target", title: "Appraisals", sub: "Review cycles: self-assessment, manager review and final rating", group: "TEAM", module: "reports" },
   { id: "assigntasks", label: "Assign Tasks", icon: "target", title: "Assign Tasks", sub: "Assign and track tasks across the team", group: "TEAM", module: "tasks" },
   { id: "assignprojects", label: "Projects", icon: "box", title: "Projects", sub: "Assign and track project allocations", group: "TEAM", module: "tasks" },
@@ -50,6 +53,8 @@ export const SCREENS: ScreenDef[] = [
   { id: "departments", label: "Departments", icon: "box", title: "Departments", sub: "Org structure and heads", group: "PEOPLE", module: "employees" },
   { id: "recruit", label: "Recruitment", icon: "briefcase", title: "Recruitment (ATS)", sub: "Openings, pipeline and offers", group: "PEOPLE", module: "recruitment" },
   { id: "hrattendance", label: "Team Attendance", icon: "clock", title: "Team Attendance", sub: "Today", group: "PEOPLE", module: "attendance" },
+  { id: "workforce", label: "Workforce devices", icon: "shield", title: "Workforce devices & activity", sub: "Company PCs, enrolment codes, disputes and the team’s activity (context, not a score)", group: "PEOPLE", module: "attendance" },
+  { id: "hrshifts", label: "Shifts & roster", icon: "clock", title: "Shifts, roster & workforce operations", sub: "Shifts, who works which, overtime, and what would hold up this month’s payroll", group: "PEOPLE", module: "attendance" },
   { id: "hrleave", label: "Leave Management", icon: "plane", title: "Leave Management", sub: "Approvals and team calendar", group: "PEOPLE", module: "attendance" },
   { id: "credentials", label: "Credentials", icon: "shield", title: "Credentials", sub: "One-time passwords and login status for every employee", group: "PEOPLE", module: "employees" },
   { id: "onboarding", label: "Onboarding", icon: "box", title: "Onboarding", sub: "Joining checklists and welcome kits", group: "PEOPLE", module: "employees" },
@@ -81,10 +86,14 @@ export const SCREENS: ScreenDef[] = [
   { id: "attendance", label: "Attendance", icon: "clock", title: "Attendance", sub: "My attendance", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "leave", label: "Leave & Approvals", icon: "plane", title: "Leave", sub: "Balances, requests and reimbursement claims", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "appraisal", label: "My Review", icon: "target", title: "My Review", sub: "Your performance review, and your team's when you are a reporting manager", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "myactivity", label: "My activity", icon: "clock", title: "My activity", sub: "What your company PC records about you, the policy, corrections and disputes", group: "ME", roles: ["employee", "sales", "hr", "finance"] },
   { id: "payslips", label: "Payslips", icon: "rupee", title: "Payslips", sub: "Salary history", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "jobs", label: "Work at Medoro", icon: "briefcase", title: "Work at Medoro", sub: "Open roles · refer someone you know", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "orgchart", label: "Org chart", icon: "users", title: "Organisation", sub: "Who reports to whom, and your employment history", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "learning", label: "Learning", icon: "cap", title: "Learning", sub: "Courses for your role: lessons, a short quiz and required deadlines", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
+  { id: "engage", label: "Engagement", icon: "sparkle", title: "Engagement", sub: "Pulse surveys (anonymous unless stated) and their results", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "policies", label: "Company policies", icon: "file", title: "Company policies", sub: "The handbook: read each policy and acknowledge it", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "hrvideos", label: "Training Videos", icon: "cap", title: "Training Videos", sub: "How to use the HRMS: short Hinglish videos for your role", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "support", label: "Support", icon: "help", title: "Support", sub: "HR helpdesk", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },
@@ -172,10 +181,14 @@ export type Settings = {
   carryForward: number; // most unused privilege-leave days carried into the next year (0 = none)
   ptax: number; // professional tax a month, rupees
   payDay: number;
+  mfaPrivileged: boolean; // HR, Finance and the super admin must use an authenticator app to sign in to the HRMS
+  ctcNeedsApproval: boolean; // a CTC change outside the super admin goes through Approvals (manager, then super admin)
+  agentTracking: boolean; // enrolled company PCs may send activity (see workforce-policy.ts); off by default
+  agentIdleMinutes: number; // minutes without input before the agent records idle time
 };
 export const DEFAULT_SETTINGS: Settings = {
   company: { name: "Medoro", address: "", gstin: "", state: "", phone: "", email: "", bank: "" },
-  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1,
+  checkin: true, lateAfter: "10:00", weekOff: [0, 6], selfie: false, kycBlock: false, idleMonitor: true, idleMinutes: 2, workHours: 8, lunchFrom: "13:00", lunchTo: "13:30", leave: { casual: 12, sick: 12, privilege: 15, comp: 0 }, carryForward: 30, ptax: 200, payDay: 1, mfaPrivileged: false, ctcNeedsApproval: false, agentTracking: false, agentIdleMinutes: 5,
 };
 
 // ── Finance registers. Each is a simple table: the columns below, the status choices, and which column holds money.

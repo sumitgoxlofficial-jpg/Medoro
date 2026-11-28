@@ -1,11 +1,11 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { docFile } from "@/staff/hrms/docs";
 
 export const dynamic = "force-dynamic";
 
 /** An employee document (identity, address, certificate), for its owner and HR. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe(["kyc"]); // the Aadhaar & PAN step shows the employee their own uploads
   if (!me) return new Response("Sign in first.", { status: 401 });
   const d = await docFile(me, (await params).id);
   if (!d) return new Response("Not found.", { status: 404 });

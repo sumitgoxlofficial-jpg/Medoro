@@ -1,9 +1,10 @@
 import "server-only";
+import { checkManager, diff, recordEvent } from "./org";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
-import { audit, need, notify, roleOf, type Me } from "./auth";
+import { audit, loadSettings, need, notify, roleOf, type Me } from "./auth";
 import { responsibilityLines, type PromotionTerms } from "./letters";
 
 // Promotions: HR records the new designation, department, manager, pay and responsibilities from an effective date. The employee's profile
@@ -37,13 +38,14 @@ export async function promote(me: Me, staffId: string, raw: z.input<typeof promo
   if (u.hr.joinDate && i.effective <= isoOf(u.hr.joinDate)) throw new UserError("The effective date must be after the joining date.");
   if (i.toManagerId) {
     if (i.toManagerId === staffId) throw new UserError("Someone can’t report to themselves.");
-    if (!(await db.staffUser.findFirst({ where: { id: i.toManagerId, kind: "team", status: { not: "deactivated" } } }))) throw new UserError("Choose an active manager.");
+    await checkManager(staffId, i.toManagerId);
   }
   const pending = await db.hrPromotion.findFirst({ where: { staffId, appliedAt: null } });
   if (pending) throw new UserError(`A promotion to ${pending.toDesig} from ${pending.effective} is waiting. Cancel it first.`);
   if (await db.hrPromotion.findUnique({ where: { staffId_effective: { staffId, effective: i.effective } } })) throw new UserError("A promotion with this effective date is recorded already.");
   const h = u.hr;
   if (i.toDesig === h.designation && i.toDept === h.dept && i.toCtc === h.ctc && (i.toManagerId || null) === h.managerId) throw new UserError("Nothing changes: give a new designation, department, manager or CTC.");
+  if (i.toCtc !== h.ctc && me.role !== "admin" && (await loadSettings(true)).ctcNeedsApproval) throw new UserError("Salary changes need approval: record the promotion with the current CTC and raise a salary change under Approvals.");
   const lines = responsibilityLines(i.responsibilities);
   const row = await db.hrPromotion.create({
     data: {
@@ -62,12 +64,18 @@ async function applyPromotion(id: string) {
   if (!p || p.appliedAt) return false;
   const h = await db.hrProfile.findUnique({ where: { staffId: p.staffId } });
   if (!h) return false;
-  const [claimed] = await db.$transaction([
-    db.hrPromotion.updateMany({ where: { id, appliedAt: null }, data: { appliedAt: new Date() } }),
-    db.hrProfile.update({ where: { staffId: p.staffId }, data: { designation: p.toDesig, dept: p.toDept, managerId: p.toManagerId, ctc: p.toCtc, ...(p.responsibilities ? { responsibilities: p.responsibilities } : {}) } }),
-    db.staffUser.update({ where: { id: p.staffId }, data: { team: p.toDept } }),
-    ...(h.ctc !== p.toCtc ? [db.hrSalaryRevision.create({ data: { staffId: p.staffId, fromCtc: h.ctc, toCtc: p.toCtc, byId: p.byId } })] : []),
-  ]);
+  const claimed = await db.$transaction(async (tx) => {
+    const c = await tx.hrPromotion.updateMany({ where: { id, appliedAt: null }, data: { appliedAt: new Date() } });
+    if (!c.count) return c;
+    // A reporting line chosen weeks ago may no longer be valid (the manager left, or now reports to this person): keep the current one then.
+    const managerId = p.toManagerId ? await checkManager(p.staffId, p.toManagerId, tx).catch(() => h.managerId) : null;
+    await tx.hrProfile.update({ where: { staffId: p.staffId }, data: { designation: p.toDesig, dept: p.toDept, managerId, ctc: p.toCtc, ...(p.responsibilities ? { responsibilities: p.responsibilities } : {}) } });
+    await tx.staffUser.update({ where: { id: p.staffId }, data: { team: p.toDept } });
+    if (h.ctc !== p.toCtc) await tx.hrSalaryRevision.create({ data: { staffId: p.staffId, fromCtc: h.ctc, toCtc: p.toCtc, byId: p.byId } });
+    const changes = diff({ designation: h.designation, dept: h.dept, managerId: h.managerId, ctc: h.ctc }, { designation: p.toDesig, dept: p.toDept, managerId, ctc: p.toCtc });
+    await recordEvent({ staffId: p.staffId, type: "promotion", effective: p.effective, changes, byId: p.byId }, tx);
+    return c;
+  });
   if (!claimed.count) return false;
   await notify([p.staffId], `Congratulations! You are now ${p.toDesig}${p.toDept ? ` in ${p.toDept}` : ""}. Your profile shows your new role.`, "profile");
   return true;

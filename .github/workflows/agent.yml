@@ -1,0 +1,21 @@
+name: Workforce agent
+on:
+  push:
+    paths: ["agent/**", ".github/workflows/agent.yml"]
+  pull_request:
+    paths: ["agent/**", ".github/workflows/agent.yml"]
+permissions:
+  contents: read
+jobs:
+  build-test:
+    # The tray host uses WinForms and Win32 APIs, so it is built (and the core tested) on Windows.
+    runs-on: windows-latest
+    defaults: { run: { working-directory: agent } }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: "8.0.x" }
+      - run: dotnet test tests/Medoro.Agent.Tests -c Release
+      - run: dotnet publish src/Medoro.Agent.Windows -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+      - uses: actions/upload-artifact@v7
+        with: { name: medoro-agent-win-x64, path: agent/publish, retention-days: 14 }

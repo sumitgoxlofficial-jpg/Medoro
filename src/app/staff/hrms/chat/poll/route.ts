@@ -1,4 +1,4 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { chatList, chatMessages, presenceMap, unreadTotal } from "@/staff/hrms/chat";
 import { salesPulseTick } from "@/staff/hrms/sales-pulse";
 import { defer } from "@/server/defer";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * conversation, anything newer than `after`. Only the signed-in person's own conversations can be read.
  */
 export async function GET(req: Request) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return Response.json({ error: "signed-out" }, { status: 401, headers: { "cache-control": "no-store" } });
   const u = new URL(req.url), chatId = u.searchParams.get("chat") ?? "", after = u.searchParams.get("after");
   const afterN = after === null || after === "" ? null : Number(after);

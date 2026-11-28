@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { seal, unseal } from "@/server/vault";
 import { maskAadhaar, onlyDigits, spacedAadhaar, validAadhaar } from "@/lib/aadhaar";
+import { rateLimit } from "@/server/rate-limit";
 import { audit, need, notify, type Me } from "./auth";
 
 // Identity verification for every employee: an Aadhaar number and a PAN, each with proof. Aadhaar can be matched
@@ -91,6 +92,11 @@ export const kycLabel = (p: { kycSubmittedAt: Date | null; kycVerifiedAt: Date |
 /** HR opens someone's full Aadhaar and PAN to compare with their cards. Every opening is audited. */
 export async function revealKyc(me: Me, staffId: string) {
   need(me, "employees");
+  // Opening full numbers is for comparing with a card, one person at a time: a burst looks like bulk export and is refused.
+  if (!(await rateLimit(`kyc-reveal:${me.id}`, 30, 3600_000))) {
+    await audit(me, "KYC numbers refused", `${staffId} · more than 30 openings in an hour`);
+    throw new UserError("You have opened a lot of Aadhaar and PAN numbers in the last hour. Try again later.");
+  }
   const p = await db.hrProfile.findUnique({ where: { staffId }, select: { aadhaarSealed: true, panSealed: true, staff: { select: { empNo: true } } } });
   if (!p) throw new UserError("Employee not found.");
   await audit(me, "KYC numbers opened", p.staff.empNo);

@@ -1,11 +1,11 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { claimBill } from "@/staff/hrms/time";
 
 export const dynamic = "force-dynamic";
 
 /** A reimbursement bill, for its owner, HR reviewers and the super admin. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   const b = await claimBill(me, (await params).id);
   if (!b) return new Response("Not found.", { status: 404 });

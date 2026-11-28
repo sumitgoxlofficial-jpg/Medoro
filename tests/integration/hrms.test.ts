@@ -360,7 +360,8 @@ describe("HRMS", () => {
       expect(line.encash).toBeGreaterThan(0); // unused privilege leave, with what was carried forward
       expect(line.gratuity).toBe(Math.round((25_000 * 15 * 6) / 26)); // 5 years 8 months counts as 6
       expect(line.gross).toBeGreaterThanOrEqual(line.encash);
-      await processPayroll(hr, "2031-09", Object.fromEntries((await payrollFor(hr, "2031-09")).lines.map((l) => [l.staffId, 0])));
+      // Loss of pay waived for everyone except the person running payroll, who can't change their own.
+      await processPayroll(hr, "2031-09", Object.fromEntries((await payrollFor(hr, "2031-09")).lines.filter((l) => l.staffId !== hr.id).map((l) => [l.staffId, 0])));
       const slip = await db.hrPayslip.findFirstOrThrow({ where: { staffId: u.id, month: "2031-09" } });
       expect(slip).toMatchObject({ encash: line.encash, gratuity: line.gratuity });
       expect((await payslip(hr, slip.id)).lastDay).toBe("2031-09-19");

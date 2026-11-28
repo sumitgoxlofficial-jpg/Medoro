@@ -1146,36 +1146,43 @@ enum StaffStatus {
 }
 
 model StaffUser {
-  id              String                  @id @default(uuid())
-  empNo           String                  @unique
-  name            String
-  email           String
-  kind            String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
-  phone           String
-  role            StaffRole
-  team            String                  @default("")
-  status          StaffStatus
-  passwordHash    String?
-  totpSecret      String? // sealed
-  totpEnabled     Boolean                 @default(false)
-  referralCode    String?                 @unique
-  googleSub       String?                 @unique // reference partners can sign in with Google
-  bonusPct        Decimal                 @default(0) @db.Decimal(5, 2)
-  inviteTokenHash String?                 @unique
-  inviteExpiresAt DateTime?
-  tokenVersion    Int                     @default(0)
-  approvedBy      String?
-  deletedAt       DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
-  createdAt       DateTime                @default(now())
-  sessions        StaffSession[]
-  bank            StaffBank?
-  growthMember    GrowthMember?
-  territories     EmployeeTerritory[]
-  callingTargets  EmployeeCallingTarget[]
-  leadAssignments LeadAssignment[]
-  callSessions    CallSession[]
-  followUps       FollowUpTask[]
-  hr              HrProfile?
+  id                 String                  @id @default(uuid())
+  empNo              String                  @unique
+  name               String
+  email              String
+  kind               String                  @default("team") // team (Medoro employees) or partner: one email can have one of each
+  phone              String
+  role               StaffRole
+  team               String                  @default("")
+  status             StaffStatus
+  passwordHash       String?
+  totpSecret         String? // sealed
+  totpEnabled        Boolean                 @default(false)
+  referralCode       String?                 @unique
+  googleSub          String?                 @unique // reference partners can sign in with Google
+  bonusPct           Decimal                 @default(0) @db.Decimal(5, 2)
+  inviteTokenHash    String?                 @unique
+  inviteExpiresAt    DateTime?
+  tokenVersion       Int                     @default(0)
+  approvedBy         String?
+  deletedAt          DateTime? // account deleted by HR: hidden from directories, can't sign in or be reactivated; payroll and statutory records are kept
+  createdAt          DateTime                @default(now())
+  sessions           StaffSession[]
+  bank               StaffBank?
+  growthMember       GrowthMember?
+  territories        EmployeeTerritory[]
+  callingTargets     EmployeeCallingTarget[]
+  leadAssignments    LeadAssignment[]
+  callSessions       CallSession[]
+  followUps          FollowUpTask[]
+  hr                 HrProfile?
+  employmentEvents   HrEmploymentEvent[]
+  accessGrants       HrAccessGrant[]
+  hrDevices          HrDevice[]
+  hrWorkEvents       HrWorkEvent[]
+  hrKpiResults       HrKpiResult[]
+  hrShiftAssignments HrShiftAssignment[]
+  hrCourseEnrolments HrCourseEnrolment[]
 
   @@unique([email, kind])
 }
@@ -1244,6 +1251,9 @@ model StaffAudit {
   action    String
   detail    String?
   ip        String?
+
+  @@index([at])
+  @@index([staffId, at])
 }
 
 model CpSetting {
@@ -2447,7 +2457,11 @@ model HrProfile {
   leaveExtra         Json      @default("{}") // extra days granted per leave type, e.g. {"comp":1}
   waAlerts           Boolean   @default(false) // the employee asked for their HRMS alerts on WhatsApp too
   waAlertsAt         DateTime? // when they last switched WhatsApp alerts on or off (their consent record)
+  totpPending        String? // sealed authenticator secret while the person is setting up two-step sign-in in the HRMS
   createdAt          DateTime  @default(now())
+
+  @@index([managerId])
+  @@index([dept])
 }
 
 model HrDepartment {
@@ -4002,4 +4016,371 @@ model HrReview {
   @@unique([cycleId, staffId])
   @@index([staffId])
   @@index([managerId])
+}
+
+/// Enterprise HRMS: the employment history of a person (joined, role/department/manager/pay changes, promotion, exit,
+/// reactivation). Append-only (database trigger). `changes` is {field: [before, after]}; pay fields are only shown to
+/// people with the Payroll module and to the employee.
+model HrEmploymentEvent {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  type      String // joined, updated, manager, transfer, promotion, pay, exit, reactivated
+  effective DateTime  @db.Date
+  changes   Json      @default("{}")
+  note      String    @default("")
+  byId      String? // who made the change; null = the system (a scheduled promotion, a notice period ending)
+  at        DateTime  @default(now())
+
+  @@index([staffId, at])
+  @@index([type, effective])
+}
+
+/// Enterprise HRMS: one person's access on top of their role: a module given ("grant") or taken away ("deny"), with a
+/// reason and an optional end. Only the super admin creates them (directly, or by approving an access request).
+model HrAccessGrant {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  module    String
+  effect    String // grant, deny
+  reason    String
+  expiresAt DateTime? // null = until revoked
+  byId      String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  revokedBy String?
+
+  @@index([staffId, revokedAt])
+}
+
+/// Enterprise HRMS: a request that needs one or more approvals before it changes anything (salary change, temporary access).
+model HrApproval {
+  id          String           @id @default(uuid())
+  kind        String // a workflow id from src/staff/hrms/approvals.ts
+  subjectId   String // who it is about
+  requesterId String
+  title       String
+  payload     Json
+  status      String           @default("pending") // pending, rejected, cancelled, applied
+  result      String           @default("")
+  createdAt   DateTime         @default(now())
+  decidedAt   DateTime?
+  appliedAt   DateTime?
+  steps       HrApprovalStep[]
+
+  @@index([status, kind])
+  @@index([requesterId, createdAt])
+  @@index([subjectId])
+}
+
+model HrApprovalStep {
+  id          String     @id @default(uuid())
+  approvalId  String
+  approval    HrApproval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  seq         Int
+  kind        String // manager, admin
+  label       String
+  status      String     @default("waiting") // waiting, pending, approved, rejected, skipped
+  approverId  String? // the person a manager step waits on (null for the super admin step: any super admin)
+  decidedBy   String?
+  decidedAt   DateTime?
+  comment     String     @default("")
+  dueAt       DateTime?
+  escalatedAt DateTime?
+
+  @@unique([approvalId, seq])
+  @@index([status, approverId])
+  @@index([status, dueAt])
+}
+
+/// Enterprise HRMS: a person away hands their approvals to a colleague for a period.
+model HrDelegation {
+  id          String    @id @default(uuid())
+  fromId      String
+  toId        String
+  fromDay     DateTime  @db.Date
+  toDay       DateTime  @db.Date
+  reason      String    @default("")
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  @@index([fromId, toDay])
+  @@index([toId, toDay])
+}
+
+/// Enterprise HRMS: a company PC enrolled for the workforce agent (agent/). The token is stored only as its SHA-256.
+model HrDevice {
+  id           String        @id @default(uuid())
+  staffId      String
+  staff        StaffUser     @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  name         String
+  platform     String        @default("windows")
+  agentVersion String        @default("")
+  tokenHash    String        @unique
+  ownership    String        @default("company") // only company devices can be enrolled
+  enrolledAt   DateTime      @default(now())
+  enrolledBy   String // the HR person who issued the code
+  lastSeenAt   DateTime?
+  lastIp       String?
+  revokedAt    DateTime?
+  revokedBy    String?
+  revokeReason String        @default("")
+  events       HrWorkEvent[]
+
+  @@index([staffId, revokedAt])
+}
+
+/// A one-time enrolment code HR issues for one employee's company PC (15 minutes, single use, stored hashed).
+model HrDeviceCode {
+  id        String    @id @default(uuid())
+  staffId   String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+}
+
+/// A span from the agent: active in a program (process name only), idle or locked. Only accepted while the employee is
+/// checked in, not on a break, with tracking switched on and the policy acknowledged. Kept 90 days.
+model HrWorkEvent {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  deviceId  String
+  device    HrDevice  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  clientId  String
+  kind      String // active, idle, locked
+  app       String? // process name, active spans only
+  day       DateTime  @db.Date // India date of startedAt
+  startedAt DateTime
+  endedAt   DateTime
+  seconds   Int
+  excluded  Boolean   @default(false) // removed from totals after an accepted dispute (kept for the record)
+  createdAt DateTime  @default(now())
+
+  @@unique([deviceId, clientId])
+  @@index([staffId, day])
+  @@index([day])
+}
+
+/// The employee read and accepted the workforce-monitoring policy (per version).
+model HrMonitorAck {
+  id      String   @id @default(uuid())
+  staffId String
+  version Int
+  at      DateTime @default(now())
+
+  @@unique([staffId, version])
+}
+
+/// An employee disputes recorded activity for a time window; accepted disputes exclude those spans from every total.
+model HrActivityDispute {
+  id        String    @id @default(uuid())
+  staffId   String
+  day       DateTime  @db.Date
+  fromTime  String // HH:MM India time
+  toTime    String
+  reason    String
+  status    String    @default("open") // open, accepted, rejected
+  reply     String    @default("")
+  decidedBy String?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([staffId, day])
+}
+
+/// How HR classifies a program for context (work, neutral, personal). Never a score on its own.
+model HrAppCategory {
+  app       String   @id // lower-case process name
+  category  String // work, neutral, personal
+  setBy     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Enterprise HRMS: a KPI for a department and/or designation (never company-wide), with its metric, target, period
+/// and weight. The formula of each metric is fixed in src/staff/hrms/kpi-metrics.ts.
+model HrKpi {
+  id          String        @id @default(uuid())
+  name        String
+  description String        @default("")
+  dept        String        @default("")
+  designation String        @default("")
+  metric      String
+  unit        String        @default("")
+  better      String        @default("higher") // higher, lower
+  target      Float
+  period      String        @default("month") // month, quarter
+  weight      Int           @default(10)
+  active      Boolean       @default(true)
+  createdBy   String
+  updatedBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  results     HrKpiResult[]
+
+  @@index([active])
+}
+
+/// One person's result for one KPI and period: value, the target it was scored against, score, evidence, explanation.
+model HrKpiResult {
+  id          String    @id @default(uuid())
+  kpiId       String
+  kpi         HrKpi     @relation(fields: [kpiId], references: [id], onDelete: Restrict)
+  staffId     String
+  staff       StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  periodStart DateTime  @db.Date
+  periodEnd   DateTime  @db.Date
+  value       Float?
+  target      Float
+  weight      Int
+  score       Int?
+  evidence    Json      @default("[]")
+  explanation String
+  manualNote  String    @default("")
+  enteredBy   String?
+  computedAt  DateTime  @default(now())
+
+  @@unique([kpiId, staffId, periodStart])
+  @@index([staffId, periodStart])
+}
+
+/// A rule-based suggestion about a person's KPIs. Advisory: it stays with the manager and HR until reviewed, and reaches
+/// the employee only when the reviewer shares it.
+model HrInsight {
+  id          String    @id @default(uuid())
+  staffId     String
+  kind        String // decline, improvement, below_target, missing_value
+  key         String
+  periodStart DateTime  @db.Date
+  text        String
+  evidence    Json      @default("[]")
+  status      String    @default("pending") // pending, reviewed, dismissed
+  shared      Boolean   @default(false)
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNote  String    @default("")
+  createdAt   DateTime  @default(now())
+
+  @@unique([staffId, key, periodStart])
+  @@index([status, staffId])
+}
+
+/// Enterprise HRMS: a working shift (it may cross midnight). Late after start + grace.
+model HrShift {
+  id          String              @id @default(uuid())
+  name        String
+  start       String // HH:MM India time
+  end         String
+  graceMin    Int                 @default(10)
+  breakMin    Int                 @default(30)
+  workMin     Int // expected working minutes (length − break), used for overtime
+  overnight   Boolean             @default(false)
+  archived    Boolean             @default(false)
+  createdBy   String
+  createdAt   DateTime            @default(now())
+  assignments HrShiftAssignment[]
+}
+
+/// A person on a shift from a day, until a day (or open-ended). Older overlapping entries are cut short, never deleted.
+model HrShiftAssignment {
+  id        String    @id @default(uuid())
+  staffId   String
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  shiftId   String
+  shift     HrShift   @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  fromDay   DateTime  @db.Date
+  toDay     DateTime? @db.Date
+  byId      String
+  createdAt DateTime  @default(now())
+
+  @@index([staffId, fromDay])
+  @@index([shiftId])
+}
+
+/// Enterprise HRMS: a course for everyone or a department/designation (the Sales Academy stays separate).
+model HrCourse {
+  id          String              @id @default(uuid())
+  title       String
+  summary     String              @default("")
+  dept        String              @default("")
+  designation String              @default("")
+  mandatory   Boolean             @default(false)
+  dueDays     Int                 @default(14)
+  passPct     Int                 @default(70)
+  lessons     Json // [{title, body, url}]
+  questions   Json                @default("[]") // [{q, options, answer}]: answers never leave the server
+  status      String              @default("draft") // draft, published, archived
+  version     Int                 @default(1)
+  createdBy   String
+  updatedBy   String
+  createdAt   DateTime            @default(now())
+  publishedAt DateTime?
+  enrolments  HrCourseEnrolment[]
+}
+
+model HrCourseEnrolment {
+  id          String            @id @default(uuid())
+  courseId    String
+  course      HrCourse          @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  staffId     String
+  staff       StaffUser         @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  assignedBy  String? // null = enrolled automatically (audience)
+  dueOn       DateTime          @db.Date
+  startedAt   DateTime?
+  lessonsRead Json              @default("[]")
+  attempts    Int               @default(0)
+  score       Int?
+  completedAt DateTime?
+  reminded    Int               @default(0) // 1 = due soon, 2 = overdue
+  createdAt   DateTime          @default(now())
+  history     HrCourseAttempt[]
+
+  @@unique([courseId, staffId])
+  @@index([staffId, completedAt])
+}
+
+/// Every quiz attempt, with the course version it was taken on. Append-only.
+model HrCourseAttempt {
+  id          String            @id @default(uuid())
+  enrolmentId String
+  enrolment   HrCourseEnrolment @relation(fields: [enrolmentId], references: [id], onDelete: Restrict)
+  version     Int
+  answers     Json
+  score       Int
+  passed      Boolean
+  at          DateTime          @default(now())
+
+  @@index([enrolmentId])
+}
+
+/// Enterprise HRMS: a pulse survey (anonymous by default).
+model HrSurvey {
+  id        String             @id @default(uuid())
+  title     String
+  intro     String             @default("")
+  anonymous Boolean            @default(true)
+  dept      String             @default("") // empty = everyone
+  questions Json // [{text, kind: scale|nps|text}]
+  closesOn  DateTime
+  createdBy String
+  createdAt DateTime           @default(now())
+  responses HrSurveyResponse[]
+}
+
+/// One answer set. For anonymous surveys staffId is null and respondentKey is an HMAC that only prevents a second answer.
+model HrSurveyResponse {
+  id            String   @id @default(uuid())
+  surveyId      String
+  survey        HrSurvey @relation(fields: [surveyId], references: [id], onDelete: Restrict)
+  respondentKey String
+  staffId       String?
+  dept          String   @default("")
+  answers       Json
+  at            DateTime @default(now())
+
+  @@unique([surveyId, respondentKey])
 }

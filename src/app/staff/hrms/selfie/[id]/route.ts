@@ -1,11 +1,11 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { selfieImage } from "@/staff/hrms/monitor";
 
 export const dynamic = "force-dynamic";
 
 /** A check-in selfie, for the employee it belongs to and for HR (Attendance module). Never cached. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   const img = await selfieImage(me, (await params).id);
   if (!img) return new Response("Not found.", { status: 404 });

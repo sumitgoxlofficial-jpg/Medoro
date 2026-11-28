@@ -28,7 +28,16 @@ import * as careers from "@/staff/hrms/careers";
 import * as policies from "@/staff/hrms/policies";
 import * as exits from "@/staff/hrms/exits";
 import * as appraisals from "@/staff/hrms/appraisals";
+import * as org from "@/staff/hrms/org";
+import * as approvals from "@/staff/hrms/approvals";
+import * as workforce from "@/staff/hrms/workforce";
+import * as kpi from "@/staff/hrms/kpi";
+import * as shifts from "@/staff/hrms/shifts";
+import * as learning from "@/staff/hrms/learning";
+import * as surveys from "@/staff/hrms/surveys";
+import * as mgmt from "@/staff/hrms/mgmt";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
+import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
 
 const { hrRun } = auth;
@@ -47,7 +56,7 @@ type In<F> = F extends (me: auth.Me, raw: infer A, ...rest: never[]) => unknown 
 // ── Sign-in and account
 export const hrSignIn = async (id: string, password: string, code = "") => open(() => auth.signIn(id, password, code));
 export const hrSendCode = async (id: string) => open(() => auth.sendCode(id));
-export const hrChangePassword = async (next: string, current = "") => done(await hrRun((me) => auth.changePassword(me, next, current), "Password changed."));
+export const hrChangePassword = async (next: string, current = "") => done(await hrRun((me) => auth.changePassword(me, next, current), "Password changed.", { during: auth.ANY_STEP }));
 /** Super admins and care open the staff console from the HRMS; it asks for their authenticator first. */
 export async function openStaffConsole() {
   const me = await auth.getMe();
@@ -62,9 +71,9 @@ export async function hrSignOut() {
 }
 
 // ── Me
-export const saveProfile = async (input: In<typeof people.saveProfile>, complete = false) => done(await hrRun((me) => people.saveProfile(me, input, complete), "Profile saved."));
+export const saveProfile = async (input: In<typeof people.saveProfile>, complete = false) => done(await hrRun((me) => people.saveProfile(me, input, complete), "Profile saved.", { during: ["profile"] }));
 export const savePhoto = async (dataUrl: string | null) => done(await hrRun((me) => people.savePhoto(me, dataUrl), dataUrl ? "Photo updated." : "Photo removed."));
-export const acceptDocuments = async () => done(await hrRun((me) => people.acceptDocuments(me), "Documents accepted. Welcome to Medoro."));
+export const acceptDocuments = async () => done(await hrRun((me) => people.acceptDocuments(me), "Documents accepted. Welcome to Medoro.", { during: ["docs"] }));
 export const startBreak = async (kind: string) => done(await hrRun((me) => people.startBreak(me, kind)));
 export const endBreak = async () => done(await hrRun((me) => people.endBreak(me), "Welcome back."));
 export const readNotifications = async () => done(await hrRun((me) => people.readNotifications(me)));
@@ -85,15 +94,15 @@ export const grantLeave = async (staffId: string, type: string, days: number) =>
 export const addHoliday = async (input: In<typeof time.addHoliday>) => done(await hrRun((me) => time.addHoliday(me, input), "Holiday added."));
 export const removeHoliday = async (id: string) => done(await hrRun((me) => time.removeHoliday(me, id), "Holiday removed."));
 export const addNationalHolidays = async (year: number) => done(await hrRun((me) => time.addNationalHolidays(me, year)));
-export const uploadDoc = async (form: FormData) => done(await hrRun((me) => docs.uploadDoc(me, form), "Document uploaded. HR will verify it."));
+export const uploadDoc = async (form: FormData) => done(await hrRun((me) => docs.uploadDoc(me, form), "Document uploaded. HR will verify it.", { during: ["kyc"] }));
 export const removeDoc = async (id: string) => done(await hrRun((me) => docs.removeDoc(me, id), "Document removed."));
 export const rejectDoc = async (id: string, reason: string) => done(await hrRun((me) => docs.rejectDoc(me, id, reason), "Sent back to the employee."));
 export const verifyDoc = async (id: string, ok: boolean) => done(await hrRun((me) => docs.verifyDoc(me, id, ok), ok ? "Marked as verified." : "Verification removed."));
 export const employeeDocs = async (staffId: string) => hrRun((me) => docs.employeeDocs(me, staffId));
 export const setDocExpiry = async (id: string, expiresOn: string | null) => done(await hrRun((me) => docs.setDocExpiry(me, id, expiresOn), expiresOn ? "Expiry date saved. Reminders go out 30 and 7 days before." : "Expiry date removed."));
-export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved."));
-export const skipKyc = async () => done(await hrRun((me) => kyc.skipKyc(me), "No problem. You can add them later from your profile."));
-export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }));
+export const saveKyc = async (input: Parameters<typeof kyc.saveKycNumbers>[1]) => done(await hrRun((me) => kyc.saveKycNumbers(me, input), "Saved.", { during: ["kyc"] }));
+export const skipKyc = async () => done(await hrRun((me) => kyc.skipKyc(me), "No problem. You can add them later from your profile.", { during: ["kyc"] }));
+export const kycStatus = async () => hrRun(async (me) => ({ ...(await kyc.kycState(me.id)), digilocker: digilockerConfigured() }), undefined, { during: ["kyc"] });
 export const revealKyc = async (staffId: string) => hrRun((me) => kyc.revealKyc(me, staffId));
 export const employeeKyc = async (staffId: string) => hrRun((me) => kyc.kycStateFor(me, staffId));
 export const submitClaim = async (form: FormData) => done(await hrRun((me) => time.submitClaim(me, form), "Claim submitted. HR reviews it first."));
@@ -234,7 +243,8 @@ export const chatDeleteGroup = async (chatId: string) => hrRun((me) => chat.dele
 export const chatSetAvatar = async (emoji: string) => hrRun((me) => chat.setChatAvatar(me, emoji), "Chat avatar saved.");
 
 // ── Letters (viewing only changes nothing, so these don't refresh the page)
-export const getLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.letterFor(me, staffId === "me" ? me.id : staffId, type, lastDay));
+// During the joining-documents step a person may read only their own letters.
+export const getLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => { if (gateOf(me) && staffId !== "me" && staffId !== me.id) throw new UserError(auth.GATE_MESSAGE); return letters.letterFor(me, staffId === "me" ? me.id : staffId, type, lastDay); }, undefined, { during: ["docs"] });
 export const getOfferLetter = async (candidateId: string) => hrRun((me) => letters.candidateLetter(me, candidateId));
 export const emailLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.emailLetter(me, staffId, type, lastDay));
 export const emailOffer = async (candidateId: string) => done(await hrRun((me) => letters.emailOffer(me, candidateId)));
@@ -252,3 +262,56 @@ export const promoteEmployee = async (staffId: string, input: Parameters<typeof 
   return r;
 }));
 export const cancelPromotion = async (id: string) => done(await hrRun((me) => promos.cancelPromotion(me, id), "Promotion cancelled."));
+
+// ── Organisation (Enterprise HRMS Phase 2)
+export const employeeTimeline = async (staffId: string) => hrRun((me) => org.timeline(me, staffId));
+
+// ── Approvals, delegation, individual access, two-step sign-in (Enterprise HRMS Phase 3)
+export const requestApproval = async (kind: string, input: unknown) => done(await hrRun((me) => approvals.requestApproval(me, kind, input), "Request sent for approval."));
+export const decideApproval = async (id: string, approve: boolean, comment = "") => done(await hrRun((me) => approvals.decideApproval(me, id, approve, comment), approve ? "Approved." : "Rejected."));
+export const cancelApproval = async (id: string) => done(await hrRun((me) => approvals.cancelApproval(me, id), "Request withdrawn."));
+export const delegateApprovals = async (input: Parameters<typeof approvals.delegate>[1]) => done(await hrRun((me) => approvals.delegate(me, input), "Your approvals are delegated."));
+export const cancelDelegation = async (id: string) => done(await hrRun((me) => approvals.cancelDelegation(me, id), "Delegation cancelled."));
+export const addAccessGrant = async (input: unknown) => done(await hrRun((me) => approvals.addGrant(me, input), "Access changed for that person."));
+export const revokeAccessGrant = async (id: string) => done(await hrRun((me) => approvals.revokeGrant(me, id), "Access change ended."));
+export const mfaStart = async () => hrRun((me) => auth.mfaStart(me), undefined, { during: ["mfa"] });
+export const mfaConfirm = async (code: string) => done(await hrRun((me) => auth.mfaConfirm(me, code), undefined, { during: ["mfa"] }));
+
+// ── Workforce devices and activity (Enterprise HRMS Phase 4)
+export const issueDeviceCode = async (staffId: string) => done(await hrRun((me) => workforce.issueDeviceCode(me, staffId)));
+export const revokeDevice = async (id: string, reason = "") => done(await hrRun((me) => workforce.revokeDevice(me, id, reason), "PC removed. It stops at its next contact."));
+export const acknowledgeMonitorPolicy = async () => done(await hrRun((me) => workforce.acknowledgePolicy(me), "Thank you. Your acceptance is recorded."));
+export const raiseActivityDispute = async (input: Parameters<typeof workforce.raiseDispute>[1]) => done(await hrRun((me) => workforce.raiseDispute(me, input), "Dispute sent to HR."));
+export const decideActivityDispute = async (id: string, accept: boolean, reply = "") => done(await hrRun((me) => workforce.decideDispute(me, id, accept, reply), accept ? "Accepted. Those minutes are removed." : "Rejected."));
+export const activityFor = async (staffId: string, day: string) => hrRun((me) => workforce.activityDay(me, staffId, day));
+export const setAppCategory = async (app: string, category: string) => done(await hrRun((me) => workforce.setAppCategory(me, app, category), "Category saved."));
+
+// ── KPIs and suggestions (Enterprise HRMS Phase 5)
+export const saveKpi = async (id: string | null, input: Parameters<typeof kpi.saveKpi>[2]) => done(await hrRun((me) => kpi.saveKpi(me, id, input), "KPI saved. Compute to update results."));
+export const setKpiActive = async (id: string, active: boolean) => done(await hrRun((me) => kpi.setKpiActive(me, id, active), active ? "KPI switched on." : "KPI switched off."));
+export const computeKpis = async (day: string) => done(await hrRun(async (me) => { const n = await kpi.computeKpis(me, day); await kpi.generateInsights(day); return n; }));
+export const enterKpiValue = async (input: Parameters<typeof kpi.enterManual>[1]) => done(await hrRun((me) => kpi.enterManual(me, input), "Value saved."));
+export const kpiFor = async (staffId: string, day: string) => hrRun((me) => kpi.kpiFor(me, staffId, day));
+export const reviewInsight = async (id: string, decision: "reviewed" | "dismissed", note = "", share = false) => done(await hrRun((me) => kpi.reviewInsight(me, id, decision, note, share), decision === "reviewed" ? (share ? "Reviewed and shared." : "Marked reviewed.") : "Dismissed."));
+
+// ── Shifts, roster, overtime, payroll readiness (Enterprise HRMS Phase 6)
+export const saveShift = async (id: string | null, input: Parameters<typeof shifts.saveShift>[2]) => done(await hrRun((me) => shifts.saveShift(me, id, input), "Shift saved."));
+export const archiveShift = async (id: string) => done(await hrRun((me) => shifts.archiveShift(me, id), "Shift archived."));
+export const assignShift = async (input: Parameters<typeof shifts.assignShift>[1]) => done(await hrRun((me) => shifts.assignShift(me, input), "Roster saved. Each person was told."));
+
+// ── Learning and engagement (Enterprise HRMS Phase 7)
+export const saveCourse = async (id: string | null, input: Parameters<typeof learning.saveCourse>[2]) => done(await hrRun((me) => learning.saveCourse(me, id, input), "Course saved."));
+export const publishCourse = async (id: string) => done(await hrRun((me) => learning.publishCourse(me, id), undefined));
+export const assignCourse = async (id: string, staffIds: string[]) => done(await hrRun((me) => learning.assignCourse(me, id, staffIds)));
+export const archiveCourse = async (id: string) => done(await hrRun((me) => learning.archiveCourse(me, id), "Course archived."));
+export const openCourse = async (id: string) => hrRun((me) => learning.openCourse(me, id));
+export const markLessonRead = async (id: string, index: number) => done(await hrRun((me) => learning.markLessonRead(me, id, index)));
+export const submitQuiz = async (id: string, answers: number[]) => done(await hrRun((me) => learning.submitQuiz(me, id, answers)));
+export const resetCourseAttempts = async (id: string, staffId: string) => done(await hrRun((me) => learning.resetAttempts(me, id, staffId), "Attempts reset."));
+export const createSurvey = async (input: Parameters<typeof surveys.createSurvey>[1]) => done(await hrRun((me) => surveys.createSurvey(me, input), "Survey sent."));
+export const closeSurvey = async (id: string) => done(await hrRun((me) => surveys.closeSurvey(me, id), "Survey closed."));
+export const answerSurvey = async (id: string, answers: unknown[]) => done(await hrRun((me) => surveys.answerSurvey(me, id, answers), "Thank you. Your answer is recorded."));
+export const surveyResults = async (id: string) => hrRun((me) => surveys.surveyResults(me, id));
+
+// ── Management dashboard (Enterprise HRMS Phase 8)
+export const managementCsv = async () => hrRun((me) => mgmt.managementCsv(me));

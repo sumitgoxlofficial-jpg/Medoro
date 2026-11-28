@@ -1,4 +1,4 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { certificateFor } from "@/staff/hrms/training/service";
 import { certificatePdf } from "@/staff/hrms/training/pdf";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** A Sales Academy certificate as a PDF: for its holder, their trainer and HR. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   const c = await certificateFor(me, (await params).id);
   if (!c) return new Response("Not found.", { status: 404 });

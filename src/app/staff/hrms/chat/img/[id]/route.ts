@@ -1,11 +1,11 @@
-import { getMe } from "@/staff/hrms/auth";
+import { getReadyMe } from "@/staff/hrms/auth";
 import { chatImage } from "@/staff/hrms/chat";
 
 export const dynamic = "force-dynamic";
 
 /** A picture or document sent in a chat, for the people in that conversation (and the super admin through review). Never cached. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const me = await getMe();
+  const me = await getReadyMe();
   if (!me) return new Response("Sign in first.", { status: 401 });
   const img = await chatImage(me, (await params).id);
   if (!img) return new Response("Not found.", { status: 404 });
