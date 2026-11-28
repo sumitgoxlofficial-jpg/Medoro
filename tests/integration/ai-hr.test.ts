@@ -7,6 +7,13 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("redirect " + u); } }));
 // Email is captured, not sent: the weekly summary is checked from what would have gone out.
 const mail = vi.hoisted(() => ({ on: false, sent: [] as { to: string; subject: string; text: string }[] }));
+// Browser push is captured, not sent: a 410 from the push service means the device is gone.
+const push = vi.hoisted(() => ({ sent: [] as { endpoint: string; payload: string }[], gone: new Set<string>() }));
+vi.mock("web-push", async (orig) => {
+  const m = await orig<Record<string, unknown>>(), real = (m.default ?? m) as Record<string, unknown>;
+  const sendNotification = async (sub: { endpoint: string }, payload: string) => { if (push.gone.has(sub.endpoint)) throw Object.assign(new Error("gone"), { statusCode: 410 }); push.sent.push({ endpoint: sub.endpoint, payload }); return { statusCode: 201 }; };
+  return { ...real, default: { ...real, sendNotification }, sendNotification };
+});
 vi.mock("@/server/mail", async (orig) => ({ ...(await orig<typeof import("@/server/mail")>()), mailEnabled: () => mail.on, sendMail: async (m: { to: string; subject: string; text: string }) => { mail.sent.push(m); } }));
 
 import { db } from "@/server/db";
@@ -14,6 +21,7 @@ import { invalidateSettings, loadPerms, type Me } from "@/staff/hrms/auth";
 import { DEFAULT_SETTINGS } from "@/staff/hrms/constants";
 import * as svc from "@/staff/hrms/ai-hr/service";
 import { sign } from "@/staff/hrms/ai-hr/telephony";
+import * as pushSvc from "@/staff/hrms/ai-hr/push";
 import { dateOnly } from "@/lib/dates";
 import { resetDb } from "./helpers";
 
@@ -109,7 +117,7 @@ describe("AI HR Assistant (integration)", () => {
     at(ist("17:50"));
     const call = (await callsOf(c.id)).find((x) => x.reason === "missing_checkout")!;
     const open = await svc.beginCall(c, call.id);
-    expect(open.turns[0].text).toMatch(/AI HR Assistant/);
+    expect(open.turns[0].text).toMatch(/Naina hoon, Medoro HR ki AI assistant/);
     expect(open.audio).toBeNull(); // no AI service configured: voice is off, text works
     await expect(svc.sendTurn(c, call.id, { audio: new Blob([new Uint8Array(5000)]) })).rejects.toThrow(/type your answer/);
     await svc.sendTurn(c, call.id, { text: "haan" });
@@ -368,5 +376,90 @@ describe("AI HR Assistant (integration)", () => {
     expect(await svc.weeklyDigest(new Date("2026-12-16T12:00:00+05:30"))).toBe(0);
     expect(await svc.weeklyDigest(new Date("2026-12-21T08:00:00+05:30"))).toBeGreaterThanOrEqual(3);
     mail.on = false;
+  });
+  let dv: Me;
+  it("Naina in Chats: the employee starts a chat, asks a question, a bare hello just opens it, closing an empty chat leaves nothing for HR", async () => {
+    dv = await me(await mk("Divya Chat", "employee"));
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("11:00", "2026-12-15"));
+    const incomplete = () => db.aiHrAction.count({ where: { staffId: dv.id, kind: "incomplete" } });
+    const before = await incomplete();
+    const info = await svc.nainaInfo(dv);
+    expect(info).toMatchObject({ open: null });
+    // "hi" opens a chat with Naina's offer to help, and isn't treated as an answer.
+    const r1 = await svc.nainaSend(dv, "hi");
+    let thread = await svc.nainaThread(dv);
+    const chat1 = thread.find((t) => t.id === r1.callId)!;
+    expect(chat1).toMatchObject({ self: true, status: "in_progress" });
+    expect(chat1.turns.map((t) => t.who)).toEqual(["ai"]);
+    expect(chat1.turns[0].text).toMatch(/Naina hoon, Medoro HR ki AI assistant/);
+    // A question in the same chat is answered from approved knowledge.
+    const r2 = await svc.nainaSend(dv, "Leave cancel kaise karte hain HRMS mein?");
+    expect(r2.callId).toBe(r1.callId);
+    thread = await svc.nainaThread(dv);
+    const last = thread.find((t) => t.id === r1.callId)!.turns.at(-1)!;
+    expect(last.who).toBe("ai");
+    expect(last.text).toMatch(/Source: Cancelling leave/);
+    // Another employee never sees it.
+    expect((await svc.nainaThread(b)).some((t) => t.id === r1.callId)).toBe(false);
+    // An empty chat the employee closes is dropped without a follow-up for HR.
+    const r3 = await svc.nainaSend(dv, "hello");
+    if (r3.callId !== r1.callId) {
+      await svc.nainaEnd(dv);
+      expect((await db.aiHrCall.findUniqueOrThrow({ where: { id: r3.callId } })).status).toBe("cancelled");
+    }
+    await svc.nainaEnd(dv);
+    expect(await incomplete()).toBe(before); // closing a chat they started never creates an "incomplete" follow-up
+  });
+
+  it("Naina rings for a conversation the scheduler opened, and answering joins that same conversation", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("11:30", "2026-12-15"));
+    await svc.nainaEnd(dv);
+    expect(await svc.nainaRing(dv)).toBeNull();
+    const id = await svc.startManualCall(hr, dv.id, "Check documents");
+    expect(await svc.nainaRing(dv)).toBeNull(); // scheduled, not yet sent
+    await svc.dispatch();
+    const ring = await svc.nainaRing(dv);
+    expect(ring).toMatchObject({ id, reason: "manual", attempts: 1, cfg: { speech: "browser" } });
+    expect((await svc.nainaRing(b))?.id).not.toBe(id); // only the employee it is for
+    expect((await svc.nainaInfo(dv))?.open).toMatchObject({ id, status: "notified", self: false });
+    // Answering (voice call or a typed reply) joins the waiting conversation instead of starting a new chat.
+    const conv = await svc.nainaConversation(dv);
+    expect(conv).toEqual({ id, fresh: true });
+    expect(await svc.nainaRing(dv)).toBeNull();
+    const turns = (await svc.nainaThread(dv)).find((t) => t.id === id)!.turns;
+    expect(turns[0].text).toMatch(/Naina/);
+    await svc.endCall(dv, id);
+  });
+
+  it("Naina is unavailable while the assistant is switched off", async () => {
+    await enable({ enabled: false });
+    expect(await svc.nainaInfo(dv)).toBeNull();
+    await expect(svc.nainaSend(dv, "payslip kahan hai")).rejects.toThrow(/isn't switched on/);
+    await enable();
+  });
+  it("push: only real browser push services are accepted, five devices at most, and Naina's call rings them", async () => {
+    const ev = await me(await mk("Esha Push", "employee"));
+    const sub = (endpoint: string) => ({ endpoint, keys: { p256dh: "B".repeat(87), auth: "a".repeat(22) } });
+    await expect(pushSvc.savePushSub(ev.id, sub("https://evil.example.com/hook"))).rejects.toThrow(/push address/);
+    await expect(pushSvc.savePushSub(ev.id, sub("http://fcm.googleapis.com/fcm/send/x"))).rejects.toThrow();
+    for (let i = 0; i < 7; i++) await pushSvc.savePushSub(ev.id, sub(`https://fcm.googleapis.com/fcm/send/dev${i}`));
+    await pushSvc.savePushSub(ev.id, sub("https://fcm.googleapis.com/fcm/send/dev6")); // the same device again isn't a second one
+    expect(await pushSvc.pushDevices(ev.id)).toBe(5);
+    const key = await pushSvc.pushPublicKey();
+    expect(key).toMatch(/^[A-Za-z0-9_-]{80,}$/);
+    expect(await pushSvc.pushPublicKey()).toBe(key); // made once, then kept
+    const stored = (await db.hrSetting.findUniqueOrThrow({ where: { key: "aiHrVapid" } })).value as { privateKey: string };
+    expect(stored.privateKey).not.toMatch(/^[A-Za-z0-9_-]{43}$/); // the private key is sealed, not stored as is
+    // A call the scheduler sends rings every device; a device the push service says is gone is dropped.
+    push.sent = []; push.gone = new Set(["https://fcm.googleapis.com/fcm/send/dev2"]);
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("12:00", "2026-12-16"));
+    const id = await svc.startManualCall(hr, ev.id, "Check documents");
+    await svc.dispatch();
+    const mine = push.sent.filter((x) => x.endpoint.includes("/dev"));
+    expect(mine).toHaveLength(4);
+    expect(JSON.parse(mine[0].payload)).toMatchObject({ title: "📞 Naina · AI HR is calling", url: "/staff/hrms/chat?c=naina", tag: `naina-${id}` });
+    expect(await pushSvc.pushDevices(ev.id)).toBe(4);
+    await pushSvc.removePushSub(ev.id, "https://fcm.googleapis.com/fcm/send/dev3");
+    expect(await pushSvc.pushDevices(ev.id)).toBe(3);
   });
 });

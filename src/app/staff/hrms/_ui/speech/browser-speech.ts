@@ -119,4 +119,15 @@ export function speakOnDevice(text: string, lang: "hi" | "en"): boolean {
   speechSynthesis.speak(u);
   return true;
 }
+/**
+ * Naina's reply aloud with whatever the device has: a Hindi voice reads the Devanagari version; without one, an Indian
+ * (or any) English voice reads the Hinglish text, which it pronounces well enough to follow. Returns the voice used.
+ */
+export function speakReply(devanagari: string, latin: string): "hi" | "en" | null {
+  if (devanagari && /[\u0900-\u097F]/.test(devanagari) && speakOnDevice(devanagari, "hi")) return "hi";
+  const text = latin || (/[\u0900-\u097F]/.test(devanagari) ? "" : devanagari);
+  return text && speakOnDevice(text, "en") ? "en" : null;
+}
+/** Which voice replies will use on this device: Hindi, English (reading Hinglish), or none. */
+export const deviceVoiceKind = (): "hi" | "en" | null => (pickVoice("hi") ? "hi" : pickVoice("en") ? "en" : null);
 export const stopSpeaking = () => { if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(); };

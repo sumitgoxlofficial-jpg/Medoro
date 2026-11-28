@@ -16,6 +16,7 @@ import { KycStep } from "./kyc";
 import { IdleWatcher, PhotoCheckin } from "./monitor";
 import { ChatNotifier } from "./chat-notify";
 import { ChatHeads } from "./chat-heads";
+import { NainaRinger } from "./naina";
 import { Screen } from "./screens";
 import { useCheckoutGuard } from "./checkout-guard";
 import { CommandPalette, SearchButton } from "./command-palette";
@@ -182,6 +183,7 @@ export function Frame({ sh, screen, title, sub, data, gate }: { sh: Shell; scree
       </div>
       <ChatNotifier screen={screen} />
       <ChatHeads screen={screen} meId={sh.me.id} />
+      <NainaRinger screen={screen} />
       <IdleWatcher minutes={sh.monitor} active={!!sh.att.inAt && !sh.att.outAt && !sh.onBreak} lunch={sh.lunch} />
       {sh.needsPhoto ? <PhotoCheckin lateAfter={sh.lateAfter} /> : null}
       {ally ? <AllyChat first={sh.me.first} onClose={() => setAlly(false)} /> : null}

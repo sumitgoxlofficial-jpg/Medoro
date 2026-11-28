@@ -66,3 +66,24 @@ self.addEventListener("fetch", (e) => {
   }
   if (CORE.includes(url.pathname)) e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
 });
+
+// Naina's calls (AI HR): a ringing notification even when the HRMS isn't open. Tapping it opens Naina in Team Chat.
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = {}; }
+  if (!d || !d.title) return;
+  e.waitUntil(self.registration.showNotification(String(d.title).slice(0, 80), {
+    body: String(d.body || "").slice(0, 200), tag: String(d.tag || "medoro"), renotify: true, requireInteraction: true,
+    icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", vibrate: [400, 200, 400, 200, 400],
+    data: { url: typeof d.url === "string" && d.url.startsWith("/") ? d.url : "/staff/hrms" },
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "/staff/hrms", self.location.origin).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (cs) => {
+    const tab = cs.find((c) => c.url.startsWith(self.location.origin + "/staff/"));
+    if (tab) { try { await tab.navigate(url); } catch { /* not controlled: open a new tab instead */ return self.clients.openWindow(url); } return tab.focus(); }
+    return self.clients.openWindow(url);
+  }));
+});

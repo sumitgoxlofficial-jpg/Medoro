@@ -11,6 +11,7 @@ import {
   chatTyping, chatUpdateGroup, chatVote, chatRemoveMember, chatDeleteGroup, chatBackupNow, chatBackupRestore, chatBackupDisconnect,
 } from "../actions";
 import { SoundToggle } from "./chat-notify";
+import { NAINA, NainaPanel, NainaRow } from "./naina";
 import { Card, Empty, Field, Modal, Tabs, btnCls, cx, dangerCls, dayLong, inputCls, primaryCls, timeLabel, useRun } from "./kit";
 import { useLocalStorage, useOnChange } from "@/lib/react-state";
 
@@ -223,7 +224,7 @@ export function ChatScreen({ d }: { d: D }) {
   const router = useRouter();
   const { run, toast } = useRun();
   const [chats, setChats] = useState<ChatRow[]>(d.chats);
-  const [active, setActive] = useState<string>(d.chats.some((c) => c.id === d.open) ? d.open : "");
+  const [active, setActive] = useState<string>(d.chats.some((c) => c.id === d.open) || (d.open === NAINA && d.naina) ? d.open : "");
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [readUpTo, setReadUpTo] = useState(0), [typing, setTyping] = useState<string[]>([]), [typingBy, setTypingBy] = useState<Record<string, string>>({});
   const [pres, setPres] = useState<Presence>(() => Object.fromEntries(d.people.filter((p) => p.presence !== "offline").map((p) => [p.id, p.presence])));
@@ -262,7 +263,7 @@ export function ChatScreen({ d }: { d: D }) {
     tickN.current += 1;
     const u = new URLSearchParams({ open: document.visibilityState === "visible" ? "1" : "0" });
     if (forceFull || reset || tickN.current % 4 === 0) u.set("full", "1");
-    if (id) { u.set("chat", id); if (!reset && top.current) u.set("after", String(top.current)); }
+    if (id && id !== NAINA) { u.set("chat", id); if (!reset && top.current) u.set("after", String(top.current)); }
     try {
       const r = await fetch(`/staff/hrms/chat/poll?${u}`, { cache: "no-store" });
       if (r.status === 401) { router.refresh(); return; }
@@ -281,7 +282,7 @@ export function ChatScreen({ d }: { d: D }) {
   }, [poll]);
   // Opening a conversation loads it fresh.
   useOnChange([active, poll], () => { setMsgs([]); setTyping([]); setFind(""); setFindOpen(false); });
-  useEffect(() => { top.current = 0; pinned.current = true; first.current = true; if (active) void poll(true); }, [active, poll]);
+  useEffect(() => { top.current = 0; pinned.current = true; first.current = true; if (active && active !== NAINA) void poll(true); }, [active, poll]);
   useEffect(() => { const el = log.current; if (el && pinned.current) el.scrollTop = el.scrollHeight; }, [msgs, typing]);
 
   const pick = (id: string) => { setActive(id); setShowList(false); window.history.replaceState(null, "", `/staff/hrms/chat?c=${id}`); };
@@ -389,18 +390,19 @@ export function ChatScreen({ d }: { d: D }) {
           </div>
           <div className="relative overflow-y-auto flex-1 pt-2 [scrollbar-width:thin]" role="list">
             <BackupPrompt b={d.backup} />
+            {d.naina && (!q.trim() || "naina ai hr".includes(q.trim().toLowerCase())) ? <NainaRow info={d.naina} active={active === NAINA} onPick={() => pick(NAINA)} /> : null}
             {channels.length ? <div className="px-4 pt-2 pb-1.5 text-[11px] font-semibold tracking-[.08em] text-[#0B8A7A]">CHANNELS</div> : null}
             {channels.map(row)}
             {dms.length ? <div className="px-4 pt-4 pb-1.5 text-[11px] font-semibold tracking-[.08em] text-[#0B8A7A]">DIRECT MESSAGES</div> : null}
             {dms.map(row)}
-            {!channels.length && !dms.length ? <Empty>{chats.length ? "No chats match." : "No chats yet. Press + to message a colleague."}</Empty> : null}
+            {!channels.length && !dms.length && !d.naina ? <Empty>{chats.length ? "No chats match." : "No chats yet. Press + to message a colleague."}</Empty> : null}
           </div>
         </div>
 
         <div className={cx("flex-col min-h-0 bg-[#EAEFEC] relative", !showList && active ? "flex" : "hidden min-[860px]:flex")}>
           {/* WhatsApp-style doodle wallpaper behind the messages. */}
           <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "url(/chat-wallpaper.svg)", backgroundSize: "320px 320px" }} />
-          {chat ? (
+          {active === NAINA && d.naina ? <NainaPanel info={d.naina} onBack={() => setShowList(true)} /> : chat ? (
             <>
               <div className={cx(headerBar, "pl-2 pr-2 min-[860px]:pl-4")}>
                 <button className={cx(iconBtnBar, "min-[860px]:hidden")} aria-label="Back to chats" onClick={() => setShowList(true)}><Ic n="back" s={22} /></button>

@@ -7,9 +7,15 @@ import type { Lang } from "./nlu";
 type Variants = Record<Lang, string[]>;
 export const P = {
   intro: {
-    hinglish: ["Hello {name} ji, namaste! Main Medoro ki AI HR Assistant hoon. {purpose} Kya abhi ek minute baat kar sakte hain?", "Namaste {name} ji! Main Medoro HR ki taraf se AI assistant bol rahi hoon. {purpose} Kya abhi baat karna theek rahega?"],
-    hi: ["नमस्ते {name} जी! मैं मेडोरो की AI HR असिस्टेंट हूँ। {purpose} क्या अभी एक मिनट बात कर सकते हैं?", "नमस्ते {name} जी, मैं मेडोरो HR की ओर से AI असिस्टेंट बोल रही हूँ। {purpose} क्या अभी बात करना ठीक रहेगा?"],
-    en: ["Hello {name}, this is Medoro's AI HR Assistant. {purpose} Is this a good time to talk for a minute?", "Hi {name}! I'm the AI assistant from Medoro HR. {purpose} Do you have a minute right now?"],
+    hinglish: ["Hello {name} ji, namaste! Main Naina hoon, Medoro HR ki AI assistant. {purpose} Kya abhi ek minute baat kar sakte hain?", "Namaste {name} ji! Main Naina, Medoro HR ki taraf se AI assistant bol rahi hoon. {purpose} Kya abhi baat karna theek rahega?"],
+    hi: ["नमस्ते {name} जी! मैं नैना हूँ, मेडोरो HR की AI असिस्टेंट। {purpose} क्या अभी एक मिनट बात कर सकते हैं?", "नमस्ते {name} जी, मैं नैना, मेडोरो HR की ओर से AI असिस्टेंट बोल रही हूँ। {purpose} क्या अभी बात करना ठीक रहेगा?"],
+    en: ["Hello {name}, this is Naina, Medoro HR's AI assistant. {purpose} Is this a good time to talk for a minute?", "Hi {name}! I'm Naina, the AI assistant from Medoro HR. {purpose} Do you have a minute right now?"],
+  },
+  /** When the employee starts the chat themselves (Chats → Naina): no permission question, just an offer to help. */
+  intro_self: {
+    hinglish: ["Namaste {name} ji! Main Naina hoon, Medoro HR ki AI assistant. Bataiye, main aapki kis tarah madad kar sakti hoon?", "Hello {name} ji! Main Naina, Medoro HR ki AI assistant. Leave, attendance, payslip ya HRMS ke baare mein kuch bhi poochiye."],
+    hi: ["नमस्ते {name} जी! मैं नैना हूँ, मेडोरो HR की AI असिस्टेंट। बताइए, मैं आपकी किस तरह मदद कर सकती हूँ?", "नमस्ते {name} जी! मैं नैना, मेडोरो HR की AI असिस्टेंट। छुट्टी, हाज़िरी, पे-स्लिप या HRMS के बारे में कुछ भी पूछिए।"],
+    en: ["Hello {name}! I'm Naina, Medoro HR's AI assistant. How can I help you today?", "Hi {name}! I'm Naina, the AI assistant from Medoro HR. Ask me anything about leave, attendance, payslips or the HRMS."],
   },
   purpose_late: { hinglish: ["Aapki aaj ki attendance ke baare mein ek chhoti si baat karni thi."], hi: ["आपकी आज की हाज़िरी के बारे में एक छोटी सी बात करनी थी।"], en: ["I wanted to quickly check about your attendance today."] },
   purpose_absent: { hinglish: ["Aaj ki attendance ke baare mein bas check karna tha ki sab theek hai."], hi: ["आज की हाज़िरी के बारे में बस यह पूछना था कि सब ठीक है।"], en: ["I just wanted to check in about today's attendance and make sure everything is okay."] },

@@ -1,5 +1,39 @@
 # AI HR Assistant — technical handover
 
+## Update 6 (2026-11-28): Naina rings with the HRMS closed, voice fallback, no scheduler set-up needed
+* **Free browser push** (`web-push`, no paid service): in Chats → Naina an employee turns on "Let Naina ring this
+  device". When the scheduler sends a conversation, every such device gets a ringing notification (stays until tapped,
+  vibrates) that opens Naina's chat, even with the HRMS closed. The key pair is made on first use and kept in
+  `HrSetting` (`aiHrVapid`, private key sealed with HOST_KEY); subscriptions in `HrSetting` `aiHrPush:<staffId>`, five
+  devices per person, only real push services accepted (Google, Mozilla, Microsoft, Apple), gone devices removed.
+  iPhone: Apple allows web push only after "Add to Home Screen" (iOS 16.4+); the screen says so. No schema change.
+* **Voice fallback**: with no Hindi voice on the device, Naina speaks the Hinglish text with an Indian (or any) English
+  voice instead of staying silent; only on-device voices are used (reply text is never sent to an online voice).
+* **No outside scheduler needed in working hours**: every open HRMS tab checks for Naina's ring every 8 s, and that
+  check runs the AI job at most once a minute across servers (after the response). The Supabase cron script is still
+  useful for nights and weekends when nobody has the HRMS open.
+* Tested: integration (push addresses, device limit, sealed key, ring sends to every device, 410 removes it), unit
+  (voice fallback), e2e in Chromium (the switch is offered; a push delivered to the real service worker shows the
+  ringing notification that opens Naina's chat). Not tested: delivery through Google/Apple push services (needs the
+  internet from a real device), iPhone.
+
+## Update 5 (2026-11-28): Naina in Team Chat, in-app calls (no phone)
+* The assistant is now **Naina** (female, Hinglish by default, says she is an AI in every opening).
+* **Chats → Naina** (pinned at the top for every employee while the assistant is on): a one-to-one chat. Typed questions
+  are answered from approved knowledge with the source; a bare "hi" just opens the chat. A conversation Naina is
+  waiting to have (late, absent, check-out, overtime, HR follow-up) shows there with an Answer button. Only the employee
+  and authorised HR can see it; it uses the same engine, rules, retention and audit as every AI conversation.
+* **📞 Call** in Naina's chat header opens a voice call window (speak or type) inside the HRMS. No phone line, ₹0.
+* **Incoming call on any HRMS page**: when the scheduler sends a conversation (within contact hours, with retries), a
+  ringing banner appears — Answer (voice call window), Chat, or Decline (hides that ring; the usual retries and the
+  hand-over to HR after the last attempt still apply). Polled from `/staff/hrms/naina/ring` (one indexed query when
+  nothing is waiting).
+* Chats an employee starts: at most 30 a day; closing one they never wrote in is dropped; closing one they wrote in ends
+  it without an "incomplete" follow-up for HR (unlike conversations Naina started).
+* Limits: the in-app ring only reaches people who have the HRMS open (a closed browser can't ring); voice quality
+  depends on the device voice, as before. Tested: unit, integration (chat, ring, joining a waiting conversation, off
+  switch) and e2e in Chromium (chat answer with source, ring → Answer → voice-call window → escalation to HR).
+
 ## Update 4 (2026-11-28): review of unclear answers, weekly summary, e2e fix
 * **Answers not understood** (AI HR Assistant → Escalations & review): employee answers the assistant couldn't place
   (intent `unknown`, kept only for the transcript retention period). HR can **Teach** a phrase from one (adds a custom

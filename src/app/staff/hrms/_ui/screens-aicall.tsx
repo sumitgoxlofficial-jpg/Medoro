@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Data } from "@/staff/hrms/screens";
 import { aiCallBegin, aiCallConsent, aiCallEnd, aiCallTurn } from "../actions";
-import { browserSpeechSupported, deviceVoiceAvailable, prepareRecognition, recognise, recordingFormat, speakOnDevice, stopSpeaking, unlockSpeech, voiceHelp, voicesReady } from "./speech/browser-speech";
+import { browserSpeechSupported, deviceVoiceKind, prepareRecognition, recognise, recordingFormat, speakReply, stopSpeaking, unlockSpeech, voiceHelp, voicesReady } from "./speech/browser-speech";
 import { Card, Empty, Pill, btnCls, cx, dangerCls, dayLabel, inputCls, primaryCls, useRun } from "./kit";
 
 type D = Data<"aicall">;
@@ -33,13 +33,14 @@ export function AiCallScreen({ d }: { d: D }) {
   </>;
 }
 
-function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; selfHosted: boolean; onClose: () => void }) {
+export function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; selfHosted: boolean; onClose: () => void }) {
   const browser = mode === "browser";
   const canVoice = voice && (!browser || browserSpeechSupported());
   const [prep, setPrep] = useState<"" | "loading" | "ready">("");
   // In free (browser) mode, replies are spoken by the device's own voice: tell the person when it has none.
-  const [noVoice, setNoVoice] = useState(false);
-  useEffect(() => { if (!browser || !tts) return; let live = true; void voicesReady().then(() => { if (live) setNoVoice(!deviceVoiceAvailable("hi")); }); return () => { live = false; }; }, [browser, tts]);
+  const [voiceKind, setVoiceKind] = useState<"hi" | "en" | null>("hi");
+  useEffect(() => { if (!browser || !tts) return; let live = true; void voicesReady().then(() => { if (live) setVoiceKind(deviceVoiceKind()); }); return () => { live = false; }; }, [browser, tts]);
+  const noVoice = voiceKind === null;
   const [pct, setPct] = useState(0);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [done, setDone] = useState(false);
@@ -52,9 +53,9 @@ function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id
   const mediaRef = useRef<{ rec: MediaRecorder; stream: MediaStream; ctx: AudioContext; raf: number } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
-  const play = (a: { audio: string; mime: string } | null, speech = "") => {
+  const play = (a: { audio: string; mime: string } | null, speech = "", reply = "") => {
     if (!speakOut) return;
-    if (!a) { if (browser && speech) speakOnDevice(speech, /[\u0900-\u097F]/.test(speech) ? "hi" : "en"); return; }
+    if (!a) { if (browser && (speech || reply)) speakReply(speech, reply); return; }
     try { audioRef.current?.pause(); const el = new Audio(`data:${a.mime};base64,${a.audio}`); audioRef.current = el; void el.play().catch(() => {}); } catch { /* the text is on screen */ }
   };
   useEffect(() => {
@@ -62,7 +63,7 @@ function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id
     void aiCallBegin(id, tts && !browser).then((r) => {
       if (cancelled) return;
       if (!r.ok) { setErr(r.error); return; }
-      setTurns(r.data.turns); play(r.data.audio, r.data.speech);
+      setTurns(r.data.turns); play(r.data.audio, r.data.speech, r.data.turns.at(-1)?.text ?? "");
     }).catch(() => { if (!cancelled) setErr("Couldn't reach the server. Check your connection and try again."); });
     return () => { cancelled = true; stopMedia(); audioRef.current?.pause(); stopSpeaking(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,7 +82,7 @@ function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id
       const r = await aiCallTurn(fd);
       if (!r.ok) { setErr(r.error); return; }
       setTurns((t) => [...t, { who: "employee", text: r.data.heard }, ...(r.data.reply ? [{ who: "ai" as const, text: r.data.reply }] : [])]);
-      play(r.data.audio, r.data.speech);
+      play(r.data.audio, r.data.speech, r.data.reply ?? "");
       if (r.data.done) setDone(true);
     } catch { setErr("The connection dropped. Your conversation is saved; try again."); }
     finally { setBusy(false); setRec("idle"); }
@@ -138,7 +139,7 @@ function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id
     mediaRef.current.raf = requestAnimationFrame(tick);
   };
 
-  return <Card title="AI HR Assistant" sub="An AI assistant from Medoro HR. Say “HR se baat karni hai” for a person, or “call mat karo” to stop." right={<><label className="flex gap-1.5 items-center text-[12px]"><input type="checkbox" checked={speakOut} disabled={!tts} onChange={(e) => setSpeakOut(e.target.checked)} />Voice replies{!tts ? " (unavailable)" : ""}</label><button className={btnCls} onClick={() => { if (!done) void aiCallEnd(id); onClose(); }}>{done ? "Close" : "End"}</button></>}>
+  return <Card title="Naina · AI HR assistant" sub="Naina is an AI assistant from Medoro HR. Say “HR se baat karni hai” for a person, or “call mat karo” to stop." right={<><label className="flex gap-1.5 items-center text-[12px]"><input type="checkbox" checked={speakOut} disabled={!tts} onChange={(e) => setSpeakOut(e.target.checked)} />Voice replies{!tts ? " (unavailable)" : ""}</label><button className={btnCls} onClick={() => { if (!done) void aiCallEnd(id); onClose(); }}>{done ? "Close" : "End"}</button></>}>
     <div className="px-5 pb-4 flex flex-col gap-2" aria-live="polite">
       {turns.map((t, i) => <div key={i} className={cx("rounded-lg px-3 py-2 text-[13.5px] max-w-[88%]", t.who === "ai" ? "self-start bg-[#E6F4F2]" : "self-end bg-[#EEF2FF]")}>{t.text || <em className="text-[#94A3B8]">(no answer)</em>}</div>)}
       {busy ? <div className="self-start text-[12px] text-[#64748B]">…</div> : null}
@@ -146,6 +147,7 @@ function Conversation({ id, voice, tts, mode, model, selfHosted, onClose }: { id
       {err ? <div className="text-[12.5px] text-[#B3261E]">{err}</div> : null}
       {done ? <div className="text-[12.5px] text-[#0B5E5B] font-semibold">Conversation finished. Thank you.</div> : <>
         {noVoice && speakOut ? <div className="text-[12px] text-[#B45309] bg-[#FEF3C7] rounded-lg px-3 py-2">This device has no Hindi voice installed, so replies are shown as text only. {voiceHelp()}</div> : null}
+        {voiceKind === "en" && speakOut ? <div className="text-[12px] text-[#64748B] bg-[#F1F5F9] rounded-lg px-3 py-2">No Hindi voice on this device, so Naina speaks with an English voice. For a Hindi voice: {voiceHelp()}</div> : null}
         {browser && voice && !canVoice ? <div className="text-[12px] text-[#64748B]">This browser can&apos;t record voice. Please type, or use Chrome, Edge or Safari.</div> : null}
         {prep === "loading" ? <div className="text-[12.5px] text-[#64748B]">Getting voice recognition ready on this device (one time, free){pct ? `: ${pct}%` : "…"}</div> : null}
         {canVoice ? <button className={cx(primaryCls, "justify-center py-3 text-[14px]", rec === "listening" && "!bg-[#B3261E]")} disabled={busy || rec === "sending" || prep === "loading"} onClick={() => void listen()} aria-pressed={rec === "listening"}>{rec === "listening" ? "Listening… tap to finish" : rec === "sending" ? "Sending…" : "🎤 Speak"}</button> : <div className="text-[12px] text-[#64748B]">Voice isn&apos;t available right now; please type.</div>}

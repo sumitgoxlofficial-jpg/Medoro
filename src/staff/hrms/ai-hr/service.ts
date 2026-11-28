@@ -11,7 +11,7 @@ import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "../auth";
 import { APPLY_IDS, leaveLabel, toMin as hhmmToMin, type Settings } from "../constants";
 import { applyLeave, decideLeave, istClock, weekend } from "../time";
-import { CALL_REASONS, start, step, type CallReason, type Ctx, type State } from "./engine";
+import { CALL_REASONS, start, startSelf, step, type CallReason, type Ctx, type State } from "./engine";
 import { understand, clock, normalise, REASONS, TEACHABLE_INTENTS, type CustomWord, type Lang } from "./nlu";
 import { buildOutput, type CallOutput } from "./output";
 import { Index, kbFrom, productDocs, type KDoc } from "./knowledge";
@@ -24,6 +24,7 @@ import { converse } from "./engine";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { aiHrDigestMail } from "../mails";
 import { digestWeek, type DigestStats } from "./digest";
+import { pushTo } from "./push";
 
 // The AI HR Assistant's server side. It detects attendance exceptions from the HRMS's own records (the same shift,
 // leave, holiday and weekly-off rules the attendance screens use), schedules a conversation per event exactly once,
@@ -158,6 +159,8 @@ export async function dispatch(now = new Date()) {
     const n = call.attempts + 1;
     const text = notifyText(call.reason as CallReason, n);
     await notify([call.staffId], text, "aicall");
+    // Rings the employee's phone or laptop too, even with the HRMS closed (free browser push, if they turned it on).
+    await pushTo(call.staffId, { title: "📞 Naina · AI HR is calling", body: `About ${CALL_ABOUT[call.reason as CallReason] ?? "a quick question"}. Tap to answer in the HRMS.`, url: "/staff/hrms/chat?c=naina", tag: `naina-${call.id}` }).catch((e) => log.warn("naina push failed", { err: e instanceof Error ? e.message : String(e) }));
     await db.$transaction([
       db.aiHrCall.update({ where: { id: call.id }, data: { status: "notified", attempts: n, nextAttemptAt: new Date(now.getTime() + c.retryGapMin * 60_000) } }),
       db.aiHrCallAttempt.create({ data: { callId: call.id, n, outcome: "notified", detail: "HRMS notification" } }),
@@ -166,9 +169,10 @@ export async function dispatch(now = new Date()) {
   }
   return out;
 }
+const CALL_ABOUT: Record<CallReason, string> = { late: "today's check-in", absent: "today's attendance", missing_checkout: "today's check-out", overtime: "an overtime request", manual: "a follow-up from HR" };
 const notifyText = (r: CallReason, n: number) => {
   const what: Record<CallReason, string> = { late: "your check-in today", absent: "today's attendance", missing_checkout: "today's check-out", overtime: "an overtime request from your manager", manual: "a follow-up from HR" };
-  return `${n > 1 ? "Reminder: " : ""}Medoro's AI HR Assistant would like a quick word about ${what[r]}. Open it to talk (voice or text), or ask for HR.`;
+  return `${n > 1 ? "Reminder: " : ""}Naina, Medoro HR's AI assistant, would like a quick word about ${what[r]}. Answer her call or open Chats → Naina (voice or text), or ask for HR.`;
 };
 async function stillNeeded(call: { staffId: string; reason: string; day: Date }): Promise<string> {
   if (call.reason === "overtime" || call.reason === "manual") return "";
@@ -202,6 +206,13 @@ export async function aiHrTick(now = new Date(), daily = false) {
  * on one HrSetting row), after the response is sent. With the free GitHub Actions workflow (every 5 minutes) and
  * Vercel's daily cron, no paid scheduler is needed. Returns whether this call ran it.
  */
+let lastTry = 0;
+/** From the ring check every HRMS tab makes: tries the AI job at most every 30 s per server (the claim below decides). */
+export async function maybeTickFromRing(now = new Date()) {
+  if (now.getTime() - lastTry < 30_000) return false;
+  lastTry = now.getTime();
+  return maybeTick(now);
+}
 export async function maybeTick(now = new Date()): Promise<boolean> {
   const claimed = await db.$queryRaw<{ key: string }[]>`
     INSERT INTO "HrSetting" (key, value) VALUES ('aiHrTick', jsonb_build_object('at', ${now.toISOString()}::text))
@@ -513,6 +524,76 @@ export async function beginCall(me: Me, id: string, opts: { speak?: boolean } = 
   return { turns: [{ who: "ai" as const, text: t.reply }], done: false, audio, speech: t.speech ?? t.reply };
 }
 
+// ── Naina in Chats: the employee's one-to-one thread with the assistant, her in-app "call", and chats they start.
+const OPEN = ["scheduled", "notified", "in_progress"];
+const GREETING = /^\s*(hi+|hello+|hey+|namaste|namaskar|haan|ha|ok|okay|नमस्ते|हाय)\s*[!.]*\s*$/i;
+/** What Chats needs to show Naina: whether she's available, the voice settings, and any conversation waiting. */
+export async function nainaInfo(me: Me) {
+  const cfg = await loadConfig();
+  if (!cfg.enabled) return null;
+  const v = await myCalls(me);
+  const open = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: { in: OPEN } }, orderBy: { createdAt: "desc" }, select: { id: true, reason: true, status: true, context: true } });
+  return { voice: v.voice, tts: v.tts, speech: v.speech, sttModel: v.sttModel, modelSource: v.modelSource, allowed: v.allowed, open: open ? { id: open.id, reason: open.reason, status: open.status, self: !!(open.context as { self?: boolean } | null)?.self } : null };
+}
+/** A conversation Naina wants to have now (notified within calling hours): the HRMS rings for it. */
+export async function nainaRing(me: Me) {
+  // Asked every few seconds from every HRMS page: one indexed query when nothing is waiting.
+  const call = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: "notified" }, orderBy: { createdAt: "asc" }, select: { id: true, reason: true, attempts: true } });
+  if (!call) return null;
+  const info = await nainaInfo(me);
+  return info ? { ...call, cfg: { voice: info.voice, tts: info.tts, speech: info.speech, sttModel: info.sttModel, modelSource: info.modelSource } } : null;
+}
+/** The employee's thread with Naina: their recent conversations, oldest first (only what retention still keeps). */
+export async function nainaThread(me: Me) {
+  const calls = await db.aiHrCall.findMany({ where: { staffId: me.id, startedAt: { not: null } }, orderBy: { startedAt: "desc" }, take: 10, include: { turns: { orderBy: { seq: "asc" } } } });
+  return calls.reverse().map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status, self: !!(c.context as { self?: boolean } | null)?.self, turns: c.turns.map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed), at: t.at.toISOString() })) }));
+}
+/** Starts a chat the employee opened themselves (at most 30 a day). */
+async function beginSelf(me: Me) {
+  const cfg = await loadConfig();
+  if (!cfg.enabled) throw new UserError("Naina isn't switched on for the company yet.");
+  const today = todayISO();
+  if (await db.aiHrCall.count({ where: { staffId: me.id, eventKey: { startsWith: `self:${me.id}:` }, day: dateOnly(today) } }) >= 30) throw new UserError("That's a lot of chats today. Please contact HR directly.");
+  const staff = await db.staffUser.findUniqueOrThrow({ where: { id: me.id }, select: { name: true } });
+  const context = { topic: "Employee started a chat", self: true };
+  const ctx = await ctxFor({ reason: "manual", context, staff }, cfg);
+  const t = startSelf(ctx);
+  const call = await db.aiHrCall.create({ data: { staffId: me.id, reason: "manual", day: dateOnly(today), eventKey: `self:${me.id}:${randomUUID()}`, maxAttempts: 1, status: "in_progress", startedAt: new Date(), createdBy: me.id, context, state: t.state as unknown as Prisma.InputJsonValue } });
+  await db.aiHrTurn.create({ data: { callId: call.id, seq: 0, who: "ai", textSealed: sealText(t.reply), lang: t.state.lang } });
+  return call.id;
+}
+/** The conversation a message to Naina belongs to: the open one, a waiting one (opened now), or a new chat. */
+export async function nainaConversation(me: Me): Promise<{ id: string; fresh: boolean }> {
+  if (!(await loadConfig()).enabled) throw new UserError("Naina isn't switched on for the company yet.");
+  const open = await db.aiHrCall.findMany({ where: { staffId: me.id, status: { in: OPEN } }, orderBy: { createdAt: "asc" } });
+  const live = open.find((c) => c.status === "in_progress");
+  // A conversation left open for hours is wrapped up, so a new question starts cleanly.
+  if (live && live.startedAt && Date.now() - live.startedAt.getTime() > 3 * 3600_000) await endCall(me, live.id);
+  else if (live) return { id: live.id, fresh: false };
+  const waiting = open.find((c) => c.status !== "in_progress");
+  if (waiting) { await beginCall(me, waiting.id); return { id: waiting.id, fresh: true }; }
+  return { id: await beginSelf(me), fresh: true };
+}
+/** A typed message to Naina in Chats. A bare "hi" just opens the conversation; anything else is answered. */
+export async function nainaSend(me: Me, raw: string) {
+  const text = z.string().trim().min(1, "Type a message.").max(1000, "Keep it under 1,000 characters.").parse(raw);
+  const { id, fresh } = await nainaConversation(me);
+  if (fresh && GREETING.test(text)) return { callId: id, done: false };
+  const r = await sendTurn(me, id, { text });
+  return { callId: id, done: r.done };
+}
+/** The employee closes the chat. A chat they opened and never wrote in is simply dropped (nothing for HR). */
+export async function nainaEnd(me: Me) {
+  const live = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: "in_progress" }, orderBy: { createdAt: "desc" }, select: { id: true, context: true } });
+  if (!live) return;
+  const self = !!(live.context as { self?: boolean } | null)?.self;
+  if (self && !(await db.aiHrTurn.count({ where: { callId: live.id, who: "employee" } }))) {
+    await db.aiHrCall.update({ where: { id: live.id }, data: { status: "cancelled", suppressReason: "The employee closed the chat without writing.", endedAt: new Date() } });
+    return;
+  }
+  await endCall(me, live.id);
+}
+
 /** Canonical phrasing for an intent a local model suggested, so the engine's own rules decide what happens next. */
 const CANON: Partial<Record<string, string>> = { coming: "haan aa raha hoon", absent: "aaj nahi aa paunga", leave_applied: "leave apply kar di hai", want_leave: "leave chahiye", wfh: "work from home", already_checked_in: "main office mein hoon", attendance_issue: "check in nahi ho raha, app problem", still_working: "abhi bhi kaam kar raha hoon", forgot_checkout: "checkout bhool gaya", overtime_accept: "haan kar lunga", overtime_reject: "nahi kar paunga", overtime_clarify: "kitne ghante ka hai", busy: "abhi busy hoon", yes: "haan", no: "nahi" };
 
@@ -556,7 +637,9 @@ export async function endCall(me: Me, id: string) {
   const call = await ownCall(me, id);
   if (call.status !== "in_progress") return;
   const st = call.state as unknown as State;
-  if (!st.ended) { st.ended = true; st.endReason = "incomplete"; if (!st.flags.followup.includes("incomplete")) st.flags.followup.push("incomplete"); }
+  // A chat the employee started and closed is simply over; one Naina started and they left is incomplete for HR.
+  const self = !!(call.context as { self?: boolean } | null)?.self;
+  if (!st.ended) { st.ended = true; st.endReason = self ? "resolved" : "incomplete"; if (!self && !st.flags.followup.includes("incomplete")) st.flags.followup.push("incomplete"); }
   await db.aiHrCall.update({ where: { id }, data: { state: st as unknown as Prisma.InputJsonValue } });
   await finish(id);
 }
