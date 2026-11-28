@@ -146,6 +146,15 @@ describe("letters", () => {
     expect((await letterFor(hr, ann.id, "experience", "2027-06-30")).confidential).toBe(false);
     // A longer letter runs to a second page for the annexure, with page numbers, and still opens as a PDF.
     const pdf = await letterPdf(offer);
-    expect((await PDFDocument.load(pdf)).getPageCount()).toBeGreaterThanOrEqual(3);
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBeGreaterThanOrEqual(6);
+    // The joining documents are full agreements: annexures, sub-clauses, initials on every page; the NDA is laid out as an agreement with a schedule.
+    expect(offer).toMatchObject({ form: "letter", initials: true });
+    expect(offer.blocks.filter((b) => b.k === "h").map((b) => b.k === "h" && b.sub)).toEqual(["Compensation structure", "Leave and holidays", "Documents to be submitted on joining", "Acceptance and declaration"]);
+    expect(letterText(offer)).toContain("Arbitration and Conciliation Act, 1996");
+    const nda = await letterFor(hr, ann.id, "nda");
+    expect(nda).toMatchObject({ form: "agreement", initials: true });
+    expect(letterText(nda)).toContain("Categories of Confidential Information");
+    expect(nda.blocks.filter((b) => b.k === "sign").flatMap((b) => (b.k === "sign" ? b.boxes.map((x) => x.title) : []))).toEqual(["For and on behalf of Medoro", "The Employee", "Witness 1", "Witness 2"]);
+    expect((await PDFDocument.load(await letterPdf(nda))).getPageCount()).toBeGreaterThanOrEqual(4);
   });
 });
