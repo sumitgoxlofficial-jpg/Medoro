@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { clientIp } from "@/server/auth";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { UserError, type ActionResult } from "@/server/action";
@@ -247,6 +248,13 @@ export const chatSetAvatar = async (emoji: string) => hrRun((me) => chat.setChat
 // ── Letters (viewing only changes nothing, so these don't refresh the page)
 // During the joining-documents step a person may read only their own letters.
 export const getLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => { if (gateOf(me) && staffId !== "me" && staffId !== me.id) throw new UserError(auth.GATE_MESSAGE); return letters.letterFor(me, staffId === "me" ? me.id : staffId, type, lastDay); }, undefined, { during: ["docs"] });
+/** The employee e-signs their own appointment letter or NDA (also during the joining-documents step). */
+export const signMyLetter = async (type: string, input: unknown) => {
+  const h = await headers(), ip = clientIp(h), userAgent = h.get("user-agent") ?? "";
+  return done(await hrRun((me) => letters.signJoiningLetter(me, type, input, { ip, userAgent }), "Signed. A copy has been emailed to you.", { during: ["docs"] }));
+};
+export const myLetterSignatures = async () => hrRun((me) => letters.letterSignatures(me.id), undefined, { during: ["docs"] });
+export const staffLetterSignatures = async (staffId: string) => hrRun((me) => { auth.need(me, "employees"); return letters.letterSignatures(staffId); });
 export const getOfferLetter = async (candidateId: string) => hrRun((me) => letters.candidateLetter(me, candidateId));
 export const emailLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.emailLetter(me, staffId, type, lastDay));
 export const emailOffer = async (candidateId: string) => done(await hrRun((me) => letters.emailOffer(me, candidateId)));

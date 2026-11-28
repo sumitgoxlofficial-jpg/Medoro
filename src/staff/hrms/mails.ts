@@ -100,6 +100,19 @@ export function offerSignCodeMail(i: { name: string; code: string; org: string; 
   }, subject);
   return { subject, ...m };
 }
+/** The employee's own copy of a joining letter they have just e-signed. */
+export function signedCopyMail(i: { name: string; title: string; org: string }) {
+  const subject = `Your signed ${i.title} · ${i.org}`;
+  const m = compose({
+    greeting: `Dear ${first(i.name)},`,
+    blocks: [
+      { p: `Thank you for signing your ${i.title}. Your signed copy is attached for your records, with the certificate of electronic signature as its last page.` },
+      { p: "You can also download it at any time from My documents in the HRMS." },
+    ],
+    signoff: signoff(i.org),
+  }, subject);
+  return { subject, ...m };
+}
 /** The in-app note to HR when a candidate signs and their employee record is created. */
 export const offerSignedHrNote = (i: { name: string; empNo: string; place: string }) => `${i.name} signed the offer${i.place ? ` at ${i.place}` : ""}. Employee ${i.empNo} has been created and the welcome email sent.`;
 

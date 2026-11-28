@@ -382,8 +382,11 @@ export async function savePhoto(me: Me, dataUrl: string | null) {
 }
 
 export async function acceptDocuments(me: Me) {
+  // The appointment letter and the NDA are e-signed first; accepting then records the offer letter and completes the step.
+  const signed = await db.hrLetterSign.findMany({ where: { staffId: me.id, type: { in: ["appointment", "nda"] } }, select: { type: true } });
+  if (signed.length < 2) throw new UserError("Sign your appointment letter and non-disclosure agreement first.");
   await db.hrProfile.update({ where: { staffId: me.id }, data: { docsAcceptedAt: new Date() } });
-  await audit(me, "Joining documents accepted", "Offer letter, appointment letter and non-disclosure agreement");
+  await audit(me, "Joining documents accepted", "Offer letter acknowledged; appointment letter and non-disclosure agreement signed electronically");
 }
 
 // ── Presence and breaks
