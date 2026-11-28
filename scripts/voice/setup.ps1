@@ -1,4 +1,4 @@
-# Gives Naina (Medoro's AI HR assistant) her built-in voice from this Windows laptop or PC, which must stay on, like the
+﻿# Gives Naina (Medoro's AI HR assistant) her built-in voice from this Windows laptop or PC, which must stay on, like the
 # WhatsApp connector. Medoro itself stays on Vercel. Run in PowerShell from the Medoro folder:
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\voice\setup.ps1
@@ -29,18 +29,23 @@ Write-Host "Building and starting Naina's voice server..."
 docker compose --env-file $EnvFile -f deploy/voice/compose.yml up -d --build
 if ($LASTEXITCODE -ne 0) { throw "docker compose failed." }
 
-# 3. Wait until the voice is downloaded and answering.
+# 3. Wait until the voice is downloaded and loaded (first start downloads ~330 MB; slow PCs can take many minutes).
 $h = @{ Authorization = "Bearer $token" }
 $ready = $false
-for ($i = 0; $i -lt 120; $i++) {
-  try { $r = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -Headers $h -TimeoutSec 5; if ($r.tts.ok) { $ready = $true; break } } catch { }
+Write-Host "Waiting for Naina's voice to download and load (up to 30 minutes the first time)..."
+for ($i = 0; $i -lt 360; $i++) {
+  try { $r = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -Headers $h -TimeoutSec 10; if ($r.tts.ok -and $r.tts.loaded) { $ready = $true; break } } catch { }
+  if ($i -gt 0 -and $i % 12 -eq 0) { Write-Host ("  still loading... {0} min (progress: docker logs medoro-voice-ai-service-1 --tail 5)" -f ($i / 12)) }
   Start-Sleep -Seconds 5
 }
-if (-not $ready) { throw "The voice didn't become ready. Logs: docker compose -f deploy/voice/compose.yml logs ai-service --tail 50" }
+if (-not $ready) { throw "The voice didn't become ready. Logs: docker logs medoro-voice-ai-service-1 --tail 50" }
+Write-Host ("Voice loaded: {0} {1}" -f $r.tts.engine, $r.tts.voice)
 
-# 4. A test sentence you can play.
+# 4. A test sentence you can play (the first one on a slow PC can take a few minutes).
 $body = @{ text = "नमस्ते! मैं नैना हूँ, मेडोरो HR की AI असिस्टेंट।" } | ConvertTo-Json
-$t = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/tts" -Method Post -Headers $h -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 60
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$t = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/tts" -Method Post -Headers $h -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 600
+Write-Host ("Test sentence made in {0:N1} s ({1} ms of speech). A good PC takes 1-6 s; much slower means Docker needs more CPU or memory (docs/OFFICE_SERVER.md 10c)." -f $sw.Elapsed.TotalSeconds, $t.duration_ms)
 [IO.File]::WriteAllBytes((Join-Path (Get-Location) "naina-test.wav"), [Convert]::FromBase64String($t.audio_b64))
 Write-Host "Naina's voice works. Listen: naina-test.wav (in the Medoro folder)."
 
@@ -66,4 +71,4 @@ Write-Host ""
 Write-Host "Done. Now in Vercel -> medoro -> Settings -> Environment Variables (Production), add:"
 if ($url) { Write-Host "  AI_HR_SERVICE_URL   = $url" } else { Write-Host "  AI_HR_SERVICE_URL   = https://<this computer's Tailscale name>:8443   (run: tailscale funnel --bg --https=8443 http://127.0.0.1:$Port)" }
 Write-Host "  AI_HR_SERVICE_TOKEN = $token   (mark it Sensitive)"
-Write-Host "Then Deployments -> Redeploy, and in HRMS -> AI HR Assistant -> Settings choose: Naina's voice = Medoro's built-in voice."
+Write-Host "Then Deployments -> Redeploy, and in HRMS -> AI HR Assistant -> Settings choose: Naina's voice = Medoro's own voice (Kokoro, self-hosted)."

@@ -27,14 +27,17 @@ docker compose --env-file "$ENV_FILE" -f deploy/voice/compose.yml up -d --build
 
 # 3. Wait until the voice is downloaded and answering.
 ready=0
-for _ in $(seq 1 120); do
-  if curl -fsS -m 5 -H "Authorization: Bearer $token" "http://127.0.0.1:$PORT/health" 2>/dev/null | grep -q '"tts":{"ok":true'; then ready=1; break; fi
+echo "Waiting for Naina's voice to download and load (up to 30 minutes the first time)..."
+for i in $(seq 1 360); do
+  h=$(curl -fsS -m 10 -H "Authorization: Bearer $token" "http://127.0.0.1:$PORT/health" 2>/dev/null || true)
+  if echo "$h" | grep -q '"tts":{"ok":true' && echo "$h" | grep -q '"loaded":true'; then ready=1; break; fi
+  [ $((i % 12)) = 0 ] && echo "  still loading... $((i / 12)) min (progress: docker logs medoro-voice-ai-service-1 --tail 5)"
   sleep 5
 done
-[ "$ready" = 1 ] || { echo "The voice didn't become ready. Logs: docker compose -f deploy/voice/compose.yml logs ai-service --tail 50"; exit 1; }
+[ "$ready" = 1 ] || { echo "The voice didn't become ready. Logs: docker logs medoro-voice-ai-service-1 --tail 50"; exit 1; }
 
-# 4. A test sentence you can play.
-curl -fsS -m 60 -H "Authorization: Bearer $token" -H 'content-type: application/json; charset=utf-8' \
+# 4. A test sentence you can play (the first one on a slow computer can take a few minutes).
+curl -fsS -m 600 -H "Authorization: Bearer $token" -H 'content-type: application/json; charset=utf-8' \
   -d '{"text":"नमस्ते! मैं नैना हूँ, मेडोरो HR की AI असिस्टेंट।"}' "http://127.0.0.1:$PORT/tts" \
   | python3 -c 'import sys,json,base64; open("naina-test.wav","wb").write(base64.b64decode(json.load(sys.stdin)["audio_b64"]))'
 echo "Naina's voice works. Listen: naina-test.wav (in the Medoro folder)."
@@ -59,4 +62,4 @@ echo
 echo "Done. Now in Vercel -> medoro -> Settings -> Environment Variables (Production), add:"
 if [ -n "$url" ]; then echo "  AI_HR_SERVICE_URL   = $url"; else echo "  AI_HR_SERVICE_URL   = https://<this computer's Tailscale name>:8443   (run: tailscale funnel --bg --https=8443 http://127.0.0.1:$PORT)"; fi
 echo "  AI_HR_SERVICE_TOKEN = $token   (mark it Sensitive)"
-echo "Then Deployments -> Redeploy, and in HRMS -> AI HR Assistant -> Settings choose: Naina's voice = Medoro's built-in voice."
+echo "Then Deployments -> Redeploy, and in HRMS -> AI HR Assistant -> Settings choose: Naina's voice = Medoro's own voice (Kokoro, self-hosted)."
