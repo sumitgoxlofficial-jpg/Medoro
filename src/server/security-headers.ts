@@ -76,13 +76,15 @@ export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): 
   return d.map(([k, v]) => (v ? `${k} ${v}` : k)).join("; ");
 }
 
+const OFFER_SIGN = /^\/(offer\/sign\/|staff\/(hrms|employee)(\/|$))/; // where documents are e-signed
 export function securityHeaders(o: HeaderOpts): Record<string, string> {
   const h: Record<string, string> = {
     "Content-Security-Policy": contentSecurityPolicy(o),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    // The microphone is allowed only on HRMS pages, for AI HR Assistant voice answers (the browser still asks the person).
-    "Permissions-Policy": `camera=(self), microphone=(${hrmsVoicePath(o.path) ? "self" : ""}), geolocation=(), payment=(), usb=(), browsing-topics=()`,
+    // Microphone only on HRMS pages (AI HR Assistant voice answers); location only where documents are e-signed (a
+    // candidate's offer, an employee's joining letters, recorded with the signature). The browser still asks the person.
+    "Permissions-Policy": `camera=(self), microphone=(${hrmsVoicePath(o.path) ? "self" : ""}), geolocation=${OFFER_SIGN.test(o.path) ? "(self)" : "()"}, payment=(), usb=(), browsing-topics=()`,
     "X-Frame-Options": FRAMEABLE.test(o.path) || TOUR.test(o.path) ? "SAMEORIGIN" : "DENY",
     "Cross-Origin-Opener-Policy": CHECKOUT.test(o.path) ? "same-origin-allow-popups" : "same-origin",
   };

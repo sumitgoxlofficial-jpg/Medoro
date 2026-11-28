@@ -6,7 +6,7 @@ import { db } from "@/server/db";
 import { hashPassword } from "@/server/auth";
 import { seal, unseal } from "@/server/vault";
 import { UserError } from "@/server/action";
-import { mailEnabled, sendMail } from "@/server/mail";
+import { mailEnabled, sendMail, type Attachment } from "@/server/mail";
 import { welcomeMail } from "./mails";
 import { ADMIN_LABEL, hideAdmin } from "./visibility";
 import { log } from "@/server/log";
@@ -155,6 +155,15 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
   need(me, "employees");
   const i = newEmployeeSchema.parse(raw);
   if ((i.role === "hr" || i.role === "finance") && me.role !== "admin") throw new UserError("Only the super admin can give HR or Finance access.");
+  return insertEmployee(me, i);
+}
+
+/**
+ * Creates the employee record and account, and emails the welcome (ID, official email, temporary password) to the personal email.
+ * `by` is who it is recorded against: HR creating the profile, or the HR person who sent an offer the candidate has now e-signed.
+ */
+export async function insertEmployee(by: { id: string | null; name: string }, i: z.output<typeof newEmployeeSchema>, opts: { attachments?: Attachment[]; note?: string } = {}) {
+  const me = by;
   if (await db.staffUser.findFirst({ where: { kind: "team", phone: i.phone, status: { not: "deactivated" } } })) throw new UserError("An employee with this mobile number already exists.");
   if (await db.hrProfile.findFirst({ where: { personalEmail: i.personalEmail, staff: { status: { not: "deactivated" } } } })) throw new UserError("An employee with this personal email already exists.");
   let email: string;
@@ -179,7 +188,7 @@ export async function createEmployee(me: Me, raw: z.input<typeof newEmployeeSche
   await audit(me, "Employee created", `${empNo} · ${email} · ${i.role}`);
   let mailed = false;
   if (mailEnabled()) {
-    mailed = await sendMail({ to: i.personalEmail, ...welcomeMail({ name: i.name, empNo, email, temp, org: (await loadSettings()).company.name || "Medoro" }) })
+    mailed = await sendMail({ to: i.personalEmail, ...welcomeMail({ name: i.name, empNo, email, temp, org: (await loadSettings()).company.name || "Medoro", note: opts.note }), ...(opts.attachments?.length ? { attachments: opts.attachments } : {}) })
       .then(() => true).catch((e) => { log.error("welcome mail failed", { err: e }); return false; });
   }
   const due = firstSalary(i.joinDate).payDate, set = await loadSettings();
@@ -373,8 +382,11 @@ export async function savePhoto(me: Me, dataUrl: string | null) {
 }
 
 export async function acceptDocuments(me: Me) {
+  // The appointment letter and the NDA are e-signed first; accepting then records the offer letter and completes the step.
+  const signed = await db.hrLetterSign.findMany({ where: { staffId: me.id, type: { in: ["appointment", "nda"] } }, select: { type: true } });
+  if (signed.length < 2) throw new UserError("Sign your appointment letter and non-disclosure agreement first.");
   await db.hrProfile.update({ where: { staffId: me.id }, data: { docsAcceptedAt: new Date() } });
-  await audit(me, "Joining documents accepted", "Offer letter, appointment letter and non-disclosure agreement");
+  await audit(me, "Joining documents accepted", "Offer letter acknowledged; appointment letter and non-disclosure agreement signed electronically");
 }
 
 // ── Presence and breaks
