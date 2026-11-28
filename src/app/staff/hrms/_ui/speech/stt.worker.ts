@@ -14,7 +14,7 @@ const MODELS: Record<string, string> = { "whisper-base": "onnx-community/whisper
 
 let configured = false;
 /** Self-hosted: model files and the ONNX runtime from this server (/staff/hrms/ai-speech/…) instead of Hugging Face / jsDelivr. */
-function useOwnServer(base: string) {
+function loadFromOwnServer(base: string) {
   if (configured) return;
   configured = true;
   env.remoteHost = `${base}/models/`;
@@ -27,7 +27,7 @@ function useOwnServer(base: string) {
 }
 
 async function load(model: string, post: (m: Record<string, unknown>) => void, base?: string): Promise<Asr> {
-  if (base) useOwnServer(base);
+  if (base) loadFromOwnServer(base);
   if (asr && loadedModel === model) return asr;
   loadedModel = model;
   const webgpu = "gpu" in navigator && !!(await (navigator as unknown as { gpu: { requestAdapter(): Promise<unknown> } }).gpu.requestAdapter().catch(() => null));

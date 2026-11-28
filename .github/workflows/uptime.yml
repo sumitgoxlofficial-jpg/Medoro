@@ -1,0 +1,37 @@
+# Free "Medoro is down" alert for a self-hosted (office) server. Every 10 minutes GitHub checks APP_URL/api/ready from
+# outside your network. When it fails twice in a row (1 minute apart), this job fails: GitHub emails the person who last
+# changed this workflow (Settings → Notifications → Actions must be on), and, if NTFY_TOPIC is set, a push notification
+# goes to your phone through ntfy.sh (free app: Android/iPhone; subscribe to the same topic name).
+# Setup: repository Settings → Secrets and variables → Actions → Variables: APP_URL (e.g. https://medoro.in), optional
+# NTFY_TOPIC (a long random name, e.g. medoro-down-7f3k9q2x; anyone who knows it can read the alerts).
+# Notes: GitHub runs schedules best-effort (a few minutes late is normal) and pauses them after 60 days without commits.
+name: Uptime
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+permissions: {}
+concurrency: { group: uptime, cancel-in-progress: false }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check /api/ready
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          NTFY_TOPIC: ${{ vars.NTFY_TOPIC }}
+        run: |
+          if [ -z "$APP_URL" ]; then echo "APP_URL not set; skipping."; exit 0; fi
+          check() { curl -fsS --max-time 20 "$APP_URL/api/ready" -o /tmp/ready.json && grep -q '"ready":true' /tmp/ready.json; }
+          if check; then echo "Medoro is up."; exit 0; fi
+          sleep 60
+          if check; then echo "Recovered on retry."; exit 0; fi
+          detail="$(head -c 300 /tmp/ready.json 2>/dev/null || true)"
+          echo "::error::Medoro at $APP_URL is not ready. $detail"
+          if [ -n "$NTFY_TOPIC" ]; then
+            curl -fsS -H "Title: Medoro is down" -H "Priority: high" -H "Tags: warning" \
+              -d "$APP_URL/api/ready failed at $(date -u +%H:%MZ). Check the office server (power, internet, Docker)." \
+              "https://ntfy.sh/$NTFY_TOPIC" >/dev/null || true
+          fi
+          exit 1

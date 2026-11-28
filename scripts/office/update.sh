@@ -30,6 +30,8 @@ say "Checking for updates on $BRANCH…"
 git fetch --quiet origin "$BRANCH"
 OLD="$(git rev-parse HEAD)" NEW="$(git rev-parse "origin/$BRANCH")"
 if [ "$OLD" = "$NEW" ] && [ "$FORCE" = 0 ]; then say "Up to date ($(git log -1 --format=%h))."; exit 0; fi
+BAD=logs/bad-releases
+if [ "$FORCE" = 0 ] && [ -f "$BAD" ] && grep -qx "$NEW" "$BAD"; then say "$(git log -1 --format=%h "$NEW") failed before and was rolled back; skipping it until a newer version arrives (or run with --force)."; exit 0; fi
 [ -z "$(git status --porcelain --untracked-files=no)" ] || { say "Local code changes found; not updating. Commit or discard them first."; exit 1; }
 
 say "Updating $(git log -1 --format=%h "$OLD") → $(git log -1 --format=%h "$NEW")"
@@ -46,6 +48,7 @@ fi
 if wait_ready; then say "Updated and ready ($(git log -1 --format='%h %s'))."; docker image prune -f >/dev/null 2>&1 || true; exit 0; fi
 
 say "New version did not become ready: rolling back to $(git log -1 --format=%h "$OLD")."
+mkdir -p logs && echo "$NEW" >> logs/bad-releases
 "${DC[@]}" logs app --tail 60 || true
 git reset --hard --quiet "$OLD"
 for img in app migrate; do docker image inspect "medoro/$img:previous" >/dev/null 2>&1 && docker image tag "medoro/$img:previous" "medoro/$img:office"; done

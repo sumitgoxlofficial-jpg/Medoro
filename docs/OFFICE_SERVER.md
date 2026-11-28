@@ -111,7 +111,62 @@ apply them.
   **Copy `backups/` off the machine** regularly (another disk, Google Drive). A disk failure, theft or fire otherwise
   loses everything.
 
-## 8. Everyday commands
+## 8. Automatic updates (with rollback)
+
+`scripts/office/update.sh` checks GitHub for a new version and updates safely:
+1. It builds the new version while the current one keeps serving.
+2. It backs up the local database.
+3. It switches over and waits up to 5 minutes for `/api/ready`.
+4. If the new version doesn't come up, it **switches back to the previous version by itself** and remembers that
+   release, so it isn't retried every night.
+
+Run it by hand, or schedule it nightly. Ubuntu:
+```bash
+crontab -e
+```
+Then add this line:
+```text
+30 3 * * * cd /path/to/Medoro && bash scripts/office/update.sh >> logs/update.log 2>&1
+```
+Windows: Task Scheduler → daily 03:30 → program `C:\Program Files\Git\bin\bash.exe`, arguments
+`-lc "cd /c/path/to/Medoro && bash scripts/office/update.sh >> logs/update.log 2>&1"`.
+
+It follows the branch the office copy is on (set `MEDORO_BRANCH=main` in `.env.office` to pin it).
+
+Tested on 2026-11-28 against a simulated repository:
+- With nothing new, it did nothing.
+- A normal update built, backed up, switched over and was ready.
+- A deliberately broken release was rolled back automatically: the previous version was serving again in about
+  10 seconds after the 5-minute wait, and the next run skipped that release.
+
+A failed attempt means a few minutes of downtime at night. Database migrations are not undone, because Medoro's
+migrations are additive and the previous code keeps working with them.
+
+## 9. "Medoro is down" alerts (free)
+
+The GitHub workflow `Uptime` checks `APP_URL/api/ready` from outside your network every 10 minutes, and again a minute
+later before alerting. To turn it on:
+1. Repository Settings → Secrets and variables → Actions → Variables: set `APP_URL` (e.g. `https://medoro.in`).
+2. Optional, for a phone push: set `NTFY_TOPIC` to a long random name, install the free **ntfy** app, and subscribe to
+   that name.
+
+GitHub also emails the person who last edited the workflow when a check fails.
+
+## 10. Voice speech model from your own server (optional)
+
+By default, employees' browsers download the speech model once from Hugging Face. To serve it from the office server
+instead (faster on the office network, and not dependent on Hugging Face):
+1. Download it once:
+   ```bash
+   bash scripts/office/fetch-speech-model.sh
+   ```
+   Use `whisper-small` as the argument for better Hindi.
+2. HRMS → AI HR Assistant → Settings → *Speech model from: This server*.
+
+Model status shows whether the files are present. They are served only to signed-in HRMS users. The speech runtime is
+built into the Docker image.
+
+## 11. Everyday commands
 
 Compose commands (add `-f deploy/office/compose.localdb.yml` after the first `-f` if you use the local database):
 ```bash
@@ -130,7 +185,7 @@ git pull && bash scripts/office/setup.sh
 ```
 The `git pull && …` line rebuilds, applies migrations and restarts; the database and files are kept in Docker volumes.
 
-## 9. What to know
+## 12. What to know
 
 * Uptime is your computer's uptime: power, internet and Windows updates. Cloudflare shows visitors an error page while
   it's off.

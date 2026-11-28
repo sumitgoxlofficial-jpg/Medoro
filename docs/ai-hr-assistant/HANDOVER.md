@@ -1,5 +1,23 @@
 # AI HR Assistant — technical handover
 
+## Update 3 (2026-11-28): office hosting extras
+* **Words HR teaches** (AI HR Assistant → Scenarios): local phrases mapped to a meaning (e.g. "line me lagi hai" →
+  coming, traffic). Used at once in live conversations, the playground and evaluation; audited; Attendance module only.
+  Tested (unit + integration); the library still passes 1,000/1,000 with custom words added.
+* **No Hindi voice on a device:** the employee sees a notice with how to add one (Android, iPhone, Windows, Mac).
+  Tested in Chromium.
+* **Safari / iPhone:** MP4 recording, resampling that works without a 16 kHz AudioContext, voice "unlock" on the tap
+  that opens the conversation. **Not tested on Safari or an iPhone.**
+* **Speech model from your own server:** `scripts/office/fetch-speech-model.sh`, the ONNX runtime built into the Docker
+  image, an authenticated `/staff/hrms/ai-speech/…` route. Tested in Chromium: the worker requests only this server,
+  sign-in required, path tricks refused. A real model download wasn't possible in this sandbox.
+* **Office auto-update with rollback** (`scripts/office/update.sh`), tested: no-op when current, a normal update, a broken
+  release rolled back automatically and then skipped.
+* **Free "Medoro is down" alert:** `.github/workflows/uptime.yml` (GitHub email + optional ntfy.sh phone push). Not run
+  (needs your APP_URL).
+* Fixed: a file-tracing regression introduced by the new route (would have bloated the server bundle) and a lint error.
+* Verification: 233 files / 1,452 tests pass; lint and typecheck clean; e2e setup + AI HR spec 2/2 on the production build.
+
 ## Update 2 (2026-11-28): fully free set-up and fixes
 * **Bug fixed — microphone was blocked site-wide.** `Permissions-Policy: microphone=()` was sent on every page, so no
   voice could ever have worked. Now `microphone=(self)` on HRMS pages and the employee sign-in page only (tested).
