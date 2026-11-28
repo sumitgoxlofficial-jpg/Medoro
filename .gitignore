@@ -18,3 +18,4 @@ e2e/.auth/
 certs/
 public/drivedb/sqlite/
 
+backups/

@@ -5,6 +5,9 @@ Nothing here deploys by itself. **Merging to `main` is a production deployment**
 
 ## Free set-up (recommended, ₹0)
 
+**Hosting on your own office computer:** follow [../OFFICE_SERVER.md](../OFFICE_SERVER.md). The app's built-in
+scheduler then runs the AI HR Assistant every minute, so skip step 2 below (no Supabase cron or GitHub workflow).
+
 1. Merge (owner's approval) → Vercel deploys and migrates.
 2. Scheduling, free and every minute, from Supabase: open `scripts/supabase/cron-jobs.sql`, replace `<APP_URL>` and
    `<CRON_SECRET>`, and run it once in Supabase → SQL Editor (pg_cron + pg_net, both on the free plan). This replaces

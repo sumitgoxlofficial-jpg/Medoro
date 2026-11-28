@@ -24,6 +24,7 @@ pnpm prisma migrate deploy        # creates tables + append-only triggers
 pnpm dev                          # http://localhost:3000 → setup wizard on first run
 ```
 With Docker instead: `bash scripts/lan-setup.sh && docker compose --profile https up -d --build` (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)).
+On an office computer, published at your own domain for ₹0 through a Cloudflare Tunnel: [docs/OFFICE_SERVER.md](docs/OFFICE_SERVER.md).
 Tests (unit + integration against a real PostgreSQL; uses `TEST_DATABASE_URL`, default `medoro_test` on localhost):
 ```bash
 pnpm test

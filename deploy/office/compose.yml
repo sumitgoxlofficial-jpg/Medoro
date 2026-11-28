@@ -1,0 +1,98 @@
+# Medoro on an office computer or server, reachable on the internet at your own domain for ₹0.
+#   bash scripts/office/setup.sh        (Linux / WSL)      or      scripts\office\setup.ps1   (Windows PowerShell)
+# Guide: docs/OFFICE_SERVER.md
+#
+# Services
+#   app       the Medoro web app (built from this repository). Its own scheduler runs every job each minute, including
+#             the AI HR Assistant, so no outside cron is needed.
+#   migrate   applies database migrations, then exits.
+#   tunnel    Cloudflare Tunnel (free): publishes the app at https://<your domain> with no open ports, no static IP and
+#             no router changes. Profile "tunnel".
+#   db        a PostgreSQL database on this machine instead of Supabase. Add -f deploy/office/compose.localdb.yml.
+#   ollama, ai-service   optional server voice and local model for the AI HR Assistant. Profile "ai" (needs ~4 GB RAM).
+#
+# Secrets and settings live in .env.office at the repository root (never committed).
+name: medoro-office
+
+x-app-env: &app-env
+  env_file:
+    - path: ../../.env.office
+      required: true
+
+services:
+  migrate:
+    <<: *app-env
+    build: { context: ../.., target: migrate }
+    image: medoro/migrate:office
+    restart: "no"
+
+  app:
+    <<: *app-env
+    build: { context: ../.., target: app }
+    image: medoro/app:office
+    restart: unless-stopped
+    environment:
+      STORAGE_DIR: /data/storage
+    # Bound to this machine only: the internet reaches the app through the tunnel, which is what makes the visitor
+    # address from Cloudflare trustworthy (TRUST_PROXY=cloudflare). Set MEDORO_HTTP_BIND=0.0.0.0 in .env.office to let
+    # office PCs open it directly at http://<this-pc>:3000 too.
+    ports:
+      - "${MEDORO_HTTP_BIND:-127.0.0.1}:${MEDORO_HTTP_PORT:-3000}:3000"
+    volumes:
+      - appdata:/data
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    logging: { driver: local, options: { max-size: "20m", max-file: "5" } }
+
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:2026.1.1
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}  # checked by scripts/office/setup.sh
+    depends_on:
+      app: { condition: service_started }
+    logging: { driver: local, options: { max-size: "10m", max-file: "3" } }
+
+  ollama:
+    profiles: ["ai"]
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-0.12.6}
+    restart: unless-stopped
+    environment:
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: 5m
+    volumes:
+      - ollama:/root/.ollama
+      - ../../ai-service/Modelfile:/Modelfile:ro
+    # Pulls the model and creates "medoro-hr" once, then serves (no port published: only ai-service reaches it).
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5; ollama list | grep -q medoro-hr || (ollama pull qwen2.5:1.5b-instruct && ollama create medoro-hr -f /Modelfile); wait"]
+
+  ai-service:
+    profiles: ["ai"]
+    build: { context: ../../ai-service }
+    image: medoro/ai-service:office
+    restart: unless-stopped
+    environment:
+      MEDORO_AI_TOKEN: ${AI_HR_SERVICE_TOKEN:-}  # the service refuses requests until set
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: medoro-hr
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_THREADS: ${WHISPER_THREADS:-2}
+    volumes:
+      - aimodels:/models
+    depends_on:
+      ollama: { condition: service_started }
+    deploy: { resources: { limits: { memory: 3g } } }
+
+volumes:
+  appdata:
+  ollama:
+  aimodels:

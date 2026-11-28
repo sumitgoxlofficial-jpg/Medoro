@@ -24,6 +24,9 @@ export const verifyPassword = (h: string | null | undefined, pw: string) => (h ?
  */
 export function clientIp(h: Pick<Headers, "get">, env: Record<string, string | undefined> = process.env) {
   if (env.VERCEL) return h.get("x-real-ip")?.trim() || h.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  // Behind a Cloudflare Tunnel (self-hosted office server): the app port is bound to localhost, so only cloudflared
+  // reaches it, and Cloudflare's edge sets CF-Connecting-IP to the visitor's address (a client can't forge it there).
+  if (env.TRUST_PROXY === "cloudflare") return h.get("cf-connecting-ip")?.trim() || null;
   if (env.TRUST_PROXY === "1") return h.get("x-forwarded-for")?.split(",").pop()?.trim() || h.get("x-real-ip")?.trim() || null;
   return null;
 }

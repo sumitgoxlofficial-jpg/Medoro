@@ -17,7 +17,9 @@ export function serviceConfig(env: NodeJS.ProcessEnv = process.env): ServiceConf
   if (!url || token.length < 24) return null;
   let u: URL;
   try { u = new URL(url); } catch { return null; }
-  if (u.protocol !== "https:" && hostClass(u.hostname) === "public") return null; // plain http only on loopback / private networks
+  // Plain http only on loopback / private networks, or to a single-label name such as the Docker service "ai-service"
+  // on the same machine (never resolvable on the internet).
+  if (u.protocol !== "https:" && hostClass(u.hostname) === "public" && u.hostname.includes(".")) return null;
   return { url, token };
 }
 

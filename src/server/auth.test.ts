@@ -36,3 +36,11 @@ describe("idleLimitMs", () => {
     expect(idleLimitMs("Cashier", { SESSION_IDLE_MINUTES: "30" })).toBe(12 * 3600_000);
   });
 });
+describe("clientIp behind a Cloudflare Tunnel", () => {
+  it("uses CF-Connecting-IP only when TRUST_PROXY=cloudflare", () => {
+    const h = new Headers({ "cf-connecting-ip": "203.0.113.7", "x-forwarded-for": "198.51.100.1, 10.0.0.2" });
+    expect(clientIp(h, { TRUST_PROXY: "cloudflare" })).toBe("203.0.113.7");
+    expect(clientIp(new Headers({ "x-forwarded-for": "198.51.100.1" }), { TRUST_PROXY: "cloudflare" })).toBeNull();
+    expect(clientIp(h, {})).toBeNull();
+  });
+});
