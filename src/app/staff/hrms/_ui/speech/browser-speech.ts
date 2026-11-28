@@ -68,6 +68,19 @@ export function recordingFormat(): { mimeType: string; ext: string } {
  */
 export function unlockSpeech() {
   try { if (typeof speechSynthesis !== "undefined") { const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u); } } catch { /* ignore */ }
+  unlockAudio();
+}
+
+// Medoro's own voice arrives as audio from the server. Phones (iPhone above all) only play sound that a tap started,
+// so one audio element is started silently on the Answer / Call tap and then reused for every reply in the call.
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+let shared: HTMLAudioElement | null = null;
+export function sharedAudio(): HTMLAudioElement | null {
+  if (!shared && typeof Audio !== "undefined") shared = new Audio();
+  return shared;
+}
+export function unlockAudio() {
+  try { const a = sharedAudio(); if (a) { a.src = SILENT_WAV; void a.play().catch(() => {}); } } catch { /* sound stays off; captions remain */ }
 }
 
 /** Voices load asynchronously (Chrome, Safari): waits for them, at most `ms`. */

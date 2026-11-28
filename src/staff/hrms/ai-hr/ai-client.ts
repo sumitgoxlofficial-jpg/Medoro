@@ -19,7 +19,7 @@ export function serviceConfig(env: NodeJS.ProcessEnv = process.env): ServiceConf
   try { u = new URL(url); } catch { return null; }
   // Plain http only on loopback / private networks, or to a single-label name such as the Docker service "ai-service"
   // on the same machine (never resolvable on the internet).
-  if (u.protocol !== "https:" && hostClass(u.hostname) === "public" && u.hostname.includes(".")) return null;
+  if (u.protocol !== "https:" && hostClass(u.href) === "public" && u.hostname.includes(".")) return null;
   return { url, token };
 }
 

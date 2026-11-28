@@ -1,3 +1,4 @@
+import { createServer, type Server } from "node:http";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // AI HR Assistant against a real PostgreSQL: detection from attendance records (late, absent, missing check-out) with
@@ -461,5 +462,51 @@ describe("AI HR Assistant (integration)", () => {
     expect(await pushSvc.pushDevices(ev.id)).toBe(4);
     await pushSvc.removePushSub(ev.id, "https://fcm.googleapis.com/fcm/send/dev3");
     expect(await pushSvc.pushDevices(ev.id)).toBe(3);
+  });
+  it("Medoro's built-in voice: with the AI host up, every reply comes with Naina's audio from the server; otherwise the device speaks", async () => {
+    const fx = await me(await mk("Farah Voice", "employee"));
+    const asked: string[] = [];
+    let up = true;
+    const srv: Server = createServer((req, res) => {
+      let body = "";
+      req.on("data", (c) => { body += c; });
+      req.on("end", () => {
+        if (req.headers.authorization !== "Bearer test-token-0123456789abcdefghij") { res.writeHead(401).end(); return; }
+        res.setHeader("content-type", "application/json");
+        if (!up) { res.writeHead(503).end("{}"); return; }
+        if (req.url === "/health") { res.end(JSON.stringify({ ok: true, tts: { ok: true, voice: "hi_IN-priyamvada-medium" }, stt: { ok: false } })); return; }
+        if (req.url === "/tts") { asked.push((JSON.parse(body) as { text: string }).text); res.end(JSON.stringify({ audio_b64: Buffer.from("RIFF-test-wav").toString("base64"), mime: "audio/wav", ms: 42 })); return; }
+        res.writeHead(404).end("{}");
+      });
+    });
+    await new Promise<void>((ok) => srv.listen(0, "127.0.0.1", ok));
+    process.env.AI_HR_SERVICE_URL = `http://127.0.0.1:${(srv.address() as { port: number }).port}`;
+    process.env.AI_HR_SERVICE_TOKEN = "test-token-0123456789abcdefghij";
+    try {
+      vi.useFakeTimers({ toFake: ["Date"] }); at(ist("12:00", "2026-12-17"));
+      await enable({ voiceFrom: "device" });
+      expect(await svc.nainaInfo(fx)).toMatchObject({ serverVoice: false });
+      await enable({ voiceFrom: "server" });
+      at(ist("12:01", "2026-12-17")); // past the 30 s health memo
+      expect((await svc.modelStatus(admin)).health).toMatchObject({ reachable: true });
+      expect(await svc.nainaInfo(fx)).toMatchObject({ serverVoice: true, tts: true });
+      const { id } = await svc.nainaConversation(fx);
+      const open = await svc.beginCall(fx, id, { speak: true });
+      expect(open.audio).toMatchObject({ mime: "audio/wav", audio: Buffer.from("RIFF-test-wav").toString("base64") });
+      const turn = await svc.sendTurn(fx, id, { text: "payslip kahan milegi", speak: true });
+      expect(turn.audio?.mime).toBe("audio/wav");
+      expect(asked.length).toBeGreaterThanOrEqual(1);
+      expect(asked.at(-1)).toMatch(/[\u0900-\u097F]/); // the Devanagari version goes to the Hindi voice
+      // The AI host goes down: no audio, the device's own voice takes over, the conversation carries on.
+      up = false;
+      at(ist("12:03", "2026-12-17"));
+      expect(await svc.nainaInfo(fx)).toMatchObject({ serverVoice: false });
+      const r2 = await svc.nainaSend(fx, "leave cancel kaise karte hain");
+      expect(r2.callId).toBeTruthy();
+    } finally {
+      delete process.env.AI_HR_SERVICE_URL; delete process.env.AI_HR_SERVICE_TOKEN;
+      await new Promise<void>((ok) => srv.close(() => ok()));
+      await enable();
+    }
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { aiCallBegin, aiCallEnd, aiCallTurn } from "../actions";
-import { browserSpeechSupported, deviceVoiceKind, prepareRecognition, recognise, recordingFormat, speakReply, stopSpeaking, voiceHelp, voicesReady } from "./speech/browser-speech";
+import { browserSpeechSupported, deviceVoiceKind, prepareRecognition, recognise, recordingFormat, sharedAudio, speakReply, stopSpeaking, voiceHelp, voicesReady } from "./speech/browser-speech";
 import { listenOnce, nativeRecognitionSupported } from "./speech/native-recognition";
 import { cx } from "./kit";
 
@@ -10,7 +10,7 @@ import { cx } from "./kit";
  * talking she answers. Live captions show both sides. Mute, speaker, interrupt and end work as on a phone; typing is
  * always there as a fallback. Turn-based (one person talks at a time), not a phone line.
  */
-export type CallCfg = { voice: boolean; tts: boolean; speech: "browser" | "server" | "off"; sttModel: string; modelSource: "huggingface" | "self"; recognizer: "device" | "whisper" };
+export type CallCfg = { voice: boolean; tts: boolean; serverVoice: boolean; speech: "browser" | "server" | "off"; sttModel: string; modelSource: "huggingface" | "self"; recognizer: "device" | "whisper" };
 type Line = { who: "ai" | "employee"; text: string };
 type Phase = "connecting" | "speaking" | "listening" | "hearing" | "thinking" | "muted" | "typing" | "preparing" | "ended";
 type Audio64 = { audio: string; mime: string } | null;
@@ -20,6 +20,8 @@ const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${St
 
 export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg; onClose: () => void }) {
   const browser = cfg.speech === "browser";
+  // Medoro's built-in voice: the server sends audio with each reply (the device's own voice only if it doesn't).
+  const fromServer = cfg.serverVoice || !browser;
   const [phase, setPhaseState] = useState<Phase>("connecting");
   const [lines, setLines] = useState<Line[]>([]);
   const [live, setLive] = useState(""), [err, setErr] = useState(""), [typed, setTyped] = useState(""), [pct, setPct] = useState(0);
@@ -35,11 +37,11 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
   useEffect(() => { const t = setInterval(() => { if (phaseRef.current !== "ended" && phaseRef.current !== "connecting") setSecs((s) => s + 1); }, 1000); return () => clearInterval(t); }, []);
   useEffect(() => { capRef.current?.scrollTo({ top: capRef.current.scrollHeight }); }, [lines, live]);
   useEffect(() => {
-    if (!browser || !cfg.tts) return;
+    if (!browser || !cfg.tts || cfg.serverVoice) return;
     let on = true;
     void voicesReady().then(() => { if (!on) return; const k = deviceVoiceKind(); setVoiceNote(k === "hi" ? "" : k === "en" ? `Naina is using an English voice on this device. For a Hindi voice: ${voiceHelp()}` : `This device has no voice for Naina, so her replies are shown as captions. ${voiceHelp()}`); });
     return () => { on = false; };
-  }, [browser, cfg.tts]);
+  }, [browser, cfg.tts, cfg.serverVoice]);
 
   // ── Speaking, then listening by itself
   const say = (reply: string, speech: string, audio: Audio64, then: () => void) => {
@@ -47,7 +49,16 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
     setPhase("speaking");
     const next = () => { if (!closed.current && phaseRef.current === "speaking") then(); };
     if (speakerRef.current && audio) {
-      try { audioEl.current?.pause(); const el = new Audio(`data:${audio.mime};base64,${audio.audio}`); audioEl.current = el; el.onended = next; el.onerror = next; void el.play().catch(next); return; } catch { /* fall through to captions */ }
+      const el = sharedAudio(); // the element the Answer tap unlocked
+      if (el) {
+        try {
+          audioEl.current = el; el.pause();
+          el.onended = next; el.onerror = next;
+          el.src = `data:${audio.mime};base64,${audio.audio}`;
+          void el.play().catch(() => { if (!(browser && speakReply(speech, reply, next))) next(); });
+          return;
+        } catch { /* fall through to the device voice or captions */ }
+      }
     }
     if (speakerRef.current && browser && speakReply(speech, reply, next)) return;
     setTimeout(next, Math.min(6000, 900 + reply.length * 25)); // no voice: time to read the caption
@@ -130,7 +141,7 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
     if (closed.current) return;
     setPhase("thinking"); setLive("");
     const fd = new FormData();
-    fd.set("id", id); fd.set("speak", speakerRef.current && !browser ? "1" : "0");
+    fd.set("id", id); fd.set("speak", speakerRef.current && fromServer ? "1" : "0");
     if (input.sttMs) fd.set("sttMs", String(input.sttMs));
     if (input.text !== undefined) fd.set("text", input.text);
     if (input.audio) fd.set("audio", input.audio, `turn.${recordingFormat().ext}`);
@@ -145,7 +156,7 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
   };
 
   useEffect(() => {
-    void aiCallBegin(id, cfg.tts && !browser).then((r) => {
+    void aiCallBegin(id, cfg.tts && fromServer).then((r) => {
       if (closed.current) return;
       if (!r.ok) { setErr(r.error); setPhase("typing"); return; }
       lang.current = r.data.lang ?? "hinglish";

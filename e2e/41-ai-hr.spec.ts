@@ -44,7 +44,8 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   // Settings: switch it on, voice on the employee's device (free).
   await page.goto("/staff/hrms/aihr?tab=settings");
   await page.getByLabel("Automatic AI conversations on").check();
-  await expect(page.getByLabel("Voice")).toHaveValue("browser");
+  await expect(page.getByLabel(/^Voice/)).toHaveValue("browser");
+  await expect(page.getByLabel(/^Naina's voice/)).toHaveValue("device");
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByText("AI HR Assistant settings saved.")).toBeVisible();
 
