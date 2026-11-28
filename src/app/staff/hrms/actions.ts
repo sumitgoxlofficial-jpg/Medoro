@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { UserError, type ActionResult } from "@/server/action";
@@ -19,6 +20,7 @@ import * as assets from "@/staff/hrms/assets";
 import * as monitor from "@/staff/hrms/monitor";
 import * as chat from "@/staff/hrms/chat";
 import * as letters from "@/staff/hrms/letters-server";
+import * as offerSign from "@/staff/hrms/offer-sign";
 import * as wa from "@/staff/hrms/whatsapp";
 import * as promos from "@/staff/hrms/promotions";
 import * as leadSheet from "@/staff/hrms/lead-sheet";
@@ -248,6 +250,13 @@ export const getLetter = async (staffId: string, type: string, lastDay?: string)
 export const getOfferLetter = async (candidateId: string) => hrRun((me) => letters.candidateLetter(me, candidateId));
 export const emailLetter = async (staffId: string, type: string, lastDay?: string) => hrRun((me) => letters.emailLetter(me, staffId, type, lastDay));
 export const emailOffer = async (candidateId: string) => done(await hrRun((me) => letters.emailOffer(me, candidateId)));
+/** Sends the offer for e-signature: the link goes by email, and comes back here too so HR can share it another way. */
+export const sendOfferForSignature = async (candidateId: string) => {
+  const h = await headers(), host = h.get("x-forwarded-host") ?? h.get("host"), proto = h.get("x-forwarded-proto")?.split(",")[0].trim() || "https";
+  return done(await hrRun((me) => offerSign.sendForSignature(me, candidateId, host ? `${proto}://${host}` : "")));
+};
+export const getOfferSigning = async (candidateId: string) => hrRun((me) => offerSign.signingStatus(me, candidateId));
+export const retryOfferHire = async (candidateId: string) => done(await hrRun((me) => offerSign.retryHire(me, candidateId), "Employee created."));
 
 // ── Master lead sheet (Google Sheets)
 export const saveLeadSheet = async (input: { url: string; auto: boolean; assign: boolean }) => done(await hrRun((me) => leadSheet.saveSheet(me, input), "Lead sheet saved."));

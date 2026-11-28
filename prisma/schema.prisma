@@ -2703,30 +2703,31 @@ model HrJob {
 }
 
 model HrCandidate {
-  id         String   @id @default(uuid())
+  id         String       @id @default(uuid())
   jobId      String?
-  job        HrJob?   @relation(fields: [jobId], references: [id])
+  job        HrJob?       @relation(fields: [jobId], references: [id])
   name       String
-  email      String   @default("")
-  phone      String   @default("")
+  email      String       @default("")
+  phone      String       @default("")
   role       String
-  note       String   @default("")
+  note       String       @default("")
   score      Int? // screening score out of 100, entered by HR
-  stage      String   @default("applied") // applied, interview, offer, hired, rejected
+  stage      String       @default("applied") // applied, interview, offer, hired, rejected
   offer      Json? // the offer letter fields once generated
   referredBy String?
   /// Where the application came from: hr, referral, website, linkedin, naukri, indeed, google, other.
-  source     String   @default("hr")
+  source     String       @default("hr")
   /// How the applicant proved their email on the careers page: linkedin, google, or null (typed).
   verifiedBy String?
-  linkedin   String   @default("")
-  experience String   @default("")
-  location   String   @default("")
-  cover      String   @default("")
+  linkedin   String       @default("")
+  experience String       @default("")
+  location   String       @default("")
+  cover      String       @default("")
   resumeKey  String?
   resumeName String?
   resumeType String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime     @default(now())
+  signing    HrOfferSign?
 
   @@index([stage])
   @@index([email])
@@ -4383,4 +4384,44 @@ model HrSurveyResponse {
   at            DateTime @default(now())
 
   @@unique([surveyId, respondentKey])
+}
+
+/// An offer sent to a candidate for electronic signature: the signing link (stored as a hash), email verification by one-time code,
+/// what the candidate entered when signing (name, place, live location, signature), the audit trail, the signed PDF, and the employee
+/// record created from it. One per candidate; sending again starts afresh.
+model HrOfferSign {
+  id            String      @id @default(uuid())
+  candidateId   String      @unique
+  candidate     HrCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  tokenHash     String      @unique
+  /// sent, viewed, signed, cancelled
+  status        String      @default("sent")
+  email         String
+  docHash       String
+  sentById      String?
+  sentByName    String      @default("")
+  sentAt        DateTime    @default(now())
+  expiresAt     DateTime
+  viewedAt      DateTime?
+  otpHash       String?
+  otpExpiresAt  DateTime?
+  otpTries      Int         @default(0)
+  otpVerifiedAt DateTime?
+  signedAt      DateTime?
+  signerName    String      @default("")
+  signerPhone   String      @default("")
+  place         String      @default("")
+  lat           Float?
+  lng           Float?
+  accuracy      Float?
+  sigType       String      @default("")
+  sigPng        Bytes?
+  ip            String?
+  userAgent     String      @default("")
+  signedHash    String?
+  signedPdf     Bytes?
+  /// The employee created on signing (or the reason it couldn't be, for HR to fix and retry).
+  staffId       String?
+  hireError     String      @default("")
+  trail         Json        @default("[]")
 }

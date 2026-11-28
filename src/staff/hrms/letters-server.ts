@@ -1,5 +1,5 @@
 import "server-only";
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import { db } from "@/server/db";
 import { UserError } from "@/server/action";
 import { mailEnabled, sendMail } from "@/server/mail";
@@ -15,7 +15,7 @@ import { promotionTerms } from "./promotions";
 const isType = (t: unknown): t is LetterType => LETTER_TYPES.some((l) => l.id === t);
 const isDay = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(new Date(d + "T00:00:00Z").getTime());
 
-const companyOf = async (): Promise<LetterCompany> => {
+export const companyOf = async (): Promise<LetterCompany> => {
   const s = await loadSettings();
   const w = scheduleText(s);
   return { name: s.company.name, address: s.company.address, phone: s.company.phone, email: s.company.email, gstin: s.company.gstin, leave: s.leave, ptax: s.ptax, work: { start: w.start, end: w.end, hours: s.workHours, lunchFrom: w.lunchFrom, lunchTo: w.lunchTo } };
@@ -90,6 +90,9 @@ export async function letterPdf(l: Letter): Promise<Uint8Array> {
   doc.setTitle(`${l.title} - ${l.to}`); doc.setAuthor(clean(l.company, "Medoro")); doc.setSubject(clean(l.subject)); doc.setProducer(clean(l.company, "Medoro")); doc.setCreator(clean(l.company, "Medoro"));
   const f = await doc.embedFont(StandardFonts.Helvetica), b = await doc.embedFont(StandardFonts.HelveticaBold), it = await doc.embedFont(StandardFonts.HelveticaOblique);
   const logo = await doc.embedPng(Buffer.from(LOGO_PNG_BASE64, "base64"));
+  // Signature images (an e-signed offer), embedded once each.
+  const sigs = new Map<string, PDFImage>();
+  for (const blk of l.blocks) if (blk.k === "sign") for (const bx of blk.boxes) if (bx.img && !sigs.has(bx.img)) sigs.set(bx.img, await doc.embedPng(Buffer.from(bx.img, "base64")));
   const W = 595.28, H = 841.89, M = 56, CW = W - 2 * M, BOTTOM = 88, form = l.form ?? "letter";
   const TEAL = rgb(0.043, 0.369, 0.357), GREY = rgb(0.38, 0.42, 0.47), INK = rgb(0.09, 0.11, 0.14), LINE = rgb(0.8, 0.83, 0.86), SOFT = rgb(0.95, 0.97, 0.97), TINT = rgb(0.91, 0.96, 0.95);
   const company = clean(l.company, "Medoro");
@@ -240,7 +243,12 @@ export async function letterPdf(l: Letter): Promise<Uint8Array> {
           let yy = y - 10;
           page.drawText(clean(bx.title), { x, y: yy, size: 9.5, font: b, color: TEAL }); yy -= 8;
           bx.lines.forEach((t, k) => {
-            if (t === "") { yy -= 32; page.drawLine({ start: { x, y: yy }, end: { x: x + w - 10, y: yy }, thickness: 0.6, color: GREY }); yy -= 8; }
+            if (t === "") {
+              yy -= 32;
+              const im = bx.img ? sigs.get(bx.img) : undefined;
+              if (im) { const ih = Math.min(34, ((w - 10) * im.height) / im.width), iw = (ih * im.width) / im.height; page.drawImage(im, { x: x + 2, y: yy + 1, width: iw, height: ih }); }
+              page.drawLine({ start: { x, y: yy }, end: { x: x + w - 10, y: yy }, thickness: 0.6, color: GREY }); yy -= 8;
+            }
             else { yy -= 13; page.drawText(clean(t), { x, y: yy, size: 9, font: k === 1 && /^[A-Z]/.test(t) && !t.includes(":") ? b : f, color: INK }); }
           });
         });
@@ -257,6 +265,7 @@ export async function letterPdf(l: Letter): Promise<Uint8Array> {
       const t = "Initials", bw = 54;
       pg.drawRectangle({ x: W - M - bw, y: 66, width: bw, height: 16, borderColor: LINE, borderWidth: 0.6 });
       right(t, W - M - bw - 6, 71, 7, f);
+      if (l.initialsText) { const it2 = clean(l.initialsText); pg.drawText(it2, { x: W - M - bw / 2 - b.widthOfTextAtSize(it2, 8.5) / 2, y: 70.5, size: 8.5, font: b, color: TEAL }); }
       if (l.confidential) pg.drawText("PRIVATE AND CONFIDENTIAL", { x: M, y: 71, size: 6.5, font: b, color: GREY });
     }
     pg.drawLine({ start: { x: M, y: 58 }, end: { x: W - M, y: 58 }, thickness: 0.6, color: TEAL });

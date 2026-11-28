@@ -69,12 +69,14 @@ export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): 
   return d.map(([k, v]) => (v ? `${k} ${v}` : k)).join("; ");
 }
 
+const OFFER_SIGN = /^\/offer\/sign\//;
 export function securityHeaders(o: HeaderOpts): Record<string, string> {
   const h: Record<string, string> = {
     "Content-Security-Policy": contentSecurityPolicy(o),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+    // Location is asked for only where a candidate e-signs an offer (it is recorded with the signature).
+    "Permissions-Policy": `camera=(self), microphone=(), geolocation=${OFFER_SIGN.test(o.path) ? "(self)" : "()"}, payment=(), usb=(), browsing-topics=()`,
     "X-Frame-Options": FRAMEABLE.test(o.path) || TOUR.test(o.path) ? "SAMEORIGIN" : "DENY",
     "Cross-Origin-Opener-Policy": CHECKOUT.test(o.path) ? "same-origin-allow-popups" : "same-origin",
   };

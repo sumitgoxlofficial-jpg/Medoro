@@ -44,12 +44,12 @@ export type Block =
   | { k: "sec"; n: string; title: string; t: string[] } // a numbered section inside an annexure (laid out like a clause) // paragraphs are numbered n.1, n.2…; lines starting "(a) " are sub-items
   | { k: "facts"; title?: string; rows: [string, string][] }
   | { k: "table"; title: string; head: string[]; rows: string[][]; foot?: string[]; note?: string; widths?: number[]; align?: ("l" | "r" | "c")[] }
-  | { k: "sign"; boxes: { title: string; lines: string[] }[] }
+  | { k: "sign"; boxes: { title: string; lines: string[]; /** A signature image (PNG, base64) drawn above the signature line. */ img?: string }[] }
   | { k: "break"; unless?: number }; // a new page; with `unless`, only when less than that many points are left on this one
 /** How the first page is laid out: a letter to a person, an agreement between two parties, or a certificate to whom it may concern. */
 export type LetterForm = "letter" | "agreement" | "certificate";
 export type Letter = {
-  type: string; title: string; subject: string; ref: string; date: string; confidential: boolean; form?: LetterForm; initials?: boolean;
+  type: string; title: string; subject: string; ref: string; date: string; confidential: boolean; form?: LetterForm; initials?: boolean; /** Written in the initials box on every page once the employee has e-signed. */ initialsText?: string;
   to: string; toLine: string; toAddress: string; company: string; address: string; contact: string; registration: string; blocks: Block[];
 };
 const SUB_ITEM = /^\(([a-z]{1,2}|[ivx]{1,4})\)\s+/;
@@ -275,7 +275,30 @@ const documentsTable = (letter: string): Block[] => [
 ];
 
 /** The joiner's acceptance and declaration, on a page of its own. */
-const acceptance = (c: Ctx, letter: string, ref: string, date: string, doc: string, own = false): Block[] => [
+/** What the candidate entered when e-signing the offer; it fills the signature boxes and adds a certificate page. */
+export type OfferSigned = {
+  name: string; phone: string; email: string; place: string; png: string; type: "typed" | "drawn"; at: string; ip: string; userAgent: string;
+  lat: number; lng: number; accuracy: number; sentAt: string; viewedAt: string; otpAt: string; docHash: string; sentBy: string;
+};
+/** "28 November 2026, 3:42 pm IST" */
+export const istTime = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) + " IST";
+const initialsOf = (name: string) => name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? "").join("").slice(0, 4);
+/** The candidate's signature box, blank for a wet-ink signature or filled once e-signed. */
+const signBox = (title: string, name: string, extra: string[], signed?: OfferSigned) =>
+  signed
+    ? { title, img: signed.png, lines: ["", `Name: ${signed.name}`, ...extra.map((x) => (x.startsWith("Date and place") ? `Date and place: ${longDate(new Date(signed.at))}, ${signed.place}` : x.startsWith("Date") ? `Date: ${longDate(new Date(signed.at))}` : x)), "Signed electronically"] }
+    : { title, lines: ["", `Name: ${name}`, ...extra] };
+const certificate = (title: string, ref: string, s: OfferSigned): Block[] => [
+  { k: "break" },
+  { k: "h", t: "Certificate", sub: "Certificate of electronic signature" },
+  { k: "p", t: `This certificate records how the ${title} (Ref: ${ref}) was signed electronically. It forms part of the signed document.` },
+  { k: "facts", title: "Signer", rows: [["Name", s.name], ["Email (verified by one-time code)", s.email], ["Mobile", s.phone], ["Place of signing (as stated)", s.place], ["Location at signing", `${s.lat.toFixed(5)}, ${s.lng.toFixed(5)} (accuracy about ${Math.round(s.accuracy)} m)`], ["Signature", s.type === "drawn" ? "Drawn by hand on screen" : "Typed name in a signature style"]] },
+  { k: "facts", title: "Audit trail", rows: [["Sent for signature", `${istTime(s.sentAt)}${s.sentBy ? ` by ${s.sentBy}` : ""}`], ["Opened", istTime(s.viewedAt)], ["Email verified", istTime(s.otpAt)], ["Signed", istTime(s.at)], ["IP address", s.ip || "Not available"], ["Device", s.userAgent.slice(0, 140) || "Not available"]] },
+  { k: "facts", title: "Document integrity", rows: [["SHA-256 of the document sent", s.docHash.match(/.{1,16}/g)?.join(" ") ?? s.docHash]] },
+  { k: "p", t: "The signer agreed to sign electronically, confirmed that they had read the document, and intended the electronic signature to have the same effect as a handwritten signature. The signature is a simple electronic signature (typed or drawn) accepted under the Information Technology Act, 2000 and the Indian Contract Act, 1872 as evidence of acceptance of the offer. It is not an Aadhaar eSign or a Digital Signature Certificate (DSC) signature." },
+  { k: "p", t: "The SHA-256 value above identifies the exact document that was sent for signature. Any change to that document would produce a different value." },
+];
+const acceptance = (c: Ctx, letter: string, ref: string, date: string, doc: string, own = false, signed?: OfferSigned): Block[] => [
   own ? { k: "break" } : { k: "break", unless: 340 },
   { k: "h", t: `Annexure ${letter}`, sub: "Acceptance and declaration" },
   { k: "p", t: `To: Human Resources, ${c.company}` },
@@ -287,7 +310,7 @@ const acceptance = (c: Ctx, letter: string, ref: string, date: string, doc: stri
     "I consent to the Company verifying my background and processing my personal data for the purposes of my employment, as described in this letter; and",
     `I will report for duty on ${c.join}.`,
   ] },
-  { k: "sign", boxes: [{ title: "Accepted and agreed", lines: ["", `Name: ${c.p.name}`, "Date and place:"] }] },
+  { k: "sign", boxes: [signBox("Accepted and agreed", c.p.name, ["Date and place:"], signed)] },
 ];
 
 /**
@@ -295,7 +318,7 @@ const acceptance = (c: Ctx, letter: string, ref: string, date: string, doc: stri
  * conduct, POSH, discipline and grievances, the data protection notice, IT use, documents and verification, and acceptance. Also the contents
  * table for the first pages and the letters the clauses refer to.
  */
-function offerPack(c: Ctx, ref: string, date: string, payLines: Block[]) {
+function offerPack(c: Ctx, ref: string, date: string, payLines: Block[], signed?: OfferSigned) {
   const parts: [keyof Annex | "accept", string, (l: string) => Block[]][] = [
     ["pay", "Compensation and statutory benefits", (l) => [{ k: "break" }, { k: "h", t: `Annexure ${l}`, sub: "Compensation and statutory benefits" }, ...payLines, ...payRules(c.co.ptax ?? 200)]],
     ["laws", "Applicable laws and statutory framework", (l) => statutoryAnnexure(l, c.company)],
@@ -305,8 +328,8 @@ function offerPack(c: Ctx, ref: string, date: string, payLines: Block[]) {
     ["discipline", "Disciplinary procedure and grievance redressal", (l) => disciplineAnnexure(l, c.company)],
     ["privacy", "Notice on the processing of your personal data", (l) => privacyAnnexure(l, c.company)],
     ["it", "Information security and acceptable use", (l) => itAnnexure(l, c.company)],
-    ["docs", "Documents and background verification", (l) => [{ k: "break" }, { k: "h", t: `Annexure ${l}`, sub: "Documents and background verification" }, ...documentsTable(l), ...verificationConsent(c.company, c.p.name)]],
-    ["accept", "Acceptance and declaration", (l) => acceptance(c, l, ref, date, "offer letter", true)],
+    ["docs", "Documents and background verification", (l) => [{ k: "break" }, { k: "h", t: `Annexure ${l}`, sub: "Documents and background verification" }, ...documentsTable(l), ...verificationConsent(c.company, c.p.name, signBox("Candidate", c.p.name, ["Date:"], signed))]],
+    ["accept", "Acceptance and declaration", (l) => acceptance(c, l, ref, date, "offer letter", true, signed)],
   ];
   const ax: Annex & { accept?: string } = { pay: "", leave: "" };
   const blocks: Block[] = [], rows: string[][] = [];
@@ -557,12 +580,12 @@ export function buildLetter(type: LetterType, p: LetterPerson, co: LetterCompany
 
 export type OfferTerms = { position: string; empType: string; pay: string; joinDate: string; mode: string; terms: string; by: string; on: string };
 /** The offer HR prepares for a candidate in Recruitment. */
-export function buildCandidateOffer(name: string, o: OfferTerms, co: LetterCompany): Letter {
+export function buildCandidateOffer(name: string, o: OfferTerms, co: LetterCompany, signed?: OfferSigned): Letter {
   const company = co.name || "Medoro", on = new Date(o.on + "T00:00:00Z"), ref = `MDR/HR/OFR/${o.on.replace(/-/g, "")}`, date = longDate(o.on);
   const p: LetterPerson = { empNo: "", name, email: "", phone: "", address: "", desig: o.position, dept: "", empType: o.empType, location: "", manager: "", joinDate: o.joinDate, ctc: 0, sales: false, incentivePct: 0 };
   const c = ctxOf(p, co);
   // The candidate's own pay and work mode replace the record-based clauses; the annexures are the same as on an offer from the HR record.
-  const pack = offerPack(c, ref, date, [{ k: "p", t: `Your compensation will be ${o.pay}. The component-wise break-up will be set out in your Letter of Appointment, and will comply with the definition of wages under the Code on Wages, 2019.` }]);
+  const pack = offerPack(c, ref, date, [{ k: "p", t: `Your compensation will be ${o.pay}. The component-wise break-up will be set out in your Letter of Appointment, and will comply with the definition of wages under the Code on Wages, 2019.` }], signed);
   const skip = ["Compensation", "Position and duties", "Commencement and place of work"];
   const rest = terms(c, "offer", pack.ax).filter(([t]) => !skip.includes(t));
   const list: [string, string[]][] = [
@@ -573,7 +596,7 @@ export function buildCandidateOffer(name: string, o: OfferTerms, co: LetterCompa
     ...rest.slice(1),
   ];
   return {
-    ...head(co), to: name, toLine: o.position, toAddress: "", date, type: "offer", title: "Offer of Employment", subject: `Offer of employment as ${o.position}`, ref, confidential: true, form: "letter", initials: true,
+    ...head(co), to: name, toLine: o.position, toAddress: "", date, type: "offer", title: "Offer of Employment", subject: `Offer of employment as ${o.position}`, ref, confidential: true, form: "letter", initials: true, initialsText: signed ? initialsOf(signed.name) : undefined,
     blocks: [
       { k: "p", t: `Dear ${c.first},` },
       { k: "p", t: `Further to your application and the discussions you have had with us, we are pleased to offer you employment with ${company} on the terms and conditions set out in this letter and its annexures. ${company} builds billing, inventory and GST compliance software used by medical stores and pharmaceutical distributors across India.` },
@@ -586,6 +609,7 @@ export function buildCandidateOffer(name: string, o: OfferTerms, co: LetterCompa
       { k: "p", t: "Yours sincerely," },
       { k: "sign", boxes: [companySign(company, o.by || "Authorised Signatory")] },
       ...pack.blocks,
+      ...(signed ? certificate("offer letter", ref, signed) : []),
     ],
   };
 }

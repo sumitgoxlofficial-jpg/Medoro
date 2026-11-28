@@ -298,10 +298,10 @@ export function itAnnexure(letter: string, company: string): Block[] {
 }
 
 /** The authorisation for background checks, after the documents table. */
-export function verificationConsent(company: string, name: string): Block[] {
+export function verificationConsent(company: string, name: string, box: Extract<Block, { k: "sign" }>["boxes"][number]): Block[] {
   return [
     { k: "p", t: "Authorisation for background verification", bold: true },
     { k: "p", t: `I, ${name}, authorise ${company} and any agency appointed by it to verify the information and documents I have provided, including my identity, address, education, previous employment and references, and, where permitted by law, records of criminal proceedings. I authorise my previous employers and educational institutions to release this information to the Company. I understand that the results will be kept confidential and used only for the purposes of my employment, as described in the data protection notice.` },
-    { k: "sign", boxes: [{ title: "Candidate", lines: ["", `Name: ${name}`, "Date:"] }] },
+    { k: "sign", boxes: [box] },
   ];
 }
