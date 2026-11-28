@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
 import { aiNainaCall, aiNainaEnd, aiNainaPushKey, aiNainaPushRemove, aiNainaPushSave, aiNainaSend, aiNainaThread } from "../actions";
-import { NainaVoiceCall } from "./naina-call";
+import { CallScreen, Icon, NainaVoiceCall } from "./naina-call";
+import { ringtone, unlockTones } from "./speech/call-tones";
 import { unlockSpeech } from "./speech/browser-speech";
-import { ding } from "./chat-notify";
 import { cx, dayLong, timeLabel } from "./kit";
 
 /**
@@ -43,13 +43,9 @@ export function NainaRow({ info, active, onPick }: { info: NainaInfo; active: bo
   );
 }
 
-/** The voice call with Naina: a phone-style call window inside the HRMS (hands-free, captions, mute, end). */
-export function NainaCall({ id, cfg, onClose }: { id: string; cfg: Cfg; onClose: () => void }) {
-  return (
-    <div role="dialog" aria-modal="true" aria-label="Call with Naina" className="fixed inset-0 z-[110] bg-[#0f172a]/70 backdrop-blur-[3px] flex items-start justify-center overflow-auto py-6 px-3">
-      <div className="w-full max-w-[440px]"><NainaVoiceCall id={id} cfg={cfg} onClose={onClose} /></div>
-    </div>
-  );
+/** The voice call with Naina: a WhatsApp-style call screen inside the HRMS (hands-free, captions, mute, end). */
+export function NainaCall({ id, cfg, outgoing, onClose }: { id: string; cfg: Cfg; outgoing?: boolean; onClose: () => void }) {
+  return <NainaVoiceCall id={id} cfg={cfg} outgoing={outgoing} onClose={onClose} />;
 }
 
 /** URL-safe base64 (the server's push key) to the bytes the browser wants. */
@@ -121,7 +117,7 @@ export function NainaPanel({ info: first, onBack }: { info: NainaInfo; onBack: (
   const [thread, setThread] = useState<Thread>([]);
   const [draft, setDraft] = useState(""), [sending, setSending] = useState(false), [err, setErr] = useState(""), [loaded, setLoaded] = useState(false);
   const [pendingText, setPendingText] = useState<string | null>(null);
-  const [call, setCall] = useState<string | null>(null);
+  const [call, setCall] = useState<{ id: string; outgoing: boolean } | null>(null);
   const log = useRef<HTMLDivElement>(null);
   const load = useCallback(async () => {
     const r = await aiNainaThread().catch(() => null);
@@ -145,14 +141,15 @@ export function NainaPanel({ info: first, onBack }: { info: NainaInfo; onBack: (
     await load();
     setPendingText(null); setSending(false);
   };
-  const startCall = async () => {
+  /** `outgoing`: the 📞 button (you call her, it rings first); otherwise you are answering her waiting call. */
+  const startCall = async (outgoing: boolean) => {
     if (!info) return;
-    unlockSpeech(); // the tap allows the device voice to speak
+    unlockSpeech(); unlockTones(); // the tap allows the voice and the call sounds to play
     setErr("");
     const r = await aiNainaCall().catch(() => null);
     if (!r) { setErr("Couldn’t reach the server. Check your connection and try again."); return; }
     if (!r.ok) { setErr(r.error); return; }
-    setCall(r.data);
+    setCall({ id: r.data, outgoing });
   };
   const close = async () => { setSending(true); await aiNainaEnd().catch(() => null); await load(); setSending(false); };
   const live = info?.open?.status === "in_progress";
@@ -163,13 +160,13 @@ export function NainaPanel({ info: first, onBack }: { info: NainaInfo; onBack: (
       <div className={cx(headerBar, "pl-2 pr-2 min-[860px]:pl-4")}>
         <button className="min-[860px]:hidden flex-none size-10 rounded-full flex items-center justify-center bg-transparent text-white border-0 cursor-pointer" aria-label="Back to chats" onClick={onBack}>←</button>
         <span className="flex items-center gap-3 min-w-0 mr-auto"><NainaFace size={42} /><span className="min-w-0"><span className="block font-semibold text-[16.5px] truncate leading-tight">Naina <span className="text-[11px] font-bold bg-white/20 rounded-full px-1.5 py-px align-middle">AI HR</span></span><span className="block text-[12.5px] text-white/75 truncate">AI assistant from Medoro HR · always available</span></span></span>
-        <button className={barBtn} onClick={() => void startCall()} disabled={!info || sending} aria-label="Call Naina" title="Voice call with Naina (inside the HRMS)">📞 <span className="max-[560px]:hidden">Call</span></button>
+        <button className={barBtn} onClick={() => void startCall(true)} disabled={!info || sending} aria-label="Call Naina" title="Voice call with Naina (inside the HRMS)">📞 <span className="max-[560px]:hidden">Call</span></button>
         {live ? <button className={barBtn} onClick={() => void close()} disabled={sending} title="End this conversation">End chat</button> : null}
       </div>
       <div ref={log} className="relative flex-1 overflow-y-auto px-[4%] max-[560px]:px-2.5 py-3 flex flex-col gap-1.5 [scrollbar-width:thin]" aria-live="polite">
         <div className="self-center max-w-[520px] text-center text-[12px] text-[#54656F] bg-[#FFF7D6] rounded-lg px-3 py-2 my-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">🤖 Naina is an AI. She answers from Medoro’s approved policies and notes what you tell her; HR or your manager decide anything. Say “HR se baat karni hai” for a person, or “call mat karo” to stop her calls. Only you and authorised HR can see this chat.</div>
         <PushSwitch />
-        {waiting ? <div className="self-center flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-sm text-[13px]"><span>📞 Naina wants to talk about <b>{ABOUT[info!.open!.reason]}</b>.</span><button className="bg-[#0B5E5B] text-white border-0 rounded-lg px-3 py-1.5 font-semibold cursor-pointer" onClick={() => void startCall()}>Answer</button><span className="text-[#667781]">or reply below</span></div> : null}
+        {waiting ? <div className="self-center flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-sm text-[13px]"><span>📞 Naina wants to talk about <b>{ABOUT[info!.open!.reason]}</b>.</span><button className="bg-[#0B5E5B] text-white border-0 rounded-lg px-3 py-1.5 font-semibold cursor-pointer" onClick={() => void startCall(false)}>Answer</button><span className="text-[#667781]">or reply below</span></div> : null}
         {thread.map((c) => (
           <div key={c.id} className="flex flex-col gap-1.5">
             <div className="self-center text-[12px] font-medium bg-white/95 text-[#54656F] rounded-lg px-3 py-1 my-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">{c.turns[0] ? dayLong(c.turns[0].at) : c.day} · {c.self ? "You started a chat" : `About ${ABOUT[c.reason] ?? c.reason}`}</div>
@@ -191,7 +188,7 @@ export function NainaPanel({ info: first, onBack }: { info: NainaInfo; onBack: (
           onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }} />
         <button className="flex-none size-[42px] rounded-full flex items-center justify-center bg-[#0B5E5B] text-white border-0 cursor-pointer hover:bg-[#094A48] disabled:bg-[#9DB8B5] disabled:cursor-default" onClick={() => void send()} disabled={sending || !draft.trim()} aria-label="Send to Naina">➤</button>
       </div>
-      {call && info ? <NainaCall id={call} cfg={info} onClose={() => { setCall(null); void load(); }} /> : null}
+      {call && info ? <NainaCall id={call.id} outgoing={call.outgoing} cfg={info} onClose={() => { setCall(null); void load(); }} /> : null}
     </>
   );
 }
@@ -222,29 +219,48 @@ export function NainaRinger({ screen }: { screen: string }) {
     t = setTimeout(tick, 2000);
     return () => { stop = true; clearTimeout(t); };
   }, []);
-  // The ringtone: the chat chime every 3 seconds for half a minute.
+  // The ringtone (and a buzz on phones) for 30 seconds, then it is a missed call: the screen goes, and her chat keeps the
+  // "wants to talk" badge until she tries again.
   useEffect(() => {
     if (!ring) return;
-    ding();
-    let n = 0;
-    const iv = setInterval(() => { if (++n >= 10) clearInterval(iv); else ding(); }, 3000);
-    return () => clearInterval(iv);
+    const stop = ringtone();
+    const miss = setTimeout(() => { stop(); try { sessionStorage.setItem(seenKey(ring), "1"); } catch { /* private window */ } setRing(null); }, 30_000);
+    return () => { stop(); clearTimeout(miss); };
   }, [ring]);
   if (call) return <NainaCall id={call.id} cfg={call.cfg} onClose={() => setCall(null)} />;
   if (!ring) return null;
-  const answer = () => { unlockSpeech(); setCall({ id: ring.id, cfg: ring.cfg }); setRing(null); };
+  const answer = () => { unlockSpeech(); unlockTones(); setCall({ id: ring.id, cfg: ring.cfg }); setRing(null); };
   const decline = () => { try { sessionStorage.setItem(seenKey(ring), "1"); } catch { /* private window */ } setRing(null); };
+  const message = () => { setRing(null); router.push(`/staff/hrms/chat?c=${NAINA}`); };
   return (
-    <div role="alertdialog" aria-label="Naina is calling" className="fixed top-4 left-1/2 -translate-x-1/2 z-[105] w-[min(420px,calc(100vw-24px))] bg-[#0B5E5B] text-white rounded-2xl px-4 py-3.5 shadow-[0_16px_40px_-10px_rgba(0,0,0,.45)] flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <span className="animate-pulse"><NainaFace size={48} /></span>
-        <div className="flex-1 min-w-0"><div className="text-[12px] opacity-80">Incoming call · HRMS</div><div className="font-bold text-[16px]">Naina · AI HR</div><div className="text-[12.5px] opacity-85 truncate">About {ABOUT[ring.reason] ?? "something"}</div></div>
+    <CallScreen label="Naina is calling" role="alertdialog">
+      <div className="flex flex-col items-center pt-[max(28px,env(safe-area-inset-top))] px-5 gap-1 text-center">
+        <div className="flex items-center gap-1.5 text-[12px] text-white/60"><Icon.Lock /> Medoro HR · in-app voice call</div>
+        <div className="mt-3 text-[28px] font-semibold leading-tight">Naina</div>
+        <div className="text-[15px] text-white/80">AI HR · calling about {ABOUT[ring.reason] ?? "something"}</div>
       </div>
-      <div className="flex gap-2">
-        <button onClick={answer} className="flex-1 bg-[#22C55E] text-white border-0 rounded-xl py-2 text-[14px] font-bold cursor-pointer">📞 Answer</button>
-        {screen !== "chat" ? <button onClick={() => { setRing(null); router.push(`/staff/hrms/chat?c=${NAINA}`); }} className="flex-1 bg-white/15 text-white border-0 rounded-xl py-2 text-[14px] font-semibold cursor-pointer">💬 Chat</button> : null}
-        <button onClick={decline} className="flex-1 bg-[#DC2626] text-white border-0 rounded-xl py-2 text-[14px] font-semibold cursor-pointer">Decline</button>
+      <div className="flex-1 flex items-center justify-center">
+        <span className="relative">
+          <span aria-hidden className="absolute -inset-5 rounded-full border border-white/20 motion-safe:animate-ping [animation-duration:1.8s]" />
+          <span aria-hidden className="absolute -inset-10 rounded-full border border-white/10 motion-safe:animate-ping [animation-duration:2.4s]" />
+          <span aria-hidden className="relative size-[148px] rounded-full bg-gradient-to-br from-[#F9A8D4] via-[#C4B5FD] to-[#5EEAD4] flex items-center justify-center text-[82px] shadow-[0_12px_40px_-8px_rgba(0,0,0,.6)]">👩🏻‍💼</span>
+        </span>
       </div>
-    </div>
+      <div className="flex items-end justify-around px-6 pb-[max(36px,env(safe-area-inset-bottom))]">
+        <RingBtn label="Decline" onClick={decline} className="bg-[#EA0038] hover:bg-[#C8002F]"><Icon.HangUp /></RingBtn>
+        {screen !== "chat" ? <RingBtn label="Message" onClick={message} className="bg-white/15 hover:bg-white/25 size-[52px] mb-1"><Icon.Chat /></RingBtn> : null}
+        <RingBtn label="Answer" onClick={answer} halo className="bg-[#25D366] hover:bg-[#1FB959]"><span className="motion-safe:animate-bounce [animation-duration:1.2s]"><Icon.Phone /></span></RingBtn>
+      </div>
+    </CallScreen>
+  );
+}
+
+function RingBtn({ label, onClick, className, halo, children }: { label: string; onClick: () => void; className: string; halo?: boolean; children: React.ReactNode }) {
+  return (
+    <span className="relative flex flex-col items-center gap-2">
+      {halo ? <span aria-hidden className="absolute top-0 size-[68px] rounded-full bg-[#25D366]/40 motion-safe:animate-ping [animation-duration:1.6s]" /> : null}
+      <button type="button" onClick={onClick} aria-label={label} className={cx("relative size-[68px] rounded-full text-white border-0 cursor-pointer flex items-center justify-center shadow-lg", className)}>{children}</button>
+      <span className="text-[12.5px] text-white/80">{label}</span>
+    </span>
   );
 }

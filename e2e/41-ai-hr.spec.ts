@@ -125,8 +125,11 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   await e.goto("/staff/hrms/attendance");
   const ringing = e.getByRole("alertdialog", { name: "Naina is calling" });
   await expect(ringing).toBeVisible({ timeout: 20_000 });
-  await ringing.getByRole("button", { name: "📞 Answer" }).click();
+  await ringing.getByRole("button", { name: "Answer" }).click();
   const callWin = e.getByRole("dialog", { name: "Call with Naina" });
+  // Like a WhatsApp call, captions are off until you turn them on.
+  await expect(callWin.getByLabel("Captions", { exact: true })).toHaveCount(0);
+  await callWin.getByRole("button", { name: "Live captions" }).click();
   const captions = callWin.getByLabel("Captions");
   await expect(captions.getByText(/Naina hoon|I'm Naina|this is Naina/).first()).toBeVisible();
   await expect(captions.getByText("haan, boliye")).toBeVisible(); // she kept listening instead of taking silence
@@ -139,7 +142,7 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   const spoken = await e.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken.filter((x) => x.trim()));
   expect(spoken.length).toBeGreaterThanOrEqual(3); // her opening, the question and the goodbye, spoken aloud
   expect(spoken[0]).toMatch(/नैना/); // in Devanagari for the Hindi voice
-  await callWin.getByRole("button", { name: "Close" }).click();
+  await expect(callWin).toBeHidden({ timeout: 10_000 }); // "Call ended", then the call screen closes by itself
   await expect(ringing).toBeHidden();
 
   // Naina can ring the device with the HRMS closed (free browser push): the switch is offered in her chat, and the
