@@ -287,3 +287,18 @@ Job seekers browse a two-pane job board (search, team / type / workplace filters
 **Share** on a job gives tracked links (`?src=linkedin`, `naukri`, `indeed`, `instahyre`, `internshala`, `whatsapp`) to paste into a post on those sites; anyone applying through a link is tagged with that source, and the pipeline can be filtered by source.
 
 Setup: `MAIL_PROVIDER` for the thank-you email; `GOOGLE_OAUTH_CLIENT_ID/SECRET` for "Apply with Google"; `LINKEDIN_CLIENT_ID/SECRET` (LinkedIn app with "Sign In with LinkedIn using OpenID Connect", redirect `${APP_URL}/api/careers/linkedin/callback`) for "Apply with LinkedIn". Without them the page still works with email applications.
+
+## AI HR Assistant
+
+**AI HR Assistant** (HR, *Attendance & leave* module) and **AI conversations** (everyone). Off until the super admin
+switches it on in AI HR Assistant → Settings. It notices a missing check-in 10 minutes after someone's shift start
+(late), 30 minutes after with no approved leave (absent), and a missing check-out 15 minutes after the shift end
+(thresholds configurable); holidays, weekly offs and approved leave never trigger it. A manager or HR can also ask about
+overtime. The employee gets a notification, opens the conversation and answers by voice or text; the assistant says it
+is an AI, asks one thing at a time, and records what they said, what it inferred and what it recommends. HR sees
+every outcome and approves or rejects proposals (leave drafts, work-from-home, follow-ups) under Escalations; nothing
+changes attendance, leave, pay or overtime by itself. "Call mat karo" stops AI conversations for that person; "HR se
+baat karni hai" hands over to HR; harassment, accidents and emergencies go to HR as urgent. Transcripts are sealed and
+deleted after the retention period (default 90 days); audio is never stored. Voice is free and needs no server: speech
+is recognised in the employee's browser (Whisper, downloaded once) and replies are spoken by the device's own Hindi voice;
+the self-hosted AI service (`ai-service/`) is an optional alternative. Typing always works. See [ai-hr-assistant](ai-hr-assistant/README.md).

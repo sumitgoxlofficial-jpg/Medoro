@@ -1,10 +1,12 @@
 import "server-only";
+import { defer } from "@/server/defer";
 import { videosFor } from "./video-catalog";
 import { myWaAlerts, waAdmin } from "./whatsapp";
 import { db } from "@/server/db";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
+import * as aiHr from "./ai-hr/service";
 import { listEvents, status as gcalStatus } from "./gcal";
 import { backupStatus } from "./chat-backup";
 import { HOME_OF, MODULES, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
@@ -58,6 +60,7 @@ function navFor(me: Me, flags: { learner: boolean; trainer: boolean; manages: bo
 export async function shell(me: Me) {
   const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
   await closeExits().catch(() => {}); // people whose recorded last working day has passed
+  await defer(() => aiHr.maybeTick()); // AI HR Assistant: at most once a minute, after the page is sent (free scheduling)
   // The Sales Academy is automatic: the course installs itself, and a sales employee is enrolled on their first page view.
   await ensureAcademy();
   if (isSalesMe(me) && !(await hasAssignment(me.id))) await autoEnrol([me.id]);
@@ -193,6 +196,22 @@ export const loaders = {
   payroll: async (me: Me, q: Q) => { const month = monthArg(q.m); return { run: await payrollFor(me, month), prev: addMonths(month, -1), next: addMonths(month, 1) }; },
   reports: async (me: Me) => reports(me),
   allyusage: async (me: Me) => usage(me),
+  aihr: async (me: Me, q: Q = {}) => {
+    const tab = ["overview", "calls", "escalations", "knowledge", "scenarios", "playground", "status", "settings"].includes(q.tab ?? "") ? q.tab! : "overview";
+    const reason = (["late", "absent", "missing_checkout", "overtime", "manual"] as const).find((r) => r === q.reason) ?? "";
+    const staff = tab === "overview" || tab === "calls" ? await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } }) : [];
+    return {
+      tab, reason, admin: me.role === "admin", hr: can(me, "employees"), people: staff,
+      overview: tab === "overview" ? await aiHr.overview(me) : null,
+      calls: tab === "calls" || tab === "overview" ? await aiHr.listCalls(me, { reason, status: q.status ?? "", days: Number(q.days) || 30 }) : null,
+      actions: tab === "escalations" ? await aiHr.actionsBoard(me, q.all === "1" ? "all" : "open") : null,
+      knowledge: tab === "knowledge" && can(me, "employees") ? await aiHr.knowledgeAdmin(me, (q.q ?? "").slice(0, 80)) : null,
+      scenarios: tab === "scenarios" ? await aiHr.scenarioAdmin(me) : null,
+      vocabulary: tab === "scenarios" ? await aiHr.vocabularyAdmin(me) : null,
+      status: tab === "status" || tab === "settings" ? await aiHr.modelStatus(me) : null,
+    };
+  },
+  aicall: async (me: Me) => aiHr.myCalls(me),
 
   finhome: async (me: Me) => ({ sum: await summary(me) }),
   fin_reports: async (me: Me) => ({ sum: await summary(me) }),

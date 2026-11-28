@@ -63,6 +63,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "payroll", label: "Payroll", icon: "rupee", title: "Payroll", sub: "India compliance", group: "PEOPLE", module: "payroll" },
   { id: "reports", label: "Reports", icon: "file", title: "Reports", sub: "Headcount, attendance, leave and payroll", group: "PEOPLE", module: "reports" },
   { id: "academy", label: "Sales Academy", icon: "cap", title: "Sales Academy", sub: "Batches, course builder, assessments, certificates and reports", group: "PEOPLE", module: "training" },
+  { id: "aihr", label: "AI HR Assistant", icon: "sparkle", title: "AI HR Assistant", sub: "Attendance conversations, escalations, knowledge, scenarios and the local AI service", group: "PEOPLE", module: "attendance" },
   { id: "allyusage", label: "Ally Usage", icon: "sparkle", title: "Ally Usage", sub: "How much the team uses the assistant", group: "PEOPLE", module: "reports" },
   // Accounts
   { id: "fin_contacts", label: "Contacts", icon: "users", title: "Contacts", sub: "Customers and vendors", group: "ACCOUNTS", module: "finance" },
@@ -87,6 +88,7 @@ export const SCREENS: ScreenDef[] = [
   { id: "leave", label: "Leave & Approvals", icon: "plane", title: "Leave", sub: "Balances, requests and reimbursement claims", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "appraisal", label: "My Review", icon: "target", title: "My Review", sub: "Your performance review, and your team's when you are a reporting manager", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "myactivity", label: "My activity", icon: "clock", title: "My activity", sub: "What your company PC records about you, the policy, corrections and disputes", group: "ME", roles: ["employee", "sales", "hr", "finance"] },
+  { id: "aicall", label: "AI conversations", icon: "chat", title: "AI HR Assistant", sub: "Talk by voice or text when the assistant checks in with you, and choose whether it may", group: "ME", roles: ["employee", "sales", "hr", "finance"] },
   { id: "payslips", label: "Payslips", icon: "rupee", title: "Payslips", sub: "Salary history", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "assets", label: "Assets", icon: "briefcase", title: "Assets", sub: "Devices and equipment assigned to you", group: "ME", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "chat", label: "Team Chat", icon: "chat", title: "Team Chat", sub: "Private messages and groups", group: "COMPANY", roles: ["employee", "sales", "hr", "admin", "finance"] },

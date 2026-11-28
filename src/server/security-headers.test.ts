@@ -60,3 +60,18 @@ describe("security headers", () => {
     }
   });
 });
+
+describe("AI HR Assistant voice", () => {
+  it("allows the microphone and in-browser speech models only on HRMS pages", async () => {
+    const { securityHeaders } = await import("./security-headers");
+    const hr = securityHeaders({ nonce: "n", https: true, path: "/staff/hrms/aicall", dev: false });
+    expect(hr["Permissions-Policy"]).toContain("microphone=(self)");
+    expect(hr["Content-Security-Policy"]).toMatch(/connect-src[^;]*https:\/\/huggingface\.co/);
+    expect(hr["Content-Security-Policy"]).toMatch(/script-src[^;]*'wasm-unsafe-eval'/);
+    const login = securityHeaders({ nonce: "n", https: true, path: "/staff/employee", dev: false });
+    expect(login["Permissions-Policy"]).toContain("microphone=(self)");
+    const app = securityHeaders({ nonce: "n", https: true, path: "/app/billing", dev: false });
+    expect(app["Permissions-Policy"]).toContain("microphone=()");
+    expect(app["Content-Security-Policy"]).not.toContain("huggingface");
+  });
+});

@@ -7,6 +7,7 @@ export type Rule = { limit: number; windowSec: number; what: string };
 /** Per-user (or per-IP) limits. Windows are fixed and aligned to the clock. */
 export const RULES = {
   ai: { limit: 30, windowSec: 10 * 60, what: "AI questions" },
+  aiHrTurn: { limit: 120, windowSec: 10 * 60, what: "AI HR conversation turns" },
   waSend: { limit: 60, windowSec: 10 * 60, what: "WhatsApp messages sent by hand" },
   campaign: { limit: 5, windowSec: 60 * 60, what: "campaign starts" },
   campaignBatch: { limit: 120, windowSec: 60 * 60, what: "campaign batches from counters" },
