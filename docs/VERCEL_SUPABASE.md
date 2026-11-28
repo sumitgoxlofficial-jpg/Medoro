@@ -21,6 +21,8 @@ server-side sessions); Supabase Auth and `supabase-js` are not used, so no Supab
 | Upload size | 10 MB | 4 MB (Vercel request limit) |
 
 ## Every-minute jobs on the Hobby plan
+Recommended: schedule them from Supabase itself with `scripts/supabase/cron-jobs.sql` (pg_cron + pg_net, free plan,
+every minute and the daily jobs; the secret is kept in Supabase Vault). Otherwise:
 Vercel Hobby runs crons only once a day, so use a free outside scheduler, for example cron-job.org:
 1. Create a cron job with URL `https://<your-domain>/api/cron/minute`, method GET, schedule every minute.
 2. Under *Advanced → Headers* add `Authorization` with the value `Bearer <CRON_SECRET>` (the same value as in Vercel).

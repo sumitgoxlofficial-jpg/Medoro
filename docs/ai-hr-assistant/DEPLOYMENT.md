@@ -6,8 +6,11 @@ Nothing here deploys by itself. **Merging to `main` is a production deployment**
 ## Free set-up (recommended, ₹0)
 
 1. Merge (owner's approval) → Vercel deploys and migrates.
-2. GitHub → repository Settings → Secrets and variables → Actions: secret `CRON_SECRET` (same as in Vercel), variable
-   `APP_URL` (e.g. `https://medoro.in`). The workflow `AI HR scheduler` then runs every 5 minutes. Page views also run it.
+2. Scheduling, free and every minute, from Supabase: open `scripts/supabase/cron-jobs.sql`, replace `<APP_URL>` and
+   `<CRON_SECRET>`, and run it once in Supabase → SQL Editor (pg_cron + pg_net, both on the free plan). This replaces
+   Vercel cron, GitHub Actions and cron-job.org. Page views also run the AI job. (The GitHub workflow
+   `AI HR scheduler` is a fallback; it does nothing unless its secret and variable are set.)
+   Note: Vercel's free Hobby plan is for non-commercial use only; see "App hosting" in HANDOVER.md for free options.
 3. HRMS as super admin → **AI HR Assistant → Settings**: Voice = *On the employee's device (free)*, model *Whisper base*,
    tick *Automatic AI conversations on*, save. Tell the team first.
 4. Check on one Android phone (Chrome) and one Windows PC (Chrome/Edge): open **AI conversations**, press Speak (first
