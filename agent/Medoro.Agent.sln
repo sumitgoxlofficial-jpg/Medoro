@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D994C64F
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Medoro.Agent.Tests", "tests\Medoro.Agent.Tests\Medoro.Agent.Tests.csproj", "{90317A0E-BF99-4070-882C-46E1FB05230C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Medoro.Agent.E2E", "tests\Medoro.Agent.E2E\Medoro.Agent.E2E.csproj", "{F9CD51D1-53C0-4748-BBFD-F05A845993DC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +30,14 @@ Global
 		{90317A0E-BF99-4070-882C-46E1FB05230C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{90317A0E-BF99-4070-882C-46E1FB05230C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{90317A0E-BF99-4070-882C-46E1FB05230C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F9CD51D1-53C0-4748-BBFD-F05A845993DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F9CD51D1-53C0-4748-BBFD-F05A845993DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F9CD51D1-53C0-4748-BBFD-F05A845993DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F9CD51D1-53C0-4748-BBFD-F05A845993DC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{1F97A516-F307-42D4-AA00-EC141C2A9694} = {5162CB44-8099-41D0-BCC9-C643591D84BF}
 		{90317A0E-BF99-4070-882C-46E1FB05230C} = {D994C64F-B569-43C7-B351-8CCBFC3E8F7E}
+		{F9CD51D1-53C0-4748-BBFD-F05A845993DC} = {D994C64F-B569-43C7-B351-8CCBFC3E8F7E}
 	EndGlobalSection
 EndGlobal

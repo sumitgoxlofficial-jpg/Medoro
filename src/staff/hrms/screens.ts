@@ -16,6 +16,7 @@ import { kpiScreen } from "./kpi";
 import { overtimeReport, payrollReadiness, rosterView } from "./shifts";
 import { learningAdmin, myLearning } from "./learning";
 import { mySurveys, surveysAdmin } from "./surveys";
+import { management } from "./mgmt";
 import { MONITOR_POLICY } from "./workforce-policy";
 import { allAssets, myAssets } from "./assets";
 import { selfieIds } from "./monitor";
@@ -97,6 +98,7 @@ export const loaders = {
     const staff = await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } });
     return { ...(await workforceAdmin(me, /^\d{4}-\d{2}-\d{2}$/.test(q.day ?? "") ? q.day! : todayISO())), people: staff };
   },
+  mgmt: async (me: Me) => management(me),
   learning: async (me: Me) => {
     const hr = can(me, "employees");
     const staff = hr ? await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } }) : [];

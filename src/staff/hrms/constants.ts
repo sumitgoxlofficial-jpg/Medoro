@@ -43,6 +43,7 @@ export const SCREENS: ScreenDef[] = [
   // Team (module screens)
   { id: "myteam", label: "My Team", icon: "users", title: "My Team", sub: "The people who report to you: today, approvals, tasks and this month", group: "TEAM", roles: ["employee", "sales", "hr", "admin", "finance"] },
   { id: "perf", label: "Performance", icon: "target", title: "Performance", sub: "Live progress, weekly and monthly reports · Employee of the Month", group: "TEAM", module: "reports" },
+  { id: "mgmt", label: "Management", icon: "sparkle", title: "Management dashboard", sub: "Headcount, attrition, attendance, KPIs, learning, engagement, operations and payroll cost, with every definition", group: "TEAM", module: "reports" },
   { id: "hrappraisals", label: "Appraisals", icon: "target", title: "Appraisals", sub: "Review cycles: self-assessment, manager review and final rating", group: "TEAM", module: "reports" },
   { id: "assigntasks", label: "Assign Tasks", icon: "target", title: "Assign Tasks", sub: "Assign and track tasks across the team", group: "TEAM", module: "tasks" },
   { id: "assignprojects", label: "Projects", icon: "box", title: "Projects", sub: "Assign and track project allocations", group: "TEAM", module: "tasks" },

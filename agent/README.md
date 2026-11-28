@@ -66,6 +66,13 @@ node -e 'const c=require("crypto");const k=c.generateKeyPairSync("ec",{namedCurv
 
 Sign the MSI with your Authenticode certificate as well; Windows Installer checks it.
 
+## End-to-end check against a real server
+
+`agent/tests/Medoro.Agent.E2E` drives the real core (enrolment, server rules, sessionizer, encrypted queue, upload) against
+a running Medoro: `dotnet run --project agent/tests/Medoro.Agent.E2E -- http://localhost:3000 <code>`. Run on 2026-11-28
+against the production build: enrolled, status `ok`, five sampled minutes stored as EXCEL 160 s, chrome 80 s, OUTLOOK 60 s,
+queue empty afterwards.
+
 ## Not done yet (needs a Windows machine)
 
 * An MSI/MSIX installer (WiX) and code signing. Today the program is copied and started as above.

@@ -35,6 +35,7 @@ import * as kpi from "@/staff/hrms/kpi";
 import * as shifts from "@/staff/hrms/shifts";
 import * as learning from "@/staff/hrms/learning";
 import * as surveys from "@/staff/hrms/surveys";
+import * as mgmt from "@/staff/hrms/mgmt";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -311,3 +312,6 @@ export const createSurvey = async (input: Parameters<typeof surveys.createSurvey
 export const closeSurvey = async (id: string) => done(await hrRun((me) => surveys.closeSurvey(me, id), "Survey closed."));
 export const answerSurvey = async (id: string, answers: unknown[]) => done(await hrRun((me) => surveys.answerSurvey(me, id, answers), "Thank you. Your answer is recorded."));
 export const surveyResults = async (id: string) => hrRun((me) => surveys.surveyResults(me, id));
+
+// ── Management dashboard (Enterprise HRMS Phase 8)
+export const managementCsv = async () => hrRun((me) => mgmt.managementCsv(me));
