@@ -357,12 +357,20 @@ export async function scoreCandidate(me: Me, id: string, score: number) {
   need(me, "recruitment");
   await db.hrCandidate.update({ where: { id }, data: { score: z.number().int().min(0).max(100).parse(score) } }).catch(() => { throw new UserError("Candidate not found."); });
 }
-const offerSchema = z.object({ position: z.string().trim().min(2, "Enter the position.").max(100), empType: z.string().trim().max(40), pay: z.string().trim().min(1, "Enter the pay.").max(60), joinDate: iso, mode: z.string().trim().max(40), terms: z.string().trim().max(2000).default("") });
+const offerSchema = z.object({
+  position: z.string().trim().min(2, "Enter the position.").max(100), empType: z.string().trim().max(40), pay: z.string().trim().min(1, "Enter the pay.").max(60), joinDate: iso, mode: z.string().trim().max(40), terms: z.string().trim().max(2000).default(""),
+  // What the employee record needs when the candidate e-signs (optional for a letter that is only emailed).
+  dept: z.string().trim().max(60).default(""), ctc: z.preprocess((v) => (typeof v === "string" ? Number(v.replace(/[^\d.]/g, "") || 0) : v ?? 0), z.number().int("Enter the annual CTC in rupees.").min(0).max(100_000_000)).default(0),
+  role: z.enum(["employee", "sales"]).default("employee"), location: z.string().trim().max(60).default(""),
+});
 export async function saveOffer(me: Me, id: string, raw: z.input<typeof offerSchema>) {
   need(me, "recruitment");
   const offer = { ...offerSchema.parse(raw), by: me.name, on: todayISO() };
-  const c = await db.hrCandidate.findUnique({ where: { id } });
+  const c = await db.hrCandidate.findUnique({ where: { id }, include: { signing: { select: { status: true } } } });
   if (!c) throw new UserError("Candidate not found.");
+  if (c.signing?.status === "signed") throw new UserError("The candidate has signed this offer, so it can’t be changed.");
+  // A link already sent shows the old terms: it is cancelled, and the offer has to be sent for signature again.
+  if (c.signing) await db.hrOfferSign.update({ where: { candidateId: id }, data: { status: "cancelled" } });
   await db.hrCandidate.update({ where: { id }, data: { offer, stage: c.stage === "hired" ? "hired" : "offer" } });
   await audit(me, "Offer letter prepared", `${c.name} · ${offer.position}`);
 }

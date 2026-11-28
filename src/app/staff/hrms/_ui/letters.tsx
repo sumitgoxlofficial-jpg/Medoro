@@ -2,51 +2,14 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Letter } from "@/staff/hrms/letters";
 import { DATED_LETTERS, EXIT_LETTERS, JOINING_LETTERS, LETTER_TYPES, PROMOTION_LETTER, letterLabel, type LetterType } from "@/staff/hrms/letters";
-import { emailOffer, getLetter, getOfferLetter, sendLetters } from "../actions";
+import { LetterSheet } from "./letter-sheet";
+export { LetterSheet };
+import { emailOffer, getLetter, getOfferLetter, getOfferSigning, retryOfferHire, sendLetters, sendOfferForSignature } from "../actions";
 import { Empty, Field, Modal, Pill, Tabs, btnCls, cx, inputCls, primaryCls, useRun } from "./kit";
 import { useOnChange } from "@/lib/react-state";
 
-/** The letter as it prints: letterhead with the logo, reference and date, the terms, numbered clauses, tables and signature boxes. */
-export function LetterSheet({ l }: { l: Letter }) {
-  return (
-    <div className="print-area bg-white text-[13px] leading-[1.65] border border-[#E2E8F0] rounded-xl p-8 max-[560px]:p-4 text-[#0f172a]">
-      <div className="flex items-start gap-3 pb-3 border-b-[3px] border-[#0B5E5B] flex-wrap">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/medoro-mark.png" alt="" className="h-[50px] w-auto flex-none" />
-        <div className="flex-1 min-w-[200px]"><div className="text-[26px] font-extrabold text-[#0B5E5B] leading-none">{l.company}</div><div className="text-[11px] text-[#64748B] mt-1.5">Billing, stock and GST software for Indian medical stores</div></div>
-        <div className="text-right text-[11px] text-[#64748B] leading-[1.5] max-w-[260px] ml-auto">{l.address ? <div>{l.address}</div> : null}{l.contact ? <div>{l.contact}</div> : null}</div>
-      </div>
-      <div className="flex justify-between text-[12px] text-[#64748B] mt-4 mb-3 gap-3 flex-wrap"><span>Ref: {l.ref}</span><span>Date: {l.date}</span></div>
-      {l.confidential ? <div className="text-[10.5px] font-bold tracking-[.14em] text-[#64748B] mb-3">STRICTLY PRIVATE AND CONFIDENTIAL</div> : null}
-      <div className="font-bold text-[14px]">{l.to}</div>
-      {l.toLine ? <div className="text-[12.5px] text-[#64748B]">{l.toLine}</div> : null}
-      {l.toAddress ? <div className="text-[12.5px] text-[#64748B] max-w-[360px]">{l.toAddress}</div> : null}
-      <div className="font-bold text-[14px] mt-5 mb-3 border-b border-[#E2E8F0] pb-2">Subject: {l.subject}</div>
-      {l.blocks.map((b, i) => {
-        if (b.k === "p") return <p key={i} className={cx("mb-3 whitespace-pre-wrap", b.bold && "font-bold")}>{b.t}</p>;
-        if (b.k === "clause") return <div key={i} className="mb-3 break-inside-avoid"><div className="font-bold text-[#0B5E5B] text-[13.5px]">{b.n}.&nbsp; {b.title}</div>{b.t.map((t, j) => <p key={j} className="pl-5 mt-1 whitespace-pre-wrap">{t}</p>)}</div>;
-        if (b.k === "facts") return (
-          <div key={i} className="mb-4 break-inside-avoid">{b.title ? <div className="text-[10.5px] font-bold tracking-[.12em] text-[#64748B] mb-1.5">{b.title.toUpperCase()}</div> : null}
-            <table className="w-full border-collapse text-[12.5px]"><tbody>{b.rows.map(([k, v]) => <tr key={k}><td className="border border-[#CBD5E1] bg-[#F0FDFA] font-semibold px-3 py-1.5 w-[38%]">{k}</td><td className="border border-[#CBD5E1] px-3 py-1.5">{v}</td></tr>)}</tbody></table></div>
-        );
-        if (b.k === "table") return (
-          <div key={i} className="mb-4 break-inside-avoid"><div className="text-[16px] font-bold text-[#0B5E5B] mb-2">{b.title}</div>
-            <table className="w-full border-collapse text-[12.5px]"><thead><tr>{b.head.map((h, j) => <th key={h} className={cx("border border-[#CBD5E1] bg-[#F0FDFA] px-3 py-2 font-bold", j ? "text-right" : "text-left")}>{h}</th>)}</tr></thead>
-              <tbody>{b.rows.map((r) => <tr key={r[0]}>{r.map((c, j) => <td key={j} className={cx("border border-[#CBD5E1] px-3 py-2", j > 0 && "text-right")}>{c}</td>)}</tr>)}
-                {b.foot ? <tr>{b.foot.map((c, j) => <td key={j} className={cx("border border-[#CBD5E1] bg-[#F0FDFA] px-3 py-2 font-bold", j > 0 && "text-right")}>{c}</td>)}</tr> : null}</tbody></table>
-            {b.note ? <p className="text-[11.5px] italic text-[#64748B] mt-2">{b.note}</p> : null}</div>
-        );
-        if (b.k === "sign") return (
-          <div key={i} className="grid gap-8 mt-8 mb-2 break-inside-avoid" style={{ gridTemplateColumns: `repeat(${Math.min(b.boxes.length, 2)},minmax(0,1fr))` }}>
-            {b.boxes.map((x) => <div key={x.title}><div className="font-bold text-[#0B5E5B]">{x.title}</div>{x.lines.map((t, k) => (t === "" ? <div key={k} className="h-10 border-b border-[#64748B] mb-1.5" /> : <div key={k} className={cx("mt-1.5", k === 1 && b.boxes.length === 1 && "font-bold")}>{t}</div>))}</div>)}
-          </div>
-        );
-        return <div key={i} className="break-before-page" />;
-      })}
-      <div className="mt-8 pt-3 border-t border-[#E2E8F0] text-[10.5px] text-[#94A3B8] leading-[1.5]">{l.registration}<br />This is a system-generated letter from Medoro HRMS. Ref {l.ref}.</div>
-    </div>
-  );
-}
+/** The same PDF, shown in the browser (to print) instead of downloaded. */
+const viewUrl = (pdf: string) => `${pdf}${pdf.includes("?") ? "&" : "?"}view=1`;
 
 const LOAD_FAILED = "Couldn’t load the letter. Refresh the page (Ctrl+Shift+R) and try again.";
 
@@ -56,7 +19,7 @@ export function LetterModal({ letter, pdf, onClose, extra }: { letter: Letter; p
     <Modal title={letter.title} onClose={onClose} wide>
       <LetterSheet l={letter} />
       <div className="flex gap-2 flex-wrap">
-        <button className={primaryCls} onClick={() => window.print()}>Print / save as PDF</button>
+        <a className={primaryCls} href={viewUrl(pdf)} target="_blank" rel="noopener">Open PDF to print</a>
         <a className={btnCls} href={pdf} download>↓ Download PDF</a>
         {extra}
         <button className={`${btnCls} ml-auto`} onClick={onClose}>Close</button>
@@ -135,7 +98,7 @@ export function LettersPanel({ staffId, name, mail = false, onClose, promotions 
       {promo && promotions.length > 1 ? <Field label="Promotion"><select className={`${inputCls} !w-auto`} value={promoDay} onChange={(e) => setPromoDay(e.target.value)}>{promotions.map((x) => <option key={x.effective} value={x.effective}>{x.toDesig} · from {x.effective}</option>)}</select></Field> : null}
       {err ? <p role="alert" className="text-[13px] text-[#B3261E] bg-[#FDECEA] rounded-lg px-3 py-2">{err}</p> : letter ? <LetterSheet l={letter} /> : <Empty>Writing the letter…</Empty>}
       <div className="flex gap-2 flex-wrap">
-        <button className={primaryCls} disabled={!letter} onClick={() => window.print()}>Print / save as PDF</button>
+        <a className={primaryCls} href={letter ? viewUrl(pdf) : undefined} aria-disabled={!letter} target="_blank" rel="noopener">Open PDF to print</a>
         <a className={btnCls} href={letter ? pdf : undefined} aria-disabled={!letter} download>↓ Download PDF</a>
         <button className={btnCls} onClick={() => setSendOpen((o) => !o)} aria-expanded={sendOpen}>✉ Send to {name.split(" ")[0]}…</button>
         <button className={`${btnCls} ml-auto`} onClick={onClose}>Close</button>
@@ -154,18 +117,42 @@ export function LettersPanel({ staffId, name, mail = false, onClose, promotions 
 }
 
 /** Recruitment: the offer prepared for a candidate, as a proper letter, with email. */
+type Signing = NonNullable<Extract<Awaited<ReturnType<typeof getOfferSigning>>, { ok: true }>["data"]>;
+const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+
+/** Recruitment: the offer prepared for a candidate, as a proper letter; sending it for e-signature, and what happened after. */
 export function OfferModal({ id, sent, onClose, onSent }: { id: string; sent: string | null; onClose: () => void; onSent: () => void }) {
   const { toast } = useRun();
   const [letter, setLetter] = useState<Letter | null>(null), [err, setErr] = useState(""), [busy, setBusy] = useState(false);
-  useEffect(() => { getOfferLetter(id).then((r) => { if (r.ok) setLetter(r.data); else setErr(r.error); }).catch(() => setErr(LOAD_FAILED)); }, [id]);
+  const [sig, setSig] = useState<Signing | null>(null), [link, setLink] = useState("");
+  const loadSig = useCallback(() => { getOfferSigning(id).then((r) => { if (r.ok) setSig(r.data); }).catch(() => {}); }, [id]);
+  useEffect(() => { getOfferLetter(id).then((r) => { if (r.ok) setLetter(r.data); else setErr(r.error); }).catch(() => setErr(LOAD_FAILED)); loadSig(); }, [id, loadSig]);
+  const signed = sig?.status === "signed";
+  const pdf = `/staff/hrms/letter/offer/${encodeURIComponent(id)}${signed ? "?signed=1" : ""}`;
+  const act = async <T,>(fn: () => Promise<{ ok: true; data: T } | { ok: false; error: string }>, ok: (d: T) => void) => {
+    setBusy(true); const r = await fn().catch(() => null); setBusy(false);
+    if (!r) { toast(LOAD_FAILED, "red"); return; }
+    if (r.ok) ok(r.data); else toast(r.error, "red");
+  };
   return (
     <Modal title="Offer letter" onClose={onClose} wide>
+      {sig ? (
+        <div className={cx("rounded-xl border px-4 py-3 text-[13px] flex flex-col gap-1", signed ? "border-[#BBF7D0] bg-[#F0FDF4]" : sig.status === "declined" ? "border-[#FECACA] bg-[#FEF2F2]" : "border-[#BFDBFE] bg-[#EFF6FF]")}>
+          <div className="font-bold text-[13.5px]">{signed ? "✓ Signed electronically" : sig.status === "declined" ? `Declined by the candidate${sig.declineReason ? `: “${sig.declineReason}”` : ""}` : sig.status === "expired" ? "Signing link expired" : sig.status === "cancelled" ? "Signing link cancelled (the offer was edited)" : sig.status === "viewed" ? "Opened by the candidate, not yet signed" : "Sent for e-signature, not yet opened"}</div>
+          <div className="text-[#475569]">Sent {when(sig.sentAt)} to {sig.email}{sig.viewedAt ? ` · opened ${when(sig.viewedAt)}` : ""}{!signed && sig.status !== "cancelled" && sig.status !== "declined" ? ` · link valid until ${when(sig.expiresAt)}` : ""}</div>
+          {signed ? <div>Signed by <strong>{sig.signer}</strong> on {when(sig.signedAt!)} at {sig.place}{sig.lat != null && sig.lng != null ? <> · <a className="text-[#0B5E5B] font-semibold" href={`https://www.openstreetmap.org/?mlat=${sig.lat}&mlon=${sig.lng}#map=16/${sig.lat}/${sig.lng}`} target="_blank" rel="noreferrer">location {sig.lat.toFixed(4)}, {sig.lng.toFixed(4)} ↗</a></> : null}</div> : null}
+          {signed && sig.empNo ? <div>Employee <strong>{sig.empNo}</strong> created ({sig.officialEmail}); the welcome email and signed letter went to the candidate.</div> : null}
+          {signed && !sig.empNo ? <div className="text-[#B45309]">The employee record wasn’t created: {sig.hireError || "unknown reason"} <button className={cx(btnCls, "ml-2")} disabled={busy} onClick={() => void act(() => retryOfferHire(id), (r) => { toast(`Employee ${r.empNo} created.`, "green"); loadSig(); onSent(); })}>Retry</button></div> : null}
+        </div>
+      ) : null}
+      {link ? <div className="text-[12.5px] bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg px-3 py-2 break-all">Signing link (personal to the candidate; share only with them): <span className="font-mono">{link}</span> <button className="text-[#0B5E5B] font-semibold ml-1" onClick={() => void navigator.clipboard?.writeText(link).then(() => toast("Link copied.", "green"))}>Copy</button></div> : null}
       {err ? <p role="alert" className="text-[13px] text-[#B3261E] bg-[#FDECEA] rounded-lg px-3 py-2">{err}</p> : letter ? <LetterSheet l={letter} /> : <Empty>Writing the letter…</Empty>}
       <div className="flex gap-2 flex-wrap items-center">
-        <button className={primaryCls} disabled={!letter} onClick={() => window.print()}>Print / save as PDF</button>
-        <a className={btnCls} href={letter ? `/staff/hrms/letter/offer/${id}` : undefined} download>↓ Download PDF</a>
-        <button className={btnCls} disabled={!letter || busy} onClick={async () => { setBusy(true); const r = await emailOffer(id).catch(() => null); setBusy(false); if (!r) { toast(LOAD_FAILED, "red"); return; } if (r.ok) { toast(`Offer sent to ${r.data.sentTo}. Acceptance pending.`, "green"); onSent(); } else toast(r.error, "red"); }}>✉ {sent ? "Send again" : "Email to candidate"}</button>
-        {sent ? <span className="text-[12px] text-[#0B5E5B] font-semibold">Sent {sent} · acceptance pending</span> : null}
+        <a className={primaryCls} href={letter ? viewUrl(pdf) : undefined} aria-disabled={!letter} target="_blank" rel="noopener">{signed ? "Open signed PDF" : "Open PDF to print"}</a>
+        <a className={btnCls} href={letter ? pdf : undefined} download>↓ Download {signed ? "signed " : ""}PDF</a>
+        {!signed ? <button className={btnCls} disabled={!letter || busy} onClick={() => void act(() => sendOfferForSignature(id), (r) => { setLink(r.url); toast(r.emailed ? `Sent to ${r.to} for e-signature.` : "Signing link made. Email isn’t set up, so share the link with the candidate.", "green"); loadSig(); onSent(); })}>✍ {sig && sig.status !== "cancelled" && sig.status !== "declined" ? "Send for e-signature again" : "Send for e-signature"}</button> : null}
+        {!signed ? <button className={btnCls} disabled={!letter || busy} onClick={() => void act(() => emailOffer(id), (r) => { toast(`Offer emailed to ${r.sentTo} (to accept by reply).`, "green"); onSent(); })}>✉ Email only</button> : null}
+        {sent && !sig ? <span className="text-[12px] text-[#0B5E5B] font-semibold">Emailed {sent} · acceptance pending</span> : null}
         <button className={`${btnCls} ml-auto`} onClick={onClose}>Close</button>
       </div>
     </Modal>

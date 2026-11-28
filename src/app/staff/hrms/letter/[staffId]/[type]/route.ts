@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ staffId:
   if (gateOf(me) && staffId !== "me" && staffId !== me.id) return new Response("Finish setting up your account first.", { status: 403 });
   try {
     const l = await letterFor(me, staffId === "me" ? me.id : staffId, type, new URL(req.url).searchParams.get("day") ?? undefined);
-    return new Response(new Uint8Array(await letterPdf(l)), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="${l.title.replace(/\W+/g, "-")}.pdf"`, "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });
+    return new Response(new Uint8Array(await letterPdf(l)), { headers: { "content-type": "application/pdf", "content-disposition": `${new URL(req.url).searchParams.get("view") ? "inline" : "attachment"}; filename="${l.title.replace(/\W+/g, "-")}.pdf"`, "cache-control": "private, no-store", "x-content-type-options": "nosniff" } });
   } catch (e) {
     return new Response(e instanceof UserError ? e.message : "Couldn’t make that letter.", { status: e instanceof UserError ? 403 : 500 });
   }

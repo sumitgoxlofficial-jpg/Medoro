@@ -5,13 +5,14 @@ const first = (name: string) => name.trim().split(/\s+/)[0] || "there";
 const signoff = (org: string) => ({ name: "Human Resources", org });
 const loginUrl = () => (process.env.APP_URL ? `${process.env.APP_URL.replace(/\/$/, "")}/staff/employee` : "");
 
-export function welcomeMail(i: { name: string; empNo: string; email: string; temp: string; org: string }) {
+export function welcomeMail(i: { name: string; empNo: string; email: string; temp: string; org: string; note?: string }) {
   const url = loginUrl();
   const subject = `Welcome to ${i.org}: your employee account is ready`;
   const m = compose({
     greeting: `Dear ${first(i.name)},`,
     blocks: [
       { p: `Welcome to ${i.org}. We are pleased to have you on the team, and your employee profile is now ready.` },
+      ...(i.note ? [{ p: i.note }] : []),
       { facts: [["Employee ID", i.empNo], ["Official email", i.email], ["Temporary password", i.temp]] },
       ...(url ? [{ button: { label: "Sign in to your account", url } }] : []),
       { p: "On your first sign-in you will be asked to set a password of your own, complete your personal details and accept your joining documents." },
@@ -68,6 +69,39 @@ export function offerMail(i: { name: string; org: string; title: string; validDa
   }, subject);
   return { subject, ...m };
 }
+
+/** The offer, with a link to read and sign it electronically. */
+export function offerSignMail(i: { name: string; org: string; title: string; url: string; validDays: number }) {
+  const subject = `${i.title} · ${i.org}: please review and sign`;
+  const m = compose({
+    greeting: `Dear ${first(i.name)},`,
+    blocks: [
+      { p: `Thank you for the time you spent with us during the selection process. We are delighted to offer you a position at ${i.org}. Your offer letter is attached to this email for your records.` },
+      { p: `Please read the letter and its annexures carefully, and accept it by signing electronically using the button below. You will be asked to confirm your email with a one-time code, enter your full name, mobile number and the place of signing, allow your browser to share your current location, and then sign.` },
+      { button: { label: "Review and sign the offer", url: i.url } },
+      { note: `This link is personal to you. Please do not forward it. The offer is open for ${i.validDays} days.` },
+      { p: "Once you have signed, your employee ID and the details to sign in to your employee account will be emailed to you. If you have any questions about the role or the terms, please reply to this email." },
+    ],
+    signoff: signoff(i.org),
+  }, subject);
+  return { subject, ...m };
+}
+export function offerSignCodeMail(i: { name: string; code: string; org: string; minutes: number }) {
+  const subject = `${i.code} is your code to sign your offer · ${i.org}`;
+  const m = compose({
+    greeting: `Dear ${first(i.name)},`,
+    blocks: [
+      { p: "Use this code to confirm your email address and sign your offer letter:" },
+      { code: i.code, note: `The code is valid for ${i.minutes} minutes.` },
+      { p: "If you did not ask for this code, you can ignore this email." },
+    ],
+    signoff: signoff(i.org),
+    secure: true,
+  }, subject);
+  return { subject, ...m };
+}
+/** The in-app note to HR when a candidate signs and their employee record is created. */
+export const offerSignedHrNote = (i: { name: string; empNo: string; place: string }) => `${i.name} signed the offer${i.place ? ` at ${i.place}` : ""}. Employee ${i.empNo} has been created and the welcome email sent.`;
 
 /** Sent straight after someone applies on the careers page. */
 export function applicationMail(i: { name: string; org: string; title: string; dept: string; location: string; ref: string; statusUrl: string }) {
