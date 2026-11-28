@@ -84,7 +84,7 @@ export const P = {
   angry: {
     hinglish: ["Main samajh sakti hoon ki aapko inconvenience hua hai.", "Maafi chahti hoon agar is call se pareshani hui."],
     hi: ["मैं समझ सकती हूँ कि आपको असुविधा हुई है।", "माफ़ी चाहती हूँ अगर इस कॉल से परेशानी हुई।"],
-    en: ["I understand this is inconvenient.", "I'm sorry if this call is a bother."],
+    en: ["Sorry for the trouble.", "I'm sorry if this call is a bother."],
   },
   confused: {
     hinglish: ["Main simple words mein bata deti hoon.", "Chaliye, aasaan shabdon mein poochti hoon."],

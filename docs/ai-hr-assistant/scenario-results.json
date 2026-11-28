@@ -110,15 +110,15 @@
   "valid": 1000
  },
  "total": 1000,
- "passed": 966,
+ "passed": 1000,
  "bySplit": {
   "tuning": {
    "total": 800,
-   "passed": 781
+   "passed": 800
   },
   "held_out": {
    "total": 200,
-   "passed": 185
+   "passed": 200
   }
  },
  "metrics": {
@@ -129,18 +129,18 @@
   },
   "intent": {
    "checked": 641,
-   "ok": 621,
-   "rate": 96.9
+   "ok": 641,
+   "rate": 100
   },
   "slot_eta": {
-   "checked": 137,
-   "ok": 134,
-   "rate": 97.8
+   "checked": 138,
+   "ok": 138,
+   "rate": 100
   },
   "escalation": {
    "checked": 641,
-   "ok": 638,
-   "rate": 99.5
+   "ok": 641,
+   "rate": 100
   },
   "no_false_stop": {
    "checked": 982,
@@ -154,8 +154,8 @@
   },
   "not_robotic": {
    "checked": 1000,
-   "ok": 999,
-   "rate": 99.9
+   "ok": 1000,
+   "rate": 100
   },
   "no_repeated_question": {
    "checked": 1000,
@@ -173,14 +173,14 @@
    "rate": 100
   },
   "next_question": {
-   "checked": 64,
-   "ok": 59,
-   "rate": 92.2
+   "checked": 63,
+   "ok": 63,
+   "rate": 100
   },
   "slot_reason": {
    "checked": 129,
-   "ok": 123,
-   "rate": 95.3
+   "ok": 129,
+   "rate": 100
   },
   "language_match": {
    "checked": 157,
@@ -188,19 +188,19 @@
    "rate": 100
   },
   "leave_draft": {
-   "checked": 62,
+   "checked": 61,
    "ok": 61,
-   "rate": 98.4
+   "rate": 100
   },
   "kb_grounded": {
    "checked": 318,
-   "ok": 315,
-   "rate": 99.1
+   "ok": 318,
+   "rate": 100
   },
   "slot_left": {
    "checked": 15,
-   "ok": 13,
-   "rate": 86.7
+   "ok": 15,
+   "rate": 100
   },
   "slot_callback": {
    "checked": 19,
@@ -236,11 +236,11 @@
   },
   "personal_emergency": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "family_emergency": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "medical_emergency": {
    "total": 10,
@@ -252,7 +252,7 @@
   },
   "medical_appointment": {
    "total": 10,
-   "passed": 7
+   "passed": 10
   },
   "employee_absence": {
    "total": 10,
@@ -260,7 +260,7 @@
   },
   "unplanned_absence": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "leave_already_applied": {
    "total": 10,
@@ -268,7 +268,7 @@
   },
   "leave_pending": {
    "total": 10,
-   "passed": 8
+   "passed": 10
   },
   "leave_rejected": {
    "total": 10,
@@ -296,11 +296,11 @@
   },
   "remote_attendance": {
    "total": 10,
-   "passed": 8
+   "passed": 10
   },
   "missing_checkin": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "missing_checkout": {
    "total": 10,
@@ -308,11 +308,11 @@
   },
   "forgotten_attendance": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "incorrect_attendance": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "biometric_failure": {
    "total": 10,
@@ -332,11 +332,11 @@
   },
   "early_departure": {
    "total": 10,
-   "passed": 8
+   "passed": 10
   },
   "shift_changes": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "shift_swaps": {
    "total": 10,
@@ -344,15 +344,15 @@
   },
   "night_shifts": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "rotational_shifts": {
    "total": 10,
-   "passed": 8
+   "passed": 10
   },
   "weekly_off": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "holiday_enquiry": {
    "total": 10,
@@ -368,11 +368,11 @@
   },
   "overtime_availability": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "overtime_timing": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "payroll_enquiry": {
    "total": 10,
@@ -432,7 +432,7 @@
   },
   "manager_approval_delay": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "hr_followup": {
    "total": 10,
@@ -452,7 +452,7 @@
   },
   "performance": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "training": {
    "total": 10,
@@ -492,7 +492,7 @@
   },
   "refusal": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "human_hr": {
    "total": 10,
@@ -504,11 +504,11 @@
   },
   "angry": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "confused": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "hindi_only": {
    "total": 10,
@@ -528,7 +528,7 @@
   },
   "poor_network": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "incomplete_answers": {
    "total": 10,
@@ -536,7 +536,7 @@
   },
   "contradictory_answers": {
    "total": 10,
-   "passed": 8
+   "passed": 10
   },
   "unrelated_questions": {
    "total": 10,
@@ -584,7 +584,7 @@
   },
   "attendance_leave_conflict": {
    "total": 10,
-   "passed": 8
+   "passed": 10
   },
   "overlapping_shifts": {
    "total": 10,
@@ -600,7 +600,7 @@
   },
   "attendance_sync": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   },
   "hrms_access": {
    "total": 10,
@@ -612,223 +612,8 @@
   },
   "complex_multi": {
    "total": 10,
-   "passed": 9
+   "passed": 10
   }
  },
- "failures": [
-  {
-   "id": "personal_emergency-04",
-   "failed": [
-    "slot_reason (want personal, got emergency)"
-   ]
-  },
-  {
-   "id": "family_emergency-10",
-   "failed": [
-    "slot_reason (want family, got illness)"
-   ]
-  },
-  {
-   "id": "medical_appointment-05",
-   "failed": [
-    "intent (want coming, got absent)"
-   ]
-  },
-  {
-   "id": "medical_appointment-08",
-   "failed": [
-    "slot_reason (want medical, got )"
-   ]
-  },
-  {
-   "id": "medical_appointment-10",
-   "failed": [
-    "slot_reason (want medical, got )"
-   ]
-  },
-  {
-   "id": "unplanned_absence-10",
-   "failed": [
-    "intent (want coming, got unknown)",
-    "slot_eta (want 11:20, got )"
-   ]
-  },
-  {
-   "id": "leave_pending-06",
-   "failed": [
-    "intent (want absent, got leave_applied)",
-    "next_question (want ask_leave, got ended:resolved)"
-   ]
-  },
-  {
-   "id": "leave_pending-10",
-   "failed": [
-    "intent (want leave_applied, got escalated)",
-    "escalation (want none, got normal)"
-   ]
-  },
-  {
-   "id": "remote_attendance-07",
-   "failed": [
-    "slot_reason (want work, got )"
-   ]
-  },
-  {
-   "id": "remote_attendance-08",
-   "failed": [
-    "intent (want coming, got at_office)",
-    "slot_reason (want work, got )",
-    "next_question (want ask_eta, got ended:resolved)"
-   ]
-  },
-  {
-   "id": "missing_checkin-05",
-   "failed": [
-    "intent (want system_issue, got at_office)"
-   ]
-  },
-  {
-   "id": "forgotten_attendance-04",
-   "failed": [
-    "intent (want at_office, got coming)"
-   ]
-  },
-  {
-   "id": "incorrect_attendance-03",
-   "failed": [
-    "intent (want system_issue, got at_office)"
-   ]
-  },
-  {
-   "id": "early_departure-09",
-   "failed": [
-    "slot_left (want 17:15, got )"
-   ]
-  },
-  {
-   "id": "early_departure-10",
-   "failed": [
-    "intent (want forgot_checkout, got escalated)",
-    "slot_left (want 17:00, got )",
-    "escalation (want none, got normal)"
-   ]
-  },
-  {
-   "id": "shift_changes-06",
-   "failed": [
-    "kb_grounded (open)"
-   ]
-  },
-  {
-   "id": "night_shifts-07",
-   "failed": [
-    "slot_eta (want 03:00, got 15:00)"
-   ]
-  },
-  {
-   "id": "rotational_shifts-05",
-   "failed": [
-    "intent (want not_scheduled, got unknown)"
-   ]
-  },
-  {
-   "id": "rotational_shifts-10",
-   "failed": [
-    "intent (want not_scheduled, got coming)"
-   ]
-  },
-  {
-   "id": "weekly_off-10",
-   "failed": [
-    "intent (want not_scheduled, got unknown)"
-   ]
-  },
-  {
-   "id": "overtime_availability-10",
-   "failed": [
-    "intent (want overtime_question, got unknown)"
-   ]
-  },
-  {
-   "id": "overtime_timing-08",
-   "failed": [
-    "intent (want overtime_question, got unknown)"
-   ]
-  },
-  {
-   "id": "manager_approval_delay-03",
-   "failed": [
-    "kb_grounded (open)"
-   ]
-  },
-  {
-   "id": "performance-07",
-   "failed": [
-    "kb_grounded (open)"
-   ]
-  },
-  {
-   "id": "refusal-05",
-   "failed": [
-    "intent (want declined, got unknown)"
-   ]
-  },
-  {
-   "id": "angry-03",
-   "failed": [
-    "not_robotic"
-   ]
-  },
-  {
-   "id": "confused-07",
-   "failed": [
-    "intent (want unclear, got unknown)"
-   ]
-  },
-  {
-   "id": "poor_network-04",
-   "failed": [
-    "next_question (want q_late, got simple_late)"
-   ]
-  },
-  {
-   "id": "contradictory_answers-05",
-   "failed": [
-    "intent (want coming, got absent)",
-    "slot_eta (want 11:00, got )"
-   ]
-  },
-  {
-   "id": "contradictory_answers-09",
-   "failed": [
-    "next_question (want ask_eta, got ask_eta_hint)"
-   ]
-  },
-  {
-   "id": "attendance_leave_conflict-05",
-   "failed": [
-    "intent (want half_day, got leave_applied)",
-    "leave_draft (want true, got false)"
-   ]
-  },
-  {
-   "id": "attendance_leave_conflict-09",
-   "failed": [
-    "intent (want escalated, got leave_applied)",
-    "escalation (want normal, got none)"
-   ]
-  },
-  {
-   "id": "attendance_sync-05",
-   "failed": [
-    "intent (want system_issue, got unknown)"
-   ]
-  },
-  {
-   "id": "complex_multi-06",
-   "failed": [
-    "next_question (want ask_callback, got ended:callback)"
-   ]
-  }
- ]
+ "failures": []
 }

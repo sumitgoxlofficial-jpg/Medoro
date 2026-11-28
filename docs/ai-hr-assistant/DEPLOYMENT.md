@@ -3,12 +3,25 @@
 Nothing here deploys by itself. **Merging to `main` is a production deployment** (Vercel deploys `main` and runs
 `prisma migrate deploy`), so it needs the owner's approval. The feature ships **switched off**.
 
+## Free set-up (recommended, ₹0)
+
+1. Merge (owner's approval) → Vercel deploys and migrates.
+2. GitHub → repository Settings → Secrets and variables → Actions: secret `CRON_SECRET` (same as in Vercel), variable
+   `APP_URL` (e.g. `https://medoro.in`). The workflow `AI HR scheduler` then runs every 5 minutes. Page views also run it.
+3. HRMS as super admin → **AI HR Assistant → Settings**: Voice = *On the employee's device (free)*, model *Whisper base*,
+   tick *Automatic AI conversations on*, save. Tell the team first.
+4. Check on one Android phone (Chrome) and one Windows PC (Chrome/Edge): open **AI conversations**, press Speak (first
+   time downloads the model), and confirm a Hindi voice is installed (Android: Google TTS Hindi; Windows: Settings →
+   Time & language → Speech → add Hindi).
+
+No AI server, no API keys. Everything below about the AI host is optional (server mode).
+
 ## 0. Infrastructure status (verified 2026-11-28)
 
 | Item | Status |
 |---|---|
 | Medoro app | Vercel project `medoro` (serverless, region `bom1`). Can't host Ollama/Whisper/Piper as persistent processes. |
-| Persistent 8 GB AI host | **Not found / not provided. BLOCKER for voice and the local model.** Text conversations work without it. |
+| Persistent 8 GB AI host | Not found / not provided. **Not needed in the free set-up**; only for optional server mode (Piper voice, local model assist). |
 | This build sandbox | 4 cores / 15 GB, but Hugging Face and ollama.com are blocked by its network policy, so models could not be downloaded or benchmarked here. |
 
 Requirements for the AI host: Ubuntu 22.04/24.04, 8 GB RAM, 4 cores preferred, 20 GB free disk, systemd, a public DNS

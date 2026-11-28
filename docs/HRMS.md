@@ -299,5 +299,6 @@ is an AI, asks one thing at a time, and records what they said, what it inferred
 every outcome and approves or rejects proposals (leave drafts, work-from-home, follow-ups) under Escalations; nothing
 changes attendance, leave, pay or overtime by itself. "Call mat karo" stops AI conversations for that person; "HR se
 baat karni hai" hands over to HR; harassment, accidents and emergencies go to HR as urgent. Transcripts are sealed and
-deleted after the retention period (default 90 days); audio is never stored. Voice needs the self-hosted AI service
-(`ai-service/`); without it, conversations work as text. See [ai-hr-assistant](ai-hr-assistant/README.md).
+deleted after the retention period (default 90 days); audio is never stored. Voice is free and needs no server: speech
+is recognised in the employee's browser (Whisper, downloaded once) and replies are spoken by the device's own Hindi voice;
+the self-hosted AI service (`ai-service/`) is an optional alternative. Typing always works. See [ai-hr-assistant](ai-hr-assistant/README.md).

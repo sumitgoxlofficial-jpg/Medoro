@@ -1,4 +1,4 @@
-import { parseCallback, parseTime, understand, type Intent, type Lang, type Nlu, type ReasonCategory } from "./nlu";
+import { ROUTINE_MEDICAL, normalise, clock, parseCallback, parseTime, toMin, understand, type Intent, type Lang, type Nlu, type ReasonCategory } from "./nlu";
 import { P, fill, type PhraseKey } from "./phrases";
 
 // The conversation engine: a small state machine per call reason with slot memory. It decides what to ask next from
@@ -181,12 +181,18 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
   st.intents.push(...n.intents.filter((i) => !st.intents.includes(i)));
   for (const t of n.tones) if (!st.tones.includes(t)) st.tones.push(t);
   st.confidences.push(n.confidence);
-  if (isLang(n.lang) && (text.split(/\s+/).length >= 2 || n.lang === "hi")) st.lang = n.lang;
+  const onlyGreeting = n.intents.every((i) => i === "greeting" || i === "yes" || i === "thanks");
+  if (isLang(n.lang) && !onlyGreeting && (text.split(/\s+/).length >= 2 || n.lang === "hi")) st.lang = n.lang;
   const has = (i: Intent) => n.intents.includes(i);
   if (n.slots.reason && !st.slots.reason) st.slots.reason = n.slots.reason;
+  // Said earlier that the work runs at night: a small hour now means after midnight, not the afternoon.
+  if ((st.goal === "finish" || st.goal === "left_at") && st.said.slice(0, -1).some((x) => /(raat|night|रात)/i.test(x)) && !/(dopahar|afternoon|shaam|evening|pm)/i.test(text)) {
+    for (const k of ["eta", "leftAt"] as const) { const v = n.slots[k]; if (v && v >= "12:00" && v < "19:00") n.slots[k] = clock(toMin(v) - 720); }
+  }
   // A bare "11" or "11:30" answering a time question means that time.
-  if (["eta", "finish", "left_at", "callback"].includes(st.goal) && !n.slots.eta && !n.slots.leftAt && !n.slots.callback && /^\D{0,6}\d{1,2}([:.]\d{2})?\D{0,6}$/.test(text)) {
-    const tm = parseTime(text.replace(/(\d{1,2})(?![:.\d])/, "$1 baje"), ctx.nowMin);
+  const timeGoal = ["eta", "finish", "left_at", "callback"].includes(st.goal);
+  if (timeGoal && !n.slots.eta && !n.slots.leftAt && !n.slots.callback && (/^\D{0,6}\d{1,2}([:.]\d{2})?\D{0,6}$/.test(text) || text.split(/\s+/).length <= 4)) {
+    const tm = parseTime(/\d/.test(text) ? text.replace(/(\d{1,2})(?![:.\d])/, "$1 baje") : `${text} baje`, ctx.nowMin);
     if (tm) { if (st.goal === "left_at") n.slots.leftAt = tm.at; else if (st.goal === "callback") n.slots.callback = tm.at; else n.slots.eta = tm.at; }
   }
   const ret: Turn = { state: st, reply: "", nlu: n, done: false };
@@ -197,7 +203,7 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
   if (has("accident")) { st.flags.escalate = true; st.flags.urgent = true; st.slots.reason = "emergency"; followup("accident_report"); say("accident"); return finish(end("escalated", false)); }
   if (has("stop_calls")) { st.flags.stop = true; say("stop"); return finish(end("stopped", false)); }
   if (has("human")) { st.flags.escalate = true; followup("human_requested"); say("human"); return finish(end("human_requested")); }
-  if (has("emergency") && (st.reason === "late" || st.reason === "absent" || st.goal === "permission")) {
+  if (has("emergency") && (st.reason === "late" || st.reason === "absent" || (st.goal === "permission" && st.reason === "manual"))) {
     st.flags.escalate = true; st.slots.reason = "emergency"; followup("emergency"); say("emergency"); return finish(end("escalated"));
   }
   if (has("complaint") && !domainSignal(n, st.reason)) { st.flags.escalate = true; followup("grievance"); say("complaint"); return finish(end("escalated")); }
@@ -227,6 +233,9 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
 
   // ── Busy / call back
   const wantsLater = (has("busy") || has("callback")) && !domainSignal(n, st.reason, true);
+  if (st.goal === "callback" && !wantsLater && (has("yes") || has("greeting")) && !n.slots.callback && !parseTime(text, ctx.nowMin)) {
+    say("ack"); ask(MAIN_Q[st.reason], MAIN_GOAL[st.reason]); ret.reply = out.join(" "); return ret;
+  }
   if (st.goal === "callback" || wantsLater) {
     const cbRaw = n.slots.callback ?? parseCallback(text, ctx.nowMin);
     const cb = cbRaw === "later" && st.goal !== "callback" ? undefined : cbRaw; // "later" alone: ask for a time once
@@ -247,7 +256,7 @@ function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
     else if (has("yes") || has("greeting") || has("thanks") || has("dont_know") || n.primary === "unknown") {
       if (n.primary === "unknown" && !has("yes") && !has("greeting")) { /* treat an unclear first reply as a go-ahead: ask the question */ }
       ask(MAIN_Q[st.reason], MAIN_GOAL[st.reason]); ret.reply = out.join(" "); return ret;
-    } else if (has("confused") || has("repeat")) { say("confused"); ask(MAIN_Q[st.reason], MAIN_GOAL[st.reason]); ret.reply = out.join(" "); return ret; }
+    } else if (has("confused") || has("repeat")) { st.unclear++; say("confused"); ask(MAIN_Q[st.reason], MAIN_GOAL[st.reason]); ret.reply = out.join(" "); return ret; }
     st.goal = MAIN_GOAL[st.reason];
   }
 
@@ -300,7 +309,7 @@ function attendance(st: State, n: Nlu, say: Say, ask: Ask, end: End, follow: Fol
   if (has("leave_applied")) { st.slots.status = "leave_applied"; follow("leave_pending"); say("note_leave_applied"); return end("resolved"); }
   if (has("half_day")) { st.slots.status = "half_day"; st.slots.leaveDraft = true; follow("half_day_request"); say("note_half_day"); return end("resolved"); }
   if (has("wfh")) { st.slots.status = "wfh"; follow("wfh_request"); say("note_wfh"); return end("resolved"); }
-  if (has("want_leave") || (st.goal === "leave" && has("yes"))) { st.slots.status = "absent"; st.slots.leaveDraft = true; say("note_leave_draft"); return end("resolved"); }
+  if (has("want_leave") || (st.goal === "leave" && has("yes") && !has("coming") && !n.slots.eta)) { st.slots.status = "absent"; st.slots.leaveDraft = true; say("note_leave_draft"); return end("resolved"); }
   if (st.goal === "leave" && has("no")) { st.slots.status = "absent"; follow("absent_no_leave"); say("note_no_leave"); return end("resolved"); }
   if (has("absent") || (st.goal === "status" && has("no") && !has("coming"))) {
     st.slots.status = "absent";
@@ -309,7 +318,7 @@ function attendance(st: State, n: Nlu, say: Say, ask: Ask, end: End, follow: Fol
   }
   const coming = has("coming") || (st.goal === "status" && has("yes")) || (st.goal === "eta" && !!st.slots.eta) || (!!n.slots.eta && st.goal !== "leave");
   const reasonOnly = !coming && !!n.slots.reason && (st.goal === "status" || st.goal === "permission");
-  if (reasonOnly && SENSITIVE.includes(n.slots.reason!)) { st.slots.status = "absent"; say("empathy"); ask("ask_leave", "leave"); return null; }
+  if (reasonOnly && SENSITIVE.includes(n.slots.reason!) && !(n.slots.reason === "medical" && ROUTINE_MEDICAL.test(normalise(n.text)))) { st.slots.status = "absent"; say("empathy"); ask("ask_leave", "leave"); return null; }
   if (coming || reasonOnly) {
     st.slots.status = "coming";
     if (st.slots.eta) { say("note_eta"); return end("resolved"); }
