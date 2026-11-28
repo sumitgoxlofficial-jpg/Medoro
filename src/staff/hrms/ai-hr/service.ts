@@ -25,6 +25,7 @@ import { mailEnabled, sendMail } from "@/server/mail";
 import { aiHrDigestMail } from "../mails";
 import { digestWeek, type DigestStats } from "./digest";
 import { pushTo } from "./push";
+import { GOOGLE_VOICES, googleConfigured, googleSpeak, monthUsage, type GoogleVoice } from "./google-tts";
 
 // The AI HR Assistant's server side. It detects attendance exceptions from the HRMS's own records (the same shift,
 // leave, holiday and weekly-off rules the attendance screens use), schedules a conversation per event exactly once,
@@ -62,7 +63,10 @@ export const configSchema = z.object({
    * voice on every phone and laptop, nothing to install), "device" is each device's own voice. With "server", if the AI
    * host is unreachable, the device's voice is used instead.
    */
-  voiceFrom: z.enum(["server", "device"]).default("device"),
+  voiceFrom: z.enum(["server", "device", "google"]).default("device"),
+  /** With voiceFrom "google": which natural female voice (google-tts.ts), and the most characters a month (free allowance). */
+  googleVoice: z.enum(Object.keys(GOOGLE_VOICES) as [GoogleVoice, ...GoogleVoice[]]).default("hi-IN-Chirp3-HD-Kore"),
+  googleMonthlyChars: z.number().int().min(10_000).max(5_000_000).default(900_000),
   /** A weekly summary email to everyone with Attendance & leave (Monday), when email is set up. */
   weeklyDigest: z.boolean().default(true),
 });
@@ -70,7 +74,7 @@ export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", voiceFrom: "device", weeklyDigest: true,
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", voiceFrom: "device", googleVoice: "hi-IN-Chirp3-HD-Kore", googleMonthlyChars: 900_000, weeklyDigest: true,
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -506,9 +510,12 @@ async function cachedHealth() {
   return h;
 }
 export async function myCalls(me: Me) {
-  const [calls, consent, cfg, h] = await Promise.all([
+  const cfg = await loadConfig();
+  // The AI host is asked about only when it does something here (Google's voice needs no health check).
+  const usesHost = !!ai.serviceConfig() && (cfg.speech === "server" || cfg.voiceFrom === "server");
+  const [calls, consent, h] = await Promise.all([
     db.aiHrCall.findMany({ where: { staffId: me.id }, orderBy: { createdAt: "desc" }, take: 15, include: { response: { select: { summary: true } } } }),
-    db.aiHrConsent.findUnique({ where: { staffId: me.id } }), loadConfig(), ai.serviceConfig() ? cachedHealth() : Promise.resolve(null),
+    db.aiHrConsent.findUnique({ where: { staffId: me.id } }), usesHost ? cachedHealth() : Promise.resolve(null),
   ]);
   return {
     open: calls.filter((c) => ["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status })),
@@ -518,17 +525,19 @@ export async function myCalls(me: Me) {
     // Server speech only when the AI host answers; browser speech needs nothing from the server.
     voice: cfg.speech === "browser" || (cfg.speech === "server" && !!h?.reachable && h.stt?.ok !== false),
     /** Medoro's own voice is speaking (the AI host answers): the browser asks the server for audio with each reply. */
-    serverVoice: cfg.speech !== "off" && (cfg.speech === "server" || cfg.voiceFrom === "server") && !!h?.reachable && h.tts?.ok !== false,
+    serverVoice: cfg.speech !== "off" && ((cfg.voiceFrom === "google" && cfg.speech === "browser" && googleConfigured()) || ((cfg.speech === "server" || cfg.voiceFrom === "server") && !!h?.reachable && h.tts?.ok !== false)),
     tts: cfg.speech === "server" ? !!h?.reachable && h.tts?.ok !== false : cfg.speech === "browser",
     retentionDays: cfg.retentionDays,
   };
 }
 
 async function maybeSpeak(text: string, cfg: AiHrConfig, whole = false): Promise<{ audio: string; mime: string; ms: number; rest?: string } | null> {
-  if (cfg.speech === "off" || (cfg.speech !== "server" && cfg.voiceFrom !== "server") || !ai.serviceConfig() || !text) return null;
+  const google = cfg.speech === "browser" && cfg.voiceFrom === "google";
+  if (cfg.speech === "off" || !text || (google ? !googleConfigured() : (cfg.speech !== "server" && cfg.voiceFrom !== "server") || !ai.serviceConfig())) return null;
   // Naina starts talking sooner: only the first sentence is made now; the browser asks for the rest while she speaks.
   const parts = whole ? [text] : text.split(/(?<=[।.!?])\s+/).filter(Boolean);
   const first = parts.length > 1 && text.length > 70 ? parts[0] : text, rest = first === text ? "" : text.slice(first.length).trim();
+  if (google) { const g = await googleSpeak(first, cfg.googleVoice, cfg.googleMonthlyChars); return g ? { ...g, ...(rest ? { rest } : {}) } : null; }
   try { return { ...(await ai.speak(first)), ...(rest ? { rest } : {}) }; } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
 }
 /** The rest of a reply's audio (after its first sentence), for the employee whose conversation it is. */
@@ -890,6 +899,6 @@ export async function playground(me: Me, raw: z.input<typeof pgInput>) {
 export async function modelStatus(me: Me) {
   need(me, "attendance");
   const config = await loadConfig();
-  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", mail: mailEnabled(), config, speechFiles: await speechFilesStatus(config.sttModel) };
+  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", mail: mailEnabled(), google: { configured: googleConfigured(), usedThisMonth: await monthUsage(), voices: GOOGLE_VOICES }, config, speechFiles: await speechFilesStatus(config.sttModel) };
 }
 export { can };

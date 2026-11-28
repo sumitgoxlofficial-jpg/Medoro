@@ -1,5 +1,17 @@
 # AI HR Assistant — technical handover
 
+## Update 9 (2026-11-28): Google natural voice, faster replies, small talk
+* Settings → Naina's voice: **Google natural voice** (`google-tts.ts`, Cloud Text-to-Speech REST with an API key kept on
+  the server, `GOOGLE_TTS_API_KEY`). Devanagari goes to the chosen hi-IN voice (Chirp 3 HD Kore/Aoede or Neural2 A/D;
+  an unavailable voice falls back to Neural2-A once), Latin text to en-IN. Characters are counted per month in
+  `HrSetting` `aiHrTtsUsage:YYYY-MM`; past the limit (default 900,000) or on any Google error, devices speak instead.
+  Only the reply text is sent (it can include the employee's first name). Set-up: docs/OFFICE_SERVER.md §10d.
+* Faster: long replies send the first sentence's audio first and fetch the rest while she speaks; the laptop voice
+  server caches spoken lines and loads the voice at start-up; listening waits at most ~18 s.
+* Small talk: "can you hear me?" (Hinglish/Devanagari) and "how are you?" are answered, then back to the question.
+* Tested: unit, integration with stand-ins for Google (voice, key header, usage, fallback, limit, refusal) and the AI
+  host; e2e. Not tested: the real Google service (needs your key).
+
 ## Update 8 (2026-11-28): Medoro's built-in voice for Naina
 * Settings → **Naina's voice**: "Medoro's built-in voice (same for everyone)" or "Each device's own voice". The built-in
   voice is the Piper Hindi female voice on Medoro's AI host (`ai-service`, office computer set up with `--ai`): the
