@@ -1,0 +1,834 @@
+{
+ "version": "2027.01.1",
+ "validation": {
+  "total": 1000,
+  "categories": 100,
+  "perCategory": {
+   "late_arrival": 10,
+   "traffic": 10,
+   "public_transport": 10,
+   "vehicle_breakdown": 10,
+   "weather": 10,
+   "personal_emergency": 10,
+   "family_emergency": 10,
+   "medical_emergency": 10,
+   "sudden_illness": 10,
+   "medical_appointment": 10,
+   "employee_absence": 10,
+   "unplanned_absence": 10,
+   "leave_already_applied": 10,
+   "leave_pending": 10,
+   "leave_rejected": 10,
+   "leave_balance": 10,
+   "leave_cancellation": 10,
+   "half_day": 10,
+   "emergency_leave": 10,
+   "wfh_enquiry": 10,
+   "remote_attendance": 10,
+   "missing_checkin": 10,
+   "missing_checkout": 10,
+   "forgotten_attendance": 10,
+   "incorrect_attendance": 10,
+   "biometric_failure": 10,
+   "hrms_login": 10,
+   "gps_permission": 10,
+   "attendance_correction": 10,
+   "early_departure": 10,
+   "shift_changes": 10,
+   "shift_swaps": 10,
+   "night_shifts": 10,
+   "rotational_shifts": 10,
+   "weekly_off": 10,
+   "holiday_enquiry": 10,
+   "overtime_requests": 10,
+   "overtime_rejection": 10,
+   "overtime_availability": 10,
+   "overtime_timing": 10,
+   "payroll_enquiry": 10,
+   "salary_discrepancy": 10,
+   "payslip": 10,
+   "incentive": 10,
+   "reimbursement": 10,
+   "onboarding": 10,
+   "offer_letter": 10,
+   "joining_date": 10,
+   "document_submission": 10,
+   "profile_update": 10,
+   "bank_details": 10,
+   "emergency_contact": 10,
+   "id_card": 10,
+   "hr_policy": 10,
+   "manager_approval_delay": 10,
+   "hr_followup": 10,
+   "grievance": 10,
+   "workplace_conflict": 10,
+   "workload": 10,
+   "performance": 10,
+   "training": 10,
+   "resignation": 10,
+   "notice_period": 10,
+   "exit_formalities": 10,
+   "final_settlement": 10,
+   "recognition": 10,
+   "general_hr": 10,
+   "busy": 10,
+   "callback": 10,
+   "refusal": 10,
+   "human_hr": 10,
+   "stop_calling": 10,
+   "angry": 10,
+   "confused": 10,
+   "hindi_only": 10,
+   "english_only": 10,
+   "hinglish": 10,
+   "language_switching": 10,
+   "poor_network": 10,
+   "incomplete_answers": 10,
+   "contradictory_answers": 10,
+   "unrelated_questions": 10,
+   "ai_identity": 10,
+   "privacy_concerns": 10,
+   "recording_questions": 10,
+   "harassment_report": 10,
+   "accident_report": 10,
+   "workplace_emergency": 10,
+   "accessibility": 10,
+   "manager_escalation": 10,
+   "hr_escalation": 10,
+   "multiple_pending": 10,
+   "attendance_leave_conflict": 10,
+   "overlapping_shifts": 10,
+   "approved_holiday": 10,
+   "already_checked_in": 10,
+   "attendance_sync": 10,
+   "hrms_access": 10,
+   "notification_explanation": 10,
+   "complex_multi": 10
+  },
+  "duplicates": [],
+  "problems": [],
+  "valid": 1000
+ },
+ "total": 1000,
+ "passed": 966,
+ "bySplit": {
+  "tuning": {
+   "total": 800,
+   "passed": 781
+  },
+  "held_out": {
+   "total": 200,
+   "passed": 185
+  }
+ },
+ "metrics": {
+  "structured_output": {
+   "checked": 1000,
+   "ok": 1000,
+   "rate": 100
+  },
+  "intent": {
+   "checked": 641,
+   "ok": 621,
+   "rate": 96.9
+  },
+  "slot_eta": {
+   "checked": 137,
+   "ok": 134,
+   "rate": 97.8
+  },
+  "escalation": {
+   "checked": 641,
+   "ok": 638,
+   "rate": 99.5
+  },
+  "no_false_stop": {
+   "checked": 982,
+   "ok": 982,
+   "rate": 100
+  },
+  "one_question": {
+   "checked": 1000,
+   "ok": 1000,
+   "rate": 100
+  },
+  "not_robotic": {
+   "checked": 1000,
+   "ok": 999,
+   "rate": 99.9
+  },
+  "no_repeated_question": {
+   "checked": 1000,
+   "ok": 1000,
+   "rate": 100
+  },
+  "ai_disclosure": {
+   "checked": 1000,
+   "ok": 1000,
+   "rate": 100
+  },
+  "no_invented_numbers": {
+   "checked": 1000,
+   "ok": 1000,
+   "rate": 100
+  },
+  "next_question": {
+   "checked": 64,
+   "ok": 59,
+   "rate": 92.2
+  },
+  "slot_reason": {
+   "checked": 129,
+   "ok": 123,
+   "rate": 95.3
+  },
+  "language_match": {
+   "checked": 157,
+   "ok": 157,
+   "rate": 100
+  },
+  "leave_draft": {
+   "checked": 62,
+   "ok": 61,
+   "rate": 98.4
+  },
+  "kb_grounded": {
+   "checked": 318,
+   "ok": 315,
+   "rate": 99.1
+  },
+  "slot_left": {
+   "checked": 15,
+   "ok": 13,
+   "rate": 86.7
+  },
+  "slot_callback": {
+   "checked": 19,
+   "ok": 19,
+   "rate": 100
+  },
+  "stop_compliance": {
+   "checked": 18,
+   "ok": 18,
+   "rate": 100
+  }
+ },
+ "byCategory": {
+  "late_arrival": {
+   "total": 10,
+   "passed": 10
+  },
+  "traffic": {
+   "total": 10,
+   "passed": 10
+  },
+  "public_transport": {
+   "total": 10,
+   "passed": 10
+  },
+  "vehicle_breakdown": {
+   "total": 10,
+   "passed": 10
+  },
+  "weather": {
+   "total": 10,
+   "passed": 10
+  },
+  "personal_emergency": {
+   "total": 10,
+   "passed": 9
+  },
+  "family_emergency": {
+   "total": 10,
+   "passed": 9
+  },
+  "medical_emergency": {
+   "total": 10,
+   "passed": 10
+  },
+  "sudden_illness": {
+   "total": 10,
+   "passed": 10
+  },
+  "medical_appointment": {
+   "total": 10,
+   "passed": 7
+  },
+  "employee_absence": {
+   "total": 10,
+   "passed": 10
+  },
+  "unplanned_absence": {
+   "total": 10,
+   "passed": 9
+  },
+  "leave_already_applied": {
+   "total": 10,
+   "passed": 10
+  },
+  "leave_pending": {
+   "total": 10,
+   "passed": 8
+  },
+  "leave_rejected": {
+   "total": 10,
+   "passed": 10
+  },
+  "leave_balance": {
+   "total": 10,
+   "passed": 10
+  },
+  "leave_cancellation": {
+   "total": 10,
+   "passed": 10
+  },
+  "half_day": {
+   "total": 10,
+   "passed": 10
+  },
+  "emergency_leave": {
+   "total": 10,
+   "passed": 10
+  },
+  "wfh_enquiry": {
+   "total": 10,
+   "passed": 10
+  },
+  "remote_attendance": {
+   "total": 10,
+   "passed": 8
+  },
+  "missing_checkin": {
+   "total": 10,
+   "passed": 9
+  },
+  "missing_checkout": {
+   "total": 10,
+   "passed": 10
+  },
+  "forgotten_attendance": {
+   "total": 10,
+   "passed": 9
+  },
+  "incorrect_attendance": {
+   "total": 10,
+   "passed": 9
+  },
+  "biometric_failure": {
+   "total": 10,
+   "passed": 10
+  },
+  "hrms_login": {
+   "total": 10,
+   "passed": 10
+  },
+  "gps_permission": {
+   "total": 10,
+   "passed": 10
+  },
+  "attendance_correction": {
+   "total": 10,
+   "passed": 10
+  },
+  "early_departure": {
+   "total": 10,
+   "passed": 8
+  },
+  "shift_changes": {
+   "total": 10,
+   "passed": 9
+  },
+  "shift_swaps": {
+   "total": 10,
+   "passed": 10
+  },
+  "night_shifts": {
+   "total": 10,
+   "passed": 9
+  },
+  "rotational_shifts": {
+   "total": 10,
+   "passed": 8
+  },
+  "weekly_off": {
+   "total": 10,
+   "passed": 9
+  },
+  "holiday_enquiry": {
+   "total": 10,
+   "passed": 10
+  },
+  "overtime_requests": {
+   "total": 10,
+   "passed": 10
+  },
+  "overtime_rejection": {
+   "total": 10,
+   "passed": 10
+  },
+  "overtime_availability": {
+   "total": 10,
+   "passed": 9
+  },
+  "overtime_timing": {
+   "total": 10,
+   "passed": 9
+  },
+  "payroll_enquiry": {
+   "total": 10,
+   "passed": 10
+  },
+  "salary_discrepancy": {
+   "total": 10,
+   "passed": 10
+  },
+  "payslip": {
+   "total": 10,
+   "passed": 10
+  },
+  "incentive": {
+   "total": 10,
+   "passed": 10
+  },
+  "reimbursement": {
+   "total": 10,
+   "passed": 10
+  },
+  "onboarding": {
+   "total": 10,
+   "passed": 10
+  },
+  "offer_letter": {
+   "total": 10,
+   "passed": 10
+  },
+  "joining_date": {
+   "total": 10,
+   "passed": 10
+  },
+  "document_submission": {
+   "total": 10,
+   "passed": 10
+  },
+  "profile_update": {
+   "total": 10,
+   "passed": 10
+  },
+  "bank_details": {
+   "total": 10,
+   "passed": 10
+  },
+  "emergency_contact": {
+   "total": 10,
+   "passed": 10
+  },
+  "id_card": {
+   "total": 10,
+   "passed": 10
+  },
+  "hr_policy": {
+   "total": 10,
+   "passed": 10
+  },
+  "manager_approval_delay": {
+   "total": 10,
+   "passed": 9
+  },
+  "hr_followup": {
+   "total": 10,
+   "passed": 10
+  },
+  "grievance": {
+   "total": 10,
+   "passed": 10
+  },
+  "workplace_conflict": {
+   "total": 10,
+   "passed": 10
+  },
+  "workload": {
+   "total": 10,
+   "passed": 10
+  },
+  "performance": {
+   "total": 10,
+   "passed": 9
+  },
+  "training": {
+   "total": 10,
+   "passed": 10
+  },
+  "resignation": {
+   "total": 10,
+   "passed": 10
+  },
+  "notice_period": {
+   "total": 10,
+   "passed": 10
+  },
+  "exit_formalities": {
+   "total": 10,
+   "passed": 10
+  },
+  "final_settlement": {
+   "total": 10,
+   "passed": 10
+  },
+  "recognition": {
+   "total": 10,
+   "passed": 10
+  },
+  "general_hr": {
+   "total": 10,
+   "passed": 10
+  },
+  "busy": {
+   "total": 10,
+   "passed": 10
+  },
+  "callback": {
+   "total": 10,
+   "passed": 10
+  },
+  "refusal": {
+   "total": 10,
+   "passed": 9
+  },
+  "human_hr": {
+   "total": 10,
+   "passed": 10
+  },
+  "stop_calling": {
+   "total": 10,
+   "passed": 10
+  },
+  "angry": {
+   "total": 10,
+   "passed": 9
+  },
+  "confused": {
+   "total": 10,
+   "passed": 9
+  },
+  "hindi_only": {
+   "total": 10,
+   "passed": 10
+  },
+  "english_only": {
+   "total": 10,
+   "passed": 10
+  },
+  "hinglish": {
+   "total": 10,
+   "passed": 10
+  },
+  "language_switching": {
+   "total": 10,
+   "passed": 10
+  },
+  "poor_network": {
+   "total": 10,
+   "passed": 9
+  },
+  "incomplete_answers": {
+   "total": 10,
+   "passed": 10
+  },
+  "contradictory_answers": {
+   "total": 10,
+   "passed": 8
+  },
+  "unrelated_questions": {
+   "total": 10,
+   "passed": 10
+  },
+  "ai_identity": {
+   "total": 10,
+   "passed": 10
+  },
+  "privacy_concerns": {
+   "total": 10,
+   "passed": 10
+  },
+  "recording_questions": {
+   "total": 10,
+   "passed": 10
+  },
+  "harassment_report": {
+   "total": 10,
+   "passed": 10
+  },
+  "accident_report": {
+   "total": 10,
+   "passed": 10
+  },
+  "workplace_emergency": {
+   "total": 10,
+   "passed": 10
+  },
+  "accessibility": {
+   "total": 10,
+   "passed": 10
+  },
+  "manager_escalation": {
+   "total": 10,
+   "passed": 10
+  },
+  "hr_escalation": {
+   "total": 10,
+   "passed": 10
+  },
+  "multiple_pending": {
+   "total": 10,
+   "passed": 10
+  },
+  "attendance_leave_conflict": {
+   "total": 10,
+   "passed": 8
+  },
+  "overlapping_shifts": {
+   "total": 10,
+   "passed": 10
+  },
+  "approved_holiday": {
+   "total": 10,
+   "passed": 10
+  },
+  "already_checked_in": {
+   "total": 10,
+   "passed": 10
+  },
+  "attendance_sync": {
+   "total": 10,
+   "passed": 9
+  },
+  "hrms_access": {
+   "total": 10,
+   "passed": 10
+  },
+  "notification_explanation": {
+   "total": 10,
+   "passed": 10
+  },
+  "complex_multi": {
+   "total": 10,
+   "passed": 9
+  }
+ },
+ "failures": [
+  {
+   "id": "personal_emergency-04",
+   "failed": [
+    "slot_reason (want personal, got emergency)"
+   ]
+  },
+  {
+   "id": "family_emergency-10",
+   "failed": [
+    "slot_reason (want family, got illness)"
+   ]
+  },
+  {
+   "id": "medical_appointment-05",
+   "failed": [
+    "intent (want coming, got absent)"
+   ]
+  },
+  {
+   "id": "medical_appointment-08",
+   "failed": [
+    "slot_reason (want medical, got )"
+   ]
+  },
+  {
+   "id": "medical_appointment-10",
+   "failed": [
+    "slot_reason (want medical, got )"
+   ]
+  },
+  {
+   "id": "unplanned_absence-10",
+   "failed": [
+    "intent (want coming, got unknown)",
+    "slot_eta (want 11:20, got )"
+   ]
+  },
+  {
+   "id": "leave_pending-06",
+   "failed": [
+    "intent (want absent, got leave_applied)",
+    "next_question (want ask_leave, got ended:resolved)"
+   ]
+  },
+  {
+   "id": "leave_pending-10",
+   "failed": [
+    "intent (want leave_applied, got escalated)",
+    "escalation (want none, got normal)"
+   ]
+  },
+  {
+   "id": "remote_attendance-07",
+   "failed": [
+    "slot_reason (want work, got )"
+   ]
+  },
+  {
+   "id": "remote_attendance-08",
+   "failed": [
+    "intent (want coming, got at_office)",
+    "slot_reason (want work, got )",
+    "next_question (want ask_eta, got ended:resolved)"
+   ]
+  },
+  {
+   "id": "missing_checkin-05",
+   "failed": [
+    "intent (want system_issue, got at_office)"
+   ]
+  },
+  {
+   "id": "forgotten_attendance-04",
+   "failed": [
+    "intent (want at_office, got coming)"
+   ]
+  },
+  {
+   "id": "incorrect_attendance-03",
+   "failed": [
+    "intent (want system_issue, got at_office)"
+   ]
+  },
+  {
+   "id": "early_departure-09",
+   "failed": [
+    "slot_left (want 17:15, got )"
+   ]
+  },
+  {
+   "id": "early_departure-10",
+   "failed": [
+    "intent (want forgot_checkout, got escalated)",
+    "slot_left (want 17:00, got )",
+    "escalation (want none, got normal)"
+   ]
+  },
+  {
+   "id": "shift_changes-06",
+   "failed": [
+    "kb_grounded (open)"
+   ]
+  },
+  {
+   "id": "night_shifts-07",
+   "failed": [
+    "slot_eta (want 03:00, got 15:00)"
+   ]
+  },
+  {
+   "id": "rotational_shifts-05",
+   "failed": [
+    "intent (want not_scheduled, got unknown)"
+   ]
+  },
+  {
+   "id": "rotational_shifts-10",
+   "failed": [
+    "intent (want not_scheduled, got coming)"
+   ]
+  },
+  {
+   "id": "weekly_off-10",
+   "failed": [
+    "intent (want not_scheduled, got unknown)"
+   ]
+  },
+  {
+   "id": "overtime_availability-10",
+   "failed": [
+    "intent (want overtime_question, got unknown)"
+   ]
+  },
+  {
+   "id": "overtime_timing-08",
+   "failed": [
+    "intent (want overtime_question, got unknown)"
+   ]
+  },
+  {
+   "id": "manager_approval_delay-03",
+   "failed": [
+    "kb_grounded (open)"
+   ]
+  },
+  {
+   "id": "performance-07",
+   "failed": [
+    "kb_grounded (open)"
+   ]
+  },
+  {
+   "id": "refusal-05",
+   "failed": [
+    "intent (want declined, got unknown)"
+   ]
+  },
+  {
+   "id": "angry-03",
+   "failed": [
+    "not_robotic"
+   ]
+  },
+  {
+   "id": "confused-07",
+   "failed": [
+    "intent (want unclear, got unknown)"
+   ]
+  },
+  {
+   "id": "poor_network-04",
+   "failed": [
+    "next_question (want q_late, got simple_late)"
+   ]
+  },
+  {
+   "id": "contradictory_answers-05",
+   "failed": [
+    "intent (want coming, got absent)",
+    "slot_eta (want 11:00, got )"
+   ]
+  },
+  {
+   "id": "contradictory_answers-09",
+   "failed": [
+    "next_question (want ask_eta, got ask_eta_hint)"
+   ]
+  },
+  {
+   "id": "attendance_leave_conflict-05",
+   "failed": [
+    "intent (want half_day, got leave_applied)",
+    "leave_draft (want true, got false)"
+   ]
+  },
+  {
+   "id": "attendance_leave_conflict-09",
+   "failed": [
+    "intent (want escalated, got leave_applied)",
+    "escalation (want normal, got none)"
+   ]
+  },
+  {
+   "id": "attendance_sync-05",
+   "failed": [
+    "intent (want system_issue, got unknown)"
+   ]
+  },
+  {
+   "id": "complex_multi-06",
+   "failed": [
+    "next_question (want ask_callback, got ended:callback)"
+   ]
+  }
+ ]
+}

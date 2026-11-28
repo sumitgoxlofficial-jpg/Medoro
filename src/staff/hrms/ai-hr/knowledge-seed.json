@@ -1,0 +1,1346 @@
+[
+ {
+  "key": "screen.home",
+  "kind": "module",
+  "title": "Home screen",
+  "body": "The Home screen in the Medoro HRMS (menu WORK): Home. It opens for: Employee.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.home"
+ },
+ {
+  "key": "screen.slhome",
+  "kind": "module",
+  "title": "Dashboard screen",
+  "body": "The Sales screen in the Medoro HRMS (menu WORK): Sales. It opens for: Sales.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.slhome"
+ },
+ {
+  "key": "screen.hrhome",
+  "kind": "module",
+  "title": "Dashboard screen",
+  "body": "The HR screen in the Medoro HRMS (menu WORK): HR. It opens for: HR Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrhome"
+ },
+ {
+  "key": "screen.sahome",
+  "kind": "module",
+  "title": "Dashboard screen",
+  "body": "The Super Admin screen in the Medoro HRMS (menu WORK): Super Admin. It opens for: Super Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.sahome"
+ },
+ {
+  "key": "screen.finhome",
+  "kind": "module",
+  "title": "Dashboard screen",
+  "body": "The Accounts screen in the Medoro HRMS (menu WORK): Accounts. It opens for: Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.finhome"
+ },
+ {
+  "key": "screen.slboard",
+  "kind": "module",
+  "title": "Lead Tracker screen",
+  "body": "The Lead Tracker screen in the Medoro HRMS (menu WORK): Move each pharmacy from first call to won. It opens for: Sales.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.slboard"
+ },
+ {
+  "key": "screen.slleads",
+  "kind": "module",
+  "title": "My Leads screen",
+  "body": "The My Leads screen in the Medoro HRMS (menu WORK): Pharmacies assigned to you by HR. It opens for: Sales.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.slleads"
+ },
+ {
+  "key": "screen.training",
+  "kind": "module",
+  "title": "My Sales Training screen",
+  "body": "The My Sales Training screen in the Medoro HRMS (menu WORK): Medoro Sales Training Academy · one-day programme. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.training"
+ },
+ {
+  "key": "screen.trdesk",
+  "kind": "module",
+  "title": "Trainer Desk screen",
+  "body": "The Trainer Desk screen in the Medoro HRMS (menu TEAM): Attendance, practical scoring and recommendations for your batches. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.trdesk"
+ },
+ {
+  "key": "screen.approvals",
+  "kind": "module",
+  "title": "Approvals screen",
+  "body": "The Approvals screen in the Medoro HRMS (menu WORK): Requests waiting for you, what you asked for, delegation and individual access. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.approvals"
+ },
+ {
+  "key": "screen.kpis",
+  "kind": "module",
+  "title": "KPIs screen",
+  "body": "The KPIs & output screen in the Medoro HRMS (menu WORK): Output, quality and outcomes against targets, with the evidence and the formula behind every score. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.kpis"
+ },
+ {
+  "key": "screen.myprojects",
+  "kind": "module",
+  "title": "My Projects screen",
+  "body": "The My Projects screen in the Medoro HRMS (menu WORK): Projects you are part of. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.myprojects"
+ },
+ {
+  "key": "screen.mytasks",
+  "kind": "module",
+  "title": "My Tasks screen",
+  "body": "The My Tasks screen in the Medoro HRMS (menu WORK): Tasks assigned to you by your lead. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.mytasks"
+ },
+ {
+  "key": "screen.calendar",
+  "kind": "module",
+  "title": "Calendar screen",
+  "body": "The Calendar screen in the Medoro HRMS (menu WORK): Holidays, meetings and who is out. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.calendar"
+ },
+ {
+  "key": "screen.myteam",
+  "kind": "module",
+  "title": "My Team screen",
+  "body": "The My Team screen in the Medoro HRMS (menu TEAM): The people who report to you: today, approvals, tasks and this month. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.myteam"
+ },
+ {
+  "key": "screen.perf",
+  "kind": "module",
+  "title": "Performance screen",
+  "body": "The Performance screen in the Medoro HRMS (menu TEAM): Live progress, weekly and monthly reports · Employee of the Month. It opens for anyone holding the Reports module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.perf"
+ },
+ {
+  "key": "screen.mgmt",
+  "kind": "module",
+  "title": "Management screen",
+  "body": "The Management dashboard screen in the Medoro HRMS (menu TEAM): Headcount, attrition, attendance, KPIs, learning, engagement, operations and payroll cost, with every definition. It opens for anyone holding the Reports module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.mgmt"
+ },
+ {
+  "key": "screen.hrappraisals",
+  "kind": "module",
+  "title": "Appraisals screen",
+  "body": "The Appraisals screen in the Medoro HRMS (menu TEAM): Review cycles: self-assessment, manager review and final rating. It opens for anyone holding the Reports module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrappraisals"
+ },
+ {
+  "key": "screen.assigntasks",
+  "kind": "module",
+  "title": "Assign Tasks screen",
+  "body": "The Assign Tasks screen in the Medoro HRMS (menu TEAM): Assign and track tasks across the team. It opens for anyone holding the Tasks & projects module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.assigntasks"
+ },
+ {
+  "key": "screen.assignprojects",
+  "kind": "module",
+  "title": "Projects screen",
+  "body": "The Projects screen in the Medoro HRMS (menu TEAM): Assign and track project allocations. It opens for anyone holding the Tasks & projects module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.assignprojects"
+ },
+ {
+  "key": "screen.hrleads",
+  "kind": "module",
+  "title": "Leads screen",
+  "body": "The Leads screen in the Medoro HRMS (menu TEAM): Upload pharmacy leads and assign them to the sales team. It opens for anyone holding the Leads module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrleads"
+ },
+ {
+  "key": "screen.hremployees",
+  "kind": "module",
+  "title": "Employees screen",
+  "body": "The Employees screen in the Medoro HRMS (menu PEOPLE): Directory. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hremployees"
+ },
+ {
+  "key": "screen.hrnewemp",
+  "kind": "module",
+  "title": "New Employee screen",
+  "body": "The New employee screen in the Medoro HRMS (menu PEOPLE): Official email, employee ID, password and joining documents are generated for you. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrnewemp"
+ },
+ {
+  "key": "screen.departments",
+  "kind": "module",
+  "title": "Departments screen",
+  "body": "The Departments screen in the Medoro HRMS (menu PEOPLE): Org structure and heads. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.departments"
+ },
+ {
+  "key": "screen.recruit",
+  "kind": "module",
+  "title": "Recruitment screen",
+  "body": "The Recruitment (ATS) screen in the Medoro HRMS (menu PEOPLE): Openings, pipeline and offers. It opens for anyone holding the Recruitment module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.recruit"
+ },
+ {
+  "key": "screen.hrattendance",
+  "kind": "module",
+  "title": "Team Attendance screen",
+  "body": "The Team Attendance screen in the Medoro HRMS (menu PEOPLE): Today. It opens for anyone holding the Attendance & leave module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrattendance"
+ },
+ {
+  "key": "screen.workforce",
+  "kind": "module",
+  "title": "Workforce devices screen",
+  "body": "The Workforce devices & activity screen in the Medoro HRMS (menu PEOPLE): Company PCs, enrolment codes, disputes and the team’s activity (context, not a score). It opens for anyone holding the Attendance & leave module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.workforce"
+ },
+ {
+  "key": "screen.hrshifts",
+  "kind": "module",
+  "title": "Shifts & roster screen",
+  "body": "The Shifts, roster & workforce operations screen in the Medoro HRMS (menu PEOPLE): Shifts, who works which, overtime, and what would hold up this month’s payroll. It opens for anyone holding the Attendance & leave module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrshifts"
+ },
+ {
+  "key": "screen.hrleave",
+  "kind": "module",
+  "title": "Leave Management screen",
+  "body": "The Leave Management screen in the Medoro HRMS (menu PEOPLE): Approvals and team calendar. It opens for anyone holding the Attendance & leave module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrleave"
+ },
+ {
+  "key": "screen.credentials",
+  "kind": "module",
+  "title": "Credentials screen",
+  "body": "The Credentials screen in the Medoro HRMS (menu PEOPLE): One-time passwords and login status for every employee. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.credentials"
+ },
+ {
+  "key": "screen.onboarding",
+  "kind": "module",
+  "title": "Onboarding screen",
+  "body": "The Onboarding screen in the Medoro HRMS (menu PEOPLE): Joining checklists and welcome kits. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.onboarding"
+ },
+ {
+  "key": "screen.hrpolicies",
+  "kind": "module",
+  "title": "Policies screen",
+  "body": "The Policies screen in the Medoro HRMS (menu PEOPLE): Publish the company handbook and see who has acknowledged it. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrpolicies"
+ },
+ {
+  "key": "screen.hrexits",
+  "kind": "module",
+  "title": "Exits screen",
+  "body": "The Exits screen in the Medoro HRMS (menu PEOPLE): Resignations, clearance and exit interviews. It opens for anyone holding the Employees module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrexits"
+ },
+ {
+  "key": "screen.payroll",
+  "kind": "module",
+  "title": "Payroll screen",
+  "body": "The Payroll screen in the Medoro HRMS (menu PEOPLE): India compliance. It opens for anyone holding the Payroll module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.payroll"
+ },
+ {
+  "key": "screen.reports",
+  "kind": "module",
+  "title": "Reports screen",
+  "body": "The Reports screen in the Medoro HRMS (menu PEOPLE): Headcount, attendance, leave and payroll. It opens for anyone holding the Reports module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.reports"
+ },
+ {
+  "key": "screen.academy",
+  "kind": "module",
+  "title": "Sales Academy screen",
+  "body": "The Sales Academy screen in the Medoro HRMS (menu PEOPLE): Batches, course builder, assessments, certificates and reports. It opens for anyone holding the Sales Academy module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.academy"
+ },
+ {
+  "key": "screen.allyusage",
+  "kind": "module",
+  "title": "Ally Usage screen",
+  "body": "The Ally Usage screen in the Medoro HRMS (menu PEOPLE): How much the team uses the assistant. It opens for anyone holding the Reports module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.allyusage"
+ },
+ {
+  "key": "screen.fin_contacts",
+  "kind": "module",
+  "title": "Contacts screen",
+  "body": "The Contacts screen in the Medoro HRMS (menu ACCOUNTS): Customers and vendors. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_contacts"
+ },
+ {
+  "key": "screen.fin_sales",
+  "kind": "module",
+  "title": "Sales & Invoices screen",
+  "body": "The Sales & Invoices screen in the Medoro HRMS (menu ACCOUNTS): Invoices, quotes and receivables. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_sales"
+ },
+ {
+  "key": "screen.fin_purchases",
+  "kind": "module",
+  "title": "Purchases & Expenses screen",
+  "body": "The Purchases & Expenses screen in the Medoro HRMS (menu ACCOUNTS): Bills, expenses and payables. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_purchases"
+ },
+ {
+  "key": "screen.fin_accounting",
+  "kind": "module",
+  "title": "Accounting screen",
+  "body": "The Accounting screen in the Medoro HRMS (menu ACCOUNTS): Ledgers, journals and chart of accounts. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_accounting"
+ },
+ {
+  "key": "screen.fin_salescrm",
+  "kind": "module",
+  "title": "Sales CRM & Leads screen",
+  "body": "The Sales CRM & Leads screen in the Medoro HRMS (menu ACCOUNTS): Pipeline and deal tracking. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_salescrm"
+ },
+ {
+  "key": "screen.fin_mktgcrm",
+  "kind": "module",
+  "title": "Marketing CRM screen",
+  "body": "The Marketing CRM screen in the Medoro HRMS (menu ACCOUNTS): Campaigns and audience. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_mktgcrm"
+ },
+ {
+  "key": "screen.fin_products",
+  "kind": "module",
+  "title": "Products & Inventory screen",
+  "body": "The Products & Inventory screen in the Medoro HRMS (menu ACCOUNTS): Stock, SKUs and valuation. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_products"
+ },
+ {
+  "key": "screen.fin_reports",
+  "kind": "module",
+  "title": "Reports screen",
+  "body": "The Reports screen in the Medoro HRMS (menu ACCOUNTS): Statements from the registers. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_reports"
+ },
+ {
+  "key": "screen.fin_gst",
+  "kind": "module",
+  "title": "GST Reports screen",
+  "body": "The GST Reports screen in the Medoro HRMS (menu ACCOUNTS): Output and input tax from invoices and bills. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_gst"
+ },
+ {
+  "key": "screen.fin_workflows",
+  "kind": "module",
+  "title": "Workflows & Automations screen",
+  "body": "The Workflows & Automations screen in the Medoro HRMS (menu ACCOUNTS): Rules that run your books. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_workflows"
+ },
+ {
+  "key": "screen.fin_banking",
+  "kind": "module",
+  "title": "Banking & Payments screen",
+  "body": "The Banking & Payments screen in the Medoro HRMS (menu ACCOUNTS): Accounts and payouts. It opens for anyone holding the Accounts module (Roles & Permissions).",
+  "source": "src/staff/hrms/constants.ts#SCREENS.fin_banking"
+ },
+ {
+  "key": "screen.saapprovals",
+  "kind": "module",
+  "title": "Approvals screen",
+  "body": "The Approvals screen in the Medoro HRMS (menu ADMIN): Final sign-off on reimbursement claims. It opens for: Super Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.saapprovals"
+ },
+ {
+  "key": "screen.saperms",
+  "kind": "module",
+  "title": "Roles & Permissions screen",
+  "body": "The Roles & Permissions screen in the Medoro HRMS (menu ADMIN): Configurable access per role. It opens for: Super Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.saperms"
+ },
+ {
+  "key": "screen.chatreview",
+  "kind": "module",
+  "title": "Chat review screen",
+  "body": "The Chat review screen in the Medoro HRMS (menu ADMIN): Open a conversation when you must. Every opening is logged. It opens for: Super Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.chatreview"
+ },
+ {
+  "key": "screen.auditlogs",
+  "kind": "module",
+  "title": "Audit Logs screen",
+  "body": "The Audit Logs screen in the Medoro HRMS (menu ADMIN): System and user activity. It opens for: Super Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.auditlogs"
+ },
+ {
+  "key": "screen.settings",
+  "kind": "module",
+  "title": "Settings screen",
+  "body": "The System Settings screen in the Medoro HRMS (menu ADMIN): Workforce policy, leave policy and company details. It opens for: Super Admin.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.settings"
+ },
+ {
+  "key": "screen.attendance",
+  "kind": "module",
+  "title": "Attendance screen",
+  "body": "The Attendance screen in the Medoro HRMS (menu ME): My attendance. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.attendance"
+ },
+ {
+  "key": "screen.leave",
+  "kind": "module",
+  "title": "Leave & Approvals screen",
+  "body": "The Leave screen in the Medoro HRMS (menu ME): Balances, requests and reimbursement claims. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.leave"
+ },
+ {
+  "key": "screen.appraisal",
+  "kind": "module",
+  "title": "My Review screen",
+  "body": "The My Review screen in the Medoro HRMS (menu ME): Your performance review, and your team's when you are a reporting manager. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.appraisal"
+ },
+ {
+  "key": "screen.myactivity",
+  "kind": "module",
+  "title": "My activity screen",
+  "body": "The My activity screen in the Medoro HRMS (menu ME): What your company PC records about you, the policy, corrections and disputes. It opens for: Employee, Sales, HR Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.myactivity"
+ },
+ {
+  "key": "screen.payslips",
+  "kind": "module",
+  "title": "Payslips screen",
+  "body": "The Payslips screen in the Medoro HRMS (menu ME): Salary history. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.payslips"
+ },
+ {
+  "key": "screen.assets",
+  "kind": "module",
+  "title": "Assets screen",
+  "body": "The Assets screen in the Medoro HRMS (menu ME): Devices and equipment assigned to you. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.assets"
+ },
+ {
+  "key": "screen.chat",
+  "kind": "module",
+  "title": "Team Chat screen",
+  "body": "The Team Chat screen in the Medoro HRMS (menu COMPANY): Private messages and groups. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.chat"
+ },
+ {
+  "key": "screen.jobs",
+  "kind": "module",
+  "title": "Work at Medoro screen",
+  "body": "The Work at Medoro screen in the Medoro HRMS (menu COMPANY): Open roles · refer someone you know. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.jobs"
+ },
+ {
+  "key": "screen.orgchart",
+  "kind": "module",
+  "title": "Org chart screen",
+  "body": "The Organisation screen in the Medoro HRMS (menu COMPANY): Who reports to whom, and your employment history. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.orgchart"
+ },
+ {
+  "key": "screen.learning",
+  "kind": "module",
+  "title": "Learning screen",
+  "body": "The Learning screen in the Medoro HRMS (menu COMPANY): Courses for your role: lessons, a short quiz and required deadlines. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.learning"
+ },
+ {
+  "key": "screen.engage",
+  "kind": "module",
+  "title": "Engagement screen",
+  "body": "The Engagement screen in the Medoro HRMS (menu COMPANY): Pulse surveys (anonymous unless stated) and their results. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.engage"
+ },
+ {
+  "key": "screen.policies",
+  "kind": "module",
+  "title": "Company policies screen",
+  "body": "The Company policies screen in the Medoro HRMS (menu COMPANY): The handbook: read each policy and acknowledge it. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.policies"
+ },
+ {
+  "key": "screen.hrvideos",
+  "kind": "module",
+  "title": "Training Videos screen",
+  "body": "The Training Videos screen in the Medoro HRMS (menu COMPANY): How to use the HRMS: short Hinglish videos for your role. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.hrvideos"
+ },
+ {
+  "key": "screen.support",
+  "kind": "module",
+  "title": "Support screen",
+  "body": "The Support screen in the Medoro HRMS (menu COMPANY): HR helpdesk. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.support"
+ },
+ {
+  "key": "screen.profile",
+  "kind": "module",
+  "title": "My profile screen",
+  "body": "The My profile screen in the Medoro HRMS (menu account menu): Personal, bank and emergency details. It opens for: Employee, Sales, HR Admin, Super Admin, Finance.",
+  "source": "src/staff/hrms/constants.ts#SCREENS.profile"
+ },
+ {
+  "key": "hrms.1",
+  "kind": "rule",
+  "title": "Medoro HRMS",
+  "body": "The team workspace for Medoro's own people, at /staff/hrms. Everyone signs in at /staff/employee with an employee ID (or official email) and password. Employees have no Google sign-in; HR creates every profile.",
+  "source": "docs/HRMS.md#Medoro HRMS"
+ },
+ {
+  "key": "hrms.2",
+  "kind": "rule",
+  "title": "Who sees what: Employee",
+  "body": "Home, My Tasks, Calendar, Attendance, Leave & Approvals (with reimbursement claims), Payslips, Work at Medoro (refer a candidate), Company policies, Support, My profile (with *Leaving Medoro*: resignation and exit interview)",
+  "source": "docs/HRMS.md#Who sees what"
+ },
+ {
+  "key": "hrms.3",
+  "kind": "rule",
+  "title": "Who sees what: Sales",
+  "body": "Dashboard (target, follow-ups, leaderboard, incentive), Lead Tracker, My Leads, plus the employee screens",
+  "source": "docs/HRMS.md#Who sees what"
+ },
+ {
+  "key": "hrms.4",
+  "kind": "rule",
+  "title": "Who sees what: HR Admin",
+  "body": "Everything an employee has, plus Employees, New Employee, Departments, Credentials, Onboarding, Exits, Policies, Team Attendance, Leave Management, Recruitment, Payroll, Performance, Assign Tasks, Projects, Leads, Reports, Ally Usage",
+  "source": "docs/HRMS.md#Who sees what"
+ },
+ {
+  "key": "hrms.5",
+  "kind": "rule",
+  "title": "Who sees what: Finance",
+  "body": "Dashboard, Contacts, Sales & Invoices, Purchases & Expenses, Accounting, Products, Banking, GST and Reports, Payroll",
+  "source": "docs/HRMS.md#Who sees what"
+ },
+ {
+  "key": "hrms.6",
+  "kind": "rule",
+  "title": "Who sees what: Super Admin",
+  "body": "Everything, plus Approvals, Roles & Permissions, Audit Logs, Settings",
+  "source": "docs/HRMS.md#Who sees what"
+ },
+ {
+  "key": "hrms.7",
+  "kind": "rule",
+  "title": "Who sees what",
+  "body": "A staff-console super admin is the HRMS super admin. HR and Finance are given by the super admin (or when creating a profile). *Roles & Permissions* turns HRMS modules on or off per role; changes are audited.",
+  "source": "docs/HRMS.md#Who sees what"
+ },
+ {
+  "key": "hrms.8",
+  "kind": "rule",
+  "title": "Sales Training Academy",
+  "body": "A one-day training programme for the sales team: My Sales Training for assigned employees, Trainer Desk for a batch's trainer and Sales Academy for HR (new *Sales Academy* module in Roles & Permissions). Official product tour, Hinglish lectures, quizzes, practicals scored by the trainer, and a certificate after trainer and HR approval. The course installs itself and every sales employee (Sales role or Sales department) is enrolled automatically; HR can turn auto-enrolment off in its Settings. See SALES_ACADEMY.md.",
+  "source": "docs/HRMS.md#Sales Training Academy"
+ },
+ {
+  "key": "hrms.9",
+  "kind": "rule",
+  "title": "Lifecycle of an employee: HR opens New Employee",
+  "body": "HR opens New Employee. The system makes firstname.lastname@<STAFF_EMAIL_DOMAIN>, the next employee ID (MS-###) and a 14-character temporary password (shown once, and emailed to the personal address when email is set up).",
+  "source": "docs/HRMS.md#Lifecycle of an employee"
+ },
+ {
+  "key": "hrms.10",
+  "kind": "rule",
+  "title": "Lifecycle of an employee: First sign-in",
+  "body": "First sign-in: set your own password, fill in personal, emergency and bank details (account number and PAN are sealed with HOST_KEY and shown masked), accept the offer letter, appointment letter and NDA.",
+  "source": "docs/HRMS.md#Lifecycle of an employee"
+ },
+ {
+  "key": "hrms.11",
+  "kind": "rule",
+  "title": "Lifecycle of an employee: Daily",
+  "body": "Daily: check in/out (late after the time in Settings), breaks, tasks, leave and claims.",
+  "source": "docs/HRMS.md#Lifecycle of an employee"
+ },
+ {
+  "key": "hrms.12",
+  "kind": "rule",
+  "title": "Lifecycle of an employee: Pay day",
+  "body": "Pay day: HR or Finance processes Payroll once the pay period has ended; employees get a payslip (printable as PDF).",
+  "source": "docs/HRMS.md#Lifecycle of an employee"
+ },
+ {
+  "key": "hrms.13",
+  "kind": "rule",
+  "title": "Lifecycle of an employee: Leaving",
+  "body": "Leaving: the employee resigns from *My profile* and HR accepts it under Exits, or HR opens Record exit on the employee and enters the last working day. Today or earlier deactivates them at once (sessions end immediately). A later day is a notice period: they keep working and are deactivated the day after it (the exit can be cancelled until then). That month's payslip is the final settlement: pay up to the last day, unused privilege leave paid at a day's basic (monthly basic ÷ 26), and gratuity after five years (15 days' basic per year of service). The settlement is an estimate; have a CA confirm it.",
+  "source": "docs/HRMS.md#Lifecycle of an employee"
+ },
+ {
+  "key": "hrms.14",
+  "kind": "rule",
+  "title": "Company policies (handbook)",
+  "body": "Policies (HR, *Employees* module): publish a policy (title, category, text: a blank line starts a paragraph, \"- \" starts a bullet), mark it *mandatory* (everyone must acknowledge) or *for information*. Everyone is notified. HR sees, per policy, who has and hasn't acknowledged the current version, can Remind the ones who haven't, Edit and Archive / restore. An edit can be ticked as *an important change*: the version goes up and everyone must acknowledge it again (they are told). Small edits (typos) keep existing acknowledgements.",
+  "source": "docs/HRMS.md#Company policies (handbook)"
+ },
+ {
+  "key": "hrms.15",
+  "kind": "rule",
+  "title": "Company policies (handbook)",
+  "body": "Company policies (everyone, COMPANY menu): read each policy and press *I have read and accept*; the page shows how many are still to acknowledge. Acknowledgements are kept per version, with the time.",
+  "source": "docs/HRMS.md#Company policies (handbook)"
+ },
+ {
+  "key": "hrms.16",
+  "kind": "rule",
+  "title": "Exits: resignation, exit interview and clearance",
+  "body": "Resign (everyone except the super admin: *My profile → Leaving Medoro*). The employee gives a reason and the last working day they would like (the full 30-day notice period is suggested; a shorter date is flagged to HR). HR and their reporting manager are told. While HR hasn't decided, the employee can withdraw it.",
+  "source": "docs/HRMS.md#Exits: resignation, exit interview and clearance"
+ },
+ {
+  "key": "hrms.17",
+  "kind": "rule",
+  "title": "Exits: resignation, exit interview and clearance",
+  "body": "Exits (HR, *Employees* module): resignations waiting, and everyone leaving or who left in the last 30 days. * Accept confirms or changes the last working day and records the exit exactly like *Employees → Record exit* (notice period, final settlement in that month's payroll, deactivated the day after). Decline needs a reason; the employee is told. * Clearance checklist per person: work handed over, assets returned (the card also counts items still issued in the asset register), ID/access card, system access removed, dues settled, final settlement checked. Each tick records who did it. Exits HR records directly (without a resignation) get the same checklist. * Exit interview: once a last working day is recorded, the employee sees the form on *My profile* (main reason, what they liked, what to improve, a 1–5 rating of their manager, would they recommend Medoro, would they come back). It ca",
+  "source": "docs/HRMS.md#Exits: resignation, exit interview and clearance"
+ },
+ {
+  "key": "hrms.18",
+  "kind": "rule",
+  "title": "Exits: resignation, exit interview and clearance",
+  "body": "hey recommend Medoro, would they come back). It can be sent once, before the last day. Only HR (and the person) can read the answers; the manager cannot. * Cancelling an exit (*Employees → Cancel exit / Reactivate*) closes its resignation and checklist.",
+  "source": "docs/HRMS.md#Exits: resignation, exit interview and clearance"
+ },
+ {
+  "key": "hrms.19",
+  "kind": "rule",
+  "title": "My Team (reporting managers and team leaders)",
+  "body": "Anyone who has at least one active direct report (\"Reports to\" on their profile), in any role, gets My Team in the TEAM menu. It shows only their direct reports and only work information (no pay, bank, KYC or chat):",
+  "source": "docs/HRMS.md#My Team (reporting managers and team leaders)"
+ },
+ {
+  "key": "hrms.20",
+  "kind": "rule",
+  "title": "My Team (reporting managers and team leaders): Today",
+  "body": "Today: each person's status (present, late, checked out, on leave, day off, not in yet) with check-in and check-out times.",
+  "source": "docs/HRMS.md#My Team (reporting managers and team leaders)"
+ },
+ {
+  "key": "hrms.21",
+  "kind": "rule",
+  "title": "My Team (reporting managers and team leaders): Leave requests from your team",
+  "body": "Leave requests from your team: approve or reject (the same decision HR can make; whoever acts first decides).",
+  "source": "docs/HRMS.md#My Team (reporting managers and team leaders)"
+ },
+ {
+  "key": "hrms.22",
+  "kind": "rule",
+  "title": "My Team (reporting managers and team leaders)",
+  "body": "Out in the next 2 weeks, open tasks (overdue flagged) and this month per person: days checked in, late days, tasks done, on-time %, open and overdue tasks.",
+  "source": "docs/HRMS.md#My Team (reporting managers and team leaders)"
+ },
+ {
+  "key": "hrms.23",
+  "kind": "rule",
+  "title": "My Team (reporting managers and team leaders): Give a task to a direct report",
+  "body": "Give a task to a direct report. A manager can assign plain tasks to their own reports without the *Tasks & projects* module; tasks in a project, or for anyone else, still need that module.",
+  "source": "docs/HRMS.md#My Team (reporting managers and team leaders)"
+ },
+ {
+  "key": "hrms.24",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "Assets (everyone: *Assets* under Me; HR: the register too). HR adds equipment (tags MS-AST-0001…), issues it to an employee and takes it back. An employee sees their items and can Report issue: that raises an HR support ticket and marks the item *In repair*.",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.25",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "My Projects (everyone). The projects you are a member of, your tasks in each (tick done, move stage), team and progress.",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.26",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "Projects (HR, *Tasks & projects*): views Dashboard, Board, Timeline, List, Sprints, Risks. Timeline draws a bar per task from when it was created to its due date. Sprints have dates and a goal; tasks join a sprint of their own project (List view). Risks have a level, owner, mitigation and status.",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.27",
+  "kind": "rule",
+  "title": "More screens: Accounts",
+  "body": "Accounts: Sales CRM & Leads (deals), Marketing CRM (campaigns), Workflows & Automations, plus Proforma, Delivery challans, Vendors and Vendor leads registers. Workflows are only listed if they really run: *Mark overdue invoices* (sent invoices past their due date become Overdue and Accounts is told, whenever an accounts screen opens) and *Post the salary journal* (processing payroll adds one journal entry for the month's net pay). Each can be switched off.",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.28",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "KYC & certificates (My profile). The employee uploads identity and address proof, certificates, a relieving letter or a cancelled cheque (PDF, JPG, PNG). HR opens them from Employees → Documents, marks each verified or removes it. Files open only for their owner and people with the Employees module; HR opening one is written to Audit Logs. A verified document can only be removed by HR. Aadhaar and PAN numbers are collected in the KYC step (see *Aadhaar and PAN verification*). Expiry dates: a document can have an *Expires on* date (passport, visa, contract, licence…), set when uploading or later in the Expires column by the employee or HR (a past date is refused). The employee and HR get a notification 30 days and 7 days before and on the day it expires (each once per date; a new date starts again; people who have left are skipped). HR's dashboard lists documents of active people that hav",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.29",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "ashboard lists documents of active people that have expired or expire within 30 days. The reminders run with the scheduled jobs (/api/cron/tick, or the in-process scheduler on self-hosted installs).",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.30",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "Promotions (HR, Employees → Promote). HR enters the new designation, department, reporting manager, annual CTC (with quick +10/15/20/30% buttons), the roles and responsibilities of the new role (one per line) and an effective date. The employee's profile changes on that date (at once when it is today or earlier; otherwise with the daily housekeeping, and always before payroll runs), a CTC change is kept in salary revisions, and a Letter of Promotion (before/after at a glance, numbered responsibilities, revised Annexure A when pay changes, an acknowledgement block) goes to the employee's My documents with a notification, and by email as a PDF if ticked. The letter keeps the terms it was written with even if the profile is edited later. A promotion that hasn't taken effect can be cancelled, which withdraws its letter. The current responsibilities show on the employee's profile, and HR can ",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.31",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "lities show on the employee's profile, and HR can also edit them under Edit.",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.32",
+  "kind": "rule",
+  "title": "More screens",
+  "body": "Me: ID card (My profile, printable), Customize home (hide sections; saved in the browser), night mode (moon button; saved in the browser).",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.33",
+  "kind": "rule",
+  "title": "More screens: Printing",
+  "body": "Printing: payslips, invoices, offer letters and the ID card print only the document (Print / save as PDF).",
+  "source": "docs/HRMS.md#More screens"
+ },
+ {
+  "key": "hrms.34",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC)",
+  "body": "Every employee must give their Aadhaar and PAN with proof before they can use the HRMS (the super admin is not asked: they go straight in) (a fourth step after *Your details*, for new joiners and for everyone already here at their next sign-in). They tick a consent box, then:",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.35",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC): Numbers",
+  "body": "Numbers. The Aadhaar number is checked for typing mistakes (12 digits and its check digit). Both numbers are sealed with HOST_KEY and shown masked (XXXX XXXX 1234, AB•••••34K). Changing the Aadhaar number clears an earlier verification.",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.36",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC): Aadhaar proof",
+  "body": "Aadhaar proof. Verify with DigiLocker (when set up): the employee signs in on DigiLocker with their Aadhaar OTP (Medoro never sees it), allows Medoro to read their e-Aadhaar once, and Medoro checks the last four digits, name and date of birth against what they entered and what is in Medoro. A match verifies the Aadhaar automatically. A mismatch changes nothing and says why; the employee uploads the card instead. Nothing from DigiLocker is kept.",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.37",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC)",
+  "body": "PAN proof (and the Aadhaar when DigiLocker isn't used): the employee uploads the card (PDF, JPG, PNG). HR opens Employees → Documents, can show the full numbers to compare with the cards (each opening is audited), and marks each card verified.",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.38",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC)",
+  "body": "The directory shows each person as Verified, Check (submitted, waiting for HR) or Missing. By default a person gets in once they have *submitted*; under Settings you can turn on *Keep people out until their Aadhaar and PAN are verified*, and they then wait for HR (or a DigiLocker match, then the PAN card check).",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.39",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC)",
+  "body": "DigiLocker set-up needs a DigiLocker partner (requester) account from MeitY / API Setu: set DIGILOCKER_CLIENT_ID, DIGILOCKER_CLIENT_SECRET and DIGILOCKER_BASE (the host DigiLocker gives you: production, or their sandbox while testing; Medoro does not guess it), and register <APP_URL>/staff/hrms/digilocker/callback as the redirect address. Check the endpoints Medoro calls (/public/oauth2/1/authorize, /1/token, /3/xml/eaadhaar) against the documentation DigiLocker gives your account, and test in their sandbox before relying on it. Until it is set up the button is hidden and employees upload the Aadhaar card for HR.",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.40",
+  "kind": "rule",
+  "title": "Aadhaar and PAN verification (KYC): Limits",
+  "body": "Limits: Medoro matches the e-Aadhaar DigiLocker returns over TLS; it does not check UIDAI's digital signature on the XML, and PAN is checked by a person against the card (no NSDL/Protean PAN lookup). Aadhaar and PAN are personal data under India's DPDP Act, and the rules on collecting and storing Aadhaar numbers are strict: have a lawyer confirm the consent wording, who may open the numbers, and how long you keep them. Medoro keeps the sealed number only for HR's comparison; it is never shown in full on a payslip, list or export.",
+  "source": "docs/HRMS.md#Aadhaar and PAN verification (KYC)"
+ },
+ {
+  "key": "hrms.41",
+  "kind": "rule",
+  "title": "Selfie check-in and idle-time monitoring",
+  "body": "Both are off until the super admin switches them on under Settings → Workforce policy. Tell your team before you do: employees also see a notice on their Attendance screen.",
+  "source": "docs/HRMS.md#Selfie check-in and idle-time monitoring"
+ },
+ {
+  "key": "hrms.42",
+  "kind": "rule",
+  "title": "Selfie check-in and idle-time monitoring: Selfie check-in",
+  "body": "Selfie check-in. A photo from the camera is needed to check in and out; no photo, no check-in (HR can still mark attendance). The picture is a record for HR to look at: nothing is analysed or matched. It is a small JPEG, sealed with HOST_KEY, opened only for the employee and people with the Attendance module through /staff/hrms/selfie/<id> (never cached), and deleted after 30 days. HR sees them in Team Attendance; the employee sees their own in the day popup.",
+  "source": "docs/HRMS.md#Selfie check-in and idle-time monitoring"
+ },
+ {
+  "key": "hrms.43",
+  "kind": "rule",
+  "title": "Selfie check-in and idle-time monitoring: Idle-time monitoring",
+  "body": "Idle-time monitoring. Counts inactivity (mouse, keyboard, scroll, touch) in the HRMS browser tab only, while the employee is checked in and not on a break. After the set minutes (1–30) the person is asked \"Still working?\"; with no answer in 2 minutes the stretch is recorded as idle from their last activity until they come back. A hidden tab isn't counted (work in another window is invisible to us). Nothing typed, no screenshots, no other apps. Breaks and check-out end an idle stretch. Records are deleted after 90 days. HR sees idle minutes today (and \"idle now\") in Team Attendance.",
+  "source": "docs/HRMS.md#Selfie check-in and idle-time monitoring"
+ },
+ {
+  "key": "hrms.44",
+  "kind": "rule",
+  "title": "Selfie check-in and idle-time monitoring: Data protection",
+  "body": "Data protection: these are personal data under India's DPDP Act. Use them only for attendance, tell staff what is recorded and for how long (this page and the notice on Attendance say it), and keep the retention above.",
+  "source": "docs/HRMS.md#Selfie check-in and idle-time monitoring"
+ },
+ {
+  "key": "hrms.45",
+  "kind": "rule",
+  "title": "Team Chat",
+  "body": "/staff/hrms/chat: one-to-one messages, groups (up to 100 people), photos (JPEG/PNG/WebP, 2 MB), unread counts, read ticks and a \"📹 Meet\" button that creates a Google Meet link in the sender's own Google Calendar and posts it in the chat (needs the sender to have connected Google Calendar).",
+  "source": "docs/HRMS.md#Team Chat"
+ },
+ {
+  "key": "hrms.46",
+  "kind": "rule",
+  "title": "Team Chat: Live-ness",
+  "body": "Live-ness. The screen polls /staff/hrms/chat/poll every 2.5 s while the tab is visible (15 s in the background). Messages appear within a few seconds. There is no always-open connection, because Vercel doesn't keep them; about 100 people online is roughly 40 small indexed requests a second.",
+  "source": "docs/HRMS.md#Team Chat"
+ },
+ {
+  "key": "hrms.47",
+  "kind": "rule",
+  "title": "Team Chat: Privacy",
+  "body": "Privacy. Every message and picture is sealed with HOST_KEY before it is stored. Only the people in a conversation can read it: HR and Finance cannot. The super admin can open any conversation from Chat review; each opening is written to Audit Logs (who, which chat, which people, never the text), and the chat screen tells staff this. It is encryption at rest with an audited admin key, not end-to-end encryption: the server must be able to open messages for delivery, review and backups.",
+  "source": "docs/HRMS.md#Team Chat"
+ },
+ {
+  "key": "hrms.48",
+  "kind": "rule",
+  "title": "Team Chat",
+  "body": "People added to a group later don't see earlier messages. You can delete your own messages. Messages are kept until a retention rule is added; they are included in database backups (still sealed).",
+  "source": "docs/HRMS.md#Team Chat"
+ },
+ {
+  "key": "hrms.49",
+  "kind": "rule",
+  "title": "Team Chat: Not built",
+  "body": "Not built: typing indicators, online status, voice notes, Google Drive backups of chats.",
+  "source": "docs/HRMS.md#Team Chat"
+ },
+ {
+  "key": "hrms.50",
+  "kind": "rule",
+  "title": "WhatsApp alerts",
+  "body": "HRMS alerts (leave, claims, tasks, reviews and the rest that appear under the bell) can also go to WhatsApp. They are sent from the company's WhatsApp Business number through the official Cloud API. It is the same number connected once in Growth → Integrations. No WhatsApp Web automation is used.",
+  "source": "docs/HRMS.md#WhatsApp alerts"
+ },
+ {
+  "key": "hrms.51",
+  "kind": "rule",
+  "title": "WhatsApp alerts: One-time setup",
+  "body": "One-time setup: 1. In WhatsApp Manager, create a Utility template with one body variable, for example Medoro HRMS: {{1}}, and wait until Meta approves it. 2. In Settings → WhatsApp alerts (super admin), enter its name and language code and switch alerts on. 3. Use Send a test to my phone to check it end to end. A wrong template name shows WhatsApp's error at once.",
+  "source": "docs/HRMS.md#WhatsApp alerts"
+ },
+ {
+  "key": "hrms.52",
+  "kind": "rule",
+  "title": "WhatsApp alerts",
+  "body": "Each employee chooses on My Profile (\"Send my HR alerts to … on WhatsApp\"). It is off until they switch it on, and the time of each change is kept as their consent record. They need a valid Indian mobile number on their profile.",
+  "source": "docs/HRMS.md#WhatsApp alerts"
+ },
+ {
+  "key": "hrms.53",
+  "kind": "rule",
+  "title": "WhatsApp alerts: The in-app notification is always written",
+  "body": "The in-app notification is always written. The WhatsApp copy is queued in HrWaMessage and sent straight after the action. If sending fails, the scheduler retries it (/api/cron/minute or the self-hosted tick), up to 3 tries. Team Chat messages are not sent to WhatsApp.",
+  "source": "docs/HRMS.md#WhatsApp alerts"
+ },
+ {
+  "key": "hrms.54",
+  "kind": "rule",
+  "title": "Performance appraisals",
+  "body": "Someone with the reports module opens a review cycle on Appraisals (name, period, self-assessment and manager-review due dates). Only one cycle can be open at a time. Every active employee except the Super Admin gets a review and is told.",
+  "source": "docs/HRMS.md#Performance appraisals"
+ },
+ {
+  "key": "hrms.55",
+  "kind": "rule",
+  "title": "Performance appraisals: Each step happens on My Review",
+  "body": "Each step happens on My Review. The employee rates themselves 1–5 and writes their achievements, challenges and goals. Their reporting manager then rates them and writes what went well and what to improve. Employees with no manager go straight to HR.",
+  "source": "docs/HRMS.md#Performance appraisals"
+ },
+ {
+  "key": "hrms.56",
+  "kind": "rule",
+  "title": "Performance appraisals",
+  "body": "HR (reports module) sets the final rating and an optional note. Nobody can finalise their own review. Only the Super Admin can finalise one that is still waiting for the manager. The employee sees the manager's and HR's assessment only once it is final, then acknowledges it.",
+  "source": "docs/HRMS.md#Performance appraisals"
+ },
+ {
+  "key": "hrms.57",
+  "kind": "rule",
+  "title": "Performance appraisals",
+  "body": "The review shows facts from the period next to the form: tasks done, the share done on time, open overdue tasks, days present and late days. HR can export the cycle as CSV and close it.",
+  "source": "docs/HRMS.md#Performance appraisals"
+ },
+ {
+  "key": "hrms.58",
+  "kind": "rule",
+  "title": "Training videos (staff only)",
+  "body": "Training Videos (COMPANY menu, everyone): 20 short Hinglish how-to videos for the HRMS, recorded with \"(Demo)\" staff. Real people are blurred.",
+  "source": "docs/HRMS.md#Training videos (staff only)"
+ },
+ {
+  "key": "hrms.59",
+  "kind": "rule",
+  "title": "Training videos (staff only)",
+  "body": "Each person sees only the videos for what their role can open: payroll, finance, recruitment, leads and HR videos need that module. The super admin, roles and dashboard-comparison videos are for the super admin only.",
+  "source": "docs/HRMS.md#Training videos (staff only)"
+ },
+ {
+  "key": "hrms.60",
+  "kind": "rule",
+  "title": "Training videos (staff only)",
+  "body": "The sign-in page links to them (/staff/employee?next=videos opens the videos right after signing in).",
+  "source": "docs/HRMS.md#Training videos (staff only)"
+ },
+ {
+  "key": "hrms.61",
+  "kind": "rule",
+  "title": "Training videos (staff only)",
+  "body": "The videos are in a private Supabase Storage bucket, hrms-videos, in the production project. The bucket is never public, so there are no files in this repository (it is public). When the screen opens, it calls POST /staff/hrms/videos/links. medoro.in then asks the hrms-videos Edge Function for signed links, valid for 4 hours, to only that person's videos (src/staff/hrms/video-links.ts). The function and medoro.in share a secret that Postgres generated and keeps in HrSetting (key videoSecret), so it is in no code, env var or chat. Without the secret (preview and dev), the screen says the videos can't be opened.",
+  "source": "docs/HRMS.md#Training videos (staff only)"
+ },
+ {
+  "key": "hrms.62",
+  "kind": "rule",
+  "title": "Training videos (staff only): To add or replace a video",
+  "body": "To add or replace a video: encode it as H.264 (-crf 30 -tune stillimage, +faststart; at most 50 MB) with a 640px JPEG thumbnail. Upload both to files/<slug>.mp4 and thumbs/<slug>.jpg in the bucket (the dashboard, or the function's upload action), then add it to HR_VIDEOS in src/staff/hrms/video-catalog.ts with who may watch it.",
+  "source": "docs/HRMS.md#Training videos (staff only)"
+ },
+ {
+  "key": "hrms.63",
+  "kind": "rule",
+  "title": "Not built (in the design, not in Medoro yet)",
+  "body": "Built-in voice/video calls and screen sharing (Team Chat uses a Google Meet link instead), AI meeting minutes and AI candidate screening, Wins / Culture OS / Non-Negotiables (these three are blank in the design itself). Ally answers from HR records; it does not read uploaded documents.",
+  "source": "docs/HRMS.md#Not built (in the design, not in Medoro yet)"
+ },
+ {
+  "key": "hrms.64",
+  "kind": "rule",
+  "title": "Rules the code enforces: First sign-in is enforced on the server",
+  "body": "First sign-in is enforced on the server. Until a person has set their own password, filled in their details, given Aadhaar and PAN (or skipped) and accepted the joining documents, the server runs only the actions of the step they are on, sends no screen data, and every file route (documents, payslips, chat pictures, selfies…) answers as if signed out. A temporary or one-time password opens nothing but the password step.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.65",
+  "kind": "rule",
+  "title": "Rules the code enforces",
+  "body": "Nobody acts on their own records (the super admin excepted): no editing your own employment record (pay, tax, role, manager), changing your own leave balance or loss-of-pay days, confirming your own bank account, approving your own leave, claim or correction, verifying your own document or promoting yourself. Loss-of-pay changes made in a payroll run are written to Audit Logs.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.66",
+  "kind": "rule",
+  "title": "Rules the code enforces: Uploads are checked by content",
+  "body": "Uploads are checked by content. Documents and claim bills must really be PDF, JPG, PNG or WebP files.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.67",
+  "kind": "rule",
+  "title": "Rules the code enforces",
+  "body": "Opening full Aadhaar and PAN numbers is limited to 30 per HR person per hour; each opening and each refusal is audited.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.68",
+  "kind": "rule",
+  "title": "Rules the code enforces",
+  "body": "Payslips and salary revisions are append-only in the database (as is the audit log): they can't be edited or deleted.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.69",
+  "kind": "rule",
+  "title": "Rules the code enforces: Attendance",
+  "body": "Attendance. Check-in is on by default. A working day in the past with no check-in, no leave and no approved correction is *absent* and counts as loss of pay in payroll (HR can override LOP days per person before processing). Weekly offs (Saturday and Sunday unless changed in Settings → *Weekly days off*) and holidays never count. Corrections go to HR. HR can give a person their own shift start (Edit employee); they are late after that time instead of the company time. A day someone forgot to check out of is closed the next day at a full working day after check-in, with a note. Days before a person's HRMS profile was created are never absent (\"No record\"), so adding existing staff doesn't dock their pay.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.70",
+  "kind": "rule",
+  "title": "Rules the code enforces: Leave",
+  "body": "Leave. Yearly policy per type (Settings), plus extra days HR grants. In the year someone joins they get the share from their joining month (joined in October: 3/12 of each type, rounded). Weekends/holidays inside a request are not counted; requests can't overlap; you can't approve your own leave (someone else, or the super admin, must). A request can be half a day (one date; the person still checks in for the other half). Unpaid leave has no balance: each day is loss of pay in payroll. A request goes to HR and the person's reporting manager (\"Reports to\" on the profile); either can decide it. The manager sees *Team requests* on their own Leave screen. Unused privilege leave carries forward into the next year, up to the cap in Settings (default 30 days; 0 switches it off).",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.71",
+  "kind": "rule",
+  "title": "Rules the code enforces: Claims",
+  "body": "Claims. Employee → HR review → super-admin final sign-off → paid with the next payroll (added to net pay, once). Bills are stored through the normal file storage (disk, database or Supabase) and open only for the owner, HR and the super admin.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.72",
+  "kind": "rule",
+  "title": "Rules the code enforces: Pay cycles",
+  "body": "Pay cycles. A new joiner is paid on a monthly cycle that starts on their joining day: joined 13 Nov 2026, nothing is paid in November, the first salary is paid on 13 Dec 2026 for 13 Nov to 12 Dec, then on the 13th of every month (a day the month doesn't have, like the 31st in November, becomes its last day). HR sees the first salary date when creating the profile. People who were paid by calendar month before this keep it; HR can set a cycle day on *Edit employee* (0 = calendar month) until the person has been paid. When the due date is a weekly off or a holiday, the salary is paid on the working day before it (13 Dec 2026 is a Sunday, so that first salary is paid on Fri 11 Dec). A payslip is filed under the month it is paid in, and each person's payslip shows its own period and salary date. A period is processed once its last working day has come, and Process payroll pays the people who",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.73",
+  "kind": "rule",
+  "title": "Rules the code enforces: Pay cycles",
+  "body": " has come, and Process payroll pays the people who are ready; the rest stay in the list with the reason.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.74",
+  "kind": "rule",
+  "title": "Rules the code enforces",
+  "body": "Salary goes only into the employee's own bank account. Payroll won't process someone with no bank account and IFSC saved, or whose account holder name isn't theirs (initials count: *A Verma* is *Asha Verma*). For a joint account or a spelling difference, HR can press *It's their account* on the Payroll screen; changing the account, IFSC or holder name removes that confirmation. The bank transfer file lists each person's salary date and period.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.75",
+  "kind": "rule",
+  "title": "Rules the code enforces: Payroll",
+  "body": "Payroll. Monthly from the annual CTC: basic 50%, HRA 40% of basic, rest special allowance. PF 12% of basic capped at ₹15,000, ESI 0.75% when monthly CTC ≤ ₹21,000, professional tax from Settings, TDS estimated on the new tax regime (₹75,000 standard deduction, nothing up to ₹12,00,000 taxable with marginal relief, 4% cess), sales incentive from won pharmacies. A processed month can't be processed again, so a month opens for processing on its last working day (before that the screen is a preview). Someone who leaves is paid up to their last working day, in that month. The bank transfer file opens account numbers and is audited. HR can put a person on the old regime with their accepted yearly deductions (Edit employee); TDS then uses the old slabs. TDS is an estimate: have a CA confirm it for people with other income. Downloads on the Payroll screen for a processed month: the PF return in ",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.76",
+  "kind": "rule",
+  "title": "Rules the code enforces: Payroll",
+  "body": "ll screen for a processed month: the PF return in EPFO's ECR text layout (people without a UAN are left out and named), the ESI return (both shares; add the ESI number on Edit employee), the payroll report (with the employer's PF and ESI) and the bank file. Employees download a tax statement for a financial year from Payslips (what a CA needs for Form 16; Form 16 itself is issued from TRACES). Every change of CTC is kept as a salary revision on the profile.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.77",
+  "kind": "rule",
+  "title": "Rules the code enforces: Leads",
+  "body": "Leads. Sales screens work on the same lead table and the same *won → logged sale and commission* path as the staff console pipeline. HR uploads a CSV (store, owner, phone, city, plan, source), assigns leads or auto-assigns them evenly, and sets each salesperson's monthly target and incentive (max 5%).",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.78",
+  "kind": "rule",
+  "title": "Rules the code enforces: Accounts",
+  "body": "Accounts. Contacts, quotes, invoices (GST: CGST+SGST in your state, IGST otherwise), receipts, orders, bills, journals, products and bank accounts are simple registers. Dashboards, P&L, ageing and the GST summary are computed from them and from payroll. Filing GSTR returns happens on the GST portal.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.79",
+  "kind": "rule",
+  "title": "Rules the code enforces: Ally",
+  "body": "Ally. Answers from the employee's own records. With a local model on this server (AI_MODE=local) the same facts are given to it to phrase the answer; HR data never goes to a remote provider.",
+  "source": "docs/HRMS.md#Rules the code enforces"
+ },
+ {
+  "key": "hrms.80",
+  "kind": "rule",
+  "title": "Google Calendar",
+  "body": "Each employee can connect their own Google Calendar under Calendar → Google Calendar → Connect. Their Google events then show in the HRMS month view, and a meeting scheduled in the HRMS can be added to Google Calendar with a Google Meet link and email invitations (sent by Google to the attendees' official emails). Cancelling the meeting removes the Google event.",
+  "source": "docs/HRMS.md#Google Calendar"
+ },
+ {
+  "key": "hrms.81",
+  "kind": "rule",
+  "title": "Google Calendar",
+  "body": "Only the calendar.events scope is requested (read and create events; no contacts, no mail, no other calendars' settings). The refresh token is sealed with HOST_KEY; Disconnect revokes it at Google and forgets it.",
+  "source": "docs/HRMS.md#Google Calendar"
+ },
+ {
+  "key": "hrms.82",
+  "kind": "rule",
+  "title": "Google Calendar: A Google problem never blocks the HRMS",
+  "body": "A Google problem never blocks the HRMS: meetings are still created, and the screen says what Google refused.",
+  "source": "docs/HRMS.md#Google Calendar"
+ },
+ {
+  "key": "hrms.83",
+  "kind": "rule",
+  "title": "Google Calendar",
+  "body": "One-time server setup, in the Google Cloud project of GOOGLE_OAUTH_CLIENT_ID: enable the Google Calendar API, add the scope .../auth/calendar.events to the OAuth consent screen, and add the redirect URI <APP_URL>/staff/hrms/google/callback (or set GOOGLE_CALENDAR_REDIRECT_URI) to the client's authorised redirect URIs. While the consent screen is in *Testing*, only listed test users can connect.",
+  "source": "docs/HRMS.md#Google Calendar"
+ },
+ {
+  "key": "hrms.84",
+  "kind": "rule",
+  "title": "Sign-in security",
+  "body": "Argon2id passwords (12+ characters), lockout after 5 wrong tries for 15 minutes (per ID and per IP), one-time passwords valid for one sign-in, forced change after a temporary or one-time password (other devices are signed out), 10-hour sessions in the /staff-scoped medoro_staff cookie (SameSite=Strict). An HRMS session cannot open the staff console; the only exception is sales employees, who see just their own leads and commission there. Staff-console super admins who enabled an authenticator app also enter its code in the HRMS.",
+  "source": "docs/HRMS.md#Sign-in security"
+ },
+ {
+  "key": "hrms.85",
+  "kind": "rule",
+  "title": "Setup",
+  "body": "To create (or reset) a super admin with a one-time password, run on the server: node scripts/create-super-admin.mjs <email> <one-time-password> [\"Full Name\"] [mobile]. The password works for one sign-in within 7 days and is then replaced. Never commit it.",
+  "source": "docs/HRMS.md#Setup"
+ },
+ {
+  "key": "hrms.86",
+  "kind": "rule",
+  "title": "Setup: Run pnpm prisma migrate deploy",
+  "body": "Run pnpm prisma migrate deploy. The first super admin comes from STAFF_BOOTSTRAP_EMAIL (staff console sign-up). Set STAFF_EMAIL_DOMAIN for official emails (default medoro.in) and MAIL_PROVIDER/MAIL_FROM if you want welcome and one-time-password emails. Add holidays in Calendar, then review Settings (company details, late time, leave policy).",
+  "source": "docs/HRMS.md#Setup"
+ },
+ {
+  "key": "hrms.87",
+  "kind": "rule",
+  "title": "Chat backup to the employee's own Google Drive",
+  "body": "Team Chat ▸ ☁ lets each employee connect their own Google account. Medoro then keeps one encrypted copy of their conversations in Drive's hidden app folder (scope drive.appdata: Medoro sees only the file it made, and the employee sees nothing in their Drive). The file is sealed with HOST_KEY, so only this Medoro server can open it again. It backs up daily (the cron tick) and on \"Back up now\"; \"Restore missing messages\" puts back messages that are gone from the database (never changing or removing anything; messages deleted by their sender stay deleted). Pictures are not included. It uses the same Google OAuth client and redirect URI as Google Calendar: add the drive.appdata scope to the OAuth consent screen and make sure the Drive API is enabled.",
+  "source": "docs/HRMS.md#Chat backup to the employee's own Google Drive"
+ },
+ {
+  "key": "hrms.88",
+  "kind": "rule",
+  "title": "Careers page (/careers)",
+  "body": "HR (Recruitment module) and the super admin post jobs from Recruitment → + Post a job: title, team, location, type, workplace (on-site / hybrid / remote), experience, salary (optional, shown publicly), skills, description, requirements and benefits. Each job goes live at /careers/<slug> with schema.org JobPosting data so Google for Jobs can list it. \"Close job\" takes it off the page.",
+  "source": "docs/HRMS.md#Careers page (/careers)"
+ },
+ {
+  "key": "hrms.89",
+  "kind": "rule",
+  "title": "Careers page (/careers)",
+  "body": "Job seekers browse a two-pane job board (search, team / type / workplace filters) and use Easy Apply: sign in with LinkedIn, Google or an email code (a 6-digit code sent to their email: for Naukri users and anyone without LinkedIn or Google; no account or password is created), or apply without signing in; mobile, city, experience, LinkedIn profile, a PDF résumé and an optional note. Duplicate applications (same email, same job) are refused; applications are rate-limited per network. The applicant gets a \"Thank you for your interest in the … role\" email with an application reference straight away, HR gets a notification, and the candidate appears in Applied with source, résumé and LinkedIn link. Signed-in applicants see their status at /careers/applications, and their next application is filled in from the last one (mobile, city, experience, LinkedIn link) with the option to reuse the sam",
+  "source": "docs/HRMS.md#Careers page (/careers)"
+ },
+ {
+  "key": "hrms.90",
+  "kind": "rule",
+  "title": "Careers page (/careers)",
+  "body": "e, LinkedIn link) with the option to reuse the same résumé; the browser also remembers typed details. LinkedIn sign-in only shares name and email (work history and résumé need LinkedIn partner access), so the form points LinkedIn users to \"Save to PDF\" on their profile for a résumé.",
+  "source": "docs/HRMS.md#Careers page (/careers)"
+ },
+ {
+  "key": "hrms.91",
+  "kind": "rule",
+  "title": "Careers page (/careers)",
+  "body": "Share on a job gives tracked links (?src=linkedin, naukri, indeed, instahyre, internshala, whatsapp) to paste into a post on those sites; anyone applying through a link is tagged with that source, and the pipeline can be filtered by source.",
+  "source": "docs/HRMS.md#Careers page (/careers)"
+ },
+ {
+  "key": "hrms.92",
+  "kind": "rule",
+  "title": "Careers page (/careers): Setup",
+  "body": "Setup: MAIL_PROVIDER for the thank-you email; GOOGLE_OAUTH_CLIENT_ID/SECRET for \"Apply with Google\"; LINKEDIN_CLIENT_ID/SECRET (LinkedIn app with \"Sign In with LinkedIn using OpenID Connect\", redirect ${APP_URL}/api/careers/linkedin/callback) for \"Apply with LinkedIn\". Without them the page still works with email applications.",
+  "source": "docs/HRMS.md#Careers page (/careers)"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.1",
+  "kind": "rule",
+  "title": "Enterprise HRMS 2.0 — Phase 6: attendance, shifts, payroll and workforce operations",
+  "body": "Attendance, leave, corrections, claims, payroll (pay cycles, LOP, PF/ESI/PT/TDS, final settlement, bank file, returns) already existed and are tested; Phase 6 adds what was missing for shift-based operations, without changing how pay is computed.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Enterprise HRMS 2.0 — Phase 6: attendance, shifts, payroll and workforce operations"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.2",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Shifts (HrShift): name, start, end (may cross midnight), grace, break; expected work = length − break.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Features"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.3",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Roster (HrShiftAssignment, deletes blocked): people on a shift from a day, until a day or open-ended. A new entry cuts older overlapping entries short (history kept); the newest entry covering a day wins. Each person is notified. A shift with people still rostered can't be archived.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Features"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.4",
+  "kind": "rule",
+  "title": "Features: Lateness from the roster",
+  "body": "Lateness from the roster: check-in is late after the rostered shift's start + grace; otherwise the person's own shift start (Edit employee), otherwise Settings (time.ts → lateAfterFor). My day shows the rostered start.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Features"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.5",
+  "kind": "rule",
+  "title": "Features: Overtime report per month",
+  "body": "Overtime report per month: worked time (check-out − check-in − breaks taken inside it) beyond the day's expected time (rostered shift, else Settings' work hours), per person and day. Days closed automatically after a missed check-out are left out (no real end time). Overtime is reported, not paid automatically.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Features"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.6",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Payroll readiness (Payroll module) for a month before processing: *blocks* (no CTC; bank account missing, no holder, or holder name not matching and not confirmed) and *checks* (pending leave or corrections in the month, missed check-outs, waiting claims, no PAN where TDS is likely, no UAN where PF applies).",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Features"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.7",
+  "kind": "rule",
+  "title": "Files: New",
+  "body": "New: src/staff/hrms/shifts.ts, _ui/screens-shifts.tsx, migration 20261214000000_hrms_shifts, tests/integration/hrms-shifts.test.ts. Changed: time.ts (lateness, My day start), constants.ts, screens.ts, actions.ts (saveShift, archiveShift, assignShift), _ui/screens.tsx, restore.ts, rls-readiness.test.ts.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Files"
+ },
+ {
+  "key": "phase_6_shifts_payroll_ops.8",
+  "kind": "rule",
+  "title": "Tests (actual)",
+  "body": "hrms-shifts.test.ts (6): shift length incl. overnight, month ends; only Attendance manages shifts, invalid shifts refused; roster newest-wins with the older entry cut to the day before and undeletable, archive refused while rostered, inactive people refused; check-in 08:10 on an 08:00 + 15 min shift is present, 08:20 late, an unrostered person keeps the company time; overtime 90 min (570 worked − 480 expected) with the missed-check-out day excluded, refused for employees; readiness blocks (no CTC, no bank) and checks (pending leave, missed check-out), refused for employees. Full suite 228 files / 1,394 tests pass; lint and typecheck pass.",
+  "source": "docs/enterprise-hrms/PHASE_6_SHIFTS_PAYROLL_OPS.md#Tests (actual)"
+ },
+ {
+  "key": "phase_7_learning_engagement_ally.1",
+  "kind": "rule",
+  "title": "Learning (screen *Learning*, everyone; HR builds with the Employees module)",
+  "body": "Courses for everyone or a department and/or designation (the Sales Academy remains the sales programme): lessons (text, optional https link), an optional quiz, pass mark, required or optional, days to finish. Publishing enrols the audience; people who later fall into it are enrolled when they open Learning; HR can also assign anyone. Every lesson must be read before the quiz; quizzes are marked on the server and the correct answers are never sent to the browser; 3 attempts (HR can reset); every attempt is kept with the course version (append-only). Editing a published course bumps its version. Daily reminders for required courses: once when due within 3 days, once when overdue.",
+  "source": "docs/enterprise-hrms/PHASE_7_LEARNING_ENGAGEMENT_ALLY.md#Learning (screen *Learning*, everyone; HR builds with the Employees module)"
+ },
+ {
+  "key": "phase_7_learning_engagement_ally.2",
+  "kind": "rule",
+  "title": "Engagement (screen *Engagement*)",
+  "body": "Pulse surveys (1–5 agreement, 0–10 eNPS, text) for everyone or a department, anonymous by default. Anonymous answers store no staff id: an HMAC of survey + person (keyed with SESSION_SECRET) only prevents answering twice, plus the department for breakdowns. Results, department breakdowns and free text are shown only for groups of 5 or more. Named surveys show who answered. Opening results is audited. Limit: someone holding both the database and the server secret could recompute the hash; stated on the screen and here.",
+  "source": "docs/enterprise-hrms/PHASE_7_LEARNING_ENGAGEMENT_ALLY.md#Engagement (screen *Engagement*)"
+ },
+ {
+  "key": "phase_7_learning_engagement_ally.3",
+  "kind": "rule",
+  "title": "Ally, the HR assistant",
+  "body": "Still answers only from the person's own records and company data, never remote AI for HR data. New: answers from the company's published policies, quoting the passage and naming the policy (keyword retrieval in ally-knowledge.ts; below the match threshold it says it doesn't know instead of guessing), the person's KPIs, courses due and today's shift. A clear policy match answers first unless the question is about the person's own records. With a local model configured, the relevant passages are handed to it with an instruction to name the policy and never invent one.",
+  "source": "docs/enterprise-hrms/PHASE_7_LEARNING_ENGAGEMENT_ALLY.md#Ally, the HR assistant"
+ },
+ {
+  "key": "phase_7_learning_engagement_ally.4",
+  "kind": "rule",
+  "title": "Files: New",
+  "body": "New: learning.ts, surveys.ts, ally-knowledge.ts (+ unit test), _ui/screens-learning.tsx, migration 20261215000000_hrms_learning_engagement, tests/integration/hrms-learning.test.ts. Changed: ally.ts, constants.ts, screens.ts, actions.ts, _ui/screens.tsx, cron.ts (learningTick), restore.ts, rls-readiness.test.ts.",
+  "source": "docs/enterprise-hrms/PHASE_7_LEARNING_ENGAGEMENT_ALLY.md#Files"
+ },
+ {
+  "key": "phase_7_learning_engagement_ally.5",
+  "kind": "rule",
+  "title": "Tests (actual)",
+  "body": "Unit (3): term normalisation, passage retrieval with citation, no answer when policies don't cover it. Integration (6): HR-only authoring and validation; publish enrols the audience only, assignment outside it; answers never sent; lessons before quiz; server marking 0/50/100; completion locks; attempt history append-only; attempt limit; reminders once per stage; anonymous survey stores no staff id, one answer each, invalid value refused, hidden below 5, eNPS 17 and average 3.8 from six answers, text answers, department breakdown hidden for a group of 1; department survey refused to others, named survey lists respondents; Ally quotes the work-from-home policy with its title, lists the required course, says no KPIs apply. Full suite: 230 files / 1,403 tests pass (existing Ally tests unchanged); lint and typecheck pass.",
+  "source": "docs/enterprise-hrms/PHASE_7_LEARNING_ENGAGEMENT_ALLY.md#Tests (actual)"
+ },
+ {
+  "key": "phase_3_rbac_approvals.1",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Individual access (super admin, *Approvals → Individual access*). Give one person a module their role lacks, or take one away, with a reason and an optional last day. A removal always beats a grant; the super admin can't be changed. Applied in one place (effectivePerms), so actions, screens, menus and \"who holds this module\" notifications agree. Every action re-reads grants (hrRun), so ending access takes effect on the person's next click. Grant rows can't be deleted (trigger); they are ended (revokedAt) and kept.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Features"
+ },
+ {
+  "key": "phase_3_rbac_approvals.2",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Approvals engine (src/staff/hrms/approvals.ts, screen *Approvals* for everyone). Workflows are declared in code with their input schema, who may raise them, the steps and the change to make. Rules enforced on the server: nobody decides a request they raised or one about themselves; a manager step without a usable manager is skipped and recorded; each step is claimed atomically (two approvers can't both decide it); the change is made in the same transaction as the last approval; a rejection needs a reason; the requester can withdraw while pending. * Salary change (ctc_change): HR or Payroll proposes a new CTC with a reason → reporting manager → super admin → CTC, salary revision and employment-history event saved together. Not for oneself; one pending request per person. * Temporary access (access): anyone asks for a module for 1–30 days → manager → super admin → an expiring grant.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Features"
+ },
+ {
+  "key": "phase_3_rbac_approvals.3",
+  "kind": "rule",
+  "title": "Features",
+  "body": " manager → super admin → an expiring grant.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Features"
+ },
+ {
+  "key": "phase_3_rbac_approvals.4",
+  "kind": "rule",
+  "title": "Features: Delegation",
+  "body": "Delegation: an approver away hands their approvals to a colleague for up to 60 days; both can decide meanwhile.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Features"
+ },
+ {
+  "key": "phase_3_rbac_approvals.5",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Escalation (scheduled, /api/cron/tick): a step undecided for 48 hours reminds the approver (and delegates) and tells the super admins, once.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Features"
+ },
+ {
+  "key": "phase_3_rbac_approvals.6",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Settings → Security & approvals (both off by default, so nothing changes until the super admin opts in): * *Two-step sign-in for HR, Finance and the super admin*: anyone in those roles without an authenticator gets a first-sign-in step (QR code, then a code; attempts rate-limited) before anything else opens; afterwards sign-in asks for the code. Turning it on signs the person's other devices out. * *Salary changes need approval*: HR can't change a CTC in Edit employee or a promotion; it goes through Approvals.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Features"
+ },
+ {
+  "key": "phase_3_rbac_approvals.7",
+  "kind": "rule",
+  "title": "Files: New",
+  "body": "New: src/staff/hrms/access.ts, src/staff/hrms/approvals.ts, src/app/staff/hrms/_ui/screens-approvals.tsx, src/app/staff/hrms/_ui/mfa.tsx, prisma/migrations/20261211000000_hrms_rbac_approvals, tests/integration/hrms-approvals.test.ts, scripts/rollback/20261211000000_hrms_rbac_approvals.down.sql. Changed: auth.ts (grants in getMe/hrRun/holders, MFA set-up), gate.ts (step mfa), constants.ts (settings, screen), people.ts / promotions.ts (CTC approval rule; settings schema), screens.ts, actions.ts, _ui/frame.tsx (MFA step), _ui/screens-hr.tsx (settings card), _ui/screens.tsx, src/server/cron.ts (escalation), restore.ts, rls-readiness.test.ts.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Files"
+ },
+ {
+  "key": "phase_3_rbac_approvals.8",
+  "kind": "rule",
+  "title": "Database",
+  "body": "Tables HrAccessGrant (FK StaffUser, no deletes), HrApproval (no deletes), HrApprovalStep (FK, cascade with its approval), HrDelegation; column HrProfile.totpPending (sealed). RLS enabled on the new tables.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Database"
+ },
+ {
+  "key": "phase_3_rbac_approvals.9",
+  "kind": "rule",
+  "title": "API (server actions)",
+  "body": "requestApproval, decideApproval, cancelApproval, delegateApprovals, cancelDelegation, addAccessGrant, revokeAccessGrant, mfaStart, mfaConfirm. Screen loader approvals.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#API (server actions)"
+ },
+ {
+  "key": "phase_3_rbac_approvals.10",
+  "kind": "rule",
+  "title": "Tests",
+  "body": "hrms-approvals.test.ts (10): super-admin-only grants, reason required, grant/deny/deny-wins/revoke, expiry, no delete, revocation effective on the next action; access workflow (self-decision refused, admin can't take the manager's step, grant only after the last step, no double decision, no delete); salary workflow (self and non-HR refused, duplicate pending refused, rejection needs reason and changes nothing, approval changes CTC + revision + history); skipped manager step and withdrawal; delegation on/off; escalation exactly once; CTC-needs-approval setting (HR refused, other edits fine, super admin allowed); MFA required for HR not employees, everything gated until set up, wrong code refused, sign-in then asks for the code. Full suite 224 files / 1,370 tests pass; lint and typecheck pass.",
+  "source": "docs/enterprise-hrms/PHASE_3_RBAC_APPROVALS.md#Tests"
+ },
+ {
+  "key": "phase_2_org.1",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Reporting-line validation (src/staff/hrms/org.ts → checkManager). A manager must be an active colleague, never the person themself and never someone below them (no loops). Enforced on New Employee, Edit employee, promotions when recorded, and again when a scheduled promotion takes effect (if the planned manager is no longer valid, the current line is kept and the rest of the promotion applies). Before this, managerId was saved unchecked.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Features"
+ },
+ {
+  "key": "phase_2_org.2",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Employment history (HrEmploymentEvent, append-only by trigger, FK to StaffUser). Joining, edits of role, department, designation, type, location, manager, CTC, incentive and shift, transfers, promotions, exits (with notice periods) and reactivations, each with before/after values, the effective date and who made it. Pay values are shown only to Payroll holders and to the person; others with the Employees module see that a pay change happened, not the amounts.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Features"
+ },
+ {
+  "key": "phase_2_org.3",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Org chart (new screen *Org chart*, COMPANY menu, everyone). Tree by reporting line, expandable, with search. It follows the existing visibility rules: HR and the super admin see everyone; others see their department, manager, reports and HR; the super admin is never shown to anyone else. HR can open anyone's history from the chart.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Features"
+ },
+ {
+  "key": "phase_2_org.4",
+  "kind": "rule",
+  "title": "Features",
+  "body": "Organisation health (HR): headcount by department, managers and average span of control, people with no manager, active people whose manager has left, spans wider than 12.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Features"
+ },
+ {
+  "key": "phase_2_org.5",
+  "kind": "rule",
+  "title": "Features",
+  "body": "My employment history for every employee on the same screen.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Features"
+ },
+ {
+  "key": "phase_2_org.6",
+  "kind": "rule",
+  "title": "Files: New",
+  "body": "New: src/staff/hrms/org.ts, src/app/staff/hrms/_ui/screens-org.tsx, prisma/migrations/20261210000000_hrms_org, tests/integration/hrms-org.test.ts, scripts/rollback/20261210000000_hrms_org.down.sql. Changed: prisma/schema.prisma (model + relation), src/staff/hrms/people.ts (validation + events on create, edit, deactivate/reactivate), src/staff/hrms/promotions.ts (validation, transactional apply with event), src/staff/hrms/constants.ts / screens.ts / _ui/screens.tsx (screen), src/app/staff/hrms/actions.ts (employeeTimeline), src/domain/system/restore.ts and tests/integration/rls-readiness.test.ts (new table is platform data, not part of a pharmacy restore).",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Files"
+ },
+ {
+  "key": "phase_2_org.7",
+  "kind": "rule",
+  "title": "API",
+  "body": "New server action employeeTimeline(staffId) (self, or Employees module). New screen loader orgchart.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#API"
+ },
+ {
+  "key": "phase_2_org.8",
+  "kind": "rule",
+  "title": "Tests",
+  "body": "hrms-org.test.ts (7): chain walk; self/loop/unknown/inactive managers refused on create, edit and promotion with nothing saved; history for join, transfer (with manager names and CTC) and exit; trigger blocks update and delete; promotion applied by the scheduler records an event and keeps the old manager when the planned one became a loop; pay hidden from an Employees-only role, shown to Payroll and to the person, refused for a colleague; org chart visibility (super admin hidden, other department hidden); health lists orphaned lines and people without a manager, refused for employees. Full suite: 223 files / 1,360 tests pass; lint and typecheck pass; schema vs migrations diff empty.",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Tests"
+ },
+ {
+  "key": "phase_2_org.9",
+  "kind": "rule",
+  "title": "Rollback",
+  "body": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -1 -f scripts/rollback/20261210000000_hrms_org.down.sql (drops only the new table; history recorded since the deployment is lost, nothing else).",
+  "source": "docs/enterprise-hrms/PHASE_2_ORG.md#Rollback"
+ }
+]

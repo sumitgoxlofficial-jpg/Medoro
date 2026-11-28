@@ -1183,6 +1183,8 @@ model StaffUser {
   hrKpiResults       HrKpiResult[]
   hrShiftAssignments HrShiftAssignment[]
   hrCourseEnrolments HrCourseEnrolment[]
+  aiHrCalls          AiHrCall[]
+  aiHrConsent        AiHrConsent?
 
   @@unique([email, kind])
 }
@@ -4383,4 +4385,180 @@ model HrSurveyResponse {
   at            DateTime @default(now())
 
   @@unique([surveyId, respondentKey])
+}
+
+// ── AI HR Assistant (attendance conversations, knowledge, scenarios). The HRMS is single-organisation, so these
+// tables have no organisation column; see docs/ai-hr-assistant/AUDIT.md.
+
+/// One AI conversation with one employee about one event (late, absent, missing check-out, overtime, manual).
+/// eventKey makes detection idempotent: the same event never creates a second call.
+model AiHrCall {
+  id             String            @id @default(uuid())
+  staffId        String
+  staff          StaffUser         @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  reason         String // late | absent | missing_checkout | overtime | manual
+  day            DateTime          @db.Date
+  eventKey       String            @unique
+  status         String            @default("scheduled") // scheduled | notified | in_progress | completed | no_answer | failed | cancelled | suppressed
+  channel        String            @default("browser") // browser (WebRTC/turn-based in the HRMS) | sip (only with a configured provider)
+  attempts       Int               @default(0)
+  maxAttempts    Int               @default(3)
+  nextAttemptAt  DateTime?
+  context        Json              @default("{}") // shift, expected times, overtime request: facts the conversation may use
+  state          Json              @default("{}") // conversation memory (slots, language, asked questions)
+  suppressReason String            @default("")
+  providerId     String            @default("")
+  createdBy      String            @default("system")
+  startedAt      DateTime?
+  endedAt        DateTime?
+  retainUntil    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  attemptRows    AiHrCallAttempt[]
+  turns          AiHrTurn[]
+  response       AiHrCallResponse?
+  actions        AiHrAction[]
+
+  @@index([status, nextAttemptAt])
+  @@index([staffId, createdAt])
+  @@index([reason, day])
+}
+
+/// Each notification / ring attempt of a call (append-only).
+model AiHrCallAttempt {
+  id      String   @id @default(uuid())
+  callId  String
+  call    AiHrCall @relation(fields: [callId], references: [id], onDelete: Restrict)
+  n       Int
+  outcome String // notified | answered | no_answer | failed | skipped
+  detail  String   @default("")
+  at      DateTime @default(now())
+
+  @@index([callId])
+}
+
+/// One turn of a transcript. The text is sealed with HOST_KEY; rows are deleted when the call's retention ends.
+model AiHrTurn {
+  id         String   @id @default(uuid())
+  callId     String
+  call       AiHrCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+  seq        Int
+  who        String // ai | employee
+  textSealed Bytes
+  lang       String   @default("hinglish")
+  intent     String   @default("")
+  sttMs      Int?
+  llmMs      Int?
+  ttsMs      Int?
+  at         DateTime @default(now())
+
+  @@unique([callId, seq])
+}
+
+/// The validated structured outcome of a call: what was said, what was inferred, what the AI recommends.
+model AiHrCallResponse {
+  id                      String   @id @default(uuid())
+  callId                  String   @unique
+  call                    AiHrCall @relation(fields: [callId], references: [id], onDelete: Restrict)
+  reasonCategory          String   @default("")
+  employeeResponse        String   @default("")
+  expectedArrival         String   @default("") // HH:MM India time
+  leaveRequestIntent      Boolean  @default(false)
+  overtimeResponse        String   @default("") // accepted | rejected | clarification | none
+  callbackRequested       Boolean  @default(false)
+  callbackTime            String   @default("")
+  humanEscalationRequired Boolean  @default(false)
+  employeeRequestedStop   Boolean  @default(false)
+  summary                 String   @default("")
+  confidence              Float    @default(0)
+  said                    Json     @default("[]")
+  inferred                Json     @default("{}")
+  recommended             Json     @default("[]")
+  createdAt               DateTime @default(now())
+}
+
+/// Something the AI proposes for a human to approve, or a follow-up it records. The AI never decides leave, pay,
+/// attendance, overtime or discipline: those actions wait for an authorised person.
+model AiHrAction {
+  id        String    @id @default(uuid())
+  callId    String?
+  call      AiHrCall? @relation(fields: [callId], references: [id], onDelete: Restrict)
+  staffId   String
+  kind      String // leave_draft | hr_followup | escalation | callback | overtime_response | expected_arrival | stop_calls | manager_notice
+  priority  String    @default("normal") // normal | urgent
+  payload   Json      @default("{}")
+  status    String    @default("open") // open | approved | rejected | done
+  note      String    @default("")
+  decidedBy String?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([staffId])
+}
+
+/// An employee's choice about AI conversations. Stop wins until the employee turns calls on again.
+model AiHrConsent {
+  staffId   String    @id
+  staff     StaffUser @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  status    String    @default("allowed") // allowed | stopped
+  source    String    @default("employee") // employee | ai_call | hr
+  reason    String    @default("")
+  changedAt DateTime  @default(now())
+}
+
+/// A versioned knowledge record. Product knowledge says how the Medoro HRMS works; organisation knowledge is the
+/// company's own approved policy. Only approved versions are retrieved.
+model AiHrKnowledgeDoc {
+  id            String    @id @default(uuid())
+  docKey        String // stable key across versions
+  version       Int
+  scope         String // product | organisation
+  kind          String // module | policy | faq | procedure | rule
+  title         String
+  body          String
+  source        String // e.g. docs/HRMS.md#leave, HR upload, FAQ
+  status        String    @default("draft") // draft | approved | archived
+  effectiveFrom DateTime?
+  createdBy     String
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([docKey, version])
+  @@index([status, scope])
+}
+
+/// Conversation scenarios HR adds on top of the version-controlled library (src/staff/hrms/ai-hr/scenarios).
+model AiHrScenario {
+  id         String   @id @default(uuid())
+  category   String
+  utterance  String
+  callReason String
+  expect     Json     @default("{}")
+  disabled   Boolean  @default(false)
+  createdBy  String
+  createdAt  DateTime @default(now())
+}
+
+/// One evaluation of the conversation engine over the scenario library.
+model AiHrEvalRun {
+  id         String    @id @default(uuid())
+  by         String
+  split      String    @default("all") // all | held_out | tuning
+  total      Int       @default(0)
+  passed     Int       @default(0)
+  metrics    Json      @default("{}")
+  failures   Json      @default("[]")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+}
+
+/// Webhook deliveries from the optional telephony provider, kept for idempotency.
+model AiHrWebhookEvent {
+  id     String   @id // provider event id
+  kind   String
+  callId String   @default("")
+  at     DateTime @default(now())
 }
