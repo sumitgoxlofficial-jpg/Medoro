@@ -21,6 +21,9 @@ import { evaluateAll } from "./evaluate";
 import { speechFilesStatus } from "./speech-files";
 import { LIBRARY_VERSION, parseExpect, scenarios as libraryScenarios, validateLibrary, type Scenario } from "./scenarios";
 import { converse } from "./engine";
+import { mailEnabled, sendMail } from "@/server/mail";
+import { aiHrDigestMail } from "../mails";
+import { digestWeek, type DigestStats } from "./digest";
 
 // The AI HR Assistant's server side. It detects attendance exceptions from the HRMS's own records (the same shift,
 // leave, holiday and weekly-off rules the attendance screens use), schedules a conversation per event exactly once,
@@ -47,12 +50,14 @@ export const configSchema = z.object({
   sttModel: z.enum(["whisper-base", "whisper-small"]),
   /** Where browsers download the speech model from: Hugging Face (default) or this server (scripts/office/fetch-speech-model.sh). */
   modelSource: z.enum(["huggingface", "self"]),
+  /** A weekly summary email to everyone with Attendance & leave (Monday), when email is set up. */
+  weeklyDigest: z.boolean().default(true),
 });
 export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface",
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", weeklyDigest: true,
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -187,6 +192,7 @@ export async function aiHrTick(now = new Date(), daily = false) {
     const d = await detect(now);
     const p = await dispatch(now);
     if (daily) await retentionSweep(now);
+    await weeklyDigest(now).catch((e) => log.error("ai-hr weekly digest failed", { err: e }));
     return { ...d, ...p };
   } catch (e) { log.error("ai-hr tick failed", { err: e }); return null; }
 }
@@ -364,6 +370,92 @@ export async function removeWord(me: Me, phrase: string) {
   await db.hrSetting.upsert({ where: { key: "aiHrVocabulary" }, update: { value: next }, create: { key: "aiHrVocabulary", value: next } });
   vocabCache = null;
   await audit(me, "AI vocabulary removed", `"${phrase}"`);
+}
+
+// ── Answers the assistant didn't understand: HR reviews them and teaches a meaning, or dismisses them.
+const DISMISSED = "aiHrUnclearDismissed";
+async function dismissedTurns(): Promise<string[]> {
+  const v = (await db.hrSetting.findUnique({ where: { key: DISMISSED } }))?.value;
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+/** Employee answers whose meaning wasn't recognised (within the transcript retention period), newest first. Opening them is audited. */
+export async function unclearAnswers(me: Me) {
+  need(me, "attendance");
+  const [hidden, vocabulary] = await Promise.all([dismissedTurns(), loadVocabulary()]);
+  const rows = await db.aiHrTurn.findMany({
+    where: { who: "employee", intent: "unknown", ...(hidden.length ? { id: { notIn: hidden } } : {}) },
+    orderBy: { at: "desc" }, take: 100,
+    include: { call: { select: { id: true, reason: true, day: true, staff: { select: { name: true, empNo: true } } } } },
+  });
+  if (rows.length) await audit(me, "AI unclear answers opened", `${rows.length} answers`);
+  return rows.map((t) => {
+    const text = openText(t.textSealed);
+    // With the words HR has taught since, would the assistant understand it now?
+    const now = understand(text, 600, { reason: t.call.reason, custom: vocabulary }).primary;
+    return { id: t.id, callId: t.call.id, at: t.at.toISOString(), text, reason: t.call.reason, day: isoOf(t.call.day), name: t.call.staff.name, empNo: t.call.staff.empNo, now: now === "unknown" ? "" : now };
+  });
+}
+export async function dismissUnclear(me: Me, turnId: string) {
+  need(me, "attendance");
+  const t = await db.aiHrTurn.findUnique({ where: { id: turnId }, select: { id: true, who: true } });
+  if (!t || t.who !== "employee") throw new UserError("That answer is no longer kept.");
+  const known = new Set(await db.aiHrTurn.findMany({ where: { id: { in: [...(await dismissedTurns()), turnId] } }, select: { id: true } }).then((r) => r.map((x) => x.id)));
+  const next = [...known].slice(-2000); // turns deleted by retention drop out of the list
+  await db.hrSetting.upsert({ where: { key: DISMISSED }, update: { value: next }, create: { key: DISMISSED, value: next } });
+}
+/** Teaches a phrase from an unclear answer and takes the answer off the list. */
+export async function teachFromUnclear(me: Me, turnId: string, raw: z.input<typeof wordInput>) {
+  await addWord(me, raw);
+  await dismissUnclear(me, turnId);
+}
+
+// ── Weekly summary email to HR (Attendance & leave holders), once a week from Monday, counted from database rows.
+let digestSentFor = "";
+/** Counts for the seven days before `now` (the summary passes Monday 00:00 India time, so it covers last Monday to Sunday). */
+export async function digestStats(now = new Date()): Promise<DigestStats> {
+  const since = new Date(now.getTime() - 7 * 86400_000);
+  const [calls, resp, opened, open, urgent, unclear] = await Promise.all([
+    db.aiHrCall.groupBy({ by: ["reason", "status"], where: { createdAt: { gte: since, lt: now } }, _count: { _all: true } }),
+    db.aiHrCallResponse.findMany({ where: { createdAt: { gte: since, lt: now } }, select: { employeeResponse: true, overtimeResponse: true, humanEscalationRequired: true, employeeRequestedStop: true } }),
+    db.aiHrAction.count({ where: { createdAt: { gte: since, lt: now } } }),
+    db.aiHrAction.count({ where: { status: "open" } }),
+    db.aiHrAction.count({ where: { status: "open", priority: "urgent" } }),
+    db.aiHrTurn.count({ where: { who: "employee", intent: "unknown", at: { gte: since, lt: now } } }),
+  ]);
+  const sum = (f: (c: (typeof calls)[number]) => boolean) => calls.filter(f).reduce((a, c) => a + c._count._all, 0);
+  return {
+    conversations: sum(() => true), completed: sum((c) => c.status === "completed"), noAnswer: sum((c) => c.status === "no_answer"),
+    byReason: { late: sum((c) => c.reason === "late"), absent: sum((c) => c.reason === "absent"), missing_checkout: sum((c) => c.reason === "missing_checkout"), overtime: sum((c) => c.reason === "overtime"), manual: sum((c) => c.reason === "manual") },
+    coming: resp.filter((r) => r.employeeResponse === "coming").length, absent: resp.filter((r) => r.employeeResponse === "absent").length,
+    otAccepted: resp.filter((r) => r.overtimeResponse === "accepted").length, otRejected: resp.filter((r) => r.overtimeResponse === "rejected").length,
+    escalations: resp.filter((r) => r.humanEscalationRequired).length, stops: resp.filter((r) => r.employeeRequestedStop).length,
+    actionsRaised: opened, openActions: open, urgentOpen: urgent, unclear,
+  };
+}
+/** Sends the weekly summary once per week (an atomic claim on one HrSetting row, so several servers send it once). */
+export async function weeklyDigest(now = new Date()): Promise<number> {
+  const week = digestWeek(now);
+  if (digestSentFor === week) return 0;
+  const cfg = await loadConfig();
+  if (!cfg.enabled || !cfg.weeklyDigest || !mailEnabled()) return 0;
+  const claimed = await db.$queryRaw<{ key: string }[]>`
+    INSERT INTO "HrSetting" (key, value) VALUES ('aiHrDigest', jsonb_build_object('week', ${week}::text))
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value WHERE "HrSetting".value->>'week' IS DISTINCT FROM ${week}::text
+    RETURNING key`;
+  digestSentFor = week;
+  if (!claimed.length) return 0;
+  const ids = await holders("attendance");
+  const people = await db.staffUser.findMany({ where: { id: { in: ids } }, select: { name: true, email: true } });
+  const stats = await digestStats(new Date(`${week}T00:00:00+05:30`));
+  const org = (await loadSettings()).company.name || "Medoro";
+  let sent = 0;
+  for (const p of people) {
+    if (!p.email) continue;
+    const ok = await sendMail({ to: p.email, ...aiHrDigestMail({ name: p.name, org, week, stats }) }).then(() => true).catch((e) => { log.warn("ai-hr digest mail failed", { err: e instanceof Error ? e.message : String(e) }); return false; });
+    if (ok) sent++;
+  }
+  log.info("ai-hr weekly digest", { week, recipients: sent });
+  return sent;
 }
 
 // ── The conversation, for the employee it belongs to
@@ -675,6 +767,6 @@ export async function playground(me: Me, raw: z.input<typeof pgInput>) {
 export async function modelStatus(me: Me) {
   need(me, "attendance");
   const config = await loadConfig();
-  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", config, speechFiles: await speechFilesStatus(config.sttModel) };
+  return { health: await ai.health(), sip: process.env.AI_HR_SIP_ENABLED === "1", mail: mailEnabled(), config, speechFiles: await speechFilesStatus(config.sttModel) };
 }
 export { can };

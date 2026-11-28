@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
-import { aiHrAddWord, aiHrRemoveWord, aiHrAddScenario, aiHrApproveKnowledge, aiHrCallDetail, aiHrDecide, aiHrDeleteTranscript, aiHrManualCall, aiHrPlayground, aiHrRequestOvertime, aiHrRollbackKnowledge, aiHrRunEvaluation, aiHrSaveConfig, aiHrSaveKnowledge, aiHrTestRetrieval, aiHrToggleScenario } from "../actions";
+import { aiHrAddWord, aiHrRemoveWord, aiHrAddScenario, aiHrApproveKnowledge, aiHrCallDetail, aiHrDecide, aiHrDeleteTranscript, aiHrDismissUnclear, aiHrManualCall, aiHrTeachUnclear, aiHrPlayground, aiHrRequestOvertime, aiHrRollbackKnowledge, aiHrRunEvaluation, aiHrSaveConfig, aiHrSaveKnowledge, aiHrTestRetrieval, aiHrToggleScenario } from "../actions";
 import { Card, Empty, Field, Grid, Modal, Pill, Stat, Table, Tabs, ago, btnCls, dangerCls, dayLabel, inputCls, primaryCls, statusTone, tdCls, timeLabel, useRun } from "./kit";
 
 type D = Data<"aihr">;
@@ -19,6 +19,7 @@ export function AiHrScreen({ d }: { d: D }) {
     {d.overview ? <Overview d={d} /> : null}
     {d.tab === "calls" && d.calls ? <Calls d={d} /> : null}
     {d.actions ? <Escalations d={d} /> : null}
+    {d.unclear ? <Unclear rows={d.unclear} admin={d.admin} /> : null}
     {d.knowledge ? <Knowledge k={d.knowledge} /> : null}
     {d.scenarios ? <><Vocabulary words={d.vocabulary ?? []} /><Scenarios s={d.scenarios} /></> : null}
     {d.tab === "playground" ? <Playground /> : null}
@@ -133,6 +134,25 @@ function Escalations({ d }: { d: D }) {
       <Field label="Leave type"><select className={inputCls} value={lv.type} onChange={(e) => setLv({ ...lv, type: e.target.value })}>{[["casual", "Casual Leave"], ["sick", "Sick Leave"], ["privilege", "Privilege Leave"], ["comp", "Comp Off"], ["unpaid", "Unpaid Leave (loss of pay)"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
       <div><button className={primaryCls} disabled={busy}>Approve and record leave</button></div></form></Modal> : null}
     {rej ? <Modal title="Reject" onClose={() => setRej(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => aiHrDecide(rej.id, false, rej.note), () => setRej(null)); }}><Field label="Why (the employee sees this for requests)"><input className={inputCls} value={rej.note} onChange={(e) => setRej({ ...rej, note: e.target.value })} required /></Field><div><button className={dangerCls} disabled={busy}>Reject</button></div></form></Modal> : null}
+  </Card>;
+}
+
+/** Answers the assistant didn't understand: teach the phrase a meaning (used at once everywhere), or dismiss it. */
+function Unclear({ rows, admin }: { rows: NonNullable<D["unclear"]>; admin: boolean }) {
+  const { run, busy } = useRun();
+  const [teach, setTeach] = useState<{ id: string; text: string; phrase: string; meaning: string } | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  return <Card title="Answers not understood" sub="What employees said that the assistant couldn’t place (kept only for the transcript retention period). Teach a phrase from it, and the assistant understands it from then on; run the evaluation afterwards. Opening this list is written to the audit log.">
+    <Table head={["When", "Person", "About", "What they said", "Now", ""]} empty="Nothing to review: the assistant understood every answer.">
+      {rows.map((r) => <tr key={r.id}><td className={tdCls}>{ago(r.at)}</td><td className={tdCls}>{r.name} <span className="text-[12px] text-[#94A3B8]">{r.empNo}</span></td><td className={tdCls}>{REASON[r.reason] ?? r.reason}</td><td className={tdCls + " max-w-[360px]"}>“{r.text}”</td><td className={tdCls}>{r.now ? <Pill tone="green">understood: {r.now.replace(/_/g, " ")}</Pill> : <Pill tone="amber">not yet</Pill>}</td>
+        <td className={tdCls}><div className="flex gap-1.5"><button className={primaryCls} disabled={busy} onClick={() => setTeach({ id: r.id, text: r.text, phrase: r.text.toLowerCase().slice(0, 60), meaning: "intent:coming" })}>Teach</button><button className={btnCls} disabled={busy} onClick={() => setOpen(r.callId)}>Transcript</button><button className={btnCls} disabled={busy} onClick={() => run(() => aiHrDismissUnclear(r.id))}>Dismiss</button></div></td></tr>)}
+    </Table>
+    {open ? <CallModal id={open} admin={admin} onClose={() => setOpen(null)} /> : null}
+    {teach ? <Modal title="Teach the assistant" onClose={() => setTeach(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); const [kind, value] = teach.meaning.split(":"); run(() => aiHrTeachUnclear(teach.id, kind === "intent" ? { phrase: teach.phrase, intent: value } : { phrase: teach.phrase, reason: value as "traffic" }), () => setTeach(null)); }}>
+      <div className="text-[13px] text-[#475569]">They said: “{teach.text}”. Keep only the words that carry the meaning (for example “raste me hu”), so other sentences with them are understood too.</div>
+      <Field label="Word or phrase"><input className={inputCls} value={teach.phrase} maxLength={60} onChange={(e) => setTeach({ ...teach, phrase: e.target.value })} required /></Field>
+      <Field label="Means"><select className={inputCls} value={teach.meaning} onChange={(e) => setTeach({ ...teach, meaning: e.target.value })}>{MEANING.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+      <div><button className={primaryCls} disabled={busy}>Teach</button></div></form></Modal> : null}
   </Card>;
 }
 
@@ -287,6 +307,7 @@ function Settings({ s, admin }: { s: St; admin: boolean }) {
         <Field label="Contact until"><input type="time" className={inputCls} disabled={!admin} value={c.callingTo} onChange={(e) => setC({ ...c, callingTo: e.target.value })} /></Field>
         <Field label="Keep transcripts (days)"><input className={inputCls} inputMode="numeric" disabled={!admin} value={c.retentionDays} onChange={(e) => setC({ ...c, retentionDays: num(e.target.value) })} /></Field>
       </Grid></div>
+      <div className="px-5 pb-4"><label className="flex gap-2 items-center text-[13px]"><input type="checkbox" checked={c.weeklyDigest} disabled={!admin} onChange={(e) => setC({ ...c, weeklyDigest: e.target.checked })} />Weekly summary email to everyone with Attendance &amp; leave (Mondays; counts only, no names or conversation text){s.mail ? "" : ". Email isn’t set up on this server yet, so nothing is sent"}</label></div>
     </Card>
     <Card title="Voice, language and personality" sub="Female, professional Indian HR assistant; Hinglish by default, follows Hindi or English when the employee uses it; says it is an AI; one question at a time.">
       <div className="px-5 pb-4 flex flex-col gap-2 text-[13px]">

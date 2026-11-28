@@ -205,6 +205,7 @@ export const loaders = {
       overview: tab === "overview" ? await aiHr.overview(me) : null,
       calls: tab === "calls" || tab === "overview" ? await aiHr.listCalls(me, { reason, status: q.status ?? "", days: Number(q.days) || 30 }) : null,
       actions: tab === "escalations" ? await aiHr.actionsBoard(me, q.all === "1" ? "all" : "open") : null,
+      unclear: tab === "escalations" ? await aiHr.unclearAnswers(me) : null,
       knowledge: tab === "knowledge" && can(me, "employees") ? await aiHr.knowledgeAdmin(me, (q.q ?? "").slice(0, 80)) : null,
       scenarios: tab === "scenarios" ? await aiHr.scenarioAdmin(me) : null,
       vocabulary: tab === "scenarios" ? await aiHr.vocabularyAdmin(me) : null,

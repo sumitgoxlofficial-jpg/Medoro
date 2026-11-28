@@ -80,7 +80,8 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   expect(paid[0]).toBe(paid[1]); // every working day paid: the profile was made today
 
   // The employee's first sign-in: password, details, joining documents.
-  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  // Location is granted: the appointment letter and NDA are e-signed with the place and location recorded.
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, permissions: ["geolocation"], geolocation: { latitude: 18.5204, longitude: 73.8567, accuracy: 20 } });
   const emp = await ctx.newPage();
   await signIn(emp, empNo, temp);
   await setPassword(emp, EMP.password);
@@ -98,8 +99,20 @@ test("HRMS: admin creates an employee; first sign-in, check-in, half-day leave a
   // Aadhaar and PAN: the numbers with consent, then a card for each (DigiLocker isn't set up here, so HR checks the Aadhaar card).
   await completeKyc(emp, false);
   await expect(emp.getByRole("button", { name: "Accept and enter the HRMS" })).toBeVisible();
-  await expect(emp.getByRole("checkbox")).toHaveCount(3);
-  for (const box of await emp.getByRole("checkbox").all()) await box.check();
+  // The offer letter is acknowledged; the appointment letter and NDA are e-signed (typed signature style).
+  await emp.getByRole("checkbox", { name: /I have read and accept the offer letter/i }).check();
+  for (let n = 0; n < 2; n++) {
+    await emp.getByRole("button", { name: "Sign", exact: true }).first().click();
+    const dlg = emp.getByRole("dialog", { name: /^Sign your/ });
+    await dlg.getByRole("button", { name: "Read the disclosure ▸" }).click();
+    await dlg.getByLabel("Place of signing").fill("Pune");
+    await dlg.getByRole("button", { name: "📍 Share current location" }).click();
+    await expect(dlg.getByText("✓ Captured")).toBeVisible();
+    for (const box of await dlg.getByRole("checkbox").all()) await box.check();
+    await dlg.getByRole("button", { name: "Finish and sign" }).click();
+    await expect(dlg).toBeHidden({ timeout: 20_000 });
+  }
+  await expect(emp.getByText("Signed", { exact: true })).toHaveCount(2);
   await emp.getByRole("button", { name: "Accept and enter the HRMS" }).click();
   await expect(emp.getByText(/Good (morning|afternoon|evening)/)).toBeVisible();
 

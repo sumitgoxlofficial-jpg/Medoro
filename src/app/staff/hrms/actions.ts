@@ -349,6 +349,8 @@ export const aiHrAddScenario = async (input: Parameters<typeof aiHr.addScenario>
 export const aiHrToggleScenario = async (id: string, disabled: boolean) => done(await hrRun((me) => aiHr.toggleScenario(me, id, disabled)));
 export const aiHrRunEvaluation = async () => done(await hrRun((me) => aiHr.runEvaluation(me)));
 export const aiHrAddWord = async (input: Parameters<typeof aiHr.addWord>[1]) => done(await hrRun((me) => aiHr.addWord(me, input), "The assistant will understand it from now on."));
+export const aiHrTeachUnclear = async (turnId: string, input: Parameters<typeof aiHr.addWord>[1]) => done(await hrRun((me) => aiHr.teachFromUnclear(me, turnId, input), "The assistant will understand it from now on."));
+export const aiHrDismissUnclear = async (turnId: string) => done(await hrRun((me) => aiHr.dismissUnclear(me, turnId), "Dismissed."));
 export const aiHrRemoveWord = async (phrase: string) => done(await hrRun((me) => aiHr.removeWord(me, phrase), "Removed."));
 export const aiHrPlayground = async (input: Parameters<typeof aiHr.playground>[1]) => hrRun((me) => aiHr.playground(me, input));
 // Employee side

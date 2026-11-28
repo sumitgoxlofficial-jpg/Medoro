@@ -5,6 +5,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 // escalation; HR approval; access control; retention and deletion; knowledge approval; the signed webhook.
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }), headers: async () => new Headers({ "x-forwarded-for": "10.0.0.7" }) }));
 vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("redirect " + u); } }));
+// Email is captured, not sent: the weekly summary is checked from what would have gone out.
+const mail = vi.hoisted(() => ({ on: false, sent: [] as { to: string; subject: string; text: string }[] }));
+vi.mock("@/server/mail", async (orig) => ({ ...(await orig<typeof import("@/server/mail")>()), mailEnabled: () => mail.on, sendMail: async (m: { to: string; subject: string; text: string }) => { mail.sent.push(m); } }));
 
 import { db } from "@/server/db";
 import { invalidateSettings, loadPerms, type Me } from "@/staff/hrms/auth";
@@ -323,5 +326,47 @@ describe("AI HR Assistant (integration)", () => {
     const run = await db.aiHrEvalRun.findFirstOrThrow({ orderBy: { startedAt: "desc" } });
     expect(run.passed).toBe(r.passed);
     expect(run.finishedAt).not.toBeNull();
+  });
+  it("answers not understood: HR sees them (audited), teaches a phrase from one, dismisses another; employees can't", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("10:30", "2026-12-10"));
+    const id = await svc.startManualCall(hr, b.id, "check");
+    await db.aiHrCall.update({ where: { id }, data: { reason: "late" } });
+    await svc.beginCall(b, id);
+    await svc.sendTurn(b, id, { text: "haan" });
+    await svc.sendTurn(b, id, { text: "zorbak plimpo hai" });
+    await svc.sendTurn(b, id, { text: "qwixel drumbo" });
+    const list = await svc.unclearAnswers(hr);
+    const t1 = list.find((r) => r.text === "zorbak plimpo hai")!, t2 = list.find((r) => r.text === "qwixel drumbo")!;
+    expect(t1).toMatchObject({ name: "Bharat Leave", reason: "late", now: "" });
+    expect(t2).toBeTruthy();
+    expect(await db.staffAudit.count({ where: { action: "HRMS · AI unclear answers opened" } })).toBeGreaterThan(0);
+    await expect(svc.unclearAnswers(b)).rejects.toThrow();
+    await svc.teachFromUnclear(hr, t1.id, { phrase: "zorbak plimpo", intent: "coming" });
+    expect((await svc.vocabularyAdmin(hr)).map((w) => w.phrase)).toContain("zorbak plimpo");
+    await svc.dismissUnclear(hr, t2.id);
+    const after = await svc.unclearAnswers(hr);
+    expect(after.some((r) => r.id === t1.id || r.id === t2.id)).toBe(false);
+    await expect(svc.dismissUnclear(b, t2.id)).rejects.toThrow();
+    await svc.removeWord(hr, "zorbak plimpo");
+  });
+
+  it("weekly summary email: once a week to Attendance holders, counts only, and only when switched on", async () => {
+    const monday = new Date("2026-12-14T09:00:00+05:30");
+    mail.on = true; mail.sent = [];
+    await enable({ weeklyDigest: false });
+    expect(await svc.weeklyDigest(monday)).toBe(0);
+    await enable();
+    const sent = await svc.weeklyDigest(monday);
+    expect(sent).toBeGreaterThanOrEqual(3); // both HR people and the super admin
+    expect(mail.sent.map((m) => m.to)).toEqual(expect.arrayContaining([hr.email, hr2.email, admin.email]));
+    expect(mail.sent.map((m) => m.to)).not.toContain(b.email); // not an Attendance holder
+    const m = mail.sent[0];
+    expect(m.subject).toMatch(/weekly summary \(7 Dec to 13 Dec\)/);
+    expect(m.text).toMatch(/Conversations: \d+/);
+    expect(m.text).not.toMatch(/Bharat|zorbak/); // no names or conversation text
+    // Same week again (another server, a later tick): nothing more is sent.
+    expect(await svc.weeklyDigest(new Date("2026-12-16T12:00:00+05:30"))).toBe(0);
+    expect(await svc.weeklyDigest(new Date("2026-12-21T08:00:00+05:30"))).toBeGreaterThanOrEqual(3);
+    mail.on = false;
   });
 });

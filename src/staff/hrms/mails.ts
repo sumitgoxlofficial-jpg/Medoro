@@ -1,4 +1,5 @@
 import { compose } from "@/server/mail-template";
+import { digestFacts, type DigestStats } from "./ai-hr/digest";
 
 /** Wording of every email HRMS sends to an employee or candidate. Plain, courteous, one look (see src/server/mail-template.ts). */
 const first = (name: string) => name.trim().split(/\s+/)[0] || "there";
@@ -150,3 +151,25 @@ export function applicantCodeMail(i: { code: string; org: string }) {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** The AI HR Assistant's weekly summary to HR: counts only, no names or conversation text. */
+export function aiHrDigestMail(i: { name: string; org: string; week: string; stats: DigestStats }) {
+  const base = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, "") : "";
+  const from = new Date(`${i.week}T00:00:00Z`), to = new Date(from.getTime() - 86400_000), start = new Date(from.getTime() - 7 * 86400_000);
+  const d = (x: Date) => x.toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
+  const subject = `AI HR Assistant: weekly summary (${d(start)} to ${d(to)})`;
+  const s = i.stats;
+  const m = compose({
+    greeting: `Dear ${first(i.name)},`,
+    blocks: [
+      { p: `Here is what the AI HR Assistant handled in the last seven days. Every number is counted from the HRMS records.` },
+      { facts: digestFacts(s) },
+      ...(s.urgentOpen ? [{ note: `${s.urgentOpen} urgent item${s.urgentOpen === 1 ? " is" : "s are"} waiting for HR. Please review them first.` }] : []),
+      ...(s.unclear ? [{ p: "Some answers weren’t understood. Review them under Escalations & review, and teach the assistant what they mean." }] : []),
+      ...(base ? [{ button: { label: "Open the AI HR Assistant", url: `${base}/staff/hrms/aihr?tab=escalations` } }] : []),
+      { note: "You receive this because you manage attendance and leave. A super admin can turn it off in AI HR Assistant → Settings." },
+    ],
+    signoff: signoff(i.org),
+  }, subject);
+  return { subject, ...m };
+}
