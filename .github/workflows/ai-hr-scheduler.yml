@@ -1,0 +1,27 @@
+# Free scheduler for the HRMS AI HR Assistant (and the other minute jobs): calls /api/cron/minute every 5 minutes.
+# GitHub runs scheduled workflows on public repositories at no cost (times are best effort and can be delayed).
+# One-time setup: repository Settings → Secrets and variables → Actions:
+#   secret   CRON_SECRET   the same value as CRON_SECRET in Vercel
+#   variable APP_URL       e.g. https://medoro.in
+# Without them the job does nothing. HRMS page views also run the AI job at most once a minute.
+name: AI HR scheduler
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions: {}
+concurrency: { group: ai-hr-scheduler, cancel-in-progress: false }
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the minute jobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$APP_URL" ]; then echo "CRON_SECRET or APP_URL not set; skipping."; exit 0; fi
+          code=$(curl -s -o /tmp/out -w '%{http_code}' --max-time 280 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/minute")
+          echo "HTTP $code: $(head -c 200 /tmp/out)"
+          [ "$code" = 200 ]

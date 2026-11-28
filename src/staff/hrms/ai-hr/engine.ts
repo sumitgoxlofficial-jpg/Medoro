@@ -49,7 +49,8 @@ export type State = {
   ended: boolean;
   endReason?: EndReason;
 };
-export type Turn = { state: State; reply: string; nlu?: Nlu; done: boolean };
+/** `speech` is the same reply for the voice: Devanagari for Hindi and Hinglish (the Hindi voice reads it correctly), English for English. */
+export type Turn = { state: State; reply: string; speech?: string; nlu?: Nlu; done: boolean };
 
 const isLang = (l: string): l is Lang => l === "hi" || l === "en" || l === "hinglish";
 
@@ -68,12 +69,35 @@ export function speakTime(hhmm: string, lang: Lang): string {
   return lang === "hi" ? `${part} ${t} बजे` : `${part} ${t} baje`;
 }
 
-function pick(st: State, key: PhraseKey): string {
+// Phrases picked during the current turn, so the spoken version uses the same message in the voice's language.
+let REC: { key: PhraseKey; i: number; extra: Record<string, string> }[] | null = null;
+function pick(st: State, key: PhraseKey, extra: Record<string, string> = {}): string {
   const list = (P[key] as Record<Lang, string[]>)[st.lang] ?? (P[key] as Record<Lang, string[]>).hinglish;
   let i = list.findIndex((_, n) => !st.used.includes(`${key}:${st.lang}:${n}`));
   if (i < 0) i = st.turns % list.length;
   st.used.push(`${key}:${st.lang}:${i}`);
+  REC?.push({ key, i, extra });
   return list[i];
+}
+const WHY: Record<CallReason, Record<Lang, string>> = {
+  late: { hinglish: "aaj aapka check-in shift shuru hone ke baad bhi record nahi hua.", hi: "आज शिफ्ट शुरू होने के बाद भी आपका चेक-इन दर्ज नहीं हुआ।", en: "your check-in wasn't recorded after your shift started today." },
+  absent: { hinglish: "aaj na check-in hua hai na koi approved leave hai.", hi: "आज न चेक-इन हुआ है न कोई स्वीकृत छुट्टी है।", en: "there's no check-in and no approved leave for today." },
+  missing_checkout: { hinglish: "shift khatam hone ke baad bhi checkout record nahi hua.", hi: "शिफ्ट खत्म होने के बाद भी चेकआउट दर्ज नहीं हुआ।", en: "no check-out was recorded after your shift ended." },
+  overtime: { hinglish: "aapke manager ne overtime ki request ki hai.", hi: "आपके मैनेजर ने ओवरटाइम का अनुरोध किया है।", en: "your manager has requested overtime." },
+  manual: { hinglish: "HR team ne follow-up ke liye kaha tha.", hi: "HR टीम ने फॉलो-अप के लिए कहा था।", en: "the HR team asked me to follow up." },
+};
+/** The spoken version of what was just said: each picked message in the voice's language (Devanagari unless English). */
+export function speechFor(parts: { key: PhraseKey; i: number; extra: Record<string, string> }[], st: State, ctx: Ctx, purpose?: CallReason): string {
+  const L: Lang = st.lang === "en" ? "en" : "hi";
+  const v = vars({ ...st, lang: L }, ctx);
+  return parts.map(({ key, i, extra }) => {
+    if (key === "kb_answer") return L === "en" ? "I've put the answer on your screen, with where it comes from." : "जवाब और उसका स्रोत आपकी स्क्रीन पर लिख दिया है।";
+    const list = (P[key] as Record<Lang, string[]>)[L];
+    const x = { ...extra };
+    if (key === "why_call") x.purpose_text = WHY[st.reason][L];
+    if (key === "intro" && purpose) x.purpose = fill((P[`purpose_${purpose}` as PhraseKey] as Record<Lang, string[]>)[L][0], v);
+    return fill(list[i % list.length], { ...v, ...x });
+  }).join(" ");
 }
 
 function vars(st: State, ctx: Ctx): Record<string, string | number | undefined> {
@@ -107,18 +131,28 @@ export function newState(reason: CallReason, lang: Lang = "hinglish"): State {
 export function start(reason: CallReason, ctx: Ctx, lang: Lang = "hinglish"): Turn {
   const st = newState(reason, lang);
   const v = vars(st, ctx);
+  REC = [];
   const purpose = fill(pick(st, `purpose_${reason}` as PhraseKey), v);
   const reply = fill(pick(st, "intro"), { ...v, purpose });
-  return { state: st, reply, done: false };
+  const parts = REC.filter((p) => p.key === "intro");
+  REC = null;
+  return { state: st, reply, speech: speechFor(parts, st, ctx, reason), done: false };
 }
 
 /** One employee turn. An empty utterance is silence (silence is never consent). */
 export function step(prev: State, ctx: Ctx, utterance: string): Turn {
+  REC = [];
+  try {
+    const t = stepInner(prev, ctx, utterance);
+    return { ...t, speech: t.reply ? speechFor(REC, t.state, ctx) : "" };
+  } finally { REC = null; }
+}
+function stepInner(prev: State, ctx: Ctx, utterance: string): Turn {
   const st: State = structuredClone(prev);
   if (st.ended) return { state: st, reply: "", done: true };
   st.turns++;
   const out: string[] = [];
-  const say = (k: PhraseKey, extra: Record<string, string> = {}) => out.push(fill(pick(st, k), { ...vars(st, ctx), ...extra }));
+  const say = (k: PhraseKey, extra: Record<string, string> = {}) => out.push(fill(pick(st, k, extra), { ...vars(st, ctx), ...extra }));
   const ask = (k: PhraseKey, goal: Goal) => { st.goal = goal; st.lastQ = k; st.asked.push(k); say(k); };
   const end = (why: EndReason, closing = true) => {
     st.ended = true; st.endReason = why; st.goal = "done";
@@ -178,14 +212,7 @@ export function step(prev: State, ctx: Ctx, utterance: string): Turn {
 
   // ── Questions the person asks: answer, then return to the pending question.
   if (has("why_call") && !domainSignal(n, st.reason, true)) {
-    const why: Record<CallReason, Record<Lang, string>> = {
-      late: { hinglish: "aaj aapka check-in shift shuru hone ke baad bhi record nahi hua.", hi: "आज शिफ्ट शुरू होने के बाद भी आपका चेक-इन दर्ज नहीं हुआ।", en: "your check-in wasn't recorded after your shift started today." },
-      absent: { hinglish: "aaj na check-in hua hai na koi approved leave hai.", hi: "आज न चेक-इन हुआ है न कोई स्वीकृत छुट्टी है।", en: "there's no check-in and no approved leave for today." },
-      missing_checkout: { hinglish: "shift khatam hone ke baad bhi checkout record nahi hua.", hi: "शिफ्ट खत्म होने के बाद भी चेकआउट दर्ज नहीं हुआ।", en: "no check-out was recorded after your shift ended." },
-      overtime: { hinglish: "aapke manager ne overtime ki request ki hai.", hi: "आपके मैनेजर ने ओवरटाइम का अनुरोध किया है।", en: "your manager has requested overtime." },
-      manual: { hinglish: "HR team ne follow-up ke liye kaha tha.", hi: "HR टीम ने फॉलो-अप के लिए कहा था।", en: "the HR team asked me to follow up." },
-    };
-    say("why_call", { purpose_text: why[st.reason][st.lang] }); reask(); ret.reply = out.join(" "); return ret;
+    say("why_call", { purpose_text: WHY[st.reason][st.lang] }); reask(); ret.reply = out.join(" "); return ret;
   }
   const info = has("ai_identity") ? "ai_identity" : has("recording") ? "recording" : has("privacy") ? "privacy" : null;
   if (info && !domainSignal(n, st.reason, true)) { say(info); reask(); ret.reply = out.join(" "); return ret; }

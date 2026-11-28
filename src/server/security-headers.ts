@@ -33,6 +33,8 @@ function videoOrigin(): string {
   try { const u = new URL(process.env.NEXT_PUBLIC_VIDEO_BASE_URL ?? ""); return u.protocol === "https:" ? u.origin : ""; } catch { return ""; }
 }
 
+export const hrmsVoicePath = (path: string) => path.startsWith("/staff/hrms") || path.startsWith("/staff/employee");
+
 export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): string {
   if (DRIVEDB.test(path)) {
     return ["default-src 'none'", "script-src 'self' 'wasm-unsafe-eval'", "connect-src 'self' https://www.googleapis.com", "worker-src 'self'", "base-uri 'none'", "frame-ancestors 'none'"].join("; ");
@@ -47,16 +49,21 @@ export function contentSecurityPolicy({ nonce, https, path, dev }: HeaderOpts): 
   const frameable = FRAMEABLE.test(path), checkout = CHECKOUT.test(path);
   // HRMS training videos play from signed links to a private storage bucket (lib/hrms-video-origin.ts).
   const hrv = path.startsWith("/staff/hrms") && hrmsVideoOrigin() ? ` ${hrmsVideoOrigin()}` : "";
+  // The HRMS's AI HR Assistant runs speech recognition in the browser (Whisper through transformers.js): the model
+  // files come from Hugging Face and the ONNX runtime's WebAssembly from jsDelivr. Audio never leaves the device.
+  // Includes the employee sign-in page: it opens the HRMS with a client-side navigation, so its policy carries over.
+  const hrms = hrmsVoicePath(path);
+  const aiSpeech = hrms ? " https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net" : "";
   const d: [string, string][] = [
     ["default-src", "'self'"],
-    ["script-src", `'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`],
+    ["script-src", `'self' 'nonce-${nonce}' 'strict-dynamic'${hrms ? " 'wasm-unsafe-eval' https://cdn.jsdelivr.net" : ""}${dev ? " 'unsafe-eval'" : ""}`],
     ["style-src", "'self' 'unsafe-inline'"],
     ["img-src", `'self' data: blob:${checkout ? " https://*.razorpay.com" : ""}${hrv}`],
     ["font-src", "'self' data:"],
     // Product videos (/videos) may be served from a storage bucket or CDN set in NEXT_PUBLIC_VIDEO_BASE_URL.
     ["media-src", `'self' blob:${videoOrigin() ? ` ${videoOrigin()}` : ""}${hrv}`],
-    ["connect-src", `${dev ? "'self' ws: wss:" : "'self'"}${checkout ? " https://*.razorpay.com" : ""}`],
-    ["worker-src", "'self'"],
+    ["connect-src", `${dev ? "'self' ws: wss:" : "'self'"}${checkout ? " https://*.razorpay.com" : ""}${aiSpeech}`],
+    ["worker-src", `'self'${hrms ? " blob:" : ""}`],
     ["manifest-src", "'self'"],
     ["frame-src", `'self'${checkout ? ` ${RZP}` : ""} ${YOUTUBE}`],
     ["object-src", "'none'"],
@@ -74,7 +81,8 @@ export function securityHeaders(o: HeaderOpts): Record<string, string> {
     "Content-Security-Policy": contentSecurityPolicy(o),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+    // The microphone is allowed only on HRMS pages, for AI HR Assistant voice answers (the browser still asks the person).
+    "Permissions-Policy": `camera=(self), microphone=(${hrmsVoicePath(o.path) ? "self" : ""}), geolocation=(), payment=(), usb=(), browsing-topics=()`,
     "X-Frame-Options": FRAMEABLE.test(o.path) || TOUR.test(o.path) ? "SAMEORIGIN" : "DENY",
     "Cross-Origin-Opener-Policy": CHECKOUT.test(o.path) ? "same-origin-allow-popups" : "same-origin",
   };

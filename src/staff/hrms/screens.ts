@@ -1,4 +1,5 @@
 import "server-only";
+import { defer } from "@/server/defer";
 import { videosFor } from "./video-catalog";
 import { myWaAlerts, waAdmin } from "./whatsapp";
 import { db } from "@/server/db";
@@ -59,6 +60,7 @@ function navFor(me: Me, flags: { learner: boolean; trainer: boolean; manages: bo
 export async function shell(me: Me) {
   const admin = me.role === "admin"; // the super admin has no check-in, camera or idle tracking
   await closeExits().catch(() => {}); // people whose recorded last working day has passed
+  await defer(() => aiHr.maybeTick()); // AI HR Assistant: at most once a minute, after the page is sent (free scheduling)
   // The Sales Academy is automatic: the course installs itself, and a sales employee is enrolled on their first page view.
   await ensureAcademy();
   if (isSalesMe(me) && !(await hasAssignment(me.id))) await autoEnrol([me.id]);

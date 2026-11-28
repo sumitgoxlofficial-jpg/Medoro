@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
@@ -8,8 +9,8 @@ import { enforce } from "@/server/ratelimit";
 import { log } from "@/server/log";
 import { addDays, dateOnly, isoOf, todayISO } from "@/lib/dates";
 import { audit, can, holders, loadSettings, need, needAdmin, notify, type Me } from "../auth";
-import { toMin as hhmmToMin, type Settings } from "../constants";
-import { istClock, weekend } from "../time";
+import { APPLY_IDS, leaveLabel, toMin as hhmmToMin, type Settings } from "../constants";
+import { applyLeave, decideLeave, istClock, weekend } from "../time";
 import { CALL_REASONS, start, step, type CallReason, type Ctx, type State } from "./engine";
 import { understand, clock, type Lang } from "./nlu";
 import { buildOutput, type CallOutput } from "./output";
@@ -39,12 +40,16 @@ export const configSchema = z.object({
   retentionDays: z.number().int().min(7).max(365),
   llmAssist: z.boolean(),
   voice: z.boolean(),
+  /** Where speech is recognised: in the employee's browser (free, nothing to host), on the AI host, or nowhere (text only). */
+  speech: z.enum(["browser", "server", "off"]),
+  /** Browser speech model: base (~80 MB once, faster) or small (~250 MB once, better Hindi). */
+  sttModel: z.enum(["whisper-base", "whisper-small"]),
 });
 export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true,
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base",
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -183,6 +188,22 @@ export async function aiHrTick(now = new Date(), daily = false) {
   } catch (e) { log.error("ai-hr tick failed", { err: e }); return null; }
 }
 
+/**
+ * Free scheduling: every HRMS page view may run the AI job, at most once a minute across all servers (an atomic claim
+ * on one HrSetting row), after the response is sent. With the free GitHub Actions workflow (every 5 minutes) and
+ * Vercel's daily cron, no paid scheduler is needed. Returns whether this call ran it.
+ */
+export async function maybeTick(now = new Date()): Promise<boolean> {
+  const claimed = await db.$queryRaw<{ key: string }[]>`
+    INSERT INTO "HrSetting" (key, value) VALUES ('aiHrTick', jsonb_build_object('at', ${now.toISOString()}::text))
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    WHERE ("HrSetting".value->>'at')::timestamptz < ${new Date(now.getTime() - 55_000).toISOString()}::timestamptz
+    RETURNING key`;
+  if (!claimed.length) return false;
+  await aiHrTick(now);
+  return true;
+}
+
 // ── Overtime and manual conversations raised by a person
 const otInput = z.object({ staffId: z.string().min(1), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick the date."), hours: z.coerce.number().min(0.5, "At least half an hour.").max(8, "At most 8 hours."), from: z.string().regex(/^$|^([01]\d|2[0-3]):[0-5]\d$/).default(""), reason: z.string().trim().min(3, "Say what the overtime is for.").max(120) });
 export async function requestOvertime(me: Me, raw: z.input<typeof otInput>) {
@@ -196,7 +217,7 @@ export async function requestOvertime(me: Me, raw: z.input<typeof otInput>) {
   const u = await db.staffUser.findUnique({ where: { id: i.staffId }, select: { status: true, kind: true } });
   if (!u || u.status !== "active" || u.kind !== "team") throw new UserError("Choose an active employee.");
   if ((await db.aiHrConsent.findUnique({ where: { staffId: i.staffId } }))?.status === "stopped") throw new UserError("This employee switched AI conversations off. Ask them directly.");
-  const call = await db.aiHrCall.create({ data: { staffId: i.staffId, reason: "overtime", day: dateOnly(i.date), eventKey: `overtime:${i.staffId}:${i.date}:${Date.now()}`, maxAttempts: c.maxAttempts, nextAttemptAt: new Date(), createdBy: me.id, context: { overtime: { date: i.date, hours: i.hours, from: i.from || undefined, why: i.reason }, requestedBy: me.id } } });
+  const call = await db.aiHrCall.create({ data: { staffId: i.staffId, reason: "overtime", day: dateOnly(i.date), eventKey: `overtime:${i.staffId}:${i.date}:${randomUUID()}`, maxAttempts: c.maxAttempts, nextAttemptAt: new Date(), createdBy: me.id, context: { overtime: { date: i.date, hours: i.hours, from: i.from || undefined, why: i.reason }, requestedBy: me.id } } });
   await audit(me, "AI overtime request raised", `${i.staffId} · ${i.date} · ${i.hours}h · ${i.reason}`);
   return call.id;
 }
@@ -205,7 +226,7 @@ export async function startManualCall(me: Me, staffId: string, topic: string) {
   const t = z.string().trim().min(3, "Say what the follow-up is about.").max(120).parse(topic);
   if ((await db.aiHrConsent.findUnique({ where: { staffId } }))?.status === "stopped") throw new UserError("This employee switched AI conversations off.");
   const c = await loadConfig();
-  const call = await db.aiHrCall.create({ data: { staffId, reason: "manual", day: dateOnly(todayISO()), eventKey: `manual:${staffId}:${Date.now()}`, maxAttempts: c.maxAttempts, nextAttemptAt: new Date(), createdBy: me.id, context: { topic: t } } });
+  const call = await db.aiHrCall.create({ data: { staffId, reason: "manual", day: dateOnly(todayISO()), eventKey: `manual:${staffId}:${randomUUID()}`, maxAttempts: c.maxAttempts, nextAttemptAt: new Date(), createdBy: me.id, context: { topic: t } } });
   await audit(me, "AI follow-up conversation raised", `${staffId} · ${t}`);
   return call.id;
 }
@@ -330,13 +351,16 @@ export async function myCalls(me: Me) {
     open: calls.filter((c) => ["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status })),
     past: calls.filter((c) => !["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status, summary: c.response?.summary ?? "" })),
     allowed: consent?.status !== "stopped", enabled: cfg.enabled,
-    voice: cfg.voice && !!h?.reachable && h.stt?.ok !== false, tts: cfg.voice && !!h?.reachable && h.tts?.ok !== false,
+    speech: cfg.speech, sttModel: cfg.sttModel,
+    // Server speech only when the AI host answers; browser speech needs nothing from the server.
+    voice: cfg.speech === "browser" || (cfg.speech === "server" && !!h?.reachable && h.stt?.ok !== false),
+    tts: cfg.speech === "server" ? !!h?.reachable && h.tts?.ok !== false : cfg.speech === "browser",
     retentionDays: cfg.retentionDays,
   };
 }
 
 async function maybeSpeak(text: string, cfg: AiHrConfig) {
-  if (!cfg.voice || !ai.serviceConfig() || !text) return null;
+  if (cfg.speech !== "server" || !ai.serviceConfig() || !text) return null;
   try { return await ai.speak(text); } catch (e) { log.warn("ai-hr tts failed", { err: e instanceof Error ? e.message : String(e) }); return null; }
 }
 
@@ -347,28 +371,28 @@ export async function beginCall(me: Me, id: string, opts: { speak?: boolean } = 
   if (!["scheduled", "notified", "in_progress"].includes(call.status)) throw new UserError("This conversation has ended.");
   if (call.status === "in_progress") {
     const turns = await db.aiHrTurn.findMany({ where: { callId: id }, orderBy: { seq: "asc" } });
-    return { turns: turns.map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed) })), done: false, audio: null };
+    return { turns: turns.map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed) })), done: false, audio: null, speech: "" };
   }
   const t = start(call.reason as CallReason, await ctxFor(call, cfg));
-  const audio = opts.speak ? await maybeSpeak(t.reply, cfg) : null;
+  const audio = opts.speak ? await maybeSpeak(t.speech || t.reply, cfg) : null;
   await db.$transaction([
     db.aiHrCall.update({ where: { id }, data: { status: "in_progress", startedAt: new Date(), state: t.state as unknown as Prisma.InputJsonValue, nextAttemptAt: null } }),
     db.aiHrTurn.create({ data: { callId: id, seq: 0, who: "ai", textSealed: sealText(t.reply), lang: t.state.lang, ttsMs: audio?.ms ?? null } }),
     db.aiHrCallAttempt.create({ data: { callId: id, n: call.attempts, outcome: "answered", detail: "opened in the HRMS" } }),
   ]);
-  return { turns: [{ who: "ai" as const, text: t.reply }], done: false, audio };
+  return { turns: [{ who: "ai" as const, text: t.reply }], done: false, audio, speech: t.speech ?? t.reply };
 }
 
 /** Canonical phrasing for an intent a local model suggested, so the engine's own rules decide what happens next. */
 const CANON: Partial<Record<string, string>> = { coming: "haan aa raha hoon", absent: "aaj nahi aa paunga", leave_applied: "leave apply kar di hai", want_leave: "leave chahiye", wfh: "work from home", already_checked_in: "main office mein hoon", attendance_issue: "check in nahi ho raha, app problem", still_working: "abhi bhi kaam kar raha hoon", forgot_checkout: "checkout bhool gaya", overtime_accept: "haan kar lunga", overtime_reject: "nahi kar paunga", overtime_clarify: "kitne ghante ka hai", busy: "abhi busy hoon", yes: "haan", no: "nahi" };
 
 /** One employee turn, typed or spoken. Audio goes to the self-hosted speech service and is not stored. */
-export async function sendTurn(me: Me, id: string, input: { text?: string; audio?: Blob | null; speak?: boolean }) {
+export async function sendTurn(me: Me, id: string, input: { text?: string; audio?: Blob | null; speak?: boolean; sttMs?: number }) {
   await enforce("aiHrTurn", `hrms:${me.id}`);
   const call = await ownCall(me, id);
   if (call.status !== "in_progress") throw new UserError("This conversation isn't active. Open it again.");
   const cfg = await loadConfig();
-  let text = String(input.text ?? "").slice(0, 1000).trim(), sttMs: number | null = null;
+  let text = String(input.text ?? "").slice(0, 1000).trim(), sttMs: number | null = Number.isFinite(input.sttMs) && input.sttMs! > 0 ? Math.min(600_000, Math.round(input.sttMs!)) : null;
   if (!text && input.audio && input.audio.size > 0) {
     if (input.audio.size > 3_000_000) throw new UserError("That recording is too long. Keep each answer short.");
     if (!ai.serviceConfig()) throw new UserError("Voice isn't available right now. Please type your answer.");
@@ -386,7 +410,7 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
   }
   const r = step(prev, ctx, used);
   const seq = await db.aiHrTurn.count({ where: { callId: id } });
-  const audio = input.speak && r.reply ? await maybeSpeak(r.reply, cfg) : null;
+  const audio = input.speak && r.reply ? await maybeSpeak(r.speech || r.reply, cfg) : null;
   const writes: Prisma.PrismaPromise<unknown>[] = [
     db.aiHrTurn.create({ data: { callId: id, seq, who: "employee", textSealed: sealText(text), lang: r.nlu?.lang ?? r.state.lang, intent: intentNote || (r.nlu?.primary ?? (text ? "" : "silence")), sttMs, llmMs } }),
     db.aiHrCall.update({ where: { id }, data: { state: r.state as unknown as Prisma.InputJsonValue } }),
@@ -394,7 +418,7 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
   if (r.reply) writes.push(db.aiHrTurn.create({ data: { callId: id, seq: seq + 1, who: "ai", textSealed: sealText(r.reply), lang: r.state.lang, ttsMs: audio?.ms ?? null } }));
   await db.$transaction(writes);
   if (r.done) await finish(id);
-  return { reply: r.reply, done: r.done, heard: text, audio };
+  return { reply: r.reply, speech: r.speech ?? r.reply, done: r.done, heard: text, audio };
 }
 
 /** The employee hangs up. What was said so far is kept and summarised. */
@@ -508,14 +532,14 @@ export async function actionsBoard(me: Me, status: "open" | "all" = "open") {
   need(me, "attendance");
   const rows = await db.aiHrAction.findMany({ where: status === "open" ? { status: "open" } : {}, orderBy: [{ priority: "desc" }, { createdAt: "desc" }], take: 200 });
   const staff = await db.staffUser.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.staffId))] } }, select: { id: true, name: true, empNo: true } });
-  return rows.map((a) => ({ id: a.id, callId: a.callId, staffId: a.staffId, name: staff.find((s) => s.id === a.staffId)?.name ?? "", empNo: staff.find((s) => s.id === a.staffId)?.empNo ?? "", kind: a.kind, priority: a.priority, status: a.status, detail: String((a.payload as { detail?: string })?.detail ?? ""), note: a.note, createdAt: a.createdAt.toISOString(), decidedAt: a.decidedAt?.toISOString() ?? null }));
+  return rows.map((a) => ({ id: a.id, callId: a.callId, staffId: a.staffId, name: staff.find((s) => s.id === a.staffId)?.name ?? "", empNo: staff.find((s) => s.id === a.staffId)?.empNo ?? "", kind: a.kind, priority: a.priority, status: a.status, detail: String((a.payload as { detail?: string })?.detail ?? ""), reason: String((a.payload as { reason?: string })?.reason ?? ""), note: a.note, createdAt: a.createdAt.toISOString(), decidedAt: a.decidedAt?.toISOString() ?? null }));
 }
 /**
  * HR's decision on a proposal. Approving records the decision and tells the employee; the AI never writes leave,
  * attendance, pay or overtime rows. HR applies an approved change in the screen that owns it (Leave Management,
  * Attendance corrections, Payroll), so every existing rule and approval there still applies.
  */
-export async function decideAction(me: Me, id: string, approve: boolean, note = "") {
+export async function decideAction(me: Me, id: string, approve: boolean, note = "", leaveType = "") {
   need(me, "attendance");
   const a = await db.aiHrAction.findUnique({ where: { id } });
   if (!a) throw new UserError("Action not found.");
@@ -523,8 +547,23 @@ export async function decideAction(me: Me, id: string, approve: boolean, note = 
   if (a.staffId === me.id && me.role !== "admin") throw new UserError("Someone else has to decide something about you.");
   const n = z.string().trim().max(300).parse(note);
   if (!approve && n.length < 3) throw new UserError("Say why, in a few words.");
+  // An approved leave draft becomes a real leave through the HRMS's own rules (balance, overlap, weekends, holidays),
+  // filed for the employee and approved by this HR person. Any rule that refuses it leaves the proposal open.
+  if (approve && (a.kind === "leave_draft" || a.kind === "half_day_request")) {
+    const type = z.enum(APPLY_IDS, { error: "Choose the leave type." }).parse(leaveType);
+    const call = a.callId ? await db.aiHrCall.findUnique({ where: { id: a.callId }, select: { day: true } }) : null;
+    const day = isoOf(call?.day ?? new Date());
+    const u = await db.staffUser.findUniqueOrThrow({ where: { id: a.staffId }, include: { hr: true } });
+    const employee = { ...me, id: u.id, name: u.name, first: u.name.split(" ")[0], role: u.hr?.role ?? "employee", staffRole: u.role } as Me;
+    await applyLeave(employee, { type, from: day, to: day, half: a.kind === "half_day_request", reason: `From an AI HR conversation (approved by ${me.name})` });
+    const leave = await db.hrLeave.findFirstOrThrow({ where: { staffId: a.staffId, status: "pending", fromDay: dateOnly(day) }, orderBy: { createdAt: "desc" } });
+    await decideLeave(me, leave.id, true);
+    await db.aiHrAction.update({ where: { id }, data: { status: "done", note: [n, `${leaveLabel(type)} recorded`].filter(Boolean).join(" · "), decidedBy: me.id, decidedAt: new Date(), payload: { ...(a.payload as object), leaveId: leave.id } } });
+    await audit(me, "AI leave draft approved", `${a.staffId} · ${type} · ${day}`);
+    return;
+  }
   await db.aiHrAction.update({ where: { id }, data: { status: approve ? "approved" : "rejected", note: n, decidedBy: me.id, decidedAt: new Date() } });
-  const tell: Record<string, string> = { leave_draft: approve ? "HR reviewed the leave you asked for in your AI conversation. Please check Leave & Approvals; HR will confirm the leave there." : "HR reviewed the leave you mentioned in your AI conversation and couldn't approve it", wfh_request: approve ? "Your work-from-home request from the AI conversation was approved by HR." : "Your work-from-home request from the AI conversation wasn't approved", half_day_request: approve ? "HR reviewed your half-day request from the AI conversation. Please check Leave & Approvals." : "Your half-day request from the AI conversation wasn't approved" };
+  const tell: Record<string, string> = { leave_draft: "HR reviewed the leave you mentioned in your AI conversation and couldn't approve it", wfh_request: approve ? "Your work-from-home request from the AI conversation was approved by HR." : "Your work-from-home request from the AI conversation wasn't approved", half_day_request: "Your half-day request from the AI conversation wasn't approved" };
   if (tell[a.kind]) await notify([a.staffId], `${tell[a.kind]}${!approve && n ? `: ${n}` : approve ? "" : "."}`, approve && a.kind !== "wfh_request" ? "leave" : "aicall");
   await audit(me, `AI action ${approve ? "approved" : "rejected"}`, `${a.kind} · ${a.staffId}${n ? " · " + n : ""}`);
 }

@@ -172,18 +172,32 @@ describe("AI HR Assistant (integration)", () => {
     await expect(db.aiHrAction.delete({ where: { id: act.id } })).rejects.toThrow();
   });
 
-  it("a leave draft is proposed, and HR's decision is recorded without writing a leave row", async () => {
+  it("a leave draft is proposed; HR's approval files and approves real leave through the leave rules", async () => {
     vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:30"));
-    const id = await svc.startManualCall(hr, mgr.id, "attendance");
-    await db.aiHrCall.update({ where: { id }, data: { reason: "absent" } });
-    await svc.beginCall(mgr, id);
-    await svc.sendTurn(mgr, id, { text: "aaj nahi aa paunga, bukhar hai" });
-    await svc.sendTurn(mgr, id, { text: "haan" });
-    const act = await db.aiHrAction.findFirstOrThrow({ where: { callId: id, kind: "leave_draft" } });
+    const mk2 = async () => {
+      const id = await svc.startManualCall(hr, mgr.id, "attendance");
+      await db.aiHrCall.update({ where: { id }, data: { reason: "absent" } });
+      await svc.beginCall(mgr, id);
+      await svc.sendTurn(mgr, id, { text: "aaj nahi aa paunga, bukhar hai" });
+      await svc.sendTurn(mgr, id, { text: "haan" });
+      return db.aiHrAction.findFirstOrThrow({ where: { callId: id, kind: "leave_draft" } });
+    };
+    const act = await mk2();
     const before = await db.hrLeave.count();
     await svc.decideAction(hr, act.id, false, "Please apply in the HRMS");
-    expect(await db.hrLeave.count()).toBe(before);
+    expect(await db.hrLeave.count()).toBe(before); // a rejection writes nothing
     expect(await db.hrNotification.count({ where: { staffId: mgr.id, text: { contains: "Please apply in the HRMS" } } })).toBe(1);
+    const act2 = await mk2();
+    await expect(svc.decideAction(hr, act2.id, true)).rejects.toThrow(/leave type/);
+    await svc.decideAction(hr, act2.id, true, "", "sick");
+    const leave = await db.hrLeave.findFirstOrThrow({ where: { staffId: mgr.id, fromDay: dateOnly(DAY) } });
+    expect(leave).toMatchObject({ type: "sick", status: "approved", decidedBy: hr.id, days: 1 });
+    expect(await db.aiHrAction.findUniqueOrThrow({ where: { id: act2.id } })).toMatchObject({ status: "done" });
+    expect(await db.hrNotification.count({ where: { staffId: mgr.id, text: { contains: "Sick Leave" } } })).toBe(1);
+    // the leave rules still apply: a second leave on the same day is refused and the proposal stays open
+    const act3 = await mk2();
+    await expect(svc.decideAction(hr, act3.id, true, "", "casual")).rejects.toThrow(/already have leave/);
+    expect((await db.aiHrAction.findUniqueOrThrow({ where: { id: act3.id } })).status).toBe("open");
   });
 
   it("stop-call: recorded as the employee's preference; no more conversations are created or sent", async () => {
@@ -276,6 +290,13 @@ describe("AI HR Assistant (integration)", () => {
       expect(await dup.json()).toEqual({ ok: true, duplicate: true });
       expect(await db.aiHrCallAttempt.count({ where: { callId: call.id, outcome: "no_answer", detail: "" } })).toBe(1);
     } finally { delete process.env.AI_HR_SIP_ENABLED; delete process.env.AI_HR_WEBHOOK_SECRET; }
+  });
+
+  it("page views run the AI job at most once a minute (free scheduling)", async () => {
+    const t0 = new Date("2026-12-09T05:00:00Z");
+    expect(await svc.maybeTick(t0)).toBe(true);
+    expect(await svc.maybeTick(new Date(t0.getTime() + 20_000))).toBe(false);
+    expect(await Promise.all([1, 2, 3].map(() => svc.maybeTick(new Date(t0.getTime() + 61_000))))).toEqual(expect.arrayContaining([true, false, false]));
   });
 
   it("scenario evaluation runs and is stored", async () => {

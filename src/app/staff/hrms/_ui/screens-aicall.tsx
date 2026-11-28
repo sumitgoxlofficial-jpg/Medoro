@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Data } from "@/staff/hrms/screens";
 import { aiCallBegin, aiCallConsent, aiCallEnd, aiCallTurn } from "../actions";
+import { browserSpeechSupported, prepareRecognition, recognise, speakOnDevice, stopSpeaking } from "./speech/browser-speech";
 import { Card, Empty, Pill, btnCls, cx, dangerCls, dayLabel, inputCls, primaryCls, useRun } from "./kit";
 
 type D = Data<"aicall">;
@@ -19,7 +20,7 @@ export function AiCallScreen({ d }: { d: D }) {
   const [active, setActive] = useState<string | null>(null);
   return <>
     {!d.enabled ? <Card pad><div className="text-[13px] text-[#64748B]">The AI HR Assistant isn&apos;t switched on for the company yet.</div></Card> : null}
-    {active ? <Conversation id={active} voice={d.voice} tts={d.tts} onClose={() => setActive(null)} /> : <>
+    {active ? <Conversation id={active} voice={d.voice} tts={d.tts} mode={d.speech} model={d.sttModel} onClose={() => setActive(null)} /> : <>
       <Card title="Waiting for you" sub="The assistant checks in about attendance or an overtime request. It is an AI: it only notes what you say; HR or your manager decide anything.">
         {d.open.length ? <div className="flex flex-col gap-2 px-5 pb-4">{d.open.map((c) => <div key={c.id} className="flex items-center gap-3 border border-[#E2E8F0] rounded-lg px-3 py-2.5"><div className="flex-1"><div className="text-[13.5px] font-semibold">About {ABOUT[c.reason]}</div><div className="text-[12px] text-[#64748B]">{dayLabel(c.day)} · {c.status === "in_progress" ? "started" : "waiting"}</div></div><button className={primaryCls} onClick={() => setActive(c.id)}>{c.status === "in_progress" ? "Continue" : "Talk now"}</button></div>)}</div> : <Empty>Nothing waiting. You&apos;ll get a notification when the assistant has a question.</Empty>}
       </Card>
@@ -32,7 +33,11 @@ export function AiCallScreen({ d }: { d: D }) {
   </>;
 }
 
-function Conversation({ id, voice, tts, onClose }: { id: string; voice: boolean; tts: boolean; onClose: () => void }) {
+function Conversation({ id, voice, tts, mode, model, onClose }: { id: string; voice: boolean; tts: boolean; mode: "browser" | "server" | "off"; model: string; onClose: () => void }) {
+  const browser = mode === "browser";
+  const canVoice = voice && (!browser || browserSpeechSupported());
+  const [prep, setPrep] = useState<"" | "loading" | "ready">("");
+  const [pct, setPct] = useState(0);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,34 +49,36 @@ function Conversation({ id, voice, tts, onClose }: { id: string; voice: boolean;
   const mediaRef = useRef<{ rec: MediaRecorder; stream: MediaStream; ctx: AudioContext; raf: number } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
-  const play = (a: { audio: string; mime: string } | null) => {
-    if (!a || !speakOut) return;
+  const play = (a: { audio: string; mime: string } | null, speech = "") => {
+    if (!speakOut) return;
+    if (!a) { if (browser && speech) speakOnDevice(speech, /[\u0900-\u097F]/.test(speech) ? "hi" : "en"); return; }
     try { audioRef.current?.pause(); const el = new Audio(`data:${a.mime};base64,${a.audio}`); audioRef.current = el; void el.play().catch(() => {}); } catch { /* the text is on screen */ }
   };
   useEffect(() => {
     let cancelled = false;
-    void aiCallBegin(id, tts).then((r) => {
+    void aiCallBegin(id, tts && !browser).then((r) => {
       if (cancelled) return;
       if (!r.ok) { setErr(r.error); return; }
-      setTurns(r.data.turns); play(r.data.audio);
+      setTurns(r.data.turns); play(r.data.audio, r.data.speech);
     }).catch(() => { if (!cancelled) setErr("Couldn't reach the server. Check your connection and try again."); });
-    return () => { cancelled = true; stopMedia(); audioRef.current?.pause(); };
+    return () => { cancelled = true; stopMedia(); audioRef.current?.pause(); stopSpeaking(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [turns]);
 
-  const send = async (input: { text?: string; audio?: Blob }) => {
+  const send = async (input: { text?: string; audio?: Blob; sttMs?: number }) => {
     setBusy(true); setErr("");
-    audioRef.current?.pause(); // the employee speaking interrupts the assistant
+    audioRef.current?.pause(); stopSpeaking(); // the employee speaking interrupts the assistant
     const fd = new FormData();
-    fd.set("id", id); fd.set("speak", speakOut ? "1" : "0");
+    fd.set("id", id); fd.set("speak", speakOut && !browser ? "1" : "0");
+    if (input.sttMs) fd.set("sttMs", String(input.sttMs));
     if (input.text !== undefined) fd.set("text", input.text);
     if (input.audio) fd.set("audio", input.audio, "turn.webm");
     try {
       const r = await aiCallTurn(fd);
       if (!r.ok) { setErr(r.error); return; }
       setTurns((t) => [...t, { who: "employee", text: r.data.heard }, ...(r.data.reply ? [{ who: "ai" as const, text: r.data.reply }] : [])]);
-      play(r.data.audio);
+      play(r.data.audio, r.data.speech);
       if (r.data.done) setDone(true);
     } catch { setErr("The connection dropped. Your conversation is saved; try again."); }
     finally { setBusy(false); setRec("idle"); }
@@ -87,7 +94,13 @@ function Conversation({ id, voice, tts, onClose }: { id: string; voice: boolean;
   }
   const listen = async () => {
     if (rec === "listening") { const m = mediaRef.current; if (m?.rec.state === "recording") m.rec.stop(); return; }
-    setErr(""); audioRef.current?.pause();
+    setErr(""); audioRef.current?.pause(); stopSpeaking();
+    if (browser && prep !== "ready") {
+      // First use on this device: download the speech model once (kept in the browser cache afterwards).
+      setPrep("loading");
+      try { await prepareRecognition(model, (l, t) => setPct(t ? Math.round((l / t) * 100) : 0)); setPrep("ready"); }
+      catch { setPrep(""); setErr("This device couldn't load voice recognition. Please type your answer below."); return; }
+    }
     let stream: MediaStream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true, autoGainControl: true } }); }
     catch { setErr("Microphone permission was denied or no microphone was found. You can type your answer below."); return; }
@@ -113,7 +126,9 @@ function Conversation({ id, voice, tts, onClose }: { id: string; voice: boolean;
       const hadSpeech = spoke;
       stopMedia();
       if (!hadSpeech || blob.size < 1200) { setRec("idle"); void send({ text: "" }); return; } // silence counts as no answer, never as yes
-      setRec("sending"); void send({ audio: blob });
+      setRec("sending");
+      if (!browser) { void send({ audio: blob }); return; }
+      void recognise(blob, model).then((r) => send({ text: r.text, sttMs: r.ms || 1 })).catch(() => { setRec("idle"); setErr("I couldn't make out that recording. Try again or type your answer."); });
     };
     mediaRef.current = { rec: r, stream, ctx, raf: 0 };
     r.start(); setRec("listening");
@@ -127,7 +142,8 @@ function Conversation({ id, voice, tts, onClose }: { id: string; voice: boolean;
       <div ref={endRef} />
       {err ? <div className="text-[12.5px] text-[#B3261E]">{err}</div> : null}
       {done ? <div className="text-[12.5px] text-[#0B5E5B] font-semibold">Conversation finished. Thank you.</div> : <>
-        {voice ? <button className={cx(primaryCls, "justify-center py-3 text-[14px]", rec === "listening" && "!bg-[#B3261E]")} disabled={busy || rec === "sending"} onClick={() => void listen()} aria-pressed={rec === "listening"}>{rec === "listening" ? "Listening… tap to finish" : rec === "sending" ? "Sending…" : "🎤 Speak"}</button> : <div className="text-[12px] text-[#64748B]">Voice isn&apos;t available right now; please type.</div>}
+        {prep === "loading" ? <div className="text-[12.5px] text-[#64748B]">Getting voice recognition ready on this device (one time, free){pct ? `: ${pct}%` : "…"}</div> : null}
+        {canVoice ? <button className={cx(primaryCls, "justify-center py-3 text-[14px]", rec === "listening" && "!bg-[#B3261E]")} disabled={busy || rec === "sending" || prep === "loading"} onClick={() => void listen()} aria-pressed={rec === "listening"}>{rec === "listening" ? "Listening… tap to finish" : rec === "sending" ? "Sending…" : "🎤 Speak"}</button> : <div className="text-[12px] text-[#64748B]">Voice isn&apos;t available right now; please type.</div>}
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; const t = text; setText(""); void send({ text: t }); }}><input className={inputCls} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type your answer (Hindi, English or Hinglish)" disabled={busy} /><button className={btnCls} disabled={busy || !text.trim()}>Send</button></form>
       </>}
     </div>

@@ -29,6 +29,9 @@ export function AiHrScreen({ d }: { d: D }) {
 
 function Overview({ d }: { d: D }) {
   const o = d.overview!;
+  const router = useRouter();
+  // Live: refresh the numbers and the waiting list every 15 seconds while the tab is visible.
+  useEffect(() => { const t = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 15_000); return () => clearInterval(t); }, [router]);
   const h = o.health;
   const live = (d.calls ?? []).filter((c) => c.status === "in_progress" || c.status === "notified");
   return <>
@@ -116,14 +119,19 @@ function Escalations({ d }: { d: D }) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [rej, setRej] = useState<{ id: string; note: string } | null>(null);
+  const [lv, setLv] = useState<{ id: string; type: string; half: boolean } | null>(null);
   const rows = d.actions!;
   const label: Record<string, string> = { leave_draft: "Leave draft", hr_followup: "HR follow-up", escalation: "Escalation", callback: "Callback", overtime_response: "Overtime answer", expected_arrival: "Expected arrival", stop_calls: "Stop AI calls", wfh_request: "Work-from-home request", half_day_request: "Half-day request", harassment_report: "Harassment report", accident_report: "Accident / injury", emergency: "Emergency", human_requested: "Asked for HR", grievance: "Grievance", upset_employee: "Upset employee", question_for_hr: "Question for HR", attendance_check: "Check attendance record", attendance_system_issue: "Attendance system problem", attendance_dispute: "Attendance dispute", checkout_correction: "Check-out correction", leave_pending: "Leave pending", roster_check: "Check roster / calendar", unclear: "Unclear conversation", incomplete: "Incomplete conversation", no_answer: "No answer", declined_to_talk: "Declined to talk", absent_no_leave: "Absent, no leave", eta_unknown: "Time unknown", overtime_question: "Overtime question", callback_time_unknown: "Callback, no time" };
   return <Card title="Escalations and HR review" sub="Everything the assistant proposed or flagged. Urgent items first. Approving records your decision and tells the employee; apply leave, corrections or pay changes in their own screens." right={<button className={btnCls} onClick={() => router.push(`/staff/hrms/aihr?tab=escalations${d.actions && rows.every((r) => r.status === "open") ? "&all=1" : ""}`)}>{rows.every((r) => r.status === "open") ? "Show decided too" : "Open only"}</button>}>
     <Table head={["", "Person", "What", "Detail", "Raised", "Status", ""]} empty="Nothing waiting for HR.">
       {rows.map((a) => <tr key={a.id}><td className={tdCls}>{a.priority === "urgent" ? <Pill tone="red">urgent</Pill> : null}</td><td className={tdCls}>{a.name} <span className="text-[12px] text-[#94A3B8]">{a.empNo}</span></td><td className={tdCls}>{label[a.kind] ?? a.kind}</td><td className={tdCls + " max-w-[340px] text-[12px]"}>{a.detail}{a.note ? <div className="text-[#64748B]">Note: {a.note}</div> : null}</td><td className={tdCls}>{ago(a.createdAt)}</td><td className={tdCls}><Pill tone={statusTone(a.status)}>{a.status}</Pill></td>
-        <td className={tdCls}><div className="flex gap-1.5">{a.callId ? <button className={btnCls} onClick={() => setOpen(a.callId!)}>Transcript</button> : null}{a.status === "open" ? <><button className={primaryCls} disabled={busy} onClick={() => run(() => aiHrDecide(a.id, true))}>{["leave_draft", "wfh_request", "half_day_request"].includes(a.kind) ? "Approve" : "Done"}</button><button className={dangerCls} disabled={busy} onClick={() => setRej({ id: a.id, note: "" })}>Reject</button></> : null}</div></td></tr>)}
+        <td className={tdCls}><div className="flex gap-1.5">{a.callId ? <button className={btnCls} onClick={() => setOpen(a.callId!)}>Transcript</button> : null}{a.status === "open" ? <><button className={primaryCls} disabled={busy} onClick={() => ["leave_draft", "half_day_request"].includes(a.kind) ? setLv({ id: a.id, type: ["illness", "medical"].includes(a.reason) ? "sick" : "casual", half: a.kind === "half_day_request" }) : run(() => aiHrDecide(a.id, true))}>{["leave_draft", "wfh_request", "half_day_request"].includes(a.kind) ? "Approve" : "Done"}</button><button className={dangerCls} disabled={busy} onClick={() => setRej({ id: a.id, note: "" })}>Reject</button></> : null}</div></td></tr>)}
     </Table>
     {open ? <CallModal id={open} admin={d.admin} onClose={() => setOpen(null)} /> : null}
+    {lv ? <Modal title={lv.half ? "Approve half-day leave" : "Approve leave"} onClose={() => setLv(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => aiHrDecide(lv.id, true, "", lv.type), () => setLv(null)); }}>
+      <div className="text-[13px] text-[#475569]">This files the leave for the day of the conversation and approves it, with the usual checks (balance, overlap, weekends and holidays). The employee is notified.</div>
+      <Field label="Leave type"><select className={inputCls} value={lv.type} onChange={(e) => setLv({ ...lv, type: e.target.value })}>{[["casual", "Casual Leave"], ["sick", "Sick Leave"], ["privilege", "Privilege Leave"], ["comp", "Comp Off"], ["unpaid", "Unpaid Leave (loss of pay)"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+      <div><button className={primaryCls} disabled={busy}>Approve and record leave</button></div></form></Modal> : null}
     {rej ? <Modal title="Reject" onClose={() => setRej(null)}><form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); run(() => aiHrDecide(rej.id, false, rej.note), () => setRej(null)); }}><Field label="Why (the employee sees this for requests)"><input className={inputCls} value={rej.note} onChange={(e) => setRej({ ...rej, note: e.target.value })} required /></Field><div><button className={dangerCls} disabled={busy}>Reject</button></div></form></Modal> : null}
   </Card>;
 }
@@ -251,7 +259,14 @@ function Settings({ s, admin }: { s: St; admin: boolean }) {
     </Card>
     <Card title="Voice, language and personality" sub="Female, professional Indian HR assistant; Hinglish by default, follows Hindi or English when the employee uses it; says it is an AI; one question at a time.">
       <div className="px-5 pb-4 flex flex-col gap-2 text-[13px]">
-        <label className="flex gap-2 items-center"><input type="checkbox" checked={c.voice} disabled={!admin} onChange={(e) => setC({ ...c, voice: e.target.checked })} />Voice (speech to text and the Hindi female voice from the local AI service)</label>
+        <Grid n={3}>
+          <Field label="Voice" hint={c.speech === "browser" ? "Free: recognition runs on the employee's device and the device's own Hindi voice speaks. Nothing to host." : c.speech === "server" ? "Uses your own AI host (ai-service/) for recognition and the Piper Hindi voice." : "Employees type; the assistant replies in text."}>
+            <select className={inputCls} disabled={!admin} value={c.speech} onChange={(e) => setC({ ...c, speech: e.target.value as typeof c.speech })}><option value="browser">On the employee&apos;s device (free)</option><option value="server">Our AI host</option><option value="off">Off (text only)</option></select>
+          </Field>
+          {c.speech === "browser" ? <Field label="Recognition model" hint="Downloaded once per device and cached.">
+            <select className={inputCls} disabled={!admin} value={c.sttModel} onChange={(e) => setC({ ...c, sttModel: e.target.value as typeof c.sttModel })}><option value="whisper-base">Whisper base: ~80 MB, faster</option><option value="whisper-small">Whisper small: ~250 MB, better Hindi</option></select>
+          </Field> : null}
+        </Grid>
         <label className="flex gap-2 items-center"><input type="checkbox" checked={c.llmAssist} disabled={!admin} onChange={(e) => setC({ ...c, llmAssist: e.target.checked })} />Let the local model place answers the rules don&apos;t understand (it can only choose one of the assistant&apos;s own intents; safety requests are always handled by rules)</label>
         <div className="text-[12px] text-[#64748B]">Audio is never stored. Transcripts are sealed with the server key and deleted after the retention period. The assistant cannot approve leave or overtime, change attendance or pay, or take disciplinary decisions.</div>
       </div>

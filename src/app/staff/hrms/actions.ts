@@ -322,7 +322,7 @@ export const aiHrSaveConfig = async (input: unknown) => done(await hrRun((me) =>
 export const aiHrRequestOvertime = async (input: Parameters<typeof aiHr.requestOvertime>[1]) => done(await hrRun((me) => aiHr.requestOvertime(me, input), "Overtime request sent. The employee is asked in the HRMS; you'll see their answer here."));
 export const aiHrManualCall = async (staffId: string, topic: string) => done(await hrRun((me) => aiHr.startManualCall(me, staffId, topic), "Follow-up conversation scheduled."));
 export const aiHrCallDetail = async (id: string) => hrRun((me) => aiHr.callDetail(me, id));
-export const aiHrDecide = async (id: string, approve: boolean, note = "") => done(await hrRun((me) => aiHr.decideAction(me, id, approve, note), approve ? "Approved. The employee was told." : "Rejected. The employee was told."));
+export const aiHrDecide = async (id: string, approve: boolean, note = "", leaveType = "") => done(await hrRun((me) => aiHr.decideAction(me, id, approve, note, leaveType), approve ? "Approved. The employee was told." : "Rejected. The employee was told."));
 export const aiHrDeleteTranscript = async (id: string) => done(await hrRun((me) => aiHr.deleteTranscript(me, id), "Transcript deleted."));
 export const aiHrSaveKnowledge = async (input: Parameters<typeof aiHr.saveKnowledgeDraft>[1]) => done(await hrRun((me) => aiHr.saveKnowledgeDraft(me, input), "Draft saved. It is used once someone approves it."));
 export const aiHrApproveKnowledge = async (id: string) => done(await hrRun((me) => aiHr.approveKnowledge(me, id), "Approved and published."));
@@ -336,7 +336,7 @@ export const aiHrPlayground = async (input: Parameters<typeof aiHr.playground>[1
 export const aiCallBegin = async (id: string, speak = false) => hrRun((me) => aiHr.beginCall(me, id, { speak }));
 export const aiCallTurn = async (fd: FormData) => hrRun((me) => {
   const audio = fd.get("audio");
-  return aiHr.sendTurn(me, String(fd.get("id") ?? ""), { text: String(fd.get("text") ?? ""), audio: audio instanceof Blob ? audio : null, speak: fd.get("speak") === "1" });
+  return aiHr.sendTurn(me, String(fd.get("id") ?? ""), { text: String(fd.get("text") ?? ""), audio: audio instanceof Blob ? audio : null, speak: fd.get("speak") === "1", sttMs: Number(fd.get("sttMs") ?? 0) });
 });
 export const aiCallEnd = async (id: string) => done(await hrRun((me) => aiHr.endCall(me, id)));
 export const aiCallConsent = async (allowed: boolean) => done(await hrRun((me) => aiHr.setConsent(me, allowed), allowed ? "AI conversations are on." : "AI conversations are off. HR can still contact you."));
