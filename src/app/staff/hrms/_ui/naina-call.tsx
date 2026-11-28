@@ -54,20 +54,21 @@ export function NainaVoiceCall({ id, cfg, onClose }: { id: string; cfg: CallCfg;
       if (el) {
         try {
           audioEl.current = el; el.pause();
-          // A long reply: its first sentence plays now; the rest is fetched meanwhile and plays straight after.
-          const more = audio.rest ? aiCallSpeak(id, audio.rest).then((r) => (r.ok ? r.data : null)).catch(() => null) : null;
-          const afterFirst = !more ? next : () => {
-            void more.then((a) => {
-              if (closed.current || phaseRef.current !== "speaking") return;
-              if (!a) { next(); return; }
-              el.onended = next; el.onerror = next;
-              el.src = `data:${a.mime};base64,${a.audio}`;
-              void el.play().catch(next);
-            });
+          // A long reply is spoken sentence by sentence: each piece plays while the next one is made, so the server
+          // voice never gets one long request. Interrupt / hang-up stop the chain (the phase is no longer "speaking").
+          const play = (a: NonNullable<Audio64>, first: boolean) => {
+            const more = a.rest ? aiCallSpeak(id, a.rest).then((r) => (r.ok ? r.data : null)).catch(() => null) : null;
+            const after = !more ? next : () => {
+              void more.then((b) => {
+                if (closed.current || phaseRef.current !== "speaking") return;
+                if (b) play(b, false); else next();
+              });
+            };
+            el.onended = after; el.onerror = after;
+            el.src = `data:${a.mime};base64,${a.audio}`;
+            void el.play().catch(() => { if (!(first && browser && speakReply(speech, reply, next))) next(); });
           };
-          el.onended = afterFirst; el.onerror = afterFirst;
-          el.src = `data:${audio.mime};base64,${audio.audio}`;
-          void el.play().catch(() => { if (!(browser && speakReply(speech, reply, next))) next(); });
+          play(audio, true);
           return;
         } catch { /* fall through to the device voice or captions */ }
       }

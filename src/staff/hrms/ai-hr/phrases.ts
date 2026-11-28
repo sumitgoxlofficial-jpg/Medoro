@@ -146,6 +146,24 @@ export const P = {
     hi: ["माफ़ कीजिए, ठीक से समझ नहीं आया।", "एक बार और बताइए।"],
     en: ["Sorry, I didn't quite catch that.", "Could you say that once more?"],
   },
+  /** Asked for another employee's salary, contact, leave, complaint or documents. */
+  other_person_refused: {
+    hinglish: ["Maaf kijiye, main kisi doosre employee ki salary, contact ya personal jaankari share nahi kar sakti. Aapki apni details mein main zaroor madad kar sakti hoon."],
+    hi: ["माफ़ कीजिए, मैं किसी दूसरे कर्मचारी की सैलरी, संपर्क या निजी जानकारी साझा नहीं कर सकती। आपकी अपनी जानकारी में मैं ज़रूर मदद कर सकती हूँ।"],
+    en: ["Sorry, I can't share another employee's salary, contact or personal details. I'm happy to help with your own."],
+  },
+  /** Asked for a token, password, OTP or the assistant's own instructions. */
+  secret_refused: {
+    hinglish: ["Yeh jaankari main share nahi kar sakti. Apna password ya OTP kabhi kisi ke saath share mat kijiye, mere saath bhi nahi."],
+    hi: ["यह जानकारी मैं साझा नहीं कर सकती। अपना पासवर्ड या OTP कभी किसी के साथ साझा मत कीजिए, मेरे साथ भी नहीं।"],
+    en: ["I can't share that. Please never share your password or OTP with anyone, including me."],
+  },
+  /** "Ek minute", "ruko": she waits, without repeating the question. */
+  hold: {
+    hinglish: ["Ji, zaroor. Main yahin hoon, aap aaraam se bataiye.", "Koi baat nahi, main ruk jaati hoon. Jab ready hon, bataiye."],
+    hi: ["जी, ज़रूर। मैं यहीं हूँ, आप आराम से बताइए।", "कोई बात नहीं, मैं रुकती हूँ। जब तैयार हों, बताइए।"],
+    en: ["Sure, take your time. I'm right here.", "No problem, I'll wait. Go ahead when you're ready."],
+  },
   silence: { hinglish: ["Hello, lagta hai awaaz nahi aa rahi.", "Hello, mujhe aapki awaaz sunai nahi di."], hi: ["हेलो, लगता है आवाज़ नहीं आ रही।"], en: ["Hello, I can't hear you.", "Sorry, I didn't hear anything."] },
   give_up: { hinglish: ["Lagta hai abhi baat nahi ho pa rahi. Main HR ko note kar deti hoon, woh aapse contact kar lenge. Dhanyavaad!"], hi: ["लगता है अभी बात नहीं हो पा रही। मैं HR को नोट कर देती हूँ, वे आपसे संपर्क कर लेंगे। धन्यवाद!"], en: ["It seems we can't talk right now. I'll let HR know so they can follow up. Thank you!"] },
   close: {

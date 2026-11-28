@@ -24,3 +24,7 @@ logs/
 
 # Naina voice test file (scripts/voice/setup)
 naina-test.wav
+
+# Python bytecode (ai-service)
+__pycache__/
+*.pyc

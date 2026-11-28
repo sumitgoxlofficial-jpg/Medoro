@@ -1,74 +1,101 @@
-"""Medoro AI service: speech to text (Faster-Whisper), text to speech (Piper) and intent classification with a local
-model (Ollama), behind one authenticated HTTP API for the Medoro app.
+"""Medoro AI service: speech to text (Faster-Whisper), text to speech (Kokoro-82M, self-hosted) and intent
+classification with a local model (Ollama), behind one authenticated HTTP API for the Medoro app.
 
 Runs on a persistent Linux host (not on Vercel). Listens on 127.0.0.1 only; Nginx terminates HTTPS in front of it.
-Nothing is stored: uploaded audio is decoded from memory/temp files that are deleted at once, and no request body is
-logged. There is no paid or remote AI fallback of any kind.
+Nothing is stored: uploaded audio is decoded from temp files that are deleted at once, no request body is logged, and
+no paid or remote AI service is called.
 
-Environment:
+Environment (see deploy/medoro-ai.env.example for the full list and defaults):
   MEDORO_AI_TOKEN         shared bearer token (24+ characters), the same as AI_HR_SERVICE_TOKEN in the app
-  WHISPER_MODEL           default "small"           WHISPER_COMPUTE  default "int8"
-  WHISPER_THREADS         default 2                 WHISPER_LANGUAGE default "" (auto) or "hi" / "en"
-  PIPER_VOICE             path to the .onnx voice (default /opt/medoro-ai/voices/hi_IN-priyamvada-medium.onnx)
-  OLLAMA_URL              default http://127.0.0.1:11434
-  OLLAMA_MODEL            default "medoro-hr"
+  TTS_ENGINE              kokoro (default) | piper (rollback only) | off
+  KOKORO_MODEL / KOKORO_LANG / KOKORO_VOICE   hexgrad/Kokoro-82M, h, hf_alpha (or hf_beta)
+  TTS_SPEED, TTS_PAUSE_MS, TTS_CHUNK_CHARS, TTS_CONCURRENCY, TTS_QUEUE_MAX, TTS_TIMEOUT_S, TTS_CACHE_SIZE, TTS_CACHE_MB
+  TTS_LEXICON_PATH        pronunciation fixes, re-read when the file changes (default /etc/medoro-ai/lexicon.json)
+  WHISPER_MODEL / WHISPER_COMPUTE / WHISPER_THREADS / WHISPER_LANGUAGE
+  OLLAMA_URL / OLLAMA_MODEL
 """
 from __future__ import annotations
 
 import asyncio
 import base64
 import hmac
-import io
 import json
+import logging
 import os
 import re
 import resource
 import tempfile
 import time
-import wave
 from collections import OrderedDict
-from typing import Any
+from contextlib import asynccontextmanager
+from typing import Any, Literal
 
 import httpx
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-VERSION = "1.0.0"
+from .tts import EngineUnavailable, Voice
+
+VERSION = "2.0.0"
 TOKEN = os.environ.get("MEDORO_AI_TOKEN", "")
-WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
+WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base")
 WHISPER_COMPUTE = os.environ.get("WHISPER_COMPUTE", "int8")
 WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "2"))
 WHISPER_LANGUAGE = os.environ.get("WHISPER_LANGUAGE", "") or None
-PIPER_VOICE = os.environ.get("PIPER_VOICE", "/opt/medoro-ai/voices/hi_IN-priyamvada-medium.onnx")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "medoro-hr")
 MAX_AUDIO = 3_000_000
 # A Hinglish prompt nudges Whisper towards romanised Hinglish instead of translating into English.
 STT_PROMPT = "Haan ji, main traffic mein hoon, gyarah baje tak pahunch jaunga. Aaj leave chahiye. Checkout bhool gaya."
 
-app = FastAPI(title="Medoro AI service", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None)
+logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format='{"t":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}')
+log = logging.getLogger("medoro.ai")
+VOICE = Voice()
+# Lines Naina says on almost every call, made at start-up so the first calls of the day answer at once.
+WARM_LINES = [
+    "बताइए, मैं आपकी किस तरह मदद कर सकती हूँ?", "ठीक है, मैंने नोट कर लिया है।", "धन्यवाद! अपना ध्यान रखिए।",
+    "माफ़ कीजिए, मैं ठीक से सुन नहीं पाई। क्या आप दोबारा बता सकते हैं?", "क्या अभी एक मिनट बात कर सकते हैं?",
+]
 
 
-@app.on_event("startup")
 async def _warm_voice() -> None:
-    """Loads the voice when the server starts, so the first call isn't slower (in the background; never blocks start-up)."""
-    async def load() -> None:
-        try:
-            if os.path.exists(PIPER_VOICE):
-                await asyncio.to_thread(lambda: _synthesize("नमस्ते"))
-        except Exception:  # noqa: BLE001 - a failed warm-up only means the first reply loads it
-            pass
-    asyncio.get_running_loop().create_task(load())
+    """Loads Kokoro once when the server starts and makes the common lines (in the background; never blocks start-up)."""
+    if VOICE.engine.name == "off":
+        return
+    try:
+        async with _tts_lock:
+            await asyncio.to_thread(VOICE.engine.load)
+        if os.environ.get("TTS_WARM", "1") == "1":
+            for line in WARM_LINES:
+                await _speak(line, None, None, "auto")
+    except Exception as e:  # noqa: BLE001 - a failed warm-up is reported in /health; the next request retries
+        log.warning("voice warm-up failed: %s", type(e).__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    task = asyncio.get_running_loop().create_task(_warm_voice())
+    yield
+    task.cancel()  # graceful shutdown: stop warming, let in-flight requests finish (uvicorn waits), free the model
+    VOICE.engine.unload()
+
+
+app = FastAPI(title="Medoro AI service", version=VERSION, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 # One request at a time per engine on an 8 GB host: queued requests wait instead of exhausting memory.
 _stt_lock = asyncio.Semaphore(1)
-_tts_lock = asyncio.Semaphore(1)
-# Lines Naina says again and again ("Bataiye, main aapki kis tarah madad kar sakti hoon?") are made once, then reused.
-_tts_cache: "OrderedDict[str, bytes]" = OrderedDict()
-TTS_CACHE_SIZE = int(os.environ.get("TTS_CACHE_SIZE", "400"))
+TTS_CONCURRENCY = max(1, int(os.environ.get("TTS_CONCURRENCY", "1")))
+_tts_lock = asyncio.Semaphore(TTS_CONCURRENCY)
+TTS_QUEUE_MAX = int(os.environ.get("TTS_QUEUE_MAX", "8"))
+# The app asks for one sentence at a time (a few seconds each); this bounds a direct caller's long text.
+TTS_TIMEOUT_S = float(os.environ.get("TTS_TIMEOUT_S", "60"))
+_tts_waiting = 0
+# Lines Naina says again and again are made once, then reused (bounded by entries and by megabytes).
+_tts_cache: "OrderedDict[tuple, dict]" = OrderedDict()
+TTS_CACHE_SIZE = int(os.environ.get("TTS_CACHE_SIZE", "100"))
+TTS_CACHE_MB = float(os.environ.get("TTS_CACHE_MB", "48"))
 _llm_lock = asyncio.Semaphore(1)
 _whisper: Any = None
-_piper: Any = None
 
 
 def require_token(authorization: str = Header(default="")) -> None:
@@ -88,15 +115,6 @@ def whisper():
     return _whisper
 
 
-def piper():
-    global _piper
-    if _piper is None:
-        from piper import PiperVoice
-
-        _piper = PiperVoice.load(PIPER_VOICE)
-    return _piper
-
-
 def memory() -> dict[str, float]:
     info: dict[str, float] = {}
     try:
@@ -107,8 +125,16 @@ def memory() -> dict[str, float]:
                     info[k] = int(v.strip().split()[0]) / 1024
     except OSError:
         pass
-    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # peak RSS, MB (Linux reports KB)
-    return {"total_mb": round(info.get("MemTotal", 0), 1), "available_mb": round(info.get("MemAvailable", 0), 1), "process_rss_mb": round(rss, 1)}
+    ru = resource.getrusage(resource.RUSAGE_SELF)
+    now = 0.0
+    try:
+        with open("/proc/self/status") as f:
+            now = next((int(line.split()[1]) / 1024 for line in f if line.startswith("VmRSS:")), 0.0)
+    except OSError:
+        pass
+    # process_rss_mb is the peak (Linux reports KB); process_rss_now_mb is the current resident size.
+    return {"total_mb": round(info.get("MemTotal", 0), 1), "available_mb": round(info.get("MemAvailable", 0), 1),
+            "process_rss_mb": round(ru.ru_maxrss / 1024, 1), "process_rss_now_mb": round(now, 1), "process_cpu_s": round(ru.ru_utime + ru.ru_stime, 1)}
 
 
 @app.get("/health", dependencies=[Depends(require_token)])
@@ -124,7 +150,15 @@ async def health() -> dict[str, Any]:
     except Exception as e:  # noqa: BLE001 - report, don't crash the health check
         llm["error"] = f"Ollama unreachable: {type(e).__name__}"
     stt = {"ok": True, "model": f"faster-whisper {WHISPER_MODEL} {WHISPER_COMPUTE}", "loaded": _whisper is not None}
-    tts = {"ok": os.path.exists(PIPER_VOICE), "voice": os.path.basename(PIPER_VOICE)}
+    e = VOICE.engine
+    tts = {
+        "ok": e.name != "off" and (e.loaded or e.error is None), "engine": e.name, "voice": VOICE.s.voice, "voices": e.voices(),
+        "loaded": e.loaded, "load_ms": e.load_ms, "error": e.error, "model": VOICE.s.repo if e.name == "kokoro" else None,
+        "lang": VOICE.s.lang, "speed": VOICE.s.speed, "en_mode": VOICE.s.en_mode, "sample_rate": VOICE.rate,
+        "lexicon": {"terms": len(VOICE.norm.lex.terms), "words": len(VOICE.norm.lex.words), "names": len(VOICE.norm.lex.names), "overrides": VOICE.norm.lex.override_count},
+        "cache": {"entries": len(_tts_cache), "max": TTS_CACHE_SIZE}, "queue": _tts_waiting, "concurrency": TTS_CONCURRENCY,
+        **VOICE.stats.as_dict(),
+    }
     load1 = os.getloadavg()[0] if hasattr(os, "getloadavg") else 0.0
     return {"ok": llm["ok"] and stt["ok"] and tts["ok"], "llm": llm, "stt": stt, "tts": tts, "memory": memory(), "cpu": {"count": os.cpu_count() or 0, "load1": round(load1, 2)}, "version": VERSION}
 
@@ -157,10 +191,14 @@ def _transcribe(data: bytes) -> tuple[str, str, bool]:
 
 class TtsIn(BaseModel):
     text: str = Field(min_length=1, max_length=1200)
+    # Optional, backward-compatible: older apps send only `text`.
+    voice: str | None = Field(default=None, max_length=20)
+    speed: float | None = Field(default=None, ge=0.7, le=1.3)
+    lang: Literal["auto", "hi", "hinglish", "en"] = "auto"
 
 
 def speakable(text: str) -> str:
-    """Times and short forms read naturally: 11:30 -> 11 30, HR -> H R, removes source tags in brackets."""
+    """Legacy (Piper-era) clean-up, kept for compatibility: times and short forms, removes source tags."""
     t = re.sub(r"\((Source|स्रोत):[^)]*\)", "", text)
     t = re.sub(r"\b(\d{1,2}):(\d{2})\b", lambda m: m.group(1) if m.group(2) == "00" else f"{m.group(1)} {m.group(2)}", t)
     t = re.sub(r"\bHRMS\b", "H R M S", t)
@@ -169,34 +207,57 @@ def speakable(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
+def _cache_put(key: tuple, value: dict) -> None:
+    _tts_cache[key] = value
+    limit = TTS_CACHE_MB * 1_000_000
+    while len(_tts_cache) > TTS_CACHE_SIZE or (len(_tts_cache) > 1 and sum(len(v["wav"]) for v in _tts_cache.values()) > limit):
+        _tts_cache.popitem(last=False)
+
+
+async def _speak(text: str, voice: str | None, speed: float | None, lang: str) -> tuple[dict, bool]:
+    """One synthesis at a time (TTS_CONCURRENCY), at most TTS_QUEUE_MAX waiting, each bounded by TTS_TIMEOUT_S."""
+    global _tts_waiting
+    key = (VOICE.engine.name, voice or VOICE.s.voice, speed or VOICE.s.speed, lang, text)
+    hit = _tts_cache.get(key)
+    if hit is not None:
+        _tts_cache.move_to_end(key)
+        VOICE.stats.cache_hits += 1
+        return hit, True
+    if _tts_waiting >= TTS_QUEUE_MAX:
+        raise HTTPException(503, "voice busy, try again")
+    _tts_waiting += 1
+    try:
+        await asyncio.wait_for(_tts_lock.acquire(), TTS_TIMEOUT_S)
+    except asyncio.TimeoutError as e:
+        raise HTTPException(504, "voice busy, timed out") from e
+    finally:
+        _tts_waiting -= 1
+    # The thread can't be cancelled, so the slot is freed only when it really finishes (never two at once).
+    fut = asyncio.ensure_future(asyncio.to_thread(VOICE.render, text, voice, speed, lang))
+    fut.add_done_callback(lambda _f: _tts_lock.release())
+    try:
+        out = await asyncio.wait_for(asyncio.shield(fut), TTS_TIMEOUT_S)
+    except asyncio.TimeoutError as e:
+        raise HTTPException(504, "voice timed out") from e
+    _cache_put(key, out)
+    return out, False
+
+
 @app.post("/tts", dependencies=[Depends(require_token)])
 async def tts(body: TtsIn) -> dict[str, Any]:
-    if not os.path.exists(PIPER_VOICE):
-        raise HTTPException(503, "voice model not installed")
+    VOICE.stats.requests += 1
     t0 = time.perf_counter()
-    text = speakable(body.text)
-    wav = _tts_cache.get(text)
-    hit = wav is not None
-    if hit:
-        _tts_cache.move_to_end(text)
-    else:
-        async with _tts_lock:
-            wav = await asyncio.to_thread(_synthesize, text)
-        _tts_cache[text] = wav
-        while len(_tts_cache) > TTS_CACHE_SIZE:
-            _tts_cache.popitem(last=False)
-    return {"audio_b64": base64.b64encode(wav).decode(), "mime": "audio/wav", "ms": int((time.perf_counter() - t0) * 1000), "cached": hit}
-
-
-def _synthesize(text: str) -> bytes:
-    voice = piper()
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as w:
-        if hasattr(voice, "synthesize_wav"):  # piper-tts >= 1.3
-            voice.synthesize_wav(text, w)
-        else:  # older piper-tts
-            voice.synthesize(text, w)
-    return buf.getvalue()
+    try:
+        out, hit = await _speak(body.text, body.voice, body.speed, body.lang)
+    except ValueError as e:
+        raise HTTPException(422, "nothing to say") from e
+    except EngineUnavailable as e:
+        raise HTTPException(503, "voice unavailable") from e
+    ms = int((time.perf_counter() - t0) * 1000)
+    log.info("tts ms=%d cached=%s chunks=%d speech_chars=%d audio_ms=%d rss_mb=%.0f", ms, hit, out["chunks"], out["speech_chars"], out["duration_ms"], memory()["process_rss_now_mb"])
+    return {"audio_b64": base64.b64encode(out["wav"]).decode(), "mime": "audio/wav", "ms": ms, "cached": hit,
+            "engine": VOICE.engine.name, "voice": out["voice"], "lang": out["lang"], "chunks": out["chunks"],
+            "duration_ms": out["duration_ms"], "sample_rate": VOICE.rate}
 
 
 class ClassifyIn(BaseModel):

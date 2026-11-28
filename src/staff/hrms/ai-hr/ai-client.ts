@@ -4,7 +4,7 @@ import { hostClass } from "@/domain/ai/llm";
 import { log } from "@/server/log";
 import { INTENTS, type Intent } from "./nlu";
 
-// Client for the self-hosted AI service (ai-service/: FastAPI with Faster-Whisper, Piper and Ollama on a separate
+// Client for the self-hosted AI service (ai-service/: FastAPI with Faster-Whisper, Kokoro-82M and Ollama on a separate
 // persistent host). There is no paid fallback of any kind: when the service is not configured or not reachable, the
 // conversation continues as text with the rule engine, and the screen says voice is unavailable.
 //
@@ -34,7 +34,7 @@ async function call<T>(path: string, init: RequestInit, schema: z.ZodType<T>, ti
 const healthSchema = z.object({
   ok: z.boolean(), llm: z.object({ ok: z.boolean(), model: z.string().optional(), error: z.string().optional() }).partial().optional(),
   stt: z.object({ ok: z.boolean(), model: z.string().optional(), loaded: z.boolean().optional() }).partial().optional(),
-  tts: z.object({ ok: z.boolean(), voice: z.string().optional() }).partial().optional(),
+  tts: z.object({ ok: z.boolean(), voice: z.string().optional(), engine: z.string().optional(), voices: z.array(z.string()).optional(), loaded: z.boolean().optional(), avg_ms: z.number().nullable().optional(), last_ok_at: z.string().nullable().optional(), errors: z.number().optional() }).partial().optional(),
   memory: z.object({ total_mb: z.number(), available_mb: z.number(), process_rss_mb: z.number() }).partial().optional(),
   cpu: z.object({ count: z.number(), load1: z.number() }).partial().optional(),
   version: z.string().optional(),
@@ -59,10 +59,15 @@ export async function transcribe(audio: Blob): Promise<{ text: string; language?
 }
 
 const ttsSchema = z.object({ audio_b64: z.string().max(8_000_000), mime: z.string().default("audio/wav"), ms: z.number().optional() });
-/** Text to speech (Piper, Hindi female voice). */
-export async function speak(text: string): Promise<{ audio: string; mime: string; ms: number }> {
+export type SpeakOptions = { voice?: "hf_alpha" | "hf_beta"; speed?: number };
+/**
+ * Text to speech: Kokoro-82M on the AI host (female Hindi voice hf_alpha / hf_beta). `voice` and `speed` are optional
+ * and ignored by older AI hosts, so the request stays compatible with the original `{ text }` contract.
+ */
+export async function speak(text: string, opts: SpeakOptions = {}): Promise<{ audio: string; mime: string; ms: number }> {
   const t0 = Date.now();
-  const r = await call("/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: text.slice(0, 1200) }) }, ttsSchema, 30_000);
+  const body = { text: text.slice(0, 1200), ...(opts.voice ? { voice: opts.voice } : {}), ...(opts.speed ? { speed: Math.min(1.2, Math.max(0.8, opts.speed)) } : {}) };
+  const r = await call("/tts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, ttsSchema, 30_000);
   return { audio: r.audio_b64, mime: r.mime, ms: r.ms ?? Date.now() - t0 };
 }
 
