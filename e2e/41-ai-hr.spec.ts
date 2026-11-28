@@ -58,7 +58,7 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   await expect(page.getByText("Follow-up conversation scheduled.")).toBeVisible();
 
   // The employee talks to the assistant (typed: the same path voice uses after recognition).
-  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] }, permissions: ["notifications"] });
   const e = await ctx.newPage();
   await signIn(e, EMP.email, EMP.password);
   await e.waitForURL(/\/staff\/hrms/);
@@ -103,6 +103,18 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   await expect(callWin.getByText("Conversation finished. Thank you.")).toBeVisible();
   await callWin.getByRole("button", { name: "Close" }).click();
   await expect(ringing).toBeHidden();
+
+  // Naina can ring the device with the HRMS closed (free browser push): the switch is offered in her chat, and the
+  // service worker turns a push into a ringing notification that opens her chat.
+  await e.goto("/staff/hrms/chat?c=naina");
+  await expect(e.getByText("Let Naina ring this device")).toBeVisible();
+  await expect(e.getByRole("button", { name: "Turn on" })).toBeVisible();
+  const cdp = await ctx.newCDPSession(e);
+  const reg = new Promise<string>((ok) => cdp.on("ServiceWorker.workerRegistrationUpdated", (ev: { registrations: { registrationId: string; scopeURL: string; isDeleted: boolean }[] }) => { const r = ev.registrations.find((x) => !x.isDeleted); if (r) ok(r.registrationId); }));
+  await e.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  await cdp.send("ServiceWorker.enable");
+  await cdp.send("ServiceWorker.deliverPushMessage", { origin: new URL(e.url()).origin, registrationId: await reg, data: JSON.stringify({ title: "📞 Naina · AI HR is calling", body: "About today's check-in. Tap to answer in the HRMS.", url: "/staff/hrms/chat?c=naina", tag: "naina-e2e" }) });
+  await expect.poll(() => e.evaluate(async () => (await (await navigator.serviceWorker.ready).getNotifications()).map((n) => `${n.title} | ${n.body} | ${(n.data as { url: string }).url} | ${n.requireInteraction}`))).toEqual(["📞 Naina · AI HR is calling | About today's check-in. Tap to answer in the HRMS. | /staff/hrms/chat?c=naina | true"]);
   await ctx.close();
 
   // HR sees the outcome and the transcript (the opening is audited).

@@ -7,6 +7,13 @@ vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, s
 vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("redirect " + u); } }));
 // Email is captured, not sent: the weekly summary is checked from what would have gone out.
 const mail = vi.hoisted(() => ({ on: false, sent: [] as { to: string; subject: string; text: string }[] }));
+// Browser push is captured, not sent: a 410 from the push service means the device is gone.
+const push = vi.hoisted(() => ({ sent: [] as { endpoint: string; payload: string }[], gone: new Set<string>() }));
+vi.mock("web-push", async (orig) => {
+  const m = await orig<Record<string, unknown>>(), real = (m.default ?? m) as Record<string, unknown>;
+  const sendNotification = async (sub: { endpoint: string }, payload: string) => { if (push.gone.has(sub.endpoint)) throw Object.assign(new Error("gone"), { statusCode: 410 }); push.sent.push({ endpoint: sub.endpoint, payload }); return { statusCode: 201 }; };
+  return { ...real, default: { ...real, sendNotification }, sendNotification };
+});
 vi.mock("@/server/mail", async (orig) => ({ ...(await orig<typeof import("@/server/mail")>()), mailEnabled: () => mail.on, sendMail: async (m: { to: string; subject: string; text: string }) => { mail.sent.push(m); } }));
 
 import { db } from "@/server/db";
@@ -14,6 +21,7 @@ import { invalidateSettings, loadPerms, type Me } from "@/staff/hrms/auth";
 import { DEFAULT_SETTINGS } from "@/staff/hrms/constants";
 import * as svc from "@/staff/hrms/ai-hr/service";
 import { sign } from "@/staff/hrms/ai-hr/telephony";
+import * as pushSvc from "@/staff/hrms/ai-hr/push";
 import { dateOnly } from "@/lib/dates";
 import { resetDb } from "./helpers";
 
@@ -428,5 +436,30 @@ describe("AI HR Assistant (integration)", () => {
     expect(await svc.nainaInfo(dv)).toBeNull();
     await expect(svc.nainaSend(dv, "payslip kahan hai")).rejects.toThrow(/isn't switched on/);
     await enable();
+  });
+  it("push: only real browser push services are accepted, five devices at most, and Naina's call rings them", async () => {
+    const ev = await me(await mk("Esha Push", "employee"));
+    const sub = (endpoint: string) => ({ endpoint, keys: { p256dh: "B".repeat(87), auth: "a".repeat(22) } });
+    await expect(pushSvc.savePushSub(ev.id, sub("https://evil.example.com/hook"))).rejects.toThrow(/push address/);
+    await expect(pushSvc.savePushSub(ev.id, sub("http://fcm.googleapis.com/fcm/send/x"))).rejects.toThrow();
+    for (let i = 0; i < 7; i++) await pushSvc.savePushSub(ev.id, sub(`https://fcm.googleapis.com/fcm/send/dev${i}`));
+    await pushSvc.savePushSub(ev.id, sub("https://fcm.googleapis.com/fcm/send/dev6")); // the same device again isn't a second one
+    expect(await pushSvc.pushDevices(ev.id)).toBe(5);
+    const key = await pushSvc.pushPublicKey();
+    expect(key).toMatch(/^[A-Za-z0-9_-]{80,}$/);
+    expect(await pushSvc.pushPublicKey()).toBe(key); // made once, then kept
+    const stored = (await db.hrSetting.findUniqueOrThrow({ where: { key: "aiHrVapid" } })).value as { privateKey: string };
+    expect(stored.privateKey).not.toMatch(/^[A-Za-z0-9_-]{43}$/); // the private key is sealed, not stored as is
+    // A call the scheduler sends rings every device; a device the push service says is gone is dropped.
+    push.sent = []; push.gone = new Set(["https://fcm.googleapis.com/fcm/send/dev2"]);
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("12:00", "2026-12-16"));
+    const id = await svc.startManualCall(hr, ev.id, "Check documents");
+    await svc.dispatch();
+    const mine = push.sent.filter((x) => x.endpoint.includes("/dev"));
+    expect(mine).toHaveLength(4);
+    expect(JSON.parse(mine[0].payload)).toMatchObject({ title: "📞 Naina · AI HR is calling", url: "/staff/hrms/chat?c=naina", tag: `naina-${id}` });
+    expect(await pushSvc.pushDevices(ev.id)).toBe(4);
+    await pushSvc.removePushSub(ev.id, "https://fcm.googleapis.com/fcm/send/dev3");
+    expect(await pushSvc.pushDevices(ev.id)).toBe(3);
   });
 });

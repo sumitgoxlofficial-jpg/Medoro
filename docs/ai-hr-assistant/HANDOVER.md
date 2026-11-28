@@ -1,5 +1,22 @@
 # AI HR Assistant — technical handover
 
+## Update 6 (2026-11-28): Naina rings with the HRMS closed, voice fallback, no scheduler set-up needed
+* **Free browser push** (`web-push`, no paid service): in Chats → Naina an employee turns on "Let Naina ring this
+  device". When the scheduler sends a conversation, every such device gets a ringing notification (stays until tapped,
+  vibrates) that opens Naina's chat, even with the HRMS closed. The key pair is made on first use and kept in
+  `HrSetting` (`aiHrVapid`, private key sealed with HOST_KEY); subscriptions in `HrSetting` `aiHrPush:<staffId>`, five
+  devices per person, only real push services accepted (Google, Mozilla, Microsoft, Apple), gone devices removed.
+  iPhone: Apple allows web push only after "Add to Home Screen" (iOS 16.4+); the screen says so. No schema change.
+* **Voice fallback**: with no Hindi voice on the device, Naina speaks the Hinglish text with an Indian (or any) English
+  voice instead of staying silent; only on-device voices are used (reply text is never sent to an online voice).
+* **No outside scheduler needed in working hours**: every open HRMS tab checks for Naina's ring every 8 s, and that
+  check runs the AI job at most once a minute across servers (after the response). The Supabase cron script is still
+  useful for nights and weekends when nobody has the HRMS open.
+* Tested: integration (push addresses, device limit, sealed key, ring sends to every device, 410 removes it), unit
+  (voice fallback), e2e in Chromium (the switch is offered; a push delivered to the real service worker shows the
+  ringing notification that opens Naina's chat). Not tested: delivery through Google/Apple push services (needs the
+  internet from a real device), iPhone.
+
 ## Update 5 (2026-11-28): Naina in Team Chat, in-app calls (no phone)
 * The assistant is now **Naina** (female, Hinglish by default, says she is an AI in every opening).
 * **Chats → Naina** (pinned at the top for every employee while the assistant is on): a one-to-one chat. Typed questions

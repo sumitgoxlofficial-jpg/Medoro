@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Data } from "@/staff/hrms/screens";
-import { aiNainaCall, aiNainaEnd, aiNainaSend, aiNainaThread } from "../actions";
+import { aiNainaCall, aiNainaEnd, aiNainaPushKey, aiNainaPushRemove, aiNainaPushSave, aiNainaSend, aiNainaThread } from "../actions";
 import { Conversation } from "./screens-aicall";
 import { unlockSpeech } from "./speech/browser-speech";
 import { ding } from "./chat-notify";
@@ -51,6 +51,66 @@ export function NainaCall({ id, cfg, onClose }: { id: string; cfg: Cfg; onClose:
         <div className="flex items-center gap-3 text-white"><NainaFace size={52} /><div><div className="font-bold text-[17px]">Naina · on call</div><div className="text-[12.5px] text-white/80">AI assistant from Medoro HR · inside the HRMS, no phone needed</div></div></div>
         <div className="bg-white rounded-2xl overflow-hidden"><Conversation id={id} voice={cfg.voice} tts={cfg.tts} mode={cfg.speech} model={cfg.sttModel} selfHosted={cfg.modelSource === "self"} onClose={onClose} /></div>
       </div>
+    </div>
+  );
+}
+
+/** URL-safe base64 (the server's push key) to the bytes the browser wants. */
+function keyBytes(b64: string) {
+  const s = atob((b64 + "=".repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+}
+type PushState = "unsupported" | "ios-install" | "denied" | "off" | "on" | "busy";
+/**
+ * "Let Naina ring this device": free browser push, so her call rings even when the HRMS is closed. iPhones need the
+ * HRMS added to the Home Screen first (Apple's rule). Turning it off removes this device.
+ */
+function PushSwitch() {
+  const [st, setSt] = useState<PushState>("busy"), [msg, setMsg] = useState("");
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent), standalone = window.matchMedia?.("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone;
+      let next: PushState;
+      if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) next = ios && !standalone ? "ios-install" : "unsupported";
+      else if (Notification.permission === "denied") next = "denied";
+      else {
+        const reg = await navigator.serviceWorker.getRegistration().catch(() => undefined);
+        next = (await reg?.pushManager.getSubscription().catch(() => null)) ? "on" : "off";
+      }
+      if (live) setSt(next);
+    })();
+    return () => { live = false; };
+  }, []);
+  const turnOn = async () => {
+    setSt("busy"); setMsg("");
+    try {
+      if ((await Notification.requestPermission()) !== "granted") { setSt("denied"); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const k = await aiNainaPushKey();
+      if (!k.ok) { setMsg(k.error); setSt("off"); return; }
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(k.data.publicKey) });
+      const r = await aiNainaPushSave(sub.toJSON());
+      if (!r.ok) { await sub.unsubscribe().catch(() => false); setMsg(r.error); setSt("off"); return; }
+      setSt("on");
+    } catch { setMsg("This browser couldn’t turn on notifications. Try Chrome, Edge, Firefox or Safari."); setSt("off"); }
+  };
+  const turnOff = async () => {
+    setSt("busy");
+    const reg = await navigator.serviceWorker.getRegistration().catch(() => undefined);
+    const sub = await reg?.pushManager.getSubscription().catch(() => null);
+    if (sub) { await aiNainaPushRemove(sub.endpoint).catch(() => null); await sub.unsubscribe().catch(() => false); }
+    setSt("off");
+  };
+  if (st === "on") return <div className="self-center text-[12px] text-[#0B5E5B] bg-white/90 rounded-lg px-3 py-1.5 shadow-sm">🔔 Naina can ring this device even when the HRMS is closed. <button className="underline bg-transparent border-0 cursor-pointer text-[#64748B]" onClick={() => void turnOff()}>Turn off</button></div>;
+  if (st === "busy" || st === "unsupported") return null;
+  return (
+    <div className="self-center max-w-[520px] flex flex-col gap-1.5 items-center text-center text-[12.5px] bg-white rounded-xl px-3 py-2.5 shadow-sm">
+      <span>🔔 <b>Let Naina ring this device</b>, even when the HRMS is closed (free, no phone number).</span>
+      {st === "ios-install" ? <span className="text-[#64748B]">On iPhone: tap Share → <b>Add to Home Screen</b>, open Medoro from there, then come back here.</span>
+        : st === "denied" ? <span className="text-[#B45309]">Notifications are blocked for this site. Allow them in the browser’s site settings (the icon left of the address), then reload.</span>
+        : <button className="bg-[#0B5E5B] text-white border-0 rounded-lg px-3 py-1.5 font-semibold cursor-pointer" onClick={() => void turnOn()}>Turn on</button>}
+      {msg ? <span className="text-[#B3261E]">{msg}</span> : null}
     </div>
   );
 }
@@ -111,6 +171,7 @@ export function NainaPanel({ info: first, onBack }: { info: NainaInfo; onBack: (
       </div>
       <div ref={log} className="relative flex-1 overflow-y-auto px-[4%] max-[560px]:px-2.5 py-3 flex flex-col gap-1.5 [scrollbar-width:thin]" aria-live="polite">
         <div className="self-center max-w-[520px] text-center text-[12px] text-[#54656F] bg-[#FFF7D6] rounded-lg px-3 py-2 my-2 shadow-[0_1px_.5px_rgba(11,20,26,.13)]">🤖 Naina is an AI. She answers from Medoro’s approved policies and notes what you tell her; HR or your manager decide anything. Say “HR se baat karni hai” for a person, or “call mat karo” to stop her calls. Only you and authorised HR can see this chat.</div>
+        <PushSwitch />
         {waiting ? <div className="self-center flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-sm text-[13px]"><span>📞 Naina wants to talk about <b>{ABOUT[info!.open!.reason]}</b>.</span><button className="bg-[#0B5E5B] text-white border-0 rounded-lg px-3 py-1.5 font-semibold cursor-pointer" onClick={() => void startCall()}>Answer</button><span className="text-[#667781]">or reply below</span></div> : null}
         {thread.map((c) => (
           <div key={c.id} className="flex flex-col gap-1.5">

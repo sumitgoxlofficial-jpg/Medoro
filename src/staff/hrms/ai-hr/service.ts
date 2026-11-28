@@ -24,6 +24,7 @@ import { converse } from "./engine";
 import { mailEnabled, sendMail } from "@/server/mail";
 import { aiHrDigestMail } from "../mails";
 import { digestWeek, type DigestStats } from "./digest";
+import { pushTo } from "./push";
 
 // The AI HR Assistant's server side. It detects attendance exceptions from the HRMS's own records (the same shift,
 // leave, holiday and weekly-off rules the attendance screens use), schedules a conversation per event exactly once,
@@ -158,6 +159,8 @@ export async function dispatch(now = new Date()) {
     const n = call.attempts + 1;
     const text = notifyText(call.reason as CallReason, n);
     await notify([call.staffId], text, "aicall");
+    // Rings the employee's phone or laptop too, even with the HRMS closed (free browser push, if they turned it on).
+    await pushTo(call.staffId, { title: "📞 Naina · AI HR is calling", body: `About ${CALL_ABOUT[call.reason as CallReason] ?? "a quick question"}. Tap to answer in the HRMS.`, url: "/staff/hrms/chat?c=naina", tag: `naina-${call.id}` }).catch((e) => log.warn("naina push failed", { err: e instanceof Error ? e.message : String(e) }));
     await db.$transaction([
       db.aiHrCall.update({ where: { id: call.id }, data: { status: "notified", attempts: n, nextAttemptAt: new Date(now.getTime() + c.retryGapMin * 60_000) } }),
       db.aiHrCallAttempt.create({ data: { callId: call.id, n, outcome: "notified", detail: "HRMS notification" } }),
@@ -166,6 +169,7 @@ export async function dispatch(now = new Date()) {
   }
   return out;
 }
+const CALL_ABOUT: Record<CallReason, string> = { late: "today's check-in", absent: "today's attendance", missing_checkout: "today's check-out", overtime: "an overtime request", manual: "a follow-up from HR" };
 const notifyText = (r: CallReason, n: number) => {
   const what: Record<CallReason, string> = { late: "your check-in today", absent: "today's attendance", missing_checkout: "today's check-out", overtime: "an overtime request from your manager", manual: "a follow-up from HR" };
   return `${n > 1 ? "Reminder: " : ""}Naina, Medoro HR's AI assistant, would like a quick word about ${what[r]}. Answer her call or open Chats → Naina (voice or text), or ask for HR.`;
@@ -202,6 +206,13 @@ export async function aiHrTick(now = new Date(), daily = false) {
  * on one HrSetting row), after the response is sent. With the free GitHub Actions workflow (every 5 minutes) and
  * Vercel's daily cron, no paid scheduler is needed. Returns whether this call ran it.
  */
+let lastTry = 0;
+/** From the ring check every HRMS tab makes: tries the AI job at most every 30 s per server (the claim below decides). */
+export async function maybeTickFromRing(now = new Date()) {
+  if (now.getTime() - lastTry < 30_000) return false;
+  lastTry = now.getTime();
+  return maybeTick(now);
+}
 export async function maybeTick(now = new Date()): Promise<boolean> {
   const claimed = await db.$queryRaw<{ key: string }[]>`
     INSERT INTO "HrSetting" (key, value) VALUES ('aiHrTick', jsonb_build_object('at', ${now.toISOString()}::text))

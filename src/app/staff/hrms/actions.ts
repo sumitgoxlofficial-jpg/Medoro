@@ -40,6 +40,7 @@ import * as learning from "@/staff/hrms/learning";
 import * as surveys from "@/staff/hrms/surveys";
 import * as mgmt from "@/staff/hrms/mgmt";
 import * as aiHr from "@/staff/hrms/ai-hr/service";
+import * as aiPush from "@/staff/hrms/ai-hr/push";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -365,5 +366,8 @@ export const aiNainaSend = async (text: string) => hrRun((me) => aiHr.nainaSend(
 export const aiNainaEnd = async () => hrRun((me) => aiHr.nainaEnd(me));
 /** The conversation a voice call with Naina joins: the open one, a waiting one, or a new chat. */
 export const aiNainaCall = async () => hrRun(async (me) => (await aiHr.nainaConversation(me)).id);
+export const aiNainaPushKey = async () => hrRun(async (me) => ({ publicKey: await aiPush.pushPublicKey(), devices: await aiPush.pushDevices(me.id) }));
+export const aiNainaPushSave = async (sub: unknown) => hrRun((me) => aiPush.savePushSub(me.id, sub), "Naina can now ring this device, even when the HRMS is closed.");
+export const aiNainaPushRemove = async (endpoint: string) => hrRun((me) => aiPush.removePushSub(me.id, String(endpoint).slice(0, 1000)));
 export const aiCallEnd = async (id: string) => done(await hrRun((me) => aiHr.endCall(me, id)));
 export const aiCallConsent = async (allowed: boolean) => done(await hrRun((me) => aiHr.setConsent(me, allowed), allowed ? "AI conversations are on." : "AI conversations are off. HR can still contact you."));
