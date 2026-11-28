@@ -627,7 +627,7 @@ export async function nainaEnd(me: Me) {
 const CANON: Partial<Record<string, string>> = { coming: "haan aa raha hoon", absent: "aaj nahi aa paunga", leave_applied: "leave apply kar di hai", want_leave: "leave chahiye", wfh: "work from home", already_checked_in: "main office mein hoon", attendance_issue: "check in nahi ho raha, app problem", still_working: "abhi bhi kaam kar raha hoon", forgot_checkout: "checkout bhool gaya", overtime_accept: "haan kar lunga", overtime_reject: "nahi kar paunga", overtime_clarify: "kitne ghante ka hai", busy: "abhi busy hoon", yes: "haan", no: "nahi" };
 
 /** One employee turn, typed or spoken. Audio goes to the self-hosted speech service and is not stored. */
-export async function sendTurn(me: Me, id: string, input: { text?: string; audio?: Blob | null; speak?: boolean; sttMs?: number }) {
+export async function sendTurn(me: Me, id: string, input: { text?: string; audio?: Blob | null; speak?: boolean; sttMs?: number; diag?: string }) {
   await enforce("aiHrTurn", `hrms:${me.id}`);
   const call = await ownCall(me, id);
   if (call.status !== "in_progress") throw new UserError("This conversation isn't active. Open it again.");
@@ -639,6 +639,8 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
     try { const r = await ai.transcribe(input.audio); text = r.text; sttMs = r.ms; }
     catch (e) { log.warn("ai-hr stt failed", { err: e instanceof Error ? e.message : String(e) }); throw new UserError("I couldn't hear that clearly. Please try again or type your answer."); }
   }
+  // Nothing heard: the browser says why (no-speech, network, not-allowed…), for the server log only; never the voice.
+  if (!text && input.diag) log.info("ai-hr nothing heard", { call: id, diag: input.diag.replace(/[^\w:,.-]/g, "").slice(0, 200) });
   const prev = call.state as unknown as State;
   const ctx = await ctxFor(call, cfg);
   let used = text, llmMs: number | null = null, intentNote = "";

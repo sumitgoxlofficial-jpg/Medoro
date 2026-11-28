@@ -97,7 +97,8 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   // speaker and microphone: Naina speaks, listens by herself, hears a Hindi answer (Devanagari), and ends the call.
   await e.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
-    const said = ["haan, boliye", "मुझे एचआर से बात करनी है"];
+    // "" is a few seconds of nothing heard (the browser's "no-speech"), as when someone starts talking late.
+    const said = ["", "haan, boliye", "मुझे एचआर से बात करनी है"];
     const spoken: string[] = []; w.__spoken = spoken;
     const voice = { name: "Lekha", lang: "hi-IN", localService: true, default: true, voiceURI: "Lekha" };
     w.SpeechSynthesisUtterance = class { text: string; voice: unknown = null; lang = ""; rate = 1; pitch = 1; volume = 1; onend: (() => void) | null = null; onerror: (() => void) | null = null; constructor(t: string) { this.text = t; } };
@@ -126,7 +127,8 @@ test("AI HR Assistant: switch on, follow-up conversation in the browser, HR revi
   const callWin = e.getByRole("dialog", { name: "Call with Naina" });
   const captions = callWin.getByLabel("Captions");
   await expect(captions.getByText(/Naina hoon|I'm Naina|this is Naina/).first()).toBeVisible();
-  await expect(captions.getByText("haan, boliye")).toBeVisible();
+  await expect(captions.getByText("haan, boliye")).toBeVisible(); // she kept listening instead of taking silence
+  await expect(captions.getByText("(silence)")).toHaveCount(0);
   await expect(captions.getByText(/madad kar sakti hoon/)).toBeVisible();
   await expect(captions.getByText("मुझे एचआर से बात करनी है")).toBeVisible();
   await expect(captions.getByText(/HR team ko bata deti hoon|एचआर टीम को|HR टीम को/).first()).toBeVisible();

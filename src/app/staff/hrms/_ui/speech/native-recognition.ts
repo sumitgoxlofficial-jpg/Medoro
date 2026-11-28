@@ -19,7 +19,8 @@ const ctor = (): Ctor | null => {
 };
 export const nativeRecognitionSupported = () => !!ctor();
 
-export type Heard = { text: string; ms: number } | { error: "no-speech" | "denied" | "unavailable" | "aborted" };
+/** `raw` is the browser's own reason (no-speech, network, audio-capture…), sent with the turn for diagnosis. */
+export type Heard = { text: string; ms: number } | { error: "no-speech" | "denied" | "unavailable" | "aborted"; raw?: string };
 
 /**
  * Listens for one answer. `interim` gets the words as they are recognised (live captions). Resolves with the final text,
@@ -48,13 +49,14 @@ export function listenOnce(lang: "hi" | "en" | "hinglish", interim: (t: string) 
     interim((finalText + live).trim());
   };
   r.onerror = (e) => {
-    err = e.error === "no-speech" ? { error: "no-speech" } : e.error === "not-allowed" || e.error === "service-not-allowed" ? { error: "denied" } : e.error === "aborted" ? { error: "aborted" } : { error: "unavailable" };
+    const raw = String(e.error || "unknown").slice(0, 30);
+    err = raw === "no-speech" ? { error: "no-speech", raw } : raw === "not-allowed" || raw === "service-not-allowed" ? { error: "denied", raw } : raw === "aborted" ? { error: "aborted", raw } : { error: "unavailable", raw };
   };
   r.onend = () => {
     const text = (finalText || lastInterim).trim();
     if (text) finish({ text, ms: Math.max(1, Math.round(performance.now() - t0)) });
-    else finish(err ?? { error: "no-speech" });
+    else finish(err ?? { error: "no-speech", raw: "ended-empty" });
   };
-  try { r.start(); } catch { finish({ error: "unavailable" }); }
+  try { r.start(); } catch (e) { finish({ error: e instanceof DOMException && e.name === "NotAllowedError" ? "denied" : "unavailable", raw: e instanceof Error ? `start:${e.name}`.slice(0, 30) : "start" }); }
   return { result, stop: () => { try { r.stop(); } catch { /* stopped */ } }, abort: () => { err = { error: "aborted" }; finalText = ""; lastInterim = ""; try { r.abort(); } catch { /* stopped */ } } };
 }
