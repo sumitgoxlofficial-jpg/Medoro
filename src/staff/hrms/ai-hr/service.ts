@@ -51,6 +51,12 @@ export const configSchema = z.object({
   sttModel: z.enum(["whisper-base", "whisper-small"]),
   /** Where browsers download the speech model from: Hugging Face (default) or this server (scripts/office/fetch-speech-model.sh). */
   modelSource: z.enum(["huggingface", "self"]),
+  /**
+   * How a call hears the employee in browser mode: "device" is the browser's built-in recognition (instant, live
+   * captions; Chrome sends the audio to Google, Safari to Apple, Medoro keeps only the text), with the in-browser
+   * Whisper model as the fallback; "whisper" always uses the in-browser model (nothing leaves the device, ~80 MB once).
+   */
+  recognizer: z.enum(["device", "whisper"]).default("device"),
   /** A weekly summary email to everyone with Attendance & leave (Monday), when email is set up. */
   weeklyDigest: z.boolean().default(true),
 });
@@ -58,7 +64,7 @@ export type AiHrConfig = z.infer<typeof configSchema>;
 export const DEFAULT_CONFIG: AiHrConfig = {
   enabled: false,
   rules: { late: { enabled: true, afterMin: 10 }, absent: { enabled: true, afterMin: 30 }, missing_checkout: { enabled: true, afterMin: 15 }, overtime: { enabled: true } },
-  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", weeklyDigest: true,
+  maxAttempts: 3, retryGapMin: 20, callingFrom: "08:00", callingTo: "21:00", retentionDays: 90, llmAssist: true, voice: true, speech: "browser", sttModel: "whisper-base", modelSource: "huggingface", recognizer: "device", weeklyDigest: true,
 };
 export async function loadConfig(): Promise<AiHrConfig> {
   const v = ((await db.hrSetting.findUnique({ where: { key: "aiHr" } }))?.value ?? {}) as Partial<AiHrConfig>;
@@ -492,7 +498,7 @@ export async function myCalls(me: Me) {
     open: calls.filter((c) => ["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status })),
     past: calls.filter((c) => !["scheduled", "notified", "in_progress"].includes(c.status)).map((c) => ({ id: c.id, reason: c.reason, day: isoOf(c.day), status: c.status, summary: c.response?.summary ?? "" })),
     allowed: consent?.status !== "stopped", enabled: cfg.enabled,
-    speech: cfg.speech, sttModel: cfg.sttModel, modelSource: cfg.modelSource,
+    speech: cfg.speech, sttModel: cfg.sttModel, modelSource: cfg.modelSource, recognizer: cfg.recognizer,
     // Server speech only when the AI host answers; browser speech needs nothing from the server.
     voice: cfg.speech === "browser" || (cfg.speech === "server" && !!h?.reachable && h.stt?.ok !== false),
     tts: cfg.speech === "server" ? !!h?.reachable && h.tts?.ok !== false : cfg.speech === "browser",
@@ -512,7 +518,7 @@ export async function beginCall(me: Me, id: string, opts: { speak?: boolean } = 
   if (!["scheduled", "notified", "in_progress"].includes(call.status)) throw new UserError("This conversation has ended.");
   if (call.status === "in_progress") {
     const turns = await db.aiHrTurn.findMany({ where: { callId: id }, orderBy: { seq: "asc" } });
-    return { turns: turns.map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed) })), done: false, audio: null, speech: "" };
+    return { turns: turns.map((t) => ({ who: t.who as "ai" | "employee", text: openText(t.textSealed) })), done: false, audio: null, speech: "", lang: (call.state as unknown as State).lang ?? "hinglish" };
   }
   const t = start(call.reason as CallReason, await ctxFor(call, cfg));
   const audio = opts.speak ? await maybeSpeak(t.speech || t.reply, cfg) : null;
@@ -521,7 +527,7 @@ export async function beginCall(me: Me, id: string, opts: { speak?: boolean } = 
     db.aiHrTurn.create({ data: { callId: id, seq: 0, who: "ai", textSealed: sealText(t.reply), lang: t.state.lang, ttsMs: audio?.ms ?? null } }),
     db.aiHrCallAttempt.create({ data: { callId: id, n: call.attempts, outcome: "answered", detail: "opened in the HRMS" } }),
   ]);
-  return { turns: [{ who: "ai" as const, text: t.reply }], done: false, audio, speech: t.speech ?? t.reply };
+  return { turns: [{ who: "ai" as const, text: t.reply }], done: false, audio, speech: t.speech ?? t.reply, lang: t.state.lang };
 }
 
 // ── Naina in Chats: the employee's one-to-one thread with the assistant, her in-app "call", and chats they start.
@@ -533,7 +539,7 @@ export async function nainaInfo(me: Me) {
   if (!cfg.enabled) return null;
   const v = await myCalls(me);
   const open = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: { in: OPEN } }, orderBy: { createdAt: "desc" }, select: { id: true, reason: true, status: true, context: true } });
-  return { voice: v.voice, tts: v.tts, speech: v.speech, sttModel: v.sttModel, modelSource: v.modelSource, allowed: v.allowed, open: open ? { id: open.id, reason: open.reason, status: open.status, self: !!(open.context as { self?: boolean } | null)?.self } : null };
+  return { voice: v.voice, tts: v.tts, speech: v.speech, sttModel: v.sttModel, modelSource: v.modelSource, recognizer: v.recognizer, allowed: v.allowed, open: open ? { id: open.id, reason: open.reason, status: open.status, self: !!(open.context as { self?: boolean } | null)?.self } : null };
 }
 /** A conversation Naina wants to have now (notified within calling hours): the HRMS rings for it. */
 export async function nainaRing(me: Me) {
@@ -541,7 +547,7 @@ export async function nainaRing(me: Me) {
   const call = await db.aiHrCall.findFirst({ where: { staffId: me.id, status: "notified" }, orderBy: { createdAt: "asc" }, select: { id: true, reason: true, attempts: true } });
   if (!call) return null;
   const info = await nainaInfo(me);
-  return info ? { ...call, cfg: { voice: info.voice, tts: info.tts, speech: info.speech, sttModel: info.sttModel, modelSource: info.modelSource } } : null;
+  return info ? { ...call, cfg: { voice: info.voice, tts: info.tts, speech: info.speech, sttModel: info.sttModel, modelSource: info.modelSource, recognizer: info.recognizer } } : null;
 }
 /** The employee's thread with Naina: their recent conversations, oldest first (only what retention still keeps). */
 export async function nainaThread(me: Me) {
@@ -629,7 +635,7 @@ export async function sendTurn(me: Me, id: string, input: { text?: string; audio
   if (r.reply) writes.push(db.aiHrTurn.create({ data: { callId: id, seq: seq + 1, who: "ai", textSealed: sealText(r.reply), lang: r.state.lang, ttsMs: audio?.ms ?? null } }));
   await db.$transaction(writes);
   if (r.done) await finish(id);
-  return { reply: r.reply, speech: r.speech ?? r.reply, done: r.done, heard: text, audio };
+  return { reply: r.reply, speech: r.speech ?? r.reply, done: r.done, heard: text, audio, lang: r.state.lang };
 }
 
 /** The employee hangs up. What was said so far is kept and summarised. */

@@ -40,6 +40,24 @@ export function normalise(raw: string): string {
   t = t.replace(/[^\p{L}\p{M}\p{N}:.'?!\s-]/gu, " ").replace(/\s+/g, " ").trim();
   return t;
 }
+/**
+ * English words people say in Hindi sentences, as speech recognition writes them in Devanagari ("चेकआउट", "पेस्लिप").
+ * Their English form is added after the text, so the rules and the knowledge search see both; nothing is replaced.
+ */
+const LOAN: [string, string][] = ([
+  ["चेकआउट|चेक आउट|चेकाउट", "checkout"], ["चेकइन|चेक इन", "check in"], ["पेस्लिप|पे स्लिप|पेसलिप|सैलरी स्लिप", "payslip"], ["सैलरी|सेलरी|तनख्वाह|वेतन", "salary"],
+  ["लीव|लीव्ह", "leave"], ["कैंसिल|कैंसल|केंसल", "cancel"], ["ऑफिस|आफिस|ऑफ़िस", "office"], ["ओवरटाइम|ओवर टाइम", "overtime"], ["एचआर|एच आर", "hr"],
+  ["मैनेजर|मेनेजर", "manager"], ["अटेंडेंस|अटेंडेन्स|हाजिरी|हाज़िरी", "attendance"], ["ऐप|एप|एप्प", "app"], ["वर्क फ्रॉम होम|वर्क फ्राम होम|डब्ल्यूएफएच", "work from home"],
+  ["हाफ डे|हाफडे", "half day"], ["पॉलिसी|पालिसी", "policy"], ["हॉलिडे|होलीडे|हॉलीडे", "holiday"], ["एचआरएमएस", "hrms"], ["डॉक्टर|डाक्टर", "doctor"],
+  ["हॉस्पिटल|हस्पताल|अस्पताल", "hospital"], ["मीटिंग", "meeting"], ["क्लाइंट", "client"], ["फील्ड", "field"], ["ट्रेन", "train"], ["मेट्रो", "metro"],
+  ["सिस्टम", "system"], ["नेटवर्क", "network"], ["लॉगिन|लॉग इन", "login"], ["पासवर्ड", "password"], ["शिफ्ट", "shift"], ["रिपोर्ट", "report"], ["बोनस", "bonus"], ["इंसेंटिव", "incentive"],
+  ["एडवांस", "advance"], ["अप्लाई|अप्लाइ", "apply"], ["रीइंबर्समेंट|क्लेम", "claim"], ["अप्रेजल|अप्रेज़ल", "appraisal"], ["रिजाइन|इस्तीफा|इस्तीफ़ा", "resign"], ["नोटिस", "notice"], ["फॉर्म १६|फॉर्म 16", "form 16"],
+] as [string, string][]).map(([dev, en]) => [dev.replace(/\u0901/g, "\u0902").replace(/\u093C/g, ""), en]);
+export function withLoanwords(t: string): string {
+  if (!/[\u0900-\u097F]/.test(t)) return t;
+  const add = LOAN.filter(([dev]) => new RegExp(`(?<![\\p{L}\\p{M}])(?:${dev})(?![\\p{L}\\p{M}])`, "u").test(t)).map(([, en]) => en);
+  return add.length ? `${t} ${add.join(" ")}` : t;
+}
 const B = "(?<![\\p{L}\\p{M}\\p{N}])", E = "(?![\\p{L}\\p{M}\\p{N}])";
 /** A regex matching any of the phrases as whole words (Devanagari-safe). Phrases are regex fragments. */
 const normAlt = (a: string) => a.replace(/\u0901/g, "\u0902").replace(/\u093C/g, "");
@@ -239,7 +257,7 @@ const matchesPhrase = (t: string, phrase: string) => {
 
 export function understand(raw: string, nowMin = 600, hint: { reason?: string; custom?: CustomWord[] } = {}): Nlu {
   const text = String(raw ?? "").slice(0, 1000);
-  const t = normalise(text);
+  const t = withLoanwords(normalise(text));
   const lang = detectLang(text);
   const found = new Set<Intent>();
   const add = (i: Intent, ok: boolean) => { if (ok) found.add(i); };

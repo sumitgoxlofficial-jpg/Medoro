@@ -1,5 +1,5 @@
 import type { Lang } from "./nlu";
-import { normalise } from "./nlu";
+import { normalise, withLoanwords } from "./nlu";
 import { FAQ, type SeedDoc } from "./knowledge-faq";
 import SEED from "./knowledge-seed.json";
 
@@ -39,11 +39,13 @@ const SYN: Record<string, string> = {
 // Question words and filler verbs carry no topic: they never count towards a match.
 const STOP = new Set(("the a an is are am i my me to of in on for and or do does did can could will would be it this that what how when where which who why get got need want there " +
   "mera meri mere mujhe hai hain ho ka ki ke ko se mein me kya aur bhi tha thi please kar karna karni karun karte karta hota hoti hote sakta sakti sakte " +
-  "kab kaise kahan kahaan kitna kitni kitne kyun kyon kaun milega milegi milta milti milte milenge chahiye lena dena hoga hogi raha rahi rahe abhi tak wala wali hi").split(" "));
+  "kab kaise kahan kahaan kitna kitni kitne kyun kyon kaun milega milegi milta milti milte milenge chahiye lena dena hoga hogi raha rahi rahe abhi tak wala wali hi " +
+  // the same words as speech recognition writes them in Devanagari (after normalise: chandrabindu → anusvara)
+  "कहां कैसे क्या कब कितना कितनी कितने क्यों कौन मेरा मेरी मेरे मुझे है हैं हो का की के को से में मे और भी था थी करें करे करूं कर करना करनी करते सकता सकती सकते मिलेगा मिलेगी मिलता मिलती चाहिए होगा होगी रहा रही अभी तक वाला वाली ही जी").split(" "));
 const stem = (w: string) => w.replace(/(ing|ed|es|s)$/u, "");
 export function terms(text: string): string[] {
   const out: string[] = [];
-  for (const raw of normalise(text).split(/[\s:.'?!-]+/)) {
+  for (const raw of withLoanwords(normalise(text)).split(/[\s:.'?!-]+/)) {
     if (!raw || STOP.has(raw)) continue;
     const m = SYN[raw];
     for (const t of (m ?? raw).split(" ")) if (t && !STOP.has(t)) out.push(stem(t));

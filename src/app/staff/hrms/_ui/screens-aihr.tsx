@@ -318,6 +318,9 @@ function Settings({ s, admin }: { s: St; admin: boolean }) {
           {c.speech === "browser" ? <Field label="Recognition model" hint="Downloaded once per device and cached.">
             <select className={inputCls} disabled={!admin} value={c.sttModel} onChange={(e) => setC({ ...c, sttModel: e.target.value as typeof c.sttModel })}><option value="whisper-base">Whisper base: ~80 MB, faster</option><option value="whisper-small">Whisper small: ~250 MB, better Hindi</option></select>
           </Field> : null}
+          {c.speech === "browser" ? <Field label="Hearing the employee" hint={c.recognizer === "device" ? "Instant, with live captions. Chrome sends the audio to Google, Safari to Apple, to turn it into text; Medoro keeps only the text. Falls back to the model below if the browser has none." : "Private: recognised on the device with the model below. Slower, and the model is downloaded once per device."}>
+            <select className={inputCls} disabled={!admin} value={c.recognizer} onChange={(e) => setC({ ...c, recognizer: e.target.value as typeof c.recognizer })}><option value="device">Browser&apos;s built-in recognition (fast)</option><option value="whisper">On-device model only (private)</option></select>
+          </Field> : null}
           {c.speech === "browser" ? <Field label="Speech model from" hint={c.modelSource === "self" ? (s.speechFiles.ready ? "This server has the files." : "Not on this server yet: run scripts/office/fetch-speech-model.sh first (see Model status).") : "Downloaded from Hugging Face and jsDelivr by each device."}>
             <select className={inputCls} disabled={!admin} value={c.modelSource} onChange={(e) => setC({ ...c, modelSource: e.target.value as typeof c.modelSource })}><option value="huggingface">Hugging Face (internet)</option><option value="self">This server</option></select>
           </Field> : null}
