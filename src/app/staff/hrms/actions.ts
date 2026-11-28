@@ -36,6 +36,7 @@ import * as shifts from "@/staff/hrms/shifts";
 import * as learning from "@/staff/hrms/learning";
 import * as surveys from "@/staff/hrms/surveys";
 import * as mgmt from "@/staff/hrms/mgmt";
+import * as aiHr from "@/staff/hrms/ai-hr/service";
 import { digilockerConfigured } from "@/staff/hrms/digilocker";
 import { gateOf } from "@/staff/hrms/gate";
 import type { Settings } from "@/staff/hrms/constants";
@@ -315,3 +316,27 @@ export const surveyResults = async (id: string) => hrRun((me) => surveys.surveyR
 
 // ── Management dashboard (Enterprise HRMS Phase 8)
 export const managementCsv = async () => hrRun((me) => mgmt.managementCsv(me));
+
+// ── AI HR Assistant
+export const aiHrSaveConfig = async (input: unknown) => done(await hrRun((me) => aiHr.saveConfig(me, input), "AI HR Assistant settings saved."));
+export const aiHrRequestOvertime = async (input: Parameters<typeof aiHr.requestOvertime>[1]) => done(await hrRun((me) => aiHr.requestOvertime(me, input), "Overtime request sent. The employee is asked in the HRMS; you'll see their answer here."));
+export const aiHrManualCall = async (staffId: string, topic: string) => done(await hrRun((me) => aiHr.startManualCall(me, staffId, topic), "Follow-up conversation scheduled."));
+export const aiHrCallDetail = async (id: string) => hrRun((me) => aiHr.callDetail(me, id));
+export const aiHrDecide = async (id: string, approve: boolean, note = "") => done(await hrRun((me) => aiHr.decideAction(me, id, approve, note), approve ? "Approved. The employee was told." : "Rejected. The employee was told."));
+export const aiHrDeleteTranscript = async (id: string) => done(await hrRun((me) => aiHr.deleteTranscript(me, id), "Transcript deleted."));
+export const aiHrSaveKnowledge = async (input: Parameters<typeof aiHr.saveKnowledgeDraft>[1]) => done(await hrRun((me) => aiHr.saveKnowledgeDraft(me, input), "Draft saved. It is used once someone approves it."));
+export const aiHrApproveKnowledge = async (id: string) => done(await hrRun((me) => aiHr.approveKnowledge(me, id), "Approved and published."));
+export const aiHrRollbackKnowledge = async (docKey: string, version: number) => done(await hrRun((me) => aiHr.rollbackKnowledge(me, docKey, version), version ? "Rolled back." : "Withdrawn."));
+export const aiHrTestRetrieval = async (q: string) => hrRun((me) => aiHr.testRetrieval(me, q));
+export const aiHrAddScenario = async (input: Parameters<typeof aiHr.addScenario>[1]) => done(await hrRun((me) => aiHr.addScenario(me, input), "Scenario added."));
+export const aiHrToggleScenario = async (id: string, disabled: boolean) => done(await hrRun((me) => aiHr.toggleScenario(me, id, disabled)));
+export const aiHrRunEvaluation = async () => done(await hrRun((me) => aiHr.runEvaluation(me)));
+export const aiHrPlayground = async (input: Parameters<typeof aiHr.playground>[1]) => hrRun((me) => aiHr.playground(me, input));
+// Employee side
+export const aiCallBegin = async (id: string, speak = false) => hrRun((me) => aiHr.beginCall(me, id, { speak }));
+export const aiCallTurn = async (fd: FormData) => hrRun((me) => {
+  const audio = fd.get("audio");
+  return aiHr.sendTurn(me, String(fd.get("id") ?? ""), { text: String(fd.get("text") ?? ""), audio: audio instanceof Blob ? audio : null, speak: fd.get("speak") === "1" });
+});
+export const aiCallEnd = async (id: string) => done(await hrRun((me) => aiHr.endCall(me, id)));
+export const aiCallConsent = async (allowed: boolean) => done(await hrRun((me) => aiHr.setConsent(me, allowed), allowed ? "AI conversations are on." : "AI conversations are off. HR can still contact you."));

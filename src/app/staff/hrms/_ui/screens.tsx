@@ -19,6 +19,8 @@ import { HrLeads, LeadBoard, MyLeads, SalesHome } from "./screens-sales";
 import { TrainingScreen } from "./screens-training";
 import { VideosScreen } from "./screens-videos";
 import { AcademyScreen, TrainerDeskScreen } from "./screens-academy";
+import { AiHrScreen } from "./screens-aihr";
+import { AiCallScreen } from "./screens-aicall";
 import { FinGst, FinHome, FinReports, RegisterScreen, WorkflowsScreen } from "./screens-fin";
 
 /** Picks the screen for the page. `data` is what that screen's loader returned. */
@@ -76,6 +78,8 @@ export function Screen({ screen, data, sh }: { screen: ScreenId; data: unknown; 
     case "payroll": return <PayrollScreen d={d as Data<"payroll">} />;
     case "reports": return <ReportsScreen d={d as Data<"reports">} />;
     case "allyusage": return <AllyUsageScreen d={d as Data<"allyusage">} />;
+    case "aihr": return <AiHrScreen d={d as Data<"aihr">} />;
+    case "aicall": return <AiCallScreen d={d as Data<"aicall">} />;
     case "finhome": return <FinHome d={d as Data<"finhome">} />;
     case "fin_reports": return <FinReports d={d as Data<"fin_reports">} />;
     case "fin_gst": return <FinGst d={d as Data<"fin_gst">} />;

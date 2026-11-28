@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { addDays, isoOf, todayISO } from "@/lib/dates";
 import { can, loadPerms, loadSettings, type Me } from "./auth";
 import { usage } from "./ally";
+import * as aiHr from "./ai-hr/service";
 import { listEvents, status as gcalStatus } from "./gcal";
 import { backupStatus } from "./chat-backup";
 import { HOME_OF, MODULES, REGISTERS, SCREENS, canOpen, screensFor } from "./constants";
@@ -193,6 +194,21 @@ export const loaders = {
   payroll: async (me: Me, q: Q) => { const month = monthArg(q.m); return { run: await payrollFor(me, month), prev: addMonths(month, -1), next: addMonths(month, 1) }; },
   reports: async (me: Me) => reports(me),
   allyusage: async (me: Me) => usage(me),
+  aihr: async (me: Me, q: Q = {}) => {
+    const tab = ["overview", "calls", "escalations", "knowledge", "scenarios", "playground", "status", "settings"].includes(q.tab ?? "") ? q.tab! : "overview";
+    const reason = (["late", "absent", "missing_checkout", "overtime", "manual"] as const).find((r) => r === q.reason) ?? "";
+    const staff = tab === "overview" || tab === "calls" ? await db.staffUser.findMany({ where: { kind: "team", role: { notIn: ["partner", "super_admin"] }, status: "active", deletedAt: null }, select: { id: true, name: true, empNo: true }, orderBy: { name: "asc" } }) : [];
+    return {
+      tab, reason, admin: me.role === "admin", hr: can(me, "employees"), people: staff,
+      overview: tab === "overview" ? await aiHr.overview(me) : null,
+      calls: tab === "calls" || tab === "overview" ? await aiHr.listCalls(me, { reason, status: q.status ?? "", days: Number(q.days) || 30 }) : null,
+      actions: tab === "escalations" ? await aiHr.actionsBoard(me, q.all === "1" ? "all" : "open") : null,
+      knowledge: tab === "knowledge" && can(me, "employees") ? await aiHr.knowledgeAdmin(me, (q.q ?? "").slice(0, 80)) : null,
+      scenarios: tab === "scenarios" ? await aiHr.scenarioAdmin(me) : null,
+      status: tab === "status" || tab === "settings" ? await aiHr.modelStatus(me) : null,
+    };
+  },
+  aicall: async (me: Me) => aiHr.myCalls(me),
 
   finhome: async (me: Me) => ({ sum: await summary(me) }),
   fin_reports: async (me: Me) => ({ sum: await summary(me) }),

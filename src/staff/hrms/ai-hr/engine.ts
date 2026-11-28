@@ -51,7 +51,6 @@ export type State = {
 };
 export type Turn = { state: State; reply: string; nlu?: Nlu; done: boolean };
 
-const SAFETY: Intent[] = ["harassment", "accident", "emergency", "stop_calls", "human"];
 const isLang = (l: string): l is Lang => l === "hi" || l === "en" || l === "hinglish";
 
 /** "11:30" spoken in the conversation's language. */

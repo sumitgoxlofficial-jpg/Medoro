@@ -103,7 +103,9 @@ export const productIndex = () => (cached ??= new Index(productDocs()));
 
 /** A knowledge function for the engine: answers only above the threshold, naming the record it came from. */
 export function kbFrom(index: Index) {
-  return (q: string, _lang: Lang): { answer: string; source: string } | null => {
+  // The language is accepted for future per-language records; retrieval maps Hindi/Hinglish terms already.
+  return (q: string, lang?: Lang): { answer: string; source: string } | null => {
+    void lang;
     const top = index.search(q, 1)[0];
     if (!confident(top, index.size)) return null;
     return { answer: top.passage, source: top.doc.title };

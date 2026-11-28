@@ -1,0 +1,288 @@
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+
+// AI HR Assistant against a real PostgreSQL: detection from attendance records (late, absent, missing check-out) with
+// leave, holiday and weekly-off exclusions; idempotency; retries; the employee conversation end to end; stop-call;
+// escalation; HR approval; access control; retention and deletion; knowledge approval; the signed webhook.
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }), headers: async () => new Headers({ "x-forwarded-for": "10.0.0.7" }) }));
+vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error("redirect " + u); } }));
+
+import { db } from "@/server/db";
+import { invalidateSettings, loadPerms, type Me } from "@/staff/hrms/auth";
+import { DEFAULT_SETTINGS } from "@/staff/hrms/constants";
+import * as svc from "@/staff/hrms/ai-hr/service";
+import { sign } from "@/staff/hrms/ai-hr/telephony";
+import { dateOnly } from "@/lib/dates";
+import { resetDb } from "./helpers";
+
+let hr: Me, hr2: Me, admin: Me, a: Me, b: Me, c: Me, mgr: Me;
+const me = async (id: string): Promise<Me> => {
+  const u = await db.staffUser.findUniqueOrThrow({ where: { id }, include: { hr: true } });
+  return { id, empNo: u.empNo, name: u.name, first: u.name.split(" ")[0], email: u.email, staffRole: u.role, role: u.role === "super_admin" ? "admin" : u.hr!.role, perms: await loadPerms(), sessionId: "t", phone: u.phone, personalEmail: "", dept: "", designation: "", photo: null, mustChangePassword: false, profileDone: true, docsAccepted: true, kycSubmitted: true, kycSkipped: false, kycVerified: true };
+};
+let n = 0;
+const mk = async (name: string, role: "hr" | "employee" | "admin", extra: Record<string, unknown> = {}) => (await db.staffUser.create({ data: { empNo: `MS-${700 + ++n}`, name, email: `${name.split(" ")[0].toLowerCase()}${n}@medoro.in`, kind: "team", phone: "94000000" + String(n).padStart(2, "0"), role: role === "admin" ? "super_admin" : "employee", status: "active", hr: { create: { role: role === "admin" ? "employee" : role, profileDone: true, joinDate: new Date("2025-01-06"), createdAt: new Date("2025-01-06"), ...extra } } } })).id;
+const at = (iso: string) => vi.setSystemTime(new Date(iso));
+const DAY = "2026-12-02"; // Wednesday
+const ist = (hhmm: string, day = DAY) => `${day}T${hhmm}:00+05:30`;
+const enable = (over: Partial<svc.AiHrConfig> = {}) => db.hrSetting.upsert({ where: { key: "aiHr" }, update: { value: { ...svc.DEFAULT_CONFIG, enabled: true, llmAssist: false, ...over } }, create: { key: "aiHr", value: { ...svc.DEFAULT_CONFIG, enabled: true, llmAssist: false, ...over } } });
+const callsOf = (staffId: string) => db.aiHrCall.findMany({ where: { staffId }, orderBy: { createdAt: "asc" } });
+
+describe("AI HR Assistant (integration)", () => {
+  beforeAll(async () => {
+    delete process.env.AI_HR_SERVICE_URL; delete process.env.AI_HR_SERVICE_TOKEN;
+    await resetDb();
+    await db.hrSetting.upsert({ where: { key: "settings" }, update: { value: { ...DEFAULT_SETTINGS, lateAfter: "10:00", weekOff: [0, 6] } }, create: { key: "settings", value: { ...DEFAULT_SETTINGS, lateAfter: "10:00", weekOff: [0, 6] } } }); invalidateSettings();
+    hr = await me(await mk("Hema HR", "hr")); hr2 = await me(await mk("Harsh HR", "hr")); admin = await me(await mk("Sara Admin", "admin"));
+    mgr = await me(await mk("Manoj Manager", "employee"));
+    a = await me(await mk("Anita Late", "employee", { managerId: mgr.id })); b = await me(await mk("Bharat Leave", "employee")); c = await me(await mk("Chetan Early", "employee", { shiftStart: "09:00" }));
+    await enable();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("does nothing while switched off", async () => {
+    await enable({ enabled: false });
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("10:45"));
+    expect(await svc.detect()).toEqual({ created: 0, skipped: 0 });
+    await enable();
+  });
+
+  it("detects lateness after the shift start + 10 min, once, and excludes approved leave", async () => {
+    await db.hrLeave.create({ data: { staffId: b.id, type: "casual", fromDay: dateOnly(DAY), toDay: dateOnly(DAY), days: 1, reason: "family", status: "approved" } });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    at(ist("10:05")); expect((await svc.detect()).created).toBe(1); // only Chetan (09:00 start → absent rule after 30 min)
+    expect((await callsOf(c.id))[0]).toMatchObject({ reason: "absent" });
+    at(ist("10:12"));
+    const r = await svc.detect();
+    expect(r.created).toBeGreaterThanOrEqual(1);
+    const late = await callsOf(a.id);
+    expect(late).toHaveLength(1);
+    expect(late[0]).toMatchObject({ reason: "late", eventKey: `late:${a.id}:${DAY}` });
+    expect(await callsOf(b.id)).toHaveLength(0); // approved leave
+    // duplicate attendance events: running detection again creates nothing new
+    at(ist("10:20")); await svc.detect(); await svc.detect();
+    expect(await callsOf(a.id)).toHaveLength(1);
+    // the late call already exists, so absence at 10:30+ is not a second call for the same day
+    at(ist("10:40")); await svc.detect();
+    expect(await callsOf(a.id)).toHaveLength(1);
+  });
+
+  it("holidays and weekly offs never trigger a conversation", async () => {
+    await db.hrHoliday.create({ data: { day: dateOnly("2026-12-03"), name: "Test holiday", kind: "National holiday" } });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    at(ist("11:00", "2026-12-03")); expect((await svc.detect()).created).toBe(0);
+    at(ist("11:00", "2026-12-05")); expect((await svc.detect()).created).toBe(0); // Saturday
+    expect(await db.aiHrCall.count({ where: { day: { in: [dateOnly("2026-12-03"), dateOnly("2026-12-05")] } } })).toBe(0);
+  });
+
+  it("notifies, retries at most three times, then hands over to HR; a check-in cancels a pending call", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    at(ist("10:41")); await svc.dispatch();
+    const call = (await callsOf(a.id))[0];
+    expect((await db.aiHrCall.findUniqueOrThrow({ where: { id: call.id } })).attempts).toBe(1);
+    expect(await db.hrNotification.count({ where: { staffId: a.id, screen: "aicall" } })).toBe(1);
+    // Chetan checks in before his reminder: his pending absence call is cancelled, not sent again
+    await db.hrAttendance.create({ data: { staffId: c.id, day: dateOnly(DAY), inAt: new Date(ist("10:50")), status: "late" } });
+    at(ist("11:02")); await svc.dispatch();
+    expect((await callsOf(c.id))[0]).toMatchObject({ status: "cancelled", suppressReason: "The employee checked in." });
+    at(ist("11:23")); await svc.dispatch();
+    expect((await db.aiHrCall.findUniqueOrThrow({ where: { id: call.id } })).attempts).toBe(3);
+    at(ist("11:44")); await svc.dispatch();
+    expect((await db.aiHrCall.findUniqueOrThrow({ where: { id: call.id } })).status).toBe("no_answer");
+    expect(await db.aiHrAction.count({ where: { callId: call.id, kind: "hr_followup" } })).toBe(1);
+    expect(await db.hrNotification.count({ where: { staffId: a.id, screen: "aicall" } })).toBe(3); // retry limit
+  });
+
+  it("detects a missing check-out 15 minutes after the shift end", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // Chetan: 09:00 start + 8h + 30 min lunch = 17:30 end
+    at(ist("17:40")); await svc.detect();
+    expect((await callsOf(c.id)).some((x) => x.reason === "missing_checkout")).toBe(false);
+    at(ist("17:46")); await svc.detect();
+    expect((await callsOf(c.id)).filter((x) => x.reason === "missing_checkout")).toHaveLength(1);
+  });
+
+  it("runs a whole conversation as text without the AI service, stores a sealed transcript and a validated outcome", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    at(ist("17:50"));
+    const call = (await callsOf(c.id)).find((x) => x.reason === "missing_checkout")!;
+    const open = await svc.beginCall(c, call.id);
+    expect(open.turns[0].text).toMatch(/AI HR Assistant/);
+    expect(open.audio).toBeNull(); // no AI service configured: voice is off, text works
+    await expect(svc.sendTurn(c, call.id, { audio: new Blob([new Uint8Array(5000)]) })).rejects.toThrow(/type your answer/);
+    await svc.sendTurn(c, call.id, { text: "haan" });
+    const end = await svc.sendTurn(c, call.id, { text: "checkout bhool gaya, 5:35 pe nikla tha" });
+    expect(end.done).toBe(true);
+    const row = await db.aiHrCall.findUniqueOrThrow({ where: { id: call.id }, include: { response: true, turns: true } });
+    expect(row.status).toBe("completed");
+    expect(row.response).toMatchObject({ employeeResponse: "forgot_checkout" });
+    expect(Buffer.from(row.turns[2].textSealed).toString("utf8")).not.toMatch(/checkout/); // sealed at rest
+    expect(await db.aiHrAction.count({ where: { callId: call.id, kind: "checkout_correction" } })).toBe(1);
+    // attendance was not changed by the assistant
+    const att = await db.hrAttendance.findUniqueOrThrow({ where: { staffId_day: { staffId: c.id, day: dateOnly(DAY) } } });
+    expect(att.outAt).toBeNull();
+  });
+
+  it("another employee can't open someone's conversation; employees can't open the HR side", async () => {
+    const call = (await callsOf(c.id))[0];
+    await expect(svc.beginCall(a, call.id)).rejects.toThrow(/isn't yours/);
+    await expect(svc.sendTurn(a, call.id, { text: "haan" })).rejects.toThrow(/isn't yours/);
+    await expect(svc.overview(a)).rejects.toThrow(/role can’t/);
+    await expect(svc.callDetail(a, call.id)).rejects.toThrow(/role can’t/);
+    await expect(svc.saveConfig(hr, svc.DEFAULT_CONFIG)).rejects.toThrow(/super admin/);
+  });
+
+  it("overtime: a manager raises it, the employee accepts explicitly, the manager is told and nothing is approved", async () => {
+    await expect(svc.requestOvertime(b, { staffId: a.id, date: "2026-12-04", hours: 2, from: "19:00", reason: "stock count" })).rejects.toThrow(/role can’t/);
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:00"));
+    const id = await svc.requestOvertime(mgr, { staffId: a.id, date: "2026-12-04", hours: 2, from: "19:00", reason: "stock count" });
+    await svc.beginCall(a, id);
+    await svc.sendTurn(a, id, { text: "haan bolo" });
+    await svc.sendTurn(a, id, { text: "haan kar lungi" });
+    await svc.sendTurn(a, id, { text: "haan sahi hai" });
+    expect((await db.aiHrCallResponse.findUniqueOrThrow({ where: { callId: id } })).overtimeResponse).toBe("accepted");
+    expect(await db.hrNotification.count({ where: { staffId: mgr.id, text: { contains: "is available for" } } })).toBe(1);
+    expect(await db.aiHrAction.findFirst({ where: { callId: id, kind: "overtime_response" } })).toMatchObject({ status: "open" });
+    const id2 = await svc.requestOvertime(hr, { staffId: c.id, date: "2026-12-04", hours: 1, reason: "audit" });
+    await svc.beginCall(c, id2);
+    await svc.sendTurn(c, id2, { text: "nahi, aaj nahi ruk paunga" });
+    expect((await db.aiHrCallResponse.findUniqueOrThrow({ where: { callId: id2 } })).overtimeResponse).toBe("rejected");
+  });
+
+  it("a callback request schedules a new conversation at that time", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:10"));
+    const id = await svc.startManualCall(hr, b.id, "pending documents");
+    await svc.beginCall(b, id);
+    await svc.sendTurn(b, id, { text: "abhi busy hoon, shaam 5 baje call karna" });
+    const next = await db.aiHrCall.findUnique({ where: { eventKey: `callback:${id}` } });
+    expect(next?.nextAttemptAt?.toISOString()).toBe(new Date(ist("17:00")).toISOString());
+  });
+
+  it("asking for a person escalates to HR; HR approves or rejects, never their own", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:20"));
+    const id = await svc.startManualCall(hr, hr2.id, "follow-up");
+    await svc.beginCall(hr2, id);
+    await svc.sendTurn(hr2, id, { text: "HR se baat karni hai" });
+    const act = await db.aiHrAction.findFirstOrThrow({ where: { callId: id, kind: "human_requested" } });
+    expect(await db.hrNotification.count({ where: { staffId: hr.id, text: { contains: "asked for HR follow-up" } } })).toBe(1);
+    await expect(svc.decideAction(hr2, act.id, true)).rejects.toThrow(/Someone else/);
+    await expect(svc.decideAction(hr, act.id, false)).rejects.toThrow(/Say why/);
+    await svc.decideAction(hr, act.id, true, "Called back");
+    expect(await db.aiHrAction.findUniqueOrThrow({ where: { id: act.id } })).toMatchObject({ status: "approved", decidedBy: hr.id });
+    await expect(svc.decideAction(hr, act.id, true)).rejects.toThrow(/already decided/);
+    await expect(db.aiHrAction.delete({ where: { id: act.id } })).rejects.toThrow();
+  });
+
+  it("a leave draft is proposed, and HR's decision is recorded without writing a leave row", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:30"));
+    const id = await svc.startManualCall(hr, mgr.id, "attendance");
+    await db.aiHrCall.update({ where: { id }, data: { reason: "absent" } });
+    await svc.beginCall(mgr, id);
+    await svc.sendTurn(mgr, id, { text: "aaj nahi aa paunga, bukhar hai" });
+    await svc.sendTurn(mgr, id, { text: "haan" });
+    const act = await db.aiHrAction.findFirstOrThrow({ where: { callId: id, kind: "leave_draft" } });
+    const before = await db.hrLeave.count();
+    await svc.decideAction(hr, act.id, false, "Please apply in the HRMS");
+    expect(await db.hrLeave.count()).toBe(before);
+    expect(await db.hrNotification.count({ where: { staffId: mgr.id, text: { contains: "Please apply in the HRMS" } } })).toBe(1);
+  });
+
+  it("stop-call: recorded as the employee's preference; no more conversations are created or sent", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:40"));
+    const id = await svc.startManualCall(hr, c.id, "check");
+    await svc.beginCall(c, id);
+    await svc.sendTurn(c, id, { text: "mujhe aage se call mat karo" });
+    expect(await db.aiHrConsent.findUniqueOrThrow({ where: { staffId: c.id } })).toMatchObject({ status: "stopped", source: "ai_call" });
+    await expect(svc.startManualCall(hr, c.id, "again")).rejects.toThrow(/switched AI conversations off/);
+    at(ist("10:20", "2026-12-07")); await svc.detect();
+    expect(await db.aiHrCall.count({ where: { staffId: c.id, day: dateOnly("2026-12-07") } })).toBe(0);
+    await svc.setConsent(c, true);
+    expect((await db.aiHrConsent.findUniqueOrThrow({ where: { staffId: c.id } })).status).toBe("allowed");
+  });
+
+  it("harassment reports are escalated urgently to HR", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] }); at(ist("15:50"));
+    const id = await svc.startManualCall(hr, b.id, "check");
+    await svc.beginCall(b, id);
+    await svc.sendTurn(b, id, { text: "mere saath office mein harassment ho raha hai" });
+    expect(await db.aiHrAction.findFirst({ where: { callId: id, kind: "harassment_report" } })).toMatchObject({ priority: "urgent" });
+    expect(await db.hrNotification.count({ where: { staffId: hr.id, text: { startsWith: "URGENT" } } })).toBe(1);
+  });
+
+  it("answers from published company policy, and routes unknown questions to HR", async () => {
+    await db.hrPolicy.create({ data: { title: "Work from home policy", category: "Attendance", body: "Employees may work from home on Fridays with their manager's approval.\n\nAsk your manager a day before.", mandatory: false, version: 1, publishedBy: hr.id } });
+    svc.invalidateKnowledge();
+    const t = await svc.testRetrieval(hr, "work from home policy kya hai");
+    expect(t.answer?.source).toBe("Work from home policy");
+    expect(t.answer?.answer).toMatch(/Fridays/);
+    const none = await svc.testRetrieval(hr, "gym membership reimbursement milta hai kya");
+    expect(none.answer).toBeNull();
+    const pg = await svc.playground(hr, { reason: "manual", lines: ["work from home policy kya hai?"] });
+    expect(pg.turns.at(-1)!.text).toMatch(/Fridays.*Work from home policy/);
+    const pg2 = await svc.playground(hr, { reason: "late", lines: ["mera data kaun dekhega?"] });
+    expect(pg2.turns.at(-1)!.text).toMatch(/authorised HR/);
+  });
+
+  it("knowledge versions: drafts need a second person, approval replaces, rollback restores", async () => {
+    const id1 = await svc.saveKnowledgeDraft(hr, { title: "Dress code", body: "Business casual from Monday to Thursday.", scope: "organisation", kind: "policy", source: "HR circular 12" });
+    await expect(svc.approveKnowledge(hr, id1)).rejects.toThrow(/Someone else/);
+    await svc.approveKnowledge(hr2, id1);
+    const key = (await db.aiHrKnowledgeDoc.findUniqueOrThrow({ where: { id: id1 } })).docKey;
+    const id2 = await svc.saveKnowledgeDraft(hr2, { docKey: key, title: "Dress code", body: "Business casual every working day.", scope: "organisation", kind: "policy", source: "HR circular 13" });
+    expect((await svc.testRetrieval(hr, "dress code kya hai")).answer?.answer).toMatch(/Monday to Thursday/);
+    await svc.approveKnowledge(hr, id2);
+    expect((await svc.testRetrieval(hr, "dress code kya hai")).answer?.answer).toMatch(/every working day/);
+    await svc.rollbackKnowledge(hr, key, 1);
+    expect((await svc.testRetrieval(hr, "dress code kya hai")).answer?.answer).toMatch(/Monday to Thursday/);
+    expect(await db.aiHrKnowledgeDoc.count({ where: { docKey: key } })).toBe(2);
+    expect(await db.aiHrKnowledgeDoc.count({ where: { scope: "product", status: "approved" } })).toBeGreaterThan(200);
+  });
+
+  it("deletes transcripts after retention, and on request (super admin only)", async () => {
+    const done = await db.aiHrCall.findMany({ where: { status: "completed" }, select: { id: true } });
+    const [x, y] = done;
+    await expect(svc.deleteTranscript(hr, x.id)).rejects.toThrow(/super admin/);
+    await svc.deleteTranscript(admin, x.id);
+    expect(await db.aiHrTurn.count({ where: { callId: x.id } })).toBe(0);
+    expect((await db.aiHrCallResponse.findUniqueOrThrow({ where: { callId: x.id } })).said).toEqual([]);
+    await db.aiHrCall.update({ where: { id: y.id }, data: { retainUntil: new Date(Date.now() - 1000) } });
+    expect(await svc.retentionSweep()).toBeGreaterThanOrEqual(1);
+    expect(await db.aiHrTurn.count({ where: { callId: y.id } })).toBe(0);
+    expect(await db.aiHrCallResponse.count({ where: { callId: y.id } })).toBe(1); // the outcome (without quotes) stays
+  });
+
+  it("overview counts come from the database", async () => {
+    const o = await svc.overview(hr);
+    expect(o.total).toBe(await db.aiHrCall.count());
+    expect(o.completed).toBe(await db.aiHrCall.count({ where: { status: "completed" } }));
+    expect(o.health.configured).toBe(false);
+    expect(o.scenarios.total).toBe(1000);
+  });
+
+  it("the webhook is off unless configured, verifies signatures and ignores duplicates", async () => {
+    const { POST } = await import("@/app/api/webhooks/ai-hr/call-events/route");
+    const call = await db.aiHrCall.findFirstOrThrow();
+    await db.aiHrCall.update({ where: { id: call.id }, data: { channel: "sip" } });
+    const body = JSON.stringify({ id: "evt_000000001", type: "call.no_answer", callId: call.id });
+    const req = (sig: string | null) => new Request("http://x/api/webhooks/ai-hr/call-events", { method: "POST", body, headers: sig ? { "x-medoro-signature": sig } : {} });
+    expect((await POST(req(null))).status).toBe(404);
+    process.env.AI_HR_SIP_ENABLED = "1"; process.env.AI_HR_WEBHOOK_SECRET = "test-webhook-secret-0123456789";
+    try {
+      expect((await POST(req(null))).status).toBe(401);
+      expect((await POST(req(sign(body, "wrong-secret")))).status).toBe(401);
+      expect((await POST(req(sign(body, process.env.AI_HR_WEBHOOK_SECRET, Math.floor(Date.now() / 1000) - 900)))).status).toBe(401); // too old
+      const ok = await POST(req(sign(body, process.env.AI_HR_WEBHOOK_SECRET)));
+      expect(await ok.json()).toEqual({ ok: true });
+      const dup = await POST(req(sign(body, process.env.AI_HR_WEBHOOK_SECRET)));
+      expect(await dup.json()).toEqual({ ok: true, duplicate: true });
+      expect(await db.aiHrCallAttempt.count({ where: { callId: call.id, outcome: "no_answer", detail: "" } })).toBe(1);
+    } finally { delete process.env.AI_HR_SIP_ENABLED; delete process.env.AI_HR_WEBHOOK_SECRET; }
+  });
+
+  it("scenario evaluation runs and is stored", async () => {
+    const r = await svc.runEvaluation(hr);
+    expect(r.total).toBe(1000);
+    const run = await db.aiHrEvalRun.findFirstOrThrow({ orderBy: { startedAt: "desc" } });
+    expect(run.passed).toBe(r.passed);
+    expect(run.finishedAt).not.toBeNull();
+  });
+});
